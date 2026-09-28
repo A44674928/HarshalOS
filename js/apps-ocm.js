@@ -95,7 +95,7 @@
     }
 
     function toScreen(p) {
-      const s = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.36;
+      const s = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.18;
       return { x: canvas.clientWidth / 2 + p.x * s, y: canvas.clientHeight / 2 + p.y * s * 0.92, k: p.k, z: p.z };
     }
 
@@ -587,6 +587,7 @@
 
         const canvas = body.querySelector("#ocm-canvas");
         const engine = createOrbEngine(canvas, api);
+        window.OCM_ENGINE = engine; /* debug/automation hook */
 
         // inspector
         const inspector = body.querySelector("#ocm-inspector");
