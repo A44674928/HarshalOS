@@ -1070,3 +1070,265 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   OCM VISUALIZATION — The Orb · Interaction Orbs
+   ═══════════════════════════════════════════════════════════════ */
+
+.ocm-stage {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) 280px;
+  gap: 14px;
+  margin: 12px 0;
+}
+.ocm-canvas-wrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    radial-gradient(900px 500px at 50% 45%, rgba(20, 38, 76, 0.55), transparent 70%),
+    #05090f;
+  overflow: hidden;
+  min-height: 430px;
+}
+.ocm-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.ocm-canvas-wrap canvas.dragging { cursor: grabbing; }
+.ocm-hud-corner {
+  position: absolute;
+  left: 12px; top: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  line-height: 1.9;
+  pointer-events: none;
+}
+.ocm-hint {
+  position: absolute;
+  right: 12px; bottom: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.ocm-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ocm-inspector {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-1);
+  padding: 13px 14px;
+  flex: 1;
+}
+.ocm-inspector .oi-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.ocm-inspector .oi-addr {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  word-break: break-all;
+}
+.ocm-inspector .oi-deg {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ice);
+  letter-spacing: 0.08em;
+  margin: 8px 0 2px;
+}
+.ocm-inspector .oi-about {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.65;
+  margin-top: 6px;
+}
+.ocm-inspector .oi-why {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  line-height: 1.9;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.chip-toggle {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 5px 11px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  color: var(--text-faint);
+  background: var(--bg-1);
+}
+.chip-toggle.on {
+  border-color: rgba(111, 211, 255, 0.55);
+  color: var(--ice);
+  background: rgba(111, 211, 255, 0.08);
+}
+
+.slider-row .slider-cap {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.addr-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  padding: 8px 13px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 212, 121, 0.35);
+  background: rgba(255, 212, 121, 0.06);
+  margin: 6px 0;
+}
+
+.quad-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+.quad-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.quad-key i {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.arith-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+.arith-unit {
+  width: 86px;
+  padding: 14px 8px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-1);
+}
+.arith-unit .au-orb {
+  width: 34px; height: 34px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+}
+.arith-unit .au-orb.a { background: radial-gradient(circle at 32% 30%, #dff4ff, var(--ice) 40%, #1c3a66); }
+.arith-unit .au-orb.b { background: radial-gradient(circle at 32% 30%, #dfe9ff, var(--water) 40%, #16294e); }
+.arith-unit .au-orb.link {
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #efe2ff, var(--gas) 45%, #3a2266);
+  box-shadow: 0 0 18px rgba(181, 124, 255, 0.5);
+}
+.arith-unit .au-label { font-family: var(--mono); font-size: 9px; color: var(--text-faint); letter-spacing: 0.08em; }
+.arith-unit .au-val { font-family: var(--mono); font-size: 15px; color: var(--text); margin-top: 3px; }
+.arith-op {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text-faint);
+}
+.arith-unit.total {
+  border-color: rgba(255, 212, 121, 0.5);
+  background: rgba(255, 212, 121, 0.07);
+}
+.arith-unit.total .au-val { color: var(--gold); font-size: 19px; }
+
+.step-box {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--bg-1);
+  margin: 10px 0;
+}
+.step-box .st-kicker {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--ice);
+  margin-bottom: 6px;
+}
+.step-box .st-title { font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+.step-box .st-body { font-size: 11.5px; color: var(--text-dim); line-height: 1.7; min-height: 3em; }
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.step-dots { display: flex; gap: 5px; }
+.step-dots i {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--line-hi);
+  display: inline-block;
+}
+.step-dots i.on { background: var(--ice); }
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 210px 1fr 46px;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+}
+.bar-track {
+  height: 10px;
+  border-radius: 99px;
+  background: var(--bg-0);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+.bar-fill.ice { background: var(--ice); }
+.bar-fill.water { background: var(--water); }
+.bar-fill.gas { background: var(--gas); }
+.bar-fill.gold { background: var(--gold); }
+
+@media (max-width: 860px) {
+  .ocm-stage { grid-template-columns: 1fr; }
+  .ocm-canvas-wrap { min-height: 320px; }
+  .bar-row { grid-template-columns: 1fr; }
+}

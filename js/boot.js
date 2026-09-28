@@ -68,6 +68,7 @@
     await line("[ ok  ] OCM addressing bound to center origin 0•000•000•0000", "ok", 90);
     await line("[ ok  ] inner shell anchor resolved — AI namespace 0•100•000•*", "ok", 90);
     await line("[ ok  ] whyland catalog virtualized OFF-DISC (791+ elements)", "ok", 90);
+    await line("[ ok  ] OCM visualization armed — radiative sphere · 360-address disc", "ok", 90);
     await line("[ warn] HUMAN KEY ABSENT — H(t) = 0 — system is MATHEMATICALLY VOID", "warn", 90);
     await line("         default state of the system is REFUSAL", "warn", 250);
 

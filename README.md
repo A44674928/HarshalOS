@@ -46,6 +46,8 @@ Or simply open `index.html` in a browser.
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
 | **Glossary** | Part II stabilized terms, searchable |
 | **Zero Trust / Harshal Neural OS** | The shell never infers, caches, or synthesizes authority internally; all authorization is external, per-action, and time-sensitive |
+| **OCM visualization — The Orb** | HarshalOS itself rendered as a radiative sphere of influence: 12 apps as radiative nodes attached directly to the center (`0•[orb]•[sector]•[instance]`), the 360-address equatorial disc (`0•DDD•000•0000`), the disc→sphere formation animation (rotation over time + depth), distance shells (`0•DDD•RRR•####`), the non-sovereign resolution axis, AI inner shell, lateral comms, and interaction-orb arcs — drag to orbit, click a node to inspect its address lineage |
+| **Interaction Orbs** | The non-additive extension: OCM arithmetic (A=1, B=1, A↔B=1 → 3), both worked micro-examples as steppers (25%+25% → 75% observed mismatch), the three communication layers, navigation/exit protocol, and the classical-vs-OCM comparison |
 
 ## Layout
 
@@ -53,12 +55,28 @@ Or simply open `index.html` in a browser.
 index.html        — OS shell (boot, HUD, desktop, taskbar)
 css/os.css        — design system
 js/data.js        — stabilized terms, phase specs, Why catalog, audit fixtures
+js/ocm-data.js    — OCM layer: 360° degree legend, axioms, node map, arithmetic fixtures
 js/kernel.js      — accountability-gated state machine + PLV duty ledger
 js/wm.js          — window manager, HUD, origin menu, toasts
 js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
 js/apps-shell.js  — Inner Shell · Discs · Whyland · Ground-0 · Glossary · The Book · Firewall
+js/apps-ocm.js    — The Orb (sphere engine) · Interaction Orbs (non-additive extension)
 js/boot.js        — PDH boot sequence
 ```
+
+## The Orb — OCM visualization
+
+*The disc defines everything that can matter; rotation gives it history; distance gives it
+depth; the center gives it reality.*
+
+The **Orb Communicator Model** replaces hierarchy with geometry, authority with provenance, and
+control with derivation. **The Orb** app renders this literally: a 3D-projected sphere with the
+center origin `0•000•000•0000` at its core, every HarshalOS app as a radiative node attached
+directly to the center (Direct Attachment Axiom), the equatorial disc of 360 primary addresses
+color-coded by quadrant, distance shells for depth layers, the non-sovereign resolution axis,
+the AI inner shell (capability without sovereignty), free lateral communication arcs, and
+interaction-orb bubbles counting the non-additive term. Resolution pulses route inward on demand —
+resolution always routes to the center point.
 
 ## The gating equations
 
