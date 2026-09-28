@@ -1,0 +1,820 @@
+/* ═══════════════════════════════════════════════════════════════
+   HarshalOS — Orb Communicator Model visualization
+   "The Orb" (radiative sphere: disc that becomes a sphere) and
+   "Interaction Orbs" (non-additive interaction extension).
+   Geometry: 0•[orb]•[sector]•[instance] · Center-Origin 0•000•000•0000
+   ═══════════════════════════════════════════════════════════════ */
+
+"use strict";
+
+(() => {
+  const TAU = Math.PI * 2;
+  const D2R = Math.PI / 180;
+
+  const QUAD_COLORS = ["#6fd3ff", "#7a8cff", "#b57cff", "#5ce6a8"];
+  const CENTER_COLOR = "#ffd479";
+  const SHELL_COLOR = "#4a9eff";
+  const LATERAL_COLOR = "#2e5f9e";
+  const ORB_COLOR = "#b57cff";
+
+  /* deterministic per-node latitude spread (Fibonacci-ish) */
+  function latSpreadFor(i, n) {
+    const u = ((i + 0.5) / n) * 2 - 1;              // −1..1
+    return Math.asin(Math.max(-0.92, Math.min(0.92, u * 1.35))); // radians, |φ| ≲ 67°
+  }
+
+  function nodePosition(node, i, n, formation, extraSpin) {
+    const lon = node.deg * D2R + extraSpin;
+    const lat = latSpreadFor(i, n) * ease(formation);
+    const rr = node.r;
+    return {
+      x: rr * Math.cos(lat) * Math.cos(lon),
+      y: rr * Math.sin(lat),
+      z: rr * Math.cos(lat) * Math.sin(lon)
+    };
+  }
+
+  function ease(t) { return t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t); }
+
+  /* ───────────────────────────────────────────────
+     Sphere engine — 2D canvas with manual 3D projection
+     ─────────────────────────────────────────────── */
+  function createOrbEngine(canvas, api) {
+    const ctx = canvas.getContext ? canvas.getContext("2d") : null;
+    const nodes = OCM_DATA.nodes;
+    const n = nodes.length;
+
+    const st = {
+      yaw: -0.5,
+      pitch: 0.42,
+      zoom: 1,
+      autoSpeed: 0.0016,
+      dragging: false,
+      lastX: 0, lastY: 0,
+      formation: 0,
+      formDir: 1,
+      animatingForm: false,
+      selected: -1,
+      hover: -1,
+      show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true },
+      pulses: [],
+      flare: 0,
+      projected: [],
+      raf: 0
+    };
+
+    const aiNodes = [
+      { tag: "AI-0417", lon: 20, lat: 35 },
+      { tag: "AI-0912", lon: 150, lat: -20 },
+      { tag: "AI-3300", lon: 265, lat: 48 }
+    ];
+
+    /* environments without a 2D canvas context get a no-op engine */
+    if (!ctx) {
+      return {
+        state: st,
+        selectNode() {}, onSelect() {},
+        pulseResolution(i) { return i >= 0 ? i : 0; },
+        pulseLateral() { return [0, 1]; },
+        animateFormation() {}, setFormation() {}, setToggle() {}
+      };
+    }
+
+    /* ---------- camera ---------- */
+    function project(p) {
+      // yaw around Y, pitch around X
+      const cy = Math.cos(st.yaw), sy = Math.sin(st.yaw);
+      const cp = Math.cos(st.pitch), sp = Math.sin(st.pitch);
+      let x = p.x * cy + p.z * sy;
+      let z = -p.x * sy + p.z * cy;
+      let y = p.y * cp - z * sp;
+      z = p.y * sp + z * cp;
+      const fov = 7.2 / st.zoom;
+      const k = fov / (fov + z);
+      return { x: x * k, y: -y * k, k, z };
+    }
+
+    function toScreen(p) {
+      const s = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.36;
+      return { x: canvas.clientWidth / 2 + p.x * s, y: canvas.clientHeight / 2 + p.y * s * 0.92, k: p.k, z: p.z };
+    }
+
+    /* ---------- drawing primitives ---------- */
+    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo) {
+      // plane: 'eq' (equatorial), 'lat:<phi>', 'mer:<lon>'
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i <= steps; i++) {
+        const a = angleFrom + (angleTo - angleFrom) * (i / steps);
+        let p;
+        if (plane === "eq") {
+          p = { x: radius * Math.cos(a), y: 0, z: radius * Math.sin(a) };
+        } else if (plane.startsWith("lat:")) {
+          const phi = parseFloat(plane.slice(4));
+          p = { x: radius * Math.cos(phi) * Math.cos(a), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a) };
+        } else {
+          const lon = parseFloat(plane.slice(4));
+          p = { x: radius * Math.cos(a) * Math.cos(lon), y: radius * Math.sin(a), z: radius * Math.cos(a) * Math.sin(lon) };
+        }
+        const q = toScreen(project(p));
+        if (!started) { ctx.moveTo(q.x, q.y); started = true; } else ctx.lineTo(q.x, q.y);
+      }
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = width;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    function line3D(a, b, color, alpha, width, dash) {
+      const pa = toScreen(project(a));
+      const pb = toScreen(project(b));
+      ctx.beginPath();
+      if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = width;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+    }
+
+    function glowDot(sp, r, color, glow) {
+      if (glow > 0) {
+        const g = ctx.createRadialGradient(sp.x, sp.y, 0, sp.x, sp.y, r * 4.2);
+        g.addColorStop(0, color);
+        g.addColorStop(1, "transparent");
+        ctx.globalAlpha = 0.28 * glow;
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 4.2, 0, TAU);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, r, 0, TAU);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    /* ---------- frame ---------- */
+    function frame() {
+      st.raf = requestAnimationFrame(frame);
+      if (!document.body.contains(canvas)) { cancelAnimationFrame(st.raf); return; }
+      if (canvas.offsetParent === null && canvas.clientWidth === 0) return; // minimized
+
+      // adaptive size
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      if (!st.dragging && !st.animatingForm) st.yaw += st.autoSpeed;
+      if (st.animatingForm) {
+        st.formation += 0.006 * st.formDir;
+        if (st.formation >= 1) { st.formation = 1; st.animatingForm = false; }
+        if (st.formation <= 0) { st.formation = 0; st.animatingForm = false; }
+      }
+
+      const f = st.formation;
+      const R = 2.42;
+
+      /* 1 · volumetric wireframe (fades in with formation) */
+      if (f > 0.02) {
+        for (let m = 0; m < 12; m++) {
+          arc3D(R - 0.08, "mer:" + (m * 15) * D2R, 48, "#2b4271", 0.16 * f, 1, -Math.PI / 2, Math.PI / 2);
+        }
+        for (let la = -60; la <= 60; la += 30) {
+          arc3D((R - 0.08) * Math.cos(la * D2R), "lat:" + la * D2R, 64, "#2b4271", 0.16 * f, 1, 0, TAU);
+        }
+      }
+
+      /* 2 · depth shells — distance gives it depth */
+      [1.15, 1.8].forEach((rr, i) => {
+        arc3D(rr, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", 0.22, 1, 0, TAU);
+      });
+
+      /* 3 · the equatorial disc — 360 primary radiative addresses */
+      if (st.show.disc) {
+        arc3D(R, "eq", 160, "#3a5a8f", 0.5, 1.2, 0, TAU);
+        // 360 ticks (1 per degree)
+        for (let d = 0; d < 360; d += 2) {
+          const a = d * D2R + yaw0();
+          const inner = R + 0.02, outer = R + (d % 30 === 0 ? 0.16 : 0.09);
+          line3D(
+            { x: inner * Math.cos(a), y: 0, z: inner * Math.sin(a) },
+            { x: outer * Math.cos(a), y: 0, z: outer * Math.sin(a) },
+            quadColor(d), d % 30 === 0 ? 0.85 : 0.4, d % 30 === 0 ? 1.3 : 0.8
+          );
+        }
+        // quadrant arcs
+        OCM_DATA.quadrants.forEach((q, qi) => {
+          arc3D(R + 0.24, "eq", 32, quadColor(q.from), 0.65, 1.6, q.from * D2R + yaw0(), (q.to + 1) * D2R + yaw0());
+        });
+      }
+
+      /* 4 · resolution axis — non-sovereign */
+      if (st.show.axis) {
+        line3D({ x: 0, y: -2.55, z: 0 }, { x: 0, y: 2.55, z: 0 }, CENTER_COLOR, 0.3, 1, [5, 6]);
+        const capA = toScreen(project({ x: 0, y: 2.55, z: 0 }));
+        const capB = toScreen(project({ x: 0, y: -2.55, z: 0 }));
+        ctx.fillStyle = "rgba(255,212,121,0.5)";
+        ctx.font = "9px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("RESOLUTION AXIS", capA.x, capA.y - 8);
+        ctx.fillText("(NON-SOVEREIGN)", capB.x, capB.y + 16);
+      }
+
+      /* 5 · direct attachment spokes — all nodes attach to the center */
+      const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0()));
+      if (st.show.spokes) {
+        pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", 0.22, 0.8));
+      }
+
+      /* 6 · lateral communication arcs — free, without reauthorization */
+      if (st.show.lateral && f > 0.15) {
+        const pairs = [[1, 4], [5, 6], [7, 8], [9, 11]];
+        pairs.forEach(([a, b]) => {
+          const pa = pos[a], pb = pos[b];
+          const mid = { x: (pa.x + pb.x) * 0.72, y: (pa.y + pb.y) * 0.72 + 0.45, z: (pa.z + pb.z) * 0.72 };
+          bezier3D(pa, mid, pb, LATERAL_COLOR, 0.4);
+        });
+      }
+
+      /* 7 · interaction orbs — non-additive terms */
+      if (st.show.orbs && f > 0.15) {
+        [[1, 4], [5, 9]].forEach(([a, b]) => {
+          const pa = pos[a], pb = pos[b];
+          const mid = { x: (pa.x + pb.x) * 0.62, y: (pa.y + pb.y) * 0.62 + 0.8, z: (pa.z + pb.z) * 0.62 };
+          bezier3D(pa, mid, pb, ORB_COLOR, 0.6);
+          const sm = toScreen(project(mid));
+          glowDot(sm, 5, ORB_COLOR, 1.2);
+          ctx.fillStyle = "#d9c2ff";
+          ctx.font = "9px ui-monospace, monospace";
+          ctx.textAlign = "left";
+          ctx.fillText("A↔B", sm.x + 8, sm.y - 6);
+        });
+      }
+
+      /* 8 · AI inner shell — capability without sovereignty */
+      if (st.show.shell) {
+        const SR = 0.62;
+        arc3D(SR, "lat:0", 64, SHELL_COLOR, 0.35, 1, 0, TAU);
+        arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, 0.22, 1, 0, TAU);
+        arc3D(SR, "mer:0", 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
+        arc3D(SR, "mer:" + Math.PI / 2, 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
+        // anchor
+        const anchor = { x: 0, y: SR, z: 0 };
+        line3D({ x: 0, y: 0, z: 0 }, anchor, CENTER_COLOR, 0.5, 1.1);
+        const sa = toScreen(project(anchor));
+        glowDot(sa, 3.2, CENTER_COLOR, 0.8);
+        ctx.fillStyle = "rgba(111,211,255,0.75)";
+        ctx.font = "8px ui-monospace, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("AI SHELL ANCHOR", sa.x + 7, sa.y + 3);
+        aiNodes.forEach((ai, i) => {
+          const spin = performance.now() * 0.00006 * (i % 2 ? -1 : 1);
+          const lon = ai.lon * D2R + spin;
+          const lat = ai.lat * D2R;
+          const p = { x: SR * Math.cos(lat) * Math.cos(lon), y: SR * Math.sin(lat), z: SR * Math.cos(lat) * Math.sin(lon) };
+          line3D(anchor, p, SHELL_COLOR, 0.3, 0.8);
+          const sp = toScreen(project(p));
+          glowDot(sp, 2.6, SHELL_COLOR, 0.6);
+        });
+      }
+
+      /* 9 · radiative nodes (far first) */
+      st.projected = [];
+      const order = pos.map((p, i) => ({ i, z: project(p).z })).sort((a, b) => b.z - a.z);
+      order.forEach(({ i }) => {
+        const nd = nodes[i];
+        const p = project(pos[i]);
+        const sp = toScreen(p);
+        const size = 3.2 + p.k * 3.2;
+        const color = quadColor(nd.deg);
+        const isSel = st.selected === i, isHov = st.hover === i;
+        glowDot(sp, isSel || isHov ? size * 1.35 : size, color, isSel ? 1.4 : isHov ? 1 : 0.35);
+        if (isSel) {
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, size * 2.1, 0, TAU);
+          ctx.strokeStyle = "#ffd479";
+          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        st.projected.push({ i, x: sp.x, y: sp.y });
+        if (st.show.labels && (isSel || isHov)) {
+          ctx.fillStyle = "#d9e6f7";
+          ctx.font = "10px ui-monospace, monospace";
+          ctx.textAlign = "left";
+          ctx.fillText(`${nd.name}`, sp.x + size + 6, sp.y - 2);
+          ctx.fillStyle = "rgba(255,212,121,0.8)";
+          ctx.font = "8px ui-monospace, monospace";
+          ctx.fillText(nd.addr, sp.x + size + 6, sp.y + 9);
+        }
+      });
+
+      /* 10 · center origin */
+      const cs = toScreen(project({ x: 0, y: 0, z: 0 }));
+      glowDot(cs, 7.5, CENTER_COLOR, 2.2);
+      ctx.fillStyle = "#ffe9b8";
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("0•000•000•0000", cs.x, cs.y + 22);
+      if (st.flare > 0) {
+        ctx.beginPath();
+        ctx.arc(cs.x, cs.y, 7.5 + (1 - st.flare) * 34, 0, TAU);
+        ctx.strokeStyle = "rgba(255,212,121," + st.flare + ")";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        st.flare = Math.max(0, st.flare - 0.02);
+      }
+
+      /* 11 · pulses */
+      st.pulses = st.pulses.filter(pu => {
+        pu.t += 0.018;
+        if (pu.t >= 1) {
+          if (pu.kind === "in") { st.flare = 1; if (pu.onArrive) pu.onArrive(); }
+          return false;
+        }
+        let a, b;
+        if (pu.kind === "in") {
+          a = pos[pu.from]; b = { x: 0, y: 0, z: 0 };
+        } else {
+          a = pos[pu.from]; b = pos[pu.to];
+        }
+        const cur = {
+          x: a.x + (b.x - a.x) * pu.t,
+          y: a.y + (b.y - a.y) * pu.t,
+          z: a.z + (b.z - a.z) * pu.t
+        };
+        const sp = toScreen(project(cur));
+        glowDot(sp, 3.4, pu.kind === "in" ? CENTER_COLOR : "#6fd3ff", 1.4);
+        return true;
+      });
+    }
+
+    function yaw0() { return st.yaw * 0; } // disc angles are world-fixed; camera rotates
+    function quadColor(deg) {
+      const q = Math.floor(((deg % 360) + 360) % 360 / 90);
+      return QUAD_COLORS[q];
+    }
+
+    function bezier3D(a, mid, b, color, alpha) {
+      const steps = 24;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps, u = 1 - t;
+        const p = {
+          x: u * u * a.x + 2 * u * t * mid.x + t * t * b.x,
+          y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
+          z: u * u * a.z + 2 * u * t * mid.z + t * t * b.z
+        };
+        const q = toScreen(project(p));
+        if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+      }
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    /* ---------- interaction ---------- */
+    function pick(mx, my) {
+      let best = -1, bd = 22 * 22;
+      st.projected.forEach(pt => {
+        const dx = pt.x - mx, dy = pt.y - my;
+        const d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = pt.i; }
+      });
+      return best;
+    }
+
+    canvas.addEventListener("pointerdown", e => {
+      st.dragging = true;
+      st.lastX = e.clientX; st.lastY = e.clientY;
+      st.downX = e.clientX; st.downY = e.clientY;
+      canvas.classList.add("dragging");
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* optional */ }
+    });
+    canvas.addEventListener("pointermove", e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      if (st.dragging) {
+        st.yaw += (e.clientX - st.lastX) * 0.006;
+        st.pitch = Math.max(-1.25, Math.min(1.25, st.pitch + (e.clientY - st.lastY) * 0.005));
+        st.lastX = e.clientX; st.lastY = e.clientY;
+      } else {
+        st.hover = pick(mx, my);
+        canvas.style.cursor = st.hover >= 0 ? "pointer" : "grab";
+      }
+    });
+    canvas.addEventListener("pointerup", e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const moved = Math.hypot(e.clientX - (st.downX ?? e.clientX), e.clientY - (st.downY ?? e.clientY));
+      if (moved < 5) {
+        const hit = pick(mx, my);
+        if (hit >= 0) selectNode(hit);
+      }
+      st.dragging = false;
+      canvas.classList.remove("dragging");
+    });
+    canvas.addEventListener("pointerleave", () => { st.hover = -1; });
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault();
+      st.zoom = Math.max(0.65, Math.min(1.7, st.zoom * (e.deltaY > 0 ? 0.93 : 1.075)));
+    }, { passive: false });
+
+    /* ---------- selection ---------- */
+    let selectCb = null;
+    function selectNode(i) {
+      st.selected = i;
+      if (selectCb) selectCb(i);
+    }
+
+    /* ---------- pulses (animation only — witnessing happens at the app layer) ---------- */
+    function pulseResolution(fromIdx) {
+      const from = fromIdx >= 0 ? fromIdx : Math.floor(Math.random() * n);
+      st.pulses.push({ kind: "in", from, t: 0, onArrive: null });
+      return from;
+    }
+
+    function pulseLateral() {
+      const a = Math.floor(Math.random() * n);
+      let b = Math.floor(Math.random() * n);
+      if (b === a) b = (b + 3) % n;
+      st.pulses.push({ kind: "lat", from: a, to: b, t: 0, onArrive: null });
+      return [a, b];
+    }
+
+    /* ---------- lifecycle ---------- */
+    st.raf = requestAnimationFrame(frame);
+
+    return {
+      state: st,
+      selectNode,
+      onSelect(cb) { selectCb = cb; if (st.selected >= 0) cb(st.selected); },
+      pulseResolution,
+      pulseLateral,
+      animateFormation() {
+        st.formDir = st.formation >= 1 ? -1 : 1;
+        if (st.formation >= 1) {
+          st.formation = 1;
+          st.formDir = -1; // sweep back to disc first
+        }
+        st.animatingForm = true;
+        setTimeout(() => {
+          if (st.animatingForm && st.formation <= 0.02) {
+            st.formDir = 1;
+          }
+        }, 2600);
+      },
+      setFormation(v) { st.formation = v; },
+      setToggle(key, val) { st.show[key] = val; }
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     APP 1 — THE OCB (The Orb): the sphere
+     ═══════════════════════════════════════════════════════════ */
+  function registerOrbApp() {
+    APPS.push({
+      id: "ocm",
+      title: "The Orb",
+      short: "The Orb",
+      glyph: "◉",
+      desc: "OCM visualization — the disc that becomes a sphere",
+      w: 860, h: 640,
+      render(body, api) {
+        body.innerHTML = `
+          <div class="h1">The Orb — Orb Communicator Model</div>
+          <div class="sub">A radiative, center-origin communication and governance system in which all participants
+          derive identity, scope, and ownership from a single immutable origin point. HarshalOS itself, visualized
+          through OCM: every app is a radiative node attached directly to the center.</div>
+
+          <div class="addr-key">CENTER-ORIGIN 0•000•000•0000 &nbsp;·&nbsp; FORMAT 0•[orb]•[sector]•[instance] &nbsp;·&nbsp; AUTHOR A44674928 @ 0•000•000•0000</div>
+
+          <div class="chip-row" id="ocm-chips">
+            <button class="chip-toggle on" data-t="disc">EQUATORIAL DISC · 360 ADDRESSES</button>
+            <button class="chip-toggle on" data-t="spokes">DIRECT ATTACHMENT</button>
+            <button class="chip-toggle on" data-t="axis">RESOLUTION AXIS</button>
+            <button class="chip-toggle on" data-t="shell">AI INNER SHELL</button>
+            <button class="chip-toggle on" data-t="lateral">LATERAL COMMS</button>
+            <button class="chip-toggle on" data-t="orbs">INTERACTION ORBS</button>
+          </div>
+
+          <div class="ocm-stage">
+            <div class="ocm-canvas-wrap">
+              <canvas id="ocm-canvas"></canvas>
+              <div class="ocm-hud-corner">
+                RADIATIVE SPHERE OF INFLUENCE<br>
+                NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
+                DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
+              </div>
+              <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
+            </div>
+            <div class="ocm-side">
+              <div class="ocm-inspector" id="ocm-inspector"></div>
+              <div class="quad-key">
+                <span><i style="background:#6fd3ff"></i>0°–89° CREATION / EMERGENCE</span>
+                <span><i style="background:#7a8cff"></i>90°–179° STABILIZATION / CIVILIZATION</span>
+                <span><i style="background:#b57cff"></i>180°–269° TRANSFORMATION / INDUSTRY</span>
+                <span><i style="background:#5ce6a8"></i>270°–359° RENEWAL / EXPLORATION</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="slider-row">
+            <label>Rotation / time →</label>
+            <input type="range" id="ocm-form" min="0" max="1" step="0.01" value="1">
+            <span class="val" id="ocm-formv">1.00</span>
+          </div>
+          <div class="slider-cap">360 primary addresses form a complete disc (0•DDD•000•0000). Rotation over time + depth
+          (distance, 0•DDD•RRR•####) produces the sphere. Once instantiated, the sphere persists even if rotation pauses.</div>
+
+          <div class="btn-row">
+            <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
+            <button class="btn btn-ice" id="ocm-res">⟶ RESOLUTION PULSE (INWARD)</button>
+            <button class="btn" id="ocm-lat">↔ LATERAL PULSE</button>
+          </div>
+
+          <div class="h2">Core Axioms</div>
+          <table class="table">
+            <tr><th>Axiom</th><th>Statement</th></tr>
+            ${OCM_DATA.axioms.map(([t, d]) => `<tr><td>${t}</td><td>${d}</td></tr>`).join("")}
+          </table>
+
+          <div class="h2">Distance Semantics</div>
+          <div class="grid-2">
+            <div class="card"><h4>DISTANCE REPRESENTS</h4>
+              <ul class="ul" style="margin:0">${OCM_DATA.distance.is.map(x => `<li class="li">${x}</li>`).join("")}</ul></div>
+            <div class="card"><h4>DISTANCE DOES NOT REPRESENT</h4>
+              <ul class="ul" style="margin:0">${OCM_DATA.distance.isNot.map(x => `<li class="li refusal">${x}</li>`).join("")}</ul></div>
+          </div>
+          <p class="body">${OCM_DATA.distance.note}</p>
+
+          <div class="h2">Ownership &amp; Failure Modes</div>
+          <div class="rule-box ice">${OCM_DATA.quotes.ownership}</div>
+          <ul class="ul">
+            <li class="li">Duplicate centers are detectable via prefix collision — conflicting systems are invalidated.</li>
+            <li class="li">Rogue nodes cannot claim ownership without an origin prefix; they may be isolated without disrupting the orb.</li>
+            <li class="li">Partial collapse is local — failures do not propagate unless routed through the center.</li>
+          </ul>
+
+          <div class="h2">Comparative Models</div>
+          <table class="table">
+            <tr><th>Model</th><th>Root</th><th>Lateral Comms</th><th>Ownership Proof</th></tr>
+            ${OCM_DATA.models.map(([a, b, c, d]) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td class="${a === "OCM" ? "good" : ""}">${d}</td></tr>`).join("")}
+          </table>
+
+          <div class="rule-box">${OCM_DATA.quotes.mentalModel}<br><br>${OCM_DATA.quotes.sphere}</div>
+          <div class="rule-box ice">${OCM_DATA.quotes.closing}</div>
+
+          <div class="footer-note">
+            360 RADIATIVE ADDRESSES REPRESENT FULL DIRECTIONAL COVERAGE · UNLIMITED SUB-INSTANCING BENEATH EACH ADDRESS ·
+            GLOBAL STAKEHOLDER INCLUSION WITHOUT ROOT FRAGMENTATION. THE ORB IS COMPLETE WHEN ALL DIRECTIONAL ADDRESSES
+            ARE INSTANTIATED OR RESERVED.
+          </div>`;
+
+        const canvas = body.querySelector("#ocm-canvas");
+        const engine = createOrbEngine(canvas, api);
+
+        // inspector
+        const inspector = body.querySelector("#ocm-inspector");
+        const drawInspector = (i) => {
+          if (i == null || i < 0) {
+            inspector.innerHTML = `
+              <div class="oi-name">Center (Origin)</div>
+              <div class="oi-addr">0•000•000•0000</div>
+              <div class="oi-about">The immutable address from which all identities, permissions, and ownership
+              are derived. It cannot be duplicated, delegated, or overridden. Click any radiative node in the
+              sphere to inspect its address lineage.</div>
+              <div class="oi-why">SINGLE-ORIGIN AXIOM · EVERY VALID ADDRESS DERIVES FROM EXACTLY ONE CENTER POINT</div>`;
+            return;
+          }
+          const nd = OCM_DATA.nodes[i];
+          const deg = nd.deg;
+          const cluster = OCM_DATA.clusters.find(c => deg >= c.from && deg <= c.to);
+          const meaning = OCM_DATA.degrees[deg] || OCM_DATA.degrees[((deg % 360) + 360) % 360];
+          inspector.innerHTML = `
+            <div class="oi-name">${nd.name}</div>
+            <div class="oi-addr">${nd.addr}</div>
+            <div class="oi-deg">${String(deg).padStart(3, "0")}° — ${meaning}</div>
+            <div class="oi-about">${nd.note}</div>
+            <div class="oi-about"><strong style="color:var(--text)">${cluster.name}</strong> — ${cluster.about}</div>
+            <div class="oi-why">
+              SECTOR: ${nd.sector} · DISTANCE R = ${nd.r.toFixed(2)}<br>
+              OWNERSHIP: DERIVED FROM CENTER · PREFIX INTACT<br>
+              ${OCM_DATA.center.freshSlateFormat.replace("DDD", String(deg).padStart(3, "0")).replace("RRR", String(Math.round(nd.r * 100)).padStart(3, "0")).replace("####", nd.addr.split("•")[3] || "0001")}
+            </div>
+            <div class="btn-row" style="margin:10px 0 0">
+              <button class="btn btn-ice" id="ocm-open-app">OPEN ${nd.name.toUpperCase()}</button>
+            </div>`;
+          const openBtn = inspector.querySelector("#ocm-open-app");
+          if (openBtn) openBtn.addEventListener("click", () => {
+            const app = APPS.find(a => a.id === nd.app);
+            if (app) api.openApp(app);
+          });
+        };
+        engine.onSelect(drawInspector);
+        drawInspector(-1);
+
+        // chips
+        body.querySelectorAll("#ocm-chips [data-t]").forEach(ch => {
+          ch.addEventListener("click", () => {
+            const on = ch.classList.toggle("on");
+            engine.setToggle(ch.dataset.t, on);
+          });
+        });
+
+        // formation slider
+        const form = body.querySelector("#ocm-form");
+        form.addEventListener("input", () => {
+          engine.setFormation(parseFloat(form.value));
+          body.querySelector("#ocm-formv").textContent = parseFloat(form.value).toFixed(2);
+        });
+
+        body.querySelector("#ocm-reform").addEventListener("click", () => {
+          engine.setFormation(0);
+          form.value = 0;
+          setTimeout(() => {
+            const t0 = performance.now();
+            const step = () => {
+              const v = Math.min(1, (performance.now() - t0) / 3800);
+              engine.setFormation(v);
+              form.value = v;
+              body.querySelector("#ocm-formv").textContent = v.toFixed(2);
+              if (v < 1) requestAnimationFrame(step);
+              else kernel.record("info", "OCM — sphere re-formed from disc: 360 primary addresses, rotation over time + depth.");
+            };
+            requestAnimationFrame(step);
+          }, 450);
+          api.toast("info", "DISC → SPHERE", "Rotation over time + depth (distance) produces the sphere. The disc defines everything that can matter; rotation gives it history; distance gives it depth; the center gives it reality.");
+        });
+
+        body.querySelector("#ocm-res").addEventListener("click", () => {
+          const from = engine.pulseResolution(engine.state.selected);
+          const nd = OCM_DATA.nodes[from];
+          kernel.record("info", `OCM — resolution routed to center from ${nd.addr}. Resolution always routes to the center point.`);
+          api.toast("info", "RESOLUTION → CENTER",
+            `${nd.name} (${nd.addr}) resolves inward to 0•000•000•0000. In the event of conflict, ambiguity, or dispute — resolution always routes to the center point.`);
+        });
+        body.querySelector("#ocm-lat").addEventListener("click", () => {
+          const [a, b] = engine.pulseLateral();
+          kernel.record("info", `OCM — lateral communication ${OCM_DATA.nodes[a].addr} ↔ ${OCM_DATA.nodes[b].addr} (no reauthorization required; ownership non-transfer).`);
+          api.toast("info", "LATERAL COMMUNICATION",
+            `${OCM_DATA.nodes[a].name} ↔ ${OCM_DATA.nodes[b].name}. Nodes may communicate freely — but communication does not confer ownership, authority, or origin rights.`);
+        });
+      }
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     APP 2 — INTERACTION ORBS (non-additive extension)
+     ═══════════════════════════════════════════════════════════ */
+  function makeStepper(host, steps, onStep) {
+    let idx = 0;
+    const draw = () => {
+      host.querySelector(".st-kicker").textContent = `STEP ${idx + 1} / ${steps.length}`;
+      host.querySelector(".st-title").textContent = steps[idx][0];
+      host.querySelector(".st-body").textContent = steps[idx][1];
+      host.querySelectorAll(".step-dots i").forEach((d, i) => d.classList.toggle("on", i === idx));
+      if (onStep) onStep(idx);
+    };
+    host.querySelector("[data-prev]").addEventListener("click", () => {
+      idx = (idx - 1 + steps.length) % steps.length;
+      draw();
+    });
+    host.querySelector("[data-next]").addEventListener("click", () => {
+      idx = (idx + 1) % steps.length;
+      draw();
+    });
+    draw();
+  }
+
+  function registerInteractionApp() {
+    APPS.push({
+      id: "orbs",
+      title: "Interaction Orbs",
+      short: "Interaction Orbs",
+      glyph: "◈",
+      desc: "Non-additive interaction — the interaction itself is counted",
+      w: 760, h: 600,
+      render(body) {
+        const A = OCM_DATA.arithmetic;
+        const X1 = OCM_DATA.example1;
+        const X2 = OCM_DATA.example2;
+
+        body.innerHTML = `
+          <div class="h1">Interaction Orbs — Non-Additive Extension</div>
+          <div class="sub">When interaction itself becomes a first-class carrier of meaning. OCM is not a metaphor
+          layer — it is an ontological traffic controller inside AGS++ that governs how frames are admitted,
+          stabilized, navigated, and exited when interactions generate more structure than their components alone.</div>
+
+          <div class="rule-box gas">${A.definition}</div>
+
+          <div class="h2">OCM Arithmetic — the interaction itself is counted</div>
+          <div class="arith-hero">
+            <div class="arith-unit"><div class="au-orb a"></div><div class="au-label">NODE A</div><div class="au-val">1</div></div>
+            <div class="arith-op">+</div>
+            <div class="arith-unit"><div class="au-orb b"></div><div class="au-label">NODE B</div><div class="au-val">1</div></div>
+            <div class="arith-op">+</div>
+            <div class="arith-unit"><div class="au-orb link"></div><div class="au-label">A↔B INTERACTION ORB</div><div class="au-val">1</div></div>
+            <div class="arith-op">=</div>
+            <div class="arith-unit total"><div class="au-orb link" style="background:radial-gradient(circle at 32% 30%, #fff3d8, var(--gold) 45%, #7a5a1c)"></div><div class="au-label">TOTAL</div><div class="au-val">3</div></div>
+          </div>
+          <div class="rule-box">CLASSICAL: A + B = 2 &nbsp;&nbsp;·&nbsp;&nbsp; OCM: A = 1, B = 1, A↔B = 1, TOTAL = 3
+${A.bookkeeping}</div>
+
+          <div class="h2">Worked Micro-Example I — Constraint Violation</div>
+          <div class="step-box" id="step1">
+            <div class="st-kicker"></div>
+            <div class="st-title"></div>
+            <div class="st-body"></div>
+            <div id="bars1"></div>
+            <div class="step-nav">
+              <button class="btn" data-prev>◂ PREV</button>
+              <button class="btn btn-ice" data-next>NEXT ▸</button>
+              <div class="step-dots">${X1.steps.map(() => "<i></i>").join("")}</div>
+            </div>
+          </div>
+
+          <div class="h2">Worked Micro-Example II — Conversational Alignment</div>
+          <div class="step-box" id="step2">
+            <div class="st-kicker"></div>
+            <div class="st-title"></div>
+            <div class="st-body"></div>
+            <div class="step-nav">
+              <button class="btn" data-prev>◂ PREV</button>
+              <button class="btn btn-ice" data-next>NEXT ▸</button>
+              <div class="step-dots">${X2.steps.map(() => "<i></i>").join("")}</div>
+            </div>
+          </div>
+
+          <div class="h2">Communication Occurs Across Three Layers</div>
+          <div class="grid-2">
+            ${A.layers.map(([t, d], i) => `
+              <div class="card"><h4>${i + 1} · ${t.toUpperCase()}</h4><p>${d}</p></div>`).join("")}
+          </div>
+
+          <div class="h2">Navigation Rules &amp; Exit Protocol</div>
+          <ul class="ul">
+            ${A.navigation.map(r => `<li class="li">${r}</li>`).join("")}
+          </ul>
+          <ul class="ul">
+            ${A.exit.map(r => `<li class="li gold">${r}</li>`).join("")}
+          </ul>
+
+          <div class="h2">Classical Communication vs Orb Communicator Mode</div>
+          <table class="table">
+            <tr><th></th><th>Classical</th><th>Orb Communicator Mode</th></tr>
+            ${OCM_DATA.comparison.map(([k, a, b]) => `<tr><td>${k}</td><td>${a}</td><td class="good">${b}</td></tr>`).join("")}
+          </table>
+
+          <div class="rule-box gas">WHEN INTERACTIONS GENERATE EXCESS STRUCTURE, OCM COUNTS AND REASONS OVER THAT STRUCTURE DIRECTLY.
+THIS ENABLES AGS++ TO OPERATE IN DOMAINS WHERE CLASSICAL ADDITION FAILS, WITHOUT LOSING RIGOR, SAFETY, OR CLARITY.</div>
+
+          <div class="footer-note">
+            THE SYSTEM DOES NOT ENDORSE EMPIRICAL TRUTH CLAIMS — IT PRESERVES COHERENCE.
+            PARADOX IS TREATED AS A SIGNAL THAT AN INTERACTION ORB IS PRESENT, NOT AS ERROR.
+          </div>`;
+
+        const barsHost = body.querySelector("#bars1");
+        const drawBars = (stepIdx) => {
+          if (stepIdx < 1) { barsHost.innerHTML = ""; return; }
+          const max = 75;
+          barsHost.innerHTML = X1.bars.map(b => `
+            <div class="bar-row">
+              <span>${b.label}</span>
+              <div class="bar-track"><div class="bar-fill ${b.color}" style="width:${(b.value / max) * 100}%"></div></div>
+              <span>${b.value}%</span>
+            </div>`).join("") + `
+            <div class="rule-box ice" style="margin-top:10px">EXPECTED LINEAR BOUND ≤ 50% · OBSERVED 75% ·
+EXCESS 25% ATTRIBUTED TO THE A↔B INTERACTION ORB — NOT TO THE PARTS.</div>`;
+        };
+
+        makeStepper(body.querySelector("#step1"), X1.steps, drawBars);
+        makeStepper(body.querySelector("#step2"), X2.steps);
+      }
+    });
+  }
+
+  /* ---------- register: place near the top of the app list ---------- */
+  registerOrbApp();
+  registerInteractionApp();
+  const orbIdx = APPS.findIndex(a => a.id === "ocm");
+  const [orbApp] = APPS.splice(orbIdx, 1);
+  APPS.splice(1, 0, orbApp);
+  const ixIdx = APPS.findIndex(a => a.id === "orbs");
+  const [ixApp] = APPS.splice(ixIdx, 1);
+  APPS.splice(2, 0, ixApp);
+})();
