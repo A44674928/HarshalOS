@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HarshalOS — Architectures for Accountable Human D'Ash Machine Intelligence</title>
+<meta name="description" content="HarshalOS: an accountability-gated operating system. Legitimacy precedes capability. Refusal is intelligence.">
+<link rel="stylesheet" href="css/os.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='38' fill='%236fd3ff'/><circle cx='50' cy='50' r='46' fill='none' stroke='%23ffd479' stroke-width='3'/></svg>">
+</head>
+<body class="booting">
+
+  <!-- ══════════════ BOOT SEQUENCE ══════════════ -->
+  <div id="boot" class="boot">
+    <pre id="boot-log" class="boot-log"></pre>
+    <button id="boot-skip" class="boot-skip" type="button">skip ▸</button>
+  </div>
+
+  <!-- ══════════════ SYSTEM HUD ══════════════ -->
+  <header id="hud" class="hud">
+    <div class="hud-left">
+      <button id="origin-btn" class="origin-btn" type="button" aria-haspopup="menu">
+        <span class="orb-logo" aria-hidden="true"></span>
+        <span class="origin-label">ORIGIN</span>
+      </button>
+      <div class="hud-addr mono" title="Center-Origin address (immutable, non-delegable)">0•000•000•0000</div>
+    </div>
+    <div class="hud-center">
+      <div id="hud-phase" class="hud-chip phase-chip"></div>
+      <div id="hud-key" class="hud-chip key-chip"></div>
+      <div class="hud-chip L-chip" title="L(t) = H(t) × f(A(t), R(t), S(t)) — threshold τ is absolute">
+        <span class="chip-label">L(t)</span>
+        <span id="hud-L" class="mono">0.00</span>
+        <span class="L-bar"><span id="hud-L-fill" class="L-fill"></span></span>
+        <span class="mono chip-tau">τ 0.50</span>
+      </div>
+      <div id="hud-dt" class="hud-chip mono" title="Δt since last human liveness verification / δ maximum acceptable delay">Δt — / δ 240s</div>
+    </div>
+    <div class="hud-right">
+      <div id="hud-firewall" class="hud-chip firewall-chip" title="Symbolic Firewall: narrative and mythic expressions are strictly non-executable">◆ SYMBOLIC FIREWALL</div>
+      <div id="hud-clock" class="hud-clock mono"></div>
+    </div>
+  </header>
+
+  <!-- ══════════════ VOID BANNER (H = 0 / stale) ══════════════ -->
+  <div id="void-banner" class="void-banner" hidden>
+    <div class="void-inner">
+      <span class="void-sigil">∅</span>
+      <div>
+        <strong id="void-title">LEGITIMACY EXPIRED — MATHEMATICALLY VOID</strong>
+        <div id="void-msg" class="void-msg">L(t) = 0. The default state of the system is refusal. Re-attest the Human Key to proceed.</div>
+      </div>
+      <button id="void-reattest" class="btn btn-gold" type="button">RE-ATTEST HUMAN KEY</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ DESKTOP ══════════════ -->
+  <main id="desktop" class="desktop" aria-label="HarshalOS desktop">
+    <div class="starfield" aria-hidden="true"></div>
+    <div class="desktop-motto" aria-hidden="true">
+      <div class="motto-orb"></div>
+      <p class="motto-line">Legitimacy precedes capability.</p>
+      <p class="motto-line dim">The default state of the system is refusal.</p>
+      <p class="motto-line dimmer">An intelligence that cannot define its own origin can never own the world it understands.</p>
+    </div>
+    <div id="icon-field" class="icon-field"></div>
+    <div id="window-layer" class="window-layer"></div>
+  </main>
+
+  <!-- ══════════════ ORIGIN MENU ══════════════ -->
+  <nav id="origin-menu" class="origin-menu" hidden>
+    <div class="om-header">
+      <div class="om-title">HarshalOS</div>
+      <div class="om-sub mono">AGS++ · OCM · Inner Shell · v1.2 Ground-0</div>
+    </div>
+    <ul id="om-apps" class="om-apps"></ul>
+    <div class="om-footer mono">
+      <div>Creator / Custodian: Harshal Priyavadan Patel (A44674928)</div>
+      <div>Center-Origin: 0•000•000•0000 · Non-Delegable</div>
+    </div>
+  </nav>
+
+  <!-- ══════════════ TASKBAR ══════════════ -->
+  <footer id="taskbar" class="taskbar">
+    <button id="taskbar-origin" class="taskbar-origin" type="button">
+      <span class="orb-logo small" aria-hidden="true"></span> ORIGIN
+    </button>
+    <div id="taskbar-apps" class="taskbar-apps"></div>
+    <div class="taskbar-status mono">
+      <span id="tb-phase"></span>
+      <span id="tb-sep">·</span>
+      <span id="tb-session">session: non-acting</span>
+    </div>
+  </footer>
+
+  <!-- ══════════════ TOASTS ══════════════ -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/kernel.js"></script>
+  <script src="js/wm.js"></script>
+  <script src="js/apps-core.js"></script>
+  <script src="js/apps-shell.js"></script>
+  <script src="js/boot.js"></script>
+</body>
+</html>
