@@ -493,11 +493,15 @@ const FractalFlame = (() => {
       this.palette = doc.frames.length ? doc.frames[0].palette : null; // 256×3 Uint8Array, file's first palette
       this.doc = doc;                     // full parse — per-frame metadata for readouts
       this.baking = true;
+      this.mode = "bake";
 
       // Fast path: if pre-rendered slices are available (e.g. assets/flame/f000.png … f119.png),
       // load slices instantly to avoid lag, CPU burn, and worker thread contention.
-      if (this.url && this.url.indexOf("Demo.flame") >= 0 && typeof Image !== "undefined") {
+      const isDemo = (this.url && this.url.indexOf("Demo.flame") >= 0) ||
+                     (doc.stats && doc.stats.frames === 120 && text.indexOf('name="Demo"') >= 0);
+      if (isDemo && typeof Image !== "undefined") {
         try {
+          this.mode = "preload";
           const slices = await this._loadPreRenderedSlices(doc.frames.length);
           if (slices && slices.length === doc.frames.length) {
             this.frames = slices;
@@ -509,6 +513,7 @@ const FractalFlame = (() => {
           }
         } catch (_) {
           /* fallback to real-time bake */
+          this.mode = "bake";
         }
       }
 
@@ -535,7 +540,14 @@ const FractalFlame = (() => {
     }
 
     async _loadPreRenderedSlices(count) {
-      const basePath = "assets/flame/f";
+      let basePath = "assets/flame/f";
+      if (this.url && typeof this.url === "string") {
+        const clean = this.url.split("?")[0].split("#")[0];
+        const idx = clean.lastIndexOf("/");
+        if (idx >= 0) {
+          basePath = clean.substring(0, idx) + "/flame/f";
+        }
+      }
       const ext = ".png";
       const imgs = new Array(count);
       let loaded = 0;

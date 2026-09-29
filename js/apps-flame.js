@@ -176,6 +176,9 @@
         paintPalette(palCv, player.palette);
       };
       player.onprogress = (i, total) => {
+        if (bakeTitle) {
+          bakeTitle.textContent = player.mode === "preload" ? "LOADING PRE-RENDERED SLICES…" : "BAKING .FLAME IN WORKER…";
+        }
         if (bakePct) bakePct.textContent = Math.round((i / total) * 100) + "% (" + i + "/" + total + ")";
       };
 

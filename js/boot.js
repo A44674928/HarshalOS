@@ -104,10 +104,10 @@
     document.body.classList.remove("booting");
     document.body.classList.add("desktop-live");
     setTimeout(() => { boot.style.display = "none"; }, 950);
-    // kick the shared .flame bake (worker) so the orb core + flame app are warm on first open
+    // kick the shared .flame player so the orb core + flame app are warm on first open
     if (typeof FractalFlame !== "undefined") {
       FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 }).start();
-      kernel.record("info", "FRACTALFLAME — .flame IFS core baking in worker (Demo.flame → 120 frames). Shared by The Orb and Fractal Flame.");
+      kernel.record("info", "FRACTALFLAME — .flame IFS core loading pre-rendered slices (Demo.flame → 120 frames). Shared by The Orb and Fractal Flame.");
     }
     // stream the author's rendered flame film — The Orb's surface skin
     if (typeof OrbFilm !== "undefined") {

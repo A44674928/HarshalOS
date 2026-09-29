@@ -609,7 +609,7 @@
                 RADIATIVE SPHERE OF INFLUENCE<br>
                 NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
                 SURFACE: AUTHOR FLAME FILM — <span id="ocm-film-stat">loading…</span><br>
-                CORE · WIRE MODE: .FLAME IFS — <span id="ocm-flame-stat">.flame baking…</span><br>
+                CORE · WIRE MODE: .FLAME IFS — <span id="ocm-flame-stat">.flame loading…</span><br>
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
@@ -681,11 +681,16 @@
         const engine = createOrbEngine(canvas, api);
         window.OCM_ENGINE = engine; /* debug/automation hook */
 
-        // the flame core — shared .flame IFS player (one bake serves orb + flame app)
+        // the flame core — shared .flame IFS player (one bake/preload serves orb + flame app)
         if (typeof FractalFlame !== "undefined") {
           const flame = FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 });
           const statEl = body.querySelector("#ocm-flame-stat");
-          const setStat = (i, total) => { if (statEl) statEl.textContent = `baking ${i}/${total}…`; };
+          const setStat = (i, total) => {
+            if (statEl) {
+              const verb = flame.mode === "preload" ? "loading slices" : "baking";
+              statEl.textContent = `${verb} ${i}/${total}…`;
+            }
+          };
           flame.onprogress = setStat;
           flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
           engine.setFlame(flame);
