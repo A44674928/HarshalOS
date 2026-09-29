@@ -69,7 +69,8 @@
             <input type="range" id="ff-scrub" min="0" max="112" step="0.01" value="0" style="width:100%">
             <div class="ff-read mono" id="ff-read">xforms — · camera (file metadata) cx 0 · cy 0 · scale 500</div>
             <canvas id="ff-pal" width="512" height="10"></canvas>
-            <div class="ff-read">256-COLOR PALETTE (FROM FILE) · SHARED PLAYER — SCRUBBING HERE ALSO DRIVES THE ORB CORE</div>
+            <div class="ff-read">256-COLOR PALETTE (FROM FILE) · SHARED PLAYER — SCRUBBING HERE ALSO DRIVES THE ORB CORE ·
+            ENGINE v${(FF && FF.VERSION) || "?"}</div>
           </div>
 
           <div class="ff-side">

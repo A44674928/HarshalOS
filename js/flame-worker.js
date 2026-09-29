@@ -6,7 +6,7 @@
 
 "use strict";
 
-importScripts("flame.js");
+importScripts("flame.js?v=1.1"); // version must match VERSION in flame.js (cache-bust)
 
 self.onmessage = e => {
   const msg = e.data || {};

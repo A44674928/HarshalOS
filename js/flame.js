@@ -526,7 +526,7 @@ const FractalFlame = (() => {
       const W = this.opts.w || 160, H = this.opts.h || 160;
       const frames = await new Promise((resolve, reject) => {
         let wk;
-        try { wk = new Worker("js/flame-worker.js"); }
+        try { wk = new Worker("js/flame-worker.js?v=" + VERSION); }
         catch (e) { reject(e); return; }
         const bags = new Array(doc.frames.length).fill(null);
         const to = setTimeout(() => { try { wk.terminate(); } catch (_) {} reject(new Error("bake timeout")); }, 180000);
@@ -567,6 +567,7 @@ const FractalFlame = (() => {
     _canvases(buffers, W, H) {
       const out = [];
       const need = W * H * 4;
+      let litTotal = 0;
       for (const raw of buffers) {
         if (!raw) continue;
         // normalize: workers may deliver ArrayBuffer (legacy) or a view
@@ -575,6 +576,7 @@ const FractalFlame = (() => {
         if (!ArrayBuffer.isView(buf) || buf.length !== need) {
           throw new Error("bake frame buffer malformed (got " + (buf.length !== undefined ? buf.length : "ArrayBuffer") + ", need " + need + ")");
         }
+        for (let i = 0; i < need; i += 4) litTotal |= buf[i] | buf[i + 1] | buf[i + 2];
         const c = (typeof document !== "undefined")
           ? document.createElement("canvas")
           : null;
@@ -590,6 +592,9 @@ const FractalFlame = (() => {
           img = buf;
         }
         out.push(img);
+      }
+      if (litTotal === 0) {
+        throw new Error("bake verification failed: every frame is pure black — the render pipeline produced no pixels (see console)");
       }
       return out;
     }
@@ -647,6 +652,10 @@ const FractalFlame = (() => {
 
   /* ---------- shared singleton (orb core + flame app share one bake) ---------- */
   let _shared = null;
+  /* bumped on every change to the worker/bake protocol — cache-busts the
+     worker script + engine in the browser (static site, no build step) */
+  const VERSION = "1.1";
+
   function shared(url, opts) {
     if (!_shared) _shared = new FlamePlayer(url || "assets/a.flame", opts || {});
     return _shared;
@@ -659,7 +668,7 @@ const FractalFlame = (() => {
     curves: Object.keys(CURVES),
     FlamePlayer,
     shared,
-    VERSION: "1.0"
+    VERSION
   };
 
   self.FractalFlame = api;
