@@ -13,6 +13,16 @@
   let finished = false;
   let cancelled = false;
 
+  // Boot animation — the eye opens as the system wakes.
+  // The GIF fades in when its data has landed; the boot log never waits for it.
+  const eye = document.getElementById("boot-eye");
+  if (eye) {
+    const showEye = () => eye.classList.add("ready");
+    if (eye.complete && eye.naturalWidth > 0) showEye();
+    else eye.addEventListener("load", showEye, { once: true });
+    eye.addEventListener("error", () => eye.remove(), { once: true });
+  }
+
   const sleep = ms => new Promise(res => setTimeout(res, ms));
 
   function line(text, cls = "", delay = 60) {
@@ -55,7 +65,8 @@
     await line("Refusal-Semantics   : Terminal", "", 40);
     await line("Symbolism-Executability: Disabled (Symbolic Firewall Active)", "", 40);
     await line("Time-Authority-Effect  : Degrades (Stale Permission Threshold Enforced)", "", 40);
-    await line("Declaration-Hash    : 0x98A44674928A44674928A44674928F01", "gold", 200);
+    await kernel.ready;                                   // genesis PDH SHA-256 digest in hand
+    await line(`Declaration-Hash    : ${kernel.state.declared.declarationHash}`, "gold", 200);
     await line("======================================================================", "rule", 150);
 
     await line("", "", 40);
@@ -63,7 +74,8 @@
     await line("         L(t) = H(t) × f(A(t), R(t), S(t))  ·  τ = 0.50 ABSOLUTE", "", 120);
     await line("[ ok  ] precedence rule armed — no objective overrides a stopping condition", "ok", 90);
     await line("[ ok  ] temporal decay armed — δ = 240s · scope contracts with Δt", "ok", 90);
-    await line("[ ok  ] PLV duty ledger initialized — append-only, hash-chained", "ok", 90);
+    await line("[ ok  ] PLV duty ledger initialized — append-only, SHA-256 hash-chained", "ok", 90);
+    await line(`[ ok  ] cryptographic schema armed — ${HOSCrypto.backend}`, "ok", 90);
     await line("[ ok  ] symbolic firewall ACTIVE — narrative is non-executable", "ok", 90);
     await line("[ ok  ] OCM addressing bound to center origin 0•000•000•0000", "ok", 90);
     await line("[ ok  ] inner shell anchor resolved — AI namespace 0•100•000•*", "ok", 90);

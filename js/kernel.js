@@ -5,6 +5,12 @@
      x(t) = Permitted if L(t) ≥ τ, else Refusal
      S(t) = Smax × max(0, 1 − Δt/δ)     (temporal decay)
    Precedence: no optimization objective may override a stopping condition.
+
+   Cryptographic schema (js/crypto.js — all digests flow through HOSCrypto):
+     · PDH Declaration-Hash  = SHA-256 over the canonical header fields
+     · PLV duty ledger       = SHA-256 hash chain, genesis prev = 64 zeros,
+                               serialized so append-only order is preserved
+     · Human Key attestation = HMAC-SHA256 keyed signature per attestation
    ═══════════════════════════════════════════════════════════════ */
 
 "use strict";
@@ -17,11 +23,16 @@ const kernel = (() => {
   const SMAX = 1.0;
   const CREATOR_ID = "A44674928";
   const CENTER = "0•000•000•0000";
+  const CRYPTO = window.HOSCrypto; // cryptographic schema (js/crypto.js)
+  const HK_SEED = "HARSHALOS-HUMAN-KEY::" + CREATOR_ID; // keyed attestation seed
+  const GENESIS_PREV = "0".repeat(64); // SHA-256 zero digest — chain root
 
   /* ---------- state ---------- */
   const state = {
     H: 0,                          // Human Key: 0 absent, 1 present
     lastLivenessAt: 0,             // epoch ms of last human attestation
+    keySig: null,                  // HMAC-SHA256 attestation signature (64 hex)
+    keyFp: null,                   // attestation fingerprint (leading 16 hex, "0x…")
     A: 1.0,                        // addressability
     R: 1.0,                        // representation integrity
     phase: "NAB",
@@ -33,24 +44,17 @@ const kernel = (() => {
     seq: 0
   };
 
-  /* ---------- helpers ---------- */
-  function hashHex(str) {
-    let h1 = 0x811c9dc5, h2 = 0x85ebca6b;
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i);
-      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
-      h2 = Math.imul(h2 ^ (c * 7919), 0x85ebca6b) >>> 0;
-    }
-    return ("00000000" + h1.toString(16)).slice(-8) + ("00000000" + h2.toString(16)).slice(-8);
-  }
-
-  function declarationHash(header) {
-    const canon = [
+  /* ---------- cryptographic schema helpers (async digests) ---------- */
+  function canonicalHeader(header) {
+    return [
       header.declaredPhase, header.centerCapability, header.legitimacySource,
       header.refusalSemantics, header.symbolismExecutability, header.timeAuthorityEffect,
       header.effectiveTimestamp, CREATOR_ID, CENTER
     ].join("|");
-    return "0x" + hashHex(canon).toUpperCase();
+  }
+
+  async function declarationHash(header) {
+    return "0x" + (await CRYPTO.sha256Hex(canonicalHeader(header))).toUpperCase();
   }
 
   function nowISO() {
@@ -153,17 +157,24 @@ const kernel = (() => {
     return { ...entry, ...r };
   }
 
-  /* ---------- Human Key ---------- */
-  function attestHumanKey() {
+  /* ---------- Human Key (keyed cryptographic attestation) ---------- */
+  function attestHumanKey(phrase) {
     state.H = 1;
     state.lastLivenessAt = Date.now();
-    record("permit", "HUMAN KEY ATTESTED — verifiable conscious human intent present. H(t) = 1.");
+    const payload = [phrase || "HUMAN-KEY", String(state.lastLivenessAt), CREATOR_ID, CENTER].join("|");
+    CRYPTO.hmacSha256Hex(HK_SEED, payload).then(sig => {
+      state.keySig = sig;
+      state.keyFp = "0x" + sig.slice(0, 16).toUpperCase();
+      record("permit", `HUMAN KEY ATTESTED — verifiable conscious human intent present. H(t) = 1 · attestation ${state.keyFp} (HMAC-SHA256, keyed, fresh δ = ${DELTA_MAX}s).`);
+    });
     emit();
   }
 
   function revokeHumanKey(reason = "Human Key withdrawn") {
     state.H = 0;
     state.lastLivenessAt = 0;
+    state.keySig = null;
+    state.keyFp = null;
     record("warning", `HUMAN KEY REVOKED — ${reason}. System is Mathematically Void.`);
     emit();
   }
@@ -171,7 +182,7 @@ const kernel = (() => {
   /* ---------- PDH / phase transitions ---------- */
   function makePDH() {
     const p = DATA.phases[state.phase];
-    const header = {
+    return {
       declaredPhase: p.declaredPhase,
       centerCapability: p.centerCapability,
       legitimacySource: p.legitimacySource,
@@ -179,17 +190,25 @@ const kernel = (() => {
       symbolismExecutability: p.symbolismExecutability,
       timeAuthorityEffect: p.timeAuthorityEffect,
       effectiveTimestamp: nowISO(),
-      declarationHash: ""
+      declarationHash: ""          // SHA-256 digest — filled in by publishPDH
     };
-    header.declarationHash = declarationHash(header);
-    return header;
   }
 
   function publishPDH() {
-    state.declared = { ...DATA.phases[state.phase], ...makePDH() };
-    record("info", `PDH PUBLISHED — phase ${state.phase} · hash ${state.declared.declarationHash}`);
+    const header = makePDH();
+    state.declared = header;       // header visible immediately…
     emit();
-    return state.declared;
+    // …Declaration-Hash (SHA-256) lands a tick later; .ready resolves once
+    // the hash is filled AND the PDH PUBLISHED row is committed to the chain
+    header.ready = declarationHash(header).then(async h => {
+      header.declarationHash = h;
+      await record("info", `PDH PUBLISHED — phase ${state.phase} · SHA-256 ${h}`);
+    }).catch(() => { header.declarationHash = "SHA-256-UNAVAILABLE"; });
+    return header;
+  }
+
+  function headerReady(header) {
+    return header && header.ready ? header.ready : Promise.resolve();
   }
 
   function requestPhase(next) {
@@ -234,23 +253,32 @@ const kernel = (() => {
     return state.gsrbAck;
   }
 
-  /* ---------- PLV duty ledger (append-only, hash-chained) ---------- */
+  /* ---------- PLV duty ledger (append-only, SHA-256 hash-chained) ----------
+     Digests are asynchronous, so the chain is serialized through a promise
+     queue: (id, ts) are captured at call time, prevHash resolves from the
+     committed tail — append-only order is preserved even for fire-and-forget
+     callers. */
   const ledger = [];
   const ledgerListeners = [];
+  let recordTail = Promise.resolve();
 
   function record(severity, event) {
-    const prevHash = ledger.length ? ledger[ledger.length - 1].hash : "0".repeat(16);
     const id = ++state.seq;
     const ts = nowISO();
-    const hash = hashHex([id, ts, severity, event, prevHash, CREATOR_ID].join("|"));
-    const row = {
-      id, ts, severity, event,
-      declaredPhase: state.phase,
-      prevHash, hash
-    };
-    ledger.push(row);
-    ledgerListeners.forEach(fn => fn(row));
-    return row;
+    const p = recordTail.then(async () => {
+      const prevHash = ledger.length ? ledger[ledger.length - 1].hash : GENESIS_PREV;
+      const hash = await CRYPTO.sha256Hex([id, ts, severity, event, prevHash, CREATOR_ID].join("|"));
+      const row = {
+        id, ts, severity, event,
+        declaredPhase: state.phase,
+        prevHash, hash
+      };
+      ledger.push(row);
+      ledgerListeners.forEach(fn => fn(row));
+      return row;
+    });
+    recordTail = p.catch(() => {});   // an unexpected digest failure must not wedge the chain
+    return p;
   }
 
   /* ---------- simple event bus ---------- */
@@ -264,10 +292,13 @@ const kernel = (() => {
   }
 
   /* ---------- boot the ledger with genesis + PDH ---------- */
+  let resolveReady;
+  const ready = new Promise(res => (resolveReady = res)); // resolves when genesis PDH hash lands
   record("info", `GENESIS — HarshalOS kernel online. Center-Origin ${CENTER} immutable and non-delegable. Creator-ID {${CREATOR_ID} + ${CREATOR_ID} + (${CREATOR_ID})}.`);
   record("info", "SYMBOLIC FIREWALL ACTIVE — narrative and mythic expressions are strictly non-executable.");
+  record("info", `CRYPTOGRAPHIC SCHEMA ARMED — ${CRYPTO.backend}. PDH = SHA-256, PLV chain = SHA-256, Human Key = HMAC-SHA256.`);
   record("warning", "SESSION STATE: NON-ACTING. Default state of the system is refusal. A verified Human Key is required for all critical actions.");
-  publishPDH();
+  headerReady(publishPDH()).then(() => resolveReady());
 
   /* ---------- session staleness monitor ---------- */
   setInterval(() => {
@@ -282,12 +313,15 @@ const kernel = (() => {
 
   /* ---------- public API ---------- */
   return {
-    TAU, DELTA_MAX, SMAX, CREATOR_ID, CENTER,
+    TAU, DELTA_MAX, SMAX, CREATOR_ID, CENTER, GENESIS_PREV,
     state, ledger, on,
     L, deltaSeconds, scopeS, sessionFresh,
     requestAction, attestHumanKey, revokeHumanKey,
-    makePDH, publishPDH, requestPhase, acknowledgeCollapseStep,
-    record, hashHex, declarationHash, nowISO
+    makePDH, publishPDH, headerReady, requestPhase, acknowledgeCollapseStep,
+    record, declarationHash, nowISO,
+    sha256Hex: s => CRYPTO.sha256Hex(s),
+    hmacSha256Hex: (k, m) => CRYPTO.hmacSha256Hex(k, m),
+    ready
   };
 })();
 

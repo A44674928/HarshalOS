@@ -1,9 +1,11 @@
 # Cloudflare Workers / Wrangler asset ignore file (gitignore syntax).
 #
 # The Worker's assets directory is the repo root, so Wrangler walks the whole
-# checkout when building the deployable asset manifest. Only index.html, css/
-# and js/ are actually part of the site -- everything else here is version
-# control internals, local tooling, or private working documents.
+# checkout when building the deployable asset manifest. Only index.html, css/,
+# js/ and assets/ are actually part of the site -- everything else here is
+# version control internals, local tooling, or private working documents.
+# (assets/eye-open-close-hq.gif is the boot animation: 20.8 MiB, under the
+# 25 MiB per-asset limit.)
 
 # Don't publish this config file itself.
 .assetsignore

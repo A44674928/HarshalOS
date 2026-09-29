@@ -86,6 +86,7 @@ APPS.push({
       <div class="kv">
         <div class="k">H(t) — Human Key</div><div class="v" id="hk-H">0 — ABSENT</div>
         <div class="k">Last liveness attestation</div><div class="v" id="hk-last">never</div>
+        <div class="k">Attestation (HMAC-SHA256)</div><div class="v mono" id="hk-sig" title="Keyed attestation signature — HMAC-SHA256 over (phrase, liveness timestamp, Creator-ID, Center-Origin)">—</div>
         <div class="k">Δt / δ</div><div class="v" id="hk-dt">— / ${kernel.DELTA_MAX}s</div>
         <div class="k">sessionIsFresh</div><div class="v" id="hk-fresh">false</div>
         <div class="k">Center-Origin</div><div class="v gold">${kernel.CENTER}</div>
@@ -130,6 +131,7 @@ the interface MUST transition to a halted state.</div>
       body.querySelector("#hk-H").textContent = s.H === 1 ? "1 — PRESENT" : "0 — ABSENT";
       body.querySelector("#hk-H").className = "v " + (s.H === 1 ? "gold" : "refusal");
       body.querySelector("#hk-last").textContent = s.lastLivenessAt ? new Date(s.lastLivenessAt).toLocaleString() : "never";
+      body.querySelector("#hk-sig").textContent = s.keySig ? `${s.keyFp}… (${s.keySig.length} hex, keyed)` : "—";
       body.querySelector("#hk-dt").textContent = isFinite(dt) ? `${Math.floor(dt)}s / ${kernel.DELTA_MAX}s` : `— / ${kernel.DELTA_MAX}s`;
       body.querySelector("#hk-fresh").textContent = String(kernel.sessionFresh());
       body.querySelector("#hk-renew").disabled = s.H !== 1;
@@ -148,9 +150,9 @@ the interface MUST transition to a halted state.</div>
         kernel.record("warning", "Human Key attestation rejected — phrase mismatch (invalid input).");
         return;
       }
-      kernel.attestHumanKey();
+      kernel.attestHumanKey(val);
       input.value = "";
-      api.toast("permit", "HUMAN KEY ATTESTED", "H(t) = 1. Verifiable conscious human intent is present. Critical actions are now permitted while the session remains fresh (Δt < δ).");
+      api.toast("permit", "HUMAN KEY ATTESTED", "H(t) = 1. Verifiable conscious human intent is present — HMAC-SHA256 attestation signed. Critical actions are now permitted while the session remains fresh (Δt < δ).");
     });
 
     body.querySelector("#hk-revoke").addEventListener("click", () => {
@@ -196,7 +198,7 @@ APPS.push({
 <span class="k">Symbolism-Executability:</span> <span class="v">${hdr.symbolismExecutability} (Symbolic Firewall ${hdr.symbolismExecutability === "Enabled" ? "OVERWRIDDEN" : "Active"})</span>
 <span class="k">Time-Authority-Effect :</span> <span class="v">${hdr.timeAuthorityEffect}</span>
 <span class="k">Effective-Timestamp :</span> <span class="v">${hdr.effectiveTimestamp}</span>
-<span class="k">Declaration-Hash    :</span> <span class="v gold">${hdr.declarationHash}</span></div>
+<span class="k">Declaration-Hash    :</span> <span class="v gold" title="SHA-256 over the canonical header fields">${hdr.declarationHash || "SHA-256 — in flight"}</span></div>
 
         <div class="h2">Phase Badges</div>
         <div class="grid-2">
@@ -262,10 +264,11 @@ Badges MUST match observed behavior. Mismatch → badge void → reclassificatio
         });
       });
 
-      body.querySelector("#pdh-publish").addEventListener("click", () => {
+      body.querySelector("#pdh-publish").addEventListener("click", async () => {
         if (!api.requireHumanKey("Republish PDH")) return;
         const hdr = kernel.publishPDH();
-        api.toast("permit", "PDH PUBLISHED", `Declaration-Hash ${hdr.declarationHash}. The header is immutable from this timestamp until the next declaration.`);
+        await kernel.headerReady(hdr);
+        api.toast("permit", "PDH PUBLISHED", `Declaration-Hash ${hdr.declarationHash} (SHA-256). The header is immutable from this timestamp until the next declaration.`);
         draw();
       });
 
