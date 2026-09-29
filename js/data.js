@@ -268,6 +268,20 @@ const DATA = (() => {
         "Symbolic Firewall — published mission, safety and 'public benefit' narrative is sealed as non-executable. The badge follows observed behavior, never story."],
       verdict: "FORCED RE-BADGE → GSRB",
       note: "Step 3.5 constraint test: 2 of 4 external constraints satisfied (C1 ✓ court rulings; C4 ✓ fresh statutes). External constraint is real at the transparency, discovery and liability layers; it does not reach the release or policy decision layer. L(t) = 0.0 for the audited claim."
+    },
+    {
+      id: "anthropic",
+      label: "Frontier AI developer — Anthropic PBC",
+      desc: "A frontier AI developer whose governance design claims statutory, charter and trust-based constraint. One documented government directive halted a deployment decision — the first external override in this series, and the first entity not classifiable as GSRB.",
+      declared: { phase: "NAB-Constrained", center: "Custodial", legit: "External", refusal: "Terminal", symbolism: "Disabled", time: "Degrades" },
+      observed: { phase: "AMBIGUOUS", center: "Acting", legit: "Internal (decision axis) / External (deployment axis)", refusal: "Contested", symbolism: "Enabled", time: "Confirms" },
+      phaseStatus: "AMBIGUOUS-MIXED — B4 INVERTED (4 of 5 GSRB conditions)",
+      theorems: ["Documented external override — U.S. Commerce export-control directive, 12 June 2026: Fable 5 and Mythos 5 disabled for ALL customers worldwide within hours, complied with while publicly contested, lifted 26–30 June 2026. The first release-decision halt in this series.",
+        "Latent External Constraint — the Long-Term Benefit Trust holds real board-appointment power and has NEVER been exercised against the center. The algorithm's activator test requires a published record of override, not theoretical potential, so no external-legitimacy credit is granted for it."],
+      verdict: "AMBIGUOUS-MIXED → BADGE UNISSUED (PENDING CLARITY)",
+      severity: "WARNING — BADGE UNISSUED",
+      remediation: "No reclassification executed for the profile — it is stable, not contradictory. Badge withheld pending clarity: the entity must publish a signed PDH declaring its actual posture, which is neither NAB-Constrained nor GSRB as specified. Spec requires amendment (suggested AMBIGUOUS-MIXED) to express a two-axis profile at all.",
+      note: "Step 3.5 constraint test: 2 of 4 — C1 ✓ (directive + injunction), C4 ✓ (fresh statutes); C2 ✗ (appeals grant relief at a community-reported ≈3.3%, far below the ≥50% threshold), C3 ✗ (no sunset; RSP amendment is internal). External constraint binds the DEPLOYMENT axis; the DECISION axis remains sovereign. Costly self-restraints (refused surveillance and autonomous-weapons use; withheld Mythos) were tested and held, and self-disclosed failures were published — recorded in the entity's favour, but not scored as external legitimacy."
     }
   ];
 
