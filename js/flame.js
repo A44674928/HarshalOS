@@ -795,14 +795,15 @@ const FractalFlame = (() => {
   }
 
   /* ---------- shared singleton (orb core + flame app share one bake) ---------- */
-  let _shared = null;
+  let _sharedInstances = {};
   /* bumped on every change to the worker/bake protocol — cache-busts the
      worker script + engine in the browser (static site, no build step) */
   const VERSION = "1.1";
 
   function shared(url, opts) {
-    if (!_shared) _shared = new FlamePlayer(url || "assets/Demo.flame", opts || {});
-    return _shared;
+    const key = url || "assets/Demo.flame";
+    if (!_sharedInstances[key]) _sharedInstances[key] = new FlamePlayer(key, opts || {});
+    return _sharedInstances[key];
   }
 
   const api = {

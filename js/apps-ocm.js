@@ -77,7 +77,8 @@
       selected: -1,
       hover: -1,
       show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true, flame: true },
-      flame: null,                   // FlamePlayer (the .flame IFS core — wire mode)
+      flame: null,                   // FlamePlayer (inner core: Demo.flame, 120 frames)
+      outerFlame: null,              // FlamePlayer (outer system: OuterOrb.flame, 600 frames @ 24fps)
       film: null,                    // OrbFilm — the author's rendered surface
       filmReadyAt: 0,                // skin fade-in start (ms)
       pulses: [],
@@ -215,9 +216,12 @@
       const tSec = now / 1000;
       const R = R0 * (1 + BREATH_EPS * Math.sin(TAU * tSec / BREATH_T));
 
-      /* Query flame dynamic modulation (energy, pulse, phase) from Demo.flame */
+      /* Query flame dynamic modulation: inner core (Demo.flame) & outer macro (OuterOrb.flame, 600f) */
       const fMod = (st.flame && typeof st.flame.flameModulation === "function")
         ? st.flame.flameModulation()
+        : { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+      const outerMod = (st.outerFlame && typeof st.outerFlame.flameModulation === "function")
+        ? st.outerFlame.flameModulation()
         : { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
 
       /* 0 · flame surface — the author's rendered film, wrapped on the sphere
@@ -270,19 +274,19 @@
         }
       }
 
-      /* 2 · depth shells (outer shells) — continuous delta-integrated rotation */
-      const outerSpeed = fMod.speedMult || 1;
+      /* 2 · depth shells (outer shells) — governed by 600-frame OuterOrb macro-flame */
+      const outerSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
       if (st.outerAngle1 == null) { st.outerAngle1 = 0; st.outerAngle2 = 0; }
       st.outerAngle1 += (dt || 0.016) * 0.25 * outerSpeed;
       st.outerAngle2 -= (dt || 0.016) * 0.18 * outerSpeed;
       const outerRot1 = st.outerAngle1;
       const outerRot2 = st.outerAngle2;
-      const outerPulse = fMod.active ? (fMod.pulse * 0.05) : 0;
-      const outerAlpha = fMod.active ? (0.20 + 0.10 * fMod.energy) : 0.22;
+      const outerPulse = outerMod.active ? (outerMod.pulse * 0.06) : 0;
+      const outerAlpha = outerMod.active ? (0.22 + 0.14 * outerMod.energy) : 0.22;
       [1.15, 1.8].forEach((rr, i) => {
         const shellRot = i === 0 ? outerRot1 : outerRot2;
         const dynamicRadius = rr + (i === 0 ? outerPulse : -outerPulse * 0.8);
-        arc3D(dynamicRadius, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", outerAlpha, 1 + (fMod.active ? fMod.energy * 0.5 : 0), 0, TAU, shellRot);
+        arc3D(dynamicRadius, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", outerAlpha, 1 + (outerMod.active ? outerMod.energy * 0.6 : 0), 0, TAU, shellRot);
       });
 
       /* 3 · the equatorial disc — 360 primary radiative addresses */
@@ -316,10 +320,11 @@
         ctx.fillText("(NON-SOVEREIGN)", capB.x, capB.y + 16);
       }
 
-      /* 5 · direct attachment spokes — all nodes attach to the center */
+      /* 5 · direct attachment spokes — all nodes attach to the center (modulated by OuterOrb flame) */
       const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0()));
       if (st.show.spokes) {
-        pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", 0.22, 0.8));
+        const spokeAlpha = 0.22 * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
+        pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", spokeAlpha, 0.8));
       }
 
       /* 6 · lateral communication arcs — free, without reauthorization */
@@ -332,14 +337,17 @@
         });
       }
 
-      /* 7 · interaction orbs — non-additive terms */
+      /* 7 · interaction orbs (moving blue orbs) — modulated by 600-frame OuterOrb flame */
       if (st.show.orbs && f > 0.15) {
+        const orbLift = outerMod.active ? (outerMod.pulse * 0.15) : 0;
+        const orbSize = 5 + (outerMod.active ? outerMod.energy * 2.2 : 0);
+        const orbGlow = 1.2 + (outerMod.active ? outerMod.energy * 0.6 : 0);
         [[1, 4], [5, 9]].forEach(([a, b]) => {
           const pa = pos[a], pb = pos[b];
-          const mid = { x: (pa.x + pb.x) * 0.62, y: (pa.y + pb.y) * 0.62 + 0.8, z: (pa.z + pb.z) * 0.62 };
-          bezier3D(pa, mid, pb, ORB_COLOR, 0.6);
+          const mid = { x: (pa.x + pb.x) * 0.62, y: (pa.y + pb.y) * 0.62 + 0.8 + orbLift, z: (pa.z + pb.z) * 0.62 };
+          bezier3D(pa, mid, pb, ORB_COLOR, 0.6 + (outerMod.active ? outerMod.energy * 0.2 : 0));
           const sm = toScreen(project(mid));
-          glowDot(sm, 5, ORB_COLOR, 1.2);
+          glowDot(sm, orbSize, ORB_COLOR, orbGlow);
           ctx.fillStyle = "#d9c2ff";
           ctx.font = "9px ui-monospace, monospace";
           ctx.textAlign = "left";
@@ -383,17 +391,20 @@
         });
       }
 
-      /* 9 · radiative nodes (far first) */
+      /* 9 · radiative nodes (stationary gold orbs) — modulated by 600-frame OuterOrb flame */
       st.projected = [];
+      const nodePulse = outerMod.active ? (0.85 + 0.3 * outerMod.energy) : 1;
       const order = pos.map((p, i) => ({ i, z: project(p).z })).sort((a, b) => b.z - a.z);
       order.forEach(({ i }) => {
         const nd = nodes[i];
         const p = project(pos[i]);
         const sp = toScreen(p);
-        const size = 3.2 + p.k * 3.2;
+        const baseSize = 3.2 + p.k * 3.2;
+        const size = baseSize * nodePulse;
         const color = quadColor(nd.deg);
         const isSel = st.selected === i, isHov = st.hover === i;
-        glowDot(sp, isSel || isHov ? size * 1.35 : size, color, isSel ? 1.4 : isHov ? 1 : 0.35);
+        const nodeAlpha = (isSel ? 1.4 : isHov ? 1 : 0.35) * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
+        glowDot(sp, isSel || isHov ? size * 1.35 : size, color, nodeAlpha);
         if (isSel) {
           ctx.beginPath();
           ctx.arc(sp.x, sp.y, size * 2.1, 0, TAU);
@@ -597,11 +608,15 @@
       setFormation(v) { st.formation = v; },
       setToggle(key, val) { st.show[key] = val; },
       setFlame(p) { st.flame = p; },
+      setOuterFlame(p) { st.outerFlame = p; },
       setFilm(f) { st.film = f; },
       getFilmTime() { return st.filmTime || performance.now(); },
       setFlameSpeed(s) {
         if (st.flame && typeof st.flame.setSpeed === "function") {
-          return st.flame.setSpeed(s);
+          st.flame.setSpeed(s);
+        }
+        if (st.outerFlame && typeof st.outerFlame.setSpeed === "function") {
+          st.outerFlame.setSpeed(s);
         }
         return s;
       }
@@ -648,7 +663,8 @@
                 RADIATIVE SPHERE OF INFLUENCE<br>
                 NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
                 SURFACE: AUTHOR FLAME FILM — <span id="ocm-film-stat">loading…</span><br>
-                HARMONIC MODULATOR: .FLAME IFS — <span id="ocm-flame-stat">.flame loading…</span><br>
+                INNER HARMONICS: .FLAME IFS — <span id="ocm-flame-stat">.flame loading…</span><br>
+                OUTER ORB HARMONICS: 600F IFS — <span id="ocm-outer-stat">OuterOrb loading…</span><br>
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
@@ -727,10 +743,12 @@
         const engine = createOrbEngine(canvas, api);
         window.OCM_ENGINE = engine; /* debug/automation hook */
 
-        // the flame core — shared .flame IFS player (one bake/preload serves orb + flame app)
+        // the flame core & outer macro flame (dual IFS harmonic generators)
         if (typeof FractalFlame !== "undefined") {
           const flame = FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 });
+          const outerFlame = FractalFlame.shared("assets/OuterOrb.flame", { w: 160, h: 160 });
           const statEl = body.querySelector("#ocm-flame-stat");
+          const outerStatEl = body.querySelector("#ocm-outer-stat");
           const setStat = (i, total) => {
             if (statEl) {
               const verb = flame.mode === "preload" ? "loading slices" : "baking";
@@ -740,14 +758,26 @@
           flame.onprogress = setStat;
           flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
           engine.setFlame(flame);
+          engine.setOuterFlame(outerFlame);
+
           if (flame.ready) { /* boot bake already finished */ }
-          else if (flame.baking) { flame.start(); }       // in flight — handlers just attached
-          else flame.retry();                              // boot load failed before handlers existed → re-arm
+          else if (flame.baking) { flame.start(); }
+          else flame.retry();
+
+          if (outerFlame.ready) { /* ready */ }
+          else if (outerFlame.baking) { outerFlame.start(); }
+          else outerFlame.start();
+
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
-            if (!statEl) return;
-            if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
-            else if (!flame.baking) statEl.textContent = "unavailable";
+            if (statEl) {
+              if (flame.ready) statEl.textContent = `live · Demo.flame (120f) · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
+              else if (!flame.baking) statEl.textContent = "unavailable";
+            }
+            if (outerStatEl) {
+              if (outerFlame.ready) outerStatEl.textContent = `live · OuterOrb.flame (600f @ 24fps) · frame ${Math.floor(outerFlame.current) + 1}/${outerFlame.frames.length}`;
+              else if (outerFlame.baking) outerStatEl.textContent = "baking 600f…";
+            }
           }, 40);
         }
 
