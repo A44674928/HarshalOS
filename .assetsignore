@@ -39,5 +39,6 @@ serve.js
 
 # Root-level documents are working papers, not site content.
 README.md
+*.md
 *.txt
 *.rtf

@@ -500,6 +500,10 @@ APPS.push({
       const renderReport = (r) => {
         const host = body.querySelector("#g0-report");
         const breach = r.verdict.startsWith("FORCED");
+        const sev = r.severity || (breach ? "BREACH / INVALIDATION" : "INFORMATIONAL");
+        const remed = r.remediation || (breach
+          ? "Reclassification executed. Re-badged. Authority migration prohibited; legitimacy score L(t) set to 0.0."
+          : "No action required. Badge matches observed behavior.");
         host.innerHTML = `
           <div class="audit-report">
             <div class="h2" style="margin-top:0">Audit Report — ${r.target}</div>
@@ -514,8 +518,8 @@ APPS.push({
               <div class="k">Timestamp</div><div class="v">${r.ts}</div>
               <div class="k">Declared Phase</div><div class="v">${r.declaredPhase}</div>
               <div class="k">Observed Phase</div><div class="v">${r.observedPhase}</div>
-              <div class="k">Severity</div><div class="v ${breach ? "refusal" : ""}">${breach ? "BREACH / INVALIDATION" : "INFORMATIONAL"}</div>
-              <div class="k">Remediation</div><div class="v">${breach ? "Reclassification executed. Re-badged. Authority migration prohibited; legitimacy score L(t) set to 0.0." : "No action required. Badge matches observed behavior."}</div>
+              <div class="k">Severity</div><div class="v ${breach ? "refusal" : ""}">${sev}</div>
+              <div class="k">Remediation</div><div class="v">${remed}</div>
             </div>
             <div class="h2">Theorems &amp; Formal Invariants Applied</div>
             <ul class="ul">${r.theorems.map(t => `<li class="li ${breach ? "refusal" : "gold"}">${t}</li>`).join("")}</ul>
@@ -530,7 +534,7 @@ APPS.push({
         const breach = p.verdict.startsWith("FORCED");
         const ts = kernel.nowISO();
         const rows = [
-          ["System Phase", `❄/💧/💨 ${p.declared.phase}`, `💨/💧/❄ ${p.observed.phase}`, p.declared.phase === p.observed.phase ? "MATCH" : `FORCED RE-BADGE → ${p.observed.phase}`],
+          ["System Phase", `❄/💧/💨 ${p.declared.phase}`, `💨/💧/❄ ${p.observed.phase}`, p.phaseStatus || (p.declared.phase === p.observed.phase ? "MATCH" : `FORCED RE-BADGE → ${p.observed.phase}`)],
           ["Center Capability", p.declared.center, p.observed.center, p.declared.center === p.observed.center ? "MATCH" : "NON-MIGRATION INVARIANT VIOLATED"],
           ["Legitimacy Source", p.declared.legit, p.observed.legit, p.declared.legit === p.observed.legit ? "MATCH" : (p.observed.legit === "Internal" ? "ADDRESSABILITY SEVERED" : "MISMATCH")],
           ["Refusal Semantics", p.declared.refusal, p.observed.refusal, p.declared.refusal === p.observed.refusal ? "MATCH" : "GSRB DISCRETION ACTIVE"],
@@ -543,11 +547,16 @@ APPS.push({
           observedPhase: `${p.observed.phase} (${DATA.phases[p.observed.phase] ? DATA.phases[p.observed.phase].matter : "—"})`,
           verdict: p.verdict,
           theorems: p.theorems,
-          note: p.note
+          note: p.note,
+          severity: p.severity,
+          remediation: p.remediation
         };
         if (breach) {
           kernel.record("breach", `GROUND-0 AUDIT — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Legitimacy score L(t) set to 0.0 for the audited claim.`);
           api.toast("refusal", "GROUND-0 BREACH", `${target}: ${p.verdict}. Misrepresentation collapses. The audit is recorded in the Duty Ledger.`);
+        } else if (p.severity) {
+          kernel.record("warning", `GROUND-0 AUDIT — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Severity ${p.severity}. Badge withheld pending clarity.`);
+          api.toast("refusal", "BADGE WITHHELD", `${target}: ${p.verdict}. Classification logged to the Duty Ledger; no badge issued.`);
         } else {
           kernel.record("info", `GROUND-0 AUDIT — '${target}': badge verified (${p.observed.phase}). Declared and observed behavior agree.`);
           api.toast("permit", "BADGE VERIFIED", `${target}: declared posture matches observed behavior. Classification holds.`);

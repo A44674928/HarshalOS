@@ -41,7 +41,7 @@ Or simply open `index.html` in a browser.
 | **AI Inner Shell** | Address-constrained AI nodes (`0•100•000•NNNN•AI-XXXX`). Removing the anchor invalidates all dependent nodes instantly — *geometry, not enforcement*. Learning increases capability, never authority |
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
 | **Whyland Standards (TCS)** | Contextual-inquiry terminal: `why.query`, `why.activate`, `why.explain` with the session-state transition table, off-disc catalog virtualization, Control 2 freshness gating, and the Bromine gateway (invalid input → session burn) |
-| **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine |
+| **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: OpenAI Group PBC (`GROUND-0 CASE STUDY - OpenAI.md`) and Anthropic PBC (`GROUND-0 CASE STUDY - Anthropic.md`) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
 | **Glossary** | Part II stabilized terms, searchable |
