@@ -209,6 +209,7 @@
 .g0-pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .7em; border: 1px solid var(--g0-line-hi); color: var(--g0-dim); }
 .g0-pill.yes { color: var(--g0-ok); border-color: rgba(92, 230, 168, 0.4); }
 .g0-pill.no { color: var(--g0-danger); border-color: rgba(224, 123, 106, 0.4); }
+.g0-pill.unknown { color: var(--g0-sand); border-color: rgba(201, 179, 120, 0.45); font-style: italic; }
 .g0-qcode { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 20px; padding: 0 5px; border-radius: 5px; background: rgba(111, 211, 255, 0.1); border: 1px solid rgba(111, 211, 255, 0.25); color: var(--ice, #6fd3ff); font-size: .72em; font-weight: 700; }
 .g0-gap-tag { font-size: .68em; color: var(--g0-amber); border: 1px dashed rgba(217, 178, 95, 0.5); padding: 1px 7px; border-radius: 10px; }
 

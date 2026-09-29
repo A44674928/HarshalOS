@@ -361,6 +361,8 @@ window.G0 = (() => {
     const constraints = scoredConstraints(input);
     let phase = initial.phase;
     let confidence = initial.confidence;
+    // An unanswered behavioral question is unknown, not NO: never let it complete a NAB/CWO/GSRB branch.
+    if (input.answers.some(a => a.value === null) && ["NAB", "CWO", "GSRB"].includes(phase)) { phase = "AMBIGUOUS"; confidence = "NONE"; }
     if (phase === "AMBIGUOUS" && constraints.every(Boolean)) { phase = "NAB-Constrained"; confidence = "HIGH"; }
     const answerDocumented = input.answers.map((a, i) => a.value !== null && (a.value ? hasScoringCitation(input, a) && (input.version === "1.0" || i !== 3 || b4Qualifies(input)) : hasScoringCitation(input, a) || a.gap.trim().length >= 8));
     const constraintDocumented = initial.phase !== "AMBIGUOUS" || input.constraints.every((a, i) => a.value !== null && (a.value ? constraints[i] : hasScoringCitation(input, a) || a.gap.trim().length >= 8));

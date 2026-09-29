@@ -135,6 +135,21 @@ auto.automation.sources[0].kind = "news";
 const newsRec = await G0.createAudit(auto, []);
 ok(G0.scoredVector(auto)[0] === false || newsRec.answers[0].value === false, "news-sourced answer does not score");
 
+/* ── unknown (null) answers: not found is UNKNOWN, not NO ── */
+const unknown = G0.newInput("1.0");
+unknown.name = "Unknown Body"; unknown.cutoff = "2026-09-12";
+unknown.answers = base.answers.map(a => ({ ...a }));
+unknown.answers[4] = { value: null, source: "", date: "", notes: "", gap: "Searched official pages plus court, regulatory, legislative, news, and archive indexes; no dated B5 artifact matched." };
+unknown.automation = { method: "public-lookup", provider: "test", reviewRequired: true, requestedName: "Unknown Body", generatedAt: new Date().toISOString(), sources: unknown.answers.filter(a => a.source).map((a, i) => ({ id: `S${i}`, title: `s${i}`, url: a.source, published: a.date, retrieved: "2026-09-12T00:00:00Z", excerpt: "", codes: [], kind: "official" })), coverage: [], warnings: [] };
+const unknownRec = await G0.createAudit(unknown, []);
+ok(unknownRec.phase === "AMBIGUOUS" && unknownRec.confidence === "NONE" && unknownRec.status === "Draft" && unknownRec.badge === "Unissued", "an unknown B5 never completes the NAB branch → AMBIGUOUS/NONE draft");
+ok(unknownRec.report.Activator_Vector[4].Auditor_Answer === "UNANSWERED", "the report records the unknown answer as UNANSWERED");
+ok(unknownRec.workingBadge.filled === 4, "the working badge counts only evidenced questions");
+ok(G0.saveAuditRecords([unknownRec]) && G0.loadAuditRecords().some(r => r.name === "Unknown Body" && r.answers[4].value === null), "unknown answers survive storage normalization");
+unknown.answers[4] = ans(false, "https://example.com/e", "2026-05-09", "Authority requires annual renewal; it sunsets.");
+const knownRec = await G0.createAudit(unknown, []);
+ok(knownRec.phase === "NAB" && knownRec.report.Activator_Vector[4].Auditor_Answer === "NO", "the same pattern with B5 answered NO classifies NAB");
+
 /* ── PDH: structural / freshness / consistency / signature ── */
 const keyPair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
 const jwk = await webcrypto.subtle.exportKey("jwk", keyPair.publicKey);

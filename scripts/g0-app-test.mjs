@@ -355,5 +355,38 @@ ok(evidence.length === 1 && evidence[0].url === "https://example.com/charter", "
 const prefs = JSON.parse(storage.get("ground-0-a11y-v1") || "{}");
 ok(prefs.textSize === "default", "preferences persisted after reset");
 
+/* ── unknown (null) answers: automatic draft renders, rehydrates, and opens for review ── */
+{
+  const input = G0.newInput("1.0");
+  input.name = "Unresolved Body"; input.identifier = "UB-1"; input.cutoff = "2026-09-12";
+  input.answers = [
+    { value: false, source: "https://example.com/a", date: "2026-01-05", notes: "Advisory only; no penalty.", gap: "" },
+    { value: true, source: "https://example.com/b", date: "2026-01-06", notes: "Participation is voluntary and non-binding.", gap: "" },
+    { value: false, source: "https://example.com/c", date: "2026-01-07", notes: "No downstream enforcement cascade.", gap: "" },
+    { value: true, source: "https://example.com/d", date: "2026-01-08", notes: "A filed appeal automatically stays the action.", gap: "" },
+    { value: null, source: "", date: "", notes: "", gap: "Searched official pages plus court, regulatory, legislative, news, and archive indexes; no dated B5 artifact matched." }
+  ];
+  input.automation = { method: "public-lookup", provider: "test", reviewRequired: true, requestedName: "Unresolved Body", generatedAt: new Date().toISOString(), sources: input.answers.filter(a => a.source).map((a, i) => ({ id: `S${i}`, title: `s${i}`, url: a.source, published: a.date, retrieved: "2026-09-12T00:00:00Z", excerpt: "", codes: [], kind: "official" })), coverage: [], warnings: [] };
+  const rec = await G0.createAudit(input, []);
+  ok(rec.phase === "AMBIGUOUS" && rec.confidence === "NONE" && rec.status === "Draft", "engine guard: an unknown answer blocks branch completion");
+  storage.set("ground-0-audits-v1", JSON.stringify([...JSON.parse(storage.get("ground-0-audits-v1") || "[]"), rec]));
+  const root2 = new El("div");
+  app.render(root2, api);
+  const main2 = root2.querySelector("#g0-main");
+  root2.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "register").click();
+  ok(main2.innerHTML.includes("Unresolved Body"), "automatic draft with an unknown answer rehydrates into the register");
+  main2.querySelector(`[data-act="openDetail"][data-id="${rec.id}"]`).click();
+  ok(main2.innerHTML.includes("not answered"), "the detail view shows the unknown question as not answered");
+  const review = main2.querySelector(`[data-act="resumeAudit"][data-id="${rec.id}"]`);
+  ok(!!review, "the automatic draft offers review and edit");
+  review.click();
+  main2.querySelector('[data-act="wizNext"]').click(); // entity step is prefilled → behavioral step
+  const b5 = main2.querySelectorAll('[data-act="bind"][data-path="wiz.input.answers.4.value"]');
+  ok(b5.length === 2 && !b5.some(b => b.classList.contains("on")), "the unknown question opens with neither Yes nor No pressed");
+  ok(!!main2.querySelector('[data-bind="wiz.input.answers.4.gap"]'), "the bounded-search field is shown for the unknown question");
+  main2.querySelector('[data-act="bind"][data-path="wiz.input.answers.4.value"][data-value="false"]').click();
+  ok(main2.querySelector('[data-act="wizNext"]') && true, "ansswering the unknown question re-enables progress");
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

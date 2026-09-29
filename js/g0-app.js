@@ -783,7 +783,7 @@ APPS.push({
               ${field("Published or effective date", `<input class="g0-input" type="date" value="${esc(answer.date)}" max="${esc(cutoff)}" data-bind="${path}.date">`)}
             </div>
             ${field("Claim this artifact supports", `<textarea class="g0-input" rows="3" placeholder="Describe the observable evidence, not an interpretation." data-bind="${path}.notes">${esc(answer.notes)}</textarea>`)}
-            ${answer.value === false ? field("Evidence gap or bounded search", `<textarea class="g0-input" rows="3" placeholder="If there is no contrary artifact, say what you searched, over what period, and what was not shown." data-bind="${path}.gap">${esc(answer.gap)}</textarea>`) : ""}
+            ${answer.value !== true ? field("Evidence gap or bounded search", `<textarea class="g0-input" rows="3" placeholder="If there is no contrary artifact, say what you searched, over what period, and what was not shown." data-bind="${path}.gap">${esc(answer.gap)}</textarea>`) : ""}
             ${extra}
           </div>
         </section>`;
@@ -1066,7 +1066,7 @@ APPS.push({
             const src = ans.source ? o.sources.find(s => G0.canonicalUrl(s.url) === G0.canonicalUrl(ans.source)) : null;
             return `<li class="g0-auto-question">
               <div class="g0-auto-q-head"><span class="g0-qcode mono">${q.code}</span><h4>${esc(q.title)}</h4>
-              <span class="g0-pill ${ans.value ? "yes" : "no"}">${ans.value ? "Yes" : "No / not shown"}</span></div>
+              <span class="g0-pill ${ans.value === null ? "unknown" : ans.value ? "yes" : "no"}">${ans.value === null ? "Unknown — not demonstrated" : ans.value ? "Yes" : "No"}</span></div>
               ${ans.notes ? `<blockquote>${esc(ans.notes)}</blockquote>` : ""}
               ${src ? `<p class="g0-quote-meta"><a href="${esc(src.url)}" target="_blank" rel="noreferrer">${esc(src.title)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(G0.sourceDateDescription(src))}</span></p>` : `<p class="g0-auto-gap">${esc(ans.gap)}</p>`}
             </li>`;

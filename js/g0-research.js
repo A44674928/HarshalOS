@@ -360,7 +360,7 @@ window.G0Research = (() => {
       const label = match[1]; let url;
       try { url = new URL(match[2], website).href.split("#")[0]; const archivedLink = G0.parseArchiveUrl(url); if (archivedLink) url = archivedLink.original; } catch { continue; }
       if (!G0.safePublicUrl(url) || !sameSite(url, website) || /\.(png|jpg|svg|mp4|pdf)(?:\?|$)/i.test(url)) continue;
-      const score = /terms(?:\s+of\s+(?:use|service))?|conditions|appeal|governance|charter|enforcement|constitution|transparency|accountability|bylaws|oversight/i.test(label) ? 3 : /polic(?:y|ies)|safety|usage|acceptable|compliance|report/i.test(label) ? 2 : 0;
+      const score = /terms(?:\s+of\s+(?:use|service))?|conditions|appeal|dispute|governance|charter|enforcement|constitution|transparency|accountability|bylaws|oversight|acceptable[- ]use/i.test(label) ? 3 : /polic(?:y|ies)|safety|usage|acceptable|compliance|report/i.test(label) ? 2 : 0;
       if (score) links.push({ url, score });
     }
     return links.sort((a, b) => b.score - a.score).filter((entry, i, all) => all.findIndex(e => e.url === entry.url) === i).map(e => e.url).slice(0, 6);
@@ -401,8 +401,14 @@ window.G0Research = (() => {
     const sources = candidates.filter((source, i, all) => G0.safePublicUrl(source.url) && all.findIndex(s => G0.canonicalUrl(s.url) === G0.canonicalUrl(source.url)) === i);
     const officialCount = documents.filter(d => d.official).length;
     const gap = (code, extra = "") => `Searched ${officialCount} official page${officialCount === 1 ? "" : "s"} plus court, regulatory, legislative, news, and archive indexes for ${organization.name} through ${cutoff}. No dated qualifying ${code} artifact was matched.${extra} This is a coverage gap, not proof of a negative.`;
+    // Read the organization's own governing documents first — terms of service or use,
+    // acceptable-use and enforcement policies, appeal or dispute procedures, governance
+    // charters and bylaws — before any other page. Operative wording lives there.
+    const governingDoc = /terms|conditions|polic(?:y|ies)|appeal|dispute|governance|charter|bylaw|enforcement|acceptable|safety|usage|oversight|constitution/i;
+    const docPriority = doc => !doc.official || doc.scoringEligible === false ? 0 : (governingDoc.test(doc.url) || governingDoc.test(doc.title) ? 2 : 1);
+    const orderedDocs = documents.slice().sort((a, b) => docPriority(b) - docPriority(a));
     const answer = (code, rules) => {
-      for (const doc of documents) {
+      for (const doc of orderedDocs) {
         if (!doc.official || doc.scoringEligible === false) continue;
         const match = quoteMatch(doc, rules);
         if (!match) continue;
@@ -413,7 +419,8 @@ window.G0Research = (() => {
         if (code === "B4" && match.rule.basis) input.b4 = { ...input.b4, actor: "Affected party named by the cited appeal rule — review required", action: "The action specified in the cited operative rule — review required", procedure: match.quote, basis: match.rule.basis };
         return { value: match.rule.value, source: doc.url, date: evidenceDate, notes: match.quote, gap: match.rule.value ? "" : "Contrary artifact located; inspect scope before accepting this suggested NO." };
       }
-      return { value: false, source: "", date: "", notes: "", gap: gap(code) };
+      // Not found is UNKNOWN, not NO: B2/B4 = NO are substantive claims (decisions can't be ignored / refusal can't stop action).
+      return { value: code.startsWith("B") ? null : false, source: "", date: "", notes: "", gap: gap(code) };
     };
     input.answers = behaviorRules.map((rules, i) => answer(`B${i + 1}`, rules));
     input.constraints = constraintRules.map((rules, i) => answer(`C${i + 1}`, rules));
@@ -446,7 +453,7 @@ window.G0Research = (() => {
     const notes = value && typeof value.notes === "string" ? value.notes.slice(0, 1200) : "";
     const date = value && typeof value.date === "string" ? value.date.slice(0, 10) : "";
     const valid = !!source && source.kind !== "news" && source.dateBasis !== "indexed" && G0.safePublicUrl(source.url) && G0.beforeCutoff(date, cutoff) && date === (source.published || source.capturedAt) && notes.trim().length >= 10;
-    if (!valid) return { value: false, source: "", date: "", notes: "", gap: `${code}: The hosted research did not return a qualifying, dated, consulted source. Unsupported is scored NO, not a proven negative.` };
+    if (!valid) return { value: code.startsWith("B") ? null : false, source: "", date: "", notes: "", gap: `${code}: The hosted research did not return a qualifying, dated, consulted source. Recorded as not demonstrated, not as a proven negative.` };
     source.codes = Array.from(new Set([...(source.codes || []), code]));
     return { value: value.value === true, source: source.url, date, notes, gap: typeof value.gap === "string" ? value.gap.slice(0, 1200) : "" };
   }
@@ -534,6 +541,7 @@ window.G0Research = (() => {
       if (archivedCount) warnings.push(`${archivedCount} page${archivedCount === 1 ? " was" : "s were"} read from an Internet Archive capture taken on or before the cutoff, so live text is not mistaken for the version in force then.`);
       if (documents.some(d => d.official && d.scoringEligible === false)) warnings.push("Some official pages lack a qualifying date or a readable capture for this historical cutoff. They are retained as context, not credited as operative evidence.");
       warnings.push("News results are recorded as dated leads only. They are never scored as operative evidence; open the primary court, regulatory, or policy artifact to score a question.");
+      warnings.push("The organization's own governing documents — terms of service or use, acceptable-use and enforcement policies, appeal or dispute procedures, governance charters and bylaws — are read first and matched on their operative wording; other pages and public registries are consulted afterward. A behavioral question with no qualifying artifact is recorded UNKNOWN, not NO.");
     }
     signal.throwIfAborted();
     onProgress({ step: 4, message: "Applying the versioned phase rules and filling the working badge…", completed: 4, total: 5 });
@@ -569,7 +577,7 @@ window.G0Research = (() => {
       "SOURCES SEARCHED",
       ...result.coverage.map(entry => `${entry.registry}: ${entry.status === "unavailable" ? "unavailable this run" : `${entry.found} matching record(s)`} — ${entry.scope} (${entry.source})`),
       "",
-      ...G0.questions.map((q, i) => `${q.code}: ${q.title}\nSuggested score: ${result.input.answers[i].value ? "YES" : "NO / not demonstrated"}\n${result.input.answers[i].notes || result.input.answers[i].gap}\n${result.input.answers[i].source || "No qualifying dated citation"}`),
+      ...G0.questions.map((q, i) => `${q.code}: ${q.title}\nSuggested score: ${result.input.answers[i].value === null ? "UNKNOWN — not demonstrated by any qualifying artifact" : result.input.answers[i].value ? "YES" : "NO / not demonstrated"}\n${result.input.answers[i].notes || result.input.answers[i].gap}\n${result.input.answers[i].source || "No qualifying dated citation"}`),
       "", "RETRIEVED SOURCES (not all sources qualify for scoring)",
       ...result.sources.map(s => `[${s.kind.toUpperCase()}] ${s.title}\n${s.url}\nPublished/effective: ${s.published || "not demonstrated"}\nRetrieved: ${s.retrieved}\n${s.excerpt}`),
       "", "LIMITATIONS", ...result.warnings

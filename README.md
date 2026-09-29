@@ -146,9 +146,13 @@ check when AMBIGUOUS → compare and classify → audit temporal transitions.
 **Evidence discipline.** An answer only scores when a *public, dated* artifact with a real claim
 supports it, on or before the inclusive cutoff. Strict calendar-date and safe-URL validation reject
 values that `Date.parse` would silently roll into other months, and local/internal/raw-IP URLs never
-qualify. No evidence is coded **NO** — a scoring code, never a proven negative. In v1.1, B4 requires
-a terminal/stay rule, a complete ≥50% relief record, or binding penalty-free exit; an external order
-plus compliance does not qualify. News leads and index dates never score.
+qualify. A behavioral question with no qualifying artifact is recorded **UNKNOWN — never NO**:
+B2/B4 = NO are substantive claims (decisions cannot be ignored / refusal cannot stop action), and an
+unanswered question can never complete a NAB/CWO/GSRB branch — it forces the result to AMBIGUOUS.
+Constraint checks without evidence are coded NO with a disclosed gap — a scoring code, never a
+proven negative. In v1.1, B4 requires a terminal/stay rule, a complete ≥50% relief record, or
+binding penalty-free exit; an external order plus compliance does not qualify. News leads and index
+dates never score.
 
 **PDH validation.** A Phase Declaration Header must be complete, **signed (ECDSA P-256/SHA-256
 against a trusted Center-Origin key)**, fresh (≤ 90 days before the cutoff), and internally
@@ -163,12 +167,16 @@ still requires a valid signed PDH, and the UI always shows both.
 
 **Automatic research.** The automatic route is key-free and runs in the browser: Wikimedia/Wikidata
 resolve which organization is meant; the official homepage and its policy/appeal/governance links
-are read through a public reader; Internet Archive captures verify what was in force at the cutoff;
-CourtListener, the Federal Register, GovTrack, and GDELT are searched in parallel. Only operative
-source sentences about *this organization's action* can activate a test — captions, filing dates,
-requests, denials, proposals, and app-written guidance cannot. Coverage is reported for **every**
-registry, including empty, partial, and unavailable outcomes. Automatic results are saved as
-review-required drafts; the formal badge stays unissued until a person reviews them.
+are read through a public reader — the organization's own governing documents (terms of service or
+use, acceptable-use and enforcement policies, appeal or dispute procedures, governance charters and
+bylaws) are read first and matched on their operative wording; Internet Archive captures verify what
+was in force at the cutoff; CourtListener, the Federal Register, GovTrack, and GDELT are searched in
+parallel. Only operative source sentences about *this organization's action* can activate a test —
+captions, filing dates, requests, denials, proposals, and app-written guidance cannot. A behavioral
+question with no qualifying artifact is suggested as UNKNOWN, not NO, and a human reviewer must
+answer it before the draft can be saved. Coverage is reported for **every** registry, including
+empty, partial, and unavailable outcomes. Automatic results are saved as review-required drafts; the
+formal badge stays unissued until a person reviews them.
 
 **Temporal rules.** NAB ↔ CWO transitions are reversible with a valid destination declaration;
 escalation into GSRB requires declaration review (loss of misuse resistance must be stated);

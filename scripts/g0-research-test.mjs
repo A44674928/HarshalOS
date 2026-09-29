@@ -31,12 +31,29 @@ const captionOnly = { ...courtRecord, claim: "" };
 ok(R.externalOverrideQuote(captionOnly, "Acme Corp") === null, "caption match without claim text never qualifies");
 
 /* ── policy link discovery ── */
-const md = "Welcome. [Terms of Service](/terms) · [Appeals](https://example.org/appeal) · [Careers](/jobs) · [Logo](/img.png) · [Policy](https://web.archive.org/web/20260101000000/https://example.org/policy)";
+const md = "Welcome. [Terms of Service](/terms) · [Appeals](https://example.org/appeal) · [Careers](/jobs) · [Logo](/img.png) · [Policy](https://web.archive.org/web/20260101000000/https://example.org/policy) · [Dispute Resolution](/dispute) · [Acceptable Use Policy](/aup)";
 const links = R.policyLinks(md, "https://example.org/");
 ok(links.includes("https://example.org/terms") && links.includes("https://example.org/appeal"), "terms and appeal links discovered");
 ok(!links.some(l => l.includes("/jobs")), "unrelated links skipped");
 ok(!links.some(l => l.endsWith(".png")), "asset links skipped");
 ok(links.includes("https://example.org/policy"), "wayback-wrapped link resolved to its original target");
+ok(links.includes("https://example.org/dispute") && links.includes("https://example.org/aup"), "dispute procedures and acceptable-use policies are governing documents");
+
+/* ── unknown suggested answers export as UNKNOWN, not NO ── */
+const summary = R.plainResearchSummary({
+  organization: { name: "Acme Corp" },
+  input: { version: "1.1", cutoff: "2026-09-12", answers: [
+    { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." },
+    { value: true, source: "https://example.org/t", date: "2026-01-01", notes: "Participation is voluntary and non-binding.", gap: "" },
+    { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." },
+    { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." },
+    { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." }
+  ] },
+  coverage: [], sources: [], warnings: [],
+  record: { badge: "Unissued", phase: "AMBIGUOUS", confidence: "NONE", finding: "Provisional.", workingBadge: { label: "CWO — default, unproven", filled: 1, explanation: "One question evidenced." } }
+});
+ok(summary.includes("UNKNOWN — not demonstrated"), "the plain summary marks missing demonstrations UNKNOWN, not NO");
+ok(summary.includes("\nYES\n") || summary.includes("YES\nParticipation"), "an evidenced YES still reads YES");
 
 /* ── registry labels ── */
 ok(Object.keys(R.registryLabels).length === 5, "five registries labelled with scope + source");
