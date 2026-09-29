@@ -123,20 +123,21 @@
     }
 
     /* ---------- drawing primitives ---------- */
-    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo) {
+    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo, rotAngle) {
       // plane: 'eq' (equatorial), 'lat:<phi>', 'mer:<lon>'
+      const rot = rotAngle || 0;
       ctx.beginPath();
       let started = false;
       for (let i = 0; i <= steps; i++) {
         const a = angleFrom + (angleTo - angleFrom) * (i / steps);
         let p;
         if (plane === "eq") {
-          p = { x: radius * Math.cos(a), y: 0, z: radius * Math.sin(a) };
+          p = { x: radius * Math.cos(a + rot), y: 0, z: radius * Math.sin(a + rot) };
         } else if (plane.startsWith("lat:")) {
           const phi = parseFloat(plane.slice(4));
-          p = { x: radius * Math.cos(phi) * Math.cos(a), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a) };
+          p = { x: radius * Math.cos(phi) * Math.cos(a + rot), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a + rot) };
         } else {
-          const lon = parseFloat(plane.slice(4));
+          const lon = parseFloat(plane.slice(4)) + rot;
           p = { x: radius * Math.cos(a) * Math.cos(lon), y: radius * Math.sin(a), z: radius * Math.cos(a) * Math.sin(lon) };
         }
         const q = toScreen(project(p));
@@ -214,38 +215,43 @@
       const tSec = now / 1000;
       const R = R0 * (1 + BREATH_EPS * Math.sin(TAU * tSec / BREATH_T));
 
+      /* Query flame dynamic modulation (energy, pulse, phase) from Demo.flame */
+      const fMod = (st.flame && typeof st.flame.flameModulation === "function")
+        ? st.flame.flameModulation()
+        : { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+
       /* 0 · flame surface — the author's rendered film, wrapped on the sphere
           through this same camera (rotation, pitch, zoom, breathing). Until the
-          film is ready — or when toggled off — the .flame IFS core burn and the
-          wireframe meridians carry the fire instead. */
+          film is ready — or when toggled off — the wireframe meridians and
+          dynamic flame-modulated components carry the sphere structure instead. */
       const cs0 = toScreen(project({ x: 0, y: 0, z: 0 }));
       const FM = filmMod();
-      const filmImg = (st.show.flame && st.film && st.film.ready && FM)
-        ? st.film.img(st.film.frameAt(now)) : null;
-      const skinOn = !!filmImg;
+      const sample = (st.show.flame && st.film && st.film.ready && FM)
+        ? st.film.sampleAt(now) : null;
+      const skinOn = !!(sample && sample.img0);
       if (skinOn) {
         if (!st.filmReadyAt) st.filmReadyAt = now;
         const fade = Math.min(1, (now - st.filmReadyAt) / 900);
         const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
-        const alpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
-        FM.drawWrapped(ctx, {
-          img: filmImg, project, toScreen, cs: cs0, R,
-          fov: 7.2 / st.zoom, alpha, dpr: window.devicePixelRatio || 1
-        });
-      } else if (st.show.flame && st.flame && st.flame.ready) {
-        const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
-        const alpha = 0.22 + 0.78 * L;
-        const unit = Math.min(w, h) * 0.18;
-        const size = R * unit * 1.55;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cs0.x, cs0.y, size / 2, 0, TAU);
-        ctx.clip();
-        ctx.translate(cs0.x, cs0.y);
-        ctx.rotate(tSec * 0.05);     // constant angular velocity ω_f = 0.05 rad/s
-        ctx.translate(-cs0.x, -cs0.y);
-        st.flame.drawOn(ctx, cs0.x, cs0.y, size, alpha * (0.35 + 0.65 * f));
-        ctx.restore();
+        const totalAlpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
+        
+        // Equal-energy cosine/sine blend across the sub-frame seam:
+        const frac = sample.frac;
+        const a0 = totalAlpha * Math.cos(frac * (Math.PI / 2));
+        const a1 = totalAlpha * Math.sin(frac * (Math.PI / 2));
+
+        if (sample.img0 && a0 > 0.01) {
+          FM.drawWrapped(ctx, {
+            img: sample.img0, project, toScreen, cs: cs0, R,
+            fov: 7.2 / st.zoom, alpha: a0, dpr: window.devicePixelRatio || 1
+          });
+        }
+        if (sample.img1 && a1 > 0.01 && frac > 0.002) {
+          FM.drawWrapped(ctx, {
+            img: sample.img1, project, toScreen, cs: cs0, R,
+            fov: 7.2 / st.zoom, alpha: a1, dpr: window.devicePixelRatio || 1
+          });
+        }
       }
 
       /* 1 · volumetric wireframe (fades in with formation; hidden while the
@@ -259,9 +265,16 @@
         }
       }
 
-      /* 2 · depth shells — distance gives it depth */
+      /* 2 · depth shells (outer shells) — dynamically modulated by flame harmonics */
+      const outerSpeed = fMod.speedMult || 1;
+      const outerRot1 = tSec * 0.04 * outerSpeed;
+      const outerRot2 = -tSec * 0.03 * outerSpeed;
+      const outerPulse = fMod.active ? (fMod.pulse * 0.05) : 0;
+      const outerAlpha = fMod.active ? (0.20 + 0.10 * fMod.energy) : 0.22;
       [1.15, 1.8].forEach((rr, i) => {
-        arc3D(rr, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", 0.22, 1, 0, TAU);
+        const shellRot = i === 0 ? outerRot1 : outerRot2;
+        const dynamicRadius = rr + (i === 0 ? outerPulse : -outerPulse * 0.8);
+        arc3D(dynamicRadius, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", outerAlpha, 1 + (fMod.active ? fMod.energy * 0.5 : 0), 0, TAU, shellRot);
       });
 
       /* 3 · the equatorial disc — 360 primary radiative addresses */
@@ -326,13 +339,17 @@
         });
       }
 
-      /* 8 · AI inner shell — capability without sovereignty */
+      /* 8 · AI inner shell — dynamically modulated by flame harmonics */
       if (st.show.shell) {
-        const SR = 0.62;
-        arc3D(SR, "lat:0", 64, SHELL_COLOR, 0.35, 1, 0, TAU);
-        arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, 0.22, 1, 0, TAU);
-        arc3D(SR, "mer:0", 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
-        arc3D(SR, "mer:" + Math.PI / 2, 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
+        const innerPulse = fMod.active ? (fMod.pulse * 0.03) : 0;
+        const SR = 0.62 + innerPulse;
+        const innerAlpha = fMod.active ? (0.28 + 0.14 * fMod.energy) : 0.35;
+        const innerSubAlpha = fMod.active ? (0.18 + 0.08 * fMod.energy) : 0.22;
+        const innerRot = fMod.active ? (fMod.phase * 0.5) : 0;
+        arc3D(SR, "lat:0", 64, SHELL_COLOR, innerAlpha, 1, 0, TAU, innerRot);
+        arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, innerSubAlpha, 1, 0, TAU, -innerRot * 0.8);
+        arc3D(SR, "mer:0", 48, SHELL_COLOR, innerSubAlpha, 1, -Math.PI / 2, Math.PI / 2, innerRot);
+        arc3D(SR, "mer:" + Math.PI / 2, 48, SHELL_COLOR, innerSubAlpha, 1, -Math.PI / 2, Math.PI / 2, -innerRot);
         // anchor
         const anchor = { x: 0, y: SR, z: 0 };
         line3D({ x: 0, y: 0, z: 0 }, anchor, CENTER_COLOR, 0.5, 1.1);
@@ -343,8 +360,8 @@
         ctx.textAlign = "left";
         ctx.fillText("AI SHELL ANCHOR", sa.x + 7, sa.y + 3);
         aiNodes.forEach((ai, i) => {
-          const spin = performance.now() * 0.00006 * (i % 2 ? -1 : 1);
-          const lon = ai.lon * D2R + spin;
+          const spin = performance.now() * 0.00006 * (i % 2 ? -1 : 1) * outerSpeed;
+          const lon = ai.lon * D2R + spin + innerRot;
           const lat = ai.lat * D2R;
           const p = { x: SR * Math.cos(lat) * Math.cos(lon), y: SR * Math.sin(lat), z: SR * Math.cos(lat) * Math.sin(lon) };
           line3D(anchor, p, SHELL_COLOR, 0.3, 0.8);
@@ -401,26 +418,48 @@
         st.flare = Math.max(0, st.flare - 0.02);
       }
 
-      /* 11 · pulses */
+      /* 11 · pulses: inward resolution dominates lateral coordination.
+         For safety and authority invariants, inward resolution to the center
+         travels decisively faster than lateral communication.
+         Pulse velocity and center flare are modulated by flame harmonic energy. */
+      const flameSpeedMult = fMod.active ? (0.9 + 0.2 * fMod.energy) : 1;
       st.pulses = st.pulses.filter(pu => {
-        pu.t += 0.018;
+        const speed = (pu.kind === "in" ? 0.038 : 0.012) * flameSpeedMult; // inward resolution outpaces lateral by >3×
+        pu.t += speed;
         if (pu.t >= 1) {
-          if (pu.kind === "in") { st.flare = 1; if (pu.onArrive) pu.onArrive(); }
+          if (pu.kind === "in") {
+            st.flare = fMod.active ? (0.9 + 0.3 * fMod.energy) : 1;
+            if (pu.onArrive) pu.onArrive();
+          }
           return false;
         }
         let a, b;
         if (pu.kind === "in") {
           a = pos[pu.from]; b = { x: 0, y: 0, z: 0 };
+          const cur = {
+            x: a.x + (b.x - a.x) * pu.t,
+            y: a.y + (b.y - a.y) * pu.t,
+            z: a.z + (b.z - a.z) * pu.t
+          };
+          const sp = toScreen(project(cur));
+          const pSize = 3.8 + (fMod.active ? fMod.energy * 1.2 : 0);
+          glowDot(sp, pSize, CENTER_COLOR, 1.6);
         } else {
           a = pos[pu.from]; b = pos[pu.to];
+          const mid = {
+            x: (a.x + b.x) * 0.72,
+            y: (a.y + b.y) * 0.72 + 0.45,
+            z: (a.z + b.z) * 0.72
+          };
+          const t = pu.t, u = 1 - t;
+          const cur = {
+            x: u * u * a.x + 2 * u * t * mid.x + t * t * b.x,
+            y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
+            z: u * u * a.z + 2 * u * t * mid.z + t * t * b.z
+          };
+          const sp = toScreen(project(cur));
+          glowDot(sp, 3.0, "#6fd3ff", 1.2);
         }
-        const cur = {
-          x: a.x + (b.x - a.x) * pu.t,
-          y: a.y + (b.y - a.y) * pu.t,
-          z: a.z + (b.z - a.z) * pu.t
-        };
-        const sp = toScreen(project(cur));
-        glowDot(sp, 3.4, pu.kind === "in" ? CENTER_COLOR : "#6fd3ff", 1.4);
         return true;
       });
     }
@@ -545,7 +584,13 @@
       setFormation(v) { st.formation = v; },
       setToggle(key, val) { st.show[key] = val; },
       setFlame(p) { st.flame = p; },
-      setFilm(f) { st.film = f; }
+      setFilm(f) { st.film = f; },
+      setFlameSpeed(s) {
+        if (st.flame && typeof st.flame.setSpeed === "function") {
+          return st.flame.setSpeed(s);
+        }
+        return s;
+      }
     };
   }
 
@@ -589,7 +634,7 @@
                 RADIATIVE SPHERE OF INFLUENCE<br>
                 NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
                 SURFACE: AUTHOR FLAME FILM — <span id="ocm-film-stat">loading…</span><br>
-                CORE · WIRE MODE: .FLAME IFS — <span id="ocm-flame-stat">.flame baking…</span><br>
+                HARMONIC MODULATOR: .FLAME IFS — <span id="ocm-flame-stat">.flame loading…</span><br>
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
@@ -612,6 +657,13 @@
           </div>
           <div class="slider-cap">360 primary addresses form a complete disc (0•DDD•000•0000). Rotation over time + depth
           (distance, 0•DDD•RRR•####) produces the sphere. Once instantiated, the sphere persists even if rotation pauses.</div>
+
+          <div class="slider-row" style="margin-top:14px">
+            <label>Harmonic Modulator Speed →</label>
+            <input type="range" id="ocm-flame-spd" min="0.1" max="4.0" step="0.1" value="1.0">
+            <span class="val" id="ocm-flame-spdv">1.0×</span>
+          </div>
+          <div class="slider-cap">Controls the frequency of the underlying .flame IFS IFS attractor cycle, governing inner/outer shell orbital velocities, harmonic respiration, and pulse dynamics.</div>
 
           <div class="btn-row">
             <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
@@ -661,11 +713,16 @@
         const engine = createOrbEngine(canvas, api);
         window.OCM_ENGINE = engine; /* debug/automation hook */
 
-        // the flame core — shared .flame IFS player (one bake serves orb + flame app)
+        // the flame core — shared .flame IFS player (one bake/preload serves orb + flame app)
         if (typeof FractalFlame !== "undefined") {
-          const flame = FractalFlame.shared("assets/a.flame", { w: 160, h: 160 });
+          const flame = FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 });
           const statEl = body.querySelector("#ocm-flame-stat");
-          const setStat = (i, total) => { if (statEl) statEl.textContent = `baking ${i}/${total}…`; };
+          const setStat = (i, total) => {
+            if (statEl) {
+              const verb = flame.mode === "preload" ? "loading slices" : "baking";
+              statEl.textContent = `${verb} ${i}/${total}…`;
+            }
+          };
           flame.onprogress = setStat;
           flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
           engine.setFlame(flame);
@@ -675,7 +732,7 @@
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
             if (!statEl) return;
-            if (flame.ready) statEl.textContent = `live · a.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
+            if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
             else if (!flame.baking) statEl.textContent = "unavailable";
           }, 1000);
         }
@@ -715,9 +772,10 @@
                 <div>latitudes&nbsp;&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) — equal-area lattice, uniform in solid angle</div>
                 <div>longitudes&nbsp; λᵢ = Dᵢ·π/180 — address-derived (0•DDD•000•0000)</div>
                 <div>surface&nbsp;&nbsp; I(λ,φ,t) = A⌊t·12⌋ mod 200 — the author's rendered film, wrapped on the sphere by this camera</div>
-                <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS bake</div>
+                <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS modulation</div>
+                <div>harmonic modulation&nbsp; inner/outer shells &amp; radial pulses coupled to Demo.flame energy</div>
                 <div>legitimacy&nbsp; α_flame = 0.22 + 0.78·L(t) — the fire answers to legitimacy</div>
-                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · wire core: a.flame · Apophysis 7x</div>
+                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · flame harmonic modulator: Demo.flame · Apophysis 7x</div>
               </div>
               <div class="oi-why">SINGLE-ORIGIN AXIOM · EVERY VALID ADDRESS DERIVES FROM EXACTLY ONE CENTER POINT</div>`;
             return;
@@ -763,6 +821,17 @@
           engine.setFormation(parseFloat(form.value));
           body.querySelector("#ocm-formv").textContent = parseFloat(form.value).toFixed(2);
         });
+
+        // harmonic modulator speed slider
+        const flameSpd = body.querySelector("#ocm-flame-spd");
+        const flameSpdv = body.querySelector("#ocm-flame-spdv");
+        if (flameSpd) {
+          flameSpd.addEventListener("input", () => {
+            const val = parseFloat(flameSpd.value);
+            engine.setFlameSpeed(val);
+            if (flameSpdv) flameSpdv.textContent = val.toFixed(1) + "×";
+          });
+        }
 
         body.querySelector("#ocm-reform").addEventListener("click", () => {
           engine.setFormation(0);

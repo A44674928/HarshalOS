@@ -106,8 +106,18 @@
       try { img.decode().catch(() => {}); } catch (_) { /* optional */ }
     }
 
-    /* frame index at time tMs — the hard loop. 199 → 0 is the heartbeat. */
+    /* frame index and sub-frame position at time tMs — continuous timeline */
     frameAt(tMs) { return Math.floor((tMs / 1000) * CFG.fps) % CFG.count; }
+
+    /* sub-frame fraction and adjacent frame indices for seamless interpolation */
+    sampleAt(tMs) {
+      const cur = ((tMs / 1000) * CFG.fps) % CFG.count;
+      const curNorm = (cur + CFG.count) % CFG.count;
+      const i0 = Math.floor(curNorm);
+      const i1 = (i0 + 1) % CFG.count;
+      const frac = curNorm - i0;
+      return { i0, i1, frac, img0: this.img(i0), img1: this.img(i1) };
+    }
 
     /* loaded image for index i, falling back to the nearest loaded
        neighbour (the loader stays ahead of the playhead in practice) */
