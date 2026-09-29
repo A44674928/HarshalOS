@@ -679,6 +679,18 @@ const FractalFlame = (() => {
       return out;
     }
 
+    setSpeed(s) {
+      const v = Math.max(0.1, Math.min(10, s));
+      if (this.playing && this.speed !== v) {
+        const cur = this.current;
+        this.speed = v;
+        this._playingAt = this._now() - (cur / this.fps) * 1000 / this.speed;
+      } else {
+        this.speed = v;
+      }
+      return this.speed;
+    }
+
     seek(i) {
       if (!this.frames.length) return;
       this.current = Math.max(0, Math.min(this.frames.length - 0.001, i));

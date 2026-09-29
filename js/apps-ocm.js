@@ -570,7 +570,13 @@
       setFormation(v) { st.formation = v; },
       setToggle(key, val) { st.show[key] = val; },
       setFlame(p) { st.flame = p; },
-      setFilm(f) { st.film = f; }
+      setFilm(f) { st.film = f; },
+      setFlameSpeed(s) {
+        if (st.flame && typeof st.flame.setSpeed === "function") {
+          return st.flame.setSpeed(s);
+        }
+        return s;
+      }
     };
   }
 
@@ -637,6 +643,13 @@
           </div>
           <div class="slider-cap">360 primary addresses form a complete disc (0•DDD•000•0000). Rotation over time + depth
           (distance, 0•DDD•RRR•####) produces the sphere. Once instantiated, the sphere persists even if rotation pauses.</div>
+
+          <div class="slider-row" style="margin-top:14px">
+            <label>Harmonic Modulator Speed →</label>
+            <input type="range" id="ocm-flame-spd" min="0.1" max="4.0" step="0.1" value="1.0">
+            <span class="val" id="ocm-flame-spdv">1.0×</span>
+          </div>
+          <div class="slider-cap">Controls the frequency of the underlying .flame IFS IFS attractor cycle, governing inner/outer shell orbital velocities, harmonic respiration, and pulse dynamics.</div>
 
           <div class="btn-row">
             <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
@@ -705,7 +718,7 @@
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
             if (!statEl) return;
-            if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
+            if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
             else if (!flame.baking) statEl.textContent = "unavailable";
           }, 1000);
         }
@@ -794,6 +807,17 @@
           engine.setFormation(parseFloat(form.value));
           body.querySelector("#ocm-formv").textContent = parseFloat(form.value).toFixed(2);
         });
+
+        // harmonic modulator speed slider
+        const flameSpd = body.querySelector("#ocm-flame-spd");
+        const flameSpdv = body.querySelector("#ocm-flame-spdv");
+        if (flameSpd) {
+          flameSpd.addEventListener("input", () => {
+            const val = parseFloat(flameSpd.value);
+            engine.setFlameSpeed(val);
+            if (flameSpdv) flameSpdv.textContent = val.toFixed(1) + "×";
+          });
+        }
 
         body.querySelector("#ocm-reform").addEventListener("click", () => {
           engine.setFormation(0);
