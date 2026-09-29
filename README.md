@@ -54,16 +54,25 @@ Or simply open `index.html` in a browser.
 ```
 index.html        — OS shell (boot, HUD, desktop, taskbar)
 css/os.css        — design system
+css/ground0.css   — Ground-0 workspace styles (scoped to the Ground-0 window)
 assets/           — boot animation (Eye Open:Close, 1920×1080 GIF)
+specs/            — versioned Ground-0 specifications (v1.0 normative, v1.1 draft) fetched by the spec reader
 js/data.js        — stabilized terms, phase specs, Why catalog, audit fixtures
 js/ocm-data.js    — OCM layer: 360° degree legend, axioms, node map, arithmetic fixtures
 js/crypto.js      — cryptographic schema: SHA-256 + HMAC-SHA256 (Web Crypto, JS fallback)
 js/kernel.js      — accountability-gated state machine + SHA-256 hash-chained PLV duty ledger
+js/g0-engine.js   — Ground-0 engine: strict validation, B1–B5/C1–C4 scoring, PDH (ECDSA P-256),
+                    working badge, transitions, baselines, defensive storage (window.G0)
+js/g0-research.js — key-free public-record research: identity, official pages, Wayback captures,
+                    court/regulatory/legislative/news registries, coverage (window.G0Research)
 js/wm.js          — window manager, HUD, origin menu, toasts
 js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
-js/apps-shell.js  — Inner Shell · Discs · Whyland · Ground-0 · Glossary · The Book · Firewall
+js/apps-shell.js  — Inner Shell · Discs · Whyland · Glossary · The Book · Firewall
+js/g0-app.js      — the Ground-0 workspace app: overview · register · manual wizard · automatic
+                    research · evidence · temporal · phases · logic sandbox · specification · access
 js/apps-ocm.js    — The Orb (sphere engine) · Interaction Orbs (non-additive extension)
 js/boot.js        — PDH boot sequence (eye animation + cryptographic attestation log)
+scripts/          — Node test harnesses (engine + research); not part of the deployed site
 ```
 
 ## Boot sequence
@@ -125,6 +134,56 @@ S(t) = Smax × max(0, 1 − Δt/δ)
 
 A.6  For all objectives O(i): if L(t) < τ, then argmax(O(i)) is undefined
 ```
+
+## Ground-0 — the phase detection algorithm
+
+The Ground-0 Audit app implements the versioned standard end-to-end: **v1.0 is the finalized
+normative baseline (September 12, 2026); v1.1 is an unratified amendment draft.** The pipeline is
+the specification's own flow — validate the declaration → run the five-question behavioral audit →
+detect the phase on the ordered branch tree (NAB → CWO → GSRB) → run the Step 3.5 constraint
+check when AMBIGUOUS → compare and classify → audit temporal transitions.
+
+**Evidence discipline.** An answer only scores when a *public, dated* artifact with a real claim
+supports it, on or before the inclusive cutoff. Strict calendar-date and safe-URL validation reject
+values that `Date.parse` would silently roll into other months, and local/internal/raw-IP URLs never
+qualify. No evidence is coded **NO** — a scoring code, never a proven negative. In v1.1, B4 requires
+a terminal/stay rule, a complete ≥50% relief record, or binding penalty-free exit; an external order
+plus compliance does not qualify. News leads and index dates never score.
+
+**PDH validation.** A Phase Declaration Header must be complete, **signed (ECDSA P-256/SHA-256
+against a trusted Center-Origin key)**, fresh (≤ 90 days before the cutoff), and internally
+consistent with its declared phase before any formal badge can issue. Header-ID reuse across
+different declaration fields is rejected locally.
+
+**Working badge vs. formal badge.** Every audit carries a working badge — five arcs, one per
+behavioral question, each filled only by a dated public artifact. It starts as **CWO — default,
+unproven** (the least-authority claim) and is re-coloured only when evidence disproves that
+assumption. It is a visible progress marker for review, never a certification: the formal badge
+still requires a valid signed PDH, and the UI always shows both.
+
+**Automatic research.** The automatic route is key-free and runs in the browser: Wikimedia/Wikidata
+resolve which organization is meant; the official homepage and its policy/appeal/governance links
+are read through a public reader; Internet Archive captures verify what was in force at the cutoff;
+CourtListener, the Federal Register, GovTrack, and GDELT are searched in parallel. Only operative
+source sentences about *this organization's action* can activate a test — captions, filing dates,
+requests, denials, proposals, and app-written guidance cannot. Coverage is reported for **every**
+registry, including empty, partial, and unavailable outcomes. Automatic results are saved as
+review-required drafts; the formal badge stays unissued until a person reviews them.
+
+**Temporal rules.** NAB ↔ CWO transitions are reversible with a valid destination declaration;
+escalation into GSRB requires declaration review (loss of misuse resistance must be stated);
+reversion out of GSRB is forbidden without complete structural collapse. Drift, rebranding, and
+constraint decrements are recorded as temporal patterns.
+
+**Storage.** Audits, evidence, and preferences persist to this browser only, through a defensive
+hydrator that rebuilds the working badge without inventing evidence and preserves recovery copies
+of malformed data. Exports are plain JSON (audits, the register view, the temporal ledger) and
+plain-text research summaries.
+
+**Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
+qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
+storage); `node scripts/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
+network smoke test of the public registries).
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.

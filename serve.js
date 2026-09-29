@@ -34,6 +34,7 @@ const MIME = {
   ".ico": "image/x-icon",
   ".flame": "text/plain; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
   ".woff2": "font/woff2"
 };

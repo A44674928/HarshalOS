@@ -37,8 +37,15 @@ npm-debug.log*
 # Local preview server (node serve.js) — dev tooling, not site content.
 serve.js
 
+# Node test harnesses for the Ground-0 engine/research/app — dev tooling.
+scripts
+
 # Root-level documents are working papers, not site content.
 README.md
 *.md
 *.txt
 *.rtf
+
+# Exception: the versioned Ground-0 specifications are site content —
+# the Ground-0 app's specification reader fetches them at runtime.
+!specs/*.md
