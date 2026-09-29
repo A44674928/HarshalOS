@@ -43,11 +43,12 @@
     return GOLDEN_SPREAD * Math.asin(Math.max(-1, Math.min(1, 1 - 2 * (i + 0.5) / n)));
   }
 
-  function nodePosition(node, i, n, formation, extraSpin, rMod, latOffset) {
-    const lon = node.deg * D2R + extraSpin;
+  function nodePosition(node, i, n, formation, lonOffset, latOffset, radialPulse) {
+    // 3D spherical position with harmonic orbital radiation
+    const lon = node.deg * D2R + (lonOffset || 0);
     const baseLat = latFor(i, n) * ease(formation);
-    const lat = baseLat + (latOffset || 0);
-    const rr = node.r * (rMod || 1);
+    const lat = baseLat + (latOffset || 0) * ease(formation);
+    const rr = node.r * (radialPulse || 1);
     return {
       x: rr * Math.cos(lat) * Math.cos(lon),
       y: rr * Math.sin(lat),
@@ -72,7 +73,7 @@
       lastNow: 0,                    // for explicit time-based rotation θ(t) = θ₀ + ωt
       dragging: false,
       lastX: 0, lastY: 0,
-      formation: 0,
+      formation: 1,
       formDir: 1,
       animatingForm: false,
       selected: -1,
@@ -321,18 +322,23 @@
         ctx.fillText("(NON-SOVEREIGN)", capB.x, capB.y + 16);
       }
 
-      /* 5 · direct attachment spokes & orbital motion — modulated by 600-frame OuterOrb flame */
-      if (st.outerNodeAngle == null) st.outerNodeAngle = 0;
-      // Active orbital rotation for all outside nodes driven by the 600-frame Outer Harmonic Modulator
+      /* 5 · direct attachment spokes & 3D spherical radiant orbit — modulated by OuterOrb.flame */
+      if (st.outerOrbMotionT == null) st.outerOrbMotionT = 0;
       const outerModSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
-      st.outerNodeAngle += (dt || 0.016) * 0.12 * outerModSpeed;
-      
-      const nodeRMod = outerMod.active ? (1 + outerMod.pulse * 0.08) : 1;
+      st.outerOrbMotionT += (dt || 0.016) * 0.45 * outerModSpeed;
+
+      // OuterOrb harmonic energy and pulsation
+      const outerEnergy = outerMod.active ? outerMod.energy : 0.5;
+      const nodePulseAmount = outerMod.active ? outerMod.pulse : 0;
+      const radialBreath = 1 + nodePulseAmount * 0.12;
+
       const pos = nodes.map((nd, i) => {
-        // Individual harmonic undulation for each orb outside the inner shell
-        const orbPhase = st.outerNodeAngle + (i * (TAU / n));
-        const orbLatUndulation = outerMod.active ? (Math.sin(orbPhase * 2) * 0.08) : 0;
-        return nodePosition(nd, i, n, f, st.outerNodeAngle, nodeRMod, orbLatUndulation);
+        // Each orb outside the inner shell radiates around the sphere along its orbital harmonic
+        const speedFactor = 0.6 + 0.4 * Math.sin(i * 1.618);
+        const orbLon = st.outerOrbMotionT * speedFactor + (i * (TAU / n));
+        const orbLat = Math.sin(st.outerOrbMotionT * 0.8 + i * 2.1) * (0.28 + 0.14 * outerEnergy);
+        const rPulse = radialBreath * (1 + 0.05 * Math.sin(st.outerOrbMotionT * 1.5 + i));
+        return nodePosition(nd, i, n, f, orbLon, orbLat, rPulse);
       });
       if (st.show.spokes) {
         const spokeAlpha = 0.22 * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
