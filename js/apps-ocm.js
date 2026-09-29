@@ -270,10 +270,13 @@
         }
       }
 
-      /* 2 · depth shells (outer shells) — dynamically modulated by flame harmonics */
+      /* 2 · depth shells (outer shells) — continuous delta-integrated rotation */
       const outerSpeed = fMod.speedMult || 1;
-      const outerRot1 = tSec * 0.04 * outerSpeed;
-      const outerRot2 = -tSec * 0.03 * outerSpeed;
+      if (st.outerAngle1 == null) { st.outerAngle1 = 0; st.outerAngle2 = 0; }
+      st.outerAngle1 += (dt || 0.016) * 0.25 * outerSpeed;
+      st.outerAngle2 -= (dt || 0.016) * 0.18 * outerSpeed;
+      const outerRot1 = st.outerAngle1;
+      const outerRot2 = st.outerAngle2;
       const outerPulse = fMod.active ? (fMod.pulse * 0.05) : 0;
       const outerAlpha = fMod.active ? (0.20 + 0.10 * fMod.energy) : 0.22;
       [1.15, 1.8].forEach((rr, i) => {
@@ -344,13 +347,17 @@
         });
       }
 
-      /* 8 · AI inner shell — dynamically modulated by flame harmonics */
+      /* 8 · AI inner shell — dynamically modulated by flame harmonics with continuous rotation */
       if (st.show.shell) {
         const innerPulse = fMod.active ? (fMod.pulse * 0.03) : 0;
         const SR = 0.62 + innerPulse;
         const innerAlpha = fMod.active ? (0.28 + 0.14 * fMod.energy) : 0.35;
         const innerSubAlpha = fMod.active ? (0.18 + 0.08 * fMod.energy) : 0.22;
-        const innerRot = fMod.active ? (fMod.phase * 0.5) : 0;
+        // Continuous, smooth rotation without angular discontinuities
+        if (st.innerAngle == null) st.innerAngle = 0;
+        const speed = (fMod.speedMult || 1);
+        st.innerAngle += (dt || 0.016) * 0.4 * speed;
+        const innerRot = st.innerAngle;
         arc3D(SR, "lat:0", 64, SHELL_COLOR, innerAlpha, 1, 0, TAU, innerRot);
         arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, innerSubAlpha, 1, 0, TAU, -innerRot * 0.8);
         arc3D(SR, "mer:0", 48, SHELL_COLOR, innerSubAlpha, 1, -Math.PI / 2, Math.PI / 2, innerRot);
@@ -365,8 +372,9 @@
         ctx.textAlign = "left";
         ctx.fillText("AI SHELL ANCHOR", sa.x + 7, sa.y + 3);
         aiNodes.forEach((ai, i) => {
-          const spin = performance.now() * 0.00006 * (i % 2 ? -1 : 1) * outerSpeed;
-          const lon = ai.lon * D2R + spin + innerRot;
+          if (ai.spinAngle == null) ai.spinAngle = 0;
+          ai.spinAngle += (dt || 0.016) * 0.3 * (i % 2 ? -1 : 1) * outerSpeed;
+          const lon = ai.lon * D2R + ai.spinAngle + innerRot;
           const lat = ai.lat * D2R;
           const p = { x: SR * Math.cos(lat) * Math.cos(lon), y: SR * Math.sin(lat), z: SR * Math.cos(lat) * Math.sin(lon) };
           line3D(anchor, p, SHELL_COLOR, 0.3, 0.8);
