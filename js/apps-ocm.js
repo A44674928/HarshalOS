@@ -43,10 +43,10 @@
     return GOLDEN_SPREAD * Math.asin(Math.max(-1, Math.min(1, 1 - 2 * (i + 0.5) / n)));
   }
 
-  function nodePosition(node, i, n, formation, extraSpin) {
+  function nodePosition(node, i, n, formation, extraSpin, rMod) {
     const lon = node.deg * D2R + extraSpin;
     const lat = latFor(i, n) * ease(formation);
-    const rr = node.r;
+    const rr = node.r * (rMod || 1);
     return {
       x: rr * Math.cos(lat) * Math.cos(lon),
       y: rr * Math.sin(lat),
@@ -321,7 +321,8 @@
       }
 
       /* 5 · direct attachment spokes — all nodes attach to the center (modulated by OuterOrb flame) */
-      const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0()));
+      const nodeRMod = outerMod.active ? (1 + outerMod.pulse * 0.04) : 1;
+      const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0(), nodeRMod));
       if (st.show.spokes) {
         const spokeAlpha = 0.22 * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
         pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", spokeAlpha, 0.8));
@@ -337,21 +338,39 @@
         });
       }
 
-      /* 7 · interaction orbs (moving blue orbs) — modulated by 600-frame OuterOrb flame */
+      /* 7 · interaction orbs (moving blue orbs) — modulated by 600-frame OuterOrb flame with active motion */
       if (st.show.orbs && f > 0.15) {
-        const orbLift = outerMod.active ? (outerMod.pulse * 0.15) : 0;
-        const orbSize = 5 + (outerMod.active ? outerMod.energy * 2.2 : 0);
-        const orbGlow = 1.2 + (outerMod.active ? outerMod.energy * 0.6 : 0);
-        [[1, 4], [5, 9]].forEach(([a, b]) => {
+        if (st.orbMotionT == null) st.orbMotionT = 0;
+        st.orbMotionT += (dt || 0.016) * 0.8 * outerSpeed;
+        const orbLift = outerMod.active ? (outerMod.pulse * 0.25) : 0;
+        const orbSize = 5.5 + (outerMod.active ? outerMod.energy * 2.5 : 0);
+        const orbGlow = 1.3 + (outerMod.active ? outerMod.energy * 0.7 : 0);
+
+        // Active orbital pathing along lateral arcs for the moving blue orbs
+        [[1, 4], [5, 9]].forEach(([a, b], pairIdx) => {
           const pa = pos[a], pb = pos[b];
-          const mid = { x: (pa.x + pb.x) * 0.62, y: (pa.y + pb.y) * 0.62 + 0.8 + orbLift, z: (pa.z + pb.z) * 0.62 };
-          bezier3D(pa, mid, pb, ORB_COLOR, 0.6 + (outerMod.active ? outerMod.energy * 0.2 : 0));
-          const sm = toScreen(project(mid));
-          glowDot(sm, orbSize, ORB_COLOR, orbGlow);
-          ctx.fillStyle = "#d9c2ff";
+          const arcPhase = (st.orbMotionT + pairIdx * Math.PI) % (Math.PI * 2);
+          const u = 0.5 + 0.35 * Math.sin(arcPhase); // smooth back-and-forth traversal
+          const mid = {
+            x: (pa.x + pb.x) * 0.62,
+            y: (pa.y + pb.y) * 0.62 + 0.85 + orbLift,
+            z: (pa.z + pb.z) * 0.62
+          };
+          bezier3D(pa, mid, pb, ORB_COLOR, 0.6 + (outerMod.active ? outerMod.energy * 0.25 : 0));
+          
+          // Compute moving orb position along quadratic bezier curve
+          const invU = 1 - u;
+          const orbPos = {
+            x: invU * invU * pa.x + 2 * invU * u * mid.x + u * u * pb.x,
+            y: invU * invU * pa.y + 2 * invU * u * mid.y + u * u * pb.y,
+            z: invU * invU * pa.z + 2 * invU * u * mid.z + u * u * pb.z
+          };
+          const sm = toScreen(project(orbPos));
+          glowDot(sm, orbSize, "#6fd3ff", orbGlow); // Electric blue moving orbs
+          ctx.fillStyle = "#6fd3ff";
           ctx.font = "9px ui-monospace, monospace";
           ctx.textAlign = "left";
-          ctx.fillText("A↔B", sm.x + 8, sm.y - 6);
+          ctx.fillText(pairIdx === 0 ? "ORB-α" : "ORB-β", sm.x + 8, sm.y - 6);
         });
       }
 
