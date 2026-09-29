@@ -54,15 +54,41 @@ Or simply open `index.html` in a browser.
 ```
 index.html        — OS shell (boot, HUD, desktop, taskbar)
 css/os.css        — design system
+assets/           — boot animation (Eye Open:Close, 1920×1080 GIF)
 js/data.js        — stabilized terms, phase specs, Why catalog, audit fixtures
 js/ocm-data.js    — OCM layer: 360° degree legend, axioms, node map, arithmetic fixtures
-js/kernel.js      — accountability-gated state machine + PLV duty ledger
+js/crypto.js      — cryptographic schema: SHA-256 + HMAC-SHA256 (Web Crypto, JS fallback)
+js/kernel.js      — accountability-gated state machine + SHA-256 hash-chained PLV duty ledger
 js/wm.js          — window manager, HUD, origin menu, toasts
 js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
 js/apps-shell.js  — Inner Shell · Discs · Whyland · Ground-0 · Glossary · The Book · Firewall
 js/apps-ocm.js    — The Orb (sphere engine) · Interaction Orbs (non-additive extension)
-js/boot.js        — PDH boot sequence
+js/boot.js        — PDH boot sequence (eye animation + cryptographic attestation log)
 ```
+
+## Boot sequence
+
+The boot screen opens with the **Eye Open:Close** animation (`assets/eye-open-close-hq.gif`,
+1920×1080) — the eye fades in above the bootloader log as the system wakes. The log and the
+animation are independent: the typewriter sequence never blocks on the image, the image fades
+in whenever its data has landed, and if it ever fails to load the boot proceeds cleanly.
+
+## Cryptographic schema
+
+All integrity digests and keyed attestations flow through a single module (`js/crypto.js`,
+exposed as `HOSCrypto`) — no other code in the system computes "hashes":
+
+| Artifact | Primitive |
+|---|---|
+| **PDH Declaration-Hash** | `SHA-256` over the canonical header fields (phase, capability, legitimacy source, refusal semantics, symbolism executability, time-authority effect, timestamp, Creator-ID, Center-Origin) |
+| **PLV duty ledger** | `SHA-256` hash chain — each entry digests `(id, ts, severity, event, prevHash, Creator-ID)`; genesis `prevHash` is the 64-zero digest. Digests are asynchronous, so the chain is serialized through a promise queue: append-only order is preserved even for fire-and-forget callers |
+| **Human Key attestation** | `HMAC-SHA256` keyed signature over `(phrase, liveness timestamp, Creator-ID, Center-Origin)` — a fresh, keyed attestation per ceremony; fingerprint shown in the Human Key app |
+| **Symbolic Firewall seals** | `SHA-256` digest of the sealed content + nonce |
+
+Backend: **Web Crypto (SubtleCrypto)** — the platform's cryptographic primitive. A
+deterministic pure-JS SHA-256 (NIST FIPS 180-4) is the fallback for non-secure contexts
+where `crypto.subtle` is unavailable, so the schema degrades gracefully instead of
+breaking the ledger. The boot log reports the active backend at startup.
 
 ## The Orb — OCM visualization
 
@@ -77,6 +103,15 @@ color-coded by quadrant, distance shells for depth layers, the non-sovereign res
 the AI inner shell (capability without sovereignty), free lateral communication arcs, and
 interaction-orb bubbles counting the non-additive term. Resolution pulses route inward on demand —
 resolution always routes to the center point.
+
+The Orb's surface is the author's own art: a 202-frame Apophysis render (the `animate`
+fileset) plays as the sphere's skin — 200 frames in a hard loop, frames 0–198 exactly as
+rendered plus frame 199 recovered from its truncated PNG, one visible pulse each time the
+loop wraps 199→0. The film is wrapped onto the sphere through the same camera that draws
+the wireframe (so rotation, pitch, zoom and the 12-second breathing all move it), and its
+brightness is gated by legitimacy exactly like the wire-mode core: `α = 0.22 + 0.78·L(t)`.
+The `.flame` IFS renderer stays (the Fractal Flame app, and the orb's wire mode), so the
+mathematics and the author's render burn side by side.
 
 ## The gating equations
 

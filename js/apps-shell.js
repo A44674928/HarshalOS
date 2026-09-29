@@ -367,7 +367,7 @@ APPS.push({
         const h = kernel.state.declared;
         println(`Declared-Phase: ${h.declaredPhase} · Center-Capability: ${h.centerCapability} · Legitimacy-Source: ${h.legitimacySource}
 Refusal-Semantics: ${h.refusalSemantics} · Symbolism: ${h.symbolismExecutability} · Time: ${h.timeAuthorityEffect}
-Declaration-Hash: ${h.declarationHash}`, "gas");
+Declaration-Hash: ${h.declarationHash || "SHA-256 — in flight"}`, "gas");
         return;
       }
 
@@ -750,16 +750,20 @@ Commercial metaphors, mythic framing, and narrative claims are contained — nev
           ENSURING THE SYSTEM'S LOGIC REMAINS SECURE. A SYSTEM'S LOGIC IS NOT A STAGE FOR STORIES.
         </div>`;
 
-      body.querySelector("#sf-seal").addEventListener("click", () => {
+      body.querySelector("#sf-seal").addEventListener("click", async () => {
         const text = body.querySelector("#sf-in").value.trim();
         if (!text) {
           api.toast("info", "NOTHING TO SEAL", "The firewall contains what is delivered to it. Deliver content first.");
           return;
         }
-        const nonce = kernel.hashHex(text + Date.now()).slice(0, 10);
-        const hash = "0x" + kernel.hashHex(text).toUpperCase();
+        const [nonceSrc, digest] = await Promise.all([
+          HOSCrypto.sha256Hex(text + "::" + Date.now()),
+          HOSCrypto.sha256Hex(text)
+        ]);
+        const nonce = nonceSrc.slice(0, 10);
+        const hash = "0x" + digest.toUpperCase();
         sealed.unshift({ text: text.length > 400 ? text.slice(0, 400) + "…" : text, nonce, hash });
-        kernel.record("info", `Symbolic Firewall: content sealed as NON-EXECUTABLE (nonce ${nonce}, hash ${hash}).`);
+        kernel.record("info", `Symbolic Firewall: content sealed as NON-EXECUTABLE (nonce ${nonce}, SHA-256 ${hash}).`);
         api.toast("info", "CONTENT SEALED — NON-EXECUTABLE",
           "The narrative is now contained. It may be preserved and witnessed — it can never execute. The Symbolic Firewall holds.");
         draw();

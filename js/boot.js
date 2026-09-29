@@ -13,6 +13,16 @@
   let finished = false;
   let cancelled = false;
 
+  // Boot animation — the eye opens as the system wakes.
+  // The GIF fades in when its data has landed; the boot log never waits for it.
+  const eye = document.getElementById("boot-eye");
+  if (eye) {
+    const showEye = () => eye.classList.add("ready");
+    if (eye.complete && eye.naturalWidth > 0) showEye();
+    else eye.addEventListener("load", showEye, { once: true });
+    eye.addEventListener("error", () => eye.remove(), { once: true });
+  }
+
   const sleep = ms => new Promise(res => setTimeout(res, ms));
 
   function line(text, cls = "", delay = 60) {
@@ -55,7 +65,8 @@
     await line("Refusal-Semantics   : Terminal", "", 40);
     await line("Symbolism-Executability: Disabled (Symbolic Firewall Active)", "", 40);
     await line("Time-Authority-Effect  : Degrades (Stale Permission Threshold Enforced)", "", 40);
-    await line("Declaration-Hash    : 0x98A44674928A44674928A44674928F01", "gold", 200);
+    await kernel.ready;                                   // genesis PDH SHA-256 digest in hand
+    await line(`Declaration-Hash    : ${kernel.state.declared.declarationHash}`, "gold", 200);
     await line("======================================================================", "rule", 150);
 
     await line("", "", 40);
@@ -63,12 +74,15 @@
     await line("         L(t) = H(t) × f(A(t), R(t), S(t))  ·  τ = 0.50 ABSOLUTE", "", 120);
     await line("[ ok  ] precedence rule armed — no objective overrides a stopping condition", "ok", 90);
     await line("[ ok  ] temporal decay armed — δ = 240s · scope contracts with Δt", "ok", 90);
-    await line("[ ok  ] PLV duty ledger initialized — append-only, hash-chained", "ok", 90);
+    await line("[ ok  ] PLV duty ledger initialized — append-only, SHA-256 hash-chained", "ok", 90);
+    await line(`[ ok  ] cryptographic schema armed — ${HOSCrypto.backend}`, "ok", 90);
     await line("[ ok  ] symbolic firewall ACTIVE — narrative is non-executable", "ok", 90);
     await line("[ ok  ] OCM addressing bound to center origin 0•000•000•0000", "ok", 90);
     await line("[ ok  ] inner shell anchor resolved — AI namespace 0•100•000•*", "ok", 90);
     await line("[ ok  ] whyland catalog virtualized OFF-DISC (791+ elements)", "ok", 90);
     await line("[ ok  ] OCM visualization armed — radiative sphere · 360-address disc", "ok", 90);
+    await line("[ ok ] fractal flame armed — .flame IFS interpreter · a.flame core (113 frames)", "ok", 90);
+    await line("[ ok ] author flame film armed — 200-frame render · orb surface · hard loop", "ok", 90);
     await line("[ warn] HUMAN KEY ABSENT — H(t) = 0 — system is MATHEMATICALLY VOID", "warn", 90);
     await line("         default state of the system is REFUSAL", "warn", 250);
 
@@ -90,6 +104,16 @@
     document.body.classList.remove("booting");
     document.body.classList.add("desktop-live");
     setTimeout(() => { boot.style.display = "none"; }, 950);
+    // kick the shared .flame bake (worker) so the orb core + flame app are warm on first open
+    if (typeof FractalFlame !== "undefined") {
+      FractalFlame.shared("assets/a.flame", { w: 160, h: 160 }).start();
+      kernel.record("info", "FRACTALFLAME — .flame IFS core baking in worker (a.flame → 113 frames). Shared by The Orb and Fractal Flame.");
+    }
+    // stream the author's rendered flame film — The Orb's surface skin
+    if (typeof OrbFilm !== "undefined") {
+      OrbFilm.shared().start();
+      kernel.record("info", "ORBFILM — author flame film streaming (200 frames, hard loop). The Orb's surface is the author's own render.");
+    }
     shell.init();
     kernel.record("info", "SHELL LOADED — desktop online in NON-ACTING state. Open the Human Key app to attest.");
     // Gentle first-run guidance
