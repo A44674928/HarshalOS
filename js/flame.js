@@ -468,14 +468,27 @@ const FractalFlame = (() => {
     start() {
       if (!this._started) {
         this._started = true;
-        this.load().catch(e => { if (this.onerror) this.onerror(e); });
+        this.load().catch(e => {
+          if (typeof console !== "undefined") console.error("[FractalFlame] load failed for", this.url, "—", e && e.message, e);
+          if (this.onerror) this.onerror(e);
+        });
       }
       return this;
     }
 
+    /* re-arm after a failed load (fetch 404, bake error, …) */
+    retry() {
+      this._started = false;
+      this.ready = false;
+      this.baking = false;
+      this.frames = [];
+      this.current = 0;
+      return this.start();
+    }
+
     async loadText(text) {
       const doc = parseFlameText(text);
-      if (!doc.frames.length) throw new Error("no parseable frames in .flame");
+      if (!doc.frames.length) throw new Error("no parseable frames in .flame (file empty or not a .flame document)");
       this.meta = doc.stats;
       this.palette = doc.frames.length ? doc.frames[0].palette : null; // 256×3 Uint8Array, file's first palette
       this.doc = doc;                     // full parse — per-frame metadata for readouts
@@ -483,11 +496,18 @@ const FractalFlame = (() => {
       let res;
       if (typeof Worker !== "undefined") {
         try { res = await this._bakeWithWorker(text, doc); }
-        catch (e) { res = await this._bakeInline(doc, e && e.message); }
+        catch (e) {
+          if (typeof console !== "undefined") console.warn("[FractalFlame] worker bake failed (" + (e && e.message) + ") — baking inline");
+          res = await this._bakeInline(doc, e && e.message);
+        }
       } else {
         res = await this._bakeInline(doc, "no Worker");
       }
       this.frames = res.frames;
+      if (!this.frames.length) {
+        this.baking = false;
+        throw new Error("bake produced no frames — every frame in the file was empty or skipped");
+      }
       this.ready = true;
       this.baking = false;
       this.current = 0;
@@ -519,6 +539,8 @@ const FractalFlame = (() => {
           } else if (m.type === "done") {
             clearTimeout(to);
             try { wk.terminate(); } catch (_) {}
+            const skipped = bags.filter(b => !b).length;
+            if (skipped && typeof console !== "undefined") console.warn("[FractalFlame] worker skipped " + skipped + "/" + bags.length + " frames (empty xform sets)");
             resolve(bags);
           } else if (m.type === "error") {
             clearTimeout(to);
@@ -544,8 +566,15 @@ const FractalFlame = (() => {
 
     _canvases(buffers, W, H) {
       const out = [];
-      for (const buf of buffers) {
-        if (!buf) continue;
+      const need = W * H * 4;
+      for (const raw of buffers) {
+        if (!raw) continue;
+        // normalize: workers may deliver ArrayBuffer (legacy) or a view
+        let buf = raw;
+        if (typeof ArrayBuffer !== "undefined" && buf instanceof ArrayBuffer) buf = new Uint8ClampedArray(buf);
+        if (!ArrayBuffer.isView(buf) || buf.length !== need) {
+          throw new Error("bake frame buffer malformed (got " + (buf.length !== undefined ? buf.length : "ArrayBuffer") + ", need " + need + ")");
+        }
         const c = (typeof document !== "undefined")
           ? document.createElement("canvas")
           : null;

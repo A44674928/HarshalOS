@@ -31,7 +31,9 @@ self.onmessage = e => {
         seed: base + i
       });
       if (rgba) {
-        self.postMessage({ type: "frame", index: i, total: doc.frames.length, buf: rgba.buffer }, [rgba.buffer]);
+        // send the VIEW (transfer its buffer) — a raw ArrayBuffer arrives as an
+        // ArrayBuffer and TypedArray.set() copies 0 elements from it (silent black frames)
+        self.postMessage({ type: "frame", index: i, total: doc.frames.length, buf: rgba }, [rgba.buffer]);
       }
     }
     self.postMessage({ type: "done", frames: doc.frames.length });

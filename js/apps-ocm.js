@@ -640,9 +640,11 @@
           const statEl = body.querySelector("#ocm-flame-stat");
           const setStat = (i, total) => { if (statEl) statEl.textContent = `baking ${i}/${total}…`; };
           flame.onprogress = setStat;
-          flame.onerror = () => { if (statEl) statEl.textContent = "unavailable"; };
+          flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
           engine.setFlame(flame);
-          flame.start();
+          if (flame.ready) { /* boot bake already finished */ }
+          else if (flame.baking) { flame.start(); }       // in flight — handlers just attached
+          else flame.retry();                              // boot load failed before handlers existed → re-arm
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
             if (!statEl) return;

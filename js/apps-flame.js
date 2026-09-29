@@ -121,16 +121,21 @@
       const readEl = body.querySelector("#ff-read");
       const palCv = body.querySelector("#ff-pal");
 
-      /* ---- stage sizing (square, dpr-aware) ---- */
+      /* ---- stage sizing (square, dpr-aware) — re-checked every frame so a
+            late/hidden layout can never strand the loop with a 0×0 canvas ---- */
       const wrap = body.querySelector(".ff-stage");
       const sctx = stage.getContext("2d");
       const sizeStage = () => {
         const side = Math.min(wrap.clientWidth, wrap.clientHeight);
+        if (!(side > 0)) return false;
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        stage.width = Math.round(side * dpr);
-        stage.height = Math.round(side * dpr);
+        const px = Math.round(side * dpr);
+        if (stage.width === px && stage.height === px) return true;
+        stage.width = px;
+        stage.height = px;
         stage.style.width = side + "px";
         stage.style.height = side + "px";
+        return true;
       };
       sizeStage();
 
@@ -150,6 +155,13 @@
         player.seek(parseFloat(scrub.value));
       });
 
+      /* dead player → click the stage overlay to re-bake */
+      bakeEl.addEventListener("click", () => {
+        if (player.ready) return;
+        deadSince = 0;
+        player.retry();
+      });
+
       /* ---- bake progress / meta readout ---- */
       const fillMeta = () => {
         const m = player.meta;
@@ -167,23 +179,39 @@
       };
 
       /* ---- render loop ---- */
-      let raf = 0;
+      let raf = 0, deadSince = 0;
+      const bakeTitle = bakeEl.querySelector(".ff-bake-t");
       const draw = () => {
         raf = requestAnimationFrame(draw);
         if (!document.body.contains(stage)) { cancelAnimationFrame(raf); return; } // window closed → stop loop
+        sizeStage(); // self-healing — a 0×0 layout can never strand the loop
         const w = stage.width, h = stage.height;
-        if (!w || !h) return;
+        if (!w || !h) return; // layout not ready this frame — try next
         sctx.setTransform(1, 0, 0, 1, 0, 0);
         sctx.globalCompositeOperation = "source-over";
         sctx.globalAlpha = 1;
         sctx.fillStyle = "#04060d";
         sctx.fillRect(0, 0, w, h);
         if (!player.ready) {
-          if (bakeEl) bakeEl.style.display = "flex";
+          if (bakeEl) {
+            bakeEl.style.display = "flex";
+            if (!player.baking) {
+              // not baking and not ready → the load is DEAD (fetch 404, bake error, …)
+              if (!deadSince) deadSince = performance.now();
+              if (performance.now() - deadSince > 2500) {
+                bakeTitle.textContent = "FLAME CORE NOT BURNING";
+                if (bakePct) bakePct.textContent = "load failed — click here to retry";
+                bakeEl.style.cursor = "pointer";
+              }
+            }
+          }
           return;
         }
+        deadSince = 0;
         if (bakeEl && bakeEl.style.display !== "none") {
           bakeEl.style.display = "none";
+          bakeEl.style.cursor = "";
+          if (bakeTitle) bakeTitle.textContent = "BAKING .FLAME IN WORKER…";
           fillMeta();
         }
         const cx = w / 2, cy = h / 2;
