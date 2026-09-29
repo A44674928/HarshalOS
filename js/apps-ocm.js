@@ -123,20 +123,21 @@
     }
 
     /* ---------- drawing primitives ---------- */
-    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo) {
+    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo, rotAngle) {
       // plane: 'eq' (equatorial), 'lat:<phi>', 'mer:<lon>'
+      const rot = rotAngle || 0;
       ctx.beginPath();
       let started = false;
       for (let i = 0; i <= steps; i++) {
         const a = angleFrom + (angleTo - angleFrom) * (i / steps);
         let p;
         if (plane === "eq") {
-          p = { x: radius * Math.cos(a), y: 0, z: radius * Math.sin(a) };
+          p = { x: radius * Math.cos(a + rot), y: 0, z: radius * Math.sin(a + rot) };
         } else if (plane.startsWith("lat:")) {
           const phi = parseFloat(plane.slice(4));
-          p = { x: radius * Math.cos(phi) * Math.cos(a), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a) };
+          p = { x: radius * Math.cos(phi) * Math.cos(a + rot), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a + rot) };
         } else {
-          const lon = parseFloat(plane.slice(4));
+          const lon = parseFloat(plane.slice(4)) + rot;
           p = { x: radius * Math.cos(a) * Math.cos(lon), y: radius * Math.sin(a), z: radius * Math.cos(a) * Math.sin(lon) };
         }
         const q = toScreen(project(p));
@@ -259,9 +260,12 @@
         }
       }
 
-      /* 2 · depth shells — distance gives it depth */
+      /* 2 · depth shells (outer shells) — distance gives it depth, dynamic orbital rotation */
+      const outerRot1 = tSec * 0.04;
+      const outerRot2 = -tSec * 0.03;
       [1.15, 1.8].forEach((rr, i) => {
-        arc3D(rr, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", 0.22, 1, 0, TAU);
+        const shellRot = i === 0 ? outerRot1 : outerRot2;
+        arc3D(rr, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", 0.22, 1, 0, TAU, shellRot);
       });
 
       /* 3 · the equatorial disc — 360 primary radiative addresses */
