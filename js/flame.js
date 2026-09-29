@@ -712,15 +712,43 @@ const FractalFlame = (() => {
 
     toggle() { this.playing ? this.pause() : this.resume(); return this.playing; }
 
-    /* compute current playhead position in frames (floating point for sub-frame accuracy) */
+    /* compute current playhead position in frames with ping-pong bounce (0 -> 119 -> 0) */
     playhead() {
-      if (!this.ready || !this.frames.length) return 0;
+      if (!this.ready || !this.frames.length) return { cur: 0, i0: 0, i1: 0, frac: 0, dir: 1 };
       const len = this.frames.length;
-      if (!this.playing) return ((this.current % len) + len) % len;
+      if (len <= 1) return { cur: 0, i0: 0, i1: 0, frac: 0, dir: 1 };
+
+      let curPos;
+      if (!this.playing) {
+        curPos = Math.max(0, Math.min(len - 1, this.current));
+        const i0 = Math.floor(curPos), i1 = Math.min(len - 1, i0 + 1);
+        return { cur: curPos, i0, i1, frac: curPos - i0, dir: 1 };
+      }
+
+      // Ping-pong bounce period: 2 * (len - 1)
+      const period = 2 * (len - 1);
       const elapsed = (this._now() - this._playingAt) / 1000;
-      const cur = ((elapsed * this.speed * this.fps) % len + len) % len;
+      const raw = ((elapsed * this.speed * this.fps) % period + period) % period;
+      
+      let cur, i0, i1, frac, dir;
+      if (raw < len - 1) {
+        // Forward swing: 0 -> len - 1
+        cur = raw;
+        i0 = Math.floor(cur);
+        i1 = i0 + 1;
+        frac = cur - i0;
+        dir = 1;
+      } else {
+        // Reverse swing: len - 1 -> 0
+        cur = period - raw;
+        i0 = Math.ceil(cur);
+        i1 = Math.max(0, i0 - 1);
+        frac = i0 - cur;
+        dir = -1;
+      }
+
       this.current = cur;
-      return cur;
+      return { cur, i0, i1, frac, dir };
     }
 
     /* compute dynamic flame harmonic energy and phase for component modulation */
@@ -729,52 +757,36 @@ const FractalFlame = (() => {
         return { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
       }
       const len = this.frames.length;
-      const cur = this.playhead();
-      const phase = (cur / len) * Math.PI * 2;
+      const ph = this.playhead();
+      const phase = (ph.cur / (len - 1)) * Math.PI;
       const energy = 0.5 + 0.5 * Math.sin(phase);
       const pulse = Math.cos(phase * 2);
       const speedMult = 0.8 + 0.4 * Math.sin(phase * 0.5);
       return { energy, pulse, phase, speedMult, active: true };
     }
 
-    /* draw the current frame with seamless sub-frame rotational and Hermite interpolation */
+    /* draw the current frame with seamless bounce interpolation */
     drawOn(ctx, cx, cy, size, alpha = 1) {
       if (!this.ready || !this.frames.length) return false;
-      const len = this.frames.length;
-      const cur = this.playhead();
-      const i0 = Math.floor(cur) % len;
-      const i1 = (i0 + 1) % len;
-      const frac = cur - Math.floor(cur); // sub-frame fraction [0, 1)
+      const ph = this.playhead();
+      const i0 = ph.i0, i1 = ph.i1, frac = ph.frac;
 
       const a = Math.max(0.02, Math.min(1, alpha));
       // Constant-energy luminance blending so sub-frame cross-fades maintain solid luminosity
       const a0 = a * Math.cos(frac * (Math.PI / 2));
       const a1 = a * Math.sin(frac * (Math.PI / 2));
 
-      // Each frame in 120-frame IFS rotates by 2*PI / 120 (3 degrees).
-      // Sub-frame rotational stitching counteracts inter-frame stepping:
-      const dTheta = (Math.PI * 2) / len;
-
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
       ctx.imageSmoothingEnabled = true;
 
-      // Draw slice i0 rotated slightly forward towards fraction
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(frac * dTheta * 0.5);
-      ctx.globalAlpha = a0;
-      ctx.drawImage(this.frames[i0], -size / 2, -size / 2, size, size);
-      ctx.restore();
-
-      // Stitch slice i1 rotated slightly backward from the next step
-      if (frac > 0.001) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(-(1 - frac) * dTheta * 0.5);
+      if (this.frames[i0]) {
+        ctx.globalAlpha = a0;
+        ctx.drawImage(this.frames[i0], cx - size / 2, cy - size / 2, size, size);
+      }
+      if (this.frames[i1] && frac > 0.001) {
         ctx.globalAlpha = a1;
-        ctx.drawImage(this.frames[i1], -size / 2, -size / 2, size, size);
-        ctx.restore();
+        ctx.drawImage(this.frames[i1], cx - size / 2, cy - size / 2, size, size);
       }
 
       ctx.restore();
