@@ -495,11 +495,11 @@ const FractalFlame = (() => {
       this.baking = true;
       this.mode = "bake";
 
-      // Fast path: if pre-rendered slices are available (e.g. assets/flame/f000.png … f119.png),
+      // Fast path: if pre-rendered slices are available (e.g. assets/flame/ or assets/outer_flame/),
       // load slices instantly to avoid lag, CPU burn, and worker thread contention.
-      const isDemo = (this.url && this.url.indexOf("Demo.flame") >= 0) ||
-                     (doc.stats && doc.stats.frames === 120 && text.indexOf('name="Demo"') >= 0);
-      if (isDemo && typeof Image !== "undefined") {
+      const isPreRendered = (this.url && (this.url.indexOf("Demo.flame") >= 0 || this.url.indexOf("OuterOrb.flame") >= 0)) ||
+                            (doc.stats && (doc.stats.frames === 120 || doc.stats.frames === 600));
+      if (isPreRendered && typeof Image !== "undefined") {
         try {
           this.mode = "preload";
           const slices = await this._loadPreRenderedSlices(doc.frames.length);
@@ -542,10 +542,14 @@ const FractalFlame = (() => {
     async _loadPreRenderedSlices(count) {
       let basePath = "assets/flame/f";
       if (this.url && typeof this.url === "string") {
-        const clean = this.url.split("?")[0].split("#")[0];
-        const idx = clean.lastIndexOf("/");
-        if (idx >= 0) {
-          basePath = clean.substring(0, idx) + "/flame/f";
+        if (this.url.indexOf("OuterOrb") >= 0) {
+          basePath = "assets/outer_flame/f";
+        } else {
+          const clean = this.url.split("?")[0].split("#")[0];
+          const idx = clean.lastIndexOf("/");
+          if (idx >= 0) {
+            basePath = clean.substring(0, idx) + "/flame/f";
+          }
         }
       }
       const ext = ".png";

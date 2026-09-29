@@ -757,6 +757,12 @@
           };
           flame.onprogress = setStat;
           flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
+          outerFlame.onprogress = (i, total) => {
+            if (outerStatEl && !outerFlame.ready) outerStatEl.textContent = `loading ${i}/${total}…`;
+          };
+          outerFlame.onerror = (e) => {
+            if (outerStatEl) outerStatEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed");
+          };
           engine.setFlame(flame);
           engine.setOuterFlame(outerFlame);
 
