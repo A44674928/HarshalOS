@@ -493,6 +493,25 @@ const FractalFlame = (() => {
       this.palette = doc.frames.length ? doc.frames[0].palette : null; // 256×3 Uint8Array, file's first palette
       this.doc = doc;                     // full parse — per-frame metadata for readouts
       this.baking = true;
+
+      // Fast path: if pre-rendered slices are available (e.g. assets/flame/f000.png … f119.png),
+      // load slices instantly to avoid lag, CPU burn, and worker thread contention.
+      if (this.url && this.url.indexOf("Demo.flame") >= 0 && typeof Image !== "undefined") {
+        try {
+          const slices = await this._loadPreRenderedSlices(doc.frames.length);
+          if (slices && slices.length === doc.frames.length) {
+            this.frames = slices;
+            this.ready = true;
+            this.baking = false;
+            this.current = 0;
+            this._playingAt = this._now();
+            return doc;
+          }
+        } catch (_) {
+          /* fallback to real-time bake */
+        }
+      }
+
       let res;
       if (typeof Worker !== "undefined") {
         try { res = await this._bakeWithWorker(text, doc); }
@@ -513,6 +532,35 @@ const FractalFlame = (() => {
       this.current = 0;
       this._playingAt = this._now();
       return doc;
+    }
+
+    async _loadPreRenderedSlices(count) {
+      const basePath = "assets/flame/f";
+      const ext = ".png";
+      const imgs = new Array(count);
+      let loaded = 0;
+      return new Promise((resolve, reject) => {
+        let failed = false;
+        for (let i = 0; i < count; i++) {
+          const img = new Image();
+          img.decoding = "async";
+          imgs[i] = img;
+          img.onload = () => {
+            if (failed) return;
+            loaded++;
+            if (this.onprogress) this.onprogress(loaded, count);
+            if (loaded === count) resolve(imgs);
+          };
+          img.onerror = () => {
+            if (!failed) {
+              failed = true;
+              reject(new Error("failed loading slice " + i));
+            }
+          };
+          img.src = basePath + String(i).padStart(3, "0") + ext;
+          try { img.decode().catch(() => {}); } catch (_) {}
+        }
+      });
     }
 
     async load() {
