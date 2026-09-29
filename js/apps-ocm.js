@@ -43,9 +43,10 @@
     return GOLDEN_SPREAD * Math.asin(Math.max(-1, Math.min(1, 1 - 2 * (i + 0.5) / n)));
   }
 
-  function nodePosition(node, i, n, formation, extraSpin, rMod) {
+  function nodePosition(node, i, n, formation, extraSpin, rMod, latOffset) {
     const lon = node.deg * D2R + extraSpin;
-    const lat = latFor(i, n) * ease(formation);
+    const baseLat = latFor(i, n) * ease(formation);
+    const lat = baseLat + (latOffset || 0);
     const rr = node.r * (rMod || 1);
     return {
       x: rr * Math.cos(lat) * Math.cos(lon),
@@ -320,9 +321,19 @@
         ctx.fillText("(NON-SOVEREIGN)", capB.x, capB.y + 16);
       }
 
-      /* 5 · direct attachment spokes — all nodes attach to the center (modulated by OuterOrb flame) */
-      const nodeRMod = outerMod.active ? (1 + outerMod.pulse * 0.04) : 1;
-      const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0(), nodeRMod));
+      /* 5 · direct attachment spokes & orbital motion — modulated by 600-frame OuterOrb flame */
+      if (st.outerNodeAngle == null) st.outerNodeAngle = 0;
+      // Active orbital rotation for all outside nodes driven by the 600-frame Outer Harmonic Modulator
+      const outerModSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
+      st.outerNodeAngle += (dt || 0.016) * 0.12 * outerModSpeed;
+      
+      const nodeRMod = outerMod.active ? (1 + outerMod.pulse * 0.08) : 1;
+      const pos = nodes.map((nd, i) => {
+        // Individual harmonic undulation for each orb outside the inner shell
+        const orbPhase = st.outerNodeAngle + (i * (TAU / n));
+        const orbLatUndulation = outerMod.active ? (Math.sin(orbPhase * 2) * 0.08) : 0;
+        return nodePosition(nd, i, n, f, st.outerNodeAngle, nodeRMod, orbLatUndulation);
+      });
       if (st.show.spokes) {
         const spokeAlpha = 0.22 * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
         pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", spokeAlpha, 0.8));
@@ -634,6 +645,9 @@
         if (st.flame && typeof st.flame.setSpeed === "function") {
           st.flame.setSpeed(s);
         }
+        return s;
+      },
+      setOuterSpeed(s) {
         if (st.outerFlame && typeof st.outerFlame.setSpeed === "function") {
           st.outerFlame.setSpeed(s);
         }
@@ -708,11 +722,18 @@
           (distance, 0•DDD•RRR•####) produces the sphere. Once instantiated, the sphere persists even if rotation pauses.</div>
 
           <div class="slider-row" style="margin-top:14px">
-            <label>Harmonic Modulator Speed →</label>
+            <label>Inner Harmonic Speed (Demo.flame) →</label>
             <input type="range" id="ocm-flame-spd" min="0.1" max="4.0" step="0.1" value="1.0">
             <span class="val" id="ocm-flame-spdv">1.0×</span>
           </div>
-          <div class="slider-cap">Controls the frequency of the underlying .flame IFS IFS attractor cycle, governing inner/outer shell orbital velocities, harmonic respiration, and pulse dynamics.</div>
+          <div class="slider-cap">Controls the frequency of the inner .flame IFS cycle (120f), governing AI Inner Shell vibration, central attractor flare, and radial resolution pulses.</div>
+
+          <div class="slider-row" style="margin-top:14px">
+            <label>Outer Harmonic Speed (OuterOrb.flame) →</label>
+            <input type="range" id="ocm-outer-spd" min="0.1" max="4.0" step="0.1" value="1.0">
+            <span class="val" id="ocm-outer-spdv">1.0×</span>
+          </div>
+          <div class="slider-cap">Controls the 600-frame macro-orbital IFS modulator, driving the orbital precession, latitude wave undulation, and radial respiration of all orbs and shells outside the inner shell.</div>
 
           <div class="btn-row">
             <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
@@ -892,7 +913,7 @@
           body.querySelector("#ocm-formv").textContent = parseFloat(form.value).toFixed(2);
         });
 
-        // harmonic modulator speed slider
+        // harmonic modulator speed sliders (Inner & Outer)
         const flameSpd = body.querySelector("#ocm-flame-spd");
         const flameSpdv = body.querySelector("#ocm-flame-spdv");
         if (flameSpd) {
@@ -900,6 +921,15 @@
             const val = parseFloat(flameSpd.value);
             engine.setFlameSpeed(val);
             if (flameSpdv) flameSpdv.textContent = val.toFixed(1) + "×";
+          });
+        }
+        const outerSpd = body.querySelector("#ocm-outer-spd");
+        const outerSpdv = body.querySelector("#ocm-outer-spdv");
+        if (outerSpd) {
+          outerSpd.addEventListener("input", () => {
+            const val = parseFloat(outerSpd.value);
+            engine.setOuterSpeed(val);
+            if (outerSpdv) outerSpdv.textContent = val.toFixed(1) + "×";
           });
         }
 
