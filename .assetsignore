@@ -6,7 +6,9 @@
 # version control internals, local tooling, or private working documents.
 # (assets/eye-open-close-hq.gif is the boot animation: 20.8 MiB, under the
 # 25 MiB per-asset limit. assets/a.flame is the StarPortal IFS art file
-# burned as The Orb's core: 374 KB.)
+# burned as The Orb's wire-mode core: 374 KB. assets/orb/ is the author's
+# rendered flame film — 200 AVIF frames, ~5.5 MiB total — wrapped onto The
+# Orb's sphere surface.)
 
 # Don't publish this config file itself.
 .assetsignore
@@ -31,3 +33,11 @@ package-lock.json
 npm-debug.log*
 .env
 .env.*
+
+# Local preview server (node serve.js) — dev tooling, not site content.
+serve.js
+
+# Root-level documents are working papers, not site content.
+README.md
+*.txt
+*.rtf

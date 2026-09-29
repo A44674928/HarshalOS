@@ -25,12 +25,19 @@
      geometry, not enforcement.
      Rotation:  θ(t) = θ₀ + ωt,  ω = 2π/90 s⁻¹   (one revolution / 90 s)
      Breathing: R(t) = R₀·(1 + ε·sin(2πt/T_b)),  ε = 0.015, T_b = 12 s
-     Core:      the .flame IFS, glow α = 0.22 + 0.78·L(t) */
+     Core:      the .flame IFS (wire mode), glow α = 0.22 + 0.78·L(t)
+     Surface:   the author's rendered film — 200 frames (0–198 author +
+                recovered 199), hard loop 199→0, wrapped (λ,φ) through this
+                same camera: I(λ,φ,t) = A⌊12t⌋ mod 200, α = 0.22 + 0.78·L(t) */
   const GOLDEN_SPREAD = 0.62;
   const OMEGA_ROT = TAU / 90;     // rad/s — explicit, time-based (fps-independent)
   const BREATH_EPS = 0.015;
   const BREATH_T = 12;            // seconds
   const R0 = 2.42;
+
+  /* the author's rendered flame film (js/orb-flame.js) — resolved lazily so
+     script load order can never kill the skin; absent ⇒ wire mode */
+  const filmMod = () => (typeof OrbFilm !== "undefined") ? OrbFilm : null;
 
   function latFor(i, n) {
     return GOLDEN_SPREAD * Math.asin(Math.max(-1, Math.min(1, 1 - 2 * (i + 0.5) / n)));
@@ -70,7 +77,9 @@
       selected: -1,
       hover: -1,
       show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true, flame: true },
-      flame: null,                   // FlamePlayer (the .flame IFS core)
+      flame: null,                   // FlamePlayer (the .flame IFS core — wire mode)
+      film: null,                    // OrbFilm — the author's rendered surface
+      filmReadyAt: 0,                // skin fade-in start (ms)
       pulses: [],
       flare: 0,
       projected: [],
@@ -205,10 +214,25 @@
       const tSec = now / 1000;
       const R = R0 * (1 + BREATH_EPS * Math.sin(TAU * tSec / BREATH_T));
 
-      /* 0 · flame core — the .flame IFS burning at the center origin.
-          Legitimacy gates the fire: α = 0.22 + 0.78·L(t) */
+      /* 0 · flame surface — the author's rendered film, wrapped on the sphere
+          through this same camera (rotation, pitch, zoom, breathing). Until the
+          film is ready — or when toggled off — the .flame IFS core burn and the
+          wireframe meridians carry the fire instead. */
       const cs0 = toScreen(project({ x: 0, y: 0, z: 0 }));
-      if (st.show.flame && st.flame && st.flame.ready) {
+      const FM = filmMod();
+      const filmImg = (st.show.flame && st.film && st.film.ready && FM)
+        ? st.film.img(st.film.frameAt(now)) : null;
+      const skinOn = !!filmImg;
+      if (skinOn) {
+        if (!st.filmReadyAt) st.filmReadyAt = now;
+        const fade = Math.min(1, (now - st.filmReadyAt) / 900);
+        const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
+        const alpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
+        FM.drawWrapped(ctx, {
+          img: filmImg, project, toScreen, cs: cs0, R,
+          fov: 7.2 / st.zoom, alpha, dpr: window.devicePixelRatio || 1
+        });
+      } else if (st.show.flame && st.flame && st.flame.ready) {
         const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
         const alpha = 0.22 + 0.78 * L;
         const unit = Math.min(w, h) * 0.18;
@@ -224,8 +248,9 @@
         ctx.restore();
       }
 
-      /* 1 · volumetric wireframe (fades in with formation) */
-      if (f > 0.02) {
+      /* 1 · volumetric wireframe (fades in with formation; hidden while the
+          flame surface is burning — the film replaces the wireframe) */
+      if (f > 0.02 && !skinOn) {
         for (let m = 0; m < 12; m++) {
           arc3D(R - 0.08, "mer:" + (m * 15) * D2R, 48, "#2b4271", 0.16 * f, 1, -Math.PI / 2, Math.PI / 2);
         }
@@ -519,7 +544,8 @@
       },
       setFormation(v) { st.formation = v; },
       setToggle(key, val) { st.show[key] = val; },
-      setFlame(p) { st.flame = p; }
+      setFlame(p) { st.flame = p; },
+      setFilm(f) { st.film = f; }
     };
   }
 
@@ -550,10 +576,10 @@
             <button class="chip-toggle on" data-t="shell">AI INNER SHELL</button>
             <button class="chip-toggle on" data-t="lateral">LATERAL COMMS</button>
             <button class="chip-toggle on" data-t="orbs">INTERACTION ORBS</button>
-            <button class="chip-toggle on" data-t="flame">FLAME CORE · .FLAME IFS</button>
+            <button class="chip-toggle on" data-t="flame">FLAME SURFACE · AUTHOR FILM</button>
           </div>
           <div class="ocm-math mono" id="ocm-math">
-            θ(t) = θ₀ + (2π/90)·t &nbsp;·&nbsp; R(t) = R₀(1 + 0.015·sin 2πt/12) &nbsp;·&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n)
+            θ(t) = θ₀ + (2π/90)·t &nbsp;·&nbsp; R(t) = R₀(1 + 0.015·sin 2πt/12) &nbsp;·&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) &nbsp;·&nbsp; surface: A⌊12t⌋ mod 200
           </div>
 
           <div class="ocm-stage">
@@ -562,7 +588,8 @@
               <div class="ocm-hud-corner">
                 RADIATIVE SPHERE OF INFLUENCE<br>
                 NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
-                CORE: FRACTAL FLAME — <span id="ocm-flame-stat">.flame baking…</span><br>
+                SURFACE: AUTHOR FLAME FILM — <span id="ocm-film-stat">loading…</span><br>
+                CORE · WIRE MODE: .FLAME IFS — <span id="ocm-flame-stat">.flame baking…</span><br>
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
@@ -653,6 +680,22 @@
           }, 1000);
         }
 
+        // the flame surface — the author's rendered film (one shared film)
+        const filmStat = body.querySelector("#ocm-film-stat");
+        if (typeof OrbFilm !== "undefined") {
+          const film = OrbFilm.shared();
+          engine.setFilm(film);
+          film.start();
+          film.onprogress = (n, total) => { if (filmStat) filmStat.textContent = `loading ${n}/${total}`; };
+          film.onready = () => { if (filmStat) filmStat.textContent = "live · 200 frames · hard loop"; };
+          film.onerror = (e) => { if (filmStat) filmStat.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
+          const fiv = setInterval(() => {
+            if (!document.body.contains(body)) { clearInterval(fiv); return; }
+            if (!filmStat || !film.ready) return;
+            filmStat.textContent = `live · frame ${film.frameAt(performance.now()) + 1}/200 · loop`;
+          }, 1000);
+        }
+
         // inspector
         const inspector = body.querySelector("#ocm-inspector");
         const drawInspector = (i) => {
@@ -671,9 +714,10 @@
                 <div>breathing&nbsp;&nbsp; R(t) = R₀·(1 + 0.015·sin(2πt/12))</div>
                 <div>latitudes&nbsp;&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) — equal-area lattice, uniform in solid angle</div>
                 <div>longitudes&nbsp; λᵢ = Dᵢ·π/180 — address-derived (0•DDD•000•0000)</div>
-                <div>flame core&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — IFS from .flame</div>
+                <div>surface&nbsp;&nbsp; I(λ,φ,t) = A⌊t·12⌋ mod 200 — the author's rendered film, wrapped on the sphere by this camera</div>
+                <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS bake</div>
                 <div>legitimacy&nbsp; α_flame = 0.22 + 0.78·L(t) — the fire answers to legitimacy</div>
-                <div class="oi-math-src">a.flame · ${fs} · Apophysis 7x</div>
+                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · wire core: a.flame · Apophysis 7x</div>
               </div>
               <div class="oi-why">SINGLE-ORIGIN AXIOM · EVERY VALID ADDRESS DERIVES FROM EXACTLY ONE CENTER POINT</div>`;
             return;

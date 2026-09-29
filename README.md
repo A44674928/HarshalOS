@@ -104,6 +104,15 @@ the AI inner shell (capability without sovereignty), free lateral communication 
 interaction-orb bubbles counting the non-additive term. Resolution pulses route inward on demand —
 resolution always routes to the center point.
 
+The Orb's surface is the author's own art: a 202-frame Apophysis render (the `animate`
+fileset) plays as the sphere's skin — 200 frames in a hard loop, frames 0–198 exactly as
+rendered plus frame 199 recovered from its truncated PNG, one visible pulse each time the
+loop wraps 199→0. The film is wrapped onto the sphere through the same camera that draws
+the wireframe (so rotation, pitch, zoom and the 12-second breathing all move it), and its
+brightness is gated by legitimacy exactly like the wire-mode core: `α = 0.22 + 0.78·L(t)`.
+The `.flame` IFS renderer stays (the Fractal Flame app, and the orb's wire mode), so the
+mathematics and the author's render burn side by side.
+
 ## The gating equations
 
 ```
