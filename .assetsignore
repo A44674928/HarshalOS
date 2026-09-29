@@ -5,7 +5,8 @@
 # js/ and assets/ are actually part of the site -- everything else here is
 # version control internals, local tooling, or private working documents.
 # (assets/eye-open-close-hq.gif is the boot animation: 20.8 MiB, under the
-# 25 MiB per-asset limit.)
+# 25 MiB per-asset limit. assets/a.flame is the StarPortal IFS art file
+# burned as The Orb's core: 374 KB.)
 
 # Don't publish this config file itself.
 .assetsignore
