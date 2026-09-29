@@ -98,8 +98,9 @@
         </div>
       </div>
       <div class="footer-note" style="margin-top:14px">
-        ENGINE: HOS FRACTALFLAME v1.1 — IFS INTERPRETER · FILE: ${flameFile} ·
-        ${isInner ? "INNER CORE MODULATOR: DRIVES THE AI INNER SHELL & ORIGIN ATTRACTOR." : "OUTER SYSTEM MODULATOR: DRIVES MOVING BLUE ORBS, OUTER SHELLS & GOLD RADIATIVE NODES."}
+        ${isInner 
+          ? "ENGINE 1: HOS FRACTALFLAME v1.0 — IFS INTERPRETER · FILE: Demo.flame (STARPORTAL · Apophysis 7x) · THE ORB'S CORE IS THIS SAME SYSTEM, BURNING AT THE ORIGIN, BRIGHTNESS GATED BY LEGITIMACY."
+          : "ENGINE 2: HOS FRACTALFLAME v1.0 — IFS INTERPRETER · FILE: OuterOrb.flame (STARPORTAL · Apophysis 7x) · THE ORB'S ORBITAL PATTERNS ARE THIS SAME SYSTEM, BURNING AT THE ORIGIN, BRIGHTNESS GATED BY LEGITIMACY."}
       </div>` : `
       <div class="rule-box">FractalFlame engine not loaded. Check that js/flame.js is present before the app scripts.</div>`}
     `;
@@ -277,7 +278,7 @@
       renderFlameView(body, api, {
         file: "assets/Demo.flame",
         title: "Flame (Inner)",
-        subtitle: `An <strong>iterated function system</strong> driving the inner sphere: <span class="mono" style="color:var(--text)">Demo.flame</span> — 120 animated frames, 256-color palettes, high-frequency harmonic core.`,
+        subtitle: `An <strong>iterated function system</strong>: a finite set of affine maps, each folded by named curve warps, applied in random order until points settle onto the attractor. Your art file <span class="mono" style="color:var(--text)">Demo.flame</span> is such a system — 120 animated frames, 256-color palettes, per-frame camera. This app renders the file; The Orb burns it as its core.`,
         isInner: true,
         maxFrames: 120
       });
@@ -296,7 +297,7 @@
       renderFlameView(body, api, {
         file: "assets/OuterOrb.flame",
         title: "Flame (Outer)",
-        subtitle: `A macro-orbital <strong>iterated function system</strong>: <span class="mono" style="color:var(--text)">OuterOrb.flame</span> — 600 animated frames at 24 FPS, driving moving blue orbs, outer shells, and stationary gold radiative nodes.`,
+        subtitle: `An <strong>iterated function system</strong>: a finite set of affine maps, each folded by named curve warps, applied in random order until points settle onto the attractor. Your art file <span class="mono" style="color:var(--text)">OuterOrb.flame</span> is such a system — 600 animated frames at 24 FPS, 256-color palettes, per-frame camera. This app renders the file; The Orb's orbital patterns are this same system.`,
         isInner: false,
         maxFrames: 600
       });
