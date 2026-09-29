@@ -401,9 +401,12 @@
         st.flare = Math.max(0, st.flare - 0.02);
       }
 
-      /* 11 · pulses */
+      /* 11 · pulses: inward resolution dominates lateral coordination.
+         For safety and authority invariants, inward resolution to the center
+         travels decisively faster than lateral communication. */
       st.pulses = st.pulses.filter(pu => {
-        pu.t += 0.018;
+        const speed = pu.kind === "in" ? 0.038 : 0.012; // inward resolution outpaces lateral by >3×
+        pu.t += speed;
         if (pu.t >= 1) {
           if (pu.kind === "in") { st.flare = 1; if (pu.onArrive) pu.onArrive(); }
           return false;
@@ -411,16 +414,29 @@
         let a, b;
         if (pu.kind === "in") {
           a = pos[pu.from]; b = { x: 0, y: 0, z: 0 };
+          const cur = {
+            x: a.x + (b.x - a.x) * pu.t,
+            y: a.y + (b.y - a.y) * pu.t,
+            z: a.z + (b.z - a.z) * pu.t
+          };
+          const sp = toScreen(project(cur));
+          glowDot(sp, 3.8, CENTER_COLOR, 1.6);
         } else {
           a = pos[pu.from]; b = pos[pu.to];
+          const mid = {
+            x: (a.x + b.x) * 0.72,
+            y: (a.y + b.y) * 0.72 + 0.45,
+            z: (a.z + b.z) * 0.72
+          };
+          const t = pu.t, u = 1 - t;
+          const cur = {
+            x: u * u * a.x + 2 * u * t * mid.x + t * t * b.x,
+            y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
+            z: u * u * a.z + 2 * u * t * mid.z + t * t * b.z
+          };
+          const sp = toScreen(project(cur));
+          glowDot(sp, 3.0, "#6fd3ff", 1.2);
         }
-        const cur = {
-          x: a.x + (b.x - a.x) * pu.t,
-          y: a.y + (b.y - a.y) * pu.t,
-          z: a.z + (b.z - a.z) * pu.t
-        };
-        const sp = toScreen(project(cur));
-        glowDot(sp, 3.4, pu.kind === "in" ? CENTER_COLOR : "#6fd3ff", 1.4);
         return true;
       });
     }
@@ -663,7 +679,7 @@
 
         // the flame core — shared .flame IFS player (one bake serves orb + flame app)
         if (typeof FractalFlame !== "undefined") {
-          const flame = FractalFlame.shared("assets/a.flame", { w: 160, h: 160 });
+          const flame = FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 });
           const statEl = body.querySelector("#ocm-flame-stat");
           const setStat = (i, total) => { if (statEl) statEl.textContent = `baking ${i}/${total}…`; };
           flame.onprogress = setStat;
@@ -675,7 +691,7 @@
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
             if (!statEl) return;
-            if (flame.ready) statEl.textContent = `live · a.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
+            if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
             else if (!flame.baking) statEl.textContent = "unavailable";
           }, 1000);
         }
@@ -717,7 +733,7 @@
                 <div>surface&nbsp;&nbsp; I(λ,φ,t) = A⌊t·12⌋ mod 200 — the author's rendered film, wrapped on the sphere by this camera</div>
                 <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS bake</div>
                 <div>legitimacy&nbsp; α_flame = 0.22 + 0.78·L(t) — the fire answers to legitimacy</div>
-                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · wire core: a.flame · Apophysis 7x</div>
+                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · wire core: Demo.flame · Apophysis 7x</div>
               </div>
               <div class="oi-why">SINGLE-ORIGIN AXIOM · EVERY VALID ADDRESS DERIVES FROM EXACTLY ONE CENTER POINT</div>`;
             return;

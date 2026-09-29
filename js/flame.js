@@ -657,7 +657,7 @@ const FractalFlame = (() => {
   const VERSION = "1.1";
 
   function shared(url, opts) {
-    if (!_shared) _shared = new FlamePlayer(url || "assets/a.flame", opts || {});
+    if (!_shared) _shared = new FlamePlayer(url || "assets/Demo.flame", opts || {});
     return _shared;
   }
 

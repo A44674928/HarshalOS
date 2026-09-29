@@ -5,8 +5,8 @@
 # js/ and assets/ are actually part of the site -- everything else here is
 # version control internals, local tooling, or private working documents.
 # (assets/eye-open-close-hq.gif is the boot animation: 20.8 MiB, under the
-# 25 MiB per-asset limit. assets/a.flame is the StarPortal IFS art file
-# burned as The Orb's wire-mode core: 374 KB. assets/orb/ is the author's
+# 25 MiB per-asset limit. assets/Demo.flame is the IFS art file
+# burned as The Orb's wire-mode core. assets/orb/ is the author's
 # rendered flame film — 200 AVIF frames, ~5.5 MiB total — wrapped onto The
 # Orb's sphere surface.)
 
