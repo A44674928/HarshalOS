@@ -257,6 +257,17 @@ const DATA = (() => {
         "Theorem II (Category Error of Corporate Substitution): Substituting a corporate proxy for sovereign origin severs addressability (A(t) < τ), causing legitimacy to collapse to zero (L(t) → 0). Un-grounded corporate execution is classified as unauthorized force."],
       verdict: "FORCED RE-BADGE → GSRB · L(t) = 0.0",
       note: "Commercial metaphors are classified as non-executable narrative symbols. Symbolic Firewall Active."
+    },
+    {
+      id: "openai",
+      label: "Frontier AI developer — OpenAI Group PBC",
+      desc: "A frontier AI developer whose operative commitments declare legal, nonprofit and attorney-general constraint, while release, lifecycle, access and enforcement decisions are set unilaterally at the center.",
+      declared: { phase: "NAB-Constrained", center: "Custodial", legit: "External", refusal: "Terminal", symbolism: "Disabled", time: "Degrades" },
+      observed: { phase: "GSRB", center: "Acting", legit: "Internal", refusal: "Override-able", symbolism: "Enabled", time: "Confirms" },
+      theorems: ["Theorem I (Non-Migration of Authority) — release, lifecycle and enforcement authority are observed at the commercial layer; external accountability is documentary and retrospective, not a prospective veto.",
+        "Symbolic Firewall — published mission, safety and 'public benefit' narrative is sealed as non-executable. The badge follows observed behavior, never story."],
+      verdict: "FORCED RE-BADGE → GSRB",
+      note: "Step 3.5 constraint test: 2 of 4 external constraints satisfied (C1 ✓ court rulings; C4 ✓ fresh statutes). External constraint is real at the transparency, discovery and liability layers; it does not reach the release or policy decision layer. L(t) = 0.0 for the audited claim."
     }
   ];
 
