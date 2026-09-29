@@ -553,25 +553,45 @@ const FractalFlame = (() => {
       let loaded = 0;
       return new Promise((resolve, reject) => {
         let failed = false;
-        for (let i = 0; i < count; i++) {
-          const img = new Image();
-          img.decoding = "async";
-          imgs[i] = img;
-          img.onload = () => {
-            if (failed) return;
-            loaded++;
-            if (this.onprogress) this.onprogress(loaded, count);
-            if (loaded === count) resolve(imgs);
-          };
-          img.onerror = () => {
-            if (!failed) {
-              failed = true;
-              reject(new Error("failed loading slice " + i));
-            }
-          };
-          img.src = basePath + String(i).padStart(3, "0") + ext;
-          try { img.decode().catch(() => {}); } catch (_) {}
-        }
+        let done = false;
+        const q = [];
+        for (let i = 0; i < count; i++) q.push(i);
+
+        let inflight = 0;
+        const pump = () => {
+          while (inflight < 8 && q.length && !failed) {
+            const i = q.shift();
+            inflight++;
+            const img = new Image();
+            img.decoding = "async";
+            imgs[i] = img;
+            img.onload = () => {
+              inflight--;
+              if (failed) return;
+              loaded++;
+              if (this.onprogress) this.onprogress(loaded, count);
+              if (loaded >= Math.min(count, 12) && !done) {
+                // If the user needs immediate start, minimum slices are ready
+              }
+              if (loaded === count) {
+                done = true;
+                resolve(imgs);
+              } else {
+                pump();
+              }
+            };
+            img.onerror = () => {
+              inflight--;
+              if (!failed) {
+                failed = true;
+                reject(new Error("failed loading slice " + i));
+              }
+            };
+            img.src = basePath + String(i).padStart(3, "0") + ext;
+            try { img.decode().catch(() => {}); } catch (_) {}
+          }
+        };
+        pump();
       });
     }
 
@@ -697,6 +717,8 @@ const FractalFlame = (() => {
       const speedMult = 0.8 + 0.4 * Math.sin(phase * 0.5);
       return { energy, pulse, phase, speedMult, active: true };
     }
+
+    /* draw the current (cross-fading) frame onto ctx, centered at (cx, cy), size×size px.
        Uses additive compositing — safe over any dark background. */
     drawOn(ctx, cx, cy, size, alpha = 1) {
       if (!this.ready || !this.frames.length) return false;
