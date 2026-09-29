@@ -680,7 +680,23 @@ const FractalFlame = (() => {
 
     toggle() { this.playing ? this.pause() : this.resume(); return this.playing; }
 
-    /* draw the current (cross-fading) frame onto ctx, centered at (cx, cy), size×size px.
+    /* compute dynamic flame harmonic energy and phase for component modulation */
+    flameModulation() {
+      if (!this.ready || !this.frames.length) {
+        return { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+      }
+      const len = this.frames.length;
+      let cur = this.current;
+      if (this.playing) {
+        const t = ((this._now() - this._playingAt) / 1000) * this.speed * this.fps;
+        cur = (this.current + (t % len)) % len;
+      }
+      const phase = (cur / len) * Math.PI * 2;
+      const energy = 0.5 + 0.5 * Math.sin(phase);
+      const pulse = Math.cos(phase * 2);
+      const speedMult = 0.8 + 0.4 * Math.sin(phase * 0.5);
+      return { energy, pulse, phase, speedMult, active: true };
+    }
        Uses additive compositing — safe over any dark background. */
     drawOn(ctx, cx, cy, size, alpha = 1) {
       if (!this.ready || !this.frames.length) return false;
