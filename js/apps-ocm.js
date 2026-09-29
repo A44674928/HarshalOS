@@ -838,15 +838,30 @@
         if (typeof OrbFilm !== "undefined") {
           const film = OrbFilm.shared();
           engine.setFilm(film);
-          film.start();
-          film.onprogress = (n, total) => { if (filmStat) filmStat.textContent = `loading ${n}/${total}`; };
-          film.onready = () => { if (filmStat) filmStat.textContent = "live · 200 frames · hard loop"; };
-          film.onerror = (e) => { if (filmStat) filmStat.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
+          const updateStat = () => {
+            if (!filmStat) return;
+            if (film.ready) {
+              const curTime = engine.getFilmTime ? engine.getFilmTime() : performance.now();
+              filmStat.textContent = `live · frame ${film.frameAt(curTime) + 1}/200 · bounce`;
+            } else if (film.dead) {
+              filmStat.textContent = "unavailable";
+            } else if (film.loaded > 0) {
+              filmStat.textContent = `loading ${film.loaded}/${film.total}…`;
+            }
+          };
+          film.onprogress = (n, total) => {
+            if (filmStat && !film.ready) filmStat.textContent = `loading ${n}/${total}…`;
+          };
+          film.onready = () => updateStat();
+          film.onerror = (e) => {
+            if (filmStat) filmStat.textContent = "unavailable — " + (e && e.message ? e.message : "load failed");
+          };
+          if (film.ready) updateStat();
+          else film.start();
+
           const fiv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(fiv); return; }
-            if (!filmStat || !film.ready) return;
-            const curTime = engine.getFilmTime ? engine.getFilmTime() : performance.now();
-            filmStat.textContent = `live · frame ${film.frameAt(curTime) + 1}/200 · bounce`;
+            updateStat();
           }, 40);
         }
 
