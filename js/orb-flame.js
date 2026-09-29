@@ -106,8 +106,33 @@
       try { img.decode().catch(() => {}); } catch (_) { /* optional */ }
     }
 
-    /* frame index at time tMs — the hard loop. 199 → 0 is the heartbeat. */
-    frameAt(tMs) { return Math.floor((tMs / 1000) * CFG.fps) % CFG.count; }
+    /* frame index at time tMs — ping-pong bounce (0 -> 199 -> 0) */
+    frameAt(tMs) {
+      const period = 2 * (CFG.count - 1);
+      const raw = ((tMs / 1000) * CFG.fps) % period;
+      const pos = raw < CFG.count - 1 ? raw : period - raw;
+      return Math.floor(pos);
+    }
+
+    /* sub-frame fraction and adjacent frame indices for seamless bounce interpolation */
+    sampleAt(tMs) {
+      const period = 2 * (CFG.count - 1);
+      const raw = (((tMs / 1000) * CFG.fps) % period + period) % period;
+      let i0, i1, frac;
+      if (raw < CFG.count - 1) {
+        // Forward swing
+        i0 = Math.floor(raw);
+        i1 = i0 + 1;
+        frac = raw - i0;
+      } else {
+        // Reverse swing
+        const pos = period - raw;
+        i0 = Math.ceil(pos);
+        i1 = Math.max(0, i0 - 1);
+        frac = i0 - pos;
+      }
+      return { i0, i1, frac, img0: this.img(i0), img1: this.img(i1) };
+    }
 
     /* loaded image for index i, falling back to the nearest loaded
        neighbour (the loader stays ahead of the playhead in practice) */

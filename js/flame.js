@@ -493,6 +493,30 @@ const FractalFlame = (() => {
       this.palette = doc.frames.length ? doc.frames[0].palette : null; // 256×3 Uint8Array, file's first palette
       this.doc = doc;                     // full parse — per-frame metadata for readouts
       this.baking = true;
+      this.mode = "bake";
+
+      // Fast path: if pre-rendered slices are available (e.g. assets/flame/ or assets/outer_flame/),
+      // load slices instantly to avoid lag, CPU burn, and worker thread contention.
+      const isPreRendered = (this.url && (this.url.indexOf("Demo.flame") >= 0 || this.url.indexOf("OuterOrb.flame") >= 0)) ||
+                            (doc.stats && (doc.stats.frames === 120 || doc.stats.frames === 600));
+      if (isPreRendered && typeof Image !== "undefined") {
+        try {
+          this.mode = "preload";
+          const slices = await this._loadPreRenderedSlices(doc.frames.length);
+          if (slices && slices.length === doc.frames.length) {
+            this.frames = slices;
+            this.ready = true;
+            this.baking = false;
+            this.current = 0;
+            this._playingAt = this._now();
+            return doc;
+          }
+        } catch (_) {
+          /* fallback to real-time bake */
+          this.mode = "bake";
+        }
+      }
+
       let res;
       if (typeof Worker !== "undefined") {
         try { res = await this._bakeWithWorker(text, doc); }
@@ -513,6 +537,66 @@ const FractalFlame = (() => {
       this.current = 0;
       this._playingAt = this._now();
       return doc;
+    }
+
+    async _loadPreRenderedSlices(count) {
+      let basePath = "assets/flame/f";
+      if (this.url && typeof this.url === "string") {
+        if (this.url.indexOf("OuterOrb") >= 0) {
+          basePath = "assets/outer_flame/f";
+        } else {
+          const clean = this.url.split("?")[0].split("#")[0];
+          const idx = clean.lastIndexOf("/");
+          if (idx >= 0) {
+            basePath = clean.substring(0, idx) + "/flame/f";
+          }
+        }
+      }
+      const ext = ".png";
+      const imgs = new Array(count);
+      let loaded = 0;
+      return new Promise((resolve, reject) => {
+        let failed = false;
+        let done = false;
+        const q = [];
+        for (let i = 0; i < count; i++) q.push(i);
+
+        let inflight = 0;
+        const pump = () => {
+          while (inflight < 8 && q.length && !failed) {
+            const i = q.shift();
+            inflight++;
+            const img = new Image();
+            img.decoding = "async";
+            imgs[i] = img;
+            img.onload = () => {
+              inflight--;
+              if (failed) return;
+              loaded++;
+              if (this.onprogress) this.onprogress(loaded, count);
+              if (loaded >= Math.min(count, 12) && !done) {
+                // If the user needs immediate start, minimum slices are ready
+              }
+              if (loaded === count) {
+                done = true;
+                resolve(imgs);
+              } else {
+                pump();
+              }
+            };
+            img.onerror = () => {
+              inflight--;
+              if (!failed) {
+                failed = true;
+                reject(new Error("failed loading slice " + i));
+              }
+            };
+            img.src = basePath + String(i).padStart(3, "0") + ext;
+            try { img.decode().catch(() => {}); } catch (_) {}
+          }
+        };
+        pump();
+      });
     }
 
     async load() {
@@ -599,6 +683,18 @@ const FractalFlame = (() => {
       return out;
     }
 
+    setSpeed(s) {
+      const v = Math.max(0.1, Math.min(10, s));
+      if (this.playing && this.speed !== v) {
+        const cur = this.current;
+        this.speed = v;
+        this._playingAt = this._now() - (cur / this.fps) * 1000 / this.speed;
+      } else {
+        this.speed = v;
+      }
+      return this.speed;
+    }
+
     seek(i) {
       if (!this.frames.length) return;
       this.current = Math.max(0, Math.min(this.frames.length - 0.001, i));
@@ -620,45 +716,98 @@ const FractalFlame = (() => {
 
     toggle() { this.playing ? this.pause() : this.resume(); return this.playing; }
 
-    /* draw the current (cross-fading) frame onto ctx, centered at (cx, cy), size×size px.
-       Uses additive compositing — safe over any dark background. */
+    /* compute current playhead position in frames with ping-pong bounce (0 -> 119 -> 0) */
+    playhead() {
+      if (!this.ready || !this.frames.length) return { cur: 0, i0: 0, i1: 0, frac: 0, dir: 1 };
+      const len = this.frames.length;
+      if (len <= 1) return { cur: 0, i0: 0, i1: 0, frac: 0, dir: 1 };
+
+      let curPos;
+      if (!this.playing) {
+        curPos = Math.max(0, Math.min(len - 1, this.current));
+        const i0 = Math.floor(curPos), i1 = Math.min(len - 1, i0 + 1);
+        return { cur: curPos, i0, i1, frac: curPos - i0, dir: 1 };
+      }
+
+      // Ping-pong bounce period: 2 * (len - 1)
+      const period = 2 * (len - 1);
+      const elapsed = (this._now() - this._playingAt) / 1000;
+      const raw = ((elapsed * this.speed * this.fps) % period + period) % period;
+      
+      let cur, i0, i1, frac, dir;
+      if (raw < len - 1) {
+        // Forward swing: 0 -> len - 1
+        cur = raw;
+        i0 = Math.floor(cur);
+        i1 = i0 + 1;
+        frac = cur - i0;
+        dir = 1;
+      } else {
+        // Reverse swing: len - 1 -> 0
+        cur = period - raw;
+        i0 = Math.ceil(cur);
+        i1 = Math.max(0, i0 - 1);
+        frac = i0 - cur;
+        dir = -1;
+      }
+
+      this.current = cur;
+      return { cur, i0, i1, frac, dir };
+    }
+
+    /* compute dynamic flame harmonic energy and phase for component modulation */
+    flameModulation() {
+      if (!this.ready || !this.frames.length) {
+        return { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+      }
+      const len = this.frames.length;
+      const ph = this.playhead();
+      const phase = (ph.cur / (len - 1)) * Math.PI;
+      const energy = 0.5 + 0.5 * Math.sin(phase);
+      const pulse = Math.cos(phase * 2);
+      const speedMult = 0.8 + 0.4 * Math.sin(phase * 0.5);
+      return { energy, pulse, phase, speedMult, active: true };
+    }
+
+    /* draw the current frame with seamless bounce interpolation */
     drawOn(ctx, cx, cy, size, alpha = 1) {
       if (!this.ready || !this.frames.length) return false;
-      const len = this.frames.length;
-      let cur;
-      if (this.playing) {
-        const t = ((this._now() - this._playingAt) / 1000) * this.speed * this.fps;
-        cur = this.current + (t % len);
-      } else {
-        cur = this.current;
-      }
-      cur = ((cur % len) + len) % len;
-      this.current = cur;
-      const i0 = cur | 0, i1 = (i0 + 1) % len, frac = cur - i0;
+      const ph = this.playhead();
+      const i0 = ph.i0, i1 = ph.i1, frac = ph.frac;
+
       const a = Math.max(0.02, Math.min(1, alpha));
+      // Constant-energy luminance blending so sub-frame cross-fades maintain solid luminosity
+      const a0 = a * Math.cos(frac * (Math.PI / 2));
+      const a1 = a * Math.sin(frac * (Math.PI / 2));
+
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      ctx.globalAlpha = a;
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.frames[i0], cx - size / 2, cy - size / 2, size, size);
-      if (frac > 0.004) {
-        ctx.globalAlpha = a * frac;
+
+      if (this.frames[i0]) {
+        ctx.globalAlpha = a0;
+        ctx.drawImage(this.frames[i0], cx - size / 2, cy - size / 2, size, size);
+      }
+      if (this.frames[i1] && frac > 0.001) {
+        ctx.globalAlpha = a1;
         ctx.drawImage(this.frames[i1], cx - size / 2, cy - size / 2, size, size);
       }
+
       ctx.restore();
       return true;
     }
   }
 
   /* ---------- shared singleton (orb core + flame app share one bake) ---------- */
-  let _shared = null;
+  let _sharedInstances = {};
   /* bumped on every change to the worker/bake protocol — cache-busts the
      worker script + engine in the browser (static site, no build step) */
   const VERSION = "1.1";
 
   function shared(url, opts) {
-    if (!_shared) _shared = new FlamePlayer(url || "assets/a.flame", opts || {});
-    return _shared;
+    const key = url || "assets/Demo.flame";
+    if (!_sharedInstances[key]) _sharedInstances[key] = new FlamePlayer(key, opts || {});
+    return _sharedInstances[key];
   }
 
   const api = {

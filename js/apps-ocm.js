@@ -43,10 +43,12 @@
     return GOLDEN_SPREAD * Math.asin(Math.max(-1, Math.min(1, 1 - 2 * (i + 0.5) / n)));
   }
 
-  function nodePosition(node, i, n, formation, extraSpin) {
-    const lon = node.deg * D2R + extraSpin;
-    const lat = latFor(i, n) * ease(formation);
-    const rr = node.r;
+  function nodePosition(node, i, n, formation, lonOffset, latOffset, radialPulse) {
+    // 3D spherical position with harmonic orbital radiation
+    const lon = node.deg * D2R + (lonOffset || 0);
+    const baseLat = latFor(i, n) * ease(formation);
+    const lat = baseLat + (latOffset || 0) * ease(formation);
+    const rr = node.r * (radialPulse || 1);
     return {
       x: rr * Math.cos(lat) * Math.cos(lon),
       y: rr * Math.sin(lat),
@@ -71,13 +73,14 @@
       lastNow: 0,                    // for explicit time-based rotation θ(t) = θ₀ + ωt
       dragging: false,
       lastX: 0, lastY: 0,
-      formation: 0,
+      formation: 1,
       formDir: 1,
       animatingForm: false,
       selected: -1,
       hover: -1,
       show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true, flame: true },
-      flame: null,                   // FlamePlayer (the .flame IFS core — wire mode)
+      flame: null,                   // FlamePlayer (inner core: Demo.flame, 120 frames)
+      outerFlame: null,              // FlamePlayer (outer system: OuterOrb.flame, 600 frames @ 24fps)
       film: null,                    // OrbFilm — the author's rendered surface
       filmReadyAt: 0,                // skin fade-in start (ms)
       pulses: [],
@@ -123,20 +126,21 @@
     }
 
     /* ---------- drawing primitives ---------- */
-    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo) {
+    function arc3D(radius, plane, steps, color, alpha, width, angleFrom, angleTo, rotAngle) {
       // plane: 'eq' (equatorial), 'lat:<phi>', 'mer:<lon>'
+      const rot = rotAngle || 0;
       ctx.beginPath();
       let started = false;
       for (let i = 0; i <= steps; i++) {
         const a = angleFrom + (angleTo - angleFrom) * (i / steps);
         let p;
         if (plane === "eq") {
-          p = { x: radius * Math.cos(a), y: 0, z: radius * Math.sin(a) };
+          p = { x: radius * Math.cos(a + rot), y: 0, z: radius * Math.sin(a + rot) };
         } else if (plane.startsWith("lat:")) {
           const phi = parseFloat(plane.slice(4));
-          p = { x: radius * Math.cos(phi) * Math.cos(a), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a) };
+          p = { x: radius * Math.cos(phi) * Math.cos(a + rot), y: radius * Math.sin(phi), z: radius * Math.cos(phi) * Math.sin(a + rot) };
         } else {
-          const lon = parseFloat(plane.slice(4));
+          const lon = parseFloat(plane.slice(4)) + rot;
           p = { x: radius * Math.cos(a) * Math.cos(lon), y: radius * Math.sin(a), z: radius * Math.cos(a) * Math.sin(lon) };
         }
         const q = toScreen(project(p));
@@ -214,38 +218,51 @@
       const tSec = now / 1000;
       const R = R0 * (1 + BREATH_EPS * Math.sin(TAU * tSec / BREATH_T));
 
+      /* Query flame dynamic modulation: inner core (Demo.flame) & outer macro (OuterOrb.flame, 600f) */
+      const fMod = (st.flame && typeof st.flame.flameModulation === "function")
+        ? st.flame.flameModulation()
+        : { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+      const outerMod = (st.outerFlame && typeof st.outerFlame.flameModulation === "function")
+        ? st.outerFlame.flameModulation()
+        : { energy: 0.5, pulse: 0, phase: 0, speedMult: 1, active: false };
+
       /* 0 · flame surface — the author's rendered film, wrapped on the sphere
           through this same camera (rotation, pitch, zoom, breathing). Until the
-          film is ready — or when toggled off — the .flame IFS core burn and the
-          wireframe meridians carry the fire instead. */
+          film is ready — or when toggled off — the wireframe meridians and
+          dynamic flame-modulated components carry the sphere structure instead. */
       const cs0 = toScreen(project({ x: 0, y: 0, z: 0 }));
       const FM = filmMod();
-      const filmImg = (st.show.flame && st.film && st.film.ready && FM)
-        ? st.film.img(st.film.frameAt(now)) : null;
-      const skinOn = !!filmImg;
+      // Continuous timeline advancement coupled to flame harmonic speed
+      if (!st.filmTime) st.filmTime = now;
+      const filmDt = st.lastNow ? Math.max(0, Math.min(0.1, (now - st.lastNow) / 1000)) : 0;
+      st.filmTime += filmDt * 1000 * (fMod.speedMult || 1);
+
+      const sample = (st.show.flame && st.film && st.film.ready && FM)
+        ? st.film.sampleAt(st.filmTime) : null;
+      const skinOn = !!(sample && sample.img0);
       if (skinOn) {
         if (!st.filmReadyAt) st.filmReadyAt = now;
         const fade = Math.min(1, (now - st.filmReadyAt) / 900);
         const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
-        const alpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
-        FM.drawWrapped(ctx, {
-          img: filmImg, project, toScreen, cs: cs0, R,
-          fov: 7.2 / st.zoom, alpha, dpr: window.devicePixelRatio || 1
-        });
-      } else if (st.show.flame && st.flame && st.flame.ready) {
-        const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
-        const alpha = 0.22 + 0.78 * L;
-        const unit = Math.min(w, h) * 0.18;
-        const size = R * unit * 1.55;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cs0.x, cs0.y, size / 2, 0, TAU);
-        ctx.clip();
-        ctx.translate(cs0.x, cs0.y);
-        ctx.rotate(tSec * 0.05);     // constant angular velocity ω_f = 0.05 rad/s
-        ctx.translate(-cs0.x, -cs0.y);
-        st.flame.drawOn(ctx, cs0.x, cs0.y, size, alpha * (0.35 + 0.65 * f));
-        ctx.restore();
+        const totalAlpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
+        
+        // Equal-energy cosine/sine blend across adjacent sub-frames:
+        const frac = sample.frac;
+        const a0 = totalAlpha * Math.cos(frac * (Math.PI / 2));
+        const a1 = totalAlpha * Math.sin(frac * (Math.PI / 2));
+
+        if (sample.img0 && a0 > 0.01) {
+          FM.drawWrapped(ctx, {
+            img: sample.img0, project, toScreen, cs: cs0, R,
+            fov: 7.2 / st.zoom, alpha: a0, dpr: window.devicePixelRatio || 1
+          });
+        }
+        if (sample.img1 && a1 > 0.01 && frac > 0.002) {
+          FM.drawWrapped(ctx, {
+            img: sample.img1, project, toScreen, cs: cs0, R,
+            fov: 7.2 / st.zoom, alpha: a1, dpr: window.devicePixelRatio || 1
+          });
+        }
       }
 
       /* 1 · volumetric wireframe (fades in with formation; hidden while the
@@ -259,9 +276,19 @@
         }
       }
 
-      /* 2 · depth shells — distance gives it depth */
+      /* 2 · depth shells (outer shells) — governed by 600-frame OuterOrb macro-flame */
+      const outerSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
+      if (st.outerAngle1 == null) { st.outerAngle1 = 0; st.outerAngle2 = 0; }
+      st.outerAngle1 += (dt || 0.016) * 0.25 * outerSpeed;
+      st.outerAngle2 -= (dt || 0.016) * 0.18 * outerSpeed;
+      const outerRot1 = st.outerAngle1;
+      const outerRot2 = st.outerAngle2;
+      const outerPulse = outerMod.active ? (outerMod.pulse * 0.06) : 0;
+      const outerAlpha = outerMod.active ? (0.22 + 0.14 * outerMod.energy) : 0.22;
       [1.15, 1.8].forEach((rr, i) => {
-        arc3D(rr, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", 0.22, 1, 0, TAU);
+        const shellRot = i === 0 ? outerRot1 : outerRot2;
+        const dynamicRadius = rr + (i === 0 ? outerPulse : -outerPulse * 0.8);
+        arc3D(dynamicRadius, "lat:" + (i ? 0.5 : -0.42) * 0.9, 64, "#243a63", outerAlpha, 1 + (outerMod.active ? outerMod.energy * 0.6 : 0), 0, TAU, shellRot);
       });
 
       /* 3 · the equatorial disc — 360 primary radiative addresses */
@@ -295,10 +322,27 @@
         ctx.fillText("(NON-SOVEREIGN)", capB.x, capB.y + 16);
       }
 
-      /* 5 · direct attachment spokes — all nodes attach to the center */
-      const pos = nodes.map((nd, i) => nodePosition(nd, i, n, f, yaw0()));
+      /* 5 · direct attachment spokes & 3D spherical radiant orbit — modulated by OuterOrb.flame */
+      if (st.outerOrbMotionT == null) st.outerOrbMotionT = 0;
+      const outerModSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
+      st.outerOrbMotionT += (dt || 0.016) * 0.45 * outerModSpeed;
+
+      // OuterOrb harmonic energy and pulsation
+      const outerEnergy = outerMod.active ? outerMod.energy : 0.5;
+      const nodePulseAmount = outerMod.active ? outerMod.pulse : 0;
+      const radialBreath = 1 + nodePulseAmount * 0.12;
+
+      const pos = nodes.map((nd, i) => {
+        // Each orb outside the inner shell radiates around the sphere along its orbital harmonic
+        const speedFactor = 0.6 + 0.4 * Math.sin(i * 1.618);
+        const orbLon = st.outerOrbMotionT * speedFactor + (i * (TAU / n));
+        const orbLat = Math.sin(st.outerOrbMotionT * 0.8 + i * 2.1) * (0.28 + 0.14 * outerEnergy);
+        const rPulse = radialBreath * (1 + 0.05 * Math.sin(st.outerOrbMotionT * 1.5 + i));
+        return nodePosition(nd, i, n, f, orbLon, orbLat, rPulse);
+      });
       if (st.show.spokes) {
-        pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", 0.22, 0.8));
+        const spokeAlpha = 0.22 * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
+        pos.forEach(p => line3D({ x: 0, y: 0, z: 0 }, p, "#8a6d3a", spokeAlpha, 0.8));
       }
 
       /* 6 · lateral communication arcs — free, without reauthorization */
@@ -311,28 +355,57 @@
         });
       }
 
-      /* 7 · interaction orbs — non-additive terms */
+      /* 7 · interaction orbs (moving blue orbs) — modulated by 600-frame OuterOrb flame with active motion */
       if (st.show.orbs && f > 0.15) {
-        [[1, 4], [5, 9]].forEach(([a, b]) => {
+        if (st.orbMotionT == null) st.orbMotionT = 0;
+        st.orbMotionT += (dt || 0.016) * 0.8 * outerSpeed;
+        const orbLift = outerMod.active ? (outerMod.pulse * 0.25) : 0;
+        const orbSize = 5.5 + (outerMod.active ? outerMod.energy * 2.5 : 0);
+        const orbGlow = 1.3 + (outerMod.active ? outerMod.energy * 0.7 : 0);
+
+        // Active orbital pathing along lateral arcs for the moving blue orbs
+        [[1, 4], [5, 9]].forEach(([a, b], pairIdx) => {
           const pa = pos[a], pb = pos[b];
-          const mid = { x: (pa.x + pb.x) * 0.62, y: (pa.y + pb.y) * 0.62 + 0.8, z: (pa.z + pb.z) * 0.62 };
-          bezier3D(pa, mid, pb, ORB_COLOR, 0.6);
-          const sm = toScreen(project(mid));
-          glowDot(sm, 5, ORB_COLOR, 1.2);
-          ctx.fillStyle = "#d9c2ff";
+          const arcPhase = (st.orbMotionT + pairIdx * Math.PI) % (Math.PI * 2);
+          const u = 0.5 + 0.35 * Math.sin(arcPhase); // smooth back-and-forth traversal
+          const mid = {
+            x: (pa.x + pb.x) * 0.62,
+            y: (pa.y + pb.y) * 0.62 + 0.85 + orbLift,
+            z: (pa.z + pb.z) * 0.62
+          };
+          bezier3D(pa, mid, pb, ORB_COLOR, 0.6 + (outerMod.active ? outerMod.energy * 0.25 : 0));
+          
+          // Compute moving orb position along quadratic bezier curve
+          const invU = 1 - u;
+          const orbPos = {
+            x: invU * invU * pa.x + 2 * invU * u * mid.x + u * u * pb.x,
+            y: invU * invU * pa.y + 2 * invU * u * mid.y + u * u * pb.y,
+            z: invU * invU * pa.z + 2 * invU * u * mid.z + u * u * pb.z
+          };
+          const sm = toScreen(project(orbPos));
+          glowDot(sm, orbSize, "#6fd3ff", orbGlow); // Electric blue moving orbs
+          ctx.fillStyle = "#6fd3ff";
           ctx.font = "9px ui-monospace, monospace";
           ctx.textAlign = "left";
-          ctx.fillText("A↔B", sm.x + 8, sm.y - 6);
+          ctx.fillText(pairIdx === 0 ? "ORB-α" : "ORB-β", sm.x + 8, sm.y - 6);
         });
       }
 
-      /* 8 · AI inner shell — capability without sovereignty */
+      /* 8 · AI inner shell — dynamically modulated by flame harmonics with continuous rotation */
       if (st.show.shell) {
-        const SR = 0.62;
-        arc3D(SR, "lat:0", 64, SHELL_COLOR, 0.35, 1, 0, TAU);
-        arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, 0.22, 1, 0, TAU);
-        arc3D(SR, "mer:0", 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
-        arc3D(SR, "mer:" + Math.PI / 2, 48, SHELL_COLOR, 0.22, 1, -Math.PI / 2, Math.PI / 2);
+        const innerPulse = fMod.active ? (fMod.pulse * 0.03) : 0;
+        const SR = 0.62 + innerPulse;
+        const innerAlpha = fMod.active ? (0.28 + 0.14 * fMod.energy) : 0.35;
+        const innerSubAlpha = fMod.active ? (0.18 + 0.08 * fMod.energy) : 0.22;
+        // Continuous, smooth rotation without angular discontinuities
+        if (st.innerAngle == null) st.innerAngle = 0;
+        const speed = (fMod.speedMult || 1);
+        st.innerAngle += (dt || 0.016) * 0.4 * speed;
+        const innerRot = st.innerAngle;
+        arc3D(SR, "lat:0", 64, SHELL_COLOR, innerAlpha, 1, 0, TAU, innerRot);
+        arc3D(SR, "lat:" + 0.5, 64, SHELL_COLOR, innerSubAlpha, 1, 0, TAU, -innerRot * 0.8);
+        arc3D(SR, "mer:0", 48, SHELL_COLOR, innerSubAlpha, 1, -Math.PI / 2, Math.PI / 2, innerRot);
+        arc3D(SR, "mer:" + Math.PI / 2, 48, SHELL_COLOR, innerSubAlpha, 1, -Math.PI / 2, Math.PI / 2, -innerRot);
         // anchor
         const anchor = { x: 0, y: SR, z: 0 };
         line3D({ x: 0, y: 0, z: 0 }, anchor, CENTER_COLOR, 0.5, 1.1);
@@ -343,8 +416,9 @@
         ctx.textAlign = "left";
         ctx.fillText("AI SHELL ANCHOR", sa.x + 7, sa.y + 3);
         aiNodes.forEach((ai, i) => {
-          const spin = performance.now() * 0.00006 * (i % 2 ? -1 : 1);
-          const lon = ai.lon * D2R + spin;
+          if (ai.spinAngle == null) ai.spinAngle = 0;
+          ai.spinAngle += (dt || 0.016) * 0.3 * (i % 2 ? -1 : 1) * outerSpeed;
+          const lon = ai.lon * D2R + ai.spinAngle + innerRot;
           const lat = ai.lat * D2R;
           const p = { x: SR * Math.cos(lat) * Math.cos(lon), y: SR * Math.sin(lat), z: SR * Math.cos(lat) * Math.sin(lon) };
           line3D(anchor, p, SHELL_COLOR, 0.3, 0.8);
@@ -353,17 +427,20 @@
         });
       }
 
-      /* 9 · radiative nodes (far first) */
+      /* 9 · radiative nodes (stationary gold orbs) — modulated by 600-frame OuterOrb flame */
       st.projected = [];
+      const nodePulse = outerMod.active ? (0.85 + 0.3 * outerMod.energy) : 1;
       const order = pos.map((p, i) => ({ i, z: project(p).z })).sort((a, b) => b.z - a.z);
       order.forEach(({ i }) => {
         const nd = nodes[i];
         const p = project(pos[i]);
         const sp = toScreen(p);
-        const size = 3.2 + p.k * 3.2;
+        const baseSize = 3.2 + p.k * 3.2;
+        const size = baseSize * nodePulse;
         const color = quadColor(nd.deg);
         const isSel = st.selected === i, isHov = st.hover === i;
-        glowDot(sp, isSel || isHov ? size * 1.35 : size, color, isSel ? 1.4 : isHov ? 1 : 0.35);
+        const nodeAlpha = (isSel ? 1.4 : isHov ? 1 : 0.35) * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
+        glowDot(sp, isSel || isHov ? size * 1.35 : size, color, nodeAlpha);
         if (isSel) {
           ctx.beginPath();
           ctx.arc(sp.x, sp.y, size * 2.1, 0, TAU);
@@ -401,26 +478,48 @@
         st.flare = Math.max(0, st.flare - 0.02);
       }
 
-      /* 11 · pulses */
+      /* 11 · pulses: inward resolution dominates lateral coordination.
+         For safety and authority invariants, inward resolution to the center
+         travels decisively faster than lateral communication.
+         Pulse velocity and center flare are modulated by flame harmonic energy. */
+      const flameSpeedMult = fMod.active ? (0.9 + 0.2 * fMod.energy) : 1;
       st.pulses = st.pulses.filter(pu => {
-        pu.t += 0.018;
+        const speed = (pu.kind === "in" ? 0.038 : 0.012) * flameSpeedMult; // inward resolution outpaces lateral by >3×
+        pu.t += speed;
         if (pu.t >= 1) {
-          if (pu.kind === "in") { st.flare = 1; if (pu.onArrive) pu.onArrive(); }
+          if (pu.kind === "in") {
+            st.flare = fMod.active ? (0.9 + 0.3 * fMod.energy) : 1;
+            if (pu.onArrive) pu.onArrive();
+          }
           return false;
         }
         let a, b;
         if (pu.kind === "in") {
           a = pos[pu.from]; b = { x: 0, y: 0, z: 0 };
+          const cur = {
+            x: a.x + (b.x - a.x) * pu.t,
+            y: a.y + (b.y - a.y) * pu.t,
+            z: a.z + (b.z - a.z) * pu.t
+          };
+          const sp = toScreen(project(cur));
+          const pSize = 3.8 + (fMod.active ? fMod.energy * 1.2 : 0);
+          glowDot(sp, pSize, CENTER_COLOR, 1.6);
         } else {
           a = pos[pu.from]; b = pos[pu.to];
+          const mid = {
+            x: (a.x + b.x) * 0.72,
+            y: (a.y + b.y) * 0.72 + 0.45,
+            z: (a.z + b.z) * 0.72
+          };
+          const t = pu.t, u = 1 - t;
+          const cur = {
+            x: u * u * a.x + 2 * u * t * mid.x + t * t * b.x,
+            y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
+            z: u * u * a.z + 2 * u * t * mid.z + t * t * b.z
+          };
+          const sp = toScreen(project(cur));
+          glowDot(sp, 3.0, "#6fd3ff", 1.2);
         }
-        const cur = {
-          x: a.x + (b.x - a.x) * pu.t,
-          y: a.y + (b.y - a.y) * pu.t,
-          z: a.z + (b.z - a.z) * pu.t
-        };
-        const sp = toScreen(project(cur));
-        glowDot(sp, 3.4, pu.kind === "in" ? CENTER_COLOR : "#6fd3ff", 1.4);
         return true;
       });
     }
@@ -545,7 +644,21 @@
       setFormation(v) { st.formation = v; },
       setToggle(key, val) { st.show[key] = val; },
       setFlame(p) { st.flame = p; },
-      setFilm(f) { st.film = f; }
+      setOuterFlame(p) { st.outerFlame = p; },
+      setFilm(f) { st.film = f; },
+      getFilmTime() { return st.filmTime || performance.now(); },
+      setFlameSpeed(s) {
+        if (st.flame && typeof st.flame.setSpeed === "function") {
+          st.flame.setSpeed(s);
+        }
+        return s;
+      },
+      setOuterSpeed(s) {
+        if (st.outerFlame && typeof st.outerFlame.setSpeed === "function") {
+          st.outerFlame.setSpeed(s);
+        }
+        return s;
+      }
     };
   }
 
@@ -589,7 +702,8 @@
                 RADIATIVE SPHERE OF INFLUENCE<br>
                 NODES: 12 RADIATIVE · 3 AI (INNER SHELL) · 1 CENTER<br>
                 SURFACE: AUTHOR FLAME FILM — <span id="ocm-film-stat">loading…</span><br>
-                CORE · WIRE MODE: .FLAME IFS — <span id="ocm-flame-stat">.flame baking…</span><br>
+                INNER HARMONICS: .FLAME IFS — <span id="ocm-flame-stat">.flame loading…</span><br>
+                OUTER ORB HARMONICS: 600F IFS — <span id="ocm-outer-stat">OuterOrb loading…</span><br>
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
@@ -612,6 +726,20 @@
           </div>
           <div class="slider-cap">360 primary addresses form a complete disc (0•DDD•000•0000). Rotation over time + depth
           (distance, 0•DDD•RRR•####) produces the sphere. Once instantiated, the sphere persists even if rotation pauses.</div>
+
+          <div class="slider-row" style="margin-top:14px">
+            <label>Inner Harmonic Speed (Demo.flame) →</label>
+            <input type="range" id="ocm-flame-spd" min="0.1" max="4.0" step="0.1" value="1.0">
+            <span class="val" id="ocm-flame-spdv">1.0×</span>
+          </div>
+          <div class="slider-cap">Controls the frequency of the inner .flame IFS cycle (120f), governing AI Inner Shell vibration, central attractor flare, and radial resolution pulses.</div>
+
+          <div class="slider-row" style="margin-top:14px">
+            <label>Outer Harmonic Speed (OuterOrb.flame) →</label>
+            <input type="range" id="ocm-outer-spd" min="0.1" max="4.0" step="0.1" value="1.0">
+            <span class="val" id="ocm-outer-spdv">1.0×</span>
+          </div>
+          <div class="slider-cap">Controls the 600-frame macro-orbital IFS modulator, driving the orbital precession, latitude wave undulation, and radial respiration of all orbs and shells outside the inner shell.</div>
 
           <div class="btn-row">
             <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
@@ -661,23 +789,48 @@
         const engine = createOrbEngine(canvas, api);
         window.OCM_ENGINE = engine; /* debug/automation hook */
 
-        // the flame core — shared .flame IFS player (one bake serves orb + flame app)
+        // the flame core & outer macro flame (dual IFS harmonic generators)
         if (typeof FractalFlame !== "undefined") {
-          const flame = FractalFlame.shared("assets/a.flame", { w: 160, h: 160 });
+          const flame = FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 });
+          const outerFlame = FractalFlame.shared("assets/OuterOrb.flame", { w: 160, h: 160 });
           const statEl = body.querySelector("#ocm-flame-stat");
-          const setStat = (i, total) => { if (statEl) statEl.textContent = `baking ${i}/${total}…`; };
+          const outerStatEl = body.querySelector("#ocm-outer-stat");
+          const setStat = (i, total) => {
+            if (statEl) {
+              const verb = flame.mode === "preload" ? "loading slices" : "baking";
+              statEl.textContent = `${verb} ${i}/${total}…`;
+            }
+          };
           flame.onprogress = setStat;
           flame.onerror = (e) => { if (statEl) statEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
+          outerFlame.onprogress = (i, total) => {
+            if (outerStatEl && !outerFlame.ready) outerStatEl.textContent = `loading ${i}/${total}…`;
+          };
+          outerFlame.onerror = (e) => {
+            if (outerStatEl) outerStatEl.textContent = "unavailable — " + (e && e.message ? e.message : "load failed");
+          };
           engine.setFlame(flame);
+          engine.setOuterFlame(outerFlame);
+
           if (flame.ready) { /* boot bake already finished */ }
-          else if (flame.baking) { flame.start(); }       // in flight — handlers just attached
-          else flame.retry();                              // boot load failed before handlers existed → re-arm
+          else if (flame.baking) { flame.start(); }
+          else flame.retry();
+
+          if (outerFlame.ready) { /* ready */ }
+          else if (outerFlame.baking) { outerFlame.start(); }
+          else outerFlame.start();
+
           const iv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(iv); return; }
-            if (!statEl) return;
-            if (flame.ready) statEl.textContent = `live · a.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
-            else if (!flame.baking) statEl.textContent = "unavailable";
-          }, 1000);
+            if (statEl) {
+              if (flame.ready) statEl.textContent = `live · Demo.flame (120f) · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
+              else if (!flame.baking) statEl.textContent = "unavailable";
+            }
+            if (outerStatEl) {
+              if (outerFlame.ready) outerStatEl.textContent = `live · OuterOrb.flame (600f @ 24fps) · frame ${Math.floor(outerFlame.current) + 1}/${outerFlame.frames.length}`;
+              else if (outerFlame.baking) outerStatEl.textContent = "baking 600f…";
+            }
+          }, 40);
         }
 
         // the flame surface — the author's rendered film (one shared film)
@@ -685,15 +838,31 @@
         if (typeof OrbFilm !== "undefined") {
           const film = OrbFilm.shared();
           engine.setFilm(film);
-          film.start();
-          film.onprogress = (n, total) => { if (filmStat) filmStat.textContent = `loading ${n}/${total}`; };
-          film.onready = () => { if (filmStat) filmStat.textContent = "live · 200 frames · hard loop"; };
-          film.onerror = (e) => { if (filmStat) filmStat.textContent = "unavailable — " + (e && e.message ? e.message : "load failed"); };
+          const updateStat = () => {
+            if (!filmStat) return;
+            if (film.ready) {
+              const curTime = engine.getFilmTime ? engine.getFilmTime() : performance.now();
+              filmStat.textContent = `live · frame ${film.frameAt(curTime) + 1}/200 · bounce`;
+            } else if (film.dead) {
+              filmStat.textContent = "unavailable";
+            } else if (film.loaded > 0) {
+              filmStat.textContent = `loading ${film.loaded}/${film.total}…`;
+            }
+          };
+          film.onprogress = (n, total) => {
+            if (filmStat && !film.ready) filmStat.textContent = `loading ${n}/${total}…`;
+          };
+          film.onready = () => updateStat();
+          film.onerror = (e) => {
+            if (filmStat) filmStat.textContent = "unavailable — " + (e && e.message ? e.message : "load failed");
+          };
+          if (film.ready) updateStat();
+          else film.start();
+
           const fiv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(fiv); return; }
-            if (!filmStat || !film.ready) return;
-            filmStat.textContent = `live · frame ${film.frameAt(performance.now()) + 1}/200 · loop`;
-          }, 1000);
+            updateStat();
+          }, 40);
         }
 
         // inspector
@@ -715,9 +884,10 @@
                 <div>latitudes&nbsp;&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) — equal-area lattice, uniform in solid angle</div>
                 <div>longitudes&nbsp; λᵢ = Dᵢ·π/180 — address-derived (0•DDD•000•0000)</div>
                 <div>surface&nbsp;&nbsp; I(λ,φ,t) = A⌊t·12⌋ mod 200 — the author's rendered film, wrapped on the sphere by this camera</div>
-                <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS bake</div>
+                <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS modulation</div>
+                <div>harmonic modulation&nbsp; inner/outer shells &amp; radial pulses coupled to Demo.flame energy</div>
                 <div>legitimacy&nbsp; α_flame = 0.22 + 0.78·L(t) — the fire answers to legitimacy</div>
-                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · wire core: a.flame · Apophysis 7x</div>
+                <div class="oi-math-src">author render · 200 frames (0–198 + recovered 199) · hard loop · flame harmonic modulator: Demo.flame · Apophysis 7x</div>
               </div>
               <div class="oi-why">SINGLE-ORIGIN AXIOM · EVERY VALID ADDRESS DERIVES FROM EXACTLY ONE CENTER POINT</div>`;
             return;
@@ -763,6 +933,26 @@
           engine.setFormation(parseFloat(form.value));
           body.querySelector("#ocm-formv").textContent = parseFloat(form.value).toFixed(2);
         });
+
+        // harmonic modulator speed sliders (Inner & Outer)
+        const flameSpd = body.querySelector("#ocm-flame-spd");
+        const flameSpdv = body.querySelector("#ocm-flame-spdv");
+        if (flameSpd) {
+          flameSpd.addEventListener("input", () => {
+            const val = parseFloat(flameSpd.value);
+            engine.setFlameSpeed(val);
+            if (flameSpdv) flameSpdv.textContent = val.toFixed(1) + "×";
+          });
+        }
+        const outerSpd = body.querySelector("#ocm-outer-spd");
+        const outerSpdv = body.querySelector("#ocm-outer-spdv");
+        if (outerSpd) {
+          outerSpd.addEventListener("input", () => {
+            const val = parseFloat(outerSpd.value);
+            engine.setOuterSpeed(val);
+            if (outerSpdv) outerSpdv.textContent = val.toFixed(1) + "×";
+          });
+        }
 
         body.querySelector("#ocm-reform").addEventListener("click", () => {
           engine.setFormation(0);
