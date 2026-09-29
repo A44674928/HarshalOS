@@ -226,8 +226,13 @@
           dynamic flame-modulated components carry the sphere structure instead. */
       const cs0 = toScreen(project({ x: 0, y: 0, z: 0 }));
       const FM = filmMod();
+      // Continuous timeline advancement coupled to flame harmonic speed
+      if (!st.filmTime) st.filmTime = now;
+      const filmDt = st.lastNow ? Math.max(0, Math.min(0.1, (now - st.lastNow) / 1000)) : 0;
+      st.filmTime += filmDt * 1000 * (fMod.speedMult || 1);
+
       const sample = (st.show.flame && st.film && st.film.ready && FM)
-        ? st.film.sampleAt(now) : null;
+        ? st.film.sampleAt(st.filmTime) : null;
       const skinOn = !!(sample && sample.img0);
       if (skinOn) {
         if (!st.filmReadyAt) st.filmReadyAt = now;
@@ -235,7 +240,7 @@
         const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
         const totalAlpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
         
-        // Equal-energy cosine/sine blend across the sub-frame seam:
+        // Equal-energy cosine/sine blend across adjacent sub-frames:
         const frac = sample.frac;
         const a0 = totalAlpha * Math.cos(frac * (Math.PI / 2));
         const a1 = totalAlpha * Math.sin(frac * (Math.PI / 2));
@@ -585,6 +590,7 @@
       setToggle(key, val) { st.show[key] = val; },
       setFlame(p) { st.flame = p; },
       setFilm(f) { st.film = f; },
+      getFilmTime() { return st.filmTime || performance.now(); },
       setFlameSpeed(s) {
         if (st.flame && typeof st.flame.setSpeed === "function") {
           return st.flame.setSpeed(s);
@@ -749,7 +755,8 @@
           const fiv = setInterval(() => {
             if (!document.body.contains(body)) { clearInterval(fiv); return; }
             if (!filmStat || !film.ready) return;
-            filmStat.textContent = `live · frame ${film.frameAt(performance.now()) + 1}/200 · loop`;
+            const curTime = engine.getFilmTime ? engine.getFilmTime() : performance.now();
+            filmStat.textContent = `live · frame ${film.frameAt(curTime) + 1}/200 · bounce`;
           }, 40);
         }
 
