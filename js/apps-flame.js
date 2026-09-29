@@ -48,7 +48,7 @@
         <div class="h1">Fractal Flame — the .flame engine</div>
         <div class="sub">An <strong>iterated function system</strong>: a finite set of affine maps, each folded by
         named curve warps, applied in random order until points settle onto the attractor. Your art file
-        <span class="mono" style="color:var(--text)">a.flame</span> is such a system — 113 animated frames, 256-color
+        <span class="mono" style="color:var(--text)">Demo.flame</span> is such a system — 120 animated frames, 256-color
         palettes, per-frame camera. This app renders the file; The Orb burns it as its core.</div>
 
         ${canPlay ? `
@@ -66,7 +66,7 @@
               <button class="btn" id="ff-speed" data-s="1">1×</button>
               <span class="mono ff-fnum" id="ff-fnum">frame —/—</span>
             </div>
-            <input type="range" id="ff-scrub" min="0" max="112" step="0.01" value="0" style="width:100%">
+            <input type="range" id="ff-scrub" min="0" max="119" step="0.01" value="0" style="width:100%">
             <div class="ff-read mono" id="ff-read">xforms — · camera (file metadata) cx 0 · cy 0 · scale 500</div>
             <canvas id="ff-pal" width="512" height="10"></canvas>
             <div class="ff-read">256-COLOR PALETTE (FROM FILE) · SHARED PLAYER — SCRUBBING HERE ALSO DRIVES THE ORB CORE ·
@@ -76,7 +76,7 @@
           <div class="ff-side">
             <div class="card"><h4>SOURCE FILE</h4>
               <table class="table" id="ff-meta">
-                <tr><td>file</td><td class="mono">assets/a.flame</td></tr>
+                <tr><td>file</td><td class="mono">assets/Demo.flame</td></tr>
                 <tr><td>frames</td><td class="mono" id="ff-frames">—</td></tr>
                 <tr><td>xforms / frame</td><td class="mono" id="ff-xforms">—</td></tr>
                 <tr><td>warp names</td><td class="mono" id="ff-curves">—</td></tr>
@@ -103,7 +103,7 @@
           </div>
         </div>
         <div class="footer-note" style="margin-top:14px">
-          ENGINE: HOS FRACTALFLAME v1.0 — IFS INTERPRETER · FILE: a.flame (STARPORTAL · Apo7X-241020 · Api7X-240306 · Apophysis 7x) ·
+          ENGINE: HOS FRACTALFLAME v1.0 — IFS INTERPRETER · FILE: Demo.flame (STARPORTAL · Apophysis 7x) ·
           THE ORB'S CORE IS THIS SAME SYSTEM, BURNING AT THE ORIGIN, BRIGHTNESS GATED BY LEGITIMACY.
         </div>` : `
         <div class="rule-box">FractalFlame engine not loaded. Check that js/flame.js is present before the app scripts.</div>`}
@@ -111,7 +111,7 @@
 
       if (!canPlay) return;
 
-      const player = FF.shared("assets/a.flame", { w: 160, h: 160 });
+      const player = FF.shared("assets/Demo.flame", { w: 160, h: 160 });
       const stage = body.querySelector("#ff-canvas");
       const bakeEl = body.querySelector("#ff-bake");
       const bakePct = body.querySelector("#ff-bake-pct");
@@ -176,6 +176,9 @@
         paintPalette(palCv, player.palette);
       };
       player.onprogress = (i, total) => {
+        if (bakeTitle) {
+          bakeTitle.textContent = player.mode === "preload" ? "LOADING PRE-RENDERED SLICES…" : "BAKING .FLAME IN WORKER…";
+        }
         if (bakePct) bakePct.textContent = Math.round((i / total) * 100) + "% (" + i + "/" + total + ")";
       };
 
@@ -219,10 +222,10 @@
         const size = Math.min(w, h) * 0.96;
         player.drawOn(sctx, cx, cy, size, 1);
 
-        /* readouts (throttled) */
+        /* readouts — continuous 1-frame-at-a-time tracking */
         const fi = Math.floor(player.current);
-        if (Math.floor(performance.now() / 150) !== draw._t) {
-          draw._t = Math.floor(performance.now() / 150);
+        if (fi !== draw._lastFi) {
+          draw._lastFi = fi;
           fnum.textContent = "frame " + (fi + 1) + "/" + player.frames.length;
           if (player.playing) scrub.value = String(player.current);
           const fr = player.doc && player.doc.frames[fi];
@@ -261,7 +264,7 @@
           fileStatus.textContent = f.name + " — " + p2.meta.frames + " frames · " +
             (p2.meta.xformsMin + "–" + p2.meta.xformsMax) + " xforms/frame · live on stage";
           if (kernel && kernel.record) kernel.record("info", "FractalFlame — stage file swapped: " + f.name +
-            " (" + p2.meta.frames + " frames). Engine is file-agnostic; the orb core still burns assets/a.flame.");
+            " (" + p2.meta.frames + " frames). Engine is file-agnostic; the orb core still burns assets/Demo.flame.");
         } catch (e) {
           fileStatus.textContent = "could not bake " + f.name + ": " + (e && e.message ? e.message : e);
         }

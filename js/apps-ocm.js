@@ -734,7 +734,7 @@
             if (!statEl) return;
             if (flame.ready) statEl.textContent = `live · Demo.flame · frame ${Math.floor(flame.current) + 1}/${flame.frames.length} · ${flame.speed}×`;
             else if (!flame.baking) statEl.textContent = "unavailable";
-          }, 1000);
+          }, 40);
         }
 
         // the flame surface — the author's rendered film (one shared film)
@@ -750,7 +750,7 @@
             if (!document.body.contains(body)) { clearInterval(fiv); return; }
             if (!filmStat || !film.ready) return;
             filmStat.textContent = `live · frame ${film.frameAt(performance.now()) + 1}/200 · loop`;
-          }, 1000);
+          }, 40);
         }
 
         // inspector
