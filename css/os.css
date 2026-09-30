@@ -1484,3 +1484,21 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
   .ff-grid { grid-template-columns: 1fr; }
   .ff-stage { height: 340px; }
 }
+
+/* ── LLM Link (connection point) ──────────────────────────────── */
+.ll-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin: 10px 0 4px; }
+.ll-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-dim); }
+.ll-field.wide { grid-column: 1 / -1; }
+.ll-field > span:first-child { text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.5px; color: var(--text-faint); }
+.ll-field input, .ll-field select { width: 100%; }
+.ll-inline { display: flex; gap: 8px; align-items: stretch; }
+.ll-inline input { flex: 1 1 auto; }
+.ll-inline .btn { flex: 0 0 auto; white-space: nowrap; }
+.ll-check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 11px; color: var(--text-dim); }
+.ll-check input { margin-top: 2px; }
+.ll-busy { align-self: center; font-size: 10.5px; color: var(--ice); }
+.ll-models { margin: 10px 0 0; }
+.ll-model-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; max-height: 150px; overflow: auto; }
+.ll-model-chip { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text-dim); cursor: pointer; }
+.ll-model-chip:hover { border-color: var(--ice); color: var(--text); }
+.ll-model-chip.on { border-color: var(--ice); color: var(--ice); background: rgba(111, 211, 255, 0.08); }

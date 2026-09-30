@@ -384,7 +384,12 @@ window.G0Research = (() => {
     return null;
   }
   function recordSource(record) {
-    return { id: record.id, title: record.title, url: record.url, published: record.published, retrieved: record.retrieved, excerpt: record.excerpt, codes: [...record.codes], kind: record.kind, dateBasis: record.kind === "news" ? "indexed" : record.published ? "publication" : "unknown" };
+    const source = { id: record.id, title: record.title, url: record.url, published: record.published, retrieved: record.retrieved, excerpt: record.excerpt, codes: [...record.codes], kind: record.kind, dateBasis: record.kind === "news" ? "indexed" : record.published ? "publication" : "unknown" };
+    if (record.authority) source.authority = record.authority;
+    /* Court, regulatory and legislative records carry their claim text;
+       news stays a bare lead and never gains readable text. */
+    if (record.kind !== "news" && typeof record.claim === "string" && record.claim.trim().length >= 60) source.text = record.claim.slice(0, 12000);
+    return source;
   }
 
   function preparePublicInput(organization, documents, registryRecords, version, cutoff) {
@@ -442,6 +447,22 @@ window.G0Research = (() => {
     if (authority) input.external = { exists: true, exercised: overrides.some(o => o.record.url === authority.url), holder: authority.authority, scope: authority.title, source: authority.url, date: authority.published };
 
     input.automation = { method: "public-lookup", provider: "Wikimedia, official site, Wayback, CourtListener, Federal Register, GovTrack, GDELT", reviewRequired: true, requestedName: organization.name, generatedAt: new Date().toISOString(), sources };
+
+    /* Keep the retrieved documents, not just a 650-character glimpse of them.
+       The keyword rules read one short excerpt; a linked model can read the
+       whole page, so the page text is stored (bounded, governing documents
+       first) and travels with the audit. Without this, nothing could ever be
+       read more carefully than the regexes. */
+    let textBudget = G0.MAX_AUDIT_TEXT || 240000;
+    for (const doc of orderedDocs) {
+      if (textBudget <= 0) break;
+      const source = sources.find(s => s.url === doc.url);
+      if (!source || typeof doc.content !== "string") continue;
+      const text = stripMarkdown(doc.content).slice(0, Math.min(12000, textBudget));
+      if (text.length < 60) continue;
+      source.text = text;
+      textBudget -= text.length;
+    }
     return { input, sources };
   }
 
@@ -607,6 +628,9 @@ window.G0Research = (() => {
   return {
     HttpError, OrganizationChoiceError, registryLabels, mentionsEntity, externalOverrideQuote,
     searchPublicRegistries, lookupArchivedSnapshot, lookupOrganizations, researchAvailability,
-    automaticAudit, attachResearchSources, coverageNote, plainResearchSummary, fetchJson, policyLinks
+    automaticAudit, attachResearchSources, coverageNote, plainResearchSummary, fetchJson, policyLinks,
+    /* used by the Ground-0 LLM reading pass to follow a link the record itself
+       contains, through the same reader, archive and cutoff discipline */
+    readWithArchive, readPublicPage, stripMarkdown
   };
 })();

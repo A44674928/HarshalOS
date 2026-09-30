@@ -1,0 +1,402 @@
+/* ═══════════════════════════════════════════════════════════════
+   HarshalOS — LLM connection points (window.HOSLLM)
+
+   Bring your own model. Nothing in HarshalOS requires a link: with no
+   connection every app behaves exactly as before. With a connection, the
+   model reads only what this browser has already retrieved, and its
+   reading is a suggestion a person must accept.
+
+   Rules this module holds itself to:
+     · The key stays in this browser. It is sent to exactly one place —
+       the endpoint the custodian chose. There is no HarshalOS server in
+       the path, and this module never logs it.
+     · Session storage by default, cleared when the tab closes. Persistent
+       storage is opt-in because a browser cannot hide a key from someone
+       with access to that browser.
+     · Providers that refuse browser calls (api.openai.com) are labelled,
+       not faked: the preset says so and points at the relay or a local
+       server instead.
+     · Failures are explained in plain language and never echo the key.
+
+   Exposed as window.HOSLLM. No dependencies.
+   ═══════════════════════════════════════════════════════════════ */
+
+"use strict";
+
+window.HOSLLM = (() => {
+  const SETTINGS_KEY = "hos-llm-settings-v1";
+  const KEY_SESSION = "hos-llm-key";
+  const KEY_PERSIST = "hos-llm-key-persistent";
+
+  /* ──────────────────────────────────────────────────────────────
+     Providers. `browser` records what the provider actually allows
+     from a page like this one — it is a disclosure, not a promise.
+     ────────────────────────────────────────────────────────────── */
+  const PROVIDERS = {
+    anthropic: {
+      label: "Anthropic (Claude)",
+      protocol: "anthropic",
+      endpoint: "https://api.anthropic.com/v1/messages",
+      modelsEndpoint: "https://api.anthropic.com/v1/models",
+      model: "claude-sonnet-4-5",
+      context: 200000,
+      browser: "direct",
+      note: "Claude's API answers browser calls when the request declares direct browser access — the pattern Anthropic documents for bring-your-own-key clients. The key travels from this browser straight to Anthropic."
+    },
+    openrouter: {
+      label: "OpenRouter (many models, one key)",
+      protocol: "openai",
+      endpoint: "https://openrouter.ai/api/v1/chat/completions",
+      modelsEndpoint: "https://openrouter.ai/api/v1/models",
+      model: "anthropic/claude-sonnet-4.5",
+      context: 200000,
+      browser: "direct",
+      browserNote: "OpenRouter sends permissive CORS headers, so a page can call it directly.",
+      note: "OpenRouter answers browser calls, so the key travels from this browser straight to OpenRouter. One key reaches Claude, GPT, Gemini, Llama and others."
+    },
+    openai: {
+      label: "OpenAI",
+      protocol: "openai",
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      modelsEndpoint: "https://api.openai.com/v1/models",
+      model: "gpt-5",
+      context: 200000,
+      browser: "blocked",
+      note: "OpenAI's API does not answer browser (CORS) requests, so a direct link from a web page cannot work — the browser will block it. Use OpenRouter for the same models, a local model, or this site's relay if it has one."
+    },
+    local: {
+      label: "Local model (Ollama, LM Studio, llama.cpp)",
+      protocol: "openai",
+      endpoint: "http://localhost:11434/v1/chat/completions",
+      modelsEndpoint: "http://localhost:11434/v1/models",
+      model: "llama3.1",
+      context: 128000,
+      browser: "direct",
+      keyOptional: true,
+      note: "Nothing leaves this machine. The local server must allow requests from this page's origin, and the page must be served over http on localhost or https for the browser to permit the call."
+    },
+    relay: {
+      label: "This site's relay (/api/llm)",
+      protocol: "openai",
+      endpoint: "/api/llm",
+      modelsEndpoint: "",
+      model: "",
+      context: 128000,
+      browser: "direct",
+      keyOptional: true,
+      relay: true,
+      note: "Only works when this deployment configures a server-side relay. The key then lives on the server, not in this browser — and the prompts do pass through that server."
+    },
+    custom: {
+      label: "Custom endpoint",
+      protocol: "openai",
+      endpoint: "",
+      modelsEndpoint: "",
+      model: "",
+      context: 128000,
+      browser: "direct",
+      note: "Any OpenAI-compatible or Anthropic-compatible endpoint, including a self-hosted gateway. Choose the protocol that matches it and enter the full URL."
+    }
+  };
+
+  /* ──────────────────────────────────────────────────────────────
+     Settings + key storage
+     ────────────────────────────────────────────────────────────── */
+  const defaults = () => ({ provider: "anthropic", protocol: "", endpoint: "", model: "", persist: false });
+  function loadSettings() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+      const merged = { ...defaults(), ...(raw && typeof raw === "object" ? raw : {}) };
+      if (!PROVIDERS[merged.provider]) merged.provider = "anthropic";
+      return merged;
+    } catch { return defaults(); }
+  }
+  function saveSettings(patch) {
+    const next = { ...loadSettings(), ...patch };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ provider: next.provider, protocol: next.protocol, endpoint: next.endpoint, model: next.model, persist: next.persist })); } catch { /* Preferences are not worth a crash. */ }
+    return next;
+  }
+  const preset = name => PROVIDERS[name] || PROVIDERS.custom;
+  function resolved(settings = loadSettings()) {
+    const base = preset(settings.provider);
+    return {
+      provider: settings.provider,
+      label: base.label,
+      protocol: (settings.protocol || base.protocol) === "anthropic" ? "anthropic" : "openai",
+      endpoint: (settings.endpoint || base.endpoint || "").trim(),
+      modelsEndpoint: settings.endpoint ? "" : (base.modelsEndpoint || ""),
+      context: base.context || 128000,
+      browser: base.browser || "direct",
+      relay: base.relay === true,
+      keyOptional: base.keyOptional === true,
+      note: base.note || "",
+      model: (settings.model || base.model || "").trim()
+    };
+  }
+
+  /* A browser that refuses storage must not silently lose the key: the
+     link falls back to memory for this page, and says so. */
+  let memoryKey = "";
+  const readSessionKey = () => { try { return sessionStorage.getItem(KEY_SESSION) || ""; } catch { return ""; } };
+  const readPersistedKey = () => { try { return localStorage.getItem(KEY_PERSIST) || ""; } catch { return ""; } };
+  const apiKey = () => readSessionKey() || readPersistedKey() || memoryKey;
+
+  function setKey(value, persist = loadSettings().persist) {
+    const key = typeof value === "string" ? value.trim() : "";
+    try { sessionStorage.removeItem(KEY_SESSION); } catch { /* ignore */ }
+    try { localStorage.removeItem(KEY_PERSIST); } catch { /* ignore */ }
+    memoryKey = "";
+    if (key) {
+      let stored = false;
+      try { (persist ? localStorage : sessionStorage).setItem(persist ? KEY_PERSIST : KEY_SESSION, key); stored = true; } catch { /* fall through */ }
+      if (!stored) memoryKey = key;
+    }
+    saveSettings({ persist: !!persist });
+    return keyStorage();
+  }
+  function clearKey() {
+    memoryKey = "";
+    try { sessionStorage.removeItem(KEY_SESSION); } catch { /* ignore */ }
+    try { localStorage.removeItem(KEY_PERSIST); } catch { /* ignore */ }
+    return keyStorage();
+  }
+  function keyStorage() {
+    if (readSessionKey()) return "session";
+    if (readPersistedKey()) return "persistent";
+    if (memoryKey) return "memory";
+    return "none";
+  }
+  /* A masked hint so a person can tell which key is loaded without it
+     being readable at a glance. */
+  function keyHint() {
+    const key = apiKey();
+    if (!key) return "";
+    return key.length <= 10 ? `${key.slice(0, 3)}…${key.slice(-2)}` : `${key.slice(0, 5)}…${key.slice(-4)}`;
+  }
+  function redact(message) {
+    const key = apiKey();
+    const tainted = typeof message === "string" ? message : message instanceof Error ? message.message : String(message ?? "");
+    if (!key || key.length < 8) return tainted;
+    return tainted.split(key).join("••••(key redacted)");
+  }
+  const looksLikeKey = value => typeof value === "string" && /^(sk-|sk_|sk-ant-|gsk_|or-|[A-Za-z0-9_-]{20,})$/.test(value.trim());
+
+  function status() {
+    const settings = loadSettings();
+    const config = resolved(settings);
+    const storage = keyStorage();
+    const key = apiKey();
+    const ready = !!config.endpoint && !!config.model && (!!key || config.keyOptional || config.relay);
+    return {
+      linked: ready, provider: config.provider, label: config.label, model: config.model,
+      endpoint: config.endpoint, protocol: config.protocol, context: config.context,
+      browser: config.browser, relay: config.relay, keyOptional: config.keyOptional,
+      keyStorage: storage, keyHint: keyHint(), hasKey: !!key, note: config.note,
+      storageNote: storage === "memory" ? "This page cannot use browser storage, so the key is held in memory and will be gone when the page reloads." : "",
+      reason: !config.endpoint ? "No endpoint is configured." : !config.model ? "No model is named." : (!key && !config.keyOptional && !config.relay) ? "No key is loaded." : ""
+    };
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Network
+     ────────────────────────────────────────────────────────────── */
+  class LlmError extends Error {
+    constructor(message, { status = 0, kind = "error", hint = "" } = {}) {
+      super(message);
+      this.name = "LlmError";
+      this.status = status;
+      this.kind = kind;
+      this.hint = hint;
+    }
+  }
+  function describe(error) {
+    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
+    if (error && error.name === "AbortError") return { title: "CALL CANCELED", detail: "The call was canceled before it finished. No reading was recorded.", hint: "" };
+    return { title: "THE MODEL CALL FAILED", detail: redact(error instanceof Error ? error.message : String(error ?? "Unknown error")), hint: "Retry, or check the connection in the LLM Link app." };
+  }
+  function classifyHttp(provider, httpStatus, detail) {
+    const hint = httpStatus === 401 || httpStatus === 403
+      ? `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
+      : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
+      : httpStatus === 429 ? "The provider is rate-limiting. Wait and retry, or lower the reading batch size."
+      : httpStatus >= 500 ? "The provider is having trouble. Retry shortly."
+      : "";
+    const kind = httpStatus === 401 || httpStatus === 403 ? "auth" : httpStatus === 404 ? "model" : httpStatus === 429 ? "rate" : httpStatus >= 500 ? "provider" : "error";
+    return new LlmError(detail || `The endpoint returned HTTP ${httpStatus}.`, { status: httpStatus, kind, hint });
+  }
+  const corsError = provider => new LlmError(
+    `The request to ${provider.endpoint} never reached the provider: the browser blocked it.`,
+    { kind: "cors", hint: provider.browser === "blocked" ? provider.note : "This usually means the provider does not send CORS headers, the endpoint URL is wrong, or an extension is blocking the request. A same-origin relay or a local model avoids this entirely." }
+  );
+
+  async function loadModels(provider, { signal, timeoutMs = 20000 } = {}) {
+    if (!provider.modelsEndpoint) throw new LlmError("This endpoint does not publish a model list. Type the model name instead.", { kind: "model", hint: "Only Anthropic, OpenAI-compatible and OpenRouter-style endpoints can list models." });
+    const headers = new Headers({ Accept: "application/json" });
+    const key = apiKey();
+    if (key) applyAuth(headers, provider, key);
+    let response;
+    try { response = await fetch(provider.modelsEndpoint, { headers, signal, credentials: "omit", referrerPolicy: "no-referrer" }); }
+    catch (error) { if (error && error.name === "AbortError") throw error; throw corsError(provider); }
+    if (!response.ok) throw classifyHttp(provider, response.status, `Listing models returned HTTP ${response.status}.`);
+    let data;
+    try { data = await response.json(); } catch { throw new LlmError("The model list was not valid JSON.", { kind: "model" }); }
+    const rows = Array.isArray(data && data.data) ? data.data : Array.isArray(data && data.models) ? data.models : [];
+    return rows.map(row => typeof row === "string" ? row : row && (row.id || row.name || row.slug)).filter(id => typeof id === "string" && id).slice(0, 400);
+  }
+
+  function applyAuth(headers, provider, key) {
+    if (provider.protocol === "anthropic") {
+      if (key) headers.set("x-api-key", key);
+      headers.set("anthropic-version", "2023-06-01");
+      /* Anthropic's documented switch for bring-your-own-key browser clients. */
+      headers.set("anthropic-dangerous-direct-browser-access", "true");
+    } else if (key) {
+      headers.set("Authorization", `Bearer ${key}`);
+      if (/openrouter\.ai/.test(provider.endpoint)) {
+        headers.set("HTTP-Referer", location.origin);
+        headers.set("X-Title", "HarshalOS");
+      }
+    }
+    return headers;
+  }
+
+  const estimateTokens = value => Math.ceil(String(value ?? "").length / 3.6);
+
+  /* Session activity. Kept in memory only: how many calls this page made,
+     what they cost in tokens, and how long the last one took. */
+  const activity = { calls: 0, failures: 0, input: 0, output: 0, lastMs: 0, lastModel: "", lastAt: "" };
+  const stats = () => ({ ...activity });
+  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
+
+  function buildRequest(provider, { system, user, maxTokens, temperature, model }) {
+    const chosen = (model || provider.model || "").trim();
+    if (!chosen) throw new LlmError("No model is named for this connection.", { kind: "model", hint: "Open the LLM Link app and enter or list a model." });
+    if (provider.protocol === "anthropic") {
+      return {
+        maxTokensParam: "max_tokens",
+        body: { model: chosen, max_tokens: maxTokens, temperature, ...(system ? { system } : {}), messages: [{ role: "user", content: user }] }
+      };
+    }
+    return {
+      maxTokensParam: "max_tokens",
+      body: { model: chosen, temperature, messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: user }], max_tokens: maxTokens }
+    };
+  }
+  function readResponse(provider, data) {
+    if (provider.protocol === "anthropic") {
+      const blocks = Array.isArray(data && data.content) ? data.content.filter(block => block && block.type === "text" && typeof block.text === "string") : [];
+      const text = blocks.map(block => block.text).join("");
+      return { text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && data.usage.input_tokens) || 0, output: Number(data && data.usage && data.usage.output_tokens) || 0 } };
+    }
+    const choice = data && Array.isArray(data.choices) ? data.choices[0] : null;
+    const message = choice && choice.message ? choice.message : null;
+    const raw = message ? message.content : "";
+    const text = typeof raw === "string" ? raw : Array.isArray(raw) ? raw.map(part => typeof part === "string" ? part : (part && typeof part.text === "string" ? part.text : "")).join("") : "";
+    return { text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } };
+  }
+
+  /* One call. No retries beyond the documented max-token fallback, no
+     hidden prompts: what the caller passes is what the model receives. */
+  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "" }) {
+    if (typeof user !== "string" || !user.trim()) throw new LlmError("There is nothing to send.", { kind: "error" });
+    const config = resolved();
+    if (!config.endpoint) throw new LlmError("No endpoint is configured.", { kind: "error", hint: "Open the LLM Link app and choose a provider." });
+    const key = apiKey();
+    if (!key && !config.keyOptional && !config.relay) throw new LlmError(`No key is loaded for ${config.label}.`, { kind: "auth", hint: "Open the LLM Link app and paste your own key. This site never sees it." });
+
+    const controller = new AbortController();
+    const onAbort = () => controller.abort(signal.reason);
+    if (signal) { if (signal.aborted) throw signal.reason || new DOMException("Canceled.", "AbortError"); signal.addEventListener("abort", onAbort, { once: true }); }
+    const timer = setTimeout(() => controller.abort(new LlmError(`No complete response within ${Math.round(timeoutMs / 1000)} seconds.`, { kind: "timeout", hint: "Long documents take a while. Retry, use fewer sources per pass, or pick a faster model." })), timeoutMs);
+    const started = Date.now();
+    try {
+      const request = buildRequest(config, { system, user, maxTokens, temperature, model });
+      const send = async body => {
+        const headers = applyAuth(new Headers({ "Content-Type": "application/json", Accept: "application/json" }), config, key);
+        try {
+          return await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: "omit", referrerPolicy: "no-referrer" });
+        } catch (error) {
+          if (error && error.name === "AbortError") throw controller.signal.reason instanceof Error ? controller.signal.reason : error;
+          throw corsError(config);
+        }
+      };
+      let response = await send(request.body);
+      let detail = "";
+      if (!response.ok) {
+        detail = await response.text().catch(() => "");
+        detail = detail.slice(0, 400);
+        /* Newer OpenAI-family models renamed the token cap. One targeted retry. */
+        if (response.status === 400 && /max_completion_tokens|unsupported_parameter|max_tokens/i.test(detail)) {
+          const retryBody = { ...request.body, max_completion_tokens: maxTokens };
+          delete retryBody.max_tokens;
+          response = await send(retryBody);
+          if (response.ok) detail = "";
+          else detail = await response.text().catch(() => "").then(t => t.slice(0, 400));
+        }
+      }
+      if (!response.ok) throw classifyHttp(config, response.status, detail);
+      let data;
+      try { data = await response.json(); } catch { throw new LlmError("The provider returned a response that was not valid JSON.", { kind: "provider" }); }
+      const parsed = readResponse(config, data);
+      if (!parsed.text.trim()) throw new LlmError("The model returned no text. It may have refused the request or hit its output limit.", { kind: "provider", hint: "Retry, lower the batch size, or raise the token ceiling." });
+      activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
+      activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
+      return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint };
+    } catch (error) {
+      if (!(error && error.name === "AbortError")) activity.failures++;
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+    }
+  }
+
+  /* A cheap, honest connectivity test: one short generation. */
+  async function probe({ signal, timeoutMs = 30000 } = {}) {
+    const config = resolved();
+    const result = await chat({
+      user: "Reply with exactly these five words and nothing else: link established, model responding",
+      maxTokens: 40, temperature: 0, signal, timeoutMs, model: config.model
+    });
+    return { ok: true, ms: result.ms, model: result.model, sample: result.text.trim().slice(0, 120), usage: result.usage, provider: config.provider, label: config.label, browser: config.browser };
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Structured output — models wrap JSON in prose and fences. This
+     finds the object without inventing anything that is not there.
+     ────────────────────────────────────────────────────────────── */
+  function extractJson(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return null;
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidates = [fenced ? fenced[1] : null, text].filter(Boolean);
+    for (const candidate of candidates) {
+      const start = candidate.search(/[[{]/);
+      if (start === -1) continue;
+      const open = candidate[start];
+      const close = open === "{" ? "}" : "]";
+      let depth = 0; let inString = false; let escaped = false;
+      for (let i = start; i < candidate.length; i++) {
+        const char = candidate[i];
+        if (inString) { if (escaped) escaped = false; else if (char === "\\") escaped = true; else if (char === "\"") inString = false; continue; }
+        if (char === "\"") { inString = true; continue; }
+        if (char === open) depth++;
+        else if (char === close) {
+          depth--;
+          if (depth === 0) {
+            try { return JSON.parse(candidate.slice(start, i + 1)); } catch { break; }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  return {
+    PROVIDERS, LlmError,
+    loadSettings, saveSettings, resolved, preset, status,
+    setKey, clearKey, apiKey, keyStorage, keyHint, redact, looksLikeKey,
+    chat, probe, loadModels, describe, estimateTokens, extractJson, stats, resetStats,
+    applyAuth, buildRequest, readResponse
+  };
+})();

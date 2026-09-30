@@ -73,6 +73,8 @@ APPS.push({
   render(root, api) {
     const G0 = window.G0;
     const R = window.G0Research;
+    const LLM = window.HOSLLM;      // optional: the custodian's own model connection
+    const G0LLM = window.G0LLM;     // optional: the reading pass that uses it
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
     /* ---------- persistent + session state ---------- */
@@ -89,6 +91,7 @@ APPS.push({
       prefs: loadPrefs(),
       wiz: null,            // { input, step, errors, pdh, checking, preview, mode, editingId }
       auto: { stage: "input", query: "", cutoff: G0.today(), candidates: [], selected: 0, progress: null, outcome: null, error: "", controller: null },
+      reading: { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" },
       detail: null,         // audit record (object reference)
       detailTab: "summary",
       phaseDetail: null,
@@ -97,6 +100,7 @@ APPS.push({
       spec: { view: "reader", raw: { "1.0": null, "1.1": null }, loading: false },
       reg: { tab: "all", search: "", phase: "all", confidence: "all", sort: "newest" },
       evSearch: "",
+      evRead: { id: "", stage: "idle", reading: null, error: "", source: null, progress: null, controller: null },
       resetScroll: true
     };
     let announceTimer = null;
@@ -214,6 +218,7 @@ APPS.push({
         sev === "breach" ? "GROUND-0 — CONTRADICTION LOGGED" : "GROUND-0 — AUDIT WITNESSED",
         `${record.name}: detected ${record.phase}. ${record.finding.slice(0, 160)}${record.finding.length > 160 ? "…" : ""}`);
       if (!ok) api.toast("refusal", "STORAGE UNAVAILABLE", "Browser storage is unavailable or full. Export your audits to keep a copy.");
+      else if (G0.storageNoteOf && G0.storageNoteOf()) api.toast("warn", "STORAGE NOTE", G0.storageNoteOf());
       return ok;
     }
 
@@ -314,7 +319,30 @@ APPS.push({
         autoChoose() { autoRun(S.auto.candidates[S.auto.selected]); },
         autoCancel() { if (S.auto.controller) S.auto.controller.abort(); },
         autoRetry() { S.auto.stage = "input"; S.auto.error = ""; render(); },
-        autoBack() { S.auto.stage = "input"; S.auto.candidates = []; render(); },
+        autoBack() { S.auto.stage = "input"; S.auto.candidates = []; S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" }; render(); },
+        readRecord() { startReading(); },
+        cancelReading() { if (S.reading.controller) S.reading.controller.abort(); S.reading = { ...S.reading, stage: "idle", progress: null }; render(); },
+        discardReading() {
+          S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
+          render();
+          api.toast("info", "READING DISCARDED", "The model's reading was dropped. The draft was not changed.");
+        },
+        applyReading() { applyReading(); },
+        openLlmLink() { openLlmLink(); },
+        readArtifact() { readArtifact(el.dataset.id); },
+        cancelArtifactReading() { if (S.evRead.controller) S.evRead.controller.abort(); S.evRead = { id: "", stage: "idle", reading: null, error: "", source: null, progress: null, controller: null }; render(); },
+        useArtifactQuote() {
+          const item = S.evidence.find(entry => entry.id === S.evRead.id);
+          const code = el.dataset.code;
+          const finding = S.evRead.reading && (S.evRead.reading.answers[G0.questions.findIndex(q => q.code === code)] || S.evRead.reading.constraints[G0.constraintQuestions.findIndex(q => q.code === code)]);
+          if (!item || !finding || !finding.notes) return;
+          item.claim = finding.notes;
+          item.codes = Array.from(new Set([...(item.codes || []), code]));
+          if (!item.published && finding.date) item.published = finding.date;
+          saveEvidence();
+          api.toast("info", "CLAIM UPDATED", `${code} quote saved as this artifact's claim. It still counts for nothing until an audit cites it.`);
+          render();
+        },
         runCase() { runCaseStudy(el.dataset.id); },
         presetVector() { const def = G0.phaseDefinitions.find(d => d.phase === el.dataset.phase); if (def && def.vector) { S.logic.vector = def.vector.map(v => v === true); S.logic.constraints = [false, false, false, false]; render(); updateLogicLive(); } },
         phaseDetail() { S.phaseDetail = S.phaseDetail === el.dataset.phase ? null : el.dataset.phase; render(); },
@@ -338,6 +366,14 @@ APPS.push({
       if (change) render();
     });
     root.addEventListener("change", e => {
+      const toggle = e.target.closest('[data-act="includeReading"]');
+      if (toggle) {
+        const code = toggle.dataset.code;
+        S.reading.include = { ...(S.reading.include || {}), [code]: toggle.checked };
+        const row = toggle.closest(".g0-reading");
+        if (row) row.classList.toggle("on", toggle.checked);
+        return;
+      }
       const el = e.target.closest("[data-bind]");
       if (!el) return;
       const value = el.dataset.type === "bool" ? el.checked : el.value;
@@ -920,6 +956,7 @@ APPS.push({
       a.error = "";
       a.controller = new AbortController();
       a.stage = "searching";
+      S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
       S.resetScroll = true;
       render();
       announce(`Searching for ${query}.`);
@@ -938,6 +975,7 @@ APPS.push({
       const a = S.auto;
       a.controller = new AbortController();
       a.stage = "running"; S.resetScroll = true; a.progress = { step: 0, message: "Looking for the organization’s public identity…", completed: 0, total: 5 };
+      S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
       render();
       R.automaticAudit({
         name: selection ? selection.name : a.query, version: S.version, cutoff: a.cutoff,
@@ -1059,6 +1097,7 @@ APPS.push({
             ${o.coverageNote ? `<p class="g0-section-note">${esc(o.coverageNote)}</p>` : ""}
           </div>
         </div>
+        ${readingPanel(o)}
         <h3 class="g0-subsection">Suggested answers — with the quotes behind them</h3>
         <ul class="g0-auto-questions">
           ${G0.questions.map((q, i) => {
@@ -1085,6 +1124,275 @@ APPS.push({
           <button class="g0-btn ghost" data-act="exportAuto"><span aria-hidden="true">⭳</span> Export research summary</button>
           <button class="g0-btn" data-act="saveAuto">Save as review-required draft</button>
           <button class="g0-btn primary" data-act="reviewAuto">Review in the manual wizard <span aria-hidden="true">▸</span></button>
+        </div>`;
+    }
+
+    /* ══════════ LLM READING — the connection point ══════════
+       The automatic research retrieves documents and matches them against
+       fixed keyword rules, which is why a record that says everything in
+       its own words still ends as a coverage gap. With the custodian's own
+       model linked, the retrieved record is read properly: every proposed
+       answer carries a verbatim quote that is checked against the stored
+       source text before it can be applied. Nothing here scores, and
+       nothing is applied without a click. */
+    const llmStatus = () => {
+      if (!LLM || !G0LLM) return { available: false, linked: false, reason: "The LLM connection layer is not loaded." };
+      const status = LLM.status();
+      return { available: true, ...status };
+    };
+    const openLlmLink = () => {
+      const app = (window.APPS || []).find(candidate => candidate.id === "llmlink");
+      if (app && api.openApp) api.openApp(app);
+      else api.toast("info", "LLM LINK", "Open the LLM Link app from the desktop or the Origin menu.");
+    };
+    function readingProgress() {
+      const host = main.querySelector("#g0-reading-progress");
+      if (!host) return;
+      const p = S.reading.progress || { completed: 0, total: 5, message: "Preparing…" };
+      host.innerHTML = `
+        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.completed}" aria-label="Model reading progress">
+          <div class="g0-progress-fill" style="width:${Math.round((p.completed / p.total) * 100)}%"></div>
+        </div>
+        <p class="g0-progress-msg">${esc(p.message)}</p>`;
+      const live = main.querySelector("#g0-reading-live");
+      if (live) live.textContent = p.message;
+    }
+    /* Read a single saved artifact, fetched now, with the same reader and
+       the same verification gate as the record reading. */
+    function readArtifact(id) {
+      const item = S.evidence.find(entry => entry.id === id);
+      if (!item) return;
+      if (!G0LLM || !LLM || !LLM.status().linked) { openLlmLink(); return; }
+      if (!G0.safePublicUrl(item.url)) { api.toast("refusal", "REFUSAL — NOT A PUBLIC URL", "This artifact's URL is not a public http(s) address."); return; }
+      S.evRead = { id, stage: "running", reading: null, error: "", source: null, progress: { step: 0, message: "Fetching the artifact…", completed: 0, total: 3 }, controller: new AbortController() };
+      render();
+      const cutoff = G0.today();
+      R.readWithArchive(item.url, item.url, cutoff, S.evRead.controller.signal).then(page => {
+        if (S.evRead.controller.signal.aborted) return;
+        const source = {
+          id: "EV-READ", title: page.title || item.title, url: page.url,
+          published: page.published || null, retrieved: new Date().toISOString(),
+          excerpt: R.stripMarkdown(page.content).slice(0, 1500),
+          text: String(page.content || "").slice(0, G0LLM.LIMITS.perSource),
+          codes: [], kind: page.archived ? "archive" : page.official ? "official" : "public",
+          dateBasis: page.dateBasis || (page.published ? "publication" : page.archived ? "archive-capture" : "unknown")
+        };
+        if (G0.isCalendarDate(page.archived)) source.capturedAt = page.archived;
+        if (G0.safePublicUrl(page.liveUrl)) source.originalUrl = page.liveUrl;
+        S.evRead = { ...S.evRead, source };
+        const input = G0.newInput(S.version);
+        input.name = item.entity || item.title || "Named entity";
+        input.cutoff = cutoff;
+        return G0LLM.readSources({ input, sources: [source], version: S.version, cutoff, signal: S.evRead.controller.signal, followLinks: false, entity: item.entity || item.title, website: item.url,
+          onProgress: progress => { S.evRead = { ...S.evRead, progress: { ...progress, total: 3 } }; if (S.evRead.stage === "running") renderEvidenceProgress(); } })
+          .then(reading => { S.evRead = { ...S.evRead, stage: "ready", reading, progress: null }; render(); });
+      }).catch(error => {
+        if (error && (error.name === "AbortError" || S.evRead.controller.signal.aborted)) { S.evRead = { ...S.evRead, stage: "idle", progress: null }; render(); return; }
+        S.evRead = { ...S.evRead, stage: "error", progress: null, error: LLM && LLM.describe ? LLM.describe(error) : { title: "THE READING FAILED", detail: String(error && error.message || error), hint: "" } };
+        render();
+      });
+    }
+    function renderEvidenceProgress() {
+      const host = main.querySelector(`#g0-ev-read-progress`);
+      if (!host) return;
+      const p = S.evRead.progress || { completed: 0, total: 3, message: "Preparing…" };
+      host.innerHTML = `
+        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.completed}" aria-label="Artifact reading progress">
+          <div class="g0-progress-fill" style="width:${Math.round((p.completed / p.total) * 100)}%"></div>
+        </div>
+        <p class="g0-progress-msg">${esc(p.message)}</p>`;
+    }
+    /* What one artifact can support, per question, with verified quotes. */
+    function artifactReadingPanel(item) {
+      if (S.evRead.id !== item.id) return "";
+      const status = llmStatus();
+      if (S.evRead.stage === "running") return `
+        <div class="g0-llm g0-ev-reading">
+          <div id="g0-ev-read-progress"><div class="g0-progress-track"><div class="g0-progress-fill" style="width:0%"></div></div><p class="g0-progress-msg">Preparing…</p></div>
+          <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="cancelArtifactReading">Cancel</button></div>
+        </div>`;
+      if (S.evRead.stage === "error") return `
+        <div class="g0-llm g0-ev-reading">
+          <div class="g0-callout danger"><span aria-hidden="true">⚠</span><p><strong>${esc(S.evRead.error.title || "The reading failed")}.</strong> ${esc(S.evRead.error.detail || "")} ${esc(S.evRead.error.hint || "")}</p></div>
+          <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="readArtifact" data-id="${esc(item.id)}">Try again</button></div>
+        </div>`;
+      if (!S.evRead.reading) return "";
+      const reading = S.evRead.reading;
+      const rows = [...G0.questions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.answers[index] })),
+        ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.constraints[index] }))];
+      const answered = rows.filter(row => row.finding.value !== null);
+      return `
+        <div class="g0-llm g0-ev-reading">
+          <p class="g0-eyebrow">Read with ${esc((reading.block && reading.block.model) || status.model)} — ${answered.length} of 9 questions supported by this artifact</p>
+          ${answered.length ? `<ul class="g0-reading-list">${answered.map(row => `
+            <li class="g0-reading on">
+              <div class="g0-reading-head"><span class="g0-qcode mono">${row.code}</span><span class="g0-reading-title">${esc(row.title)}</span>
+              ${row.finding.value === null ? `<span class="g0-pill unknown">Unknown</span>` : row.finding.value ? `<span class="g0-pill yes">Yes</span>` : `<span class="g0-pill no">No</span>`}
+              <span class="g0-verified mono">quote verified</span></div>
+              <blockquote class="g0-reading-quote">${esc(row.finding.notes)}</blockquote>
+              <p class="g0-quote-meta"><span>${esc(S.evRead.source && S.evRead.source.title || item.title)}</span><span class="mono">${esc(row.finding.date ? `dated ${row.finding.date}` : "date not on the source")}</span></p>
+              <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="useArtifactQuote" data-code="${row.code}">Save this quote as the artifact's claim</button></div>
+            </li>`).join("")}</ul>`
+            : `<p class="g0-section-note">This artifact contains no operative text the model could quote for any Ground-0 question. ${reading.rejected.length ? `${reading.rejected.length} offered reading${reading.rejected.length === 1 ? " was" : "s were"} discarded as unverifiable.` : ""}</p>`}
+          ${reading.notes.length ? `<ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>` : ""}
+          <p class="g0-section-note">A reading is not a citation. Save the quote as the artifact's claim, then cite the artifact from an audit — the audit is what scores it.</p>
+        </div>`;
+    }
+    function startReading() {
+      const a = S.auto; const o = a.outcome;
+      if (!o) return;
+      if (!G0LLM || !LLM || !LLM.status().linked) { openLlmLink(); return; }
+      S.reading = { ...S.reading, stage: "running", error: "", reading: null, progress: { step: 0, message: "Preparing the retrieved record…", completed: 0, total: 5 }, include: null, applied: "" };
+      S.reading.controller = new AbortController();
+      render();
+      announce("Reading the retrieved record with your linked model.");
+      G0LLM.readSources({
+        input: o.input, sources: (o.input.automation && o.input.automation.sources) || [], version: o.input.version || S.version,
+        cutoff: o.input.cutoff, entity: o.organization.name, website: o.organization.website,
+        signal: S.reading.controller.signal, followLinks: true,
+        onProgress: progress => { S.reading.progress = progress; if (S.reading.stage === "running") readingProgress(); }
+      }).then(reading => {
+        if (S.reading.controller.signal.aborted) return;
+        const include = {};
+        G0.questions.forEach((question, index) => { include[question.code] = reading.answers[index].value !== null; });
+        G0.constraintQuestions.forEach((question, index) => { include[question.code] = reading.constraints[index].value === true; });
+        S.reading = { ...S.reading, stage: "ready", reading, include, progress: null, error: "" };
+        render();
+        announce(`Model reading ready: ${G0LLM.summarise(reading)}`);
+      }).catch(error => {
+        if (error && (error.name === "AbortError" || S.reading.controller.signal.aborted)) { S.reading = { ...S.reading, stage: "idle", progress: null }; render(); return; }
+        const described = LLM && LLM.describe ? LLM.describe(error) : { title: "THE READING FAILED", detail: String(error && error.message || error), hint: "" };
+        S.reading = { ...S.reading, stage: "error", progress: null, error: described };
+        render();
+      });
+    }
+    function applyReading() {
+      const a = S.auto; const o = a.outcome; const reading = S.reading.reading;
+      if (!o || !reading) return;
+      const codes = Object.entries(S.reading.include || {}).filter(([, on]) => on).map(([code]) => code);
+      if (!codes.length) { api.toast("warn", "NOTHING SELECTED", "Tick at least one reading to apply it to the draft."); return; }
+      const merged = G0LLM.mergeReading(o.input, reading, { applyCodes: codes });
+      const previousId = o.record && o.record.id;
+      G0.createAudit(merged, S.audits).then(record => {
+        if (R.attachResearchSources) R.attachResearchSources(record, merged.automation, merged.automation.coverage);
+        a.outcome = { ...o, input: merged, record };
+        S.reading = { ...S.reading, stage: "idle", reading: null, include: null, applied: `${codes.length} reading${codes.length === 1 ? "" : "s"} applied` };
+        commit(record, previousId);
+        render();
+        api.toast("info", "READINGS APPLIED", `${codes.length} model reading${codes.length === 1 ? "" : "s"} written into the draft with their quotes. Review each answer before saving it as your own finding.`);
+      }).catch(error => {
+        api.toast("refusal", "NOT APPLIED", error instanceof Error ? error.message : "The readings could not be applied.");
+      });
+    }
+    function readingPanel(o) {
+      const status = llmStatus();
+      const state = S.reading;
+      const sourceFor = code => {
+        const candidate = (state.reading && state.reading.candidates || []).find(row => row.id === (state.reading.chosen || {})[code]);
+        return candidate || null;
+      };
+      const applied = state.applied ? `<div class="g0-callout ok"><span aria-hidden="true">✓</span><p><strong>${esc(state.applied)}.</strong> The draft above now carries the model's quotes as suggested answers. Every one still needs your review; the formal badge remains unissued.</p></div>` : "";
+      const header = `
+        <div class="g0-llm-head">
+          <p class="g0-eyebrow">Read the retrieved record in full — optional</p>
+          <p class="g0-section-note">${status.linked
+            ? `Linked model: <strong>${esc(status.label)}</strong> · <span class="mono">${esc(status.model)}</span>${status.keyStorage === "none" ? "" : status.keyStorage === "persistent" ? " · key kept in this browser" : " · key held for this tab"}.`
+            : "No model is linked, so the record above was matched by keyword rules only. Connect your own model and the same retrieved documents are read properly — every answer bound to a verbatim quote."}</p>
+        </div>`;
+      if (!status.linked) {
+        return `
+          <div class="g0-panel g0-llm">
+            ${header}
+            <div class="g0-btn-row">
+              <button class="g0-btn primary" data-act="openLlmLink"><span aria-hidden="true">⌘</span> Connect a model</button>
+            </div>
+            <p class="g0-section-note">${esc(status.reason || "Nothing is linked yet.")} With a link, the ${esc(o.organization.name)} record can be read in full: rules, appeal procedures, enforcement clauses — the text the keyword rules cannot see becomes an answer with a quote, and only where the record is genuinely silent does it stay a coverage gap.</p>
+          </div>`;
+      }
+      if (state.stage === "running") {
+        return `
+          <div class="g0-panel g0-llm">
+            ${header}
+            <div id="g0-reading-progress">
+              <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><div class="g0-progress-fill" style="width:0%"></div></div>
+              <p class="g0-progress-msg">Preparing…</p>
+            </div>
+            <div class="g0-btn-row"><button class="g0-btn ghost" data-act="cancelReading">Cancel the reading</button></div>
+            <div class="sr-only-g0" id="g0-reading-live" aria-live="polite"></div>
+          </div>`;
+      }
+      if (state.stage === "error") {
+        return `
+          <div class="g0-panel g0-llm">
+            ${header}
+            <div class="g0-callout danger"><span aria-hidden="true">⚠</span><p><strong>${esc(state.error.title || "The reading failed")}.</strong> ${esc(state.error.detail || "")}${state.error.hint ? ` ${esc(state.error.hint)}` : ""}</p></div>
+            <div class="g0-callout"><span aria-hidden="true">ℹ</span><p>Nothing was classified, scored or saved. The keyword reading above is untouched.</p></div>
+            <div class="g0-btn-row">
+              <button class="g0-btn ghost" data-act="openLlmLink">Open LLM Link</button>
+              <button class="g0-btn primary" data-act="readRecord">Try the reading again</button>
+            </div>
+          </div>`;
+      }
+      if (!state.reading) {
+        const readable = ((o.input.automation && o.input.automation.sources) || []).filter(source => G0LLM ? G0LLM.readable(source) : false).length;
+        const stored = ((o.input.automation && o.input.automation.sources) || []).filter(source => source.text).length;
+        return `
+          <div class="g0-panel g0-llm">
+            ${header}
+            <p class="g0-section-note">${stored
+              ? `${readable} of ${((o.input.automation && o.input.automation.sources) || []).length} retrieved sources carry readable text (${stored} stored with their page text). The model reads those, may request linked pages the record itself contains, and returns a quote for every answer it proposes.`
+              : "This draft was produced before the browser kept page text, so there is little for a model to read. Run the automatic research again to capture the documents in full."}</p>
+            ${applied}
+            <div class="g0-btn-row">
+              <button class="g0-btn primary" data-act="readRecord"${stored ? "" : " disabled"}><span aria-hidden="true">✦</span> Read the retrieved record with ${esc(status.model || "the linked model")}</button>
+              <button class="g0-btn ghost" data-act="openLlmLink">LLM Link</button>
+            </div>
+          </div>`;
+      }
+      const reading = state.reading;
+      const rows = [...G0.questions.map((question, index) => ({ code: question.code, title: question.title, current: o.input.answers[index], reading: reading.answers[index], kind: "behavioral" })),
+        ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, current: o.input.constraints[index], reading: reading.constraints[index], kind: "constraint" }))];
+      const pill = value => value === null ? `<span class="g0-pill unknown">Unknown</span>` : value ? `<span class="g0-pill yes">Yes</span>` : `<span class="g0-pill no">No</span>`;
+      const modelName = (reading.block && reading.block.model) || status.model;
+      return `
+        <div class="g0-panel g0-llm">
+          ${header}
+          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was checked character-for-character against the stored source text; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Apply only what you have read yourself.</p></div>
+          <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
+          <ul class="g0-reading-list">
+            ${rows.map(row => {
+              const candidate = sourceFor(row.code);
+              const held = (reading.held || []).find(item => item.code === row.code);
+              const rejected = (reading.rejected || []).filter(item => item.code === row.code);
+              const on = S.reading.include && S.reading.include[row.code];
+              return `<li class="g0-reading${on ? " on" : ""}">
+                <label class="g0-reading-head">
+                  <input type="checkbox" data-act="includeReading" data-code="${row.code}" ${on ? "checked" : ""} ${row.reading.value === null ? "disabled" : ""}>
+                  <span class="g0-qcode mono">${row.code}</span>
+                  <span class="g0-reading-title">${esc(row.title)}</span>
+                  ${pill(row.reading.value)}
+                  ${candidate ? `<span class="g0-verified mono">quote verified</span>` : held ? `<span class="g0-held mono">no qualifying date</span>` : `<span class="g0-unverified mono">no readable text</span>`}
+                  <span class="g0-reading-was mono">draft: ${row.current.value === null ? "unknown" : row.current.value ? "yes" : "no"}</span>
+                </label>
+                ${row.reading.notes ? `<blockquote class="g0-reading-quote">${esc(row.reading.notes)}</blockquote>` : ""}
+                ${row.reading.source ? `<p class="g0-quote-meta"><a href="${esc(row.reading.source)}" target="_blank" rel="noreferrer">${esc((candidate && candidate.title) || row.reading.source)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(row.reading.date ? `dated ${row.reading.date}` : "date not on the source")}</span></p>` : `<p class="g0-auto-gap">${esc(row.reading.gap)}</p>`}
+                ${rejected.map(item => `<p class="g0-reading-reject">discarded: ${esc(item.reason)}${item.quote ? ` — “${esc(item.quote.slice(0, 160))}”` : ""}</p>`).join("")}
+              </li>`;
+            }).join("")}
+          </ul>
+          ${(reading.followUps || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">⟶</span> Pages the model asked for and this browser then read (${reading.followUps.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
+            <ul class="g0-source-list">${reading.followUps.map(item => `<li><a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.label || item.url)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(item.why || "")}</span></li>`).join("")}</ul>
+            <p class="g0-section-note">Only links that already appeared inside the retrieved record could be requested — the model cannot reach the open web, and every page it asked for was fetched through the same reader, archive and cutoff rules as the original research.</p>
+          </details>` : ""}
+          ${(reading.notes || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">⚠</span> What the reading could not resolve (${reading.notes.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
+            <ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>
+          </details>` : ""}
+          <div class="g0-btn-row end">
+            <button class="g0-btn ghost" data-act="discardReading">Discard this reading</button>
+            <button class="g0-btn ghost" data-act="readRecord">Read again</button>
+            <button class="g0-btn primary" data-act="applyReading">Apply ticked readings to this draft <span aria-hidden="true">▸</span></button>
+          </div>
+          <p class="g0-section-note">Applying writes the quotes in as suggested answers and files the draft in the register with these readings attached${o.record && o.record.id && S.audits.some(record => record.id === o.record.id) ? ", replacing the earlier copy of this audit" : ""}. Nothing is certified and no badge is issued — the record is still marked for human review.</p>
         </div>`;
     }
 
@@ -1139,6 +1447,8 @@ APPS.push({
             ${item.claim ? `<p>${esc(item.claim)}</p>` : ""}
             <a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.url)}<span class="sr-only-g0"> (opens in a new tab)</span></a>
             <p class="g0-meta mono"><span>published ${esc(G0.formatDate(item.published, true))}</span><span>retrieved ${esc(G0.formatDate(item.retrieved, true))}</span>${item.codes.length ? `<span>tags ${esc(item.codes.join(", "))}</span>` : ""}${item.entity ? `<span>${esc(item.entity)}</span>` : ""}</p>
+            ${G0LLM ? `<div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="readArtifact" data-id="${esc(item.id)}">${llmStatus().linked ? `Read this artifact with ${esc(llmStatus().model || "the linked model")}` : "Read this artifact with your own model"}</button></div>` : ""}
+            ${artifactReadingPanel(item)}
           </li>`).join("")}</ul>` : `
         <div class="g0-empty"><span class="g0-empty-icon" aria-hidden="true">◧</span><h3>No artifacts yet</h3><p>Save the public documents you plan to cite. They stay unscored until an audit uses them.</p></div>`}`;
     }
