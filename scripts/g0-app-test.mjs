@@ -399,5 +399,53 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
   ok(main2.querySelector('[data-act="wizNext"]') && true, "ansswering the unknown question re-enables progress");
 }
 
+/* ── automatic: a completed research run must reach its result view ──
+   Regression guard: the section note under the registry coverage table read
+   a binding that only exists inside the table's row loop, so every run that
+   finished raised a ReferenceError while rendering and the app fell into
+   "The research could not complete — Can't find variable: c".
+   The whole pipeline runs here against a stubbed public record. ── */
+{
+  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+  const cutoff = G0.today();
+  const site = "https://example.org/";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async value => {
+    const url = new URL(value, "https://harness.test");
+    if (url.origin === "https://harness.test") throw new Error("No hosted research service is configured for this harness.");
+    if (url.hostname === "en.wikipedia.org") return json({ query: { pages: [{ pageid: 1, title: "Coverage Note Body", index: 1, fullurl: "https://en.wikipedia.org/wiki/Coverage_Note_Body", extract: "An example organization used by this harness.", pageprops: { wikibase_item: "Q999" } }] } });
+    if (url.hostname === "www.wikidata.org") return json({ entities: { Q999: { labels: { en: { value: "Coverage Note Body" } }, descriptions: { en: { value: "corporation" } }, claims: { P856: [{ rank: "normal", mainsnak: { datavalue: { value: site } } }] } } } });
+    if (url.hostname === "r.jina.ai") return json({ data: { title: "Coverage Note Body policy", url: site, publishedTime: cutoff, content: "Participation in this program is voluntary and advisory. No penalty attaches to non-participation and no obligation is imposed on participants." } });
+    if (url.hostname === "www.courtlistener.com") return json({ results: [] });
+    if (url.hostname === "www.federalregister.gov") return json({ results: [] });
+    if (url.hostname === "www.govtrack.us") return json({ objects: [] });
+    if (url.hostname === "api.gdeltproject.org") return json({ articles: [] });
+    throw new Error(`Unexpected request while rendering a completed research run: ${value}`);
+  };
+  try {
+    const autoRoot = new El("div");
+    app.render(autoRoot, api);
+    const autoMain = autoRoot.querySelector("#g0-main");
+    autoRoot.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "automatic").click();
+    const query = autoMain.querySelector('[data-bind="auto.query"]'); query.value = "Coverage Note Body"; dispatch(query, "input");
+    const cutoffField = autoMain.querySelector('[data-bind="auto.cutoff"]'); cutoffField.value = cutoff; dispatch(cutoffField, "change");
+    autoMain.querySelector('[data-act="autoStart"]').click();
+    let choose = null;
+    for (let i = 0; i < 40 && !choose; i++) { await sleep(100); choose = autoMain.querySelector('[data-act="autoChoose"]'); }
+    ok(!!choose, "automatic research reaches the identity-choice stage");
+    if (choose) choose.click();
+    for (let i = 0; i < 60; i++) {
+      await sleep(100);
+      if (autoMain.innerHTML.includes("Coverage — every registry") || autoMain.innerHTML.includes("could not complete")) break;
+    }
+    ok(!autoMain.innerHTML.includes("could not complete"), "a completed research run renders its result instead of the error state");
+    ok(autoMain.innerHTML.includes("Coverage — every registry, every outcome"), "the result view renders the registry coverage table");
+    ok(autoMain.innerHTML.includes("record sources searched for this cutoff"), "the coverage note renders under the coverage table");
+    ok(autoMain.innerHTML.includes("Suggested answers"), "the result view renders the suggested answers with their quotes");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1056,7 +1056,7 @@ APPS.push({
                 <tbody>${o.coverage.map(c => `<tr><td>${esc(c.registry)}<span class="g0-cov-src mono">${esc(c.source)}</span></td><td><span class="g0-status cov-${c.status}">${esc(c.status)}</span></td><td class="mono">${c.found}</td><td class="mono">${c.mentions}</td></tr>`).join("")}</tbody>
               </table>
             </div>
-            <p class="g0-section-note">${esc(c.coverageNote || "")}</p>
+            ${o.coverageNote ? `<p class="g0-section-note">${esc(o.coverageNote)}</p>` : ""}
           </div>
         </div>
         <h3 class="g0-subsection">Suggested answers — with the quotes behind them</h3>

@@ -191,7 +191,10 @@ plain-text research summaries.
 **Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
 storage); `node scripts/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
-network smoke test of the public registries).
+network smoke test of the public registries); `node scripts/g0-app-test.mjs` boots the workspace in
+a mini-DOM and walks the interface — every tab, the manual wizard, the register, the logic sandbox,
+preferences, and a complete automatic research run rendered against a stubbed public record, so a
+run that finishes always reaches its result view instead of an error state.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.
