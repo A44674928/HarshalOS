@@ -1,56 +1,15 @@
-# Cloudflare Workers / Wrangler asset ignore file (gitignore syntax).
-#
-# The Worker's assets directory is the repo root, so Wrangler walks the whole
-# checkout when building the deployable asset manifest. Only index.html, css/,
-# js/ and assets/ are actually part of the site -- everything else here is
-# version control internals, local tooling, or private working documents.
-# (assets/eye-open-close-hq.gif is the boot animation: 20.8 MiB, under the
-# 25 MiB per-asset limit. assets/Demo.flame is the IFS art file
-# burned as The Orb's wire-mode core. assets/orb/ is the author's
-# rendered flame film — 200 AVIF frames, ~5.5 MiB total — wrapped onto The
-# Orb's sphere surface.)
-
-# Don't publish this config file itself.
-.assetsignore
-
-# Version control internals. The packfile alone is 754 MiB, far above the
-# 25 MiB per-asset limit, and fails the build.
-.git
-.github
-.wrangler
-
-# Private business-plan working documents (796 MiB / 1829 files).
-# Not part of the site and must never be published.
-Business Plan/
-
-# macOS folder metadata
-.DS_Store
-**/.DS_Store
-
-# Node / tooling
-node_modules
-package-lock.json
-npm-debug.log*
-.env
-.env.*
-
-# Local preview server (node serve.js) — dev tooling, not site content.
-serve.js
-
-# Node test harnesses for the Ground-0 engine/research/app — dev tooling.
-scripts
-
-# Root-level documents are working papers, not site content.
-README.md
-*.md
-*.txt
-*.rtf
-
-# Private working papers and source archives (no file extension / zip):
-# never publish these.
-*.zip
-Ground-0 Phase Detection Algorithm
-
-# Exception: the versioned Ground-0 specifications are site content —
-# the Ground-0 app's specification reader fetches them at runtime.
+# Deny by default: only browser-deliverable files may leave this checkout.
+# In particular: no .git, secrets, worker source, tooling, or private papers.
+**
+!index.html
+!about.html
+!css/
+!css/**
+!js/
+!js/**
+!assets/
+!assets/**
+!specs/
 !specs/*.md
+# Never publish hidden files, even under an allowed directory.
+**/.*
