@@ -113,6 +113,9 @@ window.HOSLLM = (() => {
   }
   function saveSettings(patch) {
     const next = { ...loadSettings(), ...patch };
+    /* A learned token ceiling belongs to the key and endpoint it was stated
+       for. Reconnecting starts from what the caller asks for again. */
+    clearCeiling();
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ provider: next.provider, protocol: next.protocol, endpoint: next.endpoint, model: next.model, persist: next.persist })); } catch { /* Preferences are not worth a crash. */ }
     return next;
   }
@@ -201,20 +204,25 @@ window.HOSLLM = (() => {
      Network
      ────────────────────────────────────────────────────────────── */
   class LlmError extends Error {
-    constructor(message, { status = 0, kind = "error", hint = "" } = {}) {
+    constructor(message, { status = 0, kind = "error", hint = "", affordable = 0, requested = 0 } = {}) {
       super(message);
       this.name = "LlmError";
       this.status = status;
       this.kind = kind;
       this.hint = hint;
+      /* Only set on a "budget" refusal: the ceiling the provider stated. */
+      this.affordable = affordable;
+      this.requested = requested;
     }
   }
   function describe(error) {
-    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
+    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "budget" ? "THE TOKEN CEILING IS UNAFFORDABLE" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
     if (error && error.name === "AbortError") return { title: "CALL CANCELED", detail: "The call was canceled before it finished. No reading was recorded.", hint: "" };
     return { title: "THE MODEL CALL FAILED", detail: redact(error instanceof Error ? error.message : String(error ?? "Unknown error")), hint: "Retry, or check the connection in the LLM Link app." };
   }
   function classifyHttp(provider, httpStatus, detail) {
+    const budget = parseBudget(detail, httpStatus);
+    if (budget) return budgetError(provider, budget, 0, detail);
     const hint = httpStatus === 401 || httpStatus === 403
       ? `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
       : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
@@ -264,9 +272,64 @@ window.HOSLLM = (() => {
 
   /* Session activity. Kept in memory only: how many calls this page made,
      what they cost in tokens, and how long the last one took. */
-  const activity = { calls: 0, failures: 0, input: 0, output: 0, lastMs: 0, lastModel: "", lastAt: "" };
-  const stats = () => ({ ...activity });
-  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
+  const activity = { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, lastMs: 0, lastModel: "", lastAt: "" };
+  const stats = () => ({ ...activity, ceiling: ceiling ? ceiling.maxTokens : 0 });
+  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
+
+  /* ──────────────────────────────────────────────────────────────
+     The token ceiling the provider will actually sell us
+
+     Some providers price a call by the ceiling it *reserves*, not by the
+     tokens it ends up producing, and refuse the request outright when the
+     balance cannot cover that reservation:
+
+       {"error":{"message":"This request requires more credits, or fewer
+        max_tokens. You requested up to 6000 tokens, but can only afford
+        2664. …","code":402,"metadata":{"limit_source":"openrouter_credits"}}}
+
+     That refusal names a number we can work inside. We read it, remember it
+     for the rest of the session, and ask again inside it — which is why the
+     Ground-0 reading is staged one question per call: many small ceilings
+     fit a small balance, one large ceiling does not.
+     ────────────────────────────────────────────────────────────── */
+  const AFFORDABLE = /(?:can )?only afford(?: up to)?\s*(\d[\d,]*)/i;
+  const REQUESTED = /requested up to\s*(\d[\d,]*)/i;
+  const numberWith = (text, pattern) => { const match = String(text || "").match(pattern); return match ? Number(String(match[1]).replace(/,/g, "")) : 0; };
+
+  let ceiling = null;
+  const tokenCeiling = () => (ceiling ? { ...ceiling } : null);
+  const clearCeiling = () => { ceiling = null; };
+  const learnCeiling = (maxTokens, provider) => {
+    if (!Number.isFinite(maxTokens) || maxTokens <= 0) return;
+    /* The provider's latest statement wins: a balance falls as calls are made
+       and rises again when credits are added, and either way the last number
+       it gave us is the best guide to the next call. Changing the key or the
+       endpoint clears it — a different key has a different balance. */
+    ceiling = { maxTokens, provider: (provider && (provider.label || provider.provider)) || "", at: new Date().toISOString() };
+  };
+  /* Read a ceiling out of a provider refusal, if it stated one. */
+  function parseBudget(detail, status) {
+    const text = String(detail || "");
+    const stated = /limit_source"?\s*:\s*"?\w*credits/i.test(text) || /fewer max_tokens/i.test(text) || /requires more credits/i.test(text) || AFFORDABLE.test(text);
+    if (!stated && status !== 402) return null;
+    return { requested: numberWith(text, REQUESTED), affordable: numberWith(text, AFFORDABLE), stated };
+  }
+  const budgetError = (provider, budget, floor = 0, detail = "") => new LlmError(
+    budget.affordable
+      ? `${provider.label} can only afford a ${budget.affordable}-token ceiling on this key${budget.requested ? `; the call asked for ${budget.requested}` : ""}${floor > budget.affordable ? `, and ${floor} is the least that produces a usable answer` : ""}.`
+      /* No number to work inside: keep the provider's own words rather than
+         paraphrasing a refusal we did not fully understand. */
+      : `${provider.label} refused the call: the key's balance cannot cover the requested token ceiling.${detail ? ` The provider said: ${redact(detail).slice(0, 220)}` : ""}`,
+    {
+      status: 402, kind: "budget", affordable: budget.affordable, requested: budget.requested,
+      hint: budget.affordable
+        ? "Ask fewer questions per call, or add credits at the provider. Ground-0 stages its reading one question at a time for exactly this reason."
+        : "Add credits at the provider, or link a model whose balance covers the call."
+    }
+  );
+  /* A caller's ceiling, pulled inside what the provider has told us it can
+     afford. Never raised above what the caller asked for. */
+  const affordableTokens = (maxTokens, floor) => (ceiling ? Math.min(maxTokens, Math.max(floor, ceiling.maxTokens)) : maxTokens);
 
   function buildRequest(provider, { system, user, maxTokens, temperature, model }) {
     const chosen = (model || provider.model || "").trim();
@@ -295,9 +358,14 @@ window.HOSLLM = (() => {
     return { text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } };
   }
 
-  /* One call. No retries beyond the documented max-token fallback, no
-     hidden prompts: what the caller passes is what the model receives. */
-  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "" }) {
+  /* One call. No hidden prompts: what the caller passes is what the model
+     receives. Two bounded, documented retries only —
+       · a provider that renamed the ceiling parameter (max_completion_tokens)
+       · a provider that priced the ceiling and stated a smaller one it can
+         afford, which we then remember for the rest of the session.
+     `floorTokens` is the least ceiling worth sending at all: below it the
+     answer arrives truncated, so the caller is told instead. */
+  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true }) {
     if (typeof user !== "string" || !user.trim()) throw new LlmError("There is nothing to send.", { kind: "error" });
     const config = resolved();
     if (!config.endpoint) throw new LlmError("No endpoint is configured.", { kind: "error", hint: "Open the LLM Link app and choose a provider." });
@@ -310,7 +378,11 @@ window.HOSLLM = (() => {
     const timer = setTimeout(() => controller.abort(new LlmError(`No complete response within ${Math.round(timeoutMs / 1000)} seconds.`, { kind: "timeout", hint: "Long documents take a while. Retry, use fewer sources per pass, or pick a faster model." })), timeoutMs);
     const started = Date.now();
     try {
-      const request = buildRequest(config, { system, user, maxTokens, temperature, model });
+      /* Ask inside the ceiling the provider has already stated it can afford,
+         so a known-small balance is not re-tested on every call. */
+      const reserved = affordableTokens(maxTokens, floorTokens);
+      if (reserved !== maxTokens) activity.shrunk++;
+      const request = buildRequest(config, { system, user, maxTokens: reserved, temperature, model });
       const send = async body => {
         const headers = applyAuth(new Headers({ "Content-Type": "application/json", Accept: "application/json" }), config, key);
         try {
@@ -320,18 +392,45 @@ window.HOSLLM = (() => {
           throw corsError(config);
         }
       };
-      let response = await send(request.body);
+      const readDetail = response => response.text().catch(() => "").then(text => String(text).slice(0, 400));
+      /* Which parameter this provider accepted the ceiling under, so a retry
+         rewrites the same field the first request used. */
+      const withCeiling = (body, tokens) => {
+        const next = { ...body };
+        if ("max_completion_tokens" in next) next.max_completion_tokens = tokens;
+        else next.max_tokens = tokens;
+        return next;
+      };
+      let sentBody = request.body;
+      let sentCeiling = reserved;
+      let response = await send(sentBody);
       let detail = "";
       if (!response.ok) {
-        detail = await response.text().catch(() => "");
-        detail = detail.slice(0, 400);
+        detail = await readDetail(response);
         /* Newer OpenAI-family models renamed the token cap. One targeted retry. */
         if (response.status === 400 && /max_completion_tokens|unsupported_parameter|max_tokens/i.test(detail)) {
-          const retryBody = { ...request.body, max_completion_tokens: maxTokens };
-          delete retryBody.max_tokens;
-          response = await send(retryBody);
-          if (response.ok) detail = "";
-          else detail = await response.text().catch(() => "").then(t => t.slice(0, 400));
+          sentBody = { ...request.body, max_completion_tokens: sentCeiling };
+          delete sentBody.max_tokens;
+          response = await send(sentBody);
+          detail = response.ok ? "" : await readDetail(response);
+        }
+      }
+      /* The provider priced our ceiling and named a smaller one it can afford.
+         Learn it, ask again inside it, and let every later call start there. */
+      if (!response.ok) {
+        const budget = parseBudget(detail, response.status);
+        if (budget && budget.affordable) learnCeiling(budget.affordable, config);
+        if (budget && budget.affordable && shrinkToAffordable && budget.affordable >= floorTokens && budget.affordable < sentCeiling) {
+          sentCeiling = budget.affordable;
+          sentBody = withCeiling(sentBody, sentCeiling);
+          activity.shrunk++;
+          response = await send(sentBody);
+          detail = response.ok ? "" : await readDetail(response);
+        } else if (budget && (budget.stated || response.status === 402)) {
+          /* Either it named no usable number, or the number it named is below
+             the floor: say so plainly rather than sending a call that cannot
+             produce an answer. */
+          throw budgetError(config, budget, floorTokens, detail);
         }
       }
       if (!response.ok) throw classifyHttp(config, response.status, detail);
@@ -341,7 +440,9 @@ window.HOSLLM = (() => {
       if (!parsed.text.trim()) throw new LlmError("The model returned no text. It may have refused the request or hit its output limit.", { kind: "provider", hint: "Retry, lower the batch size, or raise the token ceiling." });
       activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
       activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
-      return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint };
+      /* The ceiling this call was actually sent with, which is what a provider
+         bills against — not necessarily the ceiling that was asked for. */
+      return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved: sentCeiling, shrunk: sentCeiling < maxTokens };
     } catch (error) {
       if (!(error && error.name === "AbortError")) activity.failures++;
       throw error;
@@ -397,6 +498,7 @@ window.HOSLLM = (() => {
     loadSettings, saveSettings, resolved, preset, status,
     setKey, clearKey, apiKey, keyStorage, keyHint, redact, looksLikeKey,
     chat, probe, loadModels, describe, estimateTokens, extractJson, stats, resetStats,
-    applyAuth, buildRequest, readResponse
+    applyAuth, buildRequest, readResponse,
+    tokenCeiling, clearCeiling, learnCeiling, parseBudget, affordableTokens
   };
 })();

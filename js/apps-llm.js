@@ -97,7 +97,9 @@ APPS.push({
           <li class="li">The prompt: the questions, the retrieved source text for the pass being read, and the entity name and
           evidence cutoff. Nothing else — no audit register, no other organization, no Human Key, no duty ledger.</li>
           <li class="li">The key, to the endpoint above and nowhere else.</li>
-          <li class="li">Request metadata the provider requires (model, token ceiling, temperature).</li>
+          <li class="li">Request metadata the provider requires (model, token ceiling, temperature). The Ground-0 audit is
+          staged one question per call, so each call reserves a small output ceiling instead of one large one — a provider
+          that prices a call by the ceiling it reserves can then answer it on a small balance.</li>
         </ul>
         <div class="rule-box">What stays here: your key (unless you paste it into another tool), every audit, the evidence
         library, the duty ledger, and the Human Key. There is no HarshalOS server in the path. A browser cannot hide a key
@@ -106,8 +108,9 @@ APPS.push({
         <div class="h2">Where the link is used</div>
         <ul class="ul">
           <li class="li"><strong>Ground-0 → Automatic audit</strong> — after the research run, “Read the retrieved record with the
-          model”: the model reads the documents this browser fetched, proposes an answer per question with a verbatim quote,
-          and asks for specific linked pages the record itself contains where text is missing.</li>
+          model”: the model is called once per question over the documents this browser fetched, proposes an answer with a
+          verbatim quote, and asks for specific linked pages the record itself contains where text is missing. One failed
+          call costs one question, not the audit.</li>
           <li class="li"><strong>Ground-0 → Evidence</strong> — read one saved artifact and see which questions it can support.</li>
           <li class="li refusal">A model reading never scores by itself: every quote is checked character-for-character against
           the stored text, unverifiable readings are discarded, and the record still requires human review. The working badge
@@ -115,7 +118,8 @@ APPS.push({
         </ul>
 
         <div class="h2">Session activity</div>
-        <p class="body mono">${stats.calls} call${stats.calls === 1 ? "" : "s"} · ${stats.input.toLocaleString()} tokens in · ${stats.output.toLocaleString()} tokens out${stats.lastModel ? ` · last: ${esc(stats.lastModel)} in ${stats.lastMs} ms` : ""}${stats.failures ? ` · ${stats.failures} failed` : ""}</p>
+        <p class="body mono">${stats.calls} call${stats.calls === 1 ? "" : "s"} · ${stats.input.toLocaleString()} tokens in · ${stats.output.toLocaleString()} tokens out${stats.lastModel ? ` · last: ${esc(stats.lastModel)} in ${stats.lastMs} ms` : ""}${stats.failures ? ` · ${stats.failures} failed` : ""}${stats.shrunk ? ` · ${stats.shrunk} sent inside a smaller ceiling` : ""}</p>
+        ${stats.ceiling ? `<p class="body mono">${esc(config.label)} told this page it will reserve at most ${stats.ceiling} output tokens on this key. Calls are sent inside that ceiling; reconnecting or adding credits clears it.</p>` : ""}
         <div class="btn-row"><button class="btn" id="ll-reset-stats" type="button">Reset activity</button></div>
 
         <div class="footer-note">

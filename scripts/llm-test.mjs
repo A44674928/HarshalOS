@@ -124,6 +124,20 @@ const sources = [
   const otherSource = G0LLM.verifyQuote("A filed appeal automatically stays the decision", sources[1]);
   ok(!otherSource.ok, "a real quote from a different document is rejected for the cited source");
   ok(G0LLM.numbersInText(sources[1], "3", "12") === false, "relief figures must actually appear in the source");
+
+  /* An "unknown" is a statement about the record, not a finding. It carries no
+     quote, so it must be sorted apart: in the candidate list it would either
+     break the record build or be read as a NO. */
+  const sorted = G0LLM.parseFindings({ findings: [
+    { code: "B1", value: "unknown", reason: "Nothing in these sources bears on coercion." },
+    { code: "B4", value: "yes", source_index: 0, quote: "A filed appeal automatically stays the decision until the appeal board issues a final written determination.", confidence: "high" }
+  ] }, sources, cutoff);
+  eq(sorted.unknown.length, 1, "an unknown reply is sorted apart from the findings");
+  eq(sorted.unknown[0].code, "B1", "and it still names the question it was about");
+  ok(/Nothing in these sources/.test(sorted.unknown[0].reason), "carrying the reason the model gave");
+  ok(sorted.unknown.every(row => row.quote === undefined), "an unknown has no quote to be mistaken for evidence");
+  eq(sorted.verified.length, 1, "only the quoted reading is verified");
+  eq(sorted.verified[0].code, "B4", "the verified reading is the one whose quote matched the stored text");
 }
 
 /* ── the reading pass ─────────────────────────────────────────── */
@@ -174,7 +188,7 @@ function stubModel(handler) {
   const reading = await G0LLM.readSources({ input, sources: input.automation.sources.map(s => ({ ...s })), version: "1.1", cutoff, entity: org, website: "https://example.org/", onProgress: p => progress.push(p), followLinks: false });
   stop();
 
-  ok(reading.passes >= 2, `the reading uses one call per source batch plus weighing (${reading.passes} calls)`);
+  ok(reading.passes >= 2, `the reading is staged over several calls: one per question per batch, plus weighing (${reading.passes} calls)`);
   ok(progress.length >= 3 && progress[progress.length - 1].completed === 5, "progress is reported through the run");
   eq(reading.candidates.length, 2, "only the two verifiable, dated readings become candidates");
   ok(reading.rejected.some(row => row.code === "B2" && /does not appear/.test(row.reason)), "the fabricated quote is discarded with a reason");
@@ -240,6 +254,219 @@ function stubModel(handler) {
   ok(reading.followUps.length === 1 && reading.followUps[0].requestedBy === "linked model", "the followed page is attributed to the model");
   ok(reading.sources.length === 2, "the followed page is added to the record's sources");
   ok(asked.some(prompt => /did not resolve/.test(prompt)) && readingCalls.some(call => /\nLINKS\n/.test(call.prompt)), "the link request names the missing questions before listing the links");
+}
+
+/* ── staging: one question per call, inside a ceiling a small balance can pay ──
+   The failure this answers is a real one. A provider that prices a call by the
+   ceiling it *reserves* refuses the whole audit when the balance cannot cover
+   that number: "you requested up to 6000 tokens, but can only afford 2664".
+   Every stub below refuses exactly that way, so what is under test is that the
+   staged reading never asks for more than the balance can pay. */
+const AFFORDABLE = 2664;
+const pricedCalls = [];
+const askedCodes = prompt => (String(prompt).match(/QUESTION(?:S)? TO ANSWER IN THIS CALL: ([A-Z0-9, ]+)/) || [, ""])[1].split(",").map(part => part.trim()).filter(Boolean);
+function promptSources(prompt) {
+  const body = String(prompt).split("\nSOURCES\n")[1] || "";
+  return body.split(/\n(?=SOURCE \d+ — )/).map(block => {
+    const head = block.match(/^SOURCE (\d+) — (.*)$/m);
+    const text = (block.split("<<<\n")[1] || "").split("\n>>>")[0];
+    return head ? { index: Number(head[1]), lead: /LEAD ONLY/.test(head[2]), text } : null;
+  }).filter(Boolean);
+}
+function stubPricedProvider({ afford = AFFORDABLE, handler, failCodes = [] } = {}) {
+  const original = globalThis.fetch;
+  pricedCalls.length = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const body = init.body ? JSON.parse(init.body) : null;
+    const prompt = userText(body);
+    const asked = body ? Number(body.max_tokens ?? body.max_completion_tokens ?? 0) : 0;
+    pricedCalls.push({ url: String(url), body, prompt, asked });
+    const reply = (data, status = 200) => ({ ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data, text: async () => JSON.stringify(data) });
+    if (asked > afford) return reply({ error: { message: `This request requires more credits, or fewer max_tokens. You requested up to ${asked} tokens, but can only afford ${afford}. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account`, code: 402, metadata: { limit_source: "openrouter_credits" } } }, 402);
+    if (failCodes.some(code => askedCodes(prompt).includes(code))) return reply({ error: { message: "upstream provider error" } }, 500);
+    const payload = handler(body, pricedCalls.length, prompt);
+    /* OpenRouter is an OpenAI-compatible endpoint, so it answers in that
+       shape — the refusal above is the one it really sends. */
+    const text = typeof payload === "string" ? payload : JSON.stringify(payload);
+    return reply({ model: "stub-model", choices: [{ message: { role: "assistant", content: text } }], usage: { prompt_tokens: 100, completion_tokens: 50 } });
+  };
+  return () => { globalThis.fetch = original; };
+}
+
+/* A well-behaved staged model: it answers only the question it was asked, and
+   only with a quote that really is in the source text it was shown. */
+const STAY = "A filed appeal automatically stays the decision until the appeal board issues a final written determination.";
+const SANCTION = "Participants who fail to comply with this policy may have their access suspended and their account terminated.";
+const FUNDING = "Acme Corp may withhold funding from a participant that does not follow a decision of the board.";
+function stagedReply(prompt) {
+  if (/\nCANDIDATES\n/.test(prompt)) {
+    const code = (prompt.match(/QUESTION BEING WEIGHED: (\w+)/) || [, "B1"])[1];
+    const ids = [...prompt.matchAll(/"id": "(C\d+)"/g)].map(match => match[1]);
+    return { code, candidate: ids[ids.length - 1] || "none", reason: "The later reading quotes the entity's own governing text.", gap: "" };
+  }
+  if (/\nLINKS\n/.test(prompt)) return { followups: [] };
+  const codes = askedCodes(prompt);
+  const present = promptSources(prompt);
+  const quoteFrom = needle => { const source = present.find(item => !item.lead && item.text.includes(needle)); return source ? { index: source.index, quote: needle } : null; };
+  const stay = quoteFrom(STAY);
+  return {
+    findings: codes.map(code => {
+      const hit = code === "B4" ? stay : code === "B1" ? (quoteFrom(SANCTION) || quoteFrom(FUNDING)) : null;
+      return hit
+        ? { code, value: "yes", source_index: hit.index, quote: hit.quote, date: "", confidence: "high", reason: code === "B4" ? "An operative stay rule." : "A sanction for non-compliance." }
+        : { code, value: "unknown", reason: "No supplied source bears on this question." };
+    }),
+    ...(codes.includes("B4") && stay ? { b4: { basis: "TERMINAL_RULE", actor: "Any affected party", action: "The decision", procedure: STAY, numerator: "", denominator: "", complete: false } } : {}),
+    gap: ""
+  };
+}
+const stagedSources = [
+  { id: "SITE-1", title: "Acme Corp — appeal procedure", url: "https://example.org/appeals", published: "2026-02-01", retrieved: "2026-09-01T00:00:00Z", excerpt: policy.slice(0, 200), text: `${policy}\n${SANCTION}`, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" },
+  { id: "SITE-2", title: "Acme Corp — terms of use", url: "https://example.org/terms", published: "2026-01-05", retrieved: "2026-09-01T00:00:00Z", excerpt: terms.slice(0, 200), text: terms, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" },
+  { id: "SITE-3", title: "Acme Corp — undated guidance", url: "https://example.org/guidance", published: null, retrieved: "2026-09-01T00:00:00Z", excerpt: policy.slice(0, 200), text: policy, codes: [], kind: "context", dateBasis: "unknown" },
+  { id: "SITE-4", title: "Acme Corp — funding conditions", url: "https://example.org/funding", published: "2026-03-11", retrieved: "2026-09-01T00:00:00Z", excerpt: FUNDING.slice(0, 200), text: `Funding conditions.\n${FUNDING}\nWithholding takes effect on the date of the notice.`, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" }
+];
+const stagedInput = () => {
+  const input = G0.newInput("1.1");
+  input.name = org; input.identifier = "Q123"; input.cutoff = cutoff;
+  input.automation = { method: "public-lookup", provider: "test", reviewRequired: true, requestedName: org, generatedAt: new Date().toISOString(), sources: stagedSources.map(source => ({ ...source })), coverage: [], warnings: [] };
+  return input;
+};
+const linkPriced = () => {
+  LLM.setKey("sk-or-test-key-00000000", false);
+  LLM.saveSettings({ provider: "openrouter", endpoint: "https://openrouter.ai/api/v1/chat/completions", model: "anthropic/claude-sonnet-4.5" });
+  LLM.clearCeiling();
+};
+
+/* ── the staged reading never reserves a ceiling the balance cannot cover ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const progress = [];
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, website: "https://example.org/", followLinks: false, onProgress: step => progress.push(step) });
+  stop();
+
+  const asked = pricedCalls.filter(call => /TO ANSWER IN THIS CALL/.test(call.prompt));
+  eq(asked.length, 18, "nine questions are asked of each of the two source batches, one call at a time");
+  ok(asked.every(call => askedCodes(call.prompt).length === 1), "every reading call asks exactly one question");
+  eq([...new Set(asked.flatMap(call => askedCodes(call.prompt)))].sort().join(","), G0LLM.allCodes().slice().sort().join(","), "between them the staged calls ask all nine questions");
+  ok(pricedCalls.every(call => call.asked <= G0LLM.LIMITS.maxTokensRead), `no call reserved more than the staged ceiling (${Math.max(...pricedCalls.map(call => call.asked))} tokens at most)`);
+  eq(asked[0].asked, G0LLM.LIMITS.maxTokensRead, "a one-question call reserves exactly the one-question ceiling");
+  eq(reading.block.staging.ceilingPerCall, G0LLM.LIMITS.maxTokensRead, "the record states the ceiling it was read under");
+  ok(pricedCalls.every(call => call.asked <= AFFORDABLE), "so the provider never had to refuse a ceiling it could not afford");
+  ok(!pricedCalls.some(call => call.asked === 6000), "the old single 6000-token reservation is gone");
+  eq(reading.passes, 19, "one call per question per batch, plus one weighing call for the contested question");
+
+  const weigh = pricedCalls.find(call => /\nCANDIDATES\n/.test(call.prompt));
+  ok(weigh && /QUESTION BEING WEIGHED: B1/.test(weigh.prompt), "weighing is staged too: one call, naming the one contested question");
+  ok(weigh.asked <= G0LLM.LIMITS.maxTokensWeigh, "the weighing call reserves a ceiling for one decision, not for the whole audit");
+  eq((weigh.prompt.match(/"id": "C\d+"/g) || []).length, 2, "only that question's candidates are sent to be weighed");
+
+  eq(reading.candidates.length, 3, "B1 from two sources and B4 from one are the verified candidates");
+  eq(reading.answers[3].value, true, "B4 is answered from the operative stay rule");
+  eq(reading.answers[0].source, "https://example.org/funding", "the staged weighing call chose between the two B1 readings");
+  eq(reading.answers[1].value, null, "a question no supplied source bears on stays UNKNOWN");
+  eq(reading.block.staging.codesPerCall, 1, "the record states that it was read one question per call");
+  eq(reading.block.staging.questionsAsked, 9, "the record states how many questions were asked");
+  eq(reading.block.staging.weighed, 1, "the record states how many questions needed weighing");
+  eq(reading.block.staging.callsFailed, 0, "no call failed");
+  ok(/one per call/.test(progress[0].message), "the first progress line says how the reading is staged");
+  ok(progress.some(step => /Reading B4 — pass 1 of 2, question 4 of 9/.test(step.message)), "progress names the question being read");
+  ok(progress[progress.length - 1].completed === 5, "progress still ends at the last of five steps");
+  ok(new Set(progress.filter(step => step.step === 2).map(step => step.completed)).size > 2, "the progress bar moves while the staged reading runs");
+}
+
+/* ── questions can be grouped when the balance allows a larger ceiling ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, codesPerCall: 3, onProgress: () => {} });
+  stop();
+  const asked = pricedCalls.filter(call => /TO ANSWER IN THIS CALL/.test(call.prompt));
+  eq(asked.length, 6, "three questions per call is a third of the calls over two batches");
+  ok(asked.every(call => askedCodes(call.prompt).length === 3), "each grouped call names the three questions it is asking");
+  eq(reading.block.staging.codesPerCall, 3, "the record states the grouping it was read with");
+  eq(asked[0].asked, G0LLM.LIMITS.maxTokensRead + 2 * G0LLM.LIMITS.maxTokensPerCode, "a grouped call reserves room for every question it asks, so a reply cannot be cut off half-way");
+  ok(asked[0].asked <= AFFORDABLE, "and even grouped three to a call it stays inside the balance the provider stated");
+  eq(reading.answers[3].value, true, "grouping does not change what was verified");
+}
+
+/* ── the transport: a priced ceiling is learned, and the call retried inside it ── */
+{
+  linkPriced();
+  const stop = stubPricedProvider({ handler: () => ({ findings: [] }) });
+  const first = await LLM.chat({ user: "Say something short.", maxTokens: 6000 });
+  eq(pricedCalls.length, 2, "one refusal, then one retry inside the ceiling the provider stated");
+  eq(pricedCalls[0].asked, 6000, "the first attempt carries the ceiling the caller asked for");
+  eq(pricedCalls[1].asked, AFFORDABLE, "the retry asks for exactly what the provider said it could afford");
+  ok(first.shrunk === true && first.reserved === AFFORDABLE, "the result reports the ceiling that was actually reserved");
+  eq(LLM.tokenCeiling().maxTokens, AFFORDABLE, "the stated ceiling is remembered for the rest of the session");
+  await LLM.chat({ user: "Say something else.", maxTokens: 6000 });
+  eq(pricedCalls.length, 3, "a later call does not have to earn the same refusal again");
+  eq(pricedCalls[2].asked, AFFORDABLE, "the later call starts inside the learned ceiling");
+  ok(LLM.stats().shrunk >= 2, "the session counts how often a ceiling had to come down");
+  stop();
+}
+
+/* ── a ceiling below the floor is reported, never sent ── */
+{
+  linkPriced();
+  const stop = stubPricedProvider({ afford: 40, handler: () => ({ findings: [] }) });
+  let error = null;
+  try { await LLM.chat({ user: "Say something.", maxTokens: 6000, floorTokens: 120 }); } catch (e) { error = e; }
+  stop();
+  const described = LLM.describe(error);
+  eq(error.kind, "budget", "a ceiling the balance cannot cover is named as a budget problem, not a mystery failure");
+  ok(/UNAFFORDABLE/.test(described.title), "the interface says the ceiling is unaffordable");
+  eq(error.affordable, 40, "the number the provider stated travels on the error");
+  ok(/120/.test(described.detail), "the least ceiling that can produce an answer is named");
+  ok(/credits/i.test(described.hint), "the hint says what to do about it");
+  eq(pricedCalls.length, 1, "no retry is sent below the floor: a truncated answer is worse than an honest failure");
+  LLM.clearCeiling();
+}
+
+/* ── a balance smaller than one staged call is still enough to finish ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ afford: 300, handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  stop();
+  ok(pricedCalls.some(call => call.asked === 300), "the reading was re-sent inside the smaller ceiling");
+  eq(pricedCalls.filter(call => call.asked > 300).length, 1, "only the first call earned the refusal; every later call started inside it");
+  ok(reading.notes.some(note => /ceiling/i.test(note)), "the record discloses that the ceiling came down");
+  eq(reading.answers[3].value, true, "the staged reading still reached its answers inside the smaller ceiling");
+}
+
+/* ── one failed call costs one question, not the audit ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt), failCodes: ["B3"] });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  stop();
+  eq(reading.block.staging.callsFailed, 2, "the failed question was attempted once in each of the two batches");
+  eq(reading.answers[2].value, null, "B3 stays UNKNOWN where its call failed");
+  ok(/did not complete|failed/i.test(reading.answers[2].gap), "the gap says the call failed instead of pretending the record was silent");
+  ok(!/not a proven negative/.test(reading.answers[2].gap), "a failed call is not reported as a silent record");
+  ok(reading.notes.some(note => /B3/.test(note) && /failed/i.test(note)), "the notes name the question whose call failed");
+  eq(reading.answers[3].value, true, "every other question was still read");
+  eq(reading.block.staging.failedCodes.join(","), "B3", "the record carries which questions failed");
+}
+
+/* ── when no call at all completes, the reading fails loudly ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt), failCodes: G0LLM.allCodes() });
+  let error = null;
+  try { await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} }); } catch (e) { error = e; }
+  stop();
+  ok(error, "a reading in which every staged call failed throws instead of returning an empty audit");
+  ok(pricedCalls.length >= 9, "it did not stop after the first failure without saying why");
+  LLM.clearCeiling();
 }
 
 /* ── nothing is sent without a link ───────────────────────────── */

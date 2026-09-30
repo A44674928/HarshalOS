@@ -472,6 +472,7 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
   const policy = "Participation in this program is voluntary and advisory. No penalty attaches to non-participation and no obligation is imposed on participants.";
   const realFetch = globalThis.fetch;
   let readingPrompts = [];
+  let readingCeilings = [];
   globalThis.fetch = async (value, init = {}) => {
     const url = new URL(value, "https://harness.test");
     if (url.origin === "https://harness.test") throw new Error("No hosted research service is configured for this harness.");
@@ -479,6 +480,7 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
       const body = JSON.parse(init.body);
       const prompt = body.messages.map(message => message.content).join("\n");
       readingPrompts.push(prompt);
+      readingCeilings.push(Number(body.max_tokens ?? body.max_completion_tokens ?? 0));
       if (/\nLINKS\n/.test(prompt)) return anthropic({ followups: [] });
       const blocks = prompt.split(/SOURCE /).slice(1);
       const holder = blocks.find(block => block.includes("voluntary and advisory")) || "";
@@ -525,6 +527,16 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     ok(main3.innerHTML.includes("quote verified"), "the verified quote is presented as verified");
     ok(main3.innerHTML.includes("A model reading, not a finding"), "the panel refuses to present the reading as a finding");
     ok(readingPrompts.length >= 1 && readingPrompts[0].includes("voluntary and advisory"), "the model was given the retrieved policy text, not a summary");
+    /* The audit is staged: the model is recalled once per question, and no
+       call reserves a ceiling a small balance could be refused for. */
+    const askedPerCall = prompt => (prompt.match(/QUESTION(?:S)? TO ANSWER IN THIS CALL: ([A-Z0-9, ]+)/) || [, ""])[1].split(",").map(code => code.trim()).filter(Boolean);
+    const stagedCalls = readingPrompts.filter(prompt => askedPerCall(prompt).length);
+    ok(stagedCalls.length >= 9, `the reading asked the nine questions in their own calls (${stagedCalls.length} staged calls)`);
+    ok(stagedCalls.every(prompt => askedPerCall(prompt).length === 1), "every staged call asked exactly one question");
+    ok([...new Set(stagedCalls.flatMap(askedPerCall))].sort().join(",") === "B1,B2,B3,B4,B5,C1,C2,C3,C4", "between them the calls asked all nine questions");
+    ok(readingCeilings.length && Math.max(...readingCeilings) <= 700, `no call reserved more than a staged ceiling (largest was ${Math.max(...readingCeilings)})`);
+    ok(main3.innerHTML.includes("9 questions asked one per call"), "the panel says how the reading was staged");
+    ok(main3.innerHTML.includes("reserved ≤700 output tokens"), "and what each call reserved, so a refusal can be understood");
 
     const b2 = main3.querySelector('[data-act="includeReading"][data-code="B2"]');
     ok(!!b2, "the B2 reading offers an include checkbox");
