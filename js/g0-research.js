@@ -341,15 +341,15 @@ window.G0Research = (() => {
     let live = null; let liveError;
     try { live = await readPublicPage(url, website, signal); } catch (error) { signal.throwIfAborted(); liveError = error; }
     const historical = cutoff < G0.today();
-    if (live && live.published && G0.beforeCutoff(live.published, cutoff) && !historical) return { ...live, archiveStatus: "not-needed", scoringEligible: true, dateBasis: "publication", liveContent: live.content };
+    if (live && live.published && G0.eligibleByCutoff(live.published, cutoff) && !historical) return { ...live, archiveStatus: "not-needed", scoringEligible: true, dateBasis: "publication", liveContent: live.content };
     const lookup = await lookupArchivedSnapshot(url, cutoff, signal);
     if (lookup.snapshot) {
       try {
         const archived = await readPublicPage(lookup.snapshot.url, website, signal);
-        return { ...archived, url: lookup.snapshot.url, title: (live && live.title) || archived.title, archived: lookup.snapshot.captured, liveUrl: url, liveContent: live ? live.content : undefined, archiveStatus: "found", scoringEligible: !archived.published || G0.beforeCutoff(archived.published, cutoff), dateBasis: archived.published ? "publication" : "archive-capture" };
+        return { ...archived, url: lookup.snapshot.url, title: (live && live.title) || archived.title, archived: lookup.snapshot.captured, liveUrl: url, liveContent: live ? live.content : undefined, archiveStatus: "found", scoringEligible: !archived.published || G0.eligibleByCutoff(archived.published, cutoff), dateBasis: archived.published ? "publication" : "archive-capture" };
       } catch (error) { signal.throwIfAborted(); liveError = error; }
     }
-    if (live) return { ...live, archiveStatus: lookup.status === "unavailable" ? "unavailable" : "no-match", scoringEligible: !historical && !!live.published && G0.beforeCutoff(live.published, cutoff), dateBasis: live.published ? "publication" : "unknown" };
+    if (live) return { ...live, archiveStatus: lookup.status === "unavailable" ? "unavailable" : "no-match", scoringEligible: !historical && !!live.published && G0.eligibleByCutoff(live.published, cutoff), dateBasis: live.published ? "publication" : "unknown" };
     signal.throwIfAborted();
     throw liveError instanceof Error ? liveError : new Error("This page could not be read.");
   }
@@ -414,7 +414,7 @@ window.G0Research = (() => {
         if (!match) continue;
         const source = sources.find(s => s.url === doc.url);
         const evidenceDate = doc.published || doc.archived;
-        if (!source || !evidenceDate || !G0.beforeCutoff(evidenceDate, cutoff)) continue;
+        if (!source || !evidenceDate || !G0.eligibleByCutoff(evidenceDate, cutoff)) continue;
         source.codes = Array.from(new Set([...source.codes, code])); source.excerpt = match.quote;
         if (code === "B4" && match.rule.basis) input.b4 = { ...input.b4, actor: "Affected party named by the cited appeal rule — review required", action: "The action specified in the cited operative rule — review required", procedure: match.quote, basis: match.rule.basis };
         return { value: match.rule.value, source: doc.url, date: evidenceDate, notes: match.quote, gap: match.rule.value ? "" : "Contrary artifact located; inspect scope before accepting this suggested NO." };
@@ -426,7 +426,7 @@ window.G0Research = (() => {
     input.constraints = constraintRules.map((rules, i) => answer(`C${i + 1}`, rules));
 
     // Score only operative SOURCE wording about this entity's action.
-    const authorityRecords = registryRecords.filter(r => ["court", "regulatory"].includes(r.kind) && r.named && r.published && G0.beforeCutoff(r.published, cutoff));
+    const authorityRecords = registryRecords.filter(r => ["court", "regulatory"].includes(r.kind) && r.named && r.published && G0.eligibleByCutoff(r.published, cutoff));
     const overrides = authorityRecords.flatMap(record => { const quote = externalOverrideQuote(record, organization.name); return quote ? [{ record, quote }] : []; });
     const c1 = overrides.find(({ record }) => monthsBefore(record.published, cutoff, 24));
     const c4 = overrides.find(({ record }) => monthsBefore(record.published, cutoff, 12));
@@ -452,7 +452,7 @@ window.G0Research = (() => {
     const source = value && typeof value.source === "string" ? sources.find(s => G0.canonicalUrl(s.url) === G0.canonicalUrl(value.source)) : undefined;
     const notes = value && typeof value.notes === "string" ? value.notes.slice(0, 1200) : "";
     const date = value && typeof value.date === "string" ? value.date.slice(0, 10) : "";
-    const valid = !!source && source.kind !== "news" && source.dateBasis !== "indexed" && G0.safePublicUrl(source.url) && G0.beforeCutoff(date, cutoff) && date === (source.published || source.capturedAt) && notes.trim().length >= 10;
+    const valid = !!source && source.kind !== "news" && source.dateBasis !== "indexed" && G0.safePublicUrl(source.url) && G0.eligibleByCutoff(date, cutoff) && date === (source.published || source.capturedAt) && notes.trim().length >= 10;
     if (!valid) return { value: code.startsWith("B") ? null : false, source: "", date: "", notes: "", gap: `${code}: The hosted research did not return a qualifying, dated, consulted source. Recorded as not demonstrated, not as a proven negative.` };
     source.codes = Array.from(new Set([...(source.codes || []), code]));
     return { value: value.value === true, source: source.url, date, notes, gap: typeof value.gap === "string" ? value.gap.slice(0, 1200) : "" };
@@ -559,7 +559,7 @@ window.G0Research = (() => {
       record.evidence.push({ id: `${record.id}-${source.id}`, title: source.title, url: source.url, published: source.published || "", retrieved: source.retrieved.slice(0, 10), claim: source.excerpt || "Source retrieved for context only; no qualifying operational claim extracted.", codes: [source.kind === "news" ? "NEWS LEAD — NEVER SCORED" : "RESEARCH CONTEXT — UNSCORED"], entity: record.name });
     }
     record.report.Evidence_Summary = record.evidence;
-    record.report.Research_Sources = metadata.sources.map(source => ({ ...source, Cutoff_Status: source.published ? (G0.beforeCutoff(source.published, record.cutoff) ? "DATED BEFORE CUTOFF — CLAIM REVIEW REQUIRED" : "AFTER CUTOFF — NOT SCORED") : "DATE NOT DEMONSTRATED — NOT SCORED" }));
+    record.report.Research_Sources = metadata.sources.map(source => ({ ...source, Cutoff_Status: source.published ? (G0.eligibleByCutoff(source.published, record.cutoff) ? "DATED BEFORE CUTOFF — CLAIM REVIEW REQUIRED" : "AFTER CUTOFF — NOT SCORED") : "DATE NOT DEMONSTRATED — NOT SCORED" }));
     record.report.Automation = JSON.parse(JSON.stringify(metadata));
     record.report.Research_Limits = metadata.warnings || [];
     if (coverage) record.report.Registry_Coverage = coverage;
