@@ -65,7 +65,7 @@ const G0_SPEC = (() => {
 APPS.push({
   id: "ground0",
   title: "Ground-0 Audit",
-  short: "Ground-0",
+  short: "Ground-0 Audit",
   glyph: "⚖",
   desc: "Phase detection algorithm — manual + automatic audits, evidence, temporal ledger, specification",
   w: 1120, h: 720,
