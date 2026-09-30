@@ -204,7 +204,7 @@ window.HOSLLM = (() => {
      Network
      ────────────────────────────────────────────────────────────── */
   class LlmError extends Error {
-    constructor(message, { status = 0, kind = "error", hint = "", affordable = 0, requested = 0 } = {}) {
+    constructor(message, { status = 0, kind = "error", hint = "", affordable = 0, requested = 0, retryAfterMs = 0 } = {}) {
       super(message);
       this.name = "LlmError";
       this.status = status;
@@ -213,6 +213,7 @@ window.HOSLLM = (() => {
       /* Only set on a "budget" refusal: the ceiling the provider stated. */
       this.affordable = affordable;
       this.requested = requested;
+      this.retryAfterMs = retryAfterMs;
     }
   }
   function describe(error) {
@@ -295,10 +296,44 @@ window.HOSLLM = (() => {
   const AFFORDABLE = /(?:can )?only afford(?: up to)?\s*(\d[\d,]*)/i;
   const REQUESTED = /requested up to\s*(\d[\d,]*)/i;
   const IN_FLIGHT_RETRY_DELAYS = [750, 1500, 3000];
+  const MAX_AUTO_RETRY_AFTER_MS = 120000; // Longer provider waits are shown, not kept behind a busy progress bar.
   const numberWith = (text, pattern) => { const match = String(text || "").match(pattern); return match ? Number(String(match[1]).replace(/,/g, "")) : 0; };
   /* OpenRouter can refuse a reservation while other requests still hold part
      of the balance. That is temporary pressure, not a smaller token ceiling. */
-  const isInFlightBudget = (detail, status) => status === 402 && /in[_ -]flight[_ -]budget|current\s+in[-_ ]flight\s+requests|in[-_ ]flight\s+requests/i.test(String(detail || ""));
+  const isInFlightBudget = (detail, status) => {
+    if (status !== 402) return false;
+    const text = String(detail || "");
+    if (/in[_ -]flight[_ -]budget|current\s+in[-_ ]flight\s+requests|in[-_ ]flight\s+requests/i.test(text)) return true;
+    try {
+      const metadata = JSON.parse(text)?.error?.metadata || {};
+      return metadata.reason === "in_flight_budget_exhausted" || metadata.limit_source === "openrouter_in_flight_budget";
+    } catch { return false; }
+  };
+  const retryAfterValueMs = value => {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const text = String(value).trim();
+    const seconds = Number(text);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1000);
+    const at = Date.parse(text);
+    return Number.isFinite(at) ? Math.max(0, at - Date.now()) : null;
+  };
+  const retryAfterMs = (response, detail = "") => {
+    try {
+      const header = response && response.headers && response.headers.get && response.headers.get("Retry-After");
+      const fromHeader = retryAfterValueMs(header);
+      if (fromHeader !== null) return fromHeader;
+    } catch { /* The provider may not expose response headers to this page. */ }
+    try {
+      const metadata = JSON.parse(String(detail || ""))?.error?.metadata || {};
+      const fromBody = retryAfterValueMs(metadata.retry_after ?? metadata.retryAfter ?? metadata.headers?.["Retry-After"] ?? metadata.headers?.["retry-after"]);
+      if (fromBody !== null) return fromBody;
+    } catch { /* The response body may not carry a retry hint. */ }
+    return null;
+  };
+  const waitLabel = milliseconds => {
+    const seconds = Math.max(1, Math.ceil(milliseconds / 1000));
+    return seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) === 1 ? "" : "s"}` : `${seconds} second${seconds === 1 ? "" : "s"}`;
+  };
 
   let ceiling = null;
   const tokenCeiling = () => (ceiling ? { ...ceiling } : null);
@@ -331,10 +366,18 @@ window.HOSLLM = (() => {
         : "Check the provider's billing response. If it names in-flight requests, wait for them to settle and run the reading again; otherwise add credits or use a key with available balance."
     }
   );
-  const inFlightError = provider => new LlmError(
-    `${provider.label} could not reserve this call while other requests were still in flight.`,
-    { status: 402, kind: "busy", hint: "The provider asked to retry after in-flight requests settle. Wait a moment, then run the reading again; this failed call is not evidence and its question stays UNKNOWN." }
-  );
+  const inFlightError = (provider, delayMs = 0) => {
+    const wait = delayMs > 0 ? waitLabel(delayMs) : "a little while";
+    return new LlmError(
+      `${provider.label} could not reserve this call while other requests were still in flight.${delayMs > 0 ? ` Its Retry-After asks us to wait ${wait} before another attempt.` : ""}`,
+      {
+        status: 402, kind: "busy", retryAfterMs: delayMs,
+        hint: delayMs > 0
+          ? `OpenRouter's Retry-After says to wait about ${wait} before running the reading again. This failed call is not evidence; the question stays UNKNOWN.`
+          : "The provider asked to retry after in-flight requests settle. Wait for them to finish, then run the reading again; this failed call is not evidence and its question stays UNKNOWN."
+      }
+    );
+  };
   /* A caller's ceiling, pulled inside what the provider has told us it can
      afford. Never raised above what the caller asked for. */
   const affordableTokens = (maxTokens, floor) => (ceiling ? Math.min(maxTokens, Math.max(floor, ceiling.maxTokens)) : maxTokens);
@@ -370,10 +413,11 @@ window.HOSLLM = (() => {
      receives. Bounded, documented retries cover three provider responses:
        · a provider that renamed the ceiling parameter (max_completion_tokens)
        · a priced refusal that names a smaller ceiling it can afford
-       · a temporary 402 while other requests still hold in-flight credits
+       · a temporary 402 while other requests still hold in-flight credits,
+         honoring Retry-After and using bounded backoff when no delay is exposed
      `floorTokens` is the least ceiling worth sending at all: below it the
      answer arrives truncated, so the caller is told instead. */
-  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true }) {
+  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true, onRetry = null }) {
     if (typeof user !== "string" || !user.trim()) throw new LlmError("There is nothing to send.", { kind: "error" });
     const config = resolved();
     if (!config.endpoint) throw new LlmError("No endpoint is configured.", { kind: "error", hint: "Open the LLM Link app and choose a provider." });
@@ -383,7 +427,12 @@ window.HOSLLM = (() => {
     const controller = new AbortController();
     const onAbort = () => controller.abort(signal.reason);
     if (signal) { if (signal.aborted) throw signal.reason || new DOMException("Canceled.", "AbortError"); signal.addEventListener("abort", onAbort, { once: true }); }
-    const timer = setTimeout(() => controller.abort(new LlmError(`No complete response within ${Math.round(timeoutMs / 1000)} seconds.`, { kind: "timeout", hint: "Long documents take a while. Retry, use fewer sources per pass, or pick a faster model." })), timeoutMs);
+    const timeoutError = () => new LlmError(`No complete response within ${Math.round(timeoutMs / 1000)} seconds.`, { kind: "timeout", hint: "Long documents take a while. Retry, use fewer sources per pass, or pick a faster model." });
+    let timeoutTimer = setTimeout(() => controller.abort(timeoutError()), timeoutMs);
+    const armTimeout = () => {
+      clearTimeout(timeoutTimer);
+      timeoutTimer = setTimeout(() => controller.abort(timeoutError()), timeoutMs);
+    };
     const started = Date.now();
     try {
       /* Ask inside the ceiling the provider has already stated it can afford,
@@ -391,29 +440,33 @@ window.HOSLLM = (() => {
       const reserved = affordableTokens(maxTokens, floorTokens);
       if (reserved !== maxTokens) activity.shrunk++;
       const request = buildRequest(config, { system, user, maxTokens: reserved, temperature, model });
-      const readDetail = response => response.text().catch(() => "").then(text => String(text).slice(0, 400));
-      const waitForRetry = ms => new Promise((resolve, reject) => {
+      const readDetail = response => response.text().catch(() => "").then(text => String(text).slice(0, 2000));
+      const waitForRetry = (ms, pauseCallTimeout = false) => new Promise((resolve, reject) => {
         if (controller.signal.aborted) {
           const reason = controller.signal.reason;
           reject(reason instanceof Error ? reason : new DOMException("Canceled.", "AbortError"));
           return;
         }
+        if (pauseCallTimeout) clearTimeout(timeoutTimer);
         const abort = () => {
-          clearTimeout(timer);
+          clearTimeout(retryTimer);
           controller.signal.removeEventListener("abort", abort);
           const reason = controller.signal.reason;
           reject(reason instanceof Error ? reason : new DOMException("Canceled.", "AbortError"));
         };
         const finish = () => {
           controller.signal.removeEventListener("abort", abort);
+          if (pauseCallTimeout) armTimeout();
           resolve();
         };
-        const timer = setTimeout(finish, ms);
+        const retryTimer = setTimeout(finish, ms);
         controller.signal.addEventListener("abort", abort, { once: true });
       });
       const send = async body => {
         const headers = applyAuth(new Headers({ "Content-Type": "application/json", Accept: "application/json" }), config, key);
-        for (let retry = 0; ; retry++) {
+        let quickRetries = 0;
+        let serverDelayUsed = false;
+        for (;;) {
           let response;
           try {
             response = await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: "omit", referrerPolicy: "no-referrer" });
@@ -422,8 +475,20 @@ window.HOSLLM = (() => {
             throw corsError(config);
           }
           const detail = response.ok ? "" : await readDetail(response);
-          if (!isInFlightBudget(detail, response.status) || retry >= IN_FLIGHT_RETRY_DELAYS.length) return { response, detail };
-          await waitForRetry(IN_FLIGHT_RETRY_DELAYS[retry]);
+          if (!isInFlightBudget(detail, response.status)) return { response, detail, retryAfterMs: 0 };
+          const providerDelay = retryAfterMs(response, detail);
+          if (providerDelay !== null) {
+            if (serverDelayUsed || providerDelay > MAX_AUTO_RETRY_AFTER_MS) return { response, detail, retryAfterMs: providerDelay };
+            serverDelayUsed = true;
+            try { if (typeof onRetry === "function") onRetry({ delayMs: providerDelay, attempt: activity.inFlightRetries + 1, source: "Retry-After" }); } catch { /* Progress reporting must not break the request. */ }
+            await waitForRetry(providerDelay, true);
+            activity.inFlightRetries++;
+            continue;
+          }
+          if (quickRetries >= IN_FLIGHT_RETRY_DELAYS.length) return { response, detail, retryAfterMs: 0 };
+          const delay = IN_FLIGHT_RETRY_DELAYS[quickRetries++];
+          try { if (typeof onRetry === "function") onRetry({ delayMs: delay, attempt: activity.inFlightRetries + 1, source: "backoff" }); } catch { /* Progress reporting must not break the request. */ }
+          await waitForRetry(delay);
           activity.inFlightRetries++;
         }
       };
@@ -437,19 +502,19 @@ window.HOSLLM = (() => {
       };
       let sentBody = request.body;
       let sentCeiling = reserved;
-      let { response, detail } = await send(sentBody);
+      let { response, detail, retryAfterMs: retryDelayMs } = await send(sentBody);
       if (!response.ok) {
         /* Newer OpenAI-family models renamed the token cap. One targeted retry. */
         if (response.status === 400 && /max_completion_tokens|unsupported_parameter|max_tokens/i.test(detail)) {
           sentBody = { ...request.body, max_completion_tokens: sentCeiling };
           delete sentBody.max_tokens;
-          ({ response, detail } = await send(sentBody));
+          ({ response, detail, retryAfterMs: retryDelayMs } = await send(sentBody));
         }
       }
       /* This refusal is temporary pressure, not evidence that the token
-         ceiling is too large. `send` already waited and retried it; if it is
-         still here, tell the reader to wait rather than blaming the balance. */
-      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config);
+         ceiling is too large. `send` honored its delay or bounded fallback;
+         if it is still here, tell the reader to wait rather than blaming the balance. */
+      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config, retryDelayMs);
       /* The provider priced our ceiling and named a smaller one it can afford.
          Learn it, ask again inside it, and let every later call start there. */
       if (!response.ok) {
@@ -459,7 +524,7 @@ window.HOSLLM = (() => {
           sentCeiling = budget.affordable;
           sentBody = withCeiling(sentBody, sentCeiling);
           activity.shrunk++;
-          ({ response, detail } = await send(sentBody));
+          ({ response, detail, retryAfterMs: retryDelayMs } = await send(sentBody));
         } else if (budget && (budget.stated || response.status === 402)) {
           /* Either it named no usable number, or the number it named is below
              the floor: say so plainly rather than sending a call that cannot
@@ -467,7 +532,7 @@ window.HOSLLM = (() => {
           throw budgetError(config, budget, floorTokens, detail);
         }
       }
-      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config);
+      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config, retryDelayMs);
       if (!response.ok) throw classifyHttp(config, response.status, detail);
       let data;
       try { data = await response.json(); } catch { throw new LlmError("The provider returned a response that was not valid JSON.", { kind: "provider" }); }
@@ -482,7 +547,7 @@ window.HOSLLM = (() => {
       if (!(error && error.name === "AbortError")) activity.failures++;
       throw error;
     } finally {
-      clearTimeout(timer);
+      clearTimeout(timeoutTimer);
       if (signal) signal.removeEventListener("abort", onAbort);
     }
   }

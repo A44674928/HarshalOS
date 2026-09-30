@@ -399,9 +399,14 @@ window.G0LLM = (() => {
        long staged read shows progress instead of sitting still. Rounded, or
        the interface prints 1.8900000000000001 of 5. */
     const stepAt = () => Math.round((1 + Math.min(1, unitsDone / Math.max(1, unitsTotal))) * 100) / 100;
+    const retryNotice = (step, subject) => ({ delayMs }) => {
+      const seconds = Math.max(1, Math.ceil(delayMs / 1000));
+      const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) === 1 ? "" : "s"}` : `${seconds} second${seconds === 1 ? "" : "s"}`;
+      progress(step, `${status.label || "The provider"} asked us to wait ${wait} before retrying ${subject}…`, step === 2 ? stepAt() : step);
+    };
 
-    const ask = async (user, maxTokens, temperature = 0) => {
-      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model, floorTokens: LIMITS.floorTokens });
+    const ask = async (user, maxTokens, temperature = 0, onRetry = null) => {
+      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model, floorTokens: LIMITS.floorTokens, onRetry });
       passes++;
       usage.input += result.usage.input; usage.output += result.usage.output;
       if (result.shrunk) noteOnce(notes, `The provider would only reserve a ${result.reserved}-token ceiling for a call, so this one was sent inside it instead of ${maxTokens}.`);
@@ -428,7 +433,7 @@ window.G0LLM = (() => {
         progress(2, `Reading ${askedCodes.join(", ")} — pass ${index + 1} of ${count}, question ${questionIndex + 1} of ${plan.length} (${batch.map(item => item.id).join(", ")})…`, stepAt());
         let data = null;
         try {
-          ({ data } = await ask(readInstruction({ input: target, batch, codes: askedCodes, batchIndex: index, batchCount: count, questionIndex, questionCount: plan.length, version }), readCeiling(askedCodes.length)));
+          ({ data } = await ask(readInstruction({ input: target, batch, codes: askedCodes, batchIndex: index, batchCount: count, questionIndex, questionCount: plan.length, version }), readCeiling(askedCodes.length), 0, retryNotice(2, askedCodes.join(", "))));
           callsOk++;
         } catch (error) {
           if (error && error.name === "AbortError") throw error;
@@ -499,7 +504,7 @@ window.G0LLM = (() => {
         progress(3, `Asking which linked page in this record should be read next (${missing.length} question${missing.length === 1 ? "" : "s"} unresolved)…`, 3);
         const wanted = new Map();
         try {
-          const { data } = await ask(linkInstruction({ links, entity: target.name, cutoff, missing }), LIMITS.maxTokensLinks);
+          const { data } = await ask(linkInstruction({ links, entity: target.name, cutoff, missing }), LIMITS.maxTokensLinks, 0, retryNotice(3, "the linked-page selection"));
           callsOk++;
           const rows = data && Array.isArray(data.followups) ? data.followups : [];
           for (const row of rows.slice(0, LIMITS.maxFollowUps)) {
@@ -570,7 +575,7 @@ window.G0LLM = (() => {
         const ofCode = candidates.filter(candidate => candidate.code === code);
         progress(4, `Weighing ${ofCode.length} verified candidates for ${code} — question ${index + 1} of ${contested.length}…`, 4);
         try {
-          const { data } = await ask(weighInstruction({ code, candidates: ofCode, version, entity: target.name, cutoff }), LIMITS.maxTokensWeigh);
+          const { data } = await ask(weighInstruction({ code, candidates: ofCode, version, entity: target.name, cutoff }), LIMITS.maxTokensWeigh, 0, retryNotice(4, `the weighing for ${code}`));
           callsOk++;
           if (!data) { noteOnce(notes, `The weighing call for ${code} returned output that was not JSON, so the highest-confidence verified reading was kept.`); continue; }
           /* One decision per call; a grouped reply is still read if it comes. */

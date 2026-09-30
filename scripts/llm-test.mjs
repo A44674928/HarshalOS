@@ -465,6 +465,45 @@ const linkPriced = () => {
   }
 }
 
+/* ── Retry-After is honored instead of being retried too early ── */
+{
+  linkPriced();
+  LLM.resetStats();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  let timeoutCalls = 0;
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delay === 120000 && ++timeoutCalls === 2) {
+      waits.push(delay);
+      return originalSetTimeout(callback, 0, ...args);
+    }
+    return originalSetTimeout(callback, delay, ...args);
+  };
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted", limit_source: "openrouter_in_flight_budget" } } };
+  try {
+    let attempts = 0;
+    globalThis.fetch = async () => {
+      attempts++;
+      const headers = { get: name => String(name).toLowerCase() === "retry-after" ? (attempts === 1 ? "120" : null) : "application/json" };
+      if (attempts === 1) return { ok: false, status: 402, headers, text: async () => JSON.stringify(refusal) };
+      return { ok: true, status: 200, headers, json: async () => ({ model: "stub-model", choices: [{ message: { role: "assistant", content: "Retried after the provider's window." } }], usage: { prompt_tokens: 10, completion_tokens: 8 } }) };
+    };
+    const notices = [];
+    const recovered = await LLM.chat({ user: "Read this one question.", maxTokens: 700, timeoutMs: 120000, onRetry: notice => notices.push(notice) });
+    eq(attempts, 2, "the call is retried once after the provider-supplied delay");
+    eq(waits.join(","), "120000", "Retry-After: 120 is honored as a 120-second wait");
+    eq(timeoutCalls, 3, "the normal request timeout is paused for Retry-After, then restarted for the retry");
+    eq(notices[0] && notices[0].delayMs, 120000, "the caller is notified of the server-requested wait");
+    eq(recovered.text, "Retried after the provider's window.", "the response after the Retry-After delay is returned");
+    eq(LLM.stats().inFlightRetries, 1, "the server-directed retry appears in session activity");
+    eq(LLM.tokenCeiling(), null, "Retry-After does not change the learned token ceiling");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
 /* ── an unresolved account-wide busy refusal stops the audit after its own retries ── */
 {
   linkPriced();
@@ -475,17 +514,19 @@ const linkPriced = () => {
     ? originalSetTimeout(callback, 0, ...args)
     : originalSetTimeout(callback, delay, ...args);
   const attempts = [];
+  const progress = [];
   const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted" } } };
   const reply = { ok: false, status: 402, headers: { get: () => "application/json" }, json: async () => refusal, text: async () => JSON.stringify(refusal) };
   try {
     globalThis.fetch = async (url, init = {}) => { attempts.push({ url: String(url), body: JSON.parse(init.body) }); return reply; };
     let error = null;
     try {
-      await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+      await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: step => progress.push(step) });
     } catch (caught) { error = caught; }
     eq(error && error.kind, "busy", "a still-busy provider stops the reading instead of looking like an empty record");
     eq(attempts.length, 4, "only the initial call and its three retries are sent");
     ok(attempts.every(call => askedCodes(userText(call.body)).join(",") === "B1"), "the reader does not fan the same account-wide refusal out across all nine questions");
+    ok(progress.some(step => /asked us to wait 1 second before retrying B1/.test(step.message)), "the reading progress says it is waiting before retrying the staged question");
   } finally {
     globalThis.fetch = originalFetch;
     globalThis.setTimeout = originalSetTimeout;
