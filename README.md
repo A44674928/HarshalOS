@@ -17,14 +17,25 @@ is refusal. Action is a temporary, highly constrained exception.
 
 ## Run it
 
-No build step, no dependencies. Serve the repository root with any static server:
+The browser-only shell needs no build step or dependencies. Use the allowlisted preview server (do not expose the whole checkout):
 
 ```bash
-python3 -m http.server 8000
+node serve.js
 # open http://localhost:8000
 ```
 
-Or simply open `index.html` in a browser.
+Or open `index.html` in a browser for a static-only preview.
+
+### Optional private MongoDB storage
+
+The **Cloud Storage** app adds explicit private cloud snapshots for Ground-0 audits/evidence
+and append-only PLV session archives through a Cloudflare Worker. Cloudflare Access restricts
+storage to the owner; database credentials stay in Worker secrets. Local-only operation remains
+available. This is not automatic sync, independent witnessing, or a replacement for backups.
+
+Follow **[MONGODB-SETUP.md](MONGODB-SETUP.md)** for Atlas, Access, secrets, deployment, limits,
+and verification. `npm ci && npm run dev` runs the Worker preview. Missing authentication
+configuration intentionally disables the API; no credentials should be pasted into chat or Git.
 
 ---
 

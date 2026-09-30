@@ -658,6 +658,10 @@ window.G0 = (() => {
   }
   function saveAuditRecords(list) {
     storageNote = "";
+    if (window.HOSCloudStorageGuard && !window.HOSCloudStorageGuard()) {
+      storageNote = "Another tab changed saved data. Export this workspace, then reload before saving.";
+      return false;
+    }
     try { localStorage.setItem(AUDITS_KEY, JSON.stringify(list)); return true; }
     catch {
       for (const limit of [4000, 0]) {
@@ -672,6 +676,7 @@ window.G0 = (() => {
     }
   }
   function saveEvidenceRecords(list) {
+    if (window.HOSCloudStorageGuard && !window.HOSCloudStorageGuard()) return false;
     try { localStorage.setItem(EVIDENCE_KEY, JSON.stringify(list)); return true; }
     catch { return false; }
   }
