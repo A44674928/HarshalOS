@@ -250,7 +250,7 @@ window.HOSLLM = (() => {
         cors: "THE BROWSER BLOCKED THE CALL", auth: "THE KEY WAS REJECTED", model: "THE MODEL WAS REJECTED",
         "model-list": "MODEL LIST UNAVAILABLE", sdk: "GOOGLE GENAI SDK UNAVAILABLE", rate: "RATE LIMITED",
         budget: "THE TOKEN CEILING IS UNAFFORDABLE", busy: "THE PROVIDER IS STILL SETTLING REQUESTS",
-        billing: "THE PROVIDER REFUSED THE CALL", timeout: "NO COMPLETE RESPONSE"
+        quota: "THE GOOGLE API QUOTA IS EXHAUSTED", billing: "THE PROVIDER REFUSED THE CALL", timeout: "NO COMPLETE RESPONSE"
       })[error.kind] || "THE MODEL CALL FAILED",
       detail: error.message, hint: error.hint
     };
@@ -330,14 +330,93 @@ window.HOSLLM = (() => {
     if (baseUrl) options.httpOptions = { baseUrl };
     return new module.GoogleGenAI(options);
   }
+  const GOOGLE_RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+  const GOOGLE_RETRY_BACKOFF_MS = [1000, 2000, 4000];
+  const GOOGLE_MAX_RETRIES = GOOGLE_RETRY_BACKOFF_MS.length;
+  const GOOGLE_RETRY_JITTER_MS = 500;
+
+  function parseGoogleDuration(value) {
+    const match = String(value ?? "").trim().match(/^(\d+(?:\.\d+)?)\s*(ms|s|m|h)?/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    const factor = ({ ms: 1, s: 1000, m: 60000, h: 3600000 })[(match[2] || "s").toLowerCase()];
+    return amount * factor;
+  }
+  function parseGoogleRetryAfterHeader(error) {
+    const headers = error && (error.headers || (error.response && error.response.headers));
+    let value = "";
+    try { value = headers && typeof headers.get === "function" ? headers.get("retry-after") : headers && (headers["retry-after"] || headers["Retry-After"]); } catch { /* Optional SDK response metadata. */ }
+    if (value == null || value === "") return null;
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+    const date = Date.parse(String(value));
+    return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
+  }
+  function googleErrorMetadata(error) {
+    const originalMessage = error instanceof Error ? error.message : String(error ?? "Google GenAI request failed");
+    const possiblePayloads = [error && error.body, error && error.response && (error.response.data || error.response.body), error && error.error];
+    let payload = null;
+    for (const candidate of possiblePayloads) {
+      if (candidate && typeof candidate === "object") { payload = candidate; break; }
+      if (typeof candidate === "string") {
+        try { payload = JSON.parse(candidate); break; } catch { /* Try the next representation. */ }
+      }
+    }
+    if (!payload && originalMessage) {
+      const start = originalMessage.indexOf("{");
+      const end = originalMessage.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        try { payload = JSON.parse(originalMessage.slice(start, end + 1)); } catch { /* Keep the readable SDK message. */ }
+      }
+    }
+    const root = payload && payload.error && typeof payload.error === "object" ? payload.error : payload || {};
+    const details = Array.isArray(root.details) ? root.details : Array.isArray(payload && payload.details) ? payload.details : [];
+    const retryInfo = details.find(detail => detail && /RetryInfo/i.test(String(detail["@type"] || detail.type || "")));
+    const quotaInfo = details.find(detail => detail && /QuotaFailure/i.test(String(detail["@type"] || detail.type || "")));
+    const violations = quotaInfo && Array.isArray(quotaInfo.violations) ? quotaInfo.violations : [];
+    const quotaId = violations.map(item => item && (item.quotaId || item.quota_id || item.quotaMetric || item.quota_metric)).find(Boolean) || "";
+    const quotaValue = violations.map(item => item && (item.quotaValue || item.quota_value)).find(Boolean) || "";
+    const statusText = String(root.status || (payload && payload.status) || "");
+    const rawStatus = error && (error.status ?? error.statusCode ?? (error.response && error.response.status));
+    const status = Number(rawStatus) || Number(root.code ?? (payload && payload.code)) || (/RESOURCE_EXHAUSTED/i.test(statusText) ? 429 : /UNAVAILABLE/i.test(statusText) ? 503 : 0);
+    const retryInText = originalMessage.match(/\b(?:please\s+)?retry\s+in\s+(\d+(?:\.\d+)?)\s*(ms|s|m|h)\b/i);
+    const retryAfterMs = parseGoogleDuration(retryInfo && retryInfo.retryDelay)
+      ?? (retryInText ? parseGoogleDuration(`${retryInText[1]}${retryInText[2]}`) : null)
+      ?? parseGoogleRetryAfterHeader(error);
+    const quotaLabel = `${quotaId} ${violations.map(item => item && (item.quotaMetric || item.quota_metric || item.description || "")).join(" ")} ${root.message || originalMessage}`;
+    const message = typeof root.message === "string" ? root.message : originalMessage;
+    return {
+      status, message, originalMessage, retryAfterMs, quotaId, quotaValue,
+      dailyQuota: /per[-_ ]?day|daily/i.test(quotaLabel),
+      minuteQuota: /per[-_ ]?min(?:ute)?/i.test(quotaLabel)
+    };
+  }
   function googleSDKRequestError(provider, error, { listing = false } = {}) {
     if (error instanceof LlmError) return error;
-    const message = redact(error instanceof Error ? error.message : String(error ?? "Google GenAI request failed")).slice(0, 2000);
-    const rawStatus = error && (error.status ?? error.statusCode ?? (error.response && error.response.status));
-    const status = Number(rawStatus) || 0;
+    const metadata = googleErrorMetadata(error);
+    const message = redact(metadata.message || metadata.originalMessage).slice(0, 2000);
+    const status = metadata.status;
     if (status === 404 && listing) return new LlmError(`The model-list request for ${provider.label} returned HTTP 404.`, { status, kind: "model-list", hint: "Check the Google API base URL and key. You can still type a model name manually." });
+    if (status === 429 && metadata.dailyQuota) {
+      const amount = metadata.quotaValue ? ` (${metadata.quotaValue} requests per day)` : "";
+      return new LlmError(`${provider.label} has reached its daily request quota${amount}.`, {
+        status, kind: "quota", retryAfterMs: metadata.retryAfterMs || 0,
+        hint: "A short retry delay will not clear a per-day quota. Check the quota shown in Google AI Studio or use a project/model with available daily capacity."
+      });
+    }
+    if (status === 429) {
+      const wait = metadata.retryAfterMs > 0 ? ` Google asked to wait about ${waitLabel(metadata.retryAfterMs)}.` : "";
+      const hint = metadata.minuteQuota
+        ? "The call already honored Google's retry delay and bounded retries. Wait for the per-minute window to clear, or lower the request rate / use a model with more capacity."
+        : "The call already honored Google's retry delay and bounded retries. Check the project's quota and billing, or wait before running the reading again.";
+      return new LlmError(`${provider.label} is still rate-limiting this model.${wait}${message && message !== metadata.originalMessage ? ` Google said: ${message}` : ""}`, {
+        status, kind: "rate", retryAfterMs: metadata.retryAfterMs || 0, hint
+      });
+    }
     if (status) {
       const classified = classifyHttp(provider, status, message);
+      if (status === 429 && metadata.retryAfterMs > 0) classified.retryAfterMs = metadata.retryAfterMs;
       if (!classified.hint) classified.hint = "Check that this key can use the Gemini Developer API and that the selected model is available to it.";
       return classified;
     }
@@ -346,6 +425,24 @@ window.HOSLLM = (() => {
     return new LlmError(message || "The Google GenAI SDK request failed.", {
       kind: "provider",
       hint: "Check the key, Gemini API access, model name, and browser access to the configured Google API base URL."
+    });
+  }
+  function waitForAbortableDelay(milliseconds, signal) {
+    if (signal && signal.aborted) return Promise.reject(abortReason(signal));
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let timer = null;
+      const finish = callback => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        if (signal) signal.removeEventListener("abort", onAbort);
+        callback();
+      };
+      const onAbort = () => finish(() => reject(abortReason(signal)));
+      timer = setTimeout(() => finish(resolve), milliseconds);
+      if (signal) signal.addEventListener("abort", onAbort, { once: true });
+      if (signal && signal.aborted) onAbort();
     });
   }
   function googleModelsClientRows(rows) {
@@ -566,6 +663,10 @@ window.HOSLLM = (() => {
             ...(system ? { systemInstruction: system } : {}),
             maxOutputTokens: maxTokens,
             temperature,
+            /* The SDK defaults to five immediate attempts. Disable those here
+               so Google RetryInfo can be honored by the bounded, abortable
+               retry loop in chat() instead of stacking two retry policies. */
+            httpOptions: { retryOptions: { attempts: 1 } },
             ...(signal ? { abortSignal: signal } : {})
           }
         }
@@ -604,7 +705,8 @@ window.HOSLLM = (() => {
   }
 
   /* One call. No hidden prompts: what the caller passes is what the model
-     receives. Bounded, documented retries cover three provider responses:
+     receives. Bounded retries cover narrowly identified provider responses:
+       · Google 408 / 429 / selected 5xx, honoring RetryInfo and retry headers
        · a provider that renamed the ceiling parameter (max_completion_tokens)
        · a priced refusal that names a smaller ceiling it can afford
        · a temporary 402 while other requests still hold in-flight credits,
@@ -638,12 +740,33 @@ window.HOSLLM = (() => {
         try {
           const module = await waitForSignal(loadGoogleSDK(), controller.signal);
           const client = googleClient(module, config, key);
-          const response = await client.models.generateContent(request.body);
-          const parsed = readResponse(config, response);
-          if (!parsed.text.trim()) throw new LlmError("Google returned no text. The model may have refused the request or reached its output limit.", { kind: "provider", hint: "Retry, lower the reading batch size, or raise the output-token ceiling." });
-          activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
-          activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
-          return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens };
+          let retries = 0;
+          for (;;) {
+            try {
+              const response = await client.models.generateContent(request.body);
+              const parsed = readResponse(config, response);
+              if (!parsed.text.trim()) throw new LlmError("Google returned no text. The model may have refused the request or reached its output limit.", { kind: "provider", hint: "Retry, lower the reading batch size, or raise the output-token ceiling." });
+              activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
+              activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
+              return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens };
+            } catch (error) {
+              if (controller.signal.aborted) throw abortReason(controller.signal);
+              if (error instanceof LlmError) throw error;
+              const metadata = googleErrorMetadata(error);
+              const retryable = GOOGLE_RETRYABLE_STATUSES.has(metadata.status) && !metadata.dailyQuota && retries < GOOGLE_MAX_RETRIES;
+              if (!retryable || (metadata.retryAfterMs !== null && metadata.retryAfterMs > MAX_AUTO_RETRY_AFTER_MS)) {
+                throw googleSDKRequestError(config, error);
+              }
+              const serverDelay = metadata.retryAfterMs;
+              const baseDelay = serverDelay === null ? GOOGLE_RETRY_BACKOFF_MS[retries] : serverDelay;
+              const delayMs = Math.min(MAX_AUTO_RETRY_AFTER_MS, baseDelay + Math.floor(Math.random() * GOOGLE_RETRY_JITTER_MS));
+              try {
+                if (typeof onRetry === "function") onRetry({ delayMs, attempt: retries + 1, source: serverDelay === null ? "backoff" : "RetryInfo" });
+              } catch { /* Progress reporting must not break the request. */ }
+              await waitForAbortableDelay(delayMs, controller.signal);
+              retries++;
+            }
+          }
         } catch (error) {
           if (controller.signal.aborted) throw abortReason(controller.signal);
           throw googleSDKRequestError(config, error);

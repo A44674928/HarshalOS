@@ -354,9 +354,10 @@ window.G0LLM = (() => {
 
   /* A call that never reached the model is not a question that failed: it
      ends the reading, rather than quietly producing an empty one that looks
-     like "no evidence found". A `busy` 402 has already had its bounded retry;
-     it is account-wide pressure, so do not send that same refusal nine times. */
-  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy", "sdk"]);
+     like "no evidence found". Persistent account-wide auth, rate, quota and
+     in-flight pressure also stops the staged pass instead of repeating the
+     same provider refusal for every question. */
+  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy", "rate", "quota", "sdk"]);
   const isFatal = error => FATAL_KINDS.has(error && error.kind) || /no endpoint|no model|nothing to send|not loaded/i.test(String((error && error.message) || ""));
   const b4Qualifies = value => /TERMINAL_RULE|RESOLVED_APPEALS|NO_PENALTY_EXIT/.test(String((value && value.basis) || ""));
   const c2SaysSomething = value => !!value && (value.route === true || value.invoked === true || String(value.numerator || "").trim() !== "" || String(value.denominator || "").trim() !== "");
@@ -399,10 +400,14 @@ window.G0LLM = (() => {
        long staged read shows progress instead of sitting still. Rounded, or
        the interface prints 1.8900000000000001 of 5. */
     const stepAt = () => Math.round((1 + Math.min(1, unitsDone / Math.max(1, unitsTotal))) * 100) / 100;
-    const retryNotice = (step, subject) => ({ delayMs }) => {
+    const retryNotice = (step, subject) => ({ delayMs, source }) => {
       const seconds = Math.max(1, Math.ceil(delayMs / 1000));
       const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) === 1 ? "" : "s"}` : `${seconds} second${seconds === 1 ? "" : "s"}`;
-      progress(step, `${status.label || "The provider"} asked us to wait ${wait} before retrying ${subject}…`, step === 2 ? stepAt() : step);
+      const provider = status.label || "The provider";
+      const message = /retry-?after|retry-?info/i.test(String(source || ""))
+        ? `${provider} asked us to wait ${wait} before retrying ${subject}…`
+        : `${provider} returned a temporary error; retrying ${subject} after a ${wait} backoff…`;
+      progress(step, message, step === 2 ? stepAt() : step);
     };
 
     const ask = async (user, maxTokens, temperature = 0, onRetry = null) => {

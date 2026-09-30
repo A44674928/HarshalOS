@@ -136,6 +136,7 @@ const sources = [
     const googleClients = [];
     const googleListCalls = [];
     const googleCalls = [];
+    const googleErrorQueue = [];
     let googleError = null;
     let sdkLoads = 0;
     class MockGoogleGenAI {
@@ -153,6 +154,7 @@ const sources = [
           generateContent: async params => {
             googleCalls.push(params);
             if (googleError) throw googleError;
+            if (googleErrorQueue.length) throw googleErrorQueue.shift();
             return { text: "link established, model responding", modelVersion: "gemini-mock", usageMetadata: { promptTokenCount: 11, candidatesTokenCount: 4 } };
           }
         };
@@ -176,10 +178,89 @@ const sources = [
     eq(googleCalls[0].config.maxOutputTokens, 40, "the SDK request maps the output ceiling to maxOutputTokens");
     eq(googleCalls[0].config.temperature, 0, "the SDK request carries the chosen temperature");
     ok(googleCalls[0].config.abortSignal instanceof AbortSignal, "the SDK generation call receives the active abort signal");
+    eq(googleCalls[0].config.httpOptions.retryOptions.attempts, 1, "the SDK's default retries are disabled so provider RetryInfo is not double-retried");
     ok(googleClients.every(client => client.apiKey === googleKey), "the SDK client receives the user's key");
     ok(googleClients.every(client => client.httpOptions.baseUrl === googleEndpoint), "the SDK client receives the configured Google API base URL");
     eq(sdkLoads, 1, "the SDK is lazily imported once and then reused");
     eq(rawFetches, 0, "the Google model-list and generation paths do not use the raw fetch transport");
+
+    const withFastGoogleRetryTimers = async operation => {
+      const originalSetTimeout = globalThis.setTimeout;
+      const waits = [];
+      globalThis.setTimeout = (callback, delay, ...args) => {
+        if (Number.isFinite(delay) && delay > 0 && delay < 120000) {
+          waits.push(delay);
+          return originalSetTimeout(callback, 0, ...args);
+        }
+        return originalSetTimeout(callback, delay, ...args);
+      };
+      try { return { result: await operation(), waits }; }
+      finally { globalThis.setTimeout = originalSetTimeout; }
+    };
+    const before503 = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error("The model is currently experiencing high demand."), { status: 503 }));
+    const retryEvents503 = [];
+    const retry503 = await withFastGoogleRetryTimers(() => LLM.chat({ user: "Retry a temporary outage.", onRetry: event => retryEvents503.push(event) }));
+    eq(retry503.result.text, "link established, model responding", "a transient Google 503 is retried and can complete");
+    eq(googleCalls.length - before503, 2, "one Google 503 produces only one extra SDK generation attempt");
+    eq(retryEvents503[0].source, "backoff", "a 503 without RetryInfo uses bounded exponential backoff");
+    eq(retry503.waits.length, 1, "a recovered 503 waits once before retrying");
+
+    const rateLimitBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "GenerateContent requests per minute quota exceeded.", details: [
+      { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }] },
+      { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "34.091529138s" }
+    ] } };
+    const before429 = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(rateLimitBody)), { status: 429 }));
+    const retryEvents429 = [];
+    const retry429 = await withFastGoogleRetryTimers(() => LLM.chat({ user: "Honor Google's RetryInfo.", onRetry: event => retryEvents429.push(event) }));
+    eq(retry429.result.text, "link established, model responding", "a Google 429 can recover after its RetryInfo delay");
+    eq(googleCalls.length - before429, 2, "the 429 path makes one retry after the original request");
+    eq(retryEvents429[0].source, "RetryInfo", "Google's structured RetryInfo is distinguished from app backoff");
+    ok(retryEvents429[0].delayMs >= 34091 && retryEvents429[0].delayMs <= 34592, "the Google retry waits at least the server's 34.09-second delay plus bounded jitter");
+    ok(retry429.waits[0] >= 34091, "the abortable wait uses Google's reported RetryInfo delay");
+
+    const beforeAbort = googleCalls.length;
+    const retryAbort = new AbortController();
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(rateLimitBody)), { status: 429 }));
+    const originalRetryTimer = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    let pendingRetryTimer = null;
+    let retryTimerCleared = false;
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (Number.isFinite(delay) && delay >= 30000 && delay < 120000) {
+        pendingRetryTimer = originalRetryTimer(callback, delay, ...args);
+        originalRetryTimer(() => retryAbort.abort(), 0);
+        return pendingRetryTimer;
+      }
+      return originalRetryTimer(callback, delay, ...args);
+    };
+    globalThis.clearTimeout = timer => {
+      if (timer === pendingRetryTimer) retryTimerCleared = true;
+      return originalClearTimeout(timer);
+    };
+    let retryAbortError = null;
+    try { await LLM.chat({ user: "Cancel during the retry delay.", signal: retryAbort.signal }); } catch (error) { retryAbortError = error; }
+    finally {
+      globalThis.setTimeout = originalRetryTimer;
+      globalThis.clearTimeout = originalClearTimeout;
+      if (pendingRetryTimer !== null) originalClearTimeout(pendingRetryTimer);
+    }
+    eq(retryAbortError && retryAbortError.name, "AbortError", "a caller can abort while Google RetryInfo is being honored");
+    eq(retryTimerCleared, true, "aborting also clears the pending provider-delay timer");
+    eq(googleCalls.length - beforeAbort, 1, "aborting during the provider delay prevents the next Google request");
+
+    const dailyLimitBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Daily request quota exceeded.", details: [
+      { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier", quotaValue: "20" }] },
+      { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "30s" }
+    ] } };
+    const beforeDaily = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(dailyLimitBody)), { status: 429 }));
+    let dailyQuotaError = null;
+    try { await LLM.chat({ user: "Do not retry a daily quota." }); } catch (error) { dailyQuotaError = error; }
+    eq(dailyQuotaError && dailyQuotaError.kind, "quota", "a per-day Google limit is classified separately from a transient rate limit");
+    eq(LLM.describe(dailyQuotaError).title, "THE GOOGLE API QUOTA IS EXHAUSTED", "the UI labels a daily quota instead of showing UNKNOWN");
+    eq(googleCalls.length - beforeDaily, 1, "a per-day quota is not retried even when RetryInfo is present");
 
     const googleBuilt = LLM.buildRequest(LLM.resolved(), { system: "system text", user: "one question", maxTokens: 700, temperature: 0, model: "gemini-test", signal: new AbortController().signal });
     eq(googleBuilt.transport, "google-genai-sdk", "the request builder marks Google's SDK transport explicitly");
@@ -625,7 +706,7 @@ const linkPriced = () => {
     eq(error && error.kind, "busy", "a still-busy provider stops the reading instead of looking like an empty record");
     eq(attempts.length, 4, "only the initial call and its three retries are sent");
     ok(attempts.every(call => askedCodes(userText(call.body)).join(",") === "B1"), "the reader does not fan the same account-wide refusal out across all nine questions");
-    ok(progress.some(step => /asked us to wait 1 second before retrying B1/.test(step.message)), "the reading progress says it is waiting before retrying the staged question");
+    ok(progress.some(step => /temporary error; retrying B1 after a 1 second backoff/.test(step.message)), "the reading progress identifies the provider fallback backoff before retrying the staged question");
   } finally {
     globalThis.fetch = originalFetch;
     globalThis.setTimeout = originalSetTimeout;
@@ -698,6 +779,7 @@ const linkPriced = () => {
   globalThis.fetch = async () => { rawFetches++; throw new Error("Google SDK path must not call raw fetch in this harness."); };
   const sdkCalls = [];
   const sdkClients = [];
+  const googleErrorQueue = [];
   const key = "AIzaSyD-ground0-google-key-123456789";
   class Ground0GoogleGenAI {
     constructor(options) {
@@ -705,6 +787,7 @@ const linkPriced = () => {
       this.models = {
         generateContent: async params => {
           sdkCalls.push(params);
+          if (googleErrorQueue.length) throw googleErrorQueue.shift();
           return { text: JSON.stringify(stagedReply(params.contents)), modelVersion: "gemini-ground0-mock", usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } };
         }
       };
@@ -727,10 +810,31 @@ const linkPriced = () => {
     eq(reading.block.staging.codesPerCall, 1, "the Google-assisted record preserves the one-question staging metadata");
     eq(reading.passes, 19, "the Google reading keeps its separate one-question weighing call");
     ok(sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents)).every(call => call.config.maxOutputTokens === 700), "every staged Google call reserves the existing 700-token ceiling");
+    ok(sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents)).every(call => call.config.httpOptions.retryOptions.attempts === 1), "each staged Google call leaves retries to the abortable RetryInfo-aware wrapper");
     ok(sdkCalls.some(call => /QUESTION BEING WEIGHED: B1/.test(call.contents) && call.config.maxOutputTokens === 300), "the Google SDK weighs only the contested question with its separate ceiling");
     eq(reading.answers[3].value, true, "a Google SDK quote still passes the existing B4 verification gate");
     eq(reading.block.model, "gemini-test", "the Ground-0 record identifies the selected Google model");
   }
+
+  const persistentRateBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Per-minute request quota exceeded.", details: [
+    { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }] },
+    { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "34s" }
+  ] } };
+  const persistentRate = Object.assign(new Error(JSON.stringify(persistentRateBody)), { status: 429 });
+  googleErrorQueue.push(persistentRate, persistentRate, persistentRate, persistentRate);
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, delay, ...args) => Number.isFinite(delay) && delay > 0 && delay < 120000
+    ? originalSetTimeout(callback, 0, ...args)
+    : originalSetTimeout(callback, delay, ...args);
+  const beforeRateLimitedRead = sdkCalls.length;
+  let rateLimitedReadError = null;
+  try {
+    await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  } catch (error) { rateLimitedReadError = error; }
+  finally { globalThis.setTimeout = originalSetTimeout; }
+  eq(rateLimitedReadError && rateLimitedReadError.kind, "rate", "a still-active per-minute quota stops Ground-0 with a rate-limit error");
+  eq(sdkCalls.length - beforeRateLimitedRead, 4, "after bounded Google retries are exhausted, Ground-0 stops rather than sending the same account-wide 429 for every question");
+
   eq(rawFetches, 0, "Ground-0's Google reading goes through the SDK, not a parallel REST call");
   ok(sdkClients.every(client => client.apiKey === key), "Ground-0 supplies the user's key to the SDK client");
   LLM._setGoogleSDKLoaderForTests(null);

@@ -68,8 +68,9 @@ js/g0-research.js — key-free public-record research: identity, official pages,
                     court/regulatory/legislative/news registries, coverage (window.G0Research)
 js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
                     transport (Anthropic / OpenAI-compatible / Google GenAI SDK), model listing,
-                    probes, plain-language failures, learned token ceilings, and bounded OpenRouter
-                    retries that honor `Retry-After` for in-flight budget refusals (window.HOSLLM)
+                    probes, plain-language failures, learned token ceilings, bounded OpenRouter
+                    in-flight retries, and Google transient retries that honor provider delay metadata
+                    (window.HOSLLM)
 js/g0-llm.js      — Ground-0 model reading: staged one question per call over batched source
                     passes, verbatim-quote verification, bounded link-following, application
                     to a draft (window.G0LLM)
@@ -265,6 +266,16 @@ weighing calls); it does not turn the audit into one large call. SDK responses a
 the same usage, model, and text shape as the other providers, then pass through the unchanged
 character-for-character quote check and human-review gate.
 
+Google's SDK defaults to multiple HTTP attempts, so generation calls set its per-request attempt
+count to one and let HarshalOS handle transient retries in one place. It honors Google's structured
+`RetryInfo` / `Retry-After` delays (with small jitter), or uses a short exponential backoff for
+transient 408, 429, 500, 502, 503, and 504 responses, with at most three retries and an abortable
+two-minute wait ceiling (subject to the call's overall timeout). A per-day quota is never retried. If
+a rate limit persists after those retries,
+Ground-0 stops instead of sending the same account-wide failure for every question; a still-failing
+503 is reported as a failed call, never as evidence. This retry handling does not alter the
+question-by-question staging.
+
 **Key warning:** Google advises against exposing API keys in client-side production code. This
 browser BYOK flow is convenient but a person with access to the browser can inspect the key. The
 key remains in session storage by default (persistent storage requires opting in), and is sent
@@ -293,7 +304,9 @@ an unresolved account-wide refusal stops before fanning out across the nine ques
 leaves that one question UNKNOWN and says the call failed, and a reading
 in which no call completes throws instead of returning an empty audit. The LLM harness also
 injects a Google GenAI SDK mock to verify SDK-based model listing, request/response mapping, key
-redaction, and a complete question-by-question Ground-0 read without raw REST calls.
+redaction, and a complete question-by-question Ground-0 read without raw REST calls; it also checks
+bounded 503 backoff, the 34-second 429 `RetryInfo`, aborting during a provider wait, no retry for a
+per-day quota, and stopping the staged audit after a persistent account-wide rate limit.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.
