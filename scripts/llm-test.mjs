@@ -98,6 +98,12 @@ const sources = [
   ok(described && described.title.includes("KEY"), "a rejected key is described as a key problem");
   ok(!JSON.stringify(described).includes("sk-ant-test"), "error text never echoes the key");
 
+  globalThis.fetch = async () => ({ ok: false, status: 402, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ error: { message: "Payment required; no further billing detail was returned." } }) });
+  let refusal = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { refusal = error; }
+  eq(refusal && refusal.kind, "billing", "an unexplained HTTP 402 is not guessed to be a token-ceiling refusal");
+  eq(LLM.describe(refusal).title, "THE PROVIDER REFUSED THE CALL", "an unexplained HTTP 402 is labelled without claiming why");
+
   /* OpenAI's API is labelled, not faked */
   ok(LLM.PROVIDERS.openai.browser === "blocked" && /CORS/.test(LLM.PROVIDERS.openai.note), "the OpenAI preset states that browser calls are blocked");
   ok(LLM.PROVIDERS.anthropic.browser === "direct" && LLM.PROVIDERS.openrouter.browser === "direct", "the providers that answer browser calls are marked direct");
@@ -408,6 +414,82 @@ const linkPriced = () => {
   eq(pricedCalls[2].asked, AFFORDABLE, "the later call starts inside the learned ceiling");
   ok(LLM.stats().shrunk >= 2, "the session counts how often a ceiling had to come down");
   stop();
+}
+
+/* ── a temporary 402 from other in-flight requests is retried, not misread as a low balance ── */
+{
+  linkPriced();
+  LLM.resetStats();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  const delays = [750, 1500, 3000];
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delays.includes(delay)) {
+      waits.push(delay);
+      return originalSetTimeout(callback, 0, ...args);
+    }
+    return originalSetTimeout(callback, delay, ...args);
+  };
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted" } } };
+  const reply = (data, status = 200) => ({ ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data, text: async () => JSON.stringify(data) });
+  try {
+    let attempts = 0;
+    globalThis.fetch = async () => {
+      attempts++;
+      if (attempts <= 2) return reply(refusal, 402);
+      return reply({ model: "stub-model", choices: [{ message: { role: "assistant", content: "Recovered after in-flight requests settled." } }], usage: { prompt_tokens: 10, completion_tokens: 8 } });
+    };
+    const recovered = await LLM.chat({ user: "Read this one question.", maxTokens: 700 });
+    eq(attempts, 3, "two transient in-flight refusals are followed by one successful retry");
+    eq(waits.join(","), "750,1500", "the retry waits use bounded exponential backoff");
+    eq(recovered.text, "Recovered after in-flight requests settled.", "the successful retry returns the model's answer");
+    eq(LLM.stats().inFlightRetries, 2, "the session records the two in-flight retries");
+    eq(LLM.tokenCeiling(), null, "a temporary in-flight refusal does not teach a false token ceiling");
+
+    LLM.resetStats(); waits.length = 0; attempts = 0;
+    globalThis.fetch = async () => { attempts++; return reply(refusal, 402); };
+    let error = null;
+    try { await LLM.chat({ user: "Read this one question.", maxTokens: 700 }); } catch (caught) { error = caught; }
+    eq(attempts, 4, "the connection makes the initial attempt plus three bounded retries, then stops");
+    eq(waits.join(","), "750,1500,3000", "the final transient refusal is retried no longer than the documented backoff");
+    eq(error && error.kind, "busy", "an unresolved in-flight 402 is classified as temporary provider pressure");
+    const described = LLM.describe(error);
+    ok(/SETTLING REQUESTS/.test(described.title), "the interface says earlier requests are still settling");
+    ok(/retry after in-flight requests settle/i.test(described.hint), "the user is told to wait and retry, not add credits");
+    ok(!/balance cannot cover the requested token ceiling/i.test(error.message), "a temporary 402 is not mislabeled as an unaffordable ceiling");
+    eq(LLM.stats().inFlightRetries, 3, "the session records the exhausted retry attempts");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
+/* ── an unresolved account-wide busy refusal stops the audit after its own retries ── */
+{
+  linkPriced();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const delays = [750, 1500, 3000];
+  globalThis.setTimeout = (callback, delay, ...args) => delays.includes(delay)
+    ? originalSetTimeout(callback, 0, ...args)
+    : originalSetTimeout(callback, delay, ...args);
+  const attempts = [];
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted" } } };
+  const reply = { ok: false, status: 402, headers: { get: () => "application/json" }, json: async () => refusal, text: async () => JSON.stringify(refusal) };
+  try {
+    globalThis.fetch = async (url, init = {}) => { attempts.push({ url: String(url), body: JSON.parse(init.body) }); return reply; };
+    let error = null;
+    try {
+      await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+    } catch (caught) { error = caught; }
+    eq(error && error.kind, "busy", "a still-busy provider stops the reading instead of looking like an empty record");
+    eq(attempts.length, 4, "only the initial call and its three retries are sent");
+    ok(attempts.every(call => askedCodes(userText(call.body)).join(",") === "B1"), "the reader does not fan the same account-wide refusal out across all nine questions");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
 }
 
 /* ── a ceiling below the floor is reported, never sent ── */

@@ -216,7 +216,7 @@ window.HOSLLM = (() => {
     }
   }
   function describe(error) {
-    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "budget" ? "THE TOKEN CEILING IS UNAFFORDABLE" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
+    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "budget" ? "THE TOKEN CEILING IS UNAFFORDABLE" : error.kind === "busy" ? "THE PROVIDER IS STILL SETTLING REQUESTS" : error.kind === "billing" ? "THE PROVIDER REFUSED THE CALL" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
     if (error && error.name === "AbortError") return { title: "CALL CANCELED", detail: "The call was canceled before it finished. No reading was recorded.", hint: "" };
     return { title: "THE MODEL CALL FAILED", detail: redact(error instanceof Error ? error.message : String(error ?? "Unknown error")), hint: "Retry, or check the connection in the LLM Link app." };
   }
@@ -272,9 +272,9 @@ window.HOSLLM = (() => {
 
   /* Session activity. Kept in memory only: how many calls this page made,
      what they cost in tokens, and how long the last one took. */
-  const activity = { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, lastMs: 0, lastModel: "", lastAt: "" };
+  const activity = { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, lastMs: 0, lastModel: "", lastAt: "" };
   const stats = () => ({ ...activity, ceiling: ceiling ? ceiling.maxTokens : 0 });
-  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
+  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
 
   /* ──────────────────────────────────────────────────────────────
      The token ceiling the provider will actually sell us
@@ -294,7 +294,11 @@ window.HOSLLM = (() => {
      ────────────────────────────────────────────────────────────── */
   const AFFORDABLE = /(?:can )?only afford(?: up to)?\s*(\d[\d,]*)/i;
   const REQUESTED = /requested up to\s*(\d[\d,]*)/i;
+  const IN_FLIGHT_RETRY_DELAYS = [750, 1500, 3000];
   const numberWith = (text, pattern) => { const match = String(text || "").match(pattern); return match ? Number(String(match[1]).replace(/,/g, "")) : 0; };
+  /* OpenRouter can refuse a reservation while other requests still hold part
+     of the balance. That is temporary pressure, not a smaller token ceiling. */
+  const isInFlightBudget = (detail, status) => status === 402 && /in[_ -]flight[_ -]budget|current\s+in[-_ ]flight\s+requests|in[-_ ]flight\s+requests/i.test(String(detail || ""));
 
   let ceiling = null;
   const tokenCeiling = () => (ceiling ? { ...ceiling } : null);
@@ -318,14 +322,18 @@ window.HOSLLM = (() => {
     budget.affordable
       ? `${provider.label} can only afford a ${budget.affordable}-token ceiling on this key${budget.requested ? `; the call asked for ${budget.requested}` : ""}${floor > budget.affordable ? `, and ${floor} is the least that produces a usable answer` : ""}.`
       /* No number to work inside: keep the provider's own words rather than
-         paraphrasing a refusal we did not fully understand. */
-      : `${provider.label} refused the call: the key's balance cannot cover the requested token ceiling.${detail ? ` The provider said: ${redact(detail).slice(0, 220)}` : ""}`,
+         claiming a particular balance limit we were not told about. */
+      : `${provider.label} refused the call with HTTP 402 and did not state a smaller token ceiling we can retry inside.${detail ? ` The provider said: ${redact(detail).slice(0, 220)}` : ""}`,
     {
-      status: 402, kind: "budget", affordable: budget.affordable, requested: budget.requested,
+      status: 402, kind: budget.affordable || budget.stated ? "budget" : "billing", affordable: budget.affordable, requested: budget.requested,
       hint: budget.affordable
         ? "Ask fewer questions per call, or add credits at the provider. Ground-0 stages its reading one question at a time for exactly this reason."
-        : "Add credits at the provider, or link a model whose balance covers the call."
+        : "Check the provider's billing response. If it names in-flight requests, wait for them to settle and run the reading again; otherwise add credits or use a key with available balance."
     }
+  );
+  const inFlightError = provider => new LlmError(
+    `${provider.label} could not reserve this call while other requests were still in flight.`,
+    { status: 402, kind: "busy", hint: "The provider asked to retry after in-flight requests settle. Wait a moment, then run the reading again; this failed call is not evidence and its question stays UNKNOWN." }
   );
   /* A caller's ceiling, pulled inside what the provider has told us it can
      afford. Never raised above what the caller asked for. */
@@ -359,10 +367,10 @@ window.HOSLLM = (() => {
   }
 
   /* One call. No hidden prompts: what the caller passes is what the model
-     receives. Two bounded, documented retries only —
+     receives. Bounded, documented retries cover three provider responses:
        · a provider that renamed the ceiling parameter (max_completion_tokens)
-       · a provider that priced the ceiling and stated a smaller one it can
-         afford, which we then remember for the rest of the session.
+       · a priced refusal that names a smaller ceiling it can afford
+       · a temporary 402 while other requests still hold in-flight credits
      `floorTokens` is the least ceiling worth sending at all: below it the
      answer arrives truncated, so the caller is told instead. */
   async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true }) {
@@ -383,16 +391,42 @@ window.HOSLLM = (() => {
       const reserved = affordableTokens(maxTokens, floorTokens);
       if (reserved !== maxTokens) activity.shrunk++;
       const request = buildRequest(config, { system, user, maxTokens: reserved, temperature, model });
+      const readDetail = response => response.text().catch(() => "").then(text => String(text).slice(0, 400));
+      const waitForRetry = ms => new Promise((resolve, reject) => {
+        if (controller.signal.aborted) {
+          const reason = controller.signal.reason;
+          reject(reason instanceof Error ? reason : new DOMException("Canceled.", "AbortError"));
+          return;
+        }
+        const abort = () => {
+          clearTimeout(timer);
+          controller.signal.removeEventListener("abort", abort);
+          const reason = controller.signal.reason;
+          reject(reason instanceof Error ? reason : new DOMException("Canceled.", "AbortError"));
+        };
+        const finish = () => {
+          controller.signal.removeEventListener("abort", abort);
+          resolve();
+        };
+        const timer = setTimeout(finish, ms);
+        controller.signal.addEventListener("abort", abort, { once: true });
+      });
       const send = async body => {
         const headers = applyAuth(new Headers({ "Content-Type": "application/json", Accept: "application/json" }), config, key);
-        try {
-          return await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: "omit", referrerPolicy: "no-referrer" });
-        } catch (error) {
-          if (error && error.name === "AbortError") throw controller.signal.reason instanceof Error ? controller.signal.reason : error;
-          throw corsError(config);
+        for (let retry = 0; ; retry++) {
+          let response;
+          try {
+            response = await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: "omit", referrerPolicy: "no-referrer" });
+          } catch (error) {
+            if (error && error.name === "AbortError") throw controller.signal.reason instanceof Error ? controller.signal.reason : error;
+            throw corsError(config);
+          }
+          const detail = response.ok ? "" : await readDetail(response);
+          if (!isInFlightBudget(detail, response.status) || retry >= IN_FLIGHT_RETRY_DELAYS.length) return { response, detail };
+          await waitForRetry(IN_FLIGHT_RETRY_DELAYS[retry]);
+          activity.inFlightRetries++;
         }
       };
-      const readDetail = response => response.text().catch(() => "").then(text => String(text).slice(0, 400));
       /* Which parameter this provider accepted the ceiling under, so a retry
          rewrites the same field the first request used. */
       const withCeiling = (body, tokens) => {
@@ -403,18 +437,19 @@ window.HOSLLM = (() => {
       };
       let sentBody = request.body;
       let sentCeiling = reserved;
-      let response = await send(sentBody);
-      let detail = "";
+      let { response, detail } = await send(sentBody);
       if (!response.ok) {
-        detail = await readDetail(response);
         /* Newer OpenAI-family models renamed the token cap. One targeted retry. */
         if (response.status === 400 && /max_completion_tokens|unsupported_parameter|max_tokens/i.test(detail)) {
           sentBody = { ...request.body, max_completion_tokens: sentCeiling };
           delete sentBody.max_tokens;
-          response = await send(sentBody);
-          detail = response.ok ? "" : await readDetail(response);
+          ({ response, detail } = await send(sentBody));
         }
       }
+      /* This refusal is temporary pressure, not evidence that the token
+         ceiling is too large. `send` already waited and retried it; if it is
+         still here, tell the reader to wait rather than blaming the balance. */
+      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config);
       /* The provider priced our ceiling and named a smaller one it can afford.
          Learn it, ask again inside it, and let every later call start there. */
       if (!response.ok) {
@@ -424,8 +459,7 @@ window.HOSLLM = (() => {
           sentCeiling = budget.affordable;
           sentBody = withCeiling(sentBody, sentCeiling);
           activity.shrunk++;
-          response = await send(sentBody);
-          detail = response.ok ? "" : await readDetail(response);
+          ({ response, detail } = await send(sentBody));
         } else if (budget && (budget.stated || response.status === 402)) {
           /* Either it named no usable number, or the number it named is below
              the floor: say so plainly rather than sending a call that cannot
@@ -433,6 +467,7 @@ window.HOSLLM = (() => {
           throw budgetError(config, budget, floorTokens, detail);
         }
       }
+      if (!response.ok && isInFlightBudget(detail, response.status)) throw inFlightError(config);
       if (!response.ok) throw classifyHttp(config, response.status, detail);
       let data;
       try { data = await response.json(); } catch { throw new LlmError("The provider returned a response that was not valid JSON.", { kind: "provider" }); }

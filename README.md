@@ -68,8 +68,8 @@ js/g0-research.js — key-free public-record research: identity, official pages,
                     court/regulatory/legislative/news registries, coverage (window.G0Research)
 js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
                     transport (Anthropic / OpenAI-compatible), probes, plain-language failures, and
-                    the token ceiling a provider will reserve — learned from a priced refusal and
-                    honoured by every later call (window.HOSLLM)
+                    token ceilings learned from priced refusals, with bounded retries for temporary
+                    in-flight budget refusals (window.HOSLLM)
 js/g0-llm.js      — Ground-0 model reading: staged one question per call over batched source
                     passes, verbatim-quote verification, bounded link-following, application
                     to a draft (window.G0LLM)
@@ -216,9 +216,12 @@ words is recorded as a coverage gap — honestly labelled, never guessed at, and
    it *reserves*, so one call demanding all nine answers reserves a ceiling a small balance cannot
    cover and is refused outright — OpenRouter answers `402 … you requested up to 6000 tokens, but
    can only afford 2664`. Nine small calls reserve ~700 tokens each, an answer cannot arrive
-   truncated half-way through the ninth question, and one failed call costs one question rather than
-   the whole audit: it is recorded as a failed call, never as a silent record. Raise `codesPerCall`
-   to group questions and re-send the same source text fewer times when the balance allows it.
+   truncated half-way through the ninth question, and one isolated failed call costs one question
+   rather than the whole audit: it is recorded as a failed call, never as a silent record. If a 402
+   says other requests are still in flight, the connection waits and retries a few times; if they do
+   not settle, the audit stops rather than repeating an account-wide refusal for every question, and
+   says to wait rather than mislabeling the failure as an empty balance. Raise `codesPerCall` to group
+   questions and re-send the same source text fewer times when the balance allows it.
 3. **Verification is the gate.** Every quote is normalised and matched character-for-character
    against the stored source text. A quote that is not found is discarded, with the reason shown,
    and that question stays **UNKNOWN — never NO**. Quotes must come from a source on or before the
@@ -256,9 +259,11 @@ nothing is sent without a linked model. It also runs the whole reading against a
 any call reserving more than 2664 output tokens the way OpenRouter does, and checks that the staged
 reading never earns that refusal: nine questions are asked one per call, each call reserves the
 small ceiling, weighing is one call per contested question, a ceiling below the floor is reported
-instead of sent, a balance smaller than one staged call still finishes the reading inside it, one
-failed call leaves that one question UNKNOWN and says the call failed, and a reading in which no
-call completes throws instead of returning an empty audit.
+instead of sent, a balance smaller than one staged call still finishes the reading inside it, a
+transient in-flight-budget refusal is retried and ultimately described without blaming the balance,
+an unresolved account-wide refusal stops before fanning out across the nine questions, one failed call
+leaves that one question UNKNOWN and says the call failed, and a reading
+in which no call completes throws instead of returning an empty audit.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.

@@ -354,8 +354,9 @@ window.G0LLM = (() => {
 
   /* A call that never reached the model is not a question that failed: it
      ends the reading, rather than quietly producing an empty one that looks
-     like "no evidence found". */
-  const FATAL_KINDS = new Set(["auth", "cors", "model"]);
+     like "no evidence found". A `busy` 402 has already had its bounded retry;
+     it is account-wide pressure, so do not send that same refusal nine times. */
+  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy"]);
   const isFatal = error => FATAL_KINDS.has(error && error.kind) || /no endpoint|no model|nothing to send|not loaded/i.test(String((error && error.message) || ""));
   const b4Qualifies = value => /TERMINAL_RULE|RESOLVED_APPEALS|NO_PENALTY_EXIT/.test(String((value && value.basis) || ""));
   const c2SaysSomething = value => !!value && (value.route === true || value.invoked === true || String(value.numerator || "").trim() !== "" || String(value.denominator || "").trim() !== "");
