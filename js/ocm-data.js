@@ -15,7 +15,7 @@ const OCM_DATA = (() => {
   /* ---------- Center & addressing ---------- */
   const center = {
     address: "0•000•000•0000",
-    author: "A44674928 @ 0•000•000•0000",
+    author: "Harshal Priyavadan Patel @ 0•000•000•0000",
     format: "0•[orb]•[sector]•[instance]",
     freshSlateFormat: "0•DDD•RRR•####",
     rules: [

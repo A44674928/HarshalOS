@@ -680,7 +680,7 @@
           derive identity, scope, and ownership from a single immutable origin point. HarshalOS itself, visualized
           through OCM: every app is a radiative node attached directly to the center.</div>
 
-          <div class="addr-key">CENTER-ORIGIN 0•000•000•0000 &nbsp;·&nbsp; FORMAT 0•[orb]•[sector]•[instance] &nbsp;·&nbsp; AUTHOR A44674928 @ 0•000•000•0000</div>
+          <div class="addr-key">CENTER-ORIGIN 0•000•000•0000 &nbsp;·&nbsp; FORMAT 0•[orb]•[sector]•[instance] &nbsp;·&nbsp; AUTHOR Harshal Priyavadan Patel @ 0•000•000•0000</div>
 
           <div class="chip-row" id="ocm-chips">
             <button class="chip-toggle on" data-t="disc">EQUATORIAL DISC · 360 ADDRESSES</button>

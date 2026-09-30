@@ -23,7 +23,8 @@
     eye.addEventListener("error", () => eye.remove(), { once: true });
   }
 
-  const sleep = ms => new Promise(res => setTimeout(res, ms));
+  const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sleep = ms => new Promise(res => setTimeout(res, REDUCED_MOTION ? Math.min(ms, 15) : ms));
 
   function line(text, cls = "", delay = 60) {
     return new Promise(async res => {
@@ -50,14 +51,14 @@
 
   async function run() {
     await line("HarshalOS bootloader v1.2 · Ground-0 Reconstruction", "gold", 200);
-    await line("Copyright (c) Harshal Priyavadan Patel (A44674928). All rights reserved.", "dim", 120);
+    await line("Copyright (c) Harshal Priyavadan Patel. All rights reserved.", "dim", 120);
     await line("", "", 40);
 
     await line("======================================================================", "rule", 30);
     await line("AGS++ PHASE DECLARATION HEADER (PDH) — BOOT ENTRY", "gold", 80);
     await line("======================================================================", "rule", 30);
-    await line("Header-ID           : PDH-2026-HARSHALOS-A44674928", "", 40);
-    await line("Creator-ID          : {A44674928 + A44674928 + (A44674928)}", "", 40);
+    await line("Header-ID           : PDH-2026-HARSHALOS-HARSHAL", "", 40);
+    await line("Creator-ID          : {HARSHAL + HARSHAL + (HARSHAL)}", "", 40);
     await line("Center-Origin       : 0•000•000•0000", "gold", 40);
     await line("Declared-Phase      : Neural Atomic Body (NAB / Refusal-Bound)", "", 40);
     await line("Center-Capability   : Non-Acting", "", 40);

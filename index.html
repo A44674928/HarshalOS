@@ -3,17 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HarshalOS — Architectures for Accountable Human D'Ash Machine Intelligence</title>
-<meta name="description" content="HarshalOS: an accountability-gated operating system. Legitimacy precedes capability. Refusal is intelligence.">
+<title>HarshalOS — Accountability-Gated AI Governance</title>
+<meta name="description" content="HarshalOS is an accountability-gated operating system for AI governance. Legitimacy precedes capability. Refusal is intelligence.">
+<link rel="canonical" href="https://main.empty.domains/">
+<meta name="theme-color" content="#04060c">
+
+<!-- Link previews (LinkedIn, Slack, Discord, iMessage, etc.) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HarshalOS">
+<meta property="og:title" content="HarshalOS — Accountability-Gated AI Governance">
+<meta property="og:description" content="Legitimacy precedes capability. Refusal is intelligence. An operating-system-style demonstration of accountability-gated AI governance (AGS++).">
+<meta property="og:url" content="https://main.empty.domains/">
+<meta property="og:image" content="https://main.empty.domains/assets/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="HarshalOS: an eye in a dark field with the line 'Legitimacy precedes capability.'">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HarshalOS — Accountability-Gated AI Governance">
+<meta name="twitter:description" content="Legitimacy precedes capability. Refusal is intelligence.">
+<meta name="twitter:image" content="https://main.empty.domains/assets/og-card.png">
+
 <link rel="stylesheet" href="css/os.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='38' fill='%236fd3ff'/><circle cx='50' cy='50' r='46' fill='none' stroke='%23ffd479' stroke-width='3'/></svg>">
+<link rel="stylesheet" href="css/ground0.css">
+
+<!-- Favicon: URL-encoded SVG + PNG fallback -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='38' fill='%236fd3ff'/%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%23ffd479' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 </head>
 <body class="booting">
 
+  <!-- ══════════════ STATIC SUMMARY (crawlers + screen readers; mirrors the visible site) ══════════════ -->
+  <section class="sr-only" aria-label="About HarshalOS">
+    <h1>HarshalOS — Architectures for Accountable Human D'Ash Machine Intelligence</h1>
+    <p>
+      HarshalOS is an accountability-gated operating system and a working demonstration of
+      the AGS++ governance framework. Legitimacy precedes capability, and the default state
+      of the system is refusal.
+    </p>
+    <p>By Harshal Priyavadan Patel, independent AI governance researcher.</p>
+    <ul>
+      <li><a href="about.html">Overview</a></li>
+      <li><a href="https://github.com/A44674928/HarshalOS">HarshalOS on GitHub</a></li>
+      <li><a href="https://github.com/A44674928/Harshal-s-Systems">Harshal's Systems: case studies and examples</a></li>
+      <!-- Book and Contact links pending final URLs
+      <li><a href="">Book: Harshal's Systems</a></li>
+      <li><a href="">Contact</a></li> -->
+    </ul>
+  </section>
+  <noscript>
+    <p style="padding:2rem;font-family:system-ui,sans-serif;max-width:40rem;margin:auto">
+      HarshalOS is an interactive site and needs JavaScript. Overview and links:
+      <a href="about.html">about.html</a> ·
+      <a href="https://github.com/A44674928/HarshalOS">GitHub</a>
+    </p>
+  </noscript>
+
   <!-- ══════════════ BOOT SEQUENCE ══════════════ -->
   <div id="boot" class="boot">
-    <img id="boot-eye" class="boot-eye" src="assets/eye-open-close-hq.gif" alt="" draggable="false" aria-hidden="true">
+    <img id="boot-eye" class="boot-eye" src="assets/eye-open-close-hq.gif" alt="" width="1920" height="1080" draggable="false" aria-hidden="true">
     <pre id="boot-log" class="boot-log"></pre>
+    <p class="boot-tagline">
+      HarshalOS is an accountability-gated operating system for AI governance:
+      a system that must earn permission before it acts.
+    </p>
+    <nav class="boot-links" aria-label="Quick links">
+      <a href="about.html">Overview ▸</a>
+      <a href="https://github.com/A44674928/HarshalOS">GitHub</a>
+      <!-- Book and Contact links pending final URLs
+      <a href="">Book</a>
+      <a href="">Contact</a> -->
+    </nav>
     <button id="boot-skip" class="boot-skip" type="button">skip ▸</button>
   </div>
 
@@ -58,8 +118,8 @@
   <!-- ══════════════ DESKTOP ══════════════ -->
   <main id="desktop" class="desktop" aria-label="HarshalOS desktop">
     <div class="starfield" aria-hidden="true"></div>
-    <div class="desktop-motto" aria-hidden="true">
-      <div class="motto-orb"></div>
+    <div class="desktop-motto">
+      <div class="motto-orb" aria-hidden="true"></div>
       <p class="motto-line">Legitimacy precedes capability.</p>
       <p class="motto-line dim">The default state of the system is refusal.</p>
       <p class="motto-line dimmer">An intelligence that cannot define its own origin can never own the world it understands.</p>
@@ -76,7 +136,7 @@
     </div>
     <ul id="om-apps" class="om-apps"></ul>
     <div class="om-footer mono">
-      <div>Creator / Custodian: Harshal Priyavadan Patel (A44674928)</div>
+      <div>Creator / Custodian: Harshal Priyavadan Patel</div>
       <div>Center-Origin: 0•000•000•0000 · Non-Delegable</div>
     </div>
   </nav>
@@ -97,17 +157,20 @@
   <!-- ══════════════ TOASTS ══════════════ -->
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
-  <script src="js/data.js"></script>
-  <script src="js/ocm-data.js"></script>
-  <script src="js/crypto.js"></script>
-  <script src="js/kernel.js"></script>
-  <script src="js/wm.js"></script>
-  <script src="js/apps-core.js"></script>
-  <script src="js/apps-shell.js"></script>
-  <script src="js/orb-flame.js?v=1.0"></script>
-  <script src="js/apps-ocm.js?v=1.6"></script>
-  <script src="js/flame.js?v=1.5"></script>
-  <script src="js/apps-flame.js?v=1.2"></script>
-  <script src="js/boot.js?v=1.2"></script>
+  <script defer src="js/data.js?v=2026-09-29"></script>
+  <script defer src="js/ocm-data.js?v=2026-09-29"></script>
+  <script defer src="js/crypto.js?v=2026-09-29"></script>
+  <script defer src="js/kernel.js?v=2026-09-29"></script>
+  <script defer src="js/g0-engine.js?v=2026-09-29"></script>
+  <script defer src="js/g0-research.js?v=2026-09-29"></script>
+  <script defer src="js/wm.js?v=2026-09-29"></script>
+  <script defer src="js/apps-core.js?v=2026-09-29"></script>
+  <script defer src="js/apps-shell.js?v=2026-09-29"></script>
+  <script defer src="js/g0-app.js?v=2026-09-29"></script>
+  <script defer src="js/orb-flame.js?v=2026-09-29"></script>
+  <script defer src="js/apps-ocm.js?v=2026-09-29"></script>
+  <script defer src="js/flame.js?v=2026-09-29"></script>
+  <script defer src="js/apps-flame.js?v=2026-09-29"></script>
+  <script defer src="js/boot.js?v=2026-09-29"></script>
 </body>
 </html>

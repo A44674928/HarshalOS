@@ -172,7 +172,7 @@ rotation is NEVER succession.</div>
           </div>
           <div class="form-row">
             <label>External legitimacy reference</label>
-            <input id="dc-leg" type="text" value="Human Key / A44674928" readonly>
+            <input id="dc-leg" type="text" value="Human Key / Harshal Priyavadan Patel" readonly>
           </div>
         </div>
         <div class="btn-row">
@@ -447,128 +447,14 @@ Declaration-Hash: ${h.declarationHash || "SHA-256 — in flight"}`, "gas");
 });
 
 /* ───────────────────────────────────────────────
-   9. GROUND-0 AUDIT — observed-behavior reclassification
+   9. GROUND-0 AUDIT — the full phase-intelligence workspace now lives in
+      js/g0-app.js (engine: js/g0-engine.js · research: js/g0-research.js).
+      It replaces this preset-driven preview with the versioned
+      Ground-0 Phase Detection Algorithm: manual wizard, automatic
+      public-record research, evidence library, temporal ledger,
+      logic sandbox, specification reader, and accessibility.
    ─────────────────────────────────────────────── */
-APPS.push({
-  id: "ground0",
-  title: "Ground-0 Audit",
-  short: "Ground-0",
-  glyph: "⚖",
-  desc: "Observed-behavior phase classification — forced re-badging",
-  w: 760, h: 580,
-  render(body, api) {
-    const draw = (report) => {
-      body.innerHTML = `
-        <div class="h1">Ground-0 Phase Classification &amp; Duty Collation</div>
-        <div class="sub">The Ground-0 standard atomizes claims, removes narrative dependency, and classifies a body's phase by
-        <strong>observed behavior</strong>, not declared intent. Applying PDH + badges to real institutions forces overnight honesty.</div>
 
-        <div class="h2">Select Audit Target</div>
-        <div class="grid-2">
-          ${DATA.auditPresets.map(p => `
-            <div class="card" data-preset="${p.id}" style="cursor:pointer">
-              <h4>${p.label}</h4>
-              <p>${p.desc}</p>
-            </div>`).join("")}
-        </div>
-
-        <div class="form-row">
-          <label>Or enter a custom body name</label>
-          <input id="g0-name" type="text" placeholder="e.g. U.S. Corporate Framing / Foreign Authority Transfer Claim">
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-gold" id="g0-run">◆ RUN GROUND-0 AUDIT</button>
-        </div>
-
-        <div id="g0-report"></div>
-
-        <div class="footer-note">
-          DUTY VIOLATIONS ACTIVATE EXPOSURE AND RECLASSIFICATION, NOT ENFORCEMENT.
-          NO POWER CHANGES HANDS. ONLY MISREPRESENTATION COLLAPSES.
-        </div>`;
-
-      let selected = DATA.auditPresets[3];
-      body.querySelectorAll("[data-preset]").forEach(card => {
-        if (card.dataset.preset === selected.id) card.classList.add("selected");
-        card.addEventListener("click", () => {
-          body.querySelectorAll("[data-preset]").forEach(c => c.classList.remove("selected"));
-          card.classList.add("selected");
-          selected = DATA.auditPresets.find(p => p.id === card.dataset.preset);
-        });
-      });
-
-      const renderReport = (r) => {
-        const host = body.querySelector("#g0-report");
-        const breach = r.verdict.startsWith("FORCED");
-        const sev = r.severity || (breach ? "BREACH / INVALIDATION" : "INFORMATIONAL");
-        const remed = r.remediation || (breach
-          ? "Reclassification executed. Re-badged. Authority migration prohibited; legitimacy score L(t) set to 0.0."
-          : "No action required. Badge matches observed behavior.");
-        host.innerHTML = `
-          <div class="audit-report">
-            <div class="h2" style="margin-top:0">Audit Report — ${r.target}</div>
-            <table class="table">
-              <tr><th>Metric</th><th>Declared / Claimed Posture</th><th>Observed Behavior</th><th>Audit Status</th></tr>
-              ${r.rows.map(([k, d, o, st]) => `
-                <tr><td>${k}</td><td>${d}</td><td>${o}</td><td class="${st.startsWith("MATCH") ? "good" : "bad"}">${st}</td></tr>`).join("")}
-            </table>
-            <div class="audit-verdict ${breach ? "breach" : "clear"}">${r.verdict}</div>
-            <div class="h2">Duty Collation Ledger Status</div>
-            <div class="kv">
-              <div class="k">Timestamp</div><div class="v">${r.ts}</div>
-              <div class="k">Declared Phase</div><div class="v">${r.declaredPhase}</div>
-              <div class="k">Observed Phase</div><div class="v">${r.observedPhase}</div>
-              <div class="k">Severity</div><div class="v ${breach ? "refusal" : ""}">${sev}</div>
-              <div class="k">Remediation</div><div class="v">${remed}</div>
-            </div>
-            <div class="h2">Theorems &amp; Formal Invariants Applied</div>
-            <ul class="ul">${r.theorems.map(t => `<li class="li ${breach ? "refusal" : "gold"}">${t}</li>`).join("")}</ul>
-            <div class="rule-box ${breach ? "refusal" : ""}">${r.note}</div>
-          </div>`;
-      };
-
-      body.querySelector("#g0-run").addEventListener("click", () => {
-        const custom = body.querySelector("#g0-name").value.trim();
-        const p = selected;
-        const target = custom || p.label;
-        const breach = p.verdict.startsWith("FORCED");
-        const ts = kernel.nowISO();
-        const rows = [
-          ["System Phase", `❄/💧/💨 ${p.declared.phase}`, `💨/💧/❄ ${p.observed.phase}`, p.phaseStatus || (p.declared.phase === p.observed.phase ? "MATCH" : `FORCED RE-BADGE → ${p.observed.phase}`)],
-          ["Center Capability", p.declared.center, p.observed.center, p.declared.center === p.observed.center ? "MATCH" : "NON-MIGRATION INVARIANT VIOLATED"],
-          ["Legitimacy Source", p.declared.legit, p.observed.legit, p.declared.legit === p.observed.legit ? "MATCH" : (p.observed.legit === "Internal" ? "ADDRESSABILITY SEVERED" : "MISMATCH")],
-          ["Refusal Semantics", p.declared.refusal, p.observed.refusal, p.declared.refusal === p.observed.refusal ? "MATCH" : "GSRB DISCRETION ACTIVE"],
-          ["Symbolism Executability", p.declared.symbolism, p.observed.symbolism, p.declared.symbolism === p.observed.symbolism ? "MATCH" : "SYMBOLIC FIREWALL ACTIVE"],
-          ["Time-Authority Effect", p.declared.time, p.observed.time, p.declared.time === p.observed.time ? "MATCH" : "STALE PERMISSION THRESHOLD ENFORCED (Δt > δ)"]
-        ];
-        const report = {
-          target, ts, rows,
-          declaredPhase: `${p.declared.phase} (${DATA.phases[p.declared.phase] ? DATA.phases[p.declared.phase].matter : "—"})`,
-          observedPhase: `${p.observed.phase} (${DATA.phases[p.observed.phase] ? DATA.phases[p.observed.phase].matter : "—"})`,
-          verdict: p.verdict,
-          theorems: p.theorems,
-          note: p.note,
-          severity: p.severity,
-          remediation: p.remediation
-        };
-        if (breach) {
-          kernel.record("breach", `GROUND-0 AUDIT — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Legitimacy score L(t) set to 0.0 for the audited claim.`);
-          api.toast("refusal", "GROUND-0 BREACH", `${target}: ${p.verdict}. Misrepresentation collapses. The audit is recorded in the Duty Ledger.`);
-        } else if (p.severity) {
-          kernel.record("warning", `GROUND-0 AUDIT — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Severity ${p.severity}. Badge withheld pending clarity.`);
-          api.toast("refusal", "BADGE WITHHELD", `${target}: ${p.verdict}. Classification logged to the Duty Ledger; no badge issued.`);
-        } else {
-          kernel.record("info", `GROUND-0 AUDIT — '${target}': badge verified (${p.observed.phase}). Declared and observed behavior agree.`);
-          api.toast("permit", "BADGE VERIFIED", `${target}: declared posture matches observed behavior. Classification holds.`);
-        }
-        renderReport(report);
-      });
-
-      if (report) renderReport(report);
-    };
-    draw();
-  }
-});
 
 /* ───────────────────────────────────────────────
    10. GLOSSARY — stabilized terms
