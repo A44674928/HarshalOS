@@ -384,7 +384,12 @@ window.G0Research = (() => {
     return null;
   }
   function recordSource(record) {
-    return { id: record.id, title: record.title, url: record.url, published: record.published, retrieved: record.retrieved, excerpt: record.excerpt, codes: [...record.codes], kind: record.kind, dateBasis: record.kind === "news" ? "indexed" : record.published ? "publication" : "unknown" };
+    const source = { id: record.id, title: record.title, url: record.url, published: record.published, retrieved: record.retrieved, excerpt: record.excerpt, codes: [...record.codes], kind: record.kind, dateBasis: record.kind === "news" ? "indexed" : record.published ? "publication" : "unknown" };
+    if (record.authority) source.authority = record.authority;
+    /* Court, regulatory and legislative records carry their claim text;
+       news stays a bare lead and never gains readable text. */
+    if (record.kind !== "news" && typeof record.claim === "string" && record.claim.trim().length >= 60) source.text = record.claim.slice(0, 12000);
+    return source;
   }
 
   function preparePublicInput(organization, documents, registryRecords, version, cutoff) {
@@ -442,6 +447,22 @@ window.G0Research = (() => {
     if (authority) input.external = { exists: true, exercised: overrides.some(o => o.record.url === authority.url), holder: authority.authority, scope: authority.title, source: authority.url, date: authority.published };
 
     input.automation = { method: "public-lookup", provider: "Wikimedia, official site, Wayback, CourtListener, Federal Register, GovTrack, GDELT", reviewRequired: true, requestedName: organization.name, generatedAt: new Date().toISOString(), sources };
+
+    /* Keep the retrieved documents, not just a 650-character glimpse of them.
+       The keyword rules read one short excerpt; a linked model can read the
+       whole page, so the page text is stored (bounded, governing documents
+       first) and travels with the audit. Without this, nothing could ever be
+       read more carefully than the regexes. */
+    let textBudget = G0.MAX_AUDIT_TEXT || 240000;
+    for (const doc of orderedDocs) {
+      if (textBudget <= 0) break;
+      const source = sources.find(s => s.url === doc.url);
+      if (!source || typeof doc.content !== "string") continue;
+      const text = stripMarkdown(doc.content).slice(0, Math.min(12000, textBudget));
+      if (text.length < 60) continue;
+      source.text = text;
+      textBudget -= text.length;
+    }
     return { input, sources };
   }
 
@@ -483,6 +504,24 @@ window.G0Research = (() => {
   /* ──────────────────────────────────────────────────────────────
      The automatic audit
      ────────────────────────────────────────────────────────────── */
+  /* One plain sentence about what this run actually reached. Every status
+     the coverage table can show is counted, so a gap is stated in words as
+     well as in the table — never rounded up to "searched". */
+  function coverageNote(coverage) {
+    const total = coverage.length;
+    const searched = coverage.filter(entry => entry.status === "searched" || entry.status === "no-match").length;
+    const partial = coverage.filter(entry => entry.status === "partial").map(entry => entry.registry);
+    const unavailable = coverage.filter(entry => entry.status === "unavailable").map(entry => entry.registry);
+    const notNeeded = coverage.filter(entry => entry.status === "not-needed" || entry.status === "not-searched").map(entry => entry.registry);
+    return [
+      `${searched} of ${total} record sources searched for this cutoff.`,
+      partial.length ? `Partial coverage: ${partial.join(", ")}.` : "",
+      unavailable.length ? `Unavailable this run: ${unavailable.join(", ")}.` : "",
+      notNeeded.length ? `Not needed for this cutoff: ${notNeeded.join(", ")}.` : "",
+      "Empty, partial, and unavailable outcomes are disclosed here and in the draft; a missing record is a coverage gap, never a proven negative."
+    ].filter(Boolean).join(" ");
+  }
+
   async function automaticAudit({ name, version, cutoff, existing, signal, onProgress, selection, availability }) {
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 160) throw new Error("Enter an organization name between 2 and 160 characters.");
@@ -546,11 +585,13 @@ window.G0Research = (() => {
     signal.throwIfAborted();
     onProgress({ step: 4, message: "Applying the versioned phase rules and filling the working badge…", completed: 4, total: 5 });
     input.automation.coverage = coverage; input.automation.warnings = Array.from(new Set(warnings));
+    const note = coverageNote(coverage);
+    input.automation.coverageNote = note;
     const record = await G0.createAudit(input, existing);
     signal.throwIfAborted();
     attachResearchSources(record, input.automation, coverage);
     onProgress({ step: 5, message: "Your research draft is ready. Review is required; the formal badge stays unissued.", completed: 5, total: 5 });
-    return { organization, input, record, sources, warnings: Array.from(new Set(warnings)), coverage, method, completedAt: new Date().toISOString() };
+    return { organization, input, record, sources, warnings: Array.from(new Set(warnings)), coverage, coverageNote: note, method, completedAt: new Date().toISOString() };
   }
 
   function attachResearchSources(record, metadata, coverage) {
@@ -587,6 +628,9 @@ window.G0Research = (() => {
   return {
     HttpError, OrganizationChoiceError, registryLabels, mentionsEntity, externalOverrideQuote,
     searchPublicRegistries, lookupArchivedSnapshot, lookupOrganizations, researchAvailability,
-    automaticAudit, attachResearchSources, plainResearchSummary, fetchJson, policyLinks
+    automaticAudit, attachResearchSources, coverageNote, plainResearchSummary, fetchJson, policyLinks,
+    /* used by the Ground-0 LLM reading pass to follow a link the record itself
+       contains, through the same reader, archive and cutoff discipline */
+    readWithArchive, readPublicPage, stripMarkdown
   };
 })();

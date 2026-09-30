@@ -168,6 +168,12 @@ globalThis.localStorage = {
   setItem: (k, v) => storage.set(k, String(v)),
   removeItem: k => storage.delete(k)
 };
+const session = new Map();
+globalThis.sessionStorage = {
+  getItem: k => (session.has(k) ? session.get(k) : null),
+  setItem: (k, v) => session.set(k, String(v)),
+  removeItem: k => session.delete(k)
+};
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 globalThis.CSS = { escape: s => String(s).replace(/[^a-zA-Z0-9_\u00A0-\uFFFF-]/g, c => "\\" + c) };
 Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async () => {} }, platform: "test" }, configurable: true });
@@ -182,7 +188,10 @@ globalThis.__g0toasts = toasts;
 await import("../js/data.js");
 await import("../js/g0-engine.js");
 await import("../js/g0-research.js");
+await import("../js/llm.js");
+await import("../js/g0-llm.js");
 await import("../js/g0-app.js");
+await import("../js/apps-llm.js");
 
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  ✗ FAIL:", name); } };
@@ -202,6 +211,8 @@ ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one gr
   const at = src => html.indexOf(`src="${src}`);
   ok(at("js/g0-engine.js") !== -1 && at("js/g0-research.js") !== -1 && at("js/g0-app.js") !== -1, "index.html references all three Ground-0 modules");
   ok(at("js/g0-engine.js") < at("js/wm.js") && at("js/g0-research.js") < at("js/wm.js") && at("js/g0-app.js") > html.indexOf('src="js/apps-shell.js"'), "module load order: engine+research before the window manager, app after the shell");
+  ok(at("js/llm.js") !== -1 && at("js/g0-llm.js") !== -1 && at("js/apps-llm.js") !== -1, "index.html references the LLM connection modules");
+  ok(at("js/g0-research.js") < at("js/llm.js") && at("js/llm.js") < at("js/g0-llm.js") && at("js/g0-llm.js") < at("js/wm.js"), "module load order: connection layer before the reading pass, both before the window manager");
   ok(html.includes("css/ground0.css"), "index.html links the Ground-0 stylesheet");
 }
 
@@ -397,6 +408,194 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
   ok(!!main2.querySelector('[data-bind="wiz.input.answers.4.gap"]'), "the bounded-search field is shown for the unknown question");
   main2.querySelector('[data-act="bind"][data-path="wiz.input.answers.4.value"][data-value="false"]').click();
   ok(main2.querySelector('[data-act="wizNext"]') && true, "ansswering the unknown question re-enables progress");
+}
+
+/* ── automatic: a completed research run must reach its result view ──
+   Regression guard: the section note under the registry coverage table read
+   a binding that only exists inside the table's row loop, so every run that
+   finished raised a ReferenceError while rendering and the app fell into
+   "The research could not complete — Can't find variable: c".
+   The whole pipeline runs here against a stubbed public record. ── */
+{
+  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+  const cutoff = G0.today();
+  const site = "https://example.org/";
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async value => {
+    const url = new URL(value, "https://harness.test");
+    if (url.origin === "https://harness.test") throw new Error("No hosted research service is configured for this harness.");
+    if (url.hostname === "en.wikipedia.org") return json({ query: { pages: [{ pageid: 1, title: "Coverage Note Body", index: 1, fullurl: "https://en.wikipedia.org/wiki/Coverage_Note_Body", extract: "An example organization used by this harness.", pageprops: { wikibase_item: "Q999" } }] } });
+    if (url.hostname === "www.wikidata.org") return json({ entities: { Q999: { labels: { en: { value: "Coverage Note Body" } }, descriptions: { en: { value: "corporation" } }, claims: { P856: [{ rank: "normal", mainsnak: { datavalue: { value: site } } }] } } } });
+    if (url.hostname === "r.jina.ai") return json({ data: { title: "Coverage Note Body policy", url: site, publishedTime: cutoff, content: "Participation in this program is voluntary and advisory. No penalty attaches to non-participation and no obligation is imposed on participants." } });
+    if (url.hostname === "www.courtlistener.com") return json({ results: [] });
+    if (url.hostname === "www.federalregister.gov") return json({ results: [] });
+    if (url.hostname === "www.govtrack.us") return json({ objects: [] });
+    if (url.hostname === "api.gdeltproject.org") return json({ articles: [] });
+    throw new Error(`Unexpected request while rendering a completed research run: ${value}`);
+  };
+  try {
+    const autoRoot = new El("div");
+    app.render(autoRoot, api);
+    const autoMain = autoRoot.querySelector("#g0-main");
+    autoRoot.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "automatic").click();
+    const query = autoMain.querySelector('[data-bind="auto.query"]'); query.value = "Coverage Note Body"; dispatch(query, "input");
+    const cutoffField = autoMain.querySelector('[data-bind="auto.cutoff"]'); cutoffField.value = cutoff; dispatch(cutoffField, "change");
+    autoMain.querySelector('[data-act="autoStart"]').click();
+    let choose = null;
+    for (let i = 0; i < 40 && !choose; i++) { await sleep(100); choose = autoMain.querySelector('[data-act="autoChoose"]'); }
+    ok(!!choose, "automatic research reaches the identity-choice stage");
+    if (choose) choose.click();
+    for (let i = 0; i < 60; i++) {
+      await sleep(100);
+      if (autoMain.innerHTML.includes("Coverage — every registry") || autoMain.innerHTML.includes("could not complete")) break;
+    }
+    ok(!autoMain.innerHTML.includes("could not complete"), "a completed research run renders its result instead of the error state");
+    ok(autoMain.innerHTML.includes("Coverage — every registry, every outcome"), "the result view renders the registry coverage table");
+    ok(autoMain.innerHTML.includes("record sources searched for this cutoff"), "the coverage note renders under the coverage table");
+    ok(autoMain.innerHTML.includes("Suggested answers"), "the result view renders the suggested answers with their quotes");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+/* ── the LLM connection point, end to end ──
+   A research draft is produced, then read by a linked model through the
+   interface: the model's quote must be verified against the stored source
+   text, the readings must be reviewable, and applying them must update the
+   same register entry without certifying anything. ── */
+{
+  const LLM = globalThis.HOSLLM;
+  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+  const anthropic = data => json({ content: [{ type: "text", text: JSON.stringify(data) }], model: "claude-sonnet-4-5", usage: { input_tokens: 900, output_tokens: 120 } });
+  const cutoff = G0.today();
+  const site = "https://example.org/";
+  const policy = "Participation in this program is voluntary and advisory. No penalty attaches to non-participation and no obligation is imposed on participants.";
+  const realFetch = globalThis.fetch;
+  let readingPrompts = [];
+  globalThis.fetch = async (value, init = {}) => {
+    const url = new URL(value, "https://harness.test");
+    if (url.origin === "https://harness.test") throw new Error("No hosted research service is configured for this harness.");
+    if (url.hostname === "api.anthropic.com") {
+      const body = JSON.parse(init.body);
+      const prompt = body.messages.map(message => message.content).join("\n");
+      readingPrompts.push(prompt);
+      if (/\nLINKS\n/.test(prompt)) return anthropic({ followups: [] });
+      const blocks = prompt.split(/SOURCE /).slice(1);
+      const holder = blocks.find(block => block.includes("voluntary and advisory")) || "";
+      const index = Number((holder.match(/^(\d+)/) || [])[1]);
+      return anthropic({
+        findings: [{ code: "B2", value: "yes", source_index: index, quote: "Participation in this program is voluntary and advisory.", date: cutoff, confidence: "high", reason: "The policy states participation is voluntary." }],
+        gaps: ["No source states whether authority persists by default."]
+      });
+    }
+    if (url.hostname === "en.wikipedia.org") return json({ query: { pages: [{ pageid: 1, title: "Linked Model Body", index: 1, fullurl: "https://en.wikipedia.org/wiki/Linked_Model_Body", extract: "An example organization used by this harness.", pageprops: { wikibase_item: "Q998" } }] } });
+    if (url.hostname === "www.wikidata.org") return json({ entities: { Q998: { labels: { en: { value: "Linked Model Body" } }, descriptions: { en: { value: "corporation" } }, claims: { P856: [{ rank: "normal", mainsnak: { datavalue: { value: site } } }] } } } });
+    if (url.hostname === "r.jina.ai") return json({ data: { title: "Linked Model Body policy", url: site, publishedTime: cutoff, content: `${policy} Acme-style boilerplate omitted.` } });
+    if (url.hostname === "www.courtlistener.com") return json({ results: [] });
+    if (url.hostname === "www.federalregister.gov") return json({ results: [] });
+    if (url.hostname === "www.govtrack.us") return json({ objects: [] });
+    if (url.hostname === "api.gdeltproject.org") return json({ articles: [] });
+    throw new Error(`Unexpected request in the LLM flow: ${value}`);
+  };
+  try {
+    LLM.setKey("sk-ant-harness-key-0001", false);
+    LLM.saveSettings({ provider: "anthropic", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5", protocol: "", persist: false });
+    ok(LLM.status().linked, "the harness links a model the same way the LLM Link app does");
+
+    const root3 = new El("div");
+    app.render(root3, api);
+    const main3 = root3.querySelector("#g0-main");
+    root3.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "automatic").click();
+    const query = main3.querySelector('[data-bind="auto.query"]'); query.value = "Linked Model Body"; dispatch(query, "input");
+    const cutoffField = main3.querySelector('[data-bind="auto.cutoff"]'); cutoffField.value = cutoff; dispatch(cutoffField, "change");
+    main3.querySelector('[data-act="autoStart"]').click();
+    let choose = null;
+    for (let i = 0; i < 40 && !choose; i++) { await sleep(100); choose = main3.querySelector('[data-act="autoChoose"]'); }
+    ok(!!choose, "the research run reaches the identity choice");
+    if (choose) choose.click();
+    for (let i = 0; i < 60; i++) { await sleep(100); if (main3.querySelector('[data-act="readRecord"]')) break; }
+    const readButton = main3.querySelector('[data-act="readRecord"]');
+    ok(!!readButton && !readButton.disabled, "a completed draft offers the model reading once page text was kept");
+    ok(!main3.innerHTML.includes("could not complete"), "the draft rendered before the reading");
+
+    readButton.click();
+    let review = null;
+    for (let i = 0; i < 60 && !review; i++) { await sleep(100); review = main3.querySelector('[data-act="includeReading"]'); }
+    ok(!!review, "the model reading returns a reviewable list");
+    ok(main3.innerHTML.includes("quote verified"), "the verified quote is presented as verified");
+    ok(main3.innerHTML.includes("A model reading, not a finding"), "the panel refuses to present the reading as a finding");
+    ok(readingPrompts.length >= 1 && readingPrompts[0].includes("voluntary and advisory"), "the model was given the retrieved policy text, not a summary");
+
+    const b2 = main3.querySelector('[data-act="includeReading"][data-code="B2"]');
+    ok(!!b2, "the B2 reading offers an include checkbox");
+    ok(b2.checked === true, "a verified reading starts ticked for review");
+    const b4 = main3.querySelector('[data-act="includeReading"][data-code="B4"]');
+    ok(!!b4 && b4.disabled === true, "an unanswered question cannot be applied over the draft");
+
+    const before = JSON.parse(storage.get("ground-0-audits-v1") || "[]").length;
+    const applyBtn = main3.querySelector('[data-act="applyReading"]');
+    ok(!!applyBtn, "the reading offers an apply action");
+    applyBtn.click();
+    for (let i = 0; i < 60; i++) { await sleep(100); if (toasts.some(t => t.title === "READINGS APPLIED")) break; }
+    ok(toasts.some(t => t.title === "READINGS APPLIED"), "applying is confirmed to the custodian");
+
+    const stored = JSON.parse(storage.get("ground-0-audits-v1") || "[]");
+    ok(stored.length === before + 1, "applying files exactly one new register entry for this draft");
+    ok(stored.filter(record => record.name === "Linked Model Body").length === 1, "the read draft appears once in the register");
+    const saved = stored[0];
+    ok(saved.name === "Linked Model Body", "the saved record is the draft that was read");
+    ok(saved.input.answers[1].value === true && /voluntary/.test(saved.input.answers[1].notes), "the model's quote is written into the answer it supports");
+    ok(saved.input.automation.llm && saved.input.automation.llm.verified >= 1, "the record carries the reading block with its verified count");
+    ok(saved.input.automation.sources.some(source => source.text && source.text.includes("voluntary and advisory")), "the fetched page text is stored with the record so it can be re-read");
+    ok(saved.status === "Draft" && saved.badge === "Unissued", "a model reading never certifies: the record stays an unissued draft");
+    ok(!JSON.stringify(saved).includes("sk-ant-harness-key"), "the key is never written into the record");
+  } finally {
+    globalThis.fetch = realFetch;
+    globalThis.HOSLLM.clearKey();
+  }
+}
+
+/* ── reading one saved artifact with the linked model ── */
+{
+  const LLM = globalThis.HOSLLM;
+  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+  const cutoff = G0.today();
+  const quote = "Sections of this charter may be amended only by a two-thirds vote of the governing board, and no amendment expires on its own.";
+  const charter = `Charter of the Evidence Body. ${quote} The board meets quarterly and publishes its determinations.`;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (value, init = {}) => {
+    const url = new URL(value, "https://harness.test");
+    if (url.hostname === "api.anthropic.com") {
+      return json({ content: [{ type: "text", text: JSON.stringify({ findings: [{ code: "B5", value: "yes", source_index: 0, quote, date: cutoff, confidence: "high", reason: "Amendment requires a vote and no sunset applies." }], gaps: [] }) }], model: "claude-sonnet-4-5", usage: { input_tokens: 200, output_tokens: 40 } });
+    }
+    if (url.hostname === "r.jina.ai") return json({ data: { title: "Charter", url: "https://example.com/charter", publishedTime: cutoff, content: charter } });
+    throw new Error(`Unexpected request while reading an artifact: ${value}`);
+  };
+  try {
+    LLM.setKey("sk-ant-harness-key-0002", false);
+    const evidenceRoot = new El("div");
+    app.render(evidenceRoot, api);
+    const evidenceMain = evidenceRoot.querySelector("#g0-main");
+    evidenceRoot.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "evidence").click();
+    ok(evidenceMain.innerHTML.includes("Save this quote") === false, "no reading panel is shown before a read is asked for");
+    const item = JSON.parse(storage.get("ground-0-evidence-v1") || "[]")[0];
+    const readBtn = evidenceMain.querySelector(`[data-act="readArtifact"][data-id="${item.id}"]`);
+    ok(!!readBtn, "each saved artifact offers a reading with the linked model");
+    readBtn.click();
+    let useQuote = null;
+    for (let i = 0; i < 40 && !useQuote; i++) { await sleep(100); useQuote = evidenceMain.querySelector('[data-act="useArtifactQuote"]'); }
+    ok(!!useQuote, "the artifact reading returns a quotable finding");
+    ok(evidenceMain.innerHTML.includes("quote verified"), "the artifact reading labels its finding as verified");
+    ok(evidenceMain.querySelector('[data-act="useArtifactQuote"]').dataset.code === "B5", "the finding names the question it supports");
+
+    useQuote.click();
+    const updated = JSON.parse(storage.get("ground-0-evidence-v1") || "[]").find(entry => entry.id === item.id);
+    ok(updated.claim.includes("two-thirds vote"), "saving writes the verified quote into the artifact's claim");
+    ok(updated.codes.includes("B5"), "the artifact is tagged with the question it supports");
+  } finally {
+    globalThis.fetch = realFetch;
+    globalThis.HOSLLM.clearKey();
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

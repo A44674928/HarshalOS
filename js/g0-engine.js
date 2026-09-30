@@ -510,6 +510,11 @@ window.G0 = (() => {
      ────────────────────────────────────────────────────────────── */
   const phases = ["NAB", "CWO", "NAB-Constrained", "GSRB", "AMBIGUOUS", "INCOHERENT"];
   const sourceKinds = ["official", "court", "regulatory", "legislative", "news", "archive", "public", "context"];
+  /* Retrieved text is kept so a linked model can read what this browser
+     actually fetched. Bounded: the excerpt stays the short quotable line,
+     `text` is the readable document, capped per source and per audit. */
+  const MAX_SOURCE_TEXT = 20000;
+  const MAX_AUDIT_TEXT = 240000;
   const text = (value, fallback = "") => typeof value === "string" ? value : fallback;
   const strings = value => Array.isArray(value) ? value.filter(v => typeof v === "string") : [];
 
@@ -534,6 +539,8 @@ window.G0 = (() => {
       if (used.has(id)) id = `${id}-${i + 1}`;
       used.add(id);
       const out = { id, title: text(s.title, "Public source"), url: s.url, published: isCalendarDate(s.published) ? s.published : null, retrieved: Number.isFinite(dateTime(s.retrieved)) ? s.retrieved : "", excerpt: text(s.excerpt), codes: Array.from(new Set(strings(s.codes))), kind: sourceKinds.includes(s.kind) ? s.kind : "context" };
+      if (typeof s.text === "string" && s.text.trim().length >= 60) out.text = s.text.slice(0, MAX_SOURCE_TEXT);
+      if (typeof s.authority === "string" && s.authority.trim()) out.authority = text(s.authority).slice(0, 200);
       if (isCalendarDate(s.capturedAt)) out.capturedAt = s.capturedAt;
       if (safePublicUrl(s.originalUrl)) out.originalUrl = s.originalUrl;
       if (["publication", "archive-capture", "indexed", "unknown"].includes(text(s.dateBasis))) out.dateBasis = s.dateBasis;
@@ -546,7 +553,10 @@ window.G0 = (() => {
     let automation;
     if (isObject(raw.automation)) {
       const a = raw.automation;
-      automation = { method: a.method === "web-research" ? "web-research" : "public-lookup", provider: text(a.provider, "Public research"), requestedName: text(a.requestedName, text(raw.name)), generatedAt: text(a.generatedAt), reviewRequired: a.reviewRequired !== false, sources: normalizeSources(a.sources), coverage: normalizeCoverage(a.coverage), warnings: strings(a.warnings) };
+      const methods = ["web-research", "public-lookup", "llm-reading"];
+      automation = { method: methods.includes(a.method) ? a.method : "public-lookup", provider: text(a.provider, "Public research"), requestedName: text(a.requestedName, text(raw.name)), generatedAt: text(a.generatedAt), reviewRequired: a.reviewRequired !== false, sources: normalizeSources(a.sources), coverage: normalizeCoverage(a.coverage), warnings: strings(a.warnings) };
+      if (typeof a.coverageNote === "string" && a.coverageNote.trim()) automation.coverageNote = a.coverageNote.slice(0, 1200);
+      if (isObject(a.llm)) automation.llm = normalizeLlm(a.llm);
     }
     return { ...defaults, name: text(raw.name), identifier: text(raw.identifier), cutoff: isCalendarDate(raw.cutoff) ? raw.cutoff : defaults.cutoff, answers: Array.from({ length: 5 }, (_, i) => normalizeAnswer(Array.isArray(raw.answers) ? raw.answers[i] : undefined)), constraints: Array.from({ length: 4 }, (_, i) => normalizeAnswer(Array.isArray(raw.constraints) ? raw.constraints[i] : undefined)), b4: typedFields(defaults.b4, raw.b4), c2: typedFields(defaults.c2, raw.c2), external: typedFields(defaults.external, raw.external), decrement: typedFields(defaults.decrement, raw.decrement), headerText: text(raw.headerText), publicKeyText: text(raw.publicKeyText), trustedOrigin: text(raw.trustedOrigin, defaults.trustedOrigin), ...(automation ? { automation } : {}) };
   }
@@ -558,6 +568,32 @@ window.G0 = (() => {
   function normalizeEvidence(value) {
     if (!isObject(value) || !safePublicUrl(value.url)) return null;
     return { id: text(value.id, `E-${Math.random().toString(36).slice(2, 8)}`), title: text(value.title, "Public artifact"), url: value.url, published: text(value.published), retrieved: text(value.retrieved), claim: text(value.claim), codes: strings(value.codes), entity: text(value.entity) };
+  }
+  /* The record of what a linked model read and proposed. Kept separate
+     from the research block so a reviewer can see both, and so a
+     re-hydrated record never presents a model reading as a source. */
+  function normalizeLlm(value) {
+    const raw = isObject(value) ? value : {};
+    const number = key => typeof raw[key] === "number" && Number.isFinite(raw[key]) ? raw[key] : 0;
+    const rows = list => Array.isArray(list) ? list.filter(isObject).slice(0, 60).map(row => ({ ...row, quote: text(row.quote).slice(0, 800), url: safePublicUrl(row.url) ? row.url : text(row.url).slice(0, 400) })) : [];
+    return {
+      method: "llm-reading",
+      provider: text(raw.provider, "Linked model").slice(0, 120),
+      model: text(raw.model).slice(0, 120),
+      endpoint: text(raw.endpoint).slice(0, 300),
+      generatedAt: Number.isFinite(dateTime(raw.generatedAt)) ? raw.generatedAt : "",
+      reviewRequired: true,
+      passes: number("passes"),
+      sourcesRead: number("sourcesRead"),
+      charsRead: number("charsRead"),
+      verified: number("verified"),
+      rejected: rows(raw.rejected),
+      held: rows(raw.held),
+      unknowns: Array.isArray(raw.unknowns) ? raw.unknowns.filter(isObject).slice(0, 20).map(row => ({ code: text(row.code).slice(0, 8), note: text(row.note).slice(0, 300) })) : [],
+      usage: { input: isObject(raw.usage) && Number.isFinite(raw.usage.input) ? raw.usage.input : 0, output: isObject(raw.usage) && Number.isFinite(raw.usage.output) ? raw.usage.output : 0 },
+      followUps: Array.isArray(raw.followUps) ? raw.followUps.filter(isObject).slice(0, 12).map(row => ({ id: text(row.id).slice(0, 40), url: safePublicUrl(row.url) ? row.url : text(row.url).slice(0, 400), label: text(row.label).slice(0, 200), why: text(row.why).slice(0, 300) })) : [],
+      note: text(raw.note, "A linked model proposed these readings; every quote is checked against the stored source text and a person must review each answer.").slice(0, 800)
+    };
   }
   function normalizeTransition(value) {
     if (!isObject(value) || !phases.includes(value.from) || !phases.includes(value.to) || !isCalendarDate(value.fromDate) || !isCalendarDate(value.toDate)) return null;
@@ -602,9 +638,38 @@ window.G0 = (() => {
   const EVIDENCE_KEY = "ground-0-evidence-v1";
   const loadAuditRecords = () => loadArray(AUDITS_KEY, normalizeAuditRecord);
   const loadEvidenceRecords = () => loadArray(EVIDENCE_KEY, normalizeEvidence);
+  /* Retrieved text makes records large. If the browser refuses the write,
+     shrink rather than lose the audit, and say so instead of failing
+     silently: the readings stay, the readable documents get thinner. */
+  let storageNote = "";
+  const storageNoteOf = () => storageNote;
+  function shrinkSourceText(list, limit) {
+    const copy = JSON.parse(JSON.stringify(list));
+    for (const record of copy) {
+      const sources = record && record.input && record.input.automation && record.input.automation.sources;
+      if (!Array.isArray(sources)) continue;
+      for (const source of sources) {
+        if (typeof source.text !== "string") continue;
+        if (limit <= 0) delete source.text;
+        else if (source.text.length > limit) source.text = source.text.slice(0, limit);
+      }
+    }
+    return copy;
+  }
   function saveAuditRecords(list) {
+    storageNote = "";
     try { localStorage.setItem(AUDITS_KEY, JSON.stringify(list)); return true; }
-    catch { return false; }
+    catch {
+      for (const limit of [4000, 0]) {
+        try {
+          localStorage.setItem(AUDITS_KEY, JSON.stringify(shrinkSourceText(list, limit)));
+          storageNote = limit ? `Browser storage was nearly full, so stored documents were trimmed to ${limit} characters each to keep this audit.` : "Browser storage was nearly full, so the stored document text was dropped to keep this audit. Every conclusion, quote and citation is intact; export the record before the next research run.";
+          return true;
+        } catch { /* try a smaller footprint */ }
+      }
+      storageNote = "Browser storage refused the record. Export your audits to keep a copy.";
+      return false;
+    }
   }
   function saveEvidenceRecords(list) {
     try { localStorage.setItem(EVIDENCE_KEY, JSON.stringify(list)); return true; }
@@ -621,6 +686,7 @@ window.G0 = (() => {
     dateTime, eligibleByCutoff, withinCalendarMonths, artifactDate, isObject,
     formatDate, sourceDateDescription, downloadFile, exportAudit,
     loadAuditRecords, loadEvidenceRecords, saveAuditRecords, saveEvidenceRecords,
+    storageNoteOf, shrinkSourceText, MAX_SOURCE_TEXT, MAX_AUDIT_TEXT,
     normalizeAuditRecord, normalizeAuditInput, normalizeEvidence
   };
 })();

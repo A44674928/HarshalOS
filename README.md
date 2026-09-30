@@ -41,6 +41,7 @@ Or simply open `index.html` in a browser.
 | **AI Inner Shell** | Address-constrained AI nodes (`0•100•000•NNNN•AI-XXXX`). Removing the anchor invalidates all dependent nodes instantly — *geometry, not enforcement*. Learning increases capability, never authority |
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
 | **Whyland Standards (TCS)** | Contextual-inquiry terminal: `why.query`, `why.activate`, `why.explain` with the session-state transition table, off-disc catalog virtualization, Control 2 freshness gating, and the Bromine gateway (invalid input → session burn) |
+| **LLM connection points** | Bring your own model: Anthropic, OpenRouter, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or this deployment's relay if one is configured. The key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked |
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: OpenAI Group PBC (`GROUND-0 CASE STUDY - OpenAI.md`) and Anthropic PBC (`GROUND-0 CASE STUDY - Anthropic.md`) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
@@ -65,11 +66,17 @@ js/g0-engine.js   — Ground-0 engine: strict validation, B1–B5/C1–C4 scorin
                     working badge, transitions, baselines, defensive storage (window.G0)
 js/g0-research.js — key-free public-record research: identity, official pages, Wayback captures,
                     court/regulatory/legislative/news registries, coverage (window.G0Research)
+js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
+                    transport (Anthropic / OpenAI-compatible), probes, plain-language failures (window.HOSLLM)
+js/g0-llm.js      — Ground-0 model reading: batched read passes, verbatim-quote verification,
+                    bounded link-following, application to a draft (window.G0LLM)
 js/wm.js          — window manager, HUD, origin menu, toasts
 js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
 js/apps-shell.js  — Inner Shell · Discs · Whyland · Glossary · The Book · Firewall
 js/g0-app.js      — the Ground-0 workspace app: overview · register · manual wizard · automatic
-                    research · evidence · temporal · phases · logic sandbox · specification · access
+                    research · model reading · evidence · temporal · phases · logic sandbox ·
+                    specification · access
+js/apps-llm.js    — LLM Link: connect your own model, test it, see what leaves the browser
 js/apps-ocm.js    — The Orb (sphere engine) · Interaction Orbs (non-additive extension)
 js/boot.js        — PDH boot sequence (eye animation + cryptographic attestation log)
 scripts/          — Node test harnesses (engine + research); not part of the deployed site
@@ -188,10 +195,53 @@ hydrator that rebuilds the working badge without inventing evidence and preserve
 of malformed data. Exports are plain JSON (audits, the register view, the temporal ledger) and
 plain-text research summaries.
 
+## The coverage gap, and the way out of it
+
+The automatic research retrieves real documents, but the shipped pipeline can only ask whether a
+page *contains fixed keywords*. An organization whose governing text says the same thing in its own
+words is recorded as a coverage gap — honestly labelled, never guessed at, and still a dead end.
+
+**With a model linked, that record is read instead of matched.** From a completed research draft:
+
+1. **Retrieval keeps what it read.** Page text is stored with the source (governing documents
+   first, bounded per source and per audit) instead of being reduced to a 650-character excerpt.
+   Without this there would be nothing for a model to read.
+2. **Read passes.** Documents are packed into batches (about three documents and 12k characters
+   each, inside a per-run budget) and read against the nine Ground-0 questions. The model answers
+   only with a quote.
+3. **Verification is the gate.** Every quote is normalised and matched character-for-character
+   against the stored source text. A quote that is not found is discarded, with the reason shown,
+   and that question stays **UNKNOWN — never NO**. Quotes must come from a source on or before the
+   cutoff; news indexes are leads and can never support an answer; relief figures (the ≥50% B4/C2
+   claim) must literally appear in the source or the claim is refused.
+4. **Bounded follow-up reading.** When text is missing the model may ask for specific pages — but
+   only from links that actually appear inside documents already retrieved, and each page is fetched
+   by the same reader, archive and cutoff rules as the original research. It cannot reach the open
+   web and cannot name a URL that was not already in the record.
+5. **Weighing, then a person.** Multiple verified candidates for one question are weighed against
+   the record; the result is presented per question with the quote, source, date and a tick box.
+   Applying writes the quotes in as suggested answers and files the draft — the status stays
+   **Draft**, confidence stays **NONE**, the badge stays **Unissued**, and the reading is recorded in
+   `automation.llm` with its verified, held and discarded counts.
+
+What changes: where retrieval succeeded but the keyword rules found nothing, the model usually
+reaches an answer a reviewer can check in one click. What does not change: where the record itself
+is silent, the result is still a coverage gap, stated as such. A model cannot close a gap by
+asserting something the retrieved documents do not say, and it is never allowed to try — the
+unverifiable reading is thrown away in front of you, with the reason.
+
 **Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
 storage); `node scripts/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
-network smoke test of the public registries).
+network smoke test of the public registries); `node scripts/g0-app-test.mjs` boots the workspace in
+a mini-DOM and walks the interface — every tab, the manual wizard, the register, the logic sandbox,
+preferences, a complete automatic research run rendered against a stubbed public record (so a run
+that finishes always reaches its result view instead of an error state), and a full model reading
+applied to a draft; `node scripts/llm-test.mjs` covers the connection layer and the reading pass
+with a stub provider and a deliberately mixed set of model replies — verified, fabricated,
+mis-dated, news-sourced and out-of-record — proving that only verifiable quotes ever reach an
+answer, that a followed page can only come from a link the record itself contained, and that
+nothing is sent without a linked model.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.
