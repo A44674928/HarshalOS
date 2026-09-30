@@ -27,7 +27,7 @@ APPS.push({
       <div class="rule-box gold">${DATA.quotes.canonical}</div>
 
       <p class="body">HarshalOS is a working structural demonstration of the governance architecture specified in
-      <strong>Harshal's Systems</strong> (formerly AGS++) by <strong>Harshal Priyavadan Patel (A44674928)</strong>.
+      <strong>Harshal's Systems</strong> (formerly AGS++) by <strong>Harshal Priyavadan Patel</strong>.
       Every window, state change, and refusal in this system is gated by the document's core constraint:
       <strong>legitimacy precedes capability</strong>.</p>
 
@@ -76,7 +76,7 @@ APPS.push({
   desc: "Attest verifiable conscious human intent — the only valid authorization",
   w: 620, h: 540,
   render(body, api) {
-    const CEREMONY = `HUMAN KEY — A44674928 — I ANSWER`;
+    const CEREMONY = `HUMAN KEY — HARSHAL — I ANSWER`;
 
     body.innerHTML = `
       <div class="h1">Human Key</div>

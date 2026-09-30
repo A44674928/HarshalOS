@@ -182,7 +182,7 @@ let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  ✗ FAIL:", name); } };
 
 /* ── load every script index.html references, in order ────────── */
-const srcs = [...html.matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]);
 ok(srcs.length >= 10, `index.html loads ${srcs.length} scripts`);
 for (const src of srcs) {
   const url = pathToFileURL(path.join(root, src.split("?")[0])).href;

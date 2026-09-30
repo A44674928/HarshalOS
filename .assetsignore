@@ -46,6 +46,11 @@ README.md
 *.txt
 *.rtf
 
+# Private working papers and source archives (no file extension / zip):
+# never publish these.
+*.zip
+Ground-0 Phase Detection Algorithm
+
 # Exception: the versioned Ground-0 specifications are site content —
 # the Ground-0 app's specification reader fetches them at runtime.
 !specs/*.md

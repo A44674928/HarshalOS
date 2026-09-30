@@ -1,6 +1,6 @@
 # Ground-0 Phase Detection Algorithm v1.1 — Amendment Draft
 
-**Author of source framework:** Harshal Priyavadan Patel (A44674928)  
+**Author of source framework:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  
 **Framework:** Harshal's Systems (AGS++) | Orb Communicator Model (OCM)  
 **Baseline:** Ground-0 Phase Detection Algorithm v1.0, finalized 2026-09-12  
@@ -23,7 +23,7 @@ The changes below clarify coding and reporting; they do not retroactively rewrit
 
 ```text
 GROUND-0 PHASE DETECTION ALGORITHM v1.1 — AMENDMENT DRAFT
-Author: Harshal Priyavadan Patel (A44674928)
+Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Framework: Harshal's Systems (AGS++) | Orb Communicator Model (OCM)
 Status: AMENDED WORKING DRAFT — pending author adoption
@@ -528,7 +528,7 @@ Ground-0 Phase Detection Algorithm v1.1 is intended to remain deterministic and 
 ✓ Integrates legislative oversight as a distinct phase variant
 ✓ Can be applied at any level of government and institutional structure
 This amendment draft is not represented as author-ratified or as superseding the v1.0 finalization until adopted by the author.
-Author: Harshal Priyavadan Patel (A44674928)
+Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Baseline v1.0 Finalized: September 12, 2026
 Status: AMENDMENT DRAFT / PENDING AUTHOR ADOPTION

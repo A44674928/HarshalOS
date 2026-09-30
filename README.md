@@ -4,7 +4,7 @@
 
 HarshalOS is a working structural demonstration of the governance architecture specified in
 **Harshal's Systems** (formerly AGS++) — *Harshal's Systems (Working Draft)* by
-**Harshal Priyavadan Patel (A44674928)**.
+**Harshal Priyavadan Patel**.
 
 It is an accountability-gated operating system: every window, state change, and refusal is bound by
 the document's core constraint — **legitimacy precedes capability**. The default state of the system

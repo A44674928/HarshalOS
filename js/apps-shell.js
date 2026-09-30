@@ -172,7 +172,7 @@ rotation is NEVER succession.</div>
           </div>
           <div class="form-row">
             <label>External legitimacy reference</label>
-            <input id="dc-leg" type="text" value="Human Key / A44674928" readonly>
+            <input id="dc-leg" type="text" value="Human Key / Harshal Priyavadan Patel" readonly>
           </div>
         </div>
         <div class="btn-row">

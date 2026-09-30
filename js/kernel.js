@@ -21,7 +21,7 @@ const kernel = (() => {
   const TAU = 0.5;                 // τ — absolute threshold, not adjustable
   const DELTA_MAX = 240;           // δ — maximum acceptable liveness gap (seconds)
   const SMAX = 1.0;
-  const CREATOR_ID = "A44674928";
+  const CREATOR_ID = "HARSHAL";
   const CENTER = "0•000•000•0000";
   const CRYPTO = window.HOSCrypto; // cryptographic schema (js/crypto.js)
   const HK_SEED = "HARSHALOS-HUMAN-KEY::" + CREATOR_ID; // keyed attestation seed

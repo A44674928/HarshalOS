@@ -1,7 +1,7 @@
 # Ground-0 Phase Detection Algorithm v1.0 — Final Specification
 
 **Source:** Harshal's Systems (Working Draft) text copy.txt  
-**Author:** Harshal Priyavadan Patel (A44674928)  
+**Author:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  
 **Status:** Finalized normative source, dated September 12, 2026.
 
@@ -9,7 +9,7 @@ This document retains the supplied v1.0 source wording as the versioned baseline
 
 ```text
 GROUND-0 PHASE DETECTION ALGORITHM v1.0 — FINAL SPECIFICATION
-Author: Harshal Priyavadan Patel (A44674928)
+Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Framework: Harshal's Systems (AGS++) | Orb Communicator Model (OCM)
 Status: FINALIZED (Normative)
@@ -495,7 +495,7 @@ Ground-0 Phase Detection Algorithm v1.0 is a deterministic, testable method for 
 ✓ Integrates legislative oversight as a distinct phase variant
 ✓ Can be applied at llany level of government and institutional structure
 This algorithm is the canonical standard for Ground-0 phase classification under Harshal's Systems (AGS++).
-Author: Harshal Priyavadan Patel (A44674928)
+Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Date Finalized: September 12, 2026
 Status: NORMATIVE / READY FOR INTEGRATION
