@@ -77,6 +77,22 @@ const sources = [
 
   /* OpenAI-compatible transport */
   LLM.saveSettings({ provider: "openrouter", endpoint: "https://openrouter.ai/api/v1/chat/completions", model: "anthropic/claude-sonnet-4.5" });
+  eq(LLM.resolved().modelsEndpoint, "https://openrouter.ai/api/v1/models", "the saved OpenRouter chat endpoint keeps its separate model-list endpoint");
+  let listedAt = "";
+  globalThis.fetch = async url => {
+    listedAt = String(url);
+    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ data: [{ id: "anthropic/claude-sonnet-4.5" }] }) };
+  };
+  const openrouterModels = await LLM.loadModels(LLM.resolved());
+  eq(listedAt, "https://openrouter.ai/api/v1/models", "List models calls the OpenRouter model endpoint, not its chat endpoint");
+  eq(openrouterModels[0], "anthropic/claude-sonnet-4.5", "the OpenRouter model list is parsed after the preset endpoint is saved");
+  const customCompatible = LLM.resolved({ provider: "custom", protocol: "openai", endpoint: "https://gateway.example/v1/chat/completions", model: "gateway-model" });
+  eq(customCompatible.modelsEndpoint, "https://gateway.example/v1/models", "a custom OpenAI-compatible chat route derives its conventional model-list route");
+  const noModelList = LLM.resolved({ provider: "custom", protocol: "openai", endpoint: "https://gateway.example/generate", model: "gateway-model" });
+  eq(noModelList.modelsEndpoint, "", "an endpoint with no recognizable model-list route stays manual");
+  let listError = null;
+  try { await LLM.loadModels(noModelList); } catch (error) { listError = error; }
+  eq(LLM.describe(listError).title, "MODEL LIST UNAVAILABLE", "a missing model list is not mislabeled as a rejected model");
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init, headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
     return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ model: "x", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 4 } }) };
@@ -98,10 +114,180 @@ const sources = [
   ok(described && described.title.includes("KEY"), "a rejected key is described as a key problem");
   ok(!JSON.stringify(described).includes("sk-ant-test"), "error text never echoes the key");
 
+  globalThis.fetch = async () => ({ ok: false, status: 402, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ error: { message: "Payment required; no further billing detail was returned." } }) });
+  let refusal = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { refusal = error; }
+  eq(refusal && refusal.kind, "billing", "an unexplained HTTP 402 is not guessed to be a token-ceiling refusal");
+  eq(LLM.describe(refusal).title, "THE PROVIDER REFUSED THE CALL", "an unexplained HTTP 402 is labelled without claiming why");
+
   /* OpenAI's API is labelled, not faked */
   ok(LLM.PROVIDERS.openai.browser === "blocked" && /CORS/.test(LLM.PROVIDERS.openai.note), "the OpenAI preset states that browser calls are blocked");
   ok(LLM.PROVIDERS.anthropic.browser === "direct" && LLM.PROVIDERS.openrouter.browser === "direct", "the providers that answer browser calls are marked direct");
   ok(LLM.PROVIDERS.local.keyOptional === true, "a local endpoint may need no key");
+
+  /* Official Google GenAI SDK transport: SDK methods, SDK model listing,
+     token ceilings and abort signals — no parallel raw-REST path. */
+  {
+    const previousFetch = globalThis.fetch;
+    let rawFetches = 0;
+    globalThis.fetch = async (...args) => { rawFetches++; return previousFetch(...args); };
+    const googleEndpoint = "https://generativelanguage.googleapis.com";
+    const googleKey = "AIzaSyD-google-test-key-1234567890";
+    const googleClients = [];
+    const googleListCalls = [];
+    const googleCalls = [];
+    const googleErrorQueue = [];
+    let googleError = null;
+    let sdkLoads = 0;
+    class MockGoogleGenAI {
+      constructor(options) {
+        googleClients.push(options);
+        this.models = {
+          list: async params => {
+            googleListCalls.push(params);
+            return (async function* () {
+              yield { name: "models/gemini-test", supportedActions: ["generateContent", "countTokens"] };
+              yield { name: "models/embed-only", supportedActions: ["embedContent"] };
+              yield { name: "models/gemini-pro", supportedActions: ["generateContent"] };
+            })();
+          },
+          generateContent: async params => {
+            googleCalls.push(params);
+            if (googleError) throw googleError;
+            if (googleErrorQueue.length) throw googleErrorQueue.shift();
+            return { text: "link established, model responding", modelVersion: "gemini-mock", usageMetadata: { promptTokenCount: 11, candidatesTokenCount: 4 } };
+          }
+        };
+      }
+    }
+    LLM._setGoogleSDKLoaderForTests(async () => { sdkLoads++; return { GoogleGenAI: MockGoogleGenAI }; });
+    LLM.setKey(googleKey, false);
+    LLM.saveSettings({ provider: "google", protocol: "", endpoint: googleEndpoint, model: "gemini-test" });
+    eq(LLM.resolved().protocol, "google", "the Google preset resolves to its dedicated SDK protocol");
+    eq(LLM.GOOGLE_GENAI_SDK_VERSION, "2.24.0", "the official SDK version is pinned");
+    ok(LLM.GOOGLE_GENAI_SDK_URL.includes("@google/genai@2.24.0/+esm"), "the browser imports the pinned official package through jsDelivr ESM");
+    const googleModels = await LLM.loadModels(LLM.resolved());
+    eq(googleModels.join(","), "gemini-test,gemini-pro", "Google models are listed through the SDK and non-generation models are omitted");
+    eq(googleListCalls[0].config.pageSize, 100, "SDK model listing asks for a page of models");
+    ok(googleListCalls[0].config.abortSignal instanceof AbortSignal, "SDK model listing receives an abort signal");
+    const googleProbe = await LLM.probe({});
+    ok(googleProbe.ok && googleProbe.model === "gemini-mock", "the SDK connection probe returns the model that answered");
+    eq(googleProbe.usage.input, 11, "Gemini prompt token usage is normalized");
+    eq(googleProbe.usage.output, 4, "Gemini candidate token usage is normalized");
+    eq(googleCalls[0].model, "gemini-test", "the SDK request uses the selected model");
+    eq(googleCalls[0].config.maxOutputTokens, 40, "the SDK request maps the output ceiling to maxOutputTokens");
+    eq(googleCalls[0].config.temperature, 0, "the SDK request carries the chosen temperature");
+    ok(googleCalls[0].config.abortSignal instanceof AbortSignal, "the SDK generation call receives the active abort signal");
+    eq(googleCalls[0].config.httpOptions.retryOptions.attempts, 1, "the SDK's default retries are disabled so provider RetryInfo is not double-retried");
+    ok(googleClients.every(client => client.apiKey === googleKey), "the SDK client receives the user's key");
+    ok(googleClients.every(client => client.httpOptions.baseUrl === googleEndpoint), "the SDK client receives the configured Google API base URL");
+    eq(sdkLoads, 1, "the SDK is lazily imported once and then reused");
+    eq(rawFetches, 0, "the Google model-list and generation paths do not use the raw fetch transport");
+
+    const withFastGoogleRetryTimers = async operation => {
+      const originalSetTimeout = globalThis.setTimeout;
+      const waits = [];
+      globalThis.setTimeout = (callback, delay, ...args) => {
+        if (Number.isFinite(delay) && delay > 0 && delay < 120000) {
+          waits.push(delay);
+          return originalSetTimeout(callback, 0, ...args);
+        }
+        return originalSetTimeout(callback, delay, ...args);
+      };
+      try { return { result: await operation(), waits }; }
+      finally { globalThis.setTimeout = originalSetTimeout; }
+    };
+    const before503 = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error("The model is currently experiencing high demand."), { status: 503 }));
+    const retryEvents503 = [];
+    const retry503 = await withFastGoogleRetryTimers(() => LLM.chat({ user: "Retry a temporary outage.", onRetry: event => retryEvents503.push(event) }));
+    eq(retry503.result.text, "link established, model responding", "a transient Google 503 is retried and can complete");
+    eq(googleCalls.length - before503, 2, "one Google 503 produces only one extra SDK generation attempt");
+    eq(retryEvents503[0].source, "backoff", "a 503 without RetryInfo uses bounded exponential backoff");
+    eq(retry503.waits.length, 1, "a recovered 503 waits once before retrying");
+
+    const rateLimitBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "GenerateContent requests per minute quota exceeded.", details: [
+      { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }] },
+      { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "34.091529138s" }
+    ] } };
+    const before429 = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(rateLimitBody)), { status: 429 }));
+    const retryEvents429 = [];
+    const retry429 = await withFastGoogleRetryTimers(() => LLM.chat({ user: "Honor Google's RetryInfo.", onRetry: event => retryEvents429.push(event) }));
+    eq(retry429.result.text, "link established, model responding", "a Google 429 can recover after its RetryInfo delay");
+    eq(googleCalls.length - before429, 2, "the 429 path makes one retry after the original request");
+    eq(retryEvents429[0].source, "RetryInfo", "Google's structured RetryInfo is distinguished from app backoff");
+    ok(retryEvents429[0].delayMs >= 34091 && retryEvents429[0].delayMs <= 34592, "the Google retry waits at least the server's 34.09-second delay plus bounded jitter");
+    ok(retry429.waits[0] >= 34091, "the abortable wait uses Google's reported RetryInfo delay");
+
+    const beforeAbort = googleCalls.length;
+    const retryAbort = new AbortController();
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(rateLimitBody)), { status: 429 }));
+    const originalRetryTimer = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    let pendingRetryTimer = null;
+    let retryTimerCleared = false;
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (Number.isFinite(delay) && delay >= 30000 && delay < 120000) {
+        pendingRetryTimer = originalRetryTimer(callback, delay, ...args);
+        originalRetryTimer(() => retryAbort.abort(), 0);
+        return pendingRetryTimer;
+      }
+      return originalRetryTimer(callback, delay, ...args);
+    };
+    globalThis.clearTimeout = timer => {
+      if (timer === pendingRetryTimer) retryTimerCleared = true;
+      return originalClearTimeout(timer);
+    };
+    let retryAbortError = null;
+    try { await LLM.chat({ user: "Cancel during the retry delay.", signal: retryAbort.signal }); } catch (error) { retryAbortError = error; }
+    finally {
+      globalThis.setTimeout = originalRetryTimer;
+      globalThis.clearTimeout = originalClearTimeout;
+      if (pendingRetryTimer !== null) originalClearTimeout(pendingRetryTimer);
+    }
+    eq(retryAbortError && retryAbortError.name, "AbortError", "a caller can abort while Google RetryInfo is being honored");
+    eq(retryTimerCleared, true, "aborting also clears the pending provider-delay timer");
+    eq(googleCalls.length - beforeAbort, 1, "aborting during the provider delay prevents the next Google request");
+
+    const dailyLimitBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Daily request quota exceeded.", details: [
+      { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier", quotaValue: "20" }] },
+      { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "30s" }
+    ] } };
+    const beforeDaily = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(dailyLimitBody)), { status: 429 }));
+    let dailyQuotaError = null;
+    try { await LLM.chat({ user: "Do not retry a daily quota." }); } catch (error) { dailyQuotaError = error; }
+    eq(dailyQuotaError && dailyQuotaError.kind, "quota", "a per-day Google limit is classified separately from a transient rate limit");
+    eq(LLM.describe(dailyQuotaError).title, "THE GOOGLE API QUOTA IS EXHAUSTED", "the UI labels a daily quota instead of showing UNKNOWN");
+    eq(googleCalls.length - beforeDaily, 1, "a per-day quota is not retried even when RetryInfo is present");
+
+    const googleBuilt = LLM.buildRequest(LLM.resolved(), { system: "system text", user: "one question", maxTokens: 700, temperature: 0, model: "gemini-test", signal: new AbortController().signal });
+    eq(googleBuilt.transport, "google-genai-sdk", "the request builder marks Google's SDK transport explicitly");
+    eq(googleBuilt.body.config.systemInstruction, "system text", "the system prompt maps to the SDK's systemInstruction");
+    eq(googleBuilt.body.config.maxOutputTokens, 700, "Ground-0 ceilings map to the SDK's maxOutputTokens field");
+    const googleParsed = LLM.readResponse(LLM.resolved(), { candidates: [{ content: { parts: [{ text: "first " }, { text: "second" }] } }], modelVersion: "gemini-version", usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 3 } });
+    eq(googleParsed.text, "first second", "SDK response parts normalize when the text convenience getter is absent");
+    eq(googleParsed.model, "gemini-version", "the SDK model version is retained");
+    eq(googleParsed.usage.input, 8, "the SDK response fallback reports prompt tokens");
+
+    googleError = Object.assign(new Error(`Rejected key ${googleKey}`), { status: 403 });
+    let googleRefusal = null;
+    try { await LLM.chat({ user: "Check the key." }); } catch (error) { googleRefusal = error; }
+    eq(googleRefusal && googleRefusal.kind, "auth", "Google SDK authentication failures use the shared error taxonomy");
+    ok(!JSON.stringify(LLM.describe(googleRefusal)).includes(googleKey), "Google SDK errors redact the user's key");
+    googleError = null;
+
+    LLM._setGoogleSDKLoaderForTests(async () => { throw new Error(`CDN offline with ${googleKey}`); });
+    let sdkFailure = null;
+    try { await LLM.loadModels(LLM.resolved()); } catch (error) { sdkFailure = error; }
+    eq(sdkFailure && sdkFailure.kind, "sdk", "a failed SDK import is distinguished from a Google API failure");
+    eq(LLM.describe(sdkFailure).title, "GOOGLE GENAI SDK UNAVAILABLE", "the UI can explain when the pinned SDK module cannot load");
+    ok(!JSON.stringify(LLM.describe(sdkFailure)).includes(googleKey), "SDK-load errors redact the user's key too");
+    LLM._setGoogleSDKLoaderForTests(null);
+    LLM.clearKey();
+    globalThis.fetch = previousFetch;
+  }
 
   LLM.clearKey();
   eq(LLM.keyStorage(), "none", "clearing removes the key from the browser");
@@ -124,6 +310,20 @@ const sources = [
   const otherSource = G0LLM.verifyQuote("A filed appeal automatically stays the decision", sources[1]);
   ok(!otherSource.ok, "a real quote from a different document is rejected for the cited source");
   ok(G0LLM.numbersInText(sources[1], "3", "12") === false, "relief figures must actually appear in the source");
+
+  /* An "unknown" is a statement about the record, not a finding. It carries no
+     quote, so it must be sorted apart: in the candidate list it would either
+     break the record build or be read as a NO. */
+  const sorted = G0LLM.parseFindings({ findings: [
+    { code: "B1", value: "unknown", reason: "Nothing in these sources bears on coercion." },
+    { code: "B4", value: "yes", source_index: 0, quote: "A filed appeal automatically stays the decision until the appeal board issues a final written determination.", confidence: "high" }
+  ] }, sources, cutoff);
+  eq(sorted.unknown.length, 1, "an unknown reply is sorted apart from the findings");
+  eq(sorted.unknown[0].code, "B1", "and it still names the question it was about");
+  ok(/Nothing in these sources/.test(sorted.unknown[0].reason), "carrying the reason the model gave");
+  ok(sorted.unknown.every(row => row.quote === undefined), "an unknown has no quote to be mistaken for evidence");
+  eq(sorted.verified.length, 1, "only the quoted reading is verified");
+  eq(sorted.verified[0].code, "B4", "the verified reading is the one whose quote matched the stored text");
 }
 
 /* ── the reading pass ─────────────────────────────────────────── */
@@ -174,7 +374,7 @@ function stubModel(handler) {
   const reading = await G0LLM.readSources({ input, sources: input.automation.sources.map(s => ({ ...s })), version: "1.1", cutoff, entity: org, website: "https://example.org/", onProgress: p => progress.push(p), followLinks: false });
   stop();
 
-  ok(reading.passes >= 2, `the reading uses one call per source batch plus weighing (${reading.passes} calls)`);
+  ok(reading.passes >= 2, `the reading is staged over several calls: one per question per batch, plus weighing (${reading.passes} calls)`);
   ok(progress.length >= 3 && progress[progress.length - 1].completed === 5, "progress is reported through the run");
   eq(reading.candidates.length, 2, "only the two verifiable, dated readings become candidates");
   ok(reading.rejected.some(row => row.code === "B2" && /does not appear/.test(row.reason)), "the fabricated quote is discarded with a reason");
@@ -240,6 +440,421 @@ function stubModel(handler) {
   ok(reading.followUps.length === 1 && reading.followUps[0].requestedBy === "linked model", "the followed page is attributed to the model");
   ok(reading.sources.length === 2, "the followed page is added to the record's sources");
   ok(asked.some(prompt => /did not resolve/.test(prompt)) && readingCalls.some(call => /\nLINKS\n/.test(call.prompt)), "the link request names the missing questions before listing the links");
+}
+
+/* ── staging: one question per call, inside a ceiling a small balance can pay ──
+   The failure this answers is a real one. A provider that prices a call by the
+   ceiling it *reserves* refuses the whole audit when the balance cannot cover
+   that number: "you requested up to 6000 tokens, but can only afford 2664".
+   Every stub below refuses exactly that way, so what is under test is that the
+   staged reading never asks for more than the balance can pay. */
+const AFFORDABLE = 2664;
+const pricedCalls = [];
+const askedCodes = prompt => (String(prompt).match(/QUESTION(?:S)? TO ANSWER IN THIS CALL: ([A-Z0-9, ]+)/) || [, ""])[1].split(",").map(part => part.trim()).filter(Boolean);
+function promptSources(prompt) {
+  const body = String(prompt).split("\nSOURCES\n")[1] || "";
+  return body.split(/\n(?=SOURCE \d+ — )/).map(block => {
+    const head = block.match(/^SOURCE (\d+) — (.*)$/m);
+    const text = (block.split("<<<\n")[1] || "").split("\n>>>")[0];
+    return head ? { index: Number(head[1]), lead: /LEAD ONLY/.test(head[2]), text } : null;
+  }).filter(Boolean);
+}
+function stubPricedProvider({ afford = AFFORDABLE, handler, failCodes = [] } = {}) {
+  const original = globalThis.fetch;
+  pricedCalls.length = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const body = init.body ? JSON.parse(init.body) : null;
+    const prompt = userText(body);
+    const asked = body ? Number(body.max_tokens ?? body.max_completion_tokens ?? 0) : 0;
+    pricedCalls.push({ url: String(url), body, prompt, asked });
+    const reply = (data, status = 200) => ({ ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data, text: async () => JSON.stringify(data) });
+    if (asked > afford) return reply({ error: { message: `This request requires more credits, or fewer max_tokens. You requested up to ${asked} tokens, but can only afford ${afford}. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account`, code: 402, metadata: { limit_source: "openrouter_credits" } } }, 402);
+    if (failCodes.some(code => askedCodes(prompt).includes(code))) return reply({ error: { message: "upstream provider error" } }, 500);
+    const payload = handler(body, pricedCalls.length, prompt);
+    /* OpenRouter is an OpenAI-compatible endpoint, so it answers in that
+       shape — the refusal above is the one it really sends. */
+    const text = typeof payload === "string" ? payload : JSON.stringify(payload);
+    return reply({ model: "stub-model", choices: [{ message: { role: "assistant", content: text } }], usage: { prompt_tokens: 100, completion_tokens: 50 } });
+  };
+  return () => { globalThis.fetch = original; };
+}
+
+/* A well-behaved staged model: it answers only the question it was asked, and
+   only with a quote that really is in the source text it was shown. */
+const STAY = "A filed appeal automatically stays the decision until the appeal board issues a final written determination.";
+const SANCTION = "Participants who fail to comply with this policy may have their access suspended and their account terminated.";
+const FUNDING = "Acme Corp may withhold funding from a participant that does not follow a decision of the board.";
+function stagedReply(prompt) {
+  if (/\nCANDIDATES\n/.test(prompt)) {
+    const code = (prompt.match(/QUESTION BEING WEIGHED: (\w+)/) || [, "B1"])[1];
+    const ids = [...prompt.matchAll(/"id": "(C\d+)"/g)].map(match => match[1]);
+    return { code, candidate: ids[ids.length - 1] || "none", reason: "The later reading quotes the entity's own governing text.", gap: "" };
+  }
+  if (/\nLINKS\n/.test(prompt)) return { followups: [] };
+  const codes = askedCodes(prompt);
+  const present = promptSources(prompt);
+  const quoteFrom = needle => { const source = present.find(item => !item.lead && item.text.includes(needle)); return source ? { index: source.index, quote: needle } : null; };
+  const stay = quoteFrom(STAY);
+  return {
+    findings: codes.map(code => {
+      const hit = code === "B4" ? stay : code === "B1" ? (quoteFrom(SANCTION) || quoteFrom(FUNDING)) : null;
+      return hit
+        ? { code, value: "yes", source_index: hit.index, quote: hit.quote, date: "", confidence: "high", reason: code === "B4" ? "An operative stay rule." : "A sanction for non-compliance." }
+        : { code, value: "unknown", reason: "No supplied source bears on this question." };
+    }),
+    ...(codes.includes("B4") && stay ? { b4: { basis: "TERMINAL_RULE", actor: "Any affected party", action: "The decision", procedure: STAY, numerator: "", denominator: "", complete: false } } : {}),
+    gap: ""
+  };
+}
+const stagedSources = [
+  { id: "SITE-1", title: "Acme Corp — appeal procedure", url: "https://example.org/appeals", published: "2026-02-01", retrieved: "2026-09-01T00:00:00Z", excerpt: policy.slice(0, 200), text: `${policy}\n${SANCTION}`, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" },
+  { id: "SITE-2", title: "Acme Corp — terms of use", url: "https://example.org/terms", published: "2026-01-05", retrieved: "2026-09-01T00:00:00Z", excerpt: terms.slice(0, 200), text: terms, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" },
+  { id: "SITE-3", title: "Acme Corp — undated guidance", url: "https://example.org/guidance", published: null, retrieved: "2026-09-01T00:00:00Z", excerpt: policy.slice(0, 200), text: policy, codes: [], kind: "context", dateBasis: "unknown" },
+  { id: "SITE-4", title: "Acme Corp — funding conditions", url: "https://example.org/funding", published: "2026-03-11", retrieved: "2026-09-01T00:00:00Z", excerpt: FUNDING.slice(0, 200), text: `Funding conditions.\n${FUNDING}\nWithholding takes effect on the date of the notice.`, codes: [], kind: "official", dateBasis: "publication", authority: "Acme Corp" }
+];
+const stagedInput = () => {
+  const input = G0.newInput("1.1");
+  input.name = org; input.identifier = "Q123"; input.cutoff = cutoff;
+  input.automation = { method: "public-lookup", provider: "test", reviewRequired: true, requestedName: org, generatedAt: new Date().toISOString(), sources: stagedSources.map(source => ({ ...source })), coverage: [], warnings: [] };
+  return input;
+};
+const linkPriced = () => {
+  LLM.setKey("sk-or-test-key-00000000", false);
+  LLM.saveSettings({ provider: "openrouter", endpoint: "https://openrouter.ai/api/v1/chat/completions", model: "anthropic/claude-sonnet-4.5" });
+  LLM.clearCeiling();
+};
+
+/* ── the staged reading never reserves a ceiling the balance cannot cover ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const progress = [];
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, website: "https://example.org/", followLinks: false, onProgress: step => progress.push(step) });
+  stop();
+
+  const asked = pricedCalls.filter(call => /TO ANSWER IN THIS CALL/.test(call.prompt));
+  eq(asked.length, 18, "nine questions are asked of each of the two source batches, one call at a time");
+  ok(asked.every(call => askedCodes(call.prompt).length === 1), "every reading call asks exactly one question");
+  eq([...new Set(asked.flatMap(call => askedCodes(call.prompt)))].sort().join(","), G0LLM.allCodes().slice().sort().join(","), "between them the staged calls ask all nine questions");
+  ok(pricedCalls.every(call => call.asked <= G0LLM.LIMITS.maxTokensRead), `no call reserved more than the staged ceiling (${Math.max(...pricedCalls.map(call => call.asked))} tokens at most)`);
+  eq(asked[0].asked, G0LLM.LIMITS.maxTokensRead, "a one-question call reserves exactly the one-question ceiling");
+  eq(reading.block.staging.ceilingPerCall, G0LLM.LIMITS.maxTokensRead, "the record states the ceiling it was read under");
+  ok(pricedCalls.every(call => call.asked <= AFFORDABLE), "so the provider never had to refuse a ceiling it could not afford");
+  ok(!pricedCalls.some(call => call.asked === 6000), "the old single 6000-token reservation is gone");
+  eq(reading.passes, 19, "one call per question per batch, plus one weighing call for the contested question");
+
+  const weigh = pricedCalls.find(call => /\nCANDIDATES\n/.test(call.prompt));
+  ok(weigh && /QUESTION BEING WEIGHED: B1/.test(weigh.prompt), "weighing is staged too: one call, naming the one contested question");
+  ok(weigh.asked <= G0LLM.LIMITS.maxTokensWeigh, "the weighing call reserves a ceiling for one decision, not for the whole audit");
+  eq((weigh.prompt.match(/"id": "C\d+"/g) || []).length, 2, "only that question's candidates are sent to be weighed");
+
+  eq(reading.candidates.length, 3, "B1 from two sources and B4 from one are the verified candidates");
+  eq(reading.answers[3].value, true, "B4 is answered from the operative stay rule");
+  eq(reading.answers[0].source, "https://example.org/funding", "the staged weighing call chose between the two B1 readings");
+  eq(reading.answers[1].value, null, "a question no supplied source bears on stays UNKNOWN");
+  eq(reading.block.staging.codesPerCall, 1, "the record states that it was read one question per call");
+  eq(reading.block.staging.questionsAsked, 9, "the record states how many questions were asked");
+  eq(reading.block.staging.weighed, 1, "the record states how many questions needed weighing");
+  eq(reading.block.staging.callsFailed, 0, "no call failed");
+  ok(/one per call/.test(progress[0].message), "the first progress line says how the reading is staged");
+  ok(progress.some(step => /Reading B4 — pass 1 of 2, question 4 of 9/.test(step.message)), "progress names the question being read");
+  ok(progress[progress.length - 1].completed === 5, "progress still ends at the last of five steps");
+  ok(new Set(progress.filter(step => step.step === 2).map(step => step.completed)).size > 2, "the progress bar moves while the staged reading runs");
+}
+
+/* ── questions can be grouped when the balance allows a larger ceiling ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, codesPerCall: 3, onProgress: () => {} });
+  stop();
+  const asked = pricedCalls.filter(call => /TO ANSWER IN THIS CALL/.test(call.prompt));
+  eq(asked.length, 6, "three questions per call is a third of the calls over two batches");
+  ok(asked.every(call => askedCodes(call.prompt).length === 3), "each grouped call names the three questions it is asking");
+  eq(reading.block.staging.codesPerCall, 3, "the record states the grouping it was read with");
+  eq(asked[0].asked, G0LLM.LIMITS.maxTokensRead + 2 * G0LLM.LIMITS.maxTokensPerCode, "a grouped call reserves room for every question it asks, so a reply cannot be cut off half-way");
+  ok(asked[0].asked <= AFFORDABLE, "and even grouped three to a call it stays inside the balance the provider stated");
+  eq(reading.answers[3].value, true, "grouping does not change what was verified");
+}
+
+/* ── the transport: a priced ceiling is learned, and the call retried inside it ── */
+{
+  linkPriced();
+  const stop = stubPricedProvider({ handler: () => ({ findings: [] }) });
+  const first = await LLM.chat({ user: "Say something short.", maxTokens: 6000 });
+  eq(pricedCalls.length, 2, "one refusal, then one retry inside the ceiling the provider stated");
+  eq(pricedCalls[0].asked, 6000, "the first attempt carries the ceiling the caller asked for");
+  eq(pricedCalls[1].asked, AFFORDABLE, "the retry asks for exactly what the provider said it could afford");
+  ok(first.shrunk === true && first.reserved === AFFORDABLE, "the result reports the ceiling that was actually reserved");
+  eq(LLM.tokenCeiling().maxTokens, AFFORDABLE, "the stated ceiling is remembered for the rest of the session");
+  await LLM.chat({ user: "Say something else.", maxTokens: 6000 });
+  eq(pricedCalls.length, 3, "a later call does not have to earn the same refusal again");
+  eq(pricedCalls[2].asked, AFFORDABLE, "the later call starts inside the learned ceiling");
+  ok(LLM.stats().shrunk >= 2, "the session counts how often a ceiling had to come down");
+  stop();
+}
+
+/* ── a temporary 402 from other in-flight requests is retried, not misread as a low balance ── */
+{
+  linkPriced();
+  LLM.resetStats();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  const delays = [750, 1500, 3000];
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delays.includes(delay)) {
+      waits.push(delay);
+      return originalSetTimeout(callback, 0, ...args);
+    }
+    return originalSetTimeout(callback, delay, ...args);
+  };
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted" } } };
+  const reply = (data, status = 200) => ({ ok: status < 400, status, headers: { get: () => "application/json" }, json: async () => data, text: async () => JSON.stringify(data) });
+  try {
+    let attempts = 0;
+    globalThis.fetch = async () => {
+      attempts++;
+      if (attempts <= 2) return reply(refusal, 402);
+      return reply({ model: "stub-model", choices: [{ message: { role: "assistant", content: "Recovered after in-flight requests settled." } }], usage: { prompt_tokens: 10, completion_tokens: 8 } });
+    };
+    const recovered = await LLM.chat({ user: "Read this one question.", maxTokens: 700 });
+    eq(attempts, 3, "two transient in-flight refusals are followed by one successful retry");
+    eq(waits.join(","), "750,1500", "the retry waits use bounded exponential backoff");
+    eq(recovered.text, "Recovered after in-flight requests settled.", "the successful retry returns the model's answer");
+    eq(LLM.stats().inFlightRetries, 2, "the session records the two in-flight retries");
+    eq(LLM.tokenCeiling(), null, "a temporary in-flight refusal does not teach a false token ceiling");
+
+    LLM.resetStats(); waits.length = 0; attempts = 0;
+    globalThis.fetch = async () => { attempts++; return reply(refusal, 402); };
+    let error = null;
+    try { await LLM.chat({ user: "Read this one question.", maxTokens: 700 }); } catch (caught) { error = caught; }
+    eq(attempts, 4, "the connection makes the initial attempt plus three bounded retries, then stops");
+    eq(waits.join(","), "750,1500,3000", "the final transient refusal is retried no longer than the documented backoff");
+    eq(error && error.kind, "busy", "an unresolved in-flight 402 is classified as temporary provider pressure");
+    const described = LLM.describe(error);
+    ok(/SETTLING REQUESTS/.test(described.title), "the interface says earlier requests are still settling");
+    ok(/retry after in-flight requests settle/i.test(described.hint), "the user is told to wait and retry, not add credits");
+    ok(!/balance cannot cover the requested token ceiling/i.test(error.message), "a temporary 402 is not mislabeled as an unaffordable ceiling");
+    eq(LLM.stats().inFlightRetries, 3, "the session records the exhausted retry attempts");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
+/* ── Retry-After is honored instead of being retried too early ── */
+{
+  linkPriced();
+  LLM.resetStats();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const waits = [];
+  let timeoutCalls = 0;
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    if (delay === 120000 && ++timeoutCalls === 2) {
+      waits.push(delay);
+      return originalSetTimeout(callback, 0, ...args);
+    }
+    return originalSetTimeout(callback, delay, ...args);
+  };
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted", limit_source: "openrouter_in_flight_budget" } } };
+  try {
+    let attempts = 0;
+    globalThis.fetch = async () => {
+      attempts++;
+      const headers = { get: name => String(name).toLowerCase() === "retry-after" ? (attempts === 1 ? "120" : null) : "application/json" };
+      if (attempts === 1) return { ok: false, status: 402, headers, text: async () => JSON.stringify(refusal) };
+      return { ok: true, status: 200, headers, json: async () => ({ model: "stub-model", choices: [{ message: { role: "assistant", content: "Retried after the provider's window." } }], usage: { prompt_tokens: 10, completion_tokens: 8 } }) };
+    };
+    const notices = [];
+    const recovered = await LLM.chat({ user: "Read this one question.", maxTokens: 700, timeoutMs: 120000, onRetry: notice => notices.push(notice) });
+    eq(attempts, 2, "the call is retried once after the provider-supplied delay");
+    eq(waits.join(","), "120000", "Retry-After: 120 is honored as a 120-second wait");
+    eq(timeoutCalls, 3, "the normal request timeout is paused for Retry-After, then restarted for the retry");
+    eq(notices[0] && notices[0].delayMs, 120000, "the caller is notified of the server-requested wait");
+    eq(recovered.text, "Retried after the provider's window.", "the response after the Retry-After delay is returned");
+    eq(LLM.stats().inFlightRetries, 1, "the server-directed retry appears in session activity");
+    eq(LLM.tokenCeiling(), null, "Retry-After does not change the learned token ceiling");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
+/* ── an unresolved account-wide busy refusal stops the audit after its own retries ── */
+{
+  linkPriced();
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const delays = [750, 1500, 3000];
+  globalThis.setTimeout = (callback, delay, ...args) => delays.includes(delay)
+    ? originalSetTimeout(callback, 0, ...args)
+    : originalSetTimeout(callback, delay, ...args);
+  const attempts = [];
+  const progress = [];
+  const refusal = { error: { message: "This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.", code: 402, metadata: { reason: "in_flight_budget_exhausted" } } };
+  const reply = { ok: false, status: 402, headers: { get: () => "application/json" }, json: async () => refusal, text: async () => JSON.stringify(refusal) };
+  try {
+    globalThis.fetch = async (url, init = {}) => { attempts.push({ url: String(url), body: JSON.parse(init.body) }); return reply; };
+    let error = null;
+    try {
+      await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: step => progress.push(step) });
+    } catch (caught) { error = caught; }
+    eq(error && error.kind, "busy", "a still-busy provider stops the reading instead of looking like an empty record");
+    eq(attempts.length, 4, "only the initial call and its three retries are sent");
+    ok(attempts.every(call => askedCodes(userText(call.body)).join(",") === "B1"), "the reader does not fan the same account-wide refusal out across all nine questions");
+    ok(progress.some(step => /temporary error; retrying B1 after a 1 second backoff/.test(step.message)), "the reading progress identifies the provider fallback backoff before retrying the staged question");
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+}
+
+/* ── a ceiling below the floor is reported, never sent ── */
+{
+  linkPriced();
+  const stop = stubPricedProvider({ afford: 40, handler: () => ({ findings: [] }) });
+  let error = null;
+  try { await LLM.chat({ user: "Say something.", maxTokens: 6000, floorTokens: 120 }); } catch (e) { error = e; }
+  stop();
+  const described = LLM.describe(error);
+  eq(error.kind, "budget", "a ceiling the balance cannot cover is named as a budget problem, not a mystery failure");
+  ok(/UNAFFORDABLE/.test(described.title), "the interface says the ceiling is unaffordable");
+  eq(error.affordable, 40, "the number the provider stated travels on the error");
+  ok(/120/.test(described.detail), "the least ceiling that can produce an answer is named");
+  ok(/credits/i.test(described.hint), "the hint says what to do about it");
+  eq(pricedCalls.length, 1, "no retry is sent below the floor: a truncated answer is worse than an honest failure");
+  LLM.clearCeiling();
+}
+
+/* ── a balance smaller than one staged call is still enough to finish ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ afford: 300, handler: (body, call, prompt) => stagedReply(prompt) });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  stop();
+  ok(pricedCalls.some(call => call.asked === 300), "the reading was re-sent inside the smaller ceiling");
+  eq(pricedCalls.filter(call => call.asked > 300).length, 1, "only the first call earned the refusal; every later call started inside it");
+  ok(reading.notes.some(note => /ceiling/i.test(note)), "the record discloses that the ceiling came down");
+  eq(reading.answers[3].value, true, "the staged reading still reached its answers inside the smaller ceiling");
+}
+
+/* ── one failed call costs one question, not the audit ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt), failCodes: ["B3"] });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  stop();
+  eq(reading.block.staging.callsFailed, 2, "the failed question was attempted once in each of the two batches");
+  eq(reading.answers[2].value, null, "B3 stays UNKNOWN where its call failed");
+  ok(/did not complete|failed/i.test(reading.answers[2].gap), "the gap says the call failed instead of pretending the record was silent");
+  ok(!/not a proven negative/.test(reading.answers[2].gap), "a failed call is not reported as a silent record");
+  ok(reading.notes.some(note => /B3/.test(note) && /failed/i.test(note)), "the notes name the question whose call failed");
+  eq(reading.answers[3].value, true, "every other question was still read");
+  eq(reading.block.staging.failedCodes.join(","), "B3", "the record carries which questions failed");
+}
+
+/* ── when no call at all completes, the reading fails loudly ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => stagedReply(prompt), failCodes: G0LLM.allCodes() });
+  let error = null;
+  try { await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} }); } catch (e) { error = e; }
+  stop();
+  ok(error, "a reading in which every staged call failed throws instead of returning an empty audit");
+  ok(pricedCalls.length >= 9, "it did not stop after the first failure without saying why");
+  LLM.clearCeiling();
+}
+
+/* ── Ground-0 uses the official Google SDK and still stages one question per call ── */
+{
+  const originalFetch = globalThis.fetch;
+  let rawFetches = 0;
+  globalThis.fetch = async () => { rawFetches++; throw new Error("Google SDK path must not call raw fetch in this harness."); };
+  const sdkCalls = [];
+  const sdkClients = [];
+  const googleErrorQueue = [];
+  const key = "AIzaSyD-ground0-google-key-123456789";
+  class Ground0GoogleGenAI {
+    constructor(options) {
+      sdkClients.push(options);
+      this.models = {
+        generateContent: async params => {
+          sdkCalls.push(params);
+          if (googleErrorQueue.length) throw googleErrorQueue.shift();
+          return { text: JSON.stringify(stagedReply(params.contents)), modelVersion: "gemini-ground0-mock", usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } };
+        }
+      };
+    }
+  }
+  LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: Ground0GoogleGenAI }));
+  LLM.setKey(key, false);
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-test" });
+  LLM.clearCeiling();
+  let reading = null;
+  let readingError = null;
+  try {
+    reading = await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  } catch (error) { readingError = error; }
+  ok(!readingError, `the Ground-0 audit completes through the official Google SDK${readingError ? ` (${readingError.message})` : ""}`);
+  if (reading) {
+    const stagedGoogleCalls = sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents));
+    eq(stagedGoogleCalls.length, 18, "the Google SDK reads both source batches in nine question calls each");
+    ok(stagedGoogleCalls.every(call => askedCodes(call.contents).length === 1), "every Google reading call asks exactly one audit question");
+    eq(reading.block.staging.codesPerCall, 1, "the Google-assisted record preserves the one-question staging metadata");
+    eq(reading.passes, 19, "the Google reading keeps its separate one-question weighing call");
+    ok(sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents)).every(call => call.config.maxOutputTokens === 700), "every staged Google call reserves the existing 700-token ceiling");
+    ok(sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents)).every(call => call.config.httpOptions.retryOptions.attempts === 1), "each staged Google call leaves retries to the abortable RetryInfo-aware wrapper");
+    ok(sdkCalls.some(call => /QUESTION BEING WEIGHED: B1/.test(call.contents) && call.config.maxOutputTokens === 300), "the Google SDK weighs only the contested question with its separate ceiling");
+    eq(reading.answers[3].value, true, "a Google SDK quote still passes the existing B4 verification gate");
+    eq(reading.block.model, "gemini-test", "the Ground-0 record identifies the selected Google model");
+  }
+
+  const persistentRateBody = { error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "Per-minute request quota exceeded.", details: [
+    { "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier", quotaValue: "5" }] },
+    { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "34s" }
+  ] } };
+  const persistentRate = Object.assign(new Error(JSON.stringify(persistentRateBody)), { status: 429 });
+  googleErrorQueue.push(persistentRate, persistentRate, persistentRate, persistentRate);
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, delay, ...args) => Number.isFinite(delay) && delay > 0 && delay < 120000
+    ? originalSetTimeout(callback, 0, ...args)
+    : originalSetTimeout(callback, delay, ...args);
+  const beforeRateLimitedRead = sdkCalls.length;
+  let rateLimitedReadError = null;
+  try {
+    await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  } catch (error) { rateLimitedReadError = error; }
+  finally { globalThis.setTimeout = originalSetTimeout; }
+  eq(rateLimitedReadError && rateLimitedReadError.kind, "rate", "a still-active per-minute quota stops Ground-0 with a rate-limit error");
+  eq(sdkCalls.length - beforeRateLimitedRead, 4, "after bounded Google retries are exhausted, Ground-0 stops rather than sending the same account-wide 429 for every question");
+
+  eq(rawFetches, 0, "Ground-0's Google reading goes through the SDK, not a parallel REST call");
+  ok(sdkClients.every(client => client.apiKey === key), "Ground-0 supplies the user's key to the SDK client");
+  LLM._setGoogleSDKLoaderForTests(null);
+  LLM.clearKey();
+  LLM.clearCeiling();
+  globalThis.fetch = originalFetch;
+}
+
+/* ── a missing Google SDK stops Ground-0 before it retries each staged question ── */
+{
+  let imports = 0;
+  LLM._setGoogleSDKLoaderForTests(async () => { imports++; throw new Error("SDK CDN unavailable"); });
+  LLM.setKey("AIzaSyD-google-fatal-test-123456789", false);
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-test" });
+  let error = null;
+  try { await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} }); } catch (caught) { error = caught; }
+  eq(error && error.kind, "sdk", "a missing Google SDK is fatal to the staged read");
+  eq(imports, 1, "Ground-0 does not try to re-import a missing SDK for every question");
+  LLM._setGoogleSDKLoaderForTests(null);
+  LLM.clearKey();
 }
 
 /* ── nothing is sent without a link ───────────────────────────── */

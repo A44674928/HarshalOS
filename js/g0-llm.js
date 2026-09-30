@@ -19,6 +19,19 @@
      · It does not issue a badge. The engine still decides, and the
        record still requires human review.
 
+   How it asks: one question per call. A single call that must return nine
+   answers, two structures, coverage notes and gap lists reserves a large
+   output ceiling — and providers that price a call by the ceiling it
+   *reserves* refuse it outright when the balance cannot cover that number
+   (OpenRouter answers 402: "you requested up to 6000 tokens, but can only
+   afford 2664"). Staging the audit question by question means the model is
+   recalled many times with a small ceiling each time, which a small balance
+   can actually pay for, an answer never arrives truncated half-way through
+   the ninth question, and one failed recall costs one question instead of
+   the whole reading. `LIMITS.codesPerCall` is the dial: 1 asks a single
+   question per call, a higher number groups questions and re-sends the same
+   source text fewer times.
+
    Exposed as window.G0LLM. Requires window.G0, window.G0Research and
    a configured window.HOSLLM connection.
    ═══════════════════════════════════════════════════════════════ */
@@ -35,7 +48,12 @@ window.G0LLM = (() => {
     budget: 150000,          // characters per reading run (~42k tokens), split into passes
     batchSources: 3,         // documents per pass
     maxFollowUps: 4,         // additional pages the model may request from links it was shown
-    maxTokens: 6000,
+    codesPerCall: 1,         // questions asked per model call — 1 stages the audit question by question
+    maxTokensRead: 700,      // ceiling for a one-question reading call: one quote, one reason, one gap
+    maxTokensPerCode: 260,   // added to that ceiling for each further question grouped into the same call
+    maxTokensWeigh: 300,     // ceiling for one weighing call: one decision between candidates
+    maxTokensLinks: 700,     // ceiling for the call that picks linked pages to read next
+    floorTokens: 120,        // below this a call cannot return a verified quote; it is not sent
     minQuote: 24             // a shorter quote is not distinctive enough to verify
   };
 
@@ -112,10 +130,45 @@ window.G0LLM = (() => {
     ">>>"
   ].filter(Boolean).join("\n");
 
-  const questionsBlock = version => [
-    ...G0.questions.map((question, index) => `${question.code} · ${question.title}\n    asks: ${question.description}${index === 3 && version === "1.1" ? "\n    v1.1 test: YES requires an operative terminal/stay rule, a complete published relief record of at least 50%, or a binding penalty-free exit. An external order plus compliance is NOT a yes." : ""}`),
-    ...G0.constraintQuestions.map(question => `${question.code} · ${question.title}\n    asks: ${question.description}`)
-  ].join("\n");
+  const B4_V11_TEST = "v1.1 test: YES requires an operative terminal/stay rule, a complete published relief record of at least 50%, or a binding penalty-free exit. An external order plus compliance is NOT a yes.";
+  const questionFor = code => G0.questions.find(question => question.code === code) || G0.constraintQuestions.find(question => question.code === code) || null;
+  /* The nine codes, in the order the framework states them. */
+  const allCodes = () => [...G0.questions.map(question => question.code), ...G0.constraintQuestions.map(question => question.code)];
+
+  /* One question, fully stated: what it asks, what counts as evidence, and
+     the v1.1 discipline that applies to it. Asking one at a time is what
+     keeps each call's output small enough to be paid for and to arrive
+     complete, so the question is stated in full every time. */
+  function questionBlock(version, codes) {
+    return codes.map(code => {
+      const question = questionFor(code);
+      if (!question) return "";
+      return [
+        `${question.code} · ${question.title}`,
+        `    asks: ${question.description}`,
+        question.examples ? `    counts as evidence: ${question.examples}` : "",
+        question.code === "B4" && version === "1.1" ? `    ${B4_V11_TEST}` : "",
+        question.code === "B4" ? "    B4 discipline: name the actor, the audited action and the operative procedure from the quote. An external order to the entity, and the entity's compliance with it, do not make refusal terminal." : ""
+      ].filter(Boolean).join("\n");
+    }).filter(Boolean).join("\n");
+  }
+
+  /* What a reading call reserves, sized by what it asks: one question needs
+     room for one quote, one reason and one gap sentence; each further question
+     grouped into the same call adds room for its own answer, so a grouped reply
+     is never cut off half-way through. The connection layer clamps this to
+     whatever ceiling the provider has said it will sell. */
+  const readCeiling = count => LIMITS.maxTokensRead + Math.max(0, (Number(count) || 1) - 1) * LIMITS.maxTokensPerCode;
+
+  /* The staged call plan: how the nine questions are grouped into calls.
+     With codesPerCall 1 there are nine calls per source batch. */
+  function questionChunks(codes, perCall = LIMITS.codesPerCall) {
+    const list = (Array.isArray(codes) ? codes : allCodes()).filter(Boolean);
+    const size = Math.max(1, Math.min(list.length || 1, Math.floor(Number(perCall) || 1)));
+    const chunks = [];
+    for (let i = 0; i < list.length; i += size) chunks.push(list.slice(i, i + size));
+    return chunks;
+  }
 
   const SYSTEM = [
     "You are the documentary reader inside HarshalOS Ground-0, an accountability-gated audit system. You read retrieved public documents and report only what those documents say.",
@@ -123,57 +176,63 @@ window.G0LLM = (() => {
     "Absolute rules:",
     "1. Use ONLY the SOURCE blocks supplied in this message. Never use outside knowledge or memory, and never infer from the organization's reputation.",
     "2. Every finding must carry a verbatim quote of 8 to 45 words, copied character-for-character from one SOURCE block (not from the <<< >>> fences). A quote that cannot be found in the stored text is discarded by an automatic checker and the finding is thrown away.",
-    "3. Prefer a supported answer to \"unknown\": if a supplied source states a rule, policy, decision, order, or outcome that bears on the question, answer it and quote it. Use \"unknown\" only when no supplied source bears on the question.",
-    "4. Sources marked LEAD ONLY (news indexes, search results) can never support yes or no. They may only be listed under \"leads\".",
-    "5. Quote only operative text: a rule, policy, decision, order, or outcome. Not captions, headlines, filing dates, requests, proposals, press description, or app-written guidance.",
-    "6. A statement about a different organization is not evidence about this one.",
-    "7. Distinguish the entity's own binding rule from an external body's order about the entity: an external order plus compliance does not make refusal terminal (B4).",
-    "8. Report yes or no only with a quote; otherwise unknown. Do not pad the list.",
-    "9. Output JSON only, matching the requested shape exactly. No prose, no markdown fence."
+    "3. Answer ONLY the question or questions named in this message. You are asked one question at a time, in a series of calls over the same sources; a finding for a question you were not asked is ignored.",
+    "4. Prefer a supported answer to \"unknown\": if a supplied source states a rule, policy, decision, order, or outcome that bears on the question, answer it and quote it. Use \"unknown\" only when no supplied source bears on the question.",
+    "5. Sources marked LEAD ONLY (news indexes, search results) can never support yes or no. They may only be listed under \"leads\".",
+    "6. Quote only operative text: a rule, policy, decision, order, or outcome. Not captions, headlines, filing dates, requests, proposals, press description, or app-written guidance.",
+    "7. A statement about a different organization is not evidence about this one.",
+    "8. Distinguish the entity's own binding rule from an external body's order about the entity: an external order plus compliance does not make refusal terminal (B4).",
+    "9. Report yes or no only with a quote; otherwise unknown. Do not pad the list.",
+    "10. Output JSON only, matching the requested shape exactly. No prose, no markdown fence. Keep it short: one finding per question asked."
   ].join("\n");
 
-  function readInstruction({ input, batch, batchIndex, batchCount, version }) {
+  function readInstruction({ input, batch, codes, batchIndex, batchCount, questionIndex, questionCount, version }) {
+    const asked = codes.join(", ");
+    const shape = {
+      findings: [{ code: codes[0], value: "yes | no | unknown", source_index: 0, quote: "verbatim from the source, 8 to 45 words", date: "date on the source record, or empty", confidence: "high | medium | low", reason: "one sentence tying the quote to the question" }],
+      ...(codes.includes("B4") ? { b4: { basis: "TERMINAL_RULE | RESOLVED_APPEALS | NO_PENALTY_EXIT | NOT_DEMONSTRATED", actor: "who may refuse or appeal, from the quote", action: "the action it stops, from the quote", procedure: "the operative rule, quoted", numerator: "", denominator: "", complete: false } } : {}),
+      ...(codes.includes("C2") ? { c2: { route: false, invoked: false, complete: false, numerator: "", denominator: "" } } : {}),
+      gap: "one sentence: what these sources do and do not say about this question, or empty if it is answered"
+    };
     return [
       `ENTITY UNDER AUDIT: ${input.name}${input.identifier ? ` (${input.identifier})` : ""}`,
       `EVIDENCE CUTOFF: ${input.cutoff} (inclusive). A source dated after the cutoff cannot support an answer.`,
       `FRAMEWORK: Ground-0 v${version}${version === "1.1" ? " — unratified amendment draft" : " — normative baseline"}`,
-      `READING PASS ${batchIndex + 1} OF ${batchCount}`,
+      `READING PASS ${batchIndex + 1} OF ${batchCount} — QUESTION ${questionIndex + 1} OF ${questionCount}`,
       "",
-      "QUESTIONS",
-      questionsBlock(version),
+      `QUESTION${codes.length === 1 ? "" : "S"} TO ANSWER IN THIS CALL: ${asked}`,
+      questionBlock(version, codes),
       "",
       "SOURCES",
       batch.map(blockFor).join("\n\n"),
       "",
       "Return exactly this JSON shape:",
-      JSON.stringify({
-        findings: [{ code: "B1", value: "yes | no | unknown", source_index: 0, quote: "verbatim from the source", date: "date on the source record, or empty", confidence: "high | medium | low", reason: "one sentence tying the quote to the question" }],
-        b4: { basis: "TERMINAL_RULE | RESOLVED_APPEALS | NO_PENALTY_EXIT | NOT_DEMONSTRATED", actor: "who may refuse or appeal, from the quote", action: "the action it stops, from the quote", procedure: "the operative rule, quoted", numerator: "", denominator: "", complete: false },
-        c2: { route: false, invoked: false, complete: false, numerator: "", denominator: "" },
-        coverage: [{ code: "B5", note: "what these sources do and do not say about this code" }],
-        leads: [{ source_index: 0, why: "why this lead is worth chasing to a primary source" }],
-        followups: [{ url: "a link that appears in the sources above", why: "what should be read there" }],
-        gaps: ["what is missing from the supplied record for this audit"]
-      }, null, 1),
+      JSON.stringify(shape, null, 1),
       "",
-      "Include one finding for each of B1–B5 and C1–C4 (nine total). For b4 and c2 fill fields only from quoted text, and leave the numbers empty unless a source states them."
+      codes.length === 1
+        ? `Answer ${asked} only, with one finding object inside "findings". For b4 and c2 fill fields only from quoted text, and leave the numbers empty unless a source states them. If no supplied source bears on ${asked}, return one finding with value "unknown" and say what is missing in "gap".`
+        : `Answer ${asked} only, with exactly ${codes.length} finding objects inside "findings", one per question. For b4 and c2 fill fields only from quoted text, and leave the numbers empty unless a source states them.`
     ].join("\n");
   }
 
-  function synthesisInstruction({ candidates, version, entity, cutoff }) {
+  /* Weighing is staged the same way: one call per contested question, so the
+     prompt carries only that question's candidates and the reply is one line. */
+  function weighInstruction({ code, candidates, version, entity, cutoff }) {
+    const question = questionFor(code);
     return [
       `ENTITY: ${entity}. CUTOFF: ${cutoff}. FRAMEWORK: Ground-0 v${version}.`,
+      `QUESTION BEING WEIGHED: ${code}${question ? ` · ${question.title} — ${question.description}` : ""}`,
+      code === "B4" && version === "1.1" ? B4_V11_TEST : "",
       "",
-      "Below are candidate findings that already passed a verbatim-quote check against the stored source text. For each code choose at most ONE candidate, or reject them all.",
+      "Below are candidate findings for this one question that already passed a verbatim-quote check against the stored source text. Choose at most ONE candidate, or reject them all.",
       "You may not write new quotes, new sources, or new values: reply with the candidate id you accept, or \"none\".",
       "Prefer the candidate whose quote is operative and whose source is the entity's own governing document. Reject candidates whose quote is descriptive rather than operative, or that are really about another organization.",
-      version === "1.1" ? "B4 may be accepted only if its candidate demonstrates an operative terminal/stay rule, a complete published relief record of at least 50%, or a binding penalty-free exit." : "",
       "",
       "CANDIDATES",
       JSON.stringify(candidates, null, 1),
       "",
       "Return exactly this JSON shape:",
-      JSON.stringify({ decisions: [{ code: "B1", candidate: "C3 | none", reason: "one sentence" }], gaps: ["what is still missing after this read"] }, null, 1)
+      JSON.stringify({ code, candidate: "C1 | none", reason: "one sentence", gap: "what is still missing for this question, or empty" }, null, 1)
     ].filter(Boolean).join("\n");
   }
 
@@ -199,8 +258,17 @@ window.G0LLM = (() => {
   const confidenceRank = value => value === "high" ? 3 : value === "medium" ? 2 : 1;
   const CODES = new Set(["B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4"]);
 
+  /* Sorts one model reply into what the record can carry:
+       verified — a yes/no with a quote that matched the stored text and a
+                  source dated on or before the cutoff. These may be scored.
+       held     — a quote that matched, on a source with no qualifying date.
+       rejected — a quote that did not match, or came from a lead.
+       unknown  — the model said the sources do not bear on the question. This
+                  is a statement about the record, never a finding: it carries
+                  no quote, so it must never reach the candidate list, where it
+                  would either crash the record build or be read as a NO. */
   function parseFindings(data, pool, cutoff) {
-    const verified = []; const rejected = []; const held = [];
+    const verified = []; const rejected = []; const held = []; const unknown = [];
     const rows = data && Array.isArray(data.findings) ? data.findings : [];
     const seen = new Set();
     for (const row of rows) {
@@ -209,7 +277,7 @@ window.G0LLM = (() => {
       if (!CODES.has(code) || seen.has(code)) continue;
       const value = String(row.value || "").toLowerCase();
       if (!VALUES.has(value)) continue;
-      if (value === "unknown") { seen.add(code); verified.push({ code, value: "unknown", reason: label(row.reason), confidence: "low" }); continue; }
+      if (value === "unknown") { seen.add(code); unknown.push({ code, value: "unknown", reason: label(row.reason).slice(0, 400), confidence: "low" }); continue; }
       const index = Number(row.source_index);
       const source = Number.isInteger(index) ? pool[index] : null;
       if (!source) { rejected.push({ code, reason: "the finding named a source that was not supplied", quote: unquote(row.quote).slice(0, 400) }); continue; }
@@ -229,14 +297,19 @@ window.G0LLM = (() => {
       if (!date || !G0.eligibleByCutoff(date, cutoff)) held.push({ ...finding, held: "this source carries no qualifying date on or before the cutoff" });
       else verified.push(finding);
     }
-    return { verified, rejected, held };
+    return { verified, rejected, held, unknown };
   }
 
+  /* A staged call reports one gap sentence; a grouped call may report a list.
+     Both are read, neither is invented. */
   function parseSummary(data) {
+    const gaps = Array.isArray(data && data.gaps)
+      ? data.gaps
+      : (data && typeof data.gap === "string" && data.gap.trim() ? [data.gap] : []);
     return {
       b4: data && G0.isObject(data.b4) ? data.b4 : null,
       c2: data && G0.isObject(data.c2) ? data.c2 : null,
-      gaps: Array.isArray(data && data.gaps) ? data.gaps.filter(gap => typeof gap === "string").map(gap => label(gap).slice(0, 400)) : []
+      gaps: gaps.filter(gap => typeof gap === "string" && gap.trim()).map(gap => label(gap).slice(0, 400))
     };
   }
 
@@ -270,9 +343,29 @@ window.G0LLM = (() => {
   /* ──────────────────────────────────────────────────────────────
      The reading run
      ────────────────────────────────────────────────────────────── */
+  /* Staging means several calls read the same sources, so the same rejection
+     or gap sentence can come back more than once. One reading, one entry: the
+     record must not look noisier than the evidence it was built from. */
+  const pushUnique = (list, rows, keyOf) => {
+    const seen = new Set(list.map(keyOf));
+    for (const row of rows || []) { const key = keyOf(row); if (seen.has(key)) continue; seen.add(key); list.push(row); }
+  };
+  const noteOnce = (notes, text) => { const message = label(text).slice(0, 400); if (message && !notes.includes(message)) notes.push(message); };
+
+  /* A call that never reached the model is not a question that failed: it
+     ends the reading, rather than quietly producing an empty one that looks
+     like "no evidence found". Persistent account-wide auth, rate, quota and
+     in-flight pressure also stops the staged pass instead of repeating the
+     same provider refusal for every question. */
+  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy", "rate", "quota", "sdk"]);
+  const isFatal = error => FATAL_KINDS.has(error && error.kind) || /no endpoint|no model|nothing to send|not loaded/i.test(String((error && error.message) || ""));
+  const b4Qualifies = value => /TERMINAL_RULE|RESOLVED_APPEALS|NO_PENALTY_EXIT/.test(String((value && value.basis) || ""));
+  const c2SaysSomething = value => !!value && (value.route === true || value.invoked === true || String(value.numerator || "").trim() !== "" || String(value.denominator || "").trim() !== "");
+
   async function readSources({
     input, sources, version = "1.0", cutoff = input.cutoff, signal,
-    followLinks = true, onProgress = () => {}, model = "", website = "", entity = ""
+    followLinks = true, onProgress = () => {}, model = "", website = "", entity = "",
+    codesPerCall = LIMITS.codesPerCall
   }) {
     if (!LLM) throw new Error("The LLM connection layer is not loaded.");
     const status = LLM.status();
@@ -284,47 +377,121 @@ window.G0LLM = (() => {
     const progress = (step, message, completed, total = 5) => onProgress({ step, message, completed, total });
     const usage = { input: 0, output: 0 };
     const rejected = []; const held = []; const unknowns = []; const notes = []; const followUps = [];
-    let passes = 0;
+    /* A question whose call never completed. This is not the same as a record
+       that is silent about it, and the gap text must not pretend otherwise. */
+    const failedCodes = new Map();
+    /* What the model said when it reported a question unanswerable from these
+       sources. Kept so the gap can quote its reason instead of going vague. */
+    const unknownReason = new Map();
+    const takeUnknowns = rows => (rows || []).forEach(row => { if (row && row.reason && !unknownReason.has(row.code)) unknownReason.set(row.code, row.reason); });
+    let passes = 0; let callsOk = 0; let callsFailed = 0; let lastError = null;
 
     const pack = packSources(pool);
     if (!pack.batches.length) throw new Error("None of the retrieved sources stores readable text. Re-run the automatic research so the pages are kept, then read them with the model.");
 
-    const ask = async (user, maxTokens, temperature = 0) => {
-      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model });
+    /* The staged plan: nine questions, grouped into calls. One call per
+       question by default, so each ceiling stays small enough to be paid for
+       and each answer arrives complete. */
+    const codes = allCodes();
+    const plan = questionChunks(codes, codesPerCall);
+    let unitsDone = 0;
+    let unitsTotal = plan.length * pack.batches.length;
+    /* The bar moves once per question call rather than once per batch, so a
+       long staged read shows progress instead of sitting still. Rounded, or
+       the interface prints 1.8900000000000001 of 5. */
+    const stepAt = () => Math.round((1 + Math.min(1, unitsDone / Math.max(1, unitsTotal))) * 100) / 100;
+    const retryNotice = (step, subject) => ({ delayMs, source }) => {
+      const seconds = Math.max(1, Math.ceil(delayMs / 1000));
+      const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) === 1 ? "" : "s"}` : `${seconds} second${seconds === 1 ? "" : "s"}`;
+      const provider = status.label || "The provider";
+      const message = /retry-?after|retry-?info/i.test(String(source || ""))
+        ? `${provider} asked us to wait ${wait} before retrying ${subject}…`
+        : `${provider} returned a temporary error; retrying ${subject} after a ${wait} backoff…`;
+      progress(step, message, step === 2 ? stepAt() : step);
+    };
+
+    const ask = async (user, maxTokens, temperature = 0, onRetry = null) => {
+      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model, floorTokens: LIMITS.floorTokens, onRetry });
       passes++;
       usage.input += result.usage.input; usage.output += result.usage.output;
+      if (result.shrunk) noteOnce(notes, `The provider would only reserve a ${result.reserved}-token ceiling for a call, so this one was sent inside it instead of ${maxTokens}.`);
       return { data: LLM.extractJson(result.text), text: result.text };
     };
 
+    /* One source batch, read question by question. A failure inside one
+       question costs that question, not the batch and not the audit. */
     const readPass = async (batch, index, count) => {
-      progress(2, `Reading pass ${index + 1} of ${count} — ${batch.map(item => item.id).join(", ")}…`, 2);
-      const { data, text } = await ask(readInstruction({ input: target, batch, batchIndex: index, batchCount: count, version }), LIMITS.maxTokens);
-      if (!data) { notes.push(`Reading pass ${index + 1} returned output that was not JSON, so nothing was taken from it.`); return { findings: [], summary: { gaps: [] }, rejected: [], held: [] }; }
-      const parsed = parseFindings(data, pool, cutoff);
-      parsed.verified.forEach(finding => { finding.pass = index + 1; });
-      parsed.held.forEach(finding => { finding.pass = index + 1; });
-      if (!parsed.verified.length && !parsed.held.length) notes.push(`Reading pass ${index + 1} produced no verifiable quote. Unreadable output was discarded rather than guessed at.`);
-      return { findings: parsed.verified, held: parsed.held, rejected: parsed.rejected, summary: parseSummary(data) };
+      const findings = []; const heldHere = []; const rejectedHere = []; const gaps = []; const unknownHere = [];
+      let b4 = null; let c2 = null;
+      /* A question this batch has already produced a reading for. The source
+         text in this batch cannot change between calls, so asking again would
+         only re-spend the same tokens on the same answer. */
+      const answered = new Set();
+      for (const [questionIndex, chunk] of plan.entries()) {
+        signal && signal.throwIfAborted();
+        unitsDone++;
+        const askedCodes = chunk.filter(code => !answered.has(code));
+        if (!askedCodes.length) {
+          progress(2, `Pass ${index + 1} of ${count} — ${chunk.join(", ")} already read from these sources…`, stepAt());
+          continue;
+        }
+        progress(2, `Reading ${askedCodes.join(", ")} — pass ${index + 1} of ${count}, question ${questionIndex + 1} of ${plan.length} (${batch.map(item => item.id).join(", ")})…`, stepAt());
+        let data = null;
+        try {
+          ({ data } = await ask(readInstruction({ input: target, batch, codes: askedCodes, batchIndex: index, batchCount: count, questionIndex, questionCount: plan.length, version }), readCeiling(askedCodes.length), 0, retryNotice(2, askedCodes.join(", "))));
+          callsOk++;
+        } catch (error) {
+          if (error && error.name === "AbortError") throw error;
+          callsFailed++; lastError = error;
+          if (isFatal(error)) throw error;
+          const told = LLM.redact(error.message);
+          askedCodes.forEach(code => { if (!failedCodes.has(code)) failedCodes.set(code, told); });
+          noteOnce(notes, `The call for ${askedCodes.join(", ")} in pass ${index + 1} failed, so that question was left unanswered: ${told}`);
+          continue;
+        }
+        if (!data) { noteOnce(notes, `The call for ${askedCodes.join(", ")} in pass ${index + 1} returned output that was not JSON, so nothing was taken from it.`); continue; }
+        const parsed = parseFindings(data, pool, cutoff);
+        /* Only a question this call actually asked is settled by its answer:
+           a model that volunteers a code it was not asked has not saved us
+           the call we were about to make about it. */
+        const settles = code => askedCodes.includes(code) ? answered.add(code) : null;
+        parsed.verified.forEach(finding => { finding.pass = index + 1; findings.push(finding); settles(finding.code); });
+        parsed.held.forEach(finding => { finding.pass = index + 1; heldHere.push(finding); settles(finding.code); });
+        parsed.unknown.forEach(row => { unknownHere.push(row); settles(row.code); });
+        pushUnique(rejectedHere, parsed.rejected, row => `${row.code}|${row.reason}|${row.quote}`);
+        const summary = parseSummary(data);
+        if (summary.b4 && (!b4 || b4Qualifies(summary.b4))) b4 = summary.b4;
+        if (summary.c2 && (!c2 || c2SaysSomething(summary.c2))) c2 = summary.c2;
+        summary.gaps.forEach(gap => { if (!gaps.includes(gap)) gaps.push(gap); });
+      }
+      if (!findings.length && !heldHere.length && !rejectedHere.length && !unknownHere.length) notes.push(`Reading pass ${index + 1} produced no verifiable quote for any question. Unreadable output was discarded rather than guessed at.`);
+      return { findings, held: heldHere, rejected: rejectedHere, unknown: unknownHere, summary: { b4, c2, gaps } };
     };
 
-    progress(1, `Opening ${pack.packed.length} readable record${pack.packed.length === 1 ? "" : "s"} (${Math.round(pack.totalChars / 1000)}k characters) in ${pack.batches.length} pass${pack.batches.length === 1 ? "" : "es"}…`, 1);
+    progress(1, `Opening ${pack.packed.length} readable record${pack.packed.length === 1 ? "" : "s"} (${Math.round(pack.totalChars / 1000)}k characters) in ${pack.batches.length} pass${pack.batches.length === 1 ? "" : "es"} · ${codes.length} questions staged ${plan.length === codes.length ? "one per call" : `${plan.length} calls of ${plan[0].length}`}…`, 1);
 
-    /* Pass 1 — read every document. */
+    /* Pass 1 — read every document, one question at a time. */
     const passesOut = [];
     for (const [index, batch] of pack.batches.entries()) {
       signal && signal.throwIfAborted();
       passesOut.push(await readPass(batch, index, pack.batches.length));
     }
+    if (!callsOk && callsFailed) throw lastError instanceof Error ? lastError : new Error(`Every staged call failed (${callsFailed} attempts), so nothing was read.`);
     passesOut.forEach(result => {
-      rejected.push(...result.rejected); held.push(...result.held);
-      (result.summary.gaps || []).forEach(gap => notes.push(gap));
+      pushUnique(rejected, result.rejected, row => `${row.code}|${row.reason}|${row.quote}`);
+      pushUnique(held, result.held, row => `${row.code}|${row.sourceId}|${normalize(row.quote)}`);
+      takeUnknowns(result.unknown);
+      (result.summary.gaps || []).forEach(gap => noteOnce(notes, gap));
     });
-    const summaryB4 = passesOut.map(result => result.summary.b4).find(b4 => b4 && /TERMINAL_RULE|RESOLVED_APPEALS|NO_PENALTY_EXIT/.test(String(b4.basis || ""))) || {};
-    const summaryC2 = passesOut.map(result => result.summary.c2).find(Boolean) || {};
+    let summaryB4 = passesOut.map(result => result.summary.b4).find(b4Qualifies) || {};
+    let summaryC2 = passesOut.map(result => result.summary.c2).find(c2SaysSomething) || passesOut.map(result => result.summary.c2).find(Boolean) || {};
 
     let candidates = [];
     const candidateKeys = new Set();
     const addCandidates = findings => findings.forEach(finding => {
+      /* Only a quoted yes/no is a candidate. An UNKNOWN carries no quote and
+         must never be weighed, chosen, or scored. */
+      if (!finding || finding.value === "unknown" || typeof finding.quote !== "string" || !finding.quote.trim()) return;
       /* Two passes can surface the same quote for the same code: that is one
          reading, not two, and it must not fabricate a weighing decision. */
       const key = `${finding.code}|${finding.sourceId}|${normalize(finding.quote)}`;
@@ -336,13 +503,14 @@ window.G0LLM = (() => {
 
     /* Follow-up reading — the model may only pick from links it was shown. */
     if (followLinks && R.readWithArchive) {
-      const missing = [...CODES].filter(code => !candidates.some(candidate => candidate.code === code && candidate.value !== "unknown"));
+      const missing = codes.filter(code => !candidates.some(candidate => candidate.code === code && candidate.value !== "unknown"));
       const links = linkCandidates(pool, pool.map(source => source.url));
       if (missing.length && links.length) {
-        progress(3, "Asking which linked page in this record should be read next…", 3);
+        progress(3, `Asking which linked page in this record should be read next (${missing.length} question${missing.length === 1 ? "" : "s"} unresolved)…`, 3);
         const wanted = new Map();
         try {
-          const { data } = await ask(linkInstruction({ links, entity: target.name, cutoff, missing }), 1200);
+          const { data } = await ask(linkInstruction({ links, entity: target.name, cutoff, missing }), LIMITS.maxTokensLinks, 0, retryNotice(3, "the linked-page selection"));
+          callsOk++;
           const rows = data && Array.isArray(data.followups) ? data.followups : [];
           for (const row of rows.slice(0, LIMITS.maxFollowUps)) {
             const link = links.find(candidate => candidate.index === Number(row && row.index));
@@ -350,7 +518,9 @@ window.G0LLM = (() => {
           }
         } catch (error) {
           if (error && error.name === "AbortError") throw error;
-          notes.push(`Follow-up reading was skipped: ${LLM.redact(error.message)}`);
+          callsFailed++; lastError = error;
+          if (isFatal(error)) throw error;
+          noteOnce(notes, `Follow-up reading was skipped: ${LLM.redact(error.message)}`);
         }
         if (wanted.size) {
           progress(3, `Reading ${wanted.size} linked page${wanted.size === 1 ? "" : "s"} named inside the record…`, 3);
@@ -379,31 +549,53 @@ window.G0LLM = (() => {
           if (followUps.length) {
             const freshlyRead = pool.filter(source => followUps.some(item => item.id === source.id));
             const repack = packSources(freshlyRead, { offset: pool.length - freshlyRead.length });
+            /* The freshly read pages are staged the same way: every question
+               still unresolved is asked of them, one call at a time. */
+            unitsTotal += plan.length * repack.batches.length;
             for (const [index, batch] of repack.batches.entries()) {
               signal && signal.throwIfAborted();
               const result = await readPass(batch, index, repack.batches.length);
-              rejected.push(...result.rejected); held.push(...result.held);
-              (result.summary.gaps || []).forEach(gap => notes.push(gap));
+              pushUnique(rejected, result.rejected, row => `${row.code}|${row.reason}|${row.quote}`);
+              pushUnique(held, result.held, row => `${row.code}|${row.sourceId}|${normalize(row.quote)}`);
+              takeUnknowns(result.unknown);
+              (result.summary.gaps || []).forEach(gap => noteOnce(notes, gap));
               addCandidates(result.findings);
+              if (result.summary.b4 && b4Qualifies(result.summary.b4)) summaryB4 = result.summary.b4;
+              if (c2SaysSomething(result.summary.c2)) summaryC2 = result.summary.c2;
             }
           }
         }
       }
     }
+    if (!callsOk && callsFailed) throw lastError instanceof Error ? lastError : new Error(`Every staged call failed (${callsFailed} attempts), so nothing was read.`);
 
-    /* Weighing pass — only when more than one verified candidate exists. */
+    /* Weighing — staged per contested question. A question with a single
+       verified candidate has nothing to weigh and costs no call at all. */
     let decisions = null;
-    if (candidates.length > 1) {
-      signal && signal.throwIfAborted();
-      progress(4, `Weighing ${candidates.length} verified candidate quotes…`, 4);
-      try {
-        const { data } = await ask(synthesisInstruction({ candidates, version, entity: target.name, cutoff }), 2500);
-        if (data && Array.isArray(data.decisions)) decisions = data.decisions;
-        if (data) (Array.isArray(data.gaps) ? data.gaps : []).forEach(gap => { if (typeof gap === "string") notes.push(label(gap).slice(0, 400)); });
-      } catch (error) {
-        if (error && error.name === "AbortError") throw error;
-        notes.push(`The weighing pass failed, so the first verified reading per question was kept: ${LLM.redact(error.message)}`);
+    const contested = codes.filter(code => candidates.filter(candidate => candidate.code === code).length > 1);
+    if (contested.length) {
+      decisions = [];
+      for (const [index, code] of contested.entries()) {
+        signal && signal.throwIfAborted();
+        const ofCode = candidates.filter(candidate => candidate.code === code);
+        progress(4, `Weighing ${ofCode.length} verified candidates for ${code} — question ${index + 1} of ${contested.length}…`, 4);
+        try {
+          const { data } = await ask(weighInstruction({ code, candidates: ofCode, version, entity: target.name, cutoff }), LIMITS.maxTokensWeigh, 0, retryNotice(4, `the weighing for ${code}`));
+          callsOk++;
+          if (!data) { noteOnce(notes, `The weighing call for ${code} returned output that was not JSON, so the highest-confidence verified reading was kept.`); continue; }
+          /* One decision per call; a grouped reply is still read if it comes. */
+          const rows = Array.isArray(data.decisions) ? data.decisions : [data];
+          const row = rows.find(item => item && String(item.code || code).toUpperCase() === code && (item.candidate || item.reason)) || null;
+          if (row) decisions.push({ code, candidate: String(row.candidate || "none"), reason: label(row.reason).slice(0, 400) });
+          parseSummary(data).gaps.forEach(gap => noteOnce(notes, gap));
+        } catch (error) {
+          if (error && error.name === "AbortError") throw error;
+          callsFailed++; lastError = error;
+          if (isFatal(error)) throw error;
+          noteOnce(notes, `The weighing call for ${code} failed, so the highest-confidence verified reading was kept: ${LLM.redact(error.message)}`);
+        }
       }
+      if (!decisions.length) decisions = null;
     }
 
     /* Final choice per code. */
@@ -425,16 +617,24 @@ window.G0LLM = (() => {
       }
       const heldCandidate = held.find(row => row.code === code && row.value !== "unknown");
       if (heldCandidate) { heldFor.set(code, heldCandidate); unknowns.push({ code, note: "operative text was located, but its source carries no qualifying date" }); continue; }
-      unknowns.push({ code, note: rejected.some(row => row.code === code) ? "a quoted reading was discarded because it could not be verified" : "no supplied source stated anything operative" });
+      unknowns.push({
+        code,
+        note: failedCodes.has(code) ? "the call for this question failed, so it was never read"
+          : rejected.some(row => row.code === code) ? "a quoted reading was discarded because it could not be verified"
+          : unknownReason.has(code) ? `the model read the supplied sources and reported no operative text: ${unknownReason.get(code)}`
+          : "no supplied source stated anything operative"
+      });
     }
 
     /* Answers, in the engine's own shape. */
     const sourceFor = code => { const candidate = chosen.get(code); return candidate ? pool.find(source => source.id === candidate.sourceId) : null; };
     const gapText = (code, note) => {
+      if (failedCodes.has(code)) return `The call that would have read this record for ${code} did not complete (${failedCodes.get(code)}), so the question is UNKNOWN. That is a failed call, not a silent record: run the reading again to ask it.`;
       const heldCandidate = heldFor.get(code);
       if (heldCandidate) return `The linked model found operative text for ${code} at “${heldCandidate.title}” (${heldCandidate.url}), but that record carries no qualifying date on or before the cutoff, so nothing from it can be scored. Supply a dated artifact or a usable archive capture to use this reading.`;
       const base = `The linked model read the retrieved record for this cutoff and found no operative text for ${code}.`;
-      return `${base} ${/discarded|verif/i.test(note) ? "A quoted reading was offered and discarded because it could not be verified against the stored source text." : "This is a statement about the retrieved record, not a proven negative."}`;
+      const said = unknownReason.get(code);
+      return `${base}${said ? ` It reported: “${said}”.` : ""} ${/discarded|verif/i.test(note) ? "A quoted reading was offered and discarded because it could not be verified against the stored source text." : "This is a statement about the retrieved record, not a proven negative."}`;
     };
     const readings = code => {
       const candidate = chosen.get(code);
@@ -517,6 +717,15 @@ window.G0LLM = (() => {
         provider: status.label || status.provider, model: model || status.model,
         endpoint: status.endpoint, generatedAt: new Date().toISOString(), reviewRequired: true,
         passes, sourcesRead, charsRead, verified: candidates.length,
+        /* How the reading was staged: how many questions each call asked, the
+           ceiling each call reserved, and what it cost when a call failed.
+           A record that was read question by question says so. */
+        staging: {
+          codesPerCall: plan[0] ? plan[0].length : 0, questionsAsked: codes.length,
+          ceilingPerCall: readCeiling(plan[0] ? plan[0].length : 1), weighed: contested.length, callsFailed, plannedCalls: unitsTotal,
+          failedCodes: [...failedCodes.keys()],
+          providerCeiling: (LLM.tokenCeiling && LLM.tokenCeiling() || {}).maxTokens || 0
+        },
         rejected: rejected.slice(0, 40), held: held.slice(0, 40), unknowns, usage, followUps,
         candidates: candidates.map(candidate => ({ id: candidate.id, code: candidate.code, value: candidate.value, quote: candidate.quote.slice(0, 600), url: candidate.url, title: candidate.title, date: candidate.date, verified: true })),
         chosen: Object.fromEntries([...chosen].map(([code, candidate]) => [code, candidate.id])),
@@ -529,7 +738,8 @@ window.G0LLM = (() => {
       rejected, held, unknowns, notes, followUps, usage, passes, sourcesRead, charsRead,
       sources: pool, thinSources: pack.packed.filter(item => item.chars < 400).length, skippedSources: pack.skipped
     };
-    progress(5, `Read ${sourcesRead} record${sourcesRead === 1 ? "" : "s"} · ${candidates.length} quoted reading${candidates.length === 1 ? "" : "s"} verified · ${rejected.length} discarded · ${followUps.length} followed`, 5);
+    if (callsFailed) noteOnce(notes, `${callsFailed} staged call${callsFailed === 1 ? "" : "s"} failed during this reading; the questions they carried were left UNKNOWN rather than guessed at.`);
+    progress(5, `Read ${sourcesRead} record${sourcesRead === 1 ? "" : "s"} · ${candidates.length} quoted reading${candidates.length === 1 ? "" : "s"} verified · ${rejected.length} discarded · ${followUps.length} followed · ${passes} staged call${passes === 1 ? "" : "s"}${callsFailed ? ` · ${callsFailed} failed` : ""}`, 5);
     return reading;
   }
 
@@ -549,15 +759,20 @@ window.G0LLM = (() => {
     return next;
   }
 
-  /* One plain sentence for the interface: what the model changed. */
+  /* One plain sentence for the interface: what the model changed, and how
+     many separate calls it took to say it. */
   function summarise(reading) {
     const answered = reading.answers.filter(answer => answer.value !== null).length;
     const constraints = reading.constraints.filter(answer => answer.value === true).length;
-    return `${reading.block.model || "The linked model"} read ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} and produced ${reading.candidates.length} verified quote${reading.candidates.length === 1 ? "" : "s"}: ${answered} of 5 behavioral questions answered, ${constraints} of 4 constraints met, ${reading.rejected.length} reading${reading.rejected.length === 1 ? "" : "s"} discarded as unverifiable.`;
+    const staged = reading.passes > 1 ? ` in ${reading.passes} staged call${reading.passes === 1 ? "" : "s"}` : "";
+    return `${reading.block.model || "The linked model"} read ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"}${staged} and produced ${reading.candidates.length} verified quote${reading.candidates.length === 1 ? "" : "s"}: ${answered} of 5 behavioral questions answered, ${constraints} of 4 constraints met, ${reading.rejected.length} reading${reading.rejected.length === 1 ? "" : "s"} discarded as unverifiable.`;
   }
 
   return {
     LIMITS, readSources, mergeReading, summarise, verifyQuote, numbersInText, packSources,
-    linkCandidates, parseFindings, parseSummary, sourceText, isLead, citationDate, readable, normalize, label
+    linkCandidates, parseFindings, parseSummary, sourceText, isLead, citationDate, readable, normalize, label,
+    /* the staged call plan — exposed so the interface and the tests can see
+       exactly how many calls an audit will make, and what each one asks */
+    allCodes, questionFor, questionChunks, questionBlock, readInstruction, weighInstruction, SYSTEM
   };
 })();

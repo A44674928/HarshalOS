@@ -8,6 +8,16 @@
      · everything else → no-cache (always revalidate)
    and knows the right MIME type for .avif (the orb film frames).
 
+   It also serves an allowlist, not the checkout. On a laptop that hardly
+   matters; behind a preview proxy or on a shared network the port is
+   reachable by other people, and this directory holds .git (a 754 MiB
+   packfile and every credential-free-but-private commit), the Business Plan
+   working documents, and private papers that .assetsignore says must never be
+   published. So what is served here is exactly what the deployed site is —
+   index.html, about.html, css/, js/, assets/, and the versioned specs/ the
+   Ground-0 app fetches at runtime — and everything else is a plain 404 that
+   does not admit what exists.
+
    Not part of the deployed site — excluded in .assetsignore.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -39,11 +49,34 @@ const MIME = {
   ".woff2": "font/woff2"
 };
 
+/* The deployed site, as a set of path patterns. `specs/*.md` is the one
+   root-level exception .assetsignore grants: the Ground-0 specification
+   reader fetches it at runtime. */
+const SERVED = [
+  /^\/$/,                                   // index.html
+  /^\/[A-Za-z0-9_-]+\.html$/,               // about.html and friends
+  /^\/css\/[A-Za-z0-9._-]+$/,
+  /^\/js\/[A-Za-z0-9._-]+$/,
+  /^\/assets\/[A-Za-z0-9._/-]+$/,
+  /^\/specs\/[A-Za-z0-9._-]+\.md$/
+];
+/* `new URL` collapses "/../" before we ever see it, so a prefix check on the
+   joined path is not enough on its own: "/../.git/config" arrives as
+   "/.git/config", which is inside ROOT and would be served. Refuse any path
+   with a dot segment first — .git, .DS_Store, .env, .wrangler. */
+const hasDotSegment = value => value.split("/").some(segment => segment.startsWith("."));
+const isServed = value => !hasDotSegment(value) && SERVED.some(pattern => pattern.test(value));
+
 http.createServer((req, res) => {
   try {
     const u = new URL(req.url, "http://localhost");
     let p = decodeURIComponent(u.pathname);
     if (p.endsWith("/")) p += "index.html";
+    if (!isServed(p)) {
+      res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+      res.end("404 " + p);
+      return;
+    }
     const file = path.normalize(path.join(ROOT, p));
     if (!file.startsWith(ROOT)) { res.writeHead(403); res.end("forbidden"); return; }
     fs.readFile(file, (err, data) => {

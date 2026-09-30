@@ -67,9 +67,13 @@ js/g0-engine.js   — Ground-0 engine: strict validation, B1–B5/C1–C4 scorin
 js/g0-research.js — key-free public-record research: identity, official pages, Wayback captures,
                     court/regulatory/legislative/news registries, coverage (window.G0Research)
 js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
-                    transport (Anthropic / OpenAI-compatible), probes, plain-language failures (window.HOSLLM)
-js/g0-llm.js      — Ground-0 model reading: batched read passes, verbatim-quote verification,
-                    bounded link-following, application to a draft (window.G0LLM)
+                    transport (Anthropic / OpenAI-compatible / Google GenAI SDK), model listing,
+                    probes, plain-language failures, learned token ceilings, bounded OpenRouter
+                    in-flight retries, and Google transient retries that honor provider delay metadata
+                    (window.HOSLLM)
+js/g0-llm.js      — Ground-0 model reading: staged one question per call over batched source
+                    passes, verbatim-quote verification, bounded link-following, application
+                    to a draft (window.G0LLM)
 js/wm.js          — window manager, HUD, origin menu, toasts
 js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
 js/apps-shell.js  — Inner Shell · Discs · Whyland · Glossary · The Book · Firewall
@@ -206,9 +210,22 @@ words is recorded as a coverage gap — honestly labelled, never guessed at, and
 1. **Retrieval keeps what it read.** Page text is stored with the source (governing documents
    first, bounded per source and per audit) instead of being reduced to a 650-character excerpt.
    Without this there would be nothing for a model to read.
-2. **Read passes.** Documents are packed into batches (about three documents and 12k characters
-   each, inside a per-run budget) and read against the nine Ground-0 questions. The model answers
-   only with a quote.
+2. **Read passes, staged one question at a time.** Documents are packed into batches (about three
+   documents and 12k characters each, inside a per-run budget), and each batch is then read against
+   the nine Ground-0 questions **one question per model call** (`LIMITS.codesPerCall`). The model
+   answers only with a quote. Staging is deliberate: a provider prices a call by the output ceiling
+   it *reserves*, so one call demanding all nine answers reserves a ceiling a small balance cannot
+   cover and is refused outright — OpenRouter answers `402 … you requested up to 6000 tokens, but
+   can only afford 2664`. Nine small calls reserve ~700 tokens each, an answer cannot arrive
+   truncated half-way through the ninth question, and one isolated failed call costs one question
+   rather than the whole audit: it is recorded as a failed call, never as a silent record. If a 402
+   says the in-flight budget is full, running or recently completed calls may still be holding it.
+   The connection honors OpenRouter's `Retry-After` header for waits up to two minutes and shows the
+   wait in progress; a longer wait is surfaced rather than retried early. When no header is exposed,
+   it uses a short bounded backoff. If the refusal persists, the audit stops rather than repeating it
+   for every question, and says to wait rather than mislabeling the failure as an empty balance. Raise
+   `codesPerCall` to group questions and re-send the same source text fewer times when the balance
+   allows it.
 3. **Verification is the gate.** Every quote is normalised and matched character-for-character
    against the stored source text. A quote that is not found is discarded, with the reason shown,
    and that question stays **UNKNOWN — never NO**. Quotes must come from a source on or before the
@@ -219,7 +236,8 @@ words is recorded as a coverage gap — honestly labelled, never guessed at, and
    by the same reader, archive and cutoff rules as the original research. It cannot reach the open
    web and cannot name a URL that was not already in the record.
 5. **Weighing, then a person.** Multiple verified candidates for one question are weighed against
-   the record; the result is presented per question with the quote, source, date and a tick box.
+   the record — one call per contested question, so a question with a single verified reading costs
+   nothing; the result is presented per question with the quote, source, date and a tick box.
    Applying writes the quotes in as suggested answers and files the draft — the status stays
    **Draft**, confidence stays **NONE**, the badge stays **Unissued**, and the reading is recorded in
    `automation.llm` with its verified, held and discarded counts.
@@ -229,6 +247,41 @@ reaches an answer a reviewer can check in one click. What does not change: where
 is silent, the result is still a coverage gap, stated as such. A model cannot close a gap by
 asserting something the retrieved documents do not say, and it is never allowed to try — the
 unverifiable reading is thrown away in front of you, with the reason.
+
+### Google Gemini Developer API (BYOK)
+
+LLM Link includes a **Google Gemini Developer API (GenAI SDK)** preset. It uses the official
+`@google/genai` JavaScript SDK's browser build (`models.list` and `models.generateContent`), pinned
+to **2.24.0** and imported only when Google model listing, connection testing, or a Ground-0 read
+actually needs it. HarshalOS has no npm build pipeline, so the static page uses jsDelivr's ESM
+conversion of that pinned official package instead of committing a generated bundle. The browser
+fetches the SDK module and its dependencies from jsDelivr; **no API key or prompt is sent to the
+CDN**. Model requests go directly from the browser to the configured API base URL (Google's
+Gemini Developer API by default). The app uses the SDK's model methods; it does not hand-build a
+Gemini REST request or route Gemini through an OpenAI-compatible endpoint.
+
+The Google call passes `systemInstruction`, `maxOutputTokens`, temperature, and the active abort
+signal through the SDK. Ground-0 still asks **one audit question per recall** (including its separate
+weighing calls); it does not turn the audit into one large call. SDK responses are normalized into
+the same usage, model, and text shape as the other providers, then pass through the unchanged
+character-for-character quote check and human-review gate.
+
+Google's SDK defaults to multiple HTTP attempts, so generation calls set its per-request attempt
+count to one and let HarshalOS handle transient retries in one place. It honors Google's structured
+`RetryInfo` / `Retry-After` delays (with small jitter), or uses a short exponential backoff for
+transient 408, 429, 500, 502, 503, and 504 responses, with at most three retries and an abortable
+two-minute wait ceiling (subject to the call's overall timeout). A per-day quota is never retried. If
+a rate limit persists after those retries,
+Ground-0 stops instead of sending the same account-wide failure for every question; a still-failing
+503 is reported as a failed call, never as evidence. This retry handling does not alter the
+question-by-question staging.
+
+**Key warning:** Google advises against exposing API keys in client-side production code. This
+browser BYOK flow is convenient but a person with access to the browser can inspect the key. The
+key remains in session storage by default (persistent storage requires opting in), and is sent
+directly to the API endpoint; HarshalOS does not receive it. Use a Gemini API key type and
+restrictions currently accepted by Google's API guidance. The selected model provider receives the
+prompt and handles it under its own data policies; the browser copy of the audit remains local.
 
 **Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
@@ -241,7 +294,19 @@ applied to a draft; `node scripts/llm-test.mjs` covers the connection layer and 
 with a stub provider and a deliberately mixed set of model replies — verified, fabricated,
 mis-dated, news-sourced and out-of-record — proving that only verifiable quotes ever reach an
 answer, that a followed page can only come from a link the record itself contained, and that
-nothing is sent without a linked model.
+nothing is sent without a linked model. It also runs the whole reading against a stub that refuses
+any call reserving more than 2664 output tokens the way OpenRouter does, and checks that the staged
+reading never earns that refusal: nine questions are asked one per call, each call reserves the
+small ceiling, weighing is one call per contested question, a ceiling below the floor is reported
+instead of sent, a balance smaller than one staged call still finishes the reading inside it, a
+transient in-flight-budget refusal honors `Retry-After` and is retried without changing the ceiling,
+an unresolved account-wide refusal stops before fanning out across the nine questions, one failed call
+leaves that one question UNKNOWN and says the call failed, and a reading
+in which no call completes throws instead of returning an empty audit. The LLM harness also
+injects a Google GenAI SDK mock to verify SDK-based model listing, request/response mapping, key
+redaction, and a complete question-by-question Ground-0 read without raw REST calls; it also checks
+bounded 503 backoff, the 34-second 429 `RetryInfo`, aborting during a provider wait, no retry for a
+per-day quota, and stopping the staged audit after a persistent account-wide rate limit.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.

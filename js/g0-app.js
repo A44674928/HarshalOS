@@ -1183,7 +1183,11 @@ APPS.push({
         const input = G0.newInput(S.version);
         input.name = item.entity || item.title || "Named entity";
         input.cutoff = cutoff;
-        return G0LLM.readSources({ input, sources: [source], version: S.version, cutoff, signal: S.evRead.controller.signal, followLinks: false, entity: item.entity || item.title, website: item.url,
+        /* One document, read now, with the person waiting on it: three
+           questions per call keeps this to three round trips instead of nine.
+           The ceiling grows with what each call asks, so nothing is truncated,
+           and the reading block still records the grouping it was asked with. */
+        return G0LLM.readSources({ input, sources: [source], version: S.version, cutoff, signal: S.evRead.controller.signal, followLinks: false, entity: item.entity || item.title, website: item.url, codesPerCall: 3,
           onProgress: progress => { S.evRead = { ...S.evRead, progress: { ...progress, total: 3 } }; if (S.evRead.stage === "running") renderEvidenceProgress(); } })
           .then(reading => { S.evRead = { ...S.evRead, stage: "ready", reading, progress: null }; render(); });
       }).catch(error => {
@@ -1196,9 +1200,13 @@ APPS.push({
       const host = main.querySelector(`#g0-ev-read-progress`);
       if (!host) return;
       const p = S.evRead.progress || { completed: 0, total: 3, message: "Preparing…" };
+      /* The reading reports its own five steps and moves in fractions while it
+         is staged; this panel shows three. Neither the bar nor the announced
+         value may claim more than the whole. */
+      const done = Math.max(0, Math.min(p.completed, p.total));
       host.innerHTML = `
-        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.completed}" aria-label="Artifact reading progress">
-          <div class="g0-progress-fill" style="width:${Math.round((p.completed / p.total) * 100)}%"></div>
+        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${Math.round(done * 100) / 100}" aria-label="Artifact reading progress">
+          <div class="g0-progress-fill" style="width:${Math.round((done / Math.max(1, p.total)) * 100)}%"></div>
         </div>
         <p class="g0-progress-msg">${esc(p.message)}</p>`;
     }
@@ -1354,11 +1362,16 @@ APPS.push({
         ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, current: o.input.constraints[index], reading: reading.constraints[index], kind: "constraint" }))];
       const pill = value => value === null ? `<span class="g0-pill unknown">Unknown</span>` : value ? `<span class="g0-pill yes">Yes</span>` : `<span class="g0-pill no">No</span>`;
       const modelName = (reading.block && reading.block.model) || status.model;
+      /* Say how the reading was asked for: a provider prices a call by the
+         output ceiling it reserves, so the audit is staged one question per
+         call and each call stays small enough to be paid for. */
+      const staging = (reading.block && reading.block.staging) || null;
+      const staged = staging ? `${staging.questionsAsked} questions asked ${staging.codesPerCall === 1 ? "one per call" : `${staging.codesPerCall} per call`} · each call reserved ≤${staging.ceilingPerCall} output tokens${staging.providerCeiling ? ` · the provider will reserve at most ${staging.providerCeiling}` : ""}${staging.callsFailed ? ` · ${staging.callsFailed} call${staging.callsFailed === 1 ? "" : "s"} failed and left that question UNKNOWN` : ""}` : "";
       return `
         <div class="g0-panel g0-llm">
           ${header}
           <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was checked character-for-character against the stored source text; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Apply only what you have read yourself.</p></div>
-          <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
+          <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"}${staged ? ` · ${esc(staged)}` : ""} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
           <ul class="g0-reading-list">
             ${rows.map(row => {
               const candidate = sourceFor(row.code);
