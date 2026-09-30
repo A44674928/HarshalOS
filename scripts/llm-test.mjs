@@ -77,6 +77,22 @@ const sources = [
 
   /* OpenAI-compatible transport */
   LLM.saveSettings({ provider: "openrouter", endpoint: "https://openrouter.ai/api/v1/chat/completions", model: "anthropic/claude-sonnet-4.5" });
+  eq(LLM.resolved().modelsEndpoint, "https://openrouter.ai/api/v1/models", "the saved OpenRouter chat endpoint keeps its separate model-list endpoint");
+  let listedAt = "";
+  globalThis.fetch = async url => {
+    listedAt = String(url);
+    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ data: [{ id: "anthropic/claude-sonnet-4.5" }] }) };
+  };
+  const openrouterModels = await LLM.loadModels(LLM.resolved());
+  eq(listedAt, "https://openrouter.ai/api/v1/models", "List models calls the OpenRouter model endpoint, not its chat endpoint");
+  eq(openrouterModels[0], "anthropic/claude-sonnet-4.5", "the OpenRouter model list is parsed after the preset endpoint is saved");
+  const customCompatible = LLM.resolved({ provider: "custom", protocol: "openai", endpoint: "https://gateway.example/v1/chat/completions", model: "gateway-model" });
+  eq(customCompatible.modelsEndpoint, "https://gateway.example/v1/models", "a custom OpenAI-compatible chat route derives its conventional model-list route");
+  const noModelList = LLM.resolved({ provider: "custom", protocol: "openai", endpoint: "https://gateway.example/generate", model: "gateway-model" });
+  eq(noModelList.modelsEndpoint, "", "an endpoint with no recognizable model-list route stays manual");
+  let listError = null;
+  try { await LLM.loadModels(noModelList); } catch (error) { listError = error; }
+  eq(LLM.describe(listError).title, "MODEL LIST UNAVAILABLE", "a missing model list is not mislabeled as a rejected model");
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, init, headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
     return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ model: "x", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 4 } }) };

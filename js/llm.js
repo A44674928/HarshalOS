@@ -120,14 +120,28 @@ window.HOSLLM = (() => {
     return next;
   }
   const preset = name => PROVIDERS[name] || PROVIDERS.custom;
+  function inferredModelsEndpoint(endpoint) {
+    try {
+      const url = new URL(endpoint, location.origin);
+      if (!/^https?:$/.test(url.protocol)) return "";
+      const pathname = url.pathname.replace(/\/+$/, "");
+      if (!/\/(?:chat\/completions|messages)$/.test(pathname)) return "";
+      url.pathname = pathname.replace(/\/(?:chat\/completions|messages)$/, "/models");
+      url.hash = "";
+      return url.href;
+    } catch { return ""; }
+  }
   function resolved(settings = loadSettings()) {
     const base = preset(settings.provider);
+    const configuredEndpoint = String(settings.endpoint || "").trim();
+    const endpoint = (configuredEndpoint || base.endpoint || "").trim();
+    const keepsPreset = !configuredEndpoint || configuredEndpoint === String(base.endpoint || "").trim();
     return {
       provider: settings.provider,
       label: base.label,
       protocol: (settings.protocol || base.protocol) === "anthropic" ? "anthropic" : "openai",
-      endpoint: (settings.endpoint || base.endpoint || "").trim(),
-      modelsEndpoint: settings.endpoint ? "" : (base.modelsEndpoint || ""),
+      endpoint,
+      modelsEndpoint: keepsPreset ? (base.modelsEndpoint || "") : inferredModelsEndpoint(endpoint),
       context: base.context || 128000,
       browser: base.browser || "direct",
       relay: base.relay === true,
@@ -217,7 +231,7 @@ window.HOSLLM = (() => {
     }
   }
   function describe(error) {
-    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "budget" ? "THE TOKEN CEILING IS UNAFFORDABLE" : error.kind === "busy" ? "THE PROVIDER IS STILL SETTLING REQUESTS" : error.kind === "billing" ? "THE PROVIDER REFUSED THE CALL" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
+    if (error instanceof LlmError) return { title: error.kind === "cors" ? "THE BROWSER BLOCKED THE CALL" : error.kind === "auth" ? "THE KEY WAS REJECTED" : error.kind === "model" ? "THE MODEL WAS REJECTED" : error.kind === "model-list" ? "MODEL LIST UNAVAILABLE" : error.kind === "rate" ? "RATE LIMITED" : error.kind === "budget" ? "THE TOKEN CEILING IS UNAFFORDABLE" : error.kind === "busy" ? "THE PROVIDER IS STILL SETTLING REQUESTS" : error.kind === "billing" ? "THE PROVIDER REFUSED THE CALL" : error.kind === "timeout" ? "NO COMPLETE RESPONSE" : "THE MODEL CALL FAILED", detail: error.message, hint: error.hint };
     if (error && error.name === "AbortError") return { title: "CALL CANCELED", detail: "The call was canceled before it finished. No reading was recorded.", hint: "" };
     return { title: "THE MODEL CALL FAILED", detail: redact(error instanceof Error ? error.message : String(error ?? "Unknown error")), hint: "Retry, or check the connection in the LLM Link app." };
   }
@@ -239,13 +253,14 @@ window.HOSLLM = (() => {
   );
 
   async function loadModels(provider, { signal, timeoutMs = 20000 } = {}) {
-    if (!provider.modelsEndpoint) throw new LlmError("This endpoint does not publish a model list. Type the model name instead.", { kind: "model", hint: "Only Anthropic, OpenAI-compatible and OpenRouter-style endpoints can list models." });
+    if (!provider.modelsEndpoint) throw new LlmError("No model-list URL is configured for this connection. Type the model name instead.", { kind: "model-list", hint: "Choose a provider preset, or use a custom OpenAI-compatible or Anthropic endpoint that exposes a /models route. Model listing is optional." });
     const headers = new Headers({ Accept: "application/json" });
     const key = apiKey();
     if (key) applyAuth(headers, provider, key);
     let response;
     try { response = await fetch(provider.modelsEndpoint, { headers, signal, credentials: "omit", referrerPolicy: "no-referrer" }); }
     catch (error) { if (error && error.name === "AbortError") throw error; throw corsError(provider); }
+    if (response.status === 404) throw new LlmError(`The model-list endpoint for ${provider.label} returned HTTP 404.`, { status: 404, kind: "model-list", hint: "This connection can still work if you type the model name. Check the provider's GET /models route if listing should be available." });
     if (!response.ok) throw classifyHttp(provider, response.status, `Listing models returned HTTP ${response.status}.`);
     let data;
     try { data = await response.json(); } catch { throw new LlmError("The model list was not valid JSON.", { kind: "model" }); }
