@@ -194,6 +194,17 @@ const app = globalThis.APPS.find(a => a.id === "ground0");
 ok(!!app && app.title === "Ground-0 Audit", "app registered with id ground0");
 ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one ground0 app");
 
+/* ── index.html must actually load the Ground-0 modules (regression guard:
+      a lost edit once shipped the app unregistered — nothing referenced it) ── */
+{
+  const fs = await import("node:fs");
+  const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const at = src => html.indexOf(`src="${src}`);
+  ok(at("js/g0-engine.js") !== -1 && at("js/g0-research.js") !== -1 && at("js/g0-app.js") !== -1, "index.html references all three Ground-0 modules");
+  ok(at("js/g0-engine.js") < at("js/wm.js") && at("js/g0-research.js") < at("js/wm.js") && at("js/g0-app.js") > html.indexOf('src="js/apps-shell.js"'), "module load order: engine+research before the window manager, app after the shell");
+  ok(html.includes("css/ground0.css"), "index.html links the Ground-0 stylesheet");
+}
+
 const root = new El("div");
 const api = { toast: (kind, title, body) => toasts.push({ kind, title }) };
 app.render(root, api);
