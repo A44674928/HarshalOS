@@ -193,6 +193,7 @@ await import("../js/g0-llm.js");
 await import("../js/g0-app.js");
 await import("../js/apps-llm.js");
 
+const LLM = globalThis.HOSLLM;
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  ✗ FAIL:", name); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -202,6 +203,21 @@ const dbg = (label) => { if (DEBUG) console.log(`\n— ${label} —\n` + main.in
 const app = globalThis.APPS.find(a => a.id === "ground0");
 ok(!!app && app.title === "Ground-0 Audit", "app registered with id ground0");
 ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one ground0 app");
+
+/* ── the official Google SDK is selectable and its browser-key warning is visible ── */
+{
+  const linkApp = globalThis.APPS.find(a => a.id === "llmlink");
+  const linkRoot = new El("div");
+  ok(!!linkApp, "LLM Link is registered");
+  linkApp.render(linkRoot, { toast() {} });
+  ok(linkRoot.innerHTML.includes("Google Gemini Developer API (GenAI SDK)"), "Google's official GenAI SDK provider is selectable");
+  ok(linkRoot.innerHTML.includes("Google GenAI SDK (@google/genai)"), "the protocol selector names the official SDK");
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "", model: "" });
+  linkApp.render(linkRoot, { toast() {} });
+  ok(linkRoot.innerHTML.includes("BROWSER KEY WARNING"), "Google's browser API-key warning is shown before a connection is linked");
+  ok(linkRoot.innerHTML.includes("jsDelivr"), "the UI discloses the lazy SDK code download separately from API requests");
+  LLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "", model: "" });
+}
 
 /* ── index.html must actually load the Ground-0 modules (regression guard:
       a lost edit once shipped the app unregistered — nothing referenced it) ── */

@@ -125,6 +125,89 @@ const sources = [
   ok(LLM.PROVIDERS.anthropic.browser === "direct" && LLM.PROVIDERS.openrouter.browser === "direct", "the providers that answer browser calls are marked direct");
   ok(LLM.PROVIDERS.local.keyOptional === true, "a local endpoint may need no key");
 
+  /* Official Google GenAI SDK transport: SDK methods, SDK model listing,
+     token ceilings and abort signals — no parallel raw-REST path. */
+  {
+    const previousFetch = globalThis.fetch;
+    let rawFetches = 0;
+    globalThis.fetch = async (...args) => { rawFetches++; return previousFetch(...args); };
+    const googleEndpoint = "https://generativelanguage.googleapis.com";
+    const googleKey = "AIzaSyD-google-test-key-1234567890";
+    const googleClients = [];
+    const googleListCalls = [];
+    const googleCalls = [];
+    let googleError = null;
+    let sdkLoads = 0;
+    class MockGoogleGenAI {
+      constructor(options) {
+        googleClients.push(options);
+        this.models = {
+          list: async params => {
+            googleListCalls.push(params);
+            return (async function* () {
+              yield { name: "models/gemini-test", supportedActions: ["generateContent", "countTokens"] };
+              yield { name: "models/embed-only", supportedActions: ["embedContent"] };
+              yield { name: "models/gemini-pro", supportedActions: ["generateContent"] };
+            })();
+          },
+          generateContent: async params => {
+            googleCalls.push(params);
+            if (googleError) throw googleError;
+            return { text: "link established, model responding", modelVersion: "gemini-mock", usageMetadata: { promptTokenCount: 11, candidatesTokenCount: 4 } };
+          }
+        };
+      }
+    }
+    LLM._setGoogleSDKLoaderForTests(async () => { sdkLoads++; return { GoogleGenAI: MockGoogleGenAI }; });
+    LLM.setKey(googleKey, false);
+    LLM.saveSettings({ provider: "google", protocol: "", endpoint: googleEndpoint, model: "gemini-test" });
+    eq(LLM.resolved().protocol, "google", "the Google preset resolves to its dedicated SDK protocol");
+    eq(LLM.GOOGLE_GENAI_SDK_VERSION, "2.24.0", "the official SDK version is pinned");
+    ok(LLM.GOOGLE_GENAI_SDK_URL.includes("@google/genai@2.24.0/+esm"), "the browser imports the pinned official package through jsDelivr ESM");
+    const googleModels = await LLM.loadModels(LLM.resolved());
+    eq(googleModels.join(","), "gemini-test,gemini-pro", "Google models are listed through the SDK and non-generation models are omitted");
+    eq(googleListCalls[0].config.pageSize, 100, "SDK model listing asks for a page of models");
+    ok(googleListCalls[0].config.abortSignal instanceof AbortSignal, "SDK model listing receives an abort signal");
+    const googleProbe = await LLM.probe({});
+    ok(googleProbe.ok && googleProbe.model === "gemini-mock", "the SDK connection probe returns the model that answered");
+    eq(googleProbe.usage.input, 11, "Gemini prompt token usage is normalized");
+    eq(googleProbe.usage.output, 4, "Gemini candidate token usage is normalized");
+    eq(googleCalls[0].model, "gemini-test", "the SDK request uses the selected model");
+    eq(googleCalls[0].config.maxOutputTokens, 40, "the SDK request maps the output ceiling to maxOutputTokens");
+    eq(googleCalls[0].config.temperature, 0, "the SDK request carries the chosen temperature");
+    ok(googleCalls[0].config.abortSignal instanceof AbortSignal, "the SDK generation call receives the active abort signal");
+    ok(googleClients.every(client => client.apiKey === googleKey), "the SDK client receives the user's key");
+    ok(googleClients.every(client => client.httpOptions.baseUrl === googleEndpoint), "the SDK client receives the configured Google API base URL");
+    eq(sdkLoads, 1, "the SDK is lazily imported once and then reused");
+    eq(rawFetches, 0, "the Google model-list and generation paths do not use the raw fetch transport");
+
+    const googleBuilt = LLM.buildRequest(LLM.resolved(), { system: "system text", user: "one question", maxTokens: 700, temperature: 0, model: "gemini-test", signal: new AbortController().signal });
+    eq(googleBuilt.transport, "google-genai-sdk", "the request builder marks Google's SDK transport explicitly");
+    eq(googleBuilt.body.config.systemInstruction, "system text", "the system prompt maps to the SDK's systemInstruction");
+    eq(googleBuilt.body.config.maxOutputTokens, 700, "Ground-0 ceilings map to the SDK's maxOutputTokens field");
+    const googleParsed = LLM.readResponse(LLM.resolved(), { candidates: [{ content: { parts: [{ text: "first " }, { text: "second" }] } }], modelVersion: "gemini-version", usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 3 } });
+    eq(googleParsed.text, "first second", "SDK response parts normalize when the text convenience getter is absent");
+    eq(googleParsed.model, "gemini-version", "the SDK model version is retained");
+    eq(googleParsed.usage.input, 8, "the SDK response fallback reports prompt tokens");
+
+    googleError = Object.assign(new Error(`Rejected key ${googleKey}`), { status: 403 });
+    let googleRefusal = null;
+    try { await LLM.chat({ user: "Check the key." }); } catch (error) { googleRefusal = error; }
+    eq(googleRefusal && googleRefusal.kind, "auth", "Google SDK authentication failures use the shared error taxonomy");
+    ok(!JSON.stringify(LLM.describe(googleRefusal)).includes(googleKey), "Google SDK errors redact the user's key");
+    googleError = null;
+
+    LLM._setGoogleSDKLoaderForTests(async () => { throw new Error(`CDN offline with ${googleKey}`); });
+    let sdkFailure = null;
+    try { await LLM.loadModels(LLM.resolved()); } catch (error) { sdkFailure = error; }
+    eq(sdkFailure && sdkFailure.kind, "sdk", "a failed SDK import is distinguished from a Google API failure");
+    eq(LLM.describe(sdkFailure).title, "GOOGLE GENAI SDK UNAVAILABLE", "the UI can explain when the pinned SDK module cannot load");
+    ok(!JSON.stringify(LLM.describe(sdkFailure)).includes(googleKey), "SDK-load errors redact the user's key too");
+    LLM._setGoogleSDKLoaderForTests(null);
+    LLM.clearKey();
+    globalThis.fetch = previousFetch;
+  }
+
   LLM.clearKey();
   eq(LLM.keyStorage(), "none", "clearing removes the key from the browser");
   globalThis.fetch = originalFetch;
@@ -606,6 +689,68 @@ const linkPriced = () => {
   ok(error, "a reading in which every staged call failed throws instead of returning an empty audit");
   ok(pricedCalls.length >= 9, "it did not stop after the first failure without saying why");
   LLM.clearCeiling();
+}
+
+/* ── Ground-0 uses the official Google SDK and still stages one question per call ── */
+{
+  const originalFetch = globalThis.fetch;
+  let rawFetches = 0;
+  globalThis.fetch = async () => { rawFetches++; throw new Error("Google SDK path must not call raw fetch in this harness."); };
+  const sdkCalls = [];
+  const sdkClients = [];
+  const key = "AIzaSyD-ground0-google-key-123456789";
+  class Ground0GoogleGenAI {
+    constructor(options) {
+      sdkClients.push(options);
+      this.models = {
+        generateContent: async params => {
+          sdkCalls.push(params);
+          return { text: JSON.stringify(stagedReply(params.contents)), modelVersion: "gemini-ground0-mock", usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 } };
+        }
+      };
+    }
+  }
+  LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: Ground0GoogleGenAI }));
+  LLM.setKey(key, false);
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-test" });
+  LLM.clearCeiling();
+  let reading = null;
+  let readingError = null;
+  try {
+    reading = await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  } catch (error) { readingError = error; }
+  ok(!readingError, `the Ground-0 audit completes through the official Google SDK${readingError ? ` (${readingError.message})` : ""}`);
+  if (reading) {
+    const stagedGoogleCalls = sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents));
+    eq(stagedGoogleCalls.length, 18, "the Google SDK reads both source batches in nine question calls each");
+    ok(stagedGoogleCalls.every(call => askedCodes(call.contents).length === 1), "every Google reading call asks exactly one audit question");
+    eq(reading.block.staging.codesPerCall, 1, "the Google-assisted record preserves the one-question staging metadata");
+    eq(reading.passes, 19, "the Google reading keeps its separate one-question weighing call");
+    ok(sdkCalls.filter(call => /QUESTION(?:S)? TO ANSWER IN THIS CALL/.test(call.contents)).every(call => call.config.maxOutputTokens === 700), "every staged Google call reserves the existing 700-token ceiling");
+    ok(sdkCalls.some(call => /QUESTION BEING WEIGHED: B1/.test(call.contents) && call.config.maxOutputTokens === 300), "the Google SDK weighs only the contested question with its separate ceiling");
+    eq(reading.answers[3].value, true, "a Google SDK quote still passes the existing B4 verification gate");
+    eq(reading.block.model, "gemini-test", "the Ground-0 record identifies the selected Google model");
+  }
+  eq(rawFetches, 0, "Ground-0's Google reading goes through the SDK, not a parallel REST call");
+  ok(sdkClients.every(client => client.apiKey === key), "Ground-0 supplies the user's key to the SDK client");
+  LLM._setGoogleSDKLoaderForTests(null);
+  LLM.clearKey();
+  LLM.clearCeiling();
+  globalThis.fetch = originalFetch;
+}
+
+/* ── a missing Google SDK stops Ground-0 before it retries each staged question ── */
+{
+  let imports = 0;
+  LLM._setGoogleSDKLoaderForTests(async () => { imports++; throw new Error("SDK CDN unavailable"); });
+  LLM.setKey("AIzaSyD-google-fatal-test-123456789", false);
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-test" });
+  let error = null;
+  try { await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} }); } catch (caught) { error = caught; }
+  eq(error && error.kind, "sdk", "a missing Google SDK is fatal to the staged read");
+  eq(imports, 1, "Ground-0 does not try to re-import a missing SDK for every question");
+  LLM._setGoogleSDKLoaderForTests(null);
+  LLM.clearKey();
 }
 
 /* ── nothing is sent without a link ───────────────────────────── */

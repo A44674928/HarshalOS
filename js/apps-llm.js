@@ -41,6 +41,7 @@ APPS.push({
             : `NOT LINKED — ${esc(status.reason || "No model is connected.")}`}
         </div>
         ${status.storageNote ? `<div class="rule-box refusal">${esc(status.storageNote)}</div>` : ""}
+        ${config.protocol === "google" ? `<div class="rule-box refusal"><strong>BROWSER KEY WARNING:</strong> Google recommends not exposing API keys in client-side code for production. This BYOK connection sends the key directly to the endpoint above (Google's Gemini Developer API by default), but anyone with access to this browser can inspect it. Use only a key type and restrictions currently accepted by Google for the Gemini API.</div>` : ""}
 
         <div class="h2">Connection</div>
         <div class="ll-grid">
@@ -49,13 +50,14 @@ APPS.push({
           </label>
           <label class="ll-field"><span>Protocol</span>
             <select id="ll-protocol">
-              <option value=""${!settings.protocol ? " selected" : ""}>Provider default (${esc(preset.protocol === "anthropic" ? "Anthropic messages" : "OpenAI-compatible chat")})</option>
+              <option value=""${!settings.protocol ? " selected" : ""}>Provider default (${esc(preset.protocol === "anthropic" ? "Anthropic messages" : preset.protocol === "google" ? "Google GenAI SDK" : "OpenAI-compatible chat")})</option>
               <option value="openai"${settings.protocol === "openai" ? " selected" : ""}>OpenAI-compatible chat/completions</option>
               <option value="anthropic"${settings.protocol === "anthropic" ? " selected" : ""}>Anthropic messages</option>
+              <option value="google"${settings.protocol === "google" ? " selected" : ""}>Google GenAI SDK (@google/genai)</option>
             </select>
           </label>
-          <label class="ll-field wide"><span>Endpoint</span>
-            <input id="ll-endpoint" type="text" spellcheck="false" value="${esc(settings.endpoint || preset.endpoint)}" placeholder="https://…/chat/completions">
+          <label class="ll-field wide"><span>${config.protocol === "google" ? "API base URL (Google GenAI SDK)" : "Endpoint"}</span>
+            <input id="ll-endpoint" type="text" spellcheck="false" value="${esc(settings.endpoint || preset.endpoint)}" placeholder="${config.protocol === "google" ? "https://generativelanguage.googleapis.com" : "https://…/chat/completions"}">
           </label>
           <label class="ll-field wide"><span>Model</span>
             <span class="ll-inline">
@@ -64,7 +66,7 @@ APPS.push({
             </span>
           </label>
           <label class="ll-field wide"><span>API key ${preset.keyOptional ? "(optional — this endpoint may need none)" : ""}</span>
-            <input id="ll-key" type="password" spellcheck="false" autocomplete="off" placeholder="${keyField ? esc(keyField) : "paste your own key — it is sent only to the endpoint above"}">
+            <input id="ll-key" type="password" spellcheck="false" autocomplete="off" placeholder="${keyField ? esc(keyField) : config.protocol === "google" ? "paste your Gemini API key — sent directly to the API base URL above" : "paste your own key — it is sent only to the endpoint above"}">
           </label>
         </div>
         <label class="ll-check"><input type="checkbox" id="ll-persist"${settings.persist ? " checked" : ""}> Keep the key in this browser after the tab closes (otherwise it is held for this tab only)</label>
@@ -100,10 +102,14 @@ APPS.push({
           <li class="li">Request metadata the provider requires (model, token ceiling, temperature). The Ground-0 audit is
           staged one question per call, so each call reserves a small output ceiling instead of one large one — a provider
           that prices a call by the ceiling it reserves can then answer it on a small balance.</li>
+          <li class="li">For Google only: on the first SDK action, this page downloads Google's official, version-pinned
+          <span class="mono">@google/genai@2.24.0</span> browser module and its module dependencies from jsDelivr. This
+          code download contains no key or prompt; requests go directly to the configured base URL (Google by default).</li>
         </ul>
-        <div class="rule-box">What stays here: your key (unless you paste it into another tool), every audit, the evidence
-        library, the duty ledger, and the Human Key. There is no HarshalOS server in the path. A browser cannot hide a key
-        from someone who has access to that browser — that is why the key is held for this tab only unless you say otherwise.</div>
+        <div class="rule-box">What stays in this browser: your key (unless you paste it into another tool), saved audits,
+        the evidence library, the duty ledger, and the Human Key. There is no HarshalOS server in the path. The model provider
+        still receives the prompt and applies its own data-handling terms. A browser cannot hide a key from someone who has
+        access to that browser — that is why the key is held for this tab only unless you say otherwise.</div>
 
         <div class="h2">Where the link is used</div>
         <ul class="ul">
@@ -123,7 +129,7 @@ APPS.push({
         <div class="btn-row"><button class="btn" id="ll-reset-stats" type="button">Reset activity</button></div>
 
         <div class="footer-note">
-          ONE CONNECTION, MANY MODELS · ANTHROPIC AND OPENROUTER ANSWER BROWSER CALLS DIRECTLY · OPENAI'S API DOES NOT, SO IT NEEDS THE RELAY OR A LOCAL SERVER
+          ONE CONNECTION, MANY MODELS · ANTHROPIC, OPENROUTER, AND GOOGLE'S GENAI SDK CALL THEIR APIS DIRECTLY · OPENAI'S API NEEDS THE RELAY OR A LOCAL SERVER
         </div>`;
 
       body.querySelector("#ll-provider").addEventListener("change", event => {

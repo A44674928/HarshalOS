@@ -67,9 +67,9 @@ js/g0-engine.js   — Ground-0 engine: strict validation, B1–B5/C1–C4 scorin
 js/g0-research.js — key-free public-record research: identity, official pages, Wayback captures,
                     court/regulatory/legislative/news registries, coverage (window.G0Research)
 js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
-                    transport (Anthropic / OpenAI-compatible), probes, plain-language failures, and
-                    token ceilings learned from priced refusals, and bounded retries that honor
-                    OpenRouter's `Retry-After` for in-flight budget refusals (window.HOSLLM)
+                    transport (Anthropic / OpenAI-compatible / Google GenAI SDK), model listing,
+                    probes, plain-language failures, learned token ceilings, and bounded OpenRouter
+                    retries that honor `Retry-After` for in-flight budget refusals (window.HOSLLM)
 js/g0-llm.js      — Ground-0 model reading: staged one question per call over batched source
                     passes, verbatim-quote verification, bounded link-following, application
                     to a draft (window.G0LLM)
@@ -247,6 +247,31 @@ is silent, the result is still a coverage gap, stated as such. A model cannot cl
 asserting something the retrieved documents do not say, and it is never allowed to try — the
 unverifiable reading is thrown away in front of you, with the reason.
 
+### Google Gemini Developer API (BYOK)
+
+LLM Link includes a **Google Gemini Developer API (GenAI SDK)** preset. It uses the official
+`@google/genai` JavaScript SDK's browser build (`models.list` and `models.generateContent`), pinned
+to **2.24.0** and imported only when Google model listing, connection testing, or a Ground-0 read
+actually needs it. HarshalOS has no npm build pipeline, so the static page uses jsDelivr's ESM
+conversion of that pinned official package instead of committing a generated bundle. The browser
+fetches the SDK module and its dependencies from jsDelivr; **no API key or prompt is sent to the
+CDN**. Model requests go directly from the browser to the configured API base URL (Google's
+Gemini Developer API by default). The app uses the SDK's model methods; it does not hand-build a
+Gemini REST request or route Gemini through an OpenAI-compatible endpoint.
+
+The Google call passes `systemInstruction`, `maxOutputTokens`, temperature, and the active abort
+signal through the SDK. Ground-0 still asks **one audit question per recall** (including its separate
+weighing calls); it does not turn the audit into one large call. SDK responses are normalized into
+the same usage, model, and text shape as the other providers, then pass through the unchanged
+character-for-character quote check and human-review gate.
+
+**Key warning:** Google advises against exposing API keys in client-side production code. This
+browser BYOK flow is convenient but a person with access to the browser can inspect the key. The
+key remains in session storage by default (persistent storage requires opting in), and is sent
+directly to the API endpoint; HarshalOS does not receive it. Use a Gemini API key type and
+restrictions currently accepted by Google's API guidance. The selected model provider receives the
+prompt and handles it under its own data policies; the browser copy of the audit remains local.
+
 **Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
 storage); `node scripts/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
@@ -266,7 +291,9 @@ instead of sent, a balance smaller than one staged call still finishes the readi
 transient in-flight-budget refusal honors `Retry-After` and is retried without changing the ceiling,
 an unresolved account-wide refusal stops before fanning out across the nine questions, one failed call
 leaves that one question UNKNOWN and says the call failed, and a reading
-in which no call completes throws instead of returning an empty audit.
+in which no call completes throws instead of returning an empty audit. The LLM harness also
+injects a Google GenAI SDK mock to verify SDK-based model listing, request/response mapping, key
+redaction, and a complete question-by-question Ground-0 read without raw REST calls.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.
