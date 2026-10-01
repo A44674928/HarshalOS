@@ -253,14 +253,15 @@ The preview rate-limit switch is independent and is not required for this diagno
   relay stores no prompts or replies, and no per-caller history beyond in-memory rate-limit
   counters. Persisted Worker logs contain only failure categories by default; the temporary models-only
   diagnostic above adds secret-redacted outbound error messages when explicitly triggered.
-- **Temporary branch-preview experiment.** The checked-in `wrangler.jsonc` sets
-  `LLM_RELAY_DISABLE_RATE_LIMITS=true` only in the `previews.vars` block to test the operator's
-  request. On branch previews this bypasses this Worker's per-caller chat, shared chat, and model-list
-  windows; it does **not** bypass Z.AI's own rate limits, daily quota, model allowlist, request-size
-  caps, or output-token ceiling. The branch preview URL is public and anyone who can reach it can
-  consume the preview's shared Z.AI secret/quota. Keep this experiment out of production, monitor for
-  Z.AI 429s, and remove the preview flag when the comparison is complete. Production remains limited
-  because its base `vars` do not set this flag.
+- **Preview pacing (opt-in bypass).** Branch previews use the same per-caller, shared-chat and
+  model-list windows as production; the checked-in `wrangler.jsonc` sets no bypass.
+  `LLM_RELAY_DISABLE_RATE_LIMITS=true` remains available as a preview-only experiment switch: add it
+  only under `previews.vars`, never to the base `vars`. It bypasses this Worker's per-caller chat,
+  shared chat, and model-list windows; it does **not** bypass Z.AI's own rate limits, daily quota,
+  model allowlist, request-size caps, or output-token ceiling. The branch preview URL is public and
+  anyone who can reach it can consume the preview's shared Z.AI secret/quota, so monitor for Z.AI
+  429s and remove the flag when the comparison is complete. `GET /api/llm/status` reports
+  `localRateLimitsDisabled`, so a deployment's mode can be confirmed without reading its config.
 - **One caller is never paced tighter than Z.AI paces the account.** `js/g0-llm.js` keeps
   `LIMITS.codesPerCall` at 1, so a Ground-0 reading asks **nine questions per source batch** and adds
   a link-selection call per batch plus one call per contested question — dozens of calls for one
