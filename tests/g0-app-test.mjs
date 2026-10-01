@@ -207,6 +207,17 @@ const LLM = globalThis.HOSLLM;
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  ✗ FAIL:", name); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Poll until a condition holds (or the budget elapses). The app renders some
+// views from promise chains (G0.createAudit().then(render)), whose wall-clock
+// latency varies with runner load; fixed sleeps flake on slow CI machines.
+const waitFor = async (cond, timeoutMs = 8000, stepMs = 20) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (cond()) return true;
+    await sleep(stepMs);
+  }
+  return cond();
+};
 const DEBUG = !!process.env.G0DEBUG;
 const dbg = (label) => { if (DEBUG) console.log(`\n— ${label} —\n` + main.innerHTML.slice(0, 700)); };
 
@@ -339,11 +350,11 @@ ok(html().includes("Constraints and history"), "wizard step 2");
 ok(html().includes("match NAB"), "vector preview shows NAB");
 clickAct('[data-act="wizNext"]');
 ok(html().includes("Review and classify"), "wizard step 3");
-await sleep(150); // async preview
+await waitFor(() => html().includes("Detected operational phase") || html().includes("could not be generated")); // async preview
 ok(html().includes("Detected operational phase") && html().includes("NAB"), "preview renders");
 ok(html().includes("5 questions evidenced"), "working badge shows 5/5");
 clickAct('[data-act="wizNext"]'); // save
-await sleep(150);
+await waitFor(() => toasts.some(t => t.title.includes("AUDIT WITNESSED")) && html().includes("Test Regulatory Body"));
 ok(html().includes("Test Regulatory Body") && html().includes("Detected operational phase"), "saved audit opens in detail view");
 ok(toasts.some(t => t.title.includes("AUDIT WITNESSED")), "commit fired an OS toast");
 ok(html().includes("JSON record"), "detail tabs render");
@@ -383,7 +394,7 @@ clickTab("automatic");
 ok(html().includes("Key-free public-record research") || html().includes("Name an organization"), "automatic input renders");
 const q = main.querySelector('[data-bind="auto.query"]'); q.value = "Xy"; dispatch(q, "input");
 clickAct('[data-act="autoStart"]');
-await sleep(300);
+await waitFor(() => html().includes("could not complete") || html().includes("searching") || html().includes("Choose the organization"));
 ok(html().includes("could not complete") || html().includes("searching") || html().includes("Choose the organization"), "automatic stage machine advances (search/choose/error)");
 
 /* ── accessibility prefs ── */
