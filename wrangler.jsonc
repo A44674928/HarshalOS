@@ -10,6 +10,10 @@
   // (dev/deploy/preview), so `.site-assets` is regenerated even when the
   // pipeline invokes `wrangler preview` directly without `prepare:assets`.
   "build": { "command": "node scripts/prepare-assets.mjs" },
+  // Secrets are deliberately not declared here: MONGODB_URI, the Cloudflare Access
+  // variables, TICKERBOT_API_KEY and the Z.AI relay key (Z.AI or ZAI_API_KEY) are set
+  // with `wrangler secret put` or the dashboard so no credential ever enters Git.
+  // See docs/deployment/MONGODB-SETUP.md and docs/deployment/ZAI-FREE-TIER.md.
   "vars": { "MONGODB_DATABASE": "harshalos" },
   // Required by `wrangler preview` (Workers Previews). Keep previews off the
   // production database: production uses "harshalos" (see vars above).

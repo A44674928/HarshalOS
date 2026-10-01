@@ -10,6 +10,7 @@
     "test:research": "node --test tests/g0-research-test.mjs",
     "test:app": "node --test tests/g0-app-test.mjs tests/g0-desktop-test.mjs tests/g0-storage-race-test.mjs tests/guided-demo-test.mjs tests/good-intelligence-test.mjs tests/good-intelligence-assurance-test.mjs tests/good-intelligence-demo-api-test.mjs tests/good-intelligence-verification-test.mjs tests/good-intelligence-market-context-test.mjs tests/good-intelligence-tickerbot-test.mjs",
     "test:llm": "node --test tests/llm-test.mjs tests/llm-authority-test.mjs",
+    "test:relay": "node --test tests/llm-relay-test.mjs",
     "test:cloud": "node --test tests/cloud-test.mjs",
     "test:red-team": "node --test tests/red-team-test.mjs",
     "test:layout": "node --test tests/repository-layout-test.mjs",

@@ -19,6 +19,11 @@
      · Providers that refuse browser calls (api.openai.com) are labelled,
        not faked: the preset says so and points at the relay or a local
        server instead.
+     · The relay preset is this deployment's own Worker route (/api/llm), which
+       serves Z.AI's free tier. When it is configured the provider key is the
+       operator's Worker secret and no key is sent from this browser — but the
+       prompts do pass through that Worker, and relayStatus() asks it what it
+       actually has instead of guessing.
      · Failures are explained in plain language and never echo the key.
 
    Exposed as window.HOSLLM. No build-time dependencies.
@@ -113,16 +118,16 @@ window.HOSLLM = (() => {
       note: "Nothing leaves this machine. The local server must allow requests from this page's origin, and the page must be served over http on localhost or https for the browser to permit the call."
     },
     relay: {
-      label: "This site's relay (/api/llm)",
+      label: "Z.AI free tier — this site's relay (/api/llm)",
       protocol: "openai",
       endpoint: "/api/llm",
-      modelsEndpoint: "",
-      model: "",
+      modelsEndpoint: "/api/llm/models",
+      model: "glm-4.5-flash",
       context: 128000,
       browser: "direct",
       keyOptional: true,
       relay: true,
-      note: "Only works when this deployment configures a server-side relay. The key then lives on the server, not in this browser — and the prompts do pass through that server."
+      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts do pass through that Worker on their way to api.z.ai, which is the trade for holding the key server-side. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted, calls are plain text with no tools, images or streaming, and each caller is paced over a sliding minute at Z.AI's own free pace of about a call a second — never tighter, because a Ground-0 source batch is nine questions asked one call at a time — under a second ceiling this deployment shares with everyone else using it. A short wait is absorbed automatically and shown in the progress line. A deployment without the secret answers 503 and says so; the Check relay button asks it. Z.AI samples in [0,1], so a 0 temperature is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1 — the relay reports what it actually sent."
     },
     custom: {
       label: "Custom endpoint",
@@ -283,17 +288,41 @@ window.HOSLLM = (() => {
     if (error && error.name === "AbortError") return { title: "CALL CANCELED", detail: "The call was canceled before it finished. No reading was recorded.", hint: "" };
     return { title: "THE MODEL CALL FAILED", detail: redact(error instanceof Error ? error.message : String(error ?? "Unknown error")), hint: "Retry, or check the connection in the LLM Link app." };
   }
+  /* Providers answer a failure in their own JSON shape, and this site's relay
+     answers in OpenAI's. Show the sentence that was written instead of the raw
+     payload; the raw text is still what the budget and parameter-rename checks
+     read, so nothing is hidden from them. */
+  function readableDetail(detail) {
+    const text = String(detail ?? "").trim();
+    if (!text) return "";
+    if (!/^[{[]/.test(text)) return text.slice(0, 400);
+    try {
+      const parsed = JSON.parse(text);
+      const error = parsed && parsed.error;
+      const message = typeof error === "string" ? error
+        : error && typeof error.message === "string" ? error.message
+        : parsed && typeof parsed.message === "string" ? parsed.message : "";
+      const trimmed = String(message).trim();
+      return trimmed ? trimmed.slice(0, 400) : text.slice(0, 400);
+    } catch { return text.slice(0, 400); }
+  }
   function classifyHttp(provider, httpStatus, detail) {
     const budget = parseBudget(detail, httpStatus);
     if (budget) return budgetError(provider, budget, 0, detail);
+    const relay = provider.relay === true;
     const hint = httpStatus === 401 || httpStatus === 403
-      ? `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
+      ? relay
+        ? "This deployment's relay refused the caller. It accepts same-origin browser requests only, and it holds the provider key itself — there is no key to paste here."
+        : `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
       : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
-      : httpStatus === 429 ? "The provider is rate-limiting. Wait and retry, or lower the reading batch size."
+      : httpStatus === 429 ? (relay
+        ? "The relay paces each caller over a sliding minute, and the one Z.AI free-tier key it holds is shared by everyone using this deployment. A short wait is absorbed automatically, so reaching this message means the call was refused again after waiting: the pace is real. Wait it out and run the reading again — a rate-limited call is not evidence, and its question stays UNKNOWN rather than wrong."
+        : "The provider is rate-limiting. A stated delay of 15 seconds or less is waited out automatically, so this one was longer or it repeated: wait and retry, or lower the reading batch size.")
+      : httpStatus === 503 && relay ? "The relay is not configured on this deployment. /api/llm/status names the Worker secret its operator has to add."
       : httpStatus >= 500 ? "The provider is having trouble. Retry shortly."
       : "";
     const kind = httpStatus === 401 || httpStatus === 403 ? "auth" : httpStatus === 404 ? "model" : httpStatus === 429 ? "rate" : httpStatus >= 500 ? "provider" : "error";
-    return new LlmError(detail || `The endpoint returned HTTP ${httpStatus}.`, { status: httpStatus, kind, hint });
+    return new LlmError(readableDetail(detail) || `The endpoint returned HTTP ${httpStatus}.`, { status: httpStatus, kind, hint });
   }
   const corsError = provider => new LlmError(
     `The request to ${provider.endpoint} never reached the provider: the browser blocked it.`,
@@ -536,7 +565,62 @@ window.HOSLLM = (() => {
     return rows.map(row => typeof row === "string" ? row : row && (row.id || row.name || row.slug)).filter(id => typeof id === "string" && id).slice(0, 400);
   }
 
+  /* ──────────────────────────────────────────────────────────────
+     This deployment's relay
+
+     The relay is optional: a static preview has none, and a Worker with no
+     provider secret answers that it is not configured. Asking it is therefore
+     a disclosure, not an error path — relayStatus() never throws, and the
+     answer carries variable names and limits, never a key value.
+     ────────────────────────────────────────────────────────────── */
+  function relayStatusEndpoint(config = resolved()) {
+    const endpoint = String((config && config.endpoint) || "").trim();
+    if (!endpoint) return "/api/llm/status";
+    try {
+      const url = new URL(endpoint, location.origin || location.href);
+      if (!/^https?:$/.test(url.protocol)) return "/api/llm/status";
+      url.pathname = `${url.pathname.replace(/\/+$/, "")}/status`;
+      url.search = ""; url.hash = "";
+      return url.href;
+    } catch { return "/api/llm/status"; }
+  }
+  async function relayStatus({ endpoint = "", timeoutMs = 10000, signal } = {}) {
+    const target = String(endpoint || "").trim() || relayStatusEndpoint();
+    const unavailable = (reason, extra = {}) => ({ reachable: false, configured: false, endpoint: target, reason, ...extra });
+    if (signal && signal.aborted) return unavailable("The relay check was canceled.", { cancelled: true });
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+    const onAbort = () => controller.abort();
+    if (signal) signal.addEventListener("abort", onAbort, { once: true });
+    try {
+      let response;
+      try {
+        response = await fetch(target, { headers: { Accept: "application/json" }, signal: controller.signal, credentials: "same-origin", referrerPolicy: "no-referrer" });
+      } catch {
+        if (timedOut) return unavailable(`The relay did not answer within ${Math.round(timeoutMs / 1000)} seconds.`);
+        if (signal && signal.aborted) return unavailable("The relay check was canceled.", { cancelled: true });
+        return unavailable("This page could not reach the relay route at all — usually a static preview with no Worker behind it.");
+      }
+      if (response.status === 404) return unavailable("This deployment serves no relay status route, so it has no relay. Pick a provider that answers browser calls, or deploy the Worker relay.", { status: 404 });
+      const text = typeof response.text === "function" ? await response.text().catch(() => "") : "";
+      let data = null;
+      try { data = JSON.parse(text); } catch { /* A static server's 404 page, or a proxy, is not a relay. */ }
+      if (!data || typeof data !== "object" || typeof data.configured !== "boolean") {
+        return unavailable(`The relay route answered HTTP ${response.status} with something that was not a relay status. This is usually the static preview server, which has no Worker.`, { status: response.status });
+      }
+      return { reachable: true, endpoint: target, status: response.status, ...data };
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener("abort", onAbort);
+    }
+  }
+
   function applyAuth(headers, provider, key) {
+    /* This deployment's relay holds its own key server-side. A key pasted into
+       this browser for some other provider must never be forwarded to it — the
+       relay ignores a client Authorization header, and so does this module. */
+    if (provider.relay === true) return headers;
     if (provider.protocol === "anthropic") {
       if (key) headers.set("x-api-key", key);
       headers.set("anthropic-version", "2023-06-01");
@@ -584,6 +668,12 @@ window.HOSLLM = (() => {
   const REQUESTED = /requested up to\s*(\d[\d,]*)/i;
   const IN_FLIGHT_RETRY_DELAYS = [750, 1500, 3000];
   const MAX_AUTO_RETRY_AFTER_MS = 120000; // Longer provider waits are shown, not kept behind a busy progress bar.
+  /* A 429 gets a much shorter leash than an in-flight-budget 402. Rate limits
+     are usually a pace, and this site's own relay quotes the seconds until its
+     sliding window frees a slot — a wait worth absorbing so a Ground-0
+     question is answered instead of left UNKNOWN. Anything longer than this is
+     shown to the reader rather than spent behind a busy progress bar. */
+  const MAX_AUTO_RATE_LIMIT_WAIT_MS = 15000;
   const numberWith = (text, pattern) => { const match = String(text || "").match(pattern); return match ? Number(String(match[1]).replace(/,/g, "")) : 0; };
   /* OpenRouter can refuse a reservation while other requests still hold part
      of the balance. That is temporary pressure, not a smaller token ceiling. */
@@ -833,10 +923,18 @@ window.HOSLLM = (() => {
             throw corsError(config);
           }
           const detail = response.ok ? "" : await readDetail(response);
-          if (!isInFlightBudget(detail, response.status)) return { response, detail, retryAfterMs: 0 };
+          /* Two refusals are worth waiting out rather than failing the reading:
+             OpenRouter's in-flight-budget 402, and any 429. A rate-limited call
+             never ran, so retrying it is not a duplicate call or a second
+             charge — and with one question per call, a Ground-0 reading that
+             gave up on every paced question would come back full of holes. */
+          const budgeted = isInFlightBudget(detail, response.status);
+          const throttled = response.status === 429;
+          if (!budgeted && !throttled) return { response, detail, retryAfterMs: 0 };
           const providerDelay = retryAfterMs(response, detail);
           if (providerDelay !== null) {
-            if (serverDelayUsed || providerDelay > MAX_AUTO_RETRY_AFTER_MS) return { response, detail, retryAfterMs: providerDelay };
+            const ceiling = throttled ? MAX_AUTO_RATE_LIMIT_WAIT_MS : MAX_AUTO_RETRY_AFTER_MS;
+            if (serverDelayUsed || providerDelay > ceiling) return { response, detail, retryAfterMs: providerDelay };
             serverDelayUsed = true;
             try { if (typeof onRetry === "function") onRetry({ delayMs: providerDelay, attempt: activity.inFlightRetries + 1, source: "Retry-After" }); } catch { /* Progress reporting must not break the request. */ }
             await waitForRetry(providerDelay, true);
@@ -957,6 +1055,7 @@ window.HOSLLM = (() => {
     loadSettings, saveSettings, resolved, preset, status,
     setKey, clearKey, apiKey, keyStorage, keyHint, redact, looksLikeKey,
     chat, probe, loadModels, describe, estimateTokens, extractJson, stats, resetStats,
+    relayStatus, relayStatusEndpoint, readableDetail,
     applyAuth, buildRequest, readResponse, googleModelsClientRows,
     tokenCeiling, clearCeiling, learnCeiling, parseBudget, affordableTokens,
     _setGoogleSDKLoaderForTests: setGoogleSDKLoaderForTests

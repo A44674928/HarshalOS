@@ -42,6 +42,11 @@ const SUITES = [
     files: ["llm-test.mjs", "llm-authority-test.mjs"]
   },
   {
+    area: "Z.AI free-tier LLM relay (Worker)",
+    script: "test:relay",
+    files: ["llm-relay-test.mjs"]
+  },
+  {
     area: "Cloud storage",
     script: "test:cloud",
     files: ["cloud-test.mjs"]

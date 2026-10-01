@@ -37,6 +37,15 @@ Follow **[MongoDB setup guide](docs/deployment/MONGODB-SETUP.md)** for Atlas, Ac
 and verification. `npm ci && npm run dev` runs the Worker preview. Missing authentication
 configuration intentionally disables the API; no credentials should be pasted into chat or Git.
 
+### Optional Z.AI free-tier model relay
+
+The same Worker can serve LLM Link's **`/api/llm`** relay, which holds a Z.AI API key as a Worker
+secret so no key is ever pasted into a browser. It serves only Z.AI's $0 GLM Flash models, forwards
+plain text with no tools and no streaming, and rate-limits each caller; a missing key answers 503 and
+says so. Follow **[Z.AI free-tier guide](docs/deployment/ZAI-FREE-TIER.md)** for the secret names it
+accepts, the request limits, Z.AI's sampling translation, verification calls, and the honest limits
+of a same-origin relay. Without it, every BYOK connection point still works exactly as before.
+
 ---
 
 ## What is implemented
@@ -56,7 +65,7 @@ configuration intentionally disables the API; no credentials should be pasted in
 | **AI Inner Shell** | Address-constrained AI nodes (`0•100•000•NNNN•AI-XXXX`). Removing the anchor invalidates all dependent nodes instantly — *geometry, not enforcement*. Learning increases capability, never authority |
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
 | **Whyland Standards (TCS)** | Local contextual-inquiry simulation: `why.query`, `why.activate`, `why.explain`, modeled session transitions, off-disc catalog virtualization, demo-timer gating, and the Bromine gateway (invalid input → local session reset) |
-| **LLM connection points** | Bring your own model: Anthropic, OpenRouter, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or this deployment's relay if one is configured. The key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked |
+| **LLM connection points** | Bring your own model: Anthropic, OpenRouter, Google's GenAI SDK, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or **this deployment's Z.AI free-tier relay** (`/api/llm`), which holds the key as a Worker secret so no key is pasted into the browser. A BYOK key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked, and a deployment with no relay says so instead of pretending |
 | **Good Intelligence signal desk** | Native read-only dashboard for feed, categories, intel details, rankings, and a dedicated Market Charts tab with ticker price line graphs plus VFI, Fibonacci-band, and WaveTrend visualizations. The default same-origin `empty.domains` API serves clearly marked synthetic current/stale/contested/unassessed cases, demo-only signed source-authorization fixtures, and three synthetic ticker histories (`AAPL-DEMO`, `MSFT-DEMO`, `NVDA-DEMO`); these are not real prices, and APIs without OHLCV show no fabricated charts. An optional read-only Tickerbot Live source fetches allowlisted OHLCV through a same-origin Worker route using the `TICKERBOT_API_KEY` secret; the key never reaches browser code. Live Sentinel items without the assurance packet stay `NOT SCORED`. Market indicators never alter the assurance score. The v0.1 formula is provisional, not approved policy. Scores never certify truth or authorize action. Uses GET-only `/content/me`, `/categories`, `/rank`; tries legacy `/intel/me` only if the documented feed route is missing. No sign-in, publishing, token approval, or transaction flow |
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
@@ -79,10 +88,10 @@ docs/source-material/ — archival combined manuscript transcription; not the ap
 case-studies/     — standalone OpenAI and Anthropic Ground-0 audit writeups
 research/reports/ — supporting research reports (separate from scored case studies)
 archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
-tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, cloud, red-team)
+tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)
 scripts/          — asset staging and integrity-report tooling; not deployed with the site
 docs/GOOD-INTELLIGENCE-ASSURANCE.md — v0.1 score formula, input contract, and safety limits
-worker/           — Cloudflare APIs: private storage and signed synthetic empty.domains GI demo
+worker/           — Cloudflare APIs: private storage, signed synthetic empty.domains GI demo, and the Z.AI free-tier model relay
 .github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
 SECURITY.md       — project-specific threat model and vulnerability-reporting policy
 Business Plan/    — separate author archive; not included in the browser asset bundle
@@ -109,7 +118,7 @@ This narrows the accidental-mutation surface; it is **not** a browser security b
 
 Priority 12 adds the `HarshalOS Integrity` GitHub Actions workflow and a generated **HARSHALOS INTEGRITY REPORT**. It runs on pushes, pull requests, and manual dispatch with read-only repository permission. `npm run integrity` runs the full and categorized suites plus `npm run check:deploy` (asset staging and Wrangler dry-run), then emits the report to stdout and the GitHub Actions job summary.
 
-Run `node tests/red-team-test.mjs` for 18 targeted hostile-caller probes against the public HOS API. Each prints the attack, expected behavior, observation, result, and invariant. `npm test` runs the full `tests/*-test.mjs` suite. Focused scripts are `npm run test:kernel`, `npm run test:engine`, `npm run test:research`, `npm run test:app`, `npm run test:llm`, `npm run test:cloud`, `npm run test:red-team`, and `npm run test:layout`. The suites cover P7 receipt/ledger tampering and linkage, named replay cases, expiry/phase/ledger races, cross-tab stale-write detection, and seeded state-machine sequences (four fixed seeds × 60 generated operations). The cross-tab test models a stale-write event arriving before the second save; it does not imply localStorage provides atomic compare-and-swap. This is bounded test coverage—not a full browser threat model, production security audit, or formal proof.
+Run `node tests/red-team-test.mjs` for 18 targeted hostile-caller probes against the public HOS API. Each prints the attack, expected behavior, observation, result, and invariant. `npm test` runs the full `tests/*-test.mjs` suite. Focused scripts are `npm run test:kernel`, `npm run test:engine`, `npm run test:research`, `npm run test:app`, `npm run test:llm`, `npm run test:relay`, `npm run test:cloud`, `npm run test:red-team`, and `npm run test:layout`. The suites cover P7 receipt/ledger tampering and linkage, named replay cases, expiry/phase/ledger races, cross-tab stale-write detection, and seeded state-machine sequences (four fixed seeds × 60 generated operations). The cross-tab test models a stale-write event arriving before the second save; it does not imply localStorage provides atomic compare-and-swap. This is bounded test coverage—not a full browser threat model, production security audit, or formal proof.
 
 ## LLM authority/data-plane boundary
 
@@ -337,6 +346,54 @@ directly to the API endpoint; HarshalOS does not receive it. Use a Gemini API ke
 restrictions currently accepted by Google's API guidance. The selected model provider receives the
 prompt and handles it under its own data policies; the browser copy of the audit remains local.
 
+### Z.AI free tier through this deployment's relay
+
+LLM Link's **Z.AI free tier — this site's relay (`/api/llm`)** preset is the one connection point
+where **no key is pasted into the browser at all**. [`worker/llm-relay.mjs`](worker/llm-relay.mjs)
+reads a Z.AI API key from a Worker secret (`Z.AI`, `ZAI_API_KEY`, or another accepted spelling —
+`GET /api/llm/status` reports which one it found, by name only) and forwards plain-text chat
+completions to `https://api.z.ai/api/paas/v4/chat/completions`, returning them in the same
+OpenAI-compatible shape the other providers use. Ground-0's staged reading is unchanged: still one
+question per call, still quote-verified character-for-character, still review-required.
+
+It is deliberately a narrow relay rather than a proxy. Only Z.AI's **$0 free-tier text models**
+(`glm-4.5-flash`, `glm-4.7-flash`) are accepted, and a paid model is refused **without** an upstream
+call, so a public page cannot spend money through it. `tools`, `tool_choice`, `functions`,
+`response_format`, `stop`, `top_p`, streaming and every other field a caller invents are dropped;
+messages must be `system`/`user`/`assistant` with string content, so there is no image, part-array or
+tool-result path. Requests are bounded (256 KiB, 32 messages, 8 192-token output ceiling, 60 s),
+`POST` must be same-origin, a caller-supplied `Authorization` header is ignored rather than
+forwarded, and calls are paced over **sliding** windows: 60 a minute per caller — Z.AI's own free
+pace, because Ground-0 asks one question per call and a reading is dozens of them — and 120 a minute
+shared by every caller on the deployment, each response stating the budget left in `RateLimit-Remaining`
+and `relay.pacing`. Replies are reduced to
+`choices[0].message.content`: `reasoning_content` and `tool_calls` are stripped, so nothing
+executable reaches the browser and the DATA-ONLY boundary is unchanged.
+
+Two Z.AI behaviours are translated instead of forwarded, and both are reported in the response's
+`relay` object rather than hidden. Z.AI samples in `[0, 1]` and documents that a `0` temperature is
+unavailable through its OpenAI-compatible route, so a greedy request becomes `do_sample: false` with
+no `temperature` field, and anything above `1` is clamped to `1`. GLM chain-of-thought is disabled by
+default because a 700-token Ground-0 reading call can otherwise be spent entirely on reasoning and
+come back with no answer text; when that happens anyway, the relay says so instead of returning
+empty text. Upstream failures are reported in the relay's own words — Z.AI's body is never echoed,
+the key is scrubbed from any quoted text, and a Z.AI 401 becomes a 502 here because the browser's key
+is not what was rejected.
+
+**What this changes for the reader:** a deployment that configures the relay gives Ground-0 a working
+model with nothing to paste and nothing to store in the browser. **What it does not change:** the
+prompt now transits that Worker, so its operator can read prompts in flight and Z.AI receives them
+under Z.AI's own terms; the relay stores nothing. The pace is sized to what this site does —
+Ground-0 asks one question per call, so a source batch is nine calls — and the window slides, so a
+refusal quotes the seconds until the oldest call ages out rather than the rest of a fixed minute.
+`js/llm.js` waits out a stated delay of 15 seconds or less once per call and says so in the progress
+line, because with one question per call a refused question is a question left `UNKNOWN`; a longer
+delay is shown instead of spent behind a busy bar. The counters are one isolate's memory — abuse
+friction, not quota enforcement — and Z.AI's own free-tier limits are the real ceiling. Free tiers
+change: if Z.AI moves these models behind a paid plan, calls fail with a message that says so.
+Setup, verification calls, the accepted secret names, and the full failure table are in
+**[docs/deployment/ZAI-FREE-TIER.md](docs/deployment/ZAI-FREE-TIER.md)**.
+
 **Tests.** `node tests/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
 storage); `node tests/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
@@ -361,6 +418,15 @@ injects a Google GenAI SDK mock to verify SDK-based model listing, request/respo
 redaction, and a complete question-by-question Ground-0 read without raw REST calls; it also checks
 bounded 503 backoff, the 34-second 429 `RetryInfo`, aborting during a provider wait, no retry for a
 per-day quota, and stopping the staged audit after a persistent account-wide rate limit.
+`node --test tests/llm-relay-test.mjs` covers the Worker relay's own contract against a stubbed Z.AI:
+no upstream call when the relay is unconfigured, the accepted secret names, the exact forwarded body
+and the dropped fields, a caller-supplied `Authorization` header never being forwarded, reply
+normalization with reasoning and tool calls stripped, the sampling translation table, ceiling
+clamping, the free-model allowlist, text-only and same-origin refusals, sanitized upstream failures,
+the sliding per-caller window, the shared ceiling across distinct callers, a refusal consuming no
+slot, the `RateLimit-*` headers, the status and model-list routes, and Worker route ordering — the relay
+answers `/api/llm` while `/api/storage/*` still fails closed without Cloudflare Access. The
+browser-side relay preset, its key isolation and `relayStatus()` are covered in `tests/llm-test.mjs`.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.

@@ -928,6 +928,194 @@ const linkPriced = () => {
   LLM.clearKey();
 }
 
+/* ── this deployment's relay: Z.AI's free tier, key held by the Worker ── */
+{
+  const originalFetch = globalThis.fetch;
+  const relay = LLM.PROVIDERS.relay;
+  eq(relay.endpoint, "/api/llm", "the relay preset points at this deployment's own route");
+  eq(relay.modelsEndpoint, "/api/llm/models", "the relay can be asked what it serves");
+  eq(relay.protocol, "openai", "the relay answers in the OpenAI-compatible shape llm.js already parses");
+  eq(relay.relay, true, "the relay preset is marked as a relay");
+  eq(relay.keyOptional, true, "no browser key is needed for the relay");
+  eq(relay.model, "glm-4.5-flash", "the relay defaults to a Z.AI free-tier model");
+  eq(relay.context, 128000, "the relay states the free tier's context window");
+  ok(/Worker secret/i.test(relay.note) && /never in this browser/i.test(relay.note), "the relay note says the key lives in the Worker, not the browser");
+  ok(/glm-4\.5-flash/.test(relay.note) && /glm-4\.7-flash/.test(relay.note), "the relay note names the $0 models it serves");
+  ok(/pass through that Worker/i.test(relay.note), "the relay note discloses that prompts transit the Worker");
+  ok(/do_sample:false/i.test(relay.note), "the relay note discloses Z.AI's sampling translation");
+  eq(relay.label.includes("Z.AI"), true, "the preset is named for the provider it serves");
+
+  /* A key from another provider must never be forwarded to this relay. */
+  LLM.setKey("sk-ant-leftover-from-another-provider", false);
+  LLM.saveSettings({ provider: "relay", protocol: "", endpoint: "/api/llm", model: "glm-4.5-flash" });
+  const relayConfig = LLM.resolved();
+  eq(relayConfig.relay, true, "the resolved connection is the relay");
+  eq(LLM.status().linked, true, "the relay is a complete link with no key in this browser");
+  eq(LLM.status().hasKey, true, "a leftover key is still reported as held, so the reader can clear it");
+  const relayHeaders = LLM.applyAuth(new Headers({ "Content-Type": "application/json" }), relayConfig, LLM.apiKey());
+  ok(!relayHeaders.get("Authorization"), "no Authorization header is built for the relay");
+  ok(!relayHeaders.get("x-api-key"), "no provider key header of any kind is built for the relay");
+
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init, body: init.body ? JSON.parse(init.body) : null });
+    return {
+      ok: true, status: 200, headers: { get: () => "application/json" },
+      json: async () => ({
+        object: "chat.completion", model: "glm-4.5-flash",
+        choices: [{ index: 0, message: { role: "assistant", content: "link established, model responding" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 40, completion_tokens: 6, total_tokens: 46 },
+        relay: { provider: "zai", tier: "free", keyVariable: "Z.AI", doSample: false, temperatureSent: null }
+      }),
+      text: async () => ""
+    };
+  };
+  const chat = await LLM.chat({ system: "S", user: "U", maxTokens: 700, temperature: 0 });
+  eq(calls.length, 1, "one relay call is made");
+  eq(calls[0].url, "/api/llm", "the call goes to this deployment's own relay route");
+  ok(!calls[0].init.headers.get("Authorization"), "the stored key is not sent to the relay");
+  eq(calls[0].init.credentials, "omit", "the relay call carries no cookies either");
+  eq(calls[0].body.model, "glm-4.5-flash", "the free-tier model is named");
+  eq(calls[0].body.max_tokens, 700, "the caller's output ceiling is passed through");
+  eq(calls[0].body.temperature, 0, "a greedy reading is asked for as temperature 0; the relay translates it");
+  eq(calls[0].body.messages[0].role, "system", "the prompt is exactly what the caller wrote");
+  eq(calls[0].body.stream, undefined, "the browser never asks the relay to stream");
+  eq(calls[0].body.tools, undefined, "the browser offers the relay no tools to dispatch");
+  eq(chat.text, "link established, model responding", "the relay's reply is read as text");
+  eq(chat.authorityPlane, "DATA-ONLY", "a relayed reply stays on the data plane");
+  eq(chat.trustedForAuthority, false, "a relayed reply is not trusted for authority");
+  eq(chat.usage.input, 40, "relay usage is normalized");
+  eq(chat.provider, "relay", "the reading records the relay as its connection");
+
+  /* Asking the relay what it has is a disclosure, not an error path. */
+  let askedAt = "";
+  globalThis.fetch = async url => {
+    askedAt = String(url);
+    return { ok: true, status: 200, text: async () => JSON.stringify({
+      configured: true, provider: "zai", tier: "free", upstream: "https://api.z.ai",
+      models: ["glm-4.5-flash", "glm-4.7-flash"], keyVariable: "Z.AI",
+      limits: { requestsPerMinute: 60, sharedRequestsPerMinute: 120, windowSeconds: 60 }
+    }) };
+  };
+  const info = await LLM.relayStatus();
+  ok(askedAt.endsWith("/api/llm/status"), "the status question goes to the relay's status route");
+  eq(info.reachable, true, "a configured relay is reachable");
+  eq(info.configured, true, "and says it is configured");
+  eq(info.keyVariable, "Z.AI", "it names the Worker variable holding the key");
+  eq(info.models.join(","), "glm-4.5-flash,glm-4.7-flash", "it lists the free models it serves");
+  eq(info.limits.requestsPerMinute, 60, "it states the pace it holds each caller to");
+  eq(info.limits.sharedRequestsPerMinute, 120, "and the ceiling every caller on this deployment shares");
+  eq(JSON.stringify(info).includes("sk-ant-leftover"), false, "a status answer carries no key");
+
+  globalThis.fetch = async () => ({ ok: false, status: 200, text: async () => JSON.stringify({ configured: false, message: "This deployment has no Z.AI key.", acceptedKeyVariables: ["Z.AI", "ZAI_API_KEY"] }) });
+  const missing = await LLM.relayStatus();
+  eq(missing.reachable, true, "an unconfigured relay is still reachable");
+  eq(missing.configured, false, "and says it is not configured");
+  ok(/no Z\.AI key/i.test(missing.message), "it says what is missing");
+
+  globalThis.fetch = async () => ({ ok: false, status: 404, text: async () => "<html>404</html>" });
+  const absent = await LLM.relayStatus();
+  eq(absent.reachable, false, "a static preview with no Worker reports no relay");
+  eq(absent.configured, false, "and is not configured");
+  ok(/no relay/i.test(absent.reason), "it says there is no relay rather than failing");
+
+  globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => "<html>not json</html>" });
+  const notJson = await LLM.relayStatus();
+  eq(notJson.reachable, false, "a non-JSON answer is not treated as a relay");
+
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  const unreachable = await LLM.relayStatus();
+  eq(unreachable.reachable, false, "an unreachable route is reported, not thrown");
+  eq(unreachable.configured, false, "and is treated as unconfigured");
+
+  /* Relay failures are explained in the relay's sentence, not its raw JSON. */
+  eq(LLM.readableDetail(JSON.stringify({ error: { message: "This deployment has no Z.AI key.", type: "relay_unavailable" } })), "This deployment has no Z.AI key.", "an OpenAI-shaped error body is reduced to its sentence");
+  eq(LLM.readableDetail(JSON.stringify({ error: "plain string error" })), "plain string error", "a string error field is read too");
+  eq(LLM.readableDetail(JSON.stringify({ code: 1302, message: "Z.AI's own shape" })), "Z.AI's own shape", "Z.AI's code/message shape is read too");
+  eq(LLM.readableDetail("plain text"), "plain text", "plain text is passed through");
+  eq(LLM.readableDetail("{broken"), "{broken", "unparseable text is passed through rather than dropped");
+  eq(LLM.readableDetail(""), "", "an empty body stays empty");
+
+  globalThis.fetch = async () => ({ ok: false, status: 503, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ error: { message: "This deployment has no Z.AI key. Add one as a Worker secret named Z.AI or ZAI_API_KEY.", type: "relay_unavailable", code: 503 } }) });
+  let refused = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { refused = error; }
+  const described = LLM.describe(refused);
+  ok(/no Z\.AI key/.test(described.detail), "an unconfigured relay explains itself in its own words");
+  ok(!/^\{/.test(described.detail), "the reader is not shown raw JSON");
+  ok(/Worker secret/i.test(refused.hint), "the hint names the Worker secret the operator must add");
+
+  /* A long stated delay is shown to the reader rather than spent behind a busy
+     progress bar; only a short pace is waited out automatically (below). */
+  let longWaitCalls = 0;
+  globalThis.fetch = async () => {
+    longWaitCalls += 1;
+    return { ok: false, status: 429, headers: { get: name => String(name).toLowerCase() === "retry-after" ? "30" : "application/json" }, text: async () => JSON.stringify({ error: { message: "This relay allows 60 model calls a minute per caller, and this caller has used them. Retry in about 30 seconds.", type: "rate_limit_error", code: 429 } }) };
+  };
+  let limited = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { limited = error; }
+  eq(LLM.describe(limited).title, "RATE LIMITED", "a relay rate limit is labelled as one");
+  ok(/60 model calls/.test(limited.message), "the relay's stated limit reaches the reader");
+  ok(/not evidence/i.test(limited.hint), "a rate-limited call is not mistaken for evidence");
+  eq(longWaitCalls, 1, "a 30-second wait is reported, not silently served");
+
+  /* A short pace is waited out instead of punching a hole in the reading: with
+     one question per call, a refused question is a question left UNKNOWN. */
+  const withFastRetryTimers = async operation => {
+    const originalSetTimeout = globalThis.setTimeout;
+    const waits = [];
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (Number.isFinite(delay) && delay > 0 && delay < 120000) { waits.push(delay); return originalSetTimeout(callback, 0, ...args); }
+      return originalSetTimeout(callback, delay, ...args);
+    };
+    try { return { result: await operation(), waits }; } finally { globalThis.setTimeout = originalSetTimeout; }
+  };
+  let pacedCalls = 0;
+  const pacedEvents = [];
+  globalThis.fetch = async () => {
+    pacedCalls += 1;
+    if (pacedCalls === 1) {
+      return { ok: false, status: 429, headers: { get: name => String(name).toLowerCase() === "retry-after" ? "2" : "application/json" }, text: async () => JSON.stringify({ error: { message: "This relay allows 60 model calls a minute per caller, and this caller has used them. Retry in about 2 seconds.", type: "rate_limit_error", code: 429 } }) };
+    }
+    return {
+      ok: true, status: 200, headers: { get: () => "application/json" },
+      json: async () => ({
+        object: "chat.completion", model: "glm-4.5-flash",
+        choices: [{ index: 0, message: { role: "assistant", content: "answered once the pace lifted" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 40, completion_tokens: 6, total_tokens: 46 },
+        relay: { provider: "zai", tier: "free", keyVariable: "ZAI_API_KEY", pacing: { limit: 60, remaining: 58, reset: 4 } }
+      }),
+      text: async () => ""
+    };
+  };
+  const paced = await withFastRetryTimers(() => LLM.chat({ user: "U", onRetry: event => pacedEvents.push(event) }));
+  eq(pacedCalls, 2, "a two-second relay pace is retried once instead of failing the question");
+  eq(paced.result.text, "answered once the pace lifted", "and the reading gets its answer");
+  eq(pacedEvents.length, 1, "the wait is reported to the reader once");
+  eq(pacedEvents[0].source, "Retry-After", "and named as the relay's own stated delay, not an invented backoff");
+  eq(pacedEvents[0].delayMs, 2000, "the delay waited is the one the relay quoted");
+  eq(paced.waits.join(","), "2000", "no longer wait is served behind a busy progress bar");
+
+  globalThis.fetch = async () => ({ ok: false, status: 403, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ error: { message: "The relay accepts same-origin browser requests only.", type: "invalid_request_error" } }) });
+  let forbidden = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { forbidden = error; }
+  eq(forbidden.kind, "auth", "a refused caller is an authorization problem");
+  ok(/same-origin/i.test(forbidden.hint) && /no key to paste/i.test(forbidden.hint), "the hint does not send the reader hunting for a key the relay holds itself");
+
+  /* Listing models through the relay uses its own route. */
+  let listedAt = "";
+  globalThis.fetch = async url => {
+    listedAt = String(url);
+    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ object: "list", data: [{ id: "glm-4.5-flash" }, { id: "glm-4.7-flash" }] }) };
+  };
+  const relayModels = await LLM.loadModels(LLM.resolved());
+  eq(listedAt, "/api/llm/models", "List models asks the relay, not Z.AI directly");
+  eq(relayModels.join(","), "glm-4.5-flash,glm-4.7-flash", "the relay's free-tier list is parsed");
+
+  globalThis.fetch = originalFetch;
+  LLM.clearKey();
+  LLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5" });
+}
+
 /* ── nothing is sent without a link ───────────────────────────── */
 {
   LLM.clearKey();
