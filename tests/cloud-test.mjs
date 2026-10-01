@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { generateKeyPair, SignJWT } from 'jose';
 import { handleApi, authenticate } from '../worker/index.mjs';
-import { MAX_BYTES, validateLedger, validateSnapshot, assertPrefix } from '../worker/storage.mjs';
+import { CREATOR_ID_FORMULA, MAX_BYTES, validateLedger, validateSnapshot, assertPrefix } from '../worker/storage.mjs';
 
 const owner = 'owner@example.com';
 function fixture() {
@@ -33,6 +33,11 @@ function req(path, method = 'GET', data, headers = {}) {
 const call = (f, path, method, data, headers) => handleApi(req(path, method, data, headers), {}, f.dependencies);
 function row(id, prevHash, event = 'Event') {
   const r = { id, ts: '2026-09-30T12:00:00.000Z', severity: 'permit', event, declaredPhase: 'NAB', prevHash };
+  r.hash = createHash('sha256').update([id, r.ts, r.severity, event, prevHash, CREATOR_ID_FORMULA].join('|')).digest('hex');
+  return r;
+}
+function legacyRow(id, prevHash, event = 'Legacy event') {
+  const r = { id, ts: '2026-09-29T12:00:00.000Z', severity: 'info', event, declaredPhase: 'NAB', prevHash };
   r.hash = createHash('sha256').update([id, r.ts, r.severity, event, prevHash, 'HARSHAL'].join('|')).digest('hex');
   return r;
 }
@@ -50,7 +55,7 @@ test('Access fails closed before database access', async () => {
   }
 });
 
-test('atomic snapshot creates, reads, updates and conflicts', async () => {
+test('RACE-006: atomic snapshots serialize concurrent creates and updates', async () => {
   const f = fixture();
   assert.equal((await (await call(f, 'snapshot')).json()).revision, null);
   const initial = { revision: null, audits: [{ id: 'a', name: 'Test', phase: 'INCOHERENT' }], evidence: [] };
@@ -78,7 +83,7 @@ test('write boundaries and redacted backend errors', async () => {
   assert.equal(response.status, 503); assert.ok(!(await response.text()).includes('password-secret'));
 });
 
-test('ledger archive is idempotent, prefix-protected, and downloadable', async () => {
+test('REPLAY-005: ledger archive is idempotent, prefix-protected, and downloadable', async () => {
   const f = fixture(); const session = '12345678-1234-1234-1234-123456789abc'; const path = 'ledger/' + session;
   const first = row(1, '0'.repeat(64)); const second = row(2, first.hash);
   assert.equal((await call(f, path, 'PUT', { rows: [first] })).status, 200);
@@ -91,6 +96,16 @@ test('ledger archive is idempotent, prefix-protected, and downloadable', async (
   assert.equal((await (await call(f, 'ledgers')).json()).sessions[0].session, session);
   await assert.rejects(validateLedger([second]));
   assert.throws(() => assertPrefix([first], []));
+});
+
+test('ledger archives accept legacy Creator-ID rows and append the section-formula chain', async () => {
+  assert.equal(CREATOR_ID_FORMULA, '§HARSHAL§ + HARSHAL + (HARSHAL)');
+  const oldRow = legacyRow(1, '0'.repeat(64));
+  const newRow = row(2, oldRow.hash, 'New Creator-ID formula row');
+  const checked = await validateLedger([oldRow, newRow]);
+  assert.deepEqual(checked.map(item => item.hash), [oldRow.hash, newRow.hash]);
+  const incorrectlyRehashed = { ...oldRow, hash: createHash('sha256').update([oldRow.id, oldRow.ts, oldRow.severity, oldRow.event, oldRow.prevHash, 'OTHER'].join('|')).digest('hex') };
+  await assert.rejects(validateLedger([incorrectlyRehashed]), /Ledger hash mismatch/);
 });
 
 test('snapshot validates record shape and duplicates; no arbitrary top-level keys retained', () => {

@@ -5,7 +5,7 @@
 **Center Origin:** `0•000•000•0000`  
 **Status:** Finalized normative source, dated September 12, 2026.  
 
-The specification below is transcribed verbatim from the manuscript. It is retained as the versioned baseline; proposed changes are in [Ground-0 Phase Detection Algorithm v1.1 — Amendment Draft](GROUND-0%20Phase%20Detection%20Algorithm%20v1.1%20-%20Amendment%20Draft.md).
+The specification below is transcribed verbatim from the manuscript. It is retained as the versioned baseline; proposed changes are in [Ground-0 Phase Detection Algorithm v1.1 — Amendment Draft](../../specs/draft/ground-0-v1.1.md).
 
 ```text
 GROUND-0 PHASE DETECTION ALGORITHM v1.0 — FINAL SPECIFICATION
@@ -80,7 +80,7 @@ SECTION III: STEP 1 — PHASE DECLARATION HEADER VALIDATION
 │                                                               │
 │ REQUIRED FIELDS CHECKLIST:                                   │
 │ ☐ Header-ID (unique, formatted PDH-YYYY-MM-DD-XXXXX)       │
-│ ☐ Creator-ID (matches entity origin; format: ꔧIDꔧ + ID + (ID))
+│ ☐ Creator-ID (matches entity origin; format: §ID§ + ID + (ID); the same identifier in all three positions)
 │ ☐ Center-Origin (0•000•000•0000 or valid OCM derivative)    │
 │ ☐ Declared-Phase (NAB | CWO | GSRB only)                    │
 │ ☐ Center-Capability (Non-Acting | Custodial | Acting)       │
@@ -799,7 +799,7 @@ SECTION III: STEP 1 — PHASE DECLARATION HEADER VALIDATION
 │                                                               │
 │ REQUIRED FIELDS CHECKLIST:                                   │
 │ ☐ Header-ID (unique, formatted PDH-YYYY-MM-DD-XXXXX)       │
-│ ☐ Creator-ID (matches entity origin; format: ꔧIDꔧ + ID + (ID))
+│ ☐ Creator-ID (matches entity origin; format: §ID§ + ID + (ID); the same identifier in all three positions)
 │ ☐ Center-Origin (0•000•000•0000 or valid OCM derivative)    │
 │ ☐ Declared-Phase (NAB | CWO | GSRB only)                    │
 │ ☐ Center-Capability (Non-Acting | Custodial | Acting)       │

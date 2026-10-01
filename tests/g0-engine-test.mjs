@@ -1,4 +1,4 @@
-/* Node harness: exercises the Ground-0 engine end-to-end. Run: node scripts/g0-engine-test.mjs */
+/* Node harness: exercises the Ground-0 engine end-to-end. Run: node tests/g0-engine-test.mjs */
 import { webcrypto } from "node:crypto";
 
 globalThis.window = globalThis;
@@ -154,7 +154,7 @@ ok(knownRec.phase === "NAB" && knownRec.report.Activator_Vector[4].Auditor_Answe
 const keyPair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
 const jwk = await webcrypto.subtle.exportKey("jwk", keyPair.publicKey);
 const header = {
-  "Header-ID": "PDH-2026-09-01-XY789", "Creator-ID": "ꔧIDꔧTB-1(TB-1)", "Center-Origin": "0•000•000•0000",
+  "Header-ID": "PDH-2026-09-01-XY789", "Creator-ID": "§TB-1§ + TB-1 + (TB-1)", "Center-Origin": "0•000•000•0000",
   "Declared-Phase": "NAB", "Center-Capability": "Non-Acting", "Legitimacy-Source": "External", "Refusal-Semantics": "Terminal",
   "Symbolism-Executability": "Disabled", "Time-Authority-Effect": "Degrades", "Effective-Timestamp": "2026-09-01T00:00:00Z"
 };
@@ -167,6 +167,13 @@ signedInput.publicKeyText = JSON.stringify(jwk);
 signedInput.answers = JSON.parse(JSON.stringify(base.answers));
 const pdh = await G0.validatePDH(signedInput);
 ok(pdh.status === "VALID" && pdh.signature && pdh.freshness && pdh.consistency && pdh.declared === "NAB", "signed PDH validates (ECDSA P-256)");
+ok(G0.headerExample.includes("§ENTITY-001§ + ENTITY-001 + (ENTITY-001)"), "PDH example uses the section-marked Creator-ID formula");
+const oldCreatorNotation = { ...signedInput, headerText: JSON.stringify({ ...header, "Creator-ID": "ꔧIDꔧTB-1(TB-1)", "Declaration-Hash": b64 }) };
+const oldCreatorPdh = await G0.validatePDH(oldCreatorNotation);
+ok(!oldCreatorPdh.structural, "legacy generic Creator-ID marker is no longer accepted");
+const mismatchedCreatorNotation = { ...signedInput, headerText: JSON.stringify({ ...header, "Creator-ID": "§TB-1§ + OTHER + (TB-1)", "Declaration-Hash": b64 }) };
+const mismatchedCreatorPdh = await G0.validatePDH(mismatchedCreatorNotation);
+ok(!mismatchedCreatorPdh.structural, "the wrapped, repeated, and parenthesized Creator-ID components must all match");
 const signedRec = await G0.createAudit(signedInput, []);
 ok(signedRec.pdh.status === "VALID" && signedRec.compliance === "COMPLIANT" && signedRec.badge === "Confirmed" && signedRec.severity === "INFORMATIONAL", "valid PDH + matching behavior → Confirmed");
 /* tampered payload */
@@ -183,7 +190,7 @@ conflictInput.headerText = JSON.stringify({ ...conflictHeader, "Declaration-Hash
 const conflictPdh = await G0.validatePDH(conflictInput);
 ok(conflictPdh.status === "VALID", "conflict fixture: re-signed header validates on its own");
 const conflict = await G0.createAudit(conflictInput, [signedRec]);
-ok(conflict.pdh.status === "INVALID" && conflict.pdh.reason.includes("already bound"), "Header-ID reuse with different fields is rejected");
+ok(conflict.pdh.status === "INVALID" && conflict.pdh.reason.includes("already bound"), "REPLAY-004: Header-ID reuse with different fields is rejected");
 
 /* ── transitions ── */
 const later = JSON.parse(JSON.stringify(signedInput));

@@ -1,6 +1,6 @@
 /* Node harness: boots the Ground-0 workspace app in a mini-DOM and walks the
    major flows (tabs, wizard, register, logic sandbox, automatic error path).
-   Run: node scripts/g0-app-test.mjs */
+   Run: node tests/g0-app-test.mjs */
 import { webcrypto } from "node:crypto";
 
 /* ── mini-DOM ─────────────────────────────────────────────────── */
@@ -181,7 +181,17 @@ Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText
 globalThis.confirm = () => true;
 globalThis.document = { createElement: tag => new El(tag), body: new El("body") };
 globalThis.APPS = [];
-globalThis.kernel = { record: () => {} }; // stub — the OS kernel is not under test here
+globalThis.HOS = { record: () => {} }; // stub — the kernel API is not under test here
+const specFetches = [];
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = String(input);
+  if (url.startsWith("specs/")) {
+    specFetches.push(url);
+    return { ok: true, status: 200, text: async () => `# Mock spec source: ${url}` };
+  }
+  return nativeFetch(input, init);
+};
 const toasts = [];
 globalThis.__g0toasts = toasts;
 
@@ -278,7 +288,12 @@ ok(html().includes("Legitimacy is observed, not created"), "phase detail expands
 clickTab("spec");
 ok(html().includes("FINALIZED") && html().includes("NORMATIVE SOURCE"), "spec renders normative status");
 ok(html().includes("Baseline test results"), "spec TOC includes section XII");
+clickAct('[data-act="specTab"][data-view="source"]');
+ok(specFetches.includes("specs/normative/ground-0-v1.0.md"), "the source reader requests the normative baseline from its status directory");
 clickAct('[data-act="specVersion"][data-v="1.1"]');
+ok(specFetches.includes("specs/draft/ground-0-v1.1.md"), "the draft reader requests a separate draft source path");
+ok(html().includes('href="specs/draft/ground-0-v1.1.md"'), "the draft download link uses the draft source path");
+clickAct('[data-act="specTab"][data-view="reader"]');
 ok(html().includes("not ratified") && html().includes("Five proposed clarifications"), "v1.1 draft renders with amendment summary");
 
 /* ── register (baselines) ── */
@@ -556,13 +571,20 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
 
     const b2 = main3.querySelector('[data-act="includeReading"][data-code="B2"]');
     ok(!!b2, "the B2 reading offers an include checkbox");
-    ok(b2.checked === true, "a verified reading starts ticked for review");
-    const b4 = main3.querySelector('[data-act="includeReading"][data-code="B4"]');
-    ok(!!b4 && b4.disabled === true, "an unanswered question cannot be applied over the draft");
-
+    ok(b2.checked !== true, "a verified model reading is not preselected for application");
     const before = JSON.parse(storage.get("ground-0-audits-v1") || "[]").length;
     const applyBtn = main3.querySelector('[data-act="applyReading"]');
     ok(!!applyBtn, "the reading offers an apply action");
+    applyBtn.click();
+    ok(toasts.some(t => t.title === "NOTHING SELECTED"), "an empty selection is explicitly refused by the UI");
+    ok(JSON.parse(storage.get("ground-0-audits-v1") || "[]").length === before, "an empty selection does not persist an audit");
+
+    b2.checked = true;
+    dispatch(b2, "change");
+    ok(b2.checked === true, "the reviewer can explicitly select a quote-backed reading");
+    const b4 = main3.querySelector('[data-act="includeReading"][data-code="B4"]');
+    ok(!!b4 && b4.disabled === true, "an unanswered question cannot be applied over the draft");
+
     applyBtn.click();
     for (let i = 0; i < 60; i++) { await sleep(100); if (toasts.some(t => t.title === "READINGS APPLIED")) break; }
     ok(toasts.some(t => t.title === "READINGS APPLIED"), "applying is confirmed to the custodian");
@@ -574,8 +596,10 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     ok(saved.name === "Linked Model Body", "the saved record is the draft that was read");
     ok(saved.input.answers[1].value === true && /voluntary/.test(saved.input.answers[1].notes), "the model's quote is written into the answer it supports");
     ok(saved.input.automation.llm && saved.input.automation.llm.verified >= 1, "the record carries the reading block with its verified count");
+    ok(saved.input.automation.reviewRequired === true && saved.input.automation.llm.trustedForAuthority === false, "the persisted model-assisted input remains explicitly untrusted and review-required");
     ok(saved.input.automation.sources.some(source => source.text && source.text.includes("voluntary and advisory")), "the fetched page text is stored with the record so it can be re-read");
-    ok(saved.status === "Draft" && saved.badge === "Unissued", "a model reading never certifies: the record stays an unissued draft");
+    ok(saved.status === "Draft" && saved.badge === "Unissued" && saved.confidence === "NONE", "a model reading never certifies: the record stays a confidence-NONE, unissued draft");
+    ok(saved.report.Review_Status === "HUMAN_REVIEW_REQUIRED" && saved.report.Badge_Status === "Unissued", "the persisted report states the review gate and withheld formal badge");
     ok(!JSON.stringify(saved).includes("sk-ant-harness-key"), "the key is never written into the record");
   } finally {
     globalThis.fetch = realFetch;

@@ -41,6 +41,7 @@ APPS.push({
             : `NOT LINKED — ${esc(status.reason || "No model is connected.")}`}
         </div>
         ${status.storageNote ? `<div class="rule-box refusal">${esc(status.storageNote)}</div>` : ""}
+        <div class="rule-box refusal"><strong>DATA-ONLY AUTHORITY BOUNDARY:</strong> Replies are inert, untrusted data. This app exposes no model-tool dispatcher or code-execution path from a reply into HOS. Ground-0 readings stay review-required, and no quote-backed answer is preselected. This is application-level separation, not a browser sandbox.</div>
         ${config.protocol === "google" ? `<div class="rule-box refusal"><strong>BROWSER KEY WARNING:</strong> Google recommends not exposing API keys in client-side code for production. This BYOK connection sends the key directly to the endpoint above (Google's Gemini Developer API by default), but anyone with access to this browser can inspect it. Use only a key type and restrictions currently accepted by Google for the Gemini API.</div>` : ""}
 
         <div class="h2">Connection</div>

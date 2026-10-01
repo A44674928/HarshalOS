@@ -49,16 +49,16 @@ const MIME = {
   ".woff2": "font/woff2"
 };
 
-/* The deployed site, as a set of path patterns. `specs/*.md` is the one
-   root-level exception .assetsignore grants: the Ground-0 specification
-   reader fetches it at runtime. */
+/* The deployed site, as a set of path patterns. The `specs/normative/*.md`
+   and `specs/draft/*.md` paths are the only non-asset documentation exposed
+   to the browser; they are fetched by the Ground-0 specification reader. */
 const SERVED = [
   /^\/$/,                                   // index.html
   /^\/[A-Za-z0-9_-]+\.html$/,               // about.html and friends
   /^\/css\/[A-Za-z0-9._-]+$/,
   /^\/js\/[A-Za-z0-9._-]+$/,
   /^\/assets\/[A-Za-z0-9._/-]+$/,
-  /^\/specs\/[A-Za-z0-9._-]+\.md$/
+  /^\/specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/
 ];
 /* `new URL` collapses "/../" before we ever see it, so a prefix check on the
    joined path is not enough on its own: "/../.git/config" arrives as

@@ -243,7 +243,7 @@
       if (skinOn) {
         if (!st.filmReadyAt) st.filmReadyAt = now;
         const fade = Math.min(1, (now - st.filmReadyAt) / 900);
-        const L = (typeof kernel !== "undefined" && kernel.L) ? Math.max(0, Math.min(1, kernel.L())) : 0;
+        const L = (typeof HOS !== "undefined" && typeof HOS.legitimacy === "function") ? Math.max(0, Math.min(1, HOS.legitimacy())) : 0;
         const totalAlpha = (0.22 + 0.78 * L) * (0.35 + 0.65 * f) * FM.CFG.alphaMax * (0.25 + 0.75 * fade);
         
         // Equal-energy cosine/sine blend across adjacent sub-frames:
@@ -965,7 +965,7 @@
               form.value = v;
               body.querySelector("#ocm-formv").textContent = v.toFixed(2);
               if (v < 1) requestAnimationFrame(step);
-              else kernel.record("info", "OCM — sphere re-formed from disc: 360 primary addresses, rotation over time + depth.");
+              else HOS.record("info", "OCM — sphere re-formed from disc: 360 primary addresses, rotation over time + depth.");
             };
             requestAnimationFrame(step);
           }, 450);
@@ -975,13 +975,13 @@
         body.querySelector("#ocm-res").addEventListener("click", () => {
           const from = engine.pulseResolution(engine.state.selected);
           const nd = OCM_DATA.nodes[from];
-          kernel.record("info", `OCM — resolution routed to center from ${nd.addr}. Resolution always routes to the center point.`);
+          HOS.record("info", `OCM — resolution routed to center from ${nd.addr}. Resolution always routes to the center point.`);
           api.toast("info", "RESOLUTION → CENTER",
             `${nd.name} (${nd.addr}) resolves inward to 0•000•000•0000. In the event of conflict, ambiguity, or dispute — resolution always routes to the center point.`);
         });
         body.querySelector("#ocm-lat").addEventListener("click", () => {
           const [a, b] = engine.pulseLateral();
-          kernel.record("info", `OCM — lateral communication ${OCM_DATA.nodes[a].addr} ↔ ${OCM_DATA.nodes[b].addr} (no reauthorization required; ownership non-transfer).`);
+          HOS.record("info", `OCM — lateral communication ${OCM_DATA.nodes[a].addr} ↔ ${OCM_DATA.nodes[b].addr} (no reauthorization required; ownership non-transfer).`);
           api.toast("info", "LATERAL COMMUNICATION",
             `${OCM_DATA.nodes[a].name} ↔ ${OCM_DATA.nodes[b].name}. Nodes may communicate freely — but communication does not confer ownership, authority, or origin rights.`);
         });

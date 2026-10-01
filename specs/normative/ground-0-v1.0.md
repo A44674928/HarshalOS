@@ -5,7 +5,7 @@
 **Center Origin:** `0•000•000•0000`  
 **Status:** Finalized normative source, dated September 12, 2026.
 
-This document retains the supplied v1.0 source wording as the versioned baseline. Proposed changes are in [Ground-0 v1.1 — Amendment Draft](ground-0-v1.1.md). Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text. Source wording, source typos, phase predicates, and version status are retained; this presentation change is not an amendment.
+This document retains the supplied v1.0 source wording as the versioned baseline. Proposed changes are in [Ground-0 v1.1 — Amendment Draft](../draft/ground-0-v1.1.md). Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text. Source wording, source typos, phase predicates, and version status are retained; this presentation change is not an amendment.
 
 ```text
 GROUND-0 PHASE DETECTION ALGORITHM v1.0 — FINAL SPECIFICATION
@@ -60,7 +60,7 @@ STEP 1: VALIDATE PHASE DECLARATION HEADER (PDH)
 
 REQUIRED FIELDS CHECKLIST:
 ☐ Header-ID (unique, formatted PDH-YYYY-MM-DD-XXXXX)
-☐ Creator-ID (matches entity origin; format: ꔧIDꔧ + ID + (ID))
+☐ Creator-ID (matches entity origin; format: §ID§ + ID + (ID); the same identifier in all three positions)
 ☐ Center-Origin (0•000•000•0000 or valid OCM derivative)
 ☐ Declared-Phase (NAB | CWO | GSRB only)
 ☐ Center-Capability (Non-Acting | Custodial | Acting)

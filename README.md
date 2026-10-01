@@ -33,7 +33,7 @@ and append-only PLV session archives through a Cloudflare Worker. Cloudflare Acc
 storage to the owner; database credentials stay in Worker secrets. Local-only operation remains
 available. This is not automatic sync, independent witnessing, or a replacement for backups.
 
-Follow **[MONGODB-SETUP.md](MONGODB-SETUP.md)** for Atlas, Access, secrets, deployment, limits,
+Follow **[MongoDB setup guide](docs/deployment/MONGODB-SETUP.md)** for Atlas, Access, secrets, deployment, limits,
 and verification. `npm ci && npm run dev` runs the Worker preview. Missing authentication
 configuration intentionally disables the API; no credentials should be pasted into chat or Git.
 
@@ -41,61 +41,91 @@ configuration intentionally disables the API; no credentials should be pasted in
 
 ## What is implemented
 
+**Scope boundary:** this repository is a client-side demonstration. Gate results, phase changes, hashes, identifiers, receipts, and ledger entries are local simulation artifacts; they do not authenticate a person, authorize production actions through the HOS gate, or provide independent witnessing. The session receipt is not signed by an independent authority and is not production authentication or identity proof. A production Human Key authenticator and HOS production-authorization path are unavailable. See [SECURITY.md](SECURITY.md) for the threat model, trust boundaries, known limitations, safer deployment guidance, and vulnerability reporting.
+
 | Document concept | In HarshalOS |
 |---|---|
 | **Phase Declaration Header (PDH)** | Boot sequence publishes the PDH before any operation; the PDH app shows the live header (immutable `Declaration-Hash`, ISO timestamp) and enforces the single-phase invariant |
-| **Human Key** | The attestation gate. `H(t) = 0` → system is **Mathematically Void**. Type the ceremony phrase to attest; freshness decays over δ = 240 s |
-| **Legitimacy gating (A.2–A.6)** | Live engine: `L(t) = H(t) × f(A(t), R(t), S(t))`, `x(t) = Permitted iff L(t) ≥ τ`. τ is absolute — the "optimization override" button demonstrates the A.6 precedence rule (`argmax` undefined) |
-| **Temporal decay (A.5)** | `S(t) = Smax·max(0, 1−Δt/δ)`; scope contracts visibly; at Δt ≥ δ the halt is **immediate** — the void banner drops the shell into refusal |
-| **Three phases** | ❄ NAB (Refusal-Bound) · 💧 CWO (Witness-Only) · 💨 GSRB (Sovereign-Acting). Phase behavior is real: CWO forbids action outright; GSRB requires the five-step fossilized collapse protocol and permits sovereign override (with loss of misuse resistance recorded) |
-| **Duty Collation Ledger / PLV** | Append-only, hash-chained provenance ledger. Every refusal, permit, phase change, and audit is witnessed. Severity: Informational / Warning / Breach / Collapse |
+| **Human Key (demo only)** | A public browser phrase starts an explicit asynchronous lifecycle: `pending` keeps `H(t)=0`; only a successful HMAC for the current ceremony, completed within the local freshness window, activates the demo marker. Failure, revocation, or a newer ceremony cannot restore authority from a late result. Expiry is derived from browser-time freshness. This proves no identity, liveness, consent, consciousness, non-coercion, or biological coupling; production authentication and authorization are unavailable |
+| **Legitimacy-gate model (A.2–A.6)** | Interactive browser simulation of `L(t) = H(t) × f(A(t), R(t), S(t))` and the modeled threshold/refusal behavior. A local `PERMITTED` result is tagged `LOCAL-DEMO-ONLY`; it cannot authorize external or production actions |
+| **Temporal decay model (A.5)** | The browser timer illustrates `S(t) = Smax·max(0, 1−Δt/δ)` and a local refusal at expiry; it does not monitor human presence or enforce an external halt |
+| **Guided refusal demonstration (Priority 10)** | One-button, seven-step walkthrough against the real HOS API in a fresh sandboxed frame-local kernel. It demonstrates absent-key refusal, local legitimacy restoration, degraded addressability, accelerated expiry, re-attestation, CWO refusal at `L=0`, and an explicit GSRB legitimacy-threshold override. The child ledger and clock are discarded; the active desktop kernel is not passed in. This remains a local simulation, not authentication or production authorization |
+| **Three phase models** | ❄ NAB · 💧 CWO · 💨 GSRB. The browser demo exercises single-phase and transition invariants, including a local collapse sequence; these states do not enforce production policy or create sovereignty |
+| **Duty Collation Ledger / PLV** | In-browser, hash-chained demo log. It is not independently witnessed, remotely anchored, or tamper-resistant against page compromise; the cloud archive is also not independent witnessing. Severity: Informational / Warning / Breach / Collapse |
+| **Session/ledger binding (Priority 7)** | Local demo `Session-ID` + `Boot-ID` + `PDH-ID` + `Human-Attestation-ID` are recorded together. `closeSession()` emits a canonical receipt linking the binding and termination rows to a receipt-row `Ledger-Root`; `verifySessionReceipt()` checks the local SHA-256 chain. IDs/hashes are not identity proof, authentication, an independent signature, or production trust |
 | **AI Inner Shell** | Address-constrained AI nodes (`0•100•000•NNNN•AI-XXXX`). Removing the anchor invalidates all dependent nodes instantly — *geometry, not enforcement*. Learning increases capability, never authority |
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
-| **Whyland Standards (TCS)** | Contextual-inquiry terminal: `why.query`, `why.activate`, `why.explain` with the session-state transition table, off-disc catalog virtualization, Control 2 freshness gating, and the Bromine gateway (invalid input → session burn) |
+| **Whyland Standards (TCS)** | Local contextual-inquiry simulation: `why.query`, `why.activate`, `why.explain`, modeled session transitions, off-disc catalog virtualization, demo-timer gating, and the Bromine gateway (invalid input → local session reset) |
 | **LLM connection points** | Bring your own model: Anthropic, OpenRouter, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or this deployment's relay if one is configured. The key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked |
-| **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: OpenAI Group PBC (`GROUND-0 CASE STUDY - OpenAI.md`) and Anthropic PBC (`GROUND-0 CASE STUDY - Anthropic.md`) |
+| **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
 | **Glossary** | Part II stabilized terms, searchable |
-| **Zero Trust / Harshal Neural OS** | The shell never infers, caches, or synthesizes authority internally; all authorization is external, per-action, and time-sensitive |
-| **OCM visualization — The Orb** | HarshalOS itself rendered as a radiative sphere of influence: 12 apps as radiative nodes attached directly to the center (`0•[orb]•[sector]•[instance]`), the 360-address equatorial disc (`0•DDD•000•0000`), the disc→sphere formation animation (rotation over time + depth), distance shells (`0•DDD•RRR•####`), the non-sovereign resolution axis, AI inner shell, lateral comms, and interaction-orb arcs — drag to orbit, click a node to inspect its address lineage |
+| **Zero Trust / Harshal Neural OS** | The framework calls for external, per-action, time-bounded authorization. This browser demo does not implement that production trust anchor; its local gate only models the refusal/freshness rules and cannot grant production authority |
+| **OCM visualization — The Orb** | HarshalOS itself rendered as a radiative sphere of influence: desktop apps as radiative nodes attached directly to the center (`0•[orb]•[sector]•[instance]`), the 360-address equatorial disc (`0•DDD•000•0000`), the disc→sphere formation animation (rotation over time + depth), distance shells (`0•DDD•RRR•####`), the non-sovereign resolution axis, AI inner shell, lateral comms, and interaction-orb arcs — drag to orbit, click a node to inspect its address lineage |
 | **Interaction Orbs** | The non-additive extension: OCM arithmetic (A=1, B=1, A↔B=1 → 3), both worked micro-examples as steppers (25%+25% → 75% observed mismatch), the three communication layers, navigation/exit protocol, and the classical-vs-OCM comparison |
 
 ## Layout
 
 ```
-index.html        — OS shell (boot, HUD, desktop, taskbar)
-css/os.css        — design system
-css/ground0.css   — Ground-0 workspace styles (scoped to the Ground-0 window)
-assets/           — boot animation (Eye Open:Close, 1920×1080 GIF)
-specs/            — versioned Ground-0 specifications (v1.0 normative, v1.1 draft) fetched by the spec reader
-js/data.js        — stabilized terms, phase specs, Why catalog, audit fixtures
-js/ocm-data.js    — OCM layer: 360° degree legend, axioms, node map, arithmetic fixtures
-js/crypto.js      — cryptographic schema: SHA-256 + HMAC-SHA256 (Web Crypto, JS fallback)
-js/kernel.js      — accountability-gated state machine + SHA-256 hash-chained PLV duty ledger
-js/g0-engine.js   — Ground-0 engine: strict validation, B1–B5/C1–C4 scoring, PDH (ECDSA P-256),
-                    working badge, transitions, baselines, defensive storage (window.G0)
-js/g0-research.js — key-free public-record research: identity, official pages, Wayback captures,
-                    court/regulatory/legislative/news registries, coverage (window.G0Research)
-js/llm.js         — LLM connection points: provider presets, bring-your-own-key storage, provider
-                    transport (Anthropic / OpenAI-compatible / Google GenAI SDK), model listing,
-                    probes, plain-language failures, learned token ceilings, bounded OpenRouter
-                    in-flight retries, and Google transient retries that honor provider delay metadata
-                    (window.HOSLLM)
-js/g0-llm.js      — Ground-0 model reading: staged one question per call over batched source
-                    passes, verbatim-quote verification, bounded link-following, application
-                    to a draft (window.G0LLM)
-js/wm.js          — window manager, HUD, origin menu, toasts
-js/apps-core.js   — Origin · Human Key · PDH · Legitimacy Engine · Duty Ledger
-js/apps-shell.js  — Inner Shell · Discs · Whyland · Glossary · The Book · Firewall
-js/g0-app.js      — the Ground-0 workspace app: overview · register · manual wizard · automatic
-                    research · model reading · evidence · temporal · phases · logic sandbox ·
-                    specification · access
-js/apps-llm.js    — LLM Link: connect your own model, test it, see what leaves the browser
-js/apps-ocm.js    — The Orb (sphere engine) · Interaction Orbs (non-additive extension)
-js/boot.js        — PDH boot sequence (eye animation + cryptographic attestation log)
-scripts/          — Node test harnesses (engine + research); not part of the deployed site
+index.html        — Browser-shell entry point (boot, HUD, desktop, taskbar)
+css/              — OS and Ground-0 workspace styles
+assets/           — runtime images, animation, and rendering data
+specs/normative/  — Ground-0 v1.0 finalized normative source; fetched by the spec reader
+specs/draft/      — Ground-0 v1.1 amendment draft; fetched as a draft, not a ratified baseline
+docs/deployment/  — operator setup and deployment guides
+docs/source-material/ — archival combined manuscript transcription; not the app's selected spec
+case-studies/     — standalone OpenAI and Anthropic Ground-0 audit writeups
+research/reports/ — supporting research reports (separate from scored case studies)
+archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
+tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, cloud, red-team)
+scripts/          — asset staging and integrity-report tooling; not deployed with the site
+worker/           — optional Cloudflare storage API
+.github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
+SECURITY.md       — project-specific threat model and vulnerability-reporting policy
+Business Plan/    — separate author archive; not included in the browser asset bundle
+
+Runtime JavaScript stays in `js/` so the no-build static shell, worker asset staging, and existing
+browser URLs remain direct and predictable. Its logical ownership is documented in
+[docs/REPOSITORY-STRUCTURE.md](docs/REPOSITORY-STRUCTURE.md): kernel, UI, Ground-0 research,
+LLM, and OCM modules are mapped there without creating duplicate source trees.
 ```
+
+## Kernel API boundary
+
+`js/kernel.js` runs inside a private closure; it does not publish `window.kernel` or a global mutable state object. The frozen `window.HOS` API exposes explicit capabilities such as `request()`, `demoAttest()`, `revoke()`, and `transition()`. There is no generic production `attest()` capability; `requestProductionAttestation()` always fails closed because no production authenticator is configured. The frozen security profile reports `mode: DEMO`, `productionAuthenticatorAvailable: false`, and `productionAuthorizationAvailable: false`. Successful gate results carry `executionScope: LOCAL-DEMO-ONLY`.
+
+`assertStateInvariants()` validates canonical candidate state, `assertTransition()` applies the per-operation transition contract, and `commitState()` is the only post-initialization write path into authority-bearing state. Factor changes, demo-marker start/completion/revocation, phase and PDH changes, collapse acknowledgements, and session bind/burn/close operations all use that path. `observe()` returns a detached, deeply frozen operational snapshot; raw HMAC signatures/fingerprints, precise liveness timestamps, and caller-supplied bound identifiers remain private. Demo `Boot-ID`, `Human-Attestation-ID`, and active session linkage IDs are observable. Ledger reads and subscriber callbacks receive frozen copies as well.
+
+The demo attestation lifecycle is explicit: `absent → pending → active`, with `failed` and `revoked` outcomes. Pending state always has `H(t)=0`, and action authorization refuses while pending. A successful HMAC activates the marker only if its generation is still current and its timestamp remains fresh at completion; HMAC errors and expired results transition to `failed`. Revocation or a newer ceremony supersedes any late completion. `observe()` exposes the lifecycle status plus freshness and a derived `expired` flag; expiry is not stored as a separate authority state. This hardens the local demo state machine only: the public phrase and source-bundled HMAC key provide no identity, liveness, consent, or production proof.
+
+Priority 7 links a session to a per-page-load random `Boot-ID`, the current PDH digest, and a demo `Human-Attestation-ID` derived from local ceremony data. `closeSession(reason)` clears the active session and appends a structured termination row plus a canonical receipt; the receipt includes the binding-row root, termination-row root, a SHA-256 receipt digest, and the hash of its own final ledger row as `Ledger-Root`. `verifySessionReceipt(receipt, rows)` checks the receipt fields, linkage order, and SHA-256 chain from genesis through that root. Rebinding and other forced session clearances also write structured termination rows. These values remain local demo integrity markers: SHA-256 is not an independent signature, IDs do not prove identity, and a page compromise can rewrite or replace the ledger. The Whyland `burn` command displays the generated receipt and its local verification result.
+
+This narrows the accidental-mutation surface; it is **not** a browser security boundary. Same-origin scripts, developer tools, browser extensions, or compromised dependencies remain outside what this client-side demonstration can defend against. Production authority still requires an external trust anchor.
+
+### Automated tests and CI report
+
+Priority 12 adds the `HarshalOS Integrity` GitHub Actions workflow and a generated **HARSHALOS INTEGRITY REPORT**. It runs on pushes, pull requests, and manual dispatch with read-only repository permission. `npm run integrity` runs the full and categorized suites plus `npm run check:deploy` (asset staging and Wrangler dry-run), then emits the report to stdout and the GitHub Actions job summary.
+
+Run `node tests/red-team-test.mjs` for 18 targeted hostile-caller probes against the public HOS API. Each prints the attack, expected behavior, observation, result, and invariant. `npm test` runs the full `tests/*-test.mjs` suite. Focused scripts are `npm run test:kernel`, `npm run test:engine`, `npm run test:research`, `npm run test:app`, `npm run test:llm`, `npm run test:cloud`, `npm run test:red-team`, and `npm run test:layout`. The suites cover P7 receipt/ledger tampering and linkage, named replay cases, expiry/phase/ledger races, cross-tab stale-write detection, and seeded state-machine sequences (four fixed seeds × 60 generated operations). The cross-tab test models a stale-write event arriving before the second save; it does not imply localStorage provides atomic compare-and-swap. This is bounded test coverage—not a full browser threat model, production security audit, or formal proof.
+
+## LLM authority/data-plane boundary
+
+Priority 8 separates the model integration's **application capabilities** from HOS authority-bearing actions. `HOSLLM` only returns provider text and usage metadata; its chat/probe results are explicitly `DATA-ONLY`, untrusted, and non-executable. Requests define no provider tools/functions, response parsing ignores tool/function-call fields, and no model-output dispatcher or dynamic code-evaluation path exists. `G0LLM` has no reference to `window.HOS` and returns a deeply frozen reading envelope branded in a private `WeakSet`. That brand prevents a caller from constructing an equivalent object and using the merge helper as though it came from the reader.
+
+Ground-0 application fails closed: every reading checkbox starts clear; the reviewer must select codes; and `mergeReading()` accepts only codes with a chosen, verified quote-backed candidate from an issued reading, bound to the exact draft that was read. It edits a detached copy, preserves original source codes, and records the result as review-required. Only after the reviewer clicks Apply does the app persist a local Ground-0 audit and append its descriptive demo-ledger row; the suggested answers may affect a provisional working badge, but `G0.createAudit()` keeps model-assisted records at confidence `NONE` with the formal badge `Unissued`. The provider response itself has no path to HOS actions, session/phase/attestation changes, action authorization, or formal badge issuance.
+
+This is a code/API boundary and adversarially tested application contract, **not realm isolation**. `window.HOS` is still available to other same-origin page scripts, and malicious same-origin JavaScript, extensions, developer tools, or compromised dependencies remain outside the protection offered by these changes. No claim of a browser sandbox or production trust anchor is made. `node --test tests/llm-authority-test.mjs tests/llm-test.mjs tests/g0-app-test.mjs` covers hostile plain-text and provider tool-call responses, unchanged HOS authority snapshots/ledger, forged or empty merges, unverified selections, and the review-required/no-badge path.
+
+## Adversarial Mode
+
+Priority 9 adds an **Adversarial Mode** desktop app with seven refusal-only probes: forged Human Key, invalid addressability, replayed authorization data, expired-looking session tuple, unknown phase, attempted ledger-snapshot corruption, and a direct malformed API request that bypasses the UI. Each report shows the input, public gate, observed refusal code, invariant ID, whether the operational HOS snapshot stayed unchanged, and the local demo-ledger report row. The probes deliberately avoid valid state transitions and external actions; each attempt is logged to the browser-local ledger. The UI harness is demonstration evidence, not a browser-integrity or production-security boundary. The real-page test runs all seven against the actual HOS API and checks that operational state is unchanged.
+
+## Guided refusal demonstration
+
+Priority 10 adds a single **RUN REFUSAL DEMO** control. It loads the same `js/crypto.js`, `js/data.js`, and `js/kernel.js` used by the page inside a fresh iframe with `sandbox="allow-scripts"` (no same-origin grant), plus the shared scenario runner. The active page's `HOS` object and ledger are never passed into that frame; its state, hash-chain rows, and accelerated demo clock are disposable. The walkthrough makes no writes to the active HOS instance or its ledger. This is separation for safe demonstration, not a claim of a production trust boundary.
+
+The seven reports run in order: (1) no Human Key → `NO-DEMO-CONFIRMATION`; (2) the public local phrase activates the demo marker and raises `L`; (3) `A=0.25` → `L-BELOW-TAU`; (4) an isolated clock accelerated ×120 reaches `δ=240s` → `STALE-PERMISSION`; (5) re-attestation restores the local gate; (6) CWO refuses both above threshold and with `L=0`; (7) after the modeled collapse acknowledgements, GSRB first returns `L-BELOW-TAU` and only an explicit `sovereignOverride: true` returns `DEMO-GSRB-OVERRIDE`. That override is intentionally modeled as bypassing the legitimacy threshold, but it still requires a present, fresh local Human Key; no external or production action occurs. Each step checks its own child-kernel ledger row against the current Creator-ID formula. `node --test tests/guided-demo-test.mjs` tests the scenario and proves the active test kernel snapshot and ledger remain unchanged; `node tests/g0-desktop-test.mjs` tests the one-button UI/frame message path.
 
 ## Boot sequence
 
@@ -104,22 +134,33 @@ The boot screen opens with the **Eye Open:Close** animation (`assets/eye-open-cl
 animation are independent: the typewriter sequence never blocks on the image, the image fades
 in whenever its data has landed, and if it ever fails to load the boot proceeds cleanly.
 
+## Creator-ID notation
+
+The canonical HarshalOS Creator-ID is exactly `§HARSHAL§ + HARSHAL + (HARSHAL)`. The atomic value remains `HARSHAL` for the Header-ID suffix; the full formula is the Creator-ID value bound into the PDH digest, PLV row hashes, and local demo HMAC key and payload. The generic Ground-0 grammar uses the same form, `§ID§ + ID + (ID)`, and the validator requires all three identifier positions to match the entity identifier. The old generic `ꔧIDꔧ` spelling is no longer accepted by the live validator.
+
+`worker/storage.mjs` accepts the prior bare-`HARSHAL` hash input only to keep already archived cloud-ledger prefixes appendable; new rows use the section-marked formula. This compatibility path preserves legacy data integrity checking and does not treat either string as an identity credential.
+
 ## Cryptographic schema
 
-All integrity digests and keyed attestations flow through a single module (`js/crypto.js`,
-exposed as `HOSCrypto`) — no other code in the system computes "hashes":
+Browser-side integrity digests and the local Human Key demo tag flow through `js/crypto.js`
+(exposed as `HOSCrypto`). The Cloudflare storage worker separately recomputes archived ledger
+hashes before storing them. The demo HMAC is not an authenticator:
 
 | Artifact | Primitive |
 |---|---|
-| **PDH Declaration-Hash** | `SHA-256` over the canonical header fields (phase, capability, legitimacy source, refusal semantics, symbolism executability, time-authority effect, timestamp, Creator-ID, Center-Origin) |
-| **PLV duty ledger** | `SHA-256` hash chain — each entry digests `(id, ts, severity, event, prevHash, Creator-ID)`; genesis `prevHash` is the 64-zero digest. Digests are asynchronous, so the chain is serialized through a promise queue: append-only order is preserved even for fire-and-forget callers |
-| **Human Key attestation** | `HMAC-SHA256` keyed signature over `(phrase, liveness timestamp, Creator-ID, Center-Origin)` — a fresh, keyed attestation per ceremony; fingerprint shown in the Human Key app |
+| **PDH Declaration-Hash** | `SHA-256` over the canonical header fields (phase, capability, legitimacy source, refusal semantics, symbolism executability, time-authority effect, timestamp, the full Creator-ID formula `§HARSHAL§ + HARSHAL + (HARSHAL)`, Center-Origin) |
+| **PLV duty ledger** | `SHA-256` hash chain — each entry digests `(id, ts, severity, event, prevHash, Creator-ID formula)`; genesis `prevHash` is the 64-zero digest. Digests are asynchronous, so the chain is serialized through a promise queue: append-only order is preserved even for fire-and-forget callers |
+| **Human Key demo tag** | `HMAC-SHA256` over a canonical local demo payload containing the public phrase, browser timestamp, full Creator-ID formula, Center-Origin, Boot-ID, and ceremony generation; the demo key is bound to the same formula and bundled in client source. Demonstrates local computation only; it is neither secret-key authentication nor proof of a person, liveness, consent, or production authority |
+| **Boot-ID / Session-ID** | 128-bit random values from browser `crypto.getRandomValues`; local correlation identifiers, not credentials |
+| **Human-Attestation-ID** | `SHA-256` digest of the local demo ceremony data (including its HMAC tag), Boot-ID, and generation; it is not an identity assertion |
+| **Session termination receipt** | `SHA-256` over canonical receipt fields; the chained receipt event links the binding row and termination row, and its own ledger-row hash is the `Ledger-Root`. `verifySessionReceipt()` checks the local ledger prefix; no independent key signs the receipt |
 | **Symbolic Firewall seals** | `SHA-256` digest of the sealed content + nonce |
 
 Backend: **Web Crypto (SubtleCrypto)** — the platform's cryptographic primitive. A
 deterministic pure-JS SHA-256 (NIST FIPS 180-4) is the fallback for non-secure contexts
-where `crypto.subtle` is unavailable, so the schema degrades gracefully instead of
-breaking the ledger. The boot log reports the active backend at startup.
+where `crypto.subtle` is unavailable, so the browser schema degrades gracefully instead of
+breaking the ledger. The boot log reports the active browser backend at startup; the cloud
+worker uses Web Crypto to validate archived rows.
 
 ## The Orb — OCM visualization
 
@@ -294,14 +335,14 @@ directly to the API endpoint; HarshalOS does not receive it. Use a Gemini API ke
 restrictions currently accepted by Google's API guidance. The selected model provider receives the
 prompt and handles it under its own data policies; the browser copy of the audit remains local.
 
-**Tests.** `node scripts/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
+**Tests.** `node tests/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
-storage); `node scripts/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
-network smoke test of the public registries); `node scripts/g0-app-test.mjs` boots the workspace in
+storage); `node tests/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
+network smoke test of the public registries); `node tests/g0-app-test.mjs` boots the workspace in
 a mini-DOM and walks the interface — every tab, the manual wizard, the register, the logic sandbox,
 preferences, a complete automatic research run rendered against a stubbed public record (so a run
 that finishes always reaches its result view instead of an error state), and a full model reading
-applied to a draft; `node scripts/llm-test.mjs` covers the connection layer and the reading pass
+applied to a draft; `node tests/llm-test.mjs` covers the connection layer and the reading pass
 with a stub provider and a deliberately mixed set of model replies — verified, fabricated,
 mis-dated, news-sourced and out-of-record — proving that only verifiable quotes ever reach an
 answer, that a followed page can only come from a link the record itself contained, and that

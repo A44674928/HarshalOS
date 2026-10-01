@@ -6,7 +6,7 @@
    mixed — verified, fabricated, mis-dated, news-sourced — so the
    verification gate is what is under test.
 
-   Run: node scripts/llm-test.mjs */
+   Run: node tests/llm-test.mjs */
 
 /* ── browser globals ──────────────────────────────────────────── */
 globalThis.window = globalThis;
@@ -57,6 +57,25 @@ const sources = [
   };
 
   ok(typeof LLM === "object" && typeof LLM.chat === "function", "HOSLLM exposes a chat call");
+  ok(Object.isFrozen(LLM), "the LLM connection capability surface is frozen");
+  ok(Object.isFrozen(LLM.PROVIDERS) && Object.isFrozen(LLM.PROVIDERS.anthropic), "provider configuration records are immutable");
+  eq(LLM.authorityPlane.name, "DATA-ONLY", "the LLM is explicitly classified as a data-plane capability");
+  eq(LLM.authorityPlane.kernelCapability, false, "the LLM has no kernel capability");
+  eq(LLM.authorityPlane.actionAuthorizationCapability, false, "the LLM cannot authorize actions");
+  eq(LLM.authorityPlane.badgeIssuanceCapability, false, "the LLM cannot issue badges");
+  eq(LLM.authorityPlane.codeExecution, false, "model output is never executable code");
+  ok(Object.isFrozen(G0LLM), "the Ground-0 reading capability surface is frozen");
+  eq(G0LLM.authorityPlane.name, "DATA-ONLY", "Ground-0 LLM output remains on the data plane");
+  eq(G0LLM.authorityPlane.explicitSelectionRequired, true, "applying a reading requires explicit selected codes");
+  eq(G0LLM.authorityPlane.badgeIssuanceCapability, false, "the reading pass cannot issue a badge");
+  const toolOnly = LLM.readResponse({ protocol: "openai" }, { choices: [{ message: { content: null, tool_calls: [{ type: "function", function: { name: "HOS.revoke", arguments: "{}" } }] } }] });
+  eq(toolOnly.text, "", "provider tool-call metadata is not promoted to executable output");
+  eq(toolOnly.authorityPlane, "DATA-ONLY", "the raw OpenAI-compatible parser result is also labeled data-only");
+  eq(toolOnly.trustedForAuthority, false, "raw parsed provider text is explicitly untrusted");
+  const googleToolOnly = LLM.readResponse({ protocol: "google" }, { candidates: [{ content: { parts: [{ functionCall: { name: "HOS.revoke", args: {} } }] } }] });
+  eq(googleToolOnly.text, "", "Google function-call metadata is ignored rather than dispatched");
+  eq(googleToolOnly.executable, false, "Google parser output is explicitly non-executable");
+  ok(LLM.executeTool === undefined && LLM.execute === undefined, "the connection exposes no model-tool dispatcher");
   ok(LLM.status().linked === false, "a fresh browser has no model linked");
   LLM.setKey("sk-ant-test-key-0000000000", false);
   ok(LLM.keyStorage() === "session", "the key is held for the session by default");
@@ -98,6 +117,10 @@ const sources = [
     return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ model: "x", choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 3, completion_tokens: 4 } }) };
   };
   const openaiCall = await LLM.chat({ system: "S", user: "U", maxTokens: 10 });
+  eq(openaiCall.authorityPlane, "DATA-ONLY", "chat responses are marked as data-only");
+  eq(openaiCall.trustedForAuthority, false, "a model response is never trusted as authority");
+  eq(openaiCall.executable, false, "a model response is explicitly non-executable");
+  ok(Object.isFrozen(openaiCall) && Object.isFrozen(openaiCall.usage), "model response metadata and nested usage data are immutable");
   const last = calls[calls.length - 1];
   eq(last.headers.get("Authorization"), "Bearer sk-ant-test-key-0000000000", "OpenAI-compatible providers get a bearer token");
   eq(last.body.messages[0].role, "system", "system prompt is carried as a system message");
@@ -369,11 +392,16 @@ function stubModel(handler) {
   const input = G0.newInput("1.1");
   input.name = org; input.identifier = "Q123"; input.cutoff = cutoff;
   input.automation = { method: "public-lookup", provider: "test", reviewRequired: true, requestedName: org, generatedAt: new Date().toISOString(), sources: sources.map(s => ({ ...s })), coverage: [], warnings: [] };
+  input.automation.sources[0].codes = ["C4"];
 
   const progress = [];
   const reading = await G0LLM.readSources({ input, sources: input.automation.sources.map(s => ({ ...s })), version: "1.1", cutoff, entity: org, website: "https://example.org/", onProgress: p => progress.push(p), followLinks: false });
   stop();
 
+  eq(reading.authorityPlane, "DATA-ONLY", "reading envelopes are marked as data-plane proposals");
+  eq(reading.trustedForAuthority, false, "a frozen reading is not trusted as authority");
+  eq(reading.block.reviewRequired, true, "every model reading carries the human-review requirement");
+  ok(Object.isFrozen(reading) && Object.isFrozen(reading.candidates) && Object.isFrozen(reading.block), "issued readings are deeply immutable");
   ok(reading.passes >= 2, `the reading is staged over several calls: one per question per batch, plus weighing (${reading.passes} calls)`);
   ok(progress.length >= 3 && progress[progress.length - 1].completed === 5, "progress is reported through the run");
   eq(reading.candidates.length, 2, "only the two verifiable, dated readings become candidates");
@@ -393,12 +421,37 @@ function stubModel(handler) {
   eq(reading.b4.actor, "Any affected party", "B4 actor comes from the quoted rule");
 
   /* The engine, not the model, still decides. */
+  let forgedReadingRejected = false;
+  try { G0LLM.mergeReading(input, { ...reading }, { applyCodes: ["B1"] }); } catch (error) { forgedReadingRejected = /immutable reading/.test(error.message); }
+  ok(forgedReadingRejected, "a copied or caller-forged reading envelope cannot enter the apply path");
+  let crossDraftRejected = false;
+  try { G0LLM.mergeReading({ ...input }, reading, { applyCodes: ["B1"] }); } catch (error) { crossDraftRejected = /exact draft/.test(error.message); }
+  ok(crossDraftRejected, "an issued reading cannot be rebound to a different audit draft");
+  let implicitApplyRejected = false;
+  try { G0LLM.mergeReading(input, reading); } catch (error) { implicitApplyRejected = /explicitly selected/i.test(error.message); }
+  ok(implicitApplyRejected, "a reading cannot be merged without explicit human-selected codes");
+  let emptySelectionRejected = false;
+  try { G0LLM.mergeReading(input, reading, { applyCodes: [] }); } catch (error) { emptySelectionRejected = /explicitly selected/i.test(error.message); }
+  ok(emptySelectionRejected, "an explicitly empty selection is refused");
+  let unverifiedApplyRejected = false;
+  try { G0LLM.mergeReading(input, reading, { applyCodes: ["B2"] }); } catch (error) { unverifiedApplyRejected = /verified quote/.test(error.message); }
+  ok(unverifiedApplyRejected, "a code with no verified quote cannot be selected into the draft");
+  let mixedApplyRejected = false;
+  try { G0LLM.mergeReading(input, reading, { applyCodes: ["B1", "B2"] }); } catch (error) { mixedApplyRejected = /Every selected code/.test(error.message); }
+  ok(mixedApplyRejected, "a mixed valid/invalid selection fails as a whole instead of applying a partial subset");
+  const partial = G0LLM.mergeReading(input, reading, { applyCodes: ["B1"] });
+  eq(partial.answers[0].value, true, "only the explicitly selected quote-backed answer is applied");
+  eq(partial.answers[3].value, null, "an unselected model suggestion remains unchanged");
+  eq(JSON.stringify(partial.b4), JSON.stringify(input.b4), "unselected structured B4 data does not leak into the draft");
+
   const merged = G0LLM.mergeReading(input, reading, { applyCodes: ["B1", "B4"] });
   ok(merged.answers[0].value === true && merged.answers[3].value === true, "applying writes the ticked readings into a copy");
   ok(input.answers[0].value === null && input.answers[3].value === null, "the original input is never mutated");
   ok(merged.automation.llm && merged.automation.llm.reviewRequired === true, "the record carries the reading block and stays review-required");
   eq(merged.automation.llm.verified, 2, "the reading block records how many quotes verified");
-  ok(merged.automation.sources.find(s => s.id === "SITE-1").codes.includes("B4"), "the source that carried B4 is annotated");
+  ok(merged.automation.sources.find(s => s.id === "SITE-1").codes.includes("B4"), "the source that carried the selected B4 reading is annotated");
+  ok(merged.automation.sources.find(s => s.id === "SITE-1").codes.includes("C4"), "original source-code metadata survives the selected-reading merge");
+  ok(input.automation.sources[0].codes.includes("C4"), "the source metadata on the original draft is not mutated");
 
   const record = await G0.createAudit(merged, []);
   eq(record.badge, "Unissued", "no badge is issued for a model-assisted draft");
@@ -561,6 +614,24 @@ const linkPriced = () => {
   ok(progress.some(step => /Reading B4 — pass 1 of 2, question 4 of 9/.test(step.message)), "progress names the question being read");
   ok(progress[progress.length - 1].completed === 5, "progress still ends at the last of five steps");
   ok(new Set(progress.filter(step => step.step === 2).map(step => step.completed)).size > 2, "the progress bar moves while the staged reading runs");
+}
+
+/* Even a quote-verified loser cannot be applied when weighing rejected the
+   question's candidates and the reading has no final selection for that code. */
+{
+  linkPriced();
+  const input = stagedInput();
+  const stop = stubPricedProvider({ handler: (body, call, prompt) => {
+    if (/\nCANDIDATES\n/.test(prompt)) return { code: "B1", candidate: "C-NOT-ISSUED", reason: "Reject every candidate." };
+    return stagedReply(prompt);
+  } });
+  const reading = await G0LLM.readSources({ input, sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, website: "https://example.org/", followLinks: false, onProgress: () => {} });
+  stop();
+  ok(reading.candidates.some(candidate => candidate.code === "B1"), "the rejected B1 alternatives remain visible as verified but unchosen candidates");
+  eq(reading.chosen.B1, undefined, "an invalid weighing response chooses no candidate");
+  let rejected = false;
+  try { G0LLM.mergeReading(input, reading, { applyCodes: ["B1"] }); } catch (error) { rejected = /verified quote/.test(error.message); }
+  ok(rejected, "a verified but unchosen candidate cannot be merged into the draft");
 }
 
 /* ── questions can be grouped when the balance allows a larger ceiling ── */
