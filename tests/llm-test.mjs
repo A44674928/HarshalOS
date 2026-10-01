@@ -993,7 +993,8 @@ const linkPriced = () => {
     askedAt = String(url);
     return { ok: true, status: 200, text: async () => JSON.stringify({
       configured: true, provider: "zai", tier: "free", upstream: "https://api.z.ai",
-      models: ["glm-4.5-flash", "glm-4.7-flash"], keyVariable: "Z.AI", limits: { requestsPerMinute: 12 }
+      models: ["glm-4.5-flash", "glm-4.7-flash"], keyVariable: "Z.AI",
+      limits: { requestsPerMinute: 60, sharedRequestsPerMinute: 120, windowSeconds: 60 }
     }) };
   };
   const info = await LLM.relayStatus();
@@ -1002,6 +1003,8 @@ const linkPriced = () => {
   eq(info.configured, true, "and says it is configured");
   eq(info.keyVariable, "Z.AI", "it names the Worker variable holding the key");
   eq(info.models.join(","), "glm-4.5-flash,glm-4.7-flash", "it lists the free models it serves");
+  eq(info.limits.requestsPerMinute, 60, "it states the pace it holds each caller to");
+  eq(info.limits.sharedRequestsPerMinute, 120, "and the ceiling every caller on this deployment shares");
   eq(JSON.stringify(info).includes("sk-ant-leftover"), false, "a status answer carries no key");
 
   globalThis.fetch = async () => ({ ok: false, status: 200, text: async () => JSON.stringify({ configured: false, message: "This deployment has no Z.AI key.", acceptedKeyVariables: ["Z.AI", "ZAI_API_KEY"] }) });
@@ -1041,12 +1044,56 @@ const linkPriced = () => {
   ok(!/^\{/.test(described.detail), "the reader is not shown raw JSON");
   ok(/Worker secret/i.test(refused.hint), "the hint names the Worker secret the operator must add");
 
-  globalThis.fetch = async () => ({ ok: false, status: 429, headers: { get: name => String(name).toLowerCase() === "retry-after" ? "30" : "application/json" }, text: async () => JSON.stringify({ error: { message: "This relay is rate-limited to 12 model calls per caller per minute. Retry in about 30 seconds.", type: "rate_limit_error", code: 429 } }) });
+  /* A long stated delay is shown to the reader rather than spent behind a busy
+     progress bar; only a short pace is waited out automatically (below). */
+  let longWaitCalls = 0;
+  globalThis.fetch = async () => {
+    longWaitCalls += 1;
+    return { ok: false, status: 429, headers: { get: name => String(name).toLowerCase() === "retry-after" ? "30" : "application/json" }, text: async () => JSON.stringify({ error: { message: "This relay allows 60 model calls a minute per caller, and this caller has used them. Retry in about 30 seconds.", type: "rate_limit_error", code: 429 } }) };
+  };
   let limited = null;
   try { await LLM.chat({ user: "U" }); } catch (error) { limited = error; }
   eq(LLM.describe(limited).title, "RATE LIMITED", "a relay rate limit is labelled as one");
-  ok(/12 model calls/.test(limited.message), "the relay's stated limit reaches the reader");
+  ok(/60 model calls/.test(limited.message), "the relay's stated limit reaches the reader");
   ok(/not evidence/i.test(limited.hint), "a rate-limited call is not mistaken for evidence");
+  eq(longWaitCalls, 1, "a 30-second wait is reported, not silently served");
+
+  /* A short pace is waited out instead of punching a hole in the reading: with
+     one question per call, a refused question is a question left UNKNOWN. */
+  const withFastRetryTimers = async operation => {
+    const originalSetTimeout = globalThis.setTimeout;
+    const waits = [];
+    globalThis.setTimeout = (callback, delay, ...args) => {
+      if (Number.isFinite(delay) && delay > 0 && delay < 120000) { waits.push(delay); return originalSetTimeout(callback, 0, ...args); }
+      return originalSetTimeout(callback, delay, ...args);
+    };
+    try { return { result: await operation(), waits }; } finally { globalThis.setTimeout = originalSetTimeout; }
+  };
+  let pacedCalls = 0;
+  const pacedEvents = [];
+  globalThis.fetch = async () => {
+    pacedCalls += 1;
+    if (pacedCalls === 1) {
+      return { ok: false, status: 429, headers: { get: name => String(name).toLowerCase() === "retry-after" ? "2" : "application/json" }, text: async () => JSON.stringify({ error: { message: "This relay allows 60 model calls a minute per caller, and this caller has used them. Retry in about 2 seconds.", type: "rate_limit_error", code: 429 } }) };
+    }
+    return {
+      ok: true, status: 200, headers: { get: () => "application/json" },
+      json: async () => ({
+        object: "chat.completion", model: "glm-4.5-flash",
+        choices: [{ index: 0, message: { role: "assistant", content: "answered once the pace lifted" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 40, completion_tokens: 6, total_tokens: 46 },
+        relay: { provider: "zai", tier: "free", keyVariable: "ZAI_API_KEY", pacing: { limit: 60, remaining: 58, reset: 4 } }
+      }),
+      text: async () => ""
+    };
+  };
+  const paced = await withFastRetryTimers(() => LLM.chat({ user: "U", onRetry: event => pacedEvents.push(event) }));
+  eq(pacedCalls, 2, "a two-second relay pace is retried once instead of failing the question");
+  eq(paced.result.text, "answered once the pace lifted", "and the reading gets its answer");
+  eq(pacedEvents.length, 1, "the wait is reported to the reader once");
+  eq(pacedEvents[0].source, "Retry-After", "and named as the relay's own stated delay, not an invented backoff");
+  eq(pacedEvents[0].delayMs, 2000, "the delay waited is the one the relay quoted");
+  eq(paced.waits.join(","), "2000", "no longer wait is served behind a busy progress bar");
 
   globalThis.fetch = async () => ({ ok: false, status: 403, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ error: { message: "The relay accepts same-origin browser requests only.", type: "invalid_request_error" } }) });
   let forbidden = null;

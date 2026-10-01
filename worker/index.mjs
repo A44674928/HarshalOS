@@ -123,7 +123,8 @@ export default {
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a
-    // same-origin POST, and rate-limits each caller. See worker/llm-relay.mjs.
+    // same-origin POST, and paces each caller and the deployment as a whole
+    // over sliding windows. See worker/llm-relay.mjs.
     if (path === '/api/llm' || path.startsWith('/api/llm/')) return handleLlmRelay(request, env);
     if (path.startsWith('/api/')) return handleApi(request, env);
     return env.ASSETS.fetch(request);

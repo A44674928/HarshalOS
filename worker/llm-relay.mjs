@@ -16,6 +16,13 @@
  *   · not a key forwarder — a client-supplied Authorization header is ignored,
  *     never forwarded, and never echoed. Upstream failure bodies are not
  *     returned either, so they cannot carry account or credential detail.
+ *   · not an unlimited faucet — calls are paced over sliding windows, sized to
+ *     what this site does rather than to a round number: js/g0-llm.js asks one
+ *     question per call, so a Ground-0 source batch is nine calls and a full
+ *     reading is dozens. A limit below that would refuse honest work, so one
+ *     caller may go as fast as Z.AI's own free pace (about a call a second) and
+ *     no faster, while a second, shared ceiling keeps a crowd from spending the
+ *     operator's daily free quota in seconds.
  *
  * Prompts do pass through this Worker. That is the trade the operator accepts
  * by holding the key here; it is stated in the operator guide and in the
@@ -67,8 +74,21 @@ const LIMITS = Object.freeze({
   upstreamTimeoutMs: 60_000,
   upstreamDetailBytes: 4_096,
   rateWindowMs: 60_000,
-  rateChatMax: 12,            // Z.AI's free Flash tier is capped near 1 request/second
-  rateListMax: 6,
+  /* One caller may go as fast as Z.AI's own free pace — about one request a
+     second — and no faster. The relay declines to be stricter with a reader
+     than the provider is with the account, because js/g0-llm.js keeps
+     LIMITS.codesPerCall at 1: one Ground-0 source batch is nine model calls,
+     and a full reading adds a link-selection call per batch plus one call per
+     contested question. Anything tighter would refuse honest work. */
+  rateChatMax: 60,
+  rateListMax: 12,
+  /* The ceiling that actually protects the operator: every caller together,
+     per isolate. Z.AI's free tier is roughly one request a second and about a
+     thousand a day, and this relay is open to any same-origin caller, so
+     without a shared cap a crowd spends the day's quota in seconds. Two
+     callers can go flat out; beyond that the pace is shared, and Z.AI's own
+     429 remains the authority on what the free tier will take. */
+  rateSharedChatMax: 120,
   rateMaxTrackedCallers: 5_000
 });
 
@@ -111,11 +131,21 @@ function notConfiguredReason(env) {
   return `This deployment has no Z.AI key. Add one as a Worker secret named ${KEY_VARIABLE_NAMES[0]} or ${KEY_VARIABLE_NAMES[1]}.`;
 }
 
-/* ── best-effort per-caller rate limit ──────────────────────────
+/* ── best-effort rate limiting ──────────────────────────────────
    One isolate's memory, so this is abuse friction and not a distributed
    limiter: a caller can reset it by hitting another isolate, and it does not
    survive a restart. Real quota enforcement is Z.AI's own. Documented as such
-   rather than presented as protection. */
+   rather than presented as protection.
+
+   Two sliding windows answer two different questions:
+     · `chat:<caller>` stops one reader monopolising the key.
+     · `chat:*` is every caller together, protecting the operator's shared
+       free-tier quota from a crowd.
+   Both slide, so the wait a 429 quotes is the seconds until the oldest call
+   in the window ages out — normally one or two, not the rest of the minute.
+   A refused call consumes nothing: the slots are only taken once both windows
+   say yes. */
+const SHARED_CALLER = '*';
 const windows = new Map();
 export function clearRelayRateLimits() { windows.clear(); }
 
@@ -125,26 +155,54 @@ function callerKey(request) {
   return /^[0-9a-fA-F.:]{3,45}$/.test(candidate) ? candidate : 'unknown';
 }
 
-/* Returns the seconds to wait, or 0 when the call may proceed. */
-function takeSlot(bucket, caller, now, max) {
-  const id = `${bucket}:${caller}`;
-  const entry = windows.get(id);
-  if (!entry || entry.resetAt <= now) {
-    if (windows.size >= LIMITS.rateMaxTrackedCallers) {
-      for (const [key, value] of windows) if (value.resetAt <= now) windows.delete(key);
-      while (windows.size >= LIMITS.rateMaxTrackedCallers) {
-        const oldest = windows.keys().next();
-        if (oldest.done) break;
-        windows.delete(oldest.value);
-      }
-    }
-    windows.set(id, { count: 1, resetAt: now + LIMITS.rateWindowMs });
-    return 0;
-  }
-  entry.count += 1;
-  if (entry.count <= max) return 0;
-  return Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+/* The hits still inside the window, oldest first. */
+function fresh(hits, now) {
+  const cutoff = now - LIMITS.rateWindowMs;
+  let index = 0;
+  while (index < hits.length && hits[index] <= cutoff) index += 1;
+  return index ? hits.slice(index) : hits;
 }
+
+/* Read one window without consuming a slot from it. */
+function slot(id, now, max) {
+  const hits = fresh(windows.get(id) || [], now);
+  const full = hits.length >= max;
+  const wait = full && hits.length ? Math.max(1, Math.ceil((hits[0] + LIMITS.rateWindowMs - now) / 1000)) : 0;
+  return { id, hits, max, full, wait, remaining: Math.max(0, max - hits.length) };
+}
+
+function remember(state, now) {
+  state.hits.push(now);
+  windows.set(state.id, state.hits);
+}
+
+/* Seconds until the oldest call in this window ages out. */
+const resetIn = (state, now) => state.hits.length
+  ? Math.max(1, Math.ceil((state.hits[0] + LIMITS.rateWindowMs - now) / 1000))
+  : 0;
+
+/* Keep the map bounded: drop windows that have aged out, then the oldest. */
+function prune(now) {
+  if (windows.size < LIMITS.rateMaxTrackedCallers) return;
+  for (const [key, hits] of windows) {
+    if (!hits.length || hits[hits.length - 1] + LIMITS.rateWindowMs <= now) windows.delete(key);
+  }
+  while (windows.size >= LIMITS.rateMaxTrackedCallers) {
+    const oldest = windows.keys().next();
+    if (oldest.done) break;
+    windows.delete(oldest.value);
+  }
+}
+
+/* The draft-RFC RateLimit fields, so a caller can see the budget it has left
+   before it runs out instead of learning it from a 429. */
+const rateHeaders = ({ limit, remaining, reset }, extra = {}) => ({
+  'RateLimit-Limit': String(limit),
+  'RateLimit-Remaining': String(remaining),
+  'RateLimit-Reset': String(reset),
+  ...extra
+});
+const seconds = n => `${n} second${n === 1 ? '' : 's'}`;
 
 /* ── request body ─────────────────────────────────────────────── */
 async function readJsonBody(request) {
@@ -367,7 +425,14 @@ function statusPayload(env) {
       maxOutputTokens: LIMITS.maxOutputTokens,
       defaultOutputTokens: LIMITS.defaultOutputTokens,
       upstreamTimeoutSeconds: Math.round(LIMITS.upstreamTimeoutMs / 1000),
-      requestsPerMinute: LIMITS.rateChatMax
+      requestsPerMinute: LIMITS.rateChatMax,
+      sharedRequestsPerMinute: LIMITS.rateSharedChatMax,
+      modelListRequestsPerMinute: LIMITS.rateListMax,
+      windowSeconds: Math.round(LIMITS.rateWindowMs / 1000),
+      /* Sized to what this site actually does: js/g0-llm.js asks one question
+         per call, so a Ground-0 source batch is nine calls. The limit is
+         stated with its scope, because it is one isolate's memory. */
+      rateScope: `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
     },
     capabilities: { streaming: false, tools: false, responseFormat: false, images: false, thinking: 'optional, disabled by default' },
     sampling: 'Z.AI samples in [0,1]: a 0 temperature is sent as do_sample:false (greedy), a temperature above 1 is clamped to 1.',
@@ -425,10 +490,27 @@ async function relayChat(request, env, dependencies, caller, now) {
   if (!origin || origin !== url.origin) {
     throw new RelayError(403, 'The relay accepts same-origin browser requests only.', 'invalid_request_error');
   }
-  const wait = takeSlot('chat', caller, now, LIMITS.rateChatMax);
-  if (wait) {
-    throw new RelayError(429, `This relay is rate-limited to ${LIMITS.rateChatMax} model calls per caller per minute. Retry in about ${wait} seconds.`, 'rate_limit_error', { 'Retry-After': String(wait) });
+  /* Both windows are read before either is consumed, so a refused call costs
+     the caller nothing, and the shared ceiling is never charged for a request
+     this caller was not allowed to make anyway. */
+  const mine = slot(`chat:${caller}`, now, LIMITS.rateChatMax);
+  const shared = slot(`chat:${SHARED_CALLER}`, now, LIMITS.rateSharedChatMax);
+  if (mine.full) {
+    throw new RelayError(429, `This relay allows ${LIMITS.rateChatMax} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
   }
+  if (shared.full) {
+    throw new RelayError(429, `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
+  }
+  remember(mine, now);
+  remember(shared, now);
+  prune(now);
+  const pacing = {
+    limit: mine.max,
+    remaining: Math.max(0, mine.max - mine.hits.length),
+    reset: resetIn(mine, now),
+    sharedLimit: shared.max,
+    sharedRemaining: Math.max(0, shared.max - shared.hits.length)
+  };
   const validated = validateChatPayload(await readJsonBody(request));
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== 'function') throw new RelayError(503, 'The relay is unavailable in this Worker runtime.', 'relay_unavailable');
@@ -489,9 +571,12 @@ async function relayChat(request, env, dependencies, caller, now) {
         doSample: sampling.doSample,
         temperatureSent: sampling.temperature,
         clamped: sampling.clamped || validated.ceilingClamped,
-        maxTokensSent: validated.maxTokens
+        maxTokensSent: validated.maxTokens,
+        /* What this caller has left of its own budget, so a reading can see
+           the pace it is allowed before the relay has to refuse a call. */
+        pacing
       }
-    });
+    }, 200, rateHeaders(pacing));
   } catch (error) {
     if (error instanceof RelayError) throw error;
     if (error && error.name === 'AbortError') {
@@ -514,9 +599,12 @@ export async function handleLlmRelay(request, env = {}, dependencies = {}) {
     }
     if (pathname === RELAY_ROUTES.models) {
       if (request.method !== 'GET') throw new RelayError(405, 'The model list is read-only.', 'invalid_request_error', { Allow: 'GET' });
-      if (takeSlot('list', caller, now, LIMITS.rateListMax)) {
-        throw new RelayError(429, 'Too many model-list requests from this caller. Wait a minute and try again.', 'rate_limit_error', { 'Retry-After': '60' });
+      const list = slot(`list:${caller}`, now, LIMITS.rateListMax);
+      if (list.full) {
+        throw new RelayError(429, `Too many model-list requests from this caller: the limit is ${LIMITS.rateListMax} a minute. Retry in about ${seconds(list.wait)}.`, 'rate_limit_error', rateHeaders({ limit: list.max, remaining: 0, reset: list.wait }, { 'Retry-After': String(list.wait) }));
       }
+      remember(list, now);
+      prune(now);
       return await listModels(env, dependencies);
     }
     if (pathname === RELAY_ROUTES.chat) {

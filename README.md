@@ -363,7 +363,10 @@ call, so a public page cannot spend money through it. `tools`, `tool_choice`, `f
 messages must be `system`/`user`/`assistant` with string content, so there is no image, part-array or
 tool-result path. Requests are bounded (256 KiB, 32 messages, 8 192-token output ceiling, 60 s),
 `POST` must be same-origin, a caller-supplied `Authorization` header is ignored rather than
-forwarded, and each caller is limited to 12 model calls a minute. Replies are reduced to
+forwarded, and calls are paced over **sliding** windows: 60 a minute per caller — Z.AI's own free
+pace, because Ground-0 asks one question per call and a reading is dozens of them — and 120 a minute
+shared by every caller on the deployment, each response stating the budget left in `RateLimit-Remaining`
+and `relay.pacing`. Replies are reduced to
 `choices[0].message.content`: `reasoning_content` and `tool_calls` are stripped, so nothing
 executable reaches the browser and the DATA-ONLY boundary is unchanged.
 
@@ -380,7 +383,12 @@ is not what was rejected.
 **What this changes for the reader:** a deployment that configures the relay gives Ground-0 a working
 model with nothing to paste and nothing to store in the browser. **What it does not change:** the
 prompt now transits that Worker, so its operator can read prompts in flight and Z.AI receives them
-under Z.AI's own terms; the relay stores nothing. The rate limit is one isolate's memory — abuse
+under Z.AI's own terms; the relay stores nothing. The pace is sized to what this site does —
+Ground-0 asks one question per call, so a source batch is nine calls — and the window slides, so a
+refusal quotes the seconds until the oldest call ages out rather than the rest of a fixed minute.
+`js/llm.js` waits out a stated delay of 15 seconds or less once per call and says so in the progress
+line, because with one question per call a refused question is a question left `UNKNOWN`; a longer
+delay is shown instead of spent behind a busy bar. The counters are one isolate's memory — abuse
 friction, not quota enforcement — and Z.AI's own free-tier limits are the real ceiling. Free tiers
 change: if Z.AI moves these models behind a paid plan, calls fail with a message that says so.
 Setup, verification calls, the accepted secret names, and the full failure table are in
@@ -415,7 +423,8 @@ no upstream call when the relay is unconfigured, the accepted secret names, the 
 and the dropped fields, a caller-supplied `Authorization` header never being forwarded, reply
 normalization with reasoning and tool calls stripped, the sampling translation table, ceiling
 clamping, the free-model allowlist, text-only and same-origin refusals, sanitized upstream failures,
-per-caller rate limiting, the status and model-list routes, and Worker route ordering — the relay
+the sliding per-caller window, the shared ceiling across distinct callers, a refusal consuming no
+slot, the `RateLimit-*` headers, the status and model-list routes, and Worker route ordering — the relay
 answers `/api/llm` while `/api/storage/*` still fails closed without Cloudflare Access. The
 browser-side relay preset, its key isolation and `relayStatus()` are covered in `tests/llm-test.mjs`.
 

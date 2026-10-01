@@ -21,7 +21,7 @@ This is a **narrow relay, not a proxy**:
 | Message shape | `system` / `user` / `assistant` with **string** content only — no images, no part arrays, no tool results |
 | Limits | 256 KiB per request, 32 messages, 100 000 characters per message, 200 000 per call, output ceiling capped at 8 192 tokens (default 1 024), 60 s upstream timeout |
 | Callers | Same-origin `POST` only (the `Origin` header must equal the request origin); a caller-supplied `Authorization` header is ignored, never forwarded |
-| Rate limit | 12 model calls and 6 model-list reads per caller per minute |
+| Pacing | 60 model calls per caller per **sliding** minute (Z.AI's own free pace), 120 per minute shared by all callers, 12 model-list reads per caller per minute |
 | Response | `choices[0].message.content` only. `reasoning_content` and `tool_calls` are stripped, so nothing executable is handed to the browser |
 
 **What this is not.** It is not a general LLM gateway, not a way to use paid GLM models, not a
@@ -161,11 +161,37 @@ oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and
   this deployment can read every prompt in flight, and Z.AI receives it under Z.AI's own terms. The
   relay stores nothing: no prompt, no reply, no log, no per-caller history beyond the in-memory
   rate-limit counters.
-- **The rate limit is best-effort.** It is one isolate's memory, so a caller can reach a different
+- **One caller is never paced tighter than Z.AI paces the account.** `js/g0-llm.js` keeps
+  `LIMITS.codesPerCall` at 1, so a Ground-0 reading asks **nine questions per source batch** and adds
+  a link-selection call per batch plus one call per contested question — dozens of calls for one
+  audit. A tight per-caller cap would therefore refuse a reading that had done nothing wrong (an
+  earlier limit of 12 a minute did exactly that). So the per-caller budget is **60 a minute, which is
+  Z.AI's own documented free pace of about one request a second**: fast enough that model latency, not
+  this relay, is what paces an honest reading, and no faster than the provider would allow anyway. The
+  window **slides**, so the `Retry-After` a refusal quotes is the seconds until the oldest call ages
+  out, not the rest of a fixed minute — and an aged-out call frees exactly one slot rather than making
+  the caller wait for the whole minute to clear. Every chat response carries `RateLimit-Limit`,
+  `RateLimit-Remaining` and `RateLimit-Reset`, and the body repeats them as `relay.pacing`, so the
+  budget is visible before it runs out.
+- **The shared ceiling is what protects your quota.** Z.AI's free tier is roughly one request a second
+  and on the order of a thousand a day. Since this relay is open to any same-origin caller, all
+  callers together are held to **120 calls a minute per isolate** — two readers at full pace, and a
+  crowd is queued rather than let through. When that ceiling is what refused a call, the 429 says so in
+  those terms (other people are using it right now) and the caller's own budget is not charged for a
+  request it was never allowed to make. Neither number is a daily quota: Z.AI's own 429 is the
+  authority on the day's allowance, and the relay forwards it with its `Retry-After` intact.
+- **The browser waits out a short pace.** `js/llm.js` honors a stated `Retry-After` of 15 seconds or
+  less, once per call, and reports it in Ground-0's progress line (*"…asked us to wait 2 seconds
+  before retrying B4…"*), because with one question per call a refused question is a question left
+  `UNKNOWN`. A longer stated delay is shown to the reader rather than spent behind a busy progress
+  bar. A rate-limited question is never counted as evidence either way.
+- **The limit is best-effort.** It is one isolate's memory, so a caller can reach a different
   isolate, and the counters do not survive a restart or a deploy. It is abuse friction, not quota
-  enforcement — Z.AI's own free-tier limits (~1 request/second, and a daily cap that Z.AI has changed
-  more than once) are the real ceiling. Distributed limiting needs KV or a Durable Object and is not
-  implemented here.
+  enforcement — Z.AI's own free-tier limits are the real ceiling, and Z.AI has changed them more than
+  once. Distributed limiting needs KV or a Durable Object and is not implemented here. Under local
+  `wrangler dev` there is no `Request.cf`, so every caller collapses into a single bucket keyed on the
+  proxy's `X-Forwarded-For` address: a local reading reaches the per-caller ceiling far sooner than a
+  deployed one, where `CF-Connecting-IP` names the real client.
 - **The relay is not behind Cloudflare Access**, unlike `/api/storage/*`. It is protected by the
   same-origin check, the free-model allowlist, the size and output caps, and the per-caller rate
   limit, so a public page cannot spend money through it. If your whole hostname is already behind
@@ -182,7 +208,7 @@ oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and
 ## 6. Tests
 
 ```bash
-npm run test:relay   # tests/llm-relay-test.mjs — 24 relay contract tests, stubbed upstream
+npm run test:relay   # tests/llm-relay-test.mjs — 25 relay contract tests, stubbed upstream
 npm run test:llm     # includes the browser-side relay preset, key isolation and status handling
 ```
 
@@ -193,7 +219,9 @@ the operator kill switch; the exact forwarded body and the dropped fields; a cal
 the model allowlist (including case-insensitivity and a paid model never reaching Z.AI); non-text,
 role, empty-prompt and oversized-body refusals; method, route and same-origin rules; sanitized
 upstream failures for 401/403/404/400/402/429/5xx; `Retry-After` forwarding and rejection of a
-non-numeric one; transport and timeout failures; per-caller rate limiting and window reset; a bounded
+non-numeric one; transport and timeout failures; the sliding per-caller window (a freed slot returns
+without the whole minute clearing, and the quoted wait shrinks accordingly), the `RateLimit-*`
+headers, the shared ceiling across distinct callers, and a refusal consuming no slot; a bounded
 caller table; the status and model-list routes (including the labelled fallback when Z.AI will not
 answer); and Worker route ordering — `/api/llm` reaches the relay while `/api/storage/*` still fails
 closed without Cloudflare Access.

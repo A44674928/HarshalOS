@@ -380,53 +380,95 @@ test("relay reports an unreachable or slow upstream without blaming the caller's
 });
 
 /* ── abuse friction ───────────────────────────────────────────── */
-test("relay rate-limits each caller per minute and resets with the window", async () => {
+test("relay paces each caller over a sliding minute, sized to a Ground-0 batch plan", async () => {
   let clock = NOW;
   const { fetch, calls } = stubFetch();
   const dependencies = { fetch, now: () => clock };
-  for (let attempt = 1; attempt <= 12; attempt++) {
+  /* js/g0-llm.js asks one question per call, so a source batch is nine calls
+     and a full reading is dozens: the relay has to pace a reading, not refuse
+     it. One caller is allowed Z.AI's own free pace of about a call a second,
+     which is what the 60 a minute here means, spent two calls a second to
+     reach the wall inside the window. */
+  for (let attempt = 1; attempt <= 60; attempt++) {
     const response = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
-    assert.equal(response.status, 200, `call ${attempt} is inside the budget`);
+    assert.equal(response.status, 200, `call ${attempt} is inside this caller's budget`);
+    assert.equal(response.headers.get("ratelimit-limit"), "60", "each reply states the budget it was drawn from");
+    assert.equal(response.headers.get("ratelimit-remaining"), String(60 - attempt), "and how much of it is left");
+    clock += 500;
   }
-  assert.equal(calls.length, 12);
+  assert.equal(calls.length, 60);
   const blocked = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
   assert.equal(blocked.status, 429);
-  assert.ok(Number(blocked.headers.get("retry-after")) > 0, "the caller is told how long to wait");
-  assert.match((await blocked.json()).error.message, /12 model calls per caller per minute/i);
-  assert.equal(calls.length, 12, "a rate-limited call never reaches Z.AI");
+  assert.match((await blocked.json()).error.message, /60 model calls a minute per caller/i);
+  assert.equal(Number(blocked.headers.get("retry-after")), 30, "the wait is the seconds until the oldest call ages out");
+  assert.equal(blocked.headers.get("ratelimit-remaining"), "0");
+  assert.equal(calls.length, 60, "a refused call never reaches Z.AI");
 
-  /* A different caller has its own budget; the same caller's window resets. */
-  const other = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { headers: { "CF-Connecting-IP": "198.51.100.9" } }), ENV, dependencies);
-  assert.equal(other.status, 200);
-  clock = NOW + 61_000;
-  const after = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
-  assert.equal(after.status, 200, "the window is a minute wide");
+  /* The window slides, so an aged-out call frees exactly one slot: the caller
+     is not made to wait for a whole fixed minute to clear. Two calls (at NOW
+     and NOW+500) have aged out by NOW+60_500, so exactly two slots are back. */
+  clock = NOW + 60_500;
+  const freed = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
+  assert.equal(freed.status, 200, "the two calls that aged out free two slots");
+  const freedAgain = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
+  assert.equal(freedAgain.status, 200);
+  const stillBlocked = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, dependencies);
+  assert.equal(stillBlocked.status, 429, "the calls still inside the window are still counted");
+  assert.equal(Number(stillBlocked.headers.get("retry-after")), 1, "and the wait quoted is one second, not the rest of a fixed minute");
 
+  /* A different caller has its own budget. */
   clearRelayRateLimits();
   clock = NOW;
+  const other = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { headers: { "CF-Connecting-IP": "198.51.100.9" } }), ENV, dependencies);
+  assert.equal(other.status, 200);
+
+  clearRelayRateLimits();
   const listFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     const listed = await run(get(RELAY_ROUTES.models), ENV, { fetch: listFetch.fetch, now: () => clock });
     assert.equal(listed.status, 200, `model list ${attempt + 1} is inside its budget`);
   }
   const listBlocked = await run(get(RELAY_ROUTES.models), ENV, { fetch: listFetch.fetch, now: () => clock });
   assert.equal(listBlocked.status, 429, "the model list has its own smaller budget");
+  assert.match((await listBlocked.json()).error.message, /12 a minute/i);
+});
+
+test("relay holds one shared ceiling, so a crowd cannot spend the day's free quota in seconds", async () => {
+  const { fetch, calls } = stubFetch();
+  const dependencies = { fetch, now: () => NOW };
+  const from = index => chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { headers: { "CF-Connecting-IP": `198.51.100.${index}` } });
+  for (let index = 1; index <= 120; index++) {
+    const response = await run(from(index), ENV, dependencies);
+    assert.equal(response.status, 200, `caller ${index} is inside the shared ceiling`);
+  }
+  assert.equal(calls.length, 120);
+  const freshCaller = await run(from(200), ENV, dependencies);
+  assert.equal(freshCaller.status, 429, "a caller who has spent nothing is still refused once the shared key is at its pace");
+  const body = await freshCaller.json();
+  assert.match(body.error.message, /shared/i, "and the message names the shared ceiling rather than blaming this caller");
+  assert.match(body.error.message, /budget is untouched/i, "it says this caller's own budget was not charged");
+  assert.equal(freshCaller.headers.get("ratelimit-remaining"), "60", "the headers agree: its own budget still reads full");
+  assert.equal(calls.length, 120, "a shared refusal reaches Z.AI no more than a caller refusal does");
+
+  const afterWindow = await run(from(201), ENV, { fetch, now: () => NOW + 61_000 });
+  assert.equal(afterWindow.status, 200, "the shared window slides too, so the ceiling clears as its oldest calls age out");
 });
 
 test("relay keeps its caller table bounded", async () => {
   const clock = NOW;
-  const { fetch } = stubFetch();
+  const listFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
+  const dependencies = { fetch: listFetch.fetch, now: () => clock };
+  /* The model-list route is used here because it is limited per caller only,
+     so 5010 distinct callers really do create 5010 windows. */
+  const listFrom = ip => chatRequest(null, { method: "GET", path: RELAY_ROUTES.models, headers: { "CF-Connecting-IP": ip } });
   for (let index = 0; index < 5_010; index++) {
-    await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, {
-      headers: { "CF-Connecting-IP": `203.0.${Math.floor(index / 250)}.${index % 250}` }
-    }), ENV, { fetch, now: () => clock });
+    await run(listFrom(`203.0.${Math.floor(index / 250)}.${index % 250}`), ENV, dependencies);
   }
-  const stillWorking = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { headers: { "CF-Connecting-IP": "203.0.113.7" } }), ENV, { fetch, now: () => clock });
+  const stillWorking = await run(listFrom("203.0.113.7"), ENV, dependencies);
   assert.ok([200, 429].includes(stillWorking.status), "a bounded table still answers");
-  const afterWindow = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { headers: { "CF-Connecting-IP": "203.0.113.7" } }), ENV, { fetch, now: () => clock + 120_000 });
+  const afterWindow = await run(listFrom("203.0.113.7"), ENV, { fetch: listFetch.fetch, now: () => clock + 120_000 });
   assert.equal(afterWindow.status, 200, "expired entries are dropped rather than held forever");
 });
-
 /* ── status and model list ────────────────────────────────────── */
 test("status route discloses configuration and limits but never the key value", async () => {
   const configured = await run(get(RELAY_ROUTES.status), ENV, stubFetch());
@@ -442,7 +484,11 @@ test("status route discloses configuration and limits but never the key value", 
   assert.deepEqual(payload.acceptedKeyVariables, [...KEY_VARIABLE_NAMES]);
   assert.equal(payload.capabilities.streaming, false);
   assert.equal(payload.capabilities.tools, false);
-  assert.equal(payload.limits.requestsPerMinute, 12);
+  assert.equal(payload.limits.requestsPerMinute, 60, "the per-caller budget is stated");
+  assert.equal(payload.limits.sharedRequestsPerMinute, 120, "as is the ceiling every caller shares");
+  assert.equal(payload.limits.modelListRequestsPerMinute, 12);
+  assert.equal(payload.limits.windowSeconds, 60);
+  assert.match(payload.limits.rateScope, /sliding 60-second window/i, "the scope of the limit is disclosed rather than implied");
   assert.match(payload.sampling, /do_sample:false/);
   assert.equal(JSON.stringify(payload).includes(KEY), false);
 

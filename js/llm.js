@@ -127,7 +127,7 @@ window.HOSLLM = (() => {
       browser: "direct",
       keyOptional: true,
       relay: true,
-      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts do pass through that Worker on their way to api.z.ai, which is the trade for holding the key server-side. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted, calls are plain text with no tools, images or streaming, and each caller is rate-limited. A deployment without the secret answers 503 and says so; the Check relay button asks it. Z.AI samples in [0,1], so a 0 temperature is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1 — the relay reports what it actually sent."
+      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts do pass through that Worker on their way to api.z.ai, which is the trade for holding the key server-side. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted, calls are plain text with no tools, images or streaming, and each caller is paced over a sliding minute at Z.AI's own free pace of about a call a second — never tighter, because a Ground-0 source batch is nine questions asked one call at a time — under a second ceiling this deployment shares with everyone else using it. A short wait is absorbed automatically and shown in the progress line. A deployment without the secret answers 503 and says so; the Check relay button asks it. Z.AI samples in [0,1], so a 0 temperature is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1 — the relay reports what it actually sent."
     },
     custom: {
       label: "Custom endpoint",
@@ -316,8 +316,8 @@ window.HOSLLM = (() => {
         : `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
       : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
       : httpStatus === 429 ? (relay
-        ? "The relay or Z.AI's free tier is rate-limiting. Wait out the stated delay and run the reading again; a rate-limited call is not evidence and its question stays UNKNOWN."
-        : "The provider is rate-limiting. Wait and retry, or lower the reading batch size.")
+        ? "The relay paces each caller over a sliding minute, and the one Z.AI free-tier key it holds is shared by everyone using this deployment. A short wait is absorbed automatically, so reaching this message means the call was refused again after waiting: the pace is real. Wait it out and run the reading again — a rate-limited call is not evidence, and its question stays UNKNOWN rather than wrong."
+        : "The provider is rate-limiting. A stated delay of 15 seconds or less is waited out automatically, so this one was longer or it repeated: wait and retry, or lower the reading batch size.")
       : httpStatus === 503 && relay ? "The relay is not configured on this deployment. /api/llm/status names the Worker secret its operator has to add."
       : httpStatus >= 500 ? "The provider is having trouble. Retry shortly."
       : "";
@@ -668,6 +668,12 @@ window.HOSLLM = (() => {
   const REQUESTED = /requested up to\s*(\d[\d,]*)/i;
   const IN_FLIGHT_RETRY_DELAYS = [750, 1500, 3000];
   const MAX_AUTO_RETRY_AFTER_MS = 120000; // Longer provider waits are shown, not kept behind a busy progress bar.
+  /* A 429 gets a much shorter leash than an in-flight-budget 402. Rate limits
+     are usually a pace, and this site's own relay quotes the seconds until its
+     sliding window frees a slot — a wait worth absorbing so a Ground-0
+     question is answered instead of left UNKNOWN. Anything longer than this is
+     shown to the reader rather than spent behind a busy progress bar. */
+  const MAX_AUTO_RATE_LIMIT_WAIT_MS = 15000;
   const numberWith = (text, pattern) => { const match = String(text || "").match(pattern); return match ? Number(String(match[1]).replace(/,/g, "")) : 0; };
   /* OpenRouter can refuse a reservation while other requests still hold part
      of the balance. That is temporary pressure, not a smaller token ceiling. */
@@ -917,10 +923,18 @@ window.HOSLLM = (() => {
             throw corsError(config);
           }
           const detail = response.ok ? "" : await readDetail(response);
-          if (!isInFlightBudget(detail, response.status)) return { response, detail, retryAfterMs: 0 };
+          /* Two refusals are worth waiting out rather than failing the reading:
+             OpenRouter's in-flight-budget 402, and any 429. A rate-limited call
+             never ran, so retrying it is not a duplicate call or a second
+             charge — and with one question per call, a Ground-0 reading that
+             gave up on every paced question would come back full of holes. */
+          const budgeted = isInFlightBudget(detail, response.status);
+          const throttled = response.status === 429;
+          if (!budgeted && !throttled) return { response, detail, retryAfterMs: 0 };
           const providerDelay = retryAfterMs(response, detail);
           if (providerDelay !== null) {
-            if (serverDelayUsed || providerDelay > MAX_AUTO_RETRY_AFTER_MS) return { response, detail, retryAfterMs: providerDelay };
+            const ceiling = throttled ? MAX_AUTO_RATE_LIMIT_WAIT_MS : MAX_AUTO_RETRY_AFTER_MS;
+            if (serverDelayUsed || providerDelay > ceiling) return { response, detail, retryAfterMs: providerDelay };
             serverDelayUsed = true;
             try { if (typeof onRetry === "function") onRetry({ delayMs: providerDelay, attempt: activity.inFlightRetries + 1, source: "Retry-After" }); } catch { /* Progress reporting must not break the request. */ }
             await waitForRetry(providerDelay, true);

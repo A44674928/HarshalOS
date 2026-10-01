@@ -30,7 +30,14 @@ APPS.push({
       if (!relayInfo) return "";
       if (relayInfo.reachable && relayInfo.configured) {
         const models = Array.isArray(relayInfo.models) ? relayInfo.models.join(", ") : "";
-        return `<div class="rule-box">RELAY CONFIGURED · ${esc(relayInfo.provider || "zai")} ${esc(relayInfo.tier || "free")} tier${models ? ` · allowlist: <span class="mono">${esc(models)}</span>` : ""}${relayInfo.keyVariable ? ` · key held in the Worker secret <span class="mono">${esc(relayInfo.keyVariable)}</span>` : ""}${relayInfo.limits && relayInfo.limits.requestsPerMinute ? ` · ${esc(relayInfo.limits.requestsPerMinute)} calls/minute per caller` : ""}<br><span class="dim">No key leaves this browser. The prompt does pass through this deployment's Worker on its way to <span class="mono">${esc(relayInfo.upstream || "the provider")}</span>, which holds the key and rate-limits each caller.</span></div>`;
+        const limits = relayInfo.limits || {};
+        /* The pace is disclosed with both of its numbers, because they answer
+           different questions: what this reader may spend, and what everyone
+           on this deployment may spend together out of one free-tier key. */
+        const pace = limits.requestsPerMinute
+          ? `${limits.requestsPerMinute} calls/minute per caller${limits.sharedRequestsPerMinute ? `, ${limits.sharedRequestsPerMinute}/minute shared across everyone here` : ""}${limits.windowSeconds ? ` over a sliding ${limits.windowSeconds}s window` : ""}`
+          : "";
+        return `<div class="rule-box">RELAY CONFIGURED · ${esc(relayInfo.provider || "zai")} ${esc(relayInfo.tier || "free")} tier${models ? ` · allowlist: <span class="mono">${esc(models)}</span>` : ""}${relayInfo.keyVariable ? ` · key held in the Worker secret <span class="mono">${esc(relayInfo.keyVariable)}</span>` : ""}${pace ? ` · ${esc(pace)}` : ""}<br><span class="dim">No key leaves this browser. The prompt does pass through this deployment's Worker on its way to <span class="mono">${esc(relayInfo.upstream || "the provider")}</span>, which holds the key and paces each caller; a short wait is absorbed automatically and named in the progress line.</span></div>`;
       }
       if (relayInfo.reachable) {
         const names = Array.isArray(relayInfo.acceptedKeyVariables) ? relayInfo.acceptedKeyVariables : [];
@@ -124,7 +131,8 @@ APPS.push({
             Z.AI key it holds as a secret and forwards the call to <span class="mono">api.z.ai</span>. <strong>No browser key is sent at all</strong> — the key
             input above is disabled. The trade: the Worker operator can read the prompt in transit, and Z.AI receives it under
             Z.AI's own terms. The relay accepts only Z.AI's $0 free-tier models, refuses tools, images and streaming, caps the
-            request size and output ceiling, and rate-limits each caller, so a public page cannot spend money through it.</li>`
+            request size and output ceiling, and paces each caller over a sliding minute under a ceiling this whole
+            deployment shares, so a public page can neither spend money through it nor burn a day of free quota in seconds.</li>`
             : `<li class="li">The key, to the endpoint above and nowhere else.</li>`}
           <li class="li">Request metadata the provider requires (model, token ceiling, temperature). The Ground-0 audit is
           staged one question per call, so each call reserves a small output ceiling instead of one large one — a provider
@@ -250,7 +258,7 @@ APPS.push({
           info.configured ? "permit" : "warn",
           info.configured ? "RELAY CONFIGURED" : info.reachable ? "RELAY NOT CONFIGURED" : "NO RELAY HERE",
           info.configured
-            ? `${info.provider || "zai"} ${info.tier || "free"} tier${info.keyVariable ? ` · key in ${info.keyVariable}` : ""}${Array.isArray(info.models) && info.models.length ? ` · ${info.models.join(", ")}` : ""}`
+            ? `${info.provider || "zai"} ${info.tier || "free"} tier${info.keyVariable ? ` · key in ${info.keyVariable}` : ""}${Array.isArray(info.models) && info.models.length ? ` · ${info.models.join(", ")}` : ""}${info.limits && info.limits.requestsPerMinute ? ` · ${info.limits.requestsPerMinute}/minute per caller${info.limits.sharedRequestsPerMinute ? `, ${info.limits.sharedRequestsPerMinute}/minute shared` : ""}` : ""}`
             : info.message || info.reason || "Ask this deployment's operator to configure the Worker relay."
         );
       });

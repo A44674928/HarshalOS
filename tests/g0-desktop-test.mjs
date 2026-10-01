@@ -469,7 +469,7 @@ if (llmApp) {
     configured: true, provider: "zai", tier: "free", upstream: "https://api.z.ai",
     defaultModel: "glm-4.5-flash", models: ["glm-4.5-flash", "glm-4.7-flash"],
     keyVariable: "ZAI_API_KEY", acceptedKeyVariables: ["Z.AI", "ZAI_API_KEY"],
-    limits: { requestsPerMinute: 12 }
+    limits: { requestsPerMinute: 60, sharedRequestsPerMinute: 120, windowSeconds: 60 }
   };
   let relayStatusHttp = 200;
   let relayStatusJson = true;
@@ -532,7 +532,10 @@ if (llmApp) {
   ok(llmText.includes("RELAY CONFIGURED"), "a configured relay says so");
   ok(llmText.includes("glm-4.5-flash") && llmText.includes("glm-4.7-flash"), "the relay's free-model allowlist is shown");
   ok(llmText.includes("ZAI_API_KEY"), "the Worker variable holding the key is named");
-  ok(llmText.includes("12 calls/minute per caller"), "the relay's rate limit is disclosed");
+  ok(llmText.includes("60 calls/minute per caller"), "the relay's per-caller pace is disclosed");
+  ok(llmText.includes("120/minute shared across everyone here"), "so is the ceiling this deployment shares with every other caller");
+  ok(llmText.includes("sliding 60s window"), "and the window is described as sliding, because that is what the wait quoted means");
+  ok(llmText.includes("a short wait is absorbed automatically"), "the UI says a paced call is waited out rather than failed");
   ok(llmText.includes("this deployment's own Worker first"), "the disclosure says prompts transit the Worker");
   ok(llmText.includes("No browser key is sent at all"), "the disclosure says no key leaves the browser");
   ok(llmText.includes("do_sample:false"), "Z.AI's sampling translation is disclosed in the app");
