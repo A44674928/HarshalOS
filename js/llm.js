@@ -127,7 +127,7 @@ window.HOSLLM = (() => {
       browser: "direct",
       keyOptional: true,
       relay: true,
-      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts do pass through that Worker on their way to api.z.ai, which is the trade for holding the key server-side. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted, calls are plain text with no tools, images or streaming, and each caller is paced over a sliding minute at Z.AI's own free pace of about a call a second — never tighter, because a Ground-0 source batch is nine questions asked one call at a time — under a second ceiling this deployment shares with everyone else using it. A short wait is absorbed automatically and shown in the progress line. A deployment without the secret answers 503 and says so; the Check relay button asks it. Z.AI samples in [0,1], so a 0 temperature is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1 — the relay reports what it actually sent."
+      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts pass through that Worker on their way to api.z.ai. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted; calls are plain text with no tools, images or streaming. Production applies local caller and shared-key pace guards; a branch preview may have those guards disabled for an operator-requested test, but Z.AI's own free-tier limits still apply. A deployment without the secret answers 503; Check relay reports its status. Z.AI samples in [0,1], so 0 is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1."
     },
     custom: {
       label: "Custom endpoint",
@@ -316,7 +316,9 @@ window.HOSLLM = (() => {
         : `Check the key for ${provider.label}. It must be valid for this exact endpoint.`
       : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
       : httpStatus === 429 ? (relay
-        ? "The relay paces each caller over a sliding minute, and the one Z.AI free-tier key it holds is shared by everyone using this deployment. A short wait is absorbed automatically, so reaching this message means the call was refused again after waiting: the pace is real. Wait it out and run the reading again — a rate-limited call is not evidence, and its question stays UNKNOWN rather than wrong."
+        ? (/This relay allows|shared Z\.A\.I free-tier key|Too many model-list requests/i.test(readableDetail(detail))
+          ? "This deployment's Worker-local pace guard refused the call before it reached Z.AI. Wait for the stated retry time; the refusal is not evidence, and this question remains UNKNOWN, not wrong."
+          : "Z.AI itself rate-limited the Worker-held key. The preview may have local pace guards disabled, but Z.AI's own free-tier limits still apply. Wait for the provider's retry time, then retry; a refused call is not evidence, and its question stays UNKNOWN rather than wrong.")
         : "The provider is rate-limiting. A stated delay of 15 seconds or less is waited out automatically, so this one was longer or it repeated: wait and retry, or lower the reading batch size.")
       : httpStatus === 503 && relay ? "The relay is not configured on this deployment. /api/llm/status names the Worker secret its operator has to add."
       : httpStatus >= 500 ? "The provider is having trouble. Retry shortly."

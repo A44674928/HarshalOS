@@ -161,6 +161,14 @@ oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and
   this deployment can read every prompt in flight, and Z.AI receives it under Z.AI's own terms. The
   relay stores nothing: no prompt, no reply, no log, no per-caller history beyond the in-memory
   rate-limit counters.
+- **Temporary branch-preview experiment.** The checked-in `wrangler.jsonc` sets
+  `LLM_RELAY_DISABLE_RATE_LIMITS=true` only in the `previews.vars` block to test the operator's
+  request. On branch previews this bypasses this Worker's per-caller chat, shared chat, and model-list
+  windows; it does **not** bypass Z.AI's own rate limits, daily quota, model allowlist, request-size
+  caps, or output-token ceiling. The branch preview URL is public and anyone who can reach it can
+  consume the preview's shared Z.AI secret/quota. Keep this experiment out of production, monitor for
+  Z.AI 429s, and remove the preview flag when the comparison is complete. Production remains limited
+  because its base `vars` do not set this flag.
 - **One caller is never paced tighter than Z.AI paces the account.** `js/g0-llm.js` keeps
   `LIMITS.codesPerCall` at 1, so a Ground-0 reading asks **nine questions per source batch** and adds
   a link-selection call per batch plus one call per contested question — dozens of calls for one

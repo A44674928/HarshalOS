@@ -454,6 +454,34 @@ test("relay holds one shared ceiling, so a crowd cannot spend the day's free quo
   assert.equal(afterWindow.status, 200, "the shared window slides too, so the ceiling clears as its oldest calls age out");
 });
 
+test("preview diagnostic mode bypasses only Worker-local rate limits", async () => {
+  clearRelayRateLimits();
+  const previewEnv = { ...ENV, LLM_RELAY_DISABLE_RATE_LIMITS: "true" };
+  const { fetch, calls } = stubFetch();
+  const dependencies = { fetch, now: () => NOW };
+  for (let attempt = 1; attempt <= 130; attempt++) {
+    const response = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), previewEnv, dependencies);
+    assert.equal(response.status, 200, `preview call ${attempt} is not blocked by either local window`);
+    assert.equal(response.headers.get("ratelimit-limit"), null);
+    const payload = await response.json();
+    assert.equal(payload.relay.pacing.enabled, false);
+    assert.equal(payload.relay.pacing.limit, null);
+  }
+  assert.equal(calls.length, 130, "the diagnostic preview reaches Z.AI past both former local caps");
+
+  const modelFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
+  for (let attempt = 0; attempt < 13; attempt++) {
+    const response = await run(get(RELAY_ROUTES.models), previewEnv, { fetch: modelFetch.fetch, now: () => NOW });
+    assert.equal(response.status, 200, "preview model-list checks are also exempt from the local caller cap");
+  }
+
+  const status = await run(get(RELAY_ROUTES.status), previewEnv, stubFetch());
+  const payload = await status.json();
+  assert.equal(payload.limits.localRateLimitsDisabled, true);
+  assert.equal(payload.limits.requestsPerMinute, null);
+  assert.match(payload.limits.rateScope, /disabled for this preview/i);
+});
+
 test("relay keeps its caller table bounded", async () => {
   const clock = NOW;
   const listFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
@@ -484,6 +512,7 @@ test("status route discloses configuration and limits but never the key value", 
   assert.deepEqual(payload.acceptedKeyVariables, [...KEY_VARIABLE_NAMES]);
   assert.equal(payload.capabilities.streaming, false);
   assert.equal(payload.capabilities.tools, false);
+  assert.equal(payload.limits.localRateLimitsDisabled, false, "production/default status keeps local abuse guards on");
   assert.equal(payload.limits.requestsPerMinute, 60, "the per-caller budget is stated");
   assert.equal(payload.limits.sharedRequestsPerMinute, 120, "as is the ceiling every caller shares");
   assert.equal(payload.limits.modelListRequestsPerMinute, 12);

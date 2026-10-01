@@ -19,6 +19,13 @@
   // production database: production uses "harshalos" (see vars above).
   // https://developers.cloudflare.com/workers/previews/configuration/
   "previews": {
-    "vars": { "MONGODB_DATABASE": "harshalos_preview" }
+    // Temporary diagnostic experiment requested by the operator: bypass only
+    // this Worker’s in-memory caller/shared rate guards in branch previews.
+    // Z.AI still enforces its own quotas. Never copy this setting to production;
+    // branch preview URLs are public and share the preview Z.AI secret/quota.
+    "vars": {
+      "MONGODB_DATABASE": "harshalos_preview",
+      "LLM_RELAY_DISABLE_RATE_LIMITS": "true"
+    }
   }
 }
