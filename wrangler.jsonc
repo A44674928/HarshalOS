@@ -23,24 +23,24 @@
   // Persist structured Worker logs and traces so diagnostics can be
   // inspected after requests. Full sampling is appropriate for this
   // low-traffic demo.
-  "observability": {
+ "observability": {
+  "enabled": true,
+  "head_sampling_rate": 1,
+  "logs": {
     "enabled": true,
     "head_sampling_rate": 1,
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "invocation_logs": true,
-      "persist": true
-    },
-    "traces": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "persist": true
-    },
-    "issue_detection": {
-      "enabled": true
-    }
+    "invocation_logs": true,
+    "persist": true
   },
+  "traces": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "persist": true
+  },
+  "issues": {
+    "enabled": true
+  }
+}
 
   // Secrets are deliberately not declared here: MONGODB_URI, the Cloudflare Access
   // variables, TICKERBOT_API_KEY and the Z.AI relay key (Z.AI or ZAI_API_KEY) are set
