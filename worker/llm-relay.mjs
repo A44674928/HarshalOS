@@ -125,6 +125,9 @@ function resolveKey(env) {
 }
 
 const disabled = env => ['false', 'off', 'no', '0'].includes(String(env && env.LLM_RELAY_ENABLED || '').trim().toLowerCase());
+/* Deliberately opt-in and preview-only in wrangler.jsonc. The default is to
+   enforce this Worker's caller/shared windows; production has no such setting. */
+const localRateLimitsDisabled = env => String(env && env.LLM_RELAY_DISABLE_RATE_LIMITS || '').trim().toLowerCase() === 'true';
 
 function notConfiguredReason(env) {
   if (disabled(env)) return `The relay is switched off by this Worker's LLM_RELAY_ENABLED variable.`;
@@ -203,6 +206,25 @@ const rateHeaders = ({ limit, remaining, reset }, extra = {}) => ({
   ...extra
 });
 const seconds = n => `${n} second${n === 1 ? '' : 's'}`;
+
+/* Log enough to distinguish common outbound connection failures without ever
+   serializing an exception message, stack, URL, request, key, or prompt. */
+function logUpstreamFetchFailure(route, error, dependencies) {
+  const safeName = value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : '';
+  const safeCode = value => typeof value === 'string' && /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : '';
+  const cause = error && typeof error === 'object' && error.cause && typeof error.cause === 'object' ? error.cause : null;
+  const entry = {
+    event: 'zai_upstream_fetch_failed',
+    route: route === 'models' ? 'models' : 'chat',
+    errorName: safeName(error && error.name) || 'Error',
+    causeName: safeName(cause && cause.name),
+    causeCode: safeCode(cause && cause.code)
+  };
+  try {
+    if (dependencies && typeof dependencies.log === 'function') dependencies.log(entry);
+    else console.warn('[HarshalOS relay]', entry);
+  } catch { /* Diagnostics must never affect request handling. */ }
+}
 
 /* ── request body ─────────────────────────────────────────────── */
 async function readJsonBody(request) {
@@ -406,6 +428,7 @@ function usageFrom(data) {
 function statusPayload(env) {
   const found = resolveKey(env);
   const configured = !!found && !disabled(env);
+  const rateLimitsDisabled = localRateLimitsDisabled(env);
   return {
     configured,
     provider: 'zai',
@@ -425,14 +448,14 @@ function statusPayload(env) {
       maxOutputTokens: LIMITS.maxOutputTokens,
       defaultOutputTokens: LIMITS.defaultOutputTokens,
       upstreamTimeoutSeconds: Math.round(LIMITS.upstreamTimeoutMs / 1000),
-      requestsPerMinute: LIMITS.rateChatMax,
-      sharedRequestsPerMinute: LIMITS.rateSharedChatMax,
-      modelListRequestsPerMinute: LIMITS.rateListMax,
-      windowSeconds: Math.round(LIMITS.rateWindowMs / 1000),
-      /* Sized to what this site actually does: js/g0-llm.js asks one question
-         per call, so a Ground-0 source batch is nine calls. The limit is
-         stated with its scope, because it is one isolate's memory. */
-      rateScope: `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
+      localRateLimitsDisabled: rateLimitsDisabled,
+      requestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateChatMax,
+      sharedRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateSharedChatMax,
+      modelListRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateListMax,
+      windowSeconds: rateLimitsDisabled ? null : Math.round(LIMITS.rateWindowMs / 1000),
+      rateScope: rateLimitsDisabled
+        ? 'Disabled for this preview. Z.AI still applies its own account and free-tier limits.'
+        : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
     },
     capabilities: { streaming: false, tools: false, responseFormat: false, images: false, thinking: 'optional, disabled by default' },
     sampling: 'Z.AI samples in [0,1]: a 0 temperature is sent as do_sample:false (greedy), a temperature above 1 is clamped to 1.',
@@ -475,6 +498,7 @@ async function listModels(env, dependencies) {
     if (!allowed.length) payload.relay.warning = "Z.AI listed none of the relay's free-tier models for this key; the allowlist is shown unverified.";
     return json(payload);
   } catch (error) {
+    logUpstreamFetchFailure('models', error, dependencies);
     if (error && error.name === 'AbortError') throw new RelayError(504, 'Z.AI did not answer the model list in time. Try again shortly.', 'upstream_error');
     throw new RelayError(502, 'Z.AI could not be reached for the model list. The relay will still serve its allowlisted free-tier models.', 'upstream_error');
   } finally {
@@ -490,27 +514,37 @@ async function relayChat(request, env, dependencies, caller, now) {
   if (!origin || origin !== url.origin) {
     throw new RelayError(403, 'The relay accepts same-origin browser requests only.', 'invalid_request_error');
   }
-  /* Both windows are read before either is consumed, so a refused call costs
-     the caller nothing, and the shared ceiling is never charged for a request
-     this caller was not allowed to make anyway. */
-  const mine = slot(`chat:${caller}`, now, LIMITS.rateChatMax);
-  const shared = slot(`chat:${SHARED_CALLER}`, now, LIMITS.rateSharedChatMax);
-  if (mine.full) {
-    throw new RelayError(429, `This relay allows ${LIMITS.rateChatMax} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
+  let pacing;
+  const skipLocalRateLimits = localRateLimitsDisabled(env);
+  if (skipLocalRateLimits) {
+    // Diagnostic mode for the branch preview only. Do not set this in
+    // production: anyone who can reach the public preview can spend the
+    // Worker's shared Z.AI free-tier quota. Z.AI still enforces its own limits.
+    pacing = { enabled: false, limit: null, remaining: null, reset: null, sharedLimit: null, sharedRemaining: null };
+  } else {
+    /* Both windows are read before either is consumed, so a refused call costs
+       the caller nothing, and the shared ceiling is never charged for a request
+       this caller was not allowed to make anyway. */
+    const mine = slot(`chat:${caller}`, now, LIMITS.rateChatMax);
+    const shared = slot(`chat:${SHARED_CALLER}`, now, LIMITS.rateSharedChatMax);
+    if (mine.full) {
+      throw new RelayError(429, `This relay allows ${LIMITS.rateChatMax} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
+    }
+    if (shared.full) {
+      throw new RelayError(429, `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
+    }
+    remember(mine, now);
+    remember(shared, now);
+    prune(now);
+    pacing = {
+      enabled: true,
+      limit: mine.max,
+      remaining: Math.max(0, mine.max - mine.hits.length),
+      reset: resetIn(mine, now),
+      sharedLimit: shared.max,
+      sharedRemaining: Math.max(0, shared.max - shared.hits.length)
+    };
   }
-  if (shared.full) {
-    throw new RelayError(429, `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
-  }
-  remember(mine, now);
-  remember(shared, now);
-  prune(now);
-  const pacing = {
-    limit: mine.max,
-    remaining: Math.max(0, mine.max - mine.hits.length),
-    reset: resetIn(mine, now),
-    sharedLimit: shared.max,
-    sharedRemaining: Math.max(0, shared.max - shared.hits.length)
-  };
   const validated = validateChatPayload(await readJsonBody(request));
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== 'function') throw new RelayError(503, 'The relay is unavailable in this Worker runtime.', 'relay_unavailable');
@@ -576,9 +610,10 @@ async function relayChat(request, env, dependencies, caller, now) {
            the pace it is allowed before the relay has to refuse a call. */
         pacing
       }
-    }, 200, rateHeaders(pacing));
+    }, 200, skipLocalRateLimits ? {} : rateHeaders(pacing));
   } catch (error) {
     if (error instanceof RelayError) throw error;
+    logUpstreamFetchFailure('chat', error, dependencies);
     if (error && error.name === 'AbortError') {
       throw new RelayError(504, `Z.AI did not finish within ${Math.round(LIMITS.upstreamTimeoutMs / 1000)} seconds. Retry, or send a smaller reading pass.`, 'upstream_error');
     }
@@ -599,12 +634,14 @@ export async function handleLlmRelay(request, env = {}, dependencies = {}) {
     }
     if (pathname === RELAY_ROUTES.models) {
       if (request.method !== 'GET') throw new RelayError(405, 'The model list is read-only.', 'invalid_request_error', { Allow: 'GET' });
-      const list = slot(`list:${caller}`, now, LIMITS.rateListMax);
-      if (list.full) {
-        throw new RelayError(429, `Too many model-list requests from this caller: the limit is ${LIMITS.rateListMax} a minute. Retry in about ${seconds(list.wait)}.`, 'rate_limit_error', rateHeaders({ limit: list.max, remaining: 0, reset: list.wait }, { 'Retry-After': String(list.wait) }));
+      if (!localRateLimitsDisabled(env)) {
+        const list = slot(`list:${caller}`, now, LIMITS.rateListMax);
+        if (list.full) {
+          throw new RelayError(429, `Too many model-list requests from this caller: the limit is ${LIMITS.rateListMax} a minute. Retry in about ${seconds(list.wait)}.`, 'rate_limit_error', rateHeaders({ limit: list.max, remaining: 0, reset: list.wait }, { 'Retry-After': String(list.wait) }));
+        }
+        remember(list, now);
+        prune(now);
       }
-      remember(list, now);
-      prune(now);
       return await listModels(env, dependencies);
     }
     if (pathname === RELAY_ROUTES.chat) {

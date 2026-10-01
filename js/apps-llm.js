@@ -34,10 +34,15 @@ APPS.push({
         /* The pace is disclosed with both of its numbers, because they answer
            different questions: what this reader may spend, and what everyone
            on this deployment may spend together out of one free-tier key. */
-        const pace = limits.requestsPerMinute
-          ? `${limits.requestsPerMinute} calls/minute per caller${limits.sharedRequestsPerMinute ? `, ${limits.sharedRequestsPerMinute}/minute shared across everyone here` : ""}${limits.windowSeconds ? ` over a sliding ${limits.windowSeconds}s window` : ""}`
-          : "";
-        return `<div class="rule-box">RELAY CONFIGURED · ${esc(relayInfo.provider || "zai")} ${esc(relayInfo.tier || "free")} tier${models ? ` · allowlist: <span class="mono">${esc(models)}</span>` : ""}${relayInfo.keyVariable ? ` · key held in the Worker secret <span class="mono">${esc(relayInfo.keyVariable)}</span>` : ""}${pace ? ` · ${esc(pace)}` : ""}<br><span class="dim">No key leaves this browser. The prompt does pass through this deployment's Worker on its way to <span class="mono">${esc(relayInfo.upstream || "the provider")}</span>, which holds the key and paces each caller; a short wait is absorbed automatically and named in the progress line.</span></div>`;
+        const pace = limits.localRateLimitsDisabled
+          ? "Worker-local rate guards DISABLED for this preview · Z.AI limits still apply"
+          : limits.requestsPerMinute
+            ? `${limits.requestsPerMinute} calls/minute per caller${limits.sharedRequestsPerMinute ? `, ${limits.sharedRequestsPerMinute}/minute shared across everyone here` : ""}${limits.windowSeconds ? ` over a sliding ${limits.windowSeconds}s window` : ""}`
+            : "";
+        const paceNote = limits.localRateLimitsDisabled
+          ? "This diagnostic preview does not enforce local rate caps. Anyone who can reach it can use the preview's shared key/quota; Z.AI may still return 429."
+          : "The Worker holds the key and applies local pace guards; a short wait is absorbed automatically and named in the progress line.";
+        return `<div class="rule-box">RELAY CONFIGURED · ${esc(relayInfo.provider || "zai")} ${esc(relayInfo.tier || "free")} tier${models ? ` · allowlist: <span class="mono">${esc(models)}</span>` : ""}${relayInfo.keyVariable ? ` · key held in the Worker secret <span class="mono">${esc(relayInfo.keyVariable)}</span>` : ""}${pace ? ` · ${esc(pace)}` : ""}<br><span class="dim">No key leaves this browser. Prompts pass through this deployment's Worker to <span class="mono">${esc(relayInfo.upstream || "the provider")}</span>. ${esc(paceNote)}</span></div>`;
       }
       if (relayInfo.reachable) {
         const names = Array.isArray(relayInfo.acceptedKeyVariables) ? relayInfo.acceptedKeyVariables : [];

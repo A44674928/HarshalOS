@@ -360,7 +360,7 @@ test("relay passes a numeric Retry-After through and drops one it cannot trust",
 
 test("relay reports an unreachable or slow upstream without blaming the caller's key", async () => {
   const throwing = stubFetch(() => { throw new TypeError(`network down while using ${KEY}`); });
-  const unreachable = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, throwing);
+  const unreachable = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, { ...throwing, log: () => {} });
   assert.equal(unreachable.status, 502);
   const unreachableBody = await text(unreachable);
   assert.match(unreachableBody, /could not be reached/i);
@@ -368,7 +368,7 @@ test("relay reports an unreachable or slow upstream without blaming the caller's
 
   clearRelayRateLimits();
   const aborting = stubFetch(() => { const error = new Error("aborted"); error.name = "AbortError"; throw error; });
-  const slow = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, aborting);
+  const slow = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, { ...aborting, log: () => {} });
   assert.equal(slow.status, 504);
   assert.match((await slow.json()).error.message, /did not finish within 60 seconds/i);
 
@@ -454,6 +454,34 @@ test("relay holds one shared ceiling, so a crowd cannot spend the day's free quo
   assert.equal(afterWindow.status, 200, "the shared window slides too, so the ceiling clears as its oldest calls age out");
 });
 
+test("preview diagnostic mode bypasses only Worker-local rate limits", async () => {
+  clearRelayRateLimits();
+  const previewEnv = { ...ENV, LLM_RELAY_DISABLE_RATE_LIMITS: "true" };
+  const { fetch, calls } = stubFetch();
+  const dependencies = { fetch, now: () => NOW };
+  for (let attempt = 1; attempt <= 130; attempt++) {
+    const response = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), previewEnv, dependencies);
+    assert.equal(response.status, 200, `preview call ${attempt} is not blocked by either local window`);
+    assert.equal(response.headers.get("ratelimit-limit"), null);
+    const payload = await response.json();
+    assert.equal(payload.relay.pacing.enabled, false);
+    assert.equal(payload.relay.pacing.limit, null);
+  }
+  assert.equal(calls.length, 130, "the diagnostic preview reaches Z.AI past both former local caps");
+
+  const modelFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
+  for (let attempt = 0; attempt < 13; attempt++) {
+    const response = await run(get(RELAY_ROUTES.models), previewEnv, { fetch: modelFetch.fetch, now: () => NOW });
+    assert.equal(response.status, 200, "preview model-list checks are also exempt from the local caller cap");
+  }
+
+  const status = await run(get(RELAY_ROUTES.status), previewEnv, stubFetch());
+  const payload = await status.json();
+  assert.equal(payload.limits.localRateLimitsDisabled, true);
+  assert.equal(payload.limits.requestsPerMinute, null);
+  assert.match(payload.limits.rateScope, /disabled for this preview/i);
+});
+
 test("relay keeps its caller table bounded", async () => {
   const clock = NOW;
   const listFetch = stubFetch(() => Response.json({ data: [{ id: "glm-4.5-flash" }] }));
@@ -484,6 +512,7 @@ test("status route discloses configuration and limits but never the key value", 
   assert.deepEqual(payload.acceptedKeyVariables, [...KEY_VARIABLE_NAMES]);
   assert.equal(payload.capabilities.streaming, false);
   assert.equal(payload.capabilities.tools, false);
+  assert.equal(payload.limits.localRateLimitsDisabled, false, "production/default status keeps local abuse guards on");
   assert.equal(payload.limits.requestsPerMinute, 60, "the per-caller budget is stated");
   assert.equal(payload.limits.sharedRequestsPerMinute, 120, "as is the ceiling every caller shares");
   assert.equal(payload.limits.modelListRequestsPerMinute, 12);
@@ -498,6 +527,27 @@ test("status route discloses configuration and limits but never the key value", 
   assert.equal(missingPayload.configured, false);
   assert.equal(missingPayload.keyVariable, "");
   assert.match(missingPayload.message, /no Z\.AI key/i);
+});
+
+test("upstream connection diagnostics log only safe error categories", async () => {
+  const keyLikeSecret = KEY;
+  const cause = Object.assign(new Error(`private network detail ${keyLikeSecret}`), { code: "ECONNRESET" });
+  const error = new TypeError(`raw exception must not be logged ${keyLikeSecret}`, { cause });
+  const logs = [];
+  const response = await run(get(RELAY_ROUTES.models), ENV, {
+    fetch: async () => { throw error; },
+    log: entry => logs.push(entry)
+  });
+  assert.equal(response.status, 502);
+  assert.deepEqual(logs, [{
+    event: "zai_upstream_fetch_failed",
+    route: "models",
+    errorName: "TypeError",
+    causeName: "Error",
+    causeCode: "ECONNRESET"
+  }]);
+  assert.equal(JSON.stringify(logs).includes(keyLikeSecret), false, "logs omit keys, exception text, and request data");
+  assert.equal(JSON.stringify(logs).includes("private network detail"), false);
 });
 
 test("model list is the intersection of Z.AI's answer and the free allowlist", async () => {

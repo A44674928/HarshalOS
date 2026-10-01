@@ -155,12 +155,41 @@ cannot carry account detail, and the key is scrubbed from any text the relay doe
 Refusals that happen **before** any upstream call — an unlisted model, a non-text message, an
 oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and never spend quota.
 
+## Diagnosing Worker-to-Z.AI connection failures
+
+A relay `502` reading `Z.AI could not be reached` means the Worker did not receive a usable HTTP
+response from its outbound request. The browser does not get the underlying socket exception. Persisted Workers Logs are enabled in
+`wrangler.jsonc`; the setting applies after the Worker is redeployed. The Worker emits a deliberately
+sanitized log entry for these failures with only `route`, `errorName`,
+`causeName`, and `causeCode` (for example, `ECONNRESET`). It never logs the exception message or stack,
+request URL, headers, API key, or prompt.
+
+1. In Cloudflare, open **Workers & Pages → harshalos → Logs / Observability → Real-time logs**. The
+   label can vary slightly by dashboard version.
+2. Leave the log stream open, then press **List models** once in LLM Link on the affected hostname.
+3. Find the `zai_upstream_fetch_failed` event at that time. Share only its four safe fields with your
+   maintainer; do not share credentials or prompts.
+4. If no event appears, the request may be handled by an older Worker version, or the route may not be
+   reaching the instrumented Worker. Confirm the active version and hostname in Cloudflare.
+
+If you already have Wrangler authenticated locally, the same logs can be tailed with
+`npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
+or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
+
 ## 5. Limits and honesty
 
 - **Prompts transit your Worker.** That is the trade for holding the key server-side: the operator of
   this deployment can read every prompt in flight, and Z.AI receives it under Z.AI's own terms. The
   relay stores nothing: no prompt, no reply, no log, no per-caller history beyond the in-memory
   rate-limit counters.
+- **Temporary branch-preview experiment.** The checked-in `wrangler.jsonc` sets
+  `LLM_RELAY_DISABLE_RATE_LIMITS=true` only in the `previews.vars` block to test the operator's
+  request. On branch previews this bypasses this Worker's per-caller chat, shared chat, and model-list
+  windows; it does **not** bypass Z.AI's own rate limits, daily quota, model allowlist, request-size
+  caps, or output-token ceiling. The branch preview URL is public and anyone who can reach it can
+  consume the preview's shared Z.AI secret/quota. Keep this experiment out of production, monitor for
+  Z.AI 429s, and remove the preview flag when the comparison is complete. Production remains limited
+  because its base `vars` do not set this flag.
 - **One caller is never paced tighter than Z.AI paces the account.** `js/g0-llm.js` keeps
   `LIMITS.codesPerCall` at 1, so a Ground-0 reading asks **nine questions per source batch** and adds
   a link-selection call per batch plus one call per contested question — dozens of calls for one

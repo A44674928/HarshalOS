@@ -10,6 +10,19 @@
   // (dev/deploy/preview), so `.site-assets` is regenerated even when the
   // pipeline invokes `wrangler preview` directly without `prepare:assets`.
   "build": { "command": "node scripts/prepare-assets.mjs" },
+  // Persist structured Worker logs so sanitized upstream diagnostics can be
+  // inspected after a request; full sampling is appropriate for this low-traffic
+  // demo. No traces are needed for the current connection-error diagnosis.
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    }
+  },
   // Secrets are deliberately not declared here: MONGODB_URI, the Cloudflare Access
   // variables, TICKERBOT_API_KEY and the Z.AI relay key (Z.AI or ZAI_API_KEY) are set
   // with `wrangler secret put` or the dashboard so no credential ever enters Git.
@@ -19,6 +32,13 @@
   // production database: production uses "harshalos" (see vars above).
   // https://developers.cloudflare.com/workers/previews/configuration/
   "previews": {
-    "vars": { "MONGODB_DATABASE": "harshalos_preview" }
+    // Temporary diagnostic experiment requested by the operator: bypass only
+    // this Worker’s in-memory caller/shared rate guards in branch previews.
+    // Z.AI still enforces its own quotas. Never copy this setting to production;
+    // branch preview URLs are public and share the preview Z.AI secret/quota.
+    "vars": {
+      "MONGODB_DATABASE": "harshalos_preview",
+      "LLM_RELAY_DISABLE_RATE_LIMITS": "true"
+    }
   }
 }
