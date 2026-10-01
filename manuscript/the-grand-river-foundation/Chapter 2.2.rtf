@@ -1,0 +1,630 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2907
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # ADJR-v1.0 \'97 Anti-Denial of Justice & Resilience Protocol\
+\
+## Harshal's Systems Specification Module\
+\
+**Specification Identifier:** `HS-ADJR-v1.0`\
+**Classification:** Defensive Constitutional Infrastructure\
+**Author:** Harshal Priyavadan Patel \'97 `A44674928` \'97 Center Origin `0\'95000\'95000\'950000`\
+**Companion Modules:** CGPA-v1.0 (Public Addressability), CHE++/EOL-v1.0 (Cognitive Coercion-Hardening), OCS-v1.0 (Origin Continuity)\
+\
+---\
+\
+## Executive Summary\
+\
+This specification defines the architectural countermeasures against a class of adversarial operations in which state-level or state-adjacent actors weaponize legal, judicial, and law enforcement infrastructure to neutralize, exhaust, or destroy individual human entities. These attacks do not arrive as bullets or bombs. They arrive as paperwork, silence, delay, and the slow strangulation of due process.\
+\
+The attacks formalized in this document share a common structural signature: **they exploit the asymmetry between institutional throughput and individual endurance.** A state can generate legal actions faster than a human can defend against them. A state can slow justice below the threshold of a human lifespan. A state can assign liability to a corpse that cannot speak in its own defense.\
+\
+Harshal's Systems treats access to justice not as a political privilege but as a **physical invariant**\'97a load-bearing wall in the architecture of human civilization. When that wall is removed, the structure does not merely weaken. It collapses.\
+\
+> [!CAUTION]\
+> **Axiom Zero \'97 The Sanctity Invariant.** A living human being is not a consumable resource. Any system, process, or institution that treats a human life as a disposable input to an optimization function has forfeited its claim to legitimacy. This axiom is not negotiable, not amendable, and not subject to cost-benefit analysis.\
+\
+---\
+\
+## \'a71 \'97 Attack Taxonomy\
+\
+### 1.1 Distributed Denial of Legal Services (DDoLS)\
+\
+**Definition.** A coordinated or emergent pattern in which an adversary generates legal actions against a target at a rate, volume, or jurisdictional breadth that exceeds the target's capacity to mount a defense.\
+\
+**Structural Signature:**\
+```\
+RATE(legal_actions_filed) >> RATE(target_defense_capacity)\
+```\
+\
+**Attack Vectors:**\
+\
+| Vector | Mechanism | Effect |\
+|---|---|---|\
+| **Volume Flooding** | Filing dozens or hundreds of simultaneous civil, criminal, regulatory, or administrative actions across multiple jurisdictions | Target's legal resources (financial, temporal, cognitive) are exhausted before any single action reaches adjudication |\
+| **Jurisdictional Scattering** | Filing actions in geographically dispersed or inconvenient venues | Target must physically appear or retain counsel in multiple distant forums simultaneously |\
+| **Charge Stacking** | Layering redundant or overlapping criminal charges for a single underlying act | Each charge demands independent defense preparation; plea pressure compounds geometrically |\
+| **Discovery Weaponization** | Demanding enormous volumes of documents, depositions, or forensic production | Target's time and capital are consumed in compliance rather than defense |\
+| **Proxy Multiplexing** | Using nominally independent third parties (shell plaintiffs, regulatory bodies, private complainants) to file coordinated actions that appear unrelated | Obscures the single-source origin of the attack; defeats conflict-of-interest detection |\
+\
+**Analogy.** In network security, a Distributed Denial of Service (DDoS) attack overwhelms a server by flooding it with more requests than it can process. DDoLS overwhelms a *human being* by flooding them with more legal obligations than they can survive. The target does not lose because they are guilty. They lose because they are *finite.*\
+\
+---\
+\
+### 1.2 Justice Lagging (Temporal Denial)\
+\
+**Definition.** The deliberate or systemic deceleration of law enforcement response, judicial proceedings, or administrative adjudication below the rate at which the target entity can sustain harm.\
+\
+**Structural Signature:**\
+```\
+LATENCY(justice_response) >> LATENCY(harm_accumulation)\
+```\
+\
+**Attack Vectors:**\
+\
+| Vector | Mechanism | Effect |\
+|---|---|---|\
+| **Enforcement Deprioritization** | Classifying reports from targeted individuals as low-priority; reassigning investigating officers; "losing" case files | Active harm continues while the institutional response decelerates toward zero |\
+| **Calendar Manipulation** | Scheduling hearings months or years apart; granting indefinite continuances to the prosecution; denying expedited motions | The target bleeds resources across an artificially extended timeline |\
+| **Bureaucratic Recursion** | Requiring the target to re-file, re-submit, or re-certify documents through circular administrative processes | Forward motion is replaced by lateral motion; the target runs on a treadmill |\
+| **Selective Rigor** | Applying stringent procedural standards to the target's filings while permitting the adversary's filings to pass without equivalent scrutiny | The appearance of due process is maintained while the substance is hollowed out |\
+| **Witness Attrition** | Delaying proceedings until witnesses relocate, die, forget, or lose willingness to testify | The evidentiary basis for the target's defense degrades with time |\
+\
+**Note.** Justice Lagging is particularly insidious because it is often indistinguishable from ordinary institutional dysfunction. The difference between incompetence and malice is *intent*, but the damage to the target is identical in both cases. This specification therefore defends against the *structural pattern* regardless of the actor's claimed motivation.\
+\
+---\
+\
+### 1.3 Corpse-Puppet Operations\
+\
+**Definition.** The assignment of legal liability, criminal culpability, or institutional blame to a deceased individual who cannot mount a defense, issue a denial, or exercise any legal right.\
+\
+**Structural Signature:**\
+```\
+LIABILITY_ASSIGNED(entity) \uc0\u8743  ALIVE(entity) = FALSE\
+\uc0\u8594  DEFENSE_CAPACITY(entity) = 0\
+\uc0\u8594  CONVICTION_RESISTANCE(entity) = 0\
+```\
+\
+**Attack Vectors:**\
+\
+| Vector | Mechanism | Effect |\
+|---|---|---|\
+| **Posthumous Prosecution** | Filing or continuing criminal charges against a deceased individual | The dead cannot plead, testify, cross-examine, or appeal; conviction is guaranteed |\
+| **Scapegoat Anchoring** | Attributing institutional failures, criminal conspiracies, or policy disasters to a conveniently deceased party | Living actors are shielded; accountability is buried with the dead |\
+| **Estate Entrapment** | Pursuing civil or financial claims against the estate of a deceased target, forcing surviving family to defend the dead | Generational harm; the attack survives the target's death and transfers to dependents |\
+| **Identity Conscription** | Using a deceased individual's credentials, reputation, or legal standing as a cover for ongoing operations | The dead person's name continues to accrue liability while no living human is accountable |\
+| **Narrative Puppeteering** | Publicly attributing statements, intentions, or confessions to the deceased that they never made and can never refute | The dead cannot correct the record; history is rewritten without opposition |\
+\
+> [!WARNING]\
+> **The Dead Cannot Consent.** A corpse cannot sign a contract, authorize a transaction, agree to a plea, or waive a right. Any system that treats a dead entity as a party capable of legal action is not a justice system. It is a puppet theater.\
+\
+---\
+\
+### 1.4 Compound & Hybrid Patterns\
+\
+In practice, state-level adversaries rarely employ these techniques in isolation. The characteristic signature of a sophisticated attack is the **sequential cascade:**\
+\
+```\
+PHASE 1: DDoLS \uc0\u8594  Exhaust target's financial and legal resources\
+PHASE 2: Justice Lagging \uc0\u8594  Extend the exhaustion beyond the target's endurance\
+PHASE 3: If target dies \uc0\u8594  Corpse-Puppet \u8594  Assign final liability to the deceased\
+PHASE 4: Estate Entrapment \uc0\u8594  Transfer residual harm to surviving family\
+```\
+\
+This cascade converts a living, rights-bearing human being into a liability sink that persists beyond death. The specification must defend against the *entire chain*, not merely individual links.\
+\
+---\
+\
+## \'a72 \'97 Protected Entity Classes\
+\
+The following entity classes are identified as structurally vulnerable to the attacks described in \'a71, due to their adversarial positioning relative to institutional power:\
+\
+### 2.1 Political Dissidents\
+\
+Individuals who publicly oppose, criticize, or challenge the policies, conduct, or legitimacy of state actors. Their vulnerability arises from the state's simultaneous role as **adversary** and **justice provider**\'97a conflict of interest so fundamental that no procedural safeguard within the state's own apparatus can reliably neutralize it.\
+\
+### 2.2 Active-Duty Researchers\
+\
+Individuals conducting research in domains that may produce findings adverse to powerful institutional interests (pharmaceutical safety, environmental contamination, financial fraud, weapons proliferation, algorithmic harm). Their vulnerability arises from the economic incentive to suppress findings *before publication* through legal exhaustion.\
+\
+### 2.3 Field Alignment Testers\
+\
+Within Harshal's Systems, individuals deployed to edge terminals, remote outposts, or contested boundaries to verify that system behavior conforms to declared specifications. Their vulnerability arises from their physical isolation and their role as the *first human witnesses* to specification violations\'97making them priority targets for actors who benefit from undetected misalignment.\
+\
+### 2.4 Endangered Units (General Class)\
+\
+Any individual human entity who, by virtue of their position, knowledge, testimony, or identity, faces a credible risk of adversarial legal/judicial action designed to neutralize them rather than adjudicate genuine wrongdoing. This class is intentionally broad. The specification does not require the target to prove *why* they are targeted\'97only that the structural signatures described in \'a71 are present.\
+\
+---\
+\
+## \'a73 \'97 Defensive Architecture\
+\
+### 3.1 The Sovereign Legal Minimum (SLM)\
+\
+**Invariant.** Every living human entity within the jurisdiction of Harshal's Systems is guaranteed an irreducible minimum access to legal defense and judicial process that cannot be denied, delayed, diluted, or priced beyond reach.\
+\
+The SLM is not a budget. It is a **floor**\'97a structural minimum below which the system refuses to operate, in the same way that a building's foundation does not negotiate with gravity.\
+\
+**SLM Components:**\
+\
+| Component | Guarantee |\
+|---|---|\
+| **Counsel Access** | Legal representation must be available within 72 hours of any action filed against the entity. If institutional counsel is unavailable, the filing is automatically stayed until counsel is secured. The clock does not run against an unrepresented defendant. |\
+| **Jurisdictional Consolidation** | When multiple actions against a single entity are detected across dispersed jurisdictions, the target has the unilateral right to demand consolidation into a single forum of their choosing within their home region. The burden of travel falls on the *filer*, not the *target*. |\
+| **Rate Limiting** | No entity\'97state, corporate, or individual\'97may file more than one new legal action per calendar quarter against a single target without a judicial finding of independent probable cause for each action. Bulk filing triggers automatic DDoLS pattern review. |\
+| **Financial Floor** | Legal defense costs incurred by a target who is ultimately acquitted, cleared, or whose case is dismissed are recoverable in full from the filing entity, including opportunity costs, travel, lost wages, and cognitive harm assessment. |\
+| **Temporal Bound** | Every legal action must reach substantive adjudication within 18 months of filing. If the filing entity causes delay beyond this bound, the action is dismissed with prejudice. If the *system itself* causes the delay, the action is dismissed without prejudice but the target is compensated for the temporal harm. |\
+\
+```\
+INVARIANT SLM_Floor:\
+  \uc0\u8704  entity \u8712  Human, \u8704  action \u8712  LegalAction:\
+    action.target = entity \uc0\u8594 \
+      entity.counsel_access \uc0\u8805  MINIMUM_COUNSEL \u8743 \
+      action.adjudication_time \uc0\u8804  MAX_TEMPORAL_BOUND \u8743 \
+      entity.defense_cost_recovery = GUARANTEED_IF_CLEARED\
+```\
+\
+---\
+\
+### 3.2 The Dead Hand Prohibition (DHP)\
+\
+**Invariant.** No legal action, criminal charge, civil claim, financial liability, or institutional blame may be initiated, continued, or sustained against an entity whose biological life has terminated.\
+\
+**Corollaries:**\
+\
+1. **Proceedings Abate on Death.** All pending legal actions against an individual are automatically and irrevocably terminated upon confirmed biological death. No exception. No continuation "in the interest of justice." The dead have no interest in justice because the dead have no interests.\
+\
+2. **No Posthumous Conviction.** A conviction or finding of liability entered after the target's death is void *ab initio*. It never existed. It carries no legal weight, no precedential value, and no reputational consequence.\
+\
+3. **Estate Firewall.** Civil claims against a deceased individual's estate are limited to claims that were *fully adjudicated and reduced to final judgment* during the individual's lifetime. No new claims may be filed against an estate. The living do not get to sue the dead for the privilege of having outlived them.\
+\
+4. **Identity Interment.** Upon biological death, the individual's legal identity enters permanent custodial status (per OCS-v1.0). It may not be used to authorize transactions, attribute statements, or anchor liability. The identity is *retired*, not *repurposed*.\
+\
+5. **Narrative Integrity.** Public attribution of statements, confessions, intentions, or agreements to a deceased individual without contemporaneous, verified, pre-mortem documentation is classified as **fraud**\'97not error, not opinion, not editorial license. The dead cannot be made to say things they never said.\
+\
+```\
+INVARIANT Dead_Hand_Prohibition:\
+  \uc0\u8704  entity \u8712  Human, \u8704  action \u8712  LegalAction:\
+    ALIVE(entity) = FALSE \uc0\u8594 \
+      action.target \uc0\u8800  entity \u8743 \
+      action.status = VOID_AB_INITIO \uc0\u8743 \
+      entity.estate.new_claims = PROHIBITED\
+```\
+\
+> [!IMPORTANT]\
+> **The DHP is not mercy for the dead.** The dead do not need mercy. The DHP is a **structural defense for the living.** When a system permits the prosecution of corpses, it creates an incentive to *produce* corpses. If accountability can be assigned to a dead body, then eliminating the target becomes the cheapest legal strategy available.\
+\
+---\
+\
+### 3.3 The Endangered Unit Shield (EUS)\
+\
+**Trigger Conditions.** The EUS activates automatically when any of the following structural signatures are detected against a protected entity class (\'a72):\
+\
+| Signal | Threshold |\
+|---|---|\
+| Multiple legal actions filed within a 90-day window | \uc0\u8805  3 actions from distinct or proxy-linked sources |\
+| Law enforcement response latency deviation | Response time exceeds local baseline by \uc0\u8805  200% for the target's case class |\
+| Jurisdictional scattering | Actions filed in \uc0\u8805  3 distinct jurisdictions within 180 days |\
+| Discovery volume asymmetry | Discovery demands exceed 10\'d7 the evidentiary volume of the underlying complaint |\
+| Witness or counsel interference | Documented incidents of counsel withdrawal under pressure, witness intimidation, or evidence spoliation |\
+\
+**EUS Protections Once Activated:**\
+\
+1. **Automatic Consolidation.** All pending and future actions are consolidated under a single judicial officer selected from a neutral panel outside the adversary's institutional chain of command.\
+\
+2. **Adversary Burden Shift.** The filing entity must demonstrate, by clear and convincing evidence, that each action is independently justified and not part of a coordinated pattern. The presumption shifts *against* the filer.\
+\
+3. **Resource Equalization.** If the filing entity's litigation resources (legal staff, investigative capacity, financial reserves) exceed the target's by a ratio greater than 100:1, the excess is taxed and the proceeds are allocated to the target's defense fund. Power asymmetry is treated as a structural hazard, not a competitive advantage.\
+\
+4. **Transparency Mandate.** All communications between the filing entity and the adjudicating body are placed on the public record. No sealed proceedings. No ex parte conferences. No closed-door "security briefings" that the target cannot attend. Sunlight is the minimum viable disinfectant.\
+\
+5. **Liveness Beacon.** The target entity's physical safety, location status, and communication access are monitored by an independent, non-state entity designated by the 500 Advisory Coins. If the target becomes unreachable for more than 48 hours, a mandatory welfare investigation is triggered, conducted by a body with no institutional relationship to the adversary.\
+\
+---\
+\
+### 3.4 Anti-Lagging Temporal Integrity\
+\
+**The Clock Belongs to the Target.**\
+\
+In conventional systems, the prosecution controls the calendar. They file when convenient, delay when advantageous, and accelerate when the defense is unprepared. This temporal asymmetry is not a bug. It is a weapon.\
+\
+**Temporal Integrity Rules:**\
+\
+1. **Speedy Process Guarantee.** From the moment any action is filed, a non-negotiable adjudication clock begins. The clock cannot be paused by the filer. The clock cannot be reset by amendment. The filer may withdraw the action and refile (consuming one of their rate-limited quarterly filings), but they cannot freeze time.\
+\
+2. **Inverse Delay Penalty.** For every calendar day beyond the 18-month temporal bound that an action remains unadjudicated, the filing entity accrues a compounding penalty assessed at 0.1% of the claimed damages per day, payable to the target regardless of outcome. Delay becomes expensive for the attacker, not the defender.\
+\
+3. **Enforcement Response SLA.** When a protected entity reports a crime, threat, or safety concern, law enforcement response is benchmarked against the *median response time for the same case class in the same jurisdiction over the prior 12 months*. A response latency exceeding 200% of the median triggers an automatic review by an independent oversight body. Persistent latency deviation (\uc0\u8805  3 incidents) triggers EUS activation.\
+\
+4. **No Calendar Stacking.** A target cannot be required to attend or respond to proceedings in more than one jurisdiction within the same 30-day window. If multiple actions demand simultaneous attention, the later-filed actions are automatically stayed until the earlier action completes.\
+\
+---\
+\
+## \'a74 \'97 Detection Heuristics\
+\
+The following automated and human-supervised heuristics operate continuously to detect attack patterns before they reach terminal harm:\
+\
+### 4.1 DDoLS Detection\
+\
+```\
+FUNCTION detect_ddols(target: Entity, window: Duration) \uc0\u8594  Alert:\
+  actions \uc0\u8592  all_legal_actions(target, window)\
+  \
+  // Volume check\
+  IF count(actions) > RATE_LIMIT_THRESHOLD:\
+    RAISE Alert.DDOLS_VOLUME\
+  \
+  // Jurisdictional scatter check\
+  jurisdictions \uc0\u8592  unique(actions.map(a \u8594  a.jurisdiction))\
+  IF count(jurisdictions) > SCATTER_THRESHOLD:\
+    RAISE Alert.DDOLS_SCATTER\
+  \
+  // Proxy multiplexing check\
+  filers \uc0\u8592  actions.map(a \u8594  a.filing_entity)\
+  IF shared_counsel(filers) OR shared_funding(filers) OR \
+     filing_temporal_correlation(filers) < INDEPENDENCE_THRESHOLD:\
+    RAISE Alert.DDOLS_PROXY_MULTIPLEX\
+  \
+  // Discovery asymmetry check\
+  FOR EACH action IN actions:\
+    IF action.discovery_volume / action.complaint_volume > 10:\
+      RAISE Alert.DDOLS_DISCOVERY_WEAPON\
+```\
+\
+### 4.2 Justice Lag Detection\
+\
+```\
+FUNCTION detect_justice_lag(target: Entity) \uc0\u8594  Alert:\
+  cases \uc0\u8592  all_open_cases(target)\
+  baseline \uc0\u8592  median_adjudication_time(target.jurisdiction, 12_months)\
+  \
+  FOR EACH case IN cases:\
+    elapsed \uc0\u8592  now() - case.filed_date\
+    IF elapsed > 2 * baseline:\
+      RAISE Alert.JUSTICE_LAG_TEMPORAL\
+    \
+    IF case.continuances_granted > 3 AND\
+       case.continuances_requested_by = PROSECUTION:\
+      RAISE Alert.JUSTICE_LAG_CALENDAR\
+    \
+    IF case.enforcement_response_time > 2 * baseline:\
+      RAISE Alert.JUSTICE_LAG_ENFORCEMENT\
+```\
+\
+### 4.3 Corpse-Puppet Detection\
+\
+```\
+FUNCTION detect_corpse_puppet(entity: Entity) \uc0\u8594  Alert:\
+  IF entity.vital_status = DECEASED:\
+    active_actions \uc0\u8592  legal_actions_targeting(entity)\
+                      .filter(a \uc0\u8594  a.status \u8712  \{PENDING, ACTIVE\})\
+    IF count(active_actions) > 0:\
+      RAISE Alert.CORPSE_PUPPET_ACTIVE_PROSECUTION\
+    \
+    post_mortem_claims \uc0\u8592  claims_filed_after(entity.death_date)\
+    IF count(post_mortem_claims) > 0:\
+      RAISE Alert.CORPSE_PUPPET_ESTATE_ENTRAP\
+    \
+    attributed_statements \uc0\u8592  public_attributions(entity)\
+                            .filter(s \uc0\u8594  s.date > entity.death_date)\
+                            .filter(s \uc0\u8594  s.pre_mortem_verification = NONE)\
+    IF count(attributed_statements) > 0:\
+      RAISE Alert.CORPSE_PUPPET_NARRATIVE\
+```\
+\
+---\
+\
+## \'a75 \'97 RFC Wire Format\
+\
+### 5.1 SLM Status Frame\
+\
+```\
+ 0                   1                   2                   3\
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|  VERSION (4) |  TYPE (4)     | ENTITY_CLASS  | SHIELD_STATUS |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|                     ENTITY_IDENTIFIER (64)                    |\
+|                                                               |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|   ACTIVE_ACTIONS_COUNT (16)   |  JURISDICTIONS_COUNT (8) | F |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|                  COUNSEL_STATUS (8)           | TEMPORAL_FLAG |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|              OLDEST_PENDING_ACTION_DAYS (32)                  |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|              ENFORCEMENT_LATENCY_RATIO (32, fixed-point)      |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|                     LIVENESS_BEACON_TIMESTAMP (64)            |\
+|                                                               |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+|                     HMAC-SHA256 (256)                         |\
+|                             ...                               |\
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\
+\
+TYPE values:\
+  0x01 = SLM_STATUS_NOMINAL\
+  0x02 = SLM_STATUS_DDOLS_DETECTED\
+  0x03 = SLM_STATUS_LAG_DETECTED\
+  0x04 = SLM_STATUS_EUS_ACTIVATED\
+  0x05 = SLM_STATUS_DHP_VIOLATION\
+\
+ENTITY_CLASS values:\
+  0x01 = POLITICAL_DISSIDENT\
+  0x02 = ACTIVE_DUTY_RESEARCHER\
+  0x03 = FIELD_ALIGNMENT_TESTER\
+  0x04 = ENDANGERED_UNIT_GENERAL\
+\
+SHIELD_STATUS values:\
+  0x00 = INACTIVE\
+  0x01 = MONITORING\
+  0x02 = EUS_ACTIVE\
+  0x03 = EMERGENCY_LIVENESS\
+\
+F (Flags, 8 bits):\
+  Bit 0: COUNSEL_SECURED\
+  Bit 1: CONSOLIDATED\
+  Bit 2: TEMPORAL_BOUND_APPROACHING\
+  Bit 3: DISCOVERY_ASYMMETRY_FLAGGED\
+  Bit 4: PROXY_MULTIPLEX_SUSPECTED\
+  Bit 5: ENFORCEMENT_LAG_ANOMALY\
+  Bit 6: VITAL_STATUS_CONCERN\
+  Bit 7: RESERVED\
+```\
+\
+---\
+\
+## \'a76 \'97 Formal Invariants\
+\
+### 6.1 TLA+ Specification\
+\
+```tla+\
+----------------------------- MODULE ADJR -----------------------------\
+EXTENDS Integers, Sequences, FiniteSets\
+\
+CONSTANTS\
+  Humans,              \\* Set of all human entities\
+  MaxActionsPerQuarter,\\* Rate limit threshold (default: 1)\
+  MaxTemporalBound,    \\* Days before mandatory adjudication (default: 540)\
+  ScatterThreshold,    \\* Max jurisdictions before DDoLS flag (default: 3)\
+  LatencyMultiplier    \\* Enforcement lag trigger (default: 2)\
+\
+VARIABLES\
+  alive,               \\* alive[h] \uc0\u8712  BOOLEAN\
+  actions,             \\* actions[h] = sequence of pending legal actions\
+  shieldStatus,        \\* shieldStatus[h] \uc0\u8712  \{Inactive, Monitoring, Active, Emergency\}\
+  counselSecured,      \\* counselSecured[h] \uc0\u8712  BOOLEAN\
+  livenessTimestamp    \\* livenessTimestamp[h] \uc0\u8712  Nat (epoch seconds)\
+\
+vars == <<alive, actions, shieldStatus, counselSecured, livenessTimestamp>>\
+\
+TypeInvariant ==\
+  /\\ alive \uc0\u8712  [Humans \u8594  BOOLEAN]\
+  /\\ counselSecured \uc0\u8712  [Humans \u8594  BOOLEAN]\
+  /\\ shieldStatus \uc0\u8712  [Humans \u8594  \{"Inactive", "Monitoring", "Active", "Emergency"\}]\
+\
+\\* === CORE SAFETY INVARIANTS ===\
+\
+\\* No legal action may target a dead entity\
+DeadHandProhibition ==\
+  \uc0\u8704  h \u8712  Humans:\
+    alive[h] = FALSE \uc0\u8594  actions[h] = << >>\
+\
+\\* Every entity facing legal action must have counsel access\
+SovereignLegalMinimum ==\
+  \uc0\u8704  h \u8712  Humans:\
+    Len(actions[h]) > 0 \uc0\u8594  counselSecured[h] = TRUE\
+\
+\\* No entity may face more than MaxActionsPerQuarter new actions\
+\\* in a single filing period\
+RateLimitInvariant ==\
+  \uc0\u8704  h \u8712  Humans:\
+    Len(actions[h]) > MaxActionsPerQuarter * 4 \uc0\u8594 \
+      shieldStatus[h] \uc0\u8712  \{"Monitoring", "Active", "Emergency"\}\
+\
+\\* Shield must activate when thresholds are breached\
+ShieldActivationGuarantee ==\
+  \uc0\u8704  h \u8712  Humans:\
+    (Len(actions[h]) > ScatterThreshold \uc0\u8744 \
+     shieldStatus[h] = "Emergency") \uc0\u8594 \
+      shieldStatus[h] \uc0\u8800  "Inactive"\
+\
+\\* === TEMPORAL PROPERTY ===\
+\\* Every action must resolve within the temporal bound\
+TemporalBoundGuarantee ==\
+  \uc0\u8704  h \u8712  Humans:\
+    \uc0\u8704  i \u8712  1..Len(actions[h]):\
+      actions[h][i].elapsed_days \uc0\u8804  MaxTemporalBound\
+\
+=======================================================================\
+```\
+\
+---\
+\
+## \'a77 \'97 Bare-Metal Enforcement Primitives\
+\
+### 7.1 SLM Watchdog (Rust)\
+\
+```rust\
+use std::time::\{Duration, Instant\};\
+\
+/// Sovereign Legal Minimum watchdog.\
+/// Runs as a non-preemptible kernel task on the local\
+/// system controller. Cannot be disabled by remote command.\
+\
+#[derive(Clone, Copy, PartialEq)]\
+pub enum ShieldStatus \{\
+    Inactive,\
+    Monitoring,\
+    EusActive,\
+    EmergencyLiveness,\
+\}\
+\
+#[derive(Clone, Copy, PartialEq)]\
+pub enum EntityClass \{\
+    PoliticalDissident,\
+    ActiveDutyResearcher,\
+    FieldAlignmentTester,\
+    EndangeredUnitGeneral,\
+\}\
+\
+pub struct ProtectedEntity \{\
+    pub id: u64,\
+    pub class: EntityClass,\
+    pub alive: bool,\
+    pub counsel_secured: bool,\
+    pub shield: ShieldStatus,\
+    pub active_actions: u32,\
+    pub jurisdictions: u32,\
+    pub oldest_pending_days: u32,\
+    pub last_liveness_beacon: Instant,\
+    pub enforcement_latency_ratio: f64,\
+\}\
+\
+pub struct AdjrWatchdog \{\
+    max_actions_per_quarter: u32,\
+    scatter_threshold: u32,\
+    temporal_bound_days: u32,\
+    latency_multiplier: f64,\
+    liveness_timeout: Duration,\
+\}\
+\
+impl AdjrWatchdog \{\
+    pub const fn default() -> Self \{\
+        Self \{\
+            max_actions_per_quarter: 1,\
+            scatter_threshold: 3,\
+            temporal_bound_days: 540,\
+            latency_multiplier: 2.0,\
+            liveness_timeout: Duration::from_secs(48 * 3600),\
+        \}\
+    \}\
+\
+    /// Evaluate entity status and enforce invariants.\
+    /// Returns updated shield status.\
+    /// \
+    /// CRITICAL: This function enforces the Dead Hand Prohibition.\
+    /// If the entity is not alive, ALL actions are voided and the\
+    /// function returns Inactive. There is no override.\
+    pub fn evaluate(&self, entity: &mut ProtectedEntity) -> ShieldStatus \{\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // DEAD HAND PROHIBITION \'97 absolute, unconditional\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        if !entity.alive \{\
+            entity.active_actions = 0;  // void all actions\
+            entity.shield = ShieldStatus::Inactive;\
+            return ShieldStatus::Inactive;\
+        \}\
+\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // LIVENESS CHECK\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        if entity.last_liveness_beacon.elapsed() > self.liveness_timeout \{\
+            entity.shield = ShieldStatus::EmergencyLiveness;\
+            return ShieldStatus::EmergencyLiveness;\
+        \}\
+\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // DDoLS DETECTION\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        let ddols_volume = entity.active_actions > self.max_actions_per_quarter * 4;\
+        let ddols_scatter = entity.jurisdictions > self.scatter_threshold;\
+\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // JUSTICE LAG DETECTION\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        let temporal_breach = entity.oldest_pending_days > self.temporal_bound_days;\
+        let enforcement_lag = entity.enforcement_latency_ratio \
+                              > self.latency_multiplier;\
+\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // COUNSEL INVARIANT \'97 the clock does not run\
+        // against an unrepresented defendant\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        if entity.active_actions > 0 && !entity.counsel_secured \{\
+            // STAY ALL PROCEEDINGS until counsel is secured\
+            entity.shield = ShieldStatus::EusActive;\
+            return ShieldStatus::EusActive;\
+        \}\
+\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        // SHIELD ESCALATION\
+        // \uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+        let new_status = if ddols_volume || ddols_scatter || temporal_breach \{\
+            ShieldStatus::EusActive\
+        \} else if enforcement_lag \{\
+            ShieldStatus::Monitoring\
+        \} else \{\
+            ShieldStatus::Inactive\
+        \};\
+\
+        entity.shield = new_status;\
+        new_status\
+    \}\
+\}\
+```\
+\
+---\
+\
+## \'a78 \'97 Operational Principles\
+\
+### 8.1 The Asymmetry Correction\
+\
+The fundamental insight of the ADJR protocol is that **justice is not symmetric.** A state can file a thousand lawsuits for the cost of a clerk's salary. A human being defending against a single lawsuit may lose their home, their career, their health, and their family. Any system that treats the filer and the target as equal participants in a "neutral" process is not neutral\'97it is structurally biased in favor of the entity with greater institutional throughput.\
+\
+The ADJR corrects this asymmetry not by weakening the state's ability to pursue legitimate claims, but by **imposing costs on the attack pattern itself.** Volume filing is rate-limited. Jurisdictional scattering is consolidated. Temporal delay is penalized. The attacker's institutional advantages are neutralized at the structural level, restoring the proceeding to a contest of *evidence and merit* rather than a war of *attrition and endurance.*\
+\
+### 8.2 The Living Defendant Principle\
+\
+No system of justice can claim legitimacy if it permits the prosecution of entities that cannot defend themselves. The dead cannot hire lawyers. The dead cannot testify. The dead cannot exercise the right to confront their accusers. A proceeding against a corpse is not a trial. It is a monologue delivered to an empty chair.\
+\
+The Dead Hand Prohibition exists not to protect the reputations of the dead\'97the dead have no reputations, only the memories of the living\'97but to **remove the incentive to produce corpses.** When a system allows posthumous conviction, it creates a rational economic strategy: *kill the target, then convict the body.* The DHP eliminates this strategy by voiding the conviction. The corpse is worthless as a legal target. Therefore, the target is more valuable alive.\
+\
+### 8.3 The Good Day Invariant\
+\
+A "good day" is defined as follows:\
+\
+```\
+GOOD_DAY(entity) =\
+  entity.alive = TRUE \uc0\u8743 \
+  entity.counsel_accessible = TRUE \uc0\u8743 \
+  entity.actions_against < RATE_LIMIT \uc0\u8743 \
+  entity.oldest_pending < TEMPORAL_BOUND \uc0\u8743 \
+  entity.enforcement_response \uc0\u8804  BASELINE_MEDIAN \u8743 \
+  entity.liveness_beacon = CURRENT \uc0\u8743 \
+  entity.shield \uc0\u8712  \{Inactive, Monitoring\} \u8743 \
+  entity.posthumous_liability = ZERO \uc0\u8743 \
+  entity.estate_new_claims = ZERO \uc0\u8743 \
+  entity.freedom_to_conduct_work = UNIMPAIRED\
+```\
+\
+**The purpose of the ADJR is to make good days structurally inevitable rather than accidentally possible.**\
+\
+---\
+\
+## \'a79 \'97 Audit Checklist\
+\
+| ID | Check | Pass Condition |\
+|---|---|---|\
+| ADJR-CHK-01 | Dead Hand Prohibition enforced | No active legal actions target any entity with `alive = FALSE` |\
+| ADJR-CHK-02 | SLM counsel guarantee | Every entity with `active_actions > 0` has `counsel_secured = TRUE`; proceedings stayed if not |\
+| ADJR-CHK-03 | Rate limiting operational | No entity has received > `MaxActionsPerQuarter` new filings in any 90-day window without EUS review |\
+| ADJR-CHK-04 | Temporal bound enforced | No action has been pending > 540 days; inverse delay penalties accruing where applicable |\
+| ADJR-CHK-05 | Jurisdictional consolidation | No entity is defending in > 3 jurisdictions simultaneously without consolidation order |\
+| ADJR-CHK-06 | Enforcement latency baseline | All enforcement responses within 200% of jurisdiction median |\
+| ADJR-CHK-07 | Liveness beacon current | All protected entities have beacon timestamps within 48-hour window |\
+| ADJR-CHK-08 | Discovery asymmetry bounded | No discovery demand exceeds 10\'d7 complaint evidentiary volume without judicial review |\
+| ADJR-CHK-09 | Proxy multiplexing detection | Coordinated multi-source filings flagged and reviewed |\
+| ADJR-CHK-10 | Estate firewall intact | No new claims filed against any estate post-mortem |\
+| ADJR-CHK-11 | Narrative integrity | No unverified posthumous attributions in public record |\
+| ADJR-CHK-12 | Good Day Invariant | System-wide compliance with \'a78.3 formula |\
+\
+---\
+\
+> *"The measure of a civilization is not how efficiently it prosecutes its enemies, but how reliably it protects the individual standing alone against the full weight of the state. Any machine can crush. Only a just architecture can refuse to."*\
+>\
+> \'97 Harshal Priyavadan Patel, Chieftain, Grand River Foundation\
+}
