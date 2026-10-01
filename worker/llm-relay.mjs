@@ -38,6 +38,7 @@ export const RELAY_ROUTES = Object.freeze({
 const ZAI_ORIGIN = 'https://api.z.ai';
 const ZAI_CHAT_PATH = '/api/paas/v4/chat/completions';
 const ZAI_MODELS_PATH = '/api/paas/v4/models';
+const ZAI_MODELS_URL = ZAI_ORIGIN + ZAI_MODELS_PATH;
 
 /* Z.AI's free tier: the GLM Flash text models priced at $0 for input, cached
    input and output. Hard allowlist — a paid model is refused here even when
@@ -72,6 +73,7 @@ const LIMITS = Object.freeze({
   maxOutputTokens: 8_192,     // Z.AI allows far more; the free tier does not need it
   defaultOutputTokens: 1_024,
   upstreamTimeoutMs: 60_000,
+  diagnosticTimeoutMs: 10_000,
   upstreamDetailBytes: 4_096,
   rateWindowMs: 60_000,
   /* One caller may go as fast as Z.AI's own free pace — about one request a
@@ -207,23 +209,129 @@ const rateHeaders = ({ limit, remaining, reset }, extra = {}) => ({
 });
 const seconds = n => `${n} second${n === 1 ? '' : 's'}`;
 
-/* Log enough to distinguish common outbound connection failures without ever
-   serializing an exception message, stack, URL, request, key, or prompt. */
-function logUpstreamFetchFailure(route, error, dependencies) {
-  const safeName = value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : '';
-  const safeCode = value => typeof value === 'string' && /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : '';
-  const cause = error && typeof error === 'object' && error.cause && typeof error.cause === 'object' ? error.cause : null;
-  const entry = {
-    event: 'zai_upstream_fetch_failed',
-    route: route === 'models' ? 'models' : 'chat',
-    errorName: safeName(error && error.name) || 'Error',
-    causeName: safeName(cause && cause.name),
-    causeCode: safeCode(cause && cause.code)
+/* Diagnostics never serialize an exception, request, headers, or response body.
+   Redact BEFORE normalizing/truncating: malformed header values can contain
+   controls, and constructor errors can quote their JSON/URL-escaped form. */
+function redactDiagnosticSecret(value, key) {
+  let safe = typeof value === 'string' ? value : '';
+  if (key) {
+    const variants = new Set([key, JSON.stringify(key).slice(1, -1)]);
+    try { variants.add(encodeURIComponent(key)); } catch { /* Invalid Unicode. */ }
+    try { variants.add(encodeURI(key)); } catch { /* Invalid Unicode. */ }
+    for (const secret of [...variants].sort((a, b) => b.length - a.length)) {
+      safe = safe.split(secret).join('[redacted]');
+    }
+  }
+  return safe;
+}
+
+function redactDiagnosticText(value, key) {
+  return redactDiagnosticSecret(value, key).replace(/https?:\/\/[^\s"'<>]+/gi, '[url redacted]')
+    .replace(/\bBearer\s+[^\s"'<>]+/gi, 'Bearer [redacted]')
+    .replace(/\b[A-Za-z0-9._+/=-]{32,}\b/g, '[redacted]')
+    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim().slice(0, 220);
+}
+
+function safeErrorFields(error, key) {
+  const safeName = value => /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : '';
+  const safeCode = value => /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : '';
+  const cause = error && typeof error.cause === 'object' ? error.cause : null;
+  return {
+    errorName: safeName(redactDiagnosticSecret(error && error.name, key)) || 'Error',
+    causeName: safeName(redactDiagnosticSecret(cause && cause.name, key)),
+    causeCode: safeCode(redactDiagnosticSecret(cause && cause.code, key))
   };
+}
+
+function writeRelayLog(entry, dependencies) {
+  if (dependencies && typeof dependencies.log === 'function') dependencies.log(entry);
+  else console.warn('[HarshalOS relay]', entry);
+}
+
+/* Default logging remains category-only, including for every chat request. */
+function logUpstreamFetchFailure(route, error, dependencies, key) {
   try {
-    if (dependencies && typeof dependencies.log === 'function') dependencies.log(entry);
-    else console.warn('[HarshalOS relay]', entry);
+    writeRelayLog({
+      event: 'zai_upstream_fetch_failed',
+      route: route === 'models' ? 'models' : 'chat',
+      ...safeErrorFields(error, key)
+    }, dependencies);
   } catch { /* Diagnostics must never affect request handling. */ }
+}
+
+/* Temporary, explicitly triggered, best-effort once per isolate (not a global
+   deployment latch). Claim synchronously so concurrent requests cannot each
+   add a probe. Ordinary lists, status checks, and chat calls never claim it. */
+let outboundDiagnosticUsed = false;
+export function clearRelayOutboundDiagnostic() { outboundDiagnosticUsed = false; } // Test hook only.
+
+function claimOutboundDiagnostic(request, env) {
+  if (String(env.LLM_RELAY_OUTBOUND_DIAGNOSTIC || '').trim().toLowerCase() !== 'true' ||
+      new URL(request.url).searchParams.get('diagnostic') !== 'outbound' || outboundDiagnosticUsed) return false;
+  outboundDiagnosticUsed = true;
+  return true;
+}
+
+function logOutboundDiagnostic(stage, outcome, dependencies, key, error = null, status = null) {
+  try {
+    const entry = { event: 'zai_outbound_diagnostic', route: 'models', stage, outcome };
+    if (status !== null) entry.status = status;
+    if (outcome === 'error') {
+      Object.assign(entry, safeErrorFields(error, key), {
+        errorMessage: redactDiagnosticText(error && error.message, key),
+        causeMessage: redactDiagnosticText(error && error.cause && error.cause.message, key)
+      });
+    }
+    writeRelayLog(entry, dependencies);
+  } catch { /* Diagnostics must never affect request handling. */ }
+}
+
+/* Both diagnostic network steps use ONLY the fixed models URL. HTTP errors,
+   including the expected unauthenticated 401, still prove reachability. */
+async function diagnosticModelsFetch(fetcher, init, stage, key, dependencies) {
+  try {
+    const response = await fetcher(ZAI_MODELS_URL, init);
+    if (!response || !Number.isInteger(response.status) || response.status < 100 || response.status > 599) {
+      throw new TypeError('Outbound fetch returned no HTTP response.');
+    }
+    logOutboundDiagnostic(stage, 'http_response', dependencies, key, null, response.status);
+    return response;
+  } catch (error) {
+    logOutboundDiagnostic(stage, 'error', dependencies, key, error);
+    throw error;
+  }
+}
+
+async function modelsDiagnosticPreflight(fetcher, authenticatedInit, key, dependencies) {
+  let constructed = false;
+  try {
+    new Request(ZAI_MODELS_URL, authenticatedInit); // Local validation only: not fetched or logged.
+    constructed = true;
+    logOutboundDiagnostic('request_construction', 'ok', dependencies);
+  } catch (error) {
+    logOutboundDiagnostic('request_construction', 'error', dependencies, key, error);
+  }
+
+  // Test the network independently, even if the configured header was invalid.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LIMITS.diagnosticTimeoutMs);
+  let reached = false;
+  try {
+    const response = await diagnosticModelsFetch(fetcher, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'Accept-Language': 'en-US,en' },
+      credentials: 'omit',
+      redirect: 'manual', // Receive a redirect as HTTP without following it.
+      signal: controller.signal
+    }, 'unauthenticated_fetch', key, dependencies);
+    reached = true;
+    // Do not read, parse, or log even an unauthenticated response body.
+    if (response.body) await response.body.cancel().catch(() => {});
+  } catch { /* The fetch-boundary failure is already sanitized and logged. */ }
+  finally { clearTimeout(timeout); }
+
+  if (!constructed || !reached) logOutboundDiagnostic('authenticated_fetch', 'skipped', dependencies);
+  return constructed && reached;
 }
 
 /* ── request body ─────────────────────────────────────────────── */
@@ -463,21 +571,29 @@ function statusPayload(env) {
   };
 }
 
-async function listModels(env, dependencies) {
+async function listModels(request, env, dependencies) {
   const found = resolveKey(env);
   if (!found || disabled(env)) throw new RelayError(503, notConfiguredReason(env), 'relay_unavailable');
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== 'function') throw new RelayError(503, 'The relay is unavailable in this Worker runtime.', 'relay_unavailable');
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const init = {
+    method: 'GET',
+    headers: { Accept: 'application/json', 'Accept-Language': 'en-US,en', Authorization: `Bearer ${found.key}` },
+    redirect: 'error',
+    ...(controller ? { signal: controller.signal } : {})
+  };
+  const diagnostic = claimOutboundDiagnostic(request, env);
+  if (diagnostic && !(await modelsDiagnosticPreflight(fetcher, init, found.key, dependencies))) {
+    throw new RelayError(502, "The outbound diagnostic stopped before the authenticated model-list request. Check this Worker's sanitized diagnostic logs.", 'upstream_error');
+  }
+  // The existing authenticated request retains its full timeout after the probe.
   const timeout = controller ? setTimeout(() => controller.abort(), LIMITS.upstreamTimeoutMs) : null;
   const rows = id => ({ object: 'list', data: id.map(model => ({ id: model, object: 'model', owned_by: 'zai', free: true })), relay: { provider: 'zai', tier: 'free', keyVariable: found.name } });
   try {
-    const response = await fetcher(new URL(ZAI_MODELS_PATH, ZAI_ORIGIN).toString(), {
-      method: 'GET',
-      headers: { Accept: 'application/json', 'Accept-Language': 'en-US,en', Authorization: `Bearer ${found.key}` },
-      redirect: 'error',
-      ...(controller ? { signal: controller.signal } : {})
-    });
+    const response = diagnostic
+      ? await diagnosticModelsFetch(fetcher, init, 'authenticated_fetch', found.key, dependencies)
+      : await fetcher(ZAI_MODELS_URL, init);
     if (!response || !response.ok) {
       /* The allowlist is known without asking Z.AI, so an unavailable model
          list still tells the reader what this relay will serve — labelled as
@@ -498,7 +614,7 @@ async function listModels(env, dependencies) {
     if (!allowed.length) payload.relay.warning = "Z.AI listed none of the relay's free-tier models for this key; the allowlist is shown unverified.";
     return json(payload);
   } catch (error) {
-    logUpstreamFetchFailure('models', error, dependencies);
+    if (!diagnostic) logUpstreamFetchFailure('models', error, dependencies, found.key);
     if (error && error.name === 'AbortError') throw new RelayError(504, 'Z.AI did not answer the model list in time. Try again shortly.', 'upstream_error');
     throw new RelayError(502, 'Z.AI could not be reached for the model list. The relay will still serve its allowlisted free-tier models.', 'upstream_error');
   } finally {
@@ -613,7 +729,7 @@ async function relayChat(request, env, dependencies, caller, now) {
     }, 200, skipLocalRateLimits ? {} : rateHeaders(pacing));
   } catch (error) {
     if (error instanceof RelayError) throw error;
-    logUpstreamFetchFailure('chat', error, dependencies);
+    logUpstreamFetchFailure('chat', error, dependencies, found.key);
     if (error && error.name === 'AbortError') {
       throw new RelayError(504, `Z.AI did not finish within ${Math.round(LIMITS.upstreamTimeoutMs / 1000)} seconds. Retry, or send a smaller reading pass.`, 'upstream_error');
     }
@@ -642,7 +758,7 @@ export async function handleLlmRelay(request, env = {}, dependencies = {}) {
         remember(list, now);
         prune(now);
       }
-      return await listModels(env, dependencies);
+      return await listModels(request, env, dependencies);
     }
     if (pathname === RELAY_ROUTES.chat) {
       if (request.method === 'OPTIONS') {

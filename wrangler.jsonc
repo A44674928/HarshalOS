@@ -41,12 +41,14 @@
     "MONGODB_DATABASE": "harshalos"
   },
 
-  // Preview uses a separate database. The rate-limit bypass is temporary
-  // and applies only to public branch previews—not production.
+  // Preview uses a separate database. These temporary diagnostic switches
+  // apply only to public branch previews—not production. The outbound probe
+  // also requires an explicit /api/llm/models?diagnostic=outbound request.
   "previews": {
     "vars": {
       "MONGODB_DATABASE": "harshalos_preview",
-      "LLM_RELAY_DISABLE_RATE_LIMITS": "true"
+      "LLM_RELAY_DISABLE_RATE_LIMITS": "true",
+      "LLM_RELAY_OUTBOUND_DIAGNOSTIC": "true"
     }
   }
 }
