@@ -451,7 +451,17 @@ if (giApp) {
     dispatch(marketSelect, "change");
   }
   ok(!!(marketHost && marketHost.textContent.includes("MSFT-DEMO")), "changing the ticker selection redraws the chart series");
-  ok(giCalls.length === 3 && giCalls.every(call => call.options.method === "GET"), "the dashboard requests only the three read endpoints");
+  const marketSearch = giWindow && giWindow.body.querySelector("[data-gi-market-search]");
+  const marketClear = giWindow && giWindow.body.querySelector("[data-gi-market-clear]");
+  const marketCount = giWindow && giWindow.body.querySelector("[data-gi-market-count]");
+  ok(!!(marketSearch && marketClear && marketCount), "Market Charts has an accessible tracked-ticker search, clear control, and result count");
+  if (marketSearch) { marketSearch.value = " nvDA "; dispatch(marketSearch, "input"); }
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("NVDA-DEMO") && marketCount.textContent === "1 of 3 tracked tickers"), "ticker search filters demo symbols case-insensitively and updates the selected chart");
+  if (marketSearch) { marketSearch.value = "untracked"; dispatch(marketSearch, "input"); }
+  ok(!!(marketSelect && marketSelect.disabled && marketHost.textContent.includes("No tracked tickers match") && marketHost.querySelectorAll("svg").length === 0), "an unmatched search displays an empty state rather than the previous ticker's chart");
+  if (marketClear) marketClear.click();
+  ok(!!(marketSelect && !marketSelect.disabled && marketSelect.querySelectorAll("option").length === 3 && marketSearch.value === "" && marketSearch._focused), "clearing restores the watchlist and keyboard focus");
+  ok(giCalls.length === 3 && giCalls.every(call => call.options.method === "GET"), "local demo ticker searches issue no extra API calls");
   ok(giCalls.every(call => call.url.startsWith("/api/good-intelligence/v1/")), "the default client stays on the same-origin demo API instead of calling the live host");
   ok(giCalls.some(call => call.url.endsWith("/content/me") && call.options.credentials === "include"), "the protected member feed can use an existing GI session cookie");
   ok(giCalls.filter(call => !call.url.endsWith("/content/me")).every(call => call.options.credentials === "same-origin"), "public endpoints do not send cross-origin cookies");
@@ -482,7 +492,41 @@ if (giApp) {
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
   ok(!!(marketHost && marketHost.textContent.includes("1d") && giCalls.some(call => call.url.includes("/market/tickerbot/bars?symbol=AAPL&interval=1d"))), "switching bar interval requests a fresh Tickerbot series and redraws indicators");
-  ok(HOS.getLedger().length === ledgerBefore, "opening and refreshing Good Intelligence does not write to the HOS ledger");
+  if (marketSearch) { marketSearch.value = " miCROsoft "; dispatch(marketSearch, "input"); }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(marketSelect && marketSelect.value === "MSFT" && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("MSFT") && marketCount.textContent === "1 of 3 tracked tickers"), "Tickerbot search accepts company names and selects the matching live watchlist symbol");
+  ok(giCalls.some(call => call.url.includes("/market/tickerbot/bars?symbol=MSFT&interval=1d")), "a live search requests only the allowlisted ticker through the same-origin Worker");
+  const callsBeforeUnknownTicker = giCalls.length;
+  if (marketSearch) { marketSearch.value = "TSLA"; dispatch(marketSearch, "input"); }
+  await new Promise(resolve => setImmediate(resolve));
+  ok(giCalls.length === callsBeforeUnknownTicker && marketHost.textContent.includes("No tracked tickers match"), "a ticker outside the configured watchlist sends no provider request");
+  if (marketSearch) { marketSearch.value = '<img src=x onerror="attack()">'; dispatch(marketSearch, "input"); }
+  ok(marketHost.innerHTML.includes("&lt;img") && !marketHost.querySelector("img"), "search text is escaped in the no-result message and is never executable markup");
+  if (marketClear) marketClear.click();
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 3 && marketSearch.value === ""), "clearing a live search restores all configured tickers");
+
+  // A response to a previously matching query must not replace the new empty
+  // state after the reviewer searches for an unsupported symbol.
+  const tickerFetch = globalThis.fetch;
+  let releaseLateTicker = null;
+  globalThis.fetch = (url, options) => String(url).includes("symbol=NVDA")
+    ? new Promise(resolve => { releaseLateTicker = () => resolve(tickerFetch(url, options)); })
+    : tickerFetch(url, options);
+  try {
+    if (marketSearch) { marketSearch.value = "nvidia"; dispatch(marketSearch, "input"); }
+    await new Promise(resolve => setImmediate(resolve));
+    ok(!!releaseLateTicker, "a matched ticker begins the live bars request");
+    if (marketSearch) { marketSearch.value = "TSLA"; dispatch(marketSearch, "input"); }
+    if (releaseLateTicker) releaseLateTicker();
+    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setImmediate(resolve));
+    ok(marketHost.textContent.includes("No tracked tickers match") && marketHost.querySelectorAll("svg").length === 0, "late Tickerbot responses cannot overwrite a no-match search state");
+  } finally { globalThis.fetch = tickerFetch; }
+  if (marketClear) marketClear.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, and searching Good Intelligence does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;
 
