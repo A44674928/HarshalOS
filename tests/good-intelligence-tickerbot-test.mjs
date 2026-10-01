@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { handleGoodIntelligenceTickerbot, clearTickerbotCache } from "../worker/good-intelligence-tickerbot.mjs";
+import { handleGoodIntelligenceTickerbot, clearTickerbotCache, TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
+
+const watchlistFields = entries => entries.map(({ symbol, name, sector }) => ({ symbol, name, sector }));
 
 const NOW = Date.parse("2026-10-01T12:00:00.000Z");
 const route = symbol => new Request(`https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=${symbol}&interval=1h`);
@@ -183,6 +186,58 @@ test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", asy
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL&interval=5m"), env, dependencies)).status, 400);
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL", { method: "POST" }), env, dependencies)).status, 405);
   assert.equal(calls, 0);
+});
+
+test("the expanded watchlist enables the requested tickers and every entry is a unique, well-formed symbol", () => {
+  const symbols = TICKERBOT_WATCHLIST.map(entry => entry.symbol);
+  for (const requested of ["INTC", "AMD", "MSFT", "NET", "CVX", "XOM"]) {
+    assert.ok(symbols.includes(requested), `${requested} is enabled`);
+  }
+  assert.ok(symbols.length >= 40, "the demo watchlist spans a useful breadth of tickers");
+  assert.equal(new Set(symbols).size, symbols.length, "no duplicate symbols");
+  for (const entry of TICKERBOT_WATCHLIST) {
+    assert.match(entry.symbol, /^[A-Z]{1,5}$/, `${entry.symbol} stays path-safe`);
+    assert.ok(entry.name.length > 0 && entry.sector.length > 0, `${entry.symbol} is labeled for search and grouping`);
+  }
+  assert.ok(Object.isFrozen(TICKERBOT_WATCHLIST) && TICKERBOT_WATCHLIST.every(Object.isFrozen), "the allowlist cannot be widened or edited at runtime");
+  const sectors = new Set(TICKERBOT_WATCHLIST.map(entry => entry.sector));
+  assert.ok(sectors.size >= 8, "watchlist entries are spread across sectors for the grouped selector");
+});
+
+test("every enabled watchlist symbol builds one fixed upstream bars path and answers 200", async () => {
+  clearTickerbotCache();
+  const env = { TICKERBOT_API_KEY: "test-only-worker-secret" };
+  const paths = [];
+  const dependencies = {
+    now: () => NOW,
+    fetch: workersFetch(async url => { paths.push(new URL(url).pathname); return okResponse(); })
+  };
+  for (const entry of TICKERBOT_WATCHLIST) {
+    const response = await handleGoodIntelligenceTickerbot(route(entry.symbol), env, dependencies);
+    const payload = await response.json();
+    assert.equal(response.status, 200, `${entry.symbol} is served`);
+    assert.equal(payload.data.symbol, entry.symbol);
+    assert.equal(payload.data.synthetic, false);
+  }
+  assert.deepEqual(paths, TICKERBOT_WATCHLIST.map(entry => `/v2/bars/${entry.symbol}/1h`), "the allowlist is the only source of upstream ticker paths");
+});
+
+test("the browser search list mirrors the Worker allowlist exactly", async () => {
+  /* The browser cannot import the Worker module, so the list is duplicated for local
+     search. If the copies drift, the UI would offer a symbol the Worker refuses (or
+     hide one it allows) — this test is the guard that keeps them identical. */
+  const source = await readFile(new URL("../js/apps-good-intelligence.js", import.meta.url), "utf8");
+  const block = source.match(/const TICKERBOT_WATCHLIST = Object\.freeze\(\[([\s\S]*?)\]\);/);
+  assert.ok(block, "the browser watchlist literal is present");
+  const browserEntries = [...block[1].matchAll(/\{([^{}]*)\}/g)].map(([, body]) => {
+    const field = key => {
+      const match = body.match(new RegExp(`\\b${key}:\\s*"([^"]*)"`));
+      return match ? match[1] : null;
+    };
+    return { symbol: field("symbol"), name: field("name"), sector: field("sector") };
+  });
+  assert.ok(browserEntries.length > 0, "the browser watchlist parses");
+  assert.deepEqual(browserEntries, watchlistFields(TICKERBOT_WATCHLIST), "browser search and Worker allowlist agree on symbols, names, sectors, and order");
 });
 
 test("Tickerbot adapter caches identical reads briefly and sanitizes rate-limit responses", async () => {

@@ -29,13 +29,75 @@
 
   // Search is local to the configured read-only watchlist. Typed text is
   // never interpolated into an upstream ticker path or used as a URL.
+  // This mirrors the Worker allowlist in worker/good-intelligence-tickerbot.mjs;
+  // tests/good-intelligence-tickerbot-test.mjs fails if the two lists drift.
   const TICKERBOT_WATCHLIST = Object.freeze([
-    { symbol: "AAPL", name: "Apple" },
-    { symbol: "MSFT", name: "Microsoft" },
-    { symbol: "NVDA", name: "NVIDIA" }
+    { symbol: "AAPL", name: "Apple", sector: "Technology & platforms" },
+    { symbol: "AMZN", name: "Amazon.com", sector: "Technology & platforms" },
+    { symbol: "GOOGL", name: "Alphabet", sector: "Technology & platforms" },
+    { symbol: "META", name: "Meta Platforms", sector: "Technology & platforms" },
+    { symbol: "MSFT", name: "Microsoft", sector: "Technology & platforms" },
+    { symbol: "NFLX", name: "Netflix", sector: "Technology & platforms" },
+    { symbol: "AMD", name: "Advanced Micro Devices", sector: "Semiconductors" },
+    { symbol: "AVGO", name: "Broadcom", sector: "Semiconductors" },
+    { symbol: "INTC", name: "Intel", sector: "Semiconductors" },
+    { symbol: "MU", name: "Micron Technology", sector: "Semiconductors" },
+    { symbol: "NVDA", name: "NVIDIA", sector: "Semiconductors" },
+    { symbol: "QCOM", name: "Qualcomm", sector: "Semiconductors" },
+    { symbol: "CRM", name: "Salesforce", sector: "Software, cloud & cyber" },
+    { symbol: "CRWD", name: "CrowdStrike", sector: "Software, cloud & cyber" },
+    { symbol: "NET", name: "Cloudflare", sector: "Software, cloud & cyber" },
+    { symbol: "NOW", name: "ServiceNow", sector: "Software, cloud & cyber" },
+    { symbol: "ORCL", name: "Oracle", sector: "Software, cloud & cyber" },
+    { symbol: "PANW", name: "Palo Alto Networks", sector: "Software, cloud & cyber" },
+    { symbol: "PLTR", name: "Palantir Technologies", sector: "Software, cloud & cyber" },
+    { symbol: "COP", name: "ConocoPhillips", sector: "Energy" },
+    { symbol: "CVX", name: "Chevron", sector: "Energy" },
+    { symbol: "OXY", name: "Occidental Petroleum", sector: "Energy" },
+    { symbol: "SLB", name: "SLB", sector: "Energy" },
+    { symbol: "XOM", name: "Exxon Mobil", sector: "Energy" },
+    { symbol: "BAC", name: "Bank of America", sector: "Financials" },
+    { symbol: "GS", name: "Goldman Sachs", sector: "Financials" },
+    { symbol: "JPM", name: "JPMorgan Chase", sector: "Financials" },
+    { symbol: "MA", name: "Mastercard", sector: "Financials" },
+    { symbol: "V", name: "Visa", sector: "Financials" },
+    { symbol: "JNJ", name: "Johnson & Johnson", sector: "Health care" },
+    { symbol: "LLY", name: "Eli Lilly", sector: "Health care" },
+    { symbol: "PFE", name: "Pfizer", sector: "Health care" },
+    { symbol: "UNH", name: "UnitedHealth Group", sector: "Health care" },
+    { symbol: "COST", name: "Costco Wholesale", sector: "Consumer & retail" },
+    { symbol: "KO", name: "Coca-Cola", sector: "Consumer & retail" },
+    { symbol: "MCD", name: "McDonald's", sector: "Consumer & retail" },
+    { symbol: "WMT", name: "Walmart", sector: "Consumer & retail" },
+    { symbol: "BA", name: "Boeing", sector: "Industrial & defense" },
+    { symbol: "CAT", name: "Caterpillar", sector: "Industrial & defense" },
+    { symbol: "GE", name: "GE Aerospace", sector: "Industrial & defense" },
+    { symbol: "LMT", name: "Lockheed Martin", sector: "Industrial & defense" },
+    { symbol: "F", name: "Ford", sector: "Autos & EV" },
+    { symbol: "GM", name: "General Motors", sector: "Autos & EV" },
+    { symbol: "RIVN", name: "Rivian", sector: "Autos & EV" },
+    { symbol: "TSLA", name: "Tesla", sector: "Autos & EV" },
+    { symbol: "COIN", name: "Coinbase", sector: "Crypto & fintech" },
+    { symbol: "HOOD", name: "Robinhood Markets", sector: "Crypto & fintech" },
+    { symbol: "MSTR", name: "Strategy (MicroStrategy)", sector: "Crypto & fintech" },
+    { symbol: "IWM", name: "Russell 2000 ETF", sector: "Index & sector ETFs" },
+    { symbol: "QQQ", name: "Nasdaq 100 ETF", sector: "Index & sector ETFs" },
+    { symbol: "SPY", name: "S&P 500 ETF", sector: "Index & sector ETFs" },
+    { symbol: "XLE", name: "Energy Select Sector ETF", sector: "Index & sector ETFs" }
   ]);
+  const WATCHLIST_SECTORS = Object.freeze([...new Set(TICKERBOT_WATCHLIST.map(item => item.sector))]);
   const marketMatches = (query, ...fields) => fields.join(" ").toLowerCase().includes(String(query || "").trim().toLowerCase());
   const companyFor = symbol => TICKERBOT_WATCHLIST.find(item => item.symbol === String(symbol || "").replace(/-DEMO$/, ""))?.name || "";
+  // Group the already-matched watchlist entries by sector so the native selector stays
+  // scannable at this list size. Order follows the watchlist, so it is deterministic.
+  const tickerbotOptionGroups = entries => {
+    const groups = new Map();
+    for (const entry of entries) {
+      if (!groups.has(entry.sector)) groups.set(entry.sector, []);
+      groups.get(entry.sector).push(entry);
+    }
+    return [...groups].map(([sector, rows]) => `<optgroup label="${escapeHtml(sector)}">${rows.map(entry => `<option value="${escapeHtml(entry.symbol)}">${escapeHtml(entry.symbol)} · TICKERBOT · ${escapeHtml(entry.name)}</option>`).join("")}</optgroup>`).join("");
+  };
 
   APPS.push({
     id: "good-intelligence",
@@ -43,6 +105,9 @@
     short: "Good Intelligence",
     glyph: "∅",
     desc: "Read-only intel feed, network rankings, and synthetic-safe Market Charts from the Good Intelligence API",
+    // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
+    // metadata so tests can prove it matches the Worker's copy.
+    tickerbotWatchlist: TICKERBOT_WATCHLIST,
     w: 1160,
     h: 760,
     render(body, api) {
@@ -546,7 +611,7 @@
         marketClear.disabled = !state.marketQuery;
         marketCount.textContent = `${count} of ${total} tracked ticker${total === 1 ? "" : "s"}`;
         marketSearchHelp.textContent = state.marketProvider === "tickerbot"
-          ? "Search the configured Tickerbot watchlist: AAPL (Apple), MSFT (Microsoft), NVDA (NVIDIA). Other symbols are not enabled on this Worker."
+          ? `Search the configured Tickerbot watchlist: ${TICKERBOT_WATCHLIST.length} tickers across ${WATCHLIST_SECTORS.length} sectors (Apple, Microsoft, Intel, AMD, Cloudflare, Chevron, Exxon Mobil, Tesla, …). Other symbols are not enabled on this Worker.`
           : "Filter the tickers supplied by the selected API. Demo symbols and prices remain synthetic.";
       }
 
@@ -567,7 +632,7 @@
         marketSelect.disabled = false;
         const symbols = matches.map(item => item.symbol);
         if (!symbols.includes(state.selectedMarketId)) state.selectedMarketId = symbols[0];
-        marketSelect.innerHTML = matches.map(item => `<option value="${item.symbol}">${item.symbol} · TICKERBOT · ${item.name}</option>`).join("");
+        marketSelect.innerHTML = tickerbotOptionGroups(matches);
         marketSelect.value = state.selectedMarketId;
         const symbol = state.selectedMarketId;
         const interval = state.marketInterval;

@@ -103,14 +103,16 @@ test("higher-timeframe mode maps only confirmed supplied candles onto the base s
   assert.ok(Number.isFinite(result.waveTrend.wt1));
 });
 
-test("empty.domains API supplies three clearly synthetic ticker series for line-chart rendering", async () => {
+test("empty.domains API supplies eight clearly synthetic ticker series for line-chart rendering", async () => {
   const response = await handleGoodIntelligenceDemo(
     new Request("https://empty.domains/api/good-intelligence/v1/content/me"), NOW
   );
   const payload = await response.json();
   const fixtures = payload.data.filter(item => item.marketContext);
-  assert.equal(fixtures.length, 3);
-  assert.deepEqual(fixtures.map(item => item.marketContext.symbol), ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO"]);
+  assert.equal(fixtures.length, 8);
+  assert.deepEqual(fixtures.map(item => item.marketContext.symbol), [
+    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "NET-DEMO", "CVX-DEMO", "XOM-DEMO"
+  ]);
   for (const fixture of fixtures) {
     assert.match(fixture.title, /^\[DEMO\]/);
     assert.equal(fixture.demo, true);

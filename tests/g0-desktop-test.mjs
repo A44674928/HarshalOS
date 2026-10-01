@@ -374,7 +374,7 @@ const marketBars = Array.from({ length: 360 }, (_, index) => {
     volume: 1000 + 100 * (1 + Math.sin(index / 5)), confirmed: true
   };
 });
-const demoMarketStories = ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO"].map((symbol, tickerIndex) => {
+const demoMarketStories = ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO"].map((symbol, tickerIndex) => {
   const offset = tickerIndex * 35;
   const bars = marketBars.map(bar => ({
     ...bar, open: bar.open + offset, high: bar.high + offset,
@@ -443,7 +443,7 @@ if (giApp) {
   const marketSelect = giWindow && giWindow.body.querySelector("[data-gi-market-select]");
   const marketHost = giWindow && giWindow.body.querySelector("[data-gi-market-chart-host]");
   ok(!!(marketTab && marketPanel && marketPanel.hidden === false), "Market Charts is a dedicated navigable dashboard tab");
-  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 3 && marketSelect.innerHTML.includes("AAPL-DEMO") && marketSelect.innerHTML.includes("MSFT-DEMO") && marketSelect.innerHTML.includes("NVDA-DEMO")), "ticker selector lists all three clearly synthetic demo symbols");
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 4 && ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO"].every(symbol => marketSelect.innerHTML.includes(symbol))), "ticker selector lists every clearly synthetic demo symbol, including the newly added history");
   ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.innerHTML.includes("PRICE OVERLAY") && marketHost.innerHTML.includes("VFI oscillator") && marketHost.innerHTML.includes("WaveTrend")), "Market Charts renders responsive SVG price, VFI, and WaveTrend graphs");
   ok(!!(marketHost && marketHost.textContent.includes("SYNTHETIC OHLCV · NOT REAL MARKET PRICES")), "chart summary warns that demo prices are synthetic and not real market data");
   if (marketSelect && marketHost) {
@@ -455,12 +455,14 @@ if (giApp) {
   const marketClear = giWindow && giWindow.body.querySelector("[data-gi-market-clear]");
   const marketCount = giWindow && giWindow.body.querySelector("[data-gi-market-count]");
   ok(!!(marketSearch && marketClear && marketCount), "Market Charts has an accessible tracked-ticker search, clear control, and result count");
+  if (marketSearch) { marketSearch.value = "intel"; dispatch(marketSearch, "input"); }
+  ok(!!(marketSelect && marketSelect.value === "story-market-INTC-DEMO" && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("INTC-DEMO") && marketCount.textContent === "1 of 4 tracked tickers"), "demo search resolves a company name from the shared watchlist for the newly added synthetic ticker");
   if (marketSearch) { marketSearch.value = " nvDA "; dispatch(marketSearch, "input"); }
-  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("NVDA-DEMO") && marketCount.textContent === "1 of 3 tracked tickers"), "ticker search filters demo symbols case-insensitively and updates the selected chart");
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("NVDA-DEMO") && marketCount.textContent === "1 of 4 tracked tickers"), "ticker search filters demo symbols case-insensitively and updates the selected chart");
   if (marketSearch) { marketSearch.value = "untracked"; dispatch(marketSearch, "input"); }
   ok(!!(marketSelect && marketSelect.disabled && marketHost.textContent.includes("No tracked tickers match") && marketHost.querySelectorAll("svg").length === 0), "an unmatched search displays an empty state rather than the previous ticker's chart");
   if (marketClear) marketClear.click();
-  ok(!!(marketSelect && !marketSelect.disabled && marketSelect.querySelectorAll("option").length === 3 && marketSearch.value === "" && marketSearch._focused), "clearing restores the watchlist and keyboard focus");
+  ok(!!(marketSelect && !marketSelect.disabled && marketSelect.querySelectorAll("option").length === 4 && marketSearch.value === "" && marketSearch._focused), "clearing restores the watchlist and keyboard focus");
   ok(giCalls.length === 3 && giCalls.every(call => call.options.method === "GET"), "local demo ticker searches issue no extra API calls");
   ok(giCalls.every(call => call.url.startsWith("/api/good-intelligence/v1/")), "the default client stays on the same-origin demo API instead of calling the live host");
   ok(giCalls.some(call => call.url.endsWith("/content/me") && call.options.credentials === "include"), "the protected member feed can use an existing GI session cookie");
@@ -483,6 +485,10 @@ if (giApp) {
   await new Promise(resolve => setImmediate(resolve));
   ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.textContent.includes("TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED")), "Tickerbot Live renders real-provider OHLCV through the existing Pine indicator charts");
   ok(!!(marketSelect && marketSelect.innerHTML.includes("AAPL · TICKERBOT") && marketInterval && marketInterval.disabled === false), "Tickerbot mode switches to the live watchlist and enables bar intervals");
+  const liveWatchlist = giApp && Array.isArray(giApp.tickerbotWatchlist) ? giApp.tickerbotWatchlist : [];
+  ok(!!(liveWatchlist.length >= 40 && ["INTC", "AMD", "MSFT", "NET", "CVX", "XOM"].every(symbol => liveWatchlist.some(entry => entry.symbol === symbol))), "the configured Tickerbot watchlist enables the requested semiconductor, cloud, and energy tickers");
+  ok(!!(liveWatchlist.every(entry => /^[A-Z]{1,5}$/.test(entry.symbol) && entry.name && entry.sector) && new Set(liveWatchlist.map(entry => entry.symbol)).size === liveWatchlist.length), "every live watchlist entry is a unique, named, sector-labeled symbol");
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === liveWatchlist.length && marketSelect.innerHTML.includes('<optgroup label="Energy">')), "the live ticker selector lists the whole watchlist, grouped by sector");
   const tickerbotCall = giCalls.find(call => call.url.includes("/market/tickerbot/bars?"));
   ok(!!(tickerbotCall && tickerbotCall.options.method === "GET" && tickerbotCall.options.credentials === "same-origin" && !tickerbotCall.options.headers.Authorization), "the browser calls only the same-origin Worker and never receives the Tickerbot key");
   if (marketInterval) {
@@ -495,16 +501,21 @@ if (giApp) {
   if (marketSearch) { marketSearch.value = " miCROsoft "; dispatch(marketSearch, "input"); }
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
-  ok(!!(marketSelect && marketSelect.value === "MSFT" && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("MSFT") && marketCount.textContent === "1 of 3 tracked tickers"), "Tickerbot search accepts company names and selects the matching live watchlist symbol");
+  ok(!!(marketSelect && marketSelect.value === "MSFT" && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("MSFT") && marketCount.textContent === `1 of ${liveWatchlist.length} tracked tickers`), "Tickerbot search accepts company names and selects the matching live watchlist symbol");
   ok(giCalls.some(call => call.url.includes("/market/tickerbot/bars?symbol=MSFT&interval=1d")), "a live search requests only the allowlisted ticker through the same-origin Worker");
+  if (marketSearch) { marketSearch.value = " exxon "; dispatch(marketSearch, "input"); }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(marketSelect && marketSelect.value === "XOM" && marketSelect.querySelectorAll("option").length === 1 && marketHost.textContent.includes("XOM") && marketSelect.innerHTML.includes('<optgroup label="Energy">')), "newly enabled energy tickers are searchable and grouped under their sector");
+  ok(giCalls.some(call => call.url.includes("/market/tickerbot/bars?symbol=XOM&interval=1d")), "a newly enabled ticker also goes only through the same-origin Worker");
   const callsBeforeUnknownTicker = giCalls.length;
-  if (marketSearch) { marketSearch.value = "TSLA"; dispatch(marketSearch, "input"); }
+  if (marketSearch) { marketSearch.value = "ZZZZ"; dispatch(marketSearch, "input"); }
   await new Promise(resolve => setImmediate(resolve));
   ok(giCalls.length === callsBeforeUnknownTicker && marketHost.textContent.includes("No tracked tickers match"), "a ticker outside the configured watchlist sends no provider request");
   if (marketSearch) { marketSearch.value = '<img src=x onerror="attack()">'; dispatch(marketSearch, "input"); }
   ok(marketHost.innerHTML.includes("&lt;img") && !marketHost.querySelector("img"), "search text is escaped in the no-result message and is never executable markup");
   if (marketClear) marketClear.click();
-  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 3 && marketSearch.value === ""), "clearing a live search restores all configured tickers");
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === liveWatchlist.length && marketSearch.value === ""), "clearing a live search restores all configured tickers");
 
   // A response to a previously matching query must not replace the new empty
   // state after the reviewer searches for an unsupported symbol.
@@ -517,7 +528,7 @@ if (giApp) {
     if (marketSearch) { marketSearch.value = "nvidia"; dispatch(marketSearch, "input"); }
     await new Promise(resolve => setImmediate(resolve));
     ok(!!releaseLateTicker, "a matched ticker begins the live bars request");
-    if (marketSearch) { marketSearch.value = "TSLA"; dispatch(marketSearch, "input"); }
+    if (marketSearch) { marketSearch.value = "ZZZZ"; dispatch(marketSearch, "input"); }
     if (releaseLateTicker) releaseLateTicker();
     await new Promise(resolve => setImmediate(resolve));
     await new Promise(resolve => setImmediate(resolve));
