@@ -1111,6 +1111,17 @@ const linkPriced = () => {
   eq(listedAt, "/api/llm/models", "List models asks the relay, not Z.AI directly");
   eq(relayModels.join(","), "glm-4.5-flash,glm-4.7-flash", "the relay's free-tier list is parsed");
 
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 502,
+    clone() { return { json: async () => ({ error: { message: "Z.AI could not be reached for the model list." } }) }; }
+  });
+  let listingFailure = null;
+  try { await LLM.loadModels(LLM.resolved()); } catch (error) { listingFailure = error; }
+  const listingDescription = LLM.describe(listingFailure);
+  ok(/could not be reached for the model list/i.test(listingDescription.detail), "the relay's sanitized 502 detail is shown instead of only HTTP 502");
+  ok(/Worker-to-provider connection/i.test(listingDescription.hint), "the hint identifies the Worker-to-provider path without claiming a global outage");
+
   globalThis.fetch = originalFetch;
   LLM.clearKey();
   LLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5" });

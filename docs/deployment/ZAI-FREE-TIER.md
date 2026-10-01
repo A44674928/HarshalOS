@@ -155,6 +155,26 @@ cannot carry account detail, and the key is scrubbed from any text the relay doe
 Refusals that happen **before** any upstream call — an unlisted model, a non-text message, an
 oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and never spend quota.
 
+## Diagnosing Worker-to-Z.AI connection failures
+
+A relay `502` reading `Z.AI could not be reached` means the Worker did not receive a usable HTTP
+response from its outbound request. The browser does not get the underlying socket exception. The
+Worker emits a deliberately sanitized log entry for these failures with only `route`, `errorName`,
+`causeName`, and `causeCode` (for example, `ECONNRESET`). It never logs the exception message or stack,
+request URL, headers, API key, or prompt.
+
+1. In Cloudflare, open **Workers & Pages → harshalos → Logs / Observability → Real-time logs**. The
+   label can vary slightly by dashboard version.
+2. Leave the log stream open, then press **List models** once in LLM Link on the affected hostname.
+3. Find the `zai_upstream_fetch_failed` event at that time. Share only its four safe fields with your
+   maintainer; do not share credentials or prompts.
+4. If no event appears, the request may be handled by an older Worker version, or the route may not be
+   reaching the instrumented Worker. Confirm the active version and hostname in Cloudflare.
+
+If you already have Wrangler authenticated locally, the same logs can be tailed with
+`npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
+or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
+
 ## 5. Limits and honesty
 
 - **Prompts transit your Worker.** That is the trade for holding the key server-side: the operator of

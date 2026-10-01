@@ -207,6 +207,25 @@ const rateHeaders = ({ limit, remaining, reset }, extra = {}) => ({
 });
 const seconds = n => `${n} second${n === 1 ? '' : 's'}`;
 
+/* Log enough to distinguish common outbound connection failures without ever
+   serializing an exception message, stack, URL, request, key, or prompt. */
+function logUpstreamFetchFailure(route, error, dependencies) {
+  const safeName = value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : '';
+  const safeCode = value => typeof value === 'string' && /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : '';
+  const cause = error && typeof error === 'object' && error.cause && typeof error.cause === 'object' ? error.cause : null;
+  const entry = {
+    event: 'zai_upstream_fetch_failed',
+    route: route === 'models' ? 'models' : 'chat',
+    errorName: safeName(error && error.name) || 'Error',
+    causeName: safeName(cause && cause.name),
+    causeCode: safeCode(cause && cause.code)
+  };
+  try {
+    if (dependencies && typeof dependencies.log === 'function') dependencies.log(entry);
+    else console.warn('[HarshalOS relay]', entry);
+  } catch { /* Diagnostics must never affect request handling. */ }
+}
+
 /* ── request body ─────────────────────────────────────────────── */
 async function readJsonBody(request) {
   const type = request.headers.get('Content-Type') || '';
@@ -479,6 +498,7 @@ async function listModels(env, dependencies) {
     if (!allowed.length) payload.relay.warning = "Z.AI listed none of the relay's free-tier models for this key; the allowlist is shown unverified.";
     return json(payload);
   } catch (error) {
+    logUpstreamFetchFailure('models', error, dependencies);
     if (error && error.name === 'AbortError') throw new RelayError(504, 'Z.AI did not answer the model list in time. Try again shortly.', 'upstream_error');
     throw new RelayError(502, 'Z.AI could not be reached for the model list. The relay will still serve its allowlisted free-tier models.', 'upstream_error');
   } finally {
@@ -593,6 +613,7 @@ async function relayChat(request, env, dependencies, caller, now) {
     }, 200, skipLocalRateLimits ? {} : rateHeaders(pacing));
   } catch (error) {
     if (error instanceof RelayError) throw error;
+    logUpstreamFetchFailure('chat', error, dependencies);
     if (error && error.name === 'AbortError') {
       throw new RelayError(504, `Z.AI did not finish within ${Math.round(LIMITS.upstreamTimeoutMs / 1000)} seconds. Retry, or send a smaller reading pass.`, 'upstream_error');
     }
