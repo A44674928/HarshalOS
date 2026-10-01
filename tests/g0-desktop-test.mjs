@@ -330,6 +330,133 @@ if (guidedApp) {
   ok(operationalSnapshot() === beforeState && HOS.getLedger().length === beforeLedger, "the full guided UI round-trip does not mutate live HOS state or ledger");
 }
 
+/* ── Good Intelligence app is native to the shell and GET-only ── */
+const giApp = globalThis.APPS.find(app => app.id === "good-intelligence");
+ok(!!giApp, "Good Intelligence read-only app is registered");
+const giCalls = [];
+const originalFetch = globalThis.fetch;
+const marketClose = index => 100 + index * 0.018 + Math.sin(index / 9) * 2.4 + Math.sin(index / 3.5) * 0.8 + Math.sin(index / 26) * 2;
+const marketBars = Array.from({ length: 360 }, (_, index) => {
+  const close = marketClose(index);
+  const open = index ? marketClose(index - 1) : close - 0.12;
+  return {
+    time: new Date(Date.now() - (359 - index) * 60 * 60_000).toISOString(),
+    open, high: Math.max(open, close) + 0.2, low: Math.min(open, close) - 0.2, close,
+    volume: 1000 + 100 * (1 + Math.sin(index / 5)), confirmed: true
+  };
+});
+const demoMarketStories = ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO"].map((symbol, tickerIndex) => {
+  const offset = tickerIndex * 35;
+  const bars = marketBars.map(bar => ({
+    ...bar, open: bar.open + offset, high: bar.high + offset,
+    low: bar.low + offset, close: bar.close + offset
+  }));
+  return {
+    _id: tickerIndex === 0 ? "story-test-1" : `story-market-${symbol}`,
+    title: tickerIndex === 0 ? "[DEMO] Test-market signal" : `[DEMO] ${symbol} market signal`,
+    body: tickerIndex === 0 ? "Evidence-backed read-only preview. Synthetic test fixture only; generated OHLCV bars are not real prices." : "Synthetic test fixture only; generated OHLCV bars are not real prices.", category: "Markets",
+    address: "EMPTY-DEMO-MARKET-TEST", providerName: "Synthetic desktop fixture", block: 42, demo: true,
+    marketContext: { schema: "gi-market-context-v1", synthetic: true, source: "desktop test synthetic bars", symbol, timeframe: "1h", bars }
+  };
+});
+let giOmitMarketContext = false;
+globalThis.fetch = async (url, options) => {
+  giCalls.push({ url: String(url), options });
+  let payload;
+  if (String(url).endsWith("/content/me")) {
+    const data = giOmitMarketContext
+      ? demoMarketStories.map(({ marketContext, ...story }) => story)
+      : demoMarketStories;
+    payload = { success: true, data };
+  } else if (String(url).endsWith("/categories")) {
+    payload = { success: true, data: [{ _id: "category-markets", name: "Markets" }] };
+  } else if (String(url).includes("/rank?")) {
+    payload = { success: true, data: [{ address: "0x1234567890abcdef1234567890abcdef12345678", rank: 1, score: 88, tokens: "12" }] };
+  } else if (String(url).includes("/market/tickerbot/bars?")) {
+    const requestUrl = new URL(String(url), "https://os.example.test");
+    payload = {
+      success: true, environment: "tickerbot",
+      data: { schema: "gi-market-context-v1", synthetic: false, source: "Tickerbot · split-adjusted OHLCV", symbol: requestUrl.searchParams.get("symbol"), timeframe: requestUrl.searchParams.get("interval"), bars: marketBars }
+    };
+  } else {
+    payload = { success: false, message: "Unexpected route" };
+  }
+  return {
+    ok: true, status: 200,
+    headers: { get: name => name.toLowerCase() === "content-type" ? "application/json" : null },
+    json: async () => payload
+  };
+};
+if (giApp) {
+  const ledgerBefore = HOS.getLedger().length;
+  shell.openApp(giApp);
+  const giWindow = shell.windows.get("good-intelligence");
+  ok(!!giWindow, "Good Intelligence opens as a HarshalOS desktop window");
+  ok(!!(giWindow && giWindow.body.innerHTML.includes("Signal desk") && giWindow.body.innerHTML.includes("READ-ONLY VIEW")), "the first release clearly identifies its read-only intel dashboard");
+  const demoBanner = giWindow && giWindow.body.querySelector("[data-gi-demo-mode]");
+  ok(!!(demoBanner && demoBanner.hidden === false), "the default endpoint is visibly identified as synthetic empty.domains demo data");
+  await new Promise(resolve => setImmediate(resolve));
+  const giText = giWindow ? giWindow.body.textContent : "";
+  ok(giText.includes("DEMO FIXTURES CONNECTED"), "the connection status does not call the demo feed live intelligence");
+  ok(giText.includes("Test-market signal"), "feed data is rendered in the dashboard");
+  ok(giText.includes("Evidence-backed read-only preview."), "API HTML is rendered as inert plain text");
+  ok(giText.includes("ASSURANCE · NOT SCORED"), "signals without an assurance packet remain explicitly unscored");
+  const giStory = giWindow && giWindow.body.querySelector("[data-gi-item]");
+  if (giStory) giStory.click();
+  const giDetailText = giWindow ? giWindow.body.textContent : "";
+  ok(giDetailText.includes("Assurance index") && giDetailText.includes("UNASSESSED"), "the signal detail panel explains missing assurance inputs without granting trust or actionability");
+  ok(giDetailText.includes("NO SIGNED ATTESTATION · API-REPORTED"), "unsigned external packets remain clearly labeled as API-reported rather than independently verified");
+  ok(giDetailText.includes("VFI + Fibonacci Bands + WaveTrend") && giDetailText.includes("SYNTHETIC MARKET DATA · NOT LIVE"), "optional technical context renders separately and labels its OHLCV bars synthetic");
+  ok(giDetailText.includes("PRICE/VOLUME CONTEXT · NOT ASSURANCE"), "market indicators do not merge into the source/claim assurance score");
+  const marketTab = giWindow && giWindow.body.querySelector('[data-gi-view="markets"]');
+  if (marketTab) marketTab.click();
+  const marketPanel = giWindow && giWindow.body.querySelector("[data-gi-markets-panel]");
+  const marketSelect = giWindow && giWindow.body.querySelector("[data-gi-market-select]");
+  const marketHost = giWindow && giWindow.body.querySelector("[data-gi-market-chart-host]");
+  ok(!!(marketTab && marketPanel && marketPanel.hidden === false), "Market Charts is a dedicated navigable dashboard tab");
+  ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 3 && marketSelect.innerHTML.includes("AAPL-DEMO") && marketSelect.innerHTML.includes("MSFT-DEMO") && marketSelect.innerHTML.includes("NVDA-DEMO")), "ticker selector lists all three clearly synthetic demo symbols");
+  ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.innerHTML.includes("PRICE OVERLAY") && marketHost.innerHTML.includes("VFI oscillator") && marketHost.innerHTML.includes("WaveTrend")), "Market Charts renders responsive SVG price, VFI, and WaveTrend graphs");
+  ok(!!(marketHost && marketHost.textContent.includes("SYNTHETIC OHLCV · NOT REAL MARKET PRICES")), "chart summary warns that demo prices are synthetic and not real market data");
+  if (marketSelect && marketHost) {
+    marketSelect.value = "story-market-MSFT-DEMO";
+    dispatch(marketSelect, "change");
+  }
+  ok(!!(marketHost && marketHost.textContent.includes("MSFT-DEMO")), "changing the ticker selection redraws the chart series");
+  ok(giCalls.length === 3 && giCalls.every(call => call.options.method === "GET"), "the dashboard requests only the three read endpoints");
+  ok(giCalls.every(call => call.url.startsWith("/api/good-intelligence/v1/")), "the default client stays on the same-origin demo API instead of calling the live host");
+  ok(giCalls.some(call => call.url.endsWith("/content/me") && call.options.credentials === "include"), "the protected member feed can use an existing GI session cookie");
+  ok(giCalls.filter(call => !call.url.endsWith("/content/me")).every(call => call.options.credentials === "same-origin"), "public endpoints do not send cross-origin cookies");
+  giOmitMarketContext = true;
+  const refreshButton = giWindow && giWindow.body.querySelector("[data-gi-refresh]");
+  if (refreshButton) refreshButton.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(marketHost && marketHost.textContent.includes("No ticker bars supplied") && marketHost.textContent.includes("No prices or line charts are fabricated")), "a configured API with no OHLCV shows an explicit empty state instead of invented prices");
+  ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 0), "no line graph is drawn when the API supplies no ticker bars");
+  ok(giCalls.length === 6 && giCalls.every(call => call.options.method === "GET"), "refresh remains read-only when the Market Charts panel is open");
+  const marketProvider = giWindow && giWindow.body.querySelector("[data-gi-market-provider]");
+  const marketInterval = giWindow && giWindow.body.querySelector("[data-gi-market-interval]");
+  if (marketProvider) {
+    marketProvider.value = "tickerbot";
+    dispatch(marketProvider, "change");
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.textContent.includes("TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED")), "Tickerbot Live renders real-provider OHLCV through the existing Pine indicator charts");
+  ok(!!(marketSelect && marketSelect.innerHTML.includes("AAPL · TICKERBOT") && marketInterval && marketInterval.disabled === false), "Tickerbot mode switches to the live watchlist and enables bar intervals");
+  const tickerbotCall = giCalls.find(call => call.url.includes("/market/tickerbot/bars?"));
+  ok(!!(tickerbotCall && tickerbotCall.options.method === "GET" && tickerbotCall.options.credentials === "same-origin" && !tickerbotCall.options.headers.Authorization), "the browser calls only the same-origin Worker and never receives the Tickerbot key");
+  if (marketInterval) {
+    marketInterval.value = "1d";
+    dispatch(marketInterval, "change");
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(marketHost && marketHost.textContent.includes("1d") && giCalls.some(call => call.url.includes("/market/tickerbot/bars?symbol=AAPL&interval=1d"))), "switching bar interval requests a fresh Tickerbot series and redraws indicators");
+  ok(HOS.getLedger().length === ledgerBefore, "opening and refreshing Good Intelligence does not write to the HOS ledger");
+}
+globalThis.fetch = originalFetch;
+
 /* ── origin menu also lists the apps ───────────────────────────── */
 const menuList = body.querySelector("#om-apps");
 const menuBtns = menuList ? menuList.querySelectorAll(".om-app") : [];

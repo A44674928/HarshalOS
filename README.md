@@ -57,6 +57,7 @@ configuration intentionally disables the API; no credentials should be pasted in
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
 | **Whyland Standards (TCS)** | Local contextual-inquiry simulation: `why.query`, `why.activate`, `why.explain`, modeled session transitions, off-disc catalog virtualization, demo-timer gating, and the Bromine gateway (invalid input → local session reset) |
 | **LLM connection points** | Bring your own model: Anthropic, OpenRouter, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or this deployment's relay if one is configured. The key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked |
+| **Good Intelligence signal desk** | Native read-only dashboard for feed, categories, intel details, rankings, and a dedicated Market Charts tab with ticker price line graphs plus VFI, Fibonacci-band, and WaveTrend visualizations. The default same-origin `empty.domains` API serves clearly marked synthetic current/stale/contested/unassessed cases, demo-only signed source-authorization fixtures, and three synthetic ticker histories (`AAPL-DEMO`, `MSFT-DEMO`, `NVDA-DEMO`); these are not real prices, and APIs without OHLCV show no fabricated charts. An optional read-only Tickerbot Live source fetches allowlisted OHLCV through a same-origin Worker route using the `TICKERBOT_API_KEY` secret; the key never reaches browser code. Live Sentinel items without the assurance packet stay `NOT SCORED`. Market indicators never alter the assurance score. The v0.1 formula is provisional, not approved policy. Scores never certify truth or authorize action. Uses GET-only `/content/me`, `/categories`, `/rank`; tries legacy `/intel/me` only if the documented feed route is missing. No sign-in, publishing, token approval, or transaction flow |
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
@@ -80,7 +81,8 @@ research/reports/ — supporting research reports (separate from scored case stu
 archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
 tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, cloud, red-team)
 scripts/          — asset staging and integrity-report tooling; not deployed with the site
-worker/           — optional Cloudflare storage API
+docs/GOOD-INTELLIGENCE-ASSURANCE.md — v0.1 score formula, input contract, and safety limits
+worker/           — Cloudflare APIs: private storage and signed synthetic empty.domains GI demo
 .github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
 SECURITY.md       — project-specific threat model and vulnerability-reporting policy
 Business Plan/    — separate author archive; not included in the browser asset bundle
@@ -88,7 +90,7 @@ Business Plan/    — separate author archive; not included in the browser asset
 Runtime JavaScript stays in `js/` so the no-build static shell, worker asset staging, and existing
 browser URLs remain direct and predictable. Its logical ownership is documented in
 [docs/REPOSITORY-STRUCTURE.md](docs/REPOSITORY-STRUCTURE.md): kernel, UI, Ground-0 research,
-LLM, and OCM modules are mapped there without creating duplicate source trees.
+LLM, Good Intelligence, and OCM modules are mapped there without creating duplicate source trees.
 ```
 
 ## Kernel API boundary
