@@ -65,7 +65,14 @@ test("P13: repository content is separated by status and purpose", async () => {
     "research/reports/Research_report_Anthropic_Compliance_and_Enforcement_Mechani.md",
     "archives/ground-0/ground-0-phase-detection-algorithm.zip",
     "archives/ground-0/ground-0-phase-detection-algorithm-2.zip",
+    "manuscript/README.md",
+    "manuscript/the-grand-river-foundation/_collection.json",
+    "manuscript/the-grand-river-foundation/01-sample-chapter.txt",
+    "js/manuscript.js",
+    "css/manuscript.css",
+    "scripts/manuscript-index.mjs",
     "tests/kernel-api-test.mjs",
+    "tests/manuscript-test.mjs",
     "tests/repository-layout-test.mjs"
   ];
   for (const relative of expected) assert.equal(await exists(path.join(ROOT, relative)), true, `expected organized path: ${relative}`);
@@ -81,7 +88,7 @@ test("P13: repository content is separated by status and purpose", async () => {
   ]) assert.equal(await exists(path.join(ROOT, legacy)), false, `legacy root/script path should be retired: ${legacy}`);
 });
 
-test("P13: public asset staging includes only runtime assets and the normative/draft specs", async () => {
+test("P13: public asset staging includes only runtime assets, the normative/draft specs, and indexed manuscript chapters", async () => {
   try {
     const result = spawnSync(process.execPath, ["scripts/prepare-assets.mjs"], {
       cwd: ROOT,
@@ -92,13 +99,25 @@ test("P13: public asset staging includes only runtime assets and the normative/d
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "assets", "css", "index.html", "js", "specs"]);
+    assert.deepEqual(topLevel, ["about.html", "assets", "css", "index.html", "js", "manuscript", "specs"]);
 
     const specFiles = (await listFiles(path.join(SITE, "specs"), "specs")).sort();
     assert.deepEqual(specFiles, [
       "specs/draft/ground-0-v1.1.md",
       "specs/normative/ground-0-v1.0.md"
     ]);
+
+    /* Manuscript staging is a data publish: the generated index plus the
+       chapter files it names — never the folder's notes or metadata. */
+    const manuscriptFiles = (await listFiles(path.join(SITE, "manuscript"), "manuscript")).sort();
+    assert.ok(manuscriptFiles.includes("manuscript/manifest.json"), "the generated index is staged");
+    assert.ok(manuscriptFiles.includes("manuscript/the-grand-river-foundation/01-sample-chapter.txt"), "chapters are staged");
+    for (const file of manuscriptFiles) {
+      assert.match(file, /^manuscript\/(?:manifest\.json|the-grand-river-foundation\/[A-Za-z0-9._-]+\.(?:txt|md))$/,
+        `only chapters and the index may be staged: ${file}`);
+    }
+    assert.equal(manuscriptFiles.includes("manuscript/README.md"), false, "the folder instructions are not published");
+    assert.equal(manuscriptFiles.includes("manuscript/the-grand-river-foundation/_collection.json"), false, "collection metadata is not published");
 
     for (const excluded of ["docs", "case-studies", "research", "archives", "tests", "scripts", "worker", "Business Plan", "SECURITY.md", "README.md"]) {
       assert.equal(await exists(path.join(SITE, excluded)), false, `repository-only content must not be staged: ${excluded}`);
@@ -127,10 +146,16 @@ test("P13: local preview serves the new spec paths and keeps repository document
       assert.match(response.headers.get("content-type"), /text\/markdown/);
       assert.ok((await response.text()).includes(marker), `${pathname} should return its actual spec content`);
     }
+    const manuscriptIndex = await fetch(`${base}/manuscript/manifest.json`);
+    assert.equal(manuscriptIndex.status, 200, "the generated manuscript index is served");
+    assert.equal((await manuscriptIndex.json()).schema, "harshalos-manuscript-v1");
+
     for (const pathname of [
       "/docs/REPOSITORY-STRUCTURE.md",
       "/tests/repository-layout-test.mjs",
-      "/specs/source-material.md"
+      "/specs/source-material.md",
+      "/manuscript/README.md",
+      "/manuscript/the-grand-river-foundation/_collection.json"
     ]) {
       const response = await fetch(`${base}${pathname}`);
       assert.equal(response.status, 404, `${pathname} must stay outside the public preview allowlist`);

@@ -12,6 +12,8 @@ This layout separates normative specifications, implementation, evidence, operat
 ├── css/, assets/                     Browser-delivered presentation and runtime assets
 ├── js/                               Browser runtime sources (logical map below)
 ├── worker/                           Optional Cloudflare storage API source
+├── manuscript/                       Plaintext manuscript submissions (The Grand River Foundation);
+│                                     the index is generated, and only indexed chapters are published
 ├── specs/
 │   ├── normative/                    Ground-0 v1.0 finalized baseline
 │   └── draft/                        Ground-0 v1.1 unratified amendment draft
@@ -48,6 +50,7 @@ Browser source files remain under `js/` to preserve the no-build shell's stable 
 |---|---|
 | **Kernel / local authority model** | `js/kernel.js`, `js/crypto.js`, `js/data.js`; state and authorization are local demo behavior, not production authority |
 | **UI / desktop shell** | `index.html`, `about.html`, `css/`, `js/boot.js`, `js/wm.js`, `js/apps-core.js`, `js/apps-shell.js`, `js/apps-adversarial.js`, `js/apps-guided-demo.js` |
+| **Manuscript reading view** | `manuscript/` (plaintext chapters and `_collection.json`), `scripts/manuscript-index.mjs` (shared index builder), `js/manuscript.js`, `css/manuscript.css`; rendered inside **The Book → The Grand River Foundation**. The reader is data-only: chapters are escaped before display, the manifest is generated on request by `serve.js` and at deploy time by `scripts/prepare-assets.mjs`, and only files the index names are published |
 | **Ground-0 engine and workspace** | `js/g0-engine.js`, `js/g0-app.js`, `specs/` |
 | **Research** | `js/g0-research.js`, `research/reports/`, `case-studies/` |
 | **LLM** | `js/llm.js`, `js/g0-llm.js`, `js/apps-llm.js`; optional server-side free-tier relay in `worker/llm-relay.mjs` (same-origin `/api/llm`, Z.AI key held as a Worker secret, operator guide in `docs/deployment/ZAI-FREE-TIER.md`) |
@@ -64,7 +67,7 @@ When adding a test, put it under `tests/` and update the suite mapping in `scrip
 
 ## What is and is not deployed
 
-The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, and only Markdown files under `specs/normative/` and `specs/draft/`. They do not publish `docs/`, `case-studies/`, `research/`, `archives/`, `tests/`, `scripts/`, `worker/`, or `Business Plan/` as browser assets.
+The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, only Markdown files under `specs/normative/` and `specs/draft/`, and — under `manuscript/` — only the generated `manifest.json` plus the plaintext chapter files that index names. They do not publish `docs/`, `case-studies/`, `research/`, `archives/`, `tests/`, `scripts/`, `worker/`, `Business Plan/`, `manuscript/README.md`, or any collection metadata as browser assets. Manuscript files are still repository files: committing a chapter publishes it, so private material does not belong in `manuscript/`.
 
 This static-asset boundary does **not** change repository visibility: files committed to this repository can still be read by repository users. Do not store secrets or private material here. Review `.assetsignore`, `serve.js`, `scripts/prepare-assets.mjs`, and `wrangler.jsonc` together whenever the public asset surface changes.
 
