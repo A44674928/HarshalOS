@@ -8,12 +8,4 @@ A line of three dashes becomes the scene break above.
 
 ## What the reader does with a chapter
 
-The tab under **The Book** lists every chapter with its word count, sets one chapter at
-a time, keeps the place you stopped at in the browser, and reports a SHA-256 digest of
-the text it loaded. The digest identifies the state of the manuscript — it does not
-sign it, authenticate the author, or authorize anything.
-
 > A manuscript is read here, not executed.
-
-**The plaintext is the source.** No build step, no editor, no conversion: a committed
-`.txt` file is what the page shows.
