@@ -27,6 +27,16 @@
     return error.message || "The API request failed.";
   };
 
+  // Search is local to the configured read-only watchlist. Typed text is
+  // never interpolated into an upstream ticker path or used as a URL.
+  const TICKERBOT_WATCHLIST = Object.freeze([
+    { symbol: "AAPL", name: "Apple" },
+    { symbol: "MSFT", name: "Microsoft" },
+    { symbol: "NVDA", name: "NVIDIA" }
+  ]);
+  const marketMatches = (query, ...fields) => fields.join(" ").toLowerCase().includes(String(query || "").trim().toLowerCase());
+  const companyFor = symbol => TICKERBOT_WATCHLIST.find(item => item.symbol === String(symbol || "").replace(/-DEMO$/, ""))?.name || "";
+
   APPS.push({
     id: "good-intelligence",
     title: "Good Intelligence",
@@ -60,6 +70,7 @@
         selectedId: "",
         selectedMarketId: "",
         marketProvider: "demo",
+        marketQuery: "",
         marketInterval: "1h",
         marketRequestId: 0,
         marketRequestKey: "",
@@ -151,6 +162,16 @@
                     <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-market-interval aria-label="Select bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
                   </div>
                 </div>
+                <div class="gi-market-search-tools">
+                  <label class="gi-search">
+                    <span class="gi-sr-only">Search tracked tickers by symbol or company</span>
+                    <span class="gi-search-icon" aria-hidden="true">⌕</span>
+                    <input type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Search ticker or company…" data-gi-market-search>
+                  </label>
+                  <button class="gi-button" type="button" data-gi-market-clear aria-label="Clear ticker search">Clear</button>
+                  <span class="gi-result-count" data-gi-market-count role="status" aria-live="polite"></span>
+                </div>
+                <p class="gi-market-search-help" data-gi-market-search-help></p>
                 <div data-gi-market-chart-host aria-live="polite"></div>
               </section>
 
@@ -210,6 +231,10 @@
       const detailHost = $("[data-gi-detail]");
       const feedCount = $("[data-gi-feed-count]");
       const marketSelect = $("[data-gi-market-select]");
+      const marketSearch = $("[data-gi-market-search]");
+      const marketClear = $("[data-gi-market-clear]");
+      const marketCount = $("[data-gi-market-count]");
+      const marketSearchHelp = $("[data-gi-market-search-help]");
       const marketProviderSelect = $("[data-gi-market-provider]");
       const marketIntervalSelect = $("[data-gi-market-interval]");
       const marketChartHost = $("[data-gi-market-chart-host]");
@@ -492,13 +517,18 @@
           drawTickerbotMarketCharts();
           return;
         }
-        const markets = state.feed.filter(item => item.marketContext);
-        if (!markets.length) {
+        const allMarkets = state.feed.filter(item => item.marketContext);
+        const markets = allMarkets.filter(item => marketMatches(state.marketQuery, item.marketContext.symbol, item.title, companyFor(item.marketContext.symbol)));
+        updateMarketSearch(markets.length, allMarkets.length);
+        if (!allMarkets.length) {
           marketSelect.innerHTML = "";
+          marketSelect.disabled = true;
           marketChartHost.innerHTML = messageBlock("No ticker bars supplied", "The selected Good Intelligence API has no marketContext OHLCV packets. No prices or line charts are fabricated here.");
           state.selectedMarketId = "";
           return;
         }
+        if (!markets.length) { showNoMatchingTickers(); return; }
+        marketSelect.disabled = false;
         if (!markets.some(item => item.id === state.selectedMarketId)) state.selectedMarketId = markets[0].id;
         marketSelect.innerHTML = markets.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.marketContext.symbol || item.title)}${item.marketContext.synthetic ? " · DEMO" : ""}</option>`).join("");
         marketSelect.value = state.selectedMarketId;
@@ -511,10 +541,33 @@
         marketChartHost.innerHTML = marketChartsMarkup(item, result);
       }
 
+      function updateMarketSearch(count, total) {
+        marketSearch.value = state.marketQuery;
+        marketClear.disabled = !state.marketQuery;
+        marketCount.textContent = `${count} of ${total} tracked ticker${total === 1 ? "" : "s"}`;
+        marketSearchHelp.textContent = state.marketProvider === "tickerbot"
+          ? "Search the configured Tickerbot watchlist: AAPL (Apple), MSFT (Microsoft), NVDA (NVIDIA). Other symbols are not enabled on this Worker."
+          : "Filter the tickers supplied by the selected API. Demo symbols and prices remain synthetic.";
+      }
+
+      function showNoMatchingTickers() {
+        // Invalidate a live request so its late result cannot overwrite the
+        // empty state. Searching an unsupported ticker sends no new request.
+        state.marketRequestId++;
+        state.marketRequestKey = "";
+        marketSelect.innerHTML = '<option value="">No matching tickers</option>';
+        marketSelect.disabled = true;
+        marketChartHost.innerHTML = messageBlock("No tracked tickers match", `No match for “${state.marketQuery}”. Clear the search to see the configured watchlist.`);
+      }
+
       function drawTickerbotMarketCharts() {
-        const symbols = ["AAPL", "MSFT", "NVDA"];
+        const matches = TICKERBOT_WATCHLIST.filter(item => marketMatches(state.marketQuery, item.symbol, item.name));
+        updateMarketSearch(matches.length, TICKERBOT_WATCHLIST.length);
+        if (!matches.length) { showNoMatchingTickers(); return; }
+        marketSelect.disabled = false;
+        const symbols = matches.map(item => item.symbol);
         if (!symbols.includes(state.selectedMarketId)) state.selectedMarketId = symbols[0];
-        marketSelect.innerHTML = symbols.map(symbol => `<option value="${symbol}">${symbol} · TICKERBOT</option>`).join("");
+        marketSelect.innerHTML = matches.map(item => `<option value="${item.symbol}">${item.symbol} · TICKERBOT · ${item.name}</option>`).join("");
         marketSelect.value = state.selectedMarketId;
         const symbol = state.selectedMarketId;
         const interval = state.marketInterval;
@@ -807,12 +860,28 @@
         state.view = "rankings";
         updateView();
       });
+      const searchMarkets = () => {
+        state.marketQuery = String(marketSearch.value || "").slice(0, 80);
+        drawMarketCharts();
+      };
+      marketSearch.addEventListener("input", searchMarkets);
+      marketSearch.addEventListener("search", searchMarkets);
+      const clearMarketSearch = () => {
+        state.marketQuery = "";
+        drawMarketCharts();
+        marketSearch.focus();
+      };
+      marketClear.addEventListener("click", clearMarketSearch);
+      marketSearch.addEventListener("keydown", event => {
+        if (event.key === "Escape") { event.preventDefault(); clearMarketSearch(); }
+      });
       marketSelect.addEventListener("change", () => {
         state.selectedMarketId = marketSelect.value;
         drawMarketCharts();
       });
       marketProviderSelect.addEventListener("change", () => {
         state.marketProvider = marketProviderSelect.value === "tickerbot" ? "tickerbot" : "demo";
+        state.marketQuery = "";
         state.selectedMarketId = "";
         state.marketRequestId++;
         state.marketRequestKey = "";

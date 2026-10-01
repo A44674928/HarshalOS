@@ -10,8 +10,9 @@
  * What it refuses to be:
  *   · not a general proxy — one upstream origin, one path, a hard model
  *     allowlist of Z.AI's $0 Flash models, so no caller can spend money
- *   · not a tool dispatcher — tools, tool_choice, functions, response_format,
- *     streaming and every other field are dropped; only text goes either way.
+ *   · not a tool dispatcher — tools, tool_choice, functions, streaming
+ *     and every other field are dropped; only text goes either way. An optional
+ *     json_object response format constrains serialization, not authority.
  *     This matches the site's DATA-ONLY LLM boundary: model output is inert.
  *   · not a key forwarder — a client-supplied Authorization header is ignored,
  *     never forwarded, and never echoed. Upstream failure bodies are not
@@ -76,7 +77,7 @@ export const KEY_VARIABLE_NAMES = Object.freeze([
 ]);
 
 const LIMITS = Object.freeze({
-  requestBytes: 256 * 1024,   // Ground-0 stages ~36k characters of source text per call
+  requestBytes: 256 * 1024,   // Ground-0 stages up to ~60k characters of source text per call
   messages: 32,
   messageChars: 100_000,
   totalChars: 200_000,
@@ -452,7 +453,11 @@ function validateChatPayload(data) {
     if (type) thinking = type;
   }
 
-  return { model, messages, maxTokens, ceilingClamped, requestedTemperature, thinking };
+  // Only JSON-object serialization is accepted. Never forward a caller's
+  // arbitrary schema or additional nested fields to the provider.
+  const jsonMode = !!data.response_format && typeof data.response_format === 'object' &&
+    !Array.isArray(data.response_format) && data.response_format.type === 'json_object';
+  return { model, messages, maxTokens, ceilingClamped, requestedTemperature, thinking, jsonMode };
 }
 
 /* Z.AI samples in [0, 1] and documents that a 0 temperature is not usable
@@ -476,6 +481,7 @@ function upstreamBody(validated) {
     do_sample: sampling.doSample,
     thinking: { type: validated.thinking }
   };
+  if (validated.jsonMode) body.response_format = { type: 'json_object' };
   if (sampling.doSample && sampling.temperature !== null) body.temperature = sampling.temperature;
   return { body, sampling };
 }
@@ -575,7 +581,7 @@ function statusPayload(env) {
         ? 'Disabled for this preview. Z.AI still applies its own account and free-tier limits.'
         : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
     },
-    capabilities: { streaming: false, tools: false, responseFormat: false, images: false, thinking: 'optional, disabled by default' },
+    capabilities: { streaming: false, tools: false, responseFormat: 'json_object only', images: false, thinking: 'optional, disabled by default' },
     sampling: 'Z.AI samples in [0,1]: a 0 temperature is sent as do_sample:false (greedy), a temperature above 1 is clamped to 1.',
     message: configured ? '' : notConfiguredReason(env)
   };
@@ -727,6 +733,7 @@ async function relayChat(request, env, dependencies, caller, now) {
         tier: 'free',
         keyVariable: found.name,
         thinking: validated.thinking,
+        responseFormat: validated.jsonMode ? 'json_object' : 'text',
         requestedTemperature: validated.requestedTemperature,
         doSample: sampling.doSample,
         temperatureSent: sampling.temperature,

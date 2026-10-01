@@ -39,7 +39,7 @@ const SUITES = [
   {
     area: "LLM data / authority boundary",
     script: "test:llm",
-    files: ["llm-test.mjs", "llm-authority-test.mjs"]
+    files: ["llm-test.mjs", "llm-authority-test.mjs", "g0-llm-diagnostics-test.mjs"]
   },
   {
     area: "Z.AI free-tier LLM relay (Worker)",

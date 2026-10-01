@@ -75,7 +75,7 @@ const unexpectedRequests = [];
 try {
   globalThis.fetch = async value => {
     const url = new URL(value);
-    if (url.hostname === "r.jina.ai") return json({ data: { title: "Acme Corp policy", url: organization.website, publishedTime: cutoff, content: "Participation is voluntary and non-binding. These advisory recommendations describe the organization's public policy and do not impose any obligation on participants." } });
+    if (url.hostname === "r.jina.ai") return json({ data: { title: "Acme Corp policy", url: organization.website, publishedTime: cutoff, content: "Participation is voluntary and non-binding. These advisory recommendations describe the organization's public policy and do not impose any obligation on participants. See [Appeal procedure](/appeal) for the full rule." } });
     if (url.hostname === "www.courtlistener.com") return json({ results: url.searchParams.get("type") === "o" ? [{ caseName: "Acme Corp v Agency", dateFiled: cutoff, absolute_url: "/opinion/123/acme/", court: "Example Court", snippet: "The court vacated Acme Corp's enforcement directive." }] : [] });
     if (url.hostname === "www.federalregister.gov") return json({ results: [] });
     if (url.hostname === "www.govtrack.us") return json({ objects: [] });
@@ -85,6 +85,7 @@ try {
   };
   const result = await R.automaticAudit({ ...options(), selection: organization, availability: { enabled: false } });
   ok(result.method === "public-lookup" && result.record.badge === "Unissued", "public automatic audit completes as an unissued draft");
+  ok(result.sources.some(source => source.text && source.text.includes("[Appeal procedure](/appeal)")), "stored page text retains Markdown links for model-directed follow-up reading");
   ok(result.input.answers[1].value === true, "dated official policy on the inclusive cutoff supplies B2 evidence");
   ok(result.input.constraints[0].value === true && result.input.constraints[3].value === true, "dated named court record supplies operative override evidence");
   ok(result.record.report.Research_Sources.some(source => source.kind === "court" && source.Cutoff_Status.startsWith("DATED BEFORE CUTOFF")), "dated court source reaches the research report");

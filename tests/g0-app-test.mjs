@@ -567,6 +567,7 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     for (let i = 0; i < 60 && !review; i++) { await sleep(100); review = main3.querySelector('[data-act="includeReading"]'); }
     ok(!!review, "the model reading returns a reviewable list");
     ok(main3.innerHTML.includes("quote verified"), "the verified quote is presented as verified");
+    ok(main3.innerHTML.includes("Reading diagnostics") && main3.innerHTML.includes("wrong-shape reply/replies"), "the UI separates output failures from explicit UNKNOWN replies and missing evidence");
     ok(main3.innerHTML.includes("A model reading, not a finding"), "the panel refuses to present the reading as a finding");
     ok(readingPrompts.length >= 1 && readingPrompts[0].includes("voluntary and advisory"), "the model was given the retrieved policy text, not a summary");
     /* The audit is staged: the model is recalled once per question, and no
@@ -648,6 +649,7 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     let useQuote = null;
     for (let i = 0; i < 40 && !useQuote; i++) { await sleep(100); useQuote = evidenceMain.querySelector('[data-act="useArtifactQuote"]'); }
     ok(!!useQuote, "the artifact reading returns a quotable finding");
+    ok(evidenceMain.innerHTML.includes("1 of 9 questions supported by this artifact"), "unmet constraints without quotes are not mislabeled as four additional supported readings");
     ok(evidenceMain.innerHTML.includes("quote verified"), "the artifact reading labels its finding as verified");
     ok(evidenceMain.querySelector('[data-act="useArtifactQuote"]').dataset.code === "B5", "the finding names the question it supports");
 

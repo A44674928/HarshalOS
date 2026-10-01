@@ -398,6 +398,7 @@ window.G0Research = (() => {
     const candidates = [
       ...documents.map((doc, i) => {
         const source = { id: `SITE-${i + 1}`, title: doc.archived ? `${doc.title} (archived ${doc.archived})` : doc.title, url: doc.url, published: doc.published, retrieved: new Date().toISOString(), excerpt: stripMarkdown(doc.content).slice(0, 650), codes: [], kind: doc.archived ? "archive" : doc.official ? "official" : "context", dateBasis: doc.dateBasis || (doc.published ? "publication" : doc.archived ? "archive-capture" : "unknown") };
+        if (typeof doc.scoringEligible === "boolean") source.scoringEligible = doc.scoringEligible;
         if (doc.archived) { source.capturedAt = doc.archived; source.originalUrl = doc.liveUrl; }
         return source;
       }),
@@ -458,7 +459,9 @@ window.G0Research = (() => {
       if (textBudget <= 0) break;
       const source = sources.find(s => s.url === doc.url);
       if (!source || typeof doc.content !== "string") continue;
-      const text = stripMarkdown(doc.content).slice(0, Math.min(12000, textBudget));
+      // Keep the retrieved Markdown, including links. Flattening it here
+      // erased the only URLs the model-directed follow-up reader may use.
+      const text = doc.content.slice(0, Math.min(G0.MAX_SOURCE_TEXT || 20000, textBudget));
       if (text.length < 60) continue;
       source.text = text;
       textBudget -= text.length;

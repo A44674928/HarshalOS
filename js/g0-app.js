@@ -1177,6 +1177,7 @@ APPS.push({
           codes: [], kind: page.archived ? "archive" : page.official ? "official" : "public",
           dateBasis: page.dateBasis || (page.published ? "publication" : page.archived ? "archive-capture" : "unknown")
         };
+        if (typeof page.scoringEligible === "boolean") source.scoringEligible = page.scoringEligible;
         if (G0.isCalendarDate(page.archived)) source.capturedAt = page.archived;
         if (G0.safePublicUrl(page.liveUrl)) source.originalUrl = page.liveUrl;
         S.evRead = { ...S.evRead, source };
@@ -1228,7 +1229,7 @@ APPS.push({
       const reading = S.evRead.reading;
       const rows = [...G0.questions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.answers[index] })),
         ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.constraints[index] }))];
-      const answered = rows.filter(row => row.finding.value !== null);
+      const answered = rows.filter(row => !!reading.chosen[row.code]);
       return `
         <div class="g0-llm g0-ev-reading">
           <p class="g0-eyebrow">Read with ${esc((reading.block && reading.block.model) || status.model)} — ${answered.length} of 9 questions supported by this artifact</p>
@@ -1241,7 +1242,8 @@ APPS.push({
               <p class="g0-quote-meta"><span>${esc(S.evRead.source && S.evRead.source.title || item.title)}</span><span class="mono">${esc(row.finding.date ? `dated ${row.finding.date}` : "date not on the source")}</span></p>
               <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="useArtifactQuote" data-code="${row.code}">Save this quote as the artifact's claim</button></div>
             </li>`).join("")}</ul>`
-            : `<p class="g0-section-note">This artifact contains no operative text the model could quote for any Ground-0 question. ${reading.rejected.length ? `${reading.rejected.length} offered reading${reading.rejected.length === 1 ? " was" : "s were"} discarded as unverifiable.` : ""}</p>`}
+            : `<p class="g0-section-note">No eligible quote-backed reading was produced for this artifact. Inspect the diagnostics to distinguish UNKNOWN, missing dates, rejected quotes, and unusable model output. ${reading.rejected.length ? `${reading.rejected.length} offered reading${reading.rejected.length === 1 ? " was" : "s were"} discarded as unverifiable.` : ""}</p>`}
+          ${readingDiagnosticsPanel(reading)}
           ${reading.notes.length ? `<ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>` : ""}
           <p class="g0-section-note">A reading is not a citation. Save the quote as the artifact's claim, then cite the artifact from an audit — the audit is what scores it.</p>
         </div>`;
@@ -1300,6 +1302,20 @@ APPS.push({
         api.toast("refusal", "NOT APPLIED", error instanceof Error ? error.message : "The readings could not be applied.");
       });
     }
+    function readingDiagnosticsPanel(reading) {
+      const d = reading.diagnostics;
+      if (!d) return "";
+      const problems = (d.calls || []).filter(call => ["failed", "non-json", "invalid-schema", "truncated"].includes(call.outcome));
+      const names = { failed: "transport/provider failure", "non-json": "not complete JSON", "invalid-schema": "missing or invalid findings", truncated: "output-token limit reached" };
+      return `<details class="g0-pdh-details"${reading.candidates.length ? "" : " open"}>
+        <summary><span aria-hidden="true">ℹ</span> Reading diagnostics <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
+        <p class="g0-section-note">${d.recordsSupplied} source records supplied · ${d.recordsRead} sent for reading · ${d.leadsSkipped} news/indexed leads not sent. Of the records read: ${d.storedTextRecords} have stored text, ${d.excerptOnlyRecords} have only an excerpt, ${d.shortRecords} are under 400 characters, ${d.undatedRecords} have no source date, and ${d.afterCutoffRecords} are outside the cutoff. ${d.truncatedRecords} stored record(s) were shortened for the prompt.</p>
+        <p class="g0-section-note mono">${d.readCalls} audit call attempts · ${d.modelUnknown} explicit UNKNOWN answer(s) · ${d.nonJson} non-JSON reply/replies · ${d.invalidSchema} wrong-shape reply/replies · ${d.truncated} output-limit stop(s) · ${d.transportFailed} provider/transport failure(s) · ${d.formatRetries} bounded format retry/retries</p>
+        <p class="g0-section-note">${reading.held.length} quote match(es) held for a non-qualifying date or historical version. Held text cannot be ticked or scored. Matching text proves the quotation is in this record, not that the model's interpretation is correct.</p>
+        ${d.excerptOnlyRecords || d.shortRecords ? `<p class="g0-auto-gap">Improve the source record first: re-run research to capture policy, enforcement, appeal, and governance pages, or read a dated primary artifact from the Evidence library. Repeating calls over the same snippets cannot supply missing evidence.</p>` : ""}
+        ${problems.length ? `<ul class="g0-ul">${problems.slice(0, 12).map(call => `<li>Pass ${call.pass}, ${esc(call.codes.join(", "))}: ${esc(names[call.outcome])}${call.detail ? ` — ${esc(call.detail)}` : ""}${call.finishReason ? ` (provider stop: ${esc(call.finishReason)})` : ""}. Sources: ${esc(call.sourceIds.join(", "))}.</li>`).join("")}</ul><p class="g0-section-note">Only missing/invalid output gets a format retry, against the same sources and no higher token ceiling (at most ${G0LLM.LIMITS.maxFormatRetries} extra calls per run). Valid UNKNOWN answers and rejected quotations are never retried to seek a positive answer.</p>` : `<p class="g0-section-note">The model returned usable findings for the questions asked. An explicit UNKNOWN is a reading of these supplied records, not a proven negative or a successful search of the entire public record.</p>`}
+      </details>`;
+    }
     function readingPanel(o) {
       const status = llmStatus();
       const state = S.reading;
@@ -1310,10 +1326,10 @@ APPS.push({
       const applied = state.applied ? `<div class="g0-callout ok"><span aria-hidden="true">✓</span><p><strong>${esc(state.applied)}.</strong> The draft above now carries the model's quotes as suggested answers. Every one still needs your review; the formal badge remains unissued.</p></div>` : "";
       const header = `
         <div class="g0-llm-head">
-          <p class="g0-eyebrow">Read the retrieved record in full — optional</p>
+          <p class="g0-eyebrow">Read retrieved source text — optional</p>
           <p class="g0-section-note">${status.linked
             ? `Linked model: <strong>${esc(status.label)}</strong> · <span class="mono">${esc(status.model)}</span>${status.keyStorage === "none" ? "" : status.keyStorage === "persistent" ? " · key kept in this browser" : " · key held for this tab"}.`
-            : "No model is linked, so the record above was matched by keyword rules only. Connect your own model and the same retrieved documents are read properly — every answer bound to a verbatim quote."}</p>
+            : "No model is linked, so the record above was matched by keyword rules only. Connect your own model to propose readings from the same retrieved documents — every answer bound to a verbatim quote."}</p>
         </div>`;
       if (!status.linked) {
         return `
@@ -1322,7 +1338,7 @@ APPS.push({
             <div class="g0-btn-row">
               <button class="g0-btn primary" data-act="openLlmLink"><span aria-hidden="true">⌘</span> Connect a model</button>
             </div>
-            <p class="g0-section-note">${esc(status.reason || "Nothing is linked yet.")} With a link, the ${esc(o.organization.name)} record can be read in full: rules, appeal procedures, enforcement clauses — the text the keyword rules cannot see becomes an answer with a quote, and only where the record is genuinely silent does it stay a coverage gap.</p>
+            <p class="g0-section-note">${esc(status.reason || "Nothing is linked yet.")} A linked model can inspect the stored ${esc(o.organization.name)} rules, appeal procedures, and enforcement clauses and propose quote-backed readings beyond the keyword matches. Missing sources, unusable output, and unsupported questions remain coverage gaps; the diagnostics show which occurred.</p>
           </div>`;
       }
       if (state.stage === "running") {
@@ -1351,16 +1367,16 @@ APPS.push({
       }
       if (!state.reading) {
         const readable = ((o.input.automation && o.input.automation.sources) || []).filter(source => G0LLM ? G0LLM.readable(source) : false).length;
-        const stored = ((o.input.automation && o.input.automation.sources) || []).filter(source => source.text).length;
+        const stored = ((o.input.automation && o.input.automation.sources) || []).filter(source => source.text && !G0LLM.isLead(source)).length;
         return `
           <div class="g0-panel g0-llm">
             ${header}
             <p class="g0-section-note">${stored
-              ? `${readable} of ${((o.input.automation && o.input.automation.sources) || []).length} retrieved sources carry readable text (${stored} stored with their page text). The model reads those, may request linked pages the record itself contains, and returns a quote for every answer it proposes.`
-              : "This draft was produced before the browser kept page text, so there is little for a model to read. Run the automatic research again to capture the documents in full."}</p>
+              ? `${readable} of ${((o.input.automation && o.input.automation.sources) || []).length} retrieved sources carry readable text (${stored} with stored source text). The model reads those, may request linked pages the record itself contains, and returns a quote for every answer it proposes.`
+              : "No primary page text is stored in this draft. Excerpts may be readable, but they are not full documents. Re-run research to capture primary pages; news/indexed leads cannot support a finding."}</p>
             ${applied}
             <div class="g0-btn-row">
-              <button class="g0-btn primary" data-act="readRecord"${stored ? "" : " disabled"}><span aria-hidden="true">✦</span> Read the retrieved record with ${esc(status.model || "the linked model")}</button>
+              <button class="g0-btn primary" data-act="readRecord"${readable ? "" : " disabled"}><span aria-hidden="true">✦</span> Read the retrieved record with ${esc(status.model || "the linked model")}</button>
               <button class="g0-btn ghost" data-act="openLlmLink">LLM Link</button>
             </div>
           </div>`;
@@ -1378,8 +1394,9 @@ APPS.push({
       return `
         <div class="g0-panel g0-llm">
           ${header}
-          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was checked character-for-character against the stored source text; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Nothing is preselected: tick only quote-backed readings you have reviewed. A model reply has no direct dispatch to the HOS kernel; it cannot authorize an action or issue a formal badge.</p></div>
+          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was matched against the stored source text after whitespace/typographic normalization; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Nothing is preselected: tick only quote-backed readings you have reviewed. A model reply has no direct dispatch to the HOS kernel; it cannot authorize an action or issue a formal badge.</p></div>
           <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"}${staged ? ` · ${esc(staged)}` : ""} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
+          ${readingDiagnosticsPanel(reading)}
           <ul class="g0-reading-list">
             ${rows.map(row => {
               const candidate = sourceFor(row.code);
@@ -1391,12 +1408,13 @@ APPS.push({
                   <input type="checkbox" data-act="includeReading" data-code="${row.code}" ${on ? "checked" : ""} ${row.reading.value === null || !candidate ? "disabled" : ""}>
                   <span class="g0-qcode mono">${row.code}</span>
                   <span class="g0-reading-title">${esc(row.title)}</span>
-                  ${pill(row.reading.value)}
-                  ${candidate ? `<span class="g0-verified mono">quote verified</span>` : held ? `<span class="g0-held mono">no qualifying date</span>` : `<span class="g0-unverified mono">no readable text</span>`}
+                  ${pill(candidate ? row.reading.value : null)}
+                  ${candidate ? `<span class="g0-verified mono">quote verified</span>` : held ? `<span class="g0-held mono">date/version not eligible</span>` : `<span class="g0-unverified mono">${staging && staging.unusableCodes && staging.unusableCodes.includes(row.code) ? "model output unusable" : staging && (staging.failedCodes || []).includes(row.code) ? "call failed" : rejected.length ? "quote rejected" : "not demonstrated"}</span>`}
                   <span class="g0-reading-was mono">draft: ${row.current.value === null ? "unknown" : row.current.value ? "yes" : "no"}</span>
                 </label>
-                ${row.reading.notes ? `<blockquote class="g0-reading-quote">${esc(row.reading.notes)}</blockquote>` : ""}
+                ${row.reading.notes || held ? `<blockquote class="g0-reading-quote">${esc(row.reading.notes || held.quote)}</blockquote>` : ""}
                 ${row.reading.source ? `<p class="g0-quote-meta"><a href="${esc(row.reading.source)}" target="_blank" rel="noreferrer">${esc((candidate && candidate.title) || row.reading.source)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(row.reading.date ? `dated ${row.reading.date}` : "date not on the source")}</span></p>` : `<p class="g0-auto-gap">${esc(row.reading.gap)}</p>`}
+                ${held && !candidate ? `<p class="g0-quote-meta"><a href="${esc(held.url)}" target="_blank" rel="noreferrer">${esc(held.title)}</a><span class="mono">held — not eligible at this cutoff</span></p>` : ""}
                 ${rejected.map(item => `<p class="g0-reading-reject">discarded: ${esc(item.reason)}${item.quote ? ` — “${esc(item.quote.slice(0, 160))}”` : ""}</p>`).join("")}
               </li>`;
             }).join("")}

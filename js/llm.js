@@ -774,7 +774,7 @@ window.HOSLLM = (() => {
      afford. Never raised above what the caller asked for. */
   const affordableTokens = (maxTokens, floor) => (ceiling ? Math.min(maxTokens, Math.max(floor, ceiling.maxTokens)) : maxTokens);
 
-  function buildRequest(provider, { system, user, maxTokens, temperature, model, signal }) {
+  function buildRequest(provider, { system, user, maxTokens, temperature, model, signal, jsonMode = false }) {
     const chosen = (model || provider.model || "").trim();
     if (!chosen) throw new LlmError("No model is named for this connection.", { kind: "model", hint: "Open the LLM Link app and enter or list a model." });
     if (provider.protocol === "anthropic") {
@@ -794,6 +794,7 @@ window.HOSLLM = (() => {
             ...(system ? { systemInstruction: system } : {}),
             maxOutputTokens: maxTokens,
             temperature,
+            ...(jsonMode ? { responseMimeType: "application/json" } : {}),
             /* The SDK defaults to five immediate attempts. Disable those here
                so Google RetryInfo can be honored by the bounded, abortable
                retry loop in chat() instead of stacking two retry policies. */
@@ -805,18 +806,26 @@ window.HOSLLM = (() => {
     }
     return {
       maxTokensParam: "max_tokens",
-      body: { model: chosen, temperature, messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: user }], max_tokens: maxTokens }
+      // JSON mode is opt-in and limited to the known same-origin relay. Do
+      // not assume every BYOK OpenAI-compatible endpoint implements it.
+      body: { model: chosen, temperature, messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: user }], max_tokens: maxTokens,
+        ...(jsonMode && provider.relay ? { response_format: { type: "json_object" } } : {}) }
     };
   }
+  const completionMetadata = reason => ({
+    finishReason: typeof reason === "string" ? reason.slice(0, 40) : "",
+    truncated: /^(?:length|max_tokens)$/i.test(String(reason || ""))
+  });
   function readResponse(provider, data) {
     if (provider.protocol === "google") {
       const rawText = data && typeof data.text === "string" ? data.text : "";
       const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-      const text = rawText || (Array.isArray(parts) ? parts.filter(part => part && typeof part.text === "string").map(part => part.text).join("") : "");
+      const text = rawText || (Array.isArray(parts) ? parts.filter(part => part && part.thought !== true && typeof part.text === "string").map(part => part.text).join("") : "");
       const usage = data && (data.usageMetadata || data.usage) || {};
       return dataOnlyResult({
         text,
         model: (data && (data.model || data.modelVersion)) || "",
+        ...completionMetadata(data && data.candidates && data.candidates[0] && data.candidates[0].finishReason),
         usage: {
           input: Number(usage.promptTokenCount ?? usage.total_input_tokens ?? usage.input_tokens) || 0,
           output: Number(usage.candidatesTokenCount ?? usage.total_output_tokens ?? usage.output_tokens) || 0
@@ -826,13 +835,13 @@ window.HOSLLM = (() => {
     if (provider.protocol === "anthropic") {
       const blocks = Array.isArray(data && data.content) ? data.content.filter(block => block && block.type === "text" && typeof block.text === "string") : [];
       const text = blocks.map(block => block.text).join("");
-      return dataOnlyResult({ text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && data.usage.input_tokens) || 0, output: Number(data && data.usage && data.usage.output_tokens) || 0 } });
+      return dataOnlyResult({ text, model: (data && data.model) || "", ...completionMetadata(data && data.stop_reason), usage: { input: Number(data && data.usage && data.usage.input_tokens) || 0, output: Number(data && data.usage && data.usage.output_tokens) || 0 } });
     }
     const choice = data && Array.isArray(data.choices) ? data.choices[0] : null;
     const message = choice && choice.message ? choice.message : null;
     const raw = message ? message.content : "";
     const text = typeof raw === "string" ? raw : Array.isArray(raw) ? raw.map(part => typeof part === "string" ? part : (part && typeof part.text === "string" ? part.text : "")).join("") : "";
-    return dataOnlyResult({ text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } });
+    return dataOnlyResult({ text, model: (data && data.model) || "", ...completionMetadata(choice && choice.finish_reason), usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } });
   }
 
   /* One call. No hidden prompts: what the caller passes is what the model
@@ -844,7 +853,7 @@ window.HOSLLM = (() => {
          honoring Retry-After and using bounded backoff when no delay is exposed
      `floorTokens` is the least ceiling worth sending at all: below it the
      answer arrives truncated, so the caller is told instead. */
-  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true, onRetry = null }) {
+  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true, onRetry = null, jsonMode = false }) {
     if (typeof user !== "string" || !user.trim()) throw new LlmError("There is nothing to send.", { kind: "error" });
     const config = resolved();
     if (!config.endpoint) throw new LlmError("No endpoint is configured.", { kind: "error", hint: "Open the LLM Link app and choose a provider." });
@@ -866,7 +875,7 @@ window.HOSLLM = (() => {
          so a known-small balance is not re-tested on every call. */
       const reserved = affordableTokens(maxTokens, floorTokens);
       if (reserved !== maxTokens) activity.shrunk++;
-      const request = buildRequest(config, { system, user, maxTokens: reserved, temperature, model, signal: controller.signal });
+      const request = buildRequest(config, { system, user, maxTokens: reserved, temperature, model, signal: controller.signal, jsonMode });
       if (request.transport === "google-genai-sdk") {
         try {
           const module = await waitForSignal(loadGoogleSDK(), controller.signal);
@@ -879,7 +888,7 @@ window.HOSLLM = (() => {
               if (!parsed.text.trim()) throw new LlmError("Google returned no text. The model may have refused the request or reached its output limit.", { kind: "provider", hint: "Retry, lower the reading batch size, or raise the output-token ceiling." });
               activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
               activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
-              return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens });
+              return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, finishReason: parsed.finishReason, truncated: parsed.truncated, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens });
             } catch (error) {
               if (controller.signal.aborted) throw abortReason(controller.signal);
               if (error instanceof LlmError) throw error;
@@ -1013,7 +1022,7 @@ window.HOSLLM = (() => {
       activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
       /* The ceiling this call was actually sent with, which is what a provider
          bills against — not necessarily the ceiling that was asked for. */
-      return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved: sentCeiling, shrunk: sentCeiling < maxTokens });
+      return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, finishReason: parsed.finishReason, truncated: parsed.truncated, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved: sentCeiling, shrunk: sentCeiling < maxTokens });
     } catch (error) {
       if (!(error && error.name === "AbortError")) activity.failures++;
       throw error;
@@ -1040,25 +1049,33 @@ window.HOSLLM = (() => {
   function extractJson(value) {
     const text = String(value ?? "").trim();
     if (!text) return null;
-    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const candidates = [fenced ? fenced[1] : null, text].filter(Boolean);
-    for (const candidate of candidates) {
-      const start = candidate.search(/[[{]/);
-      if (start === -1) continue;
-      const open = candidate[start];
-      const close = open === "{" ? "}" : "]";
-      let depth = 0; let inString = false; let escaped = false;
-      for (let i = start; i < candidate.length; i++) {
-        const char = candidate[i];
-        if (inString) { if (escaped) escaped = false; else if (char === "\\") escaped = true; else if (char === "\"") inString = false; continue; }
-        if (char === "\"") { inString = true; continue; }
-        if (char === open) depth++;
-        else if (char === close) {
-          depth--;
-          if (depth === 0) {
-            try { return JSON.parse(candidate.slice(start, i + 1)); } catch { break; }
+    const fenced = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map(match => match[1]);
+    for (const candidate of [...fenced, text]) {
+      // A prose prefix such as "[note]" must not hide a later valid object.
+      // Conversely, never salvage a nested finding from a truncated root.
+      let cursor = 0;
+      while (cursor < candidate.length) {
+        const relative = candidate.slice(cursor).search(/[[{]/);
+        if (relative === -1) break;
+        const start = cursor + relative;
+        const stack = [];
+        let inString = false; let escaped = false; let end = -1;
+        for (let i = start; i < candidate.length; i++) {
+          const char = candidate[i];
+          if (inString) { if (escaped) escaped = false; else if (char === "\\") escaped = true; else if (char === "\"") inString = false; continue; }
+          if (char === "\"") { inString = true; continue; }
+          if (char === "{" || char === "[") stack.push(char);
+          else if (char === "}" || char === "]") {
+            const expected = char === "}" ? "{" : "[";
+            if (stack.pop() !== expected) { end = i; break; }
+            if (!stack.length) { end = i; break; }
           }
         }
+        if (end === -1) break;
+        if (!stack.length) {
+          try { return JSON.parse(candidate.slice(start, end + 1)); } catch { /* Not JSON; inspect the next top-level block. */ }
+        }
+        cursor = end + 1;
       }
     }
     return null;

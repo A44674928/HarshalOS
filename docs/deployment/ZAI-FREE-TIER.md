@@ -16,8 +16,8 @@ This is a **narrow relay, not a proxy**:
 | Routes | `POST /api/llm`, `GET /api/llm/models`, `GET /api/llm/status` |
 | Upstream | `https://api.z.ai` — fixed origin, fixed paths, `redirect: "manual"` for authenticated requests (Workers does not implement `"error"`): a redirect is received as an ordinary HTTP status, never followed, and reported as an upstream failure, so the key is never replayed to another host; the temporary unauthenticated diagnostic probe also never follows redirects |
 | Models | `glm-4.5-flash`, `glm-4.7-flash` — Z.AI's $0 text models. Hard allowlist; a paid model is refused **without** an upstream call |
-| Fields forwarded | `model`, `messages`, `max_tokens`, `temperature` (translated), `stream: false`, `do_sample`, `thinking` |
-| Fields dropped | `tools`, `tool_choice`, `functions`, `response_format`, `stop`, `top_p`, `n`, `logprobs`, `user_id`, `request_id`, streaming, and anything else a caller invents |
+| Fields forwarded | `model`, `messages`, `max_tokens`, `temperature` (translated), `stream: false`, `do_sample`, `thinking`, optional `response_format: {"type":"json_object"}` (reconstructed; no arbitrary schemas) |
+| Fields dropped | `tools`, `tool_choice`, `functions`, arbitrary response-format schemas, `stop`, `top_p`, `n`, `logprobs`, `user_id`, `request_id`, streaming, and anything else a caller invents |
 | Message shape | `system` / `user` / `assistant` with **string** content only — no images, no part arrays, no tool results |
 | Limits | 256 KiB per request, 32 messages, 100 000 characters per message, 200 000 per call, output ceiling capped at 8 192 tokens (default 1 024), 60 s upstream timeout |
 | Callers | Same-origin `POST` only (the `Origin` header must equal the request origin); a caller-supplied `Authorization` header is ignored, never forwarded |
@@ -302,7 +302,7 @@ The preview rate-limit switch is independent and is not required for this diagno
   paid plan, calls will fail with a 404 or 402 that says so; nothing in this repository can promise
   continued free access. Check Z.AI's pricing page before relying on it.
 - **Model quality is not assured.** A free Flash model reading a retrieved record is still an
-  untrusted reading: every quote is checked character-for-character against stored text,
+  untrusted reading: every quote is matched against stored text with whitespace/case/typographic normalization and checked ellipsis fragments,
   unverifiable readings are discarded, and the record still requires human review. The relay adds no
   authority and issues no badge.
 
@@ -333,3 +333,18 @@ or sends a request to Z.AI.
 
 `npm run integrity` runs both suites and records them in the CI integrity report under
 **Z.AI free-tier LLM relay (Worker)**.
+
+
+### Diagnosing an empty research reading
+
+`LINK ESTABLISHED` checks short text connectivity only. Ground-0's **Reading diagnostics**
+separates explicit UNKNOWN, non-JSON/wrong-schema replies, provider output-limit stops,
+transport failures, thin source text, and quotations held for dates or historical versions.
+Ground-0 requests the relay's constrained JSON-object mode with thinking still disabled by
+default. This changes text serialization only: tools/functions and authority dispatch remain
+unavailable. At most two extra format-only calls per research run reuse the same source text
+and no higher token ceiling; valid UNKNOWN and rejected quotations are never retried to seek YES.
+
+See [Ground-0 research troubleshooting](../GROUND-0-LLM-RESEARCH.md) for interpretation,
+source-record repair, and the bounded regression coverage. No test here establishes that a
+live Flash model can answer all nine questions for arbitrary records.

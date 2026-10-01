@@ -195,7 +195,7 @@ window.G0 = (() => {
     if (!qualifies(answer, input.cutoff)) return false;
     if (!input.automation) return true;
     const source = input.automation.sources.find(s => canonicalUrl(s.url) === canonicalUrl(answer.source));
-    return source ? source.kind !== "news" && source.dateBasis !== "indexed" : false;
+    return source ? source.kind !== "news" && source.dateBasis !== "indexed" && source.scoringEligible !== false : false;
   }
   const withinMonths = withinCalendarMonths;
 
@@ -540,6 +540,7 @@ window.G0 = (() => {
       used.add(id);
       const out = { id, title: text(s.title, "Public source"), url: s.url, published: isCalendarDate(s.published) ? s.published : null, retrieved: Number.isFinite(dateTime(s.retrieved)) ? s.retrieved : "", excerpt: text(s.excerpt), codes: Array.from(new Set(strings(s.codes))), kind: sourceKinds.includes(s.kind) ? s.kind : "context" };
       if (typeof s.text === "string" && s.text.trim().length >= 60) out.text = s.text.slice(0, MAX_SOURCE_TEXT);
+      if (typeof s.scoringEligible === "boolean") out.scoringEligible = s.scoringEligible;
       if (typeof s.authority === "string" && s.authority.trim()) out.authority = text(s.authority).slice(0, 200);
       if (isCalendarDate(s.capturedAt)) out.capturedAt = s.capturedAt;
       if (safePublicUrl(s.originalUrl)) out.originalUrl = s.originalUrl;
@@ -587,6 +588,23 @@ window.G0 = (() => {
       sourcesRead: number("sourcesRead"),
       charsRead: number("charsRead"),
       verified: number("verified"),
+      authorityPlane: "DATA-ONLY", trustedForAuthority: false,
+      ...(isObject(raw.staging) ? { staging: {
+        ...Object.fromEntries(["codesPerCall", "questionsAsked", "ceilingPerCall", "weighed", "callsFailed", "plannedCalls", "formatRetries", "providerCeiling"].map(key => [key, Number.isFinite(raw.staging[key]) ? Math.max(0, raw.staging[key]) : 0])),
+        failedCodes: strings(raw.staging.failedCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code)),
+        unusableCodes: strings(raw.staging.unusableCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code))
+      } } : {}),
+      ...(isObject(raw.diagnostics) ? { diagnostics: {
+        ...Object.fromEntries(["recordsSupplied", "recordsRead", "storedTextRecords", "excerptOnlyRecords", "leadsSkipped", "shortRecords", "undatedRecords", "afterCutoffRecords", "truncatedRecords", "readCalls", "formatRetries", "nonJson", "invalidSchema", "truncated", "modelUnknown", "transportFailed"].map(key => [key, Number.isFinite(raw.diagnostics[key]) ? Math.max(0, raw.diagnostics[key]) : 0])),
+        calls: (Array.isArray(raw.diagnostics.calls) ? raw.diagnostics.calls : []).filter(isObject).slice(0, 120).map(call => ({
+          pass: Number.isFinite(call.pass) ? Math.max(0, call.pass) : 0,
+          codes: strings(call.codes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code)),
+          sourceIds: strings(call.sourceIds).slice(0, 20).map(id => id.slice(0, 60)),
+          outcome: ["failed", "non-json", "invalid-schema", "truncated", "verified", "held", "rejected", "unknown"].includes(call.outcome) ? call.outcome : "invalid-schema",
+          finishReason: text(call.finishReason).slice(0, 40), detail: text(call.detail).slice(0, 180),
+          missingCodes: strings(call.missingCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code))
+        }))
+      } } : {}),
       rejected: rows(raw.rejected),
       held: rows(raw.held),
       unknowns: Array.isArray(raw.unknowns) ? raw.unknowns.filter(isObject).slice(0, 20).map(row => ({ code: text(row.code).slice(0, 8), note: text(row.note).slice(0, 300) })) : [],

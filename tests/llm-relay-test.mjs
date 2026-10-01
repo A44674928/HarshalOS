@@ -119,9 +119,10 @@ test("relay forwards only allowlisted text fields to a fixed Z.AI origin", async
   const { fetch, calls } = stubFetch();
   const response = await run(chatRequest({
     model: "glm-4.7-flash", messages: messages(), max_tokens: 700, temperature: 0.4,
+    response_format: { type: "json_object", injected: "must not be forwarded" },
     /* Everything below must be dropped rather than forwarded. */
     stream: true, tools: [{ type: "function", function: { name: "HOS.revoke" } }], tool_choice: "auto",
-    functions: [{ name: "HOS.revoke" }], response_format: { type: "json_object" }, stop: ["</s>"],
+    functions: [{ name: "HOS.revoke" }], stop: ["</s>"],
     user_id: "attacker", request_id: "abc123", logprobs: true, top_p: 0.2, n: 4,
     extra: { nested: "value" }
   }), ENV, { fetch });
@@ -129,9 +130,10 @@ test("relay forwards only allowlisted text fields to a fixed Z.AI origin", async
   const upstream = new URL(calls[0].url);
   assert.equal(upstream.origin, "https://api.z.ai");
   assert.equal(upstream.pathname, "/api/paas/v4/chat/completions");
-  assert.deepEqual(Object.keys(calls[0].body).sort(), ["do_sample", "max_tokens", "messages", "model", "stream", "temperature", "thinking"]);
+  assert.deepEqual(Object.keys(calls[0].body).sort(), ["do_sample", "max_tokens", "messages", "model", "response_format", "stream", "temperature", "thinking"]);
   assert.equal(calls[0].body.model, "glm-4.7-flash");
   assert.equal(calls[0].body.stream, false, "streaming is never requested");
+  assert.deepEqual(calls[0].body.response_format, { type: "json_object" }, "only inert JSON serialization is forwarded, not arbitrary nested fields");
   assert.equal(calls[0].body.max_tokens, 700);
   assert.equal(calls[0].body.temperature, 0.4);
   assert.equal(calls[0].body.do_sample, true);
@@ -139,6 +141,15 @@ test("relay forwards only allowlisted text fields to a fixed Z.AI origin", async
   assert.deepEqual(calls[0].body.messages, messages());
   assert.equal(calls[0].options.redirect, "manual", "the one redirect mode Workers implements that never follows");
   assert.equal(calls[0].options.headers["Accept-Language"], "en-US,en");
+});
+
+test("relay accepts only json_object formatting and drops arbitrary schemas", async () => {
+  for (const format of [{ type: "json_schema", json_schema: { name: "HOS.revoke" } }, { type: "text" }, "json_object", [{ type: "json_object" }]]) {
+    const { fetch, calls } = stubFetch();
+    const response = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages(), response_format: format }), ENV, { fetch });
+    assert.equal(response.status, 200);
+    assert.equal(calls[0].body.response_format, undefined);
+  }
 });
 
 test("relay never forwards a caller-supplied Authorization header", async () => {
@@ -591,6 +602,7 @@ test("status route discloses configuration and limits but never the key value", 
   assert.deepEqual(payload.acceptedKeyVariables, [...KEY_VARIABLE_NAMES]);
   assert.equal(payload.capabilities.streaming, false);
   assert.equal(payload.capabilities.tools, false);
+  assert.equal(payload.capabilities.responseFormat, "json_object only");
   assert.equal(payload.limits.localRateLimitsDisabled, false, "production/default status keeps local abuse guards on");
   assert.equal(payload.limits.requestsPerMinute, 60, "the per-caller budget is stated");
   assert.equal(payload.limits.sharedRequestsPerMinute, 120, "as is the ceiling every caller shares");
