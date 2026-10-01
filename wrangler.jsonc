@@ -37,6 +37,9 @@
       "head_sampling_rate": 1,
       "persist": true
     }
+    "issue_detection": {
+      "enabled": true
+    }
   },
 
   // Secrets are deliberately not declared here: MONGODB_URI, the Cloudflare Access
