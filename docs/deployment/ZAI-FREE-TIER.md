@@ -14,7 +14,7 @@ This is a **narrow relay, not a proxy**:
 | Property | Value |
 |---|---|
 | Routes | `POST /api/llm`, `GET /api/llm/models`, `GET /api/llm/status` |
-| Upstream | `https://api.z.ai` — fixed origin, fixed paths, `redirect: "error"` for authenticated requests; the temporary unauthenticated diagnostic probe also never follows redirects |
+| Upstream | `https://api.z.ai` — fixed origin, fixed paths, `redirect: "manual"` for authenticated requests (Workers does not implement `"error"`): a redirect is received as an ordinary HTTP status, never followed, and reported as an upstream failure, so the key is never replayed to another host; the temporary unauthenticated diagnostic probe also never follows redirects |
 | Models | `glm-4.5-flash`, `glm-4.7-flash` — Z.AI's $0 text models. Hard allowlist; a paid model is refused **without** an upstream call |
 | Fields forwarded | `model`, `messages`, `max_tokens`, `temperature` (translated), `stream: false`, `do_sample`, `thinking` |
 | Fields dropped | `tools`, `tool_choice`, `functions`, `response_format`, `stop`, `top_p`, `n`, `logprobs`, `user_id`, `request_id`, streaming, and anything else a caller invents |
@@ -173,6 +173,17 @@ explicitly triggered **models-only** diagnostic below adds redacted exception me
 4. If no event appears, the request may be handled by an older Worker version, or the route may not be
    reaching the instrumented Worker. Confirm the active version and hostname in Cloudflare.
 
+**Recognising a request that never left the Worker.** A `zai_upstream_fetch_failed` entry with
+`errorName: "TypeError"` and *empty* `causeName` / `causeCode`, on an invocation that finishes in the
+same millisecond it started (and shows no outbound subrequest), means `fetch()` threw **before any
+network I/O** — the request init was rejected locally, so this is not a Z.AI, DNS, TLS or egress
+problem. The relay once made exactly this mistake: it asked for `redirect: "error"`, which browsers and
+Node accept but Cloudflare Workers does not implement (`Invalid redirect value, must be one of
+"follow" or "manual"`), so every call surfaced as `Z.AI could not be reached`. The relay now
+uses `redirect: "manual"`; `tests/llm-relay-test.mjs` stubs `fetch` with the Workers restriction and
+scans `worker/` for the rejected value so it cannot return unnoticed. Real connection failures look
+different: a `causeCode` such as `ECONNRESET`, or a `TypeError` that took measurable time.
+
 If you already have Wrangler authenticated locally, the same logs can be tailed with
 `npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
 or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
@@ -206,7 +217,7 @@ redeploy that Worker; do not move the preview switches into production as a grou
 |---|---|---|
 | `request_construction` | Builds a local `Request` with the **same configured headers/init** as the existing authenticated models GET. This object is never fetched or logged | `outcome: "ok"` or `"error"`, with redacted error fields |
 | `unauthenticated_fetch` | Makes **one** extra GET to the fixed `https://api.z.ai/api/paas/v4/models` URL, with no Authorization, cookies, request body, or caller headers. Independent 10 s deadline; redirects are returned as HTTP, not followed. The response body is discarded without reading it | `outcome: "http_response"` and numeric `status`, or `"error"` |
-| `authenticated_fetch` | Only if both checks pass, makes the **existing** authenticated models GET once, with its unchanged headers, redirect refusal, and full 60 s timeout. No chat-completions call is made | `outcome: "http_response"` and `status`, `"error"` with a sanitized message, or `"skipped"` if a preflight check failed |
+| `authenticated_fetch` | Only if both checks pass, makes the **existing** authenticated models GET once, with its unchanged headers, the same never-follow `redirect: "manual"` mode, and full 60 s timeout. No chat-completions call is made | `outcome: "http_response"` and `status`, `"error"` with a sanitized message, or `"skipped"` if a preflight check failed |
 
 Error entries contain `errorName`, `causeName`, `causeCode`, `errorMessage`, and `causeMessage`.
 Messages are capped at 220 characters **after** redaction. The configured key (including JSON- and

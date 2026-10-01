@@ -66,7 +66,11 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
     const response = await fetcher(upstreamUrl.toString(), {
       method: "GET",
       headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
-      redirect: "error",
+      // Workers implements only "follow" and "manual": "error" makes fetch() throw a
+      // TypeError before any network I/O, which surfaced as "could not be reached".
+      // "manual" returns a 3xx as a plain response (never followed, so the key is
+      // never replayed to another host); every non-2xx status is refused below.
+      redirect: "manual",
       ...(controller ? { signal: controller.signal } : {})
     });
     if (!response || !response.ok) {
