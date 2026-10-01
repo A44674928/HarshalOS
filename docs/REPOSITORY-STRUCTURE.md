@@ -51,6 +51,7 @@ Browser source files remain under `js/` to preserve the no-build shell's stable 
 | **Ground-0 engine and workspace** | `js/g0-engine.js`, `js/g0-app.js`, `specs/` |
 | **Research** | `js/g0-research.js`, `research/reports/`, `case-studies/` |
 | **LLM** | `js/llm.js`, `js/g0-llm.js`, `js/apps-llm.js` |
+| **Good Intelligence bridge** | `worker/good-intelligence-demo.mjs`, `worker/good-intelligence-tickerbot.mjs`, `js/good-intelligence-assurance.js`, `js/good-intelligence-client.js`, `js/good-intelligence-verifier.js`, `js/good-intelligence-market-context.js`, `js/apps-good-intelligence.js`, `css/good-intelligence.css`, `docs/GOOD-INTELLIGENCE-ASSURANCE.md`; same-origin GET-only demo API with demo-only signed authorization, three clearly synthetic ticker histories, separate source/claim assurance, and a Market Charts tab for price/Fibonacci, VFI, and WaveTrend line visualizations. No OHLCV means no fabricated chart. It does not implement GI sign-in, publishing, token approvals, or contract transactions |
 | **OCM** | `js/ocm-data.js`, `js/apps-ocm.js` |
 | **Optional cloud storage** | `worker/`, `js/apps-cloud.js`, operator instructions in `docs/deployment/` |
 | **Guided/adversarial scenarios** | `js/guided-demo.js`, `js/apps-guided-demo.js`, `js/apps-adversarial.js`, corresponding tests in `tests/` |

@@ -1,6 +1,8 @@
 import { MongoClient } from 'mongodb';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } from './storage.mjs';
+import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
+import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -116,7 +118,10 @@ export async function handleApi(request, env, dependencies = {}) {
 
 export default {
   async fetch(request, env) {
-    if (new URL(request.url).pathname.startsWith('/api/')) return handleApi(request, env);
+    const path = new URL(request.url).pathname;
+    if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
+    if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
+    if (path.startsWith('/api/')) return handleApi(request, env);
     return env.ASSETS.fetch(request);
   }
 };
