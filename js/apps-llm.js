@@ -17,9 +17,27 @@ APPS.push({
   render(body, api) {
     const LLM = window.HOSLLM;
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    const local = { models: [], busy: "", result: null, saved: "" };
+    const local = { models: [], busy: "", result: null, saved: "", relay: null, relayLoading: false };
 
     if (!LLM) { body.innerHTML = `<div class="h1">LLM Link</div><div class="rule-box refusal">The connection layer (js/llm.js) is not loaded in this deployment.</div>`; return; }
+
+    /* What this deployment's own relay says about itself. Asked once when the
+       relay preset is selected, and again only on the button: the answer is a
+       disclosure about configuration, and it never carries a key. */
+    const relayBox = (config, relayInfo, loading) => {
+      if (!config.relay) return "";
+      if (loading) return `<div class="rule-box">ASKING THIS DEPLOYMENT'S RELAY…</div>`;
+      if (!relayInfo) return "";
+      if (relayInfo.reachable && relayInfo.configured) {
+        const models = Array.isArray(relayInfo.models) ? relayInfo.models.join(", ") : "";
+        return `<div class="rule-box">RELAY CONFIGURED · ${esc(relayInfo.provider || "zai")} ${esc(relayInfo.tier || "free")} tier${models ? ` · allowlist: <span class="mono">${esc(models)}</span>` : ""}${relayInfo.keyVariable ? ` · key held in the Worker secret <span class="mono">${esc(relayInfo.keyVariable)}</span>` : ""}${relayInfo.limits && relayInfo.limits.requestsPerMinute ? ` · ${esc(relayInfo.limits.requestsPerMinute)} calls/minute per caller` : ""}<br><span class="dim">No key leaves this browser. The prompt does pass through this deployment's Worker on its way to <span class="mono">${esc(relayInfo.upstream || "the provider")}</span>, which holds the key and rate-limits each caller.</span></div>`;
+      }
+      if (relayInfo.reachable) {
+        const names = Array.isArray(relayInfo.acceptedKeyVariables) ? relayInfo.acceptedKeyVariables : [];
+        return `<div class="rule-box refusal">RELAY NOT CONFIGURED — ${esc(relayInfo.message || "This deployment's Worker has no Z.AI key.")}${names.length ? `<br><span class="dim">Worker secret names it accepts: <span class="mono">${esc(names.join(", "))}</span>. Add one, redeploy or save it, then press Check relay.</span>` : ""}</div>`;
+      }
+      return `<div class="rule-box refusal">NO RELAY HERE — ${esc(relayInfo.reason || "This deployment does not answer the relay status route.")}</div>`;
+    };
 
     const draw = () => {
       const settings = LLM.loadSettings();
@@ -42,6 +60,7 @@ APPS.push({
         </div>
         ${status.storageNote ? `<div class="rule-box refusal">${esc(status.storageNote)}</div>` : ""}
         <div class="rule-box refusal"><strong>DATA-ONLY AUTHORITY BOUNDARY:</strong> Replies are inert, untrusted data. This app exposes no model-tool dispatcher or code-execution path from a reply into HOS. Ground-0 readings stay review-required, and no quote-backed answer is preselected. This is application-level separation, not a browser sandbox.</div>
+        ${relayBox(config, local.relay, local.relayLoading)}
         ${config.protocol === "google" ? `<div class="rule-box refusal"><strong>BROWSER KEY WARNING:</strong> Google recommends not exposing API keys in client-side code for production. This BYOK connection sends the key directly to the endpoint above (Google's Gemini Developer API by default), but anyone with access to this browser can inspect it. Use only a key type and restrictions currently accepted by Google for the Gemini API.</div>` : ""}
 
         <div class="h2">Connection</div>
@@ -66,16 +85,17 @@ APPS.push({
               <button class="btn" id="ll-models" type="button">List models</button>
             </span>
           </label>
-          <label class="ll-field wide"><span>API key ${preset.keyOptional ? "(optional — this endpoint may need none)" : ""}</span>
-            <input id="ll-key" type="password" spellcheck="false" autocomplete="off" placeholder="${keyField ? esc(keyField) : config.protocol === "google" ? "paste your Gemini API key — sent directly to the API base URL above" : "paste your own key — it is sent only to the endpoint above"}">
+          <label class="ll-field wide"><span>API key ${config.relay ? "(held by this deployment's Worker — nothing to paste here)" : preset.keyOptional ? "(optional — this endpoint may need none)" : ""}</span>
+            <input id="ll-key" type="password" spellcheck="false" autocomplete="off"${config.relay ? " disabled" : ""} placeholder="${config.relay ? "no browser key: the relay holds the Z.AI key server-side" : keyField ? esc(keyField) : config.protocol === "google" ? "paste your Gemini API key — sent directly to the API base URL above" : "paste your own key — it is sent only to the endpoint above"}">
           </label>
         </div>
-        <label class="ll-check"><input type="checkbox" id="ll-persist"${settings.persist ? " checked" : ""}> Keep the key in this browser after the tab closes (otherwise it is held for this tab only)</label>
+        <label class="ll-check"><input type="checkbox" id="ll-persist"${settings.persist ? " checked" : ""}${config.relay ? " disabled" : ""}> ${config.relay ? "Not used for the relay: no key is stored in this browser" : "Keep the key in this browser after the tab closes (otherwise it is held for this tab only)"}</label>
 
         <div class="btn-row">
           <button class="btn btn-ice" id="ll-save">Save connection</button>
           <button class="btn btn-gold" id="ll-test" ${status.linked ? "" : "disabled"}>Test connection</button>
-          <button class="btn" id="ll-clear">Clear key</button>
+          ${config.relay ? `<button class="btn" id="ll-relay-check" type="button">Check relay</button>` : ""}
+          <button class="btn" id="ll-clear">${config.relay ? "Clear any stored key" : "Clear key"}</button>
           ${local.busy ? `<span class="ll-busy mono">${esc(local.busy)}</span>` : ""}
         </div>
 
@@ -99,18 +119,31 @@ APPS.push({
         <ul class="ul">
           <li class="li">The prompt: the questions, the retrieved source text for the pass being read, and the entity name and
           evidence cutoff. Nothing else — no audit register, no other organization, no Human Key, no duty ledger.</li>
-          <li class="li">The key, to the endpoint above and nowhere else.</li>
+          ${config.relay
+            ? `<li class="li"><strong>To this deployment's own Worker first</strong> (same-origin <span class="mono">${esc(config.endpoint)}</span>), which adds the
+            Z.AI key it holds as a secret and forwards the call to <span class="mono">api.z.ai</span>. <strong>No browser key is sent at all</strong> — the key
+            input above is disabled. The trade: the Worker operator can read the prompt in transit, and Z.AI receives it under
+            Z.AI's own terms. The relay accepts only Z.AI's $0 free-tier models, refuses tools, images and streaming, caps the
+            request size and output ceiling, and rate-limits each caller, so a public page cannot spend money through it.</li>`
+            : `<li class="li">The key, to the endpoint above and nowhere else.</li>`}
           <li class="li">Request metadata the provider requires (model, token ceiling, temperature). The Ground-0 audit is
           staged one question per call, so each call reserves a small output ceiling instead of one large one — a provider
           that prices a call by the ceiling it reserves can then answer it on a small balance.</li>
+          ${config.relay ? `<li class="li">Z.AI cannot sample greedily through its OpenAI-compatible route, so the relay translates a
+          <span class="mono">0</span> temperature into <span class="mono">do_sample:false</span> and clamps anything above
+          <span class="mono">1</span> down to <span class="mono">1</span>. It also disables GLM chain-of-thought by default so the
+          output ceiling buys answer text rather than reasoning. Each response reports what was actually sent.</li>` : ""}
           <li class="li">For Google only: on the first SDK action, this page downloads Google's official, version-pinned
           <span class="mono">@google/genai@2.24.0</span> browser module and its module dependencies from jsDelivr. This
           code download contains no key or prompt; requests go directly to the configured base URL (Google by default).</li>
         </ul>
-        <div class="rule-box">What stays in this browser: your key (unless you paste it into another tool), saved audits,
-        the evidence library, the duty ledger, and the Human Key. There is no HarshalOS server in the path. The model provider
-        still receives the prompt and applies its own data-handling terms. A browser cannot hide a key from someone who has
-        access to that browser — that is why the key is held for this tab only unless you say otherwise.</div>
+        <div class="rule-box">What stays in this browser: ${config.relay ? "saved audits" : "your key (unless you paste it into another tool), saved audits"},
+        the evidence library, the duty ledger, and the Human Key. ${config.relay
+          ? "This deployment's Worker is in the path for model calls only; it holds the provider key and stores no prompt, no reading and no audit."
+          : "There is no HarshalOS server in the path."} The model provider
+        still receives the prompt and applies its own data-handling terms. ${config.relay
+          ? "With the relay there is no browser key to hide: the credential lives in the Worker, and this page holds nothing worth stealing."
+          : "A browser cannot hide a key from someone who has access to that browser — that is why the key is held for this tab only unless you say otherwise."}</div>
 
         <div class="h2">Where the link is used</div>
         <ul class="ul">
@@ -130,13 +163,13 @@ APPS.push({
         <div class="btn-row"><button class="btn" id="ll-reset-stats" type="button">Reset activity</button></div>
 
         <div class="footer-note">
-          ONE CONNECTION, MANY MODELS · ANTHROPIC, OPENROUTER, AND GOOGLE'S GENAI SDK CALL THEIR APIS DIRECTLY · OPENAI'S API NEEDS THE RELAY OR A LOCAL SERVER
+          ONE CONNECTION, MANY MODELS · ANTHROPIC, OPENROUTER, AND GOOGLE'S GENAI SDK CALL THEIR APIS DIRECTLY · OPENAI'S API NEEDS THE RELAY OR A LOCAL SERVER · Z.AI'S FREE TIER RUNS THROUGH THIS SITE'S WORKER RELAY, WHICH HOLDS THE KEY
         </div>`;
 
       body.querySelector("#ll-provider").addEventListener("change", event => {
         const provider = LLM.PROVIDERS[event.target.value];
         LLM.saveSettings({ provider: event.target.value, endpoint: provider.endpoint, model: provider.model, protocol: "" });
-        local.models = []; local.result = null; draw();
+        local.models = []; local.result = null; local.relay = null; draw();
       });
       body.querySelector("#ll-protocol").addEventListener("change", event => { LLM.saveSettings({ protocol: event.target.value }); draw(); });
       body.querySelector("#ll-endpoint").addEventListener("change", event => { LLM.saveSettings({ endpoint: event.target.value.trim() }); });
@@ -206,6 +239,30 @@ APPS.push({
         LLM.saveSettings({ model: chip.dataset.model });
         draw();
       }));
+      const relayCheck = body.querySelector("#ll-relay-check");
+      if (relayCheck) relayCheck.addEventListener("click", async () => {
+        const endpoint = body.querySelector("#ll-endpoint").value.trim();
+        LLM.saveSettings({ provider: body.querySelector("#ll-provider").value, protocol: body.querySelector("#ll-protocol").value, endpoint, model: body.querySelector("#ll-model").value.trim() });
+        local.relayLoading = true; local.busy = ""; draw();
+        const info = await LLM.relayStatus();
+        local.relay = info; local.relayLoading = false; draw();
+        api.toast(
+          info.configured ? "permit" : "warn",
+          info.configured ? "RELAY CONFIGURED" : info.reachable ? "RELAY NOT CONFIGURED" : "NO RELAY HERE",
+          info.configured
+            ? `${info.provider || "zai"} ${info.tier || "free"} tier${info.keyVariable ? ` · key in ${info.keyVariable}` : ""}${Array.isArray(info.models) && info.models.length ? ` · ${info.models.join(", ")}` : ""}`
+            : info.message || info.reason || "Ask this deployment's operator to configure the Worker relay."
+        );
+      });
+
+      /* Ask the relay once when it is the selected connection, so the reader
+         learns whether this deployment holds a key before pressing Test. The
+         answer is stored, so re-rendering does not ask again. */
+      if (config.relay && !local.relay && !local.relayLoading) {
+        local.relayLoading = true;
+        LLM.relayStatus().then(info => { local.relay = info; local.relayLoading = false; draw(); })
+          .catch(() => { local.relay = { reachable: false, configured: false, reason: "The relay status check could not be completed." }; local.relayLoading = false; draw(); });
+      }
     };
 
     draw();

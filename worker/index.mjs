@@ -3,6 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } from './storage.mjs';
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
+import { handleLlmRelay } from './llm-relay.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -121,6 +122,9 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
+    // The model relay is not behind Access: it serves the free tier only, requires a
+    // same-origin POST, and rate-limits each caller. See worker/llm-relay.mjs.
+    if (path === '/api/llm' || path.startsWith('/api/llm/')) return handleLlmRelay(request, env);
     if (path.startsWith('/api/')) return handleApi(request, env);
     return env.ASSETS.fetch(request);
   }

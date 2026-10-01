@@ -50,7 +50,7 @@ Browser source files remain under `js/` to preserve the no-build shell's stable 
 | **UI / desktop shell** | `index.html`, `about.html`, `css/`, `js/boot.js`, `js/wm.js`, `js/apps-core.js`, `js/apps-shell.js`, `js/apps-adversarial.js`, `js/apps-guided-demo.js` |
 | **Ground-0 engine and workspace** | `js/g0-engine.js`, `js/g0-app.js`, `specs/` |
 | **Research** | `js/g0-research.js`, `research/reports/`, `case-studies/` |
-| **LLM** | `js/llm.js`, `js/g0-llm.js`, `js/apps-llm.js` |
+| **LLM** | `js/llm.js`, `js/g0-llm.js`, `js/apps-llm.js`; optional server-side free-tier relay in `worker/llm-relay.mjs` (same-origin `/api/llm`, Z.AI key held as a Worker secret, operator guide in `docs/deployment/ZAI-FREE-TIER.md`) |
 | **Good Intelligence bridge** | `worker/good-intelligence-demo.mjs`, `worker/good-intelligence-tickerbot.mjs`, `js/good-intelligence-assurance.js`, `js/good-intelligence-client.js`, `js/good-intelligence-verifier.js`, `js/good-intelligence-market-context.js`, `js/apps-good-intelligence.js`, `css/good-intelligence.css`, `docs/GOOD-INTELLIGENCE-ASSURANCE.md`; same-origin GET-only demo API with demo-only signed authorization, three clearly synthetic ticker histories, separate source/claim assurance, and a Market Charts tab for price/Fibonacci, VFI, and WaveTrend line visualizations. No OHLCV means no fabricated chart. It does not implement GI sign-in, publishing, token approvals, or contract transactions |
 | **OCM** | `js/ocm-data.js`, `js/apps-ocm.js` |
 | **Optional cloud storage** | `worker/`, `js/apps-cloud.js`, operator instructions in `docs/deployment/` |
@@ -58,7 +58,7 @@ Browser source files remain under `js/` to preserve the no-build shell's stable 
 
 ## Tests and developer tooling
 
-All `*-test.mjs` files live in `tests/`; run them with `npm test`. Focused suites are named in `package.json` (`test:kernel`, `test:engine`, `test:research`, `test:app`, `test:llm`, `test:cloud`, `test:red-team`, and `test:layout`). `scripts/integrity-report.mjs` runs the full and focused suites, checks that every test file is assigned to a suite, runs the deployment dry-run, and writes the CI job summary. `scripts/prepare-assets.mjs` builds the allowlisted static asset directory.
+All `*-test.mjs` files live in `tests/`; run them with `npm test`. Focused suites are named in `package.json` (`test:kernel`, `test:engine`, `test:research`, `test:app`, `test:llm`, `test:relay`, `test:cloud`, `test:red-team`, and `test:layout`). `scripts/integrity-report.mjs` runs the full and focused suites, checks that every test file is assigned to a suite, runs the deployment dry-run, and writes the CI job summary. `scripts/prepare-assets.mjs` builds the allowlisted static asset directory.
 
 When adding a test, put it under `tests/` and update the suite mapping in `scripts/integrity-report.mjs` and the relevant package script. CI intentionally fails the inventory check if a new test is left uncategorized.
 
