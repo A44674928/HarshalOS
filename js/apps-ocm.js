@@ -591,6 +591,10 @@
       st.dragging = false;
       canvas.classList.remove("dragging");
     });
+    canvas.addEventListener("pointercancel", () => {
+      st.dragging = false;
+      canvas.classList.remove("dragging");
+    });
     canvas.addEventListener("pointerleave", () => { st.hover = -1; });
     canvas.addEventListener("wheel", e => {
       e.preventDefault();

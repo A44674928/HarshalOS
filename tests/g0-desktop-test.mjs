@@ -231,6 +231,35 @@ if (g0icon) {
   ok(!!(g0win && (g0win.textContent || "").includes("Frontier AI developer")), "the opened window shows the Ground-0 overview content");
 }
 
+/* ── tap lifecycle: pointerdown must not destroy controls ──────── */
+if (g0icon) {
+  g0icon.click();
+  const rec = shell.windows.get("ground0");
+  ok(!!rec, "a single tap opens the Ground-0 app");
+  const taskButton = body.querySelector("#taskbar-apps").children[0];
+  dispatch(rec.body, "pointerdown");
+  ok(body.querySelector("#taskbar-apps").children[0] === taskButton,
+    "pointerdown in the focused app preserves the taskbar button until click");
+  const min = rec.el.querySelector(".win-ctl.min");
+  dispatch(min, "pointerdown");
+  min.click();
+  ok(rec.el.classList.contains("minimized"), "tap on minimize hides the app");
+  body.querySelector("#taskbar-apps").children[0].click();
+  ok(!rec.el.classList.contains("minimized"), "taskbar tap restores the app");
+  const close = rec.el.querySelector(".win-ctl.close");
+  dispatch(close, "pointerdown");
+  close.click();
+  ok(!shell.windows.has("ground0"), "tap on close removes the app");
+  g0icon.click();
+  ok(shell.windows.has("ground0"), "desktop tap reopens a closed app");
+}
+body.querySelector("#origin-menu").hidden = true; // mini-DOM does not reflect boolean attributes
+const originButton = body.querySelector("#origin-btn");
+originButton.click();
+ok(originButton.attrs["aria-expanded"] === "true", "Origin tap exposes expanded state");
+originButton.click();
+ok(originButton.attrs["aria-expanded"] === "false", "second Origin tap closes the menu");
+
 /* ── Human Key is visibly and functionally demo-only ───────────── */
 const humanKeyApp = globalThis.APPS.find(app => app.id === "humankey");
 ok(!!humanKeyApp, "Human Key demo panel is registered");

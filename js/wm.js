@@ -78,7 +78,7 @@ const shell = (() => {
     const title = el.querySelector(".win-title");
     let drag = null;
     title.addEventListener("pointerdown", e => {
-      if (e.target.closest(".win-ctl")) return;
+      if (e.target.closest(".win-ctl") || window.innerWidth <= 860 || e.button > 0) return;
       drag = { x: e.clientX, y: e.clientY, l: el.offsetLeft, t: el.offsetTop };
       focus(app.id);
       title.setPointerCapture(e.pointerId);
@@ -91,6 +91,8 @@ const shell = (() => {
       el.style.top = nt + "px";
     });
     title.addEventListener("pointerup", () => { drag = null; });
+    title.addEventListener("pointercancel", () => { drag = null; });
+    title.addEventListener("lostpointercapture", () => { drag = null; });
 
     el.addEventListener("pointerdown", () => focus(app.id));
     el.querySelector(".win-ctl.close").addEventListener("click", () => closeApp(app.id));
@@ -119,6 +121,9 @@ const shell = (() => {
   function focus(id) {
     const rec = windows.get(id);
     if (!rec) return;
+    // Do not replace taskbar buttons during pointerdown on an already focused
+    // window: removing the tapped control before pointerup loses its click.
+    if (rec.el.classList.contains("focused") && !rec.el.classList.contains("minimized")) return;
     rec.el.classList.remove("minimized");
     rec.el.style.zIndex = ++zTop;
     windows.forEach(r => r.el.classList.remove("focused"));
@@ -183,6 +188,8 @@ const shell = (() => {
     const menu = $("#origin-menu");
     const show = force !== undefined ? force : menu.hidden;
     menu.hidden = !show;
+    $("#origin-btn").setAttribute("aria-expanded", String(show));
+    $("#taskbar-origin").setAttribute("aria-expanded", String(show));
     if (show) {
       menu.style.animation = "none";
       void menu.offsetWidth;
@@ -300,6 +307,9 @@ const shell = (() => {
 
     $("#origin-btn").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
     $("#taskbar-origin").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") toggleMenu(false);
+    });
     document.addEventListener("click", e => {
       if (!e.target.closest("#origin-menu") && !e.target.closest("#origin-btn") && !e.target.closest("#taskbar-origin")) {
         toggleMenu(false);
