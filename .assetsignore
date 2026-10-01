@@ -14,5 +14,8 @@
 !specs/normative/*.md
 !specs/draft/
 !specs/draft/*.md
+# Plaintext manuscripts (chapters + the index generated at staging time).
+!manuscript/
+!manuscript/**
 # Never publish hidden files, even under an allowed directory.
 **/.*

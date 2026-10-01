@@ -1,0 +1,27 @@
+# The Grand River Foundation
+
+*Sample chapter file — replace or delete this file.*
+
+This file is a placeholder so the reading view has something to set. It is not part of
+the manuscript. Delete `01-sample-chapter.txt` from
+`manuscript/the-grand-river-foundation/` and drop the real chapters in beside it; the
+tab will list them in the order their file names sort.
+
+The reader joins single line breaks, so a paragraph can be hard-wrapped
+like this one is, and it still sets as one block.
+
+---
+
+A line of three dashes becomes the scene break above.
+
+## What the reader does with a chapter
+
+The tab under **The Book** lists every chapter with its word count, sets one chapter at
+a time, keeps the place you stopped at in the browser, and reports a SHA-256 digest of
+the text it loaded. The digest identifies the state of the manuscript — it does not
+sign it, authenticate the author, or authorize anything.
+
+> A manuscript is read here, not executed.
+
+**The plaintext is the source.** No build step, no editor, no conversion: a committed
+`.txt` file is what the page shows.

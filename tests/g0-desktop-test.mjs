@@ -541,6 +541,117 @@ if (giApp) {
 }
 globalThis.fetch = originalFetch;
 
+/* ── The Book: the artifact tab and the Grand River manuscript ── */
+const settleTurns = async (turns = 8) => { for (let i = 0; i < turns; i++) await new Promise(resolve => setImmediate(resolve)); };
+const bookApp = globalThis.APPS.find(app => app.id === "book");
+ok(!!bookApp, "The Book is registered in APPS");
+ok(!!(globalThis.ManuscriptReader && typeof globalThis.ManuscriptReader.mount === "function"), "the manuscript reader module loads with the shell");
+if (bookApp) {
+  /* The reading view must not fetch anything until a reader opens the tab. */
+  const msCalls = [];
+  const msChapters = {
+    "01-the-arrival": "# The Arrival\n\nFirst light on the water.\n\n***\n\nA second paragraph.\n",
+    "02-the-foundation": "# The Foundation\n\nLaid stone by stone, and read as text: <b>not markup</b>.\n"
+  };
+  const msManifest = {
+    schema: "harshalos-manuscript-v1",
+    manuscript: { collections: 1, chapters: 2, words: 24, bytes: 200 },
+    digest: "0".repeat(64),
+    collections: [{
+      id: "the-grand-river-foundation",
+      title: "The Grand River Foundation",
+      subtitle: "Fixture manuscript",
+      author: "Test fixture",
+      chapterCount: 2,
+      words: 24,
+      bytes: 200,
+      digest: "1".repeat(64),
+      chapters: [
+        { id: "01-the-arrival", name: "01-the-arrival.txt", file: "manuscript/the-grand-river-foundation/01-the-arrival.txt", title: "The Arrival", order: 1, index: 1, words: 12, bytes: 90, sha256: "2".repeat(64) },
+        { id: "02-the-foundation", name: "02-the-foundation.txt", file: "manuscript/the-grand-river-foundation/02-the-foundation.txt", title: "The Foundation", order: 2, index: 2, words: 12, bytes: 110, sha256: "3".repeat(64) }
+      ]
+    }]
+  };
+  globalThis.fetch = async url => {
+    const target = String(url);
+    msCalls.push(target);
+    if (target.endsWith("manuscript/manifest.json")) {
+      return { ok: true, status: 200, json: async () => msManifest };
+    }
+    const match = target.match(/([^/]+)\.txt$/);
+    if (match && Object.hasOwn(msChapters, match[1])) {
+      return { ok: true, status: 200, text: async () => msChapters[match[1]] };
+    }
+    return { ok: false, status: 404, json: async () => ({}), text: async () => "" };
+  };
+
+  shell.openApp(bookApp);
+  const bookWindow = shell.windows.get("book");
+  ok(!!bookWindow, "The Book opens as a desktop window");
+  ok(msCalls.length === 0, "opening The Book reads no manuscript files");
+  const tabs = bookWindow ? bookWindow.body.querySelectorAll("[data-bk-view]") : [];
+  ok(tabs.length === 2, "The Book presents two tabs");
+  ok(tabs.some(tab => (tab.textContent || "").includes("The Physical Artifact")), "the artifact tab keeps its place");
+  const msTab = tabs.find(tab => (tab.textContent || "").includes("The Grand River Foundation"));
+  ok(!!msTab, "the second tab is titled The Grand River Foundation");
+  const artifactPanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="artifact"]') : null;
+  const msPanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="manuscript"]') : null;
+  ok(!!(artifactPanel && !("hidden" in artifactPanel.attrs)), "the artifact tab is the default view");
+  ok(!!(msPanel && "hidden" in msPanel.attrs), "the manuscript tab starts hidden");
+  ok(!!(artifactPanel && (artifactPanel.textContent || "").includes("500 voting coins")), "the artifact tab still holds the coin pool");
+
+  if (msTab && msPanel) {
+    msTab.click();
+    await settleTurns();
+    const msText = msPanel.textContent || "";
+    ok(msPanel.hidden === false && artifactPanel.hidden === true, "opening the tab switches panels without losing the artifact view");
+    ok(msCalls.some(call => call.endsWith("manuscript/manifest.json")), "opening the tab reads the generated manuscript index");
+    ok(msText.includes("The Grand River Foundation"), "the manuscript heading comes from the collection metadata");
+    ok(msText.includes("2 chapters") && msText.includes("24 words"), "the heading reports the indexed size of the manuscript");
+    ok(msText.includes("digest"), "the reader states the content digest it loaded");
+    const chapterButtons = msPanel.querySelectorAll("[data-ms-chapter]");
+    ok(chapterButtons.length === 2, "every indexed chapter is listed in the contents rail");
+    ok(chapterButtons.some(button => (button.textContent || "").includes("The Arrival")), "chapter titles are listed");
+    ok(msText.includes("First light on the water."), "the first chapter is set as text without further action");
+    ok(msCalls.filter(call => call.endsWith(".txt")).length === 1, "only the opened chapter is fetched");
+    let readerHost = msPanel.querySelector("[data-ms-reader]");
+    ok(!!(readerHost && readerHost.innerHTML.includes("ms-break")), "a scene break line becomes a scene break, not a paragraph");
+
+    /* Chapter switching, navigation, and hostile markup in a chapter. */
+    const second = chapterButtons.find(button => (button.textContent || "").includes("The Foundation"));
+    if (second) {
+      second.click();
+      await settleTurns();
+      readerHost = msPanel.querySelector("[data-ms-reader]");
+      const afterText = msPanel.textContent || "";
+      ok(afterText.includes("Laid stone by stone"), "selecting a chapter loads that chapter");
+      ok(!afterText.includes("First light on the water."), "the previous chapter is replaced, not appended");
+      ok(!!(readerHost && readerHost.innerHTML.includes("&lt;b&gt;not markup&lt;/b&gt;") && !readerHost.innerHTML.includes("<b>not markup</b>")),
+        "chapter markup is escaped and read, never applied");
+    }
+    const nextButton = msPanel.querySelector('[data-ms-move="1"]');
+    const previousButton = msPanel.querySelector('[data-ms-move="-1"]');
+    ok(!!(nextButton && "disabled" in nextButton.attrs), "there is no next chapter past the last one");
+    ok(!!(previousButton && !("disabled" in previousButton.attrs)), "the previous chapter is reachable from the last one");
+    if (previousButton) {
+      previousButton.click();
+      await settleTurns();
+      ok((msPanel.textContent || "").includes("First light on the water."), "the previous button returns to the earlier chapter");
+    }
+
+    /* A missing index is explained rather than dressed up as an empty manuscript. */
+    globalThis.fetch = async () => { throw new Error("offline"); };
+    const reload = msPanel.querySelector("[data-ms-reload]");
+    if (reload) {
+      reload.click();
+      await settleTurns();
+      ok((msPanel.textContent || "").includes("Manuscript index unavailable"), "an unreadable index is reported plainly");
+      ok((msPanel.textContent || "").includes("node serve.js"), "the notice names the supported local preview");
+    }
+  }
+  globalThis.fetch = originalFetch;
+}
+
 /* ── LLM Link: the Z.AI free-tier relay needs no browser key ───── */
 const llmApp = globalThis.APPS.find(app => app.id === "llmlink");
 ok(!!llmApp, "LLM Link is registered in APPS");

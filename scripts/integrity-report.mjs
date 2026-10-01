@@ -60,6 +60,11 @@ const SUITES = [
     area: "Repository layout & public-asset allowlist",
     script: "test:layout",
     files: ["repository-layout-test.mjs"]
+  },
+  {
+    area: "Manuscript index, plaintext reading view & preview routes",
+    script: "test:manuscript",
+    files: ["manuscript-test.mjs"]
   }
 ];
 

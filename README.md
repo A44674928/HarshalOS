@@ -70,17 +70,38 @@ of a same-origin relay. Without it, every BYOK connection point still works exac
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
+| **The Grand River Foundation** | The second tab under **The Book**: a chapter-by-chapter reading view for a plaintext manuscript submitted as ordinary `.txt` files under [`manuscript/the-grand-river-foundation/`](manuscript/README.md). The site builds the chapter index from the files themselves — no build step, no editor, no upload from the browser — and renders one chapter at a time with a contents rail, word counts, remembered reading position, and a SHA-256 digest of the text as loaded. A manuscript is read here, never executed: every chapter is escaped before it reaches the DOM. The digest identifies a state of the text; it is not a signature, an authorization, or proof of authorship |
 | **Glossary** | Part II stabilized terms, searchable |
 | **Zero Trust / Harshal Neural OS** | The framework calls for external, per-action, time-bounded authorization. This browser demo does not implement that production trust anchor; its local gate only models the refusal/freshness rules and cannot grant production authority |
 | **OCM visualization — The Orb** | HarshalOS itself rendered as a radiative sphere of influence: desktop apps as radiative nodes attached directly to the center (`0•[orb]•[sector]•[instance]`), the 360-address equatorial disc (`0•DDD•000•0000`), the disc→sphere formation animation (rotation over time + depth), distance shells (`0•DDD•RRR•####`), the non-sovereign resolution axis, AI inner shell, lateral comms, and interaction-orb arcs — drag to orbit, click a node to inspect its address lineage |
 | **Interaction Orbs** | The non-additive extension: OCM arithmetic (A=1, B=1, A↔B=1 → 3), both worked micro-examples as steppers (25%+25% → 75% observed mismatch), the three communication layers, navigation/exit protocol, and the classical-vs-OCM comparison |
 
+### Submitting a manuscript chapter
+
+**The Book → The Grand River Foundation** reads plaintext straight from
+[`manuscript/the-grand-river-foundation/`](manuscript/README.md). The submission step is a commit:
+
+```text
+manuscript/the-grand-river-foundation/
+  01-the-arrival.txt
+  02-the-river-remembers.txt
+```
+
+A leading number in the file name sets the reading order; a first line starting with `# ` sets the
+chapter title (otherwise the title comes from the file name); blank lines separate paragraphs, and
+`---` is a scene break. `node serve.js` builds the index on request, so a saved file appears on the
+next reload locally, and a deploy publishes the chapters through `scripts/prepare-assets.mjs`.
+Only `.txt`/`.md` chapter files named by the generated index are published: `_collection.json`,
+`README.md`, and any other file left in the folder stay out of the deployed site. A chapter that
+fails to load says so and names the file, rather than rendering an empty page.
+
 ## Layout
 
 ```
 index.html        — Browser-shell entry point (boot, HUD, desktop, taskbar)
-css/              — OS and Ground-0 workspace styles
+css/              — OS, Ground-0 workspace, and manuscript reading styles
 assets/           — runtime images, animation, and rendering data
+manuscript/       — plaintext manuscript submissions; only indexed chapters are published
 specs/normative/  — Ground-0 v1.0 finalized normative source; fetched by the spec reader
 specs/draft/      — Ground-0 v1.1 amendment draft; fetched as a draft, not a ratified baseline
 docs/deployment/  — operator setup and deployment guides
@@ -429,6 +450,14 @@ the sliding per-caller window, the shared ceiling across distinct callers, a ref
 slot, the `RateLimit-*` headers, the status and model-list routes, and Worker route ordering — the relay
 answers `/api/llm` while `/api/storage/*` still fails closed without Cloudflare Access. The
 browser-side relay preset, its key isolation and `relayStatus()` are covered in `tests/llm-test.mjs`.
+`node --test tests/manuscript-test.mjs` covers the manuscript pipeline: which files count as
+chapters, file-name ordering and title derivation, per-chapter hashing, refusals for anything the
+index does not name (including `_collection.json` and traversal attempts), the reader's plaintext
+parser and its escaping of chapter markup, and the preview server's manuscript index and chapter
+routes. `tests/g0-desktop-test.mjs` boots the real page and walks the new tab end to end — the
+chapter index is not fetched until the tab is opened, the contents rail and one-chapter-at-a-time
+reading work from an indexed fixture, chapter markup is read rather than applied, and an unreadable
+index is reported instead of shown as an empty manuscript.
 
 If the Human Key is absent, the system does not become *less effective* — it becomes
 **Mathematically Void**. Refusal is not failure; it is the primary act of responsible control.

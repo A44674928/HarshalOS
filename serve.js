@@ -14,9 +14,13 @@
    packfile and every credential-free-but-private commit), the Business Plan
    working documents, and private papers that .assetsignore says must never be
    published. So what is served here is exactly what the deployed site is —
-   index.html, about.html, css/, js/, assets/, and the versioned specs/ the
-   Ground-0 app fetches at runtime — and everything else is a plain 404 that
-   does not admit what exists.
+   index.html, about.html, css/, js/, assets/, the versioned specs/ the
+   Ground-0 app fetches at runtime, and the plaintext chapters of manuscript/ —
+   and everything else is a plain 404 that does not admit what exists.
+
+   The manuscript index is not a checked-in file: it is built from the
+   chapter files on request, so dropping a new .txt into
+   manuscript/<collection>/ and reloading is the whole submission step.
 
    Not part of the deployed site — excluded in .assetsignore.
    ═══════════════════════════════════════════════════════════════ */
@@ -29,6 +33,28 @@ const path = require("path");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT || 8000);
+
+/* The manuscript index builder is ESM and shared with the deploy-time
+   staging script, so it is imported once, lazily. */
+let manuscriptIndex = null;
+const loadManuscriptIndex = async () => {
+  if (!manuscriptIndex) manuscriptIndex = await import("./scripts/manuscript-index.mjs");
+  return manuscriptIndex;
+};
+/* The manifest is rebuilt from disk at most once every 1.5 s: long enough
+   that a page load asking twice does not re-read every chapter, short enough
+   that a saved edit appears on the next reload. */
+let manifestCache = { at: 0, body: null };
+const MANIFEST_TTL_MS = 1500;
+
+async function manuscriptManifest() {
+  const now = Date.now();
+  if (manifestCache.body && now - manifestCache.at < MANIFEST_TTL_MS) return manifestCache.body;
+  const { buildManifest, serializeManifest } = await loadManuscriptIndex();
+  const body = serializeManifest(await buildManifest(ROOT));
+  manifestCache = { at: now, body };
+  return body;
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -51,15 +77,20 @@ const MIME = {
 
 /* The deployed site, as a set of path patterns. The `specs/normative/*.md`
    and `specs/draft/*.md` paths are the only non-asset documentation exposed
-   to the browser; they are fetched by the Ground-0 specification reader. */
+   to the browser; they are fetched by the Ground-0 specification reader.
+   Manuscript chapter paths are checked against the generated index below,
+   not against the filesystem alone. */
 const SERVED = [
   /^\/$/,                                   // index.html
   /^\/[A-Za-z0-9_-]+\.html$/,               // about.html and friends
   /^\/css\/[A-Za-z0-9._-]+$/,
   /^\/js\/[A-Za-z0-9._-]+$/,
   /^\/assets\/[A-Za-z0-9._/-]+$/,
-  /^\/specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/
+  /^\/specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/,
+  /^\/manuscript\/[A-Za-z0-9._/-]+$/      // manifest.json and public chapters only
 ];
+const MANUSCRIPT_MANIFEST_PATH = "/manuscript/manifest.json";
+const MANUSCRIPT_CHAPTER_PATH = /^\/manuscript\/([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:txt|md))$/i;
 /* `new URL` collapses "/../" before we ever see it, so a prefix check on the
    joined path is not enough on its own: "/../.git/config" arrives as
    "/.git/config", which is inside ROOT and would be served. Refuse any path
@@ -67,7 +98,7 @@ const SERVED = [
 const hasDotSegment = value => value.split("/").some(segment => segment.startsWith("."));
 const isServed = value => !hasDotSegment(value) && SERVED.some(pattern => pattern.test(value));
 
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, "http://localhost");
     let p = decodeURIComponent(u.pathname);
@@ -77,6 +108,42 @@ http.createServer((req, res) => {
       res.end("404 " + p);
       return;
     }
+
+    /* The manuscript index is generated from the chapter files; chapters are
+       served only when the index names them, so a stray file dropped in the
+       folder is not published by accident. */
+    if (p === MANUSCRIPT_MANIFEST_PATH) {
+      const body = await manuscriptManifest();
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Length": Buffer.byteLength(body),
+        "Cache-Control": "no-store"
+      });
+      res.end(body);
+      return;
+    }
+    if (p.startsWith("/manuscript/")) {
+      const chapterMatch = p.match(MANUSCRIPT_CHAPTER_PATH);
+      let text = null;
+      if (chapterMatch) {
+        const { readChapter } = await loadManuscriptIndex();
+        text = await readChapter(ROOT, chapterMatch[1], chapterMatch[2]);
+      }
+      if (text === null) {
+        res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+        res.end("404 " + p);
+        return;
+      }
+      const payload = Buffer.from(text, "utf8");
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Length": payload.length,
+        "Cache-Control": "no-cache"
+      });
+      res.end(payload);
+      return;
+    }
+
     const file = path.normalize(path.join(ROOT, p));
     if (!file.startsWith(ROOT)) { res.writeHead(403); res.end("forbidden"); return; }
     fs.readFile(file, (err, data) => {

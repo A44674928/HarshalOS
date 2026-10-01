@@ -521,23 +521,52 @@ APPS.push({
 });
 
 /* ───────────────────────────────────────────────
-   11. THE BOOK — physical artifact + 500 voting coins
+   11. THE BOOK — physical artifact · 500 voting coins
+       · The Grand River Foundation (plaintext manuscript)
    ─────────────────────────────────────────────── */
 APPS.push({
   id: "book",
   title: "The Book",
   short: "The Book",
   glyph: "▤",
-  desc: "The physical license artifact and the 500-coin governance pool",
-  w: 700, h: 580,
+  desc: "The physical license artifact, the 500-coin governance pool, and The Grand River Foundation manuscript",
+  w: 940, h: 660,
   render(body, api) {
+    body.innerHTML = `
+      <div class="bk-app">
+        <nav class="bk-tabs" role="tablist" aria-label="The Book">
+          <button type="button" class="bk-tab active" role="tab" id="bk-tab-artifact" aria-controls="bk-panel-artifact" aria-selected="true" data-bk-view="artifact">The Physical Artifact</button>
+          <button type="button" class="bk-tab" role="tab" id="bk-tab-manuscript" aria-controls="bk-panel-manuscript" aria-selected="false" data-bk-view="manuscript">The Grand River Foundation</button>
+        </nav>
+        <section class="bk-panel" role="tabpanel" id="bk-panel-artifact" aria-labelledby="bk-tab-artifact" tabindex="0" data-bk-panel="artifact"></section>
+        <section class="bk-panel" role="tabpanel" id="bk-panel-manuscript" aria-labelledby="bk-tab-manuscript" tabindex="0" data-bk-panel="manuscript" hidden></section>
+      </div>`;
+
+    const panels = {
+      artifact: body.querySelector('[data-bk-panel="artifact"]'),
+      manuscript: body.querySelector('[data-bk-panel="manuscript"]')
+    };
+
+    body.querySelectorAll("[data-bk-view]").forEach(tab => tab.addEventListener("click", () => {
+      const view = tab.dataset.bkView;
+      body.querySelectorAll("[data-bk-view]").forEach(other => {
+        const active = other === tab;
+        other.classList.toggle("active", active);
+        other.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      Object.keys(panels).forEach(name => { panels[name].hidden = name !== view; });
+      if (view === "manuscript") openManuscript();
+    }));
+
+    /* ── tab 1 — the physical artifact and the 500-coin pool ── */
+    const artifact = panels.artifact;
     const votes = {};
     const myCoins = 3;
     let remaining = myCoins;
 
     const draw = () => {
       const totalVoted = DATA.proposals.reduce((s, p) => s + p.yes + p.no + (votes[p.id]?.yes || 0) + (votes[p.id]?.no || 0), 0);
-      body.innerHTML = `
+      artifact.innerHTML = `
         <div class="h1">The Physical Artifact</div>
         <div class="sub">A book that serves as the tangible license key and foundational text for the entire system.
         Authority over the system's direction is tied to the physical world through the purchase of the hardcover book,
@@ -601,7 +630,7 @@ ${DATA.bookExample.sign}
           THE SYSTEM REMAINS THE SOLE PROPERTY OF HARSHAL PRIYAVADAN PATEL.
         </div>`;
 
-      body.querySelectorAll("[data-vote]").forEach(b => b.addEventListener("click", () => {
+      artifact.querySelectorAll("[data-vote]").forEach(b => b.addEventListener("click", () => {
         if (!api.requireDemoGate("Cast voting coin")) return;
         const res = HOS.request("cast-voting-coin");
         if (!res.permitted) { api.reportAction(res); return; }
@@ -619,6 +648,32 @@ ${DATA.bookExample.sign}
       }));
     };
     draw();
+
+    /* ── tab 2 — The Grand River Foundation: plaintext manuscript ──
+       Chapters are submitted as plain .txt files under
+       manuscript/the-grand-river-foundation/. The reading view is
+       generated from the files themselves; nothing is submitted from
+       the browser, and no manuscript text is ever executed.
+
+       Mounting waits for the tab to be opened, so the manuscript index
+       is not fetched until a reader asks for it. */
+    let manuscriptMounted = false;
+    function openManuscript() {
+      const host = panels.manuscript;
+      if (manuscriptMounted || !host) return;
+      if (typeof ManuscriptReader === "undefined") {
+        host.innerHTML = `
+          <div class="ms-notice error">
+            <p class="ms-eyebrow">MANUSCRIPT</p>
+            <h1 class="ms-title">Reader unavailable</h1>
+            <p class="ms-notice-body">The manuscript module (js/manuscript.js) did not load, so the chapter index cannot be read.
+            The artifact tab above is unaffected.</p>
+          </div>`;
+        return;
+      }
+      manuscriptMounted = true;
+      ManuscriptReader.mount(host, { collectionId: "the-grand-river-foundation" });
+    }
   }
 });
 
