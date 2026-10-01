@@ -158,8 +158,9 @@ oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and
 ## Diagnosing Worker-to-Z.AI connection failures
 
 A relay `502` reading `Z.AI could not be reached` means the Worker did not receive a usable HTTP
-response from its outbound request. The browser does not get the underlying socket exception. The
-Worker emits a deliberately sanitized log entry for these failures with only `route`, `errorName`,
+response from its outbound request. The browser does not get the underlying socket exception. Persisted Workers Logs are enabled in
+`wrangler.jsonc`; the setting applies after the Worker is redeployed. The Worker emits a deliberately
+sanitized log entry for these failures with only `route`, `errorName`,
 `causeName`, and `causeCode` (for example, `ECONNRESET`). It never logs the exception message or stack,
 request URL, headers, API key, or prompt.
 
