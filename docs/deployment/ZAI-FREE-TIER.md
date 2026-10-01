@@ -188,16 +188,19 @@ If you already have Wrangler authenticated locally, the same logs can be tailed 
 `npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
 or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
 
-### Temporary outbound-fetch diagnostic (no model call)
+### Outbound-fetch diagnostic (opt-in, off by default, no model call)
 
 When the default log says only `TypeError` and there is no outbound child span, use this diagnostic
 instead of enlarging a prompt or running a Ground-0 reading. It is implemented at the Worker's
-outbound-fetch boundary, not as a browser or sandbox connectivity test.
+outbound-fetch boundary, not as a browser or sandbox connectivity test. A request that is rejected
+locally (for example an unsupported `redirect` mode) shows up as `request_construction` with
+`outcome: "error"` before any network stage runs.
 
-**Enable and deploy.** `LLM_RELAY_OUTBOUND_DIAGNOSTIC=true` is a non-secret, temporary operator flag.
-It is checked in **only under `previews.vars`**, so a new branch-preview deployment enables it but
-production does not. The flag does nothing on its own: normal model lists, status checks, and chat
-calls never run this diagnostic. Confirm the branch preview has deployed the new Worker before
+**Enable and deploy.** The diagnostic is **off everywhere by default**: the checked-in
+`wrangler.jsonc` does not set it. `LLM_RELAY_OUTBOUND_DIAGNOSTIC=true` is a non-secret, temporary
+operator flag. Add it under **only `previews.vars`** for the duration of a diagnosis, so the next
+branch-preview deployment enables it but production does not. The flag does nothing on its own:
+normal model lists, status checks, and chat calls never run this diagnostic. Confirm the branch preview has deployed the new Worker before
 triggering it. To diagnose a different deployment, its operator must explicitly set the flag and
 redeploy that Worker; do not move the preview switches into production as a group or disable pacing.
 
@@ -241,7 +244,7 @@ operation across Cloudflare: a new isolate, a recycle, or a redeploy can run it 
 in the same isolate (even with the query) resume ordinary authenticated model-list behavior without
 extra probes or message logging. Make one manual request, do not loop it, then remove
 `LLM_RELAY_OUTBOUND_DIAGNOSTIC` from `previews.vars` (and any dashboard override) and redeploy.
-The independent, pre-existing preview rate-limit experiment is not required for this diagnostic.
+The preview rate-limit switch is independent and is not required for this diagnostic.
 
 ## 5. Limits and honesty
 

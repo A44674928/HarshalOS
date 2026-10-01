@@ -41,14 +41,12 @@
     "MONGODB_DATABASE": "harshalos"
   },
 
-  // Preview uses a separate database. These temporary diagnostic switches
-  // apply only to public branch previews—not production. The outbound probe
-  // also requires an explicit /api/llm/models?diagnostic=outbound request.
+  // Preview uses a separate database. LLM_RELAY_DISABLE_RATE_LIMITS is a
+  // temporary switch that applies only to public branch previews—not production.
   "previews": {
     "vars": {
       "MONGODB_DATABASE": "harshalos_preview",
-      "LLM_RELAY_DISABLE_RATE_LIMITS": "true",
-      "LLM_RELAY_OUTBOUND_DIAGNOSTIC": "true"
+      "LLM_RELAY_DISABLE_RATE_LIMITS": "true"
     }
   }
 }
