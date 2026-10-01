@@ -35,6 +35,32 @@ export function clearTickerbotCache() {
   cache.clear();
 }
 
+/*
+ * Category-only breadcrumb for Workers Logs when the upstream call throws. It says what kind of
+ * failure it was (a TypeError with no cause means the request was rejected locally, before any
+ * network I/O) and never why in words: no message, URL, header, key, stack or body is logged.
+ * Mirrors the Z.AI relay's zai_upstream_fetch_failed.
+ */
+function logUpstreamFetchFailure(error, dependencies, apiKey) {
+  try {
+    const scrub = value => {
+      const text = String(value === undefined || value === null ? "" : value);
+      return apiKey ? text.split(apiKey).join("") : text;
+    };
+    const safeName = value => /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : "";
+    const safeCode = value => /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : "";
+    const cause = error && typeof error.cause === "object" ? error.cause : null;
+    const entry = {
+      event: "tickerbot_upstream_fetch_failed",
+      errorName: safeName(scrub(error && error.name)) || "Error",
+      causeName: safeName(scrub(cause && cause.name)),
+      causeCode: safeCode(scrub(cause && cause.code))
+    };
+    if (typeof dependencies.log === "function") dependencies.log(entry);
+    else console.warn("[HarshalOS tickerbot]", entry);
+  } catch { /* Logging must never affect request handling. */ }
+}
+
 export async function handleGoodIntelligenceTickerbot(request, env = {}, dependencies = {}) {
   const url = new URL(request.url);
   if (url.pathname !== ROUTE) return failure("Tickerbot market route not found.", 404);
@@ -105,6 +131,7 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
     cache.set(cacheKey, { payload: result, expiresAt: now + CACHE_TTL_MS });
     return json(result);
   } catch (error) {
+    logUpstreamFetchFailure(error, dependencies, apiKey);
     if (error && error.name === "AbortError") return failure("Tickerbot market request timed out. Try again shortly.", 504);
     return failure("Tickerbot could not be reached. Check the Worker connection and retry.", 502);
   } finally {

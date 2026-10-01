@@ -85,6 +85,95 @@ test("Tickerbot adapter refuses a redirect instead of following it and never rep
   assert.equal(calls, 1, "no second request is made to the redirect target");
 });
 
+test("Tickerbot logs only a sanitized failure category when the upstream call throws", async () => {
+  /* Before this, a Tickerbot 502 left nothing in Workers Logs at all. The entry says what kind
+     of failure it was (TypeError with no cause = rejected locally, before any network I/O) and
+     never why in words. */
+  const KEY = "test-only-worker-secret";
+  const logs = [];
+  const attempt = (error, symbol) => {
+    clearTickerbotCache();
+    return handleGoodIntelligenceTickerbot(route(symbol), { TICKERBOT_API_KEY: KEY }, {
+      now: () => NOW,
+      fetch: workersFetch(async () => { throw error; }),
+      log: entry => logs.push(entry)
+    });
+  };
+
+  const rejected = await attempt(new TypeError(`Invalid redirect value for https://api.tickerbot.io/v2/bars/AAPL/1h using ${KEY}`), "AAPL");
+  assert.equal(rejected.status, 502);
+
+  const reset = new TypeError("fetch failed");
+  reset.cause = Object.assign(new Error(`socket closed for ${KEY}`), { name: "SocketError", code: "ECONNRESET" });
+  await attempt(reset, "MSFT");
+
+  /* Hostile fields: a name that is the key itself, a name with whitespace and a newline, an over-long code. */
+  const hostile = new Error("x");
+  hostile.name = KEY;
+  hostile.cause = { name: "bad name\nwith newline", code: "X".repeat(80) };
+  await attempt(hostile, "NVDA");
+
+  assert.deepEqual(logs, [
+    { event: "tickerbot_upstream_fetch_failed", errorName: "TypeError", causeName: "", causeCode: "" },
+    { event: "tickerbot_upstream_fetch_failed", errorName: "TypeError", causeName: "SocketError", causeCode: "ECONNRESET" },
+    { event: "tickerbot_upstream_fetch_failed", errorName: "Error", causeName: "", causeCode: "" }
+  ]);
+  const serialized = JSON.stringify(logs);
+  for (const leaked of [KEY, "tickerbot.io", "Invalid redirect", "fetch failed", "socket closed", "with newline"]) {
+    assert.equal(serialized.includes(leaked), false, `${leaked} must not be logged`);
+  }
+
+  /* A successful read and an HTTP refusal are not connection failures, so neither logs. */
+  logs.length = 0;
+  clearTickerbotCache();
+  await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: KEY }, {
+    now: () => NOW, fetch: workersFetch(async () => okResponse()), log: entry => logs.push(entry)
+  });
+  const refused = await handleGoodIntelligenceTickerbot(route("MSFT"), { TICKERBOT_API_KEY: KEY }, {
+    now: () => NOW, fetch: workersFetch(async () => new Response("denied", { status: 401 })), log: entry => logs.push(entry)
+  });
+  assert.equal(refused.status, 502);
+  assert.deepEqual(logs, []);
+});
+
+test("Tickerbot timeouts are logged as AbortError and still answer 504", async () => {
+  clearTickerbotCache();
+  const logs = [];
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+    now: () => NOW,
+    fetch: workersFetch(async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); }),
+    log: entry => logs.push(entry)
+  });
+  assert.equal(response.status, 504);
+  assert.deepEqual(logs, [{ event: "tickerbot_upstream_fetch_failed", errorName: "AbortError", causeName: "", causeCode: "" }]);
+});
+
+test("Tickerbot failure logging defaults to console.warn and can never break the response", async () => {
+  const original = console.warn;
+  const seen = [];
+  console.warn = (...args) => seen.push(args);
+  try {
+    clearTickerbotCache();
+    const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+      now: () => NOW, fetch: workersFetch(async () => { throw new TypeError("nope"); })
+    });
+    assert.equal(response.status, 502);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0][0], "[HarshalOS tickerbot]");
+    assert.equal(seen[0][1].errorName, "TypeError");
+
+    clearTickerbotCache();
+    const explodingSink = await handleGoodIntelligenceTickerbot(route("MSFT"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+      now: () => NOW,
+      fetch: workersFetch(async () => { throw new TypeError("nope"); }),
+      log: () => { throw new Error("sink exploded"); }
+    });
+    assert.equal(explodingSink.status, 502, "a failing log sink cannot change the response");
+  } finally {
+    console.warn = original;
+  }
+});
+
 test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", async () => {
   clearTickerbotCache();
   let calls = 0;

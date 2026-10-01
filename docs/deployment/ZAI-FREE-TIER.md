@@ -188,16 +188,19 @@ If you already have Wrangler authenticated locally, the same logs can be tailed 
 `npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
 or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
 
-### Temporary outbound-fetch diagnostic (no model call)
+### Outbound-fetch diagnostic (opt-in, off by default, no model call)
 
 When the default log says only `TypeError` and there is no outbound child span, use this diagnostic
 instead of enlarging a prompt or running a Ground-0 reading. It is implemented at the Worker's
-outbound-fetch boundary, not as a browser or sandbox connectivity test.
+outbound-fetch boundary, not as a browser or sandbox connectivity test. A request that is rejected
+locally (for example an unsupported `redirect` mode) shows up as `request_construction` with
+`outcome: "error"` before any network stage runs.
 
-**Enable and deploy.** `LLM_RELAY_OUTBOUND_DIAGNOSTIC=true` is a non-secret, temporary operator flag.
-It is checked in **only under `previews.vars`**, so a new branch-preview deployment enables it but
-production does not. The flag does nothing on its own: normal model lists, status checks, and chat
-calls never run this diagnostic. Confirm the branch preview has deployed the new Worker before
+**Enable and deploy.** The diagnostic is **off everywhere by default**: the checked-in
+`wrangler.jsonc` does not set it. `LLM_RELAY_OUTBOUND_DIAGNOSTIC=true` is a non-secret, temporary
+operator flag. Add it under **only `previews.vars`** for the duration of a diagnosis, so the next
+branch-preview deployment enables it but production does not. The flag does nothing on its own:
+normal model lists, status checks, and chat calls never run this diagnostic. Confirm the branch preview has deployed the new Worker before
 triggering it. To diagnose a different deployment, its operator must explicitly set the flag and
 redeploy that Worker; do not move the preview switches into production as a group or disable pacing.
 
@@ -241,7 +244,7 @@ operation across Cloudflare: a new isolate, a recycle, or a redeploy can run it 
 in the same isolate (even with the query) resume ordinary authenticated model-list behavior without
 extra probes or message logging. Make one manual request, do not loop it, then remove
 `LLM_RELAY_OUTBOUND_DIAGNOSTIC` from `previews.vars` (and any dashboard override) and redeploy.
-The independent, pre-existing preview rate-limit experiment is not required for this diagnostic.
+The preview rate-limit switch is independent and is not required for this diagnostic.
 
 ## 5. Limits and honesty
 
@@ -250,14 +253,15 @@ The independent, pre-existing preview rate-limit experiment is not required for 
   relay stores no prompts or replies, and no per-caller history beyond in-memory rate-limit
   counters. Persisted Worker logs contain only failure categories by default; the temporary models-only
   diagnostic above adds secret-redacted outbound error messages when explicitly triggered.
-- **Temporary branch-preview experiment.** The checked-in `wrangler.jsonc` sets
-  `LLM_RELAY_DISABLE_RATE_LIMITS=true` only in the `previews.vars` block to test the operator's
-  request. On branch previews this bypasses this Worker's per-caller chat, shared chat, and model-list
-  windows; it does **not** bypass Z.AI's own rate limits, daily quota, model allowlist, request-size
-  caps, or output-token ceiling. The branch preview URL is public and anyone who can reach it can
-  consume the preview's shared Z.AI secret/quota. Keep this experiment out of production, monitor for
-  Z.AI 429s, and remove the preview flag when the comparison is complete. Production remains limited
-  because its base `vars` do not set this flag.
+- **Preview pacing (opt-in bypass).** Branch previews use the same per-caller, shared-chat and
+  model-list windows as production; the checked-in `wrangler.jsonc` sets no bypass.
+  `LLM_RELAY_DISABLE_RATE_LIMITS=true` remains available as a preview-only experiment switch: add it
+  only under `previews.vars`, never to the base `vars`. It bypasses this Worker's per-caller chat,
+  shared chat, and model-list windows; it does **not** bypass Z.AI's own rate limits, daily quota,
+  model allowlist, request-size caps, or output-token ceiling. The branch preview URL is public and
+  anyone who can reach it can consume the preview's shared Z.AI secret/quota, so monitor for Z.AI
+  429s and remove the flag when the comparison is complete. `GET /api/llm/status` reports
+  `localRateLimitsDisabled`, so a deployment's mode can be confirmed without reading its config.
 - **One caller is never paced tighter than Z.AI paces the account.** `js/g0-llm.js` keeps
   `LIMITS.codesPerCall` at 1, so a Ground-0 reading asks **nine questions per source batch** and adds
   a link-selection call per batch plus one call per contested question — dozens of calls for one
