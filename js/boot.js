@@ -13,17 +13,19 @@
   let finished = false;
   let cancelled = false;
 
-  // Boot animation — the eye opens as the system wakes.
+  const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Boot animation — the eye opens as the system wakes, full-bleed at native 1920×1080.
   // The GIF fades in when its data has landed; the boot log never waits for it.
+  // Reduced-motion visitors get the static first frame (poster) instead of the animated field.
   const eye = document.getElementById("boot-eye");
   if (eye) {
+    if (REDUCED_MOTION && eye.dataset.poster) eye.src = eye.dataset.poster;
     const showEye = () => eye.classList.add("ready");
     if (eye.complete && eye.naturalWidth > 0) showEye();
     else eye.addEventListener("load", showEye, { once: true });
     eye.addEventListener("error", () => eye.remove(), { once: true });
   }
-
-  const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const sleep = ms => new Promise(res => setTimeout(res, REDUCED_MOTION ? Math.min(ms, 15) : ms));
 
   function line(text, cls = "", delay = 60) {

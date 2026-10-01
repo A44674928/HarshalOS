@@ -163,10 +163,16 @@ The seven reports run in order: (1) no Human Key → `NO-DEMO-CONFIRMATION`; (2)
 
 ## Boot sequence
 
-The boot screen opens with the **Eye Open:Close** animation (`assets/eye-open-close-hq.gif`,
-1920×1080) — the eye fades in above the bootloader log as the system wakes. The log and the
-animation are independent: the typewriter sequence never blocks on the image, the image fades
-in whenever its data has landed, and if it ever fails to load the boot proceeds cleanly.
+The boot screen opens with the full **Eye Closing** animation (`assets/eye-closing-hq.gif`,
+1920×1080) rendered full-bleed as the boot background — the luminous eye collapses to a
+horizontal flare as the system wakes, with the tagline, links, and bootloader log overlaid on
+top behind a legibility scrim. The log and the animation are independent: the typewriter
+sequence never blocks on the image, the image fades in whenever its data has landed, and if it
+ever fails to load the boot proceeds cleanly. `assets/eye-closing-hq.gif` is a lossless,
+pixel-exact (`gifsicle -O3`) copy of the repository-root source `Eye Closing HQ.gif` (41 frames,
+infinite loop), and `assets/eye-closing-poster.jpg` is the static first frame served to visitors
+who prefer reduced motion. The longer **Eye Open:Close** cut (`assets/eye-open-close-hq.gif`,
+80 frames) remains in `assets/` as an unused companion asset.
 
 ## Creator-ID notation
 
