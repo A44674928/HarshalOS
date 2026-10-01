@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>HarshalOS — Accountability-Gated AI Governance</title>
 <meta name="description" content="HarshalOS is an accountability-gated operating system for AI governance. Legitimacy precedes capability. Refusal is intelligence.">
 <link rel="canonical" href="https://main.empty.domains/">
@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="css/os.css?v=2026-09-30a">
 <link rel="stylesheet" href="css/ground0.css">
 <link rel="stylesheet" href="css/good-intelligence.css?v=2026-10-01gi10">
+<link rel="stylesheet" href="css/mobile.css?v=2026-10-01mobile1">
 
 <!-- Favicon: URL-encoded SVG + PNG fallback -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='38' fill='%236fd3ff'/%3E%3Ccircle cx='50' cy='50' r='46' fill='none' stroke='%23ffd479' stroke-width='3'/%3E%3C/svg%3E">
@@ -85,7 +86,7 @@
   <!-- ══════════════ SYSTEM HUD ══════════════ -->
   <header id="hud" class="hud">
     <div class="hud-left">
-      <button id="origin-btn" class="origin-btn" type="button" aria-haspopup="menu">
+      <button id="origin-btn" class="origin-btn" type="button" aria-controls="origin-menu" aria-expanded="false">
         <span class="orb-logo" aria-hidden="true"></span>
         <span class="origin-label">ORIGIN</span>
       </button>
@@ -148,7 +149,7 @@
 
   <!-- ══════════════ TASKBAR ══════════════ -->
   <footer id="taskbar" class="taskbar">
-    <button id="taskbar-origin" class="taskbar-origin" type="button">
+    <button id="taskbar-origin" class="taskbar-origin" type="button" aria-controls="origin-menu" aria-expanded="false">
       <span class="orb-logo small" aria-hidden="true"></span> ORIGIN
     </button>
     <div id="taskbar-apps" class="taskbar-apps"></div>
@@ -170,7 +171,7 @@
   <script defer src="js/g0-research.js?v=2026-09-30g"></script>
   <script defer src="js/llm.js?v=2026-09-30g"></script>
   <script defer src="js/g0-llm.js?v=2026-09-30g"></script>
-  <script defer src="js/wm.js?v=2026-09-30l"></script>
+  <script defer src="js/wm.js?v=2026-10-01mobile1"></script>
   <script defer src="js/apps-core.js?v=2026-09-30o"></script>
   <script defer src="js/apps-shell.js?v=2026-09-30m"></script>
   <script defer src="js/apps-adversarial.js?v=2026-09-30a"></script>
@@ -178,7 +179,7 @@
   <script defer src="js/apps-guided-demo.js?v=2026-09-30c"></script>
   <script defer src="js/g0-app.js?v=2026-09-30j"></script>
   <script defer src="js/orb-flame.js?v=2026-09-30g"></script>
-  <script defer src="js/apps-ocm.js?v=2026-09-30h"></script>
+  <script defer src="js/apps-ocm.js?v=2026-10-01mobile1"></script>
   <script defer src="js/flame.js?v=2026-09-30g"></script>
   <script defer src="js/apps-flame.js?v=2026-09-30g"></script>
   <script defer src="js/apps-llm.js?v=2026-09-30g"></script>
@@ -188,6 +189,6 @@
   <script defer src="js/good-intelligence-client.js?v=2026-10-01gi10"></script>
   <script defer src="js/good-intelligence-verifier.js?v=2026-10-01gi10"></script>
   <script defer src="js/apps-good-intelligence.js?v=2026-10-01gi10"></script>
-  <script defer src="js/boot.js?v=2026-09-30j"></script>
+  <script defer src="js/boot.js?v=2026-10-01mobile1"></script>
 </body>
 </html>

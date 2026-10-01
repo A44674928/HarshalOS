@@ -126,7 +126,8 @@
     }, 800);
     setTimeout(() => {
       const app = APPS.find(a => a.id === "origin");
-      if (app) shell.openApp(app);
+      // Never cover an app the visitor has already opened during startup.
+      if (app && shell.windows.size === 0 && window.innerWidth > 860) shell.openApp(app);
     }, 1600);
   }
 
