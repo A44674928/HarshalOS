@@ -13,6 +13,7 @@ import test, { beforeEach } from "node:test";
 import {
   handleLlmRelay,
   clearRelayRateLimits,
+  clearRelayOutboundDiagnostic,
   FREE_TIER_MODELS,
   DEFAULT_MODEL,
   KEY_VARIABLE_NAMES,
@@ -24,6 +25,9 @@ const ORIGIN = "https://os.example.test";
 const NOW = Date.parse("2026-10-01T12:00:00.000Z");
 const KEY = "zai-test-only-secret-key";
 const ENV = { "Z.AI": KEY };
+const DIAGNOSTIC_ENV = { ...ENV, LLM_RELAY_OUTBOUND_DIAGNOSTIC: "true" };
+const DIAGNOSTIC_PATH = `${RELAY_ROUTES.models}?diagnostic=outbound`;
+const MODELS_URL = "https://api.z.ai/api/paas/v4/models";
 const BODYLESS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 const chatRequest = (payload, { headers = {}, method = "POST", path = RELAY_ROUTES.chat, body, omitOrigin = false } = {}) => {
@@ -61,7 +65,7 @@ const run = (request, env = ENV, dependencies = {}) =>
   handleLlmRelay(request, env, { now: () => NOW, ...dependencies });
 const text = async response => response.text();
 
-beforeEach(() => clearRelayRateLimits());
+beforeEach(() => { clearRelayRateLimits(); clearRelayOutboundDiagnostic(); });
 
 /* ── configuration ────────────────────────────────────────────── */
 test("relay refuses to call Z.AI with no key configured and says which secret to add", async () => {
@@ -548,6 +552,259 @@ test("upstream connection diagnostics log only safe error categories", async () 
   }]);
   assert.equal(JSON.stringify(logs).includes(keyLikeSecret), false, "logs omit keys, exception text, and request data");
   assert.equal(JSON.stringify(logs).includes("private network detail"), false);
+});
+
+/* ── temporary, no-prompt outbound diagnostic ─────────────────── */
+test("outbound diagnostic requires both the operator flag and explicit model-list query", async () => {
+  for (const [env, path] of [
+    [ENV, DIAGNOSTIC_PATH],
+    [{ ...ENV, LLM_RELAY_OUTBOUND_DIAGNOSTIC: "false" }, DIAGNOSTIC_PATH],
+    [DIAGNOSTIC_ENV, RELAY_ROUTES.models],
+    [DIAGNOSTIC_ENV, `${RELAY_ROUTES.models}?diagnostic=other`]
+  ]) {
+    const logs = [];
+    const upstream = stubFetch(() => Response.json({ data: [{ id: DEFAULT_MODEL }] }));
+    const response = await run(get(path), env, { ...upstream, log: entry => logs.push(entry) });
+    assert.equal(response.status, 200);
+    assert.equal(upstream.calls.length, 1, "ordinary lists add no unauthenticated probe");
+    assert.equal(upstream.calls[0].options.headers.Authorization, `Bearer ${KEY}`);
+    assert.deepEqual(logs, []);
+  }
+  const upstream = stubFetch(() => Response.json({ data: [{ id: DEFAULT_MODEL }] }));
+  await run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: () => {} });
+  assert.equal(upstream.calls.length, 2, "ordinary requests did not consume the one-time diagnostic");
+});
+
+test("outbound diagnostic locally constructs the configured request then adds exactly one credential-free GET", async () => {
+  const logs = [];
+  let discarded = false;
+  const upstream = stubFetch((url, options, index) => {
+    assert.equal(url, MODELS_URL, "caller query parameters cannot override the fixed models URL");
+    assert.equal(options.method, "GET");
+    assert.equal(options.body, undefined, "neither step sends a prompt or a model request");
+    assert.equal(options.redirect, index === 1 ? "manual" : "error");
+    assert.deepEqual(logs[0], { event: "zai_outbound_diagnostic", route: "models", stage: "request_construction", outcome: "ok" });
+    if (index === 1) {
+      assert.deepEqual(options.headers, { Accept: "application/json", "Accept-Language": "en-US,en" });
+      assert.equal(options.credentials, "omit");
+      assert.equal(JSON.stringify(options).includes(KEY), false);
+      return {
+        status: 401, ok: false,
+        body: { cancel: async () => { discarded = true; } },
+        text: () => { throw new Error("Diagnostic must not read the response body"); },
+        json: () => { throw new Error("Diagnostic must not parse the response body"); }
+      };
+    }
+    assert.equal(options.headers.Authorization, `Bearer ${KEY}`);
+    assert.equal(options.signal.aborted, false);
+    return Response.json({ data: [{ id: DEFAULT_MODEL }] });
+  });
+  const request = chatRequest(null, {
+    method: "GET", path: `${DIAGNOSTIC_PATH}&url=https://attacker.example/`,
+    headers: { Authorization: "Bearer caller-private-key", Cookie: "caller-private-cookie" }
+  });
+  const response = await run(request, DIAGNOSTIC_ENV, { ...upstream, log: entry => logs.push(entry) });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).relay.verified, true);
+  assert.equal(upstream.calls.length, 2);
+  assert.equal(discarded, true);
+  assert.deepEqual(logs.slice(1), [
+    { event: "zai_outbound_diagnostic", route: "models", stage: "unauthenticated_fetch", outcome: "http_response", status: 401 },
+    { event: "zai_outbound_diagnostic", route: "models", stage: "authenticated_fetch", outcome: "http_response", status: 200 }
+  ]);
+  assert.equal(JSON.stringify(logs).includes(KEY), false);
+});
+
+test("outbound diagnostic claims once per isolate even with concurrent callers", async () => {
+  const logs = [];
+  const upstream = stubFetch(() => Response.json({ data: [{ id: DEFAULT_MODEL }] }));
+  const dependencies = { ...upstream, log: entry => logs.push(entry) };
+  const responses = await Promise.all([
+    run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, dependencies),
+    run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, dependencies),
+    run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, dependencies)
+  ]);
+  assert.ok(responses.every(response => response.status === 200));
+  assert.equal(upstream.calls.length, 4, "three normal authenticated lists plus one extra GET, not three probes");
+  assert.equal(upstream.calls.filter(call => !call.options.headers.Authorization).length, 1);
+  assert.equal(logs.length, 3);
+});
+
+test("outbound diagnostic separates malformed configured headers from network reachability without sending the key", async () => {
+  const malformedKey = "private-first-line\r\nprivate-second-line";
+  const logs = [];
+  const upstream = stubFetch(() => new Response(null, { status: 401 }));
+  const response = await run(get(DIAGNOSTIC_PATH), { ...DIAGNOSTIC_ENV, "Z.AI": malformedKey }, {
+    ...upstream, log: entry => logs.push(entry)
+  });
+  assert.equal(response.status, 502);
+  assert.equal(upstream.calls.length, 1, "a failed local constructor still permits ONLY the unauthenticated probe");
+  assert.equal(upstream.calls[0].options.headers.Authorization, undefined);
+  assert.equal(logs[0].stage, "request_construction");
+  assert.equal(logs[0].outcome, "error");
+  assert.equal(logs[0].errorName, "TypeError");
+  assert.equal(logs[1].outcome, "http_response");
+  assert.equal(logs[1].status, 401);
+  assert.equal(logs[2].stage, "authenticated_fetch");
+  assert.equal(logs[2].outcome, "skipped");
+  const serialized = JSON.stringify(logs) + await response.text();
+  for (const privateText of [malformedKey, "private-first-line", "private-second-line"]) {
+    assert.equal(serialized.includes(privateText), false, "even a quoted invalid header is redacted before control normalization");
+  }
+});
+
+test("outbound diagnostic stops before authentication when the unauthenticated GET throws", async () => {
+  const logs = [];
+  const upstream = stubFetch(() => { throw new TypeError(`Failed to fetch using Bearer ${KEY}`); });
+  const response = await run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: entry => logs.push(entry) });
+  assert.equal(response.status, 502);
+  assert.equal(upstream.calls.length, 1);
+  assert.equal(upstream.calls[0].options.headers.Authorization, undefined);
+  assert.equal(logs[1].stage, "unauthenticated_fetch");
+  assert.equal(logs[1].outcome, "error");
+  assert.equal(logs[1].errorMessage, "Failed to fetch using Bearer [redacted]");
+  assert.equal(logs[2].outcome, "skipped");
+  assert.equal(JSON.stringify(logs).includes(KEY), false);
+
+  await run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: () => {} });
+  assert.equal(upstream.calls.length, 2, "a failed diagnostic is not silently retried");
+  assert.equal(upstream.calls[1].options.headers.Authorization, `Bearer ${KEY}`, "a later request resumes ordinary list behavior");
+});
+
+test("outbound diagnostic treats any HTTP status as reachability, never logs upstream refusal bodies", async () => {
+  for (const probeStatus of [302, 401, 503]) {
+    clearRelayOutboundDiagnostic();
+    const logs = [];
+    const upstream = stubFetch((url, options, index) => new Response(`private body containing ${KEY}`, {
+      status: index === 1 ? probeStatus : 403,
+      headers: { Location: "https://attacker.example/never-follow-this" }
+    }));
+    const response = await run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: entry => logs.push(entry) });
+    assert.equal(response.status, 200, "the usual labelled model allowlist fallback is unchanged");
+    const payload = await response.json();
+    assert.equal(payload.relay.verified, false);
+    assert.match(payload.relay.warning, /HTTP 403/);
+    assert.equal(logs[1].status, probeStatus, "a non-2xx probe response proves the network returned HTTP");
+    assert.equal(logs[2].status, 403, "the existing authenticated GET was not duplicated");
+    assert.equal(upstream.calls.length, 2);
+    assert.equal(upstream.calls[0].options.redirect, "manual", "even a redirect must not add a second probe to another host");
+    assert.equal(JSON.stringify(logs).includes("private body"), false);
+    assert.equal(JSON.stringify(logs).includes(KEY), false);
+  }
+});
+
+test("outbound diagnostic logs bounded sanitized authenticated exception messages and safe cause fields", async () => {
+  const diagnosticKey = "test+private/key=redaction";
+  const cause = Object.assign(new Error(`TLS failed for https://private.example/path?key=${encodeURIComponent(diagnosticKey)}`), { code: "ERR_SSL_CERTIFICATE_VERIFY_FAILED" });
+  const error = new TypeError(`Failed to fetch ${diagnosticKey}; encoded ${encodeURIComponent(diagnosticKey)}; Bearer other-private-key\n${"detail ".repeat(100)}`, { cause });
+  error.stack = `private stack ${diagnosticKey}`;
+  error.request = { headers: { Authorization: diagnosticKey } };
+  const logs = [];
+  const upstream = stubFetch((url, options, index) => {
+    if (index === 1) return new Response(null, { status: 401 });
+    throw error;
+  });
+  const response = await run(get(DIAGNOSTIC_PATH), { ...DIAGNOSTIC_ENV, "Z.AI": diagnosticKey }, {
+    ...upstream, log: entry => logs.push(entry)
+  });
+  assert.equal(response.status, 502);
+  const entry = logs[2];
+  assert.equal(entry.stage, "authenticated_fetch");
+  assert.equal(entry.outcome, "error");
+  assert.equal(entry.errorName, "TypeError");
+  assert.equal(entry.causeName, "Error");
+  assert.equal(entry.causeCode, "ERR_SSL_CERTIFICATE_VERIFY_FAILED");
+  assert.match(entry.errorMessage, /^Failed to fetch \[redacted\]; encoded \[redacted\]; Bearer \[redacted\]/);
+  assert.ok(entry.errorMessage.length <= 220);
+  assert.equal(entry.causeMessage, "TLS failed for [url redacted]");
+  const serialized = JSON.stringify(logs) + await response.text();
+  for (const privateText of [diagnosticKey, encodeURIComponent(diagnosticKey), "other-private-key", "private stack", "private.example", "Authorization"]) {
+    assert.equal(serialized.includes(privateText), false);
+  }
+});
+
+test("outbound diagnostic also redacts escaped malformed secrets and credentials disguised as error categories", async () => {
+  const diagnosticKey = 'private"value\nsecond-line';
+  const cause = { name: diagnosticKey, code: diagnosticKey, message: `escaped ${JSON.stringify(diagnosticKey).slice(1, -1)}` };
+  const logs = [];
+  const upstream = stubFetch(() => { throw Object.assign(new TypeError("Failed to fetch"), { name: diagnosticKey, cause }); });
+  await run(get(DIAGNOSTIC_PATH), { ...DIAGNOSTIC_ENV, "Z.AI": diagnosticKey }, { ...upstream, log: entry => logs.push(entry) });
+  const entry = logs[1];
+  assert.equal(entry.errorName, "Error");
+  assert.equal(entry.causeName, "");
+  assert.equal(entry.causeCode, "");
+  assert.equal(entry.causeMessage, "escaped [redacted]");
+  assert.equal(JSON.stringify(logs).includes("second-line"), false);
+});
+
+test("outbound probe has its own ten-second abort deadline", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const logs = [];
+  const upstream = stubFetch((url, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+  }));
+  const pending = run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: entry => logs.push(entry) });
+  assert.equal(upstream.calls.length, 1);
+  t.mock.timers.tick(10_000);
+  const response = await pending;
+  assert.equal(response.status, 502);
+  assert.equal(logs[1].errorName, "AbortError");
+  assert.equal(logs[2].outcome, "skipped");
+  assert.equal(upstream.calls[0].options.signal.aborted, true);
+});
+
+test("authenticated diagnostic fetch retains its full sixty-second deadline after a slow probe", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const logs = [];
+  let finishProbe, markAuthenticatedStarted;
+  const authenticatedStarted = new Promise(resolve => { markAuthenticatedStarted = resolve; });
+  const upstream = stubFetch((url, options, index) => {
+    if (index === 1) return new Promise(resolve => { finishProbe = resolve; });
+    markAuthenticatedStarted();
+    return new Promise((resolve, reject) => {
+      options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    });
+  });
+  const pending = run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...upstream, log: entry => logs.push(entry) });
+  t.mock.timers.tick(9_000);
+  finishProbe(new Response(null, { status: 401 }));
+  await authenticatedStarted;
+  assert.notEqual(upstream.calls[0].options.signal, upstream.calls[1].options.signal);
+  t.mock.timers.tick(59_999);
+  assert.equal(upstream.calls[1].options.signal.aborted, false);
+  t.mock.timers.tick(1);
+  const response = await pending;
+  assert.equal(response.status, 504);
+  assert.equal(logs[2].stage, "authenticated_fetch");
+  assert.equal(logs[2].errorName, "AbortError");
+  assert.equal(upstream.calls[0].options.signal.aborted, false, "the probe timer was cleared after its response");
+});
+
+test("outbound diagnostic never runs from status or chat, including when the log sink throws", async () => {
+  const upstream = stubFetch();
+  const status = await run(get(`${RELAY_ROUTES.status}?diagnostic=outbound`), DIAGNOSTIC_ENV, upstream);
+  assert.equal(status.status, 200);
+  assert.equal(upstream.calls.length, 0);
+  const chat = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }, { path: `${RELAY_ROUTES.chat}?diagnostic=outbound` }), DIAGNOSTIC_ENV, upstream);
+  assert.equal(chat.status, 200);
+  assert.equal(upstream.calls.length, 1, "chat adds no diagnostic and never logs an exception message");
+  assert.equal(upstream.calls[0].options.method, "POST");
+  const chatLogs = [];
+  const failingChat = stubFetch(() => { throw new TypeError(`private prompt and secret ${KEY}`, { cause: { code: KEY } }); });
+  const failed = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages("private prompt") }), DIAGNOSTIC_ENV, {
+    ...failingChat, log: entry => chatLogs.push(entry)
+  });
+  assert.equal(failed.status, 502);
+  assert.equal(chatLogs[0].event, "zai_upstream_fetch_failed");
+  assert.equal(chatLogs[0].errorMessage, undefined);
+  assert.equal(chatLogs[0].causeCode, "", "a credential disguised as a category is redacted too");
+  assert.equal(JSON.stringify(chatLogs).includes("private prompt"), false);
+  assert.equal(JSON.stringify(chatLogs).includes(KEY), false);
+
+  const list = stubFetch(() => Response.json({ data: [{ id: DEFAULT_MODEL }] }));
+  const response = await run(get(DIAGNOSTIC_PATH), DIAGNOSTIC_ENV, { ...list, log: () => { throw new Error("log sink failed"); } });
+  assert.equal(response.status, 200, "logging failures cannot disrupt an otherwise successful list");
+  assert.equal(list.calls.length, 2, "status and chat did not consume the diagnostic latch");
 });
 
 test("model list is the intersection of Z.AI's answer and the free allowlist", async () => {

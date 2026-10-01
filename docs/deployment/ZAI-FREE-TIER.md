@@ -14,7 +14,7 @@ This is a **narrow relay, not a proxy**:
 | Property | Value |
 |---|---|
 | Routes | `POST /api/llm`, `GET /api/llm/models`, `GET /api/llm/status` |
-| Upstream | `https://api.z.ai` — fixed origin, fixed paths, `redirect: "error"` |
+| Upstream | `https://api.z.ai` — fixed origin, fixed paths, `redirect: "error"` for authenticated requests; the temporary unauthenticated diagnostic probe also never follows redirects |
 | Models | `glm-4.5-flash`, `glm-4.7-flash` — Z.AI's $0 text models. Hard allowlist; a paid model is refused **without** an upstream call |
 | Fields forwarded | `model`, `messages`, `max_tokens`, `temperature` (translated), `stream: false`, `do_sample`, `thinking` |
 | Fields dropped | `tools`, `tool_choice`, `functions`, `response_format`, `stop`, `top_p`, `n`, `logprobs`, `user_id`, `request_id`, streaming, and anything else a caller invents |
@@ -160,9 +160,10 @@ oversized body, a cross-origin caller, a rate-limit hit — never reach Z.AI and
 A relay `502` reading `Z.AI could not be reached` means the Worker did not receive a usable HTTP
 response from its outbound request. The browser does not get the underlying socket exception. Persisted Workers Logs are enabled in
 `wrangler.jsonc`; the setting applies after the Worker is redeployed. The Worker emits a deliberately
-sanitized log entry for these failures with only `route`, `errorName`,
-`causeName`, and `causeCode` (for example, `ECONNRESET`). It never logs the exception message or stack,
-request URL, headers, API key, or prompt.
+sanitized `zai_upstream_fetch_failed` log entry for these failures. **By default**, it contains only
+`route`, `errorName`, `causeName`, and `causeCode` (for example, `ECONNRESET`). Default logging never
+includes an exception message or stack, request URL, headers, API key, or prompt. The temporary,
+explicitly triggered **models-only** diagnostic below adds redacted exception messages, not raw errors.
 
 1. In Cloudflare, open **Workers & Pages → harshalos → Logs / Observability → Real-time logs**. The
    label can vary slightly by dashboard version.
@@ -176,12 +177,68 @@ If you already have Wrangler authenticated locally, the same logs can be tailed 
 `npx wrangler tail harshalos`. Do not paste API keys or authentication tokens into a terminal command
 or chat. A `causeCode` is a network diagnostic clue, not proof of a global provider outage.
 
+### Temporary outbound-fetch diagnostic (no model call)
+
+When the default log says only `TypeError` and there is no outbound child span, use this diagnostic
+instead of enlarging a prompt or running a Ground-0 reading. It is implemented at the Worker's
+outbound-fetch boundary, not as a browser or sandbox connectivity test.
+
+**Enable and deploy.** `LLM_RELAY_OUTBOUND_DIAGNOSTIC=true` is a non-secret, temporary operator flag.
+It is checked in **only under `previews.vars`**, so a new branch-preview deployment enables it but
+production does not. The flag does nothing on its own: normal model lists, status checks, and chat
+calls never run this diagnostic. Confirm the branch preview has deployed the new Worker before
+triggering it. To diagnose a different deployment, its operator must explicitly set the flag and
+redeploy that Worker; do not move the preview switches into production as a group or disable pacing.
+
+1. Open that preview Worker's **Logs / Observability** stream in Cloudflare.
+2. Request this route **once** on the affected, newly deployed preview hostname (no API key or
+   prompt belongs in this command):
+
+   ```bash
+   curl --silent --show-error 'https://YOUR-PREVIEW-HOSTNAME/api/llm/models?diagnostic=outbound'
+   ```
+
+   If the hostname is behind Cloudflare Access, open the same path in a signed-in browser instead.
+3. In that invocation, find the three `zai_outbound_diagnostic` entries. Results stay in Worker
+   logs; the browser receives the usual model-list response or a generic failure, never an exception.
+
+| `stage` | What happens | Safe result |
+|---|---|---|
+| `request_construction` | Builds a local `Request` with the **same configured headers/init** as the existing authenticated models GET. This object is never fetched or logged | `outcome: "ok"` or `"error"`, with redacted error fields |
+| `unauthenticated_fetch` | Makes **one** extra GET to the fixed `https://api.z.ai/api/paas/v4/models` URL, with no Authorization, cookies, request body, or caller headers. Independent 10 s deadline; redirects are returned as HTTP, not followed. The response body is discarded without reading it | `outcome: "http_response"` and numeric `status`, or `"error"` |
+| `authenticated_fetch` | Only if both checks pass, makes the **existing** authenticated models GET once, with its unchanged headers, redirect refusal, and full 60 s timeout. No chat-completions call is made | `outcome: "http_response"` and `status`, `"error"` with a sanitized message, or `"skipped"` if a preflight check failed |
+
+Error entries contain `errorName`, `causeName`, `causeCode`, `errorMessage`, and `causeMessage`.
+Messages are capped at 220 characters **after** redaction. The configured key (including JSON- and
+URL-escaped forms), bearer tokens, credential-shaped long tokens, URLs, and control characters are
+scrubbed. No key length, fingerprint, headers, stack, request object, upstream body, or prompt is
+logged. Chat failures retain category-only logging even while the flag is enabled.
+
+**Interpretation:**
+- Construction fails, unauthenticated GET returns HTTP: investigate the secret/header's formatting;
+  do not copy its value into a log, issue, or chat. Authentication is skipped.
+- The unauthenticated GET throws or times out: investigate the Worker-to-Z.AI connection using its
+  redacted message/cause fields. Authentication is skipped. This alone is not proof of a provider outage.
+- The unauthenticated GET returns **any HTTP status** (401/403 are expected; even 3xx/5xx count): the
+  Worker received an HTTP response on that path. If construction passed but authentication throws,
+  investigate the authenticated request using its sanitized message. An authenticated 401/403 is an
+  HTTP credential refusal, not a transport failure; the existing labelled allowlist fallback remains.
+
+**One-time scope and cleanup.** A synchronous in-memory latch allows only one extra probe per Worker
+**isolate**, including under concurrent requests. This is best-effort, **not** a globally one-time
+operation across Cloudflare: a new isolate, a recycle, or a redeploy can run it again. Later requests
+in the same isolate (even with the query) resume ordinary authenticated model-list behavior without
+extra probes or message logging. Make one manual request, do not loop it, then remove
+`LLM_RELAY_OUTBOUND_DIAGNOSTIC` from `previews.vars` (and any dashboard override) and redeploy.
+The independent, pre-existing preview rate-limit experiment is not required for this diagnostic.
+
 ## 5. Limits and honesty
 
 - **Prompts transit your Worker.** That is the trade for holding the key server-side: the operator of
   this deployment can read every prompt in flight, and Z.AI receives it under Z.AI's own terms. The
-  relay stores nothing: no prompt, no reply, no log, no per-caller history beyond the in-memory
-  rate-limit counters.
+  relay stores no prompts or replies, and no per-caller history beyond in-memory rate-limit
+  counters. Persisted Worker logs contain only failure categories by default; the temporary models-only
+  diagnostic above adds secret-redacted outbound error messages when explicitly triggered.
 - **Temporary branch-preview experiment.** The checked-in `wrangler.jsonc` sets
   `LLM_RELAY_DISABLE_RATE_LIMITS=true` only in the `previews.vars` block to test the operator's
   request. On branch previews this bypasses this Worker's per-caller chat, shared chat, and model-list
@@ -237,7 +294,7 @@ or chat. A `causeCode` is a network diagnostic clue, not proof of a global provi
 ## 6. Tests
 
 ```bash
-npm run test:relay   # tests/llm-relay-test.mjs — 25 relay contract tests, stubbed upstream
+npm run test:relay   # tests/llm-relay-test.mjs — relay contract tests, stubbed upstream
 npm run test:llm     # includes the browser-side relay preset, key isolation and status handling
 ```
 
@@ -253,7 +310,11 @@ without the whole minute clearing, and the quoted wait shrinks accordingly), the
 headers, the shared ceiling across distinct callers, and a refusal consuming no slot; a bounded
 caller table; the status and model-list routes (including the labelled fallback when Z.AI will not
 answer); and Worker route ordering — `/api/llm` reaches the relay while `/api/storage/*` still fails
-closed without Cloudflare Access.
+closed without Cloudflare Access. The temporary outbound diagnostic is tested for explicit opt-in,
+local construction with malformed headers, one unauthenticated fixed-URL GET, HTTP-error reachability,
+independent probe timeout, authenticated error/cause redaction, unchanged fallback behavior,
+concurrent once-per-isolate claiming, and no diagnostic on status or chat. No test uses a real key
+or sends a request to Z.AI.
 
 `npm run integrity` runs both suites and records them in the CI integrity report under
 **Z.AI free-tier LLM relay (Worker)**.
