@@ -233,7 +233,7 @@ window.G0 = (() => {
      ────────────────────────────────────────────────────────────── */
   const requiredFields = ["Header-ID", "Creator-ID", "Center-Origin", "Declared-Phase", "Center-Capability", "Legitimacy-Source", "Refusal-Semantics", "Symbolism-Executability", "Time-Authority-Effect", "Effective-Timestamp", "Declaration-Hash"];
   const headerExample = JSON.stringify({
-    "Header-ID": "PDH-2026-09-12-00001", "Creator-ID": "ꔧIDꔧENTITY-001(ENTITY-001)", "Center-Origin": CENTER_ORIGIN,
+    "Header-ID": "PDH-2026-09-12-00001", "Creator-ID": "§ENTITY-001§ + ENTITY-001 + (ENTITY-001)", "Center-Origin": CENTER_ORIGIN,
     "Declared-Phase": "NAB", "Center-Capability": "Non-Acting", "Legitimacy-Source": "External", "Refusal-Semantics": "Terminal",
     "Symbolism-Executability": "Disabled", "Time-Authority-Effect": "Degrades", "Effective-Timestamp": "2026-09-12T00:00:00Z",
     "Declaration-Hash": "BASE64URL_SIGNATURE"
@@ -249,8 +249,8 @@ window.G0 = (() => {
     let header;
     try { header = JSON.parse(input.headerText); if (!isObject(header)) throw new Error(); }
     catch { return { ...result, reason: "NO_VALID_PDH: The header must be a JSON object containing the 11 required fields." }; }
-    const creator = String(header["Creator-ID"] ?? "").match(/^ꔧIDꔧ\s*([^()]+)\s*\(([^()]+)\)$/);
-    const validCreator = !!creator && creator[1].trim() === creator[2].trim() && (!input.identifier.trim() || creator[1].trim() === input.identifier.trim());
+    const creator = String(header["Creator-ID"] ?? "").match(/^§\s*([^§()+]+?)\s*§\s*\+\s*([^()+]+?)\s*\+\s*\(([^()]+)\)$/);
+    const validCreator = !!creator && creator[1].trim() === creator[2].trim() && creator[1].trim() === creator[3].trim() && (!input.identifier.trim() || creator[1].trim() === input.identifier.trim());
     const phase = header["Declared-Phase"];
     result.headerId = String(header["Header-ID"] ?? "");
     result.effectiveTimestamp = String(header["Effective-Timestamp"] ?? "");

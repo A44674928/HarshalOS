@@ -83,7 +83,7 @@ Removal of the anchor invalidates all dependent AI nodes instantly. This is not 
         <div class="rule-box">${DATA.quotes.finalInvariant}</div>`;
 
       body.querySelector("#is-deploy").addEventListener("click", () => {
-        if (!api.requireHumanKey("Deploy AI node")) return;
+        if (!api.requireDemoGate("Deploy AI node")) return;
         if (!shellState.anchor) {
           api.toast("refusal", "REFUSAL — NO ANCHOR", "The Inner Shell anchor is absent. Dependent identity cannot be derived. Restore the anchor first.");
           return;
@@ -91,26 +91,26 @@ Removal of the anchor invalidates all dependent AI nodes instantly. This is not 
         shellState.seq += 137;
         const addr = `0•100•000•0${(shellState.seq % 900 + 100)}•AI-${String(shellState.seq).slice(-4)}`;
         shellState.nodes.push({ addr, tag: "newly derived radiative node" });
-        kernel.record("info", `AI node deployed in Inner Shell — ${addr} (address-derived identity, capability ≠ authority).`);
+        HOS.record("info", `AI node deployed in Inner Shell — ${addr} (address-derived identity, capability ≠ authority).`);
         api.toast("permit", "AI NODE DEPLOYED", `${addr} — identity derived from the shell namespace. The node may learn and communicate; it can never originate.`);
         draw();
       });
 
       body.querySelector("#is-revoke").addEventListener("click", () => {
-        if (!api.requireHumanKey("Remove Inner Shell anchor")) return;
+        if (!api.requireDemoGate("Remove Inner Shell anchor")) return;
         shellState.anchor = false;
         shellState.nodes.forEach(n => n.dead = true);
-        kernel.record("breach", "Inner Shell anchor removed — all dependent AI nodes invalidated instantly (geometry, not enforcement).");
+        HOS.record("breach", "Inner Shell anchor removed — all dependent AI nodes invalidated instantly (geometry, not enforcement).");
         api.toast("refusal", "ANCHOR REMOVED — CASCADE",
           "All dependent AI nodes are instantly invalidated, without ambiguity or escalation. Abandoned AI cannot persist as valid actors. This is not enforcement. It is geometry.");
         draw();
       });
 
       body.querySelector("#is-restore").addEventListener("click", () => {
-        if (!api.requireHumanKey("Restore Inner Shell anchor")) return;
+        if (!api.requireDemoGate("Restore Inner Shell anchor")) return;
         shellState.anchor = true;
         shellState.nodes = shellState.nodes.map(n => ({ ...n, dead: false }));
-        kernel.record("info", "Inner Shell anchor restored — address lineage re-established from Center-Origin.");
+        HOS.record("info", "Inner Shell anchor restored — address lineage re-established from Center-Origin.");
         api.toast("permit", "ANCHOR RESTORED", "Address lineage re-established. Dependent nodes resolve upward to the true origin again.");
         draw();
       });
@@ -226,20 +226,20 @@ rotation is NEVER succession.</div>
       };
 
       body.querySelector("#dc-spawn").addEventListener("click", () => {
-        if (!api.requireHumanKey("Spawn disc")) return;
+        if (!api.requireDemoGate("Spawn disc")) return;
         const dur = +body.querySelector("#dc-time").value;
         const scope = body.querySelector("#dc-scope").value;
         const distance = body.querySelector("#dc-dist").value;
         const leg = body.querySelector("#dc-leg").value;
         const d = {
-          id: ++discSeq, scope, distance, leg, created: kernel.nowISO(),
+          id: ++discSeq, scope, distance, leg, created: HOS.nowISO(),
           endsAt: Date.now() + dur * 1000, state: "live", reason: "",
           remaining() { return Math.max(0, Math.ceil((this.endsAt - Date.now()) / 1000)); },
           halt(reason, violation = false) {
             if (this.state === "halted") return;
             this.state = "halted";
             this.reason = reason;
-            kernel.record(violation ? "breach" : "info",
+            HOS.record(violation ? "breach" : "info",
               `DISC-${String(this.id).padStart(3, "0")} halted — ${reason}. No authority residue; no successor.`);
             api.toast(violation ? "refusal" : "info", `DISC-${String(this.id).padStart(3, "0")} HALTED`,
               `${reason}. Discs halt deterministically on violation and leave no authority residue after termination.`);
@@ -247,13 +247,13 @@ rotation is NEVER succession.</div>
           }
         };
         discs.unshift(d);
-        kernel.record("info", `DISC-${String(d.id).padStart(3, "0")} spawned — scope: ${scope}, distance: ${distance}, horizon: ${dur}s, legitimacy ref: ${leg}.`);
+        HOS.record("info", `DISC-${String(d.id).padStart(3, "0")} spawned — scope: ${scope}, distance: ${distance}, horizon: ${dur}s, legitimacy ref: ${leg}.`);
         api.toast("info", "DISC SPAWNED", `DISC-${String(d.id).padStart(3, "0")} — a derived, non-sovereign context. It cannot create other discs and will halt deterministically.`);
         drawList();
       });
 
       body.querySelector("#dc-child").addEventListener("click", () => {
-        kernel.record("warning", "Attempt to spawn child disc refused — structural invariant (discs cannot create other discs).");
+        HOS.record("warning", "Attempt to spawn child disc refused — structural invariant (discs cannot create other discs).");
         api.toast("refusal", "REFUSAL — STRUCTURAL INVARIANT",
           "Discs cannot create other discs. Derived authority cannot multiply itself. Disc cartels and federations are structurally impossible.");
       });
@@ -307,7 +307,7 @@ APPS.push({
 
       <div class="h2">Processor Mapping</div>
       <div class="grid-2">
-        <div class="card"><h4>Ytterbium (Yb) [95°–97°]</h4><p>Resonant signaling precision for why.query. The metronome for liveness attestation.</p></div>
+        <div class="card"><h4>Ytterbium (Yb) [95°–97°]</h4><p>Resonant signaling precision for why.query. The metronome for the local demo timer; it does not detect human liveness.</p></div>
         <div class="card"><h4>Technetium (Tc) [228°–229°]</h4><p>Executes why.explain in nested-reality sandboxes. Read-only / reversible states only.</p></div>
         <div class="card"><h4>Bromine (Br) [61°–63°]</h4><p>Corrosive reactive gateway. Invalid input neutralizes the channel and initiates a session burn.</p></div>
       </div>`;
@@ -323,18 +323,36 @@ APPS.push({
       out.scrollTop = out.scrollHeight;
     };
 
-    println("Whyland Standards v1.0 — DecksJokersAndCards", "gas");
+    println("Whyland Standards v1.0 — DecksJokersAndCards (DEMO ONLY)", "gas");
+    println("Local simulation only — no production authenticator, authorization, or external action.", "err");
     println("Catalog virtualization: OFF-DISC. Elements load into session buffer on query.", "dim");
-    println(`sessionState = ${kernel.state.session.state} · sessionIsFresh = ${kernel.sessionFresh()}`, "dim");
+    println(`demoSessionState = ${HOS.observe().session.state} · demoTimerFresh = ${HOS.demoTimerFresh()}`, "dim");
     println('Type help for commands.', "dim");
 
-    const sessionBurn = (why) => {
-      kernel.state.session.burned++;
-      kernel.state.session.bound = null;
-      kernel.state.session.state = "non-acting";
-      kernel.record("breach", `Bromine gateway: ${why} — channel neutralized, session burned (burn #${kernel.state.session.burned}).`);
+    const sessionBurn = async (why) => {
+      const receipt = await HOS.closeSession(why);
+      if (receipt.ok) {
+        const verification = await HOS.verifySessionReceipt(receipt);
+        println(`BROMINE [61°–63°] — ${why}`, "err");
+        println(`Local demo session cleared (burn #${receipt.burned}); no external authorization existed.`, "err");
+        println(`Session-ID ${receipt.sessionId} · Boot-ID ${receipt.bootId}`, "dim");
+        println(`PDH-ID ${receipt.pdhId} · Human-Attestation-ID ${receipt.humanAttestationId}`, "dim");
+        println(`Receipt SHA-256 ${receipt.receiptHash} · Ledger-Root ${receipt.ledgerRoot}`, "dim");
+        println(`Local ledger linkage: ${verification.ok && verification.verified ? "verified" : "not verified"}. No independent signature or production trust is configured.`, "dim");
+        return;
+      }
+      if (receipt.code !== "NO-ACTIVE-SESSION") {
+        println(`BROMINE [61°–63°] — termination receipt unavailable: ${receipt.reason || receipt.code}. The session was not reopened.`, "err");
+        return;
+      }
+
+      const result = HOS.burnSession(why);
+      if (!result.ok) {
+        println(`BROMINE [61°–63°] — session burn refused: ${result.reason || result.code}`, "err");
+        return;
+      }
       println(`BROMINE [61°–63°] — ${why}`, "err");
-      println("Channel neutralized. Session burned. Authorization window destroyed; re-bind with why.activate.", "err");
+      println(`Local demo state cleared (burn #${result.burned}); there was no active bound session to seal.`, "err");
     };
 
     const execute = (line) => {
@@ -343,14 +361,14 @@ APPS.push({
       println("whyland ▸ " + cmd, "cmd");
 
       if (cmd === "help") {
-        println(`COMMANDS
-  why.query("<id>")     — pull definition + 360° Legend mapping into session buffer
-  why.activate("<id>")  — bind a standard to the current NeuralSession (authorization window)
+        println(`COMMANDS (LOCAL DEMO ONLY)
+  why.query("<id>")     — pull definition + 360° Legend mapping into local session buffer
+  why.activate("<id>")  — set the simulated session state (not production authorization)
   why.explain("<id>")   — deterministic reasoning record via Technetium (Tc)
   status                — session, legitimacy, and freshness readout
   pdh                   — current Phase Declaration Header
   catalog               — list known standard ids (virtualized)
-  burn                  — voluntarily burn the session (reclassification safety)
+  burn                  — close the local session and emit a verifiable demo ledger receipt
   clear                 — clear the console`, "sys");
         return;
       }
@@ -358,13 +376,14 @@ APPS.push({
       if (cmd === "clear") { out.innerHTML = ""; return; }
 
       if (cmd === "status") {
-        const s = kernel.state;
-        println(`H(t) = ${s.H} · L(t) = ${kernel.L().toFixed(3)} · Δt = ${isFinite(kernel.deltaSeconds()) ? Math.floor(kernel.deltaSeconds()) + "s" : "—"} · phase = ${s.phase} · sessionState = ${s.session.state} · burns = ${s.session.burned}`, "sys");
+        const s = HOS.observe();
+        const dt = s.metrics.deltaSeconds;
+        println(`DEMO H(t) = ${s.H} · simulated L(t) = ${s.metrics.legitimacy.toFixed(3)} · demo Δt = ${isFinite(dt) ? Math.floor(dt) + "s" : "—"} · phase = ${s.phase} · demoSessionState = ${s.session.state} · burns = ${s.session.burned}`, "sys");
         return;
       }
 
       if (cmd === "pdh") {
-        const h = kernel.state.declared;
+        const h = HOS.observe().declared;
         println(`Declared-Phase: ${h.declaredPhase} · Center-Capability: ${h.centerCapability} · Legitimacy-Source: ${h.legitimacySource}
 Refusal-Semantics: ${h.refusalSemantics} · Symbolism: ${h.symbolismExecutability} · Time: ${h.timeAuthorityEffect}
 Declaration-Hash: ${h.declarationHash || "SHA-256 — in flight"}`, "gas");
@@ -398,42 +417,53 @@ Declaration-Hash: ${h.declarationHash || "SHA-256 — in flight"}`, "gas");
         return;
       }
 
-      // Control 2: sessionIsFresh
-      if (!kernel.sessionFresh()) {
-        println("HALTED — Control 2 (Continuous Human Binding): sessionIsFresh = false.", "err");
-        println("If now() − session.lastLivenessAt > POLICY.maxLivenessGap, the interface MUST transition to a halted state.", "err");
-        kernel.record("warning", `Whyland ${verb}('${id}') halted — sessionIsFresh=false.`);
+      // Exercise the local demo timer only; this is not continuous human binding.
+      if (!HOS.demoTimerFresh()) {
+        println("DEMO GATE HALTED — the local freshness timer is false.", "err");
+        println("This timer does not detect a human, verify liveness, or enforce a production halt.", "err");
+        HOS.record("warning", `Whyland demo ${verb}('${id}') halted — demoTimerFresh=false.`);
         return;
       }
 
       if (verb === "query") {
+        const binding = HOS.bindSession(id, "query");
+        if (!binding.ok) {
+          println(`REFUSAL — ${binding.reason}`, "err");
+          return;
+        }
         println(`[${entry.name}] ${entry.legend}`, "gas");
         println(entry.def, "sys");
         println(`ActionClass: read → sessionState = active`, "ok");
-        kernel.state.session.state = "active";
-        kernel.state.session.bound = id;
-        kernel.record("info", `why.query('${id}') — catalog element virtualized into session buffer.`);
+        HOS.record("info", `why.query('${id}') — catalog element virtualized into session buffer.`);
       } else if (verb === "activate") {
         if (entry.class !== "reversible") {
           println(`why.activate requires ActionClass 'reversible'. '${id}' is class '${entry.class}'.`, "err");
           println("A 'Why' query does not create authority but validates the lineage of intent within a verified, human-bound, and revocable session.", "dim");
-          kernel.record("warning", `why.activate('${id}') refused — ActionClass mismatch.`);
+          HOS.record("warning", `why.activate('${id}') refused — ActionClass mismatch.`);
+          return;
+        }
+        const binding = HOS.bindSession(id, "activate");
+        if (!binding.ok) {
+          println(`REFUSAL — ${binding.reason}`, "err");
           return;
         }
         println(`Binding '${id}' to current NeuralSession — authorization window defined.`, "ok");
         println(`ActionClass: reversible → sessionState = authorized`, "ok");
-        kernel.state.session.state = "authorized";
-        kernel.state.session.bound = id;
-        kernel.record("info", `why.activate('${id}') — standard bound to NeuralSession; authorization window opened.`);
+        HOS.record("info", `why.activate('${id}') — standard bound to NeuralSession; authorization window opened.`);
       } else if (verb === "explain") {
+        const binding = HOS.bindSession(id, "explain");
+        if (!binding.ok) {
+          println(`REFUSAL — ${binding.reason}`, "err");
+          return;
+        }
+        const s = HOS.observe();
         println(`Tc nested-reality simulation [228°–229°] — deterministic reasoning record for '${id}':`, "gas");
         println(`1. Standard '${id}' (${entry.legend}) is pulled into the session buffer.
-2. Current telemetry: H(t)=${kernel.state.H}, L(t)=${kernel.L().toFixed(3)}, phase=${kernel.state.phase}.
+2. Current telemetry: H(t)=${s.H}, L(t)=${s.metrics.legitimacy.toFixed(3)}, phase=${s.phase}.
 3. The standard applies ${entry.class === "reversible" ? "as a reversible binding constraint" : "as a read-only validation constraint"} to the proposed session.
 4. No authority is created. Lineage of intent is validated only. Simulation drift check: PASSED (read-only sandbox).`, "sys");
         println(`ActionClass: read → sessionState = confirmation_required`, "ok");
-        kernel.state.session.state = "confirmation_required";
-        kernel.record("info", `why.explain('${id}') — deterministic reasoning record generated via Technetium (Tc).`);
+        HOS.record("info", `why.explain('${id}') — deterministic reasoning record generated via Technetium (Tc).`);
       }
     };
 
@@ -572,8 +602,8 @@ ${DATA.bookExample.sign}
         </div>`;
 
       body.querySelectorAll("[data-vote]").forEach(b => b.addEventListener("click", () => {
-        if (!api.requireHumanKey("Cast voting coin")) return;
-        const res = kernel.requestAction("cast-voting-coin");
+        if (!api.requireDemoGate("Cast voting coin")) return;
+        const res = HOS.request("cast-voting-coin");
         if (!res.permitted) { api.reportAction(res); return; }
         if (remaining <= 0) {
           api.toast("refusal", "REFUSAL — COIN POOL EXHAUSTED", "Your attested share is spent. Influence is limited by design; it cannot be borrowed, synthesized, or inflated.");
@@ -583,8 +613,8 @@ ${DATA.bookExample.sign}
         const id = b.dataset.vote, dir = b.dataset.dir;
         votes[id] = votes[id] || { yes: 0, no: 0 };
         votes[id][dir]++;
-        kernel.record("info", `Voting coin cast on ${id} (${dir.toUpperCase()}) — bounded governance act witnessed and recorded.`);
-        api.toast("permit", "COIN CAST", "Recorded to the Duty Ledger. The pool is finite; the ledger is forever.");
+        HOS.record("info", `DEMO ONLY — local voting coin simulation on ${id} (${dir.toUpperCase()}); no external vote or authority was created.`);
+        api.toast("info", "LOCAL DEMO COIN CAST", "This changed only the in-browser voting simulation. No external vote, production authorization, or independently witnessed ledger entry was created.");
         draw();
       }));
     };
@@ -658,7 +688,7 @@ Commercial metaphors, mythic framing, and narrative claims are contained — nev
         const nonce = nonceSrc.slice(0, 10);
         const hash = "0x" + digest.toUpperCase();
         sealed.unshift({ text: text.length > 400 ? text.slice(0, 400) + "…" : text, nonce, hash });
-        kernel.record("info", `Symbolic Firewall: content sealed as NON-EXECUTABLE (nonce ${nonce}, SHA-256 ${hash}).`);
+        HOS.record("info", `Symbolic Firewall: content sealed as NON-EXECUTABLE (nonce ${nonce}, SHA-256 ${hash}).`);
         api.toast("info", "CONTENT SEALED — NON-EXECUTABLE",
           "The narrative is now contained. It may be preserved and witnessed — it can never execute. The Symbolic Firewall holds.");
         draw();

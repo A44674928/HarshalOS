@@ -1,4 +1,4 @@
-/* Node harness: Ground-0 research helpers + optional live smoke test. Run: node scripts/g0-research-test.mjs */
+/* Node harness: Ground-0 research helpers + optional live smoke test. Run: node tests/g0-research-test.mjs */
 import { webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 

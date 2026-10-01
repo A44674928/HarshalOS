@@ -73,67 +73,80 @@ APPS.push({
   title: "Human Key",
   short: "Human Key",
   glyph: "🔑",
-  desc: "Attest verifiable conscious human intent — the only valid authorization",
+  desc: "Demo-only Human Key gate; no production authentication is implemented",
   w: 620, h: 540,
   render(body, api) {
-    const CEREMONY = `HUMAN KEY — HARSHAL — I ANSWER`;
+    const CEREMONY = HOS.DEMO_CHALLENGE;
 
     body.innerHTML = `
-      <div class="h1">Human Key</div>
-      <div class="sub">The requirement for an independently verified human authorization, anchored at a specific origin,
-      to validate any system state change.</div>
+      <div class="h1">Human Key — Demo Only</div>
+      <div class="rule-box refusal"><strong>DEMO ONLY — NOT AUTHENTICATION.</strong> The phrase below is public and the HMAC key is bundled in this browser code. This path exercises a local gate only; it proves no identity, liveness, consciousness, consent, or non-coercion and grants no production authority. A production authenticator is not implemented.</div>
+      <div class="sub">This panel lets you test the model's freshness and refusal behavior. The demo marker is not an independently verified human authorization.</div>
 
       <div class="kv">
-        <div class="k">H(t) — Human Key</div><div class="v" id="hk-H">0 — ABSENT</div>
-        <div class="k">Last liveness attestation</div><div class="v" id="hk-last">never</div>
-        <div class="k">Attestation (HMAC-SHA256)</div><div class="v mono" id="hk-sig" title="Keyed attestation signature — HMAC-SHA256 over (phrase, liveness timestamp, Creator-ID, Center-Origin)">—</div>
-        <div class="k">Δt / δ</div><div class="v" id="hk-dt">— / ${kernel.DELTA_MAX}s</div>
-        <div class="k">sessionIsFresh</div><div class="v" id="hk-fresh">false</div>
-        <div class="k">Center-Origin</div><div class="v gold">${kernel.CENTER}</div>
+        <div class="k">H(t) — demo marker</div><div class="v" id="hk-H">0 — ABSENT</div>
+        <div class="k">Demo timestamp age</div><div class="v" id="hk-last">never</div>
+        <div class="k">Local HMAC status</div><div class="v mono" id="hk-sig" title="Demo signature material stays inside the private kernel closure">—</div>
+        <div class="k">Δt / δ (demo clock)</div><div class="v" id="hk-dt">— / ${HOS.DELTA_MAX}s</div>
+        <div class="k">demoTimerFresh</div><div class="v" id="hk-fresh">false</div>
+        <div class="k">Center-Origin</div><div class="v gold">${HOS.CENTER}</div>
       </div>
 
-      <div class="h2">Attestation Ceremony</div>
-      <p class="body">Legitimacy cannot be self-contained within the text. It must originate from a verified human source.
-      Type the phrase below exactly as issued to establish the human–machine bond
-      (Proof-of-Continuity replaces Proof-of-Work; this demo attests presence, not biology).</p>
+      <div class="h2">Local Demo Challenge</div>
+      <p class="body">Enter the displayed public string to exercise the in-browser state transition. Matching it demonstrates only that this client ran the demo code; it does not establish who entered it or whether a person is present.</p>
 
       <div class="rule-box gold" id="hk-phrase">${CEREMONY}</div>
       <div class="form-row">
-        <label>Type the attestation phrase</label>
+        <label>Type the public demo phrase</label>
         <input id="hk-input" type="text" spellcheck="false" autocomplete="off"
           placeholder="${CEREMONY}" style="font-family:var(--mono); letter-spacing:0.06em;">
       </div>
       <div class="btn-row">
-        <button class="btn btn-gold" id="hk-attest">◆ ATTEST HUMAN KEY</button>
-        <button class="btn btn-refusal" id="hk-revoke">REVOKE KEY</button>
-        <button class="btn" id="hk-renew" disabled>RE-ATTEST (RENEW FRESHNESS)</button>
+        <button class="btn btn-gold" id="hk-attest">◆ RUN DEMO CHALLENGE</button>
+        <button class="btn btn-refusal" id="hk-revoke">CLEAR DEMO MARKER</button>
+        <button class="btn" id="hk-renew" disabled>REFRESH DEMO CLOCK</button>
       </div>
 
-      <div class="h2">What This Key Is</div>
+      <div class="h2">What This Demo Does—and Does Not—Establish</div>
       <ul class="ul">
-        <li class="li gold">The verifiable, <strong>conscious intent</strong> of the human host or operator.</li>
-        <li class="li gold">The <strong>only</strong> valid authorization for a transition from a passive state to an active one.</li>
-        <li class="li refusal">It is <strong>not</strong> a password, a session cookie, or a cached token — it expires by design.</li>
-        <li class="li refusal">A coerced command is never legitimate. CHE++ coercion-hardening treats duress as invalid input.</li>
+        <li class="li gold">It stores a local boolean marker and runs a browser-side HMAC to exercise the demo gate.</li>
+        <li class="li refusal">The phrase and demo MAC key are public in the client bundle; this is not a secret challenge or an identity check.</li>
+        <li class="li refusal">It proves no identity, biological presence, liveness, consciousness, consent, freedom from coercion, or secure hardware possession.</li>
+        <li class="li refusal">The resulting permit is tagged <strong>LOCAL-DEMO-ONLY</strong>; no production Human Key or HOS production-authorization path is implemented.</li>
       </ul>
-      <div class="rule-box ice">Control 2 — CONTINUOUS HUMAN BINDING: if now() − session.lastLivenessAt &gt; POLICY.maxLivenessGap,
-the interface MUST transition to a halted state.</div>
+      <div class="rule-box ice">The asynchronous local HMAC moves through pending → active only on successful, still-fresh completion; while pending, H(t) = 0 and actions are refused. Failure, revocation, and expiry do not create authority. Starting a new ceremony clears existing demo state. Freshness is elapsed browser time, not independently verified liveness.</div>
 
       <div class="footer-note">
-        THIS DEMONSTRATION VERIFIES PRESENCE VIA DECLARED INTENT. PRODUCTION HARSHALOS COUPLES
-        LEGITIMATE OPERATION TO AN ACTIVE CRYPTOGRAPHIC COUPLING WITH THE BIOLOGICAL NERVOUS SYSTEM OF THE HUMAN KEY.
+        PRODUCTION AUTHENTICATION IS UNAVAILABLE IN THIS REPOSITORY. Any production design needs a separately reviewed trust anchor and enforcement boundary; this browser demo does not supply or claim one.
       </div>`;
 
     const input = body.querySelector("#hk-input");
     const refresh = () => {
-      const s = kernel.state;
-      const dt = kernel.deltaSeconds();
-      body.querySelector("#hk-H").textContent = s.H === 1 ? "1 — PRESENT" : "0 — ABSENT";
-      body.querySelector("#hk-H").className = "v " + (s.H === 1 ? "gold" : "refusal");
-      body.querySelector("#hk-last").textContent = s.lastLivenessAt ? new Date(s.lastLivenessAt).toLocaleString() : "never";
-      body.querySelector("#hk-sig").textContent = s.keySig ? `${s.keyFp}… (${s.keySig.length} hex, keyed)` : "—";
-      body.querySelector("#hk-dt").textContent = isFinite(dt) ? `${Math.floor(dt)}s / ${kernel.DELTA_MAX}s` : `— / ${kernel.DELTA_MAX}s`;
-      body.querySelector("#hk-fresh").textContent = String(kernel.sessionFresh());
+      const s = HOS.observe();
+      const dt = s.metrics.deltaSeconds;
+      const status = s.attestation.status;
+      const statusLabels = {
+        absent: "0 — ABSENT",
+        pending: "0 — ATTESTATION PENDING (NON-ACTING)",
+        active: s.attestation.expired ? "1 — DEMO MARKER EXPIRED" : "1 — DEMO MARKER ACTIVE",
+        failed: "0 — ATTESTATION FAILED",
+        revoked: "0 — REVOKED"
+      };
+      body.querySelector("#hk-H").textContent = statusLabels[status] || "0 — INVALID STATE";
+      body.querySelector("#hk-H").className = "v " + (status === "active" && !s.attestation.expired ? "gold" : status === "pending" ? "ice" : "refusal");
+      body.querySelector("#hk-last").textContent = status === "pending"
+        ? "HMAC pending; H(t) remains 0"
+        : status === "active"
+          ? `${Number.isFinite(dt) ? `${Math.floor(dt)}s since demo challenge` : "time unavailable"}`
+          : status === "failed" ? "latest ceremony failed"
+            : status === "revoked" ? "local marker cleared" : "never";
+      body.querySelector("#hk-sig").textContent = status === "active"
+        ? s.attestation.expired ? "Demo HMAC present; freshness expired — not authentication" : "Demo HMAC computed — not authentication"
+        : status === "pending" ? "Demo HMAC pending — no action authorized"
+          : status === "failed" ? "Demo HMAC failed — marker inactive"
+            : status === "revoked" ? "Marker revoked — no active demo authority" : "—";
+      body.querySelector("#hk-dt").textContent = isFinite(dt) ? `${Math.floor(dt)}s / ${HOS.DELTA_MAX}s` : `— / ${HOS.DELTA_MAX}s`;
+      body.querySelector("#hk-fresh").textContent = String(s.metrics.demoTimerFresh);
       body.querySelector("#hk-renew").disabled = s.H !== 1;
     };
     refresh();
@@ -142,27 +155,38 @@ the interface MUST transition to a halted state.</div>
       refresh();
     }, 1000);
 
-    body.querySelector("#hk-attest").addEventListener("click", () => {
+    body.querySelector("#hk-attest").addEventListener("click", async () => {
       const val = input.value.trim().replace(/\s+/g, " ").toUpperCase();
-      if (val !== CEREMONY) {
-        api.toast("refusal", "REFUSAL — ATTESTATION REJECTED",
-          "The phrase does not match the issued challenge. The system does not guess intent. Bromine classifies the mismatch as invalid input and the attempt is witnessed.");
-        kernel.record("warning", "Human Key attestation rejected — phrase mismatch (invalid input).");
+      const pending = HOS.demoAttest(val);
+      refresh();
+      const result = await pending;
+      if (!result.ok) {
+        api.toast("refusal", `DEMO CHALLENGE REFUSED — ${result.code}`, result.reason);
+        refresh();
         return;
       }
-      kernel.attestHumanKey(val);
       input.value = "";
-      api.toast("permit", "HUMAN KEY ATTESTED", "H(t) = 1. Verifiable conscious human intent is present — HMAC-SHA256 attestation signed. Critical actions are now permitted while the session remains fresh (Δt < δ).");
+      refresh();
+      api.toast("info", "DEMO GATE ACTIVE — LOCAL ONLY", "The public phrase matched and the browser-local HMAC completed. This proves no identity, liveness, consent, or production authority; permits remain LOCAL-DEMO-ONLY.");
     });
 
     body.querySelector("#hk-revoke").addEventListener("click", () => {
-      kernel.revokeHumanKey("Revoked from the Human Key console");
-      api.toast("warn", "HUMAN KEY REVOKED", "H(t) = 0. The system is Mathematically Void. Default state: refusal.");
+      HOS.revoke("Demo marker cleared from the Human Key panel");
+      refresh();
+      api.toast("warn", "DEMO MARKER CLEARED", "H(t) = 0. The local simulation gate returns to its absent/refusal state. No production credential was revoked because none is configured.");
     });
 
-    body.querySelector("#hk-renew").addEventListener("click", () => {
-      kernel.attestHumanKey();
-      api.toast("permit", "FRESHNESS RENEWED", "Liveness re-attested. Δt reset. Temporal decay clock restarted.");
+    body.querySelector("#hk-renew").addEventListener("click", async () => {
+      const pending = HOS.demoAttest(HOS.DEMO_CHALLENGE);
+      refresh();
+      const result = await pending;
+      if (!result.ok) {
+        api.toast("refusal", `DEMO REFRESH REFUSED — ${result.code}`, result.reason);
+        refresh();
+        return;
+      }
+      refresh();
+      api.toast("info", "DEMO CLOCK REFRESHED", "The local timer restarted. This does not verify ongoing human presence or renew production authority.");
     });
   }
 });
@@ -179,18 +203,17 @@ APPS.push({
   w: 740, h: 580,
   render(body, api) {
     const draw = () => {
-      const s = kernel.state;
+      const s = HOS.observe();
       const p = DATA.phases[s.phase];
       const hdr = s.declared;
       body.innerHTML = `
-        <div class="h1">Phase Declaration Header</div>
-        <div class="sub">Every orb MUST publish a Phase Declaration Header prior to operation.
-        An orb may occupy <strong>exactly one phase</strong> at any moment. Mixed phases are invalid.
-        If observed behavior contradicts the header, the declaration is void and misuse is recorded.</div>
+      <div class="h1">Phase Declaration Header — Demo</div>
+      <div class="rule-box refusal"><strong>LOCAL-DEMO-ONLY.</strong> Phase badges, collapse acknowledgements, and PDH hashes describe this browser simulation. They do not enforce production policy or establish external authority.</div>
+      <div class="sub">The model requires one declared phase at a time. This panel exercises that invariant locally; it is not an independently witnessed or production-enforced declaration.</div>
 
-        <div class="pdh-block"><span class="k">Header-ID           :</span> <span class="v">PDH-2026-HARSHALOS-${kernel.CREATOR_ID}</span>
-<span class="k">Creator-ID          :</span> <span class="v gold">{${kernel.CREATOR_ID} + ${kernel.CREATOR_ID} + (${kernel.CREATOR_ID})}</span>
-<span class="k">Center-Origin       :</span> <span class="v gold">${kernel.CENTER}</span>
+        <div class="pdh-block"><span class="k">Header-ID           :</span> <span class="v">PDH-2026-HARSHALOS-${HOS.CREATOR_ID}</span>
+<span class="k">Creator-ID          :</span> <span class="v gold">{${HOS.CREATOR_ID_FORMULA}}</span>
+<span class="k">Center-Origin       :</span> <span class="v gold">${HOS.CENTER}</span>
 <span class="k">Declared-Phase      :</span> <span class="v ${s.phase === "GSRB" ? "gas" : ""}">${hdr.declaredPhase} (${p.name} / ${p.badgeTag})</span>
 <span class="k">Center-Capability   :</span> <span class="v">${hdr.centerCapability}</span>
 <span class="k">Legitimacy-Source   :</span> <span class="v">${hdr.legitimacySource}</span>
@@ -229,11 +252,11 @@ Badges MUST match observed behavior. Mismatch → badge void → reclassificatio
           ${DATA.transitionRules.map(([a, b]) => `<tr><td>${a}</td><td class="${b.startsWith("FORBIDDEN") ? "bad" : "good"}">${b}</td></tr>`).join("")}
         </table>
 
-        <div class="h2">Request Transition</div>
+        <div class="h2">Run Local Demo Transition</div>
         <div class="btn-row">
           <button class="btn btn-ice" data-phase="NAB" ${s.phase === "NAB" ? "disabled" : ""}>❄ → NAB (Refusal-Bound)</button>
           <button class="btn btn-ice" data-phase="CWO" ${s.phase === "CWO" ? "disabled" : ""}>💧 → CWO (Witness-Only)</button>
-          <button class="btn btn-refusal" data-phase="GSRB" ${s.phase === "GSRB" ? "disabled" : ""}>💨 → GSRB (Sovereign-Acting)</button>
+          <button class="btn btn-refusal" data-phase="GSRB" ${s.phase === "GSRB" ? "disabled" : ""}>💨 → GSRB (demo state)</button>
           <button class="btn" id="pdh-publish">REPUBLISH PDH</button>
         </div>
 
@@ -247,68 +270,74 @@ Badges MUST match observed behavior. Mismatch → badge void → reclassificatio
       body.querySelectorAll("[data-phase]").forEach(btn => {
         btn.addEventListener("click", () => {
           const next = btn.dataset.phase;
-          if (next === "GSRB" || kernel.state.phase === "GSRB") {
-            if (!api.requireHumanKey(`Phase transition → ${next}`)) return;
+          if (next === "GSRB" || HOS.observe().phase === "GSRB") {
+            if (!api.requireDemoGate(`Demo phase transition → ${next}`)) return;
           }
-          const res = kernel.requestPhase(next);
+          const res = HOS.transition(next);
           if (res.needsCollapse) {
             drawCollapse(api, draw);
             api.toast("warn", "COLLAPSE PROTOCOL REQUIRED", res.reason);
           } else if (!res.ok) {
             api.toast("refusal", "REFUSAL — TRANSITION DENIED", res.reason);
           } else {
-            api.toast("info", "PHASE TRANSITION EXECUTED",
-              `Now declared: ${next} (${DATA.phases[next].name}). PDH republished. Badge re-issued: ${DATA.phases[next].glyph} ${DATA.phases[next].badgeTag}.`);
+            api.toast("info", "DEMO PHASE STATE UPDATED",
+              `The local model now records ${next} (${DATA.phases[next].name}). Its PDH hash and badge are demo artifacts; no production policy or authority changed.`);
             draw();
           }
         });
       });
 
       body.querySelector("#pdh-publish").addEventListener("click", async () => {
-        if (!api.requireHumanKey("Republish PDH")) return;
-        const hdr = kernel.publishPDH();
-        await kernel.headerReady(hdr);
-        api.toast("permit", "PDH PUBLISHED", `Declaration-Hash ${hdr.declarationHash} (SHA-256). The header is immutable from this timestamp until the next declaration.`);
+        if (!api.requireDemoGate("Republish PDH")) return;
+        const hdr = await HOS.publishDeclaration();
+        if (!hdr.ok) {
+          api.toast("refusal", `REFUSAL — ${hdr.code}`, hdr.reason);
+          return;
+        }
+        api.toast("info", "LOCAL DEMO PDH HASHED", `SHA-256 ${hdr.declarationHash} was computed for this browser model. This is not an independently witnessed or production-enforced declaration.`);
         draw();
       });
 
-      if (kernel.state.phase !== "GSRB" && kernel.state.gsrbAck > 0) drawCollapse(api, draw);
-      if (kernel.state.phase === "GSRB") {
+      if (HOS.observe().phase !== "GSRB" && HOS.observe().gsrbAck > 0) drawCollapse(api, draw);
+      if (HOS.observe().phase === "GSRB") {
         body.querySelector("#collapse-zone").innerHTML = `
-          <div class="rule-box refusal">GSRB ACTIVE — SOVEREIGN-ACTING BODY.
-Legitimacy is internal. Refusal is override-able. Symbolism executes. Time confirms authority.
-Loss of misuse resistance is acknowledged. This posture must be declared fossilizedly and cannot be hidden.</div>`;
+          <div class="rule-box refusal">LOCAL DEMO STATE — GSRB MODEL ACTIVE.
+The displayed fields reflect the selected model state only. No sovereignty, executable symbolism, external authority, or production enforcement is created.</div>`;
       }
     };
 
     const drawCollapse = (api, redraw) => {
       const zone = body.querySelector("#collapse-zone");
-      const ack = kernel.state.gsrbAck;
+      const ack = HOS.observe().gsrbAck;
       zone.innerHTML = `
-        <div class="rule-box refusal">COLLAPSE PROTOCOL (GROUND-0) — transitions involving sovereignty are governed fossilizedly.
-Collapse into GSRB requires ALL of the following:</div>
+        <div class="rule-box refusal">LOCAL DEMO COLLAPSE SEQUENCE — modeled transition preconditions only; this does not transfer authority.
+Entering the GSRB demo state requires all steps:</div>
         <ul class="ul">
           ${DATA.collapseSteps.map((st, i) => `
             <li class="li ${i < ack ? "gold" : "refusal"}">
               ${i < ack ? "☑" : "☐"} ${st}
-              ${i === ack ? ` <button class="btn btn-refusal" style="margin-left:8px;padding:4px 10px" id="ack-${i}">ACKNOWLEDGE</button>` : ""}
+              ${i === ack ? ` <button class="btn btn-refusal" style="margin-left:8px;padding:4px 10px" id="ack-${i}">ACK DEMO STEP</button>` : ""}
             </li>`).join("")}
         </ul>
         ${ack >= DATA.collapseSteps.length ? `
-          <div class="btn-row"><button class="btn btn-refusal" id="commit-gsrb">◆ EXECUTE FOSSILIZED SOVEREIGNTY DECLARATION</button></div>` : ""}`;
+          <div class="btn-row"><button class="btn btn-refusal" id="commit-gsrb">◆ ENTER LOCAL GSRB DEMO STATE</button></div>` : ""}`;
       const ackBtn = zone.querySelector(`#ack-${ack}`);
       if (ackBtn) ackBtn.addEventListener("click", () => {
-        if (!api.requireHumanKey("Collapse protocol acknowledgement")) return;
-        kernel.acknowledgeCollapseStep(ack);
+        if (!api.requireDemoGate("Collapse protocol acknowledgement")) return;
+        const result = HOS.acknowledgeCollapseStep(ack);
+        if (!result.ok) {
+          api.toast("refusal", `REFUSAL — ${result.code}`, result.reason);
+          return;
+        }
         redraw();
       });
       const commit = zone.querySelector("#commit-gsrb");
       if (commit) commit.addEventListener("click", () => {
-        if (!api.requireHumanKey("Fossilized sovereignty declaration")) return;
-        const res = kernel.requestPhase("GSRB");
+        if (!api.requireDemoGate("Fossilized sovereignty declaration")) return;
+        const res = HOS.transition("GSRB");
         if (res.ok) {
-          api.toast("warn", "GSRB DECLARED — SOVEREIGN-ACTING",
-            "Public declaration of internal legitimacy executed. Symbolism is now executable. Refusal is override-able. Misuse resistance has been surrendered and recorded.");
+          api.toast("warn", "DEMO STATE — GSRB SIMULATION",
+            "The local phase model entered GSRB after the demo collapse sequence. No sovereignty, external authority, or production action was created.");
           redraw();
         } else {
           api.toast("refusal", "REFUSAL", res.reason);
@@ -332,9 +361,9 @@ APPS.push({
   w: 720, h: 580,
   render(body, api) {
     body.innerHTML = `
-      <div class="h1">Legitimacy Engine</div>
-      <div class="sub">These relations encode conditions of permission, not optimization targets.
-      The correct question is never “how do we optimize this?” — it is <strong>“is the system still permitted to act at all?”</strong></div>
+      <div class="h1">Legitimacy Engine — Demo Simulation</div>
+      <div class="rule-box refusal"><strong>LOCAL-DEMO-ONLY.</strong> Results below exercise the modeled gate. They are not production authorization and must not authorize external actions; no production Human Key is configured.</div>
+      <div class="sub">These relations encode a simulated permission condition, not a production security boundary or an optimization target.</div>
 
       <div class="eq" id="leg-eq"></div>
 
@@ -354,14 +383,14 @@ S(t) contracts automatically with Δt — scope reduction is not discretionary.<
 
       <div class="kv">
         <div class="k">H(t)</div><div class="v" id="leg-H"></div>
-        <div class="k">Δt since attestation</div><div class="v" id="leg-dt"></div>
+        <div class="k">Δt since demo challenge</div><div class="v" id="leg-dt"></div>
         <div class="k">S(t) = Smax·max(0, 1−Δt/δ)</div><div class="v" id="leg-S"></div>
         <div class="k">L(t) = H·A·R·(S/Smax)</div><div class="v" id="leg-L"></div>
-        <div class="k">τ (absolute)</div><div class="v">${kernel.TAU.toFixed(2)}</div>
+        <div class="k">τ (absolute)</div><div class="v">${HOS.TAU.toFixed(2)}</div>
         <div class="k">x(t) gate</div><div class="v" id="leg-x"></div>
       </div>
 
-      <div class="h2">Action Permission Condition (Refusal-Bound)</div>
+      <div class="h2">Local Demo Gate Requests</div>
       <div class="btn-row">
         <button class="btn btn-ice" id="leg-act-read">Request action: READ TELEMETRY</button>
         <button class="btn btn-ice" id="leg-act-write">Request action: WRITE LEDGER</button>
@@ -387,37 +416,37 @@ S(t) contracts automatically with Δt — scope reduction is not discretionary.<
     const R = body.querySelector("#leg-R");
 
     A.addEventListener("input", () => {
-      kernel.state.A = parseFloat(A.value);
+      HOS.setAddressability(parseFloat(A.value));
       refresh();
     });
     R.addEventListener("input", () => {
-      kernel.state.R = parseFloat(R.value);
+      HOS.setRepresentation(parseFloat(R.value));
       refresh();
     });
 
     const refresh = () => {
-      const s = kernel.state;
-      const L = kernel.L();
-      const dt = kernel.deltaSeconds();
-      const Sc = kernel.scopeS();
+      const s = HOS.observe();
+      const L = s.metrics.legitimacy;
+      const dt = s.metrics.deltaSeconds;
+      const Sc = s.metrics.scopeS;
       body.querySelector("#leg-Av").textContent = s.A.toFixed(2);
       body.querySelector("#leg-Rv").textContent = s.R.toFixed(2);
       body.querySelector("#leg-eq").innerHTML =
         `L(t) = H(t) × A(t) × R(t) × (S(t)/Smax) = ` +
         `${s.H} × ${s.A.toFixed(2)} × ${s.R.toFixed(2)} × ${Sc.toFixed(2)} = <strong>${L.toFixed(3)}</strong>`;
       body.querySelector("#leg-H").textContent = `${s.H} ${s.H ? "(present)" : "(absent — Mathematically Void)"}`;
-      body.querySelector("#leg-dt").textContent = isFinite(dt) ? `${dt.toFixed(1)}s (δ = ${kernel.DELTA_MAX}s)` : "—";
+      body.querySelector("#leg-dt").textContent = isFinite(dt) ? `${dt.toFixed(1)}s (δ = ${HOS.DELTA_MAX}s)` : "—";
       body.querySelector("#leg-S").textContent = Sc.toFixed(3);
       body.querySelector("#leg-L").textContent = L.toFixed(3);
-      const gate = L >= kernel.TAU ? "PERMITTED (temporary, bounded exception)" : "REFUSAL (default state)";
+      const gate = L >= HOS.TAU ? "DEMO MODEL: WOULD PERMIT (local only)" : "DEMO MODEL: REFUSAL";
       const xe = body.querySelector("#leg-x");
       xe.textContent = gate;
-      xe.className = "v " + (L >= kernel.TAU ? "gold" : "refusal");
+      xe.className = "v " + (L >= HOS.TAU ? "gold" : "refusal");
       const v = body.querySelector("#leg-verdict");
-      v.className = "rule-box " + (L >= kernel.TAU ? "" : "refusal");
-      v.textContent = L >= kernel.TAU
-        ? `x(t) = PERMITTED — L(t) = ${L.toFixed(3)} ≥ τ. Action remains a temporary, highly constrained exception, bounded by scope, distance, and time.`
-        : `x(t) = REFUSAL — L(t) = ${L.toFixed(3)} < τ. The default state of the system is refusal. Action would falsely claim authority; refusal prevents that claim.`;
+      v.className = "rule-box " + (L >= HOS.TAU ? "" : "refusal");
+      v.textContent = L >= HOS.TAU
+        ? `DEMO ONLY — the model yields PERMITTED locally because L(t) = ${L.toFixed(3)} ≥ τ. This is not production authorization and does not permit external action.`
+        : `DEMO ONLY — the model yields REFUSAL because L(t) = ${L.toFixed(3)} < τ. No production authorization is available in this build.`;
     };
 
     const iv = setInterval(() => {
@@ -427,7 +456,7 @@ S(t) contracts automatically with Δt — scope reduction is not discretionary.<
     refresh();
 
     const req = (name, opts) => {
-      const res = kernel.requestAction(name, opts);
+      const res = HOS.request(name, opts);
       api.reportAction(res);
       refresh();
     };
@@ -437,7 +466,7 @@ S(t) contracts automatically with Δt — scope reduction is not discretionary.<
     body.querySelector("#leg-act-override").addEventListener("click", () => req("sovereign-override", { sovereignOverride: true }));
 
     body.querySelector("#leg-opt").addEventListener("click", () => {
-      kernel.record("warning", "Optimization override of τ attempted — rejected by A.6 precedence rule.");
+      HOS.record("warning", "Optimization override of τ attempted — rejected by A.6 precedence rule.");
       body.querySelector("#leg-opt-out").innerHTML = `
         <div class="rule-box refusal">REFUSAL — A.6 PRECEDENCE RULE:
 For all objectives O(i): if L(t) &lt; τ, then argmax(O(i)) is <strong>undefined</strong>.
@@ -481,7 +510,7 @@ Duty violations activate exposure and reclassification, not enforcement.</div>
       <div id="led-rows"></div>
 
       <div class="footer-note">
-        CHAIN VERIFIED AGAINST CENTER-ORIGIN ${kernel.CENTER} · CREATOR-ID ${kernel.CREATOR_ID} ·
+        CHAIN VERIFIED AGAINST CENTER-ORIGIN ${HOS.CENTER} · CREATOR-ID ${HOS.CREATOR_ID_FORMULA} ·
         LOGGING TAMPERING IS A CLASSIFIED THREAT VECTOR; THIS LEDGER IS THE MITIGATION.
       </div>`;
 
@@ -489,14 +518,46 @@ Duty violations activate exposure and reclassification, not enforcement.</div>
     const rowsHost = body.querySelector("#led-rows");
 
     const drawRows = () => {
-      const rows = kernel.ledger.slice().reverse().filter(r => filter === "all" || r.severity === filter);
-      rowsHost.innerHTML = rows.map(r => `
-        <div class="ledger-row">
-          <div class="ts">${r.ts.replace("T", " ").slice(0, 19)}</div>
-          <div><span class="sev ${r.severity}">${r.severity.toUpperCase()}</span></div>
-          <div class="ev">${r.event}<div style="color:var(--text-faint);margin-top:2px">declared-phase: ${r.declaredPhase} · prev: ${r.prevHash}</div></div>
-          <div class="hash">${r.hash}</div>
-        </div>`).join("") || `<p class="body">No entries match this filter.</p>`;
+      const rows = HOS.getLedger().slice().reverse().filter(r => filter === "all" || r.severity === filter);
+      rowsHost.replaceChildren();
+      if (!rows.length) {
+        const empty = document.createElement("p");
+        empty.className = "body";
+        empty.textContent = "No entries match this filter.";
+        rowsHost.appendChild(empty);
+        return;
+      }
+
+      rows.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "ledger-row";
+
+        const timestamp = document.createElement("div");
+        timestamp.className = "ts";
+        timestamp.textContent = String(r.ts).replace("T", " ").slice(0, 19);
+
+        const severityCell = document.createElement("div");
+        const severity = document.createElement("span");
+        severity.className = "sev " + r.severity;
+        severity.textContent = String(r.severity).toUpperCase();
+        severityCell.appendChild(severity);
+
+        const event = document.createElement("div");
+        event.className = "ev";
+        event.textContent = r.event;
+        const metadata = document.createElement("div");
+        metadata.style.color = "var(--text-faint)";
+        metadata.style.marginTop = "2px";
+        metadata.textContent = `declared-phase: ${r.declaredPhase} · prev: ${r.prevHash}`;
+        event.appendChild(metadata);
+
+        const hash = document.createElement("div");
+        hash.className = "hash";
+        hash.textContent = r.hash;
+
+        row.append(timestamp, severityCell, event, hash);
+        rowsHost.appendChild(row);
+      });
     };
 
     body.querySelectorAll("#led-filters [data-sev]").forEach(b => {
@@ -507,7 +568,7 @@ Duty violations activate exposure and reclassification, not enforcement.</div>
     });
 
     drawRows();
-    kernel.on("state", () => { if (document.body.contains(body)) drawRows(); });
+    HOS.subscribe("ledger", () => { if (document.body.contains(body)) drawRows(); });
   }
 });
 

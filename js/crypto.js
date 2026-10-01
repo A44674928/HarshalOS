@@ -1,11 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════
    HarshalOS — cryptographic schema
-   All digests and keyed attestations in the system flow through
-   this module. Nothing else computes "hashes".
+   All integrity digests and the browser-local demo HMAC flow through
+   this module. The demo HMAC is not authentication. Nothing else computes
+   integrity hashes.
 
      · SHA-256     — PDH Declaration-Hash, PLV ledger chain,
                      Symbolic Firewall containment seals
-     · HMAC-SHA256 — Human Key attestation (keyed, per-attestation)
+     · HMAC-SHA256 — local Human Key demo tag only (not authentication)
 
    Backend: Web Crypto (SubtleCrypto) first — the platform's
    cryptographic primitive. A deterministic pure-JS SHA-256

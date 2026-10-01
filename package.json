@@ -4,7 +4,16 @@
   "scripts": {
     "dev": "npm run prepare:assets && wrangler dev --ip 0.0.0.0",
     "deploy": "npm run prepare:assets && wrangler deploy",
-    "test:cloud": "node --test scripts/cloud-test.mjs",
+    "test": "node --test tests/*-test.mjs",
+    "test:kernel": "node --test tests/kernel-api-test.mjs tests/session-receipt-test.mjs",
+    "test:engine": "node --test tests/g0-engine-test.mjs",
+    "test:research": "node --test tests/g0-research-test.mjs",
+    "test:app": "node --test tests/g0-app-test.mjs tests/g0-desktop-test.mjs tests/g0-storage-race-test.mjs tests/guided-demo-test.mjs",
+    "test:llm": "node --test tests/llm-test.mjs tests/llm-authority-test.mjs",
+    "test:cloud": "node --test tests/cloud-test.mjs",
+    "test:red-team": "node --test tests/red-team-test.mjs",
+    "test:layout": "node --test tests/repository-layout-test.mjs",
+    "integrity": "node scripts/integrity-report.mjs",
     "prepare:assets": "node scripts/prepare-assets.mjs",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run"
   },

@@ -23,7 +23,7 @@
 <meta name="twitter:description" content="Legitimacy precedes capability. Refusal is intelligence.">
 <meta name="twitter:image" content="https://main.empty.domains/assets/og-card.png">
 
-<link rel="stylesheet" href="css/os.css">
+<link rel="stylesheet" href="css/os.css?v=2026-09-30a">
 <link rel="stylesheet" href="css/ground0.css">
 
 <!-- Favicon: URL-encoded SVG + PNG fallback -->
@@ -61,19 +61,23 @@
 
   <!-- ══════════════ BOOT SEQUENCE ══════════════ -->
   <div id="boot" class="boot">
-    <img id="boot-eye" class="boot-eye" src="assets/eye-open-close-hq.gif" alt="" width="1920" height="1080" draggable="false" aria-hidden="true">
-    <pre id="boot-log" class="boot-log"></pre>
-    <p class="boot-tagline">
-      HarshalOS is an accountability-gated operating system for AI governance:
-      a system that must earn permission before it acts.
-    </p>
-    <nav class="boot-links" aria-label="Quick links">
-      <a href="about.html">Overview ▸</a>
-      <a href="https://github.com/A44674928/HarshalOS">GitHub</a>
-      <!-- Book and Contact links pending final URLs
-      <a href="">Book</a>
-      <a href="">Contact</a> -->
-    </nav>
+    <div class="boot-intro">
+      <p class="boot-tagline">
+        HarshalOS is an accountability-gated operating system for AI governance:
+        a system that must earn permission before it acts.
+      </p>
+      <nav class="boot-links" aria-label="Quick links">
+        <a href="about.html">Overview ▸</a>
+        <a href="https://github.com/A44674928/HarshalOS">GitHub</a>
+        <!-- Book and Contact links pending final URLs
+        <a href="">Book</a>
+        <a href="">Contact</a> -->
+      </nav>
+    </div>
+    <div class="boot-animation">
+      <img id="boot-eye" class="boot-eye" src="assets/eye-open-close-hq.gif" alt="" width="1920" height="1080" draggable="false" aria-hidden="true">
+      <pre id="boot-log" class="boot-log"></pre>
+    </div>
     <button id="boot-skip" class="boot-skip" type="button">skip ▸</button>
   </div>
 
@@ -89,13 +93,13 @@
     <div class="hud-center">
       <div id="hud-phase" class="hud-chip phase-chip"></div>
       <div id="hud-key" class="hud-chip key-chip"></div>
-      <div class="hud-chip L-chip" title="L(t) = H(t) × f(A(t), R(t), S(t)) — threshold τ is absolute">
+      <div class="hud-chip L-chip" title="DEMO SIMULATION — L(t) models a gate; it is not production authorization">
         <span class="chip-label">L(t)</span>
         <span id="hud-L" class="mono">0.00</span>
         <span class="L-bar"><span id="hud-L-fill" class="L-fill"></span></span>
         <span class="mono chip-tau">τ 0.50</span>
       </div>
-      <div id="hud-dt" class="hud-chip mono" title="Δt since last human liveness verification / δ maximum acceptable delay">Δt — / δ 240s</div>
+      <div id="hud-dt" class="hud-chip mono" title="Demo timer only — elapsed browser time since the public phrase; not verified human liveness">Δt demo — / δ 240s</div>
     </div>
     <div class="hud-right">
       <div id="hud-firewall" class="hud-chip firewall-chip" title="Symbolic Firewall: narrative and mythic expressions are strictly non-executable">◆ SYMBOLIC FIREWALL</div>
@@ -108,10 +112,10 @@
     <div class="void-inner">
       <span class="void-sigil">∅</span>
       <div>
-        <strong id="void-title">LEGITIMACY EXPIRED — MATHEMATICALLY VOID</strong>
-        <div id="void-msg" class="void-msg">L(t) = 0. The default state of the system is refusal. Re-attest the Human Key to proceed.</div>
+        <strong id="void-title">DEMO GATE EXPIRED — MATHEMATICALLY VOID</strong>
+        <div id="void-msg" class="void-msg">The local simulation timer expired. No production Human Key or production authorization is configured.</div>
       </div>
-      <button id="void-reattest" class="btn btn-gold" type="button">RE-ATTEST HUMAN KEY</button>
+      <button id="void-reattest" class="btn btn-gold" type="button">OPEN DEMO HUMAN KEY</button>
     </div>
   </div>
 
@@ -157,24 +161,27 @@
   <!-- ══════════════ TOASTS ══════════════ -->
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
-  <script defer src="js/data.js?v=2026-09-30g"></script>
-  <script defer src="js/ocm-data.js?v=2026-09-30g"></script>
-  <script defer src="js/crypto.js?v=2026-09-30g"></script>
-  <script defer src="js/kernel.js?v=2026-09-30g"></script>
-  <script defer src="js/g0-engine.js?v=2026-09-30cloud1"></script>
+  <script defer src="js/data.js?v=2026-09-30i"></script>
+  <script defer src="js/ocm-data.js?v=2026-09-30h"></script>
+  <script defer src="js/crypto.js?v=2026-09-30h"></script>
+  <script defer src="js/kernel.js?v=2026-09-30o"></script>
+  <script defer src="js/g0-engine.js?v=2026-09-30cloud2"></script>
   <script defer src="js/g0-research.js?v=2026-09-30g"></script>
   <script defer src="js/llm.js?v=2026-09-30g"></script>
   <script defer src="js/g0-llm.js?v=2026-09-30g"></script>
-  <script defer src="js/wm.js?v=2026-09-30g"></script>
-  <script defer src="js/apps-core.js?v=2026-09-30g"></script>
-  <script defer src="js/apps-shell.js?v=2026-09-30g"></script>
-  <script defer src="js/g0-app.js?v=2026-09-30g"></script>
+  <script defer src="js/wm.js?v=2026-09-30l"></script>
+  <script defer src="js/apps-core.js?v=2026-09-30o"></script>
+  <script defer src="js/apps-shell.js?v=2026-09-30m"></script>
+  <script defer src="js/apps-adversarial.js?v=2026-09-30a"></script>
+  <script defer src="js/guided-demo.js?v=2026-09-30b"></script>
+  <script defer src="js/apps-guided-demo.js?v=2026-09-30c"></script>
+  <script defer src="js/g0-app.js?v=2026-09-30j"></script>
   <script defer src="js/orb-flame.js?v=2026-09-30g"></script>
-  <script defer src="js/apps-ocm.js?v=2026-09-30g"></script>
+  <script defer src="js/apps-ocm.js?v=2026-09-30h"></script>
   <script defer src="js/flame.js?v=2026-09-30g"></script>
   <script defer src="js/apps-flame.js?v=2026-09-30g"></script>
   <script defer src="js/apps-llm.js?v=2026-09-30g"></script>
-  <script defer src="js/apps-cloud.js?v=2026-09-30cloud1"></script>
-  <script defer src="js/boot.js?v=2026-09-30g"></script>
+  <script defer src="js/apps-cloud.js?v=2026-09-30cloud2"></script>
+  <script defer src="js/boot.js?v=2026-09-30j"></script>
 </body>
 </html>

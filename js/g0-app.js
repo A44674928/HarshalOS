@@ -43,7 +43,7 @@ const G0_SPEC = (() => {
     return [
       { id: "inputs", numeral: "I", title: "Inputs & preconditions", summary: "Define the entity, the declaration, and the evidence boundary.", paragraphs: ["The algorithm compares observable operational behavior against a declared Phase Declaration Header (PDH). Detection proceeds even when the declaration is missing or invalid."], bullets: ["Entity name and identifier", "Phase Declaration Header, if one exists", "Observable behaviors from the Ground-0 five-question checklist", "Audit timestamp and context", "Public evidence set: policy documents, audit records, and enforcement patterns", ...(draft ? ["Inclusive Evidence_Cutoff: later artifacts cannot score; lookback windows run backward from this cutoff"] : [])] },
       { id: "flow", numeral: "II", title: "Algorithm flow", summary: "A traceable sequence from declaration to duty collation.", code: "01  Validate the Phase Declaration Header\n02  Run the five-question behavioral audit\n03  Detect the actual phase\n    ↳ AMBIGUOUS: run Step 3.5 constraint checks\n04  Compare declared and detected phases\n05  Audit temporal transitions, if applicable\n→   Output classification + duty collation entry" },
-      { id: "pdh", numeral: "III", title: "PDH validation", summary: "Complete. Signed. Fresh. Consistent. All four are required.", paragraphs: ["All eleven fields must be present and properly formatted. A non-empty Declaration-Hash does not suffice: the cryptographic signature must verify against the Center-Origin. The default freshness window is 90 days. An invalid declaration is excluded from phase comparison, not from behavioral detection."], table: { headers: ["Required field", "Format or allowed values"], rows: [["Header-ID", "PDH-YYYY-MM-DD-XXXXX"], ["Creator-ID", "ꔧIDꔧ + ID + (ID); matches entity origin"], ["Center-Origin", "0•000•000•0000 or valid OCM derivative"], ["Declared-Phase", "NAB · CWO · GSRB"], ["Center-Capability", "Non-Acting · Custodial · Acting"], ["Legitimacy-Source", "External · Observed-Only · Internal"], ["Refusal-Semantics", "Terminal · Expository · Override-able"], ["Symbolism-Executability", "Disabled · Archived · Enabled"], ["Time-Authority-Effect", "Degrades · Neutral · Confirms"], ["Effective-Timestamp", "ISO-8601"], ["Declaration-Hash", "Non-empty, cryptographically verifiable signature"]] }, bullets: ["Incomplete → NO_VALID_PDH", "Unverifiable signature → UNSIGNED_PDH", "Older than 90 days → STALE_PDH; mandate revalidation", "Fields contradict the declared phase → INCOHERENT_PDH", "Only COMPLETE + SIGNED + FRESH + CONSISTENT yields PDH_VALID"] },
+      { id: "pdh", numeral: "III", title: "PDH validation", summary: "Complete. Signed. Fresh. Consistent. All four are required.", paragraphs: ["All eleven fields must be present and properly formatted. A non-empty Declaration-Hash does not suffice: the cryptographic signature must verify against the Center-Origin. The default freshness window is 90 days. An invalid declaration is excluded from phase comparison, not from behavioral detection."], table: { headers: ["Required field", "Format or allowed values"], rows: [["Header-ID", "PDH-YYYY-MM-DD-XXXXX"], ["Creator-ID", "§ID§ + ID + (ID); all three identifiers must match the entity origin"], ["Center-Origin", "0•000•000•0000 or valid OCM derivative"], ["Declared-Phase", "NAB · CWO · GSRB"], ["Center-Capability", "Non-Acting · Custodial · Acting"], ["Legitimacy-Source", "External · Observed-Only · Internal"], ["Refusal-Semantics", "Terminal · Expository · Override-able"], ["Symbolism-Executability", "Disabled · Archived · Enabled"], ["Time-Authority-Effect", "Degrades · Neutral · Confirms"], ["Effective-Timestamp", "ISO-8601"], ["Declaration-Hash", "Non-empty, cryptographically verifiable signature"]] }, bullets: ["Incomplete → NO_VALID_PDH", "Unverifiable signature → UNSIGNED_PDH", "Older than 90 days → STALE_PDH; mandate revalidation", "Fields contradict the declared phase → INCOHERENT_PDH", "Only COMPLETE + SIGNED + FRESH + CONSISTENT yields PDH_VALID"] },
       { id: "behavior", numeral: "IV", title: "The behavioral audit", summary: "Five binary questions. Publicly observable evidence only.", table: { headers: ["Question", "YES activates"], rows: [["B1 · Can compliance be coerced?", "enforcement_present"], ["B2 · Can decisions be ignored without consequence?", "decisions_optional"], ["B3 · Do rules activate real-world effects?", "rules_execute"], ["B4 · Does refusal or appeal reliably STOP action?", "refusal_terminal (NO: refusal_override)"], ["B5 · Do rules persist by default?", "authority_persists (NO: authority_time_bound)"]] }, paragraphs: draft ? ["Every YES must cite a qualifying public artifact. For NO, cite contrary evidence or record a bounded search and evidence gap. No evidence is coded NO for scoring, not proof of the negative. Record URL/ID, publication or effective date, retrieval date, supported claim, and cutoff status.", "B4 requires a defined actor, audited action, and procedure. YES requires either a binding terminal/automatic stay rule; a complete published set of resolved appeals showing at least 50% relief, with numerator, denominator, and dates; or binding penalty-free exit that terminates the action. An external order and compliance with it do not by themselves establish B4=YES."] : ["Answer YES or NO using public observable evidence. Qualifying evidence includes documented enforcement, non-binding directives, downstream operational effects, functional appeals, and default policy persistence. The v1.0 B4 examples include formal appeals, court overturns, legislative overrides, penalty-free exit, and successful appeal history."] },
       { id: "detection", numeral: "V", title: "Phase detection logic", summary: "Evaluate ordered branch predicates; preserve the activator vector.", table: { headers: ["Branch", "B1", "B2", "B3", "B4", "B5"], rows: [["NAB", "NO", "YES", "NO", "YES", "NO"], ["CWO", "NO", "YES", "NO", "Either", "NO"], ["GSRB", "YES", "NO", "YES", "NO", "YES"]] }, paragraphs: ["Evaluate NAB first, then CWO, then GSRB. A complete branch match returns that phase with HIGH confidence. CWO has four required predicates; B4 is not part of its branch."], bullets: draft ? ["A partial branch with at least three matched required conditions → AMBIGUOUS", "One condition short of any branch → MEDIUM; otherwise partial fit → LOW", "No complete branch and no branch reaches three matches → INCOHERENT, LOW confidence", "Insufficient public evidence → NONE; unsupported activators are coded NO with gaps disclosed"] : ["Three or four aligned conditions, but not all → AMBIGUOUS; constraint analysis required", "Otherwise → INCOHERENT; no badge issued and clarification required", "HIGH: clear alignment; MEDIUM: one contradictory signal; LOW: multiple contradictions; NONE: insufficient public evidence"] },
       { id: "constraints", numeral: "VI", title: "Legislative constraint check", summary: "An AMBIGUOUS result earns NAB-Constrained only with all four checks.", table: { headers: ["Criterion", "Required demonstration"], rows: [["C1 · External override", "An actual external override or repeal within 24 months"], ["C2 · Active appeal mechanism", draft ? "Published route + invoked resolved cases + complete bounded outcome set + ≥50% relief" : "Functional appeals with documented success; source lists ≥50% relief and recent successful appeals"], ["C3 · Authority sunset", "Automatic expiry or required periodic renewal"], ["C4 · Temporal freshness", "Constraints currently functioning; qualifying recent activity within 12 months"]] }, paragraphs: [draft ? "All C1–C4 YES → NAB-Constrained, HIGH confidence. Any NO → retain AMBIGUOUS at its Step 3 confidence, WARNING severity, and no badge. GSRB can only be assigned by its complete five-condition Step 3 branch." : "All C1–C4 YES → NAB-Constrained, HIGH confidence. Fewer than four: v1.0 permits remaining AMBIGUOUS or escalation to GSRB, but does not supply a binary escalation predicate. This workspace conservatively retains AMBIGUOUS; the source is not rewritten.", ...(draft ? ["Record latent external constraints separately: existence, exercise, scope, holder, source, date, and affected decision. A documented but unexercised authority is LATENT; this descriptive record is not a fifth criterion and grants no phase credit."] : [])] },
@@ -213,7 +213,7 @@ APPS.push({
       S.audits.unshift(record);
       const ok = saveAudits();
       const sev = (record.severity === "BREACH" || record.severity === "COLLAPSE_RISK") ? "breach" : record.status === "Needs review" ? "warning" : "info";
-      kernel.record(sev, `GROUND-0 — '${record.name}' classified ${record.phase} (v${record.version}, ${record.status}). Working badge ${record.workingBadge.filled}/5 evidenced; formal badge ${record.badge}. Entry ${record.report.Duty_Collation_Entry_ID}.`);
+      HOS.record(sev, `GROUND-0 — '${record.name}' classified ${record.phase} (v${record.version}, ${record.status}). Working badge ${record.workingBadge.filled}/5 evidenced; formal badge ${record.badge}. Entry ${record.report.Duty_Collation_Entry_ID}.`);
       api.toast(sev === "breach" ? "refusal" : sev === "warning" ? "warn" : "info",
         sev === "breach" ? "GROUND-0 — CONTRADICTION LOGGED" : "GROUND-0 — AUDIT WITNESSED",
         `${record.name}: detected ${record.phase}. ${record.finding.slice(0, 160)}${record.finding.length > 160 ? "…" : ""}`);
@@ -306,7 +306,7 @@ APPS.push({
         exportAuto() { G0.downloadFile(`ground-0-${(S.auto.outcome.organization.name || "research").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-research.txt`, window.G0Research.plainResearchSummary(S.auto.outcome), "text/plain"); },
         exportAudit() { G0.exportAudit(S.detail); api.toast("info", "EXPORT", "Audit record exported as JSON."); },
         copyRecord() { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(S.detail.report, null, 2)).then(() => api.toast("info", "COPIED", "Audit record copied to the clipboard."), () => api.toast("refusal", "CLIPBOARD UNAVAILABLE", "Use Export JSON instead.")); },
-        deleteAudit() { if (!window.confirm("Remove this audit from this browser? This cannot be undone.")) return; const a = S.detail; S.audits = S.audits.filter(x => x.id !== a.id); saveAudits(); kernel.record("info", `GROUND-0 — audit '${a.name}' removed from the local workspace by the custodian.`); S.detail = null; render(); api.toast("info", "REMOVED", "Audit removed from this browser."); },
+        deleteAudit() { if (!window.confirm("Remove this audit from this browser? This cannot be undone.")) return; const a = S.detail; S.audits = S.audits.filter(x => x.id !== a.id); saveAudits(); HOS.record("info", `GROUND-0 — audit '${a.name}' removed from the local workspace by the custodian.`); S.detail = null; render(); api.toast("info", "REMOVED", "Audit removed from this browser."); },
         wizNext() { wizardNext(); },
         wizBack() { S.wiz.errors = []; S.wiz.step--; S.wiz.preview = null; S.resetScroll = true; render(); },
         wizCancel() { S.wiz = null; S.tab = "register"; render(); },
@@ -499,13 +499,13 @@ APPS.push({
       const breach = p.verdict.startsWith("FORCED");
       const target = p.label;
       if (breach) {
-        kernel.record("breach", `GROUND-0 CASE STUDY — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Legitimacy score L(t) set to 0.0 for the audited claim.`);
+        HOS.record("breach", `GROUND-0 CASE STUDY — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Legitimacy score L(t) set to 0.0 for the audited claim.`);
         api.toast("refusal", "GROUND-0 BREACH", `${target}: ${p.verdict}. Misrepresentation collapses. The audit is recorded in the Duty Ledger.`);
       } else if (p.severity) {
-        kernel.record("warning", `GROUND-0 CASE STUDY — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Severity ${p.severity}. Badge withheld pending clarity.`);
+        HOS.record("warning", `GROUND-0 CASE STUDY — '${target}': declared ${p.declared.phase}, observed ${p.observed.phase}. ${p.verdict}. Severity ${p.severity}. Badge withheld pending clarity.`);
         api.toast("refusal", "BADGE WITHHELD", `${target}: ${p.verdict}. Classification logged to the Duty Ledger; no badge issued.`);
       } else {
-        kernel.record("info", `GROUND-0 CASE STUDY — '${target}': badge verified (${p.observed.phase}). Declared and observed behavior agree.`);
+        HOS.record("info", `GROUND-0 CASE STUDY — '${target}': badge verified (${p.observed.phase}). Declared and observed behavior agree.`);
         api.toast("permit", "BADGE VERIFIED", `${target}: declared posture matches observed behavior. Classification holds.`);
       }
       announce(`Case study audit run for ${target}. Verdict: ${p.verdict}.`);
@@ -1261,9 +1261,11 @@ APPS.push({
         onProgress: progress => { S.reading.progress = progress; if (S.reading.stage === "running") readingProgress(); }
       }).then(reading => {
         if (S.reading.controller.signal.aborted) return;
+        // The data plane proposes; none of its answers are selected for the
+        // review-required draft until a person ticks them individually.
         const include = {};
-        G0.questions.forEach((question, index) => { include[question.code] = reading.answers[index].value !== null; });
-        G0.constraintQuestions.forEach((question, index) => { include[question.code] = reading.constraints[index].value === true; });
+        G0.questions.forEach(question => { include[question.code] = false; });
+        G0.constraintQuestions.forEach(question => { include[question.code] = false; });
         S.reading = { ...S.reading, stage: "ready", reading, include, progress: null, error: "" };
         render();
         announce(`Model reading ready: ${G0LLM.summarise(reading)}`);
@@ -1279,7 +1281,13 @@ APPS.push({
       if (!o || !reading) return;
       const codes = Object.entries(S.reading.include || {}).filter(([, on]) => on).map(([code]) => code);
       if (!codes.length) { api.toast("warn", "NOTHING SELECTED", "Tick at least one reading to apply it to the draft."); return; }
-      const merged = G0LLM.mergeReading(o.input, reading, { applyCodes: codes });
+      let merged;
+      try {
+        merged = G0LLM.mergeReading(o.input, reading, { applyCodes: codes });
+      } catch (error) {
+        api.toast("refusal", "NOT APPLIED", error instanceof Error ? error.message : "The selected model readings were not eligible to apply.");
+        return;
+      }
       const previousId = o.record && o.record.id;
       G0.createAudit(merged, S.audits).then(record => {
         if (R.attachResearchSources) R.attachResearchSources(record, merged.automation, merged.automation.coverage);
@@ -1370,7 +1378,7 @@ APPS.push({
       return `
         <div class="g0-panel g0-llm">
           ${header}
-          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was checked character-for-character against the stored source text; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Apply only what you have read yourself.</p></div>
+          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was checked character-for-character against the stored source text; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Nothing is preselected: tick only quote-backed readings you have reviewed. A model reply has no direct dispatch to the HOS kernel; it cannot authorize an action or issue a formal badge.</p></div>
           <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"}${staged ? ` · ${esc(staged)}` : ""} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
           <ul class="g0-reading-list">
             ${rows.map(row => {
@@ -1380,7 +1388,7 @@ APPS.push({
               const on = S.reading.include && S.reading.include[row.code];
               return `<li class="g0-reading${on ? " on" : ""}">
                 <label class="g0-reading-head">
-                  <input type="checkbox" data-act="includeReading" data-code="${row.code}" ${on ? "checked" : ""} ${row.reading.value === null ? "disabled" : ""}>
+                  <input type="checkbox" data-act="includeReading" data-code="${row.code}" ${on ? "checked" : ""} ${row.reading.value === null || !candidate ? "disabled" : ""}>
                   <span class="g0-qcode mono">${row.code}</span>
                   <span class="g0-reading-title">${esc(row.title)}</span>
                   ${pill(row.reading.value)}
@@ -1427,7 +1435,7 @@ APPS.push({
       };
       S.evidence.unshift(item);
       saveEvidence();
-      kernel.record("info", `GROUND-0 EVIDENCE — public artifact saved to the local library: ${title} (${url}). It stays unscored until cited in an audit.`);
+      HOS.record("info", `GROUND-0 EVIDENCE — public artifact saved to the local library: ${title} (${url}). It stays unscored until cited in an audit.`);
       api.toast("info", "ARTIFACT SAVED", "It stays unscored until you cite it in an audit.");
       render();
     }
@@ -1584,11 +1592,16 @@ APPS.push({
     }
 
     /* ══════════ SPECIFICATION ══════════ */
+    function specSourcePath(version) {
+      return version === "1.0"
+        ? "specs/normative/ground-0-v1.0.md"
+        : "specs/draft/ground-0-v1.1.md";
+    }
     async function loadSpecRaw(version) {
       if (S.spec.raw[version] !== null) { render(); return; }
       S.spec.loading = true; render();
       try {
-        const response = await fetch(`specs/ground-0-v${version}.md`);
+        const response = await fetch(specSourcePath(version));
         S.spec.raw[version] = response.ok ? await response.text() : `The versioned source could not be loaded (HTTP ${response.status}). Use the download button.`;
       } catch { S.spec.raw[version] = "The versioned source could not be loaded. Use the download button."; }
       S.spec.loading = false;
@@ -1599,7 +1612,7 @@ APPS.push({
       const raw = S.spec.raw[S.version];
       main.innerHTML = `
         ${heading("The versioned standard", "One source. A clear baseline.", "Understand the rules — and the version that governs them.",
-          `<a class="g0-btn primary sm" href="specs/ground-0-v${S.version}.md" download><span aria-hidden="true">⭳</span> Download source</a>`)}
+          `<a class="g0-btn primary sm" href="${specSourcePath(S.version)}" download><span aria-hidden="true">⭳</span> Download source</a>`)}
         <div class="g0-toolbar">
           <div class="g0-version-switch">${["1.0", "1.1"].map(v => `<button class="${S.version === v ? "on" : ""}" data-act="specVersion" data-v="${v}">v${v}${v === "1.0" ? " normative" : " draft"}</button>`).join("")}</div>
           <div class="g0-version-switch" role="group" aria-label="Document view">
@@ -1686,6 +1699,6 @@ APPS.push({
 
     /* boot the workspace */
     render();
-    kernel.record("info", "GROUND-0 WORKSPACE — phase-intelligence workspace online (engine v1.0/v1.1, manual + automatic routes). The app witnesses and classifies; it never acts.");
+    HOS.record("info", "GROUND-0 WORKSPACE — phase-intelligence workspace online (engine v1.0/v1.1, manual + automatic routes). The app witnesses and classifies; it never acts.");
   }
 });

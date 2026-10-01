@@ -27,6 +27,30 @@
 "use strict";
 
 window.HOSLLM = (() => {
+  // An LLM response is evidence-shaped text only. This layer receives no
+  // kernel capability and never dispatches model tools or executable output.
+  const AUTHORITY_PLANE = Object.freeze({
+    name: "DATA-ONLY",
+    modelOutputTrust: "UNTRUSTED",
+    kernelCapability: false,
+    phaseWriteCapability: false,
+    sessionWriteCapability: false,
+    actionAuthorizationCapability: false,
+    badgeIssuanceCapability: false,
+    codeExecution: false,
+    humanReviewRequired: true
+  });
+  const dataOnlyResult = fields => {
+    const metadata = { ...fields };
+    if (metadata.usage && typeof metadata.usage === "object") metadata.usage = Object.freeze({ ...metadata.usage });
+    return Object.freeze({
+      ...metadata,
+      authorityPlane: AUTHORITY_PLANE.name,
+      trustedForAuthority: false,
+      executable: false
+    });
+  };
+
   const SETTINGS_KEY = "hos-llm-settings-v1";
   const KEY_SESSION = "hos-llm-key";
   const KEY_PERSIST = "hos-llm-key-persistent";
@@ -111,6 +135,8 @@ window.HOSLLM = (() => {
       note: "Any OpenAI-compatible or Anthropic-compatible endpoint, including a self-hosted gateway. Choose the protocol that matches it and enter the full URL."
     }
   };
+  Object.values(PROVIDERS).forEach(provider => Object.freeze(provider));
+  Object.freeze(PROVIDERS);
 
   /* ──────────────────────────────────────────────────────────────
      Settings + key storage
@@ -683,25 +709,25 @@ window.HOSLLM = (() => {
       const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
       const text = rawText || (Array.isArray(parts) ? parts.filter(part => part && typeof part.text === "string").map(part => part.text).join("") : "");
       const usage = data && (data.usageMetadata || data.usage) || {};
-      return {
+      return dataOnlyResult({
         text,
         model: (data && (data.model || data.modelVersion)) || "",
         usage: {
           input: Number(usage.promptTokenCount ?? usage.total_input_tokens ?? usage.input_tokens) || 0,
           output: Number(usage.candidatesTokenCount ?? usage.total_output_tokens ?? usage.output_tokens) || 0
         }
-      };
+      });
     }
     if (provider.protocol === "anthropic") {
       const blocks = Array.isArray(data && data.content) ? data.content.filter(block => block && block.type === "text" && typeof block.text === "string") : [];
       const text = blocks.map(block => block.text).join("");
-      return { text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && data.usage.input_tokens) || 0, output: Number(data && data.usage && data.usage.output_tokens) || 0 } };
+      return dataOnlyResult({ text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && data.usage.input_tokens) || 0, output: Number(data && data.usage && data.usage.output_tokens) || 0 } });
     }
     const choice = data && Array.isArray(data.choices) ? data.choices[0] : null;
     const message = choice && choice.message ? choice.message : null;
     const raw = message ? message.content : "";
     const text = typeof raw === "string" ? raw : Array.isArray(raw) ? raw.map(part => typeof part === "string" ? part : (part && typeof part.text === "string" ? part.text : "")).join("") : "";
-    return { text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } };
+    return dataOnlyResult({ text, model: (data && data.model) || "", usage: { input: Number(data && data.usage && (data.usage.prompt_tokens ?? data.usage.input_tokens)) || 0, output: Number(data && data.usage && (data.usage.completion_tokens ?? data.usage.output_tokens)) || 0 } });
   }
 
   /* One call. No hidden prompts: what the caller passes is what the model
@@ -748,7 +774,7 @@ window.HOSLLM = (() => {
               if (!parsed.text.trim()) throw new LlmError("Google returned no text. The model may have refused the request or reached its output limit.", { kind: "provider", hint: "Retry, lower the reading batch size, or raise the output-token ceiling." });
               activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
               activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
-              return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens };
+              return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens });
             } catch (error) {
               if (controller.signal.aborted) throw abortReason(controller.signal);
               if (error instanceof LlmError) throw error;
@@ -874,7 +900,7 @@ window.HOSLLM = (() => {
       activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
       /* The ceiling this call was actually sent with, which is what a provider
          bills against — not necessarily the ceiling that was asked for. */
-      return { text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved: sentCeiling, shrunk: sentCeiling < maxTokens };
+      return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved: sentCeiling, shrunk: sentCeiling < maxTokens });
     } catch (error) {
       if (!(error && error.name === "AbortError")) activity.failures++;
       throw error;
@@ -891,7 +917,7 @@ window.HOSLLM = (() => {
       user: "Reply with exactly these five words and nothing else: link established, model responding",
       maxTokens: 40, temperature: 0, signal, timeoutMs, model: config.model
     });
-    return { ok: true, ms: result.ms, model: result.model, sample: result.text.trim().slice(0, 120), usage: result.usage, provider: config.provider, label: config.label, browser: config.browser };
+    return dataOnlyResult({ ok: true, ms: result.ms, model: result.model, sample: result.text.trim().slice(0, 120), usage: result.usage, provider: config.provider, label: config.label, browser: config.browser });
   }
 
   /* ──────────────────────────────────────────────────────────────
@@ -925,7 +951,8 @@ window.HOSLLM = (() => {
     return null;
   }
 
-  return {
+  return Object.freeze({
+    authorityPlane: AUTHORITY_PLANE,
     PROVIDERS, LlmError, GOOGLE_GENAI_SDK_VERSION, GOOGLE_GENAI_SDK_URL,
     loadSettings, saveSettings, resolved, preset, status,
     setKey, clearKey, apiKey, keyStorage, keyHint, redact, looksLikeKey,
@@ -933,5 +960,5 @@ window.HOSLLM = (() => {
     applyAuth, buildRequest, readResponse, googleModelsClientRows,
     tokenCeiling, clearCeiling, learnCeiling, parseBudget, affordableTokens,
     _setGoogleSDKLoaderForTests: setGoogleSDKLoaderForTests
-  };
+  });
 })();

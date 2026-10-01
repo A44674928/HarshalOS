@@ -110,7 +110,7 @@ const DATA = (() => {
     ["Governance & Resilience Layer (GRL)", "An accessory system that enforces external constraints on AI behavior, ensuring symbolic language is non-executable and actions are human-attributable."],
     ["Ground-0", "The baseline reconstruction standard and audit methodology. Claims are reduced to atomic, testable statements with narrative dependency removed; phase is determined by observed behavior, not declared intent."],
     ["Harshal's English", "The specific linguistic syntax required for interpreting the system's logic and preventing “neurojacking.”"],
-    ["Human Key", "The verifiable, conscious intent of the human host or operator. The only valid authorization for a system to transition from a passive state to an active one."],
+    ["Human Key", "Framework concept for externally attributable human authorization. The current HarshalOS browser demo only simulates a local marker; it does not verify identity, liveness, consent, consciousness, or biological coupling."],
     ["Immediate", "The requirement for zero-latency response when a stopping condition is met. No grace period, no finishing of current tasks. The halt is instantaneous."],
     ["Interaction Orb", "A persistent relational structure created when elements enter a constraint-violating correlation, used in non-additive communication."],
     ["Legitimacy", "The condition under which authority is justified and recognized. Legitimacy is granted, maintained, and withdrawn; it does not emerge automatically."],
@@ -167,7 +167,7 @@ const DATA = (() => {
       name: "WhyYtterbium",
       legend: "95°–97° — Signal Processing to Control Systems",
       class: "read",
-      def: "Provides resonant signaling precision for why.query. Acts as the metronome for liveness attestation, ensuring the temporal integrity of the inquiry."
+      def: "Provides resonant signaling precision for why.query. In this browser demo it labels the local timer; it does not measure human liveness or independently assure temporal integrity."
     },
     "WhyTechnetium": {
       name: "WhyTechnetium",
@@ -209,7 +209,7 @@ const DATA = (() => {
       name: "TheWhy",
       legend: "360° — Return to Origin",
       class: "read",
-      def: "Primary Layer 1 Normative Constraint: “Is action permitted at all?” A 'Why' query does not create authority but validates the lineage of intent within a verified, human-bound, and revocable session."
+      def: "Primary Layer 1 Normative Constraint: “Is action permitted at all?” A 'Why' query does not create authority. In this browser demo, session binding is simulated locally and does not establish a verified human-bound session."
     }
   };
 

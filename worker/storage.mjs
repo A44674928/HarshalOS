@@ -2,6 +2,8 @@ export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 export const MAX_BYTES = 4 * 1024 * 1024;
+export const CREATOR_ID_FORMULA = '§HARSHAL§ + HARSHAL + (HARSHAL)';
+const LEGACY_CREATOR_ID = 'HARSHAL';
 export function validateSnapshot(value) {
   if (!value || !Array.isArray(value.audits) || !Array.isArray(value.evidence) ||
       value.audits.length > 2000 || value.evidence.length > 5000) {
@@ -30,10 +32,16 @@ export async function validateLedger(rows) {
         !['info', 'warning', 'breach', 'collapse', 'permit'].includes(row.severity) ||
         typeof row.event !== 'string' || row.event.length > 20000 || row.prevHash !== prev ||
         !['NAB', 'CWO', 'GSRB'].includes(row.declaredPhase)) throw new ApiError(400, 'Invalid ledger sequence.');
-    const digest = await crypto.subtle.digest('SHA-256', encoder.encode([row.id, row.ts, row.severity, row.event, prev, 'HARSHAL'].join('|')));
-    const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
-    if (row.hash !== hash) throw new ApiError(400, 'Ledger hash mismatch.');
-    prev = hash;
+    const hashFor = async creatorId => {
+      const digest = await crypto.subtle.digest('SHA-256', encoder.encode([row.id, row.ts, row.severity, row.event, prev, creatorId].join('|')));
+      return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    };
+    const currentHash = await hashFor(CREATOR_ID_FORMULA);
+    // Keep already archived pre-notation ledgers appendable. This accepts the
+    // old public hash input only as migration compatibility; it proves no identity.
+    const legacyHash = row.hash === currentHash ? null : await hashFor(LEGACY_CREATOR_ID);
+    if (row.hash !== currentHash && row.hash !== legacyHash) throw new ApiError(400, 'Ledger hash mismatch.');
+    prev = row.hash;
   }
   // Do not retain arbitrary fields supplied by the client.
   return rows.map(({ id, ts, severity, event, declaredPhase, prevHash, hash }) => ({ id, ts, severity, event, declaredPhase, prevHash, hash }));

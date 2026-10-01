@@ -128,7 +128,7 @@ const shell = (() => {
   }
 
   function refreshPdhTags() {
-    const { phase } = kernel.state;
+    const { phase } = HOS.observe();
     windows.forEach(rec => {
       if (rec.pdhTag) {
         rec.pdhTag.textContent = `PDH · ${rec.id.toUpperCase()} · ${
@@ -205,50 +205,54 @@ const shell = (() => {
 
   /* ─────────── HUD ─────────── */
   function updateHud() {
-    const s = kernel.state;
-    const L = kernel.L();
-    const dt = kernel.deltaSeconds();
+    const s = HOS.observe();
+    const L = s.metrics.legitimacy;
+    const dt = s.metrics.deltaSeconds;
     const p = DATA.phases[s.phase];
 
     const phaseChip = $("#hud-phase");
     phaseChip.innerHTML = `<span class="badge-glyph">${p.glyph}</span> ${s.phase} · ${p.badgeTag}`;
 
     const keyChip = $("#hud-key");
-    if (s.H === 1) {
+    if (s.attestation.status === "pending") {
+      keyChip.className = "hud-chip key-chip pending";
+      keyChip.textContent = "DEMO H(t)=0 · PENDING";
+    } else if (s.attestation.status === "active" && !s.attestation.expired) {
       keyChip.className = "hud-chip key-chip attested";
-      keyChip.textContent = "H(t)=1 · HUMAN KEY";
+      keyChip.textContent = "DEMO H(t)=1 · LOCAL";
+    } else if (s.attestation.status === "active") {
+      keyChip.className = "hud-chip key-chip absent";
+      keyChip.textContent = "DEMO H(t)=1 · EXPIRED";
     } else {
       keyChip.className = "hud-chip key-chip absent";
-      keyChip.textContent = "H(t)=0 · KEY ABSENT";
+      keyChip.textContent = `DEMO H(t)=0 · ${s.attestation.status.toUpperCase()}`;
     }
 
     $("#hud-L").textContent = L.toFixed(2);
     $("#hud-L-fill").style.width = Math.round(L * 100) + "%";
     $("#hud-dt").textContent = isFinite(dt)
-      ? `Δt ${Math.min(9999, Math.floor(dt))}s / δ ${kernel.DELTA_MAX}s`
-      : `Δt — / δ ${kernel.DELTA_MAX}s`;
+      ? `demo Δt ${Math.min(9999, Math.floor(dt))}s / δ ${HOS.DELTA_MAX}s`
+      : `demo Δt — / δ ${HOS.DELTA_MAX}s`;
 
     const clock = $("#hud-clock");
     const d = new Date();
     clock.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     $("#tb-phase").textContent = `${p.glyph} ${s.phase}`;
-    $("#tb-session").textContent = `session: ${
-      s.phase === "CWO" ? "witness-only" : s.H === 1 ? (kernel.sessionFresh() ? "attested / fresh" : "stale") : "non-acting"
+    $("#tb-session").textContent = `demo session: ${
+      s.phase === "CWO" ? "witness-only" : s.attestation.status === "pending" ? "attestation pending / non-acting"
+        : s.attestation.status === "active" ? (s.metrics.demoTimerFresh ? "local / fresh" : "local / stale") : "non-acting"
     }`;
 
-    // void banner
+    // Expiry is derived from freshness; it is not a separate stored authority state.
     const banner = $("#void-banner");
-    const shouldShow = s.voidMode || (s.H === 1 && dt >= kernel.DELTA_MAX);
+    const shouldShow = s.attestation.expired;
     if (shouldShow && banner.hidden) {
       banner.hidden = false;
-      $("#void-title").textContent = "LEGITIMACY EXPIRED — MATHEMATICALLY VOID";
-      $("#void-msg").textContent = "Δt ≥ δ. Temporal decay enforced with zero latency. L(t) = 0. The default state of the system is refusal.";
-    } else if (!shouldShow && !banner.hidden && s.H === 1) {
+      $("#void-title").textContent = "DEMO GATE EXPIRED — MATHEMATICALLY VOID";
+      $("#void-msg").textContent = "The local demo timer reached δ. The simulated L(t) = 0; this is not independently verified liveness. Production authentication is unavailable.";
+    } else if (!shouldShow && !banner.hidden) {
       banner.hidden = true;
-    } else if (s.H === 0 && !banner.hidden) {
-      $("#void-title").textContent = "HUMAN KEY ABSENT — MATHEMATICALLY VOID";
-      $("#void-msg").textContent = "H(t) = 0. Legitimacy is gated by the Human Key. Without verifiable conscious human intent, no critical action is permitted.";
     }
 
     refreshPdhTags();
@@ -257,26 +261,33 @@ const shell = (() => {
   /* ─────────── api passed to apps ─────────── */
   const api = {
     toast, openApp, closeApp, focus, updateHud,
-    requireHumanKey(actionName) {
-      if (kernel.state.H !== 1) {
-        toast("refusal", "REFUSAL — HUMAN KEY REQUIRED",
-          `'${actionName}' is a critical action. H(t) = 0. Open the Human Key app and attest verifiable conscious human intent. Refusal is not failure; it is the primary act of responsible control.`);
-        kernel.record("warning", `Critical action '${actionName}' blocked — Human Key absent.`);
+    requireDemoGate(actionName) {
+      const s = HOS.observe();
+      if (s.attestation.status === "pending") {
+        toast("refusal", "DEMO GATE — ATTESTATION PENDING",
+          `'${actionName}' is refused while the local HMAC is pending. H(t) remains 0 until the current ceremony succeeds; this demo does not grant production authority.`);
+        HOS.record("warning", `Demo action '${actionName}' blocked — attestation pending.`);
         return false;
       }
-      if (!kernel.sessionFresh()) {
-        toast("refusal", "REFUSAL — STALE PERMISSION",
-          `'${actionName}' refused. Δt ≥ δ. Authorization is time-sensitive; the permitted scope has contracted to zero. Re-attest the Human Key.`);
-        kernel.record("warning", `Critical action '${actionName}' blocked — stale permission (Δt ≥ δ).`);
+      if (s.H !== 1) {
+        toast("refusal", "DEMO GATE — CONFIRMATION REQUIRED",
+          `'${actionName}' cannot pass the local demonstration gate while H(t) = 0. The public phrase exercises the model only; it does not verify a person or grant production authority.`);
+        HOS.record("warning", `Demo action '${actionName}' blocked — local marker absent.`);
+        return false;
+      }
+      if (!s.metrics.demoTimerFresh) {
+        toast("refusal", "DEMO GATE — TIMER EXPIRED",
+          `'${actionName}' is refused by the local demo timer (Δt ≥ δ). This is an elapsed-time exercise, not a verified Human Key freshness check.`);
+        HOS.record("warning", `Demo action '${actionName}' blocked — local demo timer expired.`);
         return false;
       }
       return true;
     },
     reportAction(result) {
       if (result.permitted) {
-        toast("permit", "PERMITTED — x(t) = Permitted", result.reason);
+        toast("info", "DEMO ONLY — LOCAL GATE WOULD PERMIT", `${result.reason} Scope: ${result.executionScope || "LOCAL-DEMO-ONLY"}.`);
       } else {
-        toast("refusal", `REFUSAL — ${result.code}`, result.reason);
+        toast("refusal", `DEMO GATE — ${result.code}`, result.reason);
       }
     }
   };
@@ -299,8 +310,8 @@ const shell = (() => {
       if (app) openApp(app);
     });
 
-    kernel.on("state", updateHud);
-    kernel.on("tick", updateHud);
+    HOS.subscribe("state", updateHud);
+    HOS.subscribe("tick", updateHud);
     setInterval(updateHud, 1000);
     updateHud();
   }

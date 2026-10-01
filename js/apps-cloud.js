@@ -103,7 +103,7 @@
           location.reload();
         } else if (action === 'archive') {
           if (!session) throw new Error('Ledger archiving requires a secure browser context.');
-          const value = await request('ledger/' + session, 'PUT', { rows: kernel.ledger.slice() });
+          const value = await request('ledger/' + session, 'PUT', { rows: HOS.getLedger().slice() });
           setStatus(`Archived ${value.saved} ledger rows at ${value.receivedAt}. New rows require another archive.`);
         } else if (action === 'ledgers') {
           const value = await request('ledgers');

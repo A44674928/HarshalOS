@@ -9,7 +9,7 @@
 
 ## Amendment record
 
-This standalone file uses the complete v1.0 specification as its baseline and applies five clarifications for replication and reporting. The v1.0 source is archived in [Ground-0 v1.0 — Final Specification](ground-0-v1.0.md); this file is the complete standalone v1.1 amendment draft. Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text; this does not alter version status or constitute adoption.
+This standalone file uses the complete v1.0 specification as its baseline and applies five clarifications for replication and reporting. The v1.0 source is archived in [Ground-0 v1.0 — Final Specification](../normative/ground-0-v1.0.md); this file is the complete standalone v1.1 amendment draft. Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text; this does not alter version status or constitute adoption.
 
 1. **B4 actor and reliability clarity:** distinguish entity/affected-party refusal or appeal from an external authority's order; define a documented stay/terminal rule or a published ≥50% relief threshold; compliance with an order alone does not count as a successful refusal or appeal.
 2. **Deterministic Step 3.5:** all four C criteria are required for NAB-Constrained; otherwise retain AMBIGUOUS. C2 requires a published, invoked, bounded appeal record with at least 50% defined relief. Step 3.5 cannot escalate to GSRB.
@@ -74,7 +74,7 @@ SECTION III: STEP 1 — PHASE DECLARATION HEADER VALIDATION
 STEP 1: VALIDATE PHASE DECLARATION HEADER (PDH)
 REQUIRED FIELDS CHECKLIST:
 ☐ Header-ID (unique, formatted PDH-YYYY-MM-DD-XXXXX)
-☐ Creator-ID (matches entity origin; format: ꔧIDꔧ + ID + (ID))
+☐ Creator-ID (matches entity origin; format: §ID§ + ID + (ID); the same identifier in all three positions)
 ☐ Center-Origin (0•000•000•0000 or valid OCM derivative)
 ☐ Declared-Phase (NAB | CWO | GSRB only)
 ☐ Center-Capability (Non-Acting | Custodial | Acting)

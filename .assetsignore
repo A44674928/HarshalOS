@@ -10,6 +10,9 @@
 !assets/
 !assets/**
 !specs/
-!specs/*.md
+!specs/normative/
+!specs/normative/*.md
+!specs/draft/
+!specs/draft/*.md
 # Never publish hidden files, even under an allowed directory.
 **/.*

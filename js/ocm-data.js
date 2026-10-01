@@ -432,7 +432,7 @@ const OCM_DATA = (() => {
      Placement uses the planetary disc's semantic clusters as lenses. */
   const nodes = [
     { app: "origin",      name: "Origin",            addr: "0•000•000•0000•ORIGIN",  deg: 0,   r: 1.9, sector: "Root",   note: "Canonical statement and orientation — the center speaks for itself." },
-    { app: "humankey",    name: "Human Key",         addr: "0•001•000•0001•HKEY",   deg: 12,  r: 1.05, sector: "Intent", note: "Verifiable conscious human intent — the attestation gate." },
+    { app: "humankey",    name: "Human Key",         addr: "0•001•000•0001•HKEY",   deg: 12,  r: 1.05, sector: "Intent", note: "Local Human Key gate simulation; no identity or liveness verification." },
     { app: "book",        name: "The Book",          addr: "0•002•000•0002•BOOK",   deg: 18,  r: 2.1, sector: "Artifact", note: "The physical license artifact — origin point of the human–machine bond." },
     { app: "legitimacy",  name: "Legitimacy Engine", addr: "0•030•000•0003•LEGIT",  deg: 30,  r: 1.35, sector: "Gating", note: "The permission equations — L(t), temporal decay, refusal-bound gating." },
     { app: "ground0",     name: "Ground-0 Audit",    addr: "0•043•000•0004•GND0",   deg: 43,  r: 2.0, sector: "Audit",  note: "Observed-behavior phase classification — identity formation of bodies." },
