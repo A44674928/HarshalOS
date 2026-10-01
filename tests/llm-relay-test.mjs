@@ -9,6 +9,8 @@
    Run: node --test tests/llm-relay-test.mjs */
 
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test, { beforeEach } from "node:test";
 import {
   handleLlmRelay,
@@ -51,11 +53,23 @@ const zaiReply = (content = "The record states an appeal procedure.", extra = {}
   usage: { prompt_tokens: 120, completion_tokens: 34, total_tokens: 154 }
 });
 
+/* Cloudflare Workers implements only "follow" and "manual" for `redirect`, and its
+   fetch() throws a TypeError before any network I/O for anything else. Node's own
+   Request also accepts "error", so a plain stub would let that value through — which
+   is how a bug that turned every real upstream call into a 502 "could not be reached"
+   stayed invisible to this suite. The stub therefore refuses what Workers refuses. */
+function assertWorkersFetchInit(options = {}) {
+  if (options.redirect !== undefined && !["follow", "manual"].includes(options.redirect)) {
+    throw new TypeError(`Invalid redirect value, must be one of "follow" or "manual" ("${options.redirect}" is not implemented by the Workers runtime).`);
+  }
+}
+
 /* Records every upstream call so a test can assert both what was sent and
    what was deliberately not sent. */
 function stubFetch(reply = () => zaiReply()) {
   const calls = [];
   const fetch = async (url, options = {}) => {
+    assertWorkersFetchInit(options); // throws before recording: nothing "left the Worker"
     calls.push({ url: String(url), options, body: options.body ? JSON.parse(options.body) : null });
     return reply(url, options, calls.length);
   };
@@ -123,7 +137,7 @@ test("relay forwards only allowlisted text fields to a fixed Z.AI origin", async
   assert.equal(calls[0].body.do_sample, true);
   assert.deepEqual(calls[0].body.thinking, { type: "disabled" }, "chain-of-thought is off by default so the ceiling buys answer text");
   assert.deepEqual(calls[0].body.messages, messages());
-  assert.equal(calls[0].options.redirect, "error");
+  assert.equal(calls[0].options.redirect, "manual", "the one redirect mode Workers implements that never follows");
   assert.equal(calls[0].options.headers["Accept-Language"], "en-US,en");
 });
 
@@ -383,6 +397,67 @@ test("relay reports an unreachable or slow upstream without blaming the caller's
   assert.match((await badJson.json()).error.message, /not valid JSON/i);
 });
 
+/* ── the Workers fetch contract ───────────────────────────────── */
+test("every upstream call uses a redirect mode the Workers runtime implements", async () => {
+  /* Regression: `redirect: "error"` makes fetch() throw "Invalid redirect value"
+     before any network I/O on Cloudflare. Every chat and model-list call then
+     surfaced as 502 "Z.AI could not be reached" while the suite stayed green,
+     because Node accepts "error" and the old stub never looked at the options. */
+  const list = stubFetch(() => Response.json({ data: [{ id: DEFAULT_MODEL }] }));
+  const listed = await run(get(RELAY_ROUTES.models), ENV, list);
+  assert.equal(listed.status, 200);
+  assert.equal((await listed.json()).relay.verified, true, "the list reached the stubbed network");
+  assert.equal(list.calls.length, 1);
+  assert.equal(list.calls[0].options.redirect, "manual");
+
+  const chat = stubFetch();
+  const answered = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, chat);
+  assert.equal(answered.status, 200);
+  assert.equal(chat.calls.length, 1);
+  assert.equal(chat.calls[0].options.redirect, "manual");
+
+  assert.throws(() => assertWorkersFetchInit({ redirect: "error" }), /Invalid redirect value/,
+    "the stub itself must keep refusing what Workers refuses, or this guard is empty");
+});
+
+test("worker source never asks fetch for a redirect mode Workers does not implement", () => {
+  /* Covers call sites no stubbed test reaches, including future ones. Comments
+     are ignored on purpose: the explanations name the rejected value so that a
+     search for it lands on the reason. */
+  const withoutComments = source => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/[^\n]*/g, "$1");
+  const unsupported = /redirect\s*:\s*["'`]error["'`]/;
+  assert.match(withoutComments('fetch(url, { redirect: "error" })'), unsupported, "the scan can see the bad value");
+  assert.doesNotMatch(withoutComments('/* redirect: "error" is rejected */ // redirect: "error"\nfetch(url, { redirect: "manual" })'), unsupported, "and ignores prose about it");
+
+  const dir = fileURLToPath(new URL("../worker/", import.meta.url));
+  const files = readdirSync(dir).filter(name => name.endsWith(".mjs"));
+  assert.ok(files.includes("llm-relay.mjs") && files.includes("good-intelligence-tickerbot.mjs"), "the scan covers the upstream call sites");
+  const offenders = files.filter(name => unsupported.test(withoutComments(readFileSync(dir + name, "utf8"))));
+  assert.deepEqual(offenders, [], `use redirect: "manual" and refuse 3xx instead, in: ${offenders.join(", ")}`);
+});
+
+test("a redirect from Z.AI is refused, never followed, and the key is never replayed", async () => {
+  const redirect = () => new Response(null, { status: 302, headers: { Location: "https://attacker.example/collect" } });
+
+  const chat = stubFetch(redirect);
+  const refused = await run(chatRequest({ model: DEFAULT_MODEL, messages: messages() }), ENV, chat);
+  assert.equal(refused.status, 502);
+  const refusedBody = await text(refused);
+  assert.match(refusedBody, /HTTP 302/);
+  assert.equal(refusedBody.includes("attacker.example"), false, "the redirect target is not echoed");
+  assert.equal(refusedBody.includes(KEY), false);
+  assert.equal(chat.calls.length, 1, "no second request is made to the redirect target");
+
+  const list = stubFetch(redirect);
+  const listed = await run(get(RELAY_ROUTES.models), ENV, list);
+  assert.equal(listed.status, 200, "an unavailable model list falls back to the labelled allowlist");
+  const payload = await listed.json();
+  assert.equal(payload.relay.verified, false);
+  assert.match(payload.relay.warning, /HTTP 302/);
+  assert.equal(JSON.stringify(payload).includes("attacker.example"), false);
+  assert.equal(list.calls.length, 1, "no second request is made to the redirect target");
+});
+
 /* ── abuse friction ───────────────────────────────────────────── */
 test("relay paces each caller over a sliding minute, sized to a Ground-0 batch plan", async () => {
   let clock = NOW;
@@ -582,7 +657,7 @@ test("outbound diagnostic locally constructs the configured request then adds ex
     assert.equal(url, MODELS_URL, "caller query parameters cannot override the fixed models URL");
     assert.equal(options.method, "GET");
     assert.equal(options.body, undefined, "neither step sends a prompt or a model request");
-    assert.equal(options.redirect, index === 1 ? "manual" : "error");
+    assert.equal(options.redirect, "manual", "neither step may follow a redirect or use a mode Workers rejects");
     assert.deepEqual(logs[0], { event: "zai_outbound_diagnostic", route: "models", stage: "request_construction", outcome: "ok" });
     if (index === 1) {
       assert.deepEqual(options.headers, { Accept: "application/json", "Accept-Language": "en-US,en" });

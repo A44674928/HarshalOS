@@ -13,6 +13,18 @@ const okResponse = () => Response.json({
   as_of: new Date(NOW).toISOString(), ticker: "AAPL", interval: "1h", coverage: "covered", bars: rows
 });
 
+/* Cloudflare Workers implements only "follow" and "manual" for `redirect`, and its
+   fetch() throws a TypeError before any network I/O for anything else. Node's own
+   Request also accepts "error", so a plain stub hid a bug that turned every real
+   Tickerbot call into a 502 "could not be reached". Stubs that model the network
+   are wrapped so they refuse what Workers refuses. */
+const workersFetch = handler => async (url, options = {}) => {
+  if (options.redirect !== undefined && !["follow", "manual"].includes(options.redirect)) {
+    throw new TypeError(`Invalid redirect value, must be one of "follow" or "manual" ("${options.redirect}" is not implemented by the Workers runtime).`);
+  }
+  return handler(url, options);
+};
+
 test("Tickerbot adapter requires a server-side key and performs no call when it is absent", async () => {
   clearTickerbotCache();
   let calls = 0;
@@ -26,9 +38,12 @@ test("Tickerbot bars become the existing gi-market-context packet without exposi
   clearTickerbotCache();
   let calledUrl = "";
   let calledOptions;
+  /* workersFetch makes this the regression guard for the Workers fetch contract:
+     with `redirect: "error"` the call throws, the adapter answers 502, and the
+     status assertion below fails. */
   const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
     now: () => NOW,
-    fetch: async (url, options) => { calledUrl = url; calledOptions = options; return okResponse(); }
+    fetch: workersFetch(async (url, options) => { calledUrl = url; calledOptions = options; return okResponse(); })
   });
   const payload = await response.json();
   assert.equal(response.status, 200);
@@ -49,7 +64,25 @@ test("Tickerbot bars become the existing gi-market-context packet without exposi
   assert.equal(upstream.searchParams.get("asof"), new Date(NOW).toISOString());
   assert.equal(calledOptions.headers.Authorization, "Bearer test-only-worker-secret");
   assert.equal(calledUrl.includes("test-only-worker-secret"), false);
-  assert.equal(calledOptions.redirect, "error");
+  assert.equal(calledOptions.redirect, "manual", "the one redirect mode Workers implements that never follows");
+});
+
+test("Tickerbot adapter refuses a redirect instead of following it and never replays the key", async () => {
+  clearTickerbotCache();
+  let calls = 0;
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+    now: () => NOW,
+    fetch: workersFetch(async () => {
+      calls++;
+      return new Response(null, { status: 302, headers: { Location: "https://attacker.example/collect" } });
+    })
+  });
+  assert.equal(response.status, 502);
+  const body = JSON.stringify(await response.json());
+  assert.match(body, /could not provide market bars/i);
+  assert.equal(body.includes("attacker.example"), false, "the redirect target is not echoed");
+  assert.equal(body.includes("test-only-worker-secret"), false);
+  assert.equal(calls, 1, "no second request is made to the redirect target");
 });
 
 test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", async () => {
@@ -85,7 +118,7 @@ test("Tickerbot adapter caches identical reads briefly and sanitizes rate-limit 
 test("Worker dispatches Tickerbot bars before the demo and private-storage API routes", async () => {
   clearTickerbotCache();
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => okResponse();
+  globalThis.fetch = workersFetch(async () => okResponse());
   try {
     const response = await worker.fetch(route("AAPL"), { TICKERBOT_API_KEY: "worker-test-key" });
     const payload = await response.json();

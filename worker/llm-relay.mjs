@@ -40,6 +40,16 @@ const ZAI_CHAT_PATH = '/api/paas/v4/chat/completions';
 const ZAI_MODELS_PATH = '/api/paas/v4/models';
 const ZAI_MODELS_URL = ZAI_ORIGIN + ZAI_MODELS_PATH;
 
+/* The `redirect` mode for every upstream call that carries the Worker's key.
+   Cloudflare Workers implements only "follow" and "manual". `redirect: "error"`
+   is valid in browsers and Node but makes fetch() throw a TypeError ("Invalid
+   redirect value ...") before any network I/O, which this relay would then
+   report as "Z.AI could not be reached" on every call. "manual" hands a 3xx back
+   as an ordinary response instead of following it, so the key is never replayed
+   to another host, and every non-2xx status (3xx included) is already handled as
+   an upstream failure below. tests/llm-relay-test.mjs guards this value. */
+const UPSTREAM_REDIRECT = 'manual';
+
 /* Z.AI's free tier: the GLM Flash text models priced at $0 for input, cached
    input and output. Hard allowlist — a paid model is refused here even when
    the operator's key could afford it, so a public site cannot run up a bill. */
@@ -580,7 +590,7 @@ async function listModels(request, env, dependencies) {
   const init = {
     method: 'GET',
     headers: { Accept: 'application/json', 'Accept-Language': 'en-US,en', Authorization: `Bearer ${found.key}` },
-    redirect: 'error',
+    redirect: UPSTREAM_REDIRECT,
     ...(controller ? { signal: controller.signal } : {})
   };
   const diagnostic = claimOutboundDiagnostic(request, env);
@@ -678,7 +688,7 @@ async function relayChat(request, env, dependencies, caller, now) {
         Authorization: `Bearer ${found.key}`
       },
       body: JSON.stringify(body),
-      redirect: 'error',
+      redirect: UPSTREAM_REDIRECT,
       ...(controller ? { signal: controller.signal } : {})
     });
     if (!response || !response.ok) throw await upstreamFailure(response, found.key, validated.model);
