@@ -117,10 +117,18 @@ function demoMarketBars(now, profile, count = 360) {
 }
 
 function demoMarketFixtures(now) {
+  // Eight deterministic synthetic profiles: the three original demo history series plus the
+  // headline names of the Tickerbot allowlist (INTC, AMD, NET, CVX, XOM), so the no-key demo
+  // still shows a sector spread. Every profile is generated, labeled, and never a real price.
   const profiles = [
     { symbol: "AAPL-DEMO", label: "AAPL", base: 190, drift: 0.025, amplitude: 4.2, longWave: 2.8, phase: 0, volume: 1500, volumeSwing: 380 },
     { symbol: "MSFT-DEMO", label: "MSFT", base: 420, drift: 0.04, amplitude: 8.5, longWave: 5.2, phase: 1.1, volume: 1100, volumeSwing: 240 },
-    { symbol: "NVDA-DEMO", label: "NVDA", base: 130, drift: 0.08, amplitude: 11, longWave: 7.5, phase: 2.4, volume: 2400, volumeSwing: 900 }
+    { symbol: "NVDA-DEMO", label: "NVDA", base: 130, drift: 0.08, amplitude: 11, longWave: 7.5, phase: 2.4, volume: 2400, volumeSwing: 900 },
+    { symbol: "INTC-DEMO", label: "INTC", base: 24.5, drift: -0.004, amplitude: 0.9, longWave: 0.6, phase: 0.7, volume: 5200, volumeSwing: 1400 },
+    { symbol: "AMD-DEMO", label: "AMD", base: 155, drift: 0.05, amplitude: 6.5, longWave: 4.4, phase: 3.1, volume: 2600, volumeSwing: 780 },
+    { symbol: "NET-DEMO", label: "NET", base: 78, drift: 0.045, amplitude: 3.8, longWave: 2.6, phase: 1.8, volume: 900, volumeSwing: 320 },
+    { symbol: "CVX-DEMO", label: "CVX", base: 152, drift: 0.008, amplitude: 2.4, longWave: 1.7, phase: 2.9, volume: 700, volumeSwing: 190 },
+    { symbol: "XOM-DEMO", label: "XOM", base: 112, drift: 0.006, amplitude: 1.9, longWave: 1.3, phase: 4.2, volume: 1200, volumeSwing: 300 }
   ];
   return profiles.map((profile, index) => ({
     _id: `empty-demo-market-${String(index + 1).padStart(2, "0")}`,

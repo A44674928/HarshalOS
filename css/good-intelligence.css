@@ -322,6 +322,10 @@
 .gi-chart-control { display: flex; flex-direction: column; gap: 5px; min-width: 112px; color: var(--gi-faint); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
 .gi-chart-control select { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--gi-border-hi); border-radius: 6px; color: var(--gi-ink); background: #0a1220; font-family: var(--mono); font-size: 10px; letter-spacing: 0; cursor: pointer; }
 .gi-chart-control select:disabled { border-color: var(--gi-border); color: var(--gi-faint); cursor: not-allowed; }
+/* Sector headings in the watchlist selector; browsers style the popup natively, so
+   these only keep the popup readable where the platform honors them. */
+.gi-chart-control select optgroup { color: var(--gi-dim); background: #0a1220; font-style: normal; font-weight: 650; }
+.gi-chart-control select option { color: var(--gi-ink); background: #0a1220; }
 .gi-market-search-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 7px; }
 .gi-market-search-tools .gi-search { max-width: 380px; }
 .gi-market-search-tools .gi-result-count { margin-left: auto; }

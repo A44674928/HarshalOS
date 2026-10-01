@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { handleGoodIntelligenceDemo } from "../worker/good-intelligence-demo.mjs";
+import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
 
 const NOW = Date.parse("2026-09-30T12:00:00.000Z");
@@ -17,7 +18,7 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
   assert.equal(response.headers.get("cache-control"), "no-store");
   const payload = await response.json();
   assert.equal(payload.environment, "empty.domains-demo");
-  assert.equal(payload.data.length, 7);
+  assert.equal(payload.data.length, 12);
   assert.ok(payload.data.every(item => item.demo === true && item.title.startsWith("[DEMO]")));
   assert.ok(payload.data[0].body.includes("Synthetic exercise"));
   assert.equal(payload.data[0].assurance.schema, "gi-assurance-v1");
@@ -27,7 +28,10 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
   assert.equal(payload.data[3].assurance, undefined);
   assert.ok(payload.data.slice(4).every(item => item.assurance === undefined));
   const marketFixtures = payload.data.slice(4);
-  assert.deepEqual(marketFixtures.map(item => item.marketContext.symbol), ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO"]);
+  assert.deepEqual(marketFixtures.map(item => item.marketContext.symbol), [
+    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "NET-DEMO", "CVX-DEMO", "XOM-DEMO"
+  ]);
+  assert.equal(new Set(marketFixtures.map(item => item._id)).size, marketFixtures.length);
   for (const item of marketFixtures) {
     assert.equal(item.marketContext.schema, "gi-market-context-v1");
     assert.equal(item.marketContext.synthetic, true);
@@ -35,6 +39,17 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
     assert.match(item.marketContext.source, /not real prices/i);
     assert.ok(item.marketContext.bars.every(bar => bar.confirmed === true && bar.volume > 0));
   }
+});
+
+test("synthetic demo histories only use names enabled on the Tickerbot watchlist", async () => {
+  /* The demo fixtures are educational stand-ins, not live data, but they share the
+     watchlist so a reviewer can compare the same names on either data source. If a
+     symbol leaves the allowlist, this test asks for the fixture to be updated too. */
+  const enabled = new Set(TICKERBOT_WATCHLIST.map(entry => entry.symbol));
+  const payload = await (await get("/content/me")).json();
+  const demoBaseSymbols = payload.data.filter(item => item.marketContext).map(item => item.marketContext.symbol.replace(/-DEMO$/, ""));
+  assert.ok(demoBaseSymbols.length > 0);
+  for (const symbol of demoBaseSymbols) assert.ok(enabled.has(symbol), `${symbol} is still enabled for Tickerbot Live`);
 });
 
 test("demo categories and rankings use labeled fixture data", async () => {
