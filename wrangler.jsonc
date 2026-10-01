@@ -5,14 +5,24 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "assets": { "directory": ".site-assets", "not_found_handling": "none", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+
+  "assets": {
+    "directory": ".site-assets",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
   // Wrangler runs this custom build before bundling for every command
   // (dev/deploy/preview), so `.site-assets` is regenerated even when the
   // pipeline invokes `wrangler preview` directly without `prepare:assets`.
-  "build": { "command": "node scripts/prepare-assets.mjs" },
-  // Persist structured Worker logs so sanitized upstream diagnostics can be
-  // inspected after a request; full sampling is appropriate for this low-traffic
-  // demo. No traces are needed for the current connection-error diagnosis.
+  "build": {
+    "command": "node scripts/prepare-assets.mjs"
+  },
+
+  // Persist structured Worker logs and traces so diagnostics can be
+  // inspected after requests. Full sampling is appropriate for this
+  // low-traffic demo.
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
@@ -21,13 +31,22 @@
       "head_sampling_rate": 1,
       "invocation_logs": true,
       "persist": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true
     }
   },
+
   // Secrets are deliberately not declared here: MONGODB_URI, the Cloudflare Access
   // variables, TICKERBOT_API_KEY and the Z.AI relay key (Z.AI or ZAI_API_KEY) are set
   // with `wrangler secret put` or the dashboard so no credential ever enters Git.
   // See docs/deployment/MONGODB-SETUP.md and docs/deployment/ZAI-FREE-TIER.md.
-  "vars": { "MONGODB_DATABASE": "harshalos" },
+  "vars": {
+    "MONGODB_DATABASE": "harshalos"
+  },
+
   // Required by `wrangler preview` (Workers Previews). Keep previews off the
   // production database: production uses "harshalos" (see vars above).
   // https://developers.cloudflare.com/workers/previews/configuration/
