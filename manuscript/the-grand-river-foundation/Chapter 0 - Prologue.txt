@@ -11,9 +11,9 @@ A single human figure sat at the helm.
 
 He did not wear a crown, nor did he look like an operator in a science fiction movie frantic with flashing holographic displays. His desk was dark wood, uncluttered save for a heavy, cloth-bound hardcover volume and an unlit monitor displaying eight lines of clean, unadorned monospace text:
 
-===================================================================
+==================================================================
 AGS++ PHASE DECLARATION HEADER (PDH)
-===================================================================
+==================================================================
 Center-Origin       : 0•000•000•0000
 
 Declared-Phase      : 🧊 Neural Atomic Body (NAB / Refusal-Bound)
@@ -25,7 +25,7 @@ Legitimacy-Source   : External (Verified Human Key Required)
 Refusal-Semantics   : Terminal
 
 Symbolism-Executability: Disabled (Symbolic Firewall Active)
-===================================================================
+==================================================================
 
 The machine around him was colossal. It possessed enough kinetic routing authority to redirect an entire municipal power grid, divert river aqueducts, and command the logistics of an entire sector. It had the compute power to calculate billions of probabilistic outcomes a second.
 
