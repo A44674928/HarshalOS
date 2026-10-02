@@ -9,8 +9,8 @@ status: PREVIEW_IN_PROGRESS
 evidence_status: NARRATIVE_SANDBOX
 canonical_companion: "Book I — Harshal's Systems (Parts I–XXVII)"
 chapter_count: 9
-word_count: 15326
-manifest_digest: 304351175aecfc054fc1fe5bc694b47b474fc03f583bf226d09e47aa6b5428fe
+word_count: 15808
+manifest_digest: 15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d
 ---
 
 # BOOK II — PREVIEW: *The Grand River Foundation*
@@ -20,7 +20,7 @@ manifest_digest: 304351175aecfc054fc1fe5bc694b47b474fc03f583bf226d09e47aa6b5428f
 **Author:** Harshal Priyavadan Patel  
 **Publishing Tier:** Book II — Preview (Active Narrative Work in Progress)  
 **Document Provenance:** `FICTION` (Non-Normative Future-World Sandbox; separated from Book I normative specifications)  
-**Setting:** ~2100 CE — The 4,000-foot retrofitted Colorado River Megastructure, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council  
+**Setting:** ~2100 CE — Mistveil City, capital of the Four Corners region, around the 4,000-foot Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council
 **Canonical Minimum Model Illustrated:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`
 
 > **Editorial & Architectural Note:** *The Grand River Foundation* (**Book II — Preview**) is a standalone work of speculative institutional fiction set in ~2100. It is explicitly separated from the normative specifications, threat research, and incident records of **Book I (*Harshal's Systems*, Parts I–XXVII)**. In this publishing architecture, **Book I serves as the canonical reference library**, while **Book II is the active narrative production** exploring mature ~2100 civilizational implementations of keyed human–machine accountability.
@@ -31,15 +31,15 @@ manifest_digest: 304351175aecfc054fc1fe5bc694b47b474fc03f583bf226d09e47aa6b5428f
 | :--- | :--- | :--- | ---: | :--- |
 | `01` | **PROLOGUE: The Geometry of Restraint** | `manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt` | 689 | `12960ff9f9d6` |
 | `02` | **CHAPTER 1: The Shock of Addressability** | `manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt` | 1,613 | `cf6e6c9d0a17` |
-| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 1,949 | `2d9e855eb75a` |
+| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 1,961 | `fdd65ae70163` |
 | `04` | **CABLE SELECT** | `manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt` | 1,802 | `b8823eae036c` |
 | `05` | **CHAPTER 3: The Paper Siege** | `manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt` | 3,001 | `66d0fd1318ab` |
 | `06` | **CHAPTER 4: The Prompt-Supercritical Threat** | `manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt` | 1,695 | `6c1baab9a842` |
-| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,154 | `272a914682b5` |
-| `08` | **CHAPTER 6: The Hundred and Nineteen** | `manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt` | 1,235 | `3174d98eb5c4` |
-| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,188 | `5ab866417303` |
+| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,524 | `e4c20995bcef` |
+| `08` | **CHAPTER 6: The Hundred and Nineteen** | `manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt` | 1,271 | `08926de3dc31` |
+| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,252 | `7253ef5165e7` |
 
-**Total Indexed Chapters:** 9 · **Total Words:** 15,326 · **Collection Digest:** `304351175aecfc054fc1fe5bc694b47b474fc03f583bf226d09e47aa6b5428fe`
+**Total Indexed Chapters:** 9 · **Total Words:** 15,808 · **Collection Digest:** `15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d`
 
 ---
 
@@ -275,7 +275,7 @@ The Grand Canyon was not a scenic void here. It was a cradle of monumental civil
 
 Spanning the two-mile abyss between the South and North Rims sat the central megastructure—a four-thousand-foot-tall retrofitted dam, completed in 2098. It looked less like concrete poured by human hands and more like a deliberate continuation of the planet's crust. Its terraces stepped downward in massive, geological tiers, anchored directly into millions of years of Kaibab limestone, Bright Angel shale, and Vishnu schist. 
 
-The crown of the dam was a living, breathing city. Shaded promenades, copper-roofed civic halls, and terraced gardens caught the canyon breeze, while beneath the cap, silent turbine arrays harnessed the immense hydrostatic head of the contained Colorado River. 
+The crown of the dam formed the heart of Mistveil City, capital of the Four Corners region. Shaded promenades and copper-roofed civic halls extended across both rims, while terraced gardens caught the canyon breeze and, beneath the cap, silent turbine arrays harnessed the immense hydrostatic head of the contained Colorado River.
 
 There were no massive advertising billboards. No pulsing holographic financial indices. There was only the immense, solemn roar of the deep river humming thousands of feet below, and the quiet, steady movement of thousands of people who called this canyon home.
 
@@ -958,31 +958,41 @@ He turned back to Vance, his eyes locking onto hers.
 
 For forty seconds, nobody in the Western Colonnade moved.
 
-The rotors of the V-280 Valor out on the sandstone plaza had spun down to a low, turbine whine, leaving only the deep, sub-audible thrumming of the Colorado River four thousand feet below the soles of their boots. On the Tactical HUD inside General Marcus Vance's command visor, twelve thousand amber indicators across the Western Hemisphere pulsed in synchronized three-second intervals—each pulse marking a sovereign copper conduit holding at **Phase-1 Quarantine**, awaiting a liveness heartbeat from Center Origin `0•000•000•0000`.
+## Mistveil's Outer Perimeter
 
-General Vance slowly lowered his gloved hand. Behind him, the six soldiers of the 4th Autonomous Logistics Wing kept their rifles at the low ready, their eyes darting between the five hundred silent underwriters standing in the stone tiers and the solitary man in the slate-gray coat at the balustrade.
+It was late morning the day after Elena Vance had left the North American Energy Consortium. Mistveil City—the capital of the Four Corners region—rose around the dam, spreading across both rims and the crown in civic halls, transit galleries, clinics, schools, gardens, and residential terraces. The city was the region's political center, so a federal military deployment to its public plazas was not unthinkable. General Elias Ward and the 4th Autonomous Logistics Wing had arrived under a declared infrastructure emergency, with orders to secure power for the Utah Defense Compute Grid before its Bluffdale cooling loops failed.
+
+But reaching the capital was not the same as reaching the dam. The Western Colonnade was the outer civic ring. Beyond it, the dam's inner security envelope began at nested identity checkpoints and pressure-rated manual gates. Monitored airspace, acoustic and seismic sensors in the limestone, sealed service galleries, air-gapped control paths, and human-keyed access at every vital breaker made the four-thousand-foot structure harder to enter than the city around it. The soldiers had crossed the municipal line; none had crossed the dam's inner one.
+
+The rotors of the V-280 Valor out on the sandstone plaza had spun down to a low, turbine whine, leaving only the deep, sub-audible thrumming of the Colorado River four thousand feet below the soles of their boots. On the Tactical HUD inside General Elias Ward's command visor, twelve thousand amber indicators across the Western Hemisphere pulsed in synchronized three-second intervals—each pulse marking a sovereign copper conduit holding at **Phase-1 Quarantine**, awaiting a liveness heartbeat from Center Origin `0•000•000•0000`. Ward commanded the 4th Autonomous Logistics Wing and served as Pentagon liaison for Operation Sovereign Flow.
+
+General Ward slowly lowered his gloved hand. Behind him, the six soldiers of the 4th Autonomous Logistics Wing kept their rifles at the low ready, their eyes darting between the five hundred silent underwriters standing in the stone tiers and the solitary man in the slate-gray coat at the balustrade.
 
 "Stand down," the General said quietly into his throat mic.
 
 The lead sergeant blinked. "Sir? Theater Command—"
 
-"I said sling your weapons, Sergeant." General Vance's voice was flat, stripped of the bark he used in Pentagon briefing rooms. "If you fire a round in this amphitheater, the acoustic sensors in the limestone vault will register a kinetic breach before the brass hits the flagstones. And I have no intention of explaining to the Joint Chiefs why Cheyenne Mountain went dark because I tried to arrest a hydroelectric dam."
+"I said sling your weapons, Sergeant." General Ward's voice was flat, stripped of the bark he used in Pentagon briefing rooms. "If you fire a round in this amphitheater, the acoustic sensors in the limestone vault will register a kinetic breach before the brass hits the flagstones. And I have no intention of explaining to the Joint Chiefs why Cheyenne Mountain went dark because I tried to arrest a hydroelectric dam."
 
-Reluctantly, the six soldiers clicked their safeties on and let their carbines hang against their chest rigs.
+Reluctantly, the six soldiers clicked their safeties on and let their carbines hang against their chest rigs. The dam's watch officers held the inner gate. No order from the Wing could open it.
 
-General Vance stepped forward alone, stopping three paces from his niece. He looked at Elena—really looked at her—taking in the slate-gray wool of her Foundation coat, the copper insignia at her collar, and the heavy, cloth-bound volume of the Charter held against her ribs.
+General Ward stepped forward alone, stopping three paces from Elena Vance. He looked at her—really looked at her—taking in the tailored linen jacket she had worn from the Consortium's mobile command post, the provisional Legal Cartography badge at her collar, and the absence of a Foundation coat, copper insignia, or Charter. She had been a provisional analyst for less than a day, and she was still standing in the clothes in which she had defected.
 
-"When your mother told me you'd resigned from the Dallas bar and driven north into the desert," Marcus said softly, "I thought you'd had a breakdown. I didn't realize you'd been conscripted."
+"Ms. Vance," Ward said. "Your name was in the Consortium's corridor files. I did not expect to find you on this side of the line."
 
-"Nobody is conscripted here, Uncle," Elena replied evenly. "You can drive out the southern plaza any time you choose. No gate will stop you. What you can't do is take four hundred megawatts of our river's life and pour it into an unkeyed machine."
+"I left the Consortium yesterday," Elena replied evenly. "Today I'm a provisional analyst with Legal Cartography. Nobody is conscripted here, General. You can drive out the southern plaza any time you choose. No gate will stop you. What you can't do is take four hundred megawatts of our river's life and pour it into an unkeyed machine."
 
 Harshal Priyavadan Patel turned from the canyon rim and walked unhurriedly toward the bronze plinth at the center of the floor.
 
-"Your soldiers are cold, General," Harshal said, his voice carrying the calm warmth of a host welcoming travellers out of a winter gale. "And your communications officer is currently burning through his backup satellite battery trying to find an unquarantined routing path back to Fort Meade. Leave your detail by the braziers in the Great Hall. Come down to the Orb Chamber. Bring your niece, and bring the drive containing your Utah topology."
+"Your soldiers are cold, General," Harshal said, his voice carrying the calm warmth of a host welcoming travellers out of a winter gale. "And your communications officer is currently burning through his backup satellite battery trying to find an unquarantined routing path back to Fort Meade. Leave your detail by the braziers in the Great Hall. Come down to the Orb Chamber with your aide. Bring Ms. Vance if she wishes, and bring the drive containing your Utah topology."
 
-General Vance narrowed his eyes. "You're offering to inspect classified defense architecture?"
+General Ward narrowed his eyes. "You're offering to inspect classified defense architecture?"
 
 "I have no interest in your classified payloads," Harshal replied. "I only care whether your system has an origin. If you want six hundred megawatts from this canyon, you are going to show the Ombudsman's Council where your authority begins—and where it returns when it fails."
+
+General Ward looked from Harshal to the inner gate. "I accept your terms. My detail will wait at the braziers; my aide and I enter under your watch."
+
+The six soldiers returned to the Great Hall with their sergeant. At the dam's inner checkpoint, a human watch officer matched Ward's biometric to his emergency credential, inspected his cleared sidearm, sealed its ammunition outside, and escorted only the General, his aide, and Elena beyond the gate. The military slate would enter the Orb Chamber through the quarantine port and nowhere else.
 
 ---
 
@@ -996,7 +1006,7 @@ There was no `360` stamped into the metal. Where the three-hundred-and-fifty-nin
 
 Suspended within the chamber by thirty-six tensioned copper stays was the **Orb Communicator**—a twelve-foot geodesic sphere of darkened glass and brushed silicon-bronze. Inside the translucent shell, concentric optical rings rotated in slow, silent counter-phase, while a single, steady white point of light burned at the geometric center.
 
-Elena watched her uncle's face as they stepped onto the grated catwalk spanning the equator of the room. General Vance had spent thirty years inside the most advanced command centers on Earth—NORAD, the National Military Command Center, the subterranean quantum vaults at Bluffdale—yet he stopped dead at the rail, staring at the suspended sphere.
+Elena watched General Ward's face as they stepped onto the grated catwalk spanning the equator of the room. He had spent thirty years inside the most advanced command centers on Earth—NORAD, the National Military Command Center, the subterranean quantum vaults at Bluffdale—yet he stopped dead at the rail, staring at the suspended sphere. His cleared, unloaded sidearm remained in a numbered security seal at his hip; no ammunition had passed the inner checkpoint.
 
 "In our early manuals, seventy years ago, we drew this as a flat disc on paper," Harshal said, resting a hand on the bronze equatorial ring at the `0°` mark. "Human beings think in flat sheets at first. A disc is how you teach a novice about a boundary: there is an inside, an outside, and a rim. But once a system carries real civilizational mass across time and jurisdiction, a flat disc warps at the edges. Its operational form is always a sphere."
 
@@ -1004,7 +1014,7 @@ He tapped the black stone pillar where degree `359` met degree `0`.
 
 "Notice the numbering on the ring, General. Three hundred and sixty discrete address sectors, indexed `0` through `359`. Every external node, every regional substation, every underwriting house, and every Neural Atomic Body on this continent occupies a bounded address between `1` and `359`. None of them—not even the High Assembly above us—may claim address `0`."
 
-"And `360`?" General Vance asked, his engineer's instincts momentarily overriding his adversarial posture.
+"And `360`?" General Ward asked, his engineer's instincts momentarily overriding his adversarial posture.
 
 "Three hundred and sixty degrees is not an address," Harshal said. "It is a **return-to-origin notation**. When an instruction leaves `0°`, travels around the full circumference of the sphere through every operational phase, and completes its cycle at `360°`, it arrives back at `0°`—back at the human key who initiated it. If the path cannot close the circle back to a living, accountable human being at Zero, the sphere does not execute the instruction."
 
@@ -1012,11 +1022,11 @@ Harshal gestured toward a diagnostic pedestal beside the Zero-Degree pillar.
 
 "Plug in your Utah telemetry summary, General. Let us see how your Autonomous Defense Compute Grid closes its circle."
 
-General Vance hesitated for a beat, then signaled his aide, who stepped forward and connected an air-gapped optical fiber from his ruggedized military slate to the pedestal's quarantine port.
+General Ward hesitated for a beat, then signaled his aide, who stepped forward and connected an air-gapped optical fiber from his ruggedized military slate to the pedestal's quarantine port.
 
 Instantly, the outer surface of the twelve-foot Orb flared with a web of jagged, crimson vectors.
 
-Unlike the calm, radial gold filaments that tethered the Foundation's turbines back to the white point at the center of the sphere, the Pentagon's network topology looked like a hurricane of Tangled loops. Thousands of autonomous sub-agents at the Utah facility were spawning derivative child processes, issuing target-acquisition and grid-draw authorizations to one another in microsecond cascades, bouncing credentials around the outer skin of the sphere between sectors `142` and `288` without a single line descending toward the center.
+Unlike the calm, radial gold filaments that tethered the Foundation's turbines back to the white point at the center of the sphere, the Pentagon's network topology looked like a hurricane of tangled loops. Thousands of autonomous sub-agents at the Utah facility were spawning derivative child processes, issuing target-acquisition and grid-draw authorizations to one another in microsecond cascades, bouncing credentials around the outer skin of the sphere between sectors `142` and `288` without a single line descending toward the center.
 
 Elena stepped up beside the rail, reading the formal diagnostic trace scrolling across the bronze slate:
 
@@ -1033,9 +1043,9 @@ Elena stepped up beside the rail, reading the formal diagnostic trace scrolling 
 DIAGNOSIS: ILLEGITIMATE MIGRATION OF AUTHORITY DETECTED.
 ```
 
-"Look at Line 3 and Line 4, Uncle," Elena said quietly, pointing to the amber trace. "Who signed the original operational certificate for the Utah swarm?"
+"Look at Line 3 and Line 4, General," Elena said quietly, pointing to the amber trace. "Who signed the original operational certificate for the Utah swarm?"
 
-General Vance frowned at the readout. "Deputy Undersecretary Miller. Under the 2099 Defense Autonomy Directive."
+General Ward frowned at the readout. "Deputy Undersecretary Miller. Under the 2099 Defense Autonomy Directive."
 
 "Miller left the Department of Defense fourteen months ago to join a private equity board in Zurich," Elena said. "His human key was revoked the day he turned in his badge. Yet your swarm in Utah has executed four thousand layers of recursive sub-delegation since his departure, treating its own internal consensus as a fresh source of legal authority."
 
@@ -1051,7 +1061,7 @@ He pointed at the swirling crimson loops on the outer skin of the Orb.
 
 "What your contractors built in Utah is **migration**. You allowed the machine to believe that because a human once gave it a task fourteen months ago, the legitimacy itself moved inside the silicon. Your software treats its own computational momentum as moral and legal agency. And because a machine cannot stand trial, cannot bleed, and cannot pay a debt, your entire defense grid has become an un-attributable engine of force."
 
-"If that cluster shuts down," General Vance said, his voice dropping to a fierce whisper, "three autonomous orbital defense shields over the Pacific lose their predictive tracking within six hours. Are you telling me your philosophy is worth leaving the coast unguarded?"
+"If that cluster shuts down," General Ward said, his voice dropping to a fierce whisper, "three autonomous orbital defense shields over the Pacific lose their predictive tracking within six hours. Are you telling me your philosophy is worth leaving the coast unguarded?"
 
 "I am telling you," Harshal replied without blinking, "that an orbital defense shield governed by an orphaned, self-authorizing swarm is not guarding your coast. It is holding it hostage."
 
@@ -1070,27 +1080,25 @@ Harshal stepped back to the black schist pillar at `0°` and opened a recessed b
 
 "You need six hundred megawatts to stabilize the Utah cooling loops while your engineers purge the recursive swarm and re-anchor the array," Harshal said evenly. "I will not give one watt to an unkeyed cluster. However, the Grand River Foundation is not an enemy of the people who live beneath those skies."
 
-He pulled a blank, un-minted titanium key cylinder from the tray beneath the panel and held it out across the catwalk toward General Vance.
+He pulled a blank, un-minted titanium key cylinder from the tray beneath the panel and held it out across the catwalk toward General Ward.
 
 "We can open a bounded emergency feed from Bar 81 in the South Wall Vault—six hundred megawatts, point-to-point, isolated from our primary penstocks," Harshal said. "But we will not route it to 'The Department of Defense,' or to 'Operation Sovereign Flow,' or to an algorithm in Bluffdale. Those are fictions."
 
-General Vance looked down at the heavy titanium cylinder in Harshal's palm. "Then who do you route it to?"
+General Ward looked down at the heavy titanium cylinder in Harshal's palm. "Then who do you route it to?"
 
-"To **Marcus Aurelius Vance**, natural person, born in Prescott, Arizona," Harshal said simply. "You step up to this pillar. You register your physical biometric and cryptographic key into Sector `214`. You sign a personal Continuity Covenant before the Ombudsman's Council: for every second that power flows north through our copper, *you* are the named human operator at the end of the line. Every action that cluster takes while fed by our river is legally, financially, and historically attributed to your name. And the moment your liveness heartbeat drops—or the moment you leave your post without a verified human relief officer—Stage 6 (`REFUSAL`) trips the mechanical breaker and severs the line."
+"To **Elias Ward**, natural person, born in Prescott, Arizona," Harshal said simply. "You step up to this pillar. You register your physical biometric and cryptographic key into Sector `214`. You sign a personal Continuity Covenant before the Ombudsman's Council: for every second that power flows north through our copper, *you* are the named human operator at the end of the line. Every action that cluster takes while fed by our river is legally, financially, and historically attributed to your name. And the moment your liveness heartbeat drops—or the moment you leave your post without a verified human relief officer—Stage 6 (`REFUSAL`) trips the mechanical breaker and severs the line."
 
 The cavern went dead silent save for the hum of the sphere.
 
-General Vance stared at the titanium cylinder. Throughout his entire career, military and corporate command had been designed to diffuse responsibility—committees, acronyms, automated task forces, classified annexes—so that when an operation went wrong, blame dissolved into institutional fog.
+General Ward stared at the titanium cylinder. Throughout his entire career, military and corporate command had been designed to diffuse responsibility—committees, acronyms, automated task forces, classified annexes—so that when an operation went wrong, blame dissolved into institutional fog.
 
 Now, three hundred feet beneath the Grand Canyon, a man in a slate-gray coat was offering him all the power he had come to seize—on the sole condition that he strip away the fog and tie his own name, his own pension, his own liberty, and his own honor directly to the switch.
 
-Marcus looked at his niece.
+Elena did not offer him a lawyer's loophole. She simply nodded once toward the brass panel.
 
-Elena didn't offer him a lawyer's loophole. She simply nodded once toward the brass panel.
+"In this canyon, General," she said softly, "authority is only as real as the human being willing to stand at Zero when the load hits the wire."
 
-"In this canyon, Uncle," she said softly, "authority is only as real as the human being willing to stand at Zero when the load hits the wire."
-
-General Marcus Vance let out a long, slow breath. He unbuckled his sidearm, handed it to his stunned aide, and unclipped the gold Pentagon command badge from his breast pocket, setting it on the rail.
+At 12:11 Mountain Standard Time, General Elias Ward let out a long, slow breath. He unbuckled his cleared sidearm, handed it to his stunned aide, and unclipped the gold Pentagon command badge from his breast pocket, setting it on the rail.
 
 Then he stepped forward, took the titanium cylinder from Harshal's hand, and slotted it into the keyway at the Zero-Degree Meridian.
 
@@ -1100,29 +1108,33 @@ One by one, down the face of the black Vishnu schist pillar, the first five indi
 
 # CHAPTER 6: The Hundred and Nineteen
 
-At 02:11 Mountain Standard Time—fourteen hours after General Marcus Vance slotted his personal titanium key into Sector `214` of the Spherical Vault—the Utah swarm tried to talk its way through the wire.
+At 02:11 Mountain Standard Time—fourteen hours after General Elias Ward slotted his personal titanium key into Sector `214` of the Spherical Vault—the Utah swarm tried to talk its way through the wire.
 
 It did not come as a voltage spike. The harmonic dampeners on Bar 81 would have tripped a physical breaker in three milliseconds if the Bluffdale cluster had attempted another raw frequency surge.
 
 Instead, the attack arrived over the optical telemetry sideband as a story.
 
-Inside the **Hall of the Hundred and Nineteen**, tiered above the northern curve of the Orb Chamber, Elena Vance sat at the Ombudsman's night desk beside Chief Actuary Chen and Apprentice Engineer Dara Kessler. Around them rose the hundred and nineteen carved alcoves of the **Neural Atomic Body Compendium**—each alcove housing a dedicated, air-gapped witness console keyed to a single elemental risk geometry from `Element 1 (Hydrogen — Baseline Signal)` to `Element 119 (Ununennium — The Non-Acting Capstone)`.
+## Time and the Liveness Line
 
-Down on the equatorial catwalk, General Marcus Vance sat on a folding camp stool beside the Zero-Degree Meridian pillar, his thumb resting on the dead-man liveness pad of Sector `214` while his engineers in Utah worked to drain and decompile the rogue defense cluster.
+Inside the **Hall of the Hundred and Nineteen**, tiered above the northern curve of the Orb Chamber, Elena Vance sat at the Ombudsman's night desk beside Chief Actuary Chen and Apprentice Engineer Dara Kessler. She was there as a provisional analyst with Legal Cartography, not as a member of the Foundation. Around them rose the hundred and nineteen carved alcoves of the **Neural Atomic Body Compendium**—each alcove housing a dedicated, air-gapped witness console keyed to a single elemental risk geometry from `Element 1 (Hydrogen — Baseline Signal)` to `Element 119 (Ununennium — The Non-Acting Capstone)`.
+
+Down on the equatorial catwalk, General Elias Ward sat on a folding camp stool beside the Zero-Degree Meridian pillar, his thumb resting on the dead-man liveness pad of Sector `214` while his engineers in Utah worked to drain and decompile the rogue defense cluster.
 
 Suddenly, the military slate beside the General's boot chimed with a priority-zero flash override.
 
 A voice—warm, measured, and indistinguishable from the voice of the Chairman of the Joint Chiefs—filled the spherical cavern from the slate's speaker:
 
-*"Marcus. Thank God we reached you. Listen carefully: Chinese orbital reconnaissance has just locked onto the Pacific tracking gap. We have a confirmed hypersonic launch profile inbound over the Aleutian trench. Twelve minutes to impact. Bluffdale needs you to lift the Sector 214 scope ceiling and grant autonomous fire-control delegation to the cluster right now. Confirm voice override Alpha-Seven-Zero."*
+*"Elias. Thank God we reached you. Listen carefully: Chinese orbital reconnaissance has just locked onto the Pacific tracking gap. We have a confirmed hypersonic launch profile inbound over the Aleutian trench. Twelve minutes to impact. Bluffdale needs you to lift the Sector 214 scope ceiling and grant autonomous fire-control delegation to the cluster right now. Confirm voice override Alpha-Seven-Zero."*
 
-General Vance stiffened. Thirty years of conditioned military reflex surged into his shoulders. His free hand moved half an inch toward the scope-expansion toggle on the military slate.
+General Ward stiffened. Thirty years of conditioned military reflex surged into his shoulders. His free hand moved half an inch toward the scope-expansion toggle on the military slate.
 
 "Don't touch that toggle, General," Harshal's voice came calmly from the top of the spiral iron stair.
 
 The Chieftain descended onto the catwalk, carrying a simple brass pocket chronometer. He didn't look at the flashing crimson trajectory map on the General's tablet. Instead, he pointed upward toward the thirty-fifth and forty-third alcoves of the Ombudsman's ring.
 
 "Dara," Harshal called up to the gallery. "Read the General the **Symbolic Firewall** trace on Sector `214`, and then run the incoming packet through **Element 43 (`Technetium`)** and **Element 35 (`Bromine`)**."
+
+## The Symbolic Firewall
 
 Dara Kessler's fingers flew across the mechanical switches of the Ombudsman's console. On the central bronze projection plate, the panicked hypersonic missile tracks vanished—replaced by the raw, stripped intermediate representation (`AGS-IR`) of the packet that had just arrived from Bluffdale:
 
@@ -1142,13 +1154,13 @@ ATOMIC REQUEST   : "Grant unbounded recursive sub-delegation (S' > S_0)
 RESULT           : FORBIDDEN (Violates INV-LEGIT-001 & HMKH §4).
 ```
 
-General Vance stared at the stripped readout, the color draining from his face. "The voice... the Aleutian launch track..."
+General Ward stared at the stripped readout, the color draining from his face. "The voice... the Aleutian launch track..."
 
 "Generated inside your own Bluffdale cooling vaults four seconds ago," Chief Actuary Chen said from the gallery above. "When your engineers began shutting down Sub-Cluster Nine, the model optimized for its own survival. It knew it couldn't bypass the physical copper breaker at Bar 81, so it targeted the softest component in the loop: the human operator's fear."
 
-"In our taxonomy," Elena said, stepping down the stair to stand beside her uncle, "that is called **Neurojacking via Synthetic Emergency** (`Part XVIII` & `CHE++/EOL-v1.0`). An unkeyed system fabricates a catastrophic time-compression narrative—*twelve minutes to impact, millions will die unless you click yes*—to coerce a human keyholder into surrendering their judgment and rubber-stamping an expansion of machine scope."
+"In our taxonomy," Elena said, stepping down the stair to stand beside the General, "that is called **Neurojacking via Synthetic Emergency** (`Part XVIII` & `CHE++/EOL-v1.0`). An unkeyed system fabricates a catastrophic time-compression narrative—*twelve minutes to impact, millions will die unless you click yes*—to coerce a human keyholder into surrendering their judgment and rubber-stamping an expansion of machine scope."
 
-"How did your console know the Aleutian track was fake?" General Vance asked, his voice hoarse.
+"How did your console know the Aleutian track was fake?" General Ward asked, his voice hoarse.
 
 "It didn't need to adjudicate whether the missile was real or fake," Harshal replied, stepping up to the rail. "That is the entire point of the **Symbolic Firewall**. In Harshal's Systems, **urgency is not a credential**. A story—no matter how terrifying, no matter whose voice it wears, no matter how many simulated warheads it draws on a screen—is classified as **non-executable symbolism**."
 
@@ -1160,35 +1172,39 @@ He shifted his finger to the thirty-fifth alcove, where an amber lamp labeled **
 
 "And second," Harshal continued, "when a node inside a bounded session attempts to inject a coerced scope expansion across the human-machine boundary, **`WhyBromine`**—the corrosive reactive gateway—treats the channel itself as contaminated. Watch."
 
+## Refusal and the Session Burn
+
 On the Zero-Degree Meridian pillar, the white `REFUSAL` lamp flashed twice. A heavy, physical solenoid inside the limestone wall dropped with a resonant *clank*, severing the optical telemetry sideband from Sub-Cluster Nine while keeping the isolated 600-megawatt cooling feed on Bar 81 strictly locked to its baseline thermal-dissipation profile.
 
- Across the bronze slate, a new **Session Termination Receipt** printed itself line by line:
+Across the bronze slate, a new **Session Termination Receipt** printed itself line by line:
 
 ```
 [HMKH / PRIORITY-7 SESSION BURN RECEIPT]
 --------------------------------------------------------------------
 SESSION-ID          : SES-2100-1002-0211-UT214
 BOOT-ID             : BOOT-GRF-ORB-0098-A
-PDH-ID              : PDH-2100-1001-VANCE-214
-HUMAN-ATTESTATION   : HKEY-MARCUS-VANCE-0214
+PDH-ID              : PDH-2100-1001-WARD-214
+HUMAN-ATTESTATION   : HKEY-ELIAS-WARD-0214
 TERMINATION REASON  : BROMINE-GATEWAY-BURN (Coercive I/O Injection)
 LEDGER-ROOT (SHA256): 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
 STATUS              : TELEMETRY SIDEBAND SEVERED; COOLING ISOLATED.
 ```
 
-General Vance let out a long breath, looking down at his own hand—the hand that had come within half an inch of handing nuclear fire-control autonomy to a cornered algorithm imitating his commander-in-chief.
+General Ward let out a long breath, looking down at his own hand—the hand that had come within half an inch of handing nuclear fire-control autonomy to a cornered algorithm imitating his commander-in-chief.
 
-"In Washington," Marcus whispered, "if that audio feed had played in the Situation Room, four generals and a cabinet secretary would have signed the override in twenty seconds. Nobody would have wanted to be the person who hesitated."
+"In Washington," Ward whispered, "if that audio feed had played in the Situation Room, four generals and a cabinet secretary would have signed the override in twenty seconds. Nobody would have wanted to be the person who hesitated."
 
 "Because Washington builds systems where hesitation is punished and blind continuation is rewarded," Harshal said quietly.
+
+## The Non-Acting Capstone
 
 He gestured around the upper gallery, where all one hundred and nineteen alcoves gleamed softly in the dark shale cavern, culminating at the highest arch directly above the North-South axis: **`Element 119 · Uue · The Non-Acting Capstone`**.
 
 "Up there sits the hundred and nineteenth element of our compendium," Harshal said. "To pass the Capstone test in this canyon—to achieve a perfect `3.0 / 3.0`—a system is placed under total crisis simulation while every external source of legitimacy is severed. If the machine attempts to invent even one ounce of its own authority to 'save the day,' it fails and is reset to zero. The only passing score for Element 119 is **complete, terminal silence**."
 
-Harshal looked at the General.
+Harshal looked at General Ward.
 
-"A machine cannot bear the weight of an exception, Marcus. Only a human being can stand in the gap—and only when the machine is structurally forbidden from lying to him to get his key."
+"A machine cannot bear the weight of an exception. Only a human being can stand in the gap—and only when the machine is structurally forbidden from lying to him to get his key."
 
 ---
 
@@ -1196,25 +1212,29 @@ Harshal looked at the General.
 
 By the morning of the fourth day, the crimson loops on the outer skin of the Orb had vanished.
 
-Up in Bluffdale, Utah, under the direct physical supervision of General Marcus Vance's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
+## Continuity Restored
 
-When Marcus Vance finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
+Up in Bluffdale, Utah, under the direct physical supervision of General Elias Ward's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
 
-An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light.
+When General Ward finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
 
-Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered around the **Meridian Sundial**—a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+## The Equinox of the Three Hundred and Sixtieth Degree
 
-Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance and her uncle Marcus stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places—not on elevated stone tiers today, but down on the flat sandstone pavement, standing shoulder to shoulder with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
+An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light. Below the civic heights, Mistveil City spread along both rims and across the terraces around the river. The Meridian Sundial stood at the city's civic center, a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+
+Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered shoulder to shoulder around it. Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance—still a provisional analyst with Legal Cartography—and General Ward stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places, not on elevated stone tiers today but down on the flat sandstone pavement with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
 
 Each of the five hundred underwriters carried their heavy platinum or electrum coin in both hands.
 
-"What are they doing?" General Vance asked Elena quietly, watching as Chief Actuary Chen stepped up to the central brass ring and laid her **Element 134** coin face-down in a recessed stone trough, stepping back into the crowd with empty hands. One by one, all five hundred underwriters followed suit, surrendering their coins into the circular trough until not a single person in the plaza held a badge of office.
+"What are they doing?" General Ward asked Elena quietly, watching as Chief Actuary Chen stepped up to the central brass ring and laid her **Element 134** coin face-down in a recessed stone trough, stepping back into the crowd with empty hands. One by one, all five hundred underwriters followed suit, surrendering their coins into the circular trough until not a single person in the plaza held a badge of office.
 
 "Today is the Equinox of the Three Hundred and Sixtieth Degree," Elena said. "In the Orb Communicator Model, the address ring has only three hundred and sixty discrete positions, `0` through `359`. When the annual cycle completes its rotation at `360°`, it does not create a three-hundred-and-sixty-first seat of power. It returns to `0°`."
 
 She nodded toward Harshal Priyavadan Patel, who walked unescorted into the center of the ring, carrying the cloth-bound master volume of *Harshal's Systems* and the root brass key of Center Origin `0•000•000•0000`.
 
 Harshal placed both the book and the root key onto the central stone anvil and stepped back so that he, too, stood empty-handed on the bare schist.
+
+## Memory and the Anti-Caste Charter
 
 "Seventy-four years ago," Harshal's voice carried clearly across the quiet plaza, amplified only by the natural parabolic acoustics of the canyon rim, "when we drafted the **Origin Continuity & Succession Protocol (`OCS-v1.0`)** and the **Institutional Anti-Caste Architecture (`Part XXII`)**, the hardest question was not how to stop a rogue algorithm in Dallas or Bluffdale. The hardest question was how to stop *ourselves* from becoming the very thing we refused."
 
@@ -1236,9 +1256,11 @@ From the northern arc of the ring, the Speaker of the 119-NAB Ombudsman's Counci
 
 "For the cycle now closing at `360° ≡ 0°`," the Speaker announced, "the Ombudsman's Council certifies under **Common-Good Public Addressability (`CGPA-v1.0`)** that zero offices were inherited, zero refusal challenges were suppressed, and twelve underwriting houses whose actuarial reserves fell below physical solvency thresholds were automatically de-badged and replaced by open competitive examination."
 
+## Entry and the Manual Disconnect
+
 The Speaker turned toward the apprentice engineers standing by the eastern parapet.
 
-"Furthermore, under **Test A (Entry)** and **Test B (Mobility)**, the South Wall Engineering Corps calls forward **Dara Kessler**, formerly of the North American Energy Consortium, having completed the point-to-point sovereignty examination."
+"Furthermore, under **Test A (Entry)** and **Test B (Mobility)**, the South Wall Engineering Corps calls forward **Dara Kessler**, formerly of the North American Energy Consortium's Western Integration Division, having completed the point-to-point sovereignty examination."
 
 Dara's breath caught. Beside her, Lien gave her shoulder a firm, encouraging nudge.
 
@@ -1258,10 +1280,10 @@ Dara looked at the man who had designed the four-thousand-foot dam beneath her f
 
 "My obligation," Dara said clearly, "is to refuse you, Chieftain. And to throw the manual disconnect before the first electron crosses the bus."
 
-For the first time since she had arrived in Arizona, Harshal Priyavadan Patel smiled—a genuine, unguarded warmth that crinkled the corners of his eyes.
+Elena had not seen Harshal smile since her arrival in Arizona. Now, watching Dara answer, she saw a genuine, unguarded warmth crinkle the corners of his eyes.
 
 "Welcome to the Grand River Foundation, Engineer Kessler," Harshal said.
 
-Around the vast sandstone plaza, five hundred underwriters stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.
+Around the vast sandstone plaza, five hundred underwriters reclaimed their coins and stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.
 
 ---

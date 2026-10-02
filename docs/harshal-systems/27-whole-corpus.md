@@ -137,11 +137,11 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `21` | **Part XXI** | [Part XXI — MicroConvergence and Signal Encoding](21-microconvergence.md) | `CANONICAL_SOURCE` | `RESEARCH_PAPER` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | 7,578 |
 | `22` | **Part XXII** | [Part XXII — Supporting Policy & Governance Research Archive](22-policy-archive.md) | `CANONICAL_SOURCE` | `SUPPORTING_POLICY_RESEARCH` | `INDEPENDENTLY_VERIFIABLE` | `PUBLIC_RESEARCH_SUMMARY` | 6,710 |
 | `23` | **Part XXIII** | [Part XXIII — Specification Series](23-specification-series.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 9,216 |
-| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` | `PUBLIC_RESEARCH_SUMMARY` | 15,631 |
+| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` | `PUBLIC_RESEARCH_SUMMARY` | 16,113 |
 | `25` | **Part XXV** | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 21,535 |
 | `26` | **Part XXVI** | [Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)](26-anthropic-b-side.md) | `AUDIT` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `INCIDENT_AND_AUDIT_RECORD` | 10,267 |
 | `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | ~1,650 |
 
 **Whole Corpus Totals:**
-- **Book I Reference Library (`00`–`27`):** 177,476 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
-- **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** 15,631 words across 9 indexed plaintext chapters (synchronized in Part XXIV and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).
+- **Book I Reference Library (`00`–`27`):** 177,958 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
+- **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** 16,113 words across 9 indexed plaintext chapters (synchronized in Part XXIV and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).

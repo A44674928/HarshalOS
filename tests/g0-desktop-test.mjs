@@ -6,6 +6,7 @@ import { webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
+import { buildBookLibrary } from "../scripts/book-library-index.mjs";
 
 /* ── mini-DOM (same engine as g0-app-test.mjs) ────────────────── */
 const VOID = new Set(["br", "img", "input", "hr", "meta", "link"]);
@@ -541,14 +542,48 @@ if (giApp) {
 }
 globalThis.fetch = originalFetch;
 
-/* ── The Book: the artifact tab and the Grand River manuscript ── */
+/* ── The Book: Book 0 artifact, Book I core text, Book II manuscript ── */
 const settleTurns = async (turns = 8) => { for (let i = 0; i < turns; i++) await new Promise(resolve => setImmediate(resolve)); };
 const bookApp = globalThis.APPS.find(app => app.id === "book");
 ok(!!bookApp, "The Book is registered in APPS");
 ok(!!(globalThis.ManuscriptReader && typeof globalThis.ManuscriptReader.mount === "function"), "the manuscript reader module loads with the shell");
+ok(!!(globalThis.CoreBookReader && typeof globalThis.CoreBookReader.renderMarkdown === "function"), "the safe Core Book Markdown reader loads with the shell");
 if (bookApp) {
-  /* The reading view must not fetch anything until a reader opens the tab. */
+  /* Neither reader fetches content until its tab is opened. */
   const msCalls = [];
+  const { manifest: libraryManifest, documents: libraryDocuments } = await buildBookLibrary(root);
+  const librarySourceByUrl = new Map(libraryDocuments.map(document => [
+    document.url,
+    readFileSync(path.join(root, "docs", "harshal-systems", document.file), "utf8")
+  ]));
+  const coreBookFixture = `---
+title: The Core Book
+part: Part I
+status_taxonomy: CANONICAL_SOURCE
+words: 8511
+---
+# Part I — The Core Book
+
+## Chapter 1 — Ownership Is Not Possession
+
+Legitimacy precedes capability.
+
+- Refusal is a responsible act.
+- <script>alert("unsafe")</script> remains text.
+
+> [!IMPORTANT]
+> **Execution may be delegated.** Legitimacy never migrates.
+
+| Principle | Boundary |
+| :--- | :--- |
+| Authority | Human key |
+
+\`\`\`text
+<iframe src=x></iframe>
+\`\`\`
+
+[unsafe link](javascript:alert(1))
+`;
   const msChapters = {
     "01-the-arrival": "# The Arrival\n\nFirst light on the water.\n\n***\n\nA second paragraph.\n",
     "02-the-foundation": "# The Foundation\n\nLaid stone by stone, and read as text: <b>not markup</b>.\n"
@@ -575,6 +610,14 @@ if (bookApp) {
   globalThis.fetch = async url => {
     const target = String(url);
     msCalls.push(target);
+    if (target.endsWith("book/01-core-book.md")) {
+      return { ok: true, status: 200, text: async () => coreBookFixture };
+    }
+    if (target.endsWith("book-library/manifest.json")) {
+      return { ok: true, status: 200, json: async () => libraryManifest };
+    }
+    const librarySource = [...librarySourceByUrl].find(([url]) => target.endsWith(url))?.[1];
+    if (librarySource !== undefined) return { ok: true, status: 200, text: async () => librarySource };
     if (target.endsWith("manuscript/manifest.json")) {
       return { ok: true, status: 200, json: async () => msManifest };
     }
@@ -588,17 +631,80 @@ if (bookApp) {
   shell.openApp(bookApp);
   const bookWindow = shell.windows.get("book");
   ok(!!bookWindow, "The Book opens as a desktop window");
-  ok(msCalls.length === 0, "opening The Book reads no manuscript files");
+  ok(msCalls.length === 0, "opening The Book reads neither reader's source files");
   const tabs = bookWindow ? bookWindow.body.querySelectorAll("[data-bk-view]") : [];
-  ok(tabs.length === 2, "The Book presents two tabs");
-  ok(tabs.some(tab => (tab.textContent || "").includes("The Physical Artifact")), "the artifact tab keeps its place");
-  const msTab = tabs.find(tab => (tab.textContent || "").includes("The Grand River Foundation"));
-  ok(!!msTab, "the second tab is titled The Grand River Foundation");
+  ok(tabs.length === 4, "The Book presents four reader tabs");
+  const tabLabels = tabs.map(tab => (tab.textContent || "").trim());
+  ok(tabLabels.join(" | ") === "Intro (0) | Core (1) | Novel (2) | Collections (N)", "tabs follow the requested Intro, Core, Novel, Collections order");
+  const artifactTab = tabs.find(tab => (tab.textContent || "").includes("Intro (0)"));
+  const coreTab = tabs.find(tab => (tab.textContent || "").includes("Core (1)"));
+  const msTab = tabs.find(tab => (tab.textContent || "").includes("Novel (2)"));
+  const collectionsTab = tabs.find(tab => (tab.textContent || "").includes("Collections (N)"));
+  ok(!!artifactTab, "Intro (0) retains the physical-artifact view");
+  ok(!!coreTab, "Core (1) retains The Core Book reader");
+  ok(!!msTab, "Novel (2) retains The Grand River Foundation manuscript");
+  ok(!!collectionsTab, "Collections (N) is the fourth tab");
   const artifactPanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="artifact"]') : null;
+  const corePanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="core"]') : null;
+  const collectionsPanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="collections"]') : null;
   const msPanel = bookWindow ? bookWindow.body.querySelector('[data-bk-panel="manuscript"]') : null;
-  ok(!!(artifactPanel && !("hidden" in artifactPanel.attrs)), "the artifact tab is the default view");
-  ok(!!(msPanel && "hidden" in msPanel.attrs), "the manuscript tab starts hidden");
-  ok(!!(artifactPanel && (artifactPanel.textContent || "").includes("500 voting coins")), "the artifact tab still holds the coin pool");
+  ok(!!(artifactPanel && !("hidden" in artifactPanel.attrs)), "the Book 0 artifact tab remains the default view");
+  ok(!!(corePanel && "hidden" in corePanel.attrs), "the Book I reader starts hidden");
+  ok(!!(collectionsPanel && "hidden" in collectionsPanel.attrs), "the Collections reader starts hidden");
+  ok(!!(msPanel && "hidden" in msPanel.attrs), "the Book II manuscript tab starts hidden");
+  ok(!!(artifactPanel && (artifactPanel.textContent || "").includes("500 voting coins")), "Book 0 still holds the coin pool");
+
+  if (coreTab && corePanel) {
+    coreTab.click();
+    await settleTurns();
+    const coreText = corePanel.textContent || "";
+    const coreCalls = msCalls.filter(call => call.endsWith("book/01-core-book.md"));
+    ok(corePanel.hidden === false && artifactPanel.hidden === true, "opening Book I switches away from Book 0");
+    ok(coreCalls.length === 1, "the Book I Markdown source is fetched lazily exactly once");
+    ok(coreText.includes("The Core Book") && coreText.includes("Legitimacy precedes capability."), "the Book I tab renders the selected core document");
+    ok(coreText.includes("8,511 words") && coreText.includes("CANONICAL_SOURCE"), "the reader presents source metadata");
+    ok(corePanel.innerHTML.includes("core-book-callout") && corePanel.innerHTML.includes("core-book-table") && corePanel.innerHTML.includes("core-book-code"), "the safe reader formats callouts, tables, and fenced code");
+    ok(corePanel.innerHTML.includes("&lt;script&gt;") && corePanel.innerHTML.includes("&lt;iframe") && !corePanel.innerHTML.includes("<script") && !corePanel.innerHTML.includes("<iframe"), "raw HTML in the core source is escaped, not executed");
+    ok(!corePanel.innerHTML.includes("href=\"javascript:"), "unsafe Markdown URL schemes are rendered as plain text");
+    coreTab.click();
+    await settleTurns();
+    ok(msCalls.filter(call => call.endsWith("book/01-core-book.md")).length === 1, "reopening Book I reuses the loaded document");
+  }
+
+  if (collectionsTab && collectionsPanel) {
+    collectionsTab.click();
+    await settleTurns();
+    ok(collectionsPanel.hidden === false && corePanel.hidden === true, "opening Collections switches to its own panel");
+    ok(msCalls.filter(call => call.endsWith("book-library/manifest.json")).length === 1, "the Collections index loads lazily and only once");
+    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("29 modules") && (collectionsPanel.textContent || "").includes("39 readable files"), "the Collections reader reports the complete library size");
+    const nav = collectionsPanel.querySelector("[data-library-nav]");
+    const allLibraryButtons = nav ? nav.querySelectorAll("[data-library-file]") : [];
+    ok(allLibraryButtons.length === 39, "all guides, collection overviews, and modules are listed");
+    ok(!!(nav && nav.textContent.includes("Collection I — Foundational Doctrine")), "collections are grouped by their documented titles");
+    const librarySearch = collectionsPanel.querySelector("#book-library-search");
+    if (librarySearch) { librarySearch.value = "01-core-book"; dispatch(librarySearch, "input"); }
+    const filteredLibraryButtons = nav ? nav.querySelectorAll("[data-library-file]") : [];
+    ok(filteredLibraryButtons.length === 1 && filteredLibraryButtons[0].dataset.libraryFile === "01-core-book.md", "search narrows navigation to matching files");
+    const coreModuleButton = filteredLibraryButtons[0];
+    if (coreModuleButton) {
+      coreModuleButton.click();
+      await settleTurns();
+      const collectionText = collectionsPanel.textContent || "";
+      const collectionReader = collectionsPanel.querySelector("[data-library-reading]");
+      ok(collectionText.includes("Part I — The Core Book") && collectionText.includes("legitimacy precedes capability"), "a collection module opens in the on-site safe reader");
+      ok(!!(collectionReader && collectionReader.innerHTML.includes("Read this file on GitHub") && collectionReader.innerHTML.includes("docs/harshal-systems/01-core-book.md")), "each opened collection file links directly to its GitHub source");
+      ok(msCalls.some(call => call.endsWith("/book-library/harshal-systems/01-core-book.md")), "the selected module is fetched from the library allowlist");
+    }
+    if (librarySearch) { librarySearch.value = ""; dispatch(librarySearch, "input"); }
+    ok(nav && nav.querySelectorAll("[data-library-file]").length === 39, "clearing search restores the complete library navigation");
+    const collectionOverview = nav && nav.querySelectorAll("[data-library-file]").find(button => button.dataset.libraryFile === "collections/01-foundations/README.md");
+    if (collectionOverview) {
+      collectionOverview.click();
+      await settleTurns();
+      const overviewReader = collectionsPanel.querySelector("[data-library-reading]");
+      ok(!!(overviewReader && overviewReader.innerHTML.includes('href="/book-library/harshal-systems/01-core-book.md"')), "relative links inside collection files resolve to their online reader paths");
+    }
+  }
 
   if (msTab && msPanel) {
     msTab.click();

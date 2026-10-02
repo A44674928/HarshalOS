@@ -28,8 +28,9 @@ export const ARCHITECTURAL_CONTINUITY_BIBLE = {
     bookII: "Book II — The Grand River Foundation (Book II — Preview · Fictional Companion Novel)"
   },
   canonicalMinimumModel: "Identity → Representation → Authorization → Continuity → Accountability → Refusal",
-  setting: "~2100 CE · Grand River Foundation · 4,000-foot retrofitted Colorado River Dam (completed 2098) spanning Kaibab limestone, Bright Angel shale, and Vishnu schist",
+  setting: "~2100 CE · Mistveil City, capital of the Four Corners region, surrounding the Grand River Foundation's 4,000-foot retrofitted Colorado River Dam (completed 2098) spanning Kaibab limestone, Bright Angel shale, and Vishnu schist",
   institutions: [
+    "Mistveil City — Capital of the Four Corners region, built around the dam crown and both rims; the civic perimeter permits emergency military deployments, while the dam's inner envelope is independently, physically secured",
     "Center Origin 0•000•000•0000 — Root human-keyed anchor held by Chieftain Harshal Priyavadan Patel",
     "Western Colonnade (The Five Hundred Coins) — 500 Mutual Underwriting Houses backstopping 500 NAB conglomerates across continental risk domains (Element 6 Tectonic, Element 7 Hydrological, Element 81 High-Voltage, Element 134 Grid Resilience)",
     "Ombudsman's Council (119 Neural Atomic Bodies) — Structural & human representatives operating under Chapter 110, Article VII of the Grand River Charter (ADJR-v1.0)",
@@ -38,11 +39,11 @@ export const ARCHITECTURAL_CONTINUITY_BIBLE = {
   ],
   characters: [
     "Harshal Priyavadan Patel — Chieftain of the Grand River Tribe; architect of the dam and Center Origin 0•000•000•0000",
-    "Elena Vance — Former Executive Ombudsman for the North American Energy Consortium (Dallas); joins the Foundation after witnessing the Western Colonnade and the Paper Siege",
+    "Elena Vance — Former Executive Ombudsman for the North American Energy Consortium (Dallas); after defecting, serves provisionally as an analyst in Legal Cartography",
     "Chief Actuary Chen — Continental Grid Mutual (Element 134: Grid Resilience)",
     "Lien — Vault Engineer for the South Wall Point-to-Point Array ('Cable Select')",
     "Dara Kessler — MIT-trained apprentice engineer from the Consortium's Western Integration Division",
-    "General Marcus Vance — Commander of the 4th Autonomous Logistics Wing (Pentagon Liaison, Operation Sovereign Flow)"
+    "General Elias Ward — Commander of the 4th Autonomous Logistics Wing; Pentagon liaison for Operation Sovereign Flow; personally keyed to Sector 214 during the Utah Defense Compute Grid emergency"
   ]
 };
 
@@ -84,7 +85,7 @@ export async function compileBookIIPreview(root = ROOT) {
     "**Author:** Harshal Priyavadan Patel  ",
     "**Publishing Tier:** Book II — Preview (Active Narrative Work in Progress)  ",
     "**Document Provenance:** `FICTION` (Non-Normative Future-World Sandbox; separated from Book I normative specifications)  ",
-    "**Setting:** ~2100 CE — The 4,000-foot retrofitted Colorado River Megastructure, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council  ",
+    "**Setting:** ~2100 CE — Mistveil City, capital of the Four Corners region, around the 4,000-foot Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council",
     "**Canonical Minimum Model Illustrated:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`",
     "",
     "> **Editorial & Architectural Note:** *The Grand River Foundation* (**Book II — Preview**) is a standalone work of speculative institutional fiction set in ~2100. It is explicitly separated from the normative specifications, threat research, and incident records of **Book I (*Harshal's Systems*, Parts I–XXVII)**. In this publishing architecture, **Book I serves as the canonical reference library**, while **Book II is the active narrative production** exploring mature ~2100 civilizational implementations of keyed human–machine accountability.",

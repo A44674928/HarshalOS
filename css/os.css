@@ -1050,7 +1050,7 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
 }
 .gloss-item .g-def { font-size: 12px; color: var(--text-dim); margin-top: 4px; line-height: 1.7; }
 
-/* ── The Book · tab shell (artifact · Grand River Foundation) ── */
+/* ── The Book · Intro (0), Core (1), Novel (2), Collections (N) ── */
 .bk-app { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
 .bk-tabs {
   display: flex;

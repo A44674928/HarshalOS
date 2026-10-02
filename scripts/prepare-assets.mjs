@@ -3,6 +3,7 @@ import { cp, mkdir, rm, lstat, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { buildManifest, serializeManifest, MANUSCRIPT_DIRNAME, MANIFEST_FILENAME } from './manuscript-index.mjs';
+import { buildBookLibrary, serializeBookLibrary } from './book-library-index.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dest = path.join(root, '.site-assets');
 const allowedSpecDirectories = new Set(['specs', 'specs/normative', 'specs/draft']);
@@ -27,6 +28,13 @@ for (const entry of ['index.html', 'about.html', 'css', 'js', 'assets', 'specs']
   });
 }
 
+/* Book I is the one explicitly selected document from the otherwise-private
+   docs/ tree. Publish it under a narrow runtime path; never stage docs/ itself. */
+const coreBookSource = 'docs/harshal-systems/01-core-book.md';
+const coreBookTarget = path.join(dest, 'book', '01-core-book.md');
+await mkdir(path.dirname(coreBookTarget), { recursive: true });
+await cp(path.join(root, coreBookSource), coreBookTarget);
+
 /* Manuscript chapters are published as data, never as repository files: only
    files the generated index lists are copied, plus the index itself. A stray
    .docx, note, or private draft in the folder is left out of the deploy. */
@@ -40,4 +48,18 @@ for (const collection of manifest.collections) {
 }
 await mkdir(path.join(dest, MANUSCRIPT_DIRNAME), { recursive: true });
 await writeFile(path.join(dest, MANUSCRIPT_DIRNAME, MANIFEST_FILENAME), serializeManifest(manifest));
-console.log(`Staged public assets, the normative/draft Ground-0 specifications, and ${manifest.manuscript.chapters} manuscript chapter(s) with a generated index.`);
+
+/* The Book's Collections tab exposes every Markdown file in the Harshal's
+   Systems subtree through a curated manifest; unrelated docs/ stay private. */
+const bookLibrary = await buildBookLibrary(root);
+const stagedLibraryRoot = path.join(dest, 'book-library', 'harshal-systems');
+for (const document of bookLibrary.documents) {
+  const source = path.join(root, 'docs', 'harshal-systems', ...document.file.split('/'));
+  const target = path.join(stagedLibraryRoot, ...document.file.split('/'));
+  await mkdir(path.dirname(target), { recursive: true });
+  await cp(source, target);
+}
+await mkdir(path.join(dest, 'book-library'), { recursive: true });
+await writeFile(path.join(dest, 'book-library', 'manifest.json'), serializeBookLibrary(bookLibrary.manifest));
+
+console.log(`Staged public assets, the selected Book I core text, ${bookLibrary.manifest.documentCount} collection-library file(s), the normative/draft Ground-0 specifications, and ${manifest.manuscript.chapters} manuscript chapter(s) with indexes.`);

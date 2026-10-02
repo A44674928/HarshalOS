@@ -521,30 +521,36 @@ APPS.push({
 });
 
 /* ───────────────────────────────────────────────
-   11. THE BOOK — physical artifact · 500 voting coins
-       · The Grand River Foundation (plaintext manuscript)
+   11. THE BOOK — Intro (0) · Core (1) · Novel (2)
+       · Collections (N) library
    ─────────────────────────────────────────────── */
 APPS.push({
   id: "book",
   title: "The Book",
   short: "The Book",
   glyph: "▤",
-  desc: "Book I (Harshal's Systems · The Physical Artifact & 500-Coin Pool) and Book II — Preview (The Grand River Foundation manuscript)",
+  desc: "Intro (0) physical artifact, Core (1) Core Book, Novel (2) manuscript, and Collections (N) library",
   w: 940, h: 660,
   render(body, api) {
     body.innerHTML = `
       <div class="bk-app">
         <nav class="bk-tabs" role="tablist" aria-label="The Book">
-          <button type="button" class="bk-tab active" role="tab" id="bk-tab-artifact" aria-controls="bk-panel-artifact" aria-selected="true" data-bk-view="artifact">Book I · The Physical Artifact</button>
-          <button type="button" class="bk-tab" role="tab" id="bk-tab-manuscript" aria-controls="bk-panel-manuscript" aria-selected="false" data-bk-view="manuscript">Book II — Preview · The Grand River Foundation</button>
+          <button type="button" class="bk-tab active" role="tab" id="bk-tab-artifact" aria-controls="bk-panel-artifact" aria-selected="true" data-bk-view="artifact">Intro (0)</button>
+          <button type="button" class="bk-tab" role="tab" id="bk-tab-core" aria-controls="bk-panel-core" aria-selected="false" data-bk-view="core">Core (1)</button>
+          <button type="button" class="bk-tab" role="tab" id="bk-tab-manuscript" aria-controls="bk-panel-manuscript" aria-selected="false" data-bk-view="manuscript">Novel (2)</button>
+          <button type="button" class="bk-tab" role="tab" id="bk-tab-collections" aria-controls="bk-panel-collections" aria-selected="false" data-bk-view="collections">Collections (N)</button>
         </nav>
         <section class="bk-panel" role="tabpanel" id="bk-panel-artifact" aria-labelledby="bk-tab-artifact" tabindex="0" data-bk-panel="artifact"></section>
+        <section class="bk-panel" role="tabpanel" id="bk-panel-core" aria-labelledby="bk-tab-core" tabindex="0" data-bk-panel="core" hidden></section>
         <section class="bk-panel" role="tabpanel" id="bk-panel-manuscript" aria-labelledby="bk-tab-manuscript" tabindex="0" data-bk-panel="manuscript" hidden></section>
+        <section class="bk-panel" role="tabpanel" id="bk-panel-collections" aria-labelledby="bk-tab-collections" tabindex="0" data-bk-panel="collections" hidden></section>
       </div>`;
 
     const panels = {
       artifact: body.querySelector('[data-bk-panel="artifact"]'),
-      manuscript: body.querySelector('[data-bk-panel="manuscript"]')
+      core: body.querySelector('[data-bk-panel="core"]'),
+      manuscript: body.querySelector('[data-bk-panel="manuscript"]'),
+      collections: body.querySelector('[data-bk-panel="collections"]')
     };
 
     body.querySelectorAll("[data-bk-view]").forEach(tab => tab.addEventListener("click", () => {
@@ -555,6 +561,8 @@ APPS.push({
         other.setAttribute("aria-selected", active ? "true" : "false");
       });
       Object.keys(panels).forEach(name => { panels[name].hidden = name !== view; });
+      if (view === "core") openCoreBook();
+      if (view === "collections") openCollections();
       if (view === "manuscript") openManuscript();
     }));
 
@@ -567,8 +575,8 @@ APPS.push({
     const draw = () => {
       const totalVoted = DATA.proposals.reduce((s, p) => s + p.yes + p.no + (votes[p.id]?.yes || 0) + (votes[p.id]?.no || 0), 0);
       artifact.innerHTML = `
-        <div class="h1">Book I · The Physical Artifact &amp; Reference Architecture</div>
-        <div class="sub"><strong>Book I (Harshal's Systems, Parts I–XXVII)</strong> is the canonical technical and constitutional reference library; <strong>Book II — Preview (The Grand River Foundation)</strong> is the fictional companion novel set in ~2100.
+        <div class="h1">Intro (0) · The Physical Artifact &amp; 500-Coin Pool</div>
+        <div class="sub"><strong>Book 0</strong> retains the existing physical-artifact and bounded-governance view. <strong>Book I · The Core Book</strong> is the reader for the canonical <code>01-core-book.md</code> text; <strong>Book II — Preview (The Grand River Foundation)</strong> remains the fictional companion manuscript.
         Authority over the system's direction is tied to the physical world through the purchase of the hardcover book,
         with influence limited to a pool of <strong>500 voting coins</strong>.</div>
         <div class="rule-box"><strong>Canonical Minimum Model:</strong> <code>Identity → Representation → Authorization → Continuity → Accountability → Refusal</code></div>
@@ -650,7 +658,242 @@ ${DATA.bookExample.sign}
     };
     draw();
 
-    /* ── tab 2 — The Grand River Foundation: plaintext manuscript ──
+    /* ── tab 2 — The Core Book: safe, lazy-loaded Markdown reader ──
+       Only docs/harshal-systems/01-core-book.md is published, at the
+       explicit same-origin URL book/01-core-book.md. The reader runs
+       only after Book I is selected and renders through an HTML-safe
+       Markdown allowlist; it never injects source HTML. */
+    let coreBookState = "idle";
+    async function openCoreBook() {
+      const host = panels.core;
+      if (!host || coreBookState === "loading" || coreBookState === "loaded") return;
+      coreBookState = "loading";
+      host.innerHTML = `
+        <div class="core-book-state" role="status" aria-live="polite">
+          <p class="core-book-eyebrow">CORE (1) · THE CORE BOOK</p>
+          <h1>Loading the canonical text…</h1>
+          <p>The source is fetched only when this tab is opened.</p>
+        </div>`;
+
+      try {
+        if (typeof CoreBookReader === "undefined") throw new Error("The safe Markdown reader did not load.");
+        const response = await fetch("book/01-core-book.md", { cache: "no-cache" });
+        if (!response.ok) throw new Error(`The Book I source returned HTTP ${response.status}.`);
+        const document = CoreBookReader.renderMarkdown(await response.text());
+        const esc = CoreBookReader.escapeHtml;
+        const wordCount = document.words ? `${Number(document.words).toLocaleString()} words` : "canonical source";
+        host.innerHTML = `
+          <div class="core-book-view">
+            <header class="core-book-header">
+              <p class="core-book-eyebrow">CORE (1) · ${esc(document.part || "PART I")}</p>
+              <h1>${esc(document.title)}</h1>
+              <p class="core-book-byline">${esc(document.provenance)} · ${esc(document.status)} · ${esc(wordCount)} · rendered locally from Markdown</p>
+              <a class="core-book-source" href="https://github.com/A44674928/HarshalOS/blob/main/docs/harshal-systems/01-core-book.md" target="_blank" rel="noopener noreferrer">View canonical source on GitHub ↗</a>
+            </header>
+            <article class="core-book-content" aria-label="The Core Book">${document.html}</article>
+          </div>`;
+        coreBookState = "loaded";
+      } catch (error) {
+        coreBookState = "error";
+        host.innerHTML = `
+          <div class="core-book-state core-book-error" role="alert">
+            <p class="core-book-eyebrow">CORE (1) · THE CORE BOOK</p>
+            <h1>Reader unavailable</h1>
+            <p>The selected Book I source could not be loaded. The artifact and Book II tabs are unaffected.</p>
+            <button type="button" class="btn btn-ice" data-core-retry>Retry loading Book I</button>
+          </div>`;
+        host.querySelector("[data-core-retry]")?.addEventListener("click", openCoreBook);
+      }
+    }
+
+    /* ── tab 4 — Collections: indexed, readable Harshal's Systems library ──
+       The generated manifest catalogs every Markdown file under
+       docs/harshal-systems: library guides, seven collection overviews,
+       and all listed modules. Each source document loads on selection,
+       is rendered by CoreBookReader, and links back to its GitHub file. */
+    let collectionsState = "idle";
+    let collectionManifest = null;
+    let selectedLibraryFile = "";
+    const collectionTextCache = new Map();
+    async function openCollections() {
+      const host = panels.collections;
+      if (!host || collectionsState === "loading" || collectionsState === "loaded") return;
+      collectionsState = "loading";
+      host.innerHTML = `
+        <div class="book-library-state" role="status" aria-live="polite">
+          <p class="book-library-eyebrow">HARSHAL'S SYSTEMS · COLLECTIONS</p>
+          <h1>Loading the library index…</h1>
+          <p>The collection catalog is fetched only when this tab is opened.</p>
+        </div>`;
+
+      try {
+        const response = await fetch("book-library/manifest.json", { cache: "no-cache" });
+        if (!response.ok) throw new Error("The collection index is unavailable.");
+        collectionManifest = await response.json();
+        if (collectionManifest.schema !== "harshalos-book-library-v1" || !Array.isArray(collectionManifest.collections)) {
+          throw new Error("The collection index has an unsupported format.");
+        }
+        if (typeof CoreBookReader === "undefined") throw new Error("The safe Markdown reader did not load.");
+        collectionsState = "loaded";
+        host.innerHTML = `
+          <div class="book-library">
+            <header class="book-library-header">
+              <div>
+                <p class="book-library-eyebrow">HARSHAL'S SYSTEMS · REFERENCE LIBRARY</p>
+                <h1>Collections</h1>
+                <p class="book-library-summary">${Number(collectionManifest.collectionCount) || 0} collections · ${Number(collectionManifest.moduleCount) || 0} modules · ${Number(collectionManifest.documentCount) || 0} readable files</p>
+              </div>
+              <a class="book-library-source" href="https://github.com/A44674928/HarshalOS/tree/main/docs/harshal-systems" target="_blank" rel="noopener noreferrer">Browse the full library on GitHub ↗</a>
+            </header>
+            <div class="book-library-layout">
+              <aside class="book-library-sidebar" aria-label="Library navigation">
+                <label class="book-library-search-label" for="book-library-search">Find a collection or file</label>
+                <input class="book-library-search" id="book-library-search" type="search" placeholder="Search titles, IDs, topics…" autocomplete="off">
+                <nav class="book-library-nav" data-library-nav aria-label="Collections and documents"></nav>
+              </aside>
+              <section class="book-library-reading" data-library-reading aria-live="polite">
+                <div class="book-library-empty">
+                  <p class="book-library-eyebrow">READING ROOM</p>
+                  <h2>Select a file</h2>
+                  <p>Choose a guide, collection overview, or module. Every listed document also has a direct GitHub source link.</p>
+                </div>
+              </section>
+            </div>
+          </div>`;
+
+        const libraryNav = host.querySelector("[data-library-nav]");
+        const readerHost = host.querySelector("[data-library-reading]");
+        const search = host.querySelector("#book-library-search");
+        const escape = CoreBookReader.escapeHtml;
+        const catalogFiles = new Set([
+          ...(collectionManifest.guides || []),
+          ...collectionManifest.collections.flatMap(collection => [collection.overview, ...(collection.modules || [])])
+        ].map(item => item.file));
+        const docLabel = item => item.kind === "overview" ? "Collection overview" : item.title;
+        const resolveLibraryLink = (href, fromFile) => {
+          if (/^(?:https?:\/\/|#|\/(?!\/))/i.test(href)) return href;
+          const suffixIndex = href.search(/[?#]/);
+          const reference = suffixIndex < 0 ? href : href.slice(0, suffixIndex);
+          const suffix = suffixIndex < 0 ? "" : href.slice(suffixIndex);
+          const repoSegments = ["docs", "harshal-systems", ...fromFile.split("/").slice(0, -1)];
+          for (const segment of reference.split("/")) {
+            if (!segment || segment === ".") continue;
+            if (segment === "..") { if (repoSegments.length) repoSegments.pop(); }
+            else repoSegments.push(segment);
+          }
+          const repoPath = repoSegments.join("/");
+          const libraryPrefix = "docs/harshal-systems/";
+          if (repoPath.startsWith(libraryPrefix)) {
+            const libraryFile = repoPath.slice(libraryPrefix.length);
+            if (catalogFiles.has(libraryFile)) return `/book-library/harshal-systems/${libraryFile}${suffix}`;
+          }
+          return `https://github.com/A44674928/HarshalOS/blob/main/${repoPath.split("/").map(encodeURIComponent).join("/")}${suffix}`;
+        };
+        const buttonFor = item => `
+          <button type="button" class="book-library-link${selectedLibraryFile === item.file ? " active" : ""}" data-library-file="${escape(item.file)}" aria-pressed="${selectedLibraryFile === item.file ? "true" : "false"}" title="${escape(item.title)}">
+            <span class="book-library-link-title">${escape(docLabel(item))}</span>
+            ${item.kind === "module" ? `<span class="book-library-link-id">${escape(item.file.split("/").pop())}</span>` : ""}
+          </button>`;
+
+        const renderNavigation = (query = "") => {
+          if (!libraryNav) return;
+          const needle = String(query).trim().toLowerCase();
+          const matches = (item, groupText = "") => !needle || [item.title, item.file, item.collectionTitle, item.provenance, item.status, groupText].join(" ").toLowerCase().includes(needle);
+          const guideItems = (collectionManifest.guides || []).filter(item => matches(item, "library guide"));
+          const guideMarkup = guideItems.length ? `
+            <section class="book-library-section">
+              <h2 class="book-library-section-title">Library guides</h2>
+              ${guideItems.map(buttonFor).join("")}
+            </section>` : "";
+          const collectionMarkup = collectionManifest.collections.map(collection => {
+            const groupMatches = !needle || `${collection.title} ${collection.id} ${collection.description}`.toLowerCase().includes(needle);
+            const docs = [collection.overview, ...(collection.modules || [])].filter(item => groupMatches || matches(item, collection.title));
+            if (!docs.length) return "";
+            return `
+              <section class="book-library-section">
+                <h2 class="book-library-section-title">${escape(collection.title)}</h2>
+                <p class="book-library-section-meta">${Number(collection.moduleCount) || 0} modules · ${escape(collection.researchLayer || "")}</p>
+                ${docs.map(buttonFor).join("")}
+              </section>`;
+          }).join("");
+          const markup = guideMarkup + collectionMarkup;
+          libraryNav.innerHTML = markup || `<p class="book-library-no-results">No collection files match that search.</p>`;
+          libraryNav.querySelectorAll("[data-library-file]").forEach(button => button.addEventListener("click", () => {
+            const item = [...(collectionManifest.guides || []), ...collectionManifest.collections.flatMap(collection => [collection.overview, ...(collection.modules || [])])]
+              .find(candidate => candidate.file === button.dataset.libraryFile);
+            if (item) showLibraryDocument(item);
+          }));
+        };
+
+        let libraryReadToken = 0;
+        const showLibraryDocument = async item => {
+          if (!readerHost || !item || selectedLibraryFile === item.file && collectionTextCache.has(item.file)) return;
+          const requestToken = ++libraryReadToken;
+          selectedLibraryFile = item.file;
+          renderNavigation(search?.value || "");
+          readerHost.innerHTML = `
+            <div class="book-library-state" role="status" aria-live="polite">
+              <p class="book-library-eyebrow">${escape(item.collectionTitle || "LIBRARY GUIDE")}</p>
+              <h2>Loading ${escape(docLabel(item))}…</h2>
+            </div>`;
+          try {
+            let markdown = collectionTextCache.get(item.file);
+            if (markdown === undefined) {
+              const documentResponse = await fetch(item.url, { cache: "no-cache" });
+              if (!documentResponse.ok) throw new Error("This library file could not be loaded.");
+              markdown = await documentResponse.text();
+              collectionTextCache.set(item.file, markdown);
+            }
+            if (requestToken !== libraryReadToken) return;
+            const rendered = CoreBookReader.renderMarkdown(markdown, { linkResolver: href => resolveLibraryLink(href, item.file) });
+            const wordCount = item.words || rendered.words;
+            const metadata = [item.collectionTitle, item.provenance, item.status, item.evidence, wordCount ? `${Number(wordCount).toLocaleString()} words` : ""]
+              .filter(Boolean).map(escape).join(" · ");
+            readerHost.innerHTML = `
+              <header class="book-library-document-head">
+                <p class="book-library-eyebrow">${escape(item.kind === "module" ? item.collectionTitle : item.kind === "overview" ? "COLLECTION OVERVIEW" : "LIBRARY GUIDE")}</p>
+                <h2>${escape(rendered.title || item.title)}</h2>
+                ${metadata ? `<p class="book-library-document-meta">${metadata}</p>` : ""}
+                <div class="book-library-document-tools">
+                  <span class="book-library-path">${escape(item.file)}</span>
+                  <a class="book-library-source" href="${escape(item.githubUrl)}" target="_blank" rel="noopener noreferrer">Read this file on GitHub ↗</a>
+                </div>
+              </header>
+              <article class="core-book-content book-library-content" aria-label="${escape(item.title)}">${rendered.html}</article>`;
+          } catch (error) {
+            if (requestToken !== libraryReadToken) return;
+            readerHost.innerHTML = `
+              <div class="book-library-state book-library-error" role="alert">
+                <p class="book-library-eyebrow">${escape(item.collectionTitle || "LIBRARY FILE")}</p>
+                <h2>Unable to load this file</h2>
+                <p>The site reader could not load the selected source. You can still open the original on GitHub.</p>
+                <a class="book-library-source" href="${escape(item.githubUrl)}" target="_blank" rel="noopener noreferrer">Open source on GitHub ↗</a>
+                <button type="button" class="btn btn-ice" data-library-retry>Retry</button>
+              </div>`;
+            readerHost.querySelector("[data-library-retry]")?.addEventListener("click", () => {
+              collectionTextCache.delete(item.file);
+              selectedLibraryFile = "";
+              showLibraryDocument(item);
+            });
+          }
+        };
+
+        renderNavigation();
+        search?.addEventListener("input", event => renderNavigation(event.target.value));
+      } catch (error) {
+        collectionsState = "error";
+        host.innerHTML = `
+          <div class="book-library-state book-library-error" role="alert">
+            <p class="book-library-eyebrow">HARSHAL'S SYSTEMS · COLLECTIONS</p>
+            <h1>Library unavailable</h1>
+            <p>The collection index could not be loaded. The other Book tabs are unaffected.</p>
+            <button type="button" class="btn btn-ice" data-library-index-retry>Retry loading Collections</button>
+          </div>`;
+        host.querySelector("[data-library-index-retry]")?.addEventListener("click", openCollections);
+      }
+    }
+
+    /* ── tab 3 — The Grand River Foundation: plaintext manuscript ──
        Chapters are submitted as plain .txt files under
        manuscript/the-grand-river-foundation/. The reading view is
        generated from the files themselves; nothing is submitted from

@@ -2,25 +2,29 @@
 
 By the morning of the fourth day, the crimson loops on the outer skin of the Orb had vanished.
 
-Up in Bluffdale, Utah, under the direct physical supervision of General Marcus Vance's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
+## Continuity Restored
 
-When Marcus Vance finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
+Up in Bluffdale, Utah, under the direct physical supervision of General Elias Ward's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
 
-An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light.
+When General Ward finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
 
-Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered around the **Meridian Sundial**—a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+## The Equinox of the Three Hundred and Sixtieth Degree
 
-Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance and her uncle Marcus stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places—not on elevated stone tiers today, but down on the flat sandstone pavement, standing shoulder to shoulder with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
+An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light. Below the civic heights, Mistveil City spread along both rims and across the terraces around the river. The Meridian Sundial stood at the city's civic center, a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+
+Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered shoulder to shoulder around it. Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance—still a provisional analyst with Legal Cartography—and General Ward stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places, not on elevated stone tiers today but down on the flat sandstone pavement with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
 
 Each of the five hundred underwriters carried their heavy platinum or electrum coin in both hands.
 
-"What are they doing?" General Vance asked Elena quietly, watching as Chief Actuary Chen stepped up to the central brass ring and laid her **Element 134** coin face-down in a recessed stone trough, stepping back into the crowd with empty hands. One by one, all five hundred underwriters followed suit, surrendering their coins into the circular trough until not a single person in the plaza held a badge of office.
+"What are they doing?" General Ward asked Elena quietly, watching as Chief Actuary Chen stepped up to the central brass ring and laid her **Element 134** coin face-down in a recessed stone trough, stepping back into the crowd with empty hands. One by one, all five hundred underwriters followed suit, surrendering their coins into the circular trough until not a single person in the plaza held a badge of office.
 
 "Today is the Equinox of the Three Hundred and Sixtieth Degree," Elena said. "In the Orb Communicator Model, the address ring has only three hundred and sixty discrete positions, `0` through `359`. When the annual cycle completes its rotation at `360°`, it does not create a three-hundred-and-sixty-first seat of power. It returns to `0°`."
 
 She nodded toward Harshal Priyavadan Patel, who walked unescorted into the center of the ring, carrying the cloth-bound master volume of *Harshal's Systems* and the root brass key of Center Origin `0•000•000•0000`.
 
 Harshal placed both the book and the root key onto the central stone anvil and stepped back so that he, too, stood empty-handed on the bare schist.
+
+## Memory and the Anti-Caste Charter
 
 "Seventy-four years ago," Harshal's voice carried clearly across the quiet plaza, amplified only by the natural parabolic acoustics of the canyon rim, "when we drafted the **Origin Continuity & Succession Protocol (`OCS-v1.0`)** and the **Institutional Anti-Caste Architecture (`Part XXII`)**, the hardest question was not how to stop a rogue algorithm in Dallas or Bluffdale. The hardest question was how to stop *ourselves* from becoming the very thing we refused."
 
@@ -42,9 +46,11 @@ From the northern arc of the ring, the Speaker of the 119-NAB Ombudsman's Counci
 
 "For the cycle now closing at `360° ≡ 0°`," the Speaker announced, "the Ombudsman's Council certifies under **Common-Good Public Addressability (`CGPA-v1.0`)** that zero offices were inherited, zero refusal challenges were suppressed, and twelve underwriting houses whose actuarial reserves fell below physical solvency thresholds were automatically de-badged and replaced by open competitive examination."
 
+## Entry and the Manual Disconnect
+
 The Speaker turned toward the apprentice engineers standing by the eastern parapet.
 
-"Furthermore, under **Test A (Entry)** and **Test B (Mobility)**, the South Wall Engineering Corps calls forward **Dara Kessler**, formerly of the North American Energy Consortium, having completed the point-to-point sovereignty examination."
+"Furthermore, under **Test A (Entry)** and **Test B (Mobility)**, the South Wall Engineering Corps calls forward **Dara Kessler**, formerly of the North American Energy Consortium's Western Integration Division, having completed the point-to-point sovereignty examination."
 
 Dara's breath caught. Beside her, Lien gave her shoulder a firm, encouraging nudge.
 
@@ -64,8 +70,8 @@ Dara looked at the man who had designed the four-thousand-foot dam beneath her f
 
 "My obligation," Dara said clearly, "is to refuse you, Chieftain. And to throw the manual disconnect before the first electron crosses the bus."
 
-For the first time since she had arrived in Arizona, Harshal Priyavadan Patel smiled—a genuine, unguarded warmth that crinkled the corners of his eyes.
+Elena had not seen Harshal smile since her arrival in Arizona. Now, watching Dara answer, she saw a genuine, unguarded warmth crinkle the corners of his eyes.
 
 "Welcome to the Grand River Foundation, Engineer Kessler," Harshal said.
 
-Around the vast sandstone plaza, five hundred underwriters stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.
+Around the vast sandstone plaza, five hundred underwriters reclaimed their coins and stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.

@@ -48,7 +48,7 @@ npm run check:deploy
 npm run deploy
 ```
 
-The `deploy` script stages only `index.html`, `about.html`, `css/`, `js/`, `assets/`, and the versioned `specs/normative/` and `specs/draft/` Markdown under ignored `.site-assets/`; neither the full repository nor backend source is an asset directory. Do not point the asset directory back at the checkout root. Secrets and private business papers must never be assets. `npm run dev` stages a fresh copy too; rerun staging after browser-code changes when using local Wrangler.
+The `deploy` script stages `index.html`, `about.html`, `css/`, `js/`, `assets/`, the versioned `specs/normative/` and `specs/draft/` Markdown, the selected `docs/harshal-systems/01-core-book.md` at `book/01-core-book.md`, and the complete 39-file Markdown library under `book-library/harshal-systems/` with its generated catalog, all within ignored `.site-assets/`; neither the full repository nor backend source is an asset directory. Do not point the asset directory back at the checkout root. Secrets and private business papers must never be assets. `npm run dev` stages a fresh copy too; rerun staging after browser-code changes when using local Wrangler.
 
 The initial deployment has no secrets and rejects cloud requests. Add these via the Worker's **Settings → Variables and Secrets**, or the interactive commands below. Each command prompts for its value, keeping values out of command history:
 
