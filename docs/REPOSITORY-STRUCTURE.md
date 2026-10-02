@@ -29,14 +29,23 @@ This layout separates normative specifications, implementation, evidence, operat
 │   ├── deployment/                   Operator/deployment guides
 │   ├── source-material/              Archival manuscript transcription
 │   └── REPOSITORY-STRUCTURE.md       This map
+├── Archive/
+│   ├── Duplicates/                    Surplus byte-identical files and their SHA-256 path manifest
+│   ├── HarshalOS Previews/            OCM preview art; repository-only review archive
+│   ├── Manuscript Working Drafts/     Source-format drafts; not active manuscript chapters
+│   └── Supply Chain/                  Source bundle for owner-by-owner review
 ├── archives/
 │   ├── ground-0/                     Historical standalone ZIP bundles
-│   └── manuscript-rtf/               Archived working RTF chapter drafts (ARCHIVE provenance)
+│   ├── manuscript-rtf/               Archived working RTF chapter drafts (ARCHIVE provenance)
+│   └── screenshots/2026-08/          Archived screenshot backup artifacts; not deployed
+├── PLUGIN-ARCHITECTURE.md             Reserved/future slot design; no current folder loader
 ├── tests/                            Node test harnesses
 ├── scripts/                          Asset-staging and integrity-report tooling
 ├── .github/workflows/                CI automation
-└── Business Plan/                    Separate author archive, not a site asset directory
+└── Business Plan/                    Remaining author archive, not a site asset directory
 ```
+
+`Archive/` is a review staging area for selected material extracted from the author archive; `Archive/Duplicates/` contains quarantined surplus byte-identical copies and `DUPLICATE-QUARANTINE-MANIFEST.csv` records each retained/quarantined path and SHA-256. The existing lowercase `archives/` remains the historical archive area. Both are repository-only; neither is a privacy boundary. The nested slot-preservation policy is documented in [`PLUGIN-ARCHITECTURE.md`](../PLUGIN-ARCHITECTURE.md) and is explicitly reserved/future rather than a current runtime plugin system.
 
 `SECURITY.md` remains at the repository root so GitHub can discover the security policy automatically. Root configuration and development files—including `package.json`, `package-lock.json`, `serve.js`, `wrangler.jsonc`, `.assetsignore`, and `.gitignore`—also remain at the root because tooling expects those paths.
 
@@ -77,10 +86,10 @@ When adding a test, put it under `tests/` and update the suite mapping in `scrip
 
 ## What is and is not deployed
 
-The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, Markdown under `specs/normative/` and `specs/draft/`, the selected Book I source at `book/01-core-book.md`, all 39 Markdown files in the intentionally public `docs/harshal-systems/` library under `book-library/harshal-systems/` plus its generated manifest, and — under `manuscript/` — only the generated `manifest.json` plus the plaintext chapter files that index names. They do not publish the rest of `docs/`, `case-studies/`, `research/`, `archives/`, `tests/`, `scripts/`, `worker/`, `Business Plan/`, `manuscript/README.md`, or the manuscript's private `_collection.json` metadata as browser assets. Manuscript files are still repository files: committing a chapter publishes it, so private material does not belong in `manuscript/`.
+The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, Markdown under `specs/normative/` and `specs/draft/`, the selected Book I source at `book/01-core-book.md`, all 39 Markdown files in the intentionally public `docs/harshal-systems/` library under `book-library/harshal-systems/` plus its generated manifest, and — under `manuscript/` — only the generated `manifest.json` plus the plaintext chapter files that index names. They do not publish the rest of `docs/`, `case-studies/`, `research/`, `Archive/`, `archives/`, `tests/`, `scripts/`, `worker/`, `Business Plan/`, `PLUGIN-ARCHITECTURE.md`, `manuscript/README.md`, or the manuscript's private `_collection.json` metadata as browser assets. Manuscript files are still repository files: committing a chapter publishes it, so private material does not belong in `manuscript/`.
 
 This static-asset boundary does **not** change repository visibility: files committed to this repository can still be read by repository users. Do not store secrets or private material here. Review `.assetsignore`, `serve.js`, `scripts/prepare-assets.mjs`, and `wrangler.jsonc` together whenever the public asset surface changes.
 
 ## Why the large author archive remains separate
 
-`Business Plan/` is already its own top-level collection and contains a large, heterogeneous author archive. This pass leaves it in place instead of relocating thousands of files or implying that a path move changes its GitHub visibility. It is excluded from the browser asset staging; repository visibility still follows the repository's GitHub access settings.
+`Business Plan/` remains a large, heterogeneous author archive and is excluded from browser asset staging. This pass moves selected material for review: OCM preview art and manuscript working drafts to `Archive/`, Supply Chain Tech Demo material to `Archive/Supply Chain/`, and August 2026 screenshot-named backup artifacts to `archives/screenshots/2026-08/`. It also moves 88 surplus copies spanning 82 exact-content duplicate groups to `Archive/Duplicates/`; the manifest records the retained path and each quarantined copy. The rest of the source tree, including reserved plugin slots, remains in place. These path moves are organizational only; repository visibility still follows the repository's GitHub access settings.

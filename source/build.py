@@ -2,7 +2,7 @@
 """
 HarshalOS documentation build.
 
-Reads:   source/working-draft.md   (Owner's Working Draft, 1.28 MB)
+Reads:   source/working-draft.md   (canonical Owner's Working Draft build input)
 Writes:  docs/harshal-systems/NN-*.md   (one file per part)
          HARSHAL-SYSTEMS-USER-MANUAL.md (assembled master, repo root)
          docs/harshal-systems/EDITORIAL-REPORT.md
@@ -29,9 +29,9 @@ from corpus_upgrades import (
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-# The build reads the Owner's Working Draft from the repository root when it is
-# present (that is where it lives on main), and otherwise from the snapshot kept
-# beside this script so the branch stays self-contained.
+# The checked-in canonical build input is the snapshot kept beside this script.
+# A root-level owner copy can still override it when supplied by another checkout;
+# the byte-identical copy formerly tracked at root is quarantined in Archive/Duplicates.
 _ROOT_DRAFT = os.path.join(ROOT, "Harshal's Systems (Copyrighted) [Owner's Working Draft].md")
 SRC = _ROOT_DRAFT if os.path.exists(_ROOT_DRAFT) else os.path.join(HERE, 'working-draft.md')
 OUTDIR = os.path.join(ROOT, 'docs', 'harshal-systems')
