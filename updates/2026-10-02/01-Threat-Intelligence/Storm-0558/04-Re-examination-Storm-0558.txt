@@ -1,0 +1,77 @@
+Results of Major Technical Investigations for Storm-0558 Key Acquisition
+
+First, what hasn’t changed:
+
+Our leading hypothesis remains that 
+
+operational errors
+key material leaving the secure token signing environment
+subsequently accessed in a debugging environment
+compromised engineering account
+
+Here are the key items which we are updating based on what we have learned since September 6, 2023:
+
+
+actor access
+crash dump in 2021 
+have not found a crash dump containing the impacted key material
+
+race condition
+did not impact whether the key could be present in the crash dump
+whether the crash dump could be removed from the secure token signing environment
+
+moving crash dump material 
+out of the secure signing environment
+consistent with (previous) standard debugging process
+intended to indicate that this was not prohibited in the past
+
+limitations in cred scanning technologies
+address as we discover them.
+
+
+China-Based threat actor, Storm-0558
+acquired Microsoft account (MSA) consumer key
+forge tokens to access OWA and Outlook.com. 
+the threat actor had acquired the consumer key
+
+Key acquisition   
+highly isolated and restricted production environment. 
+Controls for Microsoft employee access to production infrastructure include background checks, dedicated accounts, secure access workstations, and multi-factor authentication using hardware token devices
+Controls in this environment also prevent the use of email, conferencing, web research and other collaboration tools
+common account compromise vectors such as malware infections or phishing
+restricting access to systems and data using Just in Time and Just Enough Access policies
+
+corporate environment
+secure authentication
+secure devices
+allows for email
+conferencing
+web research
+other collaboration tools
+users vulnerable to spear phishing
+token stealing malware
+account compromise vectors
+by policy and as part of our Zero-Trust and “assume breach” mindset - key material should not leave our production environment
+
+
+Our investigation found that a consumer signing system crash in April of 2021 resulted in a snapshot of the crashed process (“crash dump”). The crash dumps, which redact sensitive information, should not include the signing key. In this case, a race condition allowed the key to be present in the crash dump (this issue has been corrected). The key material’s presence in the crash dump was not detected by our systems (this issue has been corrected).
+
+We found that this crash dump, believed at the time not to contain key material, was subsequently moved from the isolated production network into our debugging environment on the internet connected corporate network. This is consistent with our standard debugging processes. Our credential scanning methods did not detect its presence (this issue has been corrected).  
+
+After April 2021, when the key was leaked to the corporate environment in the crash dump, the Storm-0558 actor was able to successfully compromise a Microsoft engineer’s corporate account. This account had access to the debugging environment containing the crash dump which incorrectly contained the key. Due to log retention policies, we don’t have logs with specific evidence of this exfiltration by this actor, but this was the most probable mechanism by which the actor acquired the key.
+
+Why a consumer key was able to access enterprise mail 
+To meet growing customer demand to support applications which work with both consumer and enterprise applications, Microsoft introduced a common key metadata publishing endpoint in September 2018. As part of this converged offering, Microsoft updated documentation to clarify the requirements for key scope validation – which key to use for enterprise accounts, and which to use for consumer accounts.  
+
+As part of a pre-existing library of documentation and helper APIs, Microsoft provided an API to help validate the signatures cryptographically but did not update these libraries to perform this scope validation automatically (this issue has been corrected). The mail systems were updated to use the common metadata endpoint in 2022. Developers in the mail system incorrectly assumed libraries performed complete validation and did not add the required issuer/scope validation. Thus, the mail system would accept a request for enterprise email using a security token signed with the consumer key (this issue has been corrected using the updated libraries).  
+
+Post Incident Review 
+Microsoft is continuously hardening systems as part of our defense in depth strategy. Investments which have been made related to MSA key management are covered in the https://aka.ms/storm-0558 blog. Items detailed in this blog are a subset of these overall investments. We are summarizing the improvements specific to these findings here for clarity:
+
+Identified and resolved race Condition that allowed the signing key to be present in crash dumps
+
+Enhanced prevention, detection, and response for key material erroneously included in crash dumps
+
+Enhanced credential scanning to better detect presence of signing key in the debugging environment
+
+Released enhanced libraries to automate key scope validation in authentication libraries, and clarified related documentation
