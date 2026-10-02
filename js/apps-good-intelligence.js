@@ -104,7 +104,7 @@
     title: "Good Intelligence",
     short: "Good Intelligence",
     glyph: "∅",
-    desc: "Read-only intel feed, network rankings, and synthetic-safe Market Charts from the Good Intelligence API",
+    desc: "Read-only intel feed, network rankings, Market Charts, and TradingView Lightweight Charts™ over synthetic-safe OHLCV",
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
@@ -114,9 +114,10 @@
       const Client = window.GoodIntelligenceClient;
       const Assurance = window.GoodIntelligenceAssurance;
       const MarketContext = window.GoodIntelligenceMarketContext;
+      const TradingView = window.GoodIntelligenceTradingView;
       const Verifier = window.GoodIntelligenceVerifier;
-      if (!Client || !Assurance || !MarketContext || !Verifier) {
-        body.innerHTML = `<div class="h1">Good Intelligence</div><div class="rule-box refusal">The read-only API, assurance, market-context, and signature-verification modules are not loaded. Check their script order in index.html.</div>`;
+      if (!Client || !Assurance || !MarketContext || !TradingView || !Verifier) {
+        body.innerHTML = `<div class="h1">Good Intelligence</div><div class="rule-box refusal">The read-only API, assurance, market-context, TradingView-adapter, and signature-verification modules are not loaded. Check their script order in index.html.</div>`;
         return;
       }
 
@@ -134,15 +135,16 @@
         errors: { feed: null, categories: null, rankings: null },
         selectedId: "",
         selectedMarketId: "",
-        marketProvider: "demo",
+        // Tickerbot Live is the first, default data source on both chart panels.
+        // The synthetic demo stays available explicitly and is never substituted.
+        marketProvider: "tickerbot",
         marketQuery: "",
         marketInterval: "1h",
-        marketRequestId: 0,
-        marketRequestKey: "",
-        marketResultKey: "",
-        marketResult: null,
-        marketErrorKey: "",
-        marketError: "",
+        marketData: {},
+        marketPending: new Set(),
+        marketGeneration: 0,
+        tvChartType: TradingView.DEFAULT_CHART_TYPE,
+        tvShowVolume: true,
         updatedAt: "",
         settingsError: "",
         controller: null,
@@ -184,6 +186,7 @@
                   <button type="button" class="gi-tab active" data-gi-view="feed" aria-pressed="true">Intel feed</button>
                   <button type="button" class="gi-tab" data-gi-view="rankings" aria-pressed="false">Rankings</button>
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
+                  <button type="button" class="gi-tab" data-gi-view="tradingview" aria-pressed="false">TradingView</button>
                 </nav>
               </div>
 
@@ -222,7 +225,7 @@
                 <div class="gi-chart-toolbar">
                   <div><p class="gi-eyebrow">PRICE / VOLUME VISUALIZATION</p><h3>Market Charts</h3><p>VFI + Fibonacci Bands with WaveTrend context</p></div>
                   <div class="gi-chart-controls">
-                    <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-market-provider aria-label="Select market data source"><option value="demo">Synthetic demo</option><option value="tickerbot">Tickerbot Live</option></select></label>
+                    <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-market-provider aria-label="Select market data source"><option value="tickerbot" selected>Tickerbot Live</option><option value="demo">Synthetic demo</option></select></label>
                     <label class="gi-chart-control"><span>SELECT TICKER</span><select data-gi-market-select aria-label="Select market ticker"></select></label>
                     <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-market-interval aria-label="Select bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
                   </div>
@@ -238,6 +241,37 @@
                 </div>
                 <p class="gi-market-search-help" data-gi-market-search-help></p>
                 <div data-gi-market-chart-host aria-live="polite"></div>
+              </section>
+
+              <section class="gi-tradingview-panel" data-gi-tv-panel aria-label="TradingView charts" hidden>
+                <div class="gi-chart-toolbar">
+                  <div>
+                    <p class="gi-eyebrow">TRADINGVIEW · FREE CHARTING LIBRARY</p>
+                    <h3>TradingView charts</h3>
+                    <p>Interactive ${escapeHtml(TradingView.LIBRARY.name)} over the same OHLCV packets</p>
+                  </div>
+                  <div class="gi-chart-controls">
+                    <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-tv-provider aria-label="Select TradingView data source"><option value="tickerbot" selected>Tickerbot Live</option><option value="demo">Synthetic demo</option></select></label>
+                    <label class="gi-chart-control"><span>SELECT TICKER</span><select data-gi-tv-select aria-label="Select TradingView ticker"></select></label>
+                    <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-tv-interval aria-label="Select TradingView bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
+                    <label class="gi-chart-control"><span>CHART TYPE</span><select data-gi-tv-type aria-label="Select TradingView chart type"></select></label>
+                  </div>
+                </div>
+                <div class="gi-market-search-tools">
+                  <label class="gi-search">
+                    <span class="gi-sr-only">Search TradingView tickers by symbol or company</span>
+                    <span class="gi-search-icon" aria-hidden="true">⌕</span>
+                    <input type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Search ticker or company…" data-gi-tv-search>
+                  </label>
+                  <button class="gi-button" type="button" data-gi-tv-clear aria-label="Clear TradingView ticker search">Clear</button>
+                  <span class="gi-result-count" data-gi-tv-count role="status" aria-live="polite"></span>
+                </div>
+                <p class="gi-market-search-help" data-gi-tv-search-help></p>
+                <div data-gi-tv-host aria-live="polite"></div>
+                <p class="gi-tv-attribution">
+                  <span data-gi-tv-attribution></span>
+                  <a href="${escapeHtml(TradingView.LIBRARY.homepage)}" target="_blank" rel="noopener noreferrer">Free charting libraries at TradingView ↗</a>
+                </p>
               </section>
 
               <footer class="gi-footer">
@@ -303,10 +337,28 @@
       const marketProviderSelect = $("[data-gi-market-provider]");
       const marketIntervalSelect = $("[data-gi-market-interval]");
       const marketChartHost = $("[data-gi-market-chart-host]");
+      const tvProviderSelect = $("[data-gi-tv-provider]");
+      const tvSelect = $("[data-gi-tv-select]");
+      const tvIntervalSelect = $("[data-gi-tv-interval]");
+      const tvTypeSelect = $("[data-gi-tv-type]");
+      const tvSearch = $("[data-gi-tv-search]");
+      const tvClear = $("[data-gi-tv-clear]");
+      const tvCount = $("[data-gi-tv-count]");
+      const tvSearchHelp = $("[data-gi-tv-search-help]");
+      const tvHost = $("[data-gi-tv-host]");
+      const tvAttribution = $("[data-gi-tv-attribution]");
       const categorySelect = $("[data-gi-category]");
       const searchInput = $("[data-gi-search]");
       const apiInput = $("[data-gi-api-input]");
       const settingsError = $("[data-gi-settings-error]");
+      const marketSelects = [marketSelect, tvSelect];
+      const marketProviderSelects = [marketProviderSelect, tvProviderSelect];
+      const marketIntervalSelects = [marketIntervalSelect, tvIntervalSelect];
+      // The chart-type list comes from the adapter module so the menu and the
+      // vendored library's real capabilities cannot drift apart.
+      tvTypeSelect.innerHTML = TradingView.CHART_TYPES
+        .map(type => `<option value="${escapeHtml(type.id)}">${escapeHtml(type.label)}</option>`).join("");
+      tvAttribution.textContent = `${TradingView.describe()} · served from this app; the library loads no market data, keys, or prompts from TradingView.`;
 
       function assessmentFor(item) {
         const match = Assurance.matchLocalGround0Audit(item, state.ground0Audits);
@@ -486,7 +538,7 @@
         return `<div class="gi-chart-legend">${lines.map(line => `<span><i style="--legend-color:${line.color}"></i>${escapeHtml(line.label)}</span>`).join("")}</div>`;
       }
 
-      function marketChartsMarkup(item, result) {
+      function marketChartsMarkup(result) {
         const series = result.chartSeries || [];
         const bullish = result.signals.bullishConfluence;
         const bearish = result.signals.bearishConfluence;
@@ -574,86 +626,88 @@
           <p class="gi-chart-disclaimer">${escapeHtml(result.note)}</p>`;
       }
 
-      function drawMarketCharts() {
-        marketProviderSelect.value = state.marketProvider;
-        marketIntervalSelect.value = state.marketInterval;
-        marketIntervalSelect.disabled = state.marketProvider !== "tickerbot";
+      /* ── shared market data layer ─────────────────────────────────────
+         The native Market Charts SVGs and the TradingView library chart read
+         the same search, the same selection, and the same keyed cache, so one
+         symbol/interval pair is fetched once and neither panel can draw bars
+         the other does not have. Cache keys are provider-qualified, so
+         switching DATA SOURCE never mixes synthetic and API-supplied prices. */
+
+      function marketKey() {
+        return `${state.marketProvider}:${state.selectedMarketId}:${state.marketInterval}`;
+      }
+
+      function marketEntries() {
         if (state.marketProvider === "tickerbot") {
-          drawTickerbotMarketCharts();
-          return;
+          return TICKERBOT_WATCHLIST.map(entry => ({
+            id: entry.symbol, symbol: entry.symbol, name: entry.name, sector: entry.sector, packet: null
+          }));
         }
-        const allMarkets = state.feed.filter(item => item.marketContext);
-        const markets = allMarkets.filter(item => marketMatches(state.marketQuery, item.marketContext.symbol, item.title, companyFor(item.marketContext.symbol)));
-        updateMarketSearch(markets.length, allMarkets.length);
-        if (!allMarkets.length) {
-          marketSelect.innerHTML = "";
-          marketSelect.disabled = true;
-          marketChartHost.innerHTML = messageBlock("No ticker bars supplied", "The selected Good Intelligence API has no marketContext OHLCV packets. No prices or line charts are fabricated here.");
-          state.selectedMarketId = "";
-          return;
-        }
-        if (!markets.length) { showNoMatchingTickers(); return; }
-        marketSelect.disabled = false;
-        if (!markets.some(item => item.id === state.selectedMarketId)) state.selectedMarketId = markets[0].id;
-        marketSelect.innerHTML = markets.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.marketContext.symbol || item.title)}${item.marketContext.synthetic ? " · DEMO" : ""}</option>`).join("");
-        marketSelect.value = state.selectedMarketId;
-        const item = markets.find(row => row.id === state.selectedMarketId) || markets[0];
-        const result = MarketContext.evaluate(item.marketContext);
-        if (!result || result.status === "no-data") {
-          marketChartHost.innerHTML = messageBlock("Ticker history unavailable", result && result.note || "The packet has no valid OHLCV bars.");
-          return;
-        }
-        marketChartHost.innerHTML = marketChartsMarkup(item, result);
+        return state.feed.filter(item => item.marketContext).map(item => {
+          const packet = MarketContext.normalizePacket(item.marketContext);
+          const symbol = (packet && packet.symbol) || item.title;
+          return { id: item.id, symbol, name: companyFor(symbol), title: item.title, sector: "", packet };
+        });
       }
 
-      function updateMarketSearch(count, total) {
-        marketSearch.value = state.marketQuery;
-        marketClear.disabled = !state.marketQuery;
-        marketCount.textContent = `${count} of ${total} tracked ticker${total === 1 ? "" : "s"}`;
-        marketSearchHelp.textContent = state.marketProvider === "tickerbot"
-          ? `Search the configured Tickerbot watchlist: ${TICKERBOT_WATCHLIST.length} tickers across ${WATCHLIST_SECTORS.length} sectors (Apple, Microsoft, Intel, AMD, Cloudflare, Chevron, Exxon Mobil, Tesla, …). Other symbols are not enabled on this Worker.`
-          : "Filter the tickers supplied by the selected API. Demo symbols and prices remain synthetic.";
+      function marketSelectMarkup(markets) {
+        return state.marketProvider === "tickerbot"
+          ? tickerbotOptionGroups(markets)
+          : markets.map(entry => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.symbol)}${entry.packet && entry.packet.synthetic ? " · DEMO" : ""}</option>`).join("");
       }
 
-      function showNoMatchingTickers() {
-        // Invalidate a live request so its late result cannot overwrite the
-        // empty state. Searching an unsupported ticker sends no new request.
-        state.marketRequestId++;
-        state.marketRequestKey = "";
-        marketSelect.innerHTML = '<option value="">No matching tickers</option>';
-        marketSelect.disabled = true;
-        marketChartHost.innerHTML = messageBlock("No tracked tickers match", `No match for “${state.marketQuery}”. Clear the search to see the configured watchlist.`);
+      function syncMarketControls() {
+        marketProviderSelects.forEach(select => { select.value = state.marketProvider; });
+        marketIntervalSelects.forEach(select => {
+          select.value = state.marketInterval;
+          select.disabled = state.marketProvider !== "tickerbot";
+        });
+        tvTypeSelect.value = state.tvChartType;
       }
 
-      function drawTickerbotMarketCharts() {
-        const matches = TICKERBOT_WATCHLIST.filter(item => marketMatches(state.marketQuery, item.symbol, item.name));
-        updateMarketSearch(matches.length, TICKERBOT_WATCHLIST.length);
-        if (!matches.length) { showNoMatchingTickers(); return; }
-        marketSelect.disabled = false;
-        const symbols = matches.map(item => item.symbol);
-        if (!symbols.includes(state.selectedMarketId)) state.selectedMarketId = symbols[0];
-        marketSelect.innerHTML = tickerbotOptionGroups(matches);
-        marketSelect.value = state.selectedMarketId;
-        const symbol = state.selectedMarketId;
-        const interval = state.marketInterval;
-        const requestKey = `${symbol}:${interval}`;
-        if (state.marketResultKey === requestKey && state.marketResult) {
-          marketChartHost.innerHTML = marketChartsMarkup(null, state.marketResult);
-          return;
+      /* Applies the search filter and the current selection to both native
+         ticker selectors, then reports either the selected entry or the empty
+         state each panel should render. An unmatched query sends no bars
+         request; later responses are cached under their own key. */
+      function drawMarketSelection() {
+        const entries = marketEntries();
+        const matches = entries.filter(entry => marketMatches(state.marketQuery, entry.symbol, entry.name, entry.title, entry.sector));
+        updateMarketSearch(matches.length, entries.length);
+        if (!entries.length) {
+          marketSelects.forEach(select => { select.innerHTML = '<option value="">No tickers supplied</option>'; select.disabled = true; });
+          return { status: "no-entries", message: ["No ticker bars supplied", "The selected Good Intelligence API has no marketContext OHLCV packets. No prices or line charts are fabricated here."] };
         }
-        if (state.marketErrorKey === requestKey) {
-          marketChartHost.innerHTML = messageBlock("Tickerbot bars unavailable", state.marketError || "The Worker could not load this ticker.", "error");
-          return;
+        if (!matches.length) {
+          marketSelects.forEach(select => { select.innerHTML = '<option value="">No matching tickers</option>'; select.disabled = true; });
+          return { status: "no-matches", message: ["No tracked tickers match", `No match for “${state.marketQuery}”. Clear the search to see the configured watchlist.`] };
         }
-        if (state.marketRequestKey === requestKey) return;
+        if (!matches.some(entry => entry.id === state.selectedMarketId)) state.selectedMarketId = matches[0].id;
+        const selected = matches.find(entry => entry.id === state.selectedMarketId) || matches[0];
+        const options = marketSelectMarkup(matches);
+        marketSelects.forEach(select => { select.innerHTML = options; select.value = selected.id; select.disabled = false; });
+        return { status: "ok", entry: selected };
+      }
 
-        const requestId = ++state.marketRequestId;
-        state.marketRequestKey = requestKey;
-        state.marketResultKey = "";
-        state.marketResult = null;
-        state.marketErrorKey = "";
-        state.marketError = "";
-        marketChartHost.innerHTML = messageBlock("Loading Tickerbot bars", `Requesting ${symbol} ${interval} bars through the same-origin Worker.`);
+      /* Demo packets arrive with the feed and are evaluated locally; Tickerbot
+         bars are fetched once per key through the same-origin Worker route. */
+      function ensureMarketData(entry) {
+        const key = marketKey();
+        const cached = state.marketData[key];
+        if (cached) return cached;
+        if (state.marketProvider === "demo") {
+          const record = entry.packet
+            ? { packet: entry.packet, result: MarketContext.evaluate(entry.packet) }
+            : { error: "The selected API item has no OHLCV packet." };
+          state.marketData[key] = record;
+          return record;
+        }
+        if (!state.marketPending.has(key)) requestTickerbotBars(key, entry.symbol, state.marketInterval);
+        return { pending: true };
+      }
+
+      function requestTickerbotBars(key, symbol, interval) {
+        state.marketPending.add(key);
+        const generation = state.marketGeneration;
         const endpoint = `${Client.DEFAULT_API_BASE}/market/tickerbot/bars?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}`;
         const fetcher = window.fetch || globalThis.fetch;
         Promise.resolve().then(() => fetcher(endpoint, {
@@ -668,19 +722,217 @@
           const packet = MarketContext.normalizePacket(payload.data);
           const result = packet && MarketContext.evaluate(packet);
           if (!result || result.status === "no-data") throw new Error(result && result.note || "Tickerbot returned no valid OHLCV bars.");
-          if (state.marketProvider !== "tickerbot" || state.marketRequestId !== requestId || state.marketRequestKey !== requestKey) return;
-          state.marketResult = result;
-          state.marketResultKey = requestKey;
-          marketChartHost.innerHTML = marketChartsMarkup(null, result);
+          if (generation === state.marketGeneration) state.marketData[key] = { packet, result };
         }).catch(error => {
-          if (state.marketProvider !== "tickerbot" || state.marketRequestId !== requestId || state.marketRequestKey !== requestKey) return;
-          state.marketError = error && error.message || "The Tickerbot request failed.";
-          state.marketErrorKey = requestKey;
-          marketChartHost.innerHTML = messageBlock("Tickerbot bars unavailable", state.marketError, "error");
+          if (generation === state.marketGeneration) {
+            state.marketData[key] = { error: (error && error.message) || "The Tickerbot request failed." };
+          }
         }).finally(() => {
-          if (state.marketRequestId === requestId) state.marketRequestKey = "";
+          state.marketPending.delete(key);
+          if (generation === state.marketGeneration) drawMarketPanels();
         });
       }
+
+      /* The Worker answers 503 without TICKERBOT_API_KEY; say what to do about
+         it instead of leaving a bare configuration error. */
+      function tickerbotFailureNote(message) {
+        return /not configured|unavailable in this Worker runtime/i.test(String(message || ""))
+          ? " Select Synthetic demo in DATA SOURCE to use the built-in synthetic fixtures, or add the TICKERBOT_API_KEY Worker secret."
+          : "";
+      }
+
+      function drawMarketCharts() {
+        // Charts are drawn only while their tab is visible, so opening the desk
+        // never spends a bars request the reviewer did not ask for.
+        if (state.view !== "markets") return;
+        syncMarketControls();
+        const selection = drawMarketSelection();
+        if (selection.status !== "ok") {
+          marketChartHost.innerHTML = messageBlock(selection.message[0], selection.message[1]);
+          return;
+        }
+        const record = ensureMarketData(selection.entry);
+        if (record.pending) {
+          marketChartHost.innerHTML = messageBlock("Loading Tickerbot bars", `Requesting ${selection.entry.symbol} ${state.marketInterval} bars through the same-origin Worker.`);
+          return;
+        }
+        if (record.error) {
+          marketChartHost.innerHTML = messageBlock("Tickerbot bars unavailable", `${record.error}${tickerbotFailureNote(record.error)}`, "error");
+          return;
+        }
+        const result = record.result || null;
+        if (!result || result.status === "no-data") {
+          marketChartHost.innerHTML = messageBlock("Ticker history unavailable", (result && result.note) || "The packet has no valid OHLCV bars.");
+          return;
+        }
+        marketChartHost.innerHTML = marketChartsMarkup(result);
+      }
+
+      function updateMarketSearch(count, total) {
+        const summary = `${count} of ${total} tracked ticker${total === 1 ? "" : "s"}`;
+        [marketSearch, tvSearch].forEach(input => { input.value = state.marketQuery; });
+        marketCount.textContent = summary;
+        tvCount.textContent = summary;
+        marketClear.disabled = !state.marketQuery;
+        tvClear.disabled = !state.marketQuery;
+        const help = state.marketProvider === "tickerbot"
+          ? `Search the configured Tickerbot watchlist: ${TICKERBOT_WATCHLIST.length} tickers across ${WATCHLIST_SECTORS.length} sectors (Apple, Microsoft, Intel, AMD, Cloudflare, Chevron, Exxon Mobil, Tesla, …). Other symbols are not enabled on this Worker.`
+          : "Filter the tickers supplied by the selected API. Demo symbols and prices remain synthetic.";
+        marketSearchHelp.textContent = help;
+        tvSearchHelp.textContent = help;
+      }
+
+      /* ── TradingView Lightweight Charts™ panel ───────────────────────
+         Charts are created only while their tab is visible and are disposed on
+         the way out, so a hidden container is never measured. The library is
+         the vendored Apache-2.0 build; it receives the same OHLCV rows as the
+         native charts and returns no data of its own. */
+      let tvChart = null;
+      let tvPriceSeries = null;
+      let tvVolumeSeries = null;
+
+      function disposeTradingViewChart() {
+        if (tvChart) {
+          try { tvChart.remove(); } catch { /* the chart is already detached */ }
+        }
+        tvChart = null;
+        tvPriceSeries = null;
+        tvVolumeSeries = null;
+      }
+
+      function tradingViewLegend(row, data) {
+        const bar = row || data.last;
+        if (!bar) return "No bar data.";
+        const change = bar.open ? ((bar.close - bar.open) / bar.open) * 100 : null;
+        const changeLabel = Number.isFinite(change) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
+        return `${row ? "Crosshair" : "Latest"} · O ${formatMetric(bar.open)} · H ${formatMetric(bar.high)} · L ${formatMetric(bar.low)} · C ${formatMetric(bar.close)} · ${changeLabel} · Vol ${formatMetric(bar.volume)}${bar.confirmed ? "" : " · bar still forming"}`;
+      }
+
+      function drawTradingView() {
+        if (state.view !== "tradingview") {
+          disposeTradingViewChart();
+          return;
+        }
+        syncMarketControls();
+        const availability = TradingView.availability();
+        if (!availability.available) {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock("TradingView library not loaded", availability.reason, "error");
+          return;
+        }
+        const selection = drawMarketSelection();
+        if (selection.status !== "ok") {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock(selection.message[0], selection.message[1]);
+          return;
+        }
+        const record = ensureMarketData(selection.entry);
+        if (record.pending) {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock("Loading Tickerbot bars", `Requesting ${selection.entry.symbol} ${state.marketInterval} bars through the same-origin Worker.`);
+          return;
+        }
+        if (record.error) {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock("Tickerbot bars unavailable", `${record.error}${tickerbotFailureNote(record.error)}`, "error");
+          return;
+        }
+        const data = TradingView.chartData(record.packet && record.packet.bars, { limit: TradingView.MAX_CHART_BARS });
+        if (!data.count) {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock("No candles to draw", "The packet has no valid OHLCV bars. No prices or candles are fabricated here.");
+          return;
+        }
+        renderTradingViewChart(selection.entry, record, data);
+      }
+
+      function renderTradingViewChart(entry, record, data) {
+        disposeTradingViewChart();
+        const api = window.LightweightCharts;
+        const resolved = TradingView.resolveSeries(api, state.tvChartType);
+        if (!resolved) {
+          tvHost.innerHTML = messageBlock("Chart type unavailable", `This bundled library build does not expose a ${TradingView.chartType(state.tvChartType).label} series.`, "error");
+          return;
+        }
+        const result = record.result || null;
+        const packet = record.packet || null;
+        const sourceTag = result && result.synthetic
+          ? "SYNTHETIC OHLCV · NOT REAL MARKET PRICES"
+          : "TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED";
+        const barNote = `${data.count} bar${data.count === 1 ? "" : "s"}`;
+        const alerts = result && result.alerts && result.alerts.length
+          ? `<div class="gi-chart-signals">${result.alerts.map(alert => `<span>${escapeHtml(alert)}</span>`).join("")}</div>`
+          : "";
+        const divergences = result && result.recentDivergences && result.recentDivergences.length
+          ? `<p class="gi-chart-divergences">Recent WaveTrend divergences: ${result.recentDivergences.slice(-3).map(event => `${escapeHtml(event.type)} · ${escapeHtml(formatDate(event.time))}`).join(" · ")}</p>`
+          : "";
+        tvHost.innerHTML = `
+          <div class="gi-market-chart-summary">
+            <span class="gi-market-ticker">${escapeHtml(entry.symbol)} · ${escapeHtml((packet && packet.timeframe) || state.marketInterval)}</span>
+            <span class="gi-market-synthetic-tag">${escapeHtml(sourceTag)}</span>
+            <span class="gi-market-source-line">${escapeHtml((packet && packet.source) || "Source not supplied")} · ${barNote} · latest close ${formatMetric(data.last.close)} · drawn locally by ${escapeHtml(TradingView.describe())}</span>
+          </div>
+          <section class="gi-chart-card gi-tv-card">
+            <div class="gi-chart-title">
+              <div><p class="gi-eyebrow">TRADINGVIEW LIGHTWEIGHT CHARTS™</p><h4>${escapeHtml(entry.symbol)} · ${escapeHtml(TradingView.chartType(state.tvChartType).label)}</h4></div>
+              <div class="gi-tv-actions">
+                <button class="gi-button" type="button" data-gi-tv-volume aria-pressed="${state.tvShowVolume ? "true" : "false"}">${state.tvShowVolume ? "Hide volume" : "Show volume"}</button>
+                <button class="gi-button" type="button" data-gi-tv-reset>Reset zoom</button>
+              </div>
+            </div>
+            <div class="gi-tv-chart" data-gi-tv-canvas></div>
+            <div class="gi-tv-legend" data-gi-tv-legend role="status">${escapeHtml(tradingViewLegend(null, data))}</div>
+            <p class="gi-sr-only">Interactive ${escapeHtml(TradingView.chartType(state.tvChartType).label)} chart for ${escapeHtml(entry.symbol)}, ${barNote} at ${escapeHtml((packet && packet.timeframe) || state.marketInterval)}. ${escapeHtml(result && result.note || "Price/volume context only.")}</p>
+          </section>
+          ${alerts}${divergences}
+          <p class="gi-chart-disclaimer">${escapeHtml(result && result.note || "Price/volume context only—not investment advice or permission to act.")}</p>`;
+        const container = tvHost.querySelector("[data-gi-tv-canvas]");
+        // Any library-side failure (blocked canvas support, a rejected container,
+        // an incompatible build) becomes an explicit message; the panel never
+        // substitutes invented candles for a chart that did not render.
+        try {
+          tvChart = api.createChart(container, TradingView.chartOptions());
+          const options = TradingView.seriesOptions(resolved.type.id, { basePrice: data.first.close });
+          tvPriceSeries = resolved.mode === "addSeries"
+            ? tvChart.addSeries(resolved.definition, options)
+            : tvChart[resolved.method](options);
+          tvPriceSeries.setData(TradingView.seriesData(resolved.type.id, data.candles));
+          if (api.HistogramSeries && typeof tvChart.addSeries === "function") {
+            tvVolumeSeries = tvChart.addSeries(api.HistogramSeries, TradingView.volumeOptions());
+            tvVolumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+            tvVolumeSeries.setData(data.volumes);
+            tvVolumeSeries.applyOptions({ visible: state.tvShowVolume });
+          }
+          TradingView.attachMarkers(api, tvPriceSeries, TradingView.markers(result, data.bars));
+          const rowByTime = new Map(data.bars.map(row => [row.time, row]));
+          tvChart.subscribeCrosshairMove(parameter => {
+            const legend = tvHost.querySelector("[data-gi-tv-legend]");
+            if (!legend) return;
+            const time = Number(parameter && parameter.time);
+            legend.textContent = tradingViewLegend(Number.isFinite(time) ? rowByTime.get(time) : null, data);
+          });
+          tvChart.timeScale().fitContent();
+          const volumeButton = tvHost.querySelector("[data-gi-tv-volume]");
+          if (volumeButton) volumeButton.addEventListener("click", () => {
+            if (!tvVolumeSeries) return;
+            state.tvShowVolume = !state.tvShowVolume;
+            tvVolumeSeries.applyOptions({ visible: state.tvShowVolume });
+            volumeButton.setAttribute("aria-pressed", String(state.tvShowVolume));
+            volumeButton.textContent = state.tvShowVolume ? "Hide volume" : "Show volume";
+          });
+          const resetButton = tvHost.querySelector("[data-gi-tv-reset]");
+          if (resetButton) resetButton.addEventListener("click", () => { if (tvChart) tvChart.timeScale().fitContent(); });
+        } catch (error) {
+          disposeTradingViewChart();
+          tvHost.innerHTML = messageBlock("Chart could not be created", `${(error && error.message) || "The bundled library rejected the chart container."} No candles are invented in its place.`, "error");
+        }
+      }
+
+      function drawMarketPanels() {
+        drawMarketCharts();
+        drawTradingView();
+      }
+
 
       function drawAssuranceSummary() {
         const scored = state.feed.filter(item => assessmentFor(item).result.score !== null).length;
@@ -844,14 +1096,19 @@
         const feedView = state.view === "feed";
         const rankingsView = state.view === "rankings";
         const marketsView = state.view === "markets";
+        const tradingView = state.view === "tradingview";
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
         $("[data-gi-markets-panel]").hidden = !marketsView;
-        $("[data-gi-view-title]").textContent = feedView ? "Member intel feed" : rankingsView ? "Network rankings" : "Market Charts";
+        $("[data-gi-tv-panel]").hidden = !tradingView;
+        $("[data-gi-view-title]").textContent = feedView ? "Member intel feed"
+          : rankingsView ? "Network rankings"
+            : marketsView ? "Market Charts" : "TradingView";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
-            : "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV.";
+            : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
+              : `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`;
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
@@ -866,7 +1123,7 @@
         drawFeed();
         drawMiniRankings();
         drawRankings();
-        drawMarketCharts();
+        drawMarketPanels();
         drawAssuranceSummary();
         apiInput.value = state.apiBase;
         settingsError.textContent = state.settingsError;
@@ -874,14 +1131,11 @@
 
       async function refresh() {
         if (state.controller) state.controller.abort();
-        if (state.marketProvider === "tickerbot") {
-          state.marketRequestId++;
-          state.marketRequestKey = "";
-          state.marketResultKey = "";
-          state.marketResult = null;
-          state.marketErrorKey = "";
-          state.marketError = "";
-        }
+        // A refresh re-reads live bars. Cache keys stay provider-qualified, and the
+        // generation guard keeps a response from an earlier refresh out of the cache.
+        state.marketGeneration++;
+        state.marketData = {};
+        state.marketPending.clear();
         state.ground0Audits = Assurance.readLocalGround0Audits();
         const controller = typeof AbortController === "function" ? new AbortController() : null;
         state.controller = controller;
@@ -918,51 +1172,52 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["feed", "rankings", "markets"].includes(button.dataset.giView) ? button.dataset.giView : "feed";
+        state.view = ["feed", "rankings", "markets", "tradingview"].includes(button.dataset.giView) ? button.dataset.giView : "feed";
         updateView();
+        // Entering the TradingView view builds its chart; leaving it disposes the canvas.
+        drawMarketPanels();
       }));
       $("[data-gi-open-rankings]").addEventListener("click", () => {
         state.view = "rankings";
         updateView();
+        drawMarketPanels();
       });
-      const searchMarkets = () => {
-        state.marketQuery = String(marketSearch.value || "").slice(0, 80);
-        drawMarketCharts();
-      };
-      marketSearch.addEventListener("input", searchMarkets);
-      marketSearch.addEventListener("search", searchMarkets);
-      const clearMarketSearch = () => {
+      const clearMarketSearch = input => {
         state.marketQuery = "";
-        drawMarketCharts();
-        marketSearch.focus();
+        drawMarketPanels();
+        input.focus();
       };
-      marketClear.addEventListener("click", clearMarketSearch);
-      marketSearch.addEventListener("keydown", event => {
-        if (event.key === "Escape") { event.preventDefault(); clearMarketSearch(); }
+      const searchMarkets = input => {
+        state.marketQuery = String(input.value || "").slice(0, 80);
+        drawMarketPanels();
+      };
+      [marketSearch, tvSearch].forEach(input => {
+        input.addEventListener("input", () => searchMarkets(input));
+        input.addEventListener("search", () => searchMarkets(input));
+        input.addEventListener("keydown", event => {
+          if (event.key === "Escape") { event.preventDefault(); clearMarketSearch(input); }
+        });
       });
-      marketSelect.addEventListener("change", () => {
-        state.selectedMarketId = marketSelect.value;
-        drawMarketCharts();
-      });
-      marketProviderSelect.addEventListener("change", () => {
-        state.marketProvider = marketProviderSelect.value === "tickerbot" ? "tickerbot" : "demo";
+      [marketClear, tvClear].forEach(button => button.addEventListener("click", () => {
+        clearMarketSearch(button === tvClear ? tvSearch : marketSearch);
+      }));
+      marketSelects.forEach(select => select.addEventListener("change", () => {
+        state.selectedMarketId = select.value;
+        drawMarketPanels();
+      }));
+      marketProviderSelects.forEach(select => select.addEventListener("change", () => {
+        state.marketProvider = select.value === "demo" ? "demo" : "tickerbot";
         state.marketQuery = "";
         state.selectedMarketId = "";
-        state.marketRequestId++;
-        state.marketRequestKey = "";
-        state.marketResultKey = "";
-        state.marketResult = null;
-        state.marketErrorKey = "";
-        state.marketError = "";
-        drawMarketCharts();
-      });
-      marketIntervalSelect.addEventListener("change", () => {
-        state.marketInterval = marketIntervalSelect.value === "1d" ? "1d" : "1h";
-        state.marketResultKey = "";
-        state.marketResult = null;
-        state.marketErrorKey = "";
-        state.marketError = "";
-        drawMarketCharts();
+        drawMarketPanels();
+      }));
+      marketIntervalSelects.forEach(select => select.addEventListener("change", () => {
+        state.marketInterval = select.value === "1d" ? "1d" : "1h";
+        drawMarketPanels();
+      }));
+      tvTypeSelect.addEventListener("change", () => {
+        state.tvChartType = TradingView.chartType(tvTypeSelect.value).id;
+        drawTradingView();
       });
       $("[data-gi-refresh]").addEventListener("click", () => refresh());
       searchInput.addEventListener("input", () => {

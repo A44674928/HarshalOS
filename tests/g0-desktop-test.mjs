@@ -530,7 +530,13 @@ if (giApp) {
   const marketPanel = giWindow && giWindow.body.querySelector("[data-gi-markets-panel]");
   const marketSelect = giWindow && giWindow.body.querySelector("[data-gi-market-select]");
   const marketHost = giWindow && giWindow.body.querySelector("[data-gi-market-chart-host]");
+  const marketProvider = giWindow && giWindow.body.querySelector("[data-gi-market-provider]");
+  const marketInterval = giWindow && giWindow.body.querySelector("[data-gi-market-interval]");
   ok(!!(marketTab && marketPanel && marketPanel.hidden === false), "Market Charts is a dedicated navigable dashboard tab");
+  ok(!!(marketProvider && marketProvider.value === "tickerbot" && marketProvider.querySelectorAll("option")[0].attrs.value === "tickerbot" && marketProvider.querySelectorAll("option")[1].attrs.value === "demo"), "Tickerbot Live is the first dropdown option and the default data source");
+  ok(!!(marketInterval && marketInterval.disabled === false), "the default live source enables bar intervals");
+  if (marketProvider) { marketProvider.value = "demo"; dispatch(marketProvider, "change"); }
+  ok(!!(marketInterval && marketInterval.disabled === true), "the synthetic demo source disables the live-only bar interval");
   ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === 4 && ["AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO"].every(symbol => marketSelect.innerHTML.includes(symbol))), "ticker selector lists every clearly synthetic demo symbol, including the newly added history");
   ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.innerHTML.includes("PRICE OVERLAY") && marketHost.innerHTML.includes("VFI oscillator") && marketHost.innerHTML.includes("WaveTrend")), "Market Charts renders responsive SVG price, VFI, and WaveTrend graphs");
   ok(!!(marketHost && marketHost.textContent.includes("SYNTHETIC OHLCV · NOT REAL MARKET PRICES")), "chart summary warns that demo prices are synthetic and not real market data");
@@ -551,7 +557,8 @@ if (giApp) {
   ok(!!(marketSelect && marketSelect.disabled && marketHost.textContent.includes("No tracked tickers match") && marketHost.querySelectorAll("svg").length === 0), "an unmatched search displays an empty state rather than the previous ticker's chart");
   if (marketClear) marketClear.click();
   ok(!!(marketSelect && !marketSelect.disabled && marketSelect.querySelectorAll("option").length === 4 && marketSearch.value === "" && marketSearch._focused), "clearing restores the watchlist and keyboard focus");
-  ok(giCalls.length === 3 && giCalls.every(call => call.options.method === "GET"), "local demo ticker searches issue no extra API calls");
+  const dashboardCalls = () => giCalls.filter(call => !call.url.includes("/market/tickerbot/bars?"));
+  ok(dashboardCalls().length === 3 && giCalls.every(call => call.options.method === "GET"), "local demo ticker searches issue no extra API calls");
   ok(giCalls.every(call => call.url.startsWith("/api/good-intelligence/v1/")), "the default client stays on the same-origin demo API instead of calling the live host");
   ok(giCalls.some(call => call.url.endsWith("/content/me") && call.options.credentials === "include"), "the protected member feed can use an existing GI session cookie");
   ok(giCalls.filter(call => !call.url.endsWith("/content/me")).every(call => call.options.credentials === "same-origin"), "public endpoints do not send cross-origin cookies");
@@ -562,9 +569,7 @@ if (giApp) {
   await new Promise(resolve => setImmediate(resolve));
   ok(!!(marketHost && marketHost.textContent.includes("No ticker bars supplied") && marketHost.textContent.includes("No prices or line charts are fabricated")), "a configured API with no OHLCV shows an explicit empty state instead of invented prices");
   ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 0), "no line graph is drawn when the API supplies no ticker bars");
-  ok(giCalls.length === 6 && giCalls.every(call => call.options.method === "GET"), "refresh remains read-only when the Market Charts panel is open");
-  const marketProvider = giWindow && giWindow.body.querySelector("[data-gi-market-provider]");
-  const marketInterval = giWindow && giWindow.body.querySelector("[data-gi-market-interval]");
+  ok(dashboardCalls().length === 6 && giCalls.every(call => call.options.method === "GET"), "refresh remains read-only when the Market Charts panel is open");
   if (marketProvider) {
     marketProvider.value = "tickerbot";
     dispatch(marketProvider, "change");
@@ -625,6 +630,69 @@ if (giApp) {
   if (marketClear) marketClear.click();
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
+  /* ── TradingView tab: the vendored Lightweight Charts™ build ── */
+  const realChartLibrary = globalThis.LightweightCharts;
+  ok(!!(realChartLibrary && typeof realChartLibrary.createChart === "function" && realChartLibrary.version() === "5.2.1"),
+    "the vendored TradingView Lightweight Charts™ library loads from index.html");
+  const tvTab = giWindow && giWindow.body.querySelector('[data-gi-view="tradingview"]');
+  const tvPanel = giWindow && giWindow.body.querySelector("[data-gi-tv-panel]");
+  const tvProvider = giWindow && giWindow.body.querySelector("[data-gi-tv-provider]");
+  const tvType = giWindow && giWindow.body.querySelector("[data-gi-tv-type]");
+  const tvHost = giWindow && giWindow.body.querySelector("[data-gi-tv-host]");
+  ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
+  const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
+  ok(tabLabels.join(" > ") === "Intel feed > Rankings > Market Charts > TradingView", "the tab strip orders TradingView immediately after Market Charts");
+  ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
+  ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
+  /* This Node harness has no canvas, so the real library is swapped for a
+     recording stub here; what the app hands the library is what gets checked. */
+  const chartRecords = { created: 0, removed: 0, series: [], data: [], markers: [], options: null, volumeVisible: null, fitted: 0 };
+  const chartStub = {
+    CandlestickSeries: { id: "candlestick" }, BarSeries: { id: "bar" }, LineSeries: { id: "line" },
+    AreaSeries: { id: "area" }, BaselineSeries: { id: "baseline" }, HistogramSeries: { id: "histogram" },
+    version: () => "5.2.1",
+    createSeriesMarkers: (series, markers) => { chartRecords.markers.push(markers); return {}; },
+    createChart: (container, options) => {
+      chartRecords.created += 1;
+      chartRecords.options = options;
+      const series = {
+        setData: rows => { chartRecords.data.push(rows); },
+        priceScale: () => ({ applyOptions() {} }),
+        applyOptions: patch => { if (patch && "visible" in patch) chartRecords.volumeVisible = patch.visible; }
+      };
+      return {
+        addSeries: (definition, seriesOptions) => { series.definition = definition; chartRecords.series.push(seriesOptions); return series; },
+        subscribeCrosshairMove() {},
+        timeScale: () => ({ fitContent() { chartRecords.fitted += 1; } }),
+        remove() { chartRecords.removed += 1; }
+      };
+    }
+  };
+  globalThis.LightweightCharts = chartStub;
+  try {
+    if (tvTab) tvTab.click();
+    ok(!!(tvPanel && tvPanel.hidden === false && marketPanel.hidden === true), "opening TradingView hides the Market Charts panel");
+    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setImmediate(resolve));
+    const tvText = tvHost ? tvHost.textContent : "";
+    ok(chartRecords.created === 1, "the panel creates the chart through the vendored library API");
+    ok(!!(tvHost && marketSelect && tvText.includes("TRADINGVIEW LIGHTWEIGHT CHARTS™") && tvText.includes(marketSelect.value) && tvText.includes("latest close")), "the panel mounts the interactive chart card for the selected ticker");
+    ok(tvText.includes("TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED"), "API-supplied bars stay labeled as provider data, not verified prices");
+    ok(chartRecords.data.length === 2 && chartRecords.data[0].length === 360 && chartRecords.data[1].length === 360, "the chart receives the full price series and its matching volume series");
+    ok(!!(chartRecords.options && chartRecords.options.autoSize === true && chartRecords.options.layout.attributionLogo === false), "the chart uses the desk theme and draws no TradingView logo");
+    ok(!!(chartRecords.series.length === 2 && chartRecords.series[0].upColor && chartRecords.series[1].priceFormat.type === "volume"), "candles and a volume histogram are added as separate series");
+    ok(!!(tvPanel.querySelector('a[href="https://www.tradingview.com/free-charting-libraries/"]')), "the panel links back to TradingView's free charting libraries page");
+    const volumeButton = tvHost && tvHost.querySelector("[data-gi-tv-volume]");
+    if (volumeButton) volumeButton.click();
+    ok(chartRecords.volumeVisible === false, "the volume toggle hides the histogram without touching the price series");
+    if (tvType) { tvType.value = "line"; dispatch(tvType, "change"); }
+    await new Promise(resolve => setImmediate(resolve));
+    const lineData = chartRecords.data.at(-2);
+    ok(!!(chartRecords.series.at(-2) && chartRecords.series.at(-2).color === "#6fd3ff" && lineData && lineData.every(row => "value" in row && !("open" in row))), "switching chart type re-adds a close-only line series");
+    if (marketTab) marketTab.click();
+    ok(!!(marketPanel.hidden === false && tvPanel.hidden === true), "returning to Market Charts hides the TradingView panel again");
+    ok(chartRecords.removed >= 1, "leaving the TradingView tab disposes the library chart");
+  } finally { globalThis.LightweightCharts = realChartLibrary; }
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, and searching Good Intelligence does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;
