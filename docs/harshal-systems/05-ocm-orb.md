@@ -1,10 +1,34 @@
+---
+document_id: HS-05-OCM-ORB
+book: "Book I"
+part: "Part V"
+title: "Part V — OCM: The Orb Communicator Model"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "1242–1414"
+words: 1344
+---
+
 # Part V — OCM: The Orb Communicator Model
 
-> Replacing hierarchy with geometry. Interaction orbs, OCM arithmetic, the three communication layers, navigation, exit protocol, and worked micro-examples.
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
-**Source range:** lines 1247–1419 of the Owner’s Working Draft · **Words:** 1,175
+> Replacing hierarchy with geometry: the Disc-to-Sphere topological projection, the 0–359 discrete address ring vs. 360° return-to-origin closure notation, OCM arithmetic, communication layers, and exit protocol.
+
+**Source range:** lines 1242–1414 of the Owner’s Working Draft · **Words:** 1,344
 
 ---
+
+> [!NOTE]
+> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
 
 Orb Communicator Mode (OCM)
 Non‑Additive Interaction Extension

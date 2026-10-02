@@ -15,6 +15,29 @@ is refusal. Action is a temporary, highly constrained exception.
 
 ---
 
+## Publishing Hierarchy, Flagship Research & Canonical Minimum Model
+
+> **Strategic Architecture:** *"The architecture (Book I) is the library. The novel (Book II) is the work in active production."*
+
+| Tier | Title & Scope | Provenance Class | Primary Deliverables |
+| :--- | :--- | :--- | :--- |
+| **Flagship Research Paper** | ***Accountability in Keyed Human–Machine Hybrid Systems*** | `CANONICAL_SOURCE` (`PUBLIC_RESEARCH_SUMMARY`) | [`research/keyed-human-machine-hybrid-systems.md`](research/keyed-human-machine-hybrid-systems.md) · [`docs/harshal-systems/19-research-papers.md`](docs/harshal-systems/19-research-papers.md) |
+| **Book I — Reference Library** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | [`HARSHAL-SYSTEMS-USER-MANUAL.md`](HARSHAL-SYSTEMS-USER-MANUAL.md) · [`HARSHAL-SYSTEMS-USER-MANUAL.docx`](HARSHAL-SYSTEMS-USER-MANUAL.docx) · [`docs/harshal-systems/`](docs/harshal-systems/README.md) ([7 Functional Collections](docs/harshal-systems/collections/README.md)) · [`Part XXVII — Whole Corpus`](docs/harshal-systems/27-whole-corpus.md) |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (~2100 CE Future-World Sandbox) | `FICTION` (`NARRATIVE_SANDBOX`) | [`BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`](BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md) · [`manuscript/the-grand-river-foundation/`](manuscript/README.md) (`Prologue`, `Chapters 1–5`, & `Interstitial: Cable Select`) |
+
+### The Six-Stage Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`)
+
+```text
+Identity → Representation → Authorization → Continuity → Accountability → Refusal
+```
+
+1. **Non-Agency of Computational Components (`INV-AGENCY-001`):** Computational components never possess or acquire moral or legal agency; responsibility remains strictly bound to identifiable human principals (`H = 1`).
+2. **Delegation vs. Migration of Legitimacy (`INV-LEGIT-001`):** Task execution may be *delegated* across bounded hops, but legitimacy *never migrates* away from the human key at Center Origin (`0•000•000•0000`).
+3. **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** The **2D Disc** (`r, θ`) is the pedagogical cross-section and the **3D Sphere** (`r, θ, φ`) is the full operational manifold. Sector addresses belong strictly to the 360-element integer ring `ℤ_360 = {0..359}` (`0` = Center Origin), while `360°` is a topological **return-to-origin closure notation (`360° ≡ 0° mod 360`)**, never a 361st address slot.
+4. **Authorial Register vs. Security Primitive:** **Harshal's English** (`[TYPE: AUTHORIAL_REGISTER]`) is the author's normative prose register and left-to-right reading discipline; operational enforcement relies strictly on formal mathematical and cryptographic invariants (`[TYPE: SECURITY_PRIMITIVE]`).
+
+---
+
 ## Run it
 
 The browser-only shell needs no build step or dependencies. Use the allowlisted preview server (do not expose the whole checkout):

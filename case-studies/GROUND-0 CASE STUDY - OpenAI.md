@@ -1,6 +1,8 @@
 # GROUND-0 PHASE DETECTION CASE STUDY
 ## Institutional Governance Audit: OpenAI
 
+**Book / Collection:** Book I — Harshal's Systems (`Collection VI: Incident Record & External Platform Audits`)  
+**Provenance Class:** `AUDIT` · **Status Taxonomy:** `CASE_STUDY_AUDIT` · **Evidence Status:** `INDEPENDENTLY_VERIFIABLE` (Public Artifacts in Appendix B) · **Research Layer:** `INCIDENT_AND_AUDIT_RECORD`  
 **Auditor:** Ground-0 replication audit run — reproducible by independent auditors from the public artifact set in Appendix B
 **Center Origin:** 0•000•000•0000
 **Audit Timestamp:** 2026-09-29 (UTC)

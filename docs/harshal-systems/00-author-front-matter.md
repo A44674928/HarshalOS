@@ -1,6 +1,27 @@
+---
+document_id: HS-00-AUTHOR-FRONT-MATTER
+book: "Book I"
+part: "Author's Front Matter"
+title: "Author’s Front Matter and Reading Guide"
+collection: "01-foundations"
+provenance_class: ARCHIVE
+status_taxonomy: CONCEPTUAL_DOCTRINE
+evidence_status: AUTHOR_REPORTED
+research_layer: PUBLIC_RESEARCH_SUMMARY
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "1–325"
+words: 3476
+---
+
 # Author’s Front Matter and Reading Guide
 
-> The Owner’s Working Draft as submitted: disclaimer, dedication, the philosophical and structural invariants, the Phase Declaration Header manifesto, the preface, and the author’s own reading guide. The original flat contents listing is preserved here for reference; it is superseded by the rebuilt Table of Contents at the front of this manual.
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `ARCHIVE` | `CONCEPTUAL_DOCTRINE` | `AUTHOR_REPORTED` | `PUBLIC_RESEARCH_SUMMARY` | **Book I** (`01-foundations`) |
+
+> The Owner’s Working Draft as submitted: disclaimer, dedication, the philosophical and structural invariants, the Phase Declaration Header manifesto, the preface, and the author’s own reading guide. Preserved with ARCHIVE provenance; superseded for navigation by the rebuilt Table of Contents and Part XXVII Whole Corpus Manifest.
 
 **Source range:** lines 1–325 of the Owner’s Working Draft · **Words:** 3,476
 

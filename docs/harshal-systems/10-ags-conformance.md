@@ -1,16 +1,32 @@
+---
+document_id: HS-10-AGS-CONFORMANCE
+book: "Book I"
+part: "Part X"
+title: "Part X — AGS+ Layering and Conformance"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "2652–2797"
+words: 817
+---
+
 # Part X — AGS+ Layering and Conformance
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
 > The textual layering diagram and the normative conformance checklist.
 
-**Source range:** lines 2652–2797 of the Owner’s Working Draft · **Words:** 802
+**Source range:** lines 2652–2797 of the Owner’s Working Draft · **Words:** 817
 
 ---
 
-- make lateral coordination competitive with inward resolution
-As a result:
-- confidentiality is preserved without obscuring responsibility
-- collusion cannot hide behind encryption
-- security strengthens, rather than weakens, structural guarantees
 1. AGS+ Layering Diagram (Textual, Formal)
 This diagram is logical, not physical. It is ordered by constraint precedence, not execution flow.
 Read top → bottom as higher authority over lower, and bottom → top as faster propagation of interruption.
@@ -152,3 +168,8 @@ Emergency overrides refusal
 Lateral committees gain authority
 Encryption hides accountability
 Structures persist by precedent
+Execution can outrun interruption
+A component can self-replicate authority
+Canonical AGS+ Compliance Statement
+You can now safely use this sentence:
+“This system conforms to AGS+ v1.0, incorporating AGS normative constraints, the frozen Structural Model v1.0, and OCM communication geometry, with no internal legitimacy generation or authority persistence.”

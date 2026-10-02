@@ -1,8 +1,29 @@
+---
+document_id: HS-06-INNER-SHELL
+book: "Book I"
+part: "Part VI"
+title: "Part VI — The AI Inner Shell"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "1415–1530"
+words: 720
+---
+
 # Part VI — The AI Inner Shell
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
 > Address-constrained AI nodes: definition, addressing rules, communication constraints, learning without authority, and the impossibility of AI takeover.
 
-**Source range:** lines 1420–1535 of the Owner’s Working Draft · **Words:** 720
+**Source range:** lines 1415–1530 of the Owner’s Working Draft · **Words:** 720
 
 ---
 

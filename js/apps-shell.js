@@ -529,14 +529,14 @@ APPS.push({
   title: "The Book",
   short: "The Book",
   glyph: "▤",
-  desc: "The physical license artifact, the 500-coin governance pool, and The Grand River Foundation manuscript",
+  desc: "Book I (Harshal's Systems · The Physical Artifact & 500-Coin Pool) and Book II — Preview (The Grand River Foundation manuscript)",
   w: 940, h: 660,
   render(body, api) {
     body.innerHTML = `
       <div class="bk-app">
         <nav class="bk-tabs" role="tablist" aria-label="The Book">
-          <button type="button" class="bk-tab active" role="tab" id="bk-tab-artifact" aria-controls="bk-panel-artifact" aria-selected="true" data-bk-view="artifact">The Physical Artifact</button>
-          <button type="button" class="bk-tab" role="tab" id="bk-tab-manuscript" aria-controls="bk-panel-manuscript" aria-selected="false" data-bk-view="manuscript">The Grand River Foundation</button>
+          <button type="button" class="bk-tab active" role="tab" id="bk-tab-artifact" aria-controls="bk-panel-artifact" aria-selected="true" data-bk-view="artifact">Book I · The Physical Artifact</button>
+          <button type="button" class="bk-tab" role="tab" id="bk-tab-manuscript" aria-controls="bk-panel-manuscript" aria-selected="false" data-bk-view="manuscript">Book II — Preview · The Grand River Foundation</button>
         </nav>
         <section class="bk-panel" role="tabpanel" id="bk-panel-artifact" aria-labelledby="bk-tab-artifact" tabindex="0" data-bk-panel="artifact"></section>
         <section class="bk-panel" role="tabpanel" id="bk-panel-manuscript" aria-labelledby="bk-tab-manuscript" tabindex="0" data-bk-panel="manuscript" hidden></section>
@@ -567,10 +567,11 @@ APPS.push({
     const draw = () => {
       const totalVoted = DATA.proposals.reduce((s, p) => s + p.yes + p.no + (votes[p.id]?.yes || 0) + (votes[p.id]?.no || 0), 0);
       artifact.innerHTML = `
-        <div class="h1">The Physical Artifact</div>
-        <div class="sub">A book that serves as the tangible license key and foundational text for the entire system.
+        <div class="h1">Book I · The Physical Artifact &amp; Reference Architecture</div>
+        <div class="sub"><strong>Book I (Harshal's Systems, Parts I–XXVII)</strong> is the canonical technical and constitutional reference library; <strong>Book II — Preview (The Grand River Foundation)</strong> is the fictional companion novel set in ~2100.
         Authority over the system's direction is tied to the physical world through the purchase of the hardcover book,
         with influence limited to a pool of <strong>500 voting coins</strong>.</div>
+        <div class="rule-box"><strong>Canonical Minimum Model:</strong> <code>Identity → Representation → Authorization → Continuity → Accountability → Refusal</code></div>
 
         <div class="rule-box">${DATA.quotes.book}</div>
 

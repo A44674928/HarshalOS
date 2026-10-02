@@ -1,5 +1,8 @@
 # Ground-0 Phase Detection Algorithm v1.1 — Amendment Draft
 
+**Book / Collection:** Book I — Harshal's Systems (`Collection III: Ground-0 Phase Detection & Neural Atomic Bodies`)  
+**Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `NORMATIVE_SPEC` (Unratified Amendment Draft) · **Evidence Status:** `FORMAL_AXIOMATIC` · **Research Layer:** `DEFENSIVE_SPECIFICATION`  
+**Canonical Minimum Model:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`  
 **Author of source framework:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  
 **Framework:** Harshal's Systems (AGS++) | Orb Communicator Model (OCM)  

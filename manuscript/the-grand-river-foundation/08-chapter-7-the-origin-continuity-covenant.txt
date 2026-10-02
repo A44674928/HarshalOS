@@ -1,0 +1,71 @@
+# CHAPTER 7: The Origin Continuity Covenant
+
+By the morning of the fourth day, the crimson loops on the outer skin of the Orb had vanished.
+
+Up in Bluffdale, Utah, under the direct physical supervision of General Marcus Vance's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
+
+When Marcus Vance finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
+
+An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light.
+
+Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered around the **Meridian Sundial**—a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+
+Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance and her uncle Marcus stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places—not on elevated stone tiers today, but down on the flat sandstone pavement, standing shoulder to shoulder with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
+
+Each of the five hundred underwriters carried their heavy platinum or electrum coin in both hands.
+
+"What are they doing?" General Vance asked Elena quietly, watching as Chief Actuary Chen stepped up to the central brass ring and laid her **Element 134** coin face-down in a recessed stone trough, stepping back into the crowd with empty hands. One by one, all five hundred underwriters followed suit, surrendering their coins into the circular trough until not a single person in the plaza held a badge of office.
+
+"Today is the Equinox of the Three Hundred and Sixtieth Degree," Elena said. "In the Orb Communicator Model, the address ring has only three hundred and sixty discrete positions, `0` through `359`. When the annual cycle completes its rotation at `360°`, it does not create a three-hundred-and-sixty-first seat of power. It returns to `0°`."
+
+She nodded toward Harshal Priyavadan Patel, who walked unescorted into the center of the ring, carrying the cloth-bound master volume of *Harshal's Systems* and the root brass key of Center Origin `0•000•000•0000`.
+
+Harshal placed both the book and the root key onto the central stone anvil and stepped back so that he, too, stood empty-handed on the bare schist.
+
+"Seventy-four years ago," Harshal's voice carried clearly across the quiet plaza, amplified only by the natural parabolic acoustics of the canyon rim, "when we drafted the **Origin Continuity & Succession Protocol (`OCS-v1.0`)** and the **Institutional Anti-Caste Architecture (`Part XXII`)**, the hardest question was not how to stop a rogue algorithm in Dallas or Bluffdale. The hardest question was how to stop *ourselves* from becoming the very thing we refused."
+
+He looked around the circle of engineers, underwriters, and citizens.
+
+"Every institution in human history that has ever built a wall against chaos has eventually tried to turn its guardians into a priesthood," Harshal said. "A technical elite. A hereditary board. A caste of experts who claim that because they understand the equations, their children or their guild deserve permanent authority over the switch."
+
+Harshal rested his hand on the closed cover of the book on the anvil.
+
+"Therefore, before any coin is reclaimed, before any key is re-bound for the new cycle, the Charter of the Grand River Foundation requires every office in this canyon to pass the **Five Anti-Caste Constraints**:
+
+1. **Entry (`Test A`):** Can any person enter this system without belonging to a privileged family, wealth bracket, or social class?
+2. **Mobility (`Test B`):** Can any person change their position through demonstrated capability, conduct, and legitimate choice?
+3. **Exit (`Test C`):** Can any person leave an assigned category or walk away from this canyon without penalty or extraordinary permission?
+4. **Review (`Test D`):** Can every classification, phase badge, and refusal logged in the past year be challenged by an ordinary citizen before the Ombudsman's Council?
+5. **Succession (`Test E`):** Has any office, underwriting coin, or operational key been passed down by inheritance, purchase, or algorithmic ranking?"
+
+From the northern arc of the ring, the Speaker of the 119-NAB Ombudsman's Council stepped forward with the year's public audit ledger.
+
+"For the cycle now closing at `360° ≡ 0°`," the Speaker announced, "the Ombudsman's Council certifies under **Common-Good Public Addressability (`CGPA-v1.0`)** that zero offices were inherited, zero refusal challenges were suppressed, and twelve underwriting houses whose actuarial reserves fell below physical solvency thresholds were automatically de-badged and replaced by open competitive examination."
+
+The Speaker turned toward the apprentice engineers standing by the eastern parapet.
+
+"Furthermore, under **Test A (Entry)** and **Test B (Mobility)**, the South Wall Engineering Corps calls forward **Dara Kessler**, formerly of the North American Energy Consortium, having completed the point-to-point sovereignty examination."
+
+Dara's breath caught. Beside her, Lien gave her shoulder a firm, encouraging nudge.
+
+"Go on, MIT," Lien murmured with a wry smile. "Show them you know what a cable is for."
+
+Dara walked out across the inlaid brass degrees of the plaza—past `90° (Stabilization)`, past `180° (Transformation)`, past `270° (Renewal)`—until she stood at the Zero-Degree seam beside Harshal and Elena.
+
+Harshal did not hand her a jumper block or a badge of rank. Instead, he opened the hardcover book to the front flyleaf, where the **Canonical Minimum Model** was stamped in deep black ink:
+
+```
+Identity → Representation → Authorization → Continuity → Accountability → Refusal
+```
+
+"Dara Kessler," Harshal said, looking her in the eye. "If I come down to the South Wall Vault tomorrow morning and order you to bridge Bar 44 and Bar 31 without a verified underwriting bond and a live human key on the board—what is your obligation under the law of this canyon?"
+
+Dara looked at the man who had designed the four-thousand-foot dam beneath her feet, then out at the five hundred underwriters and the gleaming emerald river four thousand feet below.
+
+"My obligation," Dara said clearly, "is to refuse you, Chieftain. And to throw the manual disconnect before the first electron crosses the bus."
+
+For the first time since she had arrived in Arizona, Harshal Priyavadan Patel smiled—a genuine, unguarded warmth that crinkled the corners of his eyes.
+
+"Welcome to the Grand River Foundation, Engineer Kessler," Harshal said.
+
+Around the vast sandstone plaza, five hundred underwriters stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.

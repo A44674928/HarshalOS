@@ -1,10 +1,10 @@
 # Editorial Report
 
-**Work:** Harshal’s Systems — The Ultimate User Manual
+**Work:** Harshal’s Systems — The Ultimate User Manual (Book I Reference Library & Book II Preview Mirror)
 **Source:** `Harshal’s Systems (Copyrighted) [Owner’s Working Draft].md`
-(1,278,427 bytes · 16,674 lines · 165,900 words)
-**Output:** 171,883 words across 27 part files, plus this report.
-**Build:** `python3 source/build.py` — reproducible from the source file alone.
+(1,278,427 bytes · 16,674 lines · 165,900 words) + synchronized `manuscript/the-grand-river-foundation/` chapters
+**Output:** 187,244 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
+**Build:** `python3 source/build.py` — deterministic and reproducible.
 
 ---
 
@@ -24,8 +24,10 @@
 | 10 | Tabs used as separators in prose | Low | 1035 |
 | 11 | Trailing whitespace | Low | 0 |
 | 12 | Non-breaking spaces used as ordinary spaces | Low | 8 |
-| 13 | Corrupted tokens (`llany` → `any`, `orand` → `or`) | Medium | 29 |
+| 13 | Corrupted tokens (`llany`/`LLANY` → `any`, `orand`/`ORAND` → `or`, `andor` → `and/or`) | Medium | 3 |
 | 14 | Missing space after punctuation / doubled spaces | Low | — |
+| 15 | Part boundary line-number drift after form-feed expansion & fence repair | **High** | Fixed via raw-line sentinel slicing |
+| 16 | 26-vs-27 Part numbering inconsistency across Front Matter, README, and Editorial Report | **High** | Resolved via `Part XXVII — Whole Corpus / Complete Work` |
 
 ---
 
@@ -54,7 +56,7 @@ its own fences, and no heading sits inside a code block.
 
 ### 2.2 Page breaks deleted (defect 2)
 
-The draft contains 31 form-feed characters (``) — the page breaks left by the
+The draft contains 27 form-feed characters (``) — the page breaks left by the
 word processor it was written in. They sit *mid-line*, immediately before new content:
 
 ```text
@@ -128,12 +130,12 @@ navigable. A prose sentence that merely happens to begin with a number is not af
 | Lines with tab characters replaced by spaces | 1035 |
 | Lines with trailing whitespace trimmed | 0 |
 | Non-breaking spaces replaced with ordinary spaces | 8 |
-| Form feeds converted to line breaks | 31 |
+| Form feeds converted to line breaks | 27 |
 | Malformed table separator rows repaired or removed | 6 |
 | ALL-CAPS headings converted to Title Case | 106 |
 | Headings promoted from plain text to real markup | 230 |
 | Heading levels re-derived from document nesting | 191 |
-| Spelling and token corrections | 29 |
+| Spelling and token corrections | 3 |
 
 ### On the spelling pass, honestly
 
@@ -160,37 +162,38 @@ Formalization, then supporting material — but the body did not follow it. Cont
 subject is scattered: the Anthropic audit opens at line 3,187 as the **A Side** and resumes at
 line 16,052 as the **B Side**, 12,865 lines apart.
 
-The manual now arranges the whole work into 27 sequential parts:
+The manual now arranges the whole work into **Author's Front Matter (`00`)** plus **27 Roman-numbered Parts (`Part I` through `Part XXVII — Whole Corpus / Complete Work`)**, resolving the historical 26-vs-27 numbering discrepancy:
 
-| # | Part | Words | Source lines |
-|---|---|---|---|
-| 01 | [Author’s Front Matter and Reading Guide](00-author-front-matter.md) | 3,476 | 1–325 |
-| 02 | [Part I — The Core Book](01-core-book.md) | 8,240 | 326–574 |
-| 03 | [Part II — Formalization](02-formalization.md) | 2,586 | 575–785 |
-| 04 | [Part III — Safety Rationale for Adversarial Scenarios](03-safety-rationale.md) | 573 | 786–843 |
-| 05 | [Part IV — AGS: Accountability-Gated Systems](04-ags-architecture.md) | 2,568 | 844–1,246 |
-| 06 | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | 1,175 | 1,247–1,419 |
-| 07 | [Part VI — The AI Inner Shell](06-inner-shell.md) | 720 | 1,420–1,535 |
-| 08 | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | 2,115 | 1,536–2,021 |
-| 09 | [Part VIII — The Operator Model](08-operator-model.md) | 1,223 | 2,022–2,182 |
-| 10 | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | 3,282 | 2,183–2,651 |
-| 11 | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | 802 | 2,652–2,797 |
-| 12 | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | 2,566 | 2,798–3,170 |
-| 13 | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | 16,004 | 3,171–5,104 |
-| 14 | [Part XIII — The Whyland Standards](13-whyland.md) | 1,073 | 5,105–5,167 |
-| 15 | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | 4,939 | 5,168–5,344 |
-| 16 | [Part XV — Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md) | 2,116 | 5,345–5,662 |
-| 17 | [Part XVI — Threat Modeling and Context-Dependent Guarantees](16-threat-modeling.md) | 8,289 | 5,663–6,475 |
-| 18 | [Part XVII — Atomic Body Classes and Reactor Doctrine](17-atomic-bodies.md) | 5,646 | 6,476–7,440 |
-| 19 | [Part XVIII — Institutional Application](18-institutional-application.md) | 4,143 | 7,441–7,636 |
-| 20 | [Part XIX — Research Papers](19-research-papers.md) | 6,928 | 7,637–7,990 |
-| 21 | [Part XX — Supply Chain and Implanted-Device Threat Research](20-supply-chain.md) | 25,809 | 7,991–9,942 |
-| 22 | [Part XXI — MicroConvergence and Signal Encoding](21-microconvergence.md) | 9,671 | 9,943–10,665 |
-| 23 | [Part XXII — Governance and Policy Archive](22-policy-archive.md) | 4,895 | 10,666–11,105 |
-| 24 | [Part XXIII — Specification Series](23-specification-series.md) | 9,342 | 11,106–12,508 |
-| 25 | [Part XXIV — The Grand River Foundation](24-the-novel.md) | 6,100 | 12,509–13,016 |
-| 26 | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | 21,577 | 13,017–16,051 |
-| 27 | [Part XXVI — Appendix: Anthropic Audit (B Side)](26-anthropic-b-side.md) | 10,272 | 16,052–16,703 |
+| File # | Designation | Part | Provenance | Words | Source lines |
+|---|---|---|---|---:|---|
+| `00` | **Author's Front Matter** | [Author’s Front Matter and Reading Guide](00-author-front-matter.md) | `ARCHIVE` | 3,476 | 1–325 |
+| `01` | **Part I** | [Part I — The Core Book](01-core-book.md) | `CANONICAL_SOURCE` | 8,511 | 326–572 |
+| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | 3,032 | 573–784 |
+| `03` | **Part III** | [Part III — Safety Rationale for Adversarial Scenarios](03-safety-rationale.md) | `CANONICAL_SOURCE` | 436 | 785–829 |
+| `04` | **Part IV** | [Part IV — AGS: Accountability-Gated Systems](04-ags-architecture.md) | `CANONICAL_SOURCE` | 2,668 | 830–1,241 |
+| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | 1,344 | 1,242–1,414 |
+| `06` | **Part VI** | [Part VI — The AI Inner Shell](06-inner-shell.md) | `CANONICAL_SOURCE` | 720 | 1,415–1,530 |
+| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | 2,290 | 1,531–2,017 |
+| `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | 1,264 | 2,018–2,181 |
+| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | 3,436 | 2,182–2,651 |
+| `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | 817 | 2,652–2,797 |
+| `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | 1,739 | 2,798–3,045 |
+| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | 16,998 | 3,046–5,104 |
+| `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | 986 | 5,105–5,162 |
+| `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | 5,040 | 5,163–5,344 |
+| `15` | **Part XV** | [Part XV — Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md) | `CANONICAL_SOURCE` | 2,118 | 5,345–5,662 |
+| `16` | **Part XVI** | [Part XVI — Threat Modeling and Context-Dependent Guarantees](16-threat-modeling.md) | `CANONICAL_SOURCE` | 8,297 | 5,663–6,480 |
+| `17` | **Part XVII** | [Part XVII — Atomic Body Classes and Reactor Doctrine](17-atomic-bodies.md) | `CANONICAL_SOURCE` | 5,611 | 6,481–7,438 |
+| `18` | **Part XVIII** | [Part XVIII — Institutional Application](18-institutional-application.md) | `CANONICAL_SOURCE` | 4,023 | 7,439–7,621 |
+| `19` | **Part XIX** | [Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems](19-research-papers.md) | `CANONICAL_SOURCE` | 5,501 | 7,622–7,789 |
+| `20` | **Part XX** | [Part XX — Supply Chain and Implanted-Device Threat Research](20-supply-chain.md) | `CANONICAL_SOURCE` | 28,232 | 7,790–9,942 |
+| `21` | **Part XXI** | [Part XXI — MicroConvergence and Signal Encoding](21-microconvergence.md) | `CANONICAL_SOURCE` | 7,578 | 9,943–10,496 |
+| `22` | **Part XXII** | [Part XXII — Supporting Policy & Governance Research Archive](22-policy-archive.md) | `CANONICAL_SOURCE` | 6,710 | 10,497–11,105 |
+| `23` | **Part XXIII** | [Part XXIII — Specification Series](23-specification-series.md) | `CANONICAL_SOURCE` | 9,216 | 11,106–12,508 |
+| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | 15,631 | 12,509–13,016 |
+| `25` | **Part XXV** | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | `CANONICAL_SOURCE` | 21,535 | 13,017–16,050 |
+| `26` | **Part XXVI** | [Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)](26-anthropic-b-side.md) | `AUDIT` | 10,267 | 16,051–16,675 |
+| `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | 1,794 | 1–16,675 |
 
 ### 4.1 Rebuilt table of contents
 

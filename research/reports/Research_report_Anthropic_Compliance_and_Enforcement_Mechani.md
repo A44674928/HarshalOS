@@ -1,5 +1,8 @@
 # Research Report: Anthropic Compliance, Directives, and Enforcement Mechanisms
 
+**Book / Collection:** Book I — Harshal's Systems (`Collection IV: Supporting Research Reports`)  
+**Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `RESEARCH_PAPER` · **Evidence Status:** `INDEPENDENTLY_VERIFIABLE` · **Research Layer:** `PUBLIC_RESEARCH_SUMMARY`
+
 This research examines whether and how **Anthropic** enforces compliance with its policies and directives, including documented penalties, access restrictions, financial consequences, and contractual terms across users, commercial partners, employees, and institutional frameworks.
 
 ---

@@ -1,5 +1,6 @@
 # Ground-0 Phase Detection Algorithm v1.0 — Final Specification
 
+**Provenance Class:** `ARCHIVE` (Combined Manuscript Transcription Retained for Source Provenance) · **Status Taxonomy:** `NORMATIVE_SPEC` (Historical Transcription) · **Evidence Status:** `FORMAL_AXIOMATIC`  
 **Source:** Harshal's Systems (Working Draft) text copy.txt  
 **Author:** Harshal Priyavadan Patel (A44674928)  
 **Center Origin:** `0•000•000•0000`  

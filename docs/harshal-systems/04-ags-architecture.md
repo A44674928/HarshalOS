@@ -1,11 +1,41 @@
+---
+document_id: HS-04-AGS-ARCHITECTURE
+book: "Book I"
+part: "Part IV"
+title: "Part IV — AGS: Accountability-Gated Systems"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "830–1241"
+words: 2668
+---
+
 # Part IV — AGS: Accountability-Gated Systems
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
 > Core doctrine, atomic vocabulary, the three phases, the Phase Declaration Header, the collapse protocol, the Duty Collation Ledger, and the badge system.
 
-**Source range:** lines 844–1246 of the Owner’s Working Draft · **Words:** 2,568
+**Source range:** lines 830–1241 of the Owner’s Working Draft · **Words:** 2,668
 
 ---
 
+What AGS+ Is
+AGS+ is a layered system architecture for coordinated action under external legitimacy, designed to remain correct under scale, adversarial pressure, emergencies, and long time horizons. AGS+ is not a governance system, a controller, or a value selector. It is a structural constraint system that determines how action may occur once it is externally authorized, and how that action can always be stopped.
+Formally: AGS+ = AGS + Accessories
+What Problem AGS+ Solves
+Most large systems fail because:
+- Coordination outruns oversight,
+- Authority drifts inward over time,
+- Or encryption hides accountability.
+- Emergencies normalize exceptional power,
 - Scale forces federation or cartel formation,
 AGS+ solves these by making misuse structurally slow, visible, and interruptible, without relying on intent, trust, or policy enforcement.
 Core Principles (Non-Negotiable)

@@ -12,18 +12,26 @@ This layout separates normative specifications, implementation, evidence, operat
 ├── css/, assets/                     Browser-delivered presentation and runtime assets
 ├── js/                               Browser runtime sources (logical map below)
 ├── worker/                           Optional Cloudflare storage API source
-├── manuscript/                       Plaintext manuscript submissions (The Grand River Foundation);
+├── manuscript/                       Book II — Preview plaintext manuscript chapters (The Grand River Foundation);
 │                                     the index is generated, and only indexed chapters are published
+├── HARSHAL-SYSTEMS-USER-MANUAL.md    Umbrella Build Artifact (Book I Parts I–XXVII + Book II Preview mirror)
+├── HARSHAL-SYSTEMS-USER-MANUAL.docx  Publication-grade Word edition of the Umbrella Build Artifact
+├── BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md  Standalone compiled preview of Book II (~2100 novel)
 ├── specs/
 │   ├── normative/                    Ground-0 v1.0 finalized baseline
 │   └── draft/                        Ground-0 v1.1 unratified amendment draft
 ├── case-studies/                     OpenAI and Anthropic audit writeups
-├── research/reports/                 Supporting research reports
+├── research/
+│   ├── keyed-human-machine-hybrid-systems.md  Flagship portfolio research paper (Part XIX)
+│   └── reports/                      Supporting research reports
 ├── docs/
+│   ├── harshal-systems/              Book I Reference Library (00 + Parts I–XXVII) & 7 functional collections
 │   ├── deployment/                   Operator/deployment guides
 │   ├── source-material/              Archival manuscript transcription
 │   └── REPOSITORY-STRUCTURE.md       This map
-├── archives/ground-0/                Historical standalone ZIP bundles
+├── archives/
+│   ├── ground-0/                     Historical standalone ZIP bundles
+│   └── manuscript-rtf/               Archived working RTF chapter drafts (ARCHIVE provenance)
 ├── tests/                            Node test harnesses
 ├── scripts/                          Asset-staging and integrity-report tooling
 ├── .github/workflows/                CI automation

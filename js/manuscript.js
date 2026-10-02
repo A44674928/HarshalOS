@@ -181,12 +181,15 @@ const ManuscriptReader = (() => {
       `${formatWords(collection.words)} words`,
       `digest ${String(collection.digest || "").slice(0, 12)}…`
     ].join(" · ");
+    const eyebrow = collection.book
+      ? `${String(collection.book).toUpperCase()} · ${String(collection.status || "PREVIEW").toUpperCase()} · PLAINTEXT MANUSCRIPT`
+      : "PLAINTEXT MANUSCRIPT · SUBMITTED CHAPTER BY CHAPTER";
 
     return `
       <div class="ms-app">
         <header class="ms-head">
           <div class="ms-head-main">
-            <p class="ms-eyebrow">PLAINTEXT MANUSCRIPT · SUBMITTED CHAPTER BY CHAPTER</p>
+            <p class="ms-eyebrow">${escapeHtml(eyebrow)}</p>
             <h1 class="ms-title">${escapeHtml(collection.title || state.collectionId)}</h1>
             ${collection.subtitle ? `<p class="ms-subtitle">${escapeHtml(collection.subtitle)}</p>` : ""}
             <p class="ms-meta mono" data-ms-meta>${escapeHtml(meta)}</p>

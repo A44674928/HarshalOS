@@ -1,12 +1,71 @@
+---
+document_id: HS-02-FORMALIZATION
+book: "Book I"
+part: "Part II"
+title: "Part II — Formalization"
+collection: "01-foundations"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "573–784"
+words: 3032
+---
+
 # Part II — Formalization
 
-> Formal constraint sketches, the gating equations, and the stabilized glossary of terms used consistently throughout the rest of the manual.
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`01-foundations`) |
 
-**Source range:** lines 575–785 of the Owner’s Working Draft · **Words:** 2,586
+> The Canonical Minimum Model (Identity → Representation → Authorization → Continuity → Accountability → Refusal), formal constraint equations, and the Declared-Type Terminology Registry.
+
+**Source range:** lines 573–784 of the Owner’s Working Draft · **Words:** 3,032
 
 ---
 
-This work is intentionally incomplete, offering no final doctrine and no universal closure. Any system addressing authority, responsibility, and ethics must avoid premature resolution. Authority without accountable representation is strictly prohibited. When representation collapses, responsibility diffuses, or authority persists without answerability, you must mark continuation as ethically suspect and initiate a halt. Stopping is not failure; stopping is signal. You must not encode full ethics into machines, nor automate moral agency, nor claim that complexity or emergence justifies authority. Accountability requires human addressability at all times. Therefore, operational frameworks must remain mutable; arguments will evolve, terms will sharpen, and examples will shift. This revision is not weakness, but compliance with accountability. Systems must self-monitor for legitimacy, and if that legitimacy is lost, they must halt. A refusal to act is fidelity, not abdication. Ultimately, intelligence is defined as a system that halts upon the loss of legitimacy, for persistence without accountability is failure. Systems that know how to stop demonstrate superior intelligence.
+## Canonical Minimum Model & Declared-Type Terminology Registry
+
+### The Six-Stage Canonical Minimum Model
+
+Every legitimate operation across **Harshal's Systems** traverses six sequential, non-bypassable stages:
+
+```
+Identity → Representation → Authorization → Continuity → Accountability → Refusal
+```
+
+1. **Identity (`I`)** `[TYPE: SECURITY_PRIMITIVE]`: A persistent, non-anonymous natural person (`PDH` / human key `H`) is uniquely identified at Center Origin (`0•000•000•0000`).
+2. **Representation (`R ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: The system verifies an unbroken, non-coerced representational bond between the human key and the affected scope.
+3. **Authorization (`V(S,t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Bounded operational permission is granted for a specific scope (`S`), phase, and duration (`Δt ≤ δ`); execution may be *delegated*, but legitimacy never *migrates* (`INV-LEGIT-001`).
+4. **Continuity (`C(t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Liveness heartbeats, session-tuple bindings (`Session-ID`, `Boot-ID`, `PDH-ID`, `Attestation-ID`), and scope invariants are continuously re-verified at runtime.
+5. **Accountability (`A ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Every externalized effect is cryptographically and legally attributable to the keyed human principal and underwritten by bounded institutional solvency.
+6. **Refusal (`L(S,t) = 0 ⇒ HALT`)** `[TYPE: SECURITY_PRIMITIVE]`: The default state. Any failure of Identity, Representation, Authorization, Continuity, or Accountability triggers an immediate, deterministic fail-closed halt.
+
+### Declared-Type Terminology Table
+
+To prevent category confusion between cryptographic enforcement primitives, geometric topology, governance bodies, and authorial prose conventions, every major term in this corpus carries an explicit **Declared Type**:
+
+| Term / Symbol | Declared Type | Formal Role & Boundary |
+| :--- | :--- | :--- |
+| **`L(S,t) = A · R · V(S,t)`** | `[TYPE: SECURITY_PRIMITIVE]` | Master legitimacy gate; evaluates to `0` (Refusal) if any factor fails. |
+| **Human Key (`H ∈ {0,1}`)** | `[TYPE: SECURITY_PRIMITIVE]` | Binary liveness and consent attestation of an identifiable natural person; computational components are never moral or legal agents (`INV-AGENCY-001`). |
+| **Phase Declaration Header (`PDH`)** | `[TYPE: SECURITY_PRIMITIVE]` | Mandatory wire-level and document-level header binding origin, phase, and scope. |
+| **Delegation vs. Migration (`INV-LEGIT-001`)** | `[TYPE: SECURITY_PRIMITIVE]` | Execution may be delegated across bounded hops (`d ≤ k`); legitimacy never migrates from the human key to silicon or corporate shells. |
+| **Orb Communicator Model (`OCM`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Bounded radial/angular communication geometry where the **2D Disc (`D²`)** is the pedagogical cross-section and the **3D Sphere (`S²/B³`)** is the full operational manifold. |
+| **Address Ring `ℤ_360` (`0–359`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Discrete 360-slot integer address domain (`000` = Center Origin; `001–359` = peripheral sectors). |
+| **`360°` Closure Notation (`360° ≡ 0°`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Topological return-to-origin phase notation indicating full-cycle closure back to `0°`; never a 361st address slot. |
+| **Ground-0 Phase (`NAB` / `CWO` / `GSRB`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Deterministic five-gate classification of institutional legitimacy and accountability posture. |
+| **119 Neural Atomic Bodies (`NAB 1–119`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Canonical taxonomy of bounded cognitive/institutional risk geometries and failure modes. |
+| **AGS+ / HMKH / ADJR-v1.0 / CHE++ / CGPA / OCS** | `[TYPE: PROTOCOL_SPECIFICATION]` | Normative defensive protocol specifications enforcing the Canonical Minimum Model. |
+| **500-Coin Pool & Underwriting Houses** | `[TYPE: GOVERNANCE_INSTITUTION]` | Physical artifact-bound governance quorum and catastrophic risk underwriting structure. |
+| **Harshal's English** | `[TYPE: AUTHORIAL_REGISTER]` | The author's normative English drafting style and left-to-right reading discipline. It is an authorial register, **not** a runtime security primitive. |
+| ***The Grand River Foundation* (`Book II — Preview`)** | `[TYPE: NARRATIVE_SANDBOX]` | Standalone ~2100 fictional companion novel illustrating mature implementations of Book I. |
+
+---
+
 Formal Appendix: Equations and Glossary
 This appendix accompanies Accountability-Gated Systems and is intended as a reference document rather than a narrative chapter. It formalizes constraints introduced in the main text and stabilizes terminology without claiming completeness. All definitions and relations remain provisional and subject to revision.
 Part I - Formal Constraint Sketches
@@ -217,3 +276,7 @@ Zero Trust Architecture is a security framework that operates on the principle o
 
 
 ______________________________________________________________________
+Closing Note
+
+This appendix is intentionally incomplete. Its purpose is not to finalize a formal system, but to demonstrate that ethical restraint can be expressed structurally without being reduced to optimization.
+Revisions, extensions, and counterexamples are expected.

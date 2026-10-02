@@ -1,27 +1,32 @@
+---
+document_id: HS-17-ATOMIC-BODIES
+book: "Book I"
+part: "Part XVII"
+title: "Part XVII — Atomic Body Classes and Reactor Doctrine"
+collection: "03-ground-zero-nab"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "6481–7438"
+words: 5611
+---
+
 # Part XVII — Atomic Body Classes and Reactor Doctrine
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`03-ground-zero-nab`) |
 
 > NNB, ANHB, NCB, NIB, and NUB in full, the governance-impossibility proofs, phase escalation, and the Project Thunderfury Starforge reactor.
 
-**Source range:** lines 6476–7440 of the Owner’s Working Draft · **Words:** 5,646
+**Source range:** lines 6481–7438 of the Owner’s Working Draft · **Words:** 5,611
 
 ---
 
-```
-│ #006  │ Amber Helix Storage       │ Digital Log Tampering & Wiping        │ HARDENED     │
-│ #007  │ Physical Oracle & PUF     │ Hardware Tampering & Interposers      │ HARDENED     │
-│ #008  │ Stingray Zero-Signal Drop │ Network Interception & Eavesdropping  │ HARDENED     │
-│ #009  │ Defensive Field           │ Physical Side-Channel Exploits        │ HARDENED     │
-│ #010  │ PANOPTES / BANHAMMER!     │ Denial of Service & Exploitation      │ HARDENED     │
-│ #011  │ Provenance Hard-Lock      │ Black Data & Non-Consensual Inputs    │ HARDENED     │
-└───────┴───────────────────────────┴───────────────────────────────────────┴──────────────┘
-```
----
-## Appendix C: Document Execution Sign-Off
-- **System Design Lead:** Harshal
-- **Architecture:** AGS++ Middle-End Friction Engine & Context-Dependent Framework
-- **Hardening Sub-Systems:** Coercion Hardening Extension (CHE++), Fail-Closed Physical Invariants, Ground-0 Verification Table
-- **Target Environment:** High-Consequence Autonomous & Mission-Critical Deployments
-- **Status:** Master Technical Specification — 100% Hardened, Partitioned & Production-Ready
 Neural Atomic Bodies Compendium
 Master Canon for Atomic Intelligence Geometries (AGS++)
 0. Purpose and Status
@@ -928,7 +933,7 @@ Assign the lightest atomic body capable of performing the task. If a heavier bod
 This rule dominates all deployment decisions.
 11. Orb Structures Beyond Atomic Bodies
 AGS++ distinguishes atomic bodies from orb structures. Orbs are not intelligence bodies; they are structural functions that enable coordination without concentrating authority.
-### 11.1 Custodial Witness Orb (CWO)
+## 11.1 Custodial Witness Orb (CWO)
 Role: Persistent memory, duty collation, provenance
 Core Properties:
 Records events, outputs, and decisions
@@ -937,7 +942,7 @@ Does not interpret, decide, or command
 Cannot originate legitimacy
 Phase: Non-sovereign (Custodial)
 Invariant: A CWO may remember decisions, but can NEVER make them. CWOs provide continuity without authority and are the primary mechanism by which institutional memory survives without empowering intelligence systems.
-### 11.2 Relay Orbs (RO)
+## 11.2 Relay Orbs (RO)
 Role: Translation and transformation without meaning change
 Core Properties:
 Converts format, protocol, or representation
@@ -952,7 +957,7 @@ Phase: Pre-Atomic (Non-Cognitive)
 Invariant:
 Relay Orbs may change how information is expressed, but NEVER what it means.
 Relay Orbs exist to prevent atomic bodies from being misused as glue or infrastructure.
-### 11.3 Gate Orbs (GO)
+## 11.3 Gate Orbs (GO)
 Role: Binary boundary enforcement
 Core Properties:
 Yes / No decisions only
@@ -966,3 +971,11 @@ Gate Orbs ensure that forbidden interactions simply NEVER occur, eliminating ent
 12. Governance Boundary (Impossibility Result)
 From the formal impossibility proof:
 Governance is external
+Uranium dynamics are internal
+Threshold crossings outrun oversight
+Conclusion: No amount of governance can fully contain a built Neural Uranium Body.
+13. Canonical Safety Law
+Intelligence does not become dangerous when it is wrong. It becomes dangerous when its internal structure outruns the ability of the outside world to stop it.
+14. Final Canonical Statement
+The purpose of atomic classification is not to maximize intelligence, but to bound harm. Neon and Hydrogen bodies exist to protect institutions. Carbon and Iron bodies exist to support them carefully. Uranium exists only to mark the point beyond which construction itself becomes the failure.
+End of Neural Atomic Bodies Compendium
