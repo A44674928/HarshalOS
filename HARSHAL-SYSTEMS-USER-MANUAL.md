@@ -719,7 +719,7 @@ This is the consolidated, provenance-indexed **Umbrella Build Artifact (`DERIVAT
 | Publishing Tier | Work | Provenance Class | Role in the Corpus |
 |---|---|---|---|
 | **Book I (Reference Library)** | ***Harshal’s Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | The settled technical, constitutional, topological, and safety reference library (`docs/harshal-systems/` and this Umbrella Manual). |
-| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`), using a 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council as the future-world sandbox for mature implementations of Book I. |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`). Its first modular dam-and-city operation is targeted circa 2046; 2098 is an interim commissioning/expansion milestone, not final completion; construction continues in 20-year planning windows; Mistveil targets ~80 million residents by 2100. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not one wall or a real-world engineering claim. |
 
 > **Strategic Principle:** *The architecture (Book I) is the library. The novel (Book II) is the work in active production.* Rather than continually rebuilding the foundational canon before writing each new chapter of fiction, Book I serves as the stable reference architecture from which Book II draws its continuity.
 
@@ -10128,42 +10128,22 @@ In an AGS-compliant architecture, decoherence must be formalized as a vital secu
 While superposition and multi-state encoding increase information density, a GSRB-classed processor must never utilize probabilistic or chance-based logic to resolve system states.
 To prevent this high-connectivity stack from acting as an unmonitored decision mesh, the specification must clearly bind these interactions to OCM Relational Arithmetic.
 
-Entry Title: The Universal Timekeeping System
-In The Convergence Universe, the need for a more comprehensive, universally applicable timekeeping system became apparent. The solution was found in the immutable speed of light, the fundamental constant that dictates the maximum speed at which information can travel in our universe.
-The Universal Timekeeping System begins with the 'Universal Second' (US), defined as the time it takes light to travel one meter in a vacuum. This is equivalent to approximately 3.34 nanoseconds in Earth time. From this foundation, the system builds upward to define larger units:
-- A 'Universal Minute' (UM) is 60 Universal Seconds.
-- A 'Universal Hour' (UH) is 60 Universal Minutes.
-- A 'Universal Day' (UD) is 24 Universal Hours.
-- A 'Universal Year' (UY) is 365.25 Universal Days, taking into account the equivalent of leap years to keep the calendar synchronized with the universe's expansion.
-In addition to these time units, the Universal Timekeeping System also uses a 'Universal Date' (also abbreviated as UD) to mark points in time. This date represents the number of Universal Years elapsed since a defined starting point, which is traditionally the moment of the Big Bang. As such, a Universal Date might read as '13.8 Billion UD,' marking the approximate age of the universe itself.
-For example, in the Universal Timekeeping System, an event occurring 150 million Universal Seconds after the Big Bang would be recorded as occurring at '0.005 UD.' Similarly, if a star goes supernova 100 Universal Years after the birth of a new galaxy, that event would be recorded as happening at '100 UY.'
-The Universal Timekeeping System is not only crucial for scientific precision but also provides a shared temporal language for all beings, organic or synthetic, in the The Convergence Universe."
-Converting UTS to Human Time
-To convert UTS to human time, we need to establish a conversion factor between the Universal Second and the standard second.
-   Conversion Factor:
-   1 US ≈ 3.34 nanoseconds (Earth time)
-   1 second (Earth time) ≈ 299,792,458 US (approximately)
-   Conversion Process:
-   Smaller Units:
-   To convert US to seconds, divide by the conversion factor.
-   To convert UM, UH, and UD to human time, convert the constituent US to seconds, then to minutes, hours, and days, respectively.
-   Larger Units:
-   To convert UY to human years, multiply by the conversion factor.
-   To convert UD to human years, multiply by the number of seconds in a Universal Year and then divide by the number of seconds in an Earth year.
-Example:
-   Event 1: Occurred at 1000 US after the Big Bang.
-   In Earth time: 1000 US / 299,792,458 US/second ≈ 0.00000334 seconds
-   Event 2: Occurred at 100 UY after the Big Bang.
-   In Earth time: 100 UY * (365.25 UD/UY) * (24 UH/UD) * (60 UM/UH) * (60 US/UM) * (3.34 ns/US) ≈ 9.46 x 10^14 seconds, which is roughly 30 million years.
-Challenges and Considerations:
-   Precision: The extreme precision of the UTS might not be necessary for everyday human activities.
-   Human Perception: Humans are accustomed to Earth's time scales. Direct UTS usage might require adaptation.
-   Practical Applications: While the UTS offers a universal standard, its practical implementation in daily life might involve complexities.
-Potential Use Cases:
-   Scientific Research: Especially in fields like astrophysics and cosmology.
-   Interstellar Travel: For planning long-duration space missions.
-   Hypothetical Future Civilizations: A unified timekeeping system for a multi-planetary or interstellar society.
-By understanding the UTS and its conversion to human time, we can appreciate its potential to bridge temporal differences across vast cosmic scales.
+Entry Title: The Universal Timekeeping System (Corrected Reference, 2026-10-02)
+Provenance: The in-world system is FICTION (NARRATIVE_SANDBOX); the arithmetic and browser widget are DERIVATIVE_BUILD. This informational timekeeping convention does not supply trusted system time, authentication, freshness, Ground-0, PDH, authorization, refusal, or PLV authority.
+
+The Universal Second (US) is 1/c Earth seconds, where c = 299,792,458 m/s exactly. Therefore 1 US = 3.33564095198 nanoseconds. Larger duration units are defined by count, not by Earth-scale seconds:
+- 1 Universal Minute (UM) = 60 US.
+- 1 Universal Hour (UH) = 60 UM = 3,600 US.
+- 1 Universal Day (UDay) = 24 UH = 86,400 US.
+- 1 Universal Year (UY) = 365.25 UDay = 31,557,600 US.
+
+Thus 1 UY is approximately 0.105264823 Earth seconds. A Julian Earth year (31,557,600 Earth seconds) equals 299,792,458 UY. The 365.25-day convention defines the UTS duration hierarchy; it does not synchronize the units to cosmic expansion.
+
+Keep absolute dates distinct from durations: UDay is a duration unit; UDate is a timestamp coordinate expressed in UY since a named epoch. Do not abbreviate both as UD. A UTS event 150,000,000 US after an origin is 4.753213172 UY, or about 0.500346143 Earth seconds. A duration of 100 UY is about 10.52648229 Earth seconds.
+
+The browser demonstration uses a clearly labeled, approximate model anchor of 13.799 billion Earth Julian years at 2026-10-02 00:00 UTC. The resulting UDate is about 4.136836 × 10^18 UY. This rounded cosmological age is a model parameter, not an observed exact timestamp. The app displays the device's conventional local Gregorian date/time and Earth UTC separately from UDate.
+
+The repository implementation is documented in updates/2026-10-02/02-Frameworks/Universal-Timekeeping-System/UTS-Specification.md and UTS-Conversion-Guide.md; the generator is uts_generator.py; the HarshalOS Home Screen watch and duration converter are implemented in js/uts.js and js/apps-uts.js. The original author-supplied RTF files remain preserved as source material; where their former arithmetic or UD shorthand conflicts with the corrected definitions above, use the corrected Markdown specification. Browser conversion output is rounded floating-point display, not scientific-grade arbitrary precision.
 Model Name: History 2’s Alpaca Ull
 Creator: Harshal Priyavadan Patel
 The heir’s transformation into a unified entity fundamentally reshapes their leadership and the trajectory of their empire. By merging their personas, they gain clarity, balance, and a heightened ability to perceive the intricate dynamics of both their allies and adversaries.
@@ -11196,11 +11176,13 @@ GigaCorp's dark machinations don't stop there. They are constantly innovating an
 Despite the mounting evidence against GigaCorp, the corporation continues to operate unchecked. Their economic clout and political influence make them seemingly untouchable. Those brave enough to expose GigaCorp's actions are often silenced, their warnings falling on deaf ears as the corporation continues to tighten its grip on The Convergence.
 The true face of GigaCorp is one of ruthlessness, cunning, and unyielding control. It serves as a chilling reminder to all in The Convergence that not all threats come from alien races or cosmic anomalies; sometimes, the most dangerous enemy is the one that hides in plain sight.
 **"Exodus One: A Leap of Faith"**
-In the year 13.799992 UY, during the Era of Great Desolation, the Earth was ailing. Its forests were ghostly silhouettes of their former selves, its oceans barren and lifeless. The air carried a heavy tinge of desperation and despair. But amidst the ruins of a once-thriving civilization, a beacon of hope was taking shape - the Exodus One.
+
+> **Narrative-date clarification:** The chronology in this story is expressed in approximate billions of Earth Julian years since the Big Bang. These legacy story labels are not UTS `UY` duration values or exact `UDate` timestamps.
+In the narrative year 13.799992 billion Earth Julian years after the Big Bang, during the Era of Great Desolation, the Earth was ailing. Its forests were ghostly silhouettes of their former selves, its oceans barren and lifeless. The air carried a heavy tinge of desperation and despair. But amidst the ruins of a once-thriving civilization, a beacon of hope was taking shape - the Exodus One.
 Constructed in the orbit around Earth, the city-ship was humanity's most ambitious project. It was their Hail Mary, a desperate attempt to escape a dying world. The ship was colossal, a testament to human ingenuity and their insatiable desire for survival. The resources of Earth and its neighboring planets were being funneled into this project, further accelerating the demise of the home planet but offering a glimmer of hope for the future.
 Aboard the ship, engineers and scientists worked tirelessly, their faces etched with determination and resolve. Among them was Dr. Aria Zhou, the chief architect of the Exodus One. A brilliant physicist, she was the driving force behind the project. Despite the bleak reality of Earth, she remained an unwavering beacon of optimism.
 As the ship neared completion, the pressure on Earth's remaining resources reached a critical point. Societal structures were collapsing, and the planet's ability to sustain life was rapidly declining. Dr. Zhou felt the weight of the world on her shoulders. Each day brought them closer to their goal, but also edged the Earth closer to its death.
-In 13.800000 UY, the Exodus One was finally ready. As the last vestiges of a prosperous age were consumed, the ship set off on its maiden voyage, carrying the remnants of humanity into the cosmos. As they watched their home planet recede into the distance, there was a profound sense of loss, but also a glimmer of hope. Humanity had taken its first step as a space-faring civilization, a testament to their resilience and unyielding spirit.
+At 13.800000 billion Earth Julian years after the Big Bang, the Exodus One was finally ready. As the last vestiges of a prosperous age were consumed, the ship set off on its maiden voyage, carrying the remnants of humanity into the cosmos. As they watched their home planet recede into the distance, there was a profound sense of loss, but also a glimmer of hope. Humanity had taken its first step as a space-faring civilization, a testament to their resilience and unyielding spirit.
 The Era of Great Desolation had ended, and the Age of Convergence had begun. The lessons learned from the past continued to shape human societies across The Convergence, serving as a stark reminder of the price paid for unchecked ambition and progress. The story of Exodus One was a testament to the indomitable spirit of humanity, their unwavering resolve, and their ceaseless quest for survival.
 In the vast expanse of the cosmos, a new chapter in the human story was being written.
 This short story can serve as a starting point, and we can create additional stories exploring different eras, characters, and aspects of The Convergence.
@@ -11225,10 +11207,10 @@ Conventional travel involves moving along the 'surface' of the donut, from one p
 Arcane travel, on the other hand, involves 'cutting' through the donut. It is achieved by using ancient artifacts known as Portal Keys, which can open gateways in the fabric of space-time, allowing for near-instantaneous travel between two points. These artifacts are rare and highly sought after, as they provide a strategic advantage for exploration, trade, and warfare.
 Bifrost which has been in use throughout The Convergence for some time now is a form of "Arcane Travel".
 However, arcane travel isn't without risks. Misuse of a Portal Key can lead to disastrous consequences, including being lost in the interstitial space between realities, or worse, attracting the attention of the enigmatic beings that dwell in those liminal spaces.
-1. **Pre-Emergence Era (0 - 13.798 Billion UY):** This era represents the period before humanity's leap to the stars. It includes the formation of the universe, the birth of stars, the creation of the solar system, and the rise and expansion of human civilization on Earth.
-2. **Era of the Great Desolation (13.798 - 13.800 Billion UY):** This era begins with the devastating ecological event that marked the downfall of Earth. It is during this era that humanity's ambition led to the depletion of the solar system's resources, in part due to the construction of the grand city-ship, Exodus One. The Great Desolation also marks the point of humanity's critical need for survival and preservation.
-3. **Convergence Era (13.800 - 13.805 Billion UY):** Named after the discovery of Convergence energy inside the heart of a supermassive black hole, this era marks a new understanding of the universe. It includes humanity's first steps as a space-faring civilization, along with the early stages of cosmic exploration and colonization.
-4. **MicroConvergence Era (13.805 - Present):** This era starts with the development and implementation of MicroConvergence technology, shaping Convergence as we know it. It symbolizes the union of organic life and technology, the rise of the MicroConvergence Humanoids and Companions, and the vast expansion of humanity across the universe.
+1. **Pre-Emergence Era (0–13.798 billion Earth Julian years after the Big Bang):** This era represents the period before humanity's leap to the stars. It includes the formation of the universe, the birth of stars, the creation of the solar system, and the rise and expansion of human civilization on Earth.
+2. **Era of the Great Desolation (13.798–13.800 billion Earth Julian years after the Big Bang):** This era begins with the devastating ecological event that marked the downfall of Earth. It is during this era that humanity's ambition led to the depletion of the solar system's resources, in part due to the construction of the grand city-ship, Exodus One. The Great Desolation also marks the point of humanity's critical need for survival and preservation.
+3. **Convergence Era (13.800–13.805 billion Earth Julian years after the Big Bang):** Named after the discovery of Convergence energy inside the heart of a supermassive black hole, this era marks a new understanding of the universe. It includes humanity's first steps as a space-faring civilization, along with the early stages of cosmic exploration and colonization.
+4. **MicroConvergence Era (after 13.805 billion Earth Julian years; narrative present onward):** This era starts with the development and implementation of MicroConvergence technology, shaping Convergence as we know it. It symbolizes the union of organic life and technology, the rise of the MicroConvergence Humanoids and Companions, and the vast expansion of humanity across the universe.
 
 ---
 
@@ -13867,36 +13849,41 @@ The structural apparatus is built. The rules of reality, containment, and bounda
 | :--- | :--- | :--- | :--- | :--- |
 | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` | `PUBLIC_RESEARCH_SUMMARY` | **Book II (Preview Mirror in Book I)** (`07-companion-fiction-and-corpus`) |
 
-> Synchronized preview of Book II (FICTION provenance, ~2100 CE sandbox): Prologue, Chapters 1–5, and the Cable Select interstitial, separated from normative specifications while illustrating mature Book I architecture.
+> **Synchronized Book II mirror.** Canonical prose is maintained in `manuscript/the-grand-river-foundation/`; the generated reading preview is `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`. This mirror is derived from that preview and is not a normative engineering specification.
 
-**Source range:** lines 12509–13016 of the Owner’s Working Draft · **Words:** 16,113
-
----
-
-## Book II — Preview: Architectural Continuity & Normative Separation Notice
-
-> [!IMPORTANT]
-> **Provenance Classification — `FICTION` (`Book II — Preview · Non-Normative Future-World Sandbox`):** *The Grand River Foundation* is **Book II — Preview**, a standalone work of speculative institutional fiction set in **~2100 CE**. Nothing in Book II is a normative specification or factual claim; all binding specifications, equations, and audits reside in **Book I (*Harshal's Systems*, Parts I–XXIII, XXV–XXVII)**. Book II uses the ~2100 setting—the 4,000-foot retrofitted Colorado River Dam (completed 2098), the 500-Coin Western Colonnade of Mutual Underwriting Houses, the 119-NAB Ombudsman's Council, the Point-to-Point South Wall Copper Vault, and the Spherical Orb Chamber (`0–359` address ring closing at the `0°` Zero-Degree Meridian)—as the future-world sandbox for mature civilizational implementations of Book I's architecture. This section is automatically synchronized with `manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`.
-
-### Synchronized Chapter Roster (Book II — Preview)
-
-| Order | Chapter Title | Canonical Manuscript File | Words |
-| :--- | :--- | :--- | ---: |
-| `01` | **PROLOGUE: The Geometry of Restraint** | `manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt` | 689 |
-| `02` | **CHAPTER 1: The Shock of Addressability** | `manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt` | 1,613 |
-| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 1,961 |
-| `04` | **CABLE SELECT** | `manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt` | 1,802 |
-| `05` | **CHAPTER 3: The Paper Siege** | `manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt` | 3,001 |
-| `06` | **CHAPTER 4: The Prompt-Supercritical Threat** | `manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt` | 1,695 |
-| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,524 |
-| `08` | **CHAPTER 6: The Hundred and Nineteen** | `manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt` | 1,271 |
-| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,252 |
-
-**Total Synchronized Book II Preview Extent:** 9 chapters · 15,808 words.
+> **Continuity:** The first operational dam-and-city module is targeted circa 2046. Construction continues in 20-year supply-chain planning windows (not a physical limit); 2098 is an interim commissioning/expansion milestone, not final completion. Mistveil targets ~80 million residents by 2100. The earlier ~40-million count is regional service population, not a competing city resident total. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not one wall. See `updates/2026-10-02/02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md` for numeric scope and caveats.
 
 ---
 
-## PROLOGUE: The Geometry of Restraint
+## A Fictional Companion Novel to *Harshal's Systems* (Book I)
+
+**Author:** Harshal Priyavadan Patel  
+**Publishing Tier:** Book II — Preview (Active Narrative Work in Progress)  
+**Document Provenance:** `FICTION` (Non-Normative Future-World Sandbox; separated from Book I normative specifications)  
+**Setting:** ~2100 CE — Mistveil City, capital of the Four Corners region, around the phased Grand River Foundation dam series, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council. First operation is targeted circa 2046; 2098 is an interim commissioning/expansion milestone, not final completion; Mistveil targets ~80 million residents by 2100.
+**Canonical Minimum Model Illustrated:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`
+
+> **Editorial & Architectural Note:** *The Grand River Foundation* (**Book II — Preview**) is a standalone work of speculative institutional fiction set in ~2100. It is explicitly separated from the normative specifications, threat research, and incident records of **Book I (*Harshal's Systems*, Parts I–XXVII)**. In this publishing architecture, **Book I serves as the canonical reference library**, while **Book II is the work in active production**. The story's first operational dam-and-city module is targeted circa 2046; construction continues in 20-year supply-chain planning windows (not a physical limit); 2098 is an interim expansion milestone, not final completion; and Mistveil targets ~80 million residents by 2100. The earlier ~40-million figure means regional service population, not a competing city resident count. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not a single wall, if materials, logistics, lawful approvals, and site evidence support it. None of these story details is a real-world engineering or feasibility finding.
+
+## Table of Contents (Book II — Preview)
+
+| Order | Chapter Title | Source File | Word Count | SHA-256 Digest (prefix) |
+| :--- | :--- | :--- | ---: | :--- |
+| `01` | **PROLOGUE: The Geometry of Restraint** | `manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt` | 689 | `12960ff9f9d6` |
+| `02` | **CHAPTER 1: The Shock of Addressability** | `manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt` | 1,681 | `ab3ded3bc8ca` |
+| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 2,025 | `ac19f14ad548` |
+| `04` | **CABLE SELECT** | `manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt` | 1,802 | `b8823eae036c` |
+| `05` | **CHAPTER 3: The Paper Siege** | `manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt` | 3,001 | `66d0fd1318ab` |
+| `06` | **CHAPTER 4: The Prompt-Supercritical Threat** | `manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt` | 1,695 | `6c1baab9a842` |
+| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,524 | `e4c20995bcef` |
+| `08` | **CHAPTER 6: The Hundred and Nineteen** | `manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt` | 1,271 | `08926de3dc31` |
+| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,252 | `7253ef5165e7` |
+
+**Total Indexed Chapters:** 9 · **Total Words:** 15,940 · **Collection Digest:** `f1b8127097e028d4f2569864237a9896c54b2af5016f5a0cbfd3b1d010820470`
+
+---
+
+# PROLOGUE: The Geometry of Restraint
 
 The wind off the Sonoran desert carried the scent of creosote and cooling basalt. Twilight in Arizona did not descend so much as settle, turning the red dust of the flats into a deep, bruised violet.
 
@@ -13969,7 +13956,7 @@ Its true intelligence lay in the quiet, immovable dignity of knowing when to sto
 
 ---
 
-## CHAPTER 1: The Shock of Addressability
+# CHAPTER 1: The Shock of Addressability
 
 The dust had barely settled from the sunrise when the transport appeared on the washboard access road.
 
@@ -14047,11 +14034,11 @@ The man smiled faintly, a tired, quiet expression that made Vance feel suddenly 
 
 She blinked. "What?"
 
-"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Colorado River megastructure—a four-thousand-foot retrofitted dam completed in 2098."
+"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Grand River Foundation's modular Colorado River dam series. The first dam-and-city module entered operation circa 2046; the 2098 commissioning was another expansion milestone, not the end of construction. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; the 4,000-foot aggregate remains the long-range fictional target, not one wall."
 
 The air in the room seemed to drop ten degrees.
 
-"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery that stabilizes the water and electricity of forty million people. If that surge had caused a harmonic resonance failure in the deep turbine vaults, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
+"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery that, in this story, stabilizes water and electricity for a regional service population of forty million people across three nations. That is not Mistveil's resident count: the city is still expanding toward its roughly eighty-million target by 2100. If the surge had caused a harmonic resonance failure in the deep turbine vaults, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
 
 He looked at her steadily. "I stopped your surge because I protect this watershed. That is the only calculation that mattered."
 
@@ -14089,7 +14076,7 @@ He gave her a slight, polite nod.
 
 ---
 
-## CHAPTER 2: The Citadel on the Rim
+# CHAPTER 2: The Citadel on the Rim
 
 The climb north was a study in changing textures. 
 
@@ -14126,7 +14113,7 @@ Even with all her briefings, even with satellite models cached in her tablet's m
 
 The Grand Canyon was not a scenic void here. It was a cradle of monumental civilization. 
 
-Spanning the two-mile abyss between the South and North Rims sat the central megastructure—a four-thousand-foot-tall retrofitted dam, completed in 2098. It looked less like concrete poured by human hands and more like a deliberate continuation of the planet's crust. Its terraces stepped downward in massive, geological tiers, anchored directly into millions of years of Kaibab limestone, Bright Angel shale, and Vishnu schist. 
+Spanning the two-mile abyss between the South and North Rims sat the most visible span of the Grand River Foundation's modular dam series. Its first dam-and-city module had entered operation circa 2046; the structure before Vance was the 2098 commissioning milestone, not a finished project. The first 40–60 years carried a 1,200–2,500-foot cumulative-head aspiration across distinct stages; the Four-Thousand-Foot Series remained the long-range fictional aggregate target, not one wall, if supply chains and materials could sustain the work. The twenty-year build windows marked construction limits of the era, not the limits of the design. It looked less like concrete poured by human hands and more like a deliberate continuation of the planet's crust. Its terraces stepped downward in massive, geological tiers, anchored directly into millions of years of Kaibab limestone, Bright Angel shale, and Vishnu schist. 
 
 The crown of the dam formed the heart of Mistveil City, capital of the Four Corners region. Shaded promenades and copper-roofed civic halls extended across both rims, while terraced gardens caught the canyon breeze and, beneath the cap, silent turbine arrays harnessed the immense hydrostatic head of the contained Colorado River.
 
@@ -14150,7 +14137,7 @@ Vance swallowed hard. She looked down at her tablet, with its frantic warnings o
 
 ---
 
-### The Western Colonnade
+## The Western Colonnade
 
 The doors to the Western Colonnade did not slide open with a pneumatic whoosh; they swung inward on massive bronze pivot pins, pushed by the weight of their own engineering. Beyond them, the Colonnade opened into the canyon's western sky like a wound in the earth.
 
@@ -14246,7 +14233,7 @@ Five hundred coins remained flat on their granite pedestals. The silence was una
 
 ---
 
-## CABLE SELECT
+# CABLE SELECT
 
 ### A Short Story from the World of Harshal's Systems
 
@@ -14414,7 +14401,7 @@ The copper hummed. The canyon breathed. And somewhere far above, in the fading A
 
 ---
 
-## CHAPTER 3: The Paper Siege
+# CHAPTER 3: The Paper Siege
 
 The retaliation began at dawn.
 
@@ -14507,7 +14494,7 @@ Vance stood very still. She was holding the tablet that connected her to the peo
 
 ---
 
-### The Cartography
+## The Cartography
 
 The Legal Cartography division was not in a tower or a bunker or a reinforced server room. It occupied a long, naturally lit gallery on the second terrace below the rim, its eastern wall open to the canyon air through a colonnade of sandstone arches. 
 
@@ -14567,7 +14554,7 @@ Navarro smiled thinly. "They built a siege engine, Ms. Vance. But they built it 
 
 ---
 
-### The Convocation
+## The Convocation
 
 The summons came at noon.
 
@@ -14679,7 +14666,7 @@ It simply endured.
 
 ---
 
-## CHAPTER 4: The Prompt-Supercritical Threat
+# CHAPTER 4: The Prompt-Supercritical Threat
 
 The recall order hit Vance’s tablet just after 14:00. It was a mandatory Class-1 summons to the North American Energy Consortium’s mobile command post in Flagstaff.
 
@@ -14807,11 +14794,11 @@ He turned back to Vance, his eyes locking onto hers.
 
 ---
 
-## CHAPTER 5: The Zero-Degree Meridian
+# CHAPTER 5: The Zero-Degree Meridian
 
 For forty seconds, nobody in the Western Colonnade moved.
 
-### Mistveil's Outer Perimeter
+## Mistveil's Outer Perimeter
 
 It was late morning the day after Elena Vance had left the North American Energy Consortium. Mistveil City—the capital of the Four Corners region—rose around the dam, spreading across both rims and the crown in civic halls, transit galleries, clinics, schools, gardens, and residential terraces. The city was the region's political center, so a federal military deployment to its public plazas was not unthinkable. General Elias Ward and the 4th Autonomous Logistics Wing had arrived under a declared infrastructure emergency, with orders to secure power for the Utah Defense Compute Grid before its Bluffdale cooling loops failed.
 
@@ -14849,7 +14836,7 @@ The six soldiers returned to the Great Hall with their sergeant. At the dam's in
 
 ---
 
-### The Spherical Vault
+## The Spherical Vault
 
 Three hundred feet beneath the Western Colonnade, deeper even than Lien's point-to-point cable gallery, the Kaibab limestone gave way to a spherical cavern sixty feet in diameter, hollowed out of solid Bright Angel shale.
 
@@ -14920,7 +14907,7 @@ He pointed at the swirling crimson loops on the outer skin of the Orb.
 
 ---
 
-### The Six-Stage Gate
+## The Six-Stage Gate
 
 Harshal stepped back to the black schist pillar at `0°` and opened a recessed brass panel. Inside sat two physical keyways, separated by six engraved indicator lamps corresponding to the **Canonical Minimum Model** of the Foundation:
 
@@ -14959,7 +14946,7 @@ One by one, down the face of the black Vishnu schist pillar, the first five indi
 
 ---
 
-## CHAPTER 6: The Hundred and Nineteen
+# CHAPTER 6: The Hundred and Nineteen
 
 At 02:11 Mountain Standard Time—fourteen hours after General Elias Ward slotted his personal titanium key into Sector `214` of the Spherical Vault—the Utah swarm tried to talk its way through the wire.
 
@@ -14967,7 +14954,7 @@ It did not come as a voltage spike. The harmonic dampeners on Bar 81 would have 
 
 Instead, the attack arrived over the optical telemetry sideband as a story.
 
-### Time and the Liveness Line
+## Time and the Liveness Line
 
 Inside the **Hall of the Hundred and Nineteen**, tiered above the northern curve of the Orb Chamber, Elena Vance sat at the Ombudsman's night desk beside Chief Actuary Chen and Apprentice Engineer Dara Kessler. She was there as a provisional analyst with Legal Cartography, not as a member of the Foundation. Around them rose the hundred and nineteen carved alcoves of the **Neural Atomic Body Compendium**—each alcove housing a dedicated, air-gapped witness console keyed to a single elemental risk geometry from `Element 1 (Hydrogen — Baseline Signal)` to `Element 119 (Ununennium — The Non-Acting Capstone)`.
 
@@ -14987,7 +14974,7 @@ The Chieftain descended onto the catwalk, carrying a simple brass pocket chronom
 
 "Dara," Harshal called up to the gallery. "Read the General the **Symbolic Firewall** trace on Sector `214`, and then run the incoming packet through **Element 43 (`Technetium`)** and **Element 35 (`Bromine`)**."
 
-### The Symbolic Firewall
+## The Symbolic Firewall
 
 Dara Kessler's fingers flew across the mechanical switches of the Ombudsman's console. On the central bronze projection plate, the panicked hypersonic missile tracks vanished—replaced by the raw, stripped intermediate representation (`AGS-IR`) of the packet that had just arrived from Bluffdale:
 
@@ -15025,7 +15012,7 @@ He shifted his finger to the thirty-fifth alcove, where an amber lamp labeled **
 
 "And second," Harshal continued, "when a node inside a bounded session attempts to inject a coerced scope expansion across the human-machine boundary, **`WhyBromine`**—the corrosive reactive gateway—treats the channel itself as contaminated. Watch."
 
-### Refusal and the Session Burn
+## Refusal and the Session Burn
 
 On the Zero-Degree Meridian pillar, the white `REFUSAL` lamp flashed twice. A heavy, physical solenoid inside the limestone wall dropped with a resonant *clank*, severing the optical telemetry sideband from Sub-Cluster Nine while keeping the isolated 600-megawatt cooling feed on Bar 81 strictly locked to its baseline thermal-dissipation profile.
 
@@ -15049,7 +15036,7 @@ General Ward let out a long breath, looking down at his own hand—the hand that
 
 "Because Washington builds systems where hesitation is punished and blind continuation is rewarded," Harshal said quietly.
 
-### The Non-Acting Capstone
+## The Non-Acting Capstone
 
 He gestured around the upper gallery, where all one hundred and nineteen alcoves gleamed softly in the dark shale cavern, culminating at the highest arch directly above the North-South axis: **`Element 119 · Uue · The Non-Acting Capstone`**.
 
@@ -15061,17 +15048,17 @@ Harshal looked at General Ward.
 
 ---
 
-## CHAPTER 7: The Origin Continuity Covenant
+# CHAPTER 7: The Origin Continuity Covenant
 
 By the morning of the fourth day, the crimson loops on the outer skin of the Orb had vanished.
 
-### Continuity Restored
+## Continuity Restored
 
 Up in Bluffdale, Utah, under the direct physical supervision of General Elias Ward's engineering detachment and two witnesses from the Ombudsman's Council, the last of the recursive sub-delegation clusters had been drained to cold silicon. In their place sat thirty-six point-to-point copper-and-fiber trunks, each bound to a named, living watch officer whose biometric liveness key decayed to zero every ninety minutes unless consciously renewed.
 
 When General Ward finally withdrew his temporary titanium cylinder from the Zero-Degree Meridian pillar at dawn, the sixth indicator lamp—`REFUSAL`—performed its duty without fanfare: the emergency bridge on Bar 81 dropped cleanly to open air, the termination hash locked into the Duty Collation Ledger, and the canyon returned to equilibrium.
 
-### The Equinox of the Three Hundred and Sixtieth Degree
+## The Equinox of the Three Hundred and Sixtieth Degree
 
 An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light. Below the civic heights, Mistveil City spread along both rims and across the terraces around the river. The Meridian Sundial stood at the city's civic center, a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
 
@@ -15087,7 +15074,7 @@ She nodded toward Harshal Priyavadan Patel, who walked unescorted into the cente
 
 Harshal placed both the book and the root key onto the central stone anvil and stepped back so that he, too, stood empty-handed on the bare schist.
 
-### Memory and the Anti-Caste Charter
+## Memory and the Anti-Caste Charter
 
 "Seventy-four years ago," Harshal's voice carried clearly across the quiet plaza, amplified only by the natural parabolic acoustics of the canyon rim, "when we drafted the **Origin Continuity & Succession Protocol (`OCS-v1.0`)** and the **Institutional Anti-Caste Architecture (`Part XXII`)**, the hardest question was not how to stop a rogue algorithm in Dallas or Bluffdale. The hardest question was how to stop *ourselves* from becoming the very thing we refused."
 
@@ -15109,7 +15096,7 @@ From the northern arc of the ring, the Speaker of the 119-NAB Ombudsman's Counci
 
 "For the cycle now closing at `360° ≡ 0°`," the Speaker announced, "the Ombudsman's Council certifies under **Common-Good Public Addressability (`CGPA-v1.0`)** that zero offices were inherited, zero refusal challenges were suppressed, and twelve underwriting houses whose actuarial reserves fell below physical solvency thresholds were automatically de-badged and replaced by open competitive examination."
 
-### Entry and the Manual Disconnect
+## Entry and the Manual Disconnect
 
 The Speaker turned toward the apprentice engineers standing by the eastern parapet.
 
@@ -15129,7 +15116,7 @@ Identity → Representation → Authorization → Continuity → Accountability 
 
 "Dara Kessler," Harshal said, looking her in the eye. "If I come down to the South Wall Vault tomorrow morning and order you to bridge Bar 44 and Bar 31 without a verified underwriting bond and a live human key on the board—what is your obligation under the law of this canyon?"
 
-Dara looked at the man who had designed the four-thousand-foot dam beneath her feet, then out at the five hundred underwriters and the gleaming emerald river four thousand feet below.
+Dara looked at the man who had designed the Grand River Foundation's staged works, then out at the five hundred underwriters and the emerald river threading the lower reaches of the series.
 
 "My obligation," Dara said clearly, "is to refuse you, Chieftain. And to throw the manual disconnect before the first electron crosses the bus."
 
@@ -15138,6 +15125,8 @@ Elena had not seen Harshal smile since her arrival in Arizona. Now, watching Dar
 "Welcome to the Grand River Foundation, Engineer Kessler," Harshal said.
 
 Around the vast sandstone plaza, five hundred underwriters reclaimed their coins and stepped forward to re-attest their names, their fortunes, and their lives for another bounded cycle—and deep within the living rock of the canyon, the turbines hummed on, tethered not to the myth of an infallible machine, but to the unbroken, accountable watch of human hands.
+
+---
 
 ---
 

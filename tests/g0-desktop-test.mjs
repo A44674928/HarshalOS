@@ -215,6 +215,42 @@ ok(typeof globalThis.shell?.init === "function", "window manager exposed (window
 
 /* ── run the REAL desktop builder ─────────────────────────────── */
 globalThis.shell.init();
+
+/* ── UTS display-only clock, calendar, and duration calculator ── */
+const utsApi = globalThis.HOSUTS;
+ok(!!utsApi, "the UTS conversion and watch module loads from index.html");
+if (utsApi) {
+  const oneUy = utsApi.durationToUnits(1, "UY");
+  ok(Math.abs(oneUy.earthSeconds - 0.105264822906) < 1e-12, "one UY converts to about 0.105264823 Earth seconds");
+  const hundredUy = utsApi.durationToUnits(100, "UY");
+  ok(Math.abs(hundredUy.earthSeconds - 10.5264822906) < 1e-9, "100 UY converts to about 10.52648229 Earth seconds");
+  const epoch = utsApi.uDateParts(new Date("2026-10-02T00:00:00Z"));
+  ok(epoch.wholeUY === "4136836127942000000" && epoch.fractionUY === "000000", "approximate anchor yields the corrected UDate coordinate");
+  ok(utsApi.formatUDateScientific(new Date("2026-10-02T00:00:00Z")).includes("4.136 × 10^18"), "Home Screen UDate uses clear scientific notation");
+
+  const homeWidget = body.querySelector("#home-time-widget");
+  const localClock = body.querySelector("#home-local-clock");
+  const calendarDays = body.querySelector("#home-calendar-days");
+  ok(!!homeWidget && !!localClock && !!calendarDays, "Home Screen includes the local clock and Gregorian calendar widget");
+  ok(!!(localClock && localClock.textContent && localClock.textContent !== "—"), "Home Screen clock is populated from the device clock");
+  ok(!!(calendarDays && calendarDays.querySelectorAll(".home-cal-day").length >= 35), "Home Screen renders a Monday-first monthly calendar grid");
+  const utsOpen = body.querySelector("#home-uts-open");
+  if (utsOpen) utsOpen.click();
+  const utsWindow = shell.windows.get("uts");
+  ok(!!utsWindow, "Home Screen UTS link opens the UTS Watch & Converter app");
+  if (utsWindow) {
+    ok((utsWindow.body.textContent || "").includes("DISPLAY ONLY — NO AUTHORITY EFFECT"), "UTS app explicitly disclaims authority effects");
+    const input = utsWindow.body.querySelector("#uts-value");
+    const unit = utsWindow.body.querySelector("#uts-unit");
+    if (input) input.value = "100";
+    if (unit) unit.value = "UY";
+    const convert = utsWindow.body.querySelector("#uts-convert");
+    if (convert) convert.click();
+    const result = utsWindow.body.querySelector("#uts-results");
+    ok(!!(result && result.textContent.includes("10.526482")), "UTS app converts a user-entered duration and renders the result");
+  }
+}
+
 const field = body.querySelector("#icon-field");
 ok(!!field, "desktop icon field exists");
 const icons = field ? field.querySelectorAll(".desk-icon") : [];
@@ -237,15 +273,18 @@ if (g0icon) {
   g0icon.click();
   const rec = shell.windows.get("ground0");
   ok(!!rec, "a single tap opens the Ground-0 app");
-  const taskButton = body.querySelector("#taskbar-apps").children[0];
+  const taskbarButtons = () => body.querySelector("#taskbar-apps").children;
+  const taskButton = taskbarButtons().find(button => (button.textContent || "").includes("Ground-0 Audit"));
   dispatch(rec.body, "pointerdown");
-  ok(body.querySelector("#taskbar-apps").children[0] === taskButton,
-    "pointerdown in the focused app preserves the taskbar button until click");
+  ok(taskbarButtons().find(button => (button.textContent || "").includes("Ground-0 Audit")) === taskButton,
+    "pointerdown in the focused app preserves its taskbar button until click");
   const min = rec.el.querySelector(".win-ctl.min");
   dispatch(min, "pointerdown");
   min.click();
   ok(rec.el.classList.contains("minimized"), "tap on minimize hides the app");
-  body.querySelector("#taskbar-apps").children[0].click();
+  const restoreButton = taskbarButtons().find(button => (button.textContent || "").includes("Ground-0 Audit"));
+  ok(!!restoreButton, "the minimized app retains its own taskbar button");
+  restoreButton?.click();
   ok(!rec.el.classList.contains("minimized"), "taskbar tap restores the app");
   const close = rec.el.querySelector(".win-ctl.close");
   dispatch(close, "pointerdown");
@@ -676,10 +715,10 @@ Legitimacy precedes capability.
     await settleTurns();
     ok(collectionsPanel.hidden === false && corePanel.hidden === true, "opening Collections switches to its own panel");
     ok(msCalls.filter(call => call.endsWith("book-library/manifest.json")).length === 1, "the Collections index loads lazily and only once");
-    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("29 modules") && (collectionsPanel.textContent || "").includes("39 readable files"), "the Collections reader reports the complete library size");
+    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("31 modules") && (collectionsPanel.textContent || "").includes("41 readable files"), "the Collections reader reports the complete library size");
     const nav = collectionsPanel.querySelector("[data-library-nav]");
     const allLibraryButtons = nav ? nav.querySelectorAll("[data-library-file]") : [];
-    ok(allLibraryButtons.length === 39, "all guides, collection overviews, and modules are listed");
+    ok(allLibraryButtons.length === 41, "all guides, collection overviews, and modules are listed");
     ok(!!(nav && nav.textContent.includes("Collection I — Foundational Doctrine")), "collections are grouped by their documented titles");
     const librarySearch = collectionsPanel.querySelector("#book-library-search");
     if (librarySearch) { librarySearch.value = "01-core-book"; dispatch(librarySearch, "input"); }
@@ -696,7 +735,7 @@ Legitimacy precedes capability.
       ok(msCalls.some(call => call.endsWith("/book-library/harshal-systems/01-core-book.md")), "the selected module is fetched from the library allowlist");
     }
     if (librarySearch) { librarySearch.value = ""; dispatch(librarySearch, "input"); }
-    ok(nav && nav.querySelectorAll("[data-library-file]").length === 39, "clearing search restores the complete library navigation");
+    ok(nav && nav.querySelectorAll("[data-library-file]").length === 41, "clearing search restores the complete library navigation");
     const collectionOverview = nav && nav.querySelectorAll("[data-library-file]").find(button => button.dataset.libraryFile === "collections/01-foundations/README.md");
     if (collectionOverview) {
       collectionOverview.click();

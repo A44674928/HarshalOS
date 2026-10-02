@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="css/core-book.css?v=2026-10-01corebook1">
 <link rel="stylesheet" href="css/book-library.css?v=2026-10-01library1">
 <link rel="stylesheet" href="css/good-intelligence.css?v=2026-10-01gi12">
+<link rel="stylesheet" href="css/uts.css?v=2026-10-02uts1">
 <link rel="stylesheet" href="css/mobile.css?v=2026-10-01mobile1">
 
 <!-- Favicon: URL-encoded SVG + PNG fallback -->
@@ -133,6 +134,36 @@
       <p class="motto-line dim">The default state of the system is refusal.</p>
       <p class="motto-line dimmer">An intelligence that cannot define its own origin can never own the world it understands.</p>
     </div>
+    <aside id="home-time-widget" class="home-time-widget" aria-label="Local clock, UTS watch, and calendar">
+      <div class="home-time-head">
+        <span class="home-widget-label">TIME &amp; CALENDAR</span>
+        <button id="home-uts-open" class="home-uts-open" type="button" aria-label="Open UTS Watch and Converter">OPEN UTS ↗</button>
+      </div>
+      <div class="home-time-main">
+        <div>
+          <span class="home-time-caption">LOCAL DEVICE TIME</span>
+          <time id="home-local-clock" class="home-local-clock">—</time>
+          <span id="home-local-zone" class="home-local-zone">—</span>
+        </div>
+        <div class="home-utc-group">
+          <span class="home-utc-label">EARTH UTC · MODEL UDate</span>
+          <time id="home-utc-clock" class="home-utc-clock">—</time>
+          <span id="home-uts-date" class="home-uts-date">—</span>
+          <span class="home-uts-model-note">approximate epoch model</span>
+        </div>
+      </div>
+      <div class="home-cal-head">
+        <span id="home-calendar-date" class="home-cal-date">—</span>
+        <div class="home-cal-nav">
+          <span id="home-calendar-month" class="home-cal-month">—</span>
+          <button id="home-calendar-prev" type="button" aria-label="Previous month">‹</button>
+          <button id="home-calendar-next" type="button" aria-label="Next month">›</button>
+        </div>
+      </div>
+      <div class="home-cal-weekdays" aria-hidden="true"><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span><span>SU</span></div>
+      <div id="home-calendar-days" class="home-cal-grid" role="grid" aria-label="Gregorian month calendar"></div>
+      <p class="home-cal-note">Gregorian calendar follows device-local date. UDate is a separate, approximate elapsed-time coordinate.</p>
+    </aside>
     <div id="icon-field" class="icon-field"></div>
     <div id="window-layer" class="window-layer"></div>
   </main>
@@ -170,6 +201,7 @@
   <script defer src="js/ocm-data.js?v=2026-09-30h"></script>
   <script defer src="js/crypto.js?v=2026-09-30h"></script>
   <script defer src="js/kernel.js?v=2026-09-30o"></script>
+  <script defer src="js/uts.js?v=2026-10-02uts1"></script>
   <script defer src="js/g0-engine.js?v=2026-10-01research1"></script>
   <script defer src="js/g0-research.js?v=2026-10-01research1"></script>
   <script defer src="js/llm.js?v=2026-10-01research1"></script>
@@ -194,6 +226,7 @@
   <script defer src="js/good-intelligence-client.js?v=2026-10-01gi10"></script>
   <script defer src="js/good-intelligence-verifier.js?v=2026-10-01gi10"></script>
   <script defer src="js/apps-good-intelligence.js?v=2026-10-01gi12"></script>
+  <script defer src="js/apps-uts.js?v=2026-10-02uts1"></script>
   <script defer src="js/boot.js?v=2026-10-01mobile1"></script>
 </body>
 </html>

@@ -1,23 +1,23 @@
 # 🏗️ MISTVEIL CITY: TECHNICAL INTEGRATION WITH GRAND RIVER HYPERSTRUCTURE
 
-**Document Version:** 1.0.0  
+> **ARCHIVE / SUPERSEDED NUMBERS — NOT AN ENGINEERING OR IMPLEMENTATION SPECIFICATION.** This file preserves earlier fictional concept material (`FICTION`, `NARRATIVE_SANDBOX`). Its dates, elevations, flow rates, water volumes, energy totals, costs, completion claims, and implementation assertions are not current or validated. Use the reconciled assumptions in [CANONICAL-NUMBERS.md](./CANONICAL-NUMBERS.md); use [`recalculate.py`](./recalculate.py) for current arithmetic. This repository contains no construction authorization, feasibility finding, water allocation, permit, or evidence of physical implementation.
+
+
+**Document Version:** 1.1 (recalibrated continuity note)  
 **Date:** 2026-10-02  
-**Classification:** HarshalOS Gem - Technical Specification  
+**Classification:** `FICTION` (`NARRATIVE_SANDBOX`) — archived integration sketch  
 **Parent Document:** MISTVEIL-CITY-VISION.md  
-**Status:** Integration-Ready Framework
+**Status:** Numeric tables superseded; not an engineering or implementation framework. See [`CANONICAL-NUMBERS.md`](./CANONICAL-NUMBERS.md).
 
 ---
 
 ## 📋 EXECUTIVE SUMMARY
 
-This document provides the **technical integration framework** for **Mistveil City**—the **80-million-person Capitol** of the Grand River Foundation Hyperstructure. It details how the **visionary Human-Reactor** concept translates into **physical infrastructure**, **system architecture**, and **operational integration** with the existing three-tiered hyperstructure.
+This file preserves a prior fictional integration sketch for Mistveil City and the Grand River Foundation. It does **not** establish physical infrastructure, system integration, operational capability, stakeholder consent, water supply, power capacity, feasibility, or construction status. Every legacy elevation, population distribution, flow rate, energy budget, and “On Track” KPI below is superseded unless restated in [`CANONICAL-NUMBERS.md`](./CANONICAL-NUMBERS.md).
 
-**Key Integration Points:**
-- **Geographic:** Sprawling across 277 miles of Arizona Grand Canyon rim
-- **Vertical:** Multi-leveled from +1,500m (Celestial Tier) to -900m (Abyssal Tier)
-- **Population:** 80 million by 2100, representing 8 billion surface worlders
-- **Stakeholder:** Full representation of all 360+ Grand River nodes
-- **Infrastructure:** Seamless integration with water, energy, mobility systems
+Current narrative continuity: target the first operational modular dam-and-city milestone around **2046**; expand in **20-year planning windows** driven by assumed supply-chain constraints (not physical limits); treat **2098 as interim commissioning/expansion, not final completion**; target **about 80 million Mistveil residents by 2100**. The first 40–60 years carry an early-phase aspiration of **1,200–2,500 ft cumulative head across distinct stages**; **4,000 ft remains the long-range fictional aggregate target**. These are not single-dam heights or reservoir depths. No final completion date is assigned.
+
+Use one canonical level vocabulary from the numbers card—Pinnacle, Summit, Overlook, Horizon, Threshold, Foundation, Depths, Core, Heart. No absolute elevations are assigned in that card. The old tier labels and numerical tables that follow are archived sketches, not a second current model.
 
 ---
 
@@ -1002,91 +1002,32 @@ Each **cultural group** from the surface world has **dedicated spaces** in Mistv
 
 ---
 
-## 🚀 5.1 PHASED GROWTH PLAN
+## 🚀 5.1 PHASED GROWTH PLAN — CANONICAL CONTINUITY
 
-### 5.1.1 Phase 1: Foundation (2026-2030)
+> This table replaces the earlier 2026–2030 “complete” construction schedule. It is a fictional planning timeline, not a construction commitment or feasibility finding.
 
-| **Year** | **Population** | **Development Focus** | **Milestones** |
-|----------|---------------|----------------------|----------------|
-| 2026 | 1,000,000 | Initial settlement | Site preparation, core infrastructure |
-| 2027 | 2,500,000 | Capitol Tier establishment | New Capitol (0113) operational |
-| 2028 | 5,000,000 | Rim Tier expansion | Municipalities (0318-0336) onboarded |
-| 2029 | 7,500,000 | Transition Tier connection | Water flow T3→T2→T1 operational |
-| 2030 | 10,000,000 | Canyon Tier initiation | Industrial zones established |
+| **Window / marker** | **Fictional milestone** | **Mistveil resident target** |
+|---|---|---|
+| 2026–2046 | Surveys, consent, design and decision gates; target the first operational dam-and-city module circa 2046 | No interim city census target assigned |
+| 2046–2066 | First 20-year operating and expansion window | No interim city census target assigned |
+| 2066–2086 | Second expansion window | No interim city census target assigned; the legacy 40-million figure is a separate regional service metric |
+| 2086–2106 | Third window; construction continues in the 2090s. 2098 is an interim commissioning/expansion milestone, not final completion. | **~80 million residents by 2100** |
+| 2106 onward | Further 20-year planning windows as useful and authorized; no final completion date assigned. | Unassigned |
 
-**Phase 1 Goals:**
-- ✅ Basic connectivity between all levels
-- ✅ Core governance structure operational
-- ✅ Initial water and energy flow established
-- ✅ First 10 million stakeholders represented
+The 20-year windows represent assumed supply-chain and construction constraints, not a physical limit. The early-phase aspiration is 1,200–2,500 ft of cumulative head across distinct stages during the first 40–60 years from the 2026 planning baseline; the 4,000-ft aggregate remains a long-range fictional target for the modular Arizona Grand Canyon series. These are not individual dam heights or reservoir depths; site evidence, consent, and lawful approvals remain unresolved. The earlier ~40-million figure refers to an illustrative regional service-population metric when that denominator is stated; it is not a Mistveil city census or a 2100 resident total. Its overlap with city residents is unspecified and the values are not additive.
 
-### 5.1.2 Phase 2: Expansion (2030-2050)
+## 🎯 5.2 NARRATIVE TARGETS (NOT PROJECT KPIs)
 
-| **Year** | **Population** | **Development Focus** | **Milestones** |
-|----------|---------------|----------------------|----------------|
-| 2035 | 15,000,000 | Reservoir Tier development | Water processing operational |
-| 2040 | 25,000,000 | Deep Tier initiation | Secure operations established |
-| 2045 | 40,000,000 | Full vertical integration | All levels connected |
-| 2050 | 50,000,000 | Global recognition | Mistveil City as world leader |
+No project KPI status is established: this repository contains no measured work, validated baseline, design review, or construction evidence. Earlier “On Track,” efficiency, water, energy, density, health, and transit values in this archive are withdrawn as status claims. Use the numbers card for the limited fictional planning targets; all other performance targets remain unassigned.
 
-**Phase 2 Goals:**
-- ✅ Full three-tier hyperstructure integration
-- ✅ All major stakeholder categories represented
-- ✅ Self-sustaining water and energy systems
-- ✅ Global economic and political influence
-
-### 5.1.3 Phase 3: Maturation (2050-2100)
-
-| **Year** | **Population** | **Development Focus** | **Milestones** |
-|----------|---------------|----------------------|----------------|
-| 2060 | 60,000,000 | Cultural ascendancy | Global cultural hub |
-| 2070 | 70,000,000 | Technological leadership | Innovation epicenter |
-| 2080 | 75,000,000 | Full representation | 95% of stakeholders embodied |
-| 2090 | 78,000,000 | Optimization | All systems at peak efficiency |
-| 2100 | 80,000,000 | Full realization | **Human-Reactor complete** |
-
-**Phase 3 Goals:**
-- ✅ Full 80 million population representing 8 billion
-- ✅ All 360+ stakeholders fully integrated
-- ✅ Complete self-sufficiency and sustainability
-- ✅ Planetary stewardship role established
-
----
-
-## 🎯 5.2 KEY PERFORMANCE INDICATORS (KPIs)
-
-### 5.2.1 Population KPIs
-
-| **Metric** | **2030 Target** | **2050 Target** | **2100 Target** | **Status** |
-|-----------|----------------|----------------|----------------|------------|
-| Total Population | 10,000,000 | 50,000,000 | 80,000,000 | 📈 On Track |
-| Representation Ratio | 800:1 | 160:1 | 100:1 | 📈 Improving |
-| Density (avg) | 2,000/km² | 10,000/km² | 16,000/km² | 📈 Increasing |
-| Diversity Index | 0.7 | 0.9 | 0.99 | 📈 Excellent |
-
-### 5.2.2 Infrastructure KPIs
-
-| **Metric** | **2030 Target** | **2050 Target** | **2100 Target** | **Status** |
-|-----------|----------------|----------------|----------------|------------|
-| Vertical Transit Capacity | 100,000/hour | 500,000/hour | 1,000,000/hour | 📈 On Track |
-| Water Flow Capacity | 5,000 m³/s | 20,000 m³/s | 25,000 m³/s | 📈 On Track |
-| Energy Generation | 1 GW | 3 GW | 5 GW | 📈 On Track |
-| Building Area | 50M m² | 250M m² | 350M m² | 📈 On Track |
-
-### 5.2.3 Quality of Life KPIs
-
-| **Metric** | **2030 Target** | **2050 Target** | **2100 Target** | **Status** |
-|-----------|----------------|----------------|----------------|------------|
-| Life Expectancy | 85 years | 95 years | 105 years | 📈 On Track |
-| Education Index | 0.8 | 0.95 | 0.99 | 📈 On Track |
-| Healthcare Access | 90% | 99% | 100% | 📈 On Track |
-| Happiness Index | 7.5 | 8.5 | 9.0 | 📈 On Track |
-
----
-
-# 🌌 6. MISTVEIL CITY AS THE FUTURE
-
----
+| **Narrative marker** | **Current continuity value** | **Boundary** |
+|---|---:|---|
+| First operational dam-and-city module | circa 2046 | Planning target only; not a construction commitment. |
+| Expansion cadence | 20-year windows | Assumed supply-chain/construction planning chunks, not a physical limit. |
+| 2098 | Interim commissioning/expansion milestone | Not final completion. |
+| Mistveil residents by 2100 | ~80 million | Fictional population target, not demographic forecast or infrastructure capacity. |
+| Regional population served | ~40 million in legacy description | Separate illustrative service-population count; not the Mistveil resident count. |
+| Final completion date | Unassigned | Modular construction may continue after 2100. |
 
 ## 🚀 6.1 THE NEXT MILLENNIUM
 
@@ -1094,13 +1035,12 @@ Mistveil City is not just a **city**. It is a **civilizational experiment**. It 
 
 ### 6.1.1 The Convergence Timeline
 
-| **Era** | **Mistveil City Role** | **Global Impact** |
-|---------|------------------------|------------------|
-| **2026-2100** | Foundation & Growth | Regional to global influence |
-| **2100-2200** | Full Representation | Planetary stewardship |
-| **2200-3000** | Cosmic Hub | Interplanetary civilization |
-| **3000-4000** | Convergence Capital | Galactic civilization |
-| **4000+** | Eternal Engine | Post-human evolution |
+| **Era** | **Fictional construction continuity** | **Boundary** |
+|---|---|---|
+| 2026–2046 | Pre-operational phase; target a first module circa 2046 | No current construction is asserted. |
+| 2046–2100 | Modular operating and expansion windows; ~80M residents by 2100 | 2098 is interim, not final completion. |
+| 2100 onward | Further 20-year planning windows may continue | No final date or post-2100 population assigned. |
+| Far future | Broader Convergence-universe story material | Narrative horizon, not a project timeline. |
 
 ### 6.1.2 The Ultimate Legacy
 

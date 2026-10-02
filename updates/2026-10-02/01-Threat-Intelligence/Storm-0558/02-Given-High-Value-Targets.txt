@@ -1,3 +1,7 @@
+EDITORIAL PROVENANCE NOTICE (2026-10-02)
+Artifact class: DERIVATIVE_BUILD · evidence status: UNVERIFIED_AUTHOR_HYPOTHESIS.
+This retained note is author-generated brainstorming, not a Microsoft/CISA source, not evidence about Storm-0558, and not a confirmed threat-actor technique. Its IoT, solar-supply-chain, decentralized-coordination, and other attack concepts are speculative and unsupported by the cited Storm-0558 record. Do not use them for attribution or represent them as observed TTPs. See PROVENANCE.md.
+
 Inclusions to Consider:
 
     Supply Chain Vulnerabilities: Emphasizing the importance of securing the supply chain, as compromised components can be introduced at any stage of manufacturing.

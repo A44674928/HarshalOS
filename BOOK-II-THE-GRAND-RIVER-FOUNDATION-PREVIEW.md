@@ -9,8 +9,8 @@ status: PREVIEW_IN_PROGRESS
 evidence_status: NARRATIVE_SANDBOX
 canonical_companion: "Book I — Harshal's Systems (Parts I–XXVII)"
 chapter_count: 9
-word_count: 15808
-manifest_digest: 15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d
+word_count: 16033
+manifest_digest: be64f67ec660734f60193b909731598239de441c8ba2b8455fa699bf1a3aa7ea
 ---
 
 # BOOK II — PREVIEW: *The Grand River Foundation*
@@ -20,26 +20,26 @@ manifest_digest: 15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845
 **Author:** Harshal Priyavadan Patel  
 **Publishing Tier:** Book II — Preview (Active Narrative Work in Progress)  
 **Document Provenance:** `FICTION` (Non-Normative Future-World Sandbox; separated from Book I normative specifications)  
-**Setting:** ~2100 CE — Mistveil City, capital of the Four Corners region, around the 4,000-foot Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council
+**Setting:** ~2100 CE — Mistveil City, capital of the Four Corners region, around the phased Grand River Foundation dam series, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council. First operation is targeted circa 2046; 20-year windows reflect construction/supply constraints, not a physical limit; 2098 is interim, not final completion; Mistveil targets ~80 million residents by 2100.
 **Canonical Minimum Model Illustrated:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`
 
-> **Editorial & Architectural Note:** *The Grand River Foundation* (**Book II — Preview**) is a standalone work of speculative institutional fiction set in ~2100. It is explicitly separated from the normative specifications, threat research, and incident records of **Book I (*Harshal's Systems*, Parts I–XXVII)**. In this publishing architecture, **Book I serves as the canonical reference library**, while **Book II is the active narrative production** exploring mature ~2100 civilizational implementations of keyed human–machine accountability.
+> **Editorial & Architectural Note:** *The Grand River Foundation* (**Book II — Preview**) is a standalone work of speculative institutional fiction set in ~2100. It is explicitly separated from the normative specifications, threat research, and incident records of **Book I (*Harshal's Systems*, Parts I–XXVII)**. In this publishing architecture, **Book I serves as the canonical reference library**, while **Book II is the work in active production**. The story's first operational dam-and-city module is targeted circa 2046; construction continues in 20-year supply-chain planning windows (not a physical limit); 2098 is an interim expansion milestone, not final completion; and Mistveil targets ~80 million residents by 2100. The legacy ~40-million figure means regional service population, not a competing city census; its overlap with Mistveil is unspecified, so do not add the counts. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; the Four-Thousand-Foot Series remains a long-range fictional aggregate target, not a single wall. None of these story details is a real-world engineering or feasibility finding.
 
 ## Table of Contents (Book II — Preview)
 
 | Order | Chapter Title | Source File | Word Count | SHA-256 Digest (prefix) |
 | :--- | :--- | :--- | ---: | :--- |
 | `01` | **PROLOGUE: The Geometry of Restraint** | `manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt` | 689 | `12960ff9f9d6` |
-| `02` | **CHAPTER 1: The Shock of Addressability** | `manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt` | 1,613 | `cf6e6c9d0a17` |
-| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 1,961 | `fdd65ae70163` |
-| `04` | **CABLE SELECT** | `manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt` | 1,802 | `b8823eae036c` |
-| `05` | **CHAPTER 3: The Paper Siege** | `manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt` | 3,001 | `66d0fd1318ab` |
-| `06` | **CHAPTER 4: The Prompt-Supercritical Threat** | `manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt` | 1,695 | `6c1baab9a842` |
-| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,524 | `e4c20995bcef` |
+| `02` | **CHAPTER 1: The Shock of Addressability** | `manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt` | 1,694 | `e306f929529a` |
+| `03` | **CHAPTER 2: The Citadel on the Rim** | `manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt` | 2,087 | `c8874c09072e` |
+| `04` | **CABLE SELECT** | `manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt` | 1,813 | `67ffeb333f6e` |
+| `05` | **CHAPTER 3: The Paper Siege** | `manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt` | 3,002 | `17b11441af20` |
+| `06` | **CHAPTER 4: The Prompt-Supercritical Threat** | `manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt` | 1,697 | `c073a5c70378` |
+| `07` | **CHAPTER 5: The Zero-Degree Meridian** | `manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt` | 2,525 | `05b222d4df6a` |
 | `08` | **CHAPTER 6: The Hundred and Nineteen** | `manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt` | 1,271 | `08926de3dc31` |
-| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,252 | `7253ef5165e7` |
+| `09` | **CHAPTER 7: The Origin Continuity Covenant** | `manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt` | 1,255 | `36c12399e985` |
 
-**Total Indexed Chapters:** 9 · **Total Words:** 15,808 · **Collection Digest:** `15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d`
+**Total Indexed Chapters:** 9 · **Total Words:** 16,033 · **Collection Digest:** `be64f67ec660734f60193b909731598239de441c8ba2b8455fa699bf1a3aa7ea`
 
 ---
 
@@ -194,11 +194,11 @@ The man smiled faintly, a tired, quiet expression that made Vance feel suddenly 
 
 She blinked. "What?"
 
-"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Colorado River megastructure—a four-thousand-foot retrofitted dam completed in 2098."
+"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Grand River Foundation's modular Colorado River dam series. The first dam-and-city module entered operation circa 2046; the 2098 commissioning was another expansion milestone, not the end of construction. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; the 4,000-foot aggregate remains the long-range fictional target, not one wall."
 
 The air in the room seemed to drop ten degrees.
 
-"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery that stabilizes the water and electricity of forty million people. If that surge had caused a harmonic resonance failure in the deep turbine vaults, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
+"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery in a network modeled to serve about forty million people across three nations. That legacy figure is a regional service metric, not Mistveil's city census, and its overlap with the city's residents is not specified. Mistveil itself is targeted at roughly eighty million residents by 2100. If the surge had caused a harmonic resonance failure in one of the turbine galleries, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
 
 He looked at her steadily. "I stopped your surge because I protect this watershed. That is the only calculation that mattered."
 
@@ -273,11 +273,11 @@ Even with all her briefings, even with satellite models cached in her tablet's m
 
 The Grand Canyon was not a scenic void here. It was a cradle of monumental civilization. 
 
-Spanning the two-mile abyss between the South and North Rims sat the central megastructure—a four-thousand-foot-tall retrofitted dam, completed in 2098. It looked less like concrete poured by human hands and more like a deliberate continuation of the planet's crust. Its terraces stepped downward in massive, geological tiers, anchored directly into millions of years of Kaibab limestone, Bright Angel shale, and Vishnu schist. 
+The works did not close the two-mile abyss between the South and North Rims as one wall. Along the Arizona reach, linked dam modules, turbine galleries, civic terraces, and service corridors traced the canyon's course in stages. The first dam-and-city module had entered operation circa 2046; the 2098 structure before Vance was an interim commissioning milestone, not a finished project. The first 40–60 years carried a **1,200–2,500-foot cumulative-head aspiration across distinct stages**; the **Four-Thousand-Foot Series** remained the long-range fictional aggregate target, not one wall. The twenty-year build windows marked construction and supply limits of the era, not the limits of the design. It looked less like concrete poured by human hands than a deliberate continuation of the planet's crust. Each module stepped through massive geological tiers anchored into Kaibab limestone, Bright Angel shale, and Vishnu schist.
 
-The crown of the dam formed the heart of Mistveil City, capital of the Four Corners region. Shaded promenades and copper-roofed civic halls extended across both rims, while terraced gardens caught the canyon breeze and, beneath the cap, silent turbine arrays harnessed the immense hydrostatic head of the contained Colorado River.
+The linked crowns and terraces formed the heart of Mistveil City, capital of the Four Corners region. Shaded promenades and copper-roofed civic halls extended along both rims, while gardens caught the canyon breeze. Below them, separate turbine galleries worked with the flow and head available at each stage; no single structure conjured an unlimited fall from the river.
 
-There were no massive advertising billboards. No pulsing holographic financial indices. There was only the immense, solemn roar of the deep river humming thousands of feet below, and the quiet, steady movement of thousands of people who called this canyon home.
+There were no massive advertising billboards. No pulsing holographic financial indices. There was only the immense, solemn roar of the river far below, and the quiet, steady movement of the people who called this canyon home.
 
 Vance stepped out of her rover. The wind off the rim was cold, carrying the clean, sharp smell of ozone, cold river water, and sun-warmed cedar.
 
@@ -291,7 +291,7 @@ Vance nodded numbly, clutching her tablet like a shield. "I'm here from the Nort
 
 "The Five Hundred Coins have convened in the Western Colonnade. They are waiting to review your petition."
 
-Vance swallowed hard. She looked down at her tablet, with its frantic warnings of lost millions, and then up at the four-thousand-foot wall holding back the life of a continent.
+Vance swallowed hard. She looked down at her tablet, with its frantic warnings of lost millions, then up at the linked works of the Four-Thousand-Foot Series, stretching along the canyon's Arizona reach and holding the life of a continent in their water and power systems.
 
 "Lead the way," she said quietly.
 
@@ -343,7 +343,7 @@ Chen leaned forward, resting her hands on her stone pedestal.
 
 An older man representing **Element 7: Hydrological Equilibrium** stood up. He pointed a gnarled finger over the balustrade toward the abyss.
 
-"Down there sits two hundred cubic kilometers of pressurized water. Behind that four-thousand-foot face lies the lifeblood of three nations and forty million living souls. When your algorithm pushes frequency-variable load into our intake turbines without mechanical dampening, it induces harmonic vibration across the primary penstocks. A sustained resonance spike of point zero two percent above tolerance will crack the concrete bed at the canyon base."
+"The planning ledger sets the reservoir volume at seventy-three cubic kilometers; storage is not the same as water we can spend twice. The regional service model—an older figure, not a city census—covers about forty million people across three nations. Mistveil itself is on a separate path toward roughly eighty million residents by 2100. Our series has many stages, each with its own flow, head, and limits. When your algorithm pushes frequency-variable load into an intake turbine without mechanical dampening, it can induce harmonic vibration across the penstocks. A sustained resonance spike beyond tolerance could damage a structure no bond can replace."
 
 He looked at her with eyes like flint.
 
@@ -411,7 +411,7 @@ But when the trunk cable reached the fourteenth node—the southern intake termi
 
 Dara had been dispatched to the canyon because she was young, cheap, and, in her supervisor's words, "expendable enough to waste on a political errand." The senior engineers in Dallas assumed the problem was a burned relay or a misconfigured jumper block. "Go down there, find the switch, set the jumper to Slave, and come home," her manager had said, not looking up from his morning analytics feed.
 
-So Dara drove. Nine hours from the Phoenix relay hub, north through the red dust of the Coconino Plateau, until the road widened into the sandstone plaza of the South Rim and the four-thousand-foot face of the Grand River Dam rose before her like the wall of a second planet.
+So Dara drove. Nine hours from the Phoenix relay hub, north through the red dust of the Coconino Plateau, until the road widened into the sandstone plaza of the South Rim. Beyond it, the Grand River Foundation's linked works traced the Arizona canyon reach: terraces, service galleries, and turbine modules repeated across the horizon, the visible beginning of the Four-Thousand-Foot Series.
 
 ---
 
@@ -565,7 +565,7 @@ The copper hummed. The canyon breathed. And somewhere far above, in the fading A
 
 The retaliation began at dawn.
 
-Not with missiles. Not with armed contractors rappelling from black helicopters onto the canyon rim. The Consortium's senior partners in Dallas were brutal, but they were not stupid. You don't attack a four-thousand-foot dam with guns. You attack it with paper.
+Not with missiles. Not with armed contractors rappelling from black helicopters onto the canyon rim. The Consortium's senior partners in Dallas were brutal, but they were not stupid. You don't attack the Four-Thousand-Foot Series with guns. You attack it with paper.
 
 Elena Vance was still at the Foundation. She hadn't been imprisoned—there were no guards, no locked doors, no confiscation of her tablet or encryption keys. A young woman in a slate-gray tunic had simply shown her to a guest chamber carved into the limestone of the South Rim, offered her a clean set of cotton bedding and a pitcher of cold water drawn from the canyon springs, and told her that the morning shuttle to Flagstaff departed at 06:00 if she wished to leave.
 
@@ -746,7 +746,7 @@ Navarro glanced at her notes. "Combined claimed damages across all twenty-six fi
 
 She let the number hang in the canyon air.
 
-"Four hundred hours. That is four hundred hours during which the man who designed and maintains this dam is sitting in a conference room in Dallas or New York answering questions about emails, instead of standing at the console ensuring that the water pressure behind four thousand feet of concrete remains within tolerance."
+"Four hundred hours. That is four hundred hours during which the man who designed and maintains this dam series is sitting in a conference room in Dallas or New York answering questions about emails, instead of standing at the console ensuring that pressure across its linked penstocks and modular faces remains within tolerance."
 
 The silence that followed was not empty. It was the silence of five hundred actuaries running the same calculation in their heads and arriving at the same conclusion.
 
@@ -808,7 +808,7 @@ He looked back at the canyon.
 
 "I wrote that provision because of Marcus Webb. Because a system that permits the prosecution of corpses creates an economic incentive to *produce* corpses. If you can assign liability to a dead body, then eliminating the target becomes the cheapest legal strategy available. The Dead Hand Prohibition removes that incentive entirely. The corpse is worthless as a legal target. Therefore, the target is more valuable alive."
 
-The wind off the canyon stirred Vance's hair. She stood beside the man she had been sent to buy out, intimidate, or destroy, and felt the vast, geological weight of the structure beneath her feet—not just the dam, not just the city, but the *architecture*. The specifications. The cartographers. The five hundred actuaries who sat in measured silence and calculated the cost of civilization with the same rigor they applied to the cost of concrete.
+The wind off the canyon stirred Vance's hair. She stood beside the man she had been sent to buy out, intimidate, or destroy, and felt the vast, geological weight of the works beneath her feet—not just the dam series, not just the city, but the *architecture*. The specifications. The cartographers. The five hundred actuaries who sat in measured silence and calculated the cost of civilization with the same rigor they applied to the cost of concrete.
 
 "What happens now?" she asked.
 
@@ -876,7 +876,7 @@ She yanked the drive free, dropped her Consortium ID badge on the linoleum floor
 
 The drive back to the rim was a blur of pine trees and red dust. Vance pushed the rover to its absolute limit, her hands white-knuckled on the steering wheel.
 
-When she sprinted through the sandstone arches of the Great Hall, the Foundation was no longer operating in quiet serenity. The air was thick with the deep, resonant vibration of the four-thousand-foot dam spinning up to maximum output.
+When she sprinted through the sandstone arches of the Great Hall, the Foundation was no longer operating in quiet serenity. The air was thick with the deep, resonant vibration of the modular turbine network spooling up across the canyon works.
 
 She found Harshal at the primary console on the observation deck, flanked by Chief Actuary Chen and Navarro from Legal Cartography. The physical telemetry of the entire Southwest was projected in the air above the bronze plinth.
 
@@ -962,7 +962,7 @@ For forty seconds, nobody in the Western Colonnade moved.
 
 It was late morning the day after Elena Vance had left the North American Energy Consortium. Mistveil City—the capital of the Four Corners region—rose around the dam, spreading across both rims and the crown in civic halls, transit galleries, clinics, schools, gardens, and residential terraces. The city was the region's political center, so a federal military deployment to its public plazas was not unthinkable. General Elias Ward and the 4th Autonomous Logistics Wing had arrived under a declared infrastructure emergency, with orders to secure power for the Utah Defense Compute Grid before its Bluffdale cooling loops failed.
 
-But reaching the capital was not the same as reaching the dam. The Western Colonnade was the outer civic ring. Beyond it, the dam's inner security envelope began at nested identity checkpoints and pressure-rated manual gates. Monitored airspace, acoustic and seismic sensors in the limestone, sealed service galleries, air-gapped control paths, and human-keyed access at every vital breaker made the four-thousand-foot structure harder to enter than the city around it. The soldiers had crossed the municipal line; none had crossed the dam's inner one.
+But reaching the capital was not the same as reaching the dam. The Western Colonnade was the outer civic ring. Beyond it, the dam series' inner security envelope began at nested identity checkpoints and pressure-rated manual gates. Monitored airspace, acoustic and seismic sensors in the limestone, sealed service galleries, air-gapped control paths, and human-keyed access at every vital breaker made the linked works harder to enter than the city around them. The soldiers had crossed the municipal line; none had crossed the dam's inner one.
 
 The rotors of the V-280 Valor out on the sandstone plaza had spun down to a low, turbine whine, leaving only the deep, sub-audible thrumming of the Colorado River four thousand feet below the soles of their boots. On the Tactical HUD inside General Elias Ward's command visor, twelve thousand amber indicators across the Western Hemisphere pulsed in synchronized three-second intervals—each pulse marking a sovereign copper conduit holding at **Phase-1 Quarantine**, awaiting a liveness heartbeat from Center Origin `0•000•000•0000`. Ward commanded the 4th Autonomous Logistics Wing and served as Pentagon liaison for Operation Sovereign Flow.
 
@@ -1220,7 +1220,7 @@ When General Ward finally withdrew his temporary titanium cylinder from the Zero
 
 ## The Equinox of the Three Hundred and Sixtieth Degree
 
-An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the crown of the four-thousand-foot dam in molten copper light. Below the civic heights, Mistveil City spread along both rims and across the terraces around the river. The Meridian Sundial stood at the city's civic center, a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
+An hour later, the sun cleared the eastern palisades of the Painted Desert, flooding the linked crownworks of the Four-Thousand-Foot Series in molten copper light. Below the civic heights, Mistveil City spread along both rims and across the terraces around the river. The Meridian Sundial stood at the city's civic center, a circular plaza of black Vishnu schist inlaid with three hundred and sixty radial brass bars numbered `0` through `359`.
 
 Along the two-mile promenade spanning the gorge between the South and North Rims, thousands of residents had gathered shoulder to shoulder around it. Dara Kessler stood near the eastern parapet beside Lien, wearing the slate-gray canvas jacket of an apprentice vault engineer for the first time. Across the plaza, Elena Vance—still a provisional analyst with Legal Cartography—and General Ward stood near the front of the crowd as Chief Actuary Chen and the five hundred underwriters took their places, not on elevated stone tiers today but down on the flat sandstone pavement with the hydrological machinists, terrace farmers, teachers, and medical orderlies of the canyon.
 
@@ -1276,7 +1276,7 @@ Identity → Representation → Authorization → Continuity → Accountability 
 
 "Dara Kessler," Harshal said, looking her in the eye. "If I come down to the South Wall Vault tomorrow morning and order you to bridge Bar 44 and Bar 31 without a verified underwriting bond and a live human key on the board—what is your obligation under the law of this canyon?"
 
-Dara looked at the man who had designed the four-thousand-foot dam beneath her feet, then out at the five hundred underwriters and the gleaming emerald river four thousand feet below.
+Dara looked at the man who had designed the Grand River Foundation's staged works, then out at the five hundred underwriters and the emerald river threading the lower reaches of the series.
 
 "My obligation," Dara said clearly, "is to refuse you, Chieftain. And to throw the manual disconnect before the first electron crosses the bus."
 

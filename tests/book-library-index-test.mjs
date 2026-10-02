@@ -21,9 +21,9 @@ async function markdownPaths(directory, prefix = "") {
 test("Collections index covers every Harshal's Systems Markdown file", async () => {
   assert.equal(manifest.schema, "harshalos-book-library-v1");
   assert.equal(manifest.collectionCount, 7);
-  assert.equal(manifest.moduleCount, 29);
-  assert.equal(manifest.documentCount, 39);
-  assert.equal(documents.length, 39);
+  assert.equal(manifest.moduleCount, 31);
+  assert.equal(manifest.documentCount, 41);
+  assert.equal(documents.length, 41);
 
   const sourceFiles = await markdownPaths(path.join(ROOT, "docs", "harshal-systems"));
   assert.deepEqual(documents.map(document => document.file).sort(), sourceFiles);

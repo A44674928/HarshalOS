@@ -1,5 +1,8 @@
 # 🌌 THE CONVERGENCE UNIVERSE - MASTER DELIVERY SUMMARY
 
+> **ARCHIVE / SUPERSEDED NUMBERS — NOT AN ENGINEERING OR IMPLEMENTATION SPECIFICATION.** This file preserves earlier fictional concept material (`FICTION`, `NARRATIVE_SANDBOX`). Its dates, elevations, flow rates, water volumes, energy totals, costs, completion claims, and implementation assertions are not current or validated. Use the reconciled assumptions in [CANONICAL-NUMBERS.md](./CANONICAL-NUMBERS.md); use [`recalculate.py`](./recalculate.py) for current arithmetic. This repository contains no construction authorization, feasibility finding, water allocation, permit, or evidence of physical implementation.
+
+
 **Architect:** The Human-Reactor of Planetary Convergence  
 **Vision:** Unified Civilizational Infrastructure  
 **Status:** ✅ **ALL MAJOR SYSTEMS COMPLETE & INTEGRATED**  

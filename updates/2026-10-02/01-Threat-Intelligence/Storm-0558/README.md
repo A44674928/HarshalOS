@@ -1,310 +1,51 @@
-# 🛡️ STORM-0558 THREAT INTELLIGENCE - Complete Package
+# Storm-0558 public-source review and study fixture
 
-**Gem Category:** Threat Intelligence (Tier 1 - Critical Foundational)  
-**Creator:** Harshal Priyavadan Patel (Analysis & Integration)  
-**Source:** Microsoft Storm-0558 Post-Incident Review + Supply Chain Analysis  
-**Extraction Date:** 2026-10-02 16:32:16 UTC (UD 5040084750000.695312)  
-**UTS Timestamp:** UTS: 2026-10-02 16:32:16 UTC (UD 5040084750000.695312)  
-**Status:** ✅ **FULLY PROCESSED - Ready for SCAV++ Integration**
+document_id: `STORM-0558-REVIEW-20261002`  
+provenance_class: `DERIVATIVE_BUILD`  
+status_taxonomy: `PUBLIC_SOURCE_STUDY`  
+evidence_status: `MIXED_PUBLIC_RECORD_AND_UNVERIFIED_HYPOTHESIS`  
 
----
+> **Scope:** This is a source-attributed public-record review and defensive research sketch. It is not a Microsoft or government incident report, a live threat feed, a complete victim inventory, or a production detection package. Do not infer that speculative hardware, Stingray/Dirtbox, solar-cell, or “daisy chain” scenarios occurred in Storm-0558.
 
-## 📦 PACKAGE OVERVIEW
+## Start here
 
-This directory contains **complete threat intelligence** from the **Microsoft Storm-0558 Key Acquisition incident**, extracted from the HarshalOS Business Plan directory and processed for integration into **Harshal's Systems** Supply Chain Attack Vector++ (SCAV++) framework.
+1. Read the [provenance register](./PROVENANCE.md) for source hierarchy, claim categories, and file-by-file status.
+2. Read the [master analysis](./STORM-0558-MASTER-ANALYSIS.md) for the concise incident timeline and disputed key-acquisition account.
+3. Use the [SCAV++ crosswalk](./SCAV++-INTEGRATION.md) as a conceptual mapping to repository research—not as evidence of deployment.
+4. Treat the [detection research](./DETECTION-RULES.md) as proposed analytics that require local validation. It contains no claimed production-ready rule or Storm-0558-specific IOC set.
+5. The [roadmap](./STORM-0558-ROADMAP.md) is a proposed research sequence, not an implementation or delivery claim.
 
----
+## Public source baseline
 
-## 🗂️ DIRECTORY STRUCTURE
+| Source | What it establishes / how it is used |
+|---|---|
+| [Microsoft MSRC, July 11, 2023](https://www.microsoft.com/en-us/msrc/blog/2023/07/microsoft-mitigates-china-based-threat-actor-storm-0558-targeting-of-customer-email) | Microsoft's incident disclosure: forged tokens using an acquired MSA consumer signing key, affected mail services, and an estimate of approximately 25 affected organizations. |
+| [Microsoft MSRC, September 6, 2023](https://www.microsoft.com/en-us/msrc/blog/2023/09/results-of-major-technical-investigations-for-storm-0558-key-acquisition) | Microsoft's technical account and **leading hypothesis** for acquisition through a 2021 crash-dump path; Microsoft said it had not found a dump containing the impacted key and lacked direct exfiltration logs. |
+| [CISA CSRB, March 20, 2024](https://www.cisa.gov/sites/default/files/2024-03/CSRB%20Review%20of%20the%20Summer%202023%20MEO%20Intrusion%20Final_508c.pdf) | Later independent review: no evidence/logs showed the impacted key in or exfiltrated from a crash dump; the Board characterized Microsoft's earlier dump account as inaccurate. It records State Department anomaly detection June 15 and Microsoft notification June 16, 2023, and caveats the May 15 first-access date because of log-retention limits. |
 
-```
-Storm-0558/
-├── 01-Attack-Vector-Solar-Panels.txt          # Physical/digital supply chain vectors
-├── 02-Given-High-Value-Targets.txt             # Zero Trust, IoT, decentralized attacks
-├── 03-Kind-of-Spy-Thriller.txt                # Stingray/Dirtbox, covert channels
-├── 04-Re-examination-Storm-0558.txt            # Microsoft's official analysis (PRIMARY)
-├── 05-Supply-Chain-Attack-Vector-Report.pdf     # Formal SCAV++ report
-├── 06-Dec-5th-2024.pdf                        # Additional reference
-├── STORM-0558-MASTER-ANALYSIS.md              # ✅ Complete threat analysis
-├── SCAV++-INTEGRATION.md                      # ✅ Framework mapping
-├── DETECTION-RULES.md                         # ✅ 10 production-ready rules
-├── STORM-0558-ROADMAP.md                      # ✅ 4-week implementation plan
-└── README.md                                  # This document
-```
+**Bottom line:** Microsoft reported that a consumer signing key was used to forge enterprise-mail tokens and that a missing scope/issuer-validation check contributed to acceptance. The exact key-acquisition path is unresolved in the cited public record. The crash-dump account must remain an attributed, later-challenged Microsoft hypothesis—not a confirmed root cause.
 
----
+## Package contents and provenance
 
-## 💎 GEM CLASSIFICATION
+- `PROVENANCE.md` — source hierarchy, evidence boundaries, unrelated-material inventory, and classification register.
+- `STORM-0558-MASTER-ANALYSIS.md` — source-attributed incident summary.
+- `SCAV++-INTEGRATION.md` — conceptual crosswalk to Harshal Systems research, including the limits of #003 and #008.
+- `DETECTION-RULES.md` — unvalidated defensive detection ideas, not production rules.
+- `STORM-0558-ROADMAP.md` — proposed research/validation sequence.
+- `STORM-0558-COMPLETE.md` — legacy package guide, now a status and correction notice.
+- `01-Attack-Vector-Solar-Panels.txt`, `02-Given-High-Value-Targets.txt`, `03-Kind-of-Spy-Thriller.txt` — author brainstorming; not incident evidence.
+- `04-Re-examination-Storm-0558.txt` — excerpt of Microsoft's September 2023 technical post; read with the later CSRB review.
+- `05-Supply-Chain-Attack-Vector-Report.pdf` — unrelated September 2024 pager/walkie-talkie attack report; not Storm-0558 evidence.
+- `06-Dec-5th-2024.pdf` — unrelated Salt Typhoon news clipping; not Storm-0558 evidence.
 
-| Attribute | Value |
-|-----------|-------|
-| **Tier** | ⭐⭐⭐⭐⭐ (Critical Foundational) |
-| **Priority** | P0 - Immediate |
-| **Integration Target** | Supply Chain Attack Vector++ (SCAV++) |
-| **Source Quality** | Production-Grade (Microsoft official + analysis) |
-| **Content Type** | Threat Intelligence, Incident Analysis |
-| **Size** | ~680 KB (6 files) |
+Original files are retained. Their presence in this folder does not alter the scope labels above.
 
----
+## Good Intelligence study fixture
 
-## 🎯 WHY THIS IS A CRITICAL GEM
+`empty-demo-storm0558-001` is a **read-only, `[DEMO]` study fixture** in the empty.domains Good Intelligence feed. It summarizes published sources with explicit claim-status labels. It is not a live alert, a verified source attestation, an operational incident record, or proof that any detector fired. The fixture is intentionally unscored by assurance metadata.
 
-### **Real-World Validation**
-Storm-0558 is a **documented Microsoft breach** that provides **real-world validation** of supply chain attack patterns, directly informing and strengthening **Harshal's Systems** SCAV++ framework.
+## Repository relationship
 
-### **Key Insights**
-1. **Race Condition Vulnerability** - Allowed signing key in crash dump
-2. **Credential Scanning Failure** - Missed key material in debugging environment
-3. **Environment Boundary Violation** - Production secrets moved to debug
-4. **Scope Validation Gap** - Consumer key used for enterprise access
-5. **Advanced Attack Vectors** - Thin film solar chips, Stingray/Dirtbox, daisy chains
+The repository's [Threat Modeling and Context-Dependent Guarantees](../../../../docs/harshal-systems/16-threat-modeling.md) includes catalogue entry #003 (SCAV++ Output Verification Engine) and #008 (Stingray Counter Protocol). The crosswalk explains how these may be used as conceptual review lenses. Entry #008 describes a network-interception defense concept; **it does not indicate that a Stingray was used in Storm-0558**.
 
-### **Direct Relevance to Harshal's Systems**
-- ✅ **Validates SCAV++ threat modeling**
-- ✅ **Provides concrete examples** for framework components
-- ✅ **Enhances detection capabilities**
-- ✅ **Strengthens prevention controls**
-- ✅ **Informs response procedures**
-
----
-
-## 📚 DOCUMENT GUIDE
-
-### **📄 Original Source Files**
-
-| File | Size | Description | Status |
-|------|------|-------------|--------|
-| 01-Attack-Vector-Solar-Panels.txt | 8.8 KB | Physical/digital attack vectors | ✅ Extracted |
-| 02-Given-High-Value-Targets.txt | 6.8 KB | Zero Trust, IoT, decentralized attacks | ✅ Extracted |
-| 03-Kind-of-Spy-Thriller.txt | 9.8 KB | Stingray/Dirtbox, covert channels | ✅ Extracted |
-| 04-Re-examination-Storm-0558.txt | 5.3 KB | **Microsoft official analysis** | ✅ Extracted |
-| 05-Supply-Chain-Attack-Vector-Report.pdf | 78 KB | Formal SCAV++ report | ✅ Extracted |
-| 06-Dec-5th-2024.pdf | 604 KB | Reference documentation | ✅ Extracted |
-
-**Total:** 6 source files, ~680 KB
-
----
-
-### **📄 Processed Deliverables**
-
-| Document | Size | Purpose | Status |
-|----------|------|---------|--------|
-| **STORM-0558-MASTER-ANALYSIS.md** | 12 KB | Complete threat analysis | ✅ Ready |
-| **SCAV++-INTEGRATION.md** | 12 KB | Framework mapping | ✅ Ready |
-| **DETECTION-RULES.md** | 12 KB | 10 production-ready rules | ✅ Ready |
-| **STORM-0558-ROADMAP.md** | 12 KB | 4-week implementation plan | ✅ Ready |
-| **README.md** | 8 KB | This guide | ✅ Ready |
-
-**Total:** 5 processed documents, ~56 KB
-
----
-
-## 🎯 QUICK START
-
-### **For Security Teams**
-
-1. **Read the Master Analysis** → [STORM-0558-MASTER-ANALYSIS.md](./STORM-0558-MASTER-ANALYSIS.md)
-   - Complete incident breakdown
-   - Root cause analysis
-   - Attack vector classification
-   - Defense strategies
-
-2. **Review SCAV++ Integration** → [SCAV++-INTEGRATION.md](./SCAV++-INTEGRATION.md)
-   - Mapping to Harshal's Systems framework
-   - Specific enhancement requirements
-   - Implementation guidance
-
-3. **Deploy Detection Rules** → [DETECTION-RULES.md](./DETECTION-RULES.md)
-   - 10 production-ready detection rules
-   - Sigma format for SIEM integration
-   - Python implementations
-
-4. **Follow the Roadmap** → [STORM-0558-ROADMAP.md](./STORM-0558-ROADMAP.md)
-   - 4-week phased implementation
-   - Resource requirements
-   - Success criteria
-
----
-
-## 🔍 KEY FINDINGS SUMMARY
-
-### **The Storm-0558 Incident**
-
-**Timeline:**
-- **April 2021:** Consumer signing system crash → key in crash dump
-- **April 2021:** Crash dump moved to debugging environment
-- **Post-April 2021:** Storm-0558 compromises Microsoft engineer account
-- **2021-2023:** Key used to forge tokens for OWA/Outlook.com
-- **2023:** Microsoft detects and investigates
-
-**Root Causes:**
-1. ✅ Race condition allowed key in crash dump
-2. ✅ Credential scanning failed to detect key
-3. ✅ Production secrets moved to debug environment
-4. ✅ Missing scope validation in authentication
-
-**Attack Vectors:**
-1. ✅ Compromised hardware (routers, modems, smart devices)
-2. ✅ Malicious firmware (manufacturing process)
-3. ✅ Phishing and social engineering
-4. ✅ Network exploitation (home networks)
-5. ✅ Stingray/Dirtbox (cellular interception)
-6. ✅ Thin film solar chips (everyday objects)
-7. ✅ Daisy chain compromise patterns
-
----
-
-## 🎯 INTEGRATION PATH
-
-### **Phase 1: Analysis (Week 1)**
-- Review all documents
-- Map to SCAV++ framework
-- Identify enhancement opportunities
-- Create prioritized backlog
-
-### **Phase 2: Detection (Week 2)**
-- Deploy 4 P0 detection rules
-- Deploy 5 P1 detection rules
-- Test and tune all rules
-- Create implementation guide
-
-### **Phase 3: Prevention (Week 3)**
-- Implement crash dump security
-- Implement environment boundaries
-- Implement scope validation
-- Implement supply chain detection
-- Implement daisy chain detection
-
-### **Phase 4: Integration (Week 4)**
-- Integrate into SCAV++ framework
-- Update documentation
-- Create case study
-- Train team
-- Create runbook
-
-**Total Duration:** 4 weeks  
-**Total Effort:** ~11.5 FTE-weeks
-
----
-
-## 📊 IMPACT ASSESSMENT
-
-### **Security Impact**
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Race Condition Detection | 0% | 100% | +100% |
-| Credential Scanning | Baseline | Enhanced | +50% |
-| Environment Isolation | Baseline | Enhanced | +50% |
-| Scope Validation | 0% | 100% | +100% |
-| Supply Chain Detection | Baseline | Enhanced | +50% |
-
-### **Business Impact**
-
-| Benefit | Value |
-|---------|-------|
-| Reduced supply chain attack risk | HIGH |
-| Improved threat detection | HIGH |
-| Enhanced incident response | MEDIUM |
-| Better compliance posture | MEDIUM |
-| Increased security maturity | HIGH |
-
----
-
-## 💡 USE CASES
-
-### **1. Threat Hunting**
-Use the detection rules to proactively hunt for Storm-0558-style attacks in your environment.
-
-### **2. Incident Response**
-Reference the master analysis during incident response to identify similar patterns.
-
-### **3. Framework Enhancement**
-Use the SCAV++ integration mapping to strengthen Harshal's Systems against supply chain attacks.
-
-### **4. Training & Awareness**
-Use the case study to train security teams on advanced supply chain threats.
-
-### **5. Threat Intelligence Sharing**
-Share findings (appropriately sanitized) with the security community.
-
----
-
-## 🔗 RELATIONSHIP TO HARSHAL'S SYSTEMS
-
-### **Supply Chain Attack Vector++ (SCAV++)**
-
-Storm-0558 directly validates and enhances SCAV++ by providing:
-
-1. **Real-World Examples**
-   - Race condition in crash dumps
-   - Credential scanning failures
-   - Environment boundary violations
-   - Scope validation gaps
-
-2. **Attack Vector Classification**
-   - Physical supply chain attacks
-   - Digital supply chain attacks
-   - Hybrid physical+digital attacks
-   - Decentralized attack patterns
-
-3. **Defense Strategy Validation**
-   - Zero Trust Architecture effectiveness
-   - Advanced threat detection requirements
-   - Network segmentation benefits
-   - Supply chain security controls
-
-4. **Detection Rule Development**
-   - 10 production-ready detection rules
-   - Sigma format for SIEM integration
-   - Python implementations for custom tools
-
----
-
-## 📚 REFERENCE LINKS
-
-### **Internal References**
-- [Harshal's Systems (Copyrighted) [Owner's Working Draft].md](https://github.com/A44674928/HarshalOS/blob/main/Harshal's%20Systems%20(Copyrighted)%20[Owner's%20Working%20Draft].md) - Master framework
-- [docs/harshal-systems/](https://github.com/A44674928/HarshalOS/tree/main/docs/harshal-systems) - Canonical reference library
-
-### **External References**
-- [Microsoft Storm-0558 Blog](https://aka.ms/storm-0558) - Official Microsoft analysis
-- [CISA Storm-0558 Advisory](https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-242a) - Government advisory
-
----
-
-## ✅ CHECKLIST FOR USERS
-
-- [ ] Read STORM-0558-MASTER-ANALYSIS.md
-- [ ] Review SCAV++-INTEGRATION.md
-- [ ] Deploy detection rules from DETECTION-RULES.md
-- [ ] Follow implementation roadmap in STORM-0558-ROADMAP.md
-- [ ] Integrate findings into SCAV++ framework
-- [ ] Train team on new capabilities
-- [ ] Monitor for Storm-0558 patterns
-
----
-
-## 🎯 NEXT STEPS
-
-1. **Present to Harshal Priyavadan Patel** for review and approval
-2. **Kick off Phase 1** (Analysis & Mapping) on 2026-10-03
-3. **Deploy detection rules** within 2 weeks
-4. **Implement prevention controls** within 3 weeks
-5. **Complete full integration** within 4 weeks
-
----
-
-## 📞 SUPPORT
-
-**Questions?** Refer to:
-- [STORM-0558-MASTER-ANALYSIS.md](./STORM-0558-MASTER-ANALYSIS.md) - Technical details
-- [SCAV++-INTEGRATION.md](./SCAV++-INTEGRATION.md) - Framework mapping
-- [STORM-0558-ROADMAP.md](./STORM-0558-ROADMAP.md) - Implementation plan
-
----
-
-**Status:** ✅ **Complete Package - Ready for Integration**  
-**UTS Timestamp:** UTS: 2026-10-02 16:32:16 UTC (UD 5040084750000.695312)  
-**Creator Attribution:** Harshal Priyavadan Patel (Analysis & Integration)  
-**Next Review:** Present to Harshal Priyavadan Patel for approval
+**Publishing hierarchy:** “The architecture (Book I) is the library. The novel (Book II) is the work in active production.” This research package remains `DERIVATIVE_BUILD`; its speculative scenarios are not canonical incident facts.

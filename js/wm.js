@@ -244,6 +244,9 @@ const shell = (() => {
     const clock = $("#hud-clock");
     const d = new Date();
     clock.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    if (window.HOSUTS && typeof window.HOSUTS.updateHomeWidget === "function") {
+      window.HOSUTS.updateHomeWidget(d);
+    }
 
     $("#tb-phase").textContent = `${p.glyph} ${s.phase}`;
     $("#tb-session").textContent = `demo session: ${
@@ -304,6 +307,13 @@ const shell = (() => {
     buildOriginMenu();
     buildDesktopIcons();
     renderTaskbar();
+
+    if (window.HOSUTS && typeof window.HOSUTS.attachHomeWidget === "function") {
+      window.HOSUTS.attachHomeWidget(() => {
+        const uts = APPS.find(app => app.id === "uts");
+        if (uts) openApp(uts);
+      });
+    }
 
     $("#origin-btn").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
     $("#taskbar-origin").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
