@@ -136,8 +136,9 @@ docs/deployment/  — operator setup and deployment guides
 docs/source-material/ — archival combined manuscript transcription; not the app's selected spec
 case-studies/     — standalone OpenAI and Anthropic Ground-0 audit writeups
 research/reports/ — supporting research reports (separate from scored case studies)
-Archive/          — review staging for previews, drafts, Supply Chain material, and duplicate quarantine; not in the browser bundle
-archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
+archives/             — unified repository archive for review staging and historical material; not in the browser bundle
+archives/Duplicates/   — quarantined duplicate files and SHA-256 manifest
+archives/ground-0/     — historical standalone ZIP bundles; not normative source or deployed assets
 archives/screenshots/2026-08/ — archived screenshot backup artifacts; not deployed
 tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)
 scripts/          — asset staging and integrity-report tooling; not deployed with the site
@@ -146,7 +147,7 @@ worker/           — Cloudflare APIs: private storage, signed synthetic empty.d
 .github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
 SECURITY.md       — project-specific threat model and vulnerability-reporting policy
 PLUGIN-ARCHITECTURE.md — reserved/future directory-slot design; not current runtime behavior
-Business Plan/    — remaining separate author archive; not included in the browser asset bundle
+business plan/    — remaining author archive and reserved plugin/data slots; not included in the browser asset bundle
 
 Runtime JavaScript stays in `js/` so the no-build static shell, worker asset staging, and existing
 browser URLs remain direct and predictable. Its logical ownership is documented in

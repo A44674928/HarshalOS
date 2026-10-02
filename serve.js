@@ -11,7 +11,7 @@
    It also serves an allowlist, not the checkout. On a laptop that hardly
    matters; behind a preview proxy or on a shared network the port is
    reachable by other people, and this directory holds .git (a 754 MiB
-   packfile and every credential-free-but-private commit), the Business Plan
+   packfile and every credential-free-but-private commit), the business plan
    working documents, and private papers that .assetsignore says must never be
    published. So what is served here is exactly what the deployed site is —
    index.html, about.html, css/, js/, assets/, the versioned specs/ the
