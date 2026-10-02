@@ -1,0 +1,214 @@
+/* Orb Directory & Mail: tabs, entry cards, and recorded-message list. */
+.odm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 10px;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.odm-row input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line-hi);
+  border-radius: 7px;
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.odm-row .btn { padding: 6px 11px; font-size: 10px; }
+.odm-identity { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(12, 19, 35, 0.6); }
+.odm-count, .odm-faint { color: var(--text-faint); font-family: var(--mono); font-size: 10px; }
+
+.odm-tabs { display: flex; gap: 6px; margin: 12px 0 10px; }
+.odm-tab { padding: 7px 13px; font-size: 10px; letter-spacing: 0.08em; }
+.odm-tab-on {
+  border-color: rgba(255, 212, 121, 0.55);
+  background: rgba(255, 212, 121, 0.12);
+  color: var(--gold);
+}
+
+.odm-panel {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(12, 19, 35, 0.7);
+  margin-bottom: 6px;
+}
+.odm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+.odm-grid label, .odm-block {
+  display: grid;
+  gap: 4px;
+  color: var(--text-dim);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+}
+.odm-grid input, .odm-block textarea, .odm-panel textarea, textarea#odm-transfer {
+  padding: 7px 9px;
+  border: 1px solid var(--line-hi);
+  border-radius: 7px;
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  resize: vertical;
+}
+.odm-block { margin-bottom: 8px; }
+.odm-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.odm-actions .btn { padding: 7px 12px; font-size: 10px; letter-spacing: 0.06em; }
+
+.odm-list { display: grid; gap: 8px; }
+.odm-entry, .odm-msg {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid rgba(74, 158, 255, 0.45);
+  border-radius: 9px;
+  background: rgba(12, 19, 35, 0.7);
+}
+.odm-entry header, .odm-msg-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+}
+.odm-msg-head { cursor: pointer; }
+.odm-entry-name { color: var(--text); font-size: 12.5px; font-weight: 600; }
+.odm-addr { color: var(--ice); font-family: var(--mono); font-size: 11px; }
+.odm-entry-sector { margin-top: 4px; color: var(--gold); font-family: var(--mono); font-size: 10px; }
+.odm-entry-role { margin-top: 3px; color: var(--text-dim); font-size: 11px; }
+.odm-entry-handles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.odm-entry-notes { margin: 5px 0 0; color: var(--text-dim); font-size: 11px; line-height: 1.6; }
+.odm-empty { color: var(--text-faint); font-style: italic; font-size: 11px; }
+
+.odm-tag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(111, 211, 255, 0.3);
+  color: var(--ice);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.odm-tag-node { border-color: rgba(181, 124, 255, 0.35); color: var(--gas); }
+.odm-tag-local { border-color: rgba(255, 180, 92, 0.35); color: var(--warn); margin-left: auto; }
+
+.odm-arrow { color: var(--text-faint); }
+.odm-msg-subject { color: var(--text); font-size: 11.5px; }
+.odm-msg-dir {
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+}
+.odm-msg-open { border-left-color: rgba(255, 212, 121, 0.6); }
+.odm-msg-meta {
+  margin-top: 7px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.7;
+}
+.odm-msg-body {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-1);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.odm-note { margin: 6px 0 8px; color: var(--text-faint); font-size: 10.5px; line-height: 1.7; }
+
+@media (max-width: 720px) {
+  .odm-grid { grid-template-columns: 1fr; }
+  .odm-tag-local { margin-left: 0; }
+}
+
+/* ── resolution-first routing ─────────────────────────────────
+   The route panel shows the hop path through Center Origin and the
+   verification-hop comparison that makes inward-first the cheaper path. */
+.odm-route-tabs { margin: 4px 0 10px; }
+.odm-tab { letter-spacing: 0.08em; font-size: 10px; }
+.odm-tab-on {
+  border-color: rgba(255, 212, 121, 0.55);
+  background: rgba(255, 212, 121, 0.12);
+  color: var(--gold);
+}
+
+.odm-route-path {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin: 6px 0 10px;
+}
+.odm-route-center { color: var(--gold); border-color: rgba(255, 212, 121, 0.4); }
+
+.odm-leg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 14px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+.odm-leg-label { border-left: 1px solid var(--line-hi); padding-left: 7px; }
+.odm-leg-arrow { color: var(--gold-deep); font-size: 10px; }
+
+.odm-invariants {
+  margin: 0 0 12px 18px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  line-height: 1.8;
+}
+.odm-invariants li::marker { color: var(--gold-deep); }
+.odm-invariants .odm-boundary {
+  list-style: none;
+  margin-left: -14px;
+  padding: 6px 9px;
+  border: 1px dashed var(--line-hi);
+  border-radius: 7px;
+  color: var(--warn);
+}
+
+.odm-tag-route { border-color: rgba(111, 211, 255, 0.4); color: var(--ice); }
+.odm-msg-path {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 7px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.7;
+}
+.odm-rec {
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+}

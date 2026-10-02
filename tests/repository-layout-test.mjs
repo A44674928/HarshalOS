@@ -141,7 +141,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(libraryManifest.schema, "harshalos-book-library-v1");
     assert.equal(libraryManifest.documentCount, repositoryLibraryFiles.length);
     assert.equal(libraryManifest.collectionCount, 7);
-    assert.equal(libraryManifest.moduleCount, 31);
+    assert.equal(libraryManifest.moduleCount, 32);
     const indexedLibraryFiles = [
       ...libraryManifest.guides,
       ...libraryManifest.collections.flatMap(collection => [collection.overview, ...collection.modules])
@@ -207,8 +207,8 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const library = await libraryResponse.json();
     assert.equal(library.schema, "harshalos-book-library-v1");
     assert.equal(library.collectionCount, 7);
-    assert.equal(library.moduleCount, 31);
-    assert.equal(library.documentCount, 41);
+    assert.equal(library.moduleCount, 32);
+    assert.equal(library.documentCount, 42);
     const collectionOverview = await fetch(`${base}/book-library/harshal-systems/collections/01-foundations/README.md`);
     assert.equal(collectionOverview.status, 200, "collection overview files can be read online");
     assert.match(collectionOverview.headers.get("content-type"), /text\/markdown/);

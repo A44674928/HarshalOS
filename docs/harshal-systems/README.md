@@ -118,6 +118,19 @@ These are suggested routes, not prerequisites.
 | XXVI | [26-anthropic-b-side.md](26-anthropic-b-side.md) | Incident Record and External Audit: Anthropic PBC (B Side) |
 | XXVII | [27-whole-corpus.md](27-whole-corpus.md) | Whole Corpus / Complete Work |
 
+### Reference Modules
+
+Modules are library documents that sit beside the numbered parts without
+taking a part number. Each one states its own provenance class, status
+taxonomy, and evidence status; none of them alters the normative authority of
+the parts they reference.
+
+| Module | Document | Focus |
+|---|---|---|
+| `grand-architecture` | [modules/grand-architecture.md](modules/grand-architecture.md) | **The Grand Architecture** — the Convergence-era infrastructure architecture: six layers (`GA-0`–`GA-5`), the `0•100•000•NNNN` instance registry, canonical quantity anchors, the planning timeline, and seven `GA-INV` invariants. `FICTION` (`NARRATIVE_SANDBOX`) |
+| `uts-reference` | [modules/uts.md](modules/uts.md) | Universal Timekeeping System — corrected duration units, `UDay` vs. `UDate`, and the browser implementation. `DERIVATIVE_BUILD` |
+| `convergence-institutions` | [modules/convergence-institutions.md](modules/convergence-institutions.md) | GELPA, Celestial Engineers, and Quantum Librarians as fictional setting bodies. `FICTION` (`NARRATIVE_SANDBOX`) |
+
 ## Functional Collections
 
 The collections provide topic-based routes through the numbered corpus.
@@ -132,7 +145,7 @@ See each collection guide for its scope and contents.
 | IV | [04-flagship-research](collections/04-flagship-research/README.md) | Flagship Keyed Human–Machine Research, Threat Models, Supporting Policy, and corrected UTS reference module |
 | V | [05-constitutional-specs](collections/05-constitutional-specs/README.md) | Defensive Constitutional Specification Series |
 | VI | [06-incident-audits](collections/06-incident-audits/README.md) | Incident Record and External Platform Audits |
-| VII | [07-companion-fiction-and-corpus](collections/07-companion-fiction-and-corpus/README.md) | Book II Fictional Companion Preview, Convergence institution reference module, and Part XXVII Whole Corpus |
+| VII | [07-companion-fiction-and-corpus](collections/07-companion-fiction-and-corpus/README.md) | Book II Fictional Companion Preview, The Grand Architecture module, Convergence institution reference module, and Part XXVII Whole Corpus |
 
 ## Status and Evidence
 

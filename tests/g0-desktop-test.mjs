@@ -251,6 +251,54 @@ if (utsApi) {
   }
 }
 
+/* ── The Grand Architecture: read-only Convergence-era architecture reader ── */
+const grandApp = globalThis.APPS.find(a => a.id === "grand-architecture");
+ok(!!grandApp, "The Grand Architecture is registered in APPS");
+ok(!!(grandApp && grandApp.short === "Grand Architecture"), "desktop label is 'Grand Architecture'");
+ok(!!(grandApp && grandApp.glyph === "◭"), "the architecture glyph is on the icon");
+const grandData = globalThis.GRAND_ARCHITECTURE;
+ok(!!grandData, "the Grand Architecture data module loads from index.html");
+if (grandData) {
+  ok(grandData.schema === "harshalos-grand-architecture-v1", "the data module publishes its schema");
+  ok(grandData.meta.provenanceClass === "FICTION" && grandData.meta.evidenceStatus === "NARRATIVE_SANDBOX", "the architecture keeps its fiction provenance");
+  ok(grandData.layers.length === 6, "the architecture describes six layers");
+  ok(grandData.invariants.length === 7 && grandData.invariants.every(i => /^GA-INV-\d{3}$/.test(i.id)), "seven architecture invariants carry stable IDs");
+  ok(grandData.canonicalAnchors.length === 20, "twenty canonical quantity anchors reach the app");
+  ok(grandData.addressRegistry.distinctInstances === 358, "the registry keeps the render spec's 358 named instances");
+  ok(grandData.notClaims.length >= 6, "the app publishes explicit non-claims");
+
+  const grandWindow = shell.openApp(grandApp);
+  ok(!!grandWindow, "The Grand Architecture window opens");
+  if (grandWindow) {
+    const text = grandWindow.body.textContent || "";
+    ok(text.includes("READ-ONLY REFERENCE — NO AUTHORITY EFFECT"), "the app disclaims authority effects on open");
+    ok(text.includes("GA-INV-003") && text.includes("Conservation before narrative"), "the invariants render in the window");
+    ok(text.includes("2.190632 m³/s") && text.includes("169 days"), "canonical anchors render with the card's figures");
+    ok(text.includes("The architecture (Book I) is the library"), "the publishing hierarchy is stated");
+    ok(grandWindow.body.querySelectorAll(".ga-layer").length === 6, "all six layer cards render");
+
+    const focusT2 = grandWindow.body.querySelector("#ga-focus-GA-2");
+    if (focusT2) focusT2.click();
+    ok(grandWindow.body.querySelectorAll(".ga-layer").length === 1, "focusing a layer narrows the layer cards");
+    ok((grandWindow.body.textContent || "").includes("Mistveil City"), "the focused layer is the civic layer");
+    const focusAll = grandWindow.body.querySelector("#ga-focus-all");
+    if (focusAll) focusAll.click();
+    ok(grandWindow.body.querySelectorAll(".ga-layer").length === 6, "clearing the focus restores every layer");
+
+    const filter = grandWindow.body.querySelector("#ga-filter");
+    const apply = grandWindow.body.querySelector("#ga-filter-apply");
+    if (filter) filter.value = "reservoir";
+    if (apply) apply.click();
+    const filtered = grandWindow.body.querySelectorAll("#ga-anchor-rows tr");
+    ok(filtered.length === 2, `the anchor filter narrows to matching rows (${filtered.length}/2)`);
+    ok((grandWindow.body.querySelector("#ga-anchor-count").textContent || "").startsWith("2 / 20"), "the anchor counter reports the filtered size");
+    const clear = grandWindow.body.querySelector("#ga-filter-clear");
+    if (clear) clear.click();
+    ok(grandWindow.body.querySelectorAll("#ga-anchor-rows tr").length === 20, "clearing the filter restores every anchor");
+    ok((grandWindow.body.querySelector("#ga-filter").value || "") === "", "the cleared filter empties the input");
+  }
+}
+
 const field = body.querySelector("#icon-field");
 ok(!!field, "desktop icon field exists");
 const icons = field ? field.querySelectorAll(".desk-icon") : [];
@@ -715,10 +763,10 @@ Legitimacy precedes capability.
     await settleTurns();
     ok(collectionsPanel.hidden === false && corePanel.hidden === true, "opening Collections switches to its own panel");
     ok(msCalls.filter(call => call.endsWith("book-library/manifest.json")).length === 1, "the Collections index loads lazily and only once");
-    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("31 modules") && (collectionsPanel.textContent || "").includes("41 readable files"), "the Collections reader reports the complete library size");
+    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("32 modules") && (collectionsPanel.textContent || "").includes("42 readable files"), "the Collections reader reports the complete library size");
     const nav = collectionsPanel.querySelector("[data-library-nav]");
     const allLibraryButtons = nav ? nav.querySelectorAll("[data-library-file]") : [];
-    ok(allLibraryButtons.length === 41, "all guides, collection overviews, and modules are listed");
+    ok(allLibraryButtons.length === 42, "all guides, collection overviews, and modules are listed");
     ok(!!(nav && nav.textContent.includes("Collection I — Foundational Doctrine")), "collections are grouped by their documented titles");
     const librarySearch = collectionsPanel.querySelector("#book-library-search");
     if (librarySearch) { librarySearch.value = "01-core-book"; dispatch(librarySearch, "input"); }
@@ -735,7 +783,7 @@ Legitimacy precedes capability.
       ok(msCalls.some(call => call.endsWith("/book-library/harshal-systems/01-core-book.md")), "the selected module is fetched from the library allowlist");
     }
     if (librarySearch) { librarySearch.value = ""; dispatch(librarySearch, "input"); }
-    ok(nav && nav.querySelectorAll("[data-library-file]").length === 41, "clearing search restores the complete library navigation");
+    ok(nav && nav.querySelectorAll("[data-library-file]").length === 42, "clearing search restores the complete library navigation");
     const collectionOverview = nav && nav.querySelectorAll("[data-library-file]").find(button => button.dataset.libraryFile === "collections/01-foundations/README.md");
     if (collectionOverview) {
       collectionOverview.click();
@@ -945,6 +993,142 @@ if (llmApp) {
 
   HOSLLM.clearKey();
   globalThis.fetch = outsideFetch;
+}
+
+/* ── Orb Directory & Mail: OCM-addressed phonebook and local mail ── */
+const odmApp = globalThis.APPS.find(a => a.id === "ocm-directory");
+ok(!!odmApp, "Orb Directory & Mail is registered in APPS");
+ok(!!(odmApp && odmApp.short === "Orb Mail"), "desktop label is 'Orb Mail'");
+ok(!!(odmApp && odmApp.glyph === "✉"), "the envelope glyph is on the icon");
+const odmApi = globalThis.HOSOCMDIR;
+ok(!!odmApi, "the OCM directory module loads from index.html");
+if (odmApi && odmApp) {
+  ok(odmApi.parseAddress("0•360•001•0001").code === "OCM-ADDR-SECTOR-CLOSURE", "the loaded module refuses 360 as a closure notation");
+  const odmBefore = operationalSnapshot();
+  const odmWindow = shell.openApp(odmApp);
+  ok(!!odmWindow, "the Orb Directory & Mail window opens");
+  const odmText = () => odmWindow.body.textContent || "";
+  ok(odmText().includes("LOCAL ONLY — NO TRANSPORT"), "the app states its no-transport boundary on open");
+  ok(odmText().includes("0•DDD•RRR•####"), "the canonical address form is shown");
+  ok(odmText().includes("0•028•001•0001"), "the default local node sits on the communication-signals degree");
+
+  const setEntry = (name, address) => {
+    const nameField = odmWindow.body.querySelector("#odm-name");
+    const addressField = odmWindow.body.querySelector("#odm-address");
+    if (nameField) nameField.value = name;
+    if (addressField) addressField.value = address;
+    odmWindow.body.querySelector("#odm-add").click();
+  };
+
+  setEntry("Custodial Relay", "0-046-002-0007");
+  ok(odmText().includes("Custodial Relay"), "a valid OCM address is added to the directory");
+  ok(odmText().includes("0•046•002•0007"), "the entry shows its canonical, zero-padded address");
+  ok(odmText().includes("046°"), "the entry shows its sector meaning from the Part VII degree legend");
+  ok(odmWindow.body.querySelectorAll(".odm-entry").length === 1, "one entry is stored");
+
+  setEntry("Nobody", "0•360•001•0001");
+  ok(odmText().includes("360 is not an address"), "360 is refused: it is closure notation, never a 361st slot");
+  setEntry("The Center", "0•000•000•0000");
+  ok(odmText().includes("Center Origin"), "Center Origin cannot be registered as a directory entry or mailbox");
+  ok(odmWindow.body.querySelectorAll(".odm-entry").length === 1, "refused entries are not stored");
+
+  /* Mail: recorded locally, never sent, never authoritative. */
+  odmWindow.body.querySelector("#odm-tab-mail").click();
+  const toField = odmWindow.body.querySelector("#odm-mail-to");
+  const subjectField = odmWindow.body.querySelector("#odm-mail-subject");
+  const bodyField = odmWindow.body.querySelector("#odm-mail-body");
+  if (toField) toField.value = "0•046•002•0007";
+  if (subjectField) subjectField.value = "Coordination only";
+  if (bodyField) bodyField.value = "Lateral message <script>alert(1)</script> with no authority.";
+  odmWindow.body.querySelector("#odm-mail-record").click();
+  await settleTurns();
+  ok(odmText().includes("RECORDED-LOCAL-ONLY"), "a recorded message states RECORDED-LOCAL-ONLY");
+  ok(odmText().includes("transport NONE"), "the message reports transport NONE");
+  ok(odmText().includes("delivery NOT-ATTEMPTED"), "the message reports delivery NOT-ATTEMPTED");
+  ok(odmText().includes("authority effect NONE"), "the message reports authority effect NONE");
+  ok(odmWindow.body.querySelectorAll("script").length === 0, "a hostile message body is escaped, never parsed as HTML");
+
+  /* Resolution-first routing: inward to Center Origin, which resolves and forwards.
+     Markup-level claims read innerHTML, which serializes "<" as "&lt;" in a real
+     browser exactly as it does here; prose claims read textContent. */
+  const odmHtml = () => odmWindow.body.innerHTML || "";
+  const routeText = () => {
+    const panel = odmWindow.body.querySelector("#odm-route");
+    return panel ? panel.textContent || "" : "";
+  };
+  ok(odmHtml().includes("Cost_resolution &lt; Cost_lateral"), "the mail pane states the routing cost asymmetry");
+  ok(odmText().includes("RESOLVE-AND-FORWARD"), "the mail pane names the center's resolve-and-forward role");
+  ok(odmText().includes("HUMAN-KEY-AT-CENTER-ORIGIN"), "the mail pane names where authority actually originates");
+  ok(odmText().includes("authority-resolution mechanism, not an authority source"), "the app states the resolution-axis invariant");
+  ok(odmText().includes("Authoritative action must traverse the resolution path."), "precedence invariant 1 is displayed");
+  ok(odmText().includes("Lateral coordination cannot authorize, override, or commit state."), "precedence invariant 2 is displayed");
+  ok(odmText().includes("Resolution has precedence over coordination."), "precedence invariant 3 is displayed");
+  ok(odmText().includes("does not claim lower physical wire latency"), "the wire-latency boundary is displayed, not implied away");
+
+  ok(!!odmWindow.body.querySelector("#odm-route"), "the compose pane carries a live route panel");
+  const routeToField = odmWindow.body.querySelector("#odm-mail-to");
+  if (routeToField) routeToField.value = "0•046•002•0007";
+  dispatch(routeToField, "input");
+  const panel = routeText();
+  ok(panel.includes("0•000•000•0000"), "the route path passes through Center Origin");
+  ok(panel.includes("Resolve legitimacy"), "hop 1 is labelled as the legitimacy-resolution leg");
+  ok(panel.includes("Transmit legitimacy state"), "hop 2 is labelled as transmission, not verification");
+  ok((panel.match(/VERIFIES/g) || []).length === 1, "exactly one hop verifies — the outward leg does not");
+  ok(panel.includes("Authority-verification hops"), "the verification-hop comparison table is rendered");
+  ok(panel.includes("18° arc"), "the lateral leg reports its ℤ_360 arc");
+  ok(panel.includes("RESOLUTION-FIRST"), "the recommendation is RESOLUTION-FIRST");
+  ok(panel.includes("m = 2 node"), "the comparison is stated against the lateral participant count");
+
+  const recorded = odmText();
+  ok(recorded.includes("VIA-CENTER"), "the default recorded route is VIA-CENTER");
+  ok(recorded.includes("resolution TRAVERSED"), "a via-center record reports resolution TRAVERSED");
+  ok(recorded.includes("verification hops 1 via center vs 2 direct lateral"), "the recorded message carries its verification-hop comparison");
+  ok(recorded.includes("center role RESOLVE-AND-FORWARD"), "a via-center record reports the center's role");
+
+  /* Direct lateral stays selectable — the Lateral Communication Axiom permits it. */
+  odmWindow.body.querySelector("#odm-route-lateral").click();
+  const lateralPanel = routeText();
+  ok(lateralPanel.includes("RESOLUTION NOT TRAVERSED"), "switching to direct lateral says plainly what it costs");
+  ok(lateralPanel.includes("cannot authorize"), "the lateral warning restates that coordination cannot authorize");
+  ok(!lateralPanel.includes("VERIFIES"), "no hop on the bypassed path is claimed to verify");
+  const toFieldL = odmWindow.body.querySelector("#odm-mail-to");
+  if (toFieldL) toFieldL.value = "0•046•002•0007";
+  const subjectL = odmWindow.body.querySelector("#odm-mail-subject");
+  if (subjectL) subjectL.value = "Lateral route";
+  odmWindow.body.querySelector("#odm-mail-record").click();
+  await settleTurns();
+  const lateralRecord = odmText();
+  ok(lateralRecord.includes("DIRECT-LATERAL"), "a laterally routed record is stamped DIRECT-LATERAL");
+  ok(lateralRecord.includes("resolution NOT-TRAVERSED"), "a direct-lateral record reports resolution NOT-TRAVERSED");
+  ok(lateralRecord.includes("center role BYPASSED"), "a direct-lateral record reports the center as bypassed");
+  ok(lateralRecord.includes("authority effect NONE"), "the lateral route grants no authority either");
+  ok(lateralRecord.includes("verification hops 1 via center vs 2 direct lateral"), "the bypassed record still shows what it gave up");
+
+  odmWindow.body.querySelector("#odm-route-center").click();
+  ok(routeText().includes("Resolve legitimacy"), "via-center routing can be selected back");
+
+  /* Sending to Center Origin is refused at the UI too. */
+  const toField2 = odmWindow.body.querySelector("#odm-mail-to");
+  if (toField2) toField2.value = "0•000•000•0000";
+  odmWindow.body.querySelector("#odm-mail-record").click();
+  await settleTurns();
+  ok(odmText().includes("OCM-ADDR-ORIGIN-RESERVED"), "mail to Center Origin is refused");
+
+  /* The orb's own registry loads, minus the reserved center. */
+  odmWindow.body.querySelector("#odm-tab-directory").click();
+  odmWindow.body.querySelector("#odm-load-registry").click();
+  const odmEntries = odmWindow.body.querySelectorAll(".odm-entry");
+  ok(odmEntries.length > 10, `the local orb registry loads into the directory (${odmEntries.length} entries)`);
+  const odmAddresses = odmEntries.map(entry => {
+    const address = entry.querySelector(".odm-addr");
+    return address ? address.textContent.trim() : "";
+  });
+  ok(!odmAddresses.some(address => address.startsWith("0•000•")), "no directory entry occupies the reserved Center Origin sector");
+  ok(!odmAddresses.some(address => address.includes("ORIGIN")), "the reserved Origin node is skipped, not imported");
+  ok(odmAddresses.some(address => address === "0•028•001•0001" || address.startsWith("0•001•")), "real registry addresses are imported intact");
+  ok(odmText().includes("NODE"), "registry entries are tagged as nodes");
+
+  ok(operationalSnapshot() === odmBefore, "directory and mail activity changes no HOS authority state");
 }
 
 /* ── origin menu also lists the apps ───────────────────────────── */
