@@ -10,4 +10,4 @@ To make **Book I (*Harshal's Systems*)** navigable as a modular reference librar
 | [`04-flagship-research`](04-flagship-research/README.md) | **Collection IV — Flagship Keyed Human–Machine Research, Threat Models & Supporting Policy Archive** | `PUBLIC_RESEARCH_SUMMARY` | 5 modules (56,318 words) |
 | [`05-constitutional-specs`](05-constitutional-specs/README.md) | **Collection V — Defensive Constitutional Specification Series** | `DEFENSIVE_SPECIFICATION` | 2 modules (30,751 words) |
 | [`06-incident-audits`](06-incident-audits/README.md) | **Collection VI — Incident Record & External Platform Audits** | `INCIDENT_AND_AUDIT_RECORD` | 1 modules (10,267 words) |
-| [`07-companion-fiction-and-corpus`](07-companion-fiction-and-corpus/README.md) | **Collection VII — Book II Fictional Companion Preview & Part XXVII Whole Corpus** | `PUBLIC_RESEARCH_SUMMARY` | 2 modules (17,425 words) |
+| [`07-companion-fiction-and-corpus`](07-companion-fiction-and-corpus/README.md) | **Collection VII — Book II Fictional Companion Preview & Part XXVII Whole Corpus** | `PUBLIC_RESEARCH_SUMMARY` | 2 modules (17,907 words) |

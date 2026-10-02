@@ -1,0 +1,137 @@
+/* ═══════════════════════════════════════════════════════════════
+   HarshalOS — Book I · The Core Book reading room
+   Palette follows css/os.css; source is parsed as safe Markdown.
+   ═══════════════════════════════════════════════════════════════ */
+
+.core-book-view { min-width: 0; max-width: 104ch; margin: 0 auto; }
+.core-book-header {
+  padding: 18px clamp(16px, 3vw, 30px) 17px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(13, 22, 39, 0.96), rgba(7, 12, 23, 0.94));
+}
+.core-book-eyebrow {
+  margin: 0;
+  color: var(--gold-deep);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.core-book-header h1,
+.core-book-state h1 {
+  margin: 7px 0 5px;
+  color: var(--text);
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 650;
+  line-height: 1.22;
+}
+.core-book-byline { margin: 0 0 12px; color: var(--text-faint); font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; }
+.core-book-source { color: var(--ice); font-size: 11px; text-decoration: none; }
+.core-book-source:hover { text-decoration: underline; }
+.core-book-source:focus-visible { outline: 1px solid var(--ice); outline-offset: 3px; }
+
+.core-book-content {
+  max-width: 82ch;
+  margin: 18px auto 0;
+  padding: 26px clamp(18px, 4vw, 44px) 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(9, 15, 29, 0.96), rgba(6, 10, 20, 0.96));
+  color: #e4ecf8;
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 15px;
+  line-height: 1.76;
+  overflow-wrap: anywhere;
+}
+.core-book-content p { margin: 0 0 1.1em; }
+.core-book-content .core-book-p { text-align: left; }
+.core-book-content h2,
+.core-book-content h3,
+.core-book-content h4 {
+  color: var(--ice);
+  font-family: var(--mono);
+  font-weight: 600;
+  line-height: 1.45;
+  scroll-margin-top: 12px;
+}
+.core-book-content h2 { margin: 2.1em 0 0.8em; font-size: 14px; letter-spacing: 0.08em; }
+.core-book-content h3 { margin: 1.7em 0 0.65em; font-size: 12px; letter-spacing: 0.04em; }
+.core-book-content h4 { margin: 1.5em 0 0.6em; font-size: 11px; }
+.core-book-content a { color: var(--ice); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.core-book-content a:hover { color: #b9eaff; }
+.core-book-content strong { color: #f3f6ff; font-weight: 700; }
+.core-book-content em { color: #d5e3f5; }
+.core-book-content code {
+  padding: 0.08em 0.3em;
+  border: 1px solid rgba(111, 211, 255, 0.15);
+  border-radius: 4px;
+  background: rgba(111, 211, 255, 0.06);
+  color: #a8ddf7;
+  font-family: var(--mono);
+  font-size: 0.84em;
+  overflow-wrap: anywhere;
+}
+.core-book-content .core-book-list { margin: 0 0 1.2em; padding-left: 1.6em; }
+.core-book-content .core-book-list li { margin: 0.3em 0; padding-left: 0.18em; }
+.core-book-content .core-book-quote {
+  margin: 1.2em 0 1.4em;
+  padding: 3px 0 3px 17px;
+  border-left: 2px solid var(--line-hi);
+  color: var(--text-dim);
+}
+.core-book-content .core-book-quote p:last-child,
+.core-book-content .core-book-callout p:last-child { margin-bottom: 0; }
+.core-book-content .core-book-callout {
+  margin: 1.3em 0 1.5em;
+  padding: 13px 16px;
+  border: 1px solid rgba(255, 212, 121, 0.28);
+  border-left: 3px solid var(--gold);
+  border-radius: 7px;
+  background: rgba(255, 212, 121, 0.045);
+}
+.core-book-content .core-book-callout-label {
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.core-book-content .core-book-table-wrap { max-width: 100%; margin: 1.2em 0 1.5em; overflow-x: auto; }
+.core-book-content .core-book-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; line-height: 1.6; }
+.core-book-content .core-book-table th,
+.core-book-content .core-book-table td { min-width: 90px; padding: 8px 10px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+.core-book-content .core-book-table th { color: var(--gold); background: rgba(255, 212, 121, 0.05); }
+.core-book-content .core-book-table td { color: var(--text-dim); }
+.core-book-content .core-book-code {
+  margin: 1.25em 0 1.5em;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(2, 5, 10, 0.7);
+  color: #c8d8ec;
+  font: 11px/1.65 var(--mono);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.core-book-content .core-book-code code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.core-book-content .core-book-rule { margin: 1.8em 0; border: 0; border-top: 1px solid var(--line); }
+
+.core-book-state {
+  max-width: 72ch;
+  margin: 0 auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(9, 15, 29, 0.82);
+}
+.core-book-state > p:not(.core-book-eyebrow) { color: var(--text-dim); font-size: 12px; line-height: 1.7; }
+.core-book-error { border-color: rgba(255, 92, 122, 0.42); }
+
+@media (max-width: 640px) {
+  .core-book-content { margin-top: 12px; padding: 20px 17px 28px; font-size: 14px; }
+  .core-book-content .core-book-table { min-width: 560px; }
+  .core-book-header { padding: 16px; }
+}

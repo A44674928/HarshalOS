@@ -3,10 +3,10 @@
   "manuscript": {
     "collections": 1,
     "chapters": 9,
-    "words": 15326,
-    "bytes": 99438
+    "words": 15808,
+    "bytes": 102399
   },
-  "digest": "2b6add1bfc234369883db1ea3167b1646cc09e588cb6e59a100ddb64f9188dfb",
+  "digest": "de74acddcd21f07bb7aec735bb2b4a315dd4db22b9a05c743f55dfe829b1a050",
   "collections": [
     {
       "id": "the-grand-river-foundation",
@@ -20,9 +20,9 @@
       "author": "Harshal Priyavadan Patel",
       "description": "Separated from the normative Book I specifications, The Grand River Foundation (Book II — Preview) uses a ~2100 setting around the 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council as the future-world sandbox for mature implementations of Harshal's Systems.",
       "chapterCount": 9,
-      "words": 15326,
-      "bytes": 99438,
-      "digest": "304351175aecfc054fc1fe5bc694b47b474fc03f583bf226d09e47aa6b5428fe",
+      "words": 15808,
+      "bytes": 102399,
+      "digest": "15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d",
       "chapters": [
         {
           "id": "00-prologue-the-geometry-of-restraint",
@@ -52,9 +52,9 @@
           "file": "manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt",
           "title": "Chapter 2 The Citadel On The Rim",
           "order": 2,
-          "bytes": 12614,
-          "words": 1949,
-          "sha256": "2d9e855eb75a0ce264af2bad82ac5231ee550de66dd7ce206dba0c0779cedf3f",
+          "bytes": 12683,
+          "words": 1961,
+          "sha256": "fdd65ae70163979795d7ef2402f9782390788186793de030b3779fce973486f8",
           "index": 3
         },
         {
@@ -96,9 +96,9 @@
           "file": "manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt",
           "title": "Chapter 5 The Zero Degree Meridian",
           "order": 6,
-          "bytes": 13881,
-          "words": 2154,
-          "sha256": "272a914682b59a9983aed6695f277c5f910602dfc06d1d4154a8f5790cf5a6fa",
+          "bytes": 16189,
+          "words": 2524,
+          "sha256": "e4c20995bcefc095677507c9ea1126c54f1598ca99877746e6ee321fc450eb51",
           "index": 7
         },
         {
@@ -107,9 +107,9 @@
           "file": "manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt",
           "title": "Chapter 6 The Hundred And Nineteen",
           "order": 7,
-          "bytes": 8716,
-          "words": 1235,
-          "sha256": "3174d98eb5c40ed0b0987777f75bd164f98072f5e2dc3477553fd78916358fc2",
+          "bytes": 8912,
+          "words": 1271,
+          "sha256": "08926de3dc3190bf2b70093259d1f1548a3a9ac44b0bca4264ae2b4251fac2bb",
           "index": 8
         },
         {
@@ -118,9 +118,9 @@
           "file": "manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt",
           "title": "Chapter 7 The Origin Continuity Covenant",
           "order": 8,
-          "bytes": 7741,
-          "words": 1188,
-          "sha256": "5ab866417303e93d8c49457f725970944d5993ec5c16c4cd66dba4a9bab9ac94",
+          "bytes": 8129,
+          "words": 1252,
+          "sha256": "7253ef5165e7b737ad1e180cc1569f730f9232366cf52669d00b5009ff39dded",
           "index": 9
         }
       ]

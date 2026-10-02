@@ -1,7 +1,7 @@
 # Harshal’s Systems — Book I Reference Library & Umbrella Corpus Index
 
 > **Publishing Hierarchy:**
-> - **Book I — *Harshal’s Systems* (`Parts I–XXVII`):** The canonical technical, constitutional, and safety reference library housed in this directory and compiled into the Umbrella Build Artifact **[`HARSHAL-SYSTEMS-USER-MANUAL.md`](../../HARSHAL-SYSTEMS-USER-MANUAL.md)** (187,244 words) and **[`HARSHAL-SYSTEMS-USER-MANUAL.docx`](../../HARSHAL-SYSTEMS-USER-MANUAL.docx)**.
+> - **Book I — *Harshal’s Systems* (`Parts I–XXVII`):** The canonical technical, constitutional, and safety reference library housed in this directory and compiled into the Umbrella Build Artifact **[`HARSHAL-SYSTEMS-USER-MANUAL.md`](../../HARSHAL-SYSTEMS-USER-MANUAL.md)** (187,775 words) and **[`HARSHAL-SYSTEMS-USER-MANUAL.docx`](../../HARSHAL-SYSTEMS-USER-MANUAL.docx)**.
 > - **Book II — Preview — *The Grand River Foundation*:** The standalone fictional companion novel set in **~2100 CE** ([`manuscript/the-grand-river-foundation/`](../../manuscript/the-grand-river-foundation/) and [`BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`](../../BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md)), mirrored in [Part XXIV](24-the-novel.md).
 > - **Flagship Research Paper:** ***Accountability in Keyed Human–Machine Hybrid Systems*** ([Part XIX](19-research-papers.md) · standalone publication at [`research/keyed-human-machine-hybrid-systems.md`](../../research/keyed-human-machine-hybrid-systems.md)).
 > - **Canonical Minimum Model:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`
@@ -52,7 +52,7 @@ To navigate Book I as a structured reference library, the modules are grouped in
 | `21` | **Part XXI** | [Part XXI — MicroConvergence and Signal Encoding](21-microconvergence.md) | `CANONICAL_SOURCE` | `PUBLIC_RESEARCH_SUMMARY` | 7,578 |
 | `22` | **Part XXII** | [Part XXII — Supporting Policy & Governance Research Archive](22-policy-archive.md) | `CANONICAL_SOURCE` | `PUBLIC_RESEARCH_SUMMARY` | 6,710 |
 | `23` | **Part XXIII** | [Part XXIII — Specification Series](23-specification-series.md) | `CANONICAL_SOURCE` | `DEFENSIVE_SPECIFICATION` | 9,216 |
-| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | `PUBLIC_RESEARCH_SUMMARY` | 15,631 |
+| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | `PUBLIC_RESEARCH_SUMMARY` | 16,113 |
 | `25` | **Part XXV** | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | `CANONICAL_SOURCE` | `DEFENSIVE_SPECIFICATION` | 21,535 |
 | `26` | **Part XXVI** | [Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)](26-anthropic-b-side.md) | `AUDIT` | `INCIDENT_AND_AUDIT_RECORD` | 10,267 |
 | `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | `PUBLIC_RESEARCH_SUMMARY` | 1,794 |

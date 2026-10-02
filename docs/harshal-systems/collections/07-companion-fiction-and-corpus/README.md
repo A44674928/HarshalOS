@@ -10,5 +10,5 @@
 
 | Module ID | Part / Document | Provenance Class | Status Taxonomy | Evidence Status & Extent |
 | :--- | :--- | :--- | :--- | :--- |
-| `24-the-novel` | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](../../24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` (15,631 words) |
+| `24-the-novel` | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](../../24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` (16,113 words) |
 | `27-whole-corpus` | [Part XXVII — Whole Corpus / Complete Work](../../27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` (1,794 words) |

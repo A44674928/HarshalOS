@@ -15,8 +15,10 @@
    working documents, and private papers that .assetsignore says must never be
    published. So what is served here is exactly what the deployed site is —
    index.html, about.html, css/, js/, assets/, the versioned specs/ the
-   Ground-0 app fetches at runtime, and the plaintext chapters of manuscript/ —
-   and everything else is a plain 404 that does not admit what exists.
+   Ground-0 app fetches at runtime, the selected Book I document at
+   /book/01-core-book.md, the curated Harshal's Systems Markdown library at
+   /book-library/, and the plaintext chapters of manuscript/ — everything
+   else is a plain 404 that does not admit what exists.
 
    The manuscript index is not a checked-in file: it is built from the
    chapter files on request, so dropping a new .txt into
@@ -41,6 +43,11 @@ const loadManuscriptIndex = async () => {
   if (!manuscriptIndex) manuscriptIndex = await import("./scripts/manuscript-index.mjs");
   return manuscriptIndex;
 };
+let bookLibraryIndex = null;
+const loadBookLibraryIndex = async () => {
+  if (!bookLibraryIndex) bookLibraryIndex = await import("./scripts/book-library-index.mjs");
+  return bookLibraryIndex;
+};
 /* The manifest is rebuilt from disk at most once every 1.5 s: long enough
    that a page load asking twice does not re-read every chapter, short enough
    that a saved edit appears on the next reload. */
@@ -53,6 +60,16 @@ async function manuscriptManifest() {
   const { buildManifest, serializeManifest } = await loadManuscriptIndex();
   const body = serializeManifest(await buildManifest(ROOT));
   manifestCache = { at: now, body };
+  return body;
+}
+let bookLibraryCache = { at: 0, body: null };
+async function bookLibraryManifest() {
+  const now = Date.now();
+  if (bookLibraryCache.body && now - bookLibraryCache.at < MANIFEST_TTL_MS) return bookLibraryCache.body;
+  const { buildBookLibrary, serializeBookLibrary } = await loadBookLibraryIndex();
+  const { manifest } = await buildBookLibrary(ROOT);
+  const body = serializeBookLibrary(manifest);
+  bookLibraryCache = { at: now, body };
   return body;
 }
 
@@ -75,17 +92,22 @@ const MIME = {
   ".woff2": "font/woff2"
 };
 
-/* The deployed site, as a set of path patterns. The `specs/normative/*.md`
-   and `specs/draft/*.md` paths are the only non-asset documentation exposed
-   to the browser; they are fetched by the Ground-0 specification reader.
-   Manuscript chapter paths are checked against the generated index below,
-   not against the filesystem alone. */
+/* The deployed site, as a set of path patterns. Repository documents are
+   exposed only through the selected Core Book route, the curated
+   docs/harshal-systems collection library, and the versioned Ground-0 specs;
+   unrelated docs/ paths remain private. Manuscript chapters are indexed. */
+const BOOK_LIBRARY_MANIFEST_PATH = "/book-library/manifest.json";
+const BOOK_LIBRARY_SOURCE_ROOT = path.resolve(ROOT, "docs", "harshal-systems");
+const BOOK_LIBRARY_FILE_PATH = /^\/book-library\/harshal-systems\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.md$/;
 const SERVED = [
   /^\/$/,                                   // index.html
   /^\/[A-Za-z0-9_-]+\.html$/,               // about.html and friends
   /^\/css\/[A-Za-z0-9._-]+$/,
   /^\/js\/[A-Za-z0-9._-]+$/,
   /^\/assets\/[A-Za-z0-9._/-]+$/,
+  /^\/book\/01-core-book\.md$/,            // one explicitly selected source document
+  /^\/book-library\/manifest\.json$/,
+  BOOK_LIBRARY_FILE_PATH,                    // curated Markdown subtree only
   /^\/specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/,
   /^\/manuscript\/[A-Za-z0-9._/-]+$/      // manifest.json and public chapters only
 ];
@@ -112,6 +134,38 @@ http.createServer(async (req, res) => {
     /* The manuscript index is generated from the chapter files; chapters are
        served only when the index names them, so a stray file dropped in the
        folder is not published by accident. */
+    if (p === BOOK_LIBRARY_MANIFEST_PATH) {
+      const body = await bookLibraryManifest();
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Length": Buffer.byteLength(body),
+        "Cache-Control": "no-store"
+      });
+      res.end(body);
+      return;
+    }
+    if (p.startsWith("/book-library/harshal-systems/")) {
+      const relative = p.slice("/book-library/harshal-systems/".length);
+      const file = path.resolve(BOOK_LIBRARY_SOURCE_ROOT, ...relative.split("/"));
+      if (!file.startsWith(BOOK_LIBRARY_SOURCE_ROOT + path.sep) || !file.toLowerCase().endsWith(".md")) {
+        res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+        res.end("404 " + p);
+        return;
+      }
+      try {
+        const data = await fs.promises.readFile(file);
+        res.writeHead(200, {
+          "Content-Type": MIME[".md"],
+          "Content-Length": data.length,
+          "Cache-Control": "no-cache"
+        });
+        res.end(data);
+      } catch {
+        res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+        res.end("404 " + p);
+      }
+      return;
+    }
     if (p === MANUSCRIPT_MANIFEST_PATH) {
       const body = await manuscriptManifest();
       res.writeHead(200, {
@@ -144,7 +198,9 @@ http.createServer(async (req, res) => {
       return;
     }
 
-    const file = path.normalize(path.join(ROOT, p));
+    const file = p === "/book/01-core-book.md"
+      ? path.join(ROOT, "docs", "harshal-systems", "01-core-book.md")
+      : path.normalize(path.join(ROOT, p));
     if (!file.startsWith(ROOT)) { res.writeHead(403); res.end("forbidden"); return; }
     fs.readFile(file, (err, data) => {
       if (err) {

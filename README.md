@@ -93,7 +93,7 @@ of a same-origin relay. Without it, every BYOK connection point still works exac
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include two worked frontier-lab case studies: [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) |
 | **Symbolic Firewall** | Narrative, mythic, and commercial metaphor is sealed as **non-executable** — the structural defense against neurojacking |
 | **500 voting coins** | Bounded-governance simulation of the physical hardcover book's coin pool — influence limited by design |
-| **The Grand River Foundation** | The second tab under **The Book**: a chapter-by-chapter reading view for a plaintext manuscript submitted as ordinary `.txt` files under [`manuscript/the-grand-river-foundation/`](manuscript/README.md). The site builds the chapter index from the files themselves — no build step, no editor, no upload from the browser — and renders one chapter at a time with a contents rail, word counts, remembered reading position, and a SHA-256 digest of the text as loaded. A manuscript is read here, never executed: every chapter is escaped before it reaches the DOM. The digest identifies a state of the text; it is not a signature, an authorization, or proof of authorship |
+| **The Book tabs** | In order: **Intro (0)** retains the physical-artifact and 500-Coin Pool view; **Core (1)** reads [`docs/harshal-systems/01-core-book.md`](docs/harshal-systems/01-core-book.md) through a safe Markdown renderer; **Novel (2)** retains *The Grand River Foundation* manuscript reader; **Collections (N)** is fourth and organizes all seven collections and all 39 Markdown files under `docs/harshal-systems/`—guides, collection overviews, and modules—with a searchable site reader and direct GitHub link for every file. The novel's generated index, one-chapter-at-a-time reading, remembered position, and SHA-256 text digest are preserved. Content is read, never executed; digests identify text state, not authorship, authorization, or proof |
 | **Glossary** | Part II stabilized terms, searchable |
 | **Zero Trust / Harshal Neural OS** | The framework calls for external, per-action, time-bounded authorization. This browser demo does not implement that production trust anchor; its local gate only models the refusal/freshness rules and cannot grant production authority |
 | **OCM visualization — The Orb** | HarshalOS itself rendered as a radiative sphere of influence: desktop apps as radiative nodes attached directly to the center (`0•[orb]•[sector]•[instance]`), the 360-address equatorial disc (`0•DDD•000•0000`), the disc→sphere formation animation (rotation over time + depth), distance shells (`0•DDD•RRR•####`), the non-sovereign resolution axis, AI inner shell, lateral comms, and interaction-orb arcs — drag to orbit, click a node to inspect its address lineage |
@@ -101,7 +101,7 @@ of a same-origin relay. Without it, every BYOK connection point still works exac
 
 ### Submitting a manuscript chapter
 
-**The Book → The Grand River Foundation** reads plaintext straight from
+**The Book → Book II — Preview · The Grand River Foundation** reads plaintext straight from
 [`manuscript/the-grand-river-foundation/`](manuscript/README.md). The submission step is a commit:
 
 ```text

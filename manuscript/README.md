@@ -2,7 +2,7 @@
 
 > **Strategic Principle:** *"The architecture (Book I) is the library. The novel (Book II) is the work in active production."*
 
-This directory holds the plaintext manuscript chapters of **Book II — *The Grand River Foundation* (`Book II — Preview`)**, the fictional companion novel to **Book I — *Harshal's Systems* (`Parts I–XXVII`)**.
+This directory holds the plaintext manuscript chapters of **Book II — *The Grand River Foundation* (`Book II — Preview`)**, the fictional companion novel to **Book I — *Harshal's Systems* (`Parts I–XXVII`)**. Its setting is Mistveil City, the Four Corners regional capital built around the Grand River Dam.
 
 ---
 
@@ -11,7 +11,7 @@ This directory holds the plaintext manuscript chapters of **Book II — *The Gra
 | Tier | Work | Provenance Class | Role in Corpus |
 | :--- | :--- | :--- | :--- |
 | **Book I** | ***Harshal's Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | Frozen technical, constitutional, and safety reference library (`docs/harshal-systems/` & `HARSHAL-SYSTEMS-USER-MANUAL.md`). |
-| **Book II — Preview** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | Active fictional companion novel set in **~2100 CE** around the 4,000-foot retrofitted Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council. Separated from normative specifications while maintaining strict architectural continuity with Book I. |
+| **Book II — Preview** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | Active fictional companion novel set in **~2100 CE** in Mistveil City, capital of the Four Corners region, built around the 4,000-foot retrofitted Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council. The dam's inner security envelope remains distinct from the city's emergency-access perimeter. Separated from normative specifications while maintaining strict architectural continuity with Book I. |
 
 ---
 
