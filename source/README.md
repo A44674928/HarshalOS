@@ -3,7 +3,7 @@
 | File | Purpose |
 |---|---|
 | `build.py` | The documentation build. Reads the Owner's Working Draft and writes the manual. |
-| `working-draft.md` | Canonical checked-in build input; the byte-identical former root copy is in `Archive/Duplicates/`. |
+| `working-draft.md` | Canonical checked-in build input; the byte-identical former root copy is in `archives/Duplicates/`. |
 
 ## Running the build
 
@@ -13,7 +13,7 @@ python3 source/build.py
 
 `build.py` uses the canonical snapshot beside this file. A root-level Owner's Working Draft
 can override it when supplied by another checkout; the identical root copy in this repository
-is quarantined under `Archive/Duplicates/`.
+is quarantined under `archives/Duplicates/`.
 
 Outputs:
 

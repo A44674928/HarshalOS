@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 # The checked-in canonical build input is the snapshot kept beside this script.
 # A root-level owner copy can still override it when supplied by another checkout;
-# the byte-identical copy formerly tracked at root is quarantined in Archive/Duplicates.
+# the byte-identical copy formerly tracked at root is quarantined in archives/Duplicates.
 _ROOT_DRAFT = os.path.join(ROOT, "Harshal's Systems (Copyrighted) [Owner's Working Draft].md")
 SRC = _ROOT_DRAFT if os.path.exists(_ROOT_DRAFT) else os.path.join(HERE, 'working-draft.md')
 OUTDIR = os.path.join(ROOT, 'docs', 'harshal-systems')

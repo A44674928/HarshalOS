@@ -68,6 +68,10 @@ test("P13: repository content is separated by status and purpose", async () => {
     "research/reports/Research_report_Anthropic_Compliance_and_Enforcement_Mechani.md",
     "archives/ground-0/ground-0-phase-detection-algorithm.zip",
     "archives/ground-0/ground-0-phase-detection-algorithm-2.zip",
+    "archives/Duplicates/DUPLICATE-QUARANTINE-MANIFEST.csv",
+    "archives/HarshalOS Previews/orb-skin-embers-L0.png",
+    "archives/Supply Chain/Documentation/Supply Chain++ Attack Vector Report-1.pdf",
+    "business plan/Stakeholders.txt",
     "manuscript/README.md",
     "manuscript/the-grand-river-foundation/_collection.json",
     "manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt",
@@ -103,6 +107,8 @@ test("P13: repository content is separated by status and purpose", async () => {
     "GROUND-0 CASE STUDY - OpenAI.md",
     "Research_report_Anthropic_Compliance_and_Enforcement_Mechani.md",
     "ground-0-phase-detection-algorithm.zip",
+    "Archive",
+    "Business Plan",
     "scripts/kernel-api-test.mjs"
   ]) assert.equal(await exists(path.join(ROOT, legacy)), false, `legacy root/script path should be retired: ${legacy}`);
 });
@@ -164,7 +170,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(manuscriptFiles.includes("manuscript/README.md"), false, "the folder instructions are not published");
     assert.equal(manuscriptFiles.includes("manuscript/the-grand-river-foundation/_collection.json"), false, "collection metadata is not published");
 
-    for (const excluded of ["docs", "case-studies", "research", "archives", "tests", "scripts", "worker", "Business Plan", "SECURITY.md", "README.md"]) {
+    for (const excluded of ["docs", "case-studies", "research", "archives", "tests", "scripts", "worker", "business plan", "SECURITY.md", "README.md"]) {
       assert.equal(await exists(path.join(SITE, excluded)), false, `repository-only content must not be staged: ${excluded}`);
     }
   } finally {
@@ -219,9 +225,10 @@ test("P13: local preview serves the selected Book I source and Collections libra
       "/book-library/private.txt",
       "/docs/REPOSITORY-STRUCTURE.md",
       "/PLUGIN-ARCHITECTURE.md",
-      "/Archive/",
-      "/Archive/Duplicates/DUPLICATE-QUARANTINE-MANIFEST.csv",
+      "/archives/",
+      "/archives/Duplicates/DUPLICATE-QUARANTINE-MANIFEST.csv",
       "/archives/screenshots/2026-08/",
+      "/business%20plan/Stakeholders.txt",
       "/tests/repository-layout-test.mjs",
       "/specs/source-material.md",
       "/manuscript/README.md",
