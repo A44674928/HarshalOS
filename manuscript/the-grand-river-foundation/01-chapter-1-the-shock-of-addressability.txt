@@ -76,11 +76,11 @@ The man smiled faintly, a tired, quiet expression that made Vance feel suddenly 
 
 She blinked. "What?"
 
-"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Colorado River megastructure—a four-thousand-foot retrofitted dam completed in 2098."
+"You didn't check the phase routing before you drove out here, did you?" He gestured toward the monitor. "Phoenix is running on sixty-hertz regional solar. The feeder your consortium attempted to bleed last night doesn't run to the valley. It links directly to the southern intake conduits of the Grand River Foundation's modular Colorado River dam series. The first dam-and-city module entered operation circa 2046; the 2098 commissioning was another expansion milestone, not the end of construction. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; the 4,000-foot aggregate remains the long-range fictional target, not one wall."
 
 The air in the room seemed to drop ten degrees.
 
-"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery that stabilizes the water and electricity of forty million people. If that surge had caused a harmonic resonance failure in the deep turbine vaults, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
+"Your algorithms," he continued, "tried to force an eleven-million-dollar speculative load surge into a high-pressure hydrological artery in a network modeled to serve about forty million people across three nations. That legacy figure is a regional service metric, not Mistveil's city census, and its overlap with the city's residents is not specified. Mistveil itself is targeted at roughly eighty million residents by 2100. If the surge had caused a harmonic resonance failure in one of the turbine galleries, the civilizational catastrophe wouldn't be eleven million dollars. It would be well over a trillion dollars, and the Colorado River would have carved a new path through the desert."
 
 He looked at her steadily. "I stopped your surge because I protect this watershed. That is the only calculation that mattered."
 

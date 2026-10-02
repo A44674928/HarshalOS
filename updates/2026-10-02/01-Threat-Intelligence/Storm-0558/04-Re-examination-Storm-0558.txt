@@ -1,3 +1,7 @@
+SOURCE EXCERPT NOTICE (2026-10-02)
+Artifact class: DERIVATIVE_BUILD excerpt attributed to Microsoft MSRC, “Results of Major Technical Investigations for Storm-0558 Key Acquisition,” September 6, 2023: https://www.microsoft.com/en-us/msrc/blog/2023/09/results-of-major-technical-investigations-for-storm-0558-key-acquisition
+This partial retained extract records Microsoft’s earlier leading hypothesis; it is not a complete or independent incident record. Microsoft said it had not found a crash dump containing the impacted key and lacked direct exfiltration logs. The March 20, 2024 CSRB review found no evidence/logs that the key was in or exfiltrated from a dump and described Microsoft’s earlier dump account as inaccurate. Read PROVENANCE.md and the CSRB report before treating any statement below as current fact.
+
 Results of Major Technical Investigations for Storm-0558 Key Acquisition
 
 First, what hasn’t changed:

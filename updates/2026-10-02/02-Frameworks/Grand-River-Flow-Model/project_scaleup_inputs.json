@@ -1,0 +1,171 @@
+{
+  "metadata": {
+    "as_of": "2026-10-02",
+    "baseline_year": 2026,
+    "first_operational_milestone_year": 2046,
+    "mistveil_population_2100_people": 80000000,
+    "regional_service_population_legacy_people": 40000000,
+    "regional_service_population_additive": false,
+    "early_aggregate_head_ft": [1200, 2500],
+    "early_aggregate_head_horizon_years_from_baseline": [40, 60],
+    "long_range_aggregate_head_ft": 4000,
+    "long_range_completion_year": null,
+    "portfolio_target_gw": 1000,
+    "portfolio_target_basis": "installed/nameplate electrical capacity; provisional interpretation"
+  },
+  "energy": {
+    "hours_per_year": 8760,
+    "portfolio_capacity_factor_scenarios": [0.3, 0.4, 0.5, 0.7, 0.9],
+    "city_electricity_mwh_per_resident_year": [5, 10, 20],
+    "city_peak_load_factor_scenarios": [0.65, 0.75, 0.85],
+    "city_electricity_scope": "Illustrative city-facing electricity intensity only; excludes the separately modeled bulk transfer lift and seawater desalination, and excludes separately unmodeled construction and major industrial/process loads.",
+    "demonstration_mix": [
+      {
+        "technology": "Utility-scale solar PV",
+        "classification": "RENEWABLE_VARIABLE",
+        "capacity_gw": 400,
+        "capacity_factor": 0.287,
+        "capacity_source": null,
+        "basis": "EIA 2024 Arizona utility-scale PV capacity factor (28.7%) used as a reference, not a forecast. Portfolio rating is treated as AC; land sensitivity converts to DC with a separate ratio assumption."
+      },
+      {
+        "technology": "Wind",
+        "classification": "RENEWABLE_VARIABLE",
+        "capacity_gw": 300,
+        "capacity_factor": 0.343,
+        "capacity_source": null,
+        "basis": "EIA 2024 United States utility-scale wind capacity factor (34.3%) used as a reference, not a site forecast."
+      },
+      {
+        "technology": "Small modular reactors (SMRs)",
+        "classification": "LOW_CARBON_FIRM_NOT_RENEWABLE",
+        "capacity_gw": 150,
+        "capacity_factor": 0.908,
+        "capacity_source": null,
+        "module_mwe": 50,
+        "basis": "EIA 2024 United States nuclear-fleet capacity factor (90.8%) used as an availability reference, not an SMR guarantee. At the legacy 50-MWe module assumption this is 3,000 modules."
+      },
+      {
+        "technology": "Geothermal",
+        "classification": "RENEWABLE_SITE_LIMITED",
+        "capacity_gw": 100,
+        "capacity_factor": 0.646,
+        "capacity_source": null,
+        "basis": "EIA 2024 United States geothermal fleet capacity factor (64.6%) used as a reference; the project's resource and achievable capacity are unknown."
+      },
+      {
+        "technology": "Grand River hydro reference",
+        "classification": "RENEWABLE_FLOW_AND_HEAD_LIMITED",
+        "capacity_gw": null,
+        "capacity_factor": 0.7,
+        "capacity_source": "long_range_hydro_reference",
+        "basis": "Conditional electrical output calculated by recalculate.py at 476 m3/s, 4,000 ft gross aggregate head, and 90% conversion efficiency; the 70% capacity factor is illustrative. Not an allocation, firm yield, or validated nameplate rating."
+      },
+      {
+        "technology": "Marine / tidal current",
+        "classification": "RENEWABLE_EMERGING_SITE_LIMITED",
+        "capacity_gw": null,
+        "capacity_factor": 0.35,
+        "capacity_source": "target_residual",
+        "basis": "Residual arithmetic allocation to make the example total 1,000 GW; not a proposed coastal resource, site, or capacity forecast. Requires a separate coastal/offshore resource and transmission case."
+      }
+    ],
+    "hydrogen_storage": {
+      "round_trip_efficiency": 0.4,
+      "delivered_load_fraction_scenarios": [0, 0.2, 0.4, 1.0],
+      "count_as_primary_generation": false,
+      "basis": "Hydrogen fuel cells are modeled as discharge equipment for stored energy. Electricity used for electrolysis is the primary input; the stated round-trip efficiency is an illustrative system assumption."
+    },
+    "illustrative_capacity_ramp": {
+      "status": "Scenario-only analyst inputs; not canonical milestones, an optimized deployment schedule, or a physical construction plan.",
+      "post_2046_mix_scales_proportionally_from_demonstration_mix": true,
+      "first_operation": {
+        "smr_nameplate_gw": 4.0,
+        "smr_capacity_factor": 0.9,
+        "hydro_capacity_from_core_early_head_cases": true,
+        "hydro_capacity_factor": 0.7,
+        "basis": "Combine the existing 80 x 50-MWe SMR arithmetic case with the existing 476-m3/s, 1,200–2,500-ft conditional hydro sensitivities. The hydro figures are electrical-output proxies before site/net-head validation, not firm ratings."
+      },
+      "later_milestones": [
+        {"year": 2066, "capacity_gw": 25},
+        {"year": 2086, "capacity_gw": 100},
+        {"year": 2100, "capacity_gw": 300},
+        {"year": null, "capacity_gw": 1000, "label": "Long-range 1-TW goal; no completion year assigned"}
+      ]
+    }
+  },
+  "water": {
+    "julian_days_per_year": 365.25,
+    "city_liters_per_resident_day": [150, 310.4],
+    "city_water_labels": [
+      "Illustrative planning allowance (150 L/person/day)",
+      "EPA at-home U.S. comparison (82 gal/person/day ≈ 310.4 L/person/day)"
+    ],
+    "seawater_reverse_osmosis_kwh_per_m3_product": [2.7, 3.3, 4.0],
+    "swro_labels": ["DOE lower reference", "DOE weighted current-typical reference", "DOE higher reference"],
+    "bulk_transfer_model": "Read from recalculate.py so the 29.75 km3/year flow, 4,000-ft static lift, pump input, and conditional one-pass recovery stay tied to the canonical Grand River recalculation. Desalination is an optional separate case, not automatically part of that flow."
+  },
+  "land": {
+    "city_gross_density_people_per_km2": [5000, 10000, 16000, 20000],
+    "pv_capacity_density_mw_dc_per_km2": 43,
+    "pv_dc_to_ac_ratio_scenarios": [1.0, 1.3],
+    "wind_capacity_density_mw_per_km2": [3, 7],
+    "reservoir_volume_km3": 73,
+    "reservoir_mean_depth_m_scenarios": [50, 100, 250],
+    "area_scope_note": "City boundary, solar array area, wind project envelope, and reservoir surface are separate model quantities. Wind envelope is not fully disturbed land. Do not add them into a surveyed project footprint or assume sites do not overlap."
+  },
+  "air": {
+    "illustrative_occupant_component_liters_per_second_per_design_occupant": [2.5, 5.0],
+    "airflow_scope_note": "A scale illustration only, not an ASHRAE code rate or a claim that every resident is indoors simultaneously. Actual outdoor air is space/occupancy and floor-area specific; system-level ventilation effectiveness and applicable local codes must be applied."
+  },
+  "milestones": [
+    {
+      "milestone": "Ground-0 baseline",
+      "window": "2026",
+      "population_people": null,
+      "aggregate_head_ft": null,
+      "portfolio_capacity_gw": null,
+      "note": "Establish source, site, demand, rights, land, ecology, air, transmission, and safety evidence; no project-wide build capacity is assigned."
+    },
+    {
+      "milestone": "Pre-operation / first module",
+      "window": "2026–2046",
+      "population_people": null,
+      "aggregate_head_ft": null,
+      "portfolio_capacity_gw": null,
+      "note": "Target first operational dam-and-city module around 2046. Size any pilot to a separately defined service boundary; no first-operation census or GW target is assigned."
+    },
+    {
+      "milestone": "First expansion window",
+      "window": "2046–2066",
+      "population_people": null,
+      "aggregate_head_ft": null,
+      "portfolio_capacity_gw": null,
+      "note": "First 20-year construction/supply-chain window; add modular works and generation only against measured/declared phase loads and gates."
+    },
+    {
+      "milestone": "Early cumulative-head horizon",
+      "window": "2066–2086 (40–60 years from 2026)",
+      "population_people": null,
+      "aggregate_head_ft": [1200, 2500],
+      "portfolio_capacity_gw": null,
+      "note": "Early-phase aggregate gross-head aspiration across distinct stages; no individual dam height, reservoir depth, or capacity milestone is implied."
+    },
+    {
+      "milestone": "Mistveil 2100 population target",
+      "window": "By 2100, within the 2086–2106 planning window",
+      "population_people": 80000000,
+      "aggregate_head_ft": null,
+      "portfolio_capacity_gw": null,
+      "note": "The ~40-million regional-service figure stays separate and is not added to this city population."
+    },
+    {
+      "milestone": "Long-range buildout",
+      "window": "2106 onward; completion year unassigned",
+      "population_people": null,
+      "aggregate_head_ft": 4000,
+      "portfolio_capacity_gw": 1000,
+      "note": "Long-range fictional aggregate-head target and provisional 1-TW installed/nameplate multi-source ambition; no final completion date or source allocation is set."
+    }
+  ]
+}

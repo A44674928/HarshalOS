@@ -1,0 +1,172 @@
+/* Universal Timekeeping System: optional, display-only Home Screen clock/calendar. */
+.home-time-widget {
+  position: absolute;
+  z-index: 3;
+  top: 24px;
+  right: clamp(20px, 4vw, 58px);
+  width: min(314px, calc(100vw - 36px));
+  padding: 14px 15px 12px;
+  color: #e2edf5;
+  border: 1px solid rgba(126, 195, 225, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(12, 26, 45, 0.88), rgba(10, 16, 31, 0.8));
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.28), inset 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font-family: var(--mono);
+}
+.home-time-head, .home-cal-head, .home-time-row, .home-cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.home-time-head { margin-bottom: 12px; }
+.home-widget-label, .home-time-widget .home-time-caption, .home-cal-weekdays,
+.home-time-widget .home-utc-label {
+  color: rgba(190, 216, 231, 0.56);
+  font-size: 8px;
+  letter-spacing: 0.15em;
+}
+.home-time-widget .home-uts-open {
+  border: 1px solid rgba(126, 195, 225, 0.22);
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: rgba(126, 195, 225, 0.07);
+  color: #a9d8ee;
+  font: inherit;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.home-time-widget .home-uts-open:hover, .home-time-widget .home-uts-open:focus-visible {
+  outline: 1px solid rgba(126, 195, 225, 0.65);
+  background: rgba(126, 195, 225, 0.15);
+}
+.home-time-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0 12px;
+  border-top: 1px solid rgba(197, 222, 235, 0.1);
+  border-bottom: 1px solid rgba(197, 222, 235, 0.1);
+}
+.home-local-clock {
+  display: block;
+  margin-top: 4px;
+  color: #f3f7f7;
+  font-size: 23px;
+  line-height: 1.1;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+}
+.home-local-zone { display: block; margin-top: 4px; color: rgba(204, 222, 232, 0.58); font-size: 8px; }
+.home-utc-group { min-width: 0; text-align: right; }
+.home-utc-clock { display: block; margin-top: 5px; color: #b3d8e9; font-size: 9px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.home-uts-date { display: block; margin-top: 3px; color: #d7c48c; font-size: 10px; letter-spacing: 0; }
+.home-uts-model-note { display: block; margin-top: 3px; color: rgba(204, 222, 232, 0.48); font-family: var(--sans); font-size: 8px; text-align: right; }
+.home-cal-head { padding: 11px 0 8px; }
+.home-cal-date { min-width: 0; overflow: hidden; color: rgba(222, 237, 246, 0.82); font: 10px var(--sans); text-overflow: ellipsis; white-space: nowrap; }
+.home-cal-month { color: #d9e7ee; font-size: 10px; letter-spacing: 0.02em; }
+.home-cal-nav { gap: 4px; }
+.home-cal-nav button {
+  width: 22px; height: 21px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(212, 230, 239, 0.72);
+  font: 12px var(--mono);
+  cursor: pointer;
+}
+.home-cal-nav button:hover, .home-cal-nav button:focus-visible { border-color: rgba(126, 195, 225, 0.3); color: #fff; outline: none; }
+.home-cal-weekdays, .home-cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+.home-cal-weekdays { padding: 2px 0 4px; font-size: 7px; }
+.home-cal-day {
+  display: grid;
+  min-height: 22px;
+  place-items: center;
+  color: rgba(221, 235, 243, 0.72);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.home-cal-day.today {
+  width: 20px; height: 20px; min-height: 20px;
+  margin: 1px auto;
+  border: 1px solid rgba(244, 206, 123, 0.67);
+  border-radius: 50%;
+  background: rgba(244, 206, 123, 0.12);
+  color: #f4ce7b;
+}
+.home-cal-note { margin: 7px 0 0; color: rgba(190, 216, 231, 0.45); font: 8px/1.45 var(--sans); }
+
+/* Full UTS app */
+.uts-watch-panel {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(260px, 1.2fr);
+  gap: 18px;
+  margin: 18px 0 24px;
+  padding: 18px;
+  border: 1px solid rgba(126, 195, 225, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(26, 52, 74, 0.46), rgba(17, 24, 43, 0.57));
+}
+.uts-watch-primary strong { display: block; margin-top: 7px; color: #f4f7f7; font: 32px var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.06em; }
+.uts-eyebrow { color: rgba(190, 216, 231, 0.56); font: 9px var(--mono); letter-spacing: 0.14em; }
+.uts-watch-primary small { display: block; margin-top: 5px; color: var(--text-dim); font-size: 11px; }
+.uts-watch-secondary { display: grid; align-content: center; gap: 12px; min-width: 0; }
+.uts-watch-secondary > div { display: grid; gap: 4px; }
+.uts-watch-secondary span { color: rgba(190, 216, 231, 0.54); font: 8px var(--mono); letter-spacing: 0.14em; }
+.uts-watch-secondary code { overflow-wrap: anywhere; color: #c2deeb; font: 11px/1.5 var(--mono); }
+.uts-watch-secondary > div:last-child code { color: #e0cc92; }
+.uts-converter { display: grid; grid-template-columns: auto minmax(80px, 0.7fr) auto minmax(200px, 1.3fr) auto; align-items: end; gap: 9px; margin: 14px 0 12px; }
+.uts-converter label { color: var(--text-dim); font: 10px var(--mono); }
+.uts-converter input, .uts-converter select {
+  min-width: 0;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(5, 11, 22, 0.7);
+  color: var(--text);
+  font: 11px var(--mono);
+}
+.uts-converter .btn { min-height: 36px; white-space: nowrap; }
+.uts-results { margin: 10px 0 22px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: rgba(5, 11, 22, 0.44); }
+.uts-result-caption { margin: 0 0 9px; color: var(--gold); font: 11px var(--mono); }
+.uts-results dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; margin: 0; }
+.uts-results dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid rgba(197, 222, 235, 0.08); }
+.uts-results dt { color: var(--text-dim); font-size: 10px; }
+.uts-results dd { margin: 0; color: var(--text); font: 10px var(--mono); text-align: right; overflow-wrap: anywhere; }
+.uts-definition-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 12px 0 16px; }
+.uts-definition-grid > div { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.02); }
+.uts-definition-grid strong { color: var(--ice); font: 12px var(--mono); }
+.uts-definition-grid span { color: var(--text); font: 9px var(--mono); }
+.uts-definition-grid small { color: var(--text-faint); font-size: 9px; }
+
+@media (max-width: 920px) {
+  .home-time-widget { top: 18px; right: 18px; width: min(292px, calc(100vw - 176px)); padding: 11px 12px 9px; }
+  .home-time-main { gap: 8px; }
+  .home-local-clock { font-size: 19px; }
+  .home-cal-day { min-height: 19px; }
+  .home-cal-day.today { width: 18px; height: 18px; min-height: 18px; }
+  .uts-converter { grid-template-columns: auto minmax(90px, 1fr) auto minmax(160px, 1.4fr); }
+  .uts-converter .btn { grid-column: 1 / -1; justify-self: end; }
+}
+@media (max-width: 620px) {
+  .home-time-widget { top: auto; right: 10px; bottom: 14px; width: min(300px, calc(100vw - 20px)); padding: 10px 11px 8px; }
+  .home-widget-label { font-size: 7px; }
+  .home-time-main { grid-template-columns: 1fr auto; padding: 8px 0 9px; }
+  .home-local-clock { font-size: 18px; }
+  .home-uts-model-note { max-width: 130px; }
+  .home-cal-head { padding: 8px 0 5px; }
+  .home-cal-day { min-height: 17px; }
+  .uts-watch-panel { grid-template-columns: 1fr; gap: 13px; }
+  .uts-watch-secondary { grid-template-columns: 1fr; }
+  .uts-converter { grid-template-columns: 1fr 1fr; align-items: end; }
+  .uts-converter label:nth-of-type(2) { grid-column: 1 / -1; }
+  .uts-converter select { grid-column: 1 / -1; }
+  .uts-converter .btn { grid-column: 1 / -1; justify-self: stretch; }
+  .uts-results dl { grid-template-columns: 1fr; }
+  .uts-definition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -3,10 +3,10 @@
   "manuscript": {
     "collections": 1,
     "chapters": 9,
-    "words": 15808,
-    "bytes": 102399
+    "words": 16033,
+    "bytes": 103882
   },
-  "digest": "de74acddcd21f07bb7aec735bb2b4a315dd4db22b9a05c743f55dfe829b1a050",
+  "digest": "822f7bf950f96a04de85e0ac880843aafb4d3fe3fb95c58bb4e02f3c3c9abced",
   "collections": [
     {
       "id": "the-grand-river-foundation",
@@ -18,11 +18,11 @@
       "title": "The Grand River Foundation (Book II — Preview)",
       "subtitle": "Book II — Preview · A Fictional Companion Novel Set in ~2100",
       "author": "Harshal Priyavadan Patel",
-      "description": "Separated from the normative Book I specifications, The Grand River Foundation (Book II — Preview) uses a ~2100 setting around the 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council as the future-world sandbox for mature implementations of Harshal's Systems.",
+      "description": "A fictional ~2100 future-world sandbox around the phased Grand River Foundation dam series and Mistveil City. First dam-and-city operation is targeted circa 2046; 2098 is an interim commissioning/expansion milestone, not final completion; 20-year build windows reflect supply-chain constraints, not physical limits; Mistveil targets ~80 million residents by 2100. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not a real-world engineering claim or single-dam height.",
       "chapterCount": 9,
-      "words": 15808,
-      "bytes": 102399,
-      "digest": "15ba4b75ec8e4aa1f338a088245cea4cdb10318fab612145920ed6286f71845d",
+      "words": 16033,
+      "bytes": 103882,
+      "digest": "be64f67ec660734f60193b909731598239de441c8ba2b8455fa699bf1a3aa7ea",
       "chapters": [
         {
           "id": "00-prologue-the-geometry-of-restraint",
@@ -41,9 +41,9 @@
           "file": "manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt",
           "title": "Chapter 1 The Shock Of Addressability",
           "order": 1,
-          "bytes": 10247,
-          "words": 1613,
-          "sha256": "cf6e6c9d0a172cebfddc62e2892473a36cb3fc8beaae74d5a6a1dd47df1a2af0",
+          "bytes": 10767,
+          "words": 1694,
+          "sha256": "e306f929529af2f0e3cca7e396ba526d8a36adec00c378a898bbd2ea54df53c1",
           "index": 2
         },
         {
@@ -52,9 +52,9 @@
           "file": "manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt",
           "title": "Chapter 2 The Citadel On The Rim",
           "order": 2,
-          "bytes": 12683,
-          "words": 1961,
-          "sha256": "fdd65ae70163979795d7ef2402f9782390788186793de030b3779fce973486f8",
+          "bytes": 13497,
+          "words": 2087,
+          "sha256": "c8874c09072ec80bfc368ddfc0dc22419f3d6820d38328788d4ab3ff3be5573d",
           "index": 3
         },
         {
@@ -63,9 +63,9 @@
           "file": "manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt",
           "title": "Interstitial Cable Select",
           "order": 3,
-          "bytes": 10924,
-          "words": 1802,
-          "sha256": "b8823eae036c1094807706fcfec22eff364e5a46c0c03c2e23ded3555e99e8f6",
+          "bytes": 11040,
+          "words": 1813,
+          "sha256": "67ffeb333f6e59636d4a50a794b0083b98c0730305fd7841c8ad760e5473a7c6",
           "index": 4
         },
         {
@@ -74,9 +74,9 @@
           "file": "manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt",
           "title": "Chapter 3 The Paper Siege",
           "order": 4,
-          "bytes": 19754,
-          "words": 3001,
-          "sha256": "66d0fd1318ab3fa6964dcd2cd01108ccc478e2372611b7dd4ffbdfbbac85d52e",
+          "bytes": 19767,
+          "words": 3002,
+          "sha256": "17b11441af205aac263b718f03e82aa617f1fbab5e9301298af0f15169fd8dba",
           "index": 5
         },
         {
@@ -85,9 +85,9 @@
           "file": "manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt",
           "title": "Chapter 4 The Prompt Supercritical Threat",
           "order": 5,
-          "bytes": 10902,
-          "words": 1695,
-          "sha256": "6c1baab9a842c78395a8952a4a527c594808079a6b25ec6865ae34a37a333074",
+          "bytes": 10909,
+          "words": 1697,
+          "sha256": "c073a5c70378148bb731164c503bd067da832c478daa86af85aa1925dd61d723",
           "index": 6
         },
         {
@@ -96,9 +96,9 @@
           "file": "manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt",
           "title": "Chapter 5 The Zero Degree Meridian",
           "order": 6,
-          "bytes": 16189,
-          "words": 2524,
-          "sha256": "e4c20995bcefc095677507c9ea1126c54f1598ca99877746e6ee321fc450eb51",
+          "bytes": 16181,
+          "words": 2525,
+          "sha256": "05b222d4df6aad7ee21c90cefc7a05eb1307c074ecb15256064c4dac5af42ec1",
           "index": 7
         },
         {
@@ -118,9 +118,9 @@
           "file": "manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt",
           "title": "Chapter 7 The Origin Continuity Covenant",
           "order": 8,
-          "bytes": 8129,
-          "words": 1252,
-          "sha256": "7253ef5165e7b737ad1e180cc1569f730f9232366cf52669d00b5009ff39dded",
+          "bytes": 8150,
+          "words": 1255,
+          "sha256": "36c12399e985c9cc46f1cdc3ec4eb606886c4daa69ac56377831dd2dde5ac5a1",
           "index": 9
         }
       ]

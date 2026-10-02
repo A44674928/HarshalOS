@@ -205,7 +205,78 @@ async function feedFixtures(now) {
       block: "SIM-004",
       demo: true
     },
-    ...demoMarketFixtures(now)
+    ...demoMarketFixtures(now),
+    {
+      _id: "empty-demo-storm0558-001",
+      title: "[DEMO] Storm-0558 evidence-classification study",
+      body: "Read-only training fixture summarizing linked public sources. Microsoft reported forged enterprise-mail tokens signed with an acquired MSA consumer key and a missing scope/issuer check. Microsoft's September 2023 crash-dump account was a leading hypothesis, not a confirmed path; the March 2024 CSRB found no evidence or logs that the impacted key was in or exfiltrated from a crash dump and described the earlier account as inaccurate. Author scenarios involving Stingrays, solar-cell implants, home routers, firmware, satellites, or device chains are not incident evidence. No detection in this demo has fired.",
+      category: "Threat Intelligence",
+      address: "EMPTY-DEMO-THREAT-STUDY-STORM0558",
+      sourceId: "empty-demo-threat-study-storm0558",
+      providerName: "Curated Public-Source Study · Demo",
+      publishedAt: ago(now, 3),
+      block: "SIM-STORM-0558-001",
+      demo: true,
+      studyFixture: {
+        schema: "gi-threat-study-fixture-v1",
+        trainingOnly: true,
+        liveAlert: false,
+        sourceAttestation: "none; links are references, not cryptographic verification",
+        assurance: "intentionally absent; do not score this study fixture",
+        claimLedger: [
+          {
+            claimId: "token-forgery-and-scope-validation",
+            status: "MICROSOFT_REPORTED",
+            summary: "Microsoft reported forged tokens using an acquired MSA consumer signing key and a missing issuer/scope validation check.",
+            sources: ["microsoft-msrc-2023-07-11", "microsoft-msrc-2023-09-06"]
+          },
+          {
+            claimId: "crash-dump-acquisition-path",
+            status: "ATTRIBUTED_HYPOTHESIS_LATER_CHALLENGED",
+            summary: "Microsoft called the crash-dump path a leading hypothesis; the CSRB later found no evidence/logs that the impacted key was in or exfiltrated from a dump.",
+            sources: ["microsoft-msrc-2023-09-06", "cisa-csrb-2024-03-20"]
+          },
+          {
+            claimId: "state-department-detection-window",
+            status: "CSRB_REPORTED",
+            summary: "The CSRB reports State Department anomaly detection on June 15, 2023 and Microsoft notification on June 16; attribute May 15 first access to Microsoft and retain the Board's log-retention caveat.",
+            sources: ["cisa-csrb-2024-03-20", "microsoft-msrc-2023-07-11"]
+          },
+          {
+            claimId: "solar-stingray-home-network-device-chain",
+            status: "AUTHOR_SPECULATION_NOT_INCIDENT_EVIDENCE",
+            summary: "These scenarios appear in author notes but are unsupported by the cited Storm-0558 record.",
+            sources: ["repository-author-notes-01-through-03"]
+          }
+        ],
+        excludedMaterials: [
+          { file: "05-Supply-Chain-Attack-Vector-Report.pdf", status: "UNRELATED_PAGER_WALKIE_TALKIE_CASE_STUDY" },
+          { file: "06-Dec-5th-2024.pdf", status: "UNRELATED_SALT_TYPHOON_NEWS_CLIPPING" }
+        ],
+        detectionIdeasStatus: "PROPOSED_UNVALIDATED_NOT_PRODUCTION_RULES",
+        provenanceRegister: "updates/2026-10-02/01-Threat-Intelligence/Storm-0558/PROVENANCE.md",
+        sources: [
+          {
+            id: "microsoft-msrc-2023-07-11",
+            publisher: "Microsoft MSRC",
+            publishedAt: "2023-07-11",
+            url: "https://www.microsoft.com/en-us/msrc/blog/2023/07/microsoft-mitigates-china-based-threat-actor-storm-0558-targeting-of-customer-email"
+          },
+          {
+            id: "microsoft-msrc-2023-09-06",
+            publisher: "Microsoft MSRC",
+            publishedAt: "2023-09-06",
+            url: "https://www.microsoft.com/en-us/msrc/blog/2023/09/results-of-major-technical-investigations-for-storm-0558-key-acquisition"
+          },
+          {
+            id: "cisa-csrb-2024-03-20",
+            publisher: "CISA Cyber Safety Review Board",
+            publishedAt: "2024-03-20",
+            url: "https://www.cisa.gov/sites/default/files/2024-03/CSRB%20Review%20of%20the%20Summer%202023%20MEO%20Intrusion%20Final_508c.pdf"
+          }
+        ]
+      }
+    }
   ];
 }
 
@@ -221,7 +292,8 @@ export async function handleGoodIntelligenceDemo(request, now = Date.now()) {
     return json({ success: true, environment: "empty.domains-demo", data: [
       { _id: "empty-demo-category-01", name: "Supply Chain" },
       { _id: "empty-demo-category-02", name: "Public Safety" },
-      { _id: "empty-demo-category-03", name: "Markets" }
+      { _id: "empty-demo-category-03", name: "Markets" },
+      { _id: "empty-demo-category-04", name: "Threat Intelligence" }
     ] });
   }
   if (url.pathname === `${PREFIX}/rank`) {

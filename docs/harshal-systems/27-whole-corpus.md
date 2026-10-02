@@ -30,7 +30,7 @@ words: 2038
 | :--- | :--- | :--- | :--- | :--- |
 | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | **Book I & Book II Umbrella** (`07-companion-fiction-and-corpus`) |
 
-> The capstone architectural synthesis and master index of the entire Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the Document Provenance and Evidence-Status Taxonomies, specifies the six-stage Canonical Minimum Model, summarizes all conceptual invariants, and indexes the seven functional collections across all 27 Parts.
+> The capstone architectural synthesis and master index of the entire Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the Document Provenance and Evidence-Status Taxonomies, specifies the six-stage Canonical Minimum Model, summarizes conceptual invariants, and indexes seven functional collections across all 27 Parts plus explicitly labeled derivative and fictional reference modules.
 
 **Source range:** Whole Corpus Synthesis (lines 1–16,675 + Book II Preview) · **Words:** 2,038
 
@@ -124,10 +124,10 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `01-foundations` | **Collection I — Foundational Doctrine & Core Book** | `PUBLIC_RESEARCH_SUMMARY` | `00-front-matter`, `00-author-front-matter`, `01-core-book`, `02-formalization`, `03-safety-rationale` |
 | `02-ags-ocm-core` | **Collection II — AGS+ & Orb Communicator Architecture** | `DEFENSIVE_SPECIFICATION` | `04-ags-architecture`, `05-ocm-orb`, `06-inner-shell`, `07-addressing-topology`, `08-operator-model`, `09-disc-lifecycle`, `10-ags-conformance`, `11-accessory-pack` |
 | `03-ground-zero-nab` | **Collection III — Ground-0 Phase Detection & Neural Atomic Bodies** | `DEFENSIVE_SPECIFICATION` | `12-ground-zero`, `13-whyland`, `14-nab-compendium`, `15-hmkh-controls`, `17-atomic-bodies`, `18-institutional-application` |
-| `04-flagship-research` | **Collection IV — Flagship Keyed Human–Machine Research, Threat Models & Supporting Policy Archive** | `PUBLIC_RESEARCH_SUMMARY` | `19-research-papers`, `16-threat-modeling`, `20-supply-chain`, `21-microconvergence`, `22-policy-archive` |
+| `04-flagship-research` | **Collection IV — Flagship Keyed Human–Machine Research, Threat Models & Supporting Policy Archive** | `PUBLIC_RESEARCH_SUMMARY` | `19-research-papers`, `16-threat-modeling`, `20-supply-chain`, `uts-reference`, `21-microconvergence`, `22-policy-archive` |
 | `05-constitutional-specs` | **Collection V — Defensive Constitutional Specification Series** | `DEFENSIVE_SPECIFICATION` | `23-specification-series`, `25-additional-specs` |
 | `06-incident-audits` | **Collection VI — Incident Record & External Platform Audits** | `INCIDENT_AND_AUDIT_RECORD` | `26-anthropic-b-side` |
-| `07-companion-fiction-and-corpus` | **Collection VII — Book II Fictional Companion Preview & Part XXVII Whole Corpus** | `PUBLIC_RESEARCH_SUMMARY` | `24-the-novel`, `27-whole-corpus` |
+| `07-companion-fiction-and-corpus` | **Collection VII — Book II Fictional Companion Preview & Part XXVII Whole Corpus** | `PUBLIC_RESEARCH_SUMMARY` | `24-the-novel`, `convergence-institutions`, `27-whole-corpus` |
 
 ---
 

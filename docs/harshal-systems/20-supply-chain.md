@@ -1097,42 +1097,22 @@ In an AGS-compliant architecture, decoherence must be formalized as a vital secu
 While superposition and multi-state encoding increase information density, a GSRB-classed processor must never utilize probabilistic or chance-based logic to resolve system states.
 To prevent this high-connectivity stack from acting as an unmonitored decision mesh, the specification must clearly bind these interactions to OCM Relational Arithmetic.
 
-Entry Title: The Universal Timekeeping System
-In The Convergence Universe, the need for a more comprehensive, universally applicable timekeeping system became apparent. The solution was found in the immutable speed of light, the fundamental constant that dictates the maximum speed at which information can travel in our universe.
-The Universal Timekeeping System begins with the 'Universal Second' (US), defined as the time it takes light to travel one meter in a vacuum. This is equivalent to approximately 3.34 nanoseconds in Earth time. From this foundation, the system builds upward to define larger units:
-- A 'Universal Minute' (UM) is 60 Universal Seconds.
-- A 'Universal Hour' (UH) is 60 Universal Minutes.
-- A 'Universal Day' (UD) is 24 Universal Hours.
-- A 'Universal Year' (UY) is 365.25 Universal Days, taking into account the equivalent of leap years to keep the calendar synchronized with the universe's expansion.
-In addition to these time units, the Universal Timekeeping System also uses a 'Universal Date' (also abbreviated as UD) to mark points in time. This date represents the number of Universal Years elapsed since a defined starting point, which is traditionally the moment of the Big Bang. As such, a Universal Date might read as '13.8 Billion UD,' marking the approximate age of the universe itself.
-For example, in the Universal Timekeeping System, an event occurring 150 million Universal Seconds after the Big Bang would be recorded as occurring at '0.005 UD.' Similarly, if a star goes supernova 100 Universal Years after the birth of a new galaxy, that event would be recorded as happening at '100 UY.'
-The Universal Timekeeping System is not only crucial for scientific precision but also provides a shared temporal language for all beings, organic or synthetic, in the The Convergence Universe."
-Converting UTS to Human Time
-To convert UTS to human time, we need to establish a conversion factor between the Universal Second and the standard second.
-   Conversion Factor:
-   1 US ≈ 3.34 nanoseconds (Earth time)
-   1 second (Earth time) ≈ 299,792,458 US (approximately)
-   Conversion Process:
-   Smaller Units:
-   To convert US to seconds, divide by the conversion factor.
-   To convert UM, UH, and UD to human time, convert the constituent US to seconds, then to minutes, hours, and days, respectively.
-   Larger Units:
-   To convert UY to human years, multiply by the conversion factor.
-   To convert UD to human years, multiply by the number of seconds in a Universal Year and then divide by the number of seconds in an Earth year.
-Example:
-   Event 1: Occurred at 1000 US after the Big Bang.
-   In Earth time: 1000 US / 299,792,458 US/second ≈ 0.00000334 seconds
-   Event 2: Occurred at 100 UY after the Big Bang.
-   In Earth time: 100 UY * (365.25 UD/UY) * (24 UH/UD) * (60 UM/UH) * (60 US/UM) * (3.34 ns/US) ≈ 9.46 x 10^14 seconds, which is roughly 30 million years.
-Challenges and Considerations:
-   Precision: The extreme precision of the UTS might not be necessary for everyday human activities.
-   Human Perception: Humans are accustomed to Earth's time scales. Direct UTS usage might require adaptation.
-   Practical Applications: While the UTS offers a universal standard, its practical implementation in daily life might involve complexities.
-Potential Use Cases:
-   Scientific Research: Especially in fields like astrophysics and cosmology.
-   Interstellar Travel: For planning long-duration space missions.
-   Hypothetical Future Civilizations: A unified timekeeping system for a multi-planetary or interstellar society.
-By understanding the UTS and its conversion to human time, we can appreciate its potential to bridge temporal differences across vast cosmic scales.
+Entry Title: The Universal Timekeeping System (Corrected Reference, 2026-10-02)
+Provenance: The in-world system is FICTION (NARRATIVE_SANDBOX); the arithmetic and browser widget are DERIVATIVE_BUILD. This informational timekeeping convention does not supply trusted system time, authentication, freshness, Ground-0, PDH, authorization, refusal, or PLV authority.
+
+The Universal Second (US) is 1/c Earth seconds, where c = 299,792,458 m/s exactly. Therefore 1 US = 3.33564095198 nanoseconds. Larger duration units are defined by count, not by Earth-scale seconds:
+- 1 Universal Minute (UM) = 60 US.
+- 1 Universal Hour (UH) = 60 UM = 3,600 US.
+- 1 Universal Day (UDay) = 24 UH = 86,400 US.
+- 1 Universal Year (UY) = 365.25 UDay = 31,557,600 US.
+
+Thus 1 UY is approximately 0.105264823 Earth seconds. A Julian Earth year (31,557,600 Earth seconds) equals 299,792,458 UY. The 365.25-day convention defines the UTS duration hierarchy; it does not synchronize the units to cosmic expansion.
+
+Keep absolute dates distinct from durations: UDay is a duration unit; UDate is a timestamp coordinate expressed in UY since a named epoch. Do not abbreviate both as UD. A UTS event 150,000,000 US after an origin is 4.753213172 UY, or about 0.500346143 Earth seconds. A duration of 100 UY is about 10.52648229 Earth seconds.
+
+The browser demonstration uses a clearly labeled, approximate model anchor of 13.799 billion Earth Julian years at 2026-10-02 00:00 UTC. The resulting UDate is about 4.136836 × 10^18 UY. This rounded cosmological age is a model parameter, not an observed exact timestamp. The app displays the device's conventional local Gregorian date/time and Earth UTC separately from UDate.
+
+The repository implementation is documented in updates/2026-10-02/02-Frameworks/Universal-Timekeeping-System/UTS-Specification.md and UTS-Conversion-Guide.md; the generator is uts_generator.py; the HarshalOS Home Screen watch and duration converter are implemented in js/uts.js and js/apps-uts.js. The original author-supplied RTF files remain preserved as source material; where their former arithmetic or UD shorthand conflicts with the corrected definitions above, use the corrected Markdown specification. Browser conversion output is rounded floating-point display, not scientific-grade arbitrary precision.
 Model Name: History 2’s Alpaca Ull
 Creator: Harshal Priyavadan Patel
 The heir’s transformation into a unified entity fundamentally reshapes their leadership and the trajectory of their empire. By merging their personas, they gain clarity, balance, and a heightened ability to perceive the intricate dynamics of both their allies and adversaries.
@@ -2165,11 +2145,13 @@ GigaCorp's dark machinations don't stop there. They are constantly innovating an
 Despite the mounting evidence against GigaCorp, the corporation continues to operate unchecked. Their economic clout and political influence make them seemingly untouchable. Those brave enough to expose GigaCorp's actions are often silenced, their warnings falling on deaf ears as the corporation continues to tighten its grip on The Convergence.
 The true face of GigaCorp is one of ruthlessness, cunning, and unyielding control. It serves as a chilling reminder to all in The Convergence that not all threats come from alien races or cosmic anomalies; sometimes, the most dangerous enemy is the one that hides in plain sight.
 **"Exodus One: A Leap of Faith"**
-In the year 13.799992 UY, during the Era of Great Desolation, the Earth was ailing. Its forests were ghostly silhouettes of their former selves, its oceans barren and lifeless. The air carried a heavy tinge of desperation and despair. But amidst the ruins of a once-thriving civilization, a beacon of hope was taking shape - the Exodus One.
+
+> **Narrative-date clarification:** The chronology in this story is expressed in approximate billions of Earth Julian years since the Big Bang. These legacy story labels are not UTS `UY` duration values or exact `UDate` timestamps.
+In the narrative year 13.799992 billion Earth Julian years after the Big Bang, during the Era of Great Desolation, the Earth was ailing. Its forests were ghostly silhouettes of their former selves, its oceans barren and lifeless. The air carried a heavy tinge of desperation and despair. But amidst the ruins of a once-thriving civilization, a beacon of hope was taking shape - the Exodus One.
 Constructed in the orbit around Earth, the city-ship was humanity's most ambitious project. It was their Hail Mary, a desperate attempt to escape a dying world. The ship was colossal, a testament to human ingenuity and their insatiable desire for survival. The resources of Earth and its neighboring planets were being funneled into this project, further accelerating the demise of the home planet but offering a glimmer of hope for the future.
 Aboard the ship, engineers and scientists worked tirelessly, their faces etched with determination and resolve. Among them was Dr. Aria Zhou, the chief architect of the Exodus One. A brilliant physicist, she was the driving force behind the project. Despite the bleak reality of Earth, she remained an unwavering beacon of optimism.
 As the ship neared completion, the pressure on Earth's remaining resources reached a critical point. Societal structures were collapsing, and the planet's ability to sustain life was rapidly declining. Dr. Zhou felt the weight of the world on her shoulders. Each day brought them closer to their goal, but also edged the Earth closer to its death.
-In 13.800000 UY, the Exodus One was finally ready. As the last vestiges of a prosperous age were consumed, the ship set off on its maiden voyage, carrying the remnants of humanity into the cosmos. As they watched their home planet recede into the distance, there was a profound sense of loss, but also a glimmer of hope. Humanity had taken its first step as a space-faring civilization, a testament to their resilience and unyielding spirit.
+At 13.800000 billion Earth Julian years after the Big Bang, the Exodus One was finally ready. As the last vestiges of a prosperous age were consumed, the ship set off on its maiden voyage, carrying the remnants of humanity into the cosmos. As they watched their home planet recede into the distance, there was a profound sense of loss, but also a glimmer of hope. Humanity had taken its first step as a space-faring civilization, a testament to their resilience and unyielding spirit.
 The Era of Great Desolation had ended, and the Age of Convergence had begun. The lessons learned from the past continued to shape human societies across The Convergence, serving as a stark reminder of the price paid for unchecked ambition and progress. The story of Exodus One was a testament to the indomitable spirit of humanity, their unwavering resolve, and their ceaseless quest for survival.
 In the vast expanse of the cosmos, a new chapter in the human story was being written.
 This short story can serve as a starting point, and we can create additional stories exploring different eras, characters, and aspects of The Convergence.
@@ -2194,7 +2176,7 @@ Conventional travel involves moving along the 'surface' of the donut, from one p
 Arcane travel, on the other hand, involves 'cutting' through the donut. It is achieved by using ancient artifacts known as Portal Keys, which can open gateways in the fabric of space-time, allowing for near-instantaneous travel between two points. These artifacts are rare and highly sought after, as they provide a strategic advantage for exploration, trade, and warfare.
 Bifrost which has been in use throughout The Convergence for some time now is a form of "Arcane Travel".
 However, arcane travel isn't without risks. Misuse of a Portal Key can lead to disastrous consequences, including being lost in the interstitial space between realities, or worse, attracting the attention of the enigmatic beings that dwell in those liminal spaces.
-1. **Pre-Emergence Era (0 - 13.798 Billion UY):** This era represents the period before humanity's leap to the stars. It includes the formation of the universe, the birth of stars, the creation of the solar system, and the rise and expansion of human civilization on Earth.
-2. **Era of the Great Desolation (13.798 - 13.800 Billion UY):** This era begins with the devastating ecological event that marked the downfall of Earth. It is during this era that humanity's ambition led to the depletion of the solar system's resources, in part due to the construction of the grand city-ship, Exodus One. The Great Desolation also marks the point of humanity's critical need for survival and preservation.
-3. **Convergence Era (13.800 - 13.805 Billion UY):** Named after the discovery of Convergence energy inside the heart of a supermassive black hole, this era marks a new understanding of the universe. It includes humanity's first steps as a space-faring civilization, along with the early stages of cosmic exploration and colonization.
-4. **MicroConvergence Era (13.805 - Present):** This era starts with the development and implementation of MicroConvergence technology, shaping Convergence as we know it. It symbolizes the union of organic life and technology, the rise of the MicroConvergence Humanoids and Companions, and the vast expansion of humanity across the universe.
+1. **Pre-Emergence Era (0–13.798 billion Earth Julian years after the Big Bang):** This era represents the period before humanity's leap to the stars. It includes the formation of the universe, the birth of stars, the creation of the solar system, and the rise and expansion of human civilization on Earth.
+2. **Era of the Great Desolation (13.798–13.800 billion Earth Julian years after the Big Bang):** This era begins with the devastating ecological event that marked the downfall of Earth. It is during this era that humanity's ambition led to the depletion of the solar system's resources, in part due to the construction of the grand city-ship, Exodus One. The Great Desolation also marks the point of humanity's critical need for survival and preservation.
+3. **Convergence Era (13.800–13.805 billion Earth Julian years after the Big Bang):** Named after the discovery of Convergence energy inside the heart of a supermassive black hole, this era marks a new understanding of the universe. It includes humanity's first steps as a space-faring civilization, along with the early stages of cosmic exploration and colonization.
+4. **MicroConvergence Era (after 13.805 billion Earth Julian years; narrative present onward):** This era starts with the development and implementation of MicroConvergence technology, shaping Convergence as we know it. It symbolizes the union of organic life and technology, the rise of the MicroConvergence Humanoids and Companions, and the vast expansion of humanity across the universe.

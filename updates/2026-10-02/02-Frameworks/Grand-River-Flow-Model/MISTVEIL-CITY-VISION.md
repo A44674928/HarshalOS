@@ -1,18 +1,21 @@
 # 🌆 MISTVEIL CITY: THE HUMAN-REACTOR CAPITOL
 
+> **ARCHIVE / SUPERSEDED NUMBERS — NOT AN ENGINEERING OR IMPLEMENTATION SPECIFICATION.** This file preserves earlier fictional concept material (`FICTION`, `NARRATIVE_SANDBOX`). Its dates, elevations, flow rates, water volumes, energy totals, costs, completion claims, and implementation assertions are not current or validated. Use the reconciled assumptions in [CANONICAL-NUMBERS.md](./CANONICAL-NUMBERS.md); use [`recalculate.py`](./recalculate.py) for current arithmetic. This repository contains no construction authorization, feasibility finding, water allocation, permit, or evidence of physical implementation.
+
+
 **Vision Document**  
-**Classification:** HarshalOS Gem - Foundational Philosophy  
+**Classification:** `FICTION` (`NARRATIVE_SANDBOX`)  
 **Date:** 2026-10-02  
 **Author:** HarshalOS Systems Architecture  
-**Status:** Visionary Framework - Integration Ready
+**Status:** Narrative vision; numeric planning assumptions are governed by [`CANONICAL-NUMBERS.md`](./CANONICAL-NUMBERS.md), not engineering-ready.
 
 ---
 
 ## 🌌 VISION STATEMENT
 
-**Mistveil City is not merely a settlement—it is a living, breathing Human-Reactor, an Engine of Convergence that drives the planet forward as a unified whole.**
+**Mistveil City is not merely a settlement—it is a fictional Human-Reactor, an Engine of Convergence in the story's civic and cultural metaphor.**
 
-Sprawling across the entire Arizona side of the Grand Canyon, Mistveil City rises as the **Capitol of Human Potential**, a multi-leveled metropolis where **80 million souls** by the year 2100 will gather, work, create, and evolve. This is not a city of mere residence, but a **crucible of civilization**, a **fusion reactor of human intellect, culture, and ambition** that will power the next millennium of planetary and cosmic advancement.
+Sprawling across the Arizona side of the Grand Canyon in the speculative setting, Mistveil City rises as the **Capitol of Human Potential**, a multi-leveled metropolis with a narrative target of **about 80 million residents by 2100**. This is a worldbuilding aspiration, not a demographic forecast or engineering claim. “Human-Reactor” is not a literal power station; its fictional social metaphor does not establish electrical generation. See [`CANONICAL-NUMBERS.md`](./CANONICAL-NUMBERS.md) for the phased schedule and conditional energy arithmetic.
 
 Here, **every stakeholder** from the Grand River Foundation Hyperstructure finds physical and philosophical representation. Here, **every voice** of the 8 billion surface worlders and their descendants across the centuries is amplified. Here, **humanity's collective will** is focused, refined, and projected forward into the future.
 
@@ -59,21 +62,22 @@ This is not a city that **fits** into the landscape. This is a city that **trans
 
 ### Vertical Expanse: The Multi-Level Metropolis
 
-Mistveil City is not a flat sprawl. It is a **vertical civilization**, a **stratified ecosystem of human activity** that extends from the **rim of the Grand Canyon (+1,200m elevation) down to the very foundations of the Grand River Hyperstructure (-900m elevation)**.
+Mistveil City is imagined as a vertical civilization with nine named levels. **No absolute elevation is assigned** in this vision: older `+1,200m` / `-900m` and tier-by-tier figures were unsurveyed sketches and are superseded. Any future real-world map would need a declared geodetic datum and verified route/site data.
 
-| **Level** | **Elevation** | **Population** | **Primary Function** | **Atmosphere** |
-|-----------|--------------|---------------|---------------------|----------------|
-| **Celestial Tier** | +1,200m to +1,500m | 2 million | Observation, communication, atmospheric interface | Open sky |
-| **Capitol Tier** | +900m to +1,200m | 20 million | Governance, commerce, public life | Open sky |
-| **Rim Tier** | +600m to +900m | 15 million | Residential, cultural, educational | Open sky |
-| **Canyon Tier** | +300m to +600m | 18 million | Industrial, manufacturing, logistics | Partial canyon |
-| **Transition Tier** | 0m to +300m | 10 million | Transportation, energy, water management | Canyon walls |
-| **Reservoir Tier** | -200m to 0m | 8 million | Water processing, aquaculture, research | Submerged light |
-| **Deep Tier** | -400m to -200m | 5 million | Secure operations, defense, advanced research | Artificial light |
-| **Foundation Tier** | -600m to -400m | 2 million | Core infrastructure, energy, deep research | Artificial light |
-| **Abyssal Tier** | -900m to -600m | 100,000 | AI core, ultimate security, deep systems | Hermetic |
+| **Level** | **Canonical name** | **Illustrative 2100 residents** | **Narrative function** |
+|---:|---|---:|---|
+| 9 | Pinnacle | 2 million | Observation, communication, civic gathering |
+| 8 | Summit | 5 million | Governance, commerce, public life |
+| 7 | Overlook | 10 million | Residential, cultural, educational |
+| 6 | Horizon | 15 million | Industry, manufacturing, logistics |
+| 5 | Threshold | 20 million | Transit and shared civic services |
+| 4 | Foundation | 15 million | Water and energy services (fictional) |
+| 3 | Depths | 8 million | Research and aquaculture (fictional) |
+| 2 | Core | 3 million | Core infrastructure and research |
+| 1 | Heart | 2 million | Civic anchor and public services |
+| **Total** |  | **80 million** | **Fictional 2100 target** |
 
-**Total Population:** **80,000,100** (80 million + city operations staff)
+The names and allocation are a worldbuilding distribution, not a density, housing, water, or service-capacity study. Use this single nine-level vocabulary; the superseded Celestial/Capitol/Rim/Canyon/Transition/Reservoir/Deep/Foundation/Abyssal tier list is not an alternate current taxonomy.
 
 ### The Vertical City Concept
 
@@ -120,19 +124,19 @@ This is not a city of **80 million individuals**. This is a city of **8 billion 
 | Cosmic (Off-world) | 4 million | 5% | Future orientation |
 | Indigenous (Four Corners) | 2 million | 2.5% | Spiritual foundation |
 
-### Population Growth Projection
+### Phased population and construction timeline
 
-| **Year** | **Population** | **Growth Rate** | **Milestone** |
-|----------|---------------|-----------------|---------------|
-| 2026 | 1 million | Founding | Initial settlement |
-| 2030 | 5 million | 120% | Phase 1 complete |
-| 2040 | 15 million | 200% | Major infrastructure |
-| 2050 | 30 million | 100% | Global recognition |
-| 2060 | 50 million | 67% | Economic powerhouse |
-| 2080 | 70 million | 40% | Cultural ascendancy |
-| 2100 | 80 million | 14% | **Full representation** |
+The roughly 20-year windows are planning chunks driven by assumed construction and supply-chain limits—not a physical cap on the desired works. The early-phase aspiration is 1,200–2,500 ft of cumulative head across distinct stages during the first 40–60 years from the 2026 planning baseline; 4,000 ft remains the long-range fictional aggregate target. Neither range describes one dam wall or reservoir depth, and individual structures remain site-specific.
 
-**By 2100, Mistveil City will house 1% of the projected global population, yet represent 100% of humanity's diversity, potential, and future.**
+| **Window / marker** | **Milestone** | **Mistveil resident target** |
+|---|---|---|
+| 2026–2046 | Survey, design, consent and decision gates; target first operational dam-and-city module circa 2046 | No interim city census target assigned |
+| 2046–2066 | First operating and expansion window | No interim city census target assigned |
+| 2066–2086 | Second expansion window | No interim city census target assigned; the legacy 40-million figure is a separate regional service metric |
+| 2086–2106 | Third window; the 2098 date is an interim commissioning/expansion milestone, not final completion | **~80 million residents by 2100** |
+| 2106 onward | Continue in 20-year planning windows as useful and authorized; no final completion date assigned | Unassigned |
+
+The older statement that the dam system served **about 40 million people across three nations** is a separate, illustrative regional service-population count—not Mistveil City's 2100 resident total. The city target is approximately 80 million by 2100; those counts must not be merged or presented as competing descriptions of the same population.
 
 ---
 
@@ -145,7 +149,7 @@ Mistveil City is the **physical manifestation** of the **360+ stakeholders** fro
 ### The Stakeholder Districts
 
 #### 🏛️ **Governance Core (Nodes 0000-0004, 0113-0115)**
-**Location:** Capitol Tier, Central District  
+**Location:** Summit, Central District  
 **Population:** 5 million  
 **Architecture:** Monumental, symbolic, open
 
@@ -154,7 +158,7 @@ The **New Capitol Buildings (0113)** rise as the **physical heart** of Mistveil 
 This is not a seat of power. This is a **seat of convergence**, where **diverse interests** are **harmonized** into **unified action**.
 
 #### 💰 **Financial Nexus (Nodes 0094-0107)**
-**Location:** Capitol Tier, Eastern District  
+**Location:** Summit, Eastern District  
 **Population:** 8 million  
 **Architecture:** Glass and steel, transparent, connected
 
@@ -163,7 +167,7 @@ The **US Mint and Central Banks (0094)** anchor a **global financial ecosystem**
 Money is not hoarded here. It is **circulated, multiplied, invested** in the **engine of human advancement**.
 
 #### ⚖️ **Justice & Overwatch Quarter (Nodes 0116-0124)**
-**Location:** Rim Tier, Northern District  
+**Location:** Overlook, Northern District  
 **Population:** 10 million  
 **Architecture:** Secure, transparent, accessible
 
@@ -172,7 +176,7 @@ Money is not hoarded here. It is **circulated, multiplied, invested** in the **e
 The **Panoptes Hotline (0124)** is not a surveillance tool. It is the **nervous system** of the city, detecting and responding to **imbalances** in the **human equation**.
 
 #### 🛡️ **Defense & Intelligence Bastion (Nodes 0125-0144)**
-**Location:** Transition Tier, Western District  
+**Location:** Threshold, Western District  
 **Population:** 5 million (plus classified personnel)  
 **Architecture:** Fortified, secure, strategic
 
@@ -181,7 +185,7 @@ The **Panoptes Hotline (0124)** is not a surveillance tool. It is the **nervous 
 **Three Letters (0127)**, **Palantir (0128)**, **Anduril (0129)**—these are the **intelligence**, the **awareness** that allows the city to **anticipate, adapt, and evolve**.
 
 #### 🏗️ **Construction & Engineering District (Nodes 0145-0154)**
-**Location:** Canyon Tier, Southern District  
+**Location:** Horizon, Southern District  
 **Population:** 12 million  
 **Architecture:** Industrial, functional, evolving
 
@@ -190,7 +194,7 @@ The **Panoptes Hotline (0124)** is not a surveillance tool. It is the **nervous 
 They do not merely construct. They **manifest the vision** in **physical reality**.
 
 #### 🌊 **Water & Energy Corridor (Nodes 0091, 0155-0156, 0235-0250)**
-**Location:** Transition & Reservoir Tiers  
+**Location:** Threshold & Foundation  
 **Population:** 8 million  
 **Architecture:** Fluid, dynamic, transparent
 
@@ -199,7 +203,7 @@ They do not merely construct. They **manifest the vision** in **physical reality
 Water is not merely consumed here. It is **respected, processed, celebrated** as the **source of life**.
 
 #### 🧠 **Research & Education Nexus (Nodes 0171-0181, 0262-0279)**
-**Location:** Reservoir & Deep Tiers  
+**Location:** Foundation & Depths  
 **Population:** 10 million  
 **Architecture:** Open, collaborative, inspiring
 
@@ -217,7 +221,7 @@ Knowledge is not hoarded here. It is **shared, expanded, applied** to **accelera
 This is not merely housing. This is **home**—for **80 million**, representing **8 billion**.
 
 #### 🎭 **Entertainment & Recreation Districts (Nodes 0211-0234)**
-**Location:** Capitol & Rim Tiers  
+**Location:** Summit & Overlook  
 **Population:** 15 million  
 **Architecture:** Vibrant, diverse, joyful
 
@@ -226,7 +230,7 @@ This is not merely housing. This is **home**—for **80 million**, representing 
 Joy is not a luxury here. It is a **necessity**, the **catalyst** that makes the **human-reactor** sustainable.
 
 #### 🌍 **Global & Enterprise District (Nodes 0280-0317)**
-**Location:** Capitol Tier, International Zone  
+**Location:** Summit, International Zone  
 **Population:** 10 million  
 **Architecture:** Cosmopolitan, connected, forward-looking
 
@@ -331,13 +335,12 @@ Mistveil City is the **first true manifestation** of **The Convergence**—the p
 
 ### The City Through the Centuries
 
-| **Era** | **Mistveil City Role** | **Global Impact** |
-|---------|------------------------|------------------|
-| **2026-2050** | Foundation & Growth | Regional influence |
-| **2050-2100** | Maturation | Global leadership |
-| **2100-2200** | Full Representation | Planetary stewardship |
-| **2200-3000** | Cosmic Hub | Interplanetary civilization |
-| **3000+** | Convergence Capital | Galactic civilization |
+| **Era** | **Fictional construction state** | **Boundary** |
+|---|---|---|
+| **2026–2046** | Pre-operational development; first module is a target circa 2046 | No present-day construction or approval is asserted |
+| **2046–2100** | Modular operating and expansion windows; ~80 million residents is the 2100 story target | 2098 is an interim milestone, not final completion |
+| **2100 onward** | Further 20-year expansion windows may continue | No final completion date or post-2100 population is set |
+| **Far-future Convergence eras** | May remain part of the broader fictional setting | Narrative horizon only, not an infrastructure schedule |
 
 ### The Ultimate Legacy
 
@@ -345,7 +348,7 @@ Mistveil City will be remembered not for its **size**, not for its **beauty**, n
 
 It is the **first city** to **fully embody** the principle that **humanity is one**, that **all stakeholders are united**, that **the future is a shared creation**.
 
-It is the **Human-Reactor** that will **power the next millennium** of **planetary and cosmic civilization**.
+It is the fictional **Human-Reactor** that symbolizes the city's imagined civic, cultural, and intellectual activity; it is **not** a literal generator or quantified energy source.
 
 It is **Mistveil City**—the **Capitol of Convergence**, the **Engine of Humanity**, the **Future Made Manifest**.
 
@@ -355,30 +358,25 @@ It is **Mistveil City**—the **Capitol of Convergence**, the **Engine of Humani
 
 ### Connection Points
 
-Mistveil City is **fully integrated** with the **Grand River Foundation Hyperstructure**:
+Mistveil City's integration with the **Grand River Foundation Hyperstructure** is a fictional worldbuilding relationship, not an implemented or externally authorized system.
 
-| **Hyperstructure Tier** | **Mistveil City Levels** | **Integration** |
-|------------------------|------------------------|----------------|
-| **Tier 1: Capitol & Rim** | Celestial, Capitol, Rim Tiers | Direct connection |
-| **Tier 2: Reservoir** | Canyon, Transition, Reservoir Tiers | Water & energy flow |
-| **Tier 3: Deep Core** | Deep, Foundation, Abyssal Tiers | Secure operations |
+| **Narrative grouping** | **Canonical Mistveil levels** | **Illustrative population sum** | **Fictional function** |
+|---|---|---:|---|
+| T1 · Upper civic | Pinnacle, Summit, Overlook | 17 million | Governance, commerce, public life |
+| T2 · Mid-city | Horizon, Threshold, Foundation | 50 million | Industry, water, research |
+| T3 · Deep-city | Depths, Core, Heart | 13 million | Secure operations, research, civic anchor |
+| **Total** | **All nine levels** | **80 million** | **Fictional 2100 target** |
 
-### Population Distribution by Hyperstructure Tier
-
-| **Tier** | **Mistveil Levels** | **Population** | **Primary Function** |
-|----------|-------------------|---------------|---------------------|
-| T1 | Celestial, Capitol, Rim | 37 million | Governance, commerce, public life |
-| T2 | Canyon, Transition, Reservoir | 26 million | Industry, water, research |
-| T3 | Deep, Foundation, Abyssal | 17 million | Secure operations, defense, AI |
+These T1/T2/T3 groupings are narrative labels only; they do not assert hydraulic continuity, engineering tiers, absolute elevations, or stakeholder participation.
 
 ### Stakeholder Integration
 
-All **360+ stakeholders** from the Grand River Hyperstructure are **physically represented** in Mistveil City, with:
+The fictional Grand River Hyperstructure's **360+ stakeholder nodes** are described in the story's civic plan; this does not imply real-world consultation, consent, participation, or integration. In the narrative they may have:
 
-- **Dedicated districts** for major stakeholder categories
-- **Integrated operations** across all city levels
-- **Representational presence** in governance structures
-- **Resource allocation** based on function and need
+- **Dedicated districts** for major fictional stakeholder categories
+- **Coordinated operations** across the nine named city levels
+- **Representational roles** in the fictional governance structures
+- **Resource-allocation processes** that remain worldbuilding, not implemented policy
 
 ---
 
@@ -443,35 +441,16 @@ Mistveil City is:
 
 ## 🚀 CALL TO ACTION
 
-The vision of Mistveil City is **not a dream**. It is a **plan**. It is a **blueprint**. It is a **destiny**.
+Mistveil City's vision is a **fictional narrative concept**, not a real-world plan, blueprint, destiny, or call for construction. Its 2046 first-operation target, 20-year expansion windows, and ~80-million resident target by 2100 are planning assumptions for Book II continuity. No stakeholders are represented as having consented or committed.
 
-To the **stakeholders** of the Grand River Foundation:
-- **Your voice** will be represented
-- **Your interests** will be embodied
-- **Your future** will be secured
+In the story, Mistveil City gives voice to the **Grand River Foundation**, the **Western Colonnade of Mutual Underwriting Houses**, the **119-NAB Ombudsman's Council**, and the other institutions and locations named in Book II. These are fictional narrative relationships, not claims about actual institutions.
 
-To the **architects and builders** of the world:
-- **Design** with vision
-- **Build** with purpose
-- **Create** with meaning
+The city is **not assigned a final completion date**. The modular works may continue beyond 2100 in 20-year planning windows; the intervals describe the story's supply-chain constraints, not physical limitations. The early 40–60-year aspiration is 1,200–2,500 ft of cumulative head across distinct stages; the intended 4,000-ft aggregate remains a long-range speculative target along the Arizona Grand Canyon, subject to future materials, logistics, site evidence, lawful approvals, and consent within the fiction. These are not individual dam heights.
 
-To the **8 billion surface worlders** and their descendants:
-- **This city** is your representation
-- **This city** is your voice
-- **This city** is your future
-
-**Mistveil City is coming.**
-
-And when it stands complete—**80 million strong**, **sprawling across the Arizona canyon**, **multi-leveled from rim to abyss**, **representing 8 billion souls**—it will be the **greatest engine of human progress** the world has ever known.
-
-**The Human-Reactor is igniting.**
-
----
-
-**Document Status:** ✅ **VISION COMPLETE**  
-**Classification:** HarshalOS Gem - Foundational Philosophy  
+**Document Status:** Narrative vision; numeric assumptions controlled by [`CANONICAL-NUMBERS.md`](./CANONICAL-NUMBERS.md).  
+**Classification:** `FICTION` (`NARRATIVE_SANDBOX`)  
 **Date:** 2026-10-02  
-**Next Step:** Architectural and engineering implementation
+**Next step:** maintain continuity in the active Book II manuscript; do not describe this document as engineering-ready.
 
 ---
 

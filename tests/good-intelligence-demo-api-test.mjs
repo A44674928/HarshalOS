@@ -18,7 +18,7 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
   assert.equal(response.headers.get("cache-control"), "no-store");
   const payload = await response.json();
   assert.equal(payload.environment, "empty.domains-demo");
-  assert.equal(payload.data.length, 12);
+  assert.equal(payload.data.length, 13);
   assert.ok(payload.data.every(item => item.demo === true && item.title.startsWith("[DEMO]")));
   assert.ok(payload.data[0].body.includes("Synthetic exercise"));
   assert.equal(payload.data[0].assurance.schema, "gi-assurance-v1");
@@ -27,7 +27,7 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
   assert.equal(payload.data[2].assurance.signal.conflicts[0].status, "unresolved");
   assert.equal(payload.data[3].assurance, undefined);
   assert.ok(payload.data.slice(4).every(item => item.assurance === undefined));
-  const marketFixtures = payload.data.slice(4);
+  const marketFixtures = payload.data.filter(item => item.marketContext);
   assert.deepEqual(marketFixtures.map(item => item.marketContext.symbol), [
     "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "NET-DEMO", "CVX-DEMO", "XOM-DEMO"
   ]);
@@ -55,7 +55,7 @@ test("synthetic demo histories only use names enabled on the Tickerbot watchlist
 test("demo categories and rankings use labeled fixture data", async () => {
   const categories = await get("/categories");
   const rankings = await get("/rank?limit=20&page=0");
-  assert.equal((await categories.json()).data.length, 3);
+  assert.equal((await categories.json()).data.length, 4);
   assert.equal((await rankings.json()).data.length, 3);
   assert.ok(rankings.headers.get("x-hos-demo-api"));
   assert.ok((await get("/rank")).ok);

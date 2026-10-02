@@ -1,3 +1,7 @@
+EDITORIAL PROVENANCE NOTICE (2026-10-02)
+Artifact class: DERIVATIVE_BUILD · evidence status: UNVERIFIED_AUTHOR_HYPOTHESIS.
+This retained note is author-generated brainstorming, not a Microsoft/CISA source, not evidence about Storm-0558, and not a confirmed threat-actor technique. The home-device, router, firmware, cellular-interception, satellite, solar-powered implant, and “daisy chain” scenarios below are speculative and unsupported by the cited Storm-0558 record. Do not use them for attribution or represent the ideas as production detection requirements. See PROVENANCE.md.
+
 For employees doing security-critical work from home, corporations typically have specific hardware requirements to ensure data security and compliance. Here are some common expectations:
 
 1. **Company-Issued Devices**: Employees are often required to use company-issued laptops or desktops, which come with pre-installed security software and configurations.
