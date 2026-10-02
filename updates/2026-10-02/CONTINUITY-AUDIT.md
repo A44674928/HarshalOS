@@ -338,3 +338,28 @@ updates/2026-10-02/
 ```
 
 *The August Print PDFs (`AGS++ — Accountability-Gated Systems, Accessories and Examples`, 431/545 pp.) duplicate the working-draft corpus already present as `HARSHAL-SYSTEMS-USER-MANUAL.md`; they are consistent with it and raise no continuity issues beyond the AGS++ → Harshal's Systems naming transition already documented in the root README.*
+
+---
+
+## 13. Integration status (recorded after the audit; findings above are unchanged)
+
+This section is bookkeeping. It records where each §10 recommendation now stands and which artifact
+carries it. It does not restate or soften any finding above, and it does not promote anything into
+`specs/normative/`.
+
+| §10 item | Status | Carrying artifact |
+| --- | --- | --- |
+| Decision 1 — which Mistveil is canon | Resolved without an era split and without editing Book II prose: one Mistveil with **two explicitly separated counts** — ~80 million city residents by 2100, and the legacy ~40 million retained only as an illustrative regional service figure that must never be added to the city total. | `02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md` §1 |
+| P0.1 — Storm-0558 factual corrections | Done. The invented "2022: The Discovery" is gone; the timeline matches the public record; the crash-dump account is carried as Microsoft's later-challenged **leading hypothesis** beside the CSRB's 2024-03-20 review; `05-…pdf` (September 2024 pager attack) and `06-…pdf` (Salt Typhoon) are labelled unrelated; files 01–03 are labelled author brainstorming. | `01-Threat-Intelligence/Storm-0558/PROVENANCE.md`, `README.md`, `STORM-0558-MASTER-ANALYSIS.md` |
+| P0.2 — UTS corrections | Done. Unit hierarchy corrected (`1 UH = 12.0083074211 μs`, `1 UDay = 288.199378251 μs`, `1 UY = 0.105264822906 s`, `100 UY ≈ 10.5264822906 s`); the "30 million years" example is replaced; the `UDay`-duration vs. `UDate`-coordinate split retires the overloaded `UD`; the generator prints the corrected projection. | `02-Frameworks/Universal-Timekeeping-System/UTS-Specification.md`, `uts_generator.py`; `tests/uts-generator-test.mjs` |
+| P1.3 — one canonical numbers card | Done, with reproducible arithmetic and explicit non-engineering classification. | `CANONICAL-NUMBERS.md`, `recalculate.py`, `WATER-FLOW-CALCULATIONS.md`; `tests/grand-river-recalculation-test.mjs` |
+| P1.4/P1.5 — double counts, duplicate tables, "all gems timestamped" | Done: superseded tables are marked legacy rather than deleted, and the timestamp claim is scoped to the generated front matter the tool actually writes. | `02-Frameworks/Grand-River-Flow-Model/README.md`; `tests/project-scale-up-test.mjs` |
+| P2.6 — root `README.md` wiring | Done: `updates/` appears in the layout listing, and The Grand Architecture appears in the publishing-hierarchy and implemented-feature tables. For W-1's stale `HarshalOS-Gems/` references, navigational pointers now use `updates/2026-10-02/`; the three superseded concept documents that still print the former directory name carry a path note stating that their directory listings are historical. Their archived prose was deliberately not rewritten. | `README.md`, `updates/README.md`, `updates/2026-10-02/README.md`, and the archive banners in `GRAND-RIVER-HYPERSTRUCTURE-MASTER-SPEC.md`, `MISTVEIL-CITY-DELIVERY-SUMMARY.md`, `THE-CONVERGENCE-UNIVERSE-MASTER-DELIVERY.md` |
+| P2.7 — Storm-0558 → Good Intelligence | Done as a clearly marked, deliberately unscored study fixture (`empty-demo-storm0558-001`), with the SCAV++ crosswalk kept conceptual and #008 kept explicitly separate. | `worker/good-intelligence-demo.mjs`, `01-Threat-Intelligence/Storm-0558/SCAV++-INTEGRATION.md` |
+| P2.8 — UTS in the OS | Done: `UTS Watch & Converter` app plus the Home Screen clock/UTC line/calendar/`UDate` widget. | `js/uts.js`, `js/apps-uts.js`, `css/uts.css`, `js/wm.js` |
+| P2.9 — promote the institutions and UTS into `docs/harshal-systems/` | Done as labelled reference modules, each keeping its own provenance. | `docs/harshal-systems/modules/uts.md`, `docs/harshal-systems/modules/convergence-institutions.md` |
+| New — compose the four lineages | Done as **The Grand Architecture**: a Book I architecture module (six layers `GA-0`–`GA-5`, the `0•100•000•NNNN` registry with the instance-field vs. ℤ₃₆₀ sector-ring correction, 20 canonical anchors, the 2046 → 2098-interim timeline, and seven `GA-INV` invariants) plus a read-only desktop app whose rendered figures are cross-checked against the canonical card. | `docs/harshal-systems/modules/grand-architecture.md`, `js/grand-architecture-data.js`, `js/apps-grand.js`, `css/grand-architecture.css`; `npm run test:grand` |
+
+Verification for this integration: `npm run integrity` reports **Overall: PASS**, including
+`Test inventory / suite mapping` (29 test files assigned to a named suite) and the Wrangler
+deployment dry-run. That is regression evidence, not a feasibility, safety, or security finding.
