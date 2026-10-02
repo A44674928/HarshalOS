@@ -55,6 +55,9 @@ function waitForPreview(child) {
 
 test("P13: repository content is separated by status and purpose", async () => {
   const expected = [
+    "specs/normative/canonical-model.md",
+    "specs/normative/canonical.json",
+    "specs/normative/contradictions.md",
     "specs/normative/ground-0-v1.0.md",
     "specs/draft/ground-0-v1.1.md",
     "docs/deployment/MONGODB-SETUP.md",
@@ -142,6 +145,9 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     const specFiles = (await listFiles(path.join(SITE, "specs"), "specs")).sort();
     assert.deepEqual(specFiles, [
       "specs/draft/ground-0-v1.1.md",
+      "specs/normative/canonical-model.md",
+      "specs/normative/canonical.json",
+      "specs/normative/contradictions.md",
       "specs/normative/ground-0-v1.0.md"
     ]);
 

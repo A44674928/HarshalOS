@@ -1,5 +1,13 @@
 ---
+id: HS-08-OPERATOR-MODEL
 document_id: HS-08-OPERATOR-MODEL
+canonical_name: "Part VIII — The Operator Model"
+depends_on: ["HS-04-AGS-ARCHITECTURE", "HS-07-ADDRESSING-TOPOLOGY"]
+defines: ["HUMAN-OPERATOR-CUSTODY", "OPERATOR-BURDEN-BOUNDS"]
+uses: ["H(t)", "A(t)", "R(t)", "C(t)"]
+invariants: ["INV-H-001", "INV-AUTH-002"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part VIII"
 title: "Part VIII — The Operator Model"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "2018–2181"

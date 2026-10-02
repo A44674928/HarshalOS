@@ -1,5 +1,13 @@
 ---
+id: HS-19-RESEARCH-PAPERS
 document_id: HS-19-RESEARCH-PAPERS
+canonical_name: "Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems"
+depends_on: ["HS-02-FORMALIZATION", "HS-15-HMKH-CONTROLS", "HS-18-INSTITUTIONAL-APPLICATION"]
+defines: ["MINIMUM-VIABLE-KEYING", "HYBRID-ACCOUNTABILITY-THEORY"]
+uses: ["CANONICAL-MINIMUM-MODEL", "H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "L(t)"]
+invariants: ["INV-AGENCY-001", "INV-LEGIT-001", "INV-STAGE-001"]
+conflicts_with: []
+status: RESEARCH_PAPER
 book: "Book I"
 part: "Part XIX"
 title: "Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems"
@@ -9,6 +17,7 @@ status_taxonomy: RESEARCH_PAPER
 evidence_status: INDEPENDENTLY_VERIFIABLE
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "7622–7789"

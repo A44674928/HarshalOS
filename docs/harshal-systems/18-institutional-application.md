@@ -1,5 +1,13 @@
 ---
+id: HS-18-INSTITUTIONAL-APPLICATION
 document_id: HS-18-INSTITUTIONAL-APPLICATION
+canonical_name: "Part XVIII — Institutional Application"
+depends_on: ["HS-12-GROUND-ZERO", "HS-17-ATOMIC-BODIES"]
+defines: ["INSTITUTIONAL-ROLE-MAPPING", "UNDERWRITING-SOLVENCY-U-SOLV"]
+uses: ["K(t)", "U_solv", "A(t)", "DECLARED-PHASE"]
+invariants: ["INV-G0-CLASS-001", "INV-LEGIT-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XVIII"
 title: "Part XVIII — Institutional Application"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "7439–7621"

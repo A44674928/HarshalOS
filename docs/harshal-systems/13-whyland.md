@@ -1,5 +1,13 @@
 ---
+id: HS-13-WHYLAND
 document_id: HS-13-WHYLAND
+canonical_name: "Part XIII — The Whyland Standards"
+depends_on: ["HS-12-GROUND-ZERO"]
+defines: ["WHYLAND-TCS", "BROMINE-GATEWAY", "YTTERBIUM-TIMER", "TECHNETIUM-SANDBOX"]
+uses: ["C(t)", "S(t)", "DISC-LIFECYCLE"]
+invariants: ["INV-AUTH-001", "INV-SYMBOLIC-FIREWALL"]
+conflicts_with: []
+status: CONCEPTUAL_DOCTRINE
 book: "Book I"
 part: "Part XIII"
 title: "Part XIII — The Whyland Standards"
@@ -9,6 +17,7 @@ status_taxonomy: CONCEPTUAL_DOCTRINE
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "5105–5162"

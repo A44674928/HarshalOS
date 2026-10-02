@@ -1,5 +1,13 @@
 ---
+id: HS-10-AGS-CONFORMANCE
 document_id: HS-10-AGS-CONFORMANCE
+canonical_name: "Part X — AGS+ Layering and Conformance"
+depends_on: ["HS-04-AGS-ARCHITECTURE", "HS-09-DISC-LIFECYCLE"]
+defines: ["AGS-PLUS-LAYERING", "CONFORMANCE-PROFILES"]
+uses: ["L(t)", "x(t)", "DISC-LIFECYCLE"]
+invariants: ["INV-LEGIT-001", "INV-STAGE-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part X"
 title: "Part X — AGS+ Layering and Conformance"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "2652–2797"

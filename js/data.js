@@ -98,7 +98,7 @@ const DATA = (() => {
     ["AI Inner Shell", "A high-security, address-constrained zone where AI processes occur, designed to prevent AI from ever acquiring origin authority or sovereignty."],
     ["Authority", "The legitimate right to act within a normative domain. Authority is distinct from power or capability and collapses when it cannot be answered for."],
     ["Autonomous Legitimacy", "The rejected notion that a system may generate the right to act solely from its own internal properties such as learning, performance, persistence, or emergence."],
-    ["Canonical Minimum Model", "[TYPE: SECURITY_PRIMITIVE] The six-stage non-bypassable operational sequence across Harshal's Systems: Identity → Representation → Authorization → Continuity → Accountability → Refusal."],
+    ["Canonical Minimum Model", "[TYPE: SECURITY_PRIMITIVE] The six-stage non-bypassable operational sequence across Harshal's Systems: Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse), where Stages 1–5 are upstream prerequisites and Stage 6 is the terminal Decision gate whose default fail-closed outcome is Refuse (legacy shorthand: Identity → Representation → Authorization → Continuity → Accountability → Refusal)."],
     ["Capability", "[TYPE: SECURITY_PRIMITIVE] The technical ability of a system to perform an action. Capability does not imply permission, moral agency, or legal authority."],
     ["Center Point (Origin)", "[TYPE: TOPOLOGICAL_MODEL] The immutable address (0•000•000•0000 at 0° in the discrete 0–359 address ring ℤ_360) from which all identities, permissions, and ownership are derived within the Orb Communicator Model."],
     ["Cognitive Sovereignty", "[TYPE: SECURITY_PRIMITIVE] The inherent authority of an individual over their own mental faculties and internal processes."],
@@ -347,8 +347,28 @@ const DATA = (() => {
     ["Legitimacy / Meta-Legitimacy Attacks", "Terminal refusal; non-migration invariants"]
   ];
 
+  const declaredPhases = Object.freeze(["NAB", "CWO", "GSRB"]);
+  const detectedPhases = Object.freeze(["NAB", "CWO", "NAB-Constrained", "GSRB", "AMBIGUOUS", "INCOHERENT"]);
+  const canonicalPipeline = Object.freeze(["Identity", "Representation", "Authorization", "Continuity", "Accountability", "Decision"]);
+  const canonicalSymbols = Object.freeze({
+    I: "Identity",
+    H: "Human Key",
+    A: "Addressability",
+    R: "Representation",
+    V: "Authorization",
+    C: "Continuity",
+    K: "Accountability",
+    U_solv: "Institutional Solvency",
+    S: "Scope",
+    L: "Legitimacy",
+    tau: "Legitimacy Threshold",
+    delta: "Maximum Verification Delay",
+    x: "Decision Outcome"
+  });
+
   return {
-    phases, collapseSteps, transitionRules, principles, glossary, whyCatalog,
+    phases, declaredPhases, detectedPhases, canonicalPipeline, canonicalSymbols,
+    collapseSteps, transitionRules, principles, glossary, whyCatalog,
     auditPresets, proposals, quotes, bookExample, threats
   };
 })();

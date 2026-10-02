@@ -1,5 +1,13 @@
 ---
+id: HS-25-ADDITIONAL-SPECS
 document_id: HS-25-ADDITIONAL-SPECS
+canonical_name: "Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping"
+depends_on: ["HS-14-NAB-COMPENDIUM", "HS-23-SPECIFICATION-SERIES"]
+defines: ["ADJR-V1", "LABOR-ATTRIBUTION-SPEC", "NAB-IO-MAPPING"]
+uses: ["A(t)", "R(t)", "K(t)", "NAB-1-TO-119-TAXONOMY"]
+invariants: ["INV-STAGE-001", "INV-AGENCY-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XXV"
 title: "Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "13017–16050"

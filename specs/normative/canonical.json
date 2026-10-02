@@ -1,0 +1,674 @@
+{
+  "schema": "harshalos-canonical-model-v1",
+  "spec_id": "HS-SPEC-CANONICAL-MODEL-V1",
+  "version": "1.0.0",
+  "date": "2026-10-02",
+  "author": "Harshal Priyavadan Patel (A44674928)",
+  "origin_anchor": "0•000•000•0000",
+  "creator_id": "HARSHAL",
+  "creator_id_formula": "§HARSHAL§ + HARSHAL + (HARSHAL)",
+  "pipeline": [
+    "Identity",
+    "Representation",
+    "Authorization",
+    "Continuity",
+    "Accountability",
+    "Decision"
+  ],
+  "prerequisites": [
+    "Identity",
+    "Representation",
+    "Authorization",
+    "Continuity",
+    "Accountability"
+  ],
+  "decision": {
+    "stage": "Decision",
+    "outcomes": [
+      "Permit",
+      "Refuse"
+    ],
+    "default_outcome": "Refuse",
+    "permit": "L(t) >= tau && H(t) === 1 && C(t) === 1 && K(t) === 1",
+    "refusal": "L(t) < tau || H(t) === 0 || C(t) === 0 || K(t) === 0",
+    "canonical_flow": "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)",
+    "legacy_shorthand": "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+  },
+  "symbols": {
+    "I": {
+      "symbol": "I",
+      "canonical_name": "Identity",
+      "domain": "Principal-ID @ 0•000•000•0000",
+      "description": "Persistent natural-person principal anchored at Center Origin"
+    },
+    "H": {
+      "symbol": "H(t)",
+      "canonical_name": "Human Key",
+      "domain": "{0, 1}",
+      "description": "Binary human-key attestation state at time t (1 = active within freshness window, 0 = absent/pending/expired/revoked)"
+    },
+    "A": {
+      "symbol": "A(t)",
+      "canonical_name": "Addressability",
+      "domain": "[0, 1]",
+      "description": "Degree to which the responsible human principal can be located, confronted, and compelled to answer at time t",
+      "disambiguation": "A denotes Addressability exclusively; Accountability uses symbol K(t)"
+    },
+    "R": {
+      "symbol": "R(t)",
+      "canonical_name": "Representation",
+      "domain": "[0, 1]",
+      "description": "Representation integrity of the delegation chain linking system action to the authorized human principal"
+    },
+    "V": {
+      "symbol": "V(S,t)",
+      "canonical_name": "Authorization",
+      "domain": "{0, 1}",
+      "description": "Bounded operational permission granted for scope S, phase, and duration Δt <= δ"
+    },
+    "C": {
+      "symbol": "C(t)",
+      "canonical_name": "Continuity",
+      "domain": "{0, 1}",
+      "role": "upstream_condition",
+      "description": "Upstream runtime continuity condition (session-tuple binding, V(S,t) = 1, and temporal freshness Δt < δ)"
+    },
+    "K": {
+      "symbol": "K(t)",
+      "canonical_name": "Accountability",
+      "domain": "{0, 1}",
+      "role": "upstream_condition",
+      "description": "Upstream accountability gate K(t) = K_tech(t) × K_ops(t), disambiguated from Addressability A(t)"
+    },
+    "U_solv": {
+      "symbol": "U_solv",
+      "canonical_name": "Institutional Solvency",
+      "domain": "{0, 1}",
+      "description": "External financial/underwriting capacity tracked separately from K(t)"
+    },
+    "S": {
+      "symbol": "S(t)",
+      "canonical_name": "Scope",
+      "domain": "(S_dom(t) ⊆ S_0, S(t) ∈ [0, Smax])",
+      "description": "Paired scope structure: discrete permitted action set S_dom(t) ⊆ S_0 attenuated by scalar authorization capacity S(t) = Smax × max(0, 1 − Δt/δ)"
+    },
+    "L": {
+      "symbol": "L(t)",
+      "canonical_name": "Legitimacy",
+      "domain": "[0, 1]",
+      "description": "Canonical derived permission state gated by H(t), upstream C(t), K(t), and f(A(t), R(t), S(t))"
+    },
+    "tau": {
+      "symbol": "τ",
+      "canonical_name": "Legitimacy Threshold",
+      "domain": "(0, 1]",
+      "default_value": 0.5,
+      "description": "Absolute minimum legitimacy threshold required for Permit"
+    },
+    "delta": {
+      "symbol": "δ",
+      "canonical_name": "Maximum Verification Delay",
+      "domain": "(0, ∞) seconds",
+      "default_value": 240,
+      "description": "Maximum elapsed time Δt before scalar scope capacity S(t) decays to 0"
+    },
+    "x": {
+      "symbol": "x(t)",
+      "canonical_name": "Decision Outcome",
+      "domain": "{Permit, Refuse}",
+      "description": "Terminal output of the Stage 6 Decision gate"
+    }
+  },
+  "equations": {
+    "canonical_legitimacy": "L(t) = H(t) × f(A(t), R(t), S(t))",
+    "expanded_canonical_legitimacy": "L(t) = H(t) × C(t) × K(t) × f(A(t), R(t), S(t))",
+    "kernel_instantiation": "L(t) = H(t) × A(t) × R(t) × S(t)",
+    "historical_boolean_form": "L(S,t) = A · R · V(S,t)",
+    "decision_gate": "x(t) = Permit if L(t) ≥ τ, else Refuse",
+    "scope_decay": "S(t) = Smax × max(0, 1 − Δt/δ)",
+    "precedence_rule": "For all objectives O(i): if L(t) < τ, then argmax(O(i)) is undefined",
+    "classifications": {
+      "L(t) = H(t) × f(A(t), R(t), S(t))": "CANONICAL_FORM",
+      "L(t) = H(t) × C(t) × K(t) × f(A(t), R(t), S(t))": "EXPANDED_CANONICAL_FORM",
+      "L(t) = H(t) × A(t) × R(t) × S(t)": "IMPLEMENTATION_APPROXIMATION",
+      "L(S,t) = A · R · V(S,t)": "HISTORICAL_BOOLEAN_FORM"
+    }
+  },
+  "constants": {
+    "TAU": 0.5,
+    "DELTA_MAX": 240,
+    "SMAX": 1.0
+  },
+  "human_key_semantics": {
+    "verification_categories": [
+      "cryptographically verifiable",
+      "system-observable",
+      "externally attested",
+      "assumed",
+      "not technically provable"
+    ],
+    "properties": [
+      {
+        "property": "Human Identity",
+        "production_status": ["externally attested"],
+        "demo_status": ["not technically provable"]
+      },
+      {
+        "property": "Key Possession",
+        "production_status": ["cryptographically verifiable"],
+        "demo_status": ["system-observable"]
+      },
+      {
+        "property": "Liveness",
+        "production_status": ["system-observable", "externally attested"],
+        "demo_status": ["system-observable", "not technically provable"]
+      },
+      {
+        "property": "Authorization/Consent Attestation",
+        "production_status": ["cryptographically verifiable", "externally attested", "assumed", "not technically provable"],
+        "demo_status": ["system-observable", "not technically provable"]
+      },
+      {
+        "property": "Representation Integrity",
+        "production_status": ["cryptographically verifiable", "system-observable"],
+        "demo_status": ["system-observable"]
+      }
+    ]
+  },
+  "accountability_decomposition": [
+    {
+      "id": "K_tech",
+      "name": "Technical Attribution",
+      "question": "Who authorized/emitted the event cryptographically?",
+      "verification": ["cryptographically verifiable", "system-observable"]
+    },
+    {
+      "id": "K_ops",
+      "name": "Operational Accountability",
+      "question": "Who is designated to answer for the system?",
+      "verification": ["system-observable", "externally attested"]
+    },
+    {
+      "id": "K_legal",
+      "name": "Legal Responsibility",
+      "question": "What legal consequences attach under the applicable jurisdiction/institution?",
+      "verification": ["externally attested"]
+    },
+    {
+      "id": "U_solv",
+      "name": "Institutional Solvency",
+      "question": "What financial underwriting or reserve backs potential externalized harm?",
+      "verification": ["externally attested", "assumed"],
+      "separate_from_runtime_gate": true
+    }
+  ],
+  "ocm_routing": {
+    "option_a_routing_cost": {
+      "metric": "Cost_resolution < Cost_lateral",
+      "claim_types": ["[STRUCTURAL]", "[ASSUMPTION]"],
+      "assumption": "Direct Attachment Axiom (1-hop radial resolution vs. m-1 lateral hops plus mandatory radial resolution before state commit)"
+    },
+    "option_b_precedence_invariants": [
+      "Authoritative action must traverse the resolution path.",
+      "Lateral coordination cannot authorize, override, or commit state.",
+      "Resolution has precedence over coordination."
+    ],
+    "resolution_axis_invariant": "Resolution is an authority-resolution mechanism, not an authority source.",
+    "distinct_operations": [
+      "Resolve legitimacy",
+      "Transmit legitimacy state",
+      "Interrupt execution",
+      "Execute an operation",
+      "Generate legitimacy"
+    ]
+  },
+  "emergency_legitimacy": {
+    "invariant_id": "INV-EMERG-001",
+    "rule": "Emergency conditions never generate legitimacy.",
+    "allowed_paths": [
+      "Emergency → activate pre-authorized bounded emergency context",
+      "Emergency → request/receive externally issued emergency authorization → bounded emergency disc"
+    ],
+    "forbidden_paths": [
+      "Emergency → legitimacy spontaneously exists"
+    ]
+  },
+  "disc_lifecycle": [
+    "Nonexistent",
+    "Specified",
+    "Created",
+    "Attached",
+    "Active",
+    "Delegating",
+    "Interrupted",
+    "Active",
+    "Expired",
+    "Terminated"
+  ],
+  "cross_layer_failure_semantics": [
+    {
+      "layer": "Decision Gate",
+      "failure_state": "Refuse"
+    },
+    {
+      "layer": "Disc",
+      "failure_state": "Interrupted"
+    },
+    {
+      "layer": "Session",
+      "failure_state": "Suspended"
+    },
+    {
+      "layer": "Capability profile",
+      "failure_state": "Signaling-only / reduced"
+    },
+    {
+      "layer": "Security response",
+      "failure_state": "Key/session burn"
+    },
+    {
+      "layer": "Lifecycle",
+      "failure_state": "Terminated"
+    }
+  ],
+  "declared_phases": [
+    "NAB",
+    "CWO",
+    "GSRB"
+  ],
+  "detected_phases": [
+    "NAB",
+    "CWO",
+    "NAB-Constrained",
+    "GSRB",
+    "AMBIGUOUS",
+    "INCOHERENT"
+  ],
+  "diagnostic_classification_states": [
+    "AMBIGUOUS",
+    "INCOHERENT"
+  ],
+  "phase_events": {
+    "types": [
+      "Declared Phase",
+      "Observed Phase",
+      "Reclassification Event",
+      "Transition Event"
+    ],
+    "invariants": [
+      "Reclassification changes the classification.",
+      "Transition changes the operational state.",
+      "Classification alone does not create legitimacy.",
+      "Classification alone does not cause transition."
+    ]
+  },
+  "claim_types": [
+    "[NORMATIVE]",
+    "[STRUCTURAL]",
+    "[DETECTION]",
+    "[ENFORCEMENT]",
+    "[ASSUMPTION]",
+    "[IMPLEMENTATION]",
+    "[DEMO-LIMITATION]"
+  ],
+  "part_27_contract": {
+    "invariant_id": "INV-CORPUS-027",
+    "source_components": "01–26",
+    "synthesis_component": "27",
+    "rules": [
+      "27 must not introduce a new invariant absent from 01–26.",
+      "27 may synthesize, reorder, narrativize, or instantiate existing invariants."
+    ]
+  },
+  "components": [
+    {
+      "id": "HS-00-FRONT-MATTER",
+      "slug": "00-front-matter",
+      "canonical_name": "Front Matter",
+      "depends_on": [],
+      "defines": ["PUBLISHING-HIERARCHY", "PROVENANCE-TAXONOMY"],
+      "uses": ["CANONICAL-MINIMUM-MODEL", "INV-AGENCY-001", "INV-LEGIT-001"],
+      "invariants": ["INV-AGENCY-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "UMBRELLA_INDEX"
+    },
+    {
+      "id": "HS-00-AUTHOR-FRONT-MATTER",
+      "slug": "00-author-front-matter",
+      "canonical_name": "Author's Front Matter and Reading Guide",
+      "depends_on": [],
+      "defines": ["AUTHOR-READING-GUIDE", "HARSHALS-ENGLISH-REGISTER"],
+      "uses": ["CENTER-ORIGIN"],
+      "invariants": ["INV-SYMBOLIC-FIREWALL"],
+      "conflicts_with": [],
+      "status": "CONCEPTUAL_DOCTRINE"
+    },
+    {
+      "id": "HS-01-CORE-BOOK",
+      "slug": "01-core-book",
+      "canonical_name": "Part I — The Core Book",
+      "depends_on": ["HS-00-FRONT-MATTER"],
+      "defines": ["LEGITIMACY-PRECEDES-CAPABILITY", "REFUSAL-DEFAULT", "SYMBOLIC-FIREWALL"],
+      "uses": ["H(t)", "A(t)", "R(t)", "S(t)", "L(t)"],
+      "invariants": ["INV-AGENCY-001", "INV-LEGIT-001", "INV-SYMBOLIC-FIREWALL"],
+      "conflicts_with": [],
+      "status": "CONCEPTUAL_DOCTRINE"
+    },
+    {
+      "id": "HS-02-FORMALIZATION",
+      "slug": "02-formalization",
+      "canonical_name": "Part II — Formalization",
+      "depends_on": ["HS-01-CORE-BOOK"],
+      "defines": ["H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "S(t)", "L(t)", "tau", "delta", "x(t)", "GLOSSARY"],
+      "uses": ["CANONICAL-MINIMUM-MODEL"],
+      "invariants": ["INV-SYM-001", "INV-STAGE-001", "INV-LEGIT-EQ-001", "INV-PRECEDENCE-A6"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-03-SAFETY-RATIONALE",
+      "slug": "03-safety-rationale",
+      "canonical_name": "Part III — Safety Rationale for Adversarial Scenarios",
+      "depends_on": ["HS-01-CORE-BOOK", "HS-02-FORMALIZATION"],
+      "defines": ["ADVERSARIAL-CONTAINMENT-RATIONALE"],
+      "uses": ["L(t)", "x(t)", "HARSHALS-ENGLISH-REGISTER"],
+      "invariants": ["INV-SYMBOLIC-FIREWALL", "INV-PRECEDENCE-A6"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-04-AGS-ARCHITECTURE",
+      "slug": "04-ags-architecture",
+      "canonical_name": "Part IV — AGS: Accountability-Gated Systems",
+      "depends_on": ["HS-02-FORMALIZATION"],
+      "defines": ["AGS-ARCHITECTURE", "EXTERNAL-LEGITIMACY-ANCHOR"],
+      "uses": ["H(t)", "A(t)", "R(t)", "S(t)", "L(t)", "K(t)"],
+      "invariants": ["INV-LEGIT-001", "INV-AUTH-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-05-OCM-ORB",
+      "slug": "05-ocm-orb",
+      "canonical_name": "Part V — OCM: The Orb Communicator Model",
+      "depends_on": ["HS-04-AGS-ARCHITECTURE"],
+      "defines": ["OCM-TOPOLOGY", "CENTER-ORIGIN", "RESOLUTION-AXIS", "INTERACTION-ORB"],
+      "uses": ["H(t)", "L(t)"],
+      "invariants": ["INV-AXIS-001", "INV-OCM-PRECEDENCE-001", "INV-OCM-LATERAL-002", "INV-OCM-PRECEDENCE-003"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-06-INNER-SHELL",
+      "slug": "06-inner-shell",
+      "canonical_name": "Part VI — The AI Inner Shell",
+      "depends_on": ["HS-05-OCM-ORB"],
+      "defines": ["AI-INNER-SHELL", "CAPABILITY-WITHOUT-SOVEREIGNTY"],
+      "uses": ["CENTER-ORIGIN", "L(t)"],
+      "invariants": ["INV-AGENCY-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-07-ADDRESSING-TOPOLOGY",
+      "slug": "07-addressing-topology",
+      "canonical_name": "Part VII — Addressing, Rotation, and Spherical Topology",
+      "depends_on": ["HS-05-OCM-ORB"],
+      "defines": ["ADDRESS-RING-Z360", "CLOSURE-360-DEG", "DISC-TO-SPHERE-MANIFOLD"],
+      "uses": ["CENTER-ORIGIN", "RESOLUTION-AXIS"],
+      "invariants": ["INV-Z360-001", "INV-AXIS-001", "INV-OCM-PRECEDENCE-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-08-OPERATOR-MODEL",
+      "slug": "08-operator-model",
+      "canonical_name": "Part VIII — The Operator Model",
+      "depends_on": ["HS-04-AGS-ARCHITECTURE", "HS-07-ADDRESSING-TOPOLOGY"],
+      "defines": ["HUMAN-OPERATOR-CUSTODY", "OPERATOR-BURDEN-BOUNDS"],
+      "uses": ["H(t)", "A(t)", "R(t)", "C(t)"],
+      "invariants": ["INV-H-001", "INV-AUTH-002"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-09-DISC-LIFECYCLE",
+      "slug": "09-disc-lifecycle",
+      "canonical_name": "Part IX — Disc Primitives, Routing, and Lifecycle",
+      "depends_on": ["HS-05-OCM-ORB", "HS-07-ADDRESSING-TOPOLOGY", "HS-08-OPERATOR-MODEL"],
+      "defines": ["DISC-LIFECYCLE", "EMERGENCY-DISC-BOUNDS", "CROSS-LAYER-FAILURE-CROSSWALK"],
+      "uses": ["S(t)", "L(t)", "C(t)"],
+      "invariants": ["INV-EMERG-001", "INV-OCM-PRECEDENCE-001", "INV-OCM-LATERAL-002"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-10-AGS-CONFORMANCE",
+      "slug": "10-ags-conformance",
+      "canonical_name": "Part X — AGS+ Layering and Conformance",
+      "depends_on": ["HS-04-AGS-ARCHITECTURE", "HS-09-DISC-LIFECYCLE"],
+      "defines": ["AGS-PLUS-LAYERING", "CONFORMANCE-PROFILES"],
+      "uses": ["L(t)", "x(t)", "DISC-LIFECYCLE"],
+      "invariants": ["INV-LEGIT-001", "INV-STAGE-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-11-ACCESSORY-PACK",
+      "slug": "11-accessory-pack",
+      "canonical_name": "Part XI — The AGS Accessory Pack",
+      "depends_on": ["HS-10-AGS-CONFORMANCE"],
+      "defines": ["GRL-LAYER", "PLV-LEDGER", "SYMBOLIC-FIREWALL-ACCESSORY"],
+      "uses": ["K(t)", "C(t)"],
+      "invariants": ["INV-SYMBOLIC-FIREWALL", "LEDGER-BOUNDARY"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-12-GROUND-ZERO",
+      "slug": "12-ground-zero",
+      "canonical_name": "Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger",
+      "depends_on": ["HS-02-FORMALIZATION", "HS-10-AGS-CONFORMANCE", "HS-11-ACCESSORY-PACK"],
+      "defines": ["GROUND-0-ALGORITHM", "PDH-HEADER", "DECLARED-PHASE", "DETECTED-PHASE", "DUTY-COLLATION-LEDGER"],
+      "uses": ["L(t)", "A(t)", "PLV-LEDGER"],
+      "invariants": ["INV-PHASE-001", "INV-G0-CLASS-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "CASE_STUDY_AUDIT"
+    },
+    {
+      "id": "HS-13-WHYLAND",
+      "slug": "13-whyland",
+      "canonical_name": "Part XIII — The Whyland Standards",
+      "depends_on": ["HS-12-GROUND-ZERO"],
+      "defines": ["WHYLAND-TCS", "BROMINE-GATEWAY", "YTTERBIUM-TIMER", "TECHNETIUM-SANDBOX"],
+      "uses": ["C(t)", "S(t)", "DISC-LIFECYCLE"],
+      "invariants": ["INV-AUTH-001", "INV-SYMBOLIC-FIREWALL"],
+      "conflicts_with": [],
+      "status": "CONCEPTUAL_DOCTRINE"
+    },
+    {
+      "id": "HS-14-NAB-COMPENDIUM",
+      "slug": "14-nab-compendium",
+      "canonical_name": "Part XIV — Neural Atomic Bodies Compendium",
+      "depends_on": ["HS-12-GROUND-ZERO"],
+      "defines": ["NAB-1-TO-119-TAXONOMY"],
+      "uses": ["DECLARED-PHASE", "DETECTED-PHASE", "L(t)"],
+      "invariants": ["INV-PHASE-001", "INV-AGENCY-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-15-HMKH-CONTROLS",
+      "slug": "15-hmkh-controls",
+      "canonical_name": "Part XV — Keyed Human-Machine Hybrid Controls",
+      "depends_on": ["HS-02-FORMALIZATION", "HS-08-OPERATOR-MODEL", "HS-14-NAB-COMPENDIUM"],
+      "defines": ["HMKH-CONTROLS", "NEURAL-INTERFACE-CONTAINMENT"],
+      "uses": ["H(t)", "R(t)", "C(t)", "K(t)"],
+      "invariants": ["INV-H-001", "INV-AGENCY-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-16-THREAT-MODELING",
+      "slug": "16-threat-modeling",
+      "canonical_name": "Part XVI — Threat Modeling and Context-Dependent Guarantees",
+      "depends_on": ["HS-03-SAFETY-RATIONALE", "HS-15-HMKH-CONTROLS"],
+      "defines": ["THREAT-TAXONOMY", "CONTEXT-DEPENDENT-GUARANTEES"],
+      "uses": ["H(t)", "A(t)", "R(t)", "C(t)", "K(t)", "L(t)"],
+      "invariants": ["INV-PRECEDENCE-A6", "INV-EMERG-001"],
+      "conflicts_with": [],
+      "status": "RESEARCH_PAPER"
+    },
+    {
+      "id": "HS-17-ATOMIC-BODIES",
+      "slug": "17-atomic-bodies",
+      "canonical_name": "Part XVII — Atomic Body Classes and Reactor Doctrine",
+      "depends_on": ["HS-12-GROUND-ZERO", "HS-14-NAB-COMPENDIUM"],
+      "defines": ["ATOMIC-BODY-CLASSES", "REACTOR-DOCTRINE"],
+      "uses": ["DECLARED-PHASE", "DETECTED-PHASE", "S(t)"],
+      "invariants": ["INV-PHASE-001", "INV-G0-CLASS-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-18-INSTITUTIONAL-APPLICATION",
+      "slug": "18-institutional-application",
+      "canonical_name": "Part XVIII — Institutional Application",
+      "depends_on": ["HS-12-GROUND-ZERO", "HS-17-ATOMIC-BODIES"],
+      "defines": ["INSTITUTIONAL-ROLE-MAPPING", "UNDERWRITING-SOLVENCY-U-SOLV"],
+      "uses": ["K(t)", "U_solv", "A(t)", "DECLARED-PHASE"],
+      "invariants": ["INV-G0-CLASS-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-19-RESEARCH-PAPERS",
+      "slug": "19-research-papers",
+      "canonical_name": "Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems",
+      "depends_on": ["HS-02-FORMALIZATION", "HS-15-HMKH-CONTROLS", "HS-18-INSTITUTIONAL-APPLICATION"],
+      "defines": ["MINIMUM-VIABLE-KEYING", "HYBRID-ACCOUNTABILITY-THEORY"],
+      "uses": ["CANONICAL-MINIMUM-MODEL", "H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "L(t)"],
+      "invariants": ["INV-AGENCY-001", "INV-LEGIT-001", "INV-STAGE-001"],
+      "conflicts_with": [],
+      "status": "RESEARCH_PAPER"
+    },
+    {
+      "id": "HS-20-SUPPLY-CHAIN",
+      "slug": "20-supply-chain",
+      "canonical_name": "Part XX — Supply Chain and Implanted-Device Threat Research",
+      "depends_on": ["HS-15-HMKH-CONTROLS", "HS-16-THREAT-MODELING"],
+      "defines": ["SCAV-PLUS-PLUS", "IMPLANTED-DEVICE-THREAT-MODEL"],
+      "uses": ["H(t)", "C(t)", "K(t)", "PLV-LEDGER"],
+      "invariants": ["INV-H-001", "INV-SYMBOLIC-FIREWALL"],
+      "conflicts_with": [],
+      "status": "RESEARCH_PAPER"
+    },
+    {
+      "id": "HS-21-MICROCONVERGENCE",
+      "slug": "21-microconvergence",
+      "canonical_name": "Part XXI — MicroConvergence and Signal Encoding",
+      "depends_on": ["HS-07-ADDRESSING-TOPOLOGY", "HS-15-HMKH-CONTROLS"],
+      "defines": ["MICROCONVERGENCE-AVE", "SIGNAL-ENCODING-BOUNDS"],
+      "uses": ["CANONICAL-MINIMUM-MODEL", "C(t)", "S(t)"],
+      "invariants": ["INV-STAGE-001", "INV-SYMBOLIC-FIREWALL"],
+      "conflicts_with": [],
+      "status": "RESEARCH_PAPER"
+    },
+    {
+      "id": "HS-22-POLICY-ARCHIVE",
+      "slug": "22-policy-archive",
+      "canonical_name": "Part XXII — Supporting Policy & Governance Research Archive",
+      "depends_on": ["HS-02-FORMALIZATION", "HS-18-INSTITUTIONAL-APPLICATION"],
+      "defines": ["ANTI-CASTE-ARCHITECTURE", "CONSENT-INVARIANT-POLICY", "FISCAL-LABOR-SAFEGUARDS"],
+      "uses": ["I", "R(t)", "V(S,t)", "C(t)", "K(t)", "x(t)"],
+      "invariants": ["INV-STAGE-001", "INV-LEGIT-001"],
+      "conflicts_with": [],
+      "status": "SUPPORTING_POLICY_RESEARCH"
+    },
+    {
+      "id": "HS-23-SPECIFICATION-SERIES",
+      "slug": "23-specification-series",
+      "canonical_name": "Part XXIII — Specification Series",
+      "depends_on": ["HS-02-FORMALIZATION", "HS-10-AGS-CONFORMANCE", "HS-15-HMKH-CONTROLS"],
+      "defines": ["CHE-PLUS-PLUS-V1", "CGPA-V1", "OCS-V1"],
+      "uses": ["H(t)", "A(t)", "R(t)", "C(t)", "K(t)", "L(t)"],
+      "invariants": ["INV-H-001", "INV-LEGIT-001", "INV-PRECEDENCE-A6"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-24-THE-NOVEL",
+      "slug": "24-the-novel",
+      "canonical_name": "Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)",
+      "depends_on": ["HS-01-CORE-BOOK", "HS-05-OCM-ORB", "HS-12-GROUND-ZERO", "HS-14-NAB-COMPENDIUM"],
+      "defines": ["BOOK-II-NARRATIVE-SANDBOX"],
+      "uses": ["CENTER-ORIGIN", "ADDRESS-RING-Z360", "NAB-1-TO-119-TAXONOMY", "U_solv"],
+      "invariants": ["INV-SYMBOLIC-FIREWALL", "INV-Z360-001"],
+      "conflicts_with": [],
+      "status": "FICTION_PREVIEW"
+    },
+    {
+      "id": "HS-25-ADDITIONAL-SPECS",
+      "slug": "25-additional-specs",
+      "canonical_name": "Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping",
+      "depends_on": ["HS-14-NAB-COMPENDIUM", "HS-23-SPECIFICATION-SERIES"],
+      "defines": ["ADJR-V1", "LABOR-ATTRIBUTION-SPEC", "NAB-IO-MAPPING"],
+      "uses": ["A(t)", "R(t)", "K(t)", "NAB-1-TO-119-TAXONOMY"],
+      "invariants": ["INV-STAGE-001", "INV-AGENCY-001"],
+      "conflicts_with": [],
+      "status": "NORMATIVE_SPEC"
+    },
+    {
+      "id": "HS-26-ANTHROPIC-B-SIDE",
+      "slug": "26-anthropic-b-side",
+      "canonical_name": "Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)",
+      "depends_on": ["HS-12-GROUND-ZERO"],
+      "defines": ["ANTHROPIC-B-SIDE-AUDIT-RECORD"],
+      "uses": ["GROUND-0-ALGORITHM", "DECLARED-PHASE", "DETECTED-PHASE"],
+      "invariants": ["INV-G0-CLASS-001"],
+      "conflicts_with": [],
+      "status": "CASE_STUDY_AUDIT"
+    },
+    {
+      "id": "HS-27-WHOLE-CORPUS",
+      "slug": "27-whole-corpus",
+      "canonical_name": "Part XXVII — Whole Corpus / Complete Work",
+      "depends_on": [
+        "HS-01-CORE-BOOK", "HS-02-FORMALIZATION", "HS-03-SAFETY-RATIONALE", "HS-04-AGS-ARCHITECTURE",
+        "HS-05-OCM-ORB", "HS-06-INNER-SHELL", "HS-07-ADDRESSING-TOPOLOGY", "HS-08-OPERATOR-MODEL",
+        "HS-09-DISC-LIFECYCLE", "HS-10-AGS-CONFORMANCE", "HS-11-ACCESSORY-PACK", "HS-12-GROUND-ZERO",
+        "HS-13-WHYLAND", "HS-14-NAB-COMPENDIUM", "HS-15-HMKH-CONTROLS", "HS-16-THREAT-MODELING",
+        "HS-17-ATOMIC-BODIES", "HS-18-INSTITUTIONAL-APPLICATION", "HS-19-RESEARCH-PAPERS", "HS-20-SUPPLY-CHAIN",
+        "HS-21-MICROCONVERGENCE", "HS-22-POLICY-ARCHIVE", "HS-23-SPECIFICATION-SERIES", "HS-24-THE-NOVEL",
+        "HS-25-ADDITIONAL-SPECS", "HS-26-ANTHROPIC-B-SIDE"
+      ],
+      "defines": ["WHOLE-CORPUS-SYNTHESIS"],
+      "uses": [
+        "CANONICAL-MINIMUM-MODEL", "H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "S(t)", "L(t)",
+        "DECLARED-PHASE", "DETECTED-PHASE"
+      ],
+      "invariants": [
+        "INV-CORPUS-027", "INV-SYM-001", "INV-STAGE-001", "INV-LEGIT-EQ-001", "INV-AGENCY-001",
+        "INV-LEGIT-001", "INV-AXIS-001", "INV-OCM-PRECEDENCE-001", "INV-EMERG-001", "INV-G0-CLASS-001"
+      ],
+      "conflicts_with": [],
+      "status": "UMBRELLA_INDEX"
+    }
+  ],
+  "contradictions": [
+    "CL-001",
+    "CL-002",
+    "CL-003",
+    "CL-004",
+    "CL-005",
+    "CL-006",
+    "CL-007",
+    "CL-008",
+    "CL-009",
+    "CL-010",
+    "CL-011",
+    "CL-012",
+    "CL-013",
+    "CL-014"
+  ]
+}

@@ -1,5 +1,13 @@
 ---
+id: HS-15-HMKH-CONTROLS
 document_id: HS-15-HMKH-CONTROLS
+canonical_name: "Part XV — Keyed Human-Machine Hybrid Controls"
+depends_on: ["HS-02-FORMALIZATION", "HS-08-OPERATOR-MODEL", "HS-14-NAB-COMPENDIUM"]
+defines: ["HMKH-CONTROLS", "NEURAL-INTERFACE-CONTAINMENT"]
+uses: ["H(t)", "R(t)", "C(t)", "K(t)"]
+invariants: ["INV-H-001", "INV-AGENCY-001", "INV-LEGIT-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XV"
 title: "Part XV — Keyed Human-Machine Hybrid Controls"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "5345–5662"

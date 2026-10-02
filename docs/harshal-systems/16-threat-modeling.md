@@ -1,5 +1,13 @@
 ---
+id: HS-16-THREAT-MODELING
 document_id: HS-16-THREAT-MODELING
+canonical_name: "Part XVI — Threat Modeling and Context-Dependent Guarantees"
+depends_on: ["HS-03-SAFETY-RATIONALE", "HS-15-HMKH-CONTROLS"]
+defines: ["THREAT-TAXONOMY", "CONTEXT-DEPENDENT-GUARANTEES"]
+uses: ["H(t)", "A(t)", "R(t)", "C(t)", "K(t)", "L(t)"]
+invariants: ["INV-PRECEDENCE-A6", "INV-EMERG-001"]
+conflicts_with: []
+status: RESEARCH_PAPER
 book: "Book I"
 part: "Part XVI"
 title: "Part XVI — Threat Modeling and Context-Dependent Guarantees"
@@ -9,6 +17,7 @@ status_taxonomy: RESEARCH_PAPER
 evidence_status: FORMAL_AXIOMATIC
 research_layer: THREAT_RESEARCH
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "5663–6480"

@@ -10,7 +10,7 @@
 
 | Module ID | Part / Document | Provenance Class | Status Taxonomy | Evidence Status & Extent |
 | :--- | :--- | :--- | :--- | :--- |
-| `12-ground-zero` | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](../../12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` (16,998 words) |
+| `12-ground-zero` | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](../../12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` (17,086 words) |
 | `13-whyland` | [Part XIII — The Whyland Standards](../../13-whyland.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` (986 words) |
 | `14-nab-compendium` | [Part XIV — Neural Atomic Bodies Compendium](../../14-nab-compendium.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (5,040 words) |
 | `15-hmkh-controls` | [Part XV — Keyed Human-Machine Hybrid Controls](../../15-hmkh-controls.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (2,118 words) |

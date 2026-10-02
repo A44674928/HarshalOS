@@ -1,5 +1,13 @@
 ---
+id: HS-21-MICROCONVERGENCE
 document_id: HS-21-MICROCONVERGENCE
+canonical_name: "Part XXI — MicroConvergence and Signal Encoding"
+depends_on: ["HS-07-ADDRESSING-TOPOLOGY", "HS-15-HMKH-CONTROLS"]
+defines: ["MICROCONVERGENCE-AVE", "SIGNAL-ENCODING-BOUNDS"]
+uses: ["CANONICAL-MINIMUM-MODEL", "C(t)", "S(t)"]
+invariants: ["INV-STAGE-001", "INV-SYMBOLIC-FIREWALL"]
+conflicts_with: []
+status: RESEARCH_PAPER
 book: "Book I"
 part: "Part XXI"
 title: "Part XXI — MicroConvergence and Signal Encoding"
@@ -9,6 +17,7 @@ status_taxonomy: RESEARCH_PAPER
 evidence_status: FORMAL_AXIOMATIC
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "9943–10496"

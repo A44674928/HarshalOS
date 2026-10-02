@@ -1,5 +1,13 @@
 ---
+id: HS-26-ANTHROPIC-B-SIDE
 document_id: HS-26-ANTHROPIC-B-SIDE
+canonical_name: "Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)"
+depends_on: ["HS-12-GROUND-ZERO"]
+defines: ["ANTHROPIC-B-SIDE-AUDIT-RECORD"]
+uses: ["GROUND-0-ALGORITHM", "DECLARED-PHASE", "DETECTED-PHASE"]
+invariants: ["INV-G0-CLASS-001"]
+conflicts_with: []
+status: CASE_STUDY_AUDIT
 book: "Book I"
 part: "Part XXVI"
 title: "Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)"
@@ -9,6 +17,7 @@ status_taxonomy: CASE_STUDY_AUDIT
 evidence_status: MIXED_VERIFIED_AND_REPORTED
 research_layer: INCIDENT_AND_AUDIT_RECORD
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "16051–16675"

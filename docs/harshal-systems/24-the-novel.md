@@ -1,5 +1,13 @@
 ---
+id: HS-24-THE-NOVEL
 document_id: HS-24-THE-NOVEL
+canonical_name: "Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)"
+depends_on: ["HS-01-CORE-BOOK", "HS-05-OCM-ORB", "HS-12-GROUND-ZERO", "HS-14-NAB-COMPENDIUM"]
+defines: ["BOOK-II-NARRATIVE-SANDBOX"]
+uses: ["CENTER-ORIGIN", "ADDRESS-RING-Z360", "NAB-1-TO-119-TAXONOMY", "U_solv"]
+invariants: ["INV-SYMBOLIC-FIREWALL", "INV-Z360-001"]
+conflicts_with: []
+status: FICTION_PREVIEW
 book: "Book II (Preview Mirror in Book I)"
 part: "Part XXIV"
 title: "Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)"
@@ -9,6 +17,7 @@ status_taxonomy: FICTION_PREVIEW
 evidence_status: NARRATIVE_SANDBOX
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "12509–13016"

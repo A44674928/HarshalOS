@@ -1,5 +1,13 @@
 ---
+id: HS-04-AGS-ARCHITECTURE
 document_id: HS-04-AGS-ARCHITECTURE
+canonical_name: "Part IV — AGS: Accountability-Gated Systems"
+depends_on: ["HS-02-FORMALIZATION"]
+defines: ["AGS-ARCHITECTURE", "EXTERNAL-LEGITIMACY-ANCHOR"]
+uses: ["H(t)", "A(t)", "R(t)", "S(t)", "L(t)", "K(t)"]
+invariants: ["INV-LEGIT-001", "INV-AUTH-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part IV"
 title: "Part IV — AGS: Accountability-Gated Systems"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "830–1241"
