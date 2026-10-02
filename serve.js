@@ -108,7 +108,7 @@ const SERVED = [
   /^\/book\/01-core-book\.md$/,            // one explicitly selected source document
   /^\/book-library\/manifest\.json$/,
   BOOK_LIBRARY_FILE_PATH,                    // curated Markdown subtree only
-  /^\/specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/,
+  /^\/specs\/(?:normative\/[A-Za-z0-9._-]+\.(?:md|json)|draft\/[A-Za-z0-9._-]+\.md)$/,
   /^\/manuscript\/[A-Za-z0-9._/-]+$/      // manifest.json and public chapters only
 ];
 const MANUSCRIPT_MANIFEST_PATH = "/manuscript/manifest.json";

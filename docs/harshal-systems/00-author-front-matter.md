@@ -1,5 +1,13 @@
 ---
+id: HS-00-AUTHOR-FRONT-MATTER
 document_id: HS-00-AUTHOR-FRONT-MATTER
+canonical_name: "Author's Front Matter and Reading Guide"
+depends_on: []
+defines: ["AUTHOR-READING-GUIDE", "HARSHALS-ENGLISH-REGISTER"]
+uses: ["CENTER-ORIGIN"]
+invariants: ["INV-SYMBOLIC-FIREWALL"]
+conflicts_with: []
+status: CONCEPTUAL_DOCTRINE
 book: "Book I"
 part: "Author's Front Matter"
 title: "Author’s Front Matter and Reading Guide"
@@ -9,6 +17,7 @@ status_taxonomy: CONCEPTUAL_DOCTRINE
 evidence_status: AUTHOR_REPORTED
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "1–325"

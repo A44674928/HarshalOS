@@ -3,7 +3,7 @@
 **Work:** Harshal’s Systems — The Ultimate User Manual (Book I Reference Library & Book II Preview Mirror)
 **Source:** `Harshal’s Systems (Copyrighted) [Owner’s Working Draft].md`
 (1,278,427 bytes · 16,674 lines · 165,900 words) + synchronized `manuscript/the-grand-river-foundation/` chapters
-**Output:** 187,775 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
+**Output:** 189,122 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
 **Build:** `python3 source/build.py` — deterministic and reproducible.
 
 ---
@@ -168,17 +168,17 @@ The manual now arranges the whole work into **Author's Front Matter (`00`)** plu
 |---|---|---|---|---:|---|
 | `00` | **Author's Front Matter** | [Author’s Front Matter and Reading Guide](00-author-front-matter.md) | `ARCHIVE` | 3,476 | 1–325 |
 | `01` | **Part I** | [Part I — The Core Book](01-core-book.md) | `CANONICAL_SOURCE` | 8,511 | 326–572 |
-| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | 3,032 | 573–784 |
+| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | 3,457 | 573–784 |
 | `03` | **Part III** | [Part III — Safety Rationale for Adversarial Scenarios](03-safety-rationale.md) | `CANONICAL_SOURCE` | 436 | 785–829 |
 | `04` | **Part IV** | [Part IV — AGS: Accountability-Gated Systems](04-ags-architecture.md) | `CANONICAL_SOURCE` | 2,668 | 830–1,241 |
-| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | 1,344 | 1,242–1,414 |
+| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | 1,499 | 1,242–1,414 |
 | `06` | **Part VI** | [Part VI — The AI Inner Shell](06-inner-shell.md) | `CANONICAL_SOURCE` | 720 | 1,415–1,530 |
-| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | 2,290 | 1,531–2,017 |
+| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | 2,445 | 1,531–2,017 |
 | `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | 1,264 | 2,018–2,181 |
-| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | 3,436 | 2,182–2,651 |
+| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | 3,681 | 2,182–2,651 |
 | `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | 817 | 2,652–2,797 |
 | `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | 1,739 | 2,798–3,045 |
-| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | 16,998 | 3,046–5,104 |
+| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | 17,086 | 3,046–5,104 |
 | `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | 986 | 5,105–5,162 |
 | `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | 5,040 | 5,163–5,344 |
 | `15` | **Part XV** | [Part XV — Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md) | `CANONICAL_SOURCE` | 2,118 | 5,345–5,662 |
@@ -193,7 +193,7 @@ The manual now arranges the whole work into **Author's Front Matter (`00`)** plu
 | `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | 16,113 | 12,509–13,016 |
 | `25` | **Part XXV** | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | `CANONICAL_SOURCE` | 21,535 | 13,017–16,050 |
 | `26` | **Part XXVI** | [Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)](26-anthropic-b-side.md) | `AUDIT` | 10,267 | 16,051–16,675 |
-| `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | 1,794 | 1–16,675 |
+| `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | 2,038 | 1–16,675 |
 
 ### 4.1 Rebuilt table of contents
 

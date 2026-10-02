@@ -1,5 +1,13 @@
 ---
+id: HS-22-POLICY-ARCHIVE
 document_id: HS-22-POLICY-ARCHIVE
+canonical_name: "Part XXII — Supporting Policy & Governance Research Archive"
+depends_on: ["HS-02-FORMALIZATION", "HS-18-INSTITUTIONAL-APPLICATION"]
+defines: ["ANTI-CASTE-ARCHITECTURE", "CONSENT-INVARIANT-POLICY", "FISCAL-LABOR-SAFEGUARDS"]
+uses: ["I", "R(t)", "V(S,t)", "C(t)", "K(t)", "x(t)"]
+invariants: ["INV-STAGE-001", "INV-LEGIT-001"]
+conflicts_with: []
+status: SUPPORTING_POLICY_RESEARCH
 book: "Book I"
 part: "Part XXII"
 title: "Part XXII — Supporting Policy & Governance Research Archive"
@@ -9,6 +17,7 @@ status_taxonomy: SUPPORTING_POLICY_RESEARCH
 evidence_status: INDEPENDENTLY_VERIFIABLE
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "10497–11105"

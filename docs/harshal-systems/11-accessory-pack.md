@@ -1,5 +1,13 @@
 ---
+id: HS-11-ACCESSORY-PACK
 document_id: HS-11-ACCESSORY-PACK
+canonical_name: "Part XI — The AGS Accessory Pack"
+depends_on: ["HS-10-AGS-CONFORMANCE"]
+defines: ["GRL-LAYER", "PLV-LEDGER", "SYMBOLIC-FIREWALL-ACCESSORY"]
+uses: ["K(t)", "C(t)"]
+invariants: ["INV-SYMBOLIC-FIREWALL", "LEDGER-BOUNDARY"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XI"
 title: "Part XI — The AGS Accessory Pack"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "2798–3045"

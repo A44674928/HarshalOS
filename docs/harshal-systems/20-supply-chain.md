@@ -1,5 +1,13 @@
 ---
+id: HS-20-SUPPLY-CHAIN
 document_id: HS-20-SUPPLY-CHAIN
+canonical_name: "Part XX — Supply Chain and Implanted-Device Threat Research"
+depends_on: ["HS-15-HMKH-CONTROLS", "HS-16-THREAT-MODELING"]
+defines: ["SCAV-PLUS-PLUS", "IMPLANTED-DEVICE-THREAT-MODEL"]
+uses: ["H(t)", "C(t)", "K(t)", "PLV-LEDGER"]
+invariants: ["INV-H-001", "INV-SYMBOLIC-FIREWALL"]
+conflicts_with: []
+status: RESEARCH_PAPER
 book: "Book I"
 part: "Part XX"
 title: "Part XX — Supply Chain and Implanted-Device Threat Research"
@@ -9,6 +17,7 @@ status_taxonomy: RESEARCH_PAPER
 evidence_status: MIXED_VERIFIED_AND_REPORTED
 research_layer: THREAT_RESEARCH
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "7790–9942"

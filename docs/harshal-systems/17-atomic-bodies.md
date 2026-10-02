@@ -1,5 +1,13 @@
 ---
+id: HS-17-ATOMIC-BODIES
 document_id: HS-17-ATOMIC-BODIES
+canonical_name: "Part XVII — Atomic Body Classes and Reactor Doctrine"
+depends_on: ["HS-12-GROUND-ZERO", "HS-14-NAB-COMPENDIUM"]
+defines: ["ATOMIC-BODY-CLASSES", "REACTOR-DOCTRINE"]
+uses: ["DECLARED-PHASE", "DETECTED-PHASE", "S(t)"]
+invariants: ["INV-PHASE-001", "INV-G0-CLASS-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XVII"
 title: "Part XVII — Atomic Body Classes and Reactor Doctrine"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "6481–7438"

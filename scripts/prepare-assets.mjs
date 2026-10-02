@@ -7,7 +7,7 @@ import { buildBookLibrary, serializeBookLibrary } from './book-library-index.mjs
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dest = path.join(root, '.site-assets');
 const allowedSpecDirectories = new Set(['specs', 'specs/normative', 'specs/draft']);
-const allowedSpecDocument = /^specs\/(?:normative|draft)\/[A-Za-z0-9._-]+\.md$/;
+const allowedSpecDocument = /^specs\/(?:normative\/[A-Za-z0-9._-]+\.(?:md|json)|draft\/[A-Za-z0-9._-]+\.md)$/;
 await rm(dest, { recursive: true, force: true });
 await mkdir(dest);
 for (const entry of ['index.html', 'about.html', 'css', 'js', 'assets', 'specs']) {

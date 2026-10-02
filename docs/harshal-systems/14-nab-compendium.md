@@ -1,5 +1,13 @@
 ---
+id: HS-14-NAB-COMPENDIUM
 document_id: HS-14-NAB-COMPENDIUM
+canonical_name: "Part XIV — Neural Atomic Bodies Compendium"
+depends_on: ["HS-12-GROUND-ZERO"]
+defines: ["NAB-1-TO-119-TAXONOMY"]
+uses: ["DECLARED-PHASE", "DETECTED-PHASE", "L(t)"]
+invariants: ["INV-PHASE-001", "INV-AGENCY-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XIV"
 title: "Part XIV — Neural Atomic Bodies Compendium"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "5163–5344"

@@ -1,5 +1,13 @@
 ---
+id: HS-23-SPECIFICATION-SERIES
 document_id: HS-23-SPECIFICATION-SERIES
+canonical_name: "Part XXIII — Specification Series"
+depends_on: ["HS-02-FORMALIZATION", "HS-10-AGS-CONFORMANCE", "HS-15-HMKH-CONTROLS"]
+defines: ["CHE-PLUS-PLUS-V1", "CGPA-V1", "OCS-V1"]
+uses: ["H(t)", "A(t)", "R(t)", "C(t)", "K(t)", "L(t)"]
+invariants: ["INV-H-001", "INV-LEGIT-001", "INV-PRECEDENCE-A6"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part XXIII"
 title: "Part XXIII — Specification Series"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "11106–12508"

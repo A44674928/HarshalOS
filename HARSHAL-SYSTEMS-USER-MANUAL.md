@@ -161,7 +161,9 @@
 *The Canonical Minimum Model (Identity → Representation → Authorization → Continuity → Accountability → Refusal), formal constraint equations, and the Declared-Type Terminology Registry.*
 
 - **Canonical Minimum Model & Declared-Type Terminology Registry**
-  - The Six-Stage Canonical Minimum Model
+  - The Six-Stage Canonical Minimum Model (`INV-STAGE-001`)
+  - Canonical Legitimacy Equation & Derived Forms (`INV-LEGIT-EQ-001` · `CL-002`)
+  - Human Key (`H(t)`) Operational Property & Verification Matrix (`CL-005`)
   - Declared-Type Terminology Table
 
 ## [Part III — Safety Rationale for Adversarial Scenarios](docs/harshal-systems/03-safety-rationale.md)
@@ -216,6 +218,7 @@
 
 *Atomic primitives, derived necessities, language discipline, resolution axis, routing, multi-context coordination, the disc-to-sphere lifecycle, and state machine.*
 
+  - Cross-Layer Failure Semantics Crosswalk (`CL-011`)
 - **2.1 Atomic Primitives**
 - **2.2 Derived Necessities**
 - **2.3 Language Discipline**
@@ -695,14 +698,15 @@
 
 *The capstone architectural synthesis and master index of the entire Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the Document Provenance and Evidence-Status Taxonomies, specifies the six-stage Canonical Minimum Model, summarizes all conceptual invariants, and indexes the seven functional collections across all 27 Parts.*
 
-- **1. Purpose of Part XXVII — The Whole Corpus Synthesis**
+- **1. Purpose of Part XXVII — The Whole Corpus Synthesis & Generative Contract (`INV-CORPUS-027`)**
+  - Formal Generative Synthesis Contract (`INV-CORPUS-027`)
 - **2. Two-Book Publishing Hierarchy (`Book I` vs. `Book II — Preview`)**
 - **3. Formal Provenance & Evidence-Status Taxonomies**
   - 3.1 Provenance Class (`provenance_class`)
   - 3.2 Status Taxonomy (`status_taxonomy`)
   - 3.3 Evidence-Status Taxonomy (`evidence_status`)
   - 3.4 Research Presentation Layer (`research_layer`)
-- **4. Summary of Canonical Conceptual Resolutions (Priority 3 Reference)**
+- **4. Summary of Canonical Conceptual Resolutions (`specs/normative/canonical-model.md`)**
 - **5. Functional Collections Index (`docs/harshal-systems/collections/`)**
 - **6. Complete Corpus Manifest (`Front Matter` + `Parts I–XXVII`)**
 
@@ -1465,26 +1469,59 @@ This work is intentionally incomplete, offering no final doctrine and no univers
 
 > The Canonical Minimum Model (Identity → Representation → Authorization → Continuity → Accountability → Refusal), formal constraint equations, and the Declared-Type Terminology Registry.
 
-**Source range:** lines 573–784 of the Owner’s Working Draft · **Words:** 3,032
+**Source range:** lines 573–784 of the Owner’s Working Draft · **Words:** 3,457
 
 ---
 
 ## Canonical Minimum Model & Declared-Type Terminology Registry
 
-### The Six-Stage Canonical Minimum Model
+> **Normative Reference:** The single authoritative formal contract governing all symbols, legitimacy equations, human-key properties, accountability layers, and phase types is **[`specs/normative/canonical-model.md`](../../specs/normative/canonical-model.md)** (machine registry: **[`specs/normative/canonical.json`](../../specs/normative/canonical.json)** · reconciliation ledger: **[`specs/normative/contradictions.md`](../../specs/normative/contradictions.md)**).
 
-Every legitimate operation across **Harshal's Systems** traverses six sequential, non-bypassable stages:
+### The Six-Stage Canonical Minimum Model (`INV-STAGE-001`)
 
+Every legitimate operation across **Harshal's Systems** traverses five sequential upstream prerequisites followed by a sixth **terminal decision gate**:
+
+```text
+Identity
+→ Representation
+→ Authorization
+→ Continuity
+→ Accountability
+→ Decision
+   ├─ Permit
+   └─ Refuse
 ```
-Identity → Representation → Authorization → Continuity → Accountability → Refusal
-```
 
-1. **Identity (`I`)** `[TYPE: SECURITY_PRIMITIVE]`: A persistent, non-anonymous natural person (`PDH` / human key `H`) is uniquely identified at Center Origin (`0•000•000•0000`).
-2. **Representation (`R ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: The system verifies an unbroken, non-coerced representational bond between the human key and the affected scope.
-3. **Authorization (`V(S,t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Bounded operational permission is granted for a specific scope (`S`), phase, and duration (`Δt ≤ δ`); execution may be *delegated*, but legitimacy never *migrates* (`INV-LEGIT-001`).
-4. **Continuity (`C(t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Liveness heartbeats, session-tuple bindings (`Session-ID`, `Boot-ID`, `PDH-ID`, `Attestation-ID`), and scope invariants are continuously re-verified at runtime.
-5. **Accountability (`A ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Every externalized effect is cryptographically and legally attributable to the keyed human principal and underwritten by bounded institutional solvency.
-6. **Refusal (`L(S,t) = 0 ⇒ HALT`)** `[TYPE: SECURITY_PRIMITIVE]`: The default state. Any failure of Identity, Representation, Authorization, Continuity, or Accountability triggers an immediate, deterministic fail-closed halt.
+1. **Identity (`I`, `H(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: A persistent, non-anonymous natural-person principal is identified at Center Origin (`0•000•000•0000`).
+2. **Representation (`R(t) ∈ [0,1]`)** `[TYPE: SECURITY_PRIMITIVE]`: The system verifies an unbroken delegation chain linking system action to the authorized human principal.
+3. **Authorization (`V(S,t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Bounded operational permission is granted for a specific scope (`S`), phase, and duration (`Δt ≤ δ`); execution may be *delegated*, but legitimacy never *migrates* (`INV-LEGIT-001`).
+4. **Continuity (`C(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Upstream runtime continuity condition—session-tuple bindings (`Session-ID`, `Boot-ID`, `PDH-ID`, `Human-Attestation-ID`), `V(S,t) = 1`, and temporal freshness (`Δt < δ`) must hold before the legitimacy function `f` is evaluated (`CL-003`).
+5. **Accountability (`K(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Upstream accountability gate (`K(t) = K_tech(t) × K_ops(t)`), disambiguated from **Addressability (`A(t) ∈ [0,1]`)** so that `A` is reserved exclusively for Addressability (`CL-001`). Separated into **Technical Attribution (`K_tech`)**, **Operational Accountability (`K_ops`)**, **Legal Responsibility (`K_legal`)**, and separate **Institutional Solvency (`U_solv`)** (`CL-006`).
+6. **Decision (`x(t) ∈ {Permit, Refuse}`)** `[TYPE: SECURITY_PRIMITIVE]`: The **terminal decision gate** (`CL-004`). Emits `Permit` iff `H(t) = 1`, `C(t) = 1`, `K(t) = 1`, and `L(t) ≥ τ`; otherwise emits the default fail-closed outcome `Refuse` (`HALT`). *(Where legacy shorthand writes `"Identity → Representation → Authorization → Continuity → Accountability → Refusal"`, the sixth token `"Refusal"` denotes this `Decision` gate named by its default fail-closed branch.)*
+
+### Canonical Legitimacy Equation & Derived Forms (`INV-LEGIT-EQ-001` · `CL-002`)
+
+- **Canonical Form (when upstream preconditions `C(t) = 1` and `K(t) = 1` hold):**
+  ```text
+  L(t) = H(t) × f(A(t), R(t), S(t))
+  ```
+- **Expanded Canonical Form (with upstream binary gates explicit):**
+  ```text
+  L(t) = H(t) × C(t) × K(t) × f(A(t), R(t), S(t))
+  ```
+- **Reference Kernel Implementation Approximation (`js/kernel.js`):** `L(t) = H(t) × A(t) × R(t) × S(t)` over `[0,1]³`.
+- **Historical Boolean Shorthand (`CL-002`):** `L(S,t) = A · R · V(S,t)` (where `A` is **Addressability**, `R` is **Representation**, and `V(S,t)` bundles `H(t)`, `C(t)`, and `S(t)`).
+- **Paired Scope Semantics (`CL-010`):** Scope is the pair `(S_dom(t) ⊆ S_0, S(t) = Smax × max(0, 1 − Δt/δ))`; when `S(t) = 0` or `L(t) < τ`, the effective permitted action set collapses to `S_eff(t) = ∅`.
+
+### Human Key (`H(t)`) Operational Property & Verification Matrix (`CL-005`)
+
+| Operational Property | Production Verification Status | Browser Demo Status (`[DEMO-LIMITATION]`) |
+| :--- | :--- | :--- |
+| **Human Identity** | `externally attested` | `not technically provable` |
+| **Key Possession** | `cryptographically verifiable` | `system-observable` (local public-phrase HMAC) |
+| **Liveness** | `system-observable` & `externally attested` | `system-observable` (timer window `δ = 240s` only) |
+| **Authorization / Consent Attestation** | Grant is `cryptographically verifiable`; non-coercion & conscious intent are `assumed` / `externally attested` and `not technically provable` | `system-observable` ceremony state; `not technically provable` for consent/intent |
+| **Representation Integrity** | `cryptographically verifiable` & `system-observable` | `system-observable` (local session tuple & SHA-256 receipt) |
 
 ### Declared-Type Terminology Table
 
@@ -1492,17 +1529,18 @@ To prevent category confusion between cryptographic enforcement primitives, geom
 
 | Term / Symbol | Declared Type | Formal Role & Boundary |
 | :--- | :--- | :--- |
-| **`L(S,t) = A · R · V(S,t)`** | `[TYPE: SECURITY_PRIMITIVE]` | Master legitimacy gate; evaluates to `0` (Refusal) if any factor fails. |
-| **Human Key (`H ∈ {0,1}`)** | `[TYPE: SECURITY_PRIMITIVE]` | Binary liveness and consent attestation of an identifiable natural person; computational components are never moral or legal agents (`INV-AGENCY-001`). |
-| **Phase Declaration Header (`PDH`)** | `[TYPE: SECURITY_PRIMITIVE]` | Mandatory wire-level and document-level header binding origin, phase, and scope. |
+| **`L(t) = H(t) × f(A(t), R(t), S(t))`** | `[TYPE: SECURITY_PRIMITIVE]` | **Canonical legitimacy equation** (subject to upstream `C(t)=1, K(t)=1`). Historical boolean shorthand `L(S,t) = A · R · V(S,t)` is a derived reduction where `A` = Addressability (`CL-001`, `CL-002`). |
+| **Human Key (`H(t) ∈ {0,1}`)** | `[TYPE: SECURITY_PRIMITIVE]` | Binary human-key state decomposed into 5 operational properties (`CL-005`); computational components are never moral or legal agents (`INV-AGENCY-001`). |
+| **Addressability (`A(t)`) vs. Accountability (`K(t)`)** | `[TYPE: SECURITY_PRIMITIVE]` | `A(t) ∈ [0,1]` is Addressability; `K(t) ∈ {0,1}` is Accountability (`K_tech`, `K_ops`), separated from external `K_legal` and `U_solv` (`CL-001`, `CL-006`). |
+| **Phase Declaration Header (`PDH`)** | `[TYPE: SECURITY_PRIMITIVE]` | Mandatory wire-level and document-level header binding origin, `DeclaredPhase ∈ {NAB, CWO, GSRB}`, and scope. |
 | **Delegation vs. Migration (`INV-LEGIT-001`)** | `[TYPE: SECURITY_PRIMITIVE]` | Execution may be delegated across bounded hops (`d ≤ k`); legitimacy never migrates from the human key to silicon or corporate shells. |
 | **Orb Communicator Model (`OCM`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Bounded radial/angular communication geometry where the **2D Disc (`D²`)** is the pedagogical cross-section and the **3D Sphere (`S²/B³`)** is the full operational manifold. |
 | **Address Ring `ℤ_360` (`0–359`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Discrete 360-slot integer address domain (`000` = Center Origin; `001–359` = peripheral sectors). |
 | **`360°` Closure Notation (`360° ≡ 0°`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Topological return-to-origin phase notation indicating full-cycle closure back to `0°`; never a 361st address slot. |
-| **Ground-0 Phase (`NAB` / `CWO` / `GSRB`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Deterministic five-gate classification of institutional legitimacy and accountability posture. |
+| **Ground-0 Phase (`DeclaredPhase` vs. `DetectedPhase`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | `DeclaredPhase = {NAB, CWO, GSRB}`; `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` (`CL-012`, `INV-G0-CLASS-001`). |
 | **119 Neural Atomic Bodies (`NAB 1–119`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Canonical taxonomy of bounded cognitive/institutional risk geometries and failure modes. |
 | **AGS+ / HMKH / ADJR-v1.0 / CHE++ / CGPA / OCS** | `[TYPE: PROTOCOL_SPECIFICATION]` | Normative defensive protocol specifications enforcing the Canonical Minimum Model. |
-| **500-Coin Pool & Underwriting Houses** | `[TYPE: GOVERNANCE_INSTITUTION]` | Physical artifact-bound governance quorum and catastrophic risk underwriting structure. |
+| **500-Coin Pool & Underwriting Houses (`U_solv`)** | `[TYPE: GOVERNANCE_INSTITUTION]` | Physical artifact-bound governance quorum and catastrophic risk underwriting structure (`U_solv`). |
 | **Harshal's English** | `[TYPE: AUTHORIAL_REGISTER]` | The author's normative English drafting style and left-to-right reading discipline. It is an authorial register, **not** a runtime security primitive. |
 | ***The Grand River Foundation* (`Book II — Preview`)** | `[TYPE: NARRATIVE_SANDBOX]` | Standalone ~2100 fictional companion novel illustrating mature implementations of Book I. |
 
@@ -2220,12 +2258,17 @@ End of Specification (v1.0)
 
 > Replacing hierarchy with geometry: the Disc-to-Sphere topological projection, the 0–359 discrete address ring vs. 360° return-to-origin closure notation, OCM arithmetic, communication layers, and exit protocol.
 
-**Source range:** lines 1242–1414 of the Owner’s Working Draft · **Words:** 1,344
+**Source range:** lines 1242–1414 of the Owner’s Working Draft · **Words:** 1,499
 
 ---
 
 > [!NOTE]
-> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> **OCM Geometric, Routing & Resolution Axis Invariants (`[TYPE: TOPOLOGICAL_MODEL]` · `specs/normative/canonical-model.md` §8–§10):**
+> 1. **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`).
+> 2. **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> 3. **Boxed Resolution Axis Invariant (`INV-AXIS-001`):** **Resolution is an authority-resolution mechanism, not an authority source.** The model strictly separates five operations: *Generate legitimacy* (Human Key at Center Origin only), *Resolve legitimacy* (Resolution Axis), *Transmit legitimacy state* (radial channels), *Interrupt execution* (radial halt), and *Execute an operation* (peripheral disc within `S_eff(t)`).
+> 4. **Routing Cost & Authority Precedence (`CL-007`):** Statements that *resolution is faster than coordination* hold formally as (Option A, `[STRUCTURAL]`/`[ASSUMPTION]`) `Cost_resolution < Cost_lateral` over logical authority-verification hops under the Direct Attachment Axiom, and (Option B, `[NORMATIVE]`/`[ENFORCEMENT]`) **Authoritative action must traverse the resolution path; lateral coordination cannot authorize, override, or commit state; resolution has precedence over coordination (`Resolution ≻ Coordination`).**
+> 5. **Emergency Legitimacy Invariant (`INV-EMERG-001`):** **Emergency conditions never generate legitimacy.** Emergency execution requires either `Emergency → activate pre-authorized bounded emergency context` or `Emergency → request/receive externally issued emergency authorization → bounded emergency disc`, never spontaneous legitimacy.
 
 Orb Communicator Mode (OCM)
 Non‑Additive Interaction Extension
@@ -2541,12 +2584,17 @@ End of Sub-Specification
 
 > The ℤ_360 ring of 360 radiative addresses (0–359) and 360° return-to-origin closure, rotation over time, distance as depth, and spherical manifold projection.
 
-**Source range:** lines 1531–2017 of the Owner’s Working Draft · **Words:** 2,290
+**Source range:** lines 1531–2017 of the Owner’s Working Draft · **Words:** 2,445
 
 ---
 
 > [!NOTE]
-> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> **OCM Geometric, Routing & Resolution Axis Invariants (`[TYPE: TOPOLOGICAL_MODEL]` · `specs/normative/canonical-model.md` §8–§10):**
+> 1. **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`).
+> 2. **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> 3. **Boxed Resolution Axis Invariant (`INV-AXIS-001`):** **Resolution is an authority-resolution mechanism, not an authority source.** The model strictly separates five operations: *Generate legitimacy* (Human Key at Center Origin only), *Resolve legitimacy* (Resolution Axis), *Transmit legitimacy state* (radial channels), *Interrupt execution* (radial halt), and *Execute an operation* (peripheral disc within `S_eff(t)`).
+> 4. **Routing Cost & Authority Precedence (`CL-007`):** Statements that *resolution is faster than coordination* hold formally as (Option A, `[STRUCTURAL]`/`[ASSUMPTION]`) `Cost_resolution < Cost_lateral` over logical authority-verification hops under the Direct Attachment Axiom, and (Option B, `[NORMATIVE]`/`[ENFORCEMENT]`) **Authoritative action must traverse the resolution path; lateral coordination cannot authorize, override, or commit state; resolution has precedence over coordination (`Resolution ≻ Coordination`).**
+> 5. **Emergency Legitimacy Invariant (`INV-EMERG-001`):** **Emergency conditions never generate legitimacy.** Emergency execution requires either `Emergency → activate pre-authorized bounded emergency context` or `Emergency → request/receive externally issued emergency authorization → bounded emergency disc`, never spontaneous legitimacy.
 
 Orb Communicator Model (OCM)
 Fresh-Slate Planetary Example: Disc That Becomes a Sphere
@@ -3225,12 +3273,30 @@ End of Public Misuse FAQ
 
 > Atomic primitives, derived necessities, language discipline, resolution axis, routing, multi-context coordination, the disc-to-sphere lifecycle, and state machine.
 
-**Source range:** lines 2182–2651 of the Owner’s Working Draft · **Words:** 3,436
+**Source range:** lines 2182–2651 of the Owner’s Working Draft · **Words:** 3,681
 
 ---
 
 > [!NOTE]
-> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> **OCM Geometric, Routing & Resolution Axis Invariants (`[TYPE: TOPOLOGICAL_MODEL]` · `specs/normative/canonical-model.md` §8–§10):**
+> 1. **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`).
+> 2. **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> 3. **Boxed Resolution Axis Invariant (`INV-AXIS-001`):** **Resolution is an authority-resolution mechanism, not an authority source.** The model strictly separates five operations: *Generate legitimacy* (Human Key at Center Origin only), *Resolve legitimacy* (Resolution Axis), *Transmit legitimacy state* (radial channels), *Interrupt execution* (radial halt), and *Execute an operation* (peripheral disc within `S_eff(t)`).
+> 4. **Routing Cost & Authority Precedence (`CL-007`):** Statements that *resolution is faster than coordination* hold formally as (Option A, `[STRUCTURAL]`/`[ASSUMPTION]`) `Cost_resolution < Cost_lateral` over logical authority-verification hops under the Direct Attachment Axiom, and (Option B, `[NORMATIVE]`/`[ENFORCEMENT]`) **Authoritative action must traverse the resolution path; lateral coordination cannot authorize, override, or commit state; resolution has precedence over coordination (`Resolution ≻ Coordination`).**
+> 5. **Emergency Legitimacy Invariant (`INV-EMERG-001`):** **Emergency conditions never generate legitimacy.** Emergency execution requires either `Emergency → activate pre-authorized bounded emergency context` or `Emergency → request/receive externally issued emergency authorization → bounded emergency disc`, never spontaneous legitimacy.
+
+### Cross-Layer Failure Semantics Crosswalk (`CL-011`)
+
+While the 10-stage Disc Lifecycle (`Nonexistent → Specified → Created → Attached → Active → Delegating → Interrupted → Active → Expired → Terminated`) governs disc state, stopping conditions project simultaneously across six architectural layers:
+
+| Layer | Failure State |
+| :--- | :--- |
+| **Decision Gate** | `Refuse` (`HALT`) |
+| **Disc** | `Interrupted` |
+| **Session** | `Suspended` (`non-acting`) |
+| **Capability profile** | `Signaling-only / reduced` |
+| **Security response** | `Key/session burn` |
+| **Lifecycle** | `Terminated` |
 
 Structural Model Specification (Spherical Topology Draft)
 0. Purpose
@@ -4137,12 +4203,15 @@ All major components of the system—bounded operational contexts, a resolution 
 
 > The Ground-0 Phase Detection Algorithm v1.0 in full, institutional re-badging case studies (explicitly separating independently verifiable public records from author-reported analysis), the PDH audit ledger, and insurance-mode controls.
 
-**Source range:** lines 3046–5104 of the Owner’s Working Draft · **Words:** 16,998
+**Source range:** lines 3046–5104 of the Owner’s Working Draft · **Words:** 17,086
 
 ---
 
 > [!IMPORTANT]
-> **Research Layer & Evidence Attribution (`Part XII`):** This Part combines two distinct evidence classes that must not be conflated: **`[FORMAL_AXIOMATIC]` / `[INDEPENDENTLY_VERIFIABLE]`** — the **Ground-0 Phase Detection Algorithm v1.0** (five sequential gates Q1–Q5, binary truth table, and `NAB`/`CWO`/`GSRB` state machine) is a deterministic formal specification implemented and verified in the repository test suite (`tests/g0-engine-test.mjs`), and external case-study citations to public corporate charters, terms of service, and regulatory filings are independently verifiable against public records; **`[AUTHOR_REPORTED]`** — first-person audit narratives, media reaction cascade projections, and observational commentary reflect the author's analytical assessment and incident chronology.
+> **Research Layer, Phase Types & Reclassification Invariants (`Part XII` · `specs/normative/canonical-model.md` §11):**
+> 1. **Evidence Attribution:** This Part combines two distinct evidence classes that must not be conflated: **`[FORMAL_AXIOMATIC]` / `[INDEPENDENTLY_VERIFIABLE]`** — the **Ground-0 Phase Detection Algorithm v1.0** (five sequential gates Q1–Q5, binary truth table, and `NAB`/`CWO`/`GSRB` state machine) is a deterministic formal specification implemented and verified in the repository test suite (`tests/g0-engine-test.mjs`), and external case-study citations to public corporate charters, terms of service, and regulatory filings are independently verifiable against public records; **`[AUTHOR_REPORTED]`** — first-person audit narratives, media reaction cascade projections, and observational commentary reflect the author's analytical assessment and incident chronology.
+> 2. **`DeclaredPhase` vs. `DetectedPhase` (`CL-012`):** `DeclaredPhase = {NAB, CWO, GSRB}` (valid in a signed PDH); `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` (behavioral and diagnostic outputs of the Ground-0 classifier, where `AMBIGUOUS` and `INCOHERENT` are diagnostic classification states).
+> 3. **Reclassification vs. Transition (`INV-G0-CLASS-001` · `CL-013`):** Distinguishes `Declared Phase`, `Observed Phase`, `Reclassification Event`, and `Transition Event`. **Reclassification changes the classification. Transition changes the operational state. Classification alone does not create legitimacy. Classification alone does not cause transition.**
 
 Ground-0 Phase Re-Badging
 Case Studies & Media Reaction Cascade Analysis
@@ -18783,17 +18852,27 @@ The strongest available evidence that a framework classifies rather than merely 
 
 > The capstone architectural synthesis and master index of the entire Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the Document Provenance and Evidence-Status Taxonomies, specifies the six-stage Canonical Minimum Model, summarizes all conceptual invariants, and indexes the seven functional collections across all 27 Parts.
 
-**Source range:** Whole Corpus Synthesis (lines 1–16,675 + Book II Preview) · **Words:** 1,794
+**Source range:** Whole Corpus Synthesis (lines 1–16,675 + Book II Preview) · **Words:** 2,038
 
 ---
 
-## 1. Purpose of Part XXVII — The Whole Corpus Synthesis
+## 1. Purpose of Part XXVII — The Whole Corpus Synthesis & Generative Contract (`INV-CORPUS-027`)
 
 **Part XXVII — Whole Corpus / Complete Work** serves as the capstone architectural synthesis, provenance registry, and master index for the entire **Harshal's Systems** literary, technical, and constitutional corpus. It resolves historical numbering drift between the 26 Roman-numbered body parts and the 27-file modular build by establishing **Part XXVII** as the formal **Whole Corpus / Complete Work** module.
 
+### Formal Generative Synthesis Contract (`INV-CORPUS-027`)
+
+```text
+Parts 01–26 = canonical source components
+Part 27     = integrated synthesis
+
+1. 27 must not introduce a new invariant absent from 01–26 (or specs/normative/canonical-model.md).
+2. 27 may synthesize, reorder, narrativize, or instantiate existing invariants.
+```
+
 > **Core Strategic Architecture:**  
 > **The architecture (Book I) is the canonical reference library. The novel (Book II) is the active narrative work in production.**  
-> Rather than continually rebuilding the foundational documentation before writing each new chapter of fiction, **Book I (`Parts I–XXVII`)** stands as the settled constitutional, topological, and safety canon from which **Book II (*The Grand River Foundation — Book II Preview*)** draws its ~2100 world-building invariants.
+> Rather than continually rebuilding the foundational documentation before writing each new chapter of fiction, **Book I (`Parts I–XXVII`)** and its formal contract ([`specs/normative/canonical-model.md`](../../specs/normative/canonical-model.md) · [`specs/normative/canonical.json`](../../specs/normative/canonical.json) · [`specs/normative/contradictions.md`](../../specs/normative/contradictions.md)) stand as the settled constitutional, topological, and safety canon from which **Book II (*The Grand River Foundation — Book II Preview*)** draws its ~2100 world-building invariants.
 
 ---
 
@@ -18801,14 +18880,14 @@ The strongest available evidence that a framework classifies rather than merely 
 
 | Publishing Tier | Title & Scope | Provenance Class | Normative Status | Primary Repository Artifacts |
 | :--- | :--- | :--- | :--- | :--- |
-| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `HARSHAL-SYSTEMS-USER-MANUAL.md`, `HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/ground-0-v1.0.md` |
+| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `HARSHAL-SYSTEMS-USER-MANUAL.md`, `HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/canonical-model.md`, `specs/normative/canonical.json`, `specs/normative/ground-0-v1.0.md` |
 | **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (`Prologue`, `Chapters 1–5`, `Interstitial: Cable Select`, & ongoing chapters) | `FICTION` | **Non-Normative Future-World Sandbox (~2100 CE)** | `manuscript/the-grand-river-foundation/*.txt`, `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/manifest.json` |
 
 ---
 
 ## 3. Formal Provenance & Evidence-Status Taxonomies
 
-Every module in the repository is governed by four orthogonal metadata dimensions embedded in machine-readable YAML frontmatter and visible provenance banners:
+Every module in the repository is governed by four orthogonal metadata dimensions plus the stable 8-field component interface (`id`, `canonical_name`, `depends_on`, `defines`, `uses`, `invariants`, `conflicts_with`, `status`) embedded in machine-readable YAML frontmatter and visible provenance banners:
 
 ### 3.1 Provenance Class (`provenance_class`)
 - **`CANONICAL_SOURCE`**: Primary specifications, formal equations, research papers, and doctrinal modules authored in the working canon.
@@ -18818,7 +18897,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 - **`AUDIT`**: Point-in-time institutional evaluations, Ground-0 phase re-badging case studies, and external platform compliance records.
 
 ### 3.2 Status Taxonomy (`status_taxonomy`)
-- **`NORMATIVE_SPEC`**: Binding architectural, topological, or constitutional specification (`Ground-0 v1.0`, `AGS+`, `OCM`, `HMKH`, `ADJR-v1.0`, `CHE++`, `CGPA`, `OCS`).
+- **`NORMATIVE_SPEC`**: Binding architectural, topological, or constitutional specification (`canonical-model.md`, `Ground-0 v1.0`, `AGS+`, `OCM`, `HMKH`, `ADJR-v1.0`, `CHE++`, `CGPA`, `OCS`).
 - **`CONCEPTUAL_DOCTRINE`**: Foundational philosophical and structural principles (`Part I — The Core Book`, `Part XIII — The Whyland Standards`).
 - **`RESEARCH_PAPER`**: Formal analytical, hybrid-systems, or adversarial threat-modeling research (`Part XIX — Keyed Human–Machine Hybrid Systems`, `Part XVI — AGS++ Threat Modeling`, `Part XX — Supply Chain Attack Vector++`).
 - **`SUPPORTING_POLICY_RESEARCH`**: Applied public-policy memoranda operationalizing the Canonical Minimum Model (`Part XXII — Supporting Policy Archive`).
@@ -18827,7 +18906,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 - **`UMBRELLA_INDEX`**: Master corpus synthesis and navigation (`Front Matter`, `Part XXVII`).
 
 ### 3.3 Evidence-Status Taxonomy (`evidence_status`)
-- **`FORMAL_AXIOMATIC`**: True by definition within the formal axiom system, state machine, or topological model (`L(S,t) = A · R · V(S,t)`).
+- **`FORMAL_AXIOMATIC`**: True by definition within the formal axiom system, state machine, or topological model (`L(t) = H(t) × f(A(t), R(t), S(t))`).
 - **`INDEPENDENTLY_VERIFIABLE`**: Grounded in public statutes, published corporate policies, public court dockets, or reproducible automated test suites in `tests/`.
 - **`AUTHOR_REPORTED`**: First-person operational chronology, incident records, or author-attested observations.
 - **`MIXED_VERIFIED_AND_REPORTED`**: Contains both independently verifiable public documentation and author-reported chronology, explicitly separated via inline attribution tables.
@@ -18841,17 +18920,20 @@ Every module in the repository is governed by four orthogonal metadata dimension
 
 ---
 
-## 4. Summary of Canonical Conceptual Resolutions (Priority 3 Reference)
+## 4. Summary of Canonical Conceptual Resolutions (`specs/normative/canonical-model.md`)
 
-1. **Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`):**
+1. **Canonical Six-Stage Model & Decision Gate (`INV-STAGE-001`):**
+   ```text
+   Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)
    ```
-   Identity → Representation → Authorization → Continuity → Accountability → Refusal
-   ```
-2. **Non-Agency of Computational Components (`INV-AGENCY-001`):** Computational systems never possess or acquire moral or legal agency regardless of processing capability. All legal and moral responsibility remains strictly bound to the keyed human principal (`H = 1`).
-3. **Delegation of Execution vs. Migration of Legitimacy (`INV-LEGIT-001`):** Task execution may be *delegated* across bounded, auditable hops (`d = 1..k`), but legitimacy *never migrates* into silicon, autonomous swarms, or corporate wrappers.
-4. **OCM Disc → Sphere Equivalence (`D² ↪ B³`):** The 2D Disc (`r, θ`) is the pedagogical equatorial cross-section; the 3D Sphere (`r, θ, φ`) is the full operational manifold.
-5. **Discrete Address Ring `ℤ_360` (`0–359`) vs. `360°` Closure Notation:** Sector addresses occupy `0–359` (`0` = Center Origin `0•000•000•0000`; `1–359` = peripheral sectors). `360°` is never an address slot; it denotes full-cycle topological return to origin (`360° ≡ 0° mod 360`).
-6. **Reclassification of Harshal's English (`[TYPE: AUTHORIAL_REGISTER]`):** *Harshal's English* is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives (`[TYPE: SECURITY_PRIMITIVE]`).
+   *(Legacy shorthand: `Identity → Representation → Authorization → Continuity → Accountability → Refusal`, where `Refusal` names the Stage 6 `Decision` gate by its default fail-closed branch.)*
+2. **Disambiguated Symbol Namespace & Canonical Legitimacy (`INV-SYM-001`, `INV-LEGIT-EQ-001`):** `A(t)` denotes **Addressability** exclusively; **Accountability** uses `K(t) = K_tech(t) × K_ops(t)` (separated from `Legal Responsibility K_legal` and `Institutional Solvency U_solv`). The single canonical legitimacy equation is `L(t) = H(t) × f(A(t), R(t), S(t))` subject to upstream gates `C(t) = 1` and `K(t) = 1` (`L(S,t) = A · R · V(S,t)` is retained solely as a documented historical boolean shorthand).
+3. **Non-Agency of Computational Components (`INV-AGENCY-001`):** Computational systems never possess or acquire moral or legal agency regardless of processing capability. All legal and moral responsibility remains strictly bound to the keyed human principal (`H = 1`).
+4. **Delegation of Execution vs. Migration of Legitimacy (`INV-LEGIT-001`):** Task execution may be *delegated* across bounded, auditable hops (`d = 1..k`), but legitimacy *never migrates* into silicon, autonomous swarms, or corporate wrappers.
+5. **OCM Disc → Sphere Equivalence (`D² ↪ B³`), Resolution Axis (`INV-AXIS-001`), and Routing Precedence (`INV-OCM-PRECEDENCE-001`):** The 2D Disc (`r, θ`) is the pedagogical equatorial cross-section; the 3D Sphere (`r, θ, φ`) is the full operational manifold. Resolution is an authority-resolution mechanism, not an authority source (`INV-AXIS-001`), with `Cost_resolution < Cost_lateral` under the Direct Attachment Axiom and `Resolution ≻ Coordination` as a strict precedence invariant.
+6. **Discrete Address Ring `ℤ_360` (`0–359`) vs. `360°` Closure Notation:** Sector addresses occupy `0–359` (`0` = Center Origin `0•000•000•0000`; `1–359` = peripheral sectors). `360°` is never an address slot; it denotes full-cycle topological return to origin (`360° ≡ 0° mod 360`).
+7. **Emergency Legitimacy (`INV-EMERG-001`) & Ground-0 Phase Types (`INV-G0-CLASS-001`):** Emergency conditions never generate legitimacy. Ground-0 distinguishes `DeclaredPhase = {NAB, CWO, GSRB}` from `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` and separates audit `Reclassification Events` from operational `Transition Events`.
+8. **Reclassification of Harshal's English (`[TYPE: AUTHORIAL_REGISTER]`):** *Harshal's English* is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives (`[TYPE: SECURITY_PRIMITIVE]`).
 
 ---
 
@@ -18875,17 +18957,17 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: |
 | `00` | **Author's Front Matter** | [Author’s Front Matter and Reading Guide](00-author-front-matter.md) | `ARCHIVE` | `CONCEPTUAL_DOCTRINE` | `AUTHOR_REPORTED` | `PUBLIC_RESEARCH_SUMMARY` | 3,476 |
 | `01` | **Part I** | [Part I — The Core Book](01-core-book.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | 8,511 |
-| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,032 |
+| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,457 |
 | `03` | **Part III** | [Part III — Safety Rationale for Adversarial Scenarios](03-safety-rationale.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 436 |
 | `04` | **Part IV** | [Part IV — AGS: Accountability-Gated Systems](04-ags-architecture.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,668 |
-| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,344 |
+| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,499 |
 | `06` | **Part VI** | [Part VI — The AI Inner Shell](06-inner-shell.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 720 |
-| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,290 |
+| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,445 |
 | `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,264 |
-| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,436 |
+| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,681 |
 | `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 817 |
 | `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,739 |
-| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `DEFENSIVE_SPECIFICATION` | 16,998 |
+| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `DEFENSIVE_SPECIFICATION` | 17,086 |
 | `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 986 |
 | `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 5,040 |
 | `15` | **Part XV** | [Part XV — Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,118 |
@@ -18903,7 +18985,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | ~1,650 |
 
 **Whole Corpus Totals:**
-- **Book I Reference Library (`00`–`27`):** 177,958 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
+- **Book I Reference Library (`00`–`27`):** 179,026 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
 - **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** 16,113 words across 9 indexed plaintext chapters (synchronized in Part XXIV and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).
 
 ---

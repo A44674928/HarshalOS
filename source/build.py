@@ -1205,64 +1205,156 @@ def build_toc(frontmatter, written):
 
 
 def build_index(written, wout=0):
-    rows = '\n'.join(
-        f'| `{i:02d}` | **{PART_METADATA.get(w["slug"], {}).get("part_num", f"Part {i}")}** | '
-        f'[{w["title"]}]({w["file"].split("/")[-1]}) | '
-        f'`{PART_METADATA.get(w["slug"], {}).get("provenance_class", "CANONICAL_SOURCE")}` | '
-        f'`{PART_METADATA.get(w["slug"], {}).get("research_layer", "DEFENSIVE_SPECIFICATION")}` | '
-        f'{w["words"]:,} |'
-        for i, w in enumerate(written, start=0)
-    )
-    col_rows = '\n'.join(
-        f'| [`collections/{c["id"]}/`](collections/{c["id"]}/README.md) | **{c["title"]}** | `{c["research_layer"]}` | {", ".join(f"`{p}`" for p in c["parts"])} |'
-        for c in COLLECTIONS
-    )
-    return f"""# Harshal’s Systems — Book I Reference Library & Umbrella Corpus Index
+    return """# Harshal Systems
 
-> **Publishing Hierarchy:**
-> - **Book I — *Harshal’s Systems* (`Parts I–XXVII`):** The canonical technical, constitutional, and safety reference library housed in this directory and compiled into the Umbrella Build Artifact **[`HARSHAL-SYSTEMS-USER-MANUAL.md`](../../HARSHAL-SYSTEMS-USER-MANUAL.md)** ({wout:,} words) and **[`HARSHAL-SYSTEMS-USER-MANUAL.docx`](../../HARSHAL-SYSTEMS-USER-MANUAL.docx)**.
-> - **Book II — Preview — *The Grand River Foundation*:** The standalone fictional companion novel set in **~2100 CE** ([`manuscript/the-grand-river-foundation/`](../../manuscript/the-grand-river-foundation/) and [`BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`](../../BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md)), mirrored in [Part XXIV](24-the-novel.md).
-> - **Flagship Research Paper:** ***Accountability in Keyed Human–Machine Hybrid Systems*** ([Part XIX](19-research-papers.md) · standalone publication at [`research/keyed-human-machine-hybrid-systems.md`](../../research/keyed-human-machine-hybrid-systems.md)).
-> - **Canonical Minimum Model:** `{CANONICAL_MINIMUM_MODEL}`
+## Book I Reference Library & Umbrella Corpus Index
 
----
+This directory is the reference library and umbrella corpus for Harshal
+Systems. It contains the front matter, 27 numbered parts, seven functional
+collections, and an editorial and structural report. The numbered parts
+cover foundational material, architecture, formalization, threat modeling,
+research, specifications, governance, and supplementary works.
 
-## 1. Functional Collections (`docs/harshal-systems/collections/`)
+## What are Harshal's Systems?
 
-To navigate Book I as a structured reference library, the modules are grouped into **seven functional collections** (also indexed in [`collections/README.md`](collections/README.md)):
+Harshal's Systems is the framework of principles, architectures, formal
+models, and specifications that defines the constituent systems of
+HarshalOS. Its components are intended to be built from and for this
+framework—not to define it only after implementation.
 
-| Collection Path | Title | Primary Research Layer | Modules |
-|---|---|---|---|
-{col_rows}
+This corpus includes design, research, policy, audit, and companion
+material. Inclusion in the corpus does not by itself mean that a proposal
+has been implemented or validated.
 
----
+## Design Philosophy
 
-## 2. Sequential Part Files (`00` + `Parts I–XXVII`)
+**Emergency usability and cognitive burden.** Core text processing should
+be simple enough to use during emergencies, including by prisoners of war
+(POWs) and others facing severe or adverse conditions. The design should
+avoid unnecessary cognitive and interaction burden.
 
-| File # | Designation | Part / Module | Provenance | Research Layer | Words |
-|---|---|---|---|---|---:|
-{rows}
+**Text for detailed communication.** Text-based processing is a priority
+because it can convey detailed information with relatively low bandwidth
+and interaction demands in constrained situations. This is a design
+rationale, not a claim that text is best for every person or circumstance.
 
----
+**Human-system interaction security.** Security risks involving the
+interaction between a person and a system are a first-class domain, not an
+afterthought. This includes cognitive interference and security risks
+involving neurotechnology. In this corpus, *neurojacking* is used as an
+emerging umbrella term for concerns such as adversarial inputs to neural
+interfaces and side-channel leakage from neurotechnology. Specific
+mechanisms and claims should be scoped and assessed in the relevant
+documents.
 
-## 3. Supporting & Provenance Documents
+**Careful treatment of uncertainty.** A threat scenario that has not been
+proven is not thereby impossible. At the same time, a possibility should
+not be presented as an established mechanism or incident without support.
+Distinguish observations, reports, demonstrated findings, modeled
+scenarios, hypotheses, assumptions, and open questions; state the
+available evidence and uncertainty.
 
-| File | Provenance | Purpose |
+## Where to Start
+
+- **New readers:** Read [the author's front matter](00-author-front-matter.md),
+  then [the publishing hierarchy and taxonomies](00-front-matter.md),
+  followed by [the Core Book](01-core-book.md) and
+  [Formalization](02-formalization.md).
+- **System architecture:** Start with [AGS](04-ags-architecture.md) and
+  [OCM](05-ocm-orb.md), then follow the related architecture, operator,
+  lifecycle, and conformance parts.
+- **Safety and threat analysis:** Read the
+  [Safety Rationale](03-safety-rationale.md),
+  [Ground-0](12-ground-zero.md), and
+  [Threat Modeling and Context-Dependent Guarantees](16-threat-modeling.md).
+  The supply-chain and policy parts provide related research and context.
+- **Human-machine and neurotechnology research:** Start with the
+  [NAB Compendium](14-nab-compendium.md) and
+  [Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md), then explore
+  the related research, atomic-body, supply-chain, and signal-encoding parts.
+- **Standards and governance:** See
+  [The Whyland Standards](13-whyland.md),
+  [Institutional Application](18-institutional-application.md),
+  [the Policy Archive](22-policy-archive.md), and the
+  [Specification Series](23-specification-series.md).
+- **Thematic navigation:** Use the
+  [Functional Collections Index](collections/README.md) to browse the
+  corpus by topic.
+
+These are suggested routes, not prerequisites.
+
+## Main Document Map
+
+### Front Matter and Editorial Material
+
+| Document | Focus |
+|---|---|
+| [00-author-front-matter.md](00-author-front-matter.md) | Author's Front Matter and Reading Guide |
+| [00-front-matter.md](00-front-matter.md) | Front Matter, Publishing Hierarchy, and Taxonomies |
+| [EDITORIAL-REPORT.md](EDITORIAL-REPORT.md) | Editorial and Structural Build Report |
+
+### Numbered Parts
+
+| Part | Document | Focus |
 |---|---|---|
-| [`00-front-matter.md`](00-front-matter.md) | `DERIVATIVE_BUILD` | Publishing hierarchy (Book I vs. Book II), Canonical Minimum Model, Provenance & Evidence Status Taxonomies, reading guide, and notices |
-| [`00-author-front-matter.md`](00-author-front-matter.md) | `ARCHIVE` | The Owner’s Working Draft front matter as originally submitted, preserved in full |
-| [`27-whole-corpus.md`](27-whole-corpus.md) | `DERIVATIVE_BUILD` | **Part XXVII — Whole Corpus / Complete Work**: capstone architectural synthesis, terminology type registry, and master manifest |
-| [`EDITORIAL-REPORT.md`](EDITORIAL-REPORT.md) | `DERIVATIVE_BUILD` | Complete structural, conceptual, and typographic build report |
+| I | [01-core-book.md](01-core-book.md) | The Core Book |
+| II | [02-formalization.md](02-formalization.md) | Formalization |
+| III | [03-safety-rationale.md](03-safety-rationale.md) | Safety Rationale for Adversarial Scenarios |
+| IV | [04-ags-architecture.md](04-ags-architecture.md) | AGS: Accountability-Gated Systems |
+| V | [05-ocm-orb.md](05-ocm-orb.md) | OCM: The Orb Communicator Model |
+| VI | [06-inner-shell.md](06-inner-shell.md) | The AI Inner Shell |
+| VII | [07-addressing-topology.md](07-addressing-topology.md) | Addressing, Rotation, and Spherical Topology |
+| VIII | [08-operator-model.md](08-operator-model.md) | The Operator Model |
+| IX | [09-disc-lifecycle.md](09-disc-lifecycle.md) | Disc Primitives, Routing, and Lifecycle |
+| X | [10-ags-conformance.md](10-ags-conformance.md) | AGS+ Layering and Conformance |
+| XI | [11-accessory-pack.md](11-accessory-pack.md) | The AGS Accessory Pack |
+| XII | [12-ground-zero.md](12-ground-zero.md) | Ground-0: Phase Detection, Audits, and the Duty Collation Ledger |
+| XIII | [13-whyland.md](13-whyland.md) | The Whyland Standards |
+| XIV | [14-nab-compendium.md](14-nab-compendium.md) | Neural Atomic Bodies Compendium |
+| XV | [15-hmkh-controls.md](15-hmkh-controls.md) | Keyed Human–Machine Hybrid Controls |
+| XVI | [16-threat-modeling.md](16-threat-modeling.md) | Threat Modeling and Context-Dependent Guarantees |
+| XVII | [17-atomic-bodies.md](17-atomic-bodies.md) | Atomic Body Classes and Reactor Doctrine |
+| XVIII | [18-institutional-application.md](18-institutional-application.md) | Institutional Application |
+| XIX | [19-research-papers.md](19-research-papers.md) | Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems |
+| XX | [20-supply-chain.md](20-supply-chain.md) | Supply Chain and Implanted-Device Threat Research |
+| XXI | [21-microconvergence.md](21-microconvergence.md) | MicroConvergence and Signal Encoding |
+| XXII | [22-policy-archive.md](22-policy-archive.md) | Supporting Policy and Governance Research Archive |
+| XXIII | [23-specification-series.md](23-specification-series.md) | Specification Series |
+| XXIV | [24-the-novel.md](24-the-novel.md) | Book II Preview: *The Grand River Foundation* (Fictional Companion Novel) |
+| XXV | [25-additional-specs.md](25-additional-specs.md) | Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping |
+| XXVI | [26-anthropic-b-side.md](26-anthropic-b-side.md) | Incident Record and External Audit: Anthropic PBC (B Side) |
+| XXVII | [27-whole-corpus.md](27-whole-corpus.md) | Whole Corpus / Complete Work |
 
-## 4. Rebuilding the Manual & Synchronizing Book II
+## Functional Collections
 
-```bash
-node scripts/write-chapter.mjs --status
-python3 source/build.py
-python3 scripts/export-docx.py
-```
+The collections provide topic-based routes through the numbered corpus.
+See each collection guide for its scope and contents.
 
-The build is deterministic and reads `source/working-draft.md` together with the synchronized Book II chapters in `manuscript/the-grand-river-foundation/`.
+| Collection | Guide | Focus |
+|---|---|---|
+| Index | [collections/README.md](collections/README.md) | Functional Collections Index |
+| I | [01-foundations](collections/01-foundations/README.md) | Foundational Doctrine and Core Book |
+| II | [02-ags-ocm-core](collections/02-ags-ocm-core/README.md) | AGS+ and Orb Communicator Architecture |
+| III | [03-ground-zero-nab](collections/03-ground-zero-nab/README.md) | Ground-0 Phase Detection and Neural Atomic Bodies |
+| IV | [04-flagship-research](collections/04-flagship-research/README.md) | Flagship Keyed Human–Machine Research, Threat Models, and Supporting Policy Archive |
+| V | [05-constitutional-specs](collections/05-constitutional-specs/README.md) | Defensive Constitutional Specification Series |
+| VI | [06-incident-audits](collections/06-incident-audits/README.md) | Incident Record and External Platform Audits |
+| VII | [07-companion-fiction-and-corpus](collections/07-companion-fiction-and-corpus/README.md) | Book II Fictional Companion Preview and Part XXVII Whole Corpus |
+
+## Status and Evidence
+
+Part numbering and collection placement are editorial; they do not indicate
+implementation order or maturity. This index assigns no per-document
+`Planned`, `Draft`, `In Progress`, or `Stable` status. A document's presence
+here does not by itself establish implementation, operational readiness,
+independent validation, or empirical confirmation. Consult each document
+for its scope, assumptions, evidence, citations, and stated status. If a
+status is not stated, treat it as unspecified.
+
+## Related Documentation
+
+- [HarshalOS documentation directory](../)
+- [HarshalOS repository README](../../README.md)
 """
 
 

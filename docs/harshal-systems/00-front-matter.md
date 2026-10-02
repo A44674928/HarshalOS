@@ -1,5 +1,13 @@
 ---
+id: HS-00-FRONT-MATTER
 document_id: HS-00-FRONT-MATTER
+canonical_name: "Front Matter"
+depends_on: []
+defines: ["PUBLISHING-HIERARCHY", "PROVENANCE-TAXONOMY"]
+uses: ["CANONICAL-MINIMUM-MODEL", "INV-AGENCY-001", "INV-LEGIT-001"]
+invariants: ["INV-AGENCY-001", "INV-LEGIT-001"]
+conflicts_with: []
+status: UMBRELLA_INDEX
 book: "Book I"
 part: "Front Matter"
 title: "Front Matter"
@@ -9,6 +17,7 @@ status_taxonomy: UMBRELLA_INDEX
 evidence_status: FORMAL_AXIOMATIC
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "1–325"

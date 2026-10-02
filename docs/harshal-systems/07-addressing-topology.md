@@ -1,5 +1,13 @@
 ---
+id: HS-07-ADDRESSING-TOPOLOGY
 document_id: HS-07-ADDRESSING-TOPOLOGY
+canonical_name: "Part VII — Addressing, Rotation, and Spherical Topology"
+depends_on: ["HS-05-OCM-ORB"]
+defines: ["ADDRESS-RING-Z360", "CLOSURE-360-DEG", "DISC-TO-SPHERE-MANIFOLD"]
+uses: ["CENTER-ORIGIN", "RESOLUTION-AXIS"]
+invariants: ["INV-Z360-001", "INV-AXIS-001", "INV-OCM-PRECEDENCE-001"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part VII"
 title: "Part VII — Addressing, Rotation, and Spherical Topology"
@@ -9,10 +17,11 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "1531–2017"
-words: 2290
+words: 2445
 ---
 
 # Part VII — Addressing, Rotation, and Spherical Topology
@@ -23,12 +32,17 @@ words: 2290
 
 > The ℤ_360 ring of 360 radiative addresses (0–359) and 360° return-to-origin closure, rotation over time, distance as depth, and spherical manifold projection.
 
-**Source range:** lines 1531–2017 of the Owner’s Working Draft · **Words:** 2,290
+**Source range:** lines 1531–2017 of the Owner’s Working Draft · **Words:** 2,445
 
 ---
 
 > [!NOTE]
-> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> **OCM Geometric, Routing & Resolution Axis Invariants (`[TYPE: TOPOLOGICAL_MODEL]` · `specs/normative/canonical-model.md` §8–§10):**
+> 1. **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`).
+> 2. **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+> 3. **Boxed Resolution Axis Invariant (`INV-AXIS-001`):** **Resolution is an authority-resolution mechanism, not an authority source.** The model strictly separates five operations: *Generate legitimacy* (Human Key at Center Origin only), *Resolve legitimacy* (Resolution Axis), *Transmit legitimacy state* (radial channels), *Interrupt execution* (radial halt), and *Execute an operation* (peripheral disc within `S_eff(t)`).
+> 4. **Routing Cost & Authority Precedence (`CL-007`):** Statements that *resolution is faster than coordination* hold formally as (Option A, `[STRUCTURAL]`/`[ASSUMPTION]`) `Cost_resolution < Cost_lateral` over logical authority-verification hops under the Direct Attachment Axiom, and (Option B, `[NORMATIVE]`/`[ENFORCEMENT]`) **Authoritative action must traverse the resolution path; lateral coordination cannot authorize, override, or commit state; resolution has precedence over coordination (`Resolution ≻ Coordination`).**
+> 5. **Emergency Legitimacy Invariant (`INV-EMERG-001`):** **Emergency conditions never generate legitimacy.** Emergency execution requires either `Emergency → activate pre-authorized bounded emergency context` or `Emergency → request/receive externally issued emergency authorization → bounded emergency disc`, never spontaneous legitimacy.
 
 Orb Communicator Model (OCM)
 Fresh-Slate Planetary Example: Disc That Becomes a Sphere

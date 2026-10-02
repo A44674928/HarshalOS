@@ -1,5 +1,13 @@
 ---
+id: HS-03-SAFETY-RATIONALE
 document_id: HS-03-SAFETY-RATIONALE
+canonical_name: "Part III — Safety Rationale for Adversarial Scenarios"
+depends_on: ["HS-01-CORE-BOOK", "HS-02-FORMALIZATION"]
+defines: ["ADVERSARIAL-CONTAINMENT-RATIONALE"]
+uses: ["L(t)", "x(t)", "HARSHALS-ENGLISH-REGISTER"]
+invariants: ["INV-SYMBOLIC-FIREWALL", "INV-PRECEDENCE-A6"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part III"
 title: "Part III — Safety Rationale for Adversarial Scenarios"
@@ -9,6 +17,7 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "785–829"

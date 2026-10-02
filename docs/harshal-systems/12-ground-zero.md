@@ -1,5 +1,13 @@
 ---
+id: HS-12-GROUND-ZERO
 document_id: HS-12-GROUND-ZERO
+canonical_name: "Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger"
+depends_on: ["HS-02-FORMALIZATION", "HS-10-AGS-CONFORMANCE", "HS-11-ACCESSORY-PACK"]
+defines: ["GROUND-0-ALGORITHM", "PDH-HEADER", "DECLARED-PHASE", "DETECTED-PHASE", "DUTY-COLLATION-LEDGER"]
+uses: ["L(t)", "A(t)", "PLV-LEDGER"]
+invariants: ["INV-PHASE-001", "INV-G0-CLASS-001", "INV-LEGIT-001"]
+conflicts_with: []
+status: CASE_STUDY_AUDIT
 book: "Book I"
 part: "Part XII"
 title: "Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger"
@@ -9,10 +17,11 @@ status_taxonomy: CASE_STUDY_AUDIT
 evidence_status: MIXED_VERIFIED_AND_REPORTED
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "3046–5104"
-words: 16998
+words: 17086
 ---
 
 # Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger
@@ -23,12 +32,15 @@ words: 16998
 
 > The Ground-0 Phase Detection Algorithm v1.0 in full, institutional re-badging case studies (explicitly separating independently verifiable public records from author-reported analysis), the PDH audit ledger, and insurance-mode controls.
 
-**Source range:** lines 3046–5104 of the Owner’s Working Draft · **Words:** 16,998
+**Source range:** lines 3046–5104 of the Owner’s Working Draft · **Words:** 17,086
 
 ---
 
 > [!IMPORTANT]
-> **Research Layer & Evidence Attribution (`Part XII`):** This Part combines two distinct evidence classes that must not be conflated: **`[FORMAL_AXIOMATIC]` / `[INDEPENDENTLY_VERIFIABLE]`** — the **Ground-0 Phase Detection Algorithm v1.0** (five sequential gates Q1–Q5, binary truth table, and `NAB`/`CWO`/`GSRB` state machine) is a deterministic formal specification implemented and verified in the repository test suite (`tests/g0-engine-test.mjs`), and external case-study citations to public corporate charters, terms of service, and regulatory filings are independently verifiable against public records; **`[AUTHOR_REPORTED]`** — first-person audit narratives, media reaction cascade projections, and observational commentary reflect the author's analytical assessment and incident chronology.
+> **Research Layer, Phase Types & Reclassification Invariants (`Part XII` · `specs/normative/canonical-model.md` §11):**
+> 1. **Evidence Attribution:** This Part combines two distinct evidence classes that must not be conflated: **`[FORMAL_AXIOMATIC]` / `[INDEPENDENTLY_VERIFIABLE]`** — the **Ground-0 Phase Detection Algorithm v1.0** (five sequential gates Q1–Q5, binary truth table, and `NAB`/`CWO`/`GSRB` state machine) is a deterministic formal specification implemented and verified in the repository test suite (`tests/g0-engine-test.mjs`), and external case-study citations to public corporate charters, terms of service, and regulatory filings are independently verifiable against public records; **`[AUTHOR_REPORTED]`** — first-person audit narratives, media reaction cascade projections, and observational commentary reflect the author's analytical assessment and incident chronology.
+> 2. **`DeclaredPhase` vs. `DetectedPhase` (`CL-012`):** `DeclaredPhase = {NAB, CWO, GSRB}` (valid in a signed PDH); `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` (behavioral and diagnostic outputs of the Ground-0 classifier, where `AMBIGUOUS` and `INCOHERENT` are diagnostic classification states).
+> 3. **Reclassification vs. Transition (`INV-G0-CLASS-001` · `CL-013`):** Distinguishes `Declared Phase`, `Observed Phase`, `Reclassification Event`, and `Transition Event`. **Reclassification changes the classification. Transition changes the operational state. Classification alone does not create legitimacy. Classification alone does not cause transition.**
 
 Ground-0 Phase Re-Badging
 Case Studies & Media Reaction Cascade Analysis

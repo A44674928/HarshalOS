@@ -1,5 +1,13 @@
 ---
+id: HS-02-FORMALIZATION
 document_id: HS-02-FORMALIZATION
+canonical_name: "Part II — Formalization"
+depends_on: ["HS-01-CORE-BOOK"]
+defines: ["H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "S(t)", "L(t)", "tau", "delta", "x(t)", "GLOSSARY"]
+uses: ["CANONICAL-MINIMUM-MODEL"]
+invariants: ["INV-SYM-001", "INV-STAGE-001", "INV-LEGIT-EQ-001", "INV-PRECEDENCE-A6"]
+conflicts_with: []
+status: NORMATIVE_SPEC
 book: "Book I"
 part: "Part II"
 title: "Part II — Formalization"
@@ -9,10 +17,11 @@ status_taxonomy: NORMATIVE_SPEC
 evidence_status: FORMAL_AXIOMATIC
 research_layer: DEFENSIVE_SPECIFICATION
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "573–784"
-words: 3032
+words: 3457
 ---
 
 # Part II — Formalization
@@ -23,26 +32,59 @@ words: 3032
 
 > The Canonical Minimum Model (Identity → Representation → Authorization → Continuity → Accountability → Refusal), formal constraint equations, and the Declared-Type Terminology Registry.
 
-**Source range:** lines 573–784 of the Owner’s Working Draft · **Words:** 3,032
+**Source range:** lines 573–784 of the Owner’s Working Draft · **Words:** 3,457
 
 ---
 
 ## Canonical Minimum Model & Declared-Type Terminology Registry
 
-### The Six-Stage Canonical Minimum Model
+> **Normative Reference:** The single authoritative formal contract governing all symbols, legitimacy equations, human-key properties, accountability layers, and phase types is **[`specs/normative/canonical-model.md`](../../specs/normative/canonical-model.md)** (machine registry: **[`specs/normative/canonical.json`](../../specs/normative/canonical.json)** · reconciliation ledger: **[`specs/normative/contradictions.md`](../../specs/normative/contradictions.md)**).
 
-Every legitimate operation across **Harshal's Systems** traverses six sequential, non-bypassable stages:
+### The Six-Stage Canonical Minimum Model (`INV-STAGE-001`)
 
+Every legitimate operation across **Harshal's Systems** traverses five sequential upstream prerequisites followed by a sixth **terminal decision gate**:
+
+```text
+Identity
+→ Representation
+→ Authorization
+→ Continuity
+→ Accountability
+→ Decision
+   ├─ Permit
+   └─ Refuse
 ```
-Identity → Representation → Authorization → Continuity → Accountability → Refusal
-```
 
-1. **Identity (`I`)** `[TYPE: SECURITY_PRIMITIVE]`: A persistent, non-anonymous natural person (`PDH` / human key `H`) is uniquely identified at Center Origin (`0•000•000•0000`).
-2. **Representation (`R ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: The system verifies an unbroken, non-coerced representational bond between the human key and the affected scope.
-3. **Authorization (`V(S,t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Bounded operational permission is granted for a specific scope (`S`), phase, and duration (`Δt ≤ δ`); execution may be *delegated*, but legitimacy never *migrates* (`INV-LEGIT-001`).
-4. **Continuity (`C(t)`)** `[TYPE: SECURITY_PRIMITIVE]`: Liveness heartbeats, session-tuple bindings (`Session-ID`, `Boot-ID`, `PDH-ID`, `Attestation-ID`), and scope invariants are continuously re-verified at runtime.
-5. **Accountability (`A ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Every externalized effect is cryptographically and legally attributable to the keyed human principal and underwritten by bounded institutional solvency.
-6. **Refusal (`L(S,t) = 0 ⇒ HALT`)** `[TYPE: SECURITY_PRIMITIVE]`: The default state. Any failure of Identity, Representation, Authorization, Continuity, or Accountability triggers an immediate, deterministic fail-closed halt.
+1. **Identity (`I`, `H(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: A persistent, non-anonymous natural-person principal is identified at Center Origin (`0•000•000•0000`).
+2. **Representation (`R(t) ∈ [0,1]`)** `[TYPE: SECURITY_PRIMITIVE]`: The system verifies an unbroken delegation chain linking system action to the authorized human principal.
+3. **Authorization (`V(S,t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Bounded operational permission is granted for a specific scope (`S`), phase, and duration (`Δt ≤ δ`); execution may be *delegated*, but legitimacy never *migrates* (`INV-LEGIT-001`).
+4. **Continuity (`C(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Upstream runtime continuity condition—session-tuple bindings (`Session-ID`, `Boot-ID`, `PDH-ID`, `Human-Attestation-ID`), `V(S,t) = 1`, and temporal freshness (`Δt < δ`) must hold before the legitimacy function `f` is evaluated (`CL-003`).
+5. **Accountability (`K(t) ∈ {0,1}`)** `[TYPE: SECURITY_PRIMITIVE]`: Upstream accountability gate (`K(t) = K_tech(t) × K_ops(t)`), disambiguated from **Addressability (`A(t) ∈ [0,1]`)** so that `A` is reserved exclusively for Addressability (`CL-001`). Separated into **Technical Attribution (`K_tech`)**, **Operational Accountability (`K_ops`)**, **Legal Responsibility (`K_legal`)**, and separate **Institutional Solvency (`U_solv`)** (`CL-006`).
+6. **Decision (`x(t) ∈ {Permit, Refuse}`)** `[TYPE: SECURITY_PRIMITIVE]`: The **terminal decision gate** (`CL-004`). Emits `Permit` iff `H(t) = 1`, `C(t) = 1`, `K(t) = 1`, and `L(t) ≥ τ`; otherwise emits the default fail-closed outcome `Refuse` (`HALT`). *(Where legacy shorthand writes `"Identity → Representation → Authorization → Continuity → Accountability → Refusal"`, the sixth token `"Refusal"` denotes this `Decision` gate named by its default fail-closed branch.)*
+
+### Canonical Legitimacy Equation & Derived Forms (`INV-LEGIT-EQ-001` · `CL-002`)
+
+- **Canonical Form (when upstream preconditions `C(t) = 1` and `K(t) = 1` hold):**
+  ```text
+  L(t) = H(t) × f(A(t), R(t), S(t))
+  ```
+- **Expanded Canonical Form (with upstream binary gates explicit):**
+  ```text
+  L(t) = H(t) × C(t) × K(t) × f(A(t), R(t), S(t))
+  ```
+- **Reference Kernel Implementation Approximation (`js/kernel.js`):** `L(t) = H(t) × A(t) × R(t) × S(t)` over `[0,1]³`.
+- **Historical Boolean Shorthand (`CL-002`):** `L(S,t) = A · R · V(S,t)` (where `A` is **Addressability**, `R` is **Representation**, and `V(S,t)` bundles `H(t)`, `C(t)`, and `S(t)`).
+- **Paired Scope Semantics (`CL-010`):** Scope is the pair `(S_dom(t) ⊆ S_0, S(t) = Smax × max(0, 1 − Δt/δ))`; when `S(t) = 0` or `L(t) < τ`, the effective permitted action set collapses to `S_eff(t) = ∅`.
+
+### Human Key (`H(t)`) Operational Property & Verification Matrix (`CL-005`)
+
+| Operational Property | Production Verification Status | Browser Demo Status (`[DEMO-LIMITATION]`) |
+| :--- | :--- | :--- |
+| **Human Identity** | `externally attested` | `not technically provable` |
+| **Key Possession** | `cryptographically verifiable` | `system-observable` (local public-phrase HMAC) |
+| **Liveness** | `system-observable` & `externally attested` | `system-observable` (timer window `δ = 240s` only) |
+| **Authorization / Consent Attestation** | Grant is `cryptographically verifiable`; non-coercion & conscious intent are `assumed` / `externally attested` and `not technically provable` | `system-observable` ceremony state; `not technically provable` for consent/intent |
+| **Representation Integrity** | `cryptographically verifiable` & `system-observable` | `system-observable` (local session tuple & SHA-256 receipt) |
 
 ### Declared-Type Terminology Table
 
@@ -50,17 +92,18 @@ To prevent category confusion between cryptographic enforcement primitives, geom
 
 | Term / Symbol | Declared Type | Formal Role & Boundary |
 | :--- | :--- | :--- |
-| **`L(S,t) = A · R · V(S,t)`** | `[TYPE: SECURITY_PRIMITIVE]` | Master legitimacy gate; evaluates to `0` (Refusal) if any factor fails. |
-| **Human Key (`H ∈ {0,1}`)** | `[TYPE: SECURITY_PRIMITIVE]` | Binary liveness and consent attestation of an identifiable natural person; computational components are never moral or legal agents (`INV-AGENCY-001`). |
-| **Phase Declaration Header (`PDH`)** | `[TYPE: SECURITY_PRIMITIVE]` | Mandatory wire-level and document-level header binding origin, phase, and scope. |
+| **`L(t) = H(t) × f(A(t), R(t), S(t))`** | `[TYPE: SECURITY_PRIMITIVE]` | **Canonical legitimacy equation** (subject to upstream `C(t)=1, K(t)=1`). Historical boolean shorthand `L(S,t) = A · R · V(S,t)` is a derived reduction where `A` = Addressability (`CL-001`, `CL-002`). |
+| **Human Key (`H(t) ∈ {0,1}`)** | `[TYPE: SECURITY_PRIMITIVE]` | Binary human-key state decomposed into 5 operational properties (`CL-005`); computational components are never moral or legal agents (`INV-AGENCY-001`). |
+| **Addressability (`A(t)`) vs. Accountability (`K(t)`)** | `[TYPE: SECURITY_PRIMITIVE]` | `A(t) ∈ [0,1]` is Addressability; `K(t) ∈ {0,1}` is Accountability (`K_tech`, `K_ops`), separated from external `K_legal` and `U_solv` (`CL-001`, `CL-006`). |
+| **Phase Declaration Header (`PDH`)** | `[TYPE: SECURITY_PRIMITIVE]` | Mandatory wire-level and document-level header binding origin, `DeclaredPhase ∈ {NAB, CWO, GSRB}`, and scope. |
 | **Delegation vs. Migration (`INV-LEGIT-001`)** | `[TYPE: SECURITY_PRIMITIVE]` | Execution may be delegated across bounded hops (`d ≤ k`); legitimacy never migrates from the human key to silicon or corporate shells. |
 | **Orb Communicator Model (`OCM`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Bounded radial/angular communication geometry where the **2D Disc (`D²`)** is the pedagogical cross-section and the **3D Sphere (`S²/B³`)** is the full operational manifold. |
 | **Address Ring `ℤ_360` (`0–359`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Discrete 360-slot integer address domain (`000` = Center Origin; `001–359` = peripheral sectors). |
 | **`360°` Closure Notation (`360° ≡ 0°`)** | `[TYPE: TOPOLOGICAL_MODEL]` | Topological return-to-origin phase notation indicating full-cycle closure back to `0°`; never a 361st address slot. |
-| **Ground-0 Phase (`NAB` / `CWO` / `GSRB`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Deterministic five-gate classification of institutional legitimacy and accountability posture. |
+| **Ground-0 Phase (`DeclaredPhase` vs. `DetectedPhase`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | `DeclaredPhase = {NAB, CWO, GSRB}`; `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` (`CL-012`, `INV-G0-CLASS-001`). |
 | **119 Neural Atomic Bodies (`NAB 1–119`)** | `[TYPE: DIAGNOSTIC_CLASSIFICATION]` | Canonical taxonomy of bounded cognitive/institutional risk geometries and failure modes. |
 | **AGS+ / HMKH / ADJR-v1.0 / CHE++ / CGPA / OCS** | `[TYPE: PROTOCOL_SPECIFICATION]` | Normative defensive protocol specifications enforcing the Canonical Minimum Model. |
-| **500-Coin Pool & Underwriting Houses** | `[TYPE: GOVERNANCE_INSTITUTION]` | Physical artifact-bound governance quorum and catastrophic risk underwriting structure. |
+| **500-Coin Pool & Underwriting Houses (`U_solv`)** | `[TYPE: GOVERNANCE_INSTITUTION]` | Physical artifact-bound governance quorum and catastrophic risk underwriting structure (`U_solv`). |
 | **Harshal's English** | `[TYPE: AUTHORIAL_REGISTER]` | The author's normative English drafting style and left-to-right reading discipline. It is an authorial register, **not** a runtime security primitive. |
 | ***The Grand River Foundation* (`Book II — Preview`)** | `[TYPE: NARRATIVE_SANDBOX]` | Standalone ~2100 fictional companion novel illustrating mature implementations of Book I. |
 

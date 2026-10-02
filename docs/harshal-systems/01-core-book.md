@@ -1,5 +1,13 @@
 ---
+id: HS-01-CORE-BOOK
 document_id: HS-01-CORE-BOOK
+canonical_name: "Part I — The Core Book"
+depends_on: ["HS-00-FRONT-MATTER"]
+defines: ["LEGITIMACY-PRECEDES-CAPABILITY", "REFUSAL-DEFAULT", "SYMBOLIC-FIREWALL"]
+uses: ["H(t)", "A(t)", "R(t)", "S(t)", "L(t)"]
+invariants: ["INV-AGENCY-001", "INV-LEGIT-001", "INV-SYMBOLIC-FIREWALL"]
+conflicts_with: []
+status: CONCEPTUAL_DOCTRINE
 book: "Book I"
 part: "Part I"
 title: "Part I — The Core Book"
@@ -9,6 +17,7 @@ status_taxonomy: CONCEPTUAL_DOCTRINE
 evidence_status: FORMAL_AXIOMATIC
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "326–572"

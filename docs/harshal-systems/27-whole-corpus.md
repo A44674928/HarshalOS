@@ -1,5 +1,13 @@
 ---
+id: HS-27-WHOLE-CORPUS
 document_id: HS-27-WHOLE-CORPUS
+canonical_name: "Part XXVII — Whole Corpus / Complete Work"
+depends_on: ["HS-01-CORE-BOOK", "HS-02-FORMALIZATION", "HS-03-SAFETY-RATIONALE", "HS-04-AGS-ARCHITECTURE", "HS-05-OCM-ORB", "HS-06-INNER-SHELL", "HS-07-ADDRESSING-TOPOLOGY", "HS-08-OPERATOR-MODEL", "HS-09-DISC-LIFECYCLE", "HS-10-AGS-CONFORMANCE", "HS-11-ACCESSORY-PACK", "HS-12-GROUND-ZERO", "HS-13-WHYLAND", "HS-14-NAB-COMPENDIUM", "HS-15-HMKH-CONTROLS", "HS-16-THREAT-MODELING", "HS-17-ATOMIC-BODIES", "HS-18-INSTITUTIONAL-APPLICATION", "HS-19-RESEARCH-PAPERS", "HS-20-SUPPLY-CHAIN", "HS-21-MICROCONVERGENCE", "HS-22-POLICY-ARCHIVE", "HS-23-SPECIFICATION-SERIES", "HS-24-THE-NOVEL", "HS-25-ADDITIONAL-SPECS", "HS-26-ANTHROPIC-B-SIDE"]
+defines: ["WHOLE-CORPUS-SYNTHESIS"]
+uses: ["CANONICAL-MINIMUM-MODEL", "H(t)", "A(t)", "R(t)", "V(S,t)", "C(t)", "K(t)", "S(t)", "L(t)", "DECLARED-PHASE", "DETECTED-PHASE"]
+invariants: ["INV-CORPUS-027", "INV-SYM-001", "INV-STAGE-001", "INV-LEGIT-EQ-001", "INV-AGENCY-001", "INV-LEGIT-001", "INV-AXIS-001", "INV-OCM-PRECEDENCE-001", "INV-EMERG-001", "INV-G0-CLASS-001"]
+conflicts_with: []
+status: UMBRELLA_INDEX
 book: "Book I & Book II Umbrella"
 part: "Part XXVII"
 title: "Part XXVII — Whole Corpus / Complete Work"
@@ -9,10 +17,11 @@ status_taxonomy: UMBRELLA_INDEX
 evidence_status: FORMAL_AXIOMATIC
 research_layer: PUBLIC_RESEARCH_SUMMARY
 canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+canonical_decision_flow: "Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)"
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "1–16675"
-words: 1794
+words: 2038
 ---
 
 # Part XXVII — Whole Corpus / Complete Work
@@ -23,17 +32,27 @@ words: 1794
 
 > The capstone architectural synthesis and master index of the entire Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the Document Provenance and Evidence-Status Taxonomies, specifies the six-stage Canonical Minimum Model, summarizes all conceptual invariants, and indexes the seven functional collections across all 27 Parts.
 
-**Source range:** Whole Corpus Synthesis (lines 1–16,675 + Book II Preview) · **Words:** 1,794
+**Source range:** Whole Corpus Synthesis (lines 1–16,675 + Book II Preview) · **Words:** 2,038
 
 ---
 
-## 1. Purpose of Part XXVII — The Whole Corpus Synthesis
+## 1. Purpose of Part XXVII — The Whole Corpus Synthesis & Generative Contract (`INV-CORPUS-027`)
 
 **Part XXVII — Whole Corpus / Complete Work** serves as the capstone architectural synthesis, provenance registry, and master index for the entire **Harshal's Systems** literary, technical, and constitutional corpus. It resolves historical numbering drift between the 26 Roman-numbered body parts and the 27-file modular build by establishing **Part XXVII** as the formal **Whole Corpus / Complete Work** module.
 
+### Formal Generative Synthesis Contract (`INV-CORPUS-027`)
+
+```text
+Parts 01–26 = canonical source components
+Part 27     = integrated synthesis
+
+1. 27 must not introduce a new invariant absent from 01–26 (or specs/normative/canonical-model.md).
+2. 27 may synthesize, reorder, narrativize, or instantiate existing invariants.
+```
+
 > **Core Strategic Architecture:**  
 > **The architecture (Book I) is the canonical reference library. The novel (Book II) is the active narrative work in production.**  
-> Rather than continually rebuilding the foundational documentation before writing each new chapter of fiction, **Book I (`Parts I–XXVII`)** stands as the settled constitutional, topological, and safety canon from which **Book II (*The Grand River Foundation — Book II Preview*)** draws its ~2100 world-building invariants.
+> Rather than continually rebuilding the foundational documentation before writing each new chapter of fiction, **Book I (`Parts I–XXVII`)** and its formal contract ([`specs/normative/canonical-model.md`](../../specs/normative/canonical-model.md) · [`specs/normative/canonical.json`](../../specs/normative/canonical.json) · [`specs/normative/contradictions.md`](../../specs/normative/contradictions.md)) stand as the settled constitutional, topological, and safety canon from which **Book II (*The Grand River Foundation — Book II Preview*)** draws its ~2100 world-building invariants.
 
 ---
 
@@ -41,14 +60,14 @@ words: 1794
 
 | Publishing Tier | Title & Scope | Provenance Class | Normative Status | Primary Repository Artifacts |
 | :--- | :--- | :--- | :--- | :--- |
-| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `HARSHAL-SYSTEMS-USER-MANUAL.md`, `HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/ground-0-v1.0.md` |
+| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `HARSHAL-SYSTEMS-USER-MANUAL.md`, `HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/canonical-model.md`, `specs/normative/canonical.json`, `specs/normative/ground-0-v1.0.md` |
 | **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (`Prologue`, `Chapters 1–5`, `Interstitial: Cable Select`, & ongoing chapters) | `FICTION` | **Non-Normative Future-World Sandbox (~2100 CE)** | `manuscript/the-grand-river-foundation/*.txt`, `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/manifest.json` |
 
 ---
 
 ## 3. Formal Provenance & Evidence-Status Taxonomies
 
-Every module in the repository is governed by four orthogonal metadata dimensions embedded in machine-readable YAML frontmatter and visible provenance banners:
+Every module in the repository is governed by four orthogonal metadata dimensions plus the stable 8-field component interface (`id`, `canonical_name`, `depends_on`, `defines`, `uses`, `invariants`, `conflicts_with`, `status`) embedded in machine-readable YAML frontmatter and visible provenance banners:
 
 ### 3.1 Provenance Class (`provenance_class`)
 - **`CANONICAL_SOURCE`**: Primary specifications, formal equations, research papers, and doctrinal modules authored in the working canon.
@@ -58,7 +77,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 - **`AUDIT`**: Point-in-time institutional evaluations, Ground-0 phase re-badging case studies, and external platform compliance records.
 
 ### 3.2 Status Taxonomy (`status_taxonomy`)
-- **`NORMATIVE_SPEC`**: Binding architectural, topological, or constitutional specification (`Ground-0 v1.0`, `AGS+`, `OCM`, `HMKH`, `ADJR-v1.0`, `CHE++`, `CGPA`, `OCS`).
+- **`NORMATIVE_SPEC`**: Binding architectural, topological, or constitutional specification (`canonical-model.md`, `Ground-0 v1.0`, `AGS+`, `OCM`, `HMKH`, `ADJR-v1.0`, `CHE++`, `CGPA`, `OCS`).
 - **`CONCEPTUAL_DOCTRINE`**: Foundational philosophical and structural principles (`Part I — The Core Book`, `Part XIII — The Whyland Standards`).
 - **`RESEARCH_PAPER`**: Formal analytical, hybrid-systems, or adversarial threat-modeling research (`Part XIX — Keyed Human–Machine Hybrid Systems`, `Part XVI — AGS++ Threat Modeling`, `Part XX — Supply Chain Attack Vector++`).
 - **`SUPPORTING_POLICY_RESEARCH`**: Applied public-policy memoranda operationalizing the Canonical Minimum Model (`Part XXII — Supporting Policy Archive`).
@@ -67,7 +86,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 - **`UMBRELLA_INDEX`**: Master corpus synthesis and navigation (`Front Matter`, `Part XXVII`).
 
 ### 3.3 Evidence-Status Taxonomy (`evidence_status`)
-- **`FORMAL_AXIOMATIC`**: True by definition within the formal axiom system, state machine, or topological model (`L(S,t) = A · R · V(S,t)`).
+- **`FORMAL_AXIOMATIC`**: True by definition within the formal axiom system, state machine, or topological model (`L(t) = H(t) × f(A(t), R(t), S(t))`).
 - **`INDEPENDENTLY_VERIFIABLE`**: Grounded in public statutes, published corporate policies, public court dockets, or reproducible automated test suites in `tests/`.
 - **`AUTHOR_REPORTED`**: First-person operational chronology, incident records, or author-attested observations.
 - **`MIXED_VERIFIED_AND_REPORTED`**: Contains both independently verifiable public documentation and author-reported chronology, explicitly separated via inline attribution tables.
@@ -81,17 +100,20 @@ Every module in the repository is governed by four orthogonal metadata dimension
 
 ---
 
-## 4. Summary of Canonical Conceptual Resolutions (Priority 3 Reference)
+## 4. Summary of Canonical Conceptual Resolutions (`specs/normative/canonical-model.md`)
 
-1. **Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`):**
+1. **Canonical Six-Stage Model & Decision Gate (`INV-STAGE-001`):**
+   ```text
+   Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)
    ```
-   Identity → Representation → Authorization → Continuity → Accountability → Refusal
-   ```
-2. **Non-Agency of Computational Components (`INV-AGENCY-001`):** Computational systems never possess or acquire moral or legal agency regardless of processing capability. All legal and moral responsibility remains strictly bound to the keyed human principal (`H = 1`).
-3. **Delegation of Execution vs. Migration of Legitimacy (`INV-LEGIT-001`):** Task execution may be *delegated* across bounded, auditable hops (`d = 1..k`), but legitimacy *never migrates* into silicon, autonomous swarms, or corporate wrappers.
-4. **OCM Disc → Sphere Equivalence (`D² ↪ B³`):** The 2D Disc (`r, θ`) is the pedagogical equatorial cross-section; the 3D Sphere (`r, θ, φ`) is the full operational manifold.
-5. **Discrete Address Ring `ℤ_360` (`0–359`) vs. `360°` Closure Notation:** Sector addresses occupy `0–359` (`0` = Center Origin `0•000•000•0000`; `1–359` = peripheral sectors). `360°` is never an address slot; it denotes full-cycle topological return to origin (`360° ≡ 0° mod 360`).
-6. **Reclassification of Harshal's English (`[TYPE: AUTHORIAL_REGISTER]`):** *Harshal's English* is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives (`[TYPE: SECURITY_PRIMITIVE]`).
+   *(Legacy shorthand: `Identity → Representation → Authorization → Continuity → Accountability → Refusal`, where `Refusal` names the Stage 6 `Decision` gate by its default fail-closed branch.)*
+2. **Disambiguated Symbol Namespace & Canonical Legitimacy (`INV-SYM-001`, `INV-LEGIT-EQ-001`):** `A(t)` denotes **Addressability** exclusively; **Accountability** uses `K(t) = K_tech(t) × K_ops(t)` (separated from `Legal Responsibility K_legal` and `Institutional Solvency U_solv`). The single canonical legitimacy equation is `L(t) = H(t) × f(A(t), R(t), S(t))` subject to upstream gates `C(t) = 1` and `K(t) = 1` (`L(S,t) = A · R · V(S,t)` is retained solely as a documented historical boolean shorthand).
+3. **Non-Agency of Computational Components (`INV-AGENCY-001`):** Computational systems never possess or acquire moral or legal agency regardless of processing capability. All legal and moral responsibility remains strictly bound to the keyed human principal (`H = 1`).
+4. **Delegation of Execution vs. Migration of Legitimacy (`INV-LEGIT-001`):** Task execution may be *delegated* across bounded, auditable hops (`d = 1..k`), but legitimacy *never migrates* into silicon, autonomous swarms, or corporate wrappers.
+5. **OCM Disc → Sphere Equivalence (`D² ↪ B³`), Resolution Axis (`INV-AXIS-001`), and Routing Precedence (`INV-OCM-PRECEDENCE-001`):** The 2D Disc (`r, θ`) is the pedagogical equatorial cross-section; the 3D Sphere (`r, θ, φ`) is the full operational manifold. Resolution is an authority-resolution mechanism, not an authority source (`INV-AXIS-001`), with `Cost_resolution < Cost_lateral` under the Direct Attachment Axiom and `Resolution ≻ Coordination` as a strict precedence invariant.
+6. **Discrete Address Ring `ℤ_360` (`0–359`) vs. `360°` Closure Notation:** Sector addresses occupy `0–359` (`0` = Center Origin `0•000•000•0000`; `1–359` = peripheral sectors). `360°` is never an address slot; it denotes full-cycle topological return to origin (`360° ≡ 0° mod 360`).
+7. **Emergency Legitimacy (`INV-EMERG-001`) & Ground-0 Phase Types (`INV-G0-CLASS-001`):** Emergency conditions never generate legitimacy. Ground-0 distinguishes `DeclaredPhase = {NAB, CWO, GSRB}` from `DetectedPhase = {NAB, CWO, NAB-Constrained, GSRB, AMBIGUOUS, INCOHERENT}` and separates audit `Reclassification Events` from operational `Transition Events`.
+8. **Reclassification of Harshal's English (`[TYPE: AUTHORIAL_REGISTER]`):** *Harshal's English* is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives (`[TYPE: SECURITY_PRIMITIVE]`).
 
 ---
 
@@ -115,17 +137,17 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | ---: |
 | `00` | **Author's Front Matter** | [Author’s Front Matter and Reading Guide](00-author-front-matter.md) | `ARCHIVE` | `CONCEPTUAL_DOCTRINE` | `AUTHOR_REPORTED` | `PUBLIC_RESEARCH_SUMMARY` | 3,476 |
 | `01` | **Part I** | [Part I — The Core Book](01-core-book.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | 8,511 |
-| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,032 |
+| `02` | **Part II** | [Part II — Formalization](02-formalization.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,457 |
 | `03` | **Part III** | [Part III — Safety Rationale for Adversarial Scenarios](03-safety-rationale.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 436 |
 | `04` | **Part IV** | [Part IV — AGS: Accountability-Gated Systems](04-ags-architecture.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,668 |
-| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,344 |
+| `05` | **Part V** | [Part V — OCM: The Orb Communicator Model](05-ocm-orb.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,499 |
 | `06` | **Part VI** | [Part VI — The AI Inner Shell](06-inner-shell.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 720 |
-| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,290 |
+| `07` | **Part VII** | [Part VII — Addressing, Rotation, and Spherical Topology](07-addressing-topology.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,445 |
 | `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,264 |
-| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,436 |
+| `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,681 |
 | `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 817 |
 | `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,739 |
-| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `DEFENSIVE_SPECIFICATION` | 16,998 |
+| `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `DEFENSIVE_SPECIFICATION` | 17,086 |
 | `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 986 |
 | `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 5,040 |
 | `15` | **Part XV** | [Part XV — Keyed Human-Machine Hybrid Controls](15-hmkh-controls.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 2,118 |
@@ -143,5 +165,5 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | ~1,650 |
 
 **Whole Corpus Totals:**
-- **Book I Reference Library (`00`–`27`):** 177,958 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
+- **Book I Reference Library (`00`–`27`):** 179,026 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
 - **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** 16,113 words across 9 indexed plaintext chapters (synchronized in Part XXIV and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).

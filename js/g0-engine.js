@@ -157,6 +157,11 @@ window.G0 = (() => {
     { phase: "GSRB", name: "God-Sovereign Religious Body", category: "Sovereign-acting", icon: "cloud", color: "peach", symbol: "🌫", description: "The center authorizes itself and acts.", characteristics: ["Legitimacy is internal and self-authorizing", "The center acts and decides", "Refusal is override-able", "Symbolism has operational effects", "Time confirms authority"], examples: "The framework’s sovereign-acting category: institutions, platforms, or systems with self-authorizing execution and enforcement.", fields: ["Acting", "Internal", "Override-able", "Enabled", "Confirms"], vector: [true, false, true, false, true] }
   ];
 
+  const DECLARED_PHASES = Object.freeze(["NAB", "CWO", "GSRB"]);
+  const DETECTED_PHASES = Object.freeze(["NAB", "CWO", "NAB-Constrained", "GSRB", "AMBIGUOUS", "INCOHERENT"]);
+  const DIAGNOSTIC_STATES = Object.freeze(["AMBIGUOUS", "INCOHERENT"]);
+  const PHASE_EVENT_TYPES = Object.freeze(["Declared Phase", "Observed Phase", "Reclassification Event", "Transition Event"]);
+
   const plainPhase = {
     NAB: "Refusal-bound. It cannot act on its own, its decisions are optional, and a refusal stops it.",
     CWO: "Witness-only. It records and preserves, but does not decide or enforce.",
@@ -258,7 +263,7 @@ window.G0 = (() => {
     result.structural = requiredFields.every(field => typeof header[field] === "string" && String(header[field]).trim().length > 0) &&
       /^PDH-\d{4}-\d{2}-\d{2}-[A-Za-z0-9]{5}$/.test(String(header["Header-ID"])) &&
       isCalendarDate(String(header["Header-ID"]).slice(4, 14)) && validCreator &&
-      ["NAB", "CWO", "GSRB"].includes(String(phase)) && isIsoTimestamp(header["Effective-Timestamp"]) &&
+      DECLARED_PHASES.includes(String(phase)) && isIsoTimestamp(header["Effective-Timestamp"]) &&
       !!String(header["Center-Origin"]).trim();
     if (!result.structural) return { ...result, reason: "NO_VALID_PDH: A required field is missing or malformed. Creator IDs must match each other and the entity identifier." };
     const delta = Date.parse(`${input.cutoff}T23:59:59.999Z`) - dateTime(String(header["Effective-Timestamp"]));
@@ -701,7 +706,8 @@ window.G0 = (() => {
 
   /* ────────────────────────────────────────────────────────────── */
   return {
-    CENTER_ORIGIN, questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
+    CENTER_ORIGIN, DECLARED_PHASES, DETECTED_PHASES, DIAGNOSTIC_STATES, PHASE_EVENT_TYPES,
+    questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
     scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,
