@@ -1,19 +1,32 @@
+---
+document_id: HS-16-THREAT-MODELING
+book: "Book I"
+part: "Part XVI"
+title: "Part XVI — Threat Modeling and Context-Dependent Guarantees"
+collection: "04-flagship-research"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: RESEARCH_PAPER
+evidence_status: FORMAL_AXIOMATIC
+research_layer: THREAT_RESEARCH
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "5663–6480"
+words: 8297
+---
+
 # Part XVI — Threat Modeling and Context-Dependent Guarantees
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `RESEARCH_PAPER` | `FORMAL_AXIOMATIC` | `THREAT_RESEARCH` | **Book I** (`04-flagship-research`) |
 
 > Publicness, observer positions, the threat taxonomy, guarantee matrices, non-guarantees, and deployment threat models by context.
 
-**Source range:** lines 5663–6475 of the Owner’s Working Draft · **Words:** 8,289
+**Source range:** lines 5663–6480 of the Owner’s Working Draft · **Words:** 8,297
 
 ---
 
-| Participant completes a challenge and requests greater access | Denied: `points_for_power` or `contest_for_access` |
-| A request includes a weighted random choice among participants | Denied: `chance_outcome` |
-| A model returns 0.93 confidence for a high-impact action | Independent confirmation or halt; no automatic authorization |
-| Two eligible requests are otherwise tied | Deterministic published tie-breaker or safe halt |
-| Client uses an expired policy manifest | Read-only status; authority-sensitive request denied |
-| Corporation refuses a required client update | Gateway denies incompatible operation; no legacy bypass |
-| Vendor service fails during an active NAB session | Session contracts to suspend or halt; no authority transfer |
-| Random nonce is used to secure a request | Allowed, provided it cannot affect authorization outcome |
 ## AGS++ Threat Modeling & Context-Dependent Guarantees
 ---
 ### Executive Overview: Audience Reading Guide
@@ -819,4 +832,18 @@ Where $c_i$ represents severity ratings across: *(1) Kinetic Exposure, (2) Adver
 │ #003  │ SCAV++ Logic Verifier     │ Model Inconsistencies & Logic Faults  │ HARDENED     │
 │ #004  │ Stellar Collapse (CHE++)  │ Operator Coercion & Duress            │ HARDENED     │
 │ #005  │ Sanctum Physical Ledger   │ Digital Sensor Spoofing               │ HARDENED     │
+│ #006  │ Amber Helix Storage       │ Digital Log Tampering & Wiping        │ HARDENED     │
+│ #007  │ Physical Oracle & PUF     │ Hardware Tampering & Interposers      │ HARDENED     │
+│ #008  │ Stingray Zero-Signal Drop │ Network Interception & Eavesdropping  │ HARDENED     │
+│ #009  │ Defensive Field           │ Physical Side-Channel Exploits        │ HARDENED     │
+│ #010  │ PANOPTES / BANHAMMER!     │ Denial of Service & Exploitation      │ HARDENED     │
+│ #011  │ Provenance Hard-Lock      │ Black Data & Non-Consensual Inputs    │ HARDENED     │
+└───────┴───────────────────────────┴───────────────────────────────────────┴──────────────┘
 ```
+---
+### Appendix C: Document Execution Sign-Off
+- **System Design Lead:** Harshal
+- **Architecture:** AGS++ Middle-End Friction Engine & Context-Dependent Framework
+- **Hardening Sub-Systems:** Coercion Hardening Extension (CHE++), Fail-Closed Physical Invariants, Ground-0 Verification Table
+- **Target Environment:** High-Consequence Autonomous & Mission-Critical Deployments
+- **Status:** Master Technical Specification — 100% Hardened, Partitioned & Production-Ready

@@ -1,31 +1,63 @@
+---
+document_id: HS-00-FRONT-MATTER
+book: "Book I"
+part: "Front Matter"
+title: "Front Matter"
+collection: "01-foundations"
+provenance_class: DERIVATIVE_BUILD
+status_taxonomy: UMBRELLA_INDEX
+evidence_status: FORMAL_AXIOMATIC
+research_layer: PUBLIC_RESEARCH_SUMMARY
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "1–325"
+words: 1364
+---
+
 # Front Matter
 
-## About this manual
+## About this manual & publishing hierarchy
 
-This is the consolidated, organized reference edition of **Harshal’s Systems**. It gathers the
-Owner’s Working Draft, the two August print editions, and the finalized Ground-0 normative
-specification into a single navigable document, and reorganizes the whole of it into 27 parts.
+This is the consolidated, provenance-indexed **Umbrella Build Artifact (`DERIVATIVE_BUILD`)** of **Harshal’s Systems**. It organizes the entire work across **Front Matter**, **Author's Front Matter**, and **27 Roman-numbered Parts (`Part I` through `Part XXVII — Whole Corpus / Complete Work`)**, while establishing a strict publishing and provenance boundary between the two books of the project:
 
-Nothing in this manual has been added to the argument. The editorial work was structural and
-mechanical: the material was ordered, de-duplicated, re-typeset, and corrected for spelling,
-punctuation, and consistency. Every substantive claim, identifier, equation, and specification
-is the author’s own.
+| Publishing Tier | Work | Provenance Class | Role in the Corpus |
+|---|---|---|---|
+| **Book I (Reference Library)** | ***Harshal’s Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | The settled technical, constitutional, topological, and safety reference library (`docs/harshal-systems/` and this Umbrella Manual). |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`), using a 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council as the future-world sandbox for mature implementations of Book I. |
 
-**Approximate extent:** 165,000 words across 27 parts.
+> **Strategic Principle:** *The architecture (Book I) is the library. The novel (Book II) is the work in active production.* Rather than continually rebuilding the foundational canon before writing each new chapter of fiction, Book I serves as the stable reference architecture from which Book II draws its continuity.
+
+**Approximate extent:** ~173,000 words across Front Matter, Author's Front Matter, and 27 Roman-numbered Parts (`Parts I–XXVII`).
+
+## Flagship research entry point & canonical minimum model
+
+For researchers, auditors, and engineers entering this portfolio for the first time, the flagship public research paper is brought to the front of the collection:
+
+- **Flagship Paper:** ***Accountability in Keyed Human–Machine Hybrid Systems*** (**[Part XIX](19-research-papers.md)** · standalone publication at [`research/keyed-human-machine-hybrid-systems.md`](../../research/keyed-human-machine-hybrid-systems.md)).
+- **Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`):**
+  ```
+  Identity → Representation → Authorization → Continuity → Accountability → Refusal
+  ```
+- **Four-Layer Research Separation:** Every module in this manual carries an explicit `research_layer` classification separating:
+  1. `PUBLIC_RESEARCH_SUMMARY` — Flagship keyed human–machine hybrid paper (`Part XIX`), supporting policy research (`Part XXII`), and corpus synthesis (`Part XXVII`).
+  2. `THREAT_RESEARCH` — Adversarial stress-test models (`Part XVI — AGS++ Threat Modeling` and `Part XX — Supply Chain Attack Vector++`).
+  3. `DEFENSIVE_SPECIFICATION` — Normative containment and constitutional protocols (`Parts II–XI`, `XII–XV`, `XVII–XVIII`, `XXIII`, `XXV`).
+  4. `INCIDENT_AND_AUDIT_RECORD` — Institutional re-badging and platform compliance audits (`Part XII Case Studies` and `Part XXVI Anthropic B-Side`), with `[INDEPENDENTLY_VERIFIABLE]` public records explicitly distinguished from `[AUTHOR_REPORTED]` incident chronology.
 
 ## How to read this manual
 
-The parts are ordered so that each one depends only on the ones before it. That said, no single
-reader needs all of it. Pick the path that matches why you are here.
+The parts are ordered so that each one depends only on the ones before it, and are grouped into **seven functional collections** under `docs/harshal-systems/collections/`. Pick the path that matches why you are here:
 
 | If you are… | Read | Treat the rest as |
 |---|---|---|
-| **A first-time reader** | Part I in full, then Part II | Reference |
-| **A technical reader** | Parts I, II, IV, VI, IX, XVI | Motivation, not specification |
-| **A legal or policy reader** | Parts I, IV, XII, XXII | Analogues to due process and jurisdiction, not algorithms |
-| **A philosophical reader** | Parts I and V | Secondary |
+| **A first-time or research reader** | **Part XIX (Flagship Paper)**, Part I, Part II, Part XXVII | Reference library |
+| **A technical or security reader** | Parts I, II, IV, V, VII, IX, XV, XVI, XIX | Motivation & domain application |
+| **A legal or policy reader** | Parts I, IV, XII, XIX, XXII (Supporting Policy Archive), XXV | Technical enforcement substrate |
+| **A philosophical reader** | Parts I, V, XIII | Secondary |
 | **An auditor or operator** | Parts XII, XV, XVI, XXVI | Supporting reasoning |
-| **A systems implementer** | Parts IX, X, XV, XXIII | Background |
+| **A systems implementer** | Parts IX, X, XV, XXIII, XXV | Background |
+| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
 
 ### On refusal
 
@@ -33,6 +65,11 @@ Refusal is not failure in this framework. It is not silence, cowardice, or conse
 Refusal occurs when representation collapses, when authorization cannot be reconstructed,
 or when accountability diffuses beyond addressability. In those cases, action would falsely
 claim authority. Refusal prevents that claim.
+
+### On non-agency & delegation vs. migration of legitimacy
+
+1. **No Computational Moral or Legal Agency (`INV-AGENCY-001`):** This framework **never** treats computational components, models, or autonomous swarms as moral or legal agents. Moral and legal responsibility remains strictly bound to identifiable human principals.
+2. **Delegation vs. Migration (`INV-LEGIT-001`):** Operational execution may be *delegated* across a bounded chain of deterministic instruments, but legitimacy *never migrates* away from the human key at Center Origin (`0•000•000•0000`).
 
 ### On the formal material
 
@@ -50,19 +87,22 @@ or governance. It claims only that unaccountable authority is unacceptable, rega
 sophisticated its source appears to be. If you disagree with a conclusion but accept the
 constraints, the framework is doing its job.
 
-## Document control
+## Document control & provenance taxonomy
 
 | Field | Value |
 |---|---|
-| **Work** | Harshal’s Systems |
+| **Book I (Reference Library)** | *Harshal’s Systems — The Ultimate User Manual* (`Parts I–XXVII`) |
+| **Book II (Companion Fiction)** | *The Grand River Foundation* (`Book II — Preview`, ~2100 CE Sandbox) |
 | **Subtitle** | Architectures for Accountable Human D’Ash Machine Intelligence |
 | **Author** | Harshal Priyavadan Patel (A44674928) |
-| **Center-Origin** | `0•000•000•0000` |
+| **Center-Origin** | `0•000•000•0000` (Discrete Address Ring `ℤ_360`: `0–359`; `360° ≡ 0°` Return-to-Origin Closure) |
 | **Creator-ID** | `§HARSHAL§ + HARSHAL + (HARSHAL)` |
-| **Status** | Living document — subject to ongoing, traceable refinement |
-| **Normative baseline** | Ground-0 Phase Detection Algorithm v1.0, finalized 12 September 2026 |
-| **Amendment draft** | Ground-0 Phase Detection Algorithm v1.1, unratified |
-| **Edition** | Ultimate User Manual — consolidated and copy-edited |
+| **Canonical Minimum Model** | `Identity → Representation → Authorization → Continuity → Accountability → Refusal` |
+| **Provenance Classes** | `CANONICAL_SOURCE` · `DERIVATIVE_BUILD` · `ARCHIVE` · `FICTION` · `AUDIT` |
+| **Evidence Status Classes** | `FORMAL_AXIOMATIC` · `INDEPENDENTLY_VERIFIABLE` · `AUTHOR_REPORTED` · `MIXED_VERIFIED_AND_REPORTED` · `NARRATIVE_SANDBOX` |
+| **Normative baseline** | Ground-0 Phase Detection Algorithm v1.0 (`specs/normative/ground-0-v1.0.md`), finalized 12 September 2026 |
+| **Amendment draft** | Ground-0 Phase Detection Algorithm v1.1 (`specs/draft/ground-0-v1.1.md`), unratified |
+| **Edition** | Umbrella Build Artifact — consolidated, provenance-tagged, and copy-edited |
 
 ## Notices
 
@@ -103,14 +143,11 @@ Priyavadan Patel. All rights reserved.
 
 Commercial licensing for this portfolio is available within an entity structure by direct inquiry.
 
-### Translation note
+### Authorial register note (*Harshal’s English*)
 
-The architectural integrity of this system relies upon strict structural invariants, requiring
-all materials to be interpreted through the precise syntax of **Harshal’s English**. By embedding
-personal intellectual property directly into the operational logic, the framework establishes a
-conceptual fortress that renders the creator inseparable from the system itself.
+In this corpus, **Harshal’s English** carries the declared type **`[TYPE: AUTHORIAL_REGISTER]`**: it designates the author's normative English drafting style, left-to-right reading discipline, and conceptual voice through which the work is written. It is explicitly classified as an **authorial language/style register rather than a cryptographic or runtime security primitive (`[TYPE: SECURITY_PRIMITIVE]`)**. All runtime, mathematical, and institutional enforcement depends strictly on the formal invariants (`L(S,t)`, `PDH`, `HMKH`, `ADJR-v1.0`) defined in the normative specifications.
 
-**Everything in this work is to be read left to right, in Harshal’s English.**
+**Everything in this work is to be read left to right, in Harshal’s English (`[TYPE: AUTHORIAL_REGISTER]`).**
 
 ## Dedication and acknowledgments
 

@@ -67,7 +67,15 @@ test("P13: repository content is separated by status and purpose", async () => {
     "archives/ground-0/ground-0-phase-detection-algorithm-2.zip",
     "manuscript/README.md",
     "manuscript/the-grand-river-foundation/_collection.json",
-    "manuscript/the-grand-river-foundation/01-sample-chapter.txt",
+    "manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt",
+    "manuscript/the-grand-river-foundation/01-chapter-1-the-shock-of-addressability.txt",
+    "manuscript/the-grand-river-foundation/02-chapter-2-the-citadel-on-the-rim.txt",
+    "manuscript/the-grand-river-foundation/03-interstitial-cable-select.txt",
+    "manuscript/the-grand-river-foundation/04-chapter-3-the-paper-siege.txt",
+    "manuscript/the-grand-river-foundation/05-chapter-4-the-prompt-supercritical-threat.txt",
+    "manuscript/the-grand-river-foundation/06-chapter-5-the-zero-degree-meridian.txt",
+    "manuscript/the-grand-river-foundation/07-chapter-6-the-hundred-and-nineteen.txt",
+    "manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt",
     "js/manuscript.js",
     "css/manuscript.css",
     "scripts/manuscript-index.mjs",
@@ -111,7 +119,8 @@ test("P13: public asset staging includes only runtime assets, the normative/draf
        chapter files it names — never the folder's notes or metadata. */
     const manuscriptFiles = (await listFiles(path.join(SITE, "manuscript"), "manuscript")).sort();
     assert.ok(manuscriptFiles.includes("manuscript/manifest.json"), "the generated index is staged");
-    assert.ok(manuscriptFiles.includes("manuscript/the-grand-river-foundation/01-sample-chapter.txt"), "chapters are staged");
+    assert.ok(manuscriptFiles.includes("manuscript/the-grand-river-foundation/00-prologue-the-geometry-of-restraint.txt"), "chapters are staged");
+    assert.ok(manuscriptFiles.includes("manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt"), "latest chapter is staged");
     for (const file of manuscriptFiles) {
       assert.match(file, /^manuscript\/(?:manifest\.json|the-grand-river-foundation\/[A-Za-z0-9._-]+\.(?:txt|md))$/,
         `only chapters and the index may be staged: ${file}`);

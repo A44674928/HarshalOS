@@ -18,9 +18,11 @@ const OCM_DATA = (() => {
     author: "Harshal Priyavadan Patel @ 0•000•000•0000",
     format: "0•[orb]•[sector]•[instance]",
     freshSlateFormat: "0•DDD•RRR•####",
+    addressDomain: "ℤ_360 = {0..359} discrete address ring (000 = Center Origin; 001–359 = peripheral sectors; 360° ≡ 0° mod 360 is return-to-origin closure notation, never a 361st address slot)",
+    topologyProjection: "2D Disc (r, θ) = pedagogical equatorial cross-section; 3D Sphere (r, θ, φ) = full operational manifold",
     rules: [
       "Cannot be duplicated",
-      "Cannot be delegated",
+      "Cannot be delegated (execution may be delegated; legitimacy never migrates)",
       "Cannot be overridden",
       "Removal or invalidation of the center invalidates the addressing system"
     ]

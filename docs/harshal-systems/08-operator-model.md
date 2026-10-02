@@ -1,12 +1,32 @@
+---
+document_id: HS-08-OPERATOR-MODEL
+book: "Book I"
+part: "Part VIII"
+title: "Part VIII — The Operator Model"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "2018–2181"
+words: 1264
+---
+
 # Part VIII — The Operator Model
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
 > Operator classification, structural position, address derivation, role tokens, authority constraints, shadow-center prevention, and containment.
 
-**Source range:** lines 2022–2182 of the Owner’s Working Draft · **Words:** 1,223
+**Source range:** lines 2018–2181 of the Owner’s Working Draft · **Words:** 1,264
 
 ---
 
-End of Fossilized 360° Degree Legend
 Human Operator Sub-Specification (OCM–AGS)
 Status: Under development.
 Accessory Kit · Draft v1.1 (Hard Mode)
@@ -167,3 +187,7 @@ Anyone who wants:
 18) “What is the single rule people misunderstand most?”
 That the Center is not a ruler. It is a reference.
 19) “What happens if people ignore the rules?”
+They do not break the system. They simply operate outside it. OCM does not chase defectors.
+20) Final Clarification
+OCM does not tell you what to believe, do, or become. It tells you where authority begins—and therefore where it cannot sneak in.
+End of Public Misuse FAQ

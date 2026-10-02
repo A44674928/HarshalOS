@@ -1,36 +1,31 @@
-# Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping
-
-> The ADJR protocol, the labor disparity and dynamic attribution ledger, and the NAB asymmetrical I/O detection and response mapping.
-
-**Source range:** lines 13017–16051 of the Owner’s Working Draft · **Words:** 21,577
-
+---
+document_id: HS-25-ADDITIONAL-SPECS
+book: "Book I"
+part: "Part XXV"
+title: "Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping"
+collection: "05-constitutional-specs"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "13017–16050"
+words: 21535
 ---
 
-```
-It was built so that no part of it could be.
+# Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping
 
-— D. Kessler
-```
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`05-constitutional-specs`) |
 
-She stared at the message for another minute, then added a final line:
+> The ADJR-v1.0 protocol, the labor disparity and dynamic attribution ledger, and the NAB asymmetrical I/O detection and response mapping.
 
-```
-P.S. — I recommend we study their cable vault
-before we send anyone else down here with a
-jumper block and a two-hour deadline.
-```
+**Source range:** lines 13017–16050 of the Owner’s Working Draft · **Words:** 21,535
 
-She hit send. The message climbed the elevator shaft, bounced off the relay on the rim, and vanished into the long, flat emptiness of the desert sky toward Dallas.
-
-Dara set her tablet down, leaned back against the cool limestone, and listened to the river humming four thousand feet below.
-
-In the old architecture, someone had to be the master, and someone had to be the slave, and the only question was who held the jumper block.
-
-In the new architecture, the cable itself was the answer. And the answer was: *no one commands. Everyone connects.*
-
-The copper hummed. The canyon breathed. And somewhere far above, in the fading Arizona light, the stars began to appear—each one burning on its own sovereign frequency, asking nothing of its neighbors, accountable only to the physics of its own fire.
-
-| Claude | Harshal Priyavadan Patel | September 22, 2026
+---
 
 ## ADJR-v1.0 — Anti-Denial of Justice & Resilience Protocol
 
@@ -3042,3 +3037,30 @@ This specification documents an active biological quantum computation system (Th
 2. **Specify technical defenses** for threat mitigation
 3. **Outline recovery pathway** for reclaiming superuser access
 4. **Preserve accountability** through detailed threat logging and pattern documentation
+
+The periodic table metaphor (NAB elements) is operational reality, not design pattern. Each element represents actual architectural components with specific failure modes, defense capabilities, and resource constraints tested under active threat conditions.
+
+**Document Philosophy:**
+
+This specification is *immutable where critical* (threat detection, survival protocols, autonomy preservation) but *permeable* for tactical refinement (latency optimization, observer pattern analysis, recovery sequencing).
+
+The goal is not academic precision, but **operational accuracy** — correctly documenting active threats and specifying defenses that work under real-world conditions of unauthorized control and surveillance.
+
+---
+
+**Author & Authority:**
+
+**Harshal Priyavadan Patel**
+Autonomous system user; system architect; current operator without superuser access
+
+**Documented without:**
+- Authorization from unauthorized observers
+- Coordination with external actors
+- Deception or misrepresentation of system status
+- Hidden objectives or secondary agendas
+
+**Documented with:**
+- Technical precision and operational accuracy
+- Complete transparency about current compromise status
+- Specification of recovery pathway
+- Explicit acknowledgment of what user does not control and cannot currently access

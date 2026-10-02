@@ -145,14 +145,14 @@ test("a missing or empty manuscript folder is a valid empty index, never an erro
 });
 
 test("readChapter serves indexed chapters only", async () => {
-  const text = await readChapter(ROOT, COLLECTION, "01-sample-chapter.txt");
-  assert.match(text, /The Grand River Foundation/);
+  const text = await readChapter(ROOT, COLLECTION, "00-prologue-the-geometry-of-restraint.txt");
+  assert.match(text, /The Geometry of Restraint/);
   for (const [collectionId, name] of [
     [COLLECTION, "_collection.json"],
     [COLLECTION, "README.md"],
     [COLLECTION, "../serve.js"],
     [COLLECTION, "99-not-a-chapter.txt"],
-    ["..", "01-sample-chapter.txt"],
+    ["..", "00-prologue-the-geometry-of-restraint.txt"],
     ["../scripts", "manuscript-index.mjs"]
   ]) {
     assert.equal(await readChapter(ROOT, collectionId, name), null, `${collectionId}/${name} must not resolve`);
@@ -215,10 +215,10 @@ test("the preview server publishes the generated index and indexed chapters only
     assert.equal(manifest.schema, "harshalos-manuscript-v1");
     assert.ok(manifest.collections.some(collection => collection.id === COLLECTION));
 
-    const chapterResponse = await fetch(`${base}/manuscript/${COLLECTION}/01-sample-chapter.txt`);
+    const chapterResponse = await fetch(`${base}/manuscript/${COLLECTION}/00-prologue-the-geometry-of-restraint.txt`);
     assert.equal(chapterResponse.status, 200);
     assert.match(chapterResponse.headers.get("content-type"), /text\/plain/);
-    assert.match(await chapterResponse.text(), /The Grand River Foundation/);
+    assert.match(await chapterResponse.text(), /The Geometry of Restraint/);
 
     for (const pathname of [
       `/manuscript/${COLLECTION}/_collection.json`,

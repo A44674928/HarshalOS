@@ -140,6 +140,11 @@ async function readCollection(directory, id) {
   const bytes = chapters.reduce((sum, chapter) => sum + chapter.bytes, 0);
   return {
     id,
+    book: metadata.book || null,
+    status: metadata.status || null,
+    provenance: metadata.provenance || null,
+    setting: metadata.setting || null,
+    canonicalCompanion: metadata.canonicalCompanion || null,
     title: metadata.title || titleFromFileName(id),
     subtitle: metadata.subtitle || null,
     author: metadata.author || null,

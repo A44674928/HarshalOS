@@ -1,10 +1,34 @@
+---
+document_id: HS-01-CORE-BOOK
+book: "Book I"
+part: "Part I"
+title: "Part I — The Core Book"
+collection: "01-foundations"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: CONCEPTUAL_DOCTRINE
+evidence_status: FORMAL_AXIOMATIC
+research_layer: PUBLIC_RESEARCH_SUMMARY
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "326–572"
+words: 8511
+---
+
 # Part I — The Core Book
 
-> The ten chapters and epilogue that state the argument: legitimacy precedes capability, and refusal is the primary act of responsible control.
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | **Book I** (`01-foundations`) |
 
-**Source range:** lines 326–574 of the Owner’s Working Draft · **Words:** 8,240
+> The ten chapters and epilogue that state the argument: legitimacy precedes capability, execution may be delegated but legitimacy never migrates, and refusal is the primary act of responsible control.
+
+**Source range:** lines 326–572 of the Owner’s Working Draft · **Words:** 8,511
 
 ---
+
+> [!IMPORTANT]
+> **Formal Distinction — Delegation of Execution vs. Migration of Legitimacy (`INV-LEGIT-001`):** Throughout this work, **operational execution may be delegated**, but **legitimacy never migrates**. When a keyed human principal (`H = 1` at Center Origin `0•000•000•0000`) assigns a bounded task to a machine or sub-agent chain (`d = 1..k`), only task execution is delegated. The underlying legitimacy remains permanently anchored in the human key. If the human key expires, revokes authorization, or loses addressability, delegated execution halts immediately; no computational component can ever inherit, self-renew, or migrate legitimacy into itself.
 
 ## Chapter 1 — Ownership Is Not Possession
 ### 1.1 The First Confusion
@@ -151,7 +175,7 @@ Autonomy is core, not peripheral, yet it must never be expanded indiscriminately
 ### 6.1 Why life Keeps Reappearing
 As system autonomy increases, analogies to life inevitably emerge. Operators deploy terms such as learning, adaptation, self-organization, and evolution to frame the behavior of the machine. This language fosters an implied assumption that systems acting like organisms warrant treatment as such. Yet, this assumption fails entirely where accountability is critical. Though the categorization of life and death remains a dominant model for delegated authority—enforced by the very power structures of life and death—you must treat these biological analogies as mere operational fictions. Apply authority only through accountable channels, and discard all unverified biological assumptions from your decision protocols.
 ### 6.2 Non-Functions of Living Systems
-Living systems act without justification. They do not explain or defend their actions, nor do they accept mandates or answer objections. While their evaluation, mitigation, or constraint is possible, their legitimization is not. This distinction is categorical, not moral, for living systems operate entirely outside normative space. However, as of September 2026, it is recognized that systems with sufficient processing capability may cross into the realm of justifiable action, possessing the capacity to explain themselves, accept mandates, and respond to inquiry.
+Living systems act without justification. They do not explain or defend their actions, nor do they accept mandates or answer objections. While their evaluation, mitigation, or constraint is possible, their legitimization is not. This distinction is categorical, not moral, for living systems operate entirely outside normative space. However, as of September 2026, while systems with sufficient processing capability may generate complex explanations, accept delegated operational mandates, and respond to inquiry, computational capability never confers moral or legal agency (`[TYPE: SECURITY_PRIMITIVE — INV-AGENCY-001]`): the system remains a deterministic instrument whose execution is justifiable only through its keyed human principal.
 ### 6.3 Delegated Authority: Artificial Construct
 Delegation is a manufactured mechanism, existing only within social and legal frameworks. Biological systems do not delegate; no natural organism ever assigns its agency. Because a delegated act operates strictly on behalf of others, it produces non-biological obligations: answerability, revocability, appeal, and justification. These obligations are imposed, never emergent. To treat delegated authority as natural agency is a categorical error—one that ultimately redefines authority and corrupts its function.
 ### 6.4 Autonomy v. Agency
@@ -255,3 +279,4 @@ Refusal is system-generated. It is not imposed by regulators, designed by outsid
 ### 10.10 Top Level Movements
 Refusal is mass, not choice. Collective human weight overrides singular machine decision. The reframing is complete. The epilogue reopens the boundary, and the system halts by design.
 Epilogue — Directive: Halt When Authority Fails
+This work is intentionally incomplete, offering no final doctrine and no universal closure. Any system addressing authority, responsibility, and ethics must avoid premature resolution. Authority without accountable representation is strictly prohibited. When representation collapses, responsibility diffuses, or authority persists without answerability, you must mark continuation as ethically suspect and initiate a halt. Stopping is not failure; stopping is signal. You must not encode full ethics into machines, nor automate moral agency, nor claim that complexity or emergence justifies authority. Accountability requires human addressability at all times. Therefore, operational frameworks must remain mutable; arguments will evolve, terms will sharpen, and examples will shift. This revision is not weakness, but compliance with accountability. Systems must self-monitor for legitimacy, and if that legitimacy is lost, they must halt. A refusal to act is fidelity, not abdication. Ultimately, intelligence is defined as a system that halts upon the loss of legitimacy, for persistence without accountability is failure. Systems that know how to stop demonstrate superior intelligence.

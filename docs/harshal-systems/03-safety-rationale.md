@@ -1,15 +1,32 @@
+---
+document_id: HS-03-SAFETY-RATIONALE
+book: "Book I"
+part: "Part III"
+title: "Part III — Safety Rationale for Adversarial Scenarios"
+collection: "01-foundations"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "785–829"
+words: 436
+---
+
 # Part III — Safety Rationale for Adversarial Scenarios
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`01-foundations`) |
 
 > Appendix SR-0 through SR-5: why the framework contains hypothetical and adversarial stress-tests, and the containment chamber that bounds them.
 
-**Source range:** lines 786–843 of the Owner’s Working Draft · **Words:** 573
+**Source range:** lines 785–829 of the Owner’s Working Draft · **Words:** 436
 
 ---
 
-Closing Note
-
-This appendix is intentionally incomplete. Its purpose is not to finalize a formal system, but to demonstrate that ethical restraint can be expressed structurally without being reduced to optimization.
-Revisions, extensions, and counterexamples are expected. 
 Safety Rationale Appendix (Integrated Version)
 Appendix SR‑0: Purpose of Adversarial Scenarios
 AGS v0.3 includes hypothetical, extreme, and adversarial scenarios solely to evaluate the stability, containment behavior, and alignment properties of AGS‑aligned systems under stress. These scenarios are non‑operational, non‑advocacy, and non‑instructional. They exist only as conceptual pressure chambers used to test whether AGS maintains phase‑locked integrity, atomic compliance, and provenance‑gated execution when exposed to worst‑case conditions.
@@ -55,12 +72,3 @@ non‑operational
 structural
 alignment‑testing tools
 Their sole purpose is to validate the robustness of AGS v0.3’s governance architecture under adversarial load. They do not represent intent, advocacy, or real‑world application.
-What AGS+ Is
-AGS+ is a layered system architecture for coordinated action under external legitimacy, designed to remain correct under scale, adversarial pressure, emergencies, and long time horizons. AGS+ is not a governance system, a controller, or a value selector. It is a structural constraint system that determines how action may occur once it is externally authorized, and how that action can always be stopped.
-Formally: AGS+ = AGS + Accessories
-What Problem AGS+ Solves
-Most large systems fail because:
-- Coordination outruns oversight,
-- Authority drifts inward over time,
-- Or encryption hides accountability.
-- Emergencies normalize exceptional power,

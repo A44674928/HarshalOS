@@ -1,5 +1,8 @@
 # Ground-0 Phase Detection Algorithm v1.0 — Final Specification
 
+**Book / Collection:** Book I — Harshal's Systems (`Collection III: Ground-0 Phase Detection & Neural Atomic Bodies`)  
+**Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `NORMATIVE_SPEC` · **Evidence Status:** `FORMAL_AXIOMATIC` · **Research Layer:** `DEFENSIVE_SPECIFICATION`  
+**Canonical Minimum Model:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`  
 **Source:** Harshal's Systems (Working Draft) text copy.txt  
 **Author:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  

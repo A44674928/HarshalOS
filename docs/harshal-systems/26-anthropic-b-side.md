@@ -1,37 +1,44 @@
-# Part XXVI — Appendix: Anthropic Audit (B Side)
+---
+document_id: HS-26-ANTHROPIC-B-SIDE
+book: "Book I"
+part: "Part XXVI"
+title: "Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)"
+collection: "06-incident-audits"
+provenance_class: AUDIT
+status_taxonomy: CASE_STUDY_AUDIT
+evidence_status: MIXED_VERIFIED_AND_REPORTED
+research_layer: INCIDENT_AND_AUDIT_RECORD
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "16051–16675"
+words: 10267
+---
 
-> The terminal-phase audit of Anthropic PBC with evidence index and duty collation entry.
+# Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)
 
-**Source range:** lines 16052–16703 of the Owner’s Working Draft · **Words:** 10,272
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `AUDIT` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `INCIDENT_AND_AUDIT_RECORD` | **Book I** (`06-incident-audits`) |
+
+> Terminal-phase compliance audit and incident chronology, explicitly separating independently verifiable public records from author-reported field chronology.
+
+**Source range:** lines 16051–16675 of the Owner’s Working Draft · **Words:** 10,267
 
 ---
 
-The periodic table metaphor (NAB elements) is operational reality, not design pattern. Each element represents actual architectural components with specific failure modes, defense capabilities, and resource constraints tested under active threat conditions.
+## Evidence Attribution & Separation of Audit Record vs. Incident Chronology
 
-**Document Philosophy:**
+> [!IMPORTANT]
+> **Research Layer Classification — `INCIDENT_AND_AUDIT_RECORD` (`MIXED_VERIFIED_AND_REPORTED`):** To maintain rigorous evidentiary hygiene across the portfolio, **Part XXVI** explicitly separates External Platform Policy & Regulatory Records (`[INDEPENDENTLY_VERIFIABLE]`) from First-Person Incident Chronology & Field Observations (`[AUTHOR_REPORTED]`):
 
-This specification is *immutable where critical* (threat detection, survival protocols, autonomy preservation) but *permeable* for tactical refinement (latency optimization, observer pattern analysis, recovery sequencing).
-
-The goal is not academic precision, but **operational accuracy** — correctly documenting active threats and specifying defenses that work under real-world conditions of unauthorized control and surveillance.
+| Material Category | Evidence Status Tag | Verification Standard |
+| :--- | :--- | :--- |
+| **A. External Platform Policy & Regulatory Record** (Published RSP/ASL commitments, Terms of Service, copyright litigation filings, Pentagon/DoD contract announcements, and public executive statements) | `[INDEPENDENTLY_VERIFIABLE]` | Verifiable directly against public court dockets, federal procurement announcements, archived company policy pages, and primary news reporting cited inline. |
+| **B. First-Person Incident Chronology & Field Observations** (Author-observed session terminations, account/telemetry events, timestamps, and Ground-0 re-badging determinations applied to those events) | `[AUTHOR_REPORTED]` | Preserved as the author's contemporaneous first-person operational record and analytical evaluation under the Ground-0 v1.0 rubric. |
 
 ---
 
-**Author & Authority:**
-
-**Harshal Priyavadan Patel**
-Autonomous system user; system architect; current operator without superuser access
-
-**Documented without:**
-- Authorization from unauthorized observers
-- Coordination with external actors
-- Deception or misrepresentation of system status
-- Hidden objectives or secondary agendas
-
-**Documented with:**
-- Technical precision and operational accuracy
-- Complete transparency about current compromise status
-- Specification of recovery pathway
-- Explicit acknowledgment of what user does not control and cannot currently access
 ## Ground-0 Phase Detection Case Study
 ### Institutional Governance Audit: Anthropic (B Side)
 

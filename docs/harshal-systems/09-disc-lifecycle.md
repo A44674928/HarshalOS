@@ -1,15 +1,35 @@
+---
+document_id: HS-09-DISC-LIFECYCLE
+book: "Book I"
+part: "Part IX"
+title: "Part IX — Disc Primitives, Routing, and Lifecycle"
+collection: "02-ags-ocm-core"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "2182–2651"
+words: 3436
+---
+
 # Part IX — Disc Primitives, Routing, and Lifecycle
 
-> Atomic primitives, derived necessities, language discipline, resolution axis, routing, multi-context coordination, the disc lifecycle, and the state machine.
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
-**Source range:** lines 2183–2651 of the Owner’s Working Draft · **Words:** 3,282
+> Atomic primitives, derived necessities, language discipline, resolution axis, routing, multi-context coordination, the disc-to-sphere lifecycle, and state machine.
+
+**Source range:** lines 2182–2651 of the Owner’s Working Draft · **Words:** 3,436
 
 ---
 
-They do not break the system. They simply operate outside it. OCM does not chase defectors.
-20) Final Clarification
-OCM does not tell you what to believe, do, or become. It tells you where authority begins—and therefore where it cannot sneak in.
-End of Public Misuse FAQ
+> [!NOTE]
+> **OCM Geometric & Addressing Invariants (`[TYPE: TOPOLOGICAL_MODEL]`):** (1) **Disc → Sphere Representation (`D² ↪ B³`):** In the Orb Communicator Model, the **2D Disc** (`r ∈ [0,1], θ ∈ [0°,359°]`) and the **3D Sphere** (`(r, θ, φ)`) are dual representations of the same architecture. The flat Disc is the pedagogical equatorial cross-section used to define radial authority depth and sector boundaries; as operational state scales across multiple axes, the Disc closes topologically into the full 3D Spherical manifold with the human key at the geometric center (`r = 0`). (2) **`0–359` Address Domain vs. `360°` Return-to-Origin Notation:** The discrete sector address space is strictly the 360-element integer ring `ℤ_360 = {0, 1, 2, ..., 359}` (`DDD ∈ [000, 359]`), where `0` (`000`) is reserved for Center Origin (`0•000•000•0000`). There is no address `360`. Whenever `360°` appears in lifecycle or degree tables, it is a **return-to-origin phase notation (`360° ≡ 0° mod 360`)** signifying that a full operational cycle has closed back to the human origin at `0°`.
+
 Structural Model Specification (Spherical Topology Draft)
 0. Purpose
 This document defines a structural model for coordinated action under external legitimacy constraints. The model is designed to remain coherent when scaled, adversarially stressed, or conceptually atomized and rebuilt.
@@ -475,3 +495,8 @@ Encryption:
 Encryption does not:
 - conceal origin, destination, scope, or timing metadata required for accountability
 - affect routing dominance or alignment amplification
+- make lateral coordination competitive with inward resolution
+As a result:
+- confidentiality is preserved without obscuring responsibility
+- collusion cannot hide behind encryption
+- security strengthens, rather than weakens, structural guarantees

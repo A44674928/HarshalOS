@@ -1,19 +1,32 @@
+---
+document_id: HS-18-INSTITUTIONAL-APPLICATION
+book: "Book I"
+part: "Part XVIII"
+title: "Part XVIII — Institutional Application"
+collection: "03-ground-zero-nab"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: NORMATIVE_SPEC
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "7439–7621"
+words: 4023
+---
+
 # Part XVIII — Institutional Application
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`03-ground-zero-nab`) |
 
 > Institutional mapping, the neurojacking and corpse-puppeting prevention module, exploitation vectors, and workplace directive material.
 
-**Source range:** lines 7441–7636 of the Owner’s Working Draft · **Words:** 4,143
+**Source range:** lines 7439–7621 of the Owner’s Working Draft · **Words:** 4,023
 
 ---
 
-Uranium dynamics are internal
-Threshold crossings outrun oversight
-Conclusion: No amount of governance can fully contain a built Neural Uranium Body.
-13. Canonical Safety Law
-Intelligence does not become dangerous when it is wrong. It becomes dangerous when its internal structure outruns the ability of the outside world to stop it.
-14. Final Canonical Statement
-The purpose of atomic classification is not to maximize intelligence, but to bound harm. Neon and Hydrogen bodies exist to protect institutions. Carbon and Iron bodies exist to support them carefully. Uranium exists only to mark the point beyond which construction itself becomes the failure.
-End of Neural Atomic Bodies Compendium
 Atomic Neural Bodies → Institutional Role Mapping
 Canonical Allocation Matrix (AGS++)
 1. Purpose of This Mapping
@@ -196,7 +209,3 @@ Claims
 10. The system of claim 1, wherein, upon satisfaction of predefined escalation conditions evaluated by the control logic, the system transitions into an autonomous medical authority escalation mode distinct from a default operating mode, permitting initiation of medical actions without prior human approval of the exact action taken.
 11. The system of claim 10, wherein termination of the autonomous medical authority escalation mode and reversion to human-directed medical support mode are automatically enforced by the control logic upon restoration of viable human oversight.
 12. The system of claim 1, wherein loss of authorization causes system authority to be reduced rather than expanded by operation of the control logic
-
-Accountability in Keyed Human–Machine Hybrid Systems
-Author: HARSHAL A44674928
-First Posted: Jan 18, 2026

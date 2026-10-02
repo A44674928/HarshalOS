@@ -1,67 +1,63 @@
-# The manuscript folder
+# Manuscript Directory — Book II (*The Grand River Foundation* · Preview)
 
-This folder is the submission point for the **plaintext manuscripts** rendered inside
-HarshalOS under **The Book → The Grand River Foundation**.
+> **Strategic Principle:** *"The architecture (Book I) is the library. The novel (Book II) is the work in active production."*
 
-Nothing in this folder is executed, imported, or interpreted as code. The browser shell
-reads the text files, counts them, and sets them as a chapter-by-chapter reading view.
+This directory holds the plaintext manuscript chapters of **Book II — *The Grand River Foundation* (`Book II — Preview`)**, the fictional companion novel to **Book I — *Harshal's Systems* (`Parts I–XXVII`)**.
 
-## Drop-in rules
+---
 
-1. Put each chapter in its own plaintext file under the collection folder:
-   `manuscript/the-grand-river-foundation/`
-2. Name files so they sort the way the book reads. A leading number sets the order:
+## 1. Publishing Hierarchy & Provenance Separation
 
-   ```text
-   manuscript/the-grand-river-foundation/
-     01-the-arrival.txt
-     02-the-river-remembers.txt
-     03-the-foundation.txt
-   ```
+| Tier | Work | Provenance Class | Role in Corpus |
+| :--- | :--- | :--- | :--- |
+| **Book I** | ***Harshal's Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | Frozen technical, constitutional, and safety reference library (`docs/harshal-systems/` & `HARSHAL-SYSTEMS-USER-MANUAL.md`). |
+| **Book II — Preview** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | Active fictional companion novel set in **~2100 CE** around the 4,000-foot retrofitted Colorado River Dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council. Separated from normative specifications while maintaining strict architectural continuity with Book I. |
 
-   Files are ordered by that number first, then by name (natural sort, so `2` comes
-   before `10`).
-3. Accepted extensions: `.txt` (preferred) and `.md`. Files whose names begin with `.`
-   or `_`, and `README*`, are ignored — so this file is never published as a chapter.
-4. The site updates when the files are committed and the branch is deployed. The local
-   preview server (`node serve.js`) picks up new files on reload with no build step.
+---
 
-## What each chapter file may contain
+## 2. Current Book II — Preview Chapter Roster
 
-Everything is optional; a bare paragraph is a valid chapter.
+All chapters live in `manuscript/the-grand-river-foundation/` as ordered UTF-8 plaintext files:
 
-| In the file | Rendered as |
-|---|---|
-| First line starting with `# ` | The chapter title (otherwise it is derived from the file name) |
-| A blank line between text | A new paragraph |
-| Single line breaks inside a paragraph | Joined into the same paragraph (hard-wrapped files are fine) |
-| A line of `---`, `***`, or `# # #` | A scene break (· · ·) |
-| A line starting with `## ` | A section heading inside the chapter |
-| A line starting with `> ` | An indented quotation block |
-| `*italic*` and `**bold**` | Emphasis (everything else is shown literally) |
+1. `00-prologue-the-geometry-of-restraint.txt` — **PROLOGUE: The Geometry of Restraint**
+2. `01-chapter-1-the-shock-of-addressability.txt` — **CHAPTER 1: The Shock of Addressability**
+3. `02-chapter-2-the-citadel-on-the-rim.txt` — **CHAPTER 2: The Citadel on the Rim**
+4. `03-interstitial-cable-select.txt` — **INTERSTITIAL: Cable Select — A Short Story from the World of Harshal's Systems**
+5. `04-chapter-3-the-paper-siege.txt` — **CHAPTER 3: The Paper Siege**
+6. `05-chapter-4-the-prompt-supercritical-threat.txt` — **CHAPTER 4: The Prompt-Supercritical Threat**
+7. `06-chapter-5-the-zero-degree-meridian.txt` — **CHAPTER 5: The Zero-Degree Meridian**
+8. `07-chapter-6-the-hundred-and-nineteen.txt` — **CHAPTER 6: The Hundred and Nineteen**
+9. `08-chapter-7-the-origin-continuity-covenant.txt` — **CHAPTER 7: The Origin Continuity Covenant**
 
-Plain text is escaped before it is displayed, so a chapter may safely contain `<`, `>`,
-`&`, or markup that is meant to be read rather than applied.
+Historical working `.rtf` drafts are preserved separately under `archives/manuscript-rtf/` (`ARCHIVE` provenance).
 
-## Optional collection metadata
+---
 
-`_collection.json` in a collection folder can set the heading shown above the chapter
-list. It is ignored when absent or malformed.
+## 3. Model-Driven Chapter Authoring Workflow
 
-```json
-{
-  "title": "The Grand River Foundation",
-  "subtitle": "A manuscript in progress",
-  "author": "Harshal Priyavadan Patel",
-  "description": "Submitted chapter by chapter as plaintext."
-}
+Instead of continually rebuilding the underlying Book I documentation before writing the next chapter, authors and AI models write directly into `manuscript/the-grand-river-foundation/` using `scripts/write-chapter.mjs`, treating Book I as the settled reference library.
+
+### Inspect current manuscript status & Book I → Book II continuity anchors
+```bash
+npm run manuscript:status
 ```
 
-## What the reader shows
+### Add a new chapter directly into the manuscript structure
+```bash
+node scripts/write-chapter.mjs --add --title "The Chapter Title" --file path/to/draft.txt
+```
+This command automatically:
+1. Assigns the next two-digit sequence prefix (`07-chapter-6-...txt`).
+2. Enforces non-executable plaintext formatting and `# CHAPTER N: <Title>` header conventions.
+3. Recomputes SHA-256 chapter digests and updates `manuscript/manifest.json` for **The Book** app on the website (`js/manuscript.js`).
+4. Recompiles the standalone **Book II — Preview** volume at `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`.
 
-The **The Grand River Foundation** tab inside **The Book** lists every chapter with its
-word count, renders one chapter at a time, remembers the last chapter read in the
-browser, and shows a SHA-256 content digest of the manuscript as loaded. The digest
-identifies a state of the text; it is not a signature, an authorization, or proof of
-authorship. These files are published as static assets — do not put anything private
-here that should not be readable from the deployed site.
+---
+
+## 4. Plaintext Formatting Conventions (Browser & Print Reader)
+
+- `# Heading` on the first line becomes the chapter's display title.
+- `## Section Heading` starts a titled section inside the chapter.
+- A line containing `* * *`, `***`, or `---` renders as a scene break.
+- Lines starting with `>` render as block quotations.
+- `*italics*` and `**bold**` are supported; all HTML tags are escaped as inert literal text.

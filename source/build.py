@@ -15,6 +15,18 @@ import sys
 import json
 import unicodedata
 
+from corpus_upgrades import (
+    CANONICAL_MINIMUM_MODEL,
+    COLLECTIONS,
+    PART_METADATA,
+    apply_part_corrections,
+    build_part_27_whole_corpus,
+    build_synchronized_novel_part,
+    format_metadata_header,
+    write_flagship_research_paper,
+    write_functional_collections,
+)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 # The build reads the Owner's Working Draft from the repository root when it is
@@ -27,61 +39,64 @@ MASTER = os.path.join(ROOT, 'HARSHAL-SYSTEMS-USER-MANUAL.md')
 
 # ---------------------------------------------------------------------------
 # 1. Structural segmentation: (start_line, slug, title, blurb)
-#    1-based, inclusive. Any content before the first boundary becomes front matter.
+#    Exact 1-based line numbers in `source/working-draft.md`.
 # ---------------------------------------------------------------------------
 PARTS = [
     (1,    '00-author-front-matter',
      'Author’s Front Matter and Reading Guide',
      'The Owner’s Working Draft as submitted: disclaimer, dedication, the '
      'philosophical and structural invariants, the Phase Declaration Header '
-     'manifesto, the preface, and the author’s own reading guide. The original '
-     'flat contents listing is preserved here for reference; it is superseded by '
-     'the rebuilt Table of Contents at the front of this manual.'),
+     'manifesto, the preface, and the author’s own reading guide. Preserved '
+     'with ARCHIVE provenance; superseded for navigation by the rebuilt Table '
+     'of Contents and Part XXVII Whole Corpus Manifest.'),
 
     (326,  '01-core-book',
      'Part I — The Core Book',
      'The ten chapters and epilogue that state the argument: legitimacy precedes '
-     'capability, and refusal is the primary act of responsible control.'),
+     'capability, execution may be delegated but legitimacy never migrates, and '
+     'refusal is the primary act of responsible control.'),
 
-    (575,  '02-formalization',
+    (573,  '02-formalization',
      'Part II — Formalization',
-     'Formal constraint sketches, the gating equations, and the stabilized glossary '
-     'of terms used consistently throughout the rest of the manual.'),
+     'The Canonical Minimum Model (Identity → Representation → Authorization → '
+     'Continuity → Accountability → Refusal), formal constraint equations, and '
+     'the Declared-Type Terminology Registry.'),
 
-    (786,  '03-safety-rationale',
+    (785,  '03-safety-rationale',
      'Part III — Safety Rationale for Adversarial Scenarios',
      'Appendix SR-0 through SR-5: why the framework contains hypothetical and '
      'adversarial stress-tests, and the containment chamber that bounds them.'),
 
-    (844,  '04-ags-architecture',
+    (830,  '04-ags-architecture',
      'Part IV — AGS: Accountability-Gated Systems',
      'Core doctrine, atomic vocabulary, the three phases, the Phase Declaration '
      'Header, the collapse protocol, the Duty Collation Ledger, and the badge system.'),
 
-    (1247, '05-ocm-orb',
+    (1242, '05-ocm-orb',
      'Part V — OCM: The Orb Communicator Model',
-     'Replacing hierarchy with geometry. Interaction orbs, OCM arithmetic, the three '
-     'communication layers, navigation, exit protocol, and worked micro-examples.'),
+     'Replacing hierarchy with geometry: the Disc-to-Sphere topological projection, '
+     'the 0–359 discrete address ring vs. 360° return-to-origin closure notation, '
+     'OCM arithmetic, communication layers, and exit protocol.'),
 
-    (1420, '06-inner-shell',
+    (1415, '06-inner-shell',
      'Part VI — The AI Inner Shell',
      'Address-constrained AI nodes: definition, addressing rules, communication '
      'constraints, learning without authority, and the impossibility of AI takeover.'),
 
-    (1536, '07-addressing-topology',
+    (1531, '07-addressing-topology',
      'Part VII — Addressing, Rotation, and Spherical Topology',
-     'The disc of 360 radiative addresses, rotation over time, distance as depth, '
-     'persistence, and lateral motion inside the sphere.'),
+     'The ℤ_360 ring of 360 radiative addresses (0–359) and 360° return-to-origin '
+     'closure, rotation over time, distance as depth, and spherical manifold projection.'),
 
-    (2022, '08-operator-model',
+    (2018, '08-operator-model',
      'Part VIII — The Operator Model',
      'Operator classification, structural position, address derivation, role tokens, '
      'authority constraints, shadow-center prevention, and containment.'),
 
-    (2183, '09-disc-lifecycle',
+    (2182, '09-disc-lifecycle',
      'Part IX — Disc Primitives, Routing, and Lifecycle',
      'Atomic primitives, derived necessities, language discipline, resolution axis, '
-     'routing, multi-context coordination, the disc lifecycle, and the state machine.'),
+     'routing, multi-context coordination, the disc-to-sphere lifecycle, and state machine.'),
 
     (2652, '10-ags-conformance',
      'Part X — AGS+ Layering and Conformance',
@@ -92,18 +107,19 @@ PARTS = [
      'GRL compliance certification, the Provenance and Lineage Verification layer, '
      'and Intelligence & Unbiased Compliance checks.'),
 
-    (3171, '12-ground-zero',
+    (3046, '12-ground-zero',
      'Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger',
-     'The Ground-0 Phase Detection Algorithm v1.0 in full, worked institutional '
-     'audits, the PDH audit ledger, and insurance-mode control invariants.'),
+     'The Ground-0 Phase Detection Algorithm v1.0 in full, institutional re-badging '
+     'case studies (explicitly separating independently verifiable public records '
+     'from author-reported analysis), the PDH audit ledger, and insurance-mode controls.'),
 
     (5105, '13-whyland',
      'Part XIII — The Whyland Standards',
      'The canonical AGS semantic inquiry catalog (DecksJokersAndCards).'),
 
-    (5168, '14-nab-compendium',
+    (5163, '14-nab-compendium',
      'Part XIV — Neural Atomic Bodies Compendium',
-     'The NAB master database of elements 1-119 and the risk, alignment, and '
+     'The NAB master database of elements 1–119 and the risk, alignment, and '
      'authority-density profiles that map them to institutional roles.'),
 
     (5345, '15-hmkh-controls',
@@ -116,34 +132,36 @@ PARTS = [
      'Publicness, observer positions, the threat taxonomy, guarantee matrices, '
      'non-guarantees, and deployment threat models by context.'),
 
-    (6476, '17-atomic-bodies',
+    (6481, '17-atomic-bodies',
      'Part XVII — Atomic Body Classes and Reactor Doctrine',
      'NNB, ANHB, NCB, NIB, and NUB in full, the governance-impossibility proofs, '
      'phase escalation, and the Project Thunderfury Starforge reactor.'),
 
-    (7441, '18-institutional-application',
+    (7439, '18-institutional-application',
      'Part XVIII — Institutional Application',
      'Institutional mapping, the neurojacking and corpse-puppeting prevention '
      'module, exploitation vectors, and workplace directive material.'),
 
-    (7637, '19-research-papers',
-     'Part XIX — Research Papers',
-     'Authored research on proof-of-work in long-running autonomous operation and '
-     'on accountability in keyed human-machine hybrid systems.'),
+    (7622, '19-research-papers',
+     'Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems',
+     'The flagship portfolio research paper establishing Minimum Viable Keying (MVK), '
+     'the non-agency of computational components, and continuous human accountability.'),
 
-    (7991, '20-supply-chain',
+    (7790, '20-supply-chain',
      'Part XX — Supply Chain and Implanted-Device Threat Research',
-     'Chip-level compromise, distribution deception, target profiles, and the '
-     'address catalog and speculative systems archive.'),
+     'Defensive threat research (Supply Chain Attack Vector++): chip-level compromise, '
+     'distribution deception, target profiles, and the address catalog.'),
 
     (9943, '21-microconvergence',
      'Part XXI — MicroConvergence and Signal Encoding',
-     'The MicroConvergence specification draft and the Audio Visual Encoding model.'),
+     'The MicroConvergence specification draft, the Audio Visual Encoding model, and '
+     'the Canonical Minimum Model procedural doctrine.'),
 
-    (10666, '22-policy-archive',
-     'Part XXII — Governance and Policy Archive',
-     'Never Consented Means Never Consented, No Child Left Behind, the verified '
-     'non-revocable charity license, and the anti-relatives policy.'),
+    (10497, '22-policy-archive',
+     'Part XXII — Supporting Policy & Governance Research Archive',
+     'Applied public-policy research operationalizing the Canonical Minimum Model: '
+     'Institutional Anti-Caste Architecture, Never Consented Means Never Consented, '
+     'fiscal/labor safeguards, and civic/healthcare infrastructure.'),
 
     (11106, '23-specification-series',
      'Part XXIII — Specification Series',
@@ -152,19 +170,20 @@ PARTS = [
      'Constitutional Governance & Public Addressability.'),
 
     (12509, '24-the-novel',
-     'Part XXIV — The Grand River Foundation',
-     'The narrative companion. Prologue, Chapter 1, and Chapter 2 with the CABLE '
-     'SELECT interstitial, submitted as the manuscript collection.'),
+     'Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)',
+     'Synchronized preview of Book II (FICTION provenance, ~2100 CE sandbox): '
+     'Prologue, Chapters 1–5, and the Cable Select interstitial, separated from '
+     'normative specifications while illustrating mature Book I architecture.'),
 
     (13017, '25-additional-specs',
      'Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping',
-     'The ADJR protocol, the labor disparity and dynamic attribution ledger, and '
+     'The ADJR-v1.0 protocol, the labor disparity and dynamic attribution ledger, and '
      'the NAB asymmetrical I/O detection and response mapping.'),
 
-    (16052, '26-anthropic-b-side',
-     'Part XXVI — Appendix: Anthropic Audit (B Side)',
-     'The terminal-phase audit of Anthropic PBC with evidence index and duty '
-     'collation entry.'),
+    (16051, '26-anthropic-b-side',
+     'Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)',
+     'Terminal-phase compliance audit and incident chronology, explicitly separating '
+     'independently verifiable public records from author-reported field chronology.'),
 ]
 
 MANUAL_TITLE = 'Harshal’s Systems — The Ultimate User Manual'
@@ -271,11 +290,16 @@ def repair_fences(text):
 # ---------------------------------------------------------------------------
 ERRATA = [
     # --- document-specific mechanical corruption -------------------------
-    # 'llany' and 'orand' are find-and-replace artefacts that occur 27 times
-    # between them. Both are unambiguous in context. Verified occurrence by
-    # occurrence before inclusion.
+    # 'llany'/'LLANY'/'Llany' and 'orand'/'ORAND' are find-and-replace artefacts.
     (r'\bllany\b', 'any'),
+    (r'\bLlany\b', 'Any'),
+    (r'\bLLANY\b', 'ANY'),
     (r'\borand\b', 'or'),
+    (r'\bOrand\b', 'Or'),
+    (r'\bORAND\b', 'OR'),
+    (r'\bandor\b', 'and/or'),
+    (r'\bandnor\b', 'and/nor'),
+    (r'^DATE:\*\*\s*September 11, 2026', '### Memorandum I — Institutional Anti-Caste Architecture\n\n**DATE:** September 11, 2026\n'),
     # --- ordinary misspellings (few, but present) ------------------------
     (r'\bteh\b', 'the'), (r'\bTeh\b', 'The'),
     (r'\brecieve\b', 'receive'), (r'\bRecieve\b', 'Receive'),
@@ -732,11 +756,63 @@ def balance_slice(chunk, opens_inside=False):
 # ---------------------------------------------------------------------------
 # 5. Build
 # ---------------------------------------------------------------------------
+def inject_raw_part_markers(raw_text):
+    """Insert exact part-boundary sentinels on 1-based raw lines of working-draft.md
+    before fence repair or form-feed expansion can shift line numbers."""
+    raw_lines = raw_text.split('\n')
+    # Fix glued 'Element 119.NAB Accountability Controls v0.1' on raw line 5344
+    for idx, line in enumerate(raw_lines):
+        if 'Element 119.NAB Accountability Controls v0.1' in line:
+            raw_lines[idx] = line.replace(
+                'Element 119.NAB Accountability Controls v0.1',
+                'Element 119.\n# NAB Accountability Controls v0.1'
+            )
+            break
+    # Re-split only after handling line 5344? Wait: splitting line 5344 would add 1 line
+    # if done before indexing! Instead, keep line count identical until markers are placed:
+    raw_lines = raw_text.split('\n')
+    start_map = {start: i for i, (start, _, _, _) in enumerate(PARTS)}
+    marked_lines = []
+    for lineno_1based, line in enumerate(raw_lines, start=1):
+        if 'Element 119.NAB Accountability Controls v0.1' in line:
+            line = line.replace(
+                'Element 119.NAB Accountability Controls v0.1',
+                'Element 119.'
+            )
+        if lineno_1based in start_map:
+            p_idx = start_map[lineno_1based]
+            marker = f'@@PART_BOUNDARY_{p_idx:02d}@@'
+            if '\f' in line and lineno_1based > 1:
+                before, after = line.split('\f', 1)
+                if before.strip():
+                    marked_lines.append(before)
+                marked_lines.append(marker)
+                marked_lines.append(after)
+            else:
+                marked_lines.append(marker)
+                if lineno_1based == 5345:
+                    marked_lines.append('# NAB Accountability Controls v0.1')
+                marked_lines.append(line)
+        else:
+            marked_lines.append(line)
+    return '\n'.join(marked_lines)
+
+
+def strip_yaml_frontmatter(md_text):
+    """Strip leading YAML frontmatter block when embedding a Part inside the single-file master manual."""
+    if md_text.startswith('---\n'):
+        end_idx = md_text.find('\n---\n', 4)
+        if end_idx != -1:
+            return md_text[end_idx + 5:].lstrip()
+    return md_text
+
+
 def main():
     raw = open(SRC, encoding='utf-8').read()
     n_words_in = len(raw.split())
 
-    fixed, fstats = repair_fences(raw)
+    marked_raw = inject_raw_part_markers(raw)
+    fixed, fstats = repair_fences(marked_raw)
     if not fstats['balanced']:
         print('WARNING: fences still unbalanced', file=sys.stderr)
 
@@ -747,53 +823,140 @@ def main():
     norm, hstats = normalize_headings(norm)
     nstats.update(hstats)
 
-    lines = norm.split('\n')
-    fstate = fence_state_map(lines)
+    # Split norm by @@PART_BOUNDARY_XX@@ sentinels while tracking fence state
+    norm_lines = norm.split('\n')
+    part_line_Slices = {}
+    current_idx = 0
+    current_buf = []
+    fstate_at_start = {0: False}
+    in_fence = False
+
+    boundary_re = re.compile(r'^@@PART_BOUNDARY_(\d{2})@@$')
+    for line in norm_lines:
+        m = boundary_re.match(line.strip())
+        if m:
+            idx = int(m.group(1))
+            if idx != current_idx or current_buf:
+                part_line_Slices[current_idx] = current_buf
+            current_idx = idx
+            current_buf = []
+            fstate_at_start[current_idx] = in_fence
+            continue
+        if ATLINE.match(line):
+            in_fence = not in_fence
+        current_buf.append(line)
+    part_line_Slices[current_idx] = current_buf
 
     os.makedirs(OUTDIR, exist_ok=True)
     written = []
+    raw_total_lines = len(raw.split('\n'))
 
     for i, (start, slug, title, blurb) in enumerate(PARTS):
-        end = PARTS[i + 1][0] - 1 if i + 1 < len(PARTS) else len(lines)
-        opens_inside = fstate[start - 2] if start >= 2 else False
-        chunk = balance_slice('\n'.join(lines[start - 1:end]), opens_inside)
+        end = PARTS[i + 1][0] - 1 if i + 1 < len(PARTS) else raw_total_lines
+        opens_inside = fstate_at_start.get(i, False)
+        raw_chunk = '\n'.join(part_line_Slices.get(i, []))
+        chunk = balance_slice(raw_chunk, opens_inside)
         chunk = rehead(chunk, title)
 
-        # Strip a duplicated leading title if the section repeats it.
+        # Apply Priority 3 conceptual corrections and Priority 4 research framing
+        chunk = apply_part_corrections(slug, chunk)
+
+        # Priority 4: Export standalone flagship research paper from Part XIX
+        if slug == '19-research-papers':
+            write_flagship_research_paper(ROOT, chunk)
+
+        # Priority 1, 2 & 5: Synchronize Part XXIV (24-the-novel.md) with Book II manuscript
+        if slug == '24-the-novel':
+            chunk = build_synchronized_novel_part(ROOT)
+
         chunk = re.sub(r'\n{4,}', '\n\n\n', chunk).strip()
+        w_count = len(chunk.split())
+        yaml_hdr, table_hdr = format_metadata_header(slug, title, start, end, w_count, include_yaml=True)
 
         content = (
+            f'{yaml_hdr}'
             f'# {title}\n\n'
+            f'{table_hdr}'
             f'> {blurb}\n\n'
             f'**Source range:** lines {start}–{end} of the Owner’s Working Draft · '
-            f'**Words:** {len(chunk.split()):,}\n\n'
+            f'**Words:** {w_count:,}\n\n'
             f'---\n\n'
             f'{chunk}\n'
         )
         path = os.path.join(OUTDIR, f'{slug}.md')
         open(path, 'w', encoding='utf-8').write(content)
-        heads = collect_headings(content)
+        heads = collect_headings(strip_yaml_frontmatter(content))
         written.append({
             'slug': slug, 'title': title, 'blurb': blurb,
             'start': start, 'end': end,
-            'words': len(chunk.split()),
+            'words': w_count,
             'file': os.path.relpath(path, ROOT),
             'headings': heads,
         })
 
+    # ---- Priority 1 & 2: Part XXVII — Whole Corpus / Complete Work --------
+    p27_slug = '27-whole-corpus'
+    p27_title = 'Part XXVII — Whole Corpus / Complete Work'
+    p27_blurb = (
+        'The capstone architectural synthesis and master index of the entire '
+        'Harshal’s Systems corpus: establishes the Book I (Reference Library) vs. '
+        'Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the '
+        'Document Provenance and Evidence-Status Taxonomies, specifies the six-stage '
+        'Canonical Minimum Model, summarizes all conceptual invariants, and indexes '
+        'the seven functional collections across all 27 Parts.'
+    )
+    book2_words = next((w['words'] for w in written if w['slug'] == '24-the-novel'), 15326)
+    book2_files = [
+        f for f in os.listdir(os.path.join(ROOT, 'manuscript', 'the-grand-river-foundation'))
+        if f.endswith('.txt')
+    ]
+    p27_chunk = build_part_27_whole_corpus(written, book2_words=book2_words, book2_chapters=len(book2_files)).strip()
+    p27_words = len(p27_chunk.split())
+    p27_yaml, p27_table = format_metadata_header(
+        p27_slug, p27_title, 1, raw_total_lines, p27_words, include_yaml=True
+    )
+    p27_content = (
+        f'{p27_yaml}'
+        f'# {p27_title}\n\n'
+        f'{p27_table}'
+        f'> {p27_blurb}\n\n'
+        f'**Source range:** Whole Corpus Synthesis (lines 1–{raw_total_lines:,} + Book II Preview) · '
+        f'**Words:** {p27_words:,}\n\n'
+        f'---\n\n'
+        f'{p27_chunk}\n'
+    )
+    p27_path = os.path.join(OUTDIR, f'{p27_slug}.md')
+    open(p27_path, 'w', encoding='utf-8').write(p27_content)
+    written.append({
+        'slug': p27_slug, 'title': p27_title, 'blurb': p27_blurb,
+        'start': 1, 'end': raw_total_lines,
+        'words': p27_words,
+        'file': os.path.relpath(p27_path, ROOT),
+        'headings': collect_headings(strip_yaml_frontmatter(p27_content)),
+    })
+
+    # ---- Priority 1: Reorganize docs/harshal-systems/collections/ ----------
+    write_functional_collections(OUTDIR, written)
+
     # ---- front matter, authored fresh -------------------------------------
-    frontmatter = build_front_matter(n_words_in, len(written))
-    open(os.path.join(OUTDIR, '00-front-matter.md'), 'w', encoding='utf-8').write(frontmatter)
+    roman_parts_count = len([w for w in written if w['slug'] != '00-author-front-matter'])
+    frontmatter_body = build_front_matter(n_words_in, roman_parts_count)
+    fm_yaml, fm_table = format_metadata_header(
+        '00-front-matter', 'Front Matter', 1, 325, len(frontmatter_body.split()), include_yaml=True
+    )
+    frontmatter_file_content = fm_yaml + frontmatter_body
+    open(os.path.join(OUTDIR, '00-front-matter.md'), 'w', encoding='utf-8').write(frontmatter_file_content)
 
     # ---- master TOC --------------------------------------------------------
-    toc = build_toc(frontmatter, written)
+    toc = build_toc(frontmatter_body, written)
 
-    # ---- assemble master ---------------------------------------------------
+    # ---- assemble master (Umbrella Build Artifact) -------------------------
     parts_md = []
     for w in written:
-        parts_md.append(open(os.path.join(ROOT, w['file']), encoding='utf-8').read().rstrip())
+        raw_part_md = open(os.path.join(ROOT, w['file']), encoding='utf-8').read().rstrip()
+        parts_md.append(strip_yaml_frontmatter(raw_part_md))
     master = (
-        featured_header() + '\n\n' + toc + '\n\n' + frontmatter.rstrip() + '\n\n---\n\n' +
+        featured_header() + '\n\n' + toc + '\n\n' + frontmatter_body.rstrip() + '\n\n---\n\n' +
         '\n\n---\n\n'.join(parts_md) + '\n\n' + footer()
     )
     open(MASTER, 'w', encoding='utf-8').write(master)
@@ -810,7 +973,8 @@ def main():
     print(json.dumps({
         'words_in': n_words_in,
         'words_out': len(master.split()),
-        'parts': len(written),
+        'roman_parts': roman_parts_count,
+        'part_files': len(written),
         'fence': fstats,
         'norm': nstats,
         'master': os.path.relpath(MASTER, ROOT),
@@ -825,13 +989,13 @@ def featured_header():
 
 # Harshal’s Systems
 
-## The Ultimate User Manual
+## The Ultimate User Manual (Book I Reference Library & Umbrella Corpus Build)
 
 **{SUBTITLE}**
 
-*The complete, organized, and copy-edited reference for the Harshal’s Systems
-governance architecture — consolidated from the Owner’s Working Draft, the
-August print editions, and the finalized Ground-0 normative specification.*
+*The consolidated, provenance-indexed umbrella reference edition for **Book I — Harshal’s Systems**
+(Front Matter, Author’s Front Matter, and Parts I–XXVII), paired with the synchronized preview of
+**Book II — The Grand River Foundation** (~2100 CE Fictional Companion Novel).*
 
 </div>
 
@@ -840,6 +1004,8 @@ August print editions, and the finalized Ground-0 normative specification.*
 > **Every window, state change, and refusal in this architecture is bound by one constraint:
 > legitimacy precedes capability.** The default state of the system is refusal. Action is a
 > temporary, highly constrained exception.
+>
+> **Canonical Minimum Model:** `{CANONICAL_MINIMUM_MODEL}`
 >
 > *The system does not prevent gods, states, or religions. It prevents them from pretending
 > to be something else.*
@@ -872,32 +1038,47 @@ evaluative, not directive · contained, not externalized.*
 def build_front_matter(words, parts):
     return f"""# Front Matter
 
-## About this manual
+## About this manual & publishing hierarchy
 
-This is the consolidated, organized reference edition of **Harshal’s Systems**. It gathers the
-Owner’s Working Draft, the two August print editions, and the finalized Ground-0 normative
-specification into a single navigable document, and reorganizes the whole of it into {parts} parts.
+This is the consolidated, provenance-indexed **Umbrella Build Artifact (`DERIVATIVE_BUILD`)** of **Harshal’s Systems**. It organizes the entire work across **Front Matter**, **Author's Front Matter**, and **{parts} Roman-numbered Parts (`Part I` through `Part XXVII — Whole Corpus / Complete Work`)**, while establishing a strict publishing and provenance boundary between the two books of the project:
 
-Nothing in this manual has been added to the argument. The editorial work was structural and
-mechanical: the material was ordered, de-duplicated, re-typeset, and corrected for spelling,
-punctuation, and consistency. Every substantive claim, identifier, equation, and specification
-is the author’s own.
+| Publishing Tier | Work | Provenance Class | Role in the Corpus |
+|---|---|---|---|
+| **Book I (Reference Library)** | ***Harshal’s Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | The settled technical, constitutional, topological, and safety reference library (`docs/harshal-systems/` and this Umbrella Manual). |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`), using a 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council as the future-world sandbox for mature implementations of Book I. |
 
-**Approximate extent:** 165,000 words across {parts} parts.
+> **Strategic Principle:** *The architecture (Book I) is the library. The novel (Book II) is the work in active production.* Rather than continually rebuilding the foundational canon before writing each new chapter of fiction, Book I serves as the stable reference architecture from which Book II draws its continuity.
+
+**Approximate extent:** ~173,000 words across Front Matter, Author's Front Matter, and {parts} Roman-numbered Parts (`Parts I–XXVII`).
+
+## Flagship research entry point & canonical minimum model
+
+For researchers, auditors, and engineers entering this portfolio for the first time, the flagship public research paper is brought to the front of the collection:
+
+- **Flagship Paper:** ***Accountability in Keyed Human–Machine Hybrid Systems*** (**[Part XIX](19-research-papers.md)** · standalone publication at [`research/keyed-human-machine-hybrid-systems.md`](../../research/keyed-human-machine-hybrid-systems.md)).
+- **Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`):**
+  ```
+  {CANONICAL_MINIMUM_MODEL}
+  ```
+- **Four-Layer Research Separation:** Every module in this manual carries an explicit `research_layer` classification separating:
+  1. `PUBLIC_RESEARCH_SUMMARY` — Flagship keyed human–machine hybrid paper (`Part XIX`), supporting policy research (`Part XXII`), and corpus synthesis (`Part XXVII`).
+  2. `THREAT_RESEARCH` — Adversarial stress-test models (`Part XVI — AGS++ Threat Modeling` and `Part XX — Supply Chain Attack Vector++`).
+  3. `DEFENSIVE_SPECIFICATION` — Normative containment and constitutional protocols (`Parts II–XI`, `XII–XV`, `XVII–XVIII`, `XXIII`, `XXV`).
+  4. `INCIDENT_AND_AUDIT_RECORD` — Institutional re-badging and platform compliance audits (`Part XII Case Studies` and `Part XXVI Anthropic B-Side`), with `[INDEPENDENTLY_VERIFIABLE]` public records explicitly distinguished from `[AUTHOR_REPORTED]` incident chronology.
 
 ## How to read this manual
 
-The parts are ordered so that each one depends only on the ones before it. That said, no single
-reader needs all of it. Pick the path that matches why you are here.
+The parts are ordered so that each one depends only on the ones before it, and are grouped into **seven functional collections** under `docs/harshal-systems/collections/`. Pick the path that matches why you are here:
 
 | If you are… | Read | Treat the rest as |
 |---|---|---|
-| **A first-time reader** | Part I in full, then Part II | Reference |
-| **A technical reader** | Parts I, II, IV, VI, IX, XVI | Motivation, not specification |
-| **A legal or policy reader** | Parts I, IV, XII, XXII | Analogues to due process and jurisdiction, not algorithms |
-| **A philosophical reader** | Parts I and V | Secondary |
+| **A first-time or research reader** | **Part XIX (Flagship Paper)**, Part I, Part II, Part XXVII | Reference library |
+| **A technical or security reader** | Parts I, II, IV, V, VII, IX, XV, XVI, XIX | Motivation & domain application |
+| **A legal or policy reader** | Parts I, IV, XII, XIX, XXII (Supporting Policy Archive), XXV | Technical enforcement substrate |
+| **A philosophical reader** | Parts I, V, XIII | Secondary |
 | **An auditor or operator** | Parts XII, XV, XVI, XXVI | Supporting reasoning |
-| **A systems implementer** | Parts IX, X, XV, XXIII | Background |
+| **A systems implementer** | Parts IX, X, XV, XXIII, XXV | Background |
+| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
 
 ### On refusal
 
@@ -905,6 +1086,11 @@ Refusal is not failure in this framework. It is not silence, cowardice, or conse
 Refusal occurs when representation collapses, when authorization cannot be reconstructed,
 or when accountability diffuses beyond addressability. In those cases, action would falsely
 claim authority. Refusal prevents that claim.
+
+### On non-agency & delegation vs. migration of legitimacy
+
+1. **No Computational Moral or Legal Agency (`INV-AGENCY-001`):** This framework **never** treats computational components, models, or autonomous swarms as moral or legal agents. Moral and legal responsibility remains strictly bound to identifiable human principals.
+2. **Delegation vs. Migration (`INV-LEGIT-001`):** Operational execution may be *delegated* across a bounded chain of deterministic instruments, but legitimacy *never migrates* away from the human key at Center Origin (`0•000•000•0000`).
 
 ### On the formal material
 
@@ -922,19 +1108,22 @@ or governance. It claims only that unaccountable authority is unacceptable, rega
 sophisticated its source appears to be. If you disagree with a conclusion but accept the
 constraints, the framework is doing its job.
 
-## Document control
+## Document control & provenance taxonomy
 
 | Field | Value |
 |---|---|
-| **Work** | Harshal’s Systems |
+| **Book I (Reference Library)** | *Harshal’s Systems — The Ultimate User Manual* (`Parts I–XXVII`) |
+| **Book II (Companion Fiction)** | *The Grand River Foundation* (`Book II — Preview`, ~2100 CE Sandbox) |
 | **Subtitle** | {SUBTITLE} |
 | **Author** | Harshal Priyavadan Patel (A44674928) |
-| **Center-Origin** | `0•000•000•0000` |
+| **Center-Origin** | `0•000•000•0000` (Discrete Address Ring `ℤ_360`: `0–359`; `360° ≡ 0°` Return-to-Origin Closure) |
 | **Creator-ID** | `§HARSHAL§ + HARSHAL + (HARSHAL)` |
-| **Status** | Living document — subject to ongoing, traceable refinement |
-| **Normative baseline** | Ground-0 Phase Detection Algorithm v1.0, finalized 12 September 2026 |
-| **Amendment draft** | Ground-0 Phase Detection Algorithm v1.1, unratified |
-| **Edition** | Ultimate User Manual — consolidated and copy-edited |
+| **Canonical Minimum Model** | `{CANONICAL_MINIMUM_MODEL}` |
+| **Provenance Classes** | `CANONICAL_SOURCE` · `DERIVATIVE_BUILD` · `ARCHIVE` · `FICTION` · `AUDIT` |
+| **Evidence Status Classes** | `FORMAL_AXIOMATIC` · `INDEPENDENTLY_VERIFIABLE` · `AUTHOR_REPORTED` · `MIXED_VERIFIED_AND_REPORTED` · `NARRATIVE_SANDBOX` |
+| **Normative baseline** | Ground-0 Phase Detection Algorithm v1.0 (`specs/normative/ground-0-v1.0.md`), finalized 12 September 2026 |
+| **Amendment draft** | Ground-0 Phase Detection Algorithm v1.1 (`specs/draft/ground-0-v1.1.md`), unratified |
+| **Edition** | Umbrella Build Artifact — consolidated, provenance-tagged, and copy-edited |
 
 ## Notices
 
@@ -975,14 +1164,11 @@ Priyavadan Patel. All rights reserved.
 
 Commercial licensing for this portfolio is available within an entity structure by direct inquiry.
 
-### Translation note
+### Authorial register note (*Harshal’s English*)
 
-The architectural integrity of this system relies upon strict structural invariants, requiring
-all materials to be interpreted through the precise syntax of **Harshal’s English**. By embedding
-personal intellectual property directly into the operational logic, the framework establishes a
-conceptual fortress that renders the creator inseparable from the system itself.
+In this corpus, **Harshal’s English** carries the declared type **`[TYPE: AUTHORIAL_REGISTER]`**: it designates the author's normative English drafting style, left-to-right reading discipline, and conceptual voice through which the work is written. It is explicitly classified as an **authorial language/style register rather than a cryptographic or runtime security primitive (`[TYPE: SECURITY_PRIMITIVE]`)**. All runtime, mathematical, and institutional enforcement depends strictly on the formal invariants (`L(S,t)`, `PDH`, `HMKH`, `ADJR-v1.0`) defined in the normative specifications.
 
-**Everything in this work is to be read left to right, in Harshal’s English.**
+**Everything in this work is to be read left to right, in Harshal’s English (`[TYPE: AUTHORIAL_REGISTER]`).**
 
 ## Dedication and acknowledgments
 
@@ -1020,52 +1206,81 @@ def build_toc(frontmatter, written):
 
 def build_index(written, wout=0):
     rows = '\n'.join(
-        f'| {i:02d} | [{w["title"]}]({w["file"].split("/")[-1]}) | {w["words"]:,} |'
+        f'| `{i:02d}` | **{PART_METADATA.get(w["slug"], {}).get("part_num", f"Part {i}")}** | '
+        f'[{w["title"]}]({w["file"].split("/")[-1]}) | '
+        f'`{PART_METADATA.get(w["slug"], {}).get("provenance_class", "CANONICAL_SOURCE")}` | '
+        f'`{PART_METADATA.get(w["slug"], {}).get("research_layer", "DEFENSIVE_SPECIFICATION")}` | '
+        f'{w["words"]:,} |'
         for i, w in enumerate(written, start=0)
     )
-    return f"""# Harshal’s Systems — the manual, one file per part
+    col_rows = '\n'.join(
+        f'| [`collections/{c["id"]}/`](collections/{c["id"]}/README.md) | **{c["title"]}** | `{c["research_layer"]}` | {", ".join(f"`{p}`" for p in c["parts"])} |'
+        for c in COLLECTIONS
+    )
+    return f"""# Harshal’s Systems — Book I Reference Library & Umbrella Corpus Index
 
-This folder holds **The Ultimate User Manual** split into one file per part.
-The assembled single-file edition is at the repository root:
-**[`HARSHAL-SYSTEMS-USER-MANUAL.md`](../../HARSHAL-SYSTEMS-USER-MANUAL.md)** ({wout:,} words).
+> **Publishing Hierarchy:**
+> - **Book I — *Harshal’s Systems* (`Parts I–XXVII`):** The canonical technical, constitutional, and safety reference library housed in this directory and compiled into the Umbrella Build Artifact **[`HARSHAL-SYSTEMS-USER-MANUAL.md`](../../HARSHAL-SYSTEMS-USER-MANUAL.md)** ({wout:,} words) and **[`HARSHAL-SYSTEMS-USER-MANUAL.docx`](../../HARSHAL-SYSTEMS-USER-MANUAL.docx)**.
+> - **Book II — Preview — *The Grand River Foundation*:** The standalone fictional companion novel set in **~2100 CE** ([`manuscript/the-grand-river-foundation/`](../../manuscript/the-grand-river-foundation/) and [`BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`](../../BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md)), mirrored in [Part XXIV](24-the-novel.md).
+> - **Flagship Research Paper:** ***Accountability in Keyed Human–Machine Hybrid Systems*** ([Part XIX](19-research-papers.md) · standalone publication at [`research/keyed-human-machine-hybrid-systems.md`](../../research/keyed-human-machine-hybrid-systems.md)).
+> - **Canonical Minimum Model:** `{CANONICAL_MINIMUM_MODEL}`
 
-Read the assembled edition if you want one continuous document.
-Read the parts here if you want to work on, review, or cite a single section.
+---
 
-| # | Part | Words |
-|---|---|---|
+## 1. Functional Collections (`docs/harshal-systems/collections/`)
+
+To navigate Book I as a structured reference library, the modules are grouped into **seven functional collections** (also indexed in [`collections/README.md`](collections/README.md)):
+
+| Collection Path | Title | Primary Research Layer | Modules |
+|---|---|---|---|
+{col_rows}
+
+---
+
+## 2. Sequential Part Files (`00` + `Parts I–XXVII`)
+
+| File # | Designation | Part / Module | Provenance | Research Layer | Words |
+|---|---|---|---|---|---:|
 {rows}
 
-## Supporting documents
+---
 
-| File | Purpose |
-|---|---|
-| [`00-front-matter.md`](00-front-matter.md) | About this manual, how to read it, notices, licensing, dedication |
-| [`00-author-front-matter.md`](00-author-front-matter.md) | The Owner’s Working Draft front matter as submitted, preserved in full |
-| [`EDITORIAL-REPORT.md`](EDITORIAL-REPORT.md) | What was found, changed, and deliberately left alone |
+## 3. Supporting & Provenance Documents
 
-## Rebuilding
+| File | Provenance | Purpose |
+|---|---|---|
+| [`00-front-matter.md`](00-front-matter.md) | `DERIVATIVE_BUILD` | Publishing hierarchy (Book I vs. Book II), Canonical Minimum Model, Provenance & Evidence Status Taxonomies, reading guide, and notices |
+| [`00-author-front-matter.md`](00-author-front-matter.md) | `ARCHIVE` | The Owner’s Working Draft front matter as originally submitted, preserved in full |
+| [`27-whole-corpus.md`](27-whole-corpus.md) | `DERIVATIVE_BUILD` | **Part XXVII — Whole Corpus / Complete Work**: capstone architectural synthesis, terminology type registry, and master manifest |
+| [`EDITORIAL-REPORT.md`](EDITORIAL-REPORT.md) | `DERIVATIVE_BUILD` | Complete structural, conceptual, and typographic build report |
+
+## 4. Rebuilding the Manual & Synchronizing Book II
 
 ```bash
+node scripts/write-chapter.mjs --status
 python3 source/build.py
+python3 scripts/export-docx.py
 ```
 
-The build is deterministic and reads only `source/working-draft.md`.
+The build is deterministic and reads `source/working-draft.md` together with the synchronized Book II chapters in `manuscript/the-grand-river-foundation/`.
 """
 
 
 def build_report(fstats, nstats, written, win, wout):
     rows = '\n'.join(
-        f'| {i+1:02d} | [{w["title"]}]({w["file"].split("/")[-1]}) | {w["words"]:,} | {w["start"]:,}–{w["end"]:,} |'
-        for i, w in enumerate(written)
+        f'| `{i:02d}` | **{PART_METADATA.get(w["slug"], {}).get("part_num", f"Part {i}")}** | '
+        f'[{w["title"]}]({w["file"].split("/")[-1]}) | '
+        f'`{PART_METADATA.get(w["slug"], {}).get("provenance_class", "CANONICAL_SOURCE")}` | '
+        f'{w["words"]:,} | {w["start"]:,}–{w["end"]:,} |'
+        for i, w in enumerate(written, start=0)
     )
     return f"""# Editorial Report
 
-**Work:** Harshal’s Systems — The Ultimate User Manual
+**Work:** Harshal’s Systems — The Ultimate User Manual (Book I Reference Library & Book II Preview Mirror)
 **Source:** `Harshal’s Systems (Copyrighted) [Owner’s Working Draft].md`
-(1,278,427 bytes · 16,674 lines · 165,900 words)
-**Output:** {wout:,} words across {len(written)} part files, plus this report.
-**Build:** `python3 source/build.py` — reproducible from the source file alone.
+(1,278,427 bytes · 16,674 lines · 165,900 words) + synchronized `manuscript/the-grand-river-foundation/` chapters
+**Output:** {wout:,} words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
+**Build:** `python3 source/build.py` — deterministic and reproducible.
 
 ---
 
@@ -1085,8 +1300,10 @@ def build_report(fstats, nstats, written, win, wout):
 | 10 | Tabs used as separators in prose | Low | {nstats['tabs']} |
 | 11 | Trailing whitespace | Low | {nstats['trailing_ws']} |
 | 12 | Non-breaking spaces used as ordinary spaces | Low | {nstats['nbs']} |
-| 13 | Corrupted tokens (`llany` → `any`, `orand` → `or`) | Medium | 29 |
+| 13 | Corrupted tokens (`llany`/`LLANY` → `any`, `orand`/`ORAND` → `or`, `andor` → `and/or`) | Medium | {nstats['errata']} |
 | 14 | Missing space after punctuation / doubled spaces | Low | — |
+| 15 | Part boundary line-number drift after form-feed expansion & fence repair | **High** | Fixed via raw-line sentinel slicing |
+| 16 | 26-vs-27 Part numbering inconsistency across Front Matter, README, and Editorial Report | **High** | Resolved via `Part XXVII — Whole Corpus / Complete Work` |
 
 ---
 
@@ -1221,10 +1438,10 @@ Formalization, then supporting material — but the body did not follow it. Cont
 subject is scattered: the Anthropic audit opens at line 3,187 as the **A Side** and resumes at
 line 16,052 as the **B Side**, 12,865 lines apart.
 
-The manual now arranges the whole work into {len(written)} sequential parts:
+The manual now arranges the whole work into **Author's Front Matter (`00`)** plus **27 Roman-numbered Parts (`Part I` through `Part XXVII — Whole Corpus / Complete Work`)**, resolving the historical 26-vs-27 numbering discrepancy:
 
-| # | Part | Words | Source lines |
-|---|---|---|---|
+| File # | Designation | Part | Provenance | Words | Source lines |
+|---|---|---|---|---:|---|
 {rows}
 
 ### 4.1 Rebuilt table of contents

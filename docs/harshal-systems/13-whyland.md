@@ -1,17 +1,32 @@
+---
+document_id: HS-13-WHYLAND
+book: "Book I"
+part: "Part XIII"
+title: "Part XIII — The Whyland Standards"
+collection: "03-ground-zero-nab"
+provenance_class: CANONICAL_SOURCE
+status_taxonomy: CONCEPTUAL_DOCTRINE
+evidence_status: FORMAL_AXIOMATIC
+research_layer: DEFENSIVE_SPECIFICATION
+canonical_minimum_model: "Identity → Representation → Authorization → Continuity → Accountability → Refusal"
+author: "Harshal Priyavadan Patel (A44674928)"
+origin_anchor: "0•000•000•0000"
+source_lines: "5105–5162"
+words: 986
+---
+
 # Part XIII — The Whyland Standards
+
+| Provenance Class | Status Taxonomy | Evidence Status | Research Layer | Book / Collection |
+| :--- | :--- | :--- | :--- | :--- |
+| `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`03-ground-zero-nab`) |
 
 > The canonical AGS semantic inquiry catalog (DecksJokersAndCards).
 
-**Source range:** lines 5105–5167 of the Owner’s Working Draft · **Words:** 1,073
+**Source range:** lines 5105–5162 of the Owner’s Working Draft · **Words:** 986
 
 ---
 
-RE-SEC-01: Immutable Logging Every "Why" command execution SHALL be recorded as an AuditEvent. Per Control 5, the system SHALL record the signalHash, but the storage of raw neural signals is STRICTLY FORBIDDEN.
-RE-SEC-02: Non-Escalation Policy No "Why" query execution SHALL result in the expansion of system authority.
-Emergency States: SHALL result in a contraction of capability.
-Operator Unavailability: SHALL trigger a transition to halted or suspended states.
-Missing Context: SHALL NOT be interpreted as implicit permission.
-RE-SEC-03: Deterministic Outcomes (Anti-Chance) The system SHALL NOT employ chance-based logic. The output of any why.explain reasoning MUST be entirely reproducible. Weighted random draws, lotteries, or probability-based tied-breakers are FORBIDDEN; outcomes MUST be derived solely from declared inputs and versioned policies.
 ## The Whyland Standards (DecksJokersAndCards)
 ### Canonical AGS Semantic Inquiry Catalog
 > ### 🛡️ SYSTEM STATUS: INSURANCE MODE (REINSURANCE BACKSTOP ACTIVE)
@@ -68,3 +83,4 @@ Strips all internally cached authority and tokens.
 Purges all non-fossilized buffers.
 Returns the system to the status of "Non-Acting Legitimacy-Source" at Origin 0•000•000•0000.
 Condition of Fossilization If the temporal gap between the last legitimacy check and the current request exceeds the defined safety threshold (\Delta t > \delta), the current buffer must be fossilized. Fossilized data remains immutable and inaccessible for execution until a new, fresh authorization is provided by the Layer 0 source.
+Final Invariant Statement: Persistence without accountability is failure. The Whyland "Why" hooks ensure that document retention never outpaces the system's ability to be answered for by its Master Center Origin.

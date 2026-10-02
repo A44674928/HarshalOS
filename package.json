@@ -15,6 +15,8 @@
     "test:red-team": "node --test tests/red-team-test.mjs",
     "test:layout": "node --test tests/repository-layout-test.mjs",
     "test:manuscript": "node --test tests/manuscript-test.mjs",
+    "manuscript:status": "node scripts/write-chapter.mjs --status",
+    "manuscript:write": "node scripts/write-chapter.mjs --add",
     "integrity": "node scripts/integrity-report.mjs",
     "prepare:assets": "node scripts/prepare-assets.mjs",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run"

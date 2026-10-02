@@ -1,6 +1,11 @@
 {
-  "title": "The Grand River Foundation",
-  "subtitle": "Plaintext manuscript, submitted chapter by chapter",
+  "book": "Book II",
+  "status": "Book II — Preview (Active Work in Progress)",
+  "provenance": "FICTION",
+  "setting": "~2100 CE — Future-World Implementation Sandbox (Grand River Foundation, Colorado River Megastructure)",
+  "canonicalCompanion": "Book I — Harshal's Systems (Parts I–XXVII Reference Library)",
+  "title": "The Grand River Foundation (Book II — Preview)",
+  "subtitle": "Book II — Preview · A Fictional Companion Novel Set in ~2100",
   "author": "Harshal Priyavadan Patel",
-  "description": "Chapters are plain .txt files in manuscript/the-grand-river-foundation/. The reading view is generated from the files themselves."
+  "description": "Separated from the normative Book I specifications, The Grand River Foundation (Book II — Preview) uses a ~2100 setting around the 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman Council as the future-world sandbox for mature implementations of Harshal's Systems."
 }
