@@ -222,6 +222,69 @@ test('News app: reads only active public D1 reports and renders untrusted report
   }
 });
 
+test('News app: register-issued records disclose PDH-R provenance as plain text', async t => {
+  const summary = { id: 'pub-r', seriesId: 'series-id', version: 1, state: 'published', reportHash: 'c'.repeat(64), publishedAt: 1790966400000, title: 'Anthropic', author: 'Ground-0 audit register', phase: 'GSRB', reviewStatus: 'UNREVIEWED' };
+  const register = {
+    instrument: 'PDH-R (register-issued Phase Declaration Header)', headerId: 'PDH-R-2026-1002-ANTHROPIC-001',
+    badgeClass: 'GSRB_REGISTER_ISSUED', declaredPhase: 'GSRB', basePhase: 'GSRB', scopedPhase: null,
+    scopeTag: 'entity-wide audit surface', caveat: null, entityAttestation: 'ABSENT',
+    evidenceCutoff: '2026-10-02T00:00:00Z', expiresAt: '2026-12-31T00:00:00Z',
+    auditRecordSha256: 'd'.repeat(64), issuanceRecordSha256: 'e'.repeat(64), documentTitle: '<script>bad()</script> Anthropic PBC',
+    engine: { basePhase: 'GSRB', confidence: 'HIGH', recordStatus: 'Complete' },
+    constraintRecord: { C1: true, C2: false, C3: false, C4: true, count: 2, drift: true },
+    nonClaims: ['Not a certification.', 'Recognition is not authorization.'],
+    summary: { finding: '<img src=x onerror=alert(1)>Unreviewed register finding' }
+  };
+  const publication = {
+    ...summary,
+    report: { schema: 'ground0-public-v1', reviewStatus: 'UNREVIEWED', platformCertification: 'NONE',
+      author: summary.author, input: { name: summary.title }, scope: { notes: 'scope' },
+      result: { phase: 'GSRB', finding: 'finding' }, register }
+  };
+  const f = await newsFixture(t, url => url === '/api/community/publications'
+    ? Response.json({ publications: [summary], nextCursor: null })
+    : Response.json({ publication }));
+
+  assert.equal(f.$('#news-register').hidden, false);
+  assert.equal(f.$('#news-register-id').textContent, register.headerId);
+  assert.match(f.$('#news-register-engine').textContent, /GSRB \(base, engine-recomputed, HIGH\)/);
+  assert.equal(f.$('#news-register-scoped').textContent, 'GSRB (register-issued header)');
+  assert.equal(f.$('#news-register-constraints').textContent, 'C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4)');
+  assert.equal(f.$('#news-register-badge').textContent, 'GSRB_REGISTER_ISSUED');
+  assert.equal(f.$('#news-register-attestation').textContent, 'ABSENT');
+  assert.equal(f.$('#news-register-audit').textContent, 'd'.repeat(64));
+  assert.match(f.$('#news-register-note').textContent, /PDH_VALID remains FALSE/);
+  assert.match(f.$('#news-register-summary').textContent, /Unreviewed register finding/);
+  assert.match(f.$('#news-kicker').textContent, /REGISTER-ISSUED · UNREVIEWED/);
+  assert.match(f.$('#news-register-doc').textContent, /<script>bad\(\)<\/script> Anthropic PBC/);
+  assert.equal(f.root.querySelector('img, script, svg'), null);
+});
+
+test('News app: engine base phase and register-scoped phase stay distinct for conditional rows', async t => {
+  const summary = { id: 'pub-c', seriesId: 'series-id', version: 1, state: 'published', reportHash: 'f'.repeat(64), publishedAt: 1790966400000, title: 'Moonshot AI', author: 'Ground-0 audit register', phase: 'AMBIGUOUS', reviewStatus: 'UNREVIEWED' };
+  const publication = {
+    ...summary,
+    report: { schema: 'ground0-public-v1', reviewStatus: 'UNREVIEWED', platformCertification: 'NONE',
+      author: summary.author, input: { name: summary.title }, scope: { notes: 'scope' },
+      result: { phase: 'AMBIGUOUS', finding: 'finding' },
+      register: { headerId: 'PDH-R-2026-1002-MOONSHOT-001', basePhase: 'AMBIGUOUS', scopedPhase: 'GSRB',
+        declaredPhase: 'GSRB', badgeClass: 'GSRB_REGISTER_ISSUED_CONDITIONAL', entityAttestation: 'ABSENT',
+        engine: { basePhase: 'AMBIGUOUS', confidence: 'LOW' }, constraintRecord: { C1: false, C2: false, C3: false, C4: false, count: 0, drift: false },
+        caveat: 'Scoped to the platform/service surface named in the case study.' } }
+  };
+  const f = await newsFixture(t, url => url === '/api/community/publications'
+    ? Response.json({ publications: [summary], nextCursor: null })
+    : Response.json({ publication }));
+
+  assert.match(f.$('#news-register-engine').textContent, /AMBIGUOUS \(base, engine-recomputed, LOW\)/);
+  assert.match(f.$('#news-register-scoped').textContent, /GSRB — register-scoped/);
+  assert.match(f.$('#news-register-caveat').textContent, /Scoped to the platform\/service surface/);
+  assert.equal(f.$('#news-register-scope').hidden, true);
+  assert.equal(f.$('#news-register-caveat').hidden, false);
+  assert.match(f.$('#news-feed').textContent, /AMBIGUOUS · UNREVIEWED/);
+  assert.match(f.$('#news-feed').textContent, /Moonshot AI/);
+});
+
 test('News app: disabled public register fails closed without substituting private workspace data', async t => {
   const f = await newsFixture(t, () => Response.json({ error: 'Community is disabled.' }, { status: 503 }));
   assert.equal(f.$('#news-status').dataset.state, 'error');

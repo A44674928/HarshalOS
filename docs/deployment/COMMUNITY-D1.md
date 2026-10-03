@@ -296,6 +296,61 @@ Emergency disable: set the flag false; do not drop tables or delete cloud resour
 Local tests use real SQLite SQL, mocked OIDC HTTP/DOM fetch, and local Wrangler D1;
 remote D1 concurrency and full live-browser/provider behavior remain unvalidated.
 
+## Register-issued case studies (Ground-0 audit register)
+
+The 23 register-issued `PDH-R` case studies in `case-studies/` are processed into the
+same public D1 tables, so the News app serves them from D1 instead of hardcoded data.
+Each case study is re-evaluated by the real Ground-0 engine during the build; the file
+refuses to emit anything unless the recomputed base phase and confidence reproduce
+`case-studies/pdh-registry.json` and the audit text still matches the register's
+`audit_record_sha256` / `issuance_record_sha256`.
+
+```sh
+npm run case-studies:build     # rebuild both artifacts (deterministic)
+npm run case-studies:check     # fail if the committed artifacts differ
+npm run case-studies:build -- --revision 2   # publish a changed audit record as a new version
+```
+
+| Artifact | Purpose |
+| --- | --- |
+| `case-studies/d1/case-studies-d1.json` | Review manifest: per record the engine result, hashes, ids and the exact public report that will be served |
+| `case-studies/d1/case-studies-seed.sql` | Seed applied to D1; all statements are `SELECT … WHERE NOT EXISTS` or `ON CONFLICT DO NOTHING` |
+
+Row mapping: one synthetic register account (issuer `urn:harshalos:register`, subject
+`ground-0-audit-register`, no sessions, cannot authenticate), one draft and one run per
+header, one public series per `header_id`, and one published row per content revision.
+`report.result.phase` stays the engine-recomputed base phase; the register-scoped phase,
+badge class, constraint record, evidence cutoff, expiry and both record hashes travel in
+`report.register`, which the News app displays next to the finding. `PDH_VALID` remains
+FALSE and entity attestation is ABSENT for every record. The seed writes only public
+rows: no sessions, previews, reports or moderation actions are created, and rows stay
+subject to the existing withdrawal/hide rules. Hiding the register account with
+hide-and-block would hide the whole register; withdraw or hide individual rows instead.
+
+Apply (owner-run, after the remote migration gate above):
+
+```sh
+# local fixture only
+npx wrangler d1 execute COMMUNITY_DB --local \
+  --config tests/fixtures/community-d1-local.jsonc \
+  --persist-to .wrangler/community-foundation-tests \
+  --file case-studies/d1/case-studies-seed.sql
+
+# staging
+npx wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote \
+  --file case-studies/d1/case-studies-seed.sql
+
+# production: only after the migration gate and an explicit decision to publish the register
+npx wrangler d1 execute COMMUNITY_DB --remote --file case-studies/d1/case-studies-seed.sql
+```
+
+The file is idempotent: re-running unchanged content inserts nothing, and
+`community_schema` records one marker row (`case-studies-d1` → applied revision). If the
+content changed but the version did not, a guard statement aborts the whole file before
+any insert instead of silently replacing a published version — corrections are new
+versions (`--revision N+1`). `tests/case-studies-d1-test.mjs` applies the committed seed
+to real SQLite, then exercises the public feed, detail, correction and NewsML routes.
+
 ## Verified target information
 
 The owner supplied:
