@@ -46,7 +46,7 @@ const SUITES = [
   {
     area: "Desktop apps, guided demo & Good Intelligence assurance & market data",
     script: "test:app",
-    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-tradingview-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs"]
+    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-tradingview-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs", "characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs"]
   },
   {
     area: "LLM data / authority boundary",

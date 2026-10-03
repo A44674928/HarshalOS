@@ -4,6 +4,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } from './storage.mjs';
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
+import { handleCharactersBeat } from './characters-beat.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
 
 const keySets = new Map();
@@ -132,6 +133,9 @@ export default {
     }
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
+    // The Characters beat batches one due symbol per provider call and holds each symbol's
+    // bars for the chosen beat, so the stage cannot spend the monthly budget by re-rendering.
+    if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a
     // same-origin POST, and paces each caller and the deployment as a whole
