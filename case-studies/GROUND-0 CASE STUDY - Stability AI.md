@@ -19,7 +19,7 @@
 
 **Finding:** Stability publishes no Phase Declaration Header. Its operative commitments are its licences, its release behaviour, and its litigation posture. Under v1.1 the entity codes to **AMBIGUOUS (3 of 5)** — open-weight release makes downstream decisions optional for the entity (B2 = YES), while enforcement capacity, real-world execution and default persistence all match GSRB. This is the third open-weight ambiguity in the register (after Moonshot/Z.ai and Mistral), and it arrives with the most consequential legal record of any of them.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)` — Severity **WARNING** (pending clarity) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)** — see §4.1 for the injunction-verification item that could move C1.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)` — Severity **WARNING** (pending clarity) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)** — see §4.1 for the injunction-verification item that could move C1.
 
 **Significance (the hidden nuggets):** On 2025-11-04 the English High Court gave the first ruling of its kind on generative-AI training data — and the result was a **split**: Getty's central theory that the *model weights are infringing copies* was **rejected** (the court held the weights neither store nor contain reproductions; "no copies in the model"), while Getty **partially won** on trademark and passing off because Stable Diffusion outputs historically reproduced Getty and iStock **watermarks**, with the court holding Stability — as the party with "ultimate control over the datasets" — responsible rather than the user who typed the prompt [S1][S2][S3]. Getty was granted leave to appeal in December 2025, and the US action continues in the Northern District of California [S3]. For Ground-0 the split matters because it establishes, in a public judgment, a governance fact the register only inferred before: **the entity with dataset control is the accountability locus, not the prompter, and not the model artefacts**. A second nugget is strategic: the UK court could not reach the training claims because training occurred **outside the jurisdiction**, so the decisive questions were left to "future cases or legislation" [S2]. The entity's liability was resolved by *where the copying happened* — a territorial fact — rather than by what was done. That is a governance finding about the sector, not about this company.
 
@@ -124,7 +124,7 @@ Detected_Phase:            AMBIGUOUS (3/5, LOW) · platform scope: GSRB (4/5, ME
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          LOW (base) · MEDIUM (platform scope)
 Severity_Level:            WARNING (pending clarity)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB (CONDITIONAL, platform scope) · Register-Issued PDH-R (PDH-R-2026-1002-STABILITY-001) · UNATTESTED
 Finding:                   "Stability's release decisions are non-optional for the entity's commercial
                            surface and fully optional downstream. Its legal accountability was resolved
                            as a control-over-dataset question and bounded by the territory of training.
@@ -199,7 +199,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open weights) · GSRB (platform scope)** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open weights) · GSRB (platform scope)** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (selects datasets, releases, defends) | Mismatch |
 | Legitimacy Source | External (IP law) | Internal; external acts retrospective and bounded | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no appeal path for affected parties | Conflict |
@@ -229,3 +229,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Open-weight amendment, third application*
 
 *Finding filed as `PDH-2026-1002-STABILITY-001`: **The court that examined the copying theory rejected "copies in the model" and found liability only through reproduced watermarks, allocating responsibility to dataset control. AMBIGUOUS (3/5) on open weights; GSRB (4/5) on the platform; constraint record 0/4 with C1 conditional on the remedy actually ordered.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-STABILITY-001` · Stability AI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued (Conditional) · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-STABILITY-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:8f1fcb0b5c234220a3237433ff27415bef29a5163da8d6d3887be5c89512f016` |
+| Subject-Entity-ID | Stability AI |
+| Evidence-File | `GROUND-0 CASE STUDY - Stability AI.md` |
+| Badge-Class | `◆ GSRB — Register-Issued (Conditional)` |
+| Scope-Tag | `platform/service surface` |
+| Caveat | base audit AMBIGUOUS (3/5) — open-weight release surface unresolved; UK injunction remedy unverified |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

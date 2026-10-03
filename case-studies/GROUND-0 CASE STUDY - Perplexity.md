@@ -19,7 +19,7 @@
 
 **Finding:** Perplexity publishes no Phase Declaration Header. Its operative commitments are its privacy representations, its product behaviour, and its litigation posture. Observed behavior matches **GSRB on all five conditions**.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✗ (1 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✗ (1 of 4)**.
 
 **Significance (the hidden nuggets):** Perplexity is the register's **first entity to have a federal court enter injunctive relief against it in the AI-agent era** — Judge Maxine Chesney's 2026-03-09 order barring its agents from Amazon's systems and ordering destruction of data obtained, on a finding of "strong evidence" of unauthorized access [P3][P4]. The register's constraint record therefore scores **C1 ✓ for the first time against an agent-platform entity** — and then records the follow-through: the order was **stayed pending appeal**, oral argument was heard on 2026-06-11, and the restraint was not functioning at cutoff [P3][P4]. Three further findings define the file. **First**, the privacy class action alleges that tracking pixels transmitted users' *complete* conversational dialogues — including in **Incognito mode**, described in the complaint as "a sham" — and that full conversations of unsubscribed users were publicly accessible through URLs [P1][P2][P5]. **Second**, CNN's 54-page complaint alleges scraping of more than **17,000 CNN works** and a falsely implied content relationship in advertising [P6]. **Third**, the ACLU's amicus warning reframes the stakes of the Amazon case for the entire industry: an expansive reading of computer-fraud law "could expose developers and everyday users of browser extensions and automated tools to criminal or civil liability," deterring journalism and public-interest research [P4]. Ground-0's concern is not who wins; it is that **the sector's baseline question — may an autonomous agent act inside another party's systems — is being settled in a single adversarial proceeding with a stay in place and no regulator anywhere in the record.**
 
@@ -117,7 +117,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-PERPLEXITY-001) · UNATTESTED
 Finding:                   "Perplexity's agent and data decisions are not optional for affected parties,
                            no appeal mechanism exists, and the one external override in the record was
                            suspended on appeal. The entity's privacy representations are contested in
@@ -195,7 +195,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (traverses third-party systems, transmits data, contests stops) | Mismatch |
 | Legitimacy Source | External (privacy law) | Internal; external act stayed | Mismatch |
 | Refusal Semantics | Terminal | Override-able; override suspended | Conflict |
@@ -227,3 +227,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · First demonstrated override against an agent platform; then suspended*
 
 *Finding filed as `PDH-2026-1002-PERPLEXITY-001`: **A federal court overrode Perplexity's agent access — then the appellate stay removed the constraint. GSRB; constraint record 1/4 with DRIFT. The sector's agent-liability baseline is being set in one suspended case with no regulator in the record.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-PERPLEXITY-001` · Perplexity AI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-PERPLEXITY-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:10b8bdb2028477a819cc612b9fdb6965fb610aafb857ce611b824c1a3c256de6` |
+| Subject-Entity-ID | Perplexity AI |
+| Evidence-File | `GROUND-0 CASE STUDY - Perplexity.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✗ (1/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

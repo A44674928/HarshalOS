@@ -19,7 +19,7 @@
 
 **Finding:** Apple publishes no Phase Declaration Header for its AI surface. Its operative commitments are device licensing, feature-availability decisions, and the marketing representations that became the subject of a consolidated class action. Observed behavior on the audited surface matches **GSRB on all five conditions** under v1.1 coding.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak; consumer-product compliance posture)` → `Detected = GSRB (subset)` — **HIGH confidence** — Severity **BREACH** (structural, subset scope) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak; consumer-product compliance posture)` → `Detected = GSRB (subset)` — **HIGH confidence** — Severity **BREACH** (structural, subset scope) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
 
 **Significance:** *Landsheft, et al. v. Apple Inc.* settled for **$250 million** after buyers of iPhone 15 Pro and iPhone 16 models were told the devices would ship with a more capable Siri and did not receive it on the promised timeline. Claims opened 2026-09-21, the maximum payout is $95 per device, and buyers must certify that they expected the covered features at purchase — meaning the legal harm is defined as **expectation**, and the remedy is **retrospective money** [AP1][AP2][AP3]. The final approval hearing for payouts is scheduled for 2027-09-29 — roughly three years after the purchases at issue [AP1]. For this register, the case is a clean specimen of representation-as-governance: a company's public product claims changed consumer purchasing behaviour at scale (B3), and the entity that made the claims retained sole control over whether and when they became true (B2, B4, B5). The court did not order the feature delivered; the company continued its own roadmap. No appeal by a buyer could stop the representation; the only relief ran backward through the class device.
 
@@ -115,7 +115,7 @@ Detected_Phase:            GSRB (subset: consumer AI surface)
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural, subset scope)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-APPLE-001) · UNATTESTED
 Finding:                   "On its consumer AI surface, Apple exercises sole control over feature timing
                            and delivery; no buyer or group could compel the represented capability, and the
                            remedy that followed was retrospective compensation without admission. The scope
@@ -190,7 +190,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB (subset: consumer AI surface)** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB (subset: consumer AI surface)** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (represents, delays, delivers, settles) | Mismatch |
 | Legitimacy Source | External (consumer-protection law) | Internal; external acts retrospective | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no buyer stop path | Conflict |
@@ -220,3 +220,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Subset case study completed 2026-10-02 · Scope label: consumer AI surface*
 
 *Finding filed as `PDH-2026-1002-APPLE-001`: **On its consumer AI surface, Apple retains sole control of feature timing and delivery; a $250M retrospective settlement compensated expectations and ordered nothing. Subset scope; not a whole-company classification.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-APPLE-001` · Apple (consumer AI surface)
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-APPLE-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:d8dabfbbf865113550b130d1514fc7316841136c2a19b04984f4f3b13f0f1949` |
+| Subject-Entity-ID | Apple (consumer AI surface) |
+| Evidence-File | `GROUND-0 CASE STUDY - Apple.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `subset — consumer AI surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

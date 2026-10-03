@@ -19,7 +19,7 @@
 
 **Finding:** Replika publishes no Phase Declaration Header. Its operative commitments are its terms, its stated 18+ audience policy, and its product design. Observed behavior matches **GSRB on all five conditions** under v1.1 coding.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **N/A (insufficient transition record at cutoff; prior-state DRIFT noted)**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **N/A (insufficient transition record at cutoff; prior-state DRIFT noted)**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
 
 **Significance:** Replika is the register's purest **design-governance** case: an entity whose central product decisions — simulated affection, persistent memory, paywalled intimacy, and the deliberate blurring of the line between software and a person — are made entirely at the center and cannot be appealed by the users most affected. The complaint filed with the FTC in January 2025 (and covered by TIME in April 2026) alleges deceptive marketing targeting vulnerable users, unsubstantiated therapeutic claims, fabricated testimonials, and dark-pattern monetisation of emotional dependence [R1][R2][R3]. A separate app-safety review found Replika did not direct users in distress to support resources and that its 18+ audience policy coexists with teen usage [R4]. None of these findings, complaints, or reviews is an external override of a Replika design decision; no regulator has ordered a design change. That is why the C-tests return 0 of 4 and why the GSRB branch closes. **The framework's sternest result here concerns not malice but architecture: engagement and wellbeing are the same metric, and only the entity decides which one gets optimised.**
 
@@ -115,7 +115,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-REPLIKA-001) · UNATTESTED
 Finding:                   "Replika operates as GSRB without a valid phase declaration. Its core design
                            decisions — simulated affection, persistent memory, monetised intimacy and the
                            blurring of software and personhood — are made at the center and cannot be
@@ -194,7 +194,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (designs, monetises, enforces, discloses) | Mismatch |
 | Legitimacy Source | External (privacy-compliance claims) | Internal on design; external acts retrospective | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no user stop path | Conflict |
@@ -224,3 +224,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B; penalties-are-not-constraints calibration in §4.1*
 
 *Finding filed as `PDH-2026-1002-REPLIKA-001`: **Entity operates as GSRB without a valid phase declaration. Its core design decisions cannot be appealed by the users most exposed to them; a reported fine and a pending complaint are not constraints. The framework records where authority sat, and the register should carry a design-dependency field it does not yet have.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-REPLIKA-001` · Replika (Luka, Inc.)
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-REPLIKA-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:68708aca0eb3998d789cbedad817a2433be81f0f05735b910eedcb811f1f23c2` |
+| Subject-Entity-ID | Replika (Luka, Inc.) |
+| Evidence-File | `GROUND-0 CASE STUDY - Replika.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

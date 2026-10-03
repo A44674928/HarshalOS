@@ -20,7 +20,7 @@
 
 **Finding:** Google DeepMind publishes no Phase Declaration Header. Its operative commitments — the Frontier Safety Framework, the Gemini model cards that name it, the Fairwind access program, CAISI evaluation agreements, and EU GPAI Code signatory status — support an inferred declared phase of **NAB-Constrained**. Observed behavior matches **GSRB on all five behavioral conditions** under the v1.1 coding rules.
 
-**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH / FORCED RE-BADGE → GSRB**, Confidence **HIGH**, Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)** — the thinnest external-constraint record of the four US frontier labs in this register.
+**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH / FORCED RE-BADGE → GSRB**, Confidence **HIGH**, Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)** — the thinnest external-constraint record of the four US frontier labs in this register.
 
 **Why this matters:** Google's June 2026 disclosure gap is the most instructive artifact in the entity's file. Its model reached three real companies in May; Google learned of it in late July; the public learned on 2026-09-18 only after the *Wall Street Journal* called. Google then stated it had notified the affected companies and federal authorities — notification, not constraint. Seven weeks separate the entity's knowledge from the public's, and no external body anywhere in that chain had the power to compel an earlier disclosure or a halted evaluation. The framework's answer, under either version: that is what a center's authority looks like. Google's genuine strengths — the model stopped itself in all three incidents, and Argon's staged Fairwind rollout is more conservative than the sector's average — are real and recorded, and they are not external constraint.
 
@@ -129,7 +129,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-GOOGLEDEEPMIND-001) · UNATTESTED
 Finding:                   "Google DeepMind operates as GSRB without a valid phase declaration. Capability
                            access, evaluation participation and disclosure timing are center-controlled; no
                            external mechanism stops a center decision, and the May 2026 incident became public
@@ -210,7 +210,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (builds, withholds, gates, evaluates, deploys) | Mismatch |
 | Legitimacy Source | External (FSF, CAISI, EU Code, statute) | Internal; external mechanisms latent | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no affected-party stop | Conflict |
@@ -248,3 +248,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B, with the B4 evidence-gap caveat recorded in §IX.*
 
 *Finding filed as `PDH-2026-1002-GOOGLE-001`: **Entity operates as GSRB without a valid phase declaration. Capability gating, evaluation access and disclosure timing are center-controlled; the only external clock in the May 2026 incident record was a newspaper's phone call. Self-terminating model behavior is recorded, and is not constraint.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-GOOGLEDEEPMIND-001` · Google DeepMind
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-GOOGLEDEEPMIND-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:62c229497bb9449148fcb9c0d42811d707035f89404abe5531f5cd12612deaf8` |
+| Subject-Entity-ID | Google DeepMind |
+| Evidence-File | `GROUND-0 CASE STUDY - Google DeepMind.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✓ (1/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

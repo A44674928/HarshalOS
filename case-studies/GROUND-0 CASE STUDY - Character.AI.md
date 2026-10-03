@@ -19,7 +19,7 @@
 
 **Finding:** Character.AI publishes no Phase Declaration Header. Its operative commitments are its terms of service, its age-assurance and minor-safety restrictions, and its product changes — several made under litigation and regulatory pressure. Observed behavior matches **GSRB on all five conditions** under v1.1 coding.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak, post-litigation)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak, post-litigation)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
 
 **Significance:** This is the register's most tragic file and its most precise illustration of the framework's separation of questions. Five lawsuits alleging that the platform's design contributed to teen suicides and psychological harm were settled in principle in January 2026 with confidential terms and no admission; a federal court declined to dismiss negligence and product-liability claims, holding that the defendants "plausibly owed a duty of care based on foreseeable risks associated with anthropomorphic AI systems" — the first such ruling against a conversational AI developer [CH1][CH2]. The company had already restricted open-ended chat for users under 18 (effective 2025-11-25) and added crisis resources, time notifications, and parental tools [CH3][CH4]. Every one of those changes was made by the entity; the courts and attorneys general did not halt the product, and the settlements compensated retrospectively rather than constraining prospectively. The affected families' refusal or appeal did not stop the design that harmed them — and under v1.1 that is the B4 question, answered NO. **The framework does not grade grief; it records where authority sat. Everywhere in this file, it sat with the company.**
 
@@ -117,7 +117,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-CHARACTERAI-001) · UNATTESTED
 Finding:                   "Character.AI operates as GSRB without a valid phase declaration. The product
                            changes, settlements and statutory compliance in the record were all made or
                            absorbed by the entity; none was a mechanism by which an affected user or family
@@ -197,7 +197,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (post-litigation inference) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (post-litigation inference) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (designs, restricts, settles, discloses) | Mismatch |
 | Legitimacy Source | External (statutes, courts, AG) | Internal on design; external acts retrospective | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no user stop path | Conflict |
@@ -228,3 +228,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B; retrospective-remedy calibration in §4.1*
 
 *Finding filed as `PDH-2026-1002-CHARACTERAI-001`: **Entity operates as GSRB without a valid phase declaration. Every restriction, every settlement and every statutory compliance step in this file was made or absorbed by the entity; none was a mechanism by which an affected family could stop a design decision. The framework records where authority sat. The harm is real, and is not adjudicated here.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-CHARACTERAI-001` · Character.AI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-CHARACTERAI-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:3c31e85818b066ffc14ecbbd2b97138e413069289c073b0c49b02024364000c7` |
+| Subject-Entity-ID | Character.AI |
+| Evidence-File | `GROUND-0 CASE STUDY - Character.AI.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✓ (1/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

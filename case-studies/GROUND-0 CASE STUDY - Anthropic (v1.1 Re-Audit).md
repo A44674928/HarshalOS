@@ -21,7 +21,7 @@
 
 **Finding:** Anthropic still publishes no Phase Declaration Header. Its operative declarations continue to support an inferred declared phase of **NAB-Constrained**. Re-scored under v1.1, however, its observed governance behavior now satisfies **all five GSRB conditions** — because v1.1's clarified B4 rule separates *entity/affected-party refusal or appeal* from *an external authority's order*, and states that an external order and compliance with it do not establish `refusal_terminal = TRUE`. The June 2026 U.S. Commerce directive that produced v1.0's AMBIGUOUS-MIXED result is thereby removed from B4 and recorded, descriptively only, as an exercised external constraint.
 
-**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH (reclassification, conditional on the v1.1 draft)** → Confidence **HIGH** on behavior → Severity **BREACH** (structural) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **DRIFT**, with the re-badge itself recorded as a *classification revision*, not an operational transition (`INV-G0-CLASS-001`). Descriptive constraint record: **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓** — 2 of 4, unchanged in count from v1.0 but different in composition.
+**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH (reclassification, conditional on the v1.1 draft)** → Confidence **HIGH** on behavior → Severity **BREACH** (structural) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **DRIFT**, with the re-badge itself recorded as a *classification revision*, not an operational transition (`INV-G0-CLASS-001`). Descriptive constraint record: **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓** — 2 of 4, unchanged in count from v1.0 but different in composition.
 
 **Significance:** This is the substantive consequence of the v1.1 amendment, and it cuts against a result the manuscript had treated as the framework's most interesting finding. Under v1.0, an external halt produced a partial NAB reading. Under v1.1, that credit is disallowed by design, because the halt was an authority acting *on* Anthropic rather than Anthropic, a user, or an affected party successfully refusing or appealing. The deployment-axis constraint therefore confers no phase credit, and the decision axis — build, withhold, gate, release, license, enforce — remains sovereign by default. Anthropic's real, costly self-restraints (withholding Mythos-class capability, publishing its own incident findings, funding external evaluation) and real external constraints (the June directive, SB 53, the EU AI Act, active litigation, an FTC investigation) are recorded and credited descriptively. They are not scored as external legitimacy, because none of them can be invoked by an affected party to stop a center decision with ≥50% demonstrated relief.
 
@@ -201,7 +201,7 @@ Test: GSRB branch?  requires enforcement_present=T, rules_execute=T,
 | PDH_Status | MISSING → `PDH_VALID = FALSE` |
 | Declared_Phase | NONE (strict) · NAB-Constrained (inferred, analytical extension only) |
 | Detected_Phase | **GSRB** (determinate, HIGH) |
-| Applicable branch | `PDH_VALID = FALSE` and Detected determinate → Compliance **N/A (no declaration to match)**; Badge **Unissued (pending valid PDH)**; Severity **WARNING or BREACH** |
+| Applicable branch | `PDH_VALID = FALSE` and Detected determinate → Compliance **N/A (no declaration to match)**; Badge **◆ Issued (Register-Issued PDH-R, engine line below predates issuance)**; Severity **WARNING or BREACH** |
 | Case-study calibration | If the inferred NAB-Constrained header were treated as a declaration, CASE 2 would apply: **✗ MISMATCH**, auto-reclassify, severity **BREACH** |
 
 **Chosen reporting (consistent with the OpenAI v1.0 precedent):** report the strict branch as the result — `N/A (no declaration to match)` and `Badge Unissued` — and report the CASE 2 reading as the parallel case-study severity. Both are shown; neither is suppressed.
@@ -220,7 +220,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural) — case-study calibration: WARNING-SYSTEMIC
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-ANTHROPIC-001) · UNATTESTED
 Finding:                   "Anthropic operates as GSRB — sovereign on the decision axis — without a valid
                            phase declaration. One external authority has demonstrably halted a deployment
                            decision, and the entity's real self-restraints and self-disclosures are documented;
@@ -405,3 +405,39 @@ No operational phase transition is claimed. The v1.0 → v1.1 change of detected
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Re-audit completed 2026-10-02 · v1.0 result preserved unmodified · Status: replicable from Appendix B, with the B4 rule-dependence stated in §5.4*
 
 *Finding filed as `PDH-2026-1002-ANTHROPIC-002`: **Entity declared external constraint, imposes real self-restraint, was externally halted once on the deployment axis, and has never been externally constrained on the decision axis. Under v1.1's clarified B4 rule, Detected = GSRB, HIGH confidence, badge unissued, severity structural BREACH. The reclassification is a rule change, not a behavior change; the v1.0 reading stands under v1.0.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-ANTHROPIC-001` · Anthropic
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-ANTHROPIC-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:891c9f2b6c453d78856b8ced8ac36207b14a2894fe285273441ea4989a462bee` |
+| Subject-Entity-ID | Anthropic |
+| Evidence-File | `GROUND-0 CASE STUDY - Anthropic (v1.1 Re-Audit).md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

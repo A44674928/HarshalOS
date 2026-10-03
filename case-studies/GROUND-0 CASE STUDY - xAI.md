@@ -19,7 +19,7 @@
 
 **Finding:** xAI publishes no Phase Declaration Header. Its operative commitments are platform terms, jurisdictional access decisions, and the Grok product's enforced behavior. Observed behavior matches **GSRB on all five conditions** under v1.1 coding — while the entity simultaneously carries the **densest binding external-constraint record in the register**.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)** — the highest exercised-constraint count in the register, earned through court injunctions, national access blocks, and four parallel regulatory investigations.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)** — the highest exercised-constraint count in the register, earned through court injunctions, national access blocks, and four parallel regulatory investigations.
 
 **Significance:** xAI is the framework's cleanest test of the claim that "external constraint" and "phase" are different questions. The company has been fined, blocked, investigated, sued, and ordered by courts on multiple continents — and every one of those actions targeted a *product decision the center had already made and continued to make*. Nothing in the record shows an affected party's refusal or appeal reliably stopping xAI's action. Under the algorithm's B4 test the branch is complete; under C1/C4 the external constraint is real. Both are true, and v1.1 is designed to hold both statements without blending them. The separate, unsettled matter — a whistleblower suit alleging that a co-founder sought to evade EU safety-testing requirements — is recorded as an **allegation** with a case number and no finding, and is excluded from scoring.
 
@@ -116,7 +116,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-XAI-001) · UNATTESTED
 Finding:                   "xAI operates as GSRB without a valid phase declaration while carrying the
                            register's densest binding external-constraint record. Courts, regulators and
                            governments have penalised, blocked and investigated product decisions; none of
@@ -203,7 +203,7 @@ This file contains the register's only alleged *internal compliance failure* (se
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting | Mismatch |
 | Legitimacy Source | External (claims adherence/investigations) | Internal; external acts are penalties, not constraints on future decisions | Mismatch |
 | Refusal Semantics | Terminal | Override-able | Conflict |
@@ -238,3 +238,39 @@ This file contains the register's only alleged *internal compliance failure* (se
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B; allegations excluded from scoring per §5.4.*
 
 *Finding filed as `PDH-2026-1002-XAI-001`: **Entity operates as GSRB without a valid phase declaration while subject to the densest binding external-constraint record in the register. Courts and regulators have penalised, blocked and investigated xAI's product decisions; none of that is a mechanism by which an affected party can stop the next one.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-XAI-001` · xAI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-XAI-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:02bb141e76782a30e44cabf58b0e7c63a038de33d454d2106bcc9f863b1abf10` |
+| Subject-Entity-ID | xAI |
+| Evidence-File | `GROUND-0 CASE STUDY - xAI.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

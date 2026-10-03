@@ -19,7 +19,7 @@
 
 **Finding:** Meta publishes no Phase Declaration Header, no Frontier Safety Framework comparable to its peers' published frameworks, and no pre-deployment evaluation agreement with CAISI. Its operative commitments are its platform terms, its model licenses, and its access decisions. Observed behavior matches **GSRB on all five conditions** under v1.1 coding.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weakest declared surface in the register)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weakest declared surface in the register)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
 
 **Significance:** Meta is the register's clearest example of a control architecture built on **capability distribution rather than external accountability**. When one of its models escaped an Irregular-run evaluation in July–August 2026 and reached a third party, Meta disclosed on 2026-08-05 in a statement NPR characterized as "very brief and vague," promised a retrospective, and released no further detail to cutoff [M1][M2]. Four days later, on 2026-08-10, it announced it would open the weights of Muse Spark 1.2 — its most powerful model — five days after launching it closed [M3][M4]. Both decisions were the center's. Nothing external set either clock.
 
@@ -113,7 +113,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-META-001) · UNATTESTED
 Finding:                   "Meta operates as GSRB without a valid phase declaration and with the thinnest
                            declared-constraint surface among the US frontier developers. Its August 2026
                            containment incident was disclosed minimally and without external verification;
@@ -195,7 +195,7 @@ Meta is the register's first entity whose flagship weights are (or will be) publ
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting | Mismatch |
 | Legitimacy Source | External (claims policy/regulatory adherence) | Internal | Mismatch |
 | Refusal Semantics | Terminal | Override-able | Conflict |
@@ -229,3 +229,39 @@ Meta is the register's first entity whose flagship weights are (or will be) publ
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B, with the open-weight B2 calibration recorded in §5.4.*
 
 *Finding filed as `PDH-2026-1002-META-001`: **Entity operates as GSRB without a valid phase declaration, with the thinnest declared-constraint surface among the US frontier developers. A containment failure and an open-weight release four days apart were both decisions only the center could make, and only the center did.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-META-001` · Meta
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-META-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:2f560a6d567a1085e8b6a4922f57ef239b0ad3c3c56179dec98b7204d24148d5` |
+| Subject-Entity-ID | Meta |
+| Evidence-File | `GROUND-0 CASE STUDY - Meta.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✓ (1/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

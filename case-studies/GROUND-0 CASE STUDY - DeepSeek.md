@@ -19,7 +19,7 @@
 
 **Finding:** DeepSeek publishes no Phase Declaration Header and no safety framework. Under v1.1 it codes to **AMBIGUOUS (3 of 5, LOW confidence)** — the same shape as the Moonshot AI and Z.ai audits — **but for a materially different reason**. Moonshot and Z.ai were ambiguous because the register could not find enforcement evidence; DeepSeek is ambiguous **despite** a documented external constraint record, because that record constrains the *deployment*, not the *development decisions*. It is the first audited entity where external authority demonstrably changed entity behavior (Italy's order removed the service from Italian app stores; bans followed across a dozen jurisdictions) **while the entity's internal release authority remained completely unbounded**.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)` — Severity **WARNING** (pending clarity) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)` — Severity **WARNING** (pending clarity) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
 
 **Significance (the hidden nuggets):** Independent assessment captures a governance vacuum with unusual bluntness. The Future of Life Institute's Summer 2026 Index grades DeepSeek **F** — one of exactly three failing companies, one per continent — and states that its rating "largely reflects the Chinese regulatory environment rather than independent safety leadership," recommending it "move beyond passive deference to regulation toward proactive safety research" and establish a whistleblower policy [D1]. Technical records describe a 4/10 risk profile, **a 100% jailbreak success rate in Cisco testing**, a database exposure exceeding one million records, hardcoded encryption keys, disabled iOS protections, and anti-debugging code that force-closes the app when analysis is detected [D2][D3]. The House Select Committee on the CCP found the app funnels American user data through infrastructure connected to a military-designated telecoms firm and "covertly manipulates the results it presents to align with CCP propaganda, as required by Chinese law" [D4]. For Ground-0 the analytic consequence is sharp: **an entity can be the most externally constrained large model provider on Earth and still be structurally unconstrained at its own governance layer.** The constraints are aimed *at* it; none flows *through* it.
 
@@ -123,7 +123,7 @@ Detected_Phase:            AMBIGUOUS (3/5, LOW) · service scope: GSRB-shaped (4
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          LOW (base) · MEDIUM (service scope)
 Severity_Level:            WARNING (pending clarity)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB (CONDITIONAL, platform scope) · Register-Issued PDH-R (PDH-R-2026-1002-DEEPSEEK-001) · UNATTESTED
 Finding:                   "DeepSeek runs no published safety framework and no internal constraint on its
                            release decisions, while being the most externally restricted model provider in
                            the register. External authority reached the deployment and never entered the
@@ -203,7 +203,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open weights) · GSRB-shaped (service)** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open weights) · GSRB-shaped (service)** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (releases, collects, distributes weights) | Mismatch |
 | Legitimacy Source | External (PRC regulatory environment) | Internal on development; external acts on deployment | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no appeal path anywhere | Conflict |
@@ -233,3 +233,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Highest external-constraint / emptiest internal-governance divergence in the register*
 
 *Finding filed as `PDH-2026-1002-DEEPSEEK-001`: **The most externally banned model provider in the register has no internal governance whatsoever. Constraints reach deployment and stop at the door. AMBIGUOUS (3/5, LOW) on the open-weight surface; GSRB-shaped (4/5, MEDIUM) on the consumer service; constraint record 2/4 from bans alone.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-DEEPSEEK-001` · DeepSeek
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued (Conditional) · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-DEEPSEEK-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:d4119c6bf370b03703ff777a6fa8acea3ac49fde0e08334823701207ed2d98db` |
+| Subject-Entity-ID | DeepSeek |
+| Evidence-File | `GROUND-0 CASE STUDY - DeepSeek.md` |
+| Badge-Class | `◆ GSRB — Register-Issued (Conditional)` |
+| Scope-Tag | `platform/service surface` |
+| Caveat | base audit AMBIGUOUS (3/5) — open-weight release surface unresolved |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

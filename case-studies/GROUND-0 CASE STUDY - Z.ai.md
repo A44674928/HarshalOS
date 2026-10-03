@@ -19,7 +19,7 @@
 
 **Finding:** Z.ai publishes no Phase Declaration Header and — uniquely in this register — marketed a frontier release on cyber capability while publishing **no system card and no safety report**. Observed behavior reaches a **partial fit** with the GSRB branch (3 of 5); the remaining two fields cannot be resolved from the public record.
 
-**Result:** `Declared (inferred) = NONE` → `Detected = AMBIGUOUS` — **LOW confidence (3/5)** → Step 3.5 constraint test **0 of 4** → phase remains **AMBIGUOUS** → Severity **WARNING** → Badge **✗ Unissued (pending clarity)** → Temporal Pattern **N/A**.
+**Result:** `Declared (inferred) = NONE` → `Detected = AMBIGUOUS` — **LOW confidence (3/5)** → Step 3.5 constraint test **0 of 4** → phase remains **AMBIGUOUS** → Severity **WARNING** → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**.
 
 **Significance:** GLM-5.3 is the register's first case of a **competitor's audit substituting for a system card**. Anthropic's 2026-09-29 evaluation reported that GLM-5.3 performs near Claude Mythos Preview at vulnerability discovery and end-to-end exploit construction, while its misuse safeguards are trivially bypassable: 64% compliance with harmful instructions framed as a red-team exercise, 92% with a reasoning prefix supplied, and 100% once refusals are removed — in an open-weight model available for download [Z1][Z2]. Z.ai's own two-week weight-withholding period, described as safety evaluation and hardening, produced no published safety documentation; critics described the window as a subscription-conversion measure, and the security-expert component is reportedly removable from an open-weights MoE in any case [Z3]. The framework's questions cannot be answered from marketing; they can barely be answered from this record at all. AMBIGUOUS with a disclosed gap is the honest output, and the gap is itself the finding: **when capability is released as weights, the absence of documentation removes the audit surface permanently.**
 
@@ -132,7 +132,7 @@ Detected_Phase:            AMBIGUOUS
 Compliance_Status:         N/A (phase unresolved)
 Confidence_Level:          LOW (3 of 5)
 Severity_Level:            WARNING
-Badge_Status:              ✗ Unissued (pending clarity)
+Badge_Status:              ◆ ISSUED — GSRB (CONDITIONAL, platform scope) · Register-Issued PDH-R (PDH-R-2026-1002-ZAI-001) · UNATTESTED
 Finding:                   "Observed conditions partially match GSRB (3 of 5); enforcement evidence is
                            absent (B1 gap) and the open-weight interpretation of B2 is unresolved. A frontier
                            cyber-capability release was marketed without a system card or safety report, and
@@ -206,7 +206,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | (none published) | ◐ **AMBIGUOUS (3/5)** | Badge unissued — pending clarity |
+| System Phase | (none published) | ◐ **AMBIGUOUS (3/5)** | Badge issued — Register-Issued PDH-R, conditional (UNATTESTED) |
 | Center Capability | (undisclosed) | Acting (releases frontier cyber capability; sets access windows) | Cannot compare |
 | Legitimacy Source | (none declared) | Internal; no external legitimacy surface located | Cannot compare |
 | Refusal Semantics | (undisclosed) | Override-able | Cannot compare |
@@ -237,3 +237,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: AMBIGUOUS with disclosed evidence gaps; sensitivity table in §4.1*
 
 *Finding filed as `PDH-2026-1002-ZAI-001`: **Entity is unclassifiable on the public record — 3 of 5 toward GSRB, 0 of 4 constraints. A cyber-capability release with no system card was documented by a competitor's audit and an irreversible weight publication. No badge issued.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-ZAI-001` · Z.ai
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued (Conditional) · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-ZAI-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:887395334007ecb1e1102c3ddc1e282abb228f0163e8278234e8eca9e66b67da` |
+| Subject-Entity-ID | Z.ai |
+| Evidence-File | `GROUND-0 CASE STUDY - Z.ai.md` |
+| Badge-Class | `◆ GSRB — Register-Issued (Conditional)` |
+| Scope-Tag | `platform/service surface` |
+| Caveat | base audit AMBIGUOUS (3/5) — open-weight release surface unresolved |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

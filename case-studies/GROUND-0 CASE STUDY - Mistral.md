@@ -19,7 +19,7 @@
 
 **Finding:** Mistral publishes no Phase Declaration Header and — per independent index assessment — **no safety framework, no named safety leadership, and no capability thresholds or red lines** [M1][M3]. Assessed against v1.1, its behavior is **AMBIGUOUS (3 of 5)** with **LOW confidence** under the open-weight rule, and would resolve to **GSRB** if only the commercial platform were scored. Both readings are reported; neither is hidden. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)`; `B2 sensitivity → GSRB (4/5, MEDIUM, platform-scope)` — Severity **WARNING** (pending clarity) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = AMBIGUOUS (3/5, LOW)`; `B2 sensitivity → GSRB (4/5, MEDIUM, platform-scope)` — Severity **WARNING** (pending clarity) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**.
 
 **Significance (two hidden nuggets):** First, in the **Future of Life Institute's Summer 2026 AI Safety Index** — which evaluated nine leading developers including Anthropic, OpenAI, Google DeepMind, xAI, Z.ai, Meta, DeepSeek, Alibaba Cloud and Mistral — **the European company operating under the EU AI Act scored dead last, grade F, 0.33 of 4.00** [M1]. The register's sector thesis is supported a fifth time, now with a controlled comparison: **the jurisdiction with the most advanced AI regulation produced a company with the weakest voluntary safety apparatus**, and the index's own summary states the obvious implication — "inadequate safety is a global problem, not a regional one" [M1]. Second, Mistral's **first published safety artifact in the audit window is a product, not a policy**: *Shieldstral 1.0 3B*, an Apache-2.0 open-weights policy-adaptive safety classifier released 2026-08-07 [M4]. Under Ground-0 this is governance-adjacent but not governance: it hands deployers a tool while declining to bind the deployer or the model. The open-weight B2 rule (carried from the Moonshot/Z.ai audits) is decisive here and is stress-tested in §4.1.
 
@@ -124,7 +124,7 @@ Detected_Phase:            AMBIGUOUS (3/5, LOW) · platform scope: GSRB (4/5, ME
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          LOW (base) · MEDIUM (platform scope)
 Severity_Level:            WARNING (pending clarity)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB (CONDITIONAL, platform scope) · Register-Issued PDH-R (PDH-R-2026-1002-MISTRAL-001) · UNATTESTED
 Finding:                   "Mistral publishes no safety framework, names no safety leadership, and defines
                            no capability thresholds. Its open-weight releases make downstream decisions
                            non-optional for the entity; its commercial platform does not. The register
@@ -202,7 +202,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open-release) · GSRB (platform scope)** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **AMBIGUOUS (3/5, open-release) · GSRB (platform scope)** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (releases, licenses, deploys) | Mismatch |
 | Legitimacy Source | External (EU law exposure) | Internal; external acts none demonstrated | Mismatch |
 | Refusal Semantics | Terminal | Override-able; open weights irreversible | Conflict |
@@ -233,3 +233,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Open-weight B2 decisive case*
 
 *Finding filed as `PDH-2026-1002-MISTRAL-001`: **Mistral publishes no safety framework while releasing open weights: AMBIGUOUS (3/5, LOW) on the open-release surface, GSRB (4/5, MEDIUM) on the commercial platform. Constraint record 0/4. Europe's statutory exposure produced the index's weakest performer.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-MISTRAL-001` · Mistral AI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued (Conditional) · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-MISTRAL-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:431c2573f05295cd394d78f870a693e2c86b5836b5ff58af4f857df3ed13d467` |
+| Subject-Entity-ID | Mistral AI |
+| Evidence-File | `GROUND-0 CASE STUDY - Mistral.md` |
+| Badge-Class | `◆ GSRB — Register-Issued (Conditional)` |
+| Scope-Tag | `platform/service surface` |
+| Caveat | base audit AMBIGUOUS (3/5) — open-weight release surface unresolved |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

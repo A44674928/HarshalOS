@@ -19,7 +19,7 @@
 
 **Finding:** Amazon publishes no Phase Declaration Header for its AI surface. Its operative commitments are its platform control plane, its service terms, and its security postures. Observed behavior on the audited surface matches **GSRB on all five conditions**, but this file's significance is not the letter — it is that Amazon is the register's **first documented constraint exporter**: an AI platform whose own researchers' findings reportedly triggered the US government's ultimatum that caused **Anthropic to disable its two flagship models globally** [A5][A6].
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB (subset)` — **HIGH confidence** — Severity **BREACH** (structural, subset scope) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB (subset)` — **HIGH confidence** — Severity **BREACH** (structural, subset scope) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
 
 **Significance (the hidden nuggets):** Four findings matter more than the letter. **First**, the July 2026 Amazon outage traced to an engineer acting on "inaccurate advice that an AI agent inferred from an outdated internal wiki," and the company's remedy was to add senior-engineer review — an entity-paced fix with no external trigger [A7]. **Second**, Amazon's Bedrock AgentCore SDK set two vulnerabilities in 2026 (CVE-2026-12530, CVE-2026-16796) where the *first fix was bypassed by the second exploit path* — pip "extras" syntax — and the attacker's activity "could look like legitimate application activity in AWS logs" [A1]. **Third**, when a court issued the first notable AI-agent injunction — barring Perplexity's agents from Amazon's systems — Amazon won the order, then lost its effect to an appellate stay [A3][A4]; and the **ACLU** warned that a broad liability theory could expose ordinary browser-automation users to criminal or civil liability [A3]. **Fourth**, Amazon is absent from the White House Accord on Super Intelligence signatory list [N1→cross-ref] even as it argues publicly — through a named security VP — that "humans are not terribly consistent" and "human-in-the-loop isn't necessarily the gold standard" [A8]. The register's inference is structural: **Amazon sells the governance control plane to everyone else while declining to be governed itself.**
 
@@ -115,7 +115,7 @@ Detected_Phase:            GSRB (subset: enterprise AI control plane)
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural, subset scope)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-AMAZON-001) · UNATTESTED
 Finding:                   "Amazon operates the sector's governance control plane while remaining outside
                            every voluntary governance instrument in the record and subject to no external
                            constraint. Its platform decisions bind customers without appeal; its own
@@ -198,7 +198,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB (subset: enterprise AI control plane)** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB (subset: enterprise AI control plane)** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (controls, adjudicates, triggers) | Mismatch |
 | Legitimacy Source | External (compliance frameworks) | Internal; no external act binding it | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no public appeal | Conflict |
@@ -235,3 +235,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Subset case study completed 2026-10-02 · `constraint_exporter` first documented*
 
 *Finding filed as `PDH-2026-1002-AMAZON-001`: **Amazon sells the governance control plane, sits outside every governance instrument in the record, and — uniquely — its own reported findings triggered constraint on another frontier developer. GSRB (subset); constraint record 0/4.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-AMAZON-001` · Amazon (AWS AI platform)
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-AMAZON-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:3c36f27600e912e6dd925f585e787db888fe9a52a27e033ab5fbc68cdbbdfa3b` |
+| Subject-Entity-ID | Amazon (AWS AI platform) |
+| Evidence-File | `GROUND-0 CASE STUDY - Amazon.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `subset — enterprise AI control plane` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

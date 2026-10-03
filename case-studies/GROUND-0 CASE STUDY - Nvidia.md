@@ -19,7 +19,7 @@
 
 **Finding:** NVIDIA publishes no Phase Declaration Header. Its operative commitments are licensing terms, allocation decisions, and stated compliance posture toward export controls. Observed behavior matches **GSRB on all five v1.1 conditions**.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**; **constraint decrement observed** (loosening, not tightening — see §IV). Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**, with a **DRIFT flag: decrement**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**; **constraint decrement observed** (loosening, not tightening — see §IV). Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**, with a **DRIFT flag: decrement**.
 
 **Significance (the hidden nugget):** NVIDIA is in this register because **it is the only entity on which the entire sector's compute depends and whose named leadership position was signed into the White House Accord on Super Intelligence on 2026-09-29, while the accord itself carries no penalties and no publication requirement** [N1][N2][N3]. NVIDIA sits on both sides of the framework's core question: it builds no frontier intelligence, yet it decides *who may compute how much*, and — as the 2026 record shows — **that decision-making is the object of the only binding external instrument in the whole American AI stack**: export control. The register's finding is that when frontier safety is voluntary everywhere else, the binding rules land on **hardware**, not intelligence. NVIDIA's China share fell from ~95% to zero under those rules, a $4.5B charge followed, and in January 2026 the rules were loosened again through a case-by-case review with a 25% tariff and a 50%-volume cap [N4]. That is an *external constraint running downhill* — which is why this file records the sector's first **constraint decrement**.
 
@@ -115,7 +115,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-NVIDIA-001) · UNATTESTED
 Finding:                   "NVIDIA controls compute allocation through platform coupling and distribution
                            policy, makes no appealable decision available to affected parties, and persists
                            in authority by default. The only binding external instrument affecting its
@@ -196,7 +196,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (allocates, gates, licenses, advocates) | Mismatch |
 | Legitimacy Source | External (export-control compliance) | Internal on allocation; external acts binding | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no appeal path | Conflict |
@@ -229,3 +229,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Compute-layer case study completed 2026-10-02 · DRIFT (constraint decrement)*
 
 *Finding filed as `PDH-2026-1002-NVIDIA-001`: **NVIDIA governs compute allocation without appeal while the only binding external instrument in the sector's stack — export control — loosened during the audit window. Constraint record 2/4 with DRIFT; GSRB on the compute-governance surface.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-NVIDIA-001` · NVIDIA
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-NVIDIA-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:154e4e0abc8e7317f70c5489d89870dbda74a709ccee1218002a90e84c796ae1` |
+| Subject-Entity-ID | NVIDIA |
+| Evidence-File | `GROUND-0 CASE STUDY - Nvidia.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `compute-governance surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

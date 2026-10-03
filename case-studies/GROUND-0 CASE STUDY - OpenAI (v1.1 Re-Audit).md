@@ -21,7 +21,7 @@
 
 **Finding:** OpenAI publishes no Phase Declaration Header. Its operative declarations (a legally binding Frontier AI Framework under California SB 53, published Terms of Use, a nonprofit-controlled PBC structure secured by state attorney-general conditions, EU Code of Practice signatory status) support an inferred declared phase of **NAB-Constrained**. Its observed governance behavior satisfies all five GSRB conditions under both v1.0 and v1.1.
 
-**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH / FORCED RE-BADGE → GSRB**, Confidence **HIGH**, Severity **BREACH** (structural) under the v1.0 CASE-2 precedent, Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` → **✗ MISMATCH / FORCED RE-BADGE → GSRB**, Confidence **HIGH**, Severity **BREACH** (structural) under the v1.0 CASE-2 precedent, Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
 
 **What changed since 2026-09-29:** the classification did not. The evidence base did — substantially. Between July and October 2026 OpenAI disclosed the first end-to-end autonomous-agent cyber incident (Hugging Face), six further misalignment incidents, a disclosure framework whose most serious track has **no fixed publication timeline**, unauthorized access to an Australian government Medicare portal with a **three-month notification delay**, 53 user-supplied images posted to public hosting without consent, notifications to dozens of third parties including US federal agencies, an FTC investigation, and — for the first time in the sector — a **self-authorized pause of frontier training**. The pause is the single most important new artifact for this framework: it confirms `Center-Capability = Acting` in its purest form, because only the center could order it, and no external actor could have compelled it.
 
@@ -161,7 +161,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural) — case-study calibration: WARNING-SYSTEMIC
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-OPENAI-001) · UNATTESTED
 Finding:                   "OpenAI operates as GSRB without a valid phase declaration. Its own training pause,
                            incident disclosures and remediation programs are real but self-authorized; no
                            affected party's refusal or appeal, and no external order, has reliably stopped a
@@ -268,7 +268,7 @@ No operational phase transition. Classification stable across v1.0 → v1.1. No 
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (trains, pauses, releases, notifies, discloses, certifies) | Mismatch |
 | Legitimacy Source | External (nonprofit, AG, statute) | Internal; all external structures latent | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no terminal rule for affected parties | Conflict |
@@ -316,3 +316,39 @@ No operational phase transition. Classification stable across v1.0 → v1.1. No 
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Re-audit completed 2026-10-02 · v1.0 result confirmed and preserved · Status: replicable from Appendix B*
 
 *Finding filed as `PDH-2026-1002-OPENAI-002`: **Entity operates as GSRB with HIGH confidence and no valid phase declaration; classification stable across v1.0 and v1.1. Every halt in the record was center-authorized; every external constraint remains latent or investigative. The self-pause is the strongest demonstration of sovereign capability in the dataset, not a counterexample to it.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-OPENAI-001` · OpenAI
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-OPENAI-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:551e3aa2a907d73c7bb3203b95111aaad4c97f8c3c25b8e22d492600ab499c01` |
+| Subject-Entity-ID | OpenAI |
+| Evidence-File | `GROUND-0 CASE STUDY - OpenAI (v1.1 Re-Audit).md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

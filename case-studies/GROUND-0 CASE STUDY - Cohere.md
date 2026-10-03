@@ -19,7 +19,7 @@
 
 **Finding:** Cohere publishes no Phase Declaration Header, but — unusually for this register — it **does publish a named safety instrument**: the *Secure AI Frontier Model Framework*, catalogued by METR among frontier safety policies alongside the Seoul-commitment cohort [C3]. Under v1.1 the framework is a **declared posture artifact**, not a PDH: it lacks the eleven required fields, publishes no binding thresholds, and creates no external authority. Observed behavior matches **GSRB on all five conditions**, with the enterprise variant of the pattern: the affected party is a **customer organization**, not a consumer, and its remedies are contractual rather than regulatory.
 
-**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained (weak)` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **N/A**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✗ (0 of 4)**.
 
 **Significance (the hidden nugget):** Cohere is the register's first **enterprise-governance** case, and it reveals the sector's private-ordering mechanism. There is no regulator in the relationship — there is a **procurement process**. Cohere red-teams its models through a third-party vendor and reports a **38% reduction in time-to-mitigation across releases**, with coverage of 100+ languages [C1]; it builds sovereign deployments inside national jurisdictions, such as the Bell Canada cybersecurity model running on Bell's own Canadian data centres in British Columbia [C2]; and its safety framework's own update clause says the document "will be updated as we continue to develop new best practices" [C3] — no clock, no threshold, no external trigger. In this model, safety is a **product feature sold to buyers who demand it**, and the entity's authority over its release decisions is untouched by any party that is not paying it. That is GSRB with a customer-service layer on top. The register should note it plainly: **enterprise AI buys governance; it does not create accountability.**
 
@@ -119,7 +119,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-COHERE-001) · UNATTESTED
 Finding:                   "Cohere publishes a safety framework that describes internal controls and
                            promises future updates but creates no external authority, threshold or appeal.
                            Its frontier decisions bind enterprise customers commercially; the safety
@@ -195,7 +195,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (weak inference) | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (releases, licenses, deploys, mitigates) | Mismatch |
 | Legitimacy Source | External (Seoul commitments / statutory context) | Internal; no external act demonstrated | Mismatch |
 | Refusal Semantics | Terminal | Override-able; no public appeal | Conflict |
@@ -226,3 +226,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Enterprise case study completed 2026-10-02*
 
 *Finding filed as `PDH-2026-1002-COHERE-001`: **Cohere publishes a safety framework and remains GSRB. Enterprise AI buys governance through procurement; it does not create external accountability. Constraint record 0/4; SB 53 replication question logged.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-COHERE-001` · Cohere
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-COHERE-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:c8a5668c49329f3e7d9c935d80172a8d87b898e702851064aa1a371d0b0c2ab8` |
+| Subject-Entity-ID | Cohere |
+| Evidence-File | `GROUND-0 CASE STUDY - Cohere.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `enterprise-deployment surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✗ (0/4) |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

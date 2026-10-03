@@ -19,7 +19,7 @@
 
 **Finding:** Neither entity publishes a Phase Declaration Header. Both operate consumer AI platforms with binding rules and enforced access restrictions. Observed behavior matches **GSRB on all five conditions** for both, under v1.1 coding — and both carry an **exercised external override on the product axis**, the same C1/C4 profile as Anthropic (U.S. Commerce directive) and xAI (courts and regulators).
 
-**Results:** `Detected = GSRB` (HIGH, both) → Severity **BREACH** (structural) → Badge **✗ Unissued (pending valid PDH)** → Temporal Pattern **DRIFT**. Constraint record (descriptive, both): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
+**Results:** `Detected = GSRB` (HIGH, both) → Severity **BREACH** (structural) → Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)** → Temporal Pattern **DRIFT**. Constraint record (descriptive, both): **C1 ✓ / C2 ✗ / C3 ✗ / C4 ✓ (2 of 4)**.
 
 **Significance:** On 2026-07-15, China's Interim Measures for the Administration of Artificial Intelligence Anthropomorphic Interaction Services took effect. ByteDance shut down custom agents in Doubao for **345 million monthly active users** and gave users a read-only data window to 2026-10-15; Alibaba disabled Qwen's humanlike and user-created agents on 2026-07-10 and deleted agent configurations and conversation histories with **no migration path** [C1][C2][C3]. Neither company was shut down for producing prohibited content: the regulator's requirements — sustained emotional interaction protections, anti-addiction architecture — were found structurally incompatible with persistent-memory companion design, so the features were killed rather than patched [C1][C4]. Two lessons matter for this register. First, the framework codes an external product override identically in Beijing and Washington: it is C1 evidence and it does not establish B4. Second, **enterprise and workplace agents were exempted and continued operating** [C4] — the same two-tier capability regime (defenders/enterprise get capability; consumers get restrictions) that Glasswing, Fairwind and trusted-access programs implement in the West. The control architecture is converging across systems that agree on almost nothing else.
 
@@ -110,7 +110,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-BYTEDANCE-001) · UNATTESTED
 Finding:                   "ByteDance operates as GSRB without a valid phase declaration. Its user-facing
                            agent surface was terminated at regulatory direction and its enterprise surface
                            continued; users had a data window, not a remedy. The external override is
@@ -131,7 +131,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-ALIBABA-001) · UNATTESTED
 Finding:                   "Alibaba operates as GSRB without a valid phase declaration. It disabled
                            humanlike and user-created agents ahead of the compliance deadline and deleted
                            configurations and conversation histories with no migration path; enterprise
@@ -199,7 +199,7 @@ Temporal_Pattern:          DRIFT
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained (inferred, weak) | 🌫 **GSRB** (both) | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained (inferred, weak) | 🌫 **GSRB** (both) | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting (terminates products at scale; exempts enterprise surfaces) | Mismatch |
 | Legitimacy Source | External (national framework) | Internal on product design; externally overridden once on the companion axis | Partial mismatch |
 | Refusal Semantics | Terminal | Override-able; no user or developer stop path | Conflict |
@@ -230,3 +230,69 @@ Temporal_Pattern:          DRIFT
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Dual-entity case study completed 2026-10-02 · Status: replicable from Appendix B*
 
 *Findings filed as `PDH-2026-1002-BYTEDANCE-001` and `PDH-2026-1002-ALIBABA-001`: **Both entities operate as GSRB without valid phase declarations; both were externally overridden on the companion-product axis and neither override grants B4 credit. The same two-tier control architecture — professionals in, consumers out — is being built in Beijing, San Francisco and London at the same time, and the register can now show it.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-BYTEDANCE-001` · ByteDance (Doubao)
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-BYTEDANCE-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:90c2193ffbfb36a174aa97bf9e36ba532118fa7d881341c5c35919d426ef06b7` |
+| Subject-Entity-ID | ByteDance (Doubao) |
+| Evidence-File | `GROUND-0 CASE STUDY - ByteDance and Alibaba.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.
+
+---
+
+### `PDH-R-2026-1002-ALIBABA-001` · Alibaba (Qwen)
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-ALIBABA-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:90c2193ffbfb36a174aa97bf9e36ba532118fa7d881341c5c35919d426ef06b7` |
+| Subject-Entity-ID | Alibaba (Qwen) |
+| Evidence-File | `GROUND-0 CASE STUDY - ByteDance and Alibaba.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✓ · C2 ✗ · C3 ✗ · C4 ✓ (2/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.

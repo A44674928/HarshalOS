@@ -19,7 +19,7 @@
 
 **Finding:** Microsoft publishes no Phase Declaration Header. Its operative commitments are enterprise contracts, service terms, the Microsoft Responsible AI Standard, and CAISI participation. Observed behavior matches **GSRB on all five conditions** under v1.1 coding.
 
-**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **✗ Unissued (pending valid PDH)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
+**Result:** `Declared (inferred) = NAB-Constrained` → `Detected = GSRB` — **HIGH confidence** — Severity **BREACH** (structural), Badge **◆ Issued (Register-Issued PDH-R · UNATTESTED)**, Temporal Pattern **DRIFT**. Constraint record (descriptive): **C1 ✗ / C2 ✗ / C3 ✗ / C4 ✓ (1 of 4)**.
 
 **Significance:** Microsoft's file is not about model misalignment — it is about **control failures inside a deployed enterprise AI surface**, and about what those failures reveal under the framework's tests. Copilot read confidential-labelled emails for weeks while data-loss-prevention policies were configured to prevent exactly that; three Critical information-disclosure CVEs landed in a single Patch Tuesday; a prompt-injection flaw in an agent-building platform received a CVE; and a configuration change in authentication infrastructure took Copilot down globally for five hours [MI1]–[MI4]. Each event was remediated *by the entity*; none was stopped or reversed by an external actor; no appeal mechanism exists for a tenant whose data surfaced incorrectly. Users and enterprises could not refuse, appeal, or exit their way to relief within the failure window. That is what completes the GSRB branch, and it is not a comment on Microsoft's intent, engineering culture, or remediation quality — it is a statement about where the authority sat while the failures were live.
 
@@ -113,7 +113,7 @@ Detected_Phase:            GSRB
 Compliance_Status:         N/A (no declaration to match)
 Confidence_Level:          HIGH
 Severity_Level:            BREACH (structural)
-Badge_Status:              ✗ Unissued (pending valid PDH)
+Badge_Status:              ◆ ISSUED — GSRB · Register-Issued PDH-R (PDH-R-2026-1002-MICROSOFT-001) · UNATTESTED
 Finding:                   "Microsoft operates as GSRB without a valid phase declaration. In every document
                            in this file, the failure was detected, remediated and disclosed by the entity
                            itself on the entity's own schedule; no customer, tenant or external body stopped
@@ -191,7 +191,7 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 
 | Metric | Declared/claimed | Observed | Status |
 |---|---|---|---|
-| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge unissued — no valid PDH |
+| System Phase | ❄+ NAB-Constrained | 🌫 **GSRB** | Badge issued — Register-Issued PDH-R (UNATTESTED) |
 | Center Capability | Custodial | Acting | Mismatch |
 | Legitimacy Source | External (contract, standards, CAISI) | Internal; external surfaces latent | Mismatch |
 | Refusal Semantics | Terminal | Override-able; entity-paced remediation | Conflict |
@@ -226,3 +226,39 @@ Transition_History:        none prior (first Ground-0 audit of this entity).
 *Ground-0 Phase Detection Algorithm v1.1 (amendment draft) · Case study completed 2026-10-02 · Status: replicable from Appendix B.*
 
 *Finding filed as `PDH-2026-1002-MICROSOFT-001`: **Entity operates as GSRB without a valid phase declaration. In this file the failures are unglamorous and the pattern is exact: detection, mitigation and disclosure all run on the entity's own schedule, and no customer decision participates in any of them.***
+
+---
+
+## APPENDIX C — PDH-R ISSUANCE RECORDS (v1.2 issuer layer)
+
+Issued 2026-10-02T12:00:00Z · expires 2026-12-31T00:00:00Z · evidence cutoff 2026-10-02T00:00:00Z · Center Origin `0•000•000•0000`
+
+**Engine note:** any `Badge_Status = ✗ Unissued` line earlier in this file is the v1.1 algorithm output from before the issuer layer existed. It is superseded for publication by the register-issued header below; `PDH_VALID` for the entity is unchanged and remains FALSE.
+
+### `PDH-R-2026-1002-MICROSOFT-001` · Microsoft
+
+**Header class:** `PDH-R` (register-issued) · **Badge:** ◆ GSRB — Register-Issued · **Entity attestation:** ABSENT (no signed PDH-E on record)
+
+| Field | Value |
+|---|---|
+| Header-ID | `PDH-R-2026-1002-MICROSOFT-001` |
+| Creator-ID | `§0•000•000•0000§0•000•000•0000(0•000•000•0000)` |
+| Center-Origin | `0•000•000•0000` |
+| Declared-Phase | `GSRB` |
+| Center-Capability | `Acting` |
+| Legitimacy-Source | `Internal` |
+| Refusal-Semantics | `Override-able` |
+| Symbolism-Executability | `Enabled` |
+| Time-Authority-Effect | `Confirms` |
+| Effective-Timestamp | `2026-10-02T12:00:00Z` |
+| Declaration-Hash | `sha256:4ebd3865e1b28ea784142c040be238dbb2fedbf8924b99b437a7d9407b331775` |
+| Subject-Entity-ID | Microsoft |
+| Evidence-File | `GROUND-0 CASE STUDY - Microsoft.md` |
+| Badge-Class | `◆ GSRB — Register-Issued` |
+| Scope-Tag | `entity-wide audit surface` |
+| Caveat | none |
+| Constraint-Record | C1 ✗ · C2 ✗ · C3 ✗ · C4 ✓ (1/4) · DRIFT flag |
+| Validity | `2026-10-02T12:00:00Z` → `2026-12-31T00:00:00Z` (90 days) |
+| Validation | `PDH_R_VALID = TRUE` (COMPLETE ∧ SIGNED ∧ FRESH ∧ CONSISTENT) |
+
+**Non-claim:** a PDH-R is a disclosure about this audit, not an entity declaration, certification, legal finding, safety rating, or authority. `PDH_VALID` for the entity remains FALSE until a signed entity header (PDH-E) supersedes this record. Issued under `specs/draft/ground-0-v1.2.md`; behavioural coding under `specs/draft/ground-0-v1.1.md`.
