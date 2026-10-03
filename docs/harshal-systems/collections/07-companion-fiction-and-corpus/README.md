@@ -10,7 +10,7 @@
 
 | Module ID | Part / Document | Provenance Class | Status Taxonomy | Evidence Status & Extent |
 | :--- | :--- | :--- | :--- | :--- |
-| `24-the-novel` | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](../../24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` (15,940 words) |
+| `24-the-novel` | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](../../24-the-novel.md) | `FICTION` | `FICTION_PREVIEW` | `NARRATIVE_SANDBOX` (16,338 words) |
 | `convergence-institutions` | [Convergence Institutions — Fictional Reference Module](../../modules/convergence-institutions.md) | `FICTION` | `NARRATIVE_REFERENCE_MODULE` | `NARRATIVE_SANDBOX` (352 words) |
 | `grand-architecture` | [The Grand Architecture — Convergence-Era Infrastructure Architecture Module](../../modules/grand-architecture.md) | `FICTION` | `NARRATIVE_ARCHITECTURE_MODULE` | `NARRATIVE_SANDBOX` (1,732 words) |
-| `27-whole-corpus` | [Part XXVII — Whole Corpus / Complete Work](../../27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` (2,038 words) |
+| `27-whole-corpus` | [Part XXVII — Whole Corpus / Complete Work](../../27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` (2,041 words) |

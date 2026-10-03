@@ -200,10 +200,19 @@ const shell = (() => {
   function buildDesktopIcons() {
     const field = $("#icon-field");
     field.innerHTML = "";
-    APPS.forEach(app => {
+    const orderedApps = [...APPS].sort((a, b) => {
+      const aName = a.short || a.title || a.id;
+      const bName = b.short || b.title || b.id;
+      return aName.localeCompare(bName, "en", { sensitivity: "base", numeric: true })
+        || String(a.id).localeCompare(String(b.id), "en", { sensitivity: "base", numeric: true });
+    });
+    orderedApps.forEach(app => {
       const b = document.createElement("button");
+      const label = app.short || app.title;
       b.className = "desk-icon";
-      b.innerHTML = `<span class="di-glyph">${app.glyph}</span><span class="di-label">${app.short || app.title}</span>`;
+      b.setAttribute("aria-label", `Open ${app.title}`);
+      b.setAttribute("title", app.title);
+      b.innerHTML = `<span class="di-glyph">${app.glyph}</span><span class="di-label">${label}</span>`;
       b.addEventListener("dblclick", () => openApp(app));
       b.addEventListener("click", () => openApp(app));
       field.appendChild(b);

@@ -303,9 +303,13 @@ const field = body.querySelector("#icon-field");
 ok(!!field, "desktop icon field exists");
 const icons = field ? field.querySelectorAll(".desk-icon") : [];
 ok(icons.length === globalThis.APPS.length, `every app gets a desktop icon (${icons.length}/${globalThis.APPS.length})`);
+const iconLabels = icons.map(icon => icon.querySelector(".di-label")?.textContent || "");
+const alphabeticLabels = [...iconLabels].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }));
+ok(iconLabels.every((label, index) => label === alphabeticLabels[index]), "desktop icons follow a stable alphabetical reading order");
 const g0icon = icons.find(i => (i.textContent || "").includes("Ground-0 Audit"));
 ok(!!g0icon, "Ground-0 Audit icon is on the desktop");
 ok(!!(g0icon && (g0icon.textContent || "").includes("⚖")), "the icon shows the scales glyph");
+ok(!!(g0icon && g0icon.attrs["aria-label"] === "Open Ground-0 Audit"), "every icon exposes an accessible full-name action");
 
 /* ── double-click the icon → the Ground-0 window opens ────────── */
 if (g0icon) {

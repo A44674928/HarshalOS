@@ -21,7 +21,7 @@ canonical_decision_flow: "Identity → Representation → Authorization → Cont
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "7790–9942"
-words: 28232
+words: 28045
 ---
 
 # Part XX — Supply Chain and Implanted-Device Threat Research
@@ -32,7 +32,7 @@ words: 28232
 
 > Defensive threat research (Supply Chain Attack Vector++): chip-level compromise, distribution deception, target profiles, and the address catalog.
 
-**Source range:** lines 7790–9942 of the Owner’s Working Draft · **Words:** 28,232
+**Source range:** lines 7790–9942 of the Owner’s Working Draft · **Words:** 28,045
 
 ---
 

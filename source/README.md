@@ -19,7 +19,7 @@ Outputs:
 
 | Path | What it is |
 |---|---|
-| `HARSHAL-SYSTEMS-USER-MANUAL.md` | The assembled single-file manual |
+| `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md` | The assembled single-file manual |
 | `docs/harshal-systems/*.md` | The same manual, one file per part |
 | `docs/harshal-systems/EDITORIAL-REPORT.md` | What the build found and changed |
 | `docs/harshal-systems/README.md` | Index of the parts |

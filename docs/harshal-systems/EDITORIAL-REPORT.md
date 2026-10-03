@@ -3,7 +3,7 @@
 **Work:** Harshal’s Systems — The Ultimate User Manual (Book I Reference Library & Book II Preview Mirror)
 **Source:** `Harshal’s Systems (Copyrighted) [Owner’s Working Draft].md`
 (1,278,427 bytes · 16,674 lines · 165,900 words) + synchronized `manuscript/the-grand-river-foundation/` chapters
-**Output:** 189,122 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
+**Output:** 189,240 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
 **Build:** `python3 source/build.py` — deterministic and reproducible.
 
 ---
@@ -186,14 +186,14 @@ The manual now arranges the whole work into **Author's Front Matter (`00`)** plu
 | `17` | **Part XVII** | [Part XVII — Atomic Body Classes and Reactor Doctrine](17-atomic-bodies.md) | `CANONICAL_SOURCE` | 5,611 | 6,481–7,438 |
 | `18` | **Part XVIII** | [Part XVIII — Institutional Application](18-institutional-application.md) | `CANONICAL_SOURCE` | 4,023 | 7,439–7,621 |
 | `19` | **Part XIX** | [Part XIX — Flagship Research: Accountability in Keyed Human–Machine Hybrid Systems](19-research-papers.md) | `CANONICAL_SOURCE` | 5,501 | 7,622–7,789 |
-| `20` | **Part XX** | [Part XX — Supply Chain and Implanted-Device Threat Research](20-supply-chain.md) | `CANONICAL_SOURCE` | 28,232 | 7,790–9,942 |
+| `20` | **Part XX** | [Part XX — Supply Chain and Implanted-Device Threat Research](20-supply-chain.md) | `CANONICAL_SOURCE` | 28,045 | 7,790–9,942 |
 | `21` | **Part XXI** | [Part XXI — MicroConvergence and Signal Encoding](21-microconvergence.md) | `CANONICAL_SOURCE` | 7,578 | 9,943–10,496 |
 | `22` | **Part XXII** | [Part XXII — Supporting Policy & Governance Research Archive](22-policy-archive.md) | `CANONICAL_SOURCE` | 6,710 | 10,497–11,105 |
 | `23` | **Part XXIII** | [Part XXIII — Specification Series](23-specification-series.md) | `CANONICAL_SOURCE` | 9,216 | 11,106–12,508 |
-| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | 16,113 | 12,509–13,016 |
+| `24` | **Part XXIV** | [Part XXIV — Book II Preview: The Grand River Foundation (Fictional Companion Novel)](24-the-novel.md) | `FICTION` | 16,338 | 12,509–13,016 |
 | `25` | **Part XXV** | [Part XXV — Anti-Denial of Justice, Labor Attribution, and NAB I/O Mapping](25-additional-specs.md) | `CANONICAL_SOURCE` | 21,535 | 13,017–16,050 |
 | `26` | **Part XXVI** | [Part XXVI — Incident Record & External Audit: Anthropic PBC (B Side)](26-anthropic-b-side.md) | `AUDIT` | 10,267 | 16,051–16,675 |
-| `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | 2,038 | 1–16,675 |
+| `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | 2,041 | 1–16,675 |
 
 ### 4.1 Rebuilt table of contents
 
@@ -291,7 +291,7 @@ python3 source/build.py
 ```
 
 Input: `source/working-draft.md`
-Outputs: `docs/harshal-systems/*.md`, `HARSHAL-SYSTEMS-USER-MANUAL.md`, this report.
+Outputs: `docs/harshal-systems/*.md`, `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`, this report.
 
 Content integrity was verified by diffing the full token multiset of the source against the
 built manual. The only terms present in the source and absent from the manual are exactly the
