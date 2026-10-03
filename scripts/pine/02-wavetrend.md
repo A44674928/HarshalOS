@@ -1,302 +1,329 @@
-# Script 02 — WaveTrend (Pine v6)
+# Script 02 — LAZY WaveTrend Context Engine [Pro] (Pine v6)
 
-> [!WARNING]
-> **`RECONSTRUCTED` — this Pine block is reverse-engineered from the committed JavaScript
-> port at [`js/good-intelligence-market-context.js`](../../js/good-intelligence-market-context.js).
-> It is not a transcription of the author's original source, which is not in this repository.**
-> Arithmetic, defaults, and signal rules are enforced against the shipped code by
-> `tests/pine-scripts-docs-test.mjs`; equivalence with the original on TradingView is
-> **unverified**.
+> [!NOTE]
+> **User-supplied source, transcribed below.** This is the Pine v6 code you provided in this
+> conversation, not a reconstruction. No TradingView URL, publication date, or author metadata
+> beyond the script title was supplied. No standalone `.pine` file is stored; the complete
+> source is kept in this Markdown code block.
 
 ## Provenance
 
 | Field | Value |
 | :--- | :--- |
+| Pine title | `LAZY - WaveTrend Context Engine [Pro]` |
+| Short title | `LAZY Pro` |
 | Pine version | v6 |
-| Original source | **Not in repository** — supplied out-of-band |
-| Committed port | `js/good-intelligence-market-context.js` → `computeWaveTrend()`, `mapHigherTimeframe()`, `divergenceEvents()` |
-| Port description | `docs/GOOD-INTELLIGENCE-ASSURANCE.md` §"Optional technical market context" |
-| Status in this document | `RECONSTRUCTED` |
+| Source | User-provided in this conversation; external URL and publication date not supplied |
 | Overlay | `false` — oscillator pane |
-
-## Purpose
-
-WaveTrend is a laguerre-style channel oscillator: it measures the price source's deviation
-from its own EMA channel, scaled by the mean absolute deviation of that same channel, then
-smooths the ratio twice. The result is a bounded-ish oscillator read against six fixed
-overbought/oversold levels, with optional higher-timeframe evaluation and pivot divergence
-detection.
+| JS relationship | The core calculation and some event concepts overlap `computeWaveTrend()`, `mapHigherTimeframe()`, and `divergenceEvents()` in `js/good-intelligence-market-context.js`; behavior is not one-to-one and parity is unverified |
 
 ## Inputs
 
-Defaults and ranges are mirrored 1:1 from `DEFAULTS` and `normalizeParameters()`. The
-`confirmClose` gate is documented in
-[`01-vfi-fibonacci-bands.md` §Shared gating](01-vfi-fibonacci-bands.md#shared-gating).
+The JS mapping column identifies supported analysis parameters only. A dash means the current
+port has no matching Pine visual setting. The Pine source does **not** expose a confirmed-bar
+input; the JS market-context port separately has a `confirmClose` parameter.
 
-| Pine input | Type | Default | Range | JS field | Meaning |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `channelLength` | int | `10` | 1–500 | `channelLength` | EMA length of the channel and of the mean absolute deviation |
-| `averageLength` | int | `21` | 1–500 | `averageLength` | EMA length producing `wt1` |
-| `signalLength` | int | `4` | 1–500 | `signalLength` | SMA length producing `wt2` |
-| `wtSrc` | string | `"hlc3"` | hlc3, hl2, close, open, high, low | `wtSrc` | Price source |
-| `useCustomTF` | bool | `false` | — | `useCustomTF` | Evaluate WaveTrend on a higher timeframe instead |
-| `customTF` | string | `"60"` | free text, ≤12 chars | `customTF` | Higher timeframe string |
-| `extremeOB` | float | `70` | −500–500 | `extremeOB` | Extreme overbought level |
-| `obLevel1` | float | `60` | −500–500 | `obLevel1` | Overbought level 1 |
-| `obLevel2` | float | `53` | −500–500 | `obLevel2` | Overbought level 2 — also the bearish-divergence qualifier |
-| `osLevel2` | float | `-53` | −500–500 | `osLevel2` | Oversold level 2 — also the bullish-divergence qualifier |
-| `osLevel1` | float | `-60` | −500–500 | `osLevel1` | Oversold level 1 |
-| `extremeOS` | float | `-70` | −500–500 | `extremeOS` | Extreme oversold level |
-| `divLookback` | int | `5` | 2–20 | `divLookback` | Pivot confirmation bars on each side |
-| `showRegDiv` | bool | `true` | — | `showRegDiv` | Emit regular divergences |
-| `showHidDiv` | bool | `false` | — | `showHidDiv` | Evaluate and emit hidden divergences |
+| Pine input | Type | Pine default | Constraints declared by Pine | JS field |
+| :--- | :--- | :--- | :--- | :--- |
+| `src` | source | `"hlc3"` | TradingView source selector | `wtSrc` |
+| `channelLength` | int | `10` | min 1; no max declared | `channelLength` |
+| `averageLength` | int | `21` | min 1; no max declared | `averageLength` |
+| `signalLength` | int | `4` | min 1; no max declared | `signalLength` |
+| `useCustomTF` | bool | `false` | — | `useCustomTF` |
+| `customTF` | timeframe | `"60"` | TradingView timeframe string | `customTF` |
+| `extremeOB` | float | `70.0` | — | `extremeOB` |
+| `obLevel1` | float | `60.0` | — | `obLevel1` |
+| `obLevel2` | float | `53.0` | — | `obLevel2` |
+| `osLevel2` | float | `-53.0` | — | `osLevel2` |
+| `osLevel1` | float | `-60.0` | — | `osLevel1` |
+| `extremeOS` | float | `-70.0` | — | `extremeOS` |
+| `showRegDiv` | bool | `true` | — | `showRegDiv` |
+| `showHidDiv` | bool | `false` | — | `showHidDiv` |
+| `divLookback` | int | `5` | min 2, max 20 | `divLookback` |
+| `showCloud` | bool | `true` | — | — |
+| `showHisto` | bool | `true` | — | — |
+| `showCrosses` | bool | `true` | — | — |
+| `showExtremes` | bool | `true` | — | — |
+| `barColorMode` | string | `"Off"` | Off, Cross Only, Trend Bias, Extremes Only | — |
 
-Note the two boolean defaults are asymmetric in the port: `showRegDiv` is `input !== false`
-(default **on**) while `showHidDiv` is `input === true` (default **off**).
+## Calculation and behavior
 
-## Mathematics
+### WaveTrend core
 
-Let `S[i]` be the configured `wtSrc`.
+For configured source `src`, the source calculates:
 
-1. `esa[i] = ema(S, channelLength)`
-2. `d[i] = ema(|S − esa|, channelLength)` — the mean absolute deviation of the channel
-3. `ci[i] = d[i] == 0 ? 0 : (S[i] − esa[i]) / (0.015 × d[i])`
-4. `wt1[i] = ema(ci, averageLength)`
-5. `wt2[i] = sma(wt1, signalLength)`
+1. `esa = ta.ema(src, channelLength)`
+2. `d = ta.ema(math.abs(src - esa), channelLength)`
+3. `ci = d != 0.0 ? (src - esa) / (0.015 * d) : 0.0`
+4. `wt1 = ta.ema(ci, averageLength)`
+5. `wt2 = ta.sma(wt1, signalLength)`
 
-The `0.015` divisor is WaveTrend's conventional scaling constant and is not a user input.
+`diff = wt1 - wt2` drives the optional momentum histogram.
 
-### Zone classification
+### Higher-timeframe selection
 
-Evaluated on the last bar's `wt1`, in this order — the first match wins:
+When `useCustomTF` is enabled, each line is requested with `request.security()` and
+`barmerge.gaps_off`. The requested expression is indexed by
+`barstate.isrealtime ? 1 : 0`: real-time bars request the previous value, while historical
+bars request the current value. This exact source behavior is not the same contract as the JS
+port's mapping of supplied, confirmed higher-timeframe candles; it needs TradingView parity
+testing before the two can be treated as interchangeable.
 
-| Zone label | Condition |
+### Crosses and extreme events
+
+- `bullCross` / `bearCross` are WT1/WT2 crossovers/crossunders.
+- `zeroCrossUp` / `zeroCrossDn` are WT1 crossings of zero.
+- `bullExtreme` requires a bullish cross with `wt1 <= extremeOS`.
+- `bearExtreme` requires a bearish cross with `wt1 >= extremeOB`.
+
+The display switches control the histogram, cloud, cross markers, extreme shapes, and
+bar-color mode. They do not change the core WaveTrend calculations.
+
+### Divergence behavior in the supplied source
+
+Pine confirms `pLo` and `pHi` after `divLookback` bars on each side. The regular-divergence
+blocks update `prev_wt_low` / `prev_wt_high` as soon as a pivot is found. The later hidden
+checks compare the current pivot against those just-updated values, so `hidBull` and `hidBear`
+compare a value with itself and remain false whenever a pivot exists. This is the behavior of
+the supplied source as written; it differs from the JS port's hidden-divergence ordering.
+
+`showRegDiv` is used on the regular-divergence plot calls, not on the `regBull` / `regBear`
+calculations or their alert conditions. `showHidDiv` gates the hidden calculations and plots;
+there are no hidden-divergence alert conditions in this source.
+
+### Alerts
+
+| Alert title | Condition |
 | :--- | :--- |
-| `unknown` | `wt1` is not finite |
-| `extreme overbought` | `wt1 >= extremeOB` |
-| `overbought · level 1` | `wt1 >= obLevel1` |
-| `overbought · level 2` | `wt1 >= obLevel2` |
-| `extreme oversold` | `wt1 <= extremeOS` |
-| `oversold · level 1` | `wt1 <= osLevel1` |
-| `oversold · level 2` | `wt1 <= osLevel2` |
-| `neutral zone` | otherwise |
+| `Bullish Cross` | `bullCross` |
+| `Bearish Cross` | `bearCross` |
+| `Extreme Bull Reversal` | `bullExtreme` |
+| `Extreme Bear Reversal` | `bearExtreme` |
+| `Regular Bullish Div` | `regBull` |
+| `Regular Bearish Div` | `regBear` |
+| `Zero-Line Cross Up` | `zeroCrossUp` |
+| `Zero-Line Cross Down` | `zeroCrossDn` |
 
-Because the overbought tests run before the oversold ones, a pathological parameter set with
-`osLevel2 > obLevel2` will classify as overbought.
+No `confirmClose` input or explicit `barstate.isconfirmed` alert gate appears in this script.
 
-### Higher-timeframe mode
+## Port differences to keep in view
 
-When `useCustomTF` is on, WaveTrend is recomputed on `higherTimeframeBars` and mapped back
-onto the base series: for each base bar, the value used is the most recent **confirmed**
-higher-timeframe bar at or before that base bar's timestamp. In Pine this is the
-`request.security(..., barmerge.lookahead_on)` confirmed-HTF idiom.
+- The source input is named `src`; the JS parameter is named `wtSrc`.
+- Pine's real-time/historical `request.security()` expression and the JS port's confirmed-HTF
+  input mapping require separate parity tests.
+- The supplied Pine source's update-before-hidden-check ordering suppresses hidden
+  divergences. The JS port evaluates hidden divergence against the prior pivot before
+  replacing it; that is a behavior difference, not a transcription detail.
+- The JS port does not expose `showCloud`, `showHisto`, `showCrosses`, `showExtremes`, or
+  `barColorMode` as settings. It also applies its own `confirmClose` gate, which is absent
+  from this Pine source.
+- Pine does not declare maximum values for the three core lengths; the JS parameter
+  normalizer caps them at 500. Pine also leaves the six zone thresholds unconstrained, while
+  JS clamps them to −500…500; the JS source selector is limited to its six supported values,
+  and its `customTF` text is capped at 12 characters.
+- Identical formulas do not establish identical EMA/SMA seeding, pivot ties, gaps, or
+  historical/realtime behavior. TradingView bar-for-bar parity has not been established.
 
-Three states are reported, and none of them invents data:
-
-| `timeframeStatus` | Meaning |
-| :--- | :--- |
-| `same-timeframe` | `useCustomTF` off — computed on the base series |
-| `confirmed higher timeframe · {customTF}` | HTF bars supplied and used |
-| `higher-timeframe candles unavailable` | `useCustomTF` on but no HTF bars supplied — `wt1`/`wt2` are null, no signal fires |
-
-### Divergences
-
-Pivots are confirmed `divLookback` bars after the pivot bar: `wt1[p]` is a **low pivot** when
-every other finite value in `[p − divLookback, p + divLookback]` is strictly greater, and a
-**high pivot** when every other finite value is strictly less. Detection therefore happens at
-index `p + divLookback`.
-
-Comparisons use the **prior** pivot of the same kind, and that pivot is replaced *after* both
-the regular and the hidden test are evaluated. The port's comment records why this order
-matters: updating the pivot first suppresses the hidden signal entirely.
-
-| Type | Emitted when | Extra qualifier |
-| :--- | :--- | :--- |
-| `Regular bullish` | `wt` higher low **and** price (`low`) lower low | prior pivot `wt < osLevel2` |
-| `Hidden bullish` | `wt` lower low **and** price (`low`) higher low | `showHidDiv` on |
-| `Regular bearish` | `wt` lower high **and** price (`high`) higher high | prior pivot `wt > obLevel2` |
-| `Hidden bearish` | `wt` higher high **and** price (`high`) lower high | `showHidDiv` on |
-
-Only the last eight events are retained. An event is reported only if it was detected before
-the last bar, or the last bar is confirmed. `recentDivergences` then filters to regular
-events when `showRegDiv` and hidden events when `showHidDiv`.
-
-## Signals
-
-All require `wt1` and `wt2` to be finite on both the last and the prior bar (`waveReady`), and
-`confirmClose` when enabled.
-
-| Alert label | Condition |
-| :--- | :--- |
-| `WaveTrend bullish cross` | `ta.crossover(wt1, wt2)` |
-| `WaveTrend bearish cross` | `ta.crossunder(wt1, wt2)` |
-| `WaveTrend zero-line cross up` | `ta.crossover(wt1, 0)` |
-| `WaveTrend zero-line cross down` | `ta.crossunder(wt1, 0)` |
-| `WaveTrend extreme bullish reversal` | bullish cross **and** `wt1 <= extremeOS` |
-| `WaveTrend extreme bearish reversal` | bearish cross **and** `wt1 >= extremeOB` |
-| `{type} WaveTrend divergence` | one label per divergence detected on the last bar |
-
-## Reconstructed source
+## Source (verbatim transcription)
 
 ```pine
 //@version=6
-// ══════════════════════════════════════════════════════════════════════════
-//  RECONSTRUCTED — NOT THE SUPPLIED ORIGINAL.
-//  Reverse-engineered from js/good-intelligence-market-context.js
-//  (computeWaveTrend / mapHigherTimeframe / divergenceEvents).
-//  Verify against your original before use.
-// ══════════════════════════════════════════════════════════════════════════
-indicator("WaveTrend [HarshalOS reconstruction]", "WT", overlay = false, max_bars_back = 5000)
+indicator("LAZY - WaveTrend Context Engine [Pro]", shorttitle="LAZY Pro", overlay=false)
 
-// ── Inputs ────────────────────────────────────────────────────────────────
-grpW = "WaveTrend"
-channelLength = input.int(10, "Channel length", minval = 1, maxval = 500, group = grpW)
-averageLength = input.int(21, "Average length", minval = 1, maxval = 500, group = grpW)
-signalLength  = input.int(4,  "Signal length",  minval = 1, maxval = 500, group = grpW)
-wtSrcK        = input.string("hlc3", "Source",  options = ["hlc3", "hl2", "close", "open", "high", "low"], group = grpW)
+// ═════════════════════════════════════════════════════════════
+// INPUTS
+// ═════════════════════════════════════════════════════════════
 
-grpT = "Higher timeframe"
-useCustomTF = input.bool(false, "Use higher timeframe", group = grpT)
-customTF    = input.timeframe("60", "Higher timeframe", group = grpT)
+var string G_WT     = "WaveTrend Core"
+var string G_MTF    = "Timeframe"
+var string G_ZONES  = "Zones & Thresholds"
+var string G_DIV    = "Divergence Engine"
+var string G_DISP   = "Display & Visuals"
 
-grpL = "Levels"
-extremeOB = input.float( 70, "Extreme overbought", minval = -500, maxval = 500, group = grpL)
-obLevel1  = input.float( 60, "Overbought 1",       minval = -500, maxval = 500, group = grpL)
-obLevel2  = input.float( 53, "Overbought 2",       minval = -500, maxval = 500, group = grpL)
-osLevel2  = input.float(-53, "Oversold 2",         minval = -500, maxval = 500, group = grpL)
-osLevel1  = input.float(-60, "Oversold 1",         minval = -500, maxval = 500, group = grpL)
-extremeOS = input.float(-70, "Extreme oversold",   minval = -500, maxval = 500, group = grpL)
+// --- WaveTrend Core ---
+src           = input.source(hlc3, "Source", group=G_WT)
+channelLength = input.int(10, "Channel Length", minval=1, group=G_WT)
+averageLength = input.int(21, "Average Length", minval=1, group=G_WT)
+signalLength  = input.int(4,  "Signal Length",  minval=1, group=G_WT)
 
-grpD = "Divergences"
-divLookback = input.int(5, "Pivot lookback", minval = 2, maxval = 20, group = grpD)
-showRegDiv  = input.bool(true,  "Show regular divergences", group = grpD)
-showHidDiv  = input.bool(false, "Show hidden divergences",  group = grpD)
+// --- Timeframe ---
+useCustomTF   = input.bool(false, "Use Higher Timeframe", group=G_MTF)
+customTF      = input.timeframe("60", "Higher Timeframe", group=G_MTF)
 
-confirmClose = input.bool(true, "Signal only on confirmed bar close")
+// --- Zones ---
+extremeOB     = input.float(70.0,  "Extreme Overbought", group=G_ZONES)
+obLevel1      = input.float(60.0,  "Overbought Level 1", group=G_ZONES)
+obLevel2      = input.float(53.0,  "Overbought Level 2", group=G_ZONES)
+osLevel2      = input.float(-53.0, "Oversold Level 2",   group=G_ZONES)
+osLevel1      = input.float(-60.0, "Oversold Level 1",   group=G_ZONES)
+extremeOS     = input.float(-70.0, "Extreme Oversold",   group=G_ZONES)
 
-// ── Core oscillator ───────────────────────────────────────────────────────
-src = switch wtSrcK
-    "hl2"   => hl2
-    "close" => close
-    "open"  => open
-    "high"  => high
-    "low"   => low
-    =>         hlc3
+// --- Divergences ---
+showRegDiv    = input.bool(true,  "Show Regular Divergences", group=G_DIV)
+showHidDiv    = input.bool(false, "Show Hidden Divergences",  group=G_DIV)
+divLookback   = input.int(5,      "Pivot Lookback",           minval=2, maxval=20, group=G_DIV)
 
-esa = ta.ema(src, channelLength)
-d   = ta.ema(math.abs(src - esa), channelLength)
-ci  = d == 0 ? 0.0 : (src - esa) / (0.015 * d)
-wt1 = ta.ema(ci, averageLength)
-wt2 = ta.sma(wt1, signalLength)
+// --- Visual Options ---
+showCloud     = input.bool(true,         "Show WT Ribbon Cloud",        group=G_DISP)
+showHisto     = input.bool(true,         "Show 4-Color Momentum Histo", group=G_DISP)
+showCrosses   = input.bool(true,         "Show Cross Markers",          group=G_DISP)
+showExtremes  = input.bool(true,         "Show Extreme Cross Arrows",   group=G_DISP)
+barColorMode  = input.string("Off",      "Bar Coloring Mode",           options=["Off", "Cross Only", "Trend Bias", "Extremes Only"], group=G_DISP)
 
-// ── Optional higher timeframe ─────────────────────────────────────────────
-// lookahead_on + gaps_off is the non-repainting confirmed-HTF idiom, which is
-// what mapHigherTimeframe() emulates by forward-filling the last confirmed bar.
-[htWt1, htWt2] = request.security(syminfo.tickerid, customTF, [wt1, wt2], barmerge.gaps_off, barmerge.lookahead_on)
-pWt1 = useCustomTF ? htWt1 : wt1
-pWt2 = useCustomTF ? htWt2 : wt2
 
-// ── Signals ───────────────────────────────────────────────────────────────
-ok = not confirmClose or barstate.isconfirmed
+// ═════════════════════════════════════════════════════════════
+// CORE CALCULATION ENGINE
+// ═════════════════════════════════════════════════════════════
 
-wtBull     = ta.crossover(pWt1, pWt2)  and ok
-wtBear     = ta.crossunder(pWt1, pWt2) and ok
-zeroUp     = ta.crossover(pWt1, 0)     and ok
-zeroDown   = ta.crossunder(pWt1, 0)    and ok
-bullExtreme = wtBull and pWt1 <= extremeOS
-bearExtreme = wtBear and pWt1 >= extremeOB
+calc_wavetrend(_src, _chLen, _avgLen, _sigLen) =>
+    esa = ta.ema(_src, _chLen)
+    d   = ta.ema(math.abs(_src - esa), _chLen)
+    ci  = d != 0.0 ? (_src - esa) / (0.015 * d) : 0.0
+    tci = ta.ema(ci, _avgLen)
+    w1  = tci
+    w2  = ta.sma(w1, _sigLen)
+    [w1, w2]
 
-// ── Divergences ───────────────────────────────────────────────────────────
-pl = ta.pivotlow(pWt1,  divLookback, divLookback)
-ph = ta.pivothigh(pWt1, divLookback, divLookback)
+// Multi-Timeframe security resolution with repainting prevention
+[raw_wt1, raw_wt2] = calc_wavetrend(src, channelLength, averageLength, signalLength)
 
-var float prevLowWt  = na
-var float prevLowPx  = na
-var float prevHighWt = na
-var float prevHighPx = na
+wt1 = useCustomTF ? request.security(syminfo.tickerid, customTF, raw_wt1[barstate.isrealtime ? 1 : 0], gaps=barmerge.gaps_off) : raw_wt1
+wt2 = useCustomTF ? request.security(syminfo.tickerid, customTF, raw_wt2[barstate.isrealtime ? 1 : 0], gaps=barmerge.gaps_off) : raw_wt2
 
-regBull = false, hidBull = false
-regBear = false, hidBear = false
+diff = wt1 - wt2
 
-if not na(pl)
-    curWt = pWt1[divLookback]
-    curPx = low[divLookback]
-    if not na(prevLowWt)
-        // Evaluate against the prior pivot BEFORE replacing it — replacing it
-        // first suppresses the hidden signal (see the port's comment).
-        regBull := showRegDiv and curWt > prevLowWt and curPx < prevLowPx and prevLowWt < osLevel2
-        hidBull := showHidDiv and curWt < prevLowWt and curPx > prevLowPx
-    prevLowWt := curWt
-    prevLowPx := curPx
 
-if not na(ph)
-    curWt = pWt1[divLookback]
-    curPx = high[divLookback]
-    if not na(prevHighWt)
-        regBear := showRegDiv and curWt < prevHighWt and curPx > prevHighPx and prevHighWt > obLevel2
-        hidBear := showHidDiv and curWt > prevHighWt and curPx < prevHighPx
-    prevHighWt := curWt
-    prevHighPx := curPx
+// ═════════════════════════════════════════════════════════════
+// SIGNALS & CONTEXT
+// ═════════════════════════════════════════════════════════════
 
-// ── Plots ─────────────────────────────────────────────────────────────────
-plot(pWt1, "WT1", color = color.new(color.aqua,   0), linewidth = 2)
-plot(pWt2, "WT2", color = color.new(color.orange, 0))
+bullCross   = ta.crossover(wt1, wt2)
+bearCross   = ta.crossunder(wt1, wt2)
+zeroCrossUp = ta.crossover(wt1, 0)
+zeroCrossDn = ta.crossunder(wt1, 0)
 
-hline(extremeOB, "Extreme OB", color = color.new(color.red,    60))
-hline(obLevel1,  "OB 1",       color = color.new(color.red,    78))
-hline(obLevel2,  "OB 2",       color = color.new(color.red,    90))
-hline(osLevel2,  "OS 2",       color = color.new(color.green,  90))
-hline(osLevel1,  "OS 1",       color = color.new(color.green,  78))
-hline(extremeOS, "Extreme OS", color = color.new(color.green,  60))
-hline(0,         "Zero",       color = color.new(color.gray,   70))
+bullExtreme = bullCross and wt1 <= extremeOS
+bearExtreme = bearCross and wt1 >= extremeOB
 
-bgcolor(pWt1 > pWt2 ? color.new(color.teal, 92) : color.new(color.maroon, 92))
 
-plotshape(wtBull,      "WaveTrend bullish cross",        shape.triangleup,   location.bottom, color.new(color.green, 0), size = size.tiny)
-plotshape(wtBear,      "WaveTrend bearish cross",        shape.triangledown, location.top,    color.new(color.red,   0), size = size.tiny)
-plotshape(bullExtreme, "WaveTrend extreme bullish reversal", shape.labelup,   location.bottom, color.new(color.lime,  0), size = size.tiny)
-plotshape(bearExtreme, "WaveTrend extreme bearish reversal", shape.labeldown, location.top,    color.new(color.fuchsia, 0), size = size.tiny)
-plotshape(regBull,     "Regular bullish WaveTrend divergence", shape.circle,  location.bottom, color.new(color.green, 40), size = size.tiny)
-plotshape(hidBull,     "Hidden bullish WaveTrend divergence",  shape.diamond, location.bottom, color.new(color.green, 70), size = size.tiny)
-plotshape(regBear,     "Regular bearish WaveTrend divergence", shape.circle,  location.top,    color.new(color.red,   40), size = size.tiny)
-plotshape(hidBear,     "Hidden bearish WaveTrend divergence",  shape.diamond, location.top,    color.new(color.red,   70), size = size.tiny)
+// ═════════════════════════════════════════════════════════════
+// DIVERGENCE ENGINE
+// ═════════════════════════════════════════════════════════════
 
-// ── Alerts ────────────────────────────────────────────────────────────────
-alertcondition(wtBull,      "WaveTrend bullish cross",           "WaveTrend bullish cross")
-alertcondition(wtBear,      "WaveTrend bearish cross",           "WaveTrend bearish cross")
-alertcondition(zeroUp,      "WaveTrend zero-line cross up",      "WaveTrend zero-line cross up")
-alertcondition(zeroDown,    "WaveTrend zero-line cross down",    "WaveTrend zero-line cross down")
-alertcondition(bullExtreme, "WaveTrend extreme bullish reversal", "WaveTrend extreme bullish reversal")
-alertcondition(bearExtreme, "WaveTrend extreme bearish reversal", "WaveTrend extreme bearish reversal")
-alertcondition(regBull,     "Regular bullish WaveTrend divergence", "Regular bullish WaveTrend divergence")
-alertcondition(hidBull,     "Hidden bullish WaveTrend divergence",  "Hidden bullish WaveTrend divergence")
-alertcondition(regBear,     "Regular bearish WaveTrend divergence", "Regular bearish WaveTrend divergence")
-alertcondition(hidBear,     "Hidden bearish WaveTrend divergence",  "Hidden bearish WaveTrend divergence")
+// Find swing highs and lows in WT1
+pLo = ta.pivotlow(wt1, divLookback, divLookback)
+pHi = ta.pivothigh(wt1, divLookback, divLookback)
+
+// Regular Bullish: Price Lower Low, Oscillator Higher Low
+var float prev_wt_low = na
+var float prev_pr_low = na
+regBull = false
+if not na(pLo)
+    if wt1[divLookback] > prev_wt_low and low[divLookback] < prev_pr_low and prev_wt_low < osLevel2
+        regBull := true
+    prev_wt_low := wt1[divLookback]
+    prev_pr_low := low[divLookback]
+
+// Regular Bearish: Price Higher High, Oscillator Lower High
+var float prev_wt_high = na
+var float prev_pr_high = na
+regBear = false
+if not na(pHi)
+    if wt1[divLookback] < prev_wt_high and high[divLookback] > prev_pr_high and prev_wt_high > obLevel2
+        regBear := true
+    prev_wt_high := wt1[divLookback]
+    prev_pr_high := high[divLookback]
+
+// Hidden Bullish: Price Higher Low, Oscillator Lower Low (Trend continuation)
+hidBull = false
+if not na(pLo) and showHidDiv
+    if wt1[divLookback] < prev_wt_low and low[divLookback] > prev_pr_low
+        hidBull := true
+
+// Hidden Bearish: Price Lower High, Oscillator Higher High
+hidBear = false
+if not na(pHi) and showHidDiv
+    if wt1[divLookback] > prev_wt_high and high[divLookback] < prev_pr_high
+        hidBear := true
+
+
+// ═════════════════════════════════════════════════════════════
+// VISUAL RENDERING
+// ═════════════════════════════════════════════════════════════
+
+// Threshold Lines
+h_zero = hline(0, "Zero Line", color=color.new(color.gray, 60), linestyle=hline.style_dotted)
+
+h_eOB  = hline(extremeOB, "Extreme OB", color=color.new(#f23645, 40), linestyle=hline.style_dashed)
+h_ob1  = hline(obLevel1,  "OB 1",       color=color.new(#f23645, 70))
+h_ob2  = hline(obLevel2,  "OB 2",       color=color.new(#f23645, 85))
+
+h_os2  = hline(osLevel2,  "OS 2",       color=color.new(#089981, 85))
+h_os1  = hline(osLevel1,  "OS 1",       color=color.new(#089981, 70))
+h_eOS  = hline(extremeOS, "Extreme OS", color=color.new(#089981, 40), linestyle=hline.style_dashed)
+
+// Zone Fills
+fill(h_eOB, h_ob2, color=color.new(#f23645, 92), title="Overbought Reversal Zone")
+fill(h_os2, h_eOS, color=color.new(#089981, 92), title="Oversold Reversal Zone")
+
+// 4-Color Momentum Histogram
+histoColor = diff >= 0 ? (diff >= diff[1] ? color.new(#089981, 30) : color.new(#089981, 65))
+                       : (diff <= diff[1] ? color.new(#f23645, 30) : color.new(#f23645, 65))
+
+plot(showHisto ? diff : na, "Momentum Histogram", color=histoColor, style=plot.style_columns)
+
+// WaveTrend Lines & Ribbon Cloud
+p_wt1 = plot(wt1, "WT1", color=color.new(#26a69a, 0), linewidth=2)
+p_wt2 = plot(wt2, "WT2", color=color.new(#ef5350, 0), linewidth=1)
+
+cloudColor = showCloud ? (wt1 >= wt2 ? color.new(#26a69a, 82) : color.new(#ef5350, 82)) : na
+fill(p_wt1, p_wt2, color=cloudColor, title="Trend Ribbon Cloud")
+
+// Cross Markers
+plot(showCrosses and bullCross ? wt2 : na, "Bullish Cross", color=#00e676, style=plot.style_circles, linewidth=3)
+plot(showCrosses and bearCross ? wt2 : na, "Bearish Cross", color=#ff1744, style=plot.style_circles, linewidth=3)
+
+// Extreme Setup Shapes
+plotshape(showExtremes and bullExtreme ? wt2 - 5 : na, "Extreme Bullish Reversal", style=shape.triangleup,
+          location=location.absolute, color=#00e676, size=size.small)
+plotshape(showExtremes and bearExtreme ? wt2 + 5 : na, "Extreme Bearish Reversal", style=shape.triangledown,
+          location=location.absolute, color=#ff1744, size=size.small)
+
+// Divergence Plots (Plotted on the confirmed pivot bar in history)
+plotshape(showRegDiv and regBull ? wt1[divLookback] : na, "Regular Bullish Div", shape.diamond,
+          location.absolute, #00e676, offset=-divLookback, size=size.tiny, text="R.Bull", textcolor=#00e676)
+plotshape(showRegDiv and regBear ? wt1[divLookback] : na, "Regular Bearish Div", shape.diamond,
+          location.absolute, #ff1744, offset=-divLookback, size=size.tiny, text="R.Bear", textcolor=#ff1744)
+
+plotshape(showHidDiv and hidBull ? wt1[divLookback] : na, "Hidden Bullish Div", shape.circle,
+          location.absolute, #26a69a, offset=-divLookback, size=size.tiny, text="H.Bull", textcolor=#26a69a)
+plotshape(showHidDiv and hidBear ? wt1[divLookback] : na, "Hidden Bearish Div", shape.circle,
+          location.absolute, #ef5350, offset=-divLookback, size=size.tiny, text="H.Bear", textcolor=#ef5350)
+
+
+// ═════════════════════════════════════════════════════════════
+// BAR COLORING MODES
+// ═════════════════════════════════════════════════════════════
+
+bar_color = switch barColorMode
+    "Cross Only"    => bullCross ? #00e676 : bearCross ? #ff1744 : na
+    "Trend Bias"    => wt1 >= wt2 ? color.new(#26a69a, 20) : color.new(#ef5350, 20)
+    "Extremes Only" => wt1 <= extremeOS ? #00e676 : wt1 >= extremeOB ? #ff1744 : na
+    => na
+
+barcolor(bar_color)
+
+
+// ═════════════════════════════════════════════════════════════
+// EXPANDED ALERTS
+// ═════════════════════════════════════════════════════════════
+
+alertcondition(bullCross,   "Bullish Cross",         "LAZY Pro: {{ticker}} Bullish WT Cross at {{close}}")
+alertcondition(bearCross,   "Bearish Cross",         "LAZY Pro: {{ticker}} Bearish WT Cross at {{close}}")
+alertcondition(bullExtreme, "Extreme Bull Reversal", "LAZY Pro: {{ticker}} Extreme Oversold Cross at {{close}}")
+alertcondition(bearExtreme, "Extreme Bear Reversal", "LAZY Pro: {{ticker}} Extreme Overbought Cross at {{close}}")
+alertcondition(regBull,     "Regular Bullish Div",   "LAZY Pro: {{ticker}} Regular Bullish Divergence detected")
+alertcondition(regBear,     "Regular Bearish Div",   "LAZY Pro: {{ticker}} Regular Bearish Divergence detected")
+alertcondition(zeroCrossUp, "Zero-Line Cross Up",    "LAZY Pro: {{ticker}} Momentum shifted Positive (Zero Cross Up)")
+alertcondition(zeroCrossDn, "Zero-Line Cross Down",  "LAZY Pro: {{ticker}} Momentum shifted Negative (Zero Cross Down)")
 ```
-
-## Port mapping
-
-| Pine construct | JS equivalent in `js/good-intelligence-market-context.js` |
-| :--- | :--- |
-| `ta.ema(src, channelLength)` | `esa` in `computeWaveTrend()` |
-| `ta.ema(math.abs(src - esa), channelLength)` | `distance` — nulls propagate where `esa` is null |
-| `(src - esa) / (0.015 * d)` | `ci[]` with an explicit `d === 0 → 0` guard |
-| `ta.ema(ci, averageLength)` | `wt1` |
-| `ta.sma(wt1, signalLength)` | `wt2` via `rollingMean()` |
-| `request.security(..., lookahead_on)` | `mapHigherTimeframe()` — forward-fills the last confirmed HTF bar |
-| `ta.pivotlow` / `ta.pivothigh` | `isPivot()` inside `divergenceEvents()` — strict inequalities, non-finite neighbours skipped |
-| pivot confirmed `n` bars later | detection loop `for detected = lookback * 2 …`, `pivot = detected − lookback` |
-| `barstate.isconfirmed` | `bars[last].confirmed` + the `confirmClose` parameter |
-
-### Known parity gaps
-
-1. **`request.security` semantics.** Pine returns `na` for HTF bars that have not closed;
-   the JS port instead forward-fills the last confirmed value and leaves `null` only before
-   the first confirmed HTF bar. On sparse feeds these differ for the first few base bars.
-2. **Pivot ties.** The port requires strictly greater/less, so a flat pivot is *not* a pivot.
-   `ta.pivotlow` in Pine treats ties differently depending on version.
-3. **Divergence qualifier uses the prior pivot's level, not the current one.** Any rewrite
-   that tests `curWt < osLevel2` instead of `prevLowWt < osLevel2` will not match.
-4. **Seeding.** As with Script 01, the EMA seeding differs on the first bars of a chart.
-5. **`customTF` is a free string in the port** (≤12 chars, default `"60"`), while Pine
-   validates timeframe strings. A malformed value is silently unusable in the port.

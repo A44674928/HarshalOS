@@ -145,7 +145,7 @@
     body.hidden = collapsed;
     toggle.textContent = collapsed ? "+" : "–";
     toggle.setAttribute("aria-expanded", String(!collapsed));
-    const label = collapsed ? "Expand the clock and calendar" : "Minimize the clock and calendar";
+    const label = collapsed ? "Expand the clock, celestial context, and calendar" : "Minimize the clock, celestial context, and calendar";
     toggle.setAttribute("aria-label", label);
     toggle.setAttribute("title", label);
     return collapsed;
@@ -191,19 +191,90 @@
     }
     if (utc) utc.textContent = `${dateOnly(now)} ${now.toISOString().slice(11, 19)} UTC`;
     if (udate) udate.textContent = formatUDateScientific(now);
+    renderHomeCelestial(now);
     renderCalendar(now);
+  }
+
+  function celestialAt(now) {
+    const model = window.HOSCelestialContext;
+    if (!model || typeof model.moonAt !== "function" || typeof model.sunAt !== "function") return null;
+    try { return { moon: model.moonAt(now), sun: model.sunAt(now) }; }
+    catch { return null; }
+  }
+
+  function utcDateTime(milliseconds) {
+    return new Date(milliseconds).toLocaleString(undefined, {
+      month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
+      timeZone: "UTC", timeZoneName: "short"
+    });
+  }
+
+  function renderHomeCelestial(now) {
+    const context = celestialAt(now);
+    const moon = document.getElementById("home-moon-phase");
+    const sun = document.getElementById("home-sun-cycle");
+    if (!moon || !sun) return;
+    if (!context) {
+      moon.textContent = "Moon context unavailable";
+      sun.textContent = "Sun context unavailable";
+      return;
+    }
+    moon.textContent = `Moon ${context.moon.glyph} ${context.moon.name} · ${context.moon.illuminationPercent}%`;
+    sun.textContent = `Sun annual cycle · ${context.sun.declinationDegrees >= 0 ? "+" : ""}${context.sun.declinationDegrees.toFixed(1)}° declination`;
+  }
+
+  function renderAppCelestial(body, now) {
+    const context = celestialAt(now);
+    const icon = body.querySelector("#uts-moon-icon");
+    const name = body.querySelector("#uts-moon-name");
+    const meta = body.querySelector("#uts-moon-meta");
+    const next = body.querySelector("#uts-moon-next");
+    const arc = body.querySelector("#uts-sun-arc");
+    const sunMeta = body.querySelector("#uts-sun-meta");
+    if (!icon || !name || !meta || !next || !arc || !sunMeta) return;
+    if (!context) {
+      icon.textContent = "—";
+      name.textContent = "Celestial estimate unavailable";
+      meta.textContent = "The local calculation could not process this date.";
+      next.textContent = "—";
+      arc.textContent = "—";
+      sunMeta.textContent = "—";
+      return;
+    }
+    const { moon, sun } = context;
+    icon.textContent = moon.glyph;
+    name.textContent = moon.name;
+    meta.textContent = `${moon.trend} · ${moon.illuminationPercent}% illuminated · lunar age ${moon.ageDays.toFixed(1)} days`;
+    next.textContent = `Next ${moon.nextPrincipalEvent.kind} Moon · ${utcDateTime(moon.nextPrincipalEvent.time)}`;
+    arc.textContent = sun.annualArc;
+    sunMeta.textContent = `Apparent solar longitude ${sun.apparentLongitudeDegrees.toFixed(1)}° · declination ${sun.declinationDegrees >= 0 ? "+" : ""}${sun.declinationDegrees.toFixed(2)}° · equation of time ${sun.equationOfTimeMinutes >= 0 ? "+" : ""}${sun.equationOfTimeMinutes.toFixed(1)} min`;
   }
 
   function renderApp(body) {
     body.innerHTML = `
       <div class="h1">UTS Watch &amp; Converter</div>
-      <p class="sub">A light-speed-based duration system and a small UTC-to-UTS date projection. Earth date/time comes from this browser's device clock; the Big Bang age is an approximate model anchor, not an independent clock.</p>
+      <p class="sub">A light-speed-based duration system, UTC-to-UTS date projection, and approximate Moon/Sun context. Earth date/time comes from this browser's device clock; astronomical values are display-only estimates, not independent clocks.</p>
       <div class="rule-box refusal"><strong>DISPLAY ONLY — NO AUTHORITY EFFECT.</strong> UTS values do not change HOS freshness, Human Key state, Ground-0 classification, authorization, or the duty ledger. Browser time and this approximate cosmological epoch are not trusted security time.</div>
 
       <section class="uts-watch-panel" aria-label="Current time">
         <div class="uts-watch-primary"><span class="uts-eyebrow">LOCAL DEVICE TIME</span><strong data-uts-local>—</strong><small data-uts-zone>—</small></div>
         <div class="uts-watch-secondary"><div><span>EARTH UTC</span><code data-uts-utc>—</code></div><div><span>MODEL UDate</span><code data-uts-date>—</code></div></div>
       </section>
+
+      <section class="uts-celestial-panel" aria-label="Approximate celestial context">
+        <div class="uts-celestial-card">
+          <span class="uts-eyebrow">MOON · PHASE ESTIMATE</span>
+          <div class="uts-moon-readout"><span id="uts-moon-icon" aria-hidden="true">—</span><strong id="uts-moon-name">—</strong></div>
+          <p id="uts-moon-meta">—</p>
+          <small id="uts-moon-next">—</small>
+        </div>
+        <div class="uts-celestial-card">
+          <span class="uts-eyebrow">SUN · ANNUAL APPARENT CYCLE</span>
+          <strong id="uts-sun-arc">—</strong>
+          <p id="uts-sun-meta">—</p>
+        </div>
+      </section>
+      <p class="uts-celestial-note">Approximate geocentric context from the device date/time. This does not calculate local sunrise/sunset, lunar horizon visibility, or solar activity; it is not an authority clock or an action signal.</p>
 
       <div class="h2">Duration calculator</div>
       <p class="body">Enter any finite duration. The calculator converts between Earth-time units and the UTS units below using the exact defined value of <span class="mono">c</span>. The calendar's “day” and “year” are duration units, not Earth calendar blocks.</p>
@@ -243,6 +314,7 @@
       body.querySelector("[data-uts-zone]").textContent = new Intl.DateTimeFormat(undefined, { timeZoneName: "long" }).formatToParts(now).find(part => part.type === "timeZoneName")?.value || "Local time zone";
       body.querySelector("[data-uts-utc]").textContent = `${dateOnly(now)} ${now.toISOString().slice(11, 19)} UTC`;
       body.querySelector("[data-uts-date]").textContent = formatUDate(now);
+      renderAppCelestial(body, now);
     };
 
     const updateConversion = () => {

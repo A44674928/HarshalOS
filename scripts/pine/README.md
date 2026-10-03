@@ -1,84 +1,74 @@
 # Pine Script library
 
-Markdown copies of the Pine Script indicators this repository depends on, kept next to the
-tooling that verifies them.
+Markdown archives of the Pine v6 scripts supplied for Good Intelligence / market-context
+work, plus the supplied third-party Moon Phases snippet. Each complete source is kept in a
+fenced `pine` block with its provenance and a careful description of any JavaScript adaptation.
 
 > [!IMPORTANT]
-> **The original `.pine` source files are not in this repository.** They were supplied
-> out-of-band and only their **JavaScript translation** was committed, at
-> [`js/good-intelligence-market-context.js`](../../js/good-intelligence-market-context.js).
-> A repository-wide search for `//@version=`, `indicator(`, `input.int`, `ta.sma`,
-> `ta.pivothigh`, `ta.vwma`, `request.security`, and `plotshape` returns **zero files**,
-> and the git history (single commit `17bff99`) has never contained a `.pine` file.
->
-> So the Pine blocks below are **reconstructions reverse-engineered from the committed JS
-> port**, not transcriptions of the originals. They are byte-faithful to the port's
-> arithmetic, defaults, and signal rules — which the test suite enforces — but they are
-> **not proven identical to the author's originals**. Replace each reconstruction with the
-> real source (see *Supplying the original source* below) before treating this folder as an
-> archive of record.
+> These are **user-supplied source transcriptions**, not reconstructions. No TradingView URLs
+> or publication dates were provided. The Moon Phases snippet is identified by the user as
+> third-party; its original author and license are unknown, so this archive does not claim
+> authorship or grant a license. There are no separate raw `.pine` files; the source copies
+> are the code blocks in the Markdown documents below. The JS market-context port has not been
+> cross-validated bar-for-bar against TradingView, and it does not reproduce every visual,
+> alert, timeframe, or divergence behavior in these sources.
 
 ## Inventory
 
-| # | Document | Indicator(s) | Pine version | JS port entry point |
+| # | Document | Supplied indicator | Pine version | Relationship to current JS port |
 | :-- | :--- | :--- | :--- | :--- |
-| 01 | [`01-vfi-fibonacci-bands.md`](01-vfi-fibonacci-bands.md) | Volume Flow Indicator + Fibonacci Bands | v6 | `computeVfi`, `computeBands` |
-| 02 | [`02-wavetrend.md`](02-wavetrend.md) | WaveTrend (with HTF + divergence modes) | v6 | `computeWaveTrend`, `mapHigherTimeframe`, `divergenceEvents` |
-
-These are the two scripts `docs/GOOD-INTELLIGENCE-ASSURANCE.md` refers to as *"the supplied
-Pine v6 VFI + Fibonacci Bands and WaveTrend indicators."* No third Pine script is referenced
-anywhere in the repository.
+| 01 | [`01-vfi-fibonacci-bands.md`](01-vfi-fibonacci-bands.md) | VFI + Fibonacci Bands `[Harshal]` merged confluence overlay | v6 | Partial overlap with `computeVfi()`, `computeBands()`, and evaluator signals |
+| 02 | [`02-wavetrend.md`](02-wavetrend.md) | LAZY - WaveTrend Context Engine `[Pro]` | v6 | Core WaveTrend overlaps `computeWaveTrend()`; MTF/divergence behavior differs |
+| 03 | [`03-fibonacci-bollinger-bands.md`](03-fibonacci-bollinger-bands.md) | Fibonacci Bollinger Bands `[Harshal]` | v6 | Shared band calculation only; several levels, visuals, and its basis alert are absent |
+| 04 | [`04-moon-phases.md`](04-moon-phases.md) | Moon phases (third-party source; original author/license unknown) | v6 | Adapted by `js/celestial-context.js` for a display-only UTS readout; not a chart runtime |
 
 ## What each document contains
 
-1. **Provenance** — where the script came from and what is and is not verified.
-2. **Inputs** — every parameter with its default and accepted range. These tables are
-   machine-checked against `GoodIntelligenceMarketContext.DEFAULTS` and
-   `normalizeParameters()` by [`tests/pine-scripts-docs-test.mjs`](../../tests/pine-scripts-docs-test.mjs);
-   a default that drifts from the shipped code fails CI.
-3. **Mathematics** — the calculation, step by step, in the same order the port performs it.
-4. **Signals** — the exact alert conditions and their output labels.
-5. **Reconstructed source** — a `//@version=6` block you can paste into TradingView's Pine
-   Editor and diff against your original.
-6. **Port mapping** — Pine construct → JS function, for bar-for-bar parity work.
+1. **Provenance** — the source title, Pine version, and what source metadata was or was not
+   supplied.
+2. **Inputs** — all declared Pine inputs, their original defaults and constraints, and an
+   explicit JS-field crosswalk where one exists.
+3. **Calculation and behavior** — a readable overview of formulas, gates, and alerts, including
+   known differences from the port.
+4. **Source** — the complete Pine v6 text as supplied, inside one `pine` code block per file.
+
+The three market-indicator sources are preserved separately. In particular, the standalone
+FBB script plots 0.236 and 0.500 levels that the merged VFI+FBB source does not define; do not
+silently treat them as the same indicator. The fourth document is a separate third-party Moon
+source with unknown author/license; see its provenance warning before reuse.
 
 ## Verification
 
 ```bash
-npm run test:pine      # this folder's docs against the shipped indicator code
+npm run test:pine      # source blocks, documented Pine inputs, JS mapping, and OCM design
 npm run integrity      # full regression + suite inventory + deploy dry-run
 ```
 
-`tests/pine-scripts-docs-test.mjs` executes the real
-`js/good-intelligence-market-context.js` in a VM and asserts that:
+`tests/pine-scripts-docs-test.mjs` checks that each Markdown document has one Pine v6 source
+block with a pinned SHA-256 digest, that the documented inputs/defaults match the inputs in
+that block, that mapped market-parameter defaults agree with the shipped
+`GoodIntelligenceMarketContext.DEFAULTS`, and that Market/Sun/Moon OCM addresses are registered
+and valid. `tests/celestial-context-test.mjs` exercises the approximate display calculation;
+the desktop suite checks its UTS surfaces. These checks **do not** compile Pine or prove
+TradingView/ephemeris parity.
 
-- every parameter row in these documents has a default equal to the shipped `DEFAULTS`;
-- the union of documented parameters is exactly the 28 keys of `DEFAULTS` — no undocumented
-  parameter, no stale one;
-- each reconstruction declares `//@version=6` and an `indicator(` call, and carries the
-  `RECONSTRUCTED` banner so it can never be mistaken for the original;
-- this folder stays outside the public asset allowlist (`scripts/` is never staged by
-  `scripts/prepare-assets.mjs` or served by `serve.js`).
+## Relationship to the Orb Communicator Model
 
-## Supplying the original source
-
-When you paste in a real script:
-
-1. Replace the fenced ```pine block in the matching document with the original text, verbatim.
-2. Change the banner from `RECONSTRUCTED` to `ORIGINAL` and record the source (TradingView
-   script name, author, publish date, or file path) in the Provenance table.
-3. Re-run `npm run test:pine`. If the originals disagree with the committed port, the test
-   will not catch semantic drift — so also diff the Inputs tables and re-read the Port
-   mapping section against the source.
-4. Optionally drop the raw `.pine` file alongside the document as `01-vfi-fibonacci-bands.pine`
-   so it can be pasted without copying out of Markdown.
+[`docs/architecture/PINE-OCM-INTEGRATION.md`](../../docs/architecture/PINE-OCM-INTEGRATION.md)
+explains the read-only Market Context directory node and the still-unimplemented provider
+payload boundary. Market indicators remain optional observations, never identity,
+authorization, continuity, accountability, or permission to act. The Sun/Moon display and its
+OCM entries are documented separately in
+[`docs/architecture/CELESTIAL-CONTEXT.md`](../../docs/architecture/CELESTIAL-CONTEXT.md).
 
 ## Related
 
-- [`docs/GOOD-INTELLIGENCE-ASSURANCE.md`](../../docs/GOOD-INTELLIGENCE-ASSURANCE.md) —
-  §"Optional technical market context" documents the packet contract, defaults, and the
-  known parity gaps.
-- [`docs/architecture/PINE-OCM-INTEGRATION.md`](../../docs/architecture/PINE-OCM-INTEGRATION.md) —
-  how a Pine script is incorporated into the Orb Communicator Model.
+- [`docs/GOOD-INTELLIGENCE-ASSURANCE.md`](../../docs/GOOD-INTELLIGENCE-ASSURANCE.md) — the
+  OHLCV packet contract, shipped defaults, and the existing parity caveat.
+- [`js/good-intelligence-market-context.js`](../../js/good-intelligence-market-context.js) —
+  current JavaScript calculations and `gi-market-analysis-v1` output.
 - [`tests/good-intelligence-market-context-test.mjs`](../../tests/good-intelligence-market-context-test.mjs) —
-  behavioural tests for the port itself.
+  behavioral tests for the market JS port.
+- [`js/celestial-context.js`](../../js/celestial-context.js) and
+  [`tests/celestial-context-test.mjs`](../../tests/celestial-context-test.mjs) — approximate Moon/Sun
+  display calculation and focused tests; not an ephemeris.

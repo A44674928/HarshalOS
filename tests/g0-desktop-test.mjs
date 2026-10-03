@@ -38,6 +38,7 @@ class El {
   set innerHTML(html) { this._html = String(html); this.children = parse(String(html), this); }
   get innerHTML() { return this._html; }
   appendChild(child) { child.parent = this; this.children.push(child); return child; }
+  contains(node) { for (let current = node; current; current = current.parent) if (current === this) return true; return false; }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(c => c !== this); }
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
   removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
@@ -187,6 +188,7 @@ body.innerHTML = bodyInner;
 globalThis.document = {
   body,
   createElement: tag => new El(tag),
+  createTextNode: text => { const node = new El("#text"); node.textContent = String(text); return node; },
   querySelector: sel => body.querySelector(sel),
   querySelectorAll: sel => body.querySelectorAll(sel),
   getElementById: id => body.querySelector(`#${id}`),
@@ -212,6 +214,16 @@ ok(!!g0, "Ground-0 Audit registered in APPS");
 ok(g0 && g0.short === "Ground-0 Audit", "desktop label is 'Ground-0 Audit'");
 ok(g0 && g0.glyph === "⚖", "scales glyph on the icon");
 ok(typeof globalThis.shell?.init === "function", "window manager exposed (window.shell.init)");
+const ocmObservationNodes = [
+  ["0•116•000•0012•MKT", "good-intelligence", "Market Context"],
+  ["0•009•000•0013•SUN", "uts", "Sun"],
+  ["0•163•000•0014•MOON", "uts", "Moon"]
+];
+for (const [address, appId, name] of ocmObservationNodes) {
+  const node = globalThis.OCM_DATA?.nodes.find(item => item.addr === address);
+  ok(!!node && node.name === name && node.app === appId, `OCM ${name} node is registered at ${address} with app ID ${appId}`);
+  ok(globalThis.APPS.some(app => app.id === appId), `OCM ${name} app ID ${appId} resolves in APPS`);
+}
 
 /* ── run the REAL desktop builder ─────────────────────────────── */
 globalThis.shell.init();
@@ -233,6 +245,10 @@ if (utsApi) {
   const calendarDays = body.querySelector("#home-calendar-days");
   ok(!!homeWidget && !!localClock && !!calendarDays, "Home Screen includes the local clock and Gregorian calendar widget");
   ok(!!(localClock && localClock.textContent && localClock.textContent !== "—"), "Home Screen clock is populated from the device clock");
+  const homeMoon = body.querySelector("#home-moon-phase");
+  const homeSun = body.querySelector("#home-sun-cycle");
+  ok(!!(homeMoon && homeMoon.textContent.includes("Moon") && !homeMoon.textContent.includes("unavailable")), "Home Screen shows an approximate lunar phase readout");
+  ok(!!(homeSun && homeSun.textContent.includes("Sun annual cycle") && homeSun.textContent.includes("declination")), "Home Screen labels solar context as an annual cycle and declination, not phases");
   ok(!!(calendarDays && calendarDays.querySelectorAll(".home-cal-day").length >= 35), "Home Screen renders a Monday-first monthly calendar grid");
   /* The Home Screen clock can be minimized. On phones and tablets it is a card
      at the top of the desktop's scroll flow rather than a floating overlay, so
@@ -257,6 +273,14 @@ if (utsApi) {
   ok(!!utsWindow, "Home Screen UTS link opens the UTS Watch & Converter app");
   if (utsWindow) {
     ok((utsWindow.body.textContent || "").includes("DISPLAY ONLY — NO AUTHORITY EFFECT"), "UTS app explicitly disclaims authority effects");
+    const moonName = utsWindow.body.querySelector("#uts-moon-name");
+    const moonMeta = utsWindow.body.querySelector("#uts-moon-meta");
+    const sunArc = utsWindow.body.querySelector("#uts-sun-arc");
+    const celestialNote = utsWindow.body.querySelector(".uts-celestial-note");
+    ok(!!(moonName && moonName.textContent && moonName.textContent !== "—"), "UTS app renders the current lunar phase");
+    ok(!!(moonMeta && moonMeta.textContent.includes("illuminated") && moonMeta.textContent.includes("lunar age")), "UTS app renders approximate illumination and lunar age");
+    ok(!!(sunArc && sunArc.textContent.includes("solstice") && !sunArc.textContent.includes("Moon")), "UTS app renders the solar annual arc without lunar phase language");
+    ok(!!(celestialNote && celestialNote.textContent.includes("does not calculate local sunrise/sunset")), "UTS app disclaims location-specific sunrise, sunset, and visibility");
     const input = utsWindow.body.querySelector("#uts-value");
     const unit = utsWindow.body.querySelector("#uts-unit");
     if (input) input.value = "100";

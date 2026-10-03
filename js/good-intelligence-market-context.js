@@ -1,5 +1,6 @@
-/* Good Intelligence — optional price/volume context translated from the supplied
-   VFI + Fibonacci Bands and WaveTrend Pine v6 indicators. This is not assurance,
+/* Good Intelligence — optional price/volume context. The formulas overlap user-supplied
+   Pine v6 VFI + Fibonacci Bands and LAZY WaveTrend sources; see scripts/pine/ for the
+   archived source blocks. TradingView parity is not established. This is not assurance,
    a truth test, or an execution signal. */
 "use strict";
 
@@ -458,7 +459,7 @@ window.GoodIntelligenceMarketContext = (() => {
       recentDivergences: divergence.filter(event => event.type.startsWith("Regular") ? parameters.showRegDiv : parameters.showHidDiv)
         .map(event => ({ type: event.type, time: event.time, detectedAt: bars[event.detectedIndex].time })),
       alerts,
-      note: "Client-side translation of the supplied Pine v6 indicators; verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
+      note: "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact TradingView parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
     };
   }
 

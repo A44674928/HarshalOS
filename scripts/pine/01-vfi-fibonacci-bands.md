@@ -1,299 +1,250 @@
 # Script 01 — VFI + Fibonacci Bands (Pine v6)
 
-> [!WARNING]
-> **`RECONSTRUCTED` — this Pine block is reverse-engineered from the committed JavaScript
-> port at [`js/good-intelligence-market-context.js`](../../js/good-intelligence-market-context.js).
-> It is not a transcription of the author's original source, which is not in this repository.**
-> Arithmetic, defaults, and signal rules are enforced against the shipped code by
-> `tests/pine-scripts-docs-test.mjs`; equivalence with the original on TradingView is
-> **unverified**.
+> [!NOTE]
+> **User-supplied source, transcribed below.** This is the Pine v6 code you provided in this
+> conversation, not a reconstruction. No TradingView URL or publication date was supplied.
+> The source title/comment attributes it to Harshal. No standalone `.pine` file is stored; the
+> complete source is kept in this Markdown code block.
 
 ## Provenance
 
 | Field | Value |
 | :--- | :--- |
+| Pine title | `VFI + Fibonacci Bands [Harshal]` |
+| Short title | `VFI_FBB` |
 | Pine version | v6 |
-| Original source | **Not in repository** — supplied out-of-band |
-| Committed port | `js/good-intelligence-market-context.js` → `computeVfi()`, `computeBands()` |
-| Port description | `docs/GOOD-INTELLIGENCE-ASSURANCE.md` §"Optional technical market context" |
-| Status in this document | `RECONSTRUCTED` |
-| Overlay | `true` — the bands plot on the price pane; VFI is a separate oscillator |
+| Source | User-provided in this conversation; external URL and publication date not supplied |
+| Author attribution | `Harshal` (as stated in the source comment and title) |
+| Overlay | `true` — bands render over the price chart; VFI is an internal confluence filter |
+| JS relationship | Partial overlap with `computeVfi()`, `computeBands()`, and signal evaluation in `js/good-intelligence-market-context.js`; bar-for-bar parity is unverified |
 
 ## Purpose
 
-Two independent studies carried in one script:
-
-- **Volume Flow Indicator (VFI)** — a volume-weighted momentum oscillator. It sums signed,
-  volume-capped money flow over a lookback window and normalizes by the prior window's
-  average volume, then compares the result to an EMA signal line.
-- **Fibonacci Bands** — a Bollinger-style envelope whose basis is a volume-weighted moving
-  average and whose deviation is split at the 0.382 / 0.618 / 0.764 / 1.000 Fibonacci ratios
-  rather than at integer standard deviations.
-
-They are combined into a **confluence** condition (§Signals) but neither is an execution
-signal. In HarshalOS both are *optional price/volume context* only.
+This overlay combines an internal Volume Flow Indicator (VFI) with Fibonacci Bollinger Bands.
+VFI is not plotted as an oscillator pane: it gates the band and flow confluence events. The
+visible outputs are the selected band lines/fills and optional break/confluence markers.
 
 ## Inputs
 
-Defaults and ranges are mirrored 1:1 from `DEFAULTS` and `normalizeParameters()`. The JS
-field column is the key used in `marketContext.parameters`.
+The source-facing values and mapping are shown separately from the port's supported range.
+A dash in **JS field** means that the current JavaScript port has no corresponding Pine visual
+option.
 
-| Pine input | Type | Default | Range | JS field | Meaning |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `vfiLen` | int | `130` | 2–1000 | `vfiLen` | VFI summation window and volume-average window |
-| `vfiCoef` | float | `0.2` | 0–10 | `vfiCoef` | Noise cutoff, as a multiple of return volatility × close |
-| `vfiVcoef` | float | `2.5` | 0.1–100 | `vfiVcoef` | Volume cap, as a multiple of the prior average volume |
-| `vfiVolLen` | int | `30` | 2–500 | `vfiVolLen` | Lookback for log-return standard deviation |
-| `vfiSignalLen` | int | `5` | 1–500 | `vfiSignalLen` | EMA length of the VFI signal line |
-| `vfiSmooth` | bool | `false` | — | `vfiSmooth` | Apply a second smoothing pass to VFI |
-| `vfiSmoothLen` | int | `3` | 1–500 | `vfiSmoothLen` | Length of the optional smoothing pass |
-| `vfiSmoothType` | string | `"SMA"` | SMA, EMA, WMA | `vfiSmoothType` | Smoothing function for the optional pass |
-| `bandLen` | int | `200` | 1–2000 | `bandLen` | Fibonacci band lookback |
-| `bandMult` | float | `3` | 0.001–50 | `bandMult` | Standard-deviation multiplier for band deviation |
-| `bandMa` | string | `"VWMA"` | VWMA, SMA, EMA, WMA, RMA | `bandMa` | Basis moving-average type |
-| `bandSrc` | string | `"hlc3"` | hlc3, hl2, close, open, high, low | `bandSrc` | Price source for the bands |
+| Pine input | Type | Pine default | Constraints declared by Pine | JS field |
+| :--- | :--- | :--- | :--- | :--- |
+| `vfiLen` | int | `130` | min 2, max 1000 | `vfiLen` |
+| `vfiCoef` | float | `0.2` | min 0.0, step 0.05; no max declared | `vfiCoef` |
+| `vfiVcoef` | float | `2.5` | min 0.1, step 0.1; no max declared | `vfiVcoef` |
+| `vfiVolLen` | int | `30` | min 2, max 500 | `vfiVolLen` |
+| `vfiSignalLen` | int | `5` | min 1, max 500 | `vfiSignalLen` |
+| `vfiSmoothLen` | int | `3` | min 1, max 500 | `vfiSmoothLen` |
+| `vfiSmooth` | bool | `false` | — | `vfiSmooth` |
+| `vfiSmoothType` | string | `"SMA"` | SMA, EMA, WMA | `vfiSmoothType` |
+| `bandLen` | int | `200` | min 1, max 2000 | `bandLen` |
+| `bandSrc` | source | `"hlc3"` | TradingView source selector | `bandSrc` |
+| `bandMult` | float | `3` | min 0.001, max 50.0, step 0.1 | `bandMult` |
+| `bandMa` | string | `"VWMA"` | VWMA, SMA, EMA, WMA, RMA | `bandMa` |
+| `showBands` | bool | `true` | — | — |
+| `showFills` | bool | `true` | — | — |
+| `showBreaks` | bool | `true` | — | — |
+| `showConfluence` | bool | `true` | — | — |
+| `confirmClose` | bool | `true` | — | `confirmClose` |
 
-### Shared gating
+### Port differences to keep in view
 
-| Pine input | Type | Default | Range | JS field | Meaning |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `confirmClose` | bool | `true` | — | `confirmClose` | Withhold every latest-bar signal until the bar is closed |
+- The supplied Pine inputs do not set a maximum for `vfiCoef` or `vfiVcoef`. The JS
+  `normalizeParameters()` clamps them to 10 and 100 respectively; values above those port
+  limits therefore do not have the same accepted range.
+- The four display switches are Pine-only. The JS evaluator returns analysis data; the
+  TradingView-specific fills, plot visibility, and marker styling are not part of its
+  parameter contract.
+- This script raises a Pine `runtime.error` when cumulative volume is not positive. The JS
+  adapter has its own OHLCV validation and does not reproduce TradingView's runtime-error UI.
+- Similar formulas are not proof of parity. Moving-average/stdev warm-up, provider candle
+  conventions, and real-time bar behavior still need comparison against TradingView.
 
-`confirmClose` is a packet-level gate, not a study parameter: it applies to the VFI, band,
-and WaveTrend signals alike, and in Pine terms corresponds to `barstate.isconfirmed`. It is
-documented here once and referenced by [`02-wavetrend.md`](02-wavetrend.md).
-
-Out-of-range or malformed values fall back to the default rather than raising — see
-`integer()` / `number()` / `enumValue()` in the port.
-
-## Mathematics
+## Calculation and events
 
 ### Volume Flow Indicator
 
-Let `T[i] = (high + low + close) / 3` (the typical price) and `V[i]` the bar volume.
+The source computes `typical = hlc3`, replaces missing volume with zero, and requires positive
+typical prices on the current and previous bars. Its volatility threshold is
+`vfiCoef * ta.stdev(log(typical / typical[1]), vfiVolLen) * close`. Average volume is the
+prior-bar SMA, `ta.sma(vol, vfiLen)[1]`; the current bar's contribution is capped by that
+average times `vfiVcoef`. Positive/negative typical-price movement beyond the threshold adds
+or subtracts the capped volume; otherwise the contribution is zero.
 
-1. **Inter-bar log return**
-   `inter[i] = ln(T[i] / T[i−1])`, defined only when `T[i] > 0` and `T[i−1] > 0`.
-2. **Return volatility** — population standard deviation over `vfiVolLen`:
-   `volla[i] = stdev(inter[i−vfiVolLen+1 … i])`.
-   The port divides by `n`, not `n−1`.
-3. **Volume average** — simple moving average over `vfiLen`: `vave[i] = sma(V, vfiLen)[i]`.
-4. **Per-bar signed contribution**, evaluated only when `i > 0`, both typical prices are
-   positive, `volla[i]` is finite, and `vave[i−1]` is finite and `> 0`:
-   - cutoff `= vfiCoef × volla[i] × close[i]`
-   - capped volume `= min(V[i], vave[i−1] × vfiVcoef)`
-   - money flow `mf = T[i] − T[i−1]`
-   - `contribution[i] = +capped` if `mf > cutoff`; `−capped` if `mf < −cutoff`; else `0`
-5. **Raw VFI** — from `i = vfiLen − 1` onward, requiring every bar in the window to be valid:
-   `vfiRaw[i] = Σ contribution[i−vfiLen+1 … i] / vave[i−1]`
-
-   Note the divisor is the **previous** bar's volume average (`vave[1]` in Pine), not the
-   current bar's. That is the port's behaviour and it is reproduced below.
-6. **Optional smoothing** — `vfi = vfiSmooth ? ma(vfiRaw, vfiSmoothLen, vfiSmoothType) : vfiRaw`
-7. **Signal line** — `signal = ema(vfi, vfiSignalLen)`. The EMA is seeded on the first
-   finite value and is applied to the (possibly smoothed) series.
+`flowReady` requires `vfiLen` consecutive valid flow bars. The raw VFI is the sum of those
+contributions divided by the prior-bar average volume. An optional SMA/EMA/WMA smooth is
+applied, followed by the VFI EMA reference line (`vfima`). The script refuses to run if its
+volume check finds no positive cumulative volume.
 
 ### Fibonacci Bands
 
-Let `S[i]` be the configured `bandSrc`.
+The basis uses `bandSrc`, `bandLen`, and `bandMa`; VWMA falls back to SMA when the current
+`vol` is not positive or the VWMA result is unavailable. The deviation is
+`bandMult * ta.stdev(bandSrc, bandLen)`. This merged script calculates and plots the
+0.382, 0.618, 0.764, and 1.000 levels above and below the basis. Unlike the standalone
+Fibonacci Bollinger Bands script archived in
+[`03-fibonacci-bollinger-bands.md`](03-fibonacci-bollinger-bands.md), it does not define
+0.236 or 0.500 lines.
 
-1. `basis[i] = ma(S, bandLen, bandMa)` — with `VWMA` the port volume-weights the window and
-   falls back to the SMA when the window's volume sums to zero.
-2. `dev[i] = stdev(S, bandLen) × bandMult` (population standard deviation).
-3. Eight envelope lines plus the basis:
+### Confirmation and confluence
 
-| Line | Value |
+`ready` requires the current/previous VFI and reference-line values plus current/previous
+basis and deviation values. With `confirmClose=true`, `canSignal` additionally requires
+`barstate.isconfirmed`. The individual VFI cross and outer-band break events, and the two
+confluence conditions, are gated by `canSignal`.
+
+The six alert conditions are:
+
+| Alert title | Condition |
 | :--- | :--- |
-| `upper1000` | `basis + 1.000 × dev` |
-| `upper764` | `basis + 0.764 × dev` |
-| `upper618` | `basis + 0.618 × dev` |
-| `upper382` | `basis + 0.382 × dev` |
-| `basis` | `basis` |
-| `lower382` | `basis − 0.382 × dev` |
-| `lower618` | `basis − 0.618 × dev` |
-| `lower764` | `basis − 0.764 × dev` |
-| `lower1000` | `basis − 1.000 × dev` |
+| `Confluence VFI Bull` | VFI crosses above its EMA reference line |
+| `Confluence VFI Bear` | VFI crosses below its EMA reference line |
+| `Confluence Upper Break` | Close crosses above the 1.000 upper band |
+| `Confluence Lower Break` | Close crosses below the 1.000 lower band |
+| `Bullish Confluence` | Bullish VFI/zero-line flow shift above basis, or upper break with positive VFI at/above its reference line |
+| `Bearish Confluence` | Bearish VFI/zero-line flow shift below basis, or lower break with negative VFI at/below its reference line |
 
-A band is `null` until both `basis` and `dev` are finite, i.e. for the first `bandLen − 1` bars.
+These are indicator events only. They do not establish source credibility, claim truth,
+authorization, investment advice, or permission to act.
 
-## Signals
-
-All conditions are evaluated on the **last** bar. Where `confirmClose` is on (the default),
-every signal is additionally withheld until the last bar carries `confirmed: true`.
-
-| Alert label | Condition |
-| :--- | :--- |
-| `VFI bullish crossover` | `ta.crossover(vfi, signal)` |
-| `VFI bearish crossover` | `ta.crossunder(vfi, signal)` |
-| `Upper Fibonacci-band break` | `ta.crossover(close, upper1000)` |
-| `Lower Fibonacci-band break` | `ta.crossunder(close, lower1000)` |
-| `Bullish VFI + Fibonacci confluence` | `((bullCross or zeroCrossUp) and close > basis) or (upperBreak and vfi > 0 and vfi >= signal)` |
-| `Bearish VFI + Fibonacci confluence` | `((bearCross or zeroCrossDown) and close < basis) or (lowerBreak and vfi < 0 and vfi <= signal)` |
-
-where `zeroCrossUp = ta.crossover(vfi, 0)` and `zeroCrossDown = ta.crossunder(vfi, 0)`.
-The zero-line crosses feed the confluence test but are not emitted as standalone alerts by
-this script.
-
-## Reconstructed source
+## Source (verbatim transcription)
 
 ```pine
 //@version=6
-// ══════════════════════════════════════════════════════════════════════════
-//  RECONSTRUCTED — NOT THE SUPPLIED ORIGINAL.
-//  Reverse-engineered from js/good-intelligence-market-context.js
-//  (computeVfi / computeBands). Verify against your original before use.
-// ══════════════════════════════════════════════════════════════════════════
-indicator("VFI + Fibonacci Bands [HarshalOS reconstruction]", "VFI+FB", overlay = true, max_bars_back = 5000)
+// Volume Flow + Fibonacci Bands — merged confluence by Harshal
+// Overlay script: Fibonacci Bollinger Bands on price, confirmed by Volume Flow.
+// The VFI oscillator is calculated internally and used as a confluence filter;
+// add the standalone VFI script separately if you want the oscillator pane.
+indicator("VFI + Fibonacci Bands [Harshal]", shorttitle="VFI_FBB", overlay=true, max_bars_back=5000)
 
-// ── Inputs ────────────────────────────────────────────────────────────────
-grpV = "Volume Flow Indicator"
-vfiLen        = input.int(130,    "VFI length",                 minval = 2,   maxval = 1000, group = grpV)
-vfiCoef       = input.float(0.2,  "Cutoff coefficient",         minval = 0,   maxval = 10,   group = grpV)
-vfiVcoef      = input.float(2.5,  "Volume cap coefficient",     minval = 0.1, maxval = 100,  group = grpV)
-vfiVolLen     = input.int(30,     "Return volatility length",   minval = 2,   maxval = 500,  group = grpV)
-vfiSignalLen  = input.int(5,      "Signal length (EMA)",        minval = 1,   maxval = 500,  group = grpV)
-vfiSmooth     = input.bool(false, "Smooth VFI",                 group = grpV)
-vfiSmoothLen  = input.int(3,      "Smoothing length",           minval = 1,   maxval = 500,  group = grpV)
-vfiSmoothType = input.string("SMA", "Smoothing type",           options = ["SMA", "EMA", "WMA"], group = grpV)
+// ── Input groups ──────────────────────────────────────────
+const string G_VFI = "Volume Flow Filter"
+const string G_FBB = "Fibonacci Bands"
+const string G_DISP = "Display"
+const string G_ALERT = "Signal Confirmation"
 
-grpB = "Fibonacci Bands"
-bandLen  = input.int(200,      "Band length",     minval = 1,     maxval = 2000, group = grpB)
-bandMult = input.float(3.0,    "Band multiplier", minval = 0.001, maxval = 50,   group = grpB)
-bandMa   = input.string("VWMA", "Basis MA type",  options = ["VWMA", "SMA", "EMA", "WMA", "RMA"], group = grpB)
-bandSrcK = input.string("hlc3", "Band source",    options = ["hlc3", "hl2", "close", "open", "high", "low"], group = grpB)
+vfiLen       = input.int(130, "VFI Length", minval=2, maxval=1000, group=G_VFI)
+vfiCoef      = input.float(0.2, "Cutoff Coefficient", minval=0.0, step=0.05, group=G_VFI)
+vfiVcoef     = input.float(2.5, "Max Volume Cutoff", minval=0.1, step=0.1, group=G_VFI)
+vfiVolLen    = input.int(30, "Volatility Length", minval=2, maxval=500, group=G_VFI)
+vfiSignalLen = input.int(5, "Signal EMA Length", minval=1, maxval=500, group=G_VFI)
+vfiSmoothLen = input.int(3, "Smoothing Length", minval=1, maxval=500, group=G_VFI)
+vfiSmooth    = input.bool(false, "Smooth VFI", group=G_VFI)
+vfiSmoothType = input.string("SMA", "Smoothing Method", options=["SMA", "EMA", "WMA"], group=G_VFI)
 
-confirmClose = input.bool(true, "Signal only on confirmed bar close")
+bandLen  = input.int(200, "Band Length", minval=1, maxval=2000, group=G_FBB)
+bandSrc  = input.source(hlc3, "Band Source", group=G_FBB)
+bandMult = input.float(3, "Band Multiplier", minval=0.001, maxval=50.0, step=0.1, group=G_FBB)
+bandMa   = input.string("VWMA", "Basis MA Type", options=["VWMA", "SMA", "EMA", "WMA", "RMA"], group=G_FBB)
 
-// ── Moving-average helpers ────────────────────────────────────────────────
-maOf(x, len, kind) =>
-    switch kind
-        "EMA"  => ta.ema(x, len)
-        "WMA"  => ta.wma(x, len)
-        "RMA"  => ta.rma(x, len)
-        "VWMA" => ta.vwma(x, len)
-        =>        ta.sma(x, len)
+showBands  = input.bool(true, "Show Bands", group=G_DISP)
+showFills  = input.bool(true, "Show Fibonacci Zone Fills", group=G_DISP)
+showBreaks = input.bool(true, "Show Band Signals", group=G_DISP)
+showConfluence = input.bool(true, "Show Confluence Markers", group=G_DISP,
+                   tooltip="Diamond markers where a VFI flow shift agrees with price position relative to the basis.")
+confirmClose = input.bool(true, "Confirm Signals on Bar Close", group=G_ALERT,
+                 tooltip="Waits for bar close before showing markers and triggering alerts.")
 
-smoothOf(x, len, kind) =>
-    switch kind
-        "EMA" => ta.ema(x, len)
-        "WMA" => ta.wma(x, len)
-        =>       ta.sma(x, len)
+// ── Volume Flow (hidden filter) ───────────────────────────
+vol = nz(volume, 0.0)
+if barstate.islast and ta.cum(vol) <= 0
+    runtime.error("The merged script needs volume data for its VFI filter.")
 
-// ── Volume Flow Indicator ─────────────────────────────────────────────────
-T      = (high + low + close) / 3
-inter  = T > 0 and T[1] > 0 ? math.log(T / T[1]) : na
-volla  = ta.stdev(inter, vfiVolLen)
-vave   = ta.sma(volume, vfiLen)
+typical = hlc3
+validPrice = typical > 0 and typical[1] > 0
+inter = validPrice ? math.log(typical / typical[1]) : na
+vinter = ta.stdev(inter, vfiVolLen)
+cutoff = vfiCoef * vinter * close
+vave = ta.sma(vol, vfiLen)[1]
+vmax = vave * vfiVcoef
+vc = math.min(vol, vmax)
+mf = typical - typical[1]
+validFlow = validPrice and not na(cutoff) and not na(vave) and vave > 0
+vcp = validFlow ? (mf > cutoff ? vc : mf < -cutoff ? -vc : 0.0) : na
+flowSum = math.sum(vcp, vfiLen)
+flowReady = math.sum(validFlow ? 1.0 : 0.0, vfiLen) == vfiLen
+rawVFI = flowReady and not na(vave) and vave > 0 ? flowSum / vave : na
+smoothed = switch vfiSmoothType
+    "EMA" => ta.ema(rawVFI, vfiSmoothLen)
+    "WMA" => ta.wma(rawVFI, vfiSmoothLen)
+    => ta.sma(rawVFI, vfiSmoothLen)
+vfi = vfiSmooth ? smoothed : rawVFI
+vfima = ta.ema(vfi, vfiSignalLen)
 
-cutoff = vfiCoef * volla * close
-vCap   = math.min(volume, nz(vave[1]) * vfiVcoef)
-mf     = T - T[1]
-contrib = mf > cutoff ? vCap : mf < -cutoff ? -vCap : 0.0
+// ── Fibonacci bands ───────────────────────────────────────
+calcMa(_src, _len, _type) =>
+    vwmaRaw = ta.vwma(_src, _len)
+    vwmaSafe = vol > 0 and not na(vwmaRaw) ? vwmaRaw : ta.sma(_src, _len)
+    switch _type
+        "VWMA" => vwmaSafe
+        "SMA"  => ta.sma(_src, _len)
+        "EMA"  => ta.ema(_src, _len)
+        "WMA"  => ta.wma(_src, _len)
+        "RMA"  => ta.rma(_src, _len)
+        => ta.sma(_src, _len)
 
-vfiRaw = ta.sum(contrib, vfiLen) / nz(vave[1])
-vfi    = vfiSmooth ? smoothOf(vfiRaw, vfiSmoothLen, vfiSmoothType) : vfiRaw
-signal = ta.ema(vfi, vfiSignalLen)
+basis = calcMa(bandSrc, bandLen, bandMa)
+dev = bandMult * ta.stdev(bandSrc, bandLen)
+upper6 = basis + dev
+lower6 = basis - dev
+upper2 = basis + 0.382 * dev
+upper4 = basis + 0.618 * dev
+upper5 = basis + 0.764 * dev
+lower2 = basis - 0.382 * dev
+lower4 = basis - 0.618 * dev
+lower5 = basis - 0.764 * dev
 
-// ── Fibonacci Bands ───────────────────────────────────────────────────────
-bandSrc = switch bandSrcK
-    "hl2"   => hl2
-    "close" => close
-    "open"  => open
-    "high"  => high
-    "low"   => low
-    =>         hlc3
+// ── Confluence logic ──────────────────────────────────────
+// A flow shift counts only when price agrees with the basis side,
+// or when an outer-band expansion carries positive/negative flow.
+rawVfiBull = ta.crossover(vfi, vfima)
+rawVfiBear = ta.crossunder(vfi, vfima)
+rawZeroUp = ta.crossover(vfi, 0.0)
+rawZeroDn = ta.crossunder(vfi, 0.0)
+rawUpper = ta.crossover(close, upper6)
+rawLower = ta.crossunder(close, lower6)
+flowReady2 = not na(vfi) and not na(vfima) and not na(vfi[1]) and not na(vfima[1])
+bandReady = not na(basis) and not na(dev) and not na(basis[1])
+ready = flowReady2 and bandReady
+canSignal = ready and (not confirmClose or barstate.isconfirmed)
 
-basis = maOf(bandSrc, bandLen, bandMa)
-dev   = ta.stdev(bandSrc, bandLen) * bandMult
+vfiBull = rawVfiBull and canSignal
+vfiBear = rawVfiBear and canSignal
+bandUpper = rawUpper and canSignal
+bandLower = rawLower and canSignal
+confluenceBull = (((rawVfiBull or rawZeroUp) and close > basis) or (rawUpper and vfi > 0 and vfi >= vfima)) and canSignal
+confluenceBear = (((rawVfiBear or rawZeroDn) and close < basis) or (rawLower and vfi < 0 and vfi <= vfima)) and canSignal
 
-upper1000 = basis + dev
-upper764  = basis + 0.764 * dev
-upper618  = basis + 0.618 * dev
-upper382  = basis + 0.382 * dev
-lower382  = basis - 0.382 * dev
-lower618  = basis - 0.618 * dev
-lower764  = basis - 0.764 * dev
-lower1000 = basis - dev
+// ── Rendering ─────────────────────────────────────────────
+// Basis tint follows money flow: teal when VFI is above its signal, rose below.
+basisColor = vfi >= vfima ? #54d6b4 : #e87487
+plot(showBands ? basis : na, "Basis", color=basisColor, linewidth=2)
+pU2 = plot(showBands ? upper2 : na, "Upper 0.382", color=color.new(#ef9a9a, 50), linewidth=1)
+pU4 = plot(showBands ? upper4 : na, "Upper 0.618", color=color.new(#ef5350, 30), linewidth=1)
+pU5 = plot(showBands ? upper5 : na, "Upper 0.764", color=color.new(#f44336, 20), linewidth=1)
+pU6 = plot(showBands ? upper6 : na, "Upper 1.000", color=color.new(#b71c1c, 0), linewidth=2)
+pL2 = plot(showBands ? lower2 : na, "Lower 0.382", color=color.new(#a5d6a7, 50), linewidth=1)
+pL4 = plot(showBands ? lower4 : na, "Lower 0.618", color=color.new(#66bb6a, 30), linewidth=1)
+pL5 = plot(showBands ? lower5 : na, "Lower 0.764", color=color.new(#4caf50, 20), linewidth=1)
+pL6 = plot(showBands ? lower6 : na, "Lower 1.000", color=color.new(#1b5e20, 0), linewidth=2)
+fill(pU2, pU4, color=showFills ? color.new(color.red, 88) : na, title="Upper Golden Pocket Fill")
+fill(pU5, pU6, color=showFills ? color.new(color.red, 78) : na, title="Upper Extreme Fill")
+fill(pL2, pL4, color=showFills ? color.new(color.green, 88) : na, title="Lower Golden Pocket Fill")
+fill(pL5, pL6, color=showFills ? color.new(color.green, 78) : na, title="Lower Extreme Fill")
 
-// ── Signals ───────────────────────────────────────────────────────────────
-vfiBull     = ta.crossover(vfi, signal)
-vfiBear     = ta.crossunder(vfi, signal)
-zeroUp      = ta.crossover(vfi, 0)
-zeroDown    = ta.crossunder(vfi, 0)
-upperBreak  = ta.crossover(close, upper1000)
-lowerBreak  = ta.crossunder(close, lower1000)
+plotshape(showBreaks and bandUpper, "Upper Break", style=shape.triangleup, location=location.belowbar, color=#ef5350, size=size.tiny)
+plotshape(showBreaks and bandLower, "Lower Break", style=shape.triangledown, location=location.abovebar, color=#66bb6a, size=size.tiny)
+plotshape(showConfluence and confluenceBull, "Bullish Confluence", style=shape.diamond, location=location.belowbar, color=#54d6b4, size=size.small)
+plotshape(showConfluence and confluenceBear, "Bearish Confluence", style=shape.diamond, location=location.abovebar, color=#e87487, size=size.small)
 
-confBull = ((vfiBull or zeroUp) and close > basis) or (upperBreak and vfi > 0 and vfi >= signal)
-confBear = ((vfiBear or zeroDown) and close < basis) or (lowerBreak and vfi < 0 and vfi <= signal)
-
-// The JS port additionally gates every signal on bar close confirmation.
-ok = not confirmClose or barstate.isconfirmed
-vfiBullS = vfiBull and ok, vfiBearS = vfiBear and ok
-upperBreakS = upperBreak and ok, lowerBreakS = lowerBreak and ok
-confBullS = confBull and ok, confBearS = confBear and ok
-
-// ── Plots ─────────────────────────────────────────────────────────────────
-plot(basis,     "Basis",      color = color.new(color.gray,   0), linewidth = 2)
-plot(upper1000, "Upper 1.000", color = color.new(color.red,    40))
-plot(upper764,  "Upper 0.764", color = color.new(color.red,    60))
-plot(upper618,  "Upper 0.618", color = color.new(color.red,    75))
-plot(upper382,  "Upper 0.382", color = color.new(color.red,    88))
-plot(lower382,  "Lower 0.382", color = color.new(color.green,  88))
-plot(lower618,  "Lower 0.618", color = color.new(color.green,  75))
-plot(lower764,  "Lower 0.764", color = color.new(color.green,  60))
-plot(lower1000, "Lower 1.000", color = color.new(color.green,  40))
-
-plotshape(vfiBullS,    "VFI bullish crossover",        shape.triangleup,   location.belowbar, color.new(color.green, 0), size = size.tiny)
-plotshape(vfiBearS,    "VFI bearish crossover",        shape.triangledown, location.abovebar, color.new(color.red,   0), size = size.tiny)
-plotshape(upperBreakS, "Upper Fibonacci-band break",   shape.circle,       location.abovebar, color.new(color.orange, 0), size = size.tiny)
-plotshape(lowerBreakS, "Lower Fibonacci-band break",   shape.circle,       location.belowbar, color.new(color.orange, 0), size = size.tiny)
-plotshape(confBullS,   "Bullish VFI + Fibonacci confluence", shape.labelup,   location.belowbar, color.new(color.teal,  0), size = size.tiny)
-plotshape(confBearS,   "Bearish VFI + Fibonacci confluence", shape.labeldown, location.abovebar, color.new(color.maroon, 0), size = size.tiny)
-
-// ── Alerts ────────────────────────────────────────────────────────────────
-alertcondition(vfiBullS,    "VFI bullish crossover",              "VFI bullish crossover")
-alertcondition(vfiBearS,    "VFI bearish crossover",              "VFI bearish crossover")
-alertcondition(upperBreakS, "Upper Fibonacci-band break",         "Upper Fibonacci-band break")
-alertcondition(lowerBreakS, "Lower Fibonacci-band break",         "Lower Fibonacci-band break")
-alertcondition(confBullS,   "Bullish VFI + Fibonacci confluence", "Bullish VFI + Fibonacci confluence")
-alertcondition(confBearS,   "Bearish VFI + Fibonacci confluence", "Bearish VFI + Fibonacci confluence")
+// ── Alerts ────────────────────────────────────────────────
+alertcondition(vfiBull, "Confluence VFI Bull", 'VFI+FBB: {{ticker}} ({{interval}}) VFI bullish crossover.')
+alertcondition(vfiBear, "Confluence VFI Bear", 'VFI+FBB: {{ticker}} ({{interval}}) VFI bearish crossover.')
+alertcondition(bandUpper, "Confluence Upper Break", 'VFI+FBB: {{ticker}} ({{interval}}) crossed above Upper 1.0 at {{close}}')
+alertcondition(bandLower, "Confluence Lower Break", 'VFI+FBB: {{ticker}} ({{interval}}) crossed below Lower 1.0 at {{close}}')
+alertcondition(confluenceBull, "Bullish Confluence", 'VFI+FBB: {{ticker}} ({{interval}}) bullish flow + band confluence at {{close}}')
+alertcondition(confluenceBear, "Bearish Confluence", 'VFI+FBB: {{ticker}} ({{interval}}) bearish flow + band confluence at {{close}}')
 ```
-
-### Note on the VFI oscillator pane
-
-The reconstruction plots the bands on the price pane (`overlay = true`), matching how the
-HarshalOS Market Charts tab layers them. `vfi` and `signal` are computed but not plotted
-here; in TradingView they belong in a second indicator with `overlay = false`, or use
-`force_overlay = false` on a dedicated `plot()`. The port computes both from the same bar
-series, so splitting them into two scripts does not change their values.
-
-## Port mapping
-
-| Pine construct | JS equivalent in `js/good-intelligence-market-context.js` |
-| :--- | :--- |
-| `(high + low + close) / 3` | `typical` in `computeVfi()` |
-| `math.log(T / T[1])` | `inter[]` loop |
-| `ta.stdev(x, len)` | `rollingStdev()` — population stdev (`/ n`) |
-| `ta.sma(x, len)` | `rollingMean()` |
-| `ta.ema(x, len)` | `ema()` — `α = 2 / (len + 1)`, seeded on first finite value |
-| `ta.wma(x, len)` | `rollingWma()` — weights `1…len`, divisor `len(len+1)/2` |
-| `ta.rma(x, len)` | `rma()` — SMA seed then Wilder recursion |
-| `ta.vwma(x, len)` | `movingAverage(…, "VWMA", volumes)` with SMA fallback on zero volume |
-| `ta.sum(x, len)` | `volumeContribution.slice(start, i + 1).reduce(…)` |
-| `nz(vave[1])` | `volumeAverage[i - 1]` |
-| `ta.crossover` / `ta.crossunder` | `crossover()` / `crossunder()` — both require four finite values |
-| `barstate.isconfirmed` | `bars[last].confirmed` + the `confirmClose` parameter |
-
-### Known parity gaps
-
-`docs/GOOD-INTELLIGENCE-ASSURANCE.md` records that this translation *"has not been
-cross-validated bar-for-bar against TradingView."* The specific things to compare first:
-
-1. **Series seeding.** The JS EMA/RMA seed on the first finite value; Pine seeds differently
-   on the very first bars of a chart, so the first `~3 × length` bars will differ.
-2. **`na` propagation.** Pine's `ta.sum` over a window containing `na` returns `na`; the JS
-   port instead requires every bar in the window to be valid and otherwise leaves `null`.
-   The result is usually the same, but not for windows that become valid mid-series.
-3. **Population vs. sample stdev.** The port divides by `n`. Confirm the original does too.
-4. **Provider candle conventions.** Split adjustment, session gaps, and volume units differ
-   by feed and change VFI materially.

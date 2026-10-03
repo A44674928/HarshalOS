@@ -1,177 +1,195 @@
 # Incorporating Pine Script into the Orb Communicator Model
 
-**Status:** proposed design · not implemented · introduces **no** new invariant
-(per `INV-CORPUS-027a`, this document only instantiates invariants already defined in
-`docs/harshal-systems/01-core-book.md`–`26-anthropic-b-side.md` and
-[`specs/normative/canonical-model.md`](../../specs/normative/canonical-model.md)).
+**Status:** the read-only Market Context node is registered; this document adds **no** new
+invariant (per `INV-CORPUS-027a`). The node is a directory/visualization entry; a live OHLCV
+payload binding into OCM is not implemented.
 
-**Companion:** [`scripts/pine/`](../../scripts/pine/README.md) holds the Markdown copies of
-the two Pine scripts this design covers.
+**Source archive:** [`scripts/pine/`](../../scripts/pine/README.md) contains Markdown copies of
+the four Pine v6 scripts supplied for this work. The JavaScript market-context port is related,
+but it is not a line-for-line Pine runtime and has not been cross-validated bar-for-bar against
+TradingView. Moon/Sun context is documented separately in
+[`CELESTIAL-CONTEXT.md`](CELESTIAL-CONTEXT.md).
 
 ---
 
 ## 1. The short answer
 
-A Pine Script indicator does **not** become an authority in OCM. It becomes an
-**observation node** on the ℤ₃₆₀ ring whose entire output is Stage-2 *Representation*
-material. It can be read by any node (Lateral Communication Axiom), it derives its address
-from Center Origin (Single-Origin Axiom), and reading it confers nothing on the reader
-(Ownership Non-Transfer Axiom).
+A Pine Script indicator does **not** become an authority in OCM. Its outputs can be treated
+as an **observation**: optional market data and derived values at Stage 2, *Representation*.
+The observation may be addressed on the ℤ₃₆₀ ring, but it cannot provide identity,
+authorization, continuity, accountability, or permission to act.
 
-Concretely: **Pine output enters the orb as telemetry and stops at the Decision gate, whose
-default is Refuse.** No crossover, divergence, or confluence can move a request from Refuse
-to Permit, because that transition requires Stages 3–5 — Authorization `V(S, t)`,
-Continuity `C(t)`, and Accountability `K(t)` — none of which an indicator can supply.
+The registered address currently has no provider/data binding. **If** a payload edge is separately approved in the future, the only safe data path would be:
 
-This is not a policy choice layered on top of the model. It follows from
-`INV-AXIS-001` (*"Resolution is an authority-resolution mechanism, not an authority source"*):
-an indicator is not even a resolution mechanism, so it is further from legitimacy than the
-thing the invariant already excludes.
+```text
+provider OHLCV → validate and normalize → calculate/label indicator context
+               → read-only OCM representation → Decision defaults to Refuse
+```
 
-## 2. What is actually being incorporated
+No crossover, divergence, band break, or confluence event can move a request from Refuse to
+Permit. That would require Stages 3–5 — Authorization `V(S, t)`, Continuity `C(t)`, and
+Accountability `K(t)` — none of which an indicator supplies. This follows from
+`INV-AXIS-001`: resolution is an authority-resolution mechanism, not an authority source.
 
-The repository already contains a committed translation of two Pine v6 scripts:
+## 2. What is being incorporated
 
-| Script | Pine source | Committed port |
-| :--- | :--- | :--- |
-| VFI + Fibonacci Bands | **not in repo** — see [`scripts/pine/01-vfi-fibonacci-bands.md`](../../scripts/pine/01-vfi-fibonacci-bands.md) | `computeVfi()`, `computeBands()` in `js/good-intelligence-market-context.js` |
-| WaveTrend | **not in repo** — see [`scripts/pine/02-wavetrend.md`](../../scripts/pine/02-wavetrend.md) | `computeWaveTrend()`, `mapHigherTimeframe()`, `divergenceEvents()` |
+The supplied Pine sources are now archived in `scripts/pine/`. The repository also has one
+combined JavaScript market-context evaluator, `js/good-intelligence-market-context.js`.
+These are related calculations, **not yet proven equivalent implementations**.
 
-Their consumer today is the **Good Intelligence** app, which is itself *not* registered as an
-OCM node — a repository-wide search for `good.intelligence` across `js/ocm-data.js`,
-`js/ocm-directory.js`, `js/apps-ocm.js`, and `js/apps-ocm-directory.js` returns nothing. So
-incorporation is a two-step job: give market context an address, then bind it to the
-decision path. Step 1 is specified below; step 2 is deliberately left as refusal-only.
+| Source document | Supplied indicator | Relevant JS code today | Coverage status |
+| :--- | :--- | :--- | :--- |
+| [`01-vfi-fibonacci-bands.md`](../../scripts/pine/01-vfi-fibonacci-bands.md) | VFI + Fibonacci Bands merged confluence overlay | `computeVfi()`, `computeBands()`, evaluator signals | Formula-level overlap; source-specific UI/runtime details and TradingView parity remain unverified |
+| [`02-wavetrend.md`](../../scripts/pine/02-wavetrend.md) | LAZY - WaveTrend Context Engine `[Pro]` | `computeWaveTrend()`, `mapHigherTimeframe()`, `divergenceEvents()` | Core formulas overlap; MTF, hidden-divergence, visual, and confirmation behavior differ |
+| [`03-fibonacci-bollinger-bands.md`](../../scripts/pine/03-fibonacci-bollinger-bands.md) | Standalone Fibonacci Bollinger Bands | Shared `computeBands()` only | Partial: 0.236/0.500 lines, fills, and standalone basis alert are not emitted |
+| [`04-moon-phases.md`](../../scripts/pine/04-moon-phases.md) | Third-party Moon Phases transcription (author/license unknown) | `js/celestial-context.js` → `moonAt()` | Approximate UTC event/phase readout; not a TradingView bar-for-bar port; provenance caveat applies |
 
-## 3. Sector assignment on the ℤ₃₆₀ ring
+The JS module remains a Good Intelligence calculation layer. `js/ocm-data.js` now registers a
+read-only **Market Context** node for directory and OCM visualization. Its presence does not
+imply provider connectivity, a live market feed, payload forwarding, or data parity. The market
+context UI can display an optional local observation; OCM does not use that observation to
+authorize or commit anything. Source-to-port parity remains unverified.
 
-The canonical 360° degree legend in `js/ocm-data.js` already names the right sector:
+## 3. Registered sector and addresses
+
+The degree legend in `js/ocm-data.js` already assigns:
 
 > `116: "Markets"`
 
-That degree sits in the **Knowledge & Intelligence** cluster (`91–135`), alongside
+It is in the **Knowledge & Intelligence** cluster (`91–135`), near
 `114: "Economic systems"`, `115: "Currency and value"`, `117: "Incentive design"`, and
-`118: "Supply chains"`. No legend change is required — this is `INV-CORPUS-027b`
-permitted instantiation, not invention.
+`118: "Supply chains"`. No new degree or invariant is needed.
 
-Proposed node, matching the existing `nodes[]` convention in `js/ocm-data.js`:
+The read-only Market Context node is now registered with the existing `nodes[]` convention:
 
 ```js
-{ app: "market", name: "Market Context", addr: "0•116•000•0012•MKT", deg: 116, r: 2.45,
+{ app: "good-intelligence", name: "Market Context", addr: "0•116•000•0012•MKT", deg: 116, r: 2.45,
   sector: "Observation",
-  note: "Optional OHLCV indicator telemetry (VFI, Fibonacci bands, WaveTrend). Read-only; never authorizes, overrides, or commits state." }
+  note: "Optional provider OHLCV and indicator context. Read-only; never authorizes, overrides, or commits state." }
 ```
 
-**Why radius `2.45`** — the outermost ring, past The Book at `2.1`. Distance in OCM is
-*"degree of coupling to the origin / propagation latency of effects / scope of
-responsibility"* and is explicitly **not** rank, authority, or importance. Provider-supplied
-market bars are the least coupled, highest-latency, externally-sourced data in the system,
-so they belong at maximum distance. Per `js/ocm-data.js`: *"Nodes at greater distance may
-operate autonomously while remaining within the ownership envelope of the orb."*
+- **Degree 116** is the existing `Markets` meaning in the Knowledge & Intelligence cluster.
+- **Instance `0012`** follows the twelve pre-existing nodes (`0000`–`0011`).
+- **Radius `2.45`** is an OCM visualization/coupling setting, not a rank, distance in space, or
+  authority claim.
+- **App ID `good-intelligence`** resolves to the existing application in `APPS`.
+- **Center Origin** remains the root; the observation is directly attached rather than nested
+  under the Good Intelligence app.
+- **Boundary:** registry presence does not bind an external provider, imply a live feed, or
+  forward market payloads into OCM. Any future binding must stay read-only and separately tested.
 
-**Why instance `0012`** — the twelve existing nodes occupy `0000`–`0011`.
+The two celestial demonstration nodes are also registered and open the UTS application:
 
-**Why `000` in the radius field** — every existing `addr` literal uses `000` there; the
-displayed fresh-slate form is derived at render time from `Math.round(nd.r * 100)`
-(`js/apps-ocm.js`, ~line 1307). Matching the convention keeps the two consistent.
+| Node | Address | Degree | App | Boundary |
+| :--- | :--- | ---: | :--- | :--- |
+| Sun | `0•009•000•0013•SUN` | 9 · Stellar influence and radiation | `uts` | Approximate annual apparent-position/declination context; **not** Moon-like phases, local sunrise/sunset, or solar activity |
+| Moon | `0•163•000•0014•MOON` | 163 · Lunar presence | `uts` | Approximate phase and illumination display; no location-specific visibility or authority effect |
 
-## 4. Mapping Pine constructs onto the OCM decision path
+These are only the named Sun and Moon demonstration entries—not a modeled solar system.
+All three addresses are validated against the current OCM directory parser.
 
-The six-stage canonical minimum model is
+## 4. Mapping onto the canonical decision path
+
+The canonical minimum model is
 `Identity → Representation → Authorization → Continuity → Accountability → Decision (Permit | Refuse)`.
-Here is where each part of a Pine script lands:
 
-| Stage | Canonical symbol | What the Pine pipeline contributes | Can the indicator supply it? |
+| Stage | Canonical symbol | Market-context contribution | Can the indicator supply it? |
 | :-- | :--- | :--- | :--- |
-| 1 · Identity | `I` | The packet's `source`, `symbol`, `timeframe`, and `synthetic` flag; provider authentication lives in `js/good-intelligence-verifier.js` | **No** — provider identity is asserted upstream, not computed |
-| 2 · Representation | `R(t)` | The normalized `gi-market-analysis-v1` object: VFI, signal, bands, `wt1`/`wt2`, zone, alerts, `barCount`, `lastBarConfirmed` | **Yes — this is the whole contribution** |
-| 3 · Authorization | `V(S, t)` | Nothing | **Never** (`INV-LEGIT-001`: legitimacy never migrates) |
-| 4 · Continuity | `C(t)` | Nothing | **Never** — requires a bound session tuple and `Δt < δ` |
+| 1 · Identity | `I` | Packet metadata such as `source`, `symbol`, `timeframe`, and `synthetic`; provider authentication remains upstream | **No** — a Pine calculation cannot authenticate its data provider |
+| 2 · Representation | `R(t)` | Normalized OHLCV-derived values, e.g. `gi-market-analysis-v1`, VFI, bands, `wt1`/`wt2`, status, and display-only indicator events | **Yes — this is the entire contribution** |
+| 3 · Authorization | `V(S, t)` | Nothing | **Never** (`INV-LEGIT-001`: legitimacy does not migrate) |
+| 4 · Continuity | `C(t)` | Nothing | **Never** — requires the canonical continuity tuple and freshness rules |
 | 5 · Accountability | `K(t)` | Nothing | **Never** — requires `K_tech × K_ops` bound to a human |
-| 6 · Decision | `Permit \| Refuse` | A refusal is the only lawful outcome absent Stages 3–5 | **No** (`INV-AGENCY-001`) |
+| 6 · Decision | `Permit \| Refuse` | No permission effect; absent Stages 3–5, default to Refuse | **No** (`INV-AGENCY-001`) |
 
-### Symbol namespace collision (`INV-SYM-001`)
+An OCM representation should carry enough context to interpret the reading: source/provider,
+symbol, timeframe, observation time/freshness, whether the bars are synthetic, and whether the
+latest bar is confirmed. Missing, stale, invalid, or synthetic data must be labelled honestly,
+not filled with invented values.
 
-`INV-SYM-001` requires each symbol to carry exactly one canonical meaning. Pine overloads
-**signal** three ways, and all three collide with the corpus:
+### Symbol namespace (`INV-SYM-001`)
 
-| Pine usage | Corpus meaning | Resolution |
+`INV-SYM-001` requires each symbol to have exactly one canonical meaning. Keep these terms
+distinct in OCM-facing documentation:
+
+| Pine/market usage | OCM wording |
+| :--- | :--- |
+| VFI EMA reference line (`vfima` in the merged Pine source; `signal` in the JS result) | **VFI reference line** (a data field, not a canonical claim signal) |
+| `alertcondition`, crossover, divergence, band break, or confluence | **indicator event** (display-only) |
+| Ground-0 `signal` object | Reserve **signal** for the canonical claim-under-assessment meaning |
+
+A market event is never an authorization, an emergency legitimacy source, or an instruction to
+route an order.
+
+## 5. Reconciliation required before relying on the JS port
+
+The Markdown archive describes the supplied Pine code. The following differences must be
+explicitly handled before claiming the existing JS output reproduces it:
+
+| Topic | Supplied Pine behavior | Current JS behavior / implication |
 | :--- | :--- | :--- |
-| VFI's EMA line (`signal = ta.ema(vfi, vfiSignalLen)`) | — | Rename in prose to **VFI reference line**; the port already stores it as `vfi.signal`, which is acceptable as a field name but must never appear as a bare `signal` in a spec |
-| A trading signal / alert | — | Use **indicator event**; the port's own note already says *"Alerts are display-only; nothing is sent or executed."* |
-| Ground-0's `signal` object in the Good Intelligence assurance contract | The claim-under-assessment | Reserve **signal** for this meaning exclusively |
+| LAZY WaveTrend source name | Input is `src` | JS calls its parameter `wtSrc` |
+| WaveTrend HTF | `request.security()` uses `raw_wt[barstate.isrealtime ? 1 : 0]` and `gaps_off` | JS maps supplied confirmed higher-timeframe candles; not the same contract |
+| Hidden WaveTrend divergences | Pivot state is updated in regular-divergence blocks before hidden checks; the hidden comparison is against the current pivot and therefore does not fire | JS checks hidden divergence against the previous pivot before replacing it; this changes behavior |
+| Regular-divergence display | `showRegDiv` gates plots, but not the `regBull`/`regBear` calculations or alert conditions | JS has its own event filtering/output contract |
+| WaveTrend visuals and confirmation | Pine has cloud, histogram, crosses, extreme markers, and bar-color settings; no `confirmClose` input | Those visual settings are not JS parameters; the JS port applies its own `confirmClose` default |
+| Standalone FBB levels | 0.236, 0.382, 0.500, 0.618, 0.764, and 1.000 | `computeBands()` exposes 0.382, 0.618, 0.764, and 1.000 only |
+| FBB presentation/events | Includes chart fills and alerts for outer-band and basis crosses | JS is an analysis/data layer; standalone fills and the basis-cross alert are not implemented |
+| Merged VFI/FBB range | Pine does not declare maxima for `vfiCoef` or `vfiVcoef` | JS normalization caps them at 10 and 100 |
+| Volume requirement | Merged source calls `runtime.error()` when cumulative volume is not positive | The JS packet validator/evaluator does not reproduce TradingView's runtime-error UI |
 
-Any spec text written about this integration must use the right-hand column.
+TradingView's built-in indicator seeding, pivot ties, gaps, real-time vs historical execution,
+provider candle conventions, and the VWMA fallback should be compared on identical bars and
+settings. The current repo test suite validates the JavaScript implementation and the Markdown
+crosswalk; it does not establish Pine/TradingView parity.
 
-## 5. Axiom and invariant conformance
+## 6. Axiom and invariant conformance
 
-| Constraint | Source | How this design satisfies it |
+| Constraint | Source | How the registered directory node satisfies it |
 | :--- | :--- | :--- |
-| Single-Origin Axiom | `js/ocm-data.js` `axioms[0]` | The node's address is `0•116•…`, derived from Center Origin |
-| Direct Attachment Axiom | `axioms[1]` | Attaches to the center, **not** to the Good Intelligence app. A market node parented to another app would create the shadow hierarchy OCM exists to forbid |
-| Lateral Communication Axiom | `axioms[2]` | Any node may read the readings without reauthorization |
-| Ownership Non-Transfer Axiom | `axioms[3]` | Reading a reading confers no authority; enforced by making the node read-only |
-| Collapse-on-Origin-Removal | `axioms[4]` | Nothing special — the node holds no origin rights to begin with |
-| `INV-AXIS-001` | `canonical-model.md` §8.1 | The indicator is telemetry, not even a resolution mechanism |
-| `INV-OCM-PRECEDENCE-001` / `-003` | §Routing | Nothing here routes laterally for authority; all authorization still traverses the resolution path |
-| `INV-OCM-LATERAL-002` | §Routing | A Pine alert forwarded node-to-node cannot authorize, override, or commit state — this is the single most important line in this document |
-| `INV-EMERG-001` | §Emergency | A flash crash, a VFI blow-off, or an "extreme bearish reversal" is an emergency condition and therefore **never** generates legitimacy. No auto-hedge, no auto-flatten, no pre-authorized emergency disc is created by volatility |
-| `INV-AGENCY-001` | README §Canonical Minimum Model | The indicator acquires no moral or legal agency; `H = 1` remains bound to a named human |
-| `INV-LEGIT-001` | README §Canonical Minimum Model | Computation is delegated to the port; legitimacy stays at `0•000•000•0000` |
-| `INV-G0-CLASS-001` | `canonical-model.md` §11.3 | Indicator states are diagnostic classifications, never operational phases. `extreme overbought` is not a `DeclaredPhase` |
-| `INV-CORPUS-027a` | §13.2 | This document invents no invariant, symbol, or phase |
+| Single-Origin Axiom | `js/ocm-data.js` `axioms[0]` | Registered address is derived from Center Origin (`0•116•…`) |
+| Direct Attachment Axiom | `axioms[1]` | Registered observation attaches to the center, not under the Good Intelligence app |
+| Lateral Communication Axiom | `axioms[2]` | Nodes may read the observation under existing OCM routing rules |
+| Ownership Non-Transfer Axiom | `axioms[3]` | Reading a market event transfers no authority; the payload is read-only |
+| Collapse-on-Origin-Removal | `axioms[4]` | The observation node has no origin rights |
+| `INV-AXIS-001` | `canonical-model.md` §8.1 | Market indicators are telemetry, not authority-resolution mechanisms |
+| `INV-OCM-PRECEDENCE-001` / `-003` | §Routing | No lateral route is introduced for authority; resolution remains on the canonical path |
+| `INV-OCM-LATERAL-002` | §Routing | Forwarded indicator events cannot authorize, override, or commit state |
+| `INV-EMERG-001` | §Emergency | A flash crash or extreme indicator reading cannot create legitimacy or an emergency permit |
+| `INV-AGENCY-001` | README §Canonical Minimum Model | Indicators acquire no moral or legal agency; `H = 1` remains bound to a named human |
+| `INV-LEGIT-001` | README §Canonical Minimum Model | Computation may be delegated; legitimacy remains at Center Origin |
+| `INV-G0-CLASS-001` | `canonical-model.md` §11.3 | Indicator labels are diagnostic classifications, never operational phases |
+| `INV-CORPUS-027a` | §13.2 | This design introduces no invariant, symbol, or phase |
 
-## 6. Implementation steps
+## 7. Implementation path if approved
 
-### Step 1 — Register the node
+1. **Choose parity scope.** Decide whether the merged VFI/FBB and LAZY WaveTrend sources are
+   the intended JS behavior, and whether the standalone FBB must also be ported with its extra
+   ratios, fills, and basis alert. Do not silently merge the two band specifications.
+2. **Build parity fixtures.** Use identical historical OHLCV bars and settings in TradingView
+   and the JS evaluator. Compare warm-up values, standard deviations, moving averages, HTF
+   mapping, pivots, and events; document any accepted differences.
+3. **Reconcile the JS layer.** Update calculation/input contracts only after parity results
+   are recorded. Preserve validation, synthetic-data labels, and the display-only warning.
+4. **Keep the data boundary explicit.** Normalize market bars into the existing
+   `gi-market-context-v1` packet, evaluate locally, and label the output
+   `gi-market-analysis-v1`. Do not accept a Pine alert as provider authentication or a claim
+   verifier.
+5. **Node registration (done).** `0•116•000•0012•MKT` is present in `js/ocm-data.js` and
+   opens the existing Good Intelligence app. This is an addressable, read-only directory entry;
+   no provider or payload edge is implied.
+6. **Future OCM payload binding (not done).** If separately approved, expose only validated, freshness-labeled observation data as
+   Representation. Never add a path from an indicator field/event to authorization, ledger
+   commitment, order routing, or a Permit decision.
+7. **Test boundaries.** Verify valid/invalid/stale/synthetic packets, no-data behavior, and
+   that no combination of market events changes the canonical refusal default. Register any
+   new test file in `package.json` and `scripts/integrity-report.mjs`.
 
-1. `js/ocm-data.js` — append the node object from §3 to `nodes[]`. It is already re-exported
-   (`return { …, nodes, … }`) and mirrored to `window.OCM_DATA`, so no export change is
-   needed.
-2. `js/apps-ocm.js` reads `OCM_DATA.nodes` at line 66 and derives the Fibonacci-sphere
-   lattice from `nodes.length`, so the orb re-lays out automatically. Verify the node label
-   and the degree-legend lookup at ~line 1293–1307 render `116 → "Markets"` and
-   cluster `91–135 → "Knowledge & Intelligence"`.
-3. `js/ocm-directory.js` needs no change: `parseAddress()` already accepts any
-   `DDD ∈ {000..359}` and refuses `360` (`OCM-ADDR-SECTOR-CLOSURE`).
+## 8. Explicitly out of scope
 
-### Step 2 — Bind the reading, refusal-only
-
-4. Feed the existing `GoodIntelligenceMarketContext.evaluate()` result into the node as
-   read-only payload. **Do not** add a path from that payload to any authorization call.
-5. Record each emitted reading in the Duty Ledger (`0•165•000•0006•PLV`) as
-   `K_tech`-attributed telemetry, so provenance exists without any authority effect.
-6. Keep the existing user-facing text intact: *"Price/volume context only — not source
-   credibility, claim truth, investment advice, or permission to act."*
-
-### Step 3 — Tests
-
-7. `tests/ocm-directory-test.mjs` — add a case asserting `0•116•000•0012•MKT` parses, is not
-   Center Origin, and that a message *from* it carries `authorityEffect: "NONE"`.
-8. `tests/ocm-engine-test.mjs` — assert that no combination of indicator events can raise
-   `V(S, t)` above `0`.
-9. `tests/pine-scripts-docs-test.mjs` already guards the Pine documentation against drift
-   from the shipped port.
-10. Register any new test file in both `package.json` and `scripts/integrity-report.mjs`;
-    CI fails the suite-inventory check if a test is left uncategorized.
-
-## 7. Explicitly out of scope
-
-- Order routing, order simulation, or anything resembling an execution edge.
+- Order routing, order simulation, or execution edges.
 - Letting an indicator event satisfy `V(S, t)`, `C(t)`, or `K(t)`.
 - Volatility-triggered emergency contexts (`INV-EMERG-001`).
-- Treating `synthetic: true` demo bars as live market data. The eight `*-DEMO` series are
-  labelled synthetic and must stay that way.
-- Claiming TradingView parity. `docs/GOOD-INTELLIGENCE-ASSURANCE.md` records that the
-  translation *"has not been cross-validated bar-for-bar against TradingView."*
-
-## 8. Open questions for the owner
-
-1. Should **Good Intelligence** itself be registered as a node before Market Context, so
-   the observation node has a sibling rather than appearing alone in the
-   Knowledge & Intelligence cluster?
-2. Is `r = 2.45` the right distance, or should externally-sourced telemetry sit even further
-   out — accepting that the current render tops out at `2.1`?
-3. Should the Duty Ledger record every emitted indicator event, or only those a human acted
-   upon? The first is auditable but noisy; the second is quiet but loses provenance for
-   events nobody acted on.
+- Treating synthetic demo bars as live market data.
+- Claiming the current JavaScript port is TradingView-identical before parity testing.
+- Live external-provider integration or forwarding market payloads into OCM; the registered Market Context node is a directory/visualization entry only.
