@@ -22,6 +22,30 @@
   gap: 8px;
 }
 .home-time-head { margin-bottom: 12px; }
+.home-widget-summary { display: none; }
+.home-widget-actions { display: flex; align-items: center; gap: 6px; }
+/* Collapse control: hidden where the widget is a desktop overlay (which has
+   room to itself) and shown on the mobile card. Tapped/clicked it minimizes
+   the widget to a single header row. */
+.home-time-widget .home-widget-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(126, 195, 225, 0.22);
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: rgba(126, 195, 225, 0.07);
+  color: #a9d8ee;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.home-time-widget .home-widget-toggle:hover, .home-time-widget .home-widget-toggle:focus-visible {
+  outline: 1px solid rgba(126, 195, 225, 0.65);
+  background: rgba(126, 195, 225, 0.15);
+}
+.home-time-body { display: block; }
 .home-widget-label, .home-time-widget .home-time-caption, .home-cal-weekdays,
 .home-time-widget .home-utc-label {
   color: rgba(190, 216, 231, 0.56);
@@ -153,10 +177,49 @@
   .uts-converter { grid-template-columns: auto minmax(90px, 1fr) auto minmax(160px, 1.4fr); }
   .uts-converter .btn { grid-column: 1 / -1; justify-self: end; }
 }
+@media (max-width: 860px) {
+  /* Mobile and tablet shells scroll the desktop vertically and the icon grid
+     spans the full width, so the clock stops floating over the wallpaper and
+     takes a fixed place at the top of the scroll flow. It can be minimized to
+     its header row; the icons are never covered in either state. */
+  .home-time-widget {
+    position: static;
+    order: -1;
+    width: min(380px, calc(100% - 28px));
+    margin: 0 14px 14px auto;
+    padding: 11px 12px 9px;
+  }
+  /* Collapsed, the header row carries a one-line clock summary in place of the
+     full panel. */
+  .home-widget-summary {
+    display: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    font-size: 10px;
+    letter-spacing: 0;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .home-time-widget.is-collapsed .home-widget-summary { display: block; }
+  .home-time-widget.is-collapsed .home-time-body { display: none; }
+  .home-time-widget .home-widget-toggle { display: inline-flex; }
+  .home-widget-label, .home-time-widget .home-uts-open { white-space: nowrap; }
+  .home-widget-actions { flex: 0 0 auto; }
+}
+
 @media (max-width: 620px) {
-  .home-time-widget { top: auto; right: 10px; bottom: 14px; width: min(300px, calc(100vw - 20px)); padding: 10px 11px 8px; }
+  /* Phones: the card takes the full content width, on the same 14px gutter as
+     the icon grid, so swiping anywhere on the desktop scrolls the page. */
+  .home-time-widget {
+    width: auto;
+    min-width: 0;
+    margin: 0 14px 14px;
+    padding: 9px 12px 10px;
+  }
   .home-widget-label { font-size: 7px; }
-  .home-time-main { grid-template-columns: 1fr auto; padding: 8px 0 9px; }
+  .home-time-main { grid-template-columns: 1fr auto; }
   .home-local-clock { font-size: 18px; }
   .home-uts-model-note { max-width: 130px; }
   .home-cal-head { padding: 8px 0 5px; }
