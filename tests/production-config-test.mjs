@@ -9,10 +9,11 @@ const production = JSON.parse(text('wrangler.jsonc').replace(/^\s*\/\/.*$/gm, ''
 const staging = JSON.parse(text('wrangler.staging.jsonc'));
 const scripts = JSON.parse(text('package.json')).scripts;
 
-test('production retains its identity, dashboard text variables and disabled community default', () => {
+test('production retains its identity, dashboard text variables and the enabled community decision', () => {
   assert.equal(production.name, 'harshalos');
   assert.equal(production.keep_vars, true);
-  assert.equal(production.vars.COMMUNITY_ENABLED, 'false');
+  // The enablement decision: explicit file value, so a dashboard 'false' cannot win.
+  assert.equal(production.vars.COMMUNITY_ENABLED, 'true');
   assert.equal(production.vars.MONGODB_DATABASE, 'harshalos');
   assert.equal(production.workers_dev, false);
   assert.equal(production.preview_urls, false);
@@ -52,7 +53,7 @@ test('production keeps community pages worker-first and uses the allowlisted ass
   assert.deepEqual(production.assets.run_worker_first, ['/api/*', '/account', '/account.html', '/audits', '/audits.html']);
 });
 
-test('disabled release rejects community routes before touching D1 or the identity provider', async () => {
+test('enabled release rejects unconfigured community routes before any D1 query', async () => {
   const id = '00000000-0000-4000-8000-000000000001';
   const routes = [
     ['GET', 'me'], ['GET', 'auth/login'], ['GET', 'auth/callback'], ['POST', 'auth/logout'],
@@ -62,16 +63,17 @@ test('disabled release rejects community routes before touching D1 or the identi
     ['POST', 'publish'], ['GET', 'my-publications'], ['GET', 'moderation'],
     ['POST', `publications/${id}/withdraw`], ['POST', `publications/${id}/report`]
   ];
-  // Accessor records attempts even when the handler catches the thrown error.
-  let accesses = 0;
-  const env = { COMMUNITY_ENABLED: production.vars.COMMUNITY_ENABLED };
-  for (const name of ['COMMUNITY_DB', 'OIDC_ISSUER', 'OIDC_CLIENT_SECRET']) {
-    Object.defineProperty(env, name, { get() { accesses++; throw new Error('Disabled feature accessed a dependency'); } });
-  }
+  // The origin/OIDC variables and secrets are owner-managed in the dashboard and
+  // absent here, exactly as they are absent from wrangler.jsonc. An enabled Worker
+  // must fail closed on every route and must not query D1 first.
+  let queries = 0;
+  const env = { COMMUNITY_ENABLED: production.vars.COMMUNITY_ENABLED,
+    COMMUNITY_DB: { prepare() { queries++; throw new Error('Unconfigured request reached D1'); } } };
   for (const [method, path] of routes) {
     const response = await handleCommunity(new Request('https://main.empty.domains/api/community/' + path, { method }), env);
     assert.equal(response.status, 503, method + ' ' + path);
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.doesNotMatch(await response.text(), /prepare|community_auth_rates|sqlite/i);
   }
-  assert.equal(accesses, 0);
+  assert.equal(queries, 0, 'no route may touch D1 before the origin/OIDC configuration passes');
 });

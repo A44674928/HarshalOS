@@ -6,7 +6,11 @@ Dedicated staging setup and exact deploy commands: [COMMUNITY-STAGING.md](COMMUN
 
 This rebuild includes the database foundation, OIDC login/session layer,
 private account workspace, private Ground-0 execution, and **explicit public publication**.
-It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
+It is not yet live-provider validated on production. `COMMUNITY_ENABLED` is now `true` in
+`wrangler.jsonc` — the enablement decision — while branch previews stay `false`. The flag
+only takes effect on the next production deployment, and nothing below is usable until the
+owner-run dashboard variables/secrets, migrations and register seed exist (`§ Ordered
+enablement`).
 
 Implemented:
 - Issuer-scoped accounts and internal owner-scoped draft storage from checkpoint 1.
@@ -32,9 +36,11 @@ recovery of anything deleted. Not implemented: full self-service account
 export/deletion, R2 evidence uploads, and automated community backup/retention
 workflows. The internal draft functions require a verified server-derived owner ID,
 never a request-supplied one.
-All community access remains disabled by default. Migrations 0001–0003 are unchanged;
-publication adds `0004_publication.sql`. All migration testing in this rebuild has
-been local only; no remote migration or deployment command was run.
+Community access is enabled in the production configuration and disabled in branch
+previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
+Migration and seed testing in this rebuild has been local only: no remote migration,
+remote seed or production deployment command has been run from the build environment,
+which has no Cloudflare credentials.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -446,12 +452,20 @@ by keeping community disabled, not by dropping tables.
 
 ## Ordered enablement on main.empty.domains (owner-run)
 
-`/account` and `/audits` are already deployed by every `main` build, but while
-`COMMUNITY_ENABLED=false` they are inert: every `/api/community/*` route fails
-closed with 503 and the register renders its unavailable notice. Enabling the
-D1-backed pages on production is a deliberate, ordered decision. Do these steps in
-order; stop at any failure rather than retrying with shortcuts.
+`/account` and `/audits` are already deployed by every `main` build, but they are
+inert until the ordered steps below are complete: before the dashboard configuration
+and migrations exist, every `/api/community/*` route fails closed with 503 and the
+register renders its unavailable notice. Enabling the D1-backed pages on production is
+a deliberate, ordered decision. Do these steps in order; stop at any failure rather
+than retrying with shortcuts.
 
+0. **Status of this sequence.** Step 5 (the flag) is committed in the repository, so
+   the sequence now describes what remains before the deployed Worker can serve the
+   feature. Steps 1–4 and 6–7 are owner-run: the build environment has no Cloudflare
+   credentials and cannot reach the Cloudflare API, so it has applied no remote
+   migration, no remote seed and no deployment. Until steps 1–4 are complete the
+   enabled Worker fails closed with 503s on every `/api/community/*` route, exactly as
+   the regression test in `tests/production-config-test.mjs` asserts.
 1. **Dashboard variables on the `harshalos` Worker** (Settings → Variables and
    Secrets, runtime scope). Text: `COMMUNITY_ORIGIN=https://main.empty.domains`,
    `OIDC_ISSUER`, `OIDC_CLIENT_ID`. Secrets: `OIDC_CLIENT_SECRET`,
@@ -467,15 +481,31 @@ order; stop at any failure rather than retrying with shortcuts.
 3. **Read-only inspection and backup.** Run the inspection in the gate above and
    confirm the only existing table is `_cf_KV`. If any application table or
    migration record exists, stop and reconcile schema and history first, and export
-   a backup before changing a populated database.
-4. **Apply migrations 0001–0004** to production D1 with the commands in the gate
-   above. Migrations never run automatically during a deploy.
-5. **Flip the flag in the repository.** Explicit values in `wrangler.jsonc` win over
-   dashboard text variables, so setting `COMMUNITY_ENABLED=true` in the dashboard
-   alone will not enable anything while the file says `false`. Change the file, and
-   update `tests/production-config-test.mjs` and this document in the same commit so
-   the enabled state is reviewed as a single, intentional change. Keep that commit
-   separate from unrelated work; it is the enablement decision.
+   a backup before changing a populated database:
+
+   ```sh
+   npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
+   ```
+
+4. **Apply migrations 0001–0004 and the register seed** to production D1. Migrations
+   never run automatically during a deploy:
+
+   ```sh
+   npx wrangler d1 migrations list COMMUNITY_DB --remote
+   npx wrangler d1 migrations apply COMMUNITY_DB --remote
+   npx wrangler d1 execute COMMUNITY_DB --remote --file case-studies/d1/case-studies-seed.sql
+   npx wrangler d1 execute COMMUNITY_DB --remote \
+     --command "SELECT (SELECT COUNT(*) FROM community_publications) AS publications, (SELECT COUNT(*) FROM community_public_series) AS series;"
+   ```
+
+   Expected from the committed seed: 23 publications, 23 series, one register account.
+5. **Flip the flag in the repository — done.** Explicit values in `wrangler.jsonc` win
+   over dashboard text variables, so a dashboard `COMMUNITY_ENABLED=true` alone would
+   not have enabled anything. `wrangler.jsonc` now says `true`, and
+   `tests/production-config-test.mjs` proves the enabled Worker fails closed on every
+   route before any D1 query while step 1 is missing, that branch previews still
+   override to `false`, and that the file's variable set is unchanged. Step 5 landed as
+   its own commit, separate from unrelated work.
 6. **Deploy and verify on the live host.** `/api/community/status` returns 200 with
    stage `publication`; `/api/community/me` returns 401 signed out; sign in succeeds
    and `/account` exposes the private workspace. A configured moderator must sign in
@@ -519,12 +549,14 @@ Commit and push tested changes only to `arena/01a0fef9-harshalos`. Verify the re
 SHA after pushing; local commits alone are not a remote backup. Do not merge to main
 or run deployment/remote-migration commands as part of checkpoint preservation.
 
-## Disabled production release (PR #42)
+## Production release and the enablement decision (PR #42, then the flag commit)
 
-The production configuration now preserves dashboard-only text variables with
+The production configuration preserves dashboard-only text variables with
 `keep_vars: true` and declares the owner-confirmed `STORAGE_BUCKET` binding to
-`main-empty-domains`, alongside the production D1 binding. Explicit `vars` still
-win: `COMMUNITY_ENABLED=false` is intentional on every Git deployment. Secrets
+`main-empty-domains`, alongside the production D1 binding. Explicit `vars` still win:
+the commit that flipped `COMMUNITY_ENABLED` to `true` is the enablement decision and is
+the only change that turns the feature on. Branch-preview overrides still force
+`false`, and no dashboard variable can re-enable previews. Secrets
 remain dashboard-managed. Inventory any additional bindings before deployment;
 `keep_vars` preserves text/JSON variables, not arbitrary resource bindings.
 
@@ -544,9 +576,11 @@ false, D1 is `community_db`, R2 is `main-empty-domains`, and dashboard-only OIDC
 Access variables/secrets remain configured. Verify existing owner storage without
 writing or deleting data. `/api/community/me` must remain unavailable (503).
 
-Enabling production remains a separate decision. Inspect/back up/migrate the
-production schema as necessary; complete the launch checks above, especially
-callback-log privacy, two-account isolation and publication/withdrawal/moderation.
+The enablement decision has been taken in the repository (see the ordered enablement
+section); the remaining work is the owner-run dashboard configuration, the backup,
+migration and seed on production D1, and the live verification. Complete the launch
+checks above before publishing, especially callback-log privacy, two-account isolation
+and publication/withdrawal/moderation.
 The current production observability settings are **not** a sign-off for logging
 authentication callback queries. One existing account is not an admission allowlist.
 If deployment has an issue, keep community disabled and inspect the active version;

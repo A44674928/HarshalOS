@@ -561,7 +561,7 @@ through direct inquiry.*
 *All scenario content in this demonstration is abstract, not descriptive · structural, not
 behavioral · evaluative, not directive · contained, not externalized.*
 
-## D1 community accounts and public audit register (disabled)
+## D1 community accounts and public audit register (enabled)
 
 The rebuild includes `/account` private drafts and Ground-0 execution, plus `/audits`
 for explicitly published reports, version history and activity. The public detail page can
@@ -570,8 +570,15 @@ exact recomputed preview and explicit consent; reports remain **UNREVIEWED**, no
 certification. Author withdrawal, private reporting and moderator hide/block controls are
 implemented. Private drafts/runs are not automatically public.
 
-`COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
-operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
-No remote migration or production deployment command was run for these checkpoints.
+`COMMUNITY_ENABLED=true` is the repository decision; branch previews keep it `false`.
+The switch takes effect only on the next production deployment, and the pages below stay
+inert until the owner-managed dashboard variables/secrets exist, migrations 0001–0004 are
+applied to production D1, and the register seed is applied. Live Auth0/D1 verification and
+the launch checklist remain pending. See
+[setup, ordered enablement and launch gates](docs/deployment/COMMUNITY-D1.md).
+
+The 23 register-issued case studies are seeded into the same public register (see the News
+section above); every row is register-issued, `UNREVIEWED` and unattested, and
+`PDH_VALID` remains FALSE for every audited entity.
 
 Staging uses a separate Worker and D1 database: see [staging setup](docs/deployment/COMMUNITY-STAGING.md). Use `npm run deploy:staging`, not the production deploy command.
