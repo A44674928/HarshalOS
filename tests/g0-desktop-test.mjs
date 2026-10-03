@@ -136,7 +136,7 @@ function parse(html, parent) {
   pushText(html.slice(lastIndex));
   return rootChildren;
 }
-function dispatch(element, type) {
+function dispatch(element, type, pending = null) {
   const event = {
     type, target: element, currentTarget: null,
     preventDefault() {}, stopPropagation() {},
@@ -145,7 +145,10 @@ function dispatch(element, type) {
   };
   let node = element;
   while (node) {
-    for (const fn of (node.listeners[type] || []).slice()) fn.call(node, event);
+    for (const fn of (node.listeners[type] || []).slice()) {
+      const result = fn.call(node, event);
+      if (pending) pending.push(Promise.resolve(result));
+    }
     node = node.parent;
   }
 }
@@ -1108,6 +1111,20 @@ if (llmApp) {
   globalThis.fetch = outsideFetch;
 }
 
+// The mail handler awaits WebCrypto. A fixed number of event-loop turns does
+// not guarantee the crypto thread pool has finished on a busy CI runner.
+async function clickAndWait(element) {
+  const pending = [];
+  dispatch(element, "click", pending);
+  let timer;
+  try {
+    await Promise.race([
+      Promise.all(pending),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Click handler did not settle")), 5000); })
+    ]);
+  } finally { clearTimeout(timer); }
+}
+
 /* ── Orb Directory & Mail: OCM-addressed phonebook and local mail ── */
 const odmApp = globalThis.APPS.find(a => a.id === "ocm-directory");
 ok(!!odmApp, "Orb Directory & Mail is registered in APPS");
@@ -1145,6 +1162,14 @@ if (odmApi && odmApp) {
   ok(odmText().includes("Center Origin"), "Center Origin cannot be registered as a directory entry or mailbox");
   ok(odmWindow.body.querySelectorAll(".odm-entry").length === 1, "refused entries are not stored");
 
+  // Force a delayed digest so these assertions cannot accidentally pass by
+  // assuming WebCrypto completes within a few setImmediate callbacks.
+  const originalMailDigest = globalThis.HOSCrypto.sha256Hex;
+  globalThis.HOSCrypto.sha256Hex = async (...args) => {
+    await new Promise(resolve => setTimeout(resolve, 25));
+    return originalMailDigest(...args);
+  };
+
   /* Mail: recorded locally, never sent, never authoritative. */
   odmWindow.body.querySelector("#odm-tab-mail").click();
   const toField = odmWindow.body.querySelector("#odm-mail-to");
@@ -1153,8 +1178,7 @@ if (odmApi && odmApp) {
   if (toField) toField.value = "0•046•002•0007";
   if (subjectField) subjectField.value = "Coordination only";
   if (bodyField) bodyField.value = "Lateral message <script>alert(1)</script> with no authority.";
-  odmWindow.body.querySelector("#odm-mail-record").click();
-  await settleTurns();
+  await clickAndWait(odmWindow.body.querySelector("#odm-mail-record"));
   ok(odmText().includes("RECORDED-LOCAL-ONLY"), "a recorded message states RECORDED-LOCAL-ONLY");
   ok(odmText().includes("transport NONE"), "the message reports transport NONE");
   ok(odmText().includes("delivery NOT-ATTEMPTED"), "the message reports delivery NOT-ATTEMPTED");
@@ -1208,8 +1232,7 @@ if (odmApi && odmApp) {
   if (toFieldL) toFieldL.value = "0•046•002•0007";
   const subjectL = odmWindow.body.querySelector("#odm-mail-subject");
   if (subjectL) subjectL.value = "Lateral route";
-  odmWindow.body.querySelector("#odm-mail-record").click();
-  await settleTurns();
+  await clickAndWait(odmWindow.body.querySelector("#odm-mail-record"));
   const lateralRecord = odmText();
   ok(lateralRecord.includes("DIRECT-LATERAL"), "a laterally routed record is stamped DIRECT-LATERAL");
   ok(lateralRecord.includes("resolution NOT-TRAVERSED"), "a direct-lateral record reports resolution NOT-TRAVERSED");
@@ -1223,9 +1246,10 @@ if (odmApi && odmApp) {
   /* Sending to Center Origin is refused at the UI too. */
   const toField2 = odmWindow.body.querySelector("#odm-mail-to");
   if (toField2) toField2.value = "0•000•000•0000";
-  odmWindow.body.querySelector("#odm-mail-record").click();
-  await settleTurns();
+  await clickAndWait(odmWindow.body.querySelector("#odm-mail-record"));
   ok(odmText().includes("OCM-ADDR-ORIGIN-RESERVED"), "mail to Center Origin is refused");
+
+  globalThis.HOSCrypto.sha256Hex = originalMailDigest;
 
   /* The orb's own registry loads, minus the reserved center. */
   odmWindow.body.querySelector("#odm-tab-directory").click();
