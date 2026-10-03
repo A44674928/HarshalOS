@@ -119,6 +119,32 @@ test('Account UI: public preview requires consent, sends token only, and is inva
   assert.equal(f.$('public-preview').hidden, true);
 });
 
+test('Account UI: deletion is confirmed, sends only the loaded revision, and never invents authority', async t => {
+  const run = { id: '22222222-2222-4222-8222-222222222222', revision: 1, phase: 'NAB', createdAt: 1000 };
+  const f = await fixture(t, (url, options) => {
+    if (url.endsWith('/me')) return Response.json({ user: { id: 'alice' } });
+    if (options.method === 'DELETE') return Response.json({ deleted: true });
+    if (/\/runs$/.test(url)) return Response.json({ runs: [run], nextCursor: null });
+    if (url.endsWith('/drafts')) return Response.json({ drafts: [saved], nextCursor: null });
+    return Response.json({ draft: saved });
+  });
+  const remove = scope => [...f.$(scope).querySelectorAll('button')].find(button => button.textContent === 'Delete');
+  f.window.confirm = () => false;
+  remove('drafts').click(); await f.flush();
+  assert.equal(f.calls.some(call => call.options.method === 'DELETE'), false);
+  f.window.confirm = () => true;
+  remove('drafts').click(); await f.flush();
+  const draftDelete = f.calls.find(call => call.options.method === 'DELETE');
+  assert.equal(draftDelete.url, '/api/community/drafts/' + saved.id);
+  assert.deepEqual(JSON.parse(draftDelete.options.body), { revision: 1 });
+  assert.equal('ownerId' in JSON.parse(draftDelete.options.body), false);
+  f.$('drafts').querySelector('button').click(); await f.flush();
+  f.$('history').click(); await f.flush();
+  remove('run-history').click(); await f.flush();
+  const runDelete = f.calls.filter(call => call.options.method === 'DELETE').pop();
+  assert.equal(runDelete.url, '/api/community/drafts/' + saved.id + '/runs/' + run.id);
+  assert.deepEqual(JSON.parse(runDelete.options.body), {});
+});
 test('Public register UI: untrusted report text is not HTML; removed reports expose no payload', async t => {
   for (const removed of [false, true]) {
     const window = new Window({ url: 'https://os.example/audits?id=pub-id', settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });

@@ -123,3 +123,55 @@ verified, explicitly enable staging in its config and redeploy. Test with synthe
 content only: staging reports become publicly reachable when enabled. Production
 must remain disabled until the end-to-end and operational launch gates in
 [COMMUNITY-D1.md](COMMUNITY-D1.md) pass.
+
+## Parking staging ("on ice") and thawing it
+
+Parking stops staging from being reachable or redeployed while keeping every
+resource in place, so a later thaw needs no rebuild. Nothing here touches
+production, and none of it is a substitute for the launch gates above.
+
+Repo-side facts that already limit the blast radius:
+
+- `COMMUNITY_ENABLED=false` in `wrangler.staging.jsonc` is an explicit value, so a
+  redeploy of the current config can never open staging sign-in. Dashboard text
+  variables cannot override it while that line is present.
+- `workers_dev` and `preview_urls` are both `false`, so `staging.empty.domains` is
+  the only reachable surface.
+- Workers Builds for `harshalos-staging` follows the single Git branch recorded in
+  its build settings (the staging checkpoint used `arena/01a0fef9-harshalos`).
+  Sessions that work on a different branch do not trigger staging builds. Confirm
+  the configured branch instead of assuming it.
+
+To freeze, in the Cloudflare dashboard:
+
+1. **Stop automatic deploys.** Workers & Pages → `harshalos-staging` → Settings →
+   Builds → Git Repositories → **Disconnect** (Cloudflare's documented way to
+   disable automatic builds and deployments for a Worker). Reconnecting later is
+   the same screen. Alternatively, keep the connection but set the deploy command
+   to `npx wrangler versions upload` so builds produce unpromoted versions only.
+2. **Make the host unreachable (recommended).** Settings → Domains & Routes →
+   remove the `staging.empty.domains` custom domain. With `workers_dev` and preview
+   URLs disabled, the Worker then serves nothing at any hostname. Remove any DNS
+   record that removal leaves behind; do not touch unrelated records.
+3. **Do not delete anything.** Keep the `community_db_staging` D1 database
+   (`74f281fe-3ab9-49b1-bff6-4686cb768ca7`), the Worker's variables and secrets,
+   and the staging Auth0 application. Deleting does not improve isolation, but it
+   destroys migration history and callback configuration. If you want less surface,
+   disable the staging Auth0 application and remove its client secret from the
+   Worker rather than deleting the resources.
+4. Leave the local test fixture (`tests/fixtures/community-d1-local.jsonc`) and any
+   `.wrangler/` state alone; they are unrelated to the remote target.
+
+To thaw:
+
+1. Re-add the custom domain (Domains & Routes → add `staging.empty.domains`) and
+   wait for DNS/TLS.
+2. Confirm the Worker still has `COMMUNITY_ORIGIN` and the staging OIDC variables
+   and secrets; they persist unless they were deliberately removed.
+3. Reconnect Git builds (or deploy manually with `npm run deploy:staging`) from the
+   branch that should own staging from then on.
+4. Re-verify read-only with `npm run db:staging:migrations:list`, then repeat the
+   verification and migration gates above before enabling anything.
+
+Whether the staging Worker was ever actually deployed by Workers Builds is not
+recorded in this repository — check the dashboard before assuming a build ran.

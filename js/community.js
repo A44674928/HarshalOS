@@ -80,7 +80,18 @@ async function list(append = false) {
     button.type = 'button'; button.dataset.id = draft.id; button.textContent = draft.title;
     detail.textContent = `Revision ${draft.revision} · ${new Date(draft.updatedAt).toLocaleDateString()}`; button.append(detail);
     button.addEventListener('click', () => { if (busy || !mayDiscard()) return; task(async () => { const data = await api('drafts/' + encodeURIComponent(draft.id)); editor(data.draft); notice('Private draft loaded.'); }); });
-    li.append(button); $('drafts').append(li);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Delete';
+    remove.addEventListener('click', () => {
+      if (busy) return;
+      if (selected?.id === draft.id && !mayDiscard()) return;
+      if (!window.confirm('Permanently delete this private draft and its saved runs? This cannot be undone. Published reports are not affected and must be withdrawn instead.')) return;
+      task(async () => {
+        await api('drafts/' + encodeURIComponent(draft.id), { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: draft.revision }) });
+        if (selected?.id === draft.id) editor();
+        await list(); notice('Private draft deleted with its saved runs. Public history is unchanged.');
+      });
+    });
+    li.append(button, remove); $('drafts').append(li);
   }
   cursor = data.nextCursor; $('more').hidden = !cursor; highlight();
 }
@@ -148,7 +159,17 @@ async function runHistory(append = false) {
     const li = document.createElement('li'), button = document.createElement('button'); button.type = 'button';
     button.textContent = `Revision ${run.revision} · ${run.phase} · ${new Date(run.createdAt).toLocaleString()}`;
     button.addEventListener('click', () => { if (busy || dirty) return; task(async () => { const data = await api('drafts/' + selected.id + '/runs/' + run.id); showRun(data.run); notice('Saved private run loaded. Check its revision and exact evaluated input; it is not a public report.'); }); });
-    li.append(button); $('run-history').append(li);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Delete';
+    remove.addEventListener('click', () => {
+      if (busy || dirty) return;
+      if (!window.confirm('Permanently delete this saved private run? This cannot be undone. A run that anchors a published report cannot be deleted.')) return;
+      task(async () => {
+        await api('drafts/' + selected.id + '/runs/' + run.id, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (currentRun?.id === run.id) clearRun();
+        await runHistory(); notice('Saved private run deleted. Any published report is unchanged.');
+      });
+    });
+    li.append(button, remove); $('run-history').append(li);
   }
   runCursor = data.nextCursor; $('run-more').hidden = !runCursor;
   if (!append && !data.runs.length) notice('No saved runs for this draft yet.');

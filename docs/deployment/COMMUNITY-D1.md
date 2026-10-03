@@ -20,14 +20,18 @@ Implemented:
 - Origin checks, bounded provider response bodies, timeouts, no followed redirects,
   generic error responses, and D1-backed request limits.
 - `/account` UI: sign-in/out, private draft list/editor, explicit save/import/export,
-  revision conflict preservation and reload. Dynamic content is rendered as text.
+  confirmed private draft/run deletion, revision conflict preservation and reload.
+  Dynamic content is rendered as text.
 - Authenticated private draft endpoints with session-derived ownership, exact-Origin
   writes, 96 KiB streaming body limit and 60 write attempts/account/UTC day.
   Listing is paginated (25 per page, stable ID order), not a latest-first feed.
 
-Not implemented: draft/run deletion, full self-service account export/deletion,
-R2 evidence uploads, and automated community backup/retention workflows. The internal draft
-functions require a verified server-derived owner ID, never a request-supplied one.
+Deletion exists only as the explicit owner-initiated draft/run deletion described
+below: there is no self-service account deletion, no automatic retention job, and no
+recovery of anything deleted. Not implemented: full self-service account
+export/deletion, R2 evidence uploads, and automated community backup/retention
+workflows. The internal draft functions require a verified server-derived owner ID,
+never a request-supplied one.
 All community access remains disabled by default. Migrations 0001–0003 are unchanged;
 publication adds `0004_publication.sql`. All migration testing in this rebuild has
 been local only; no remote migration or deployment command was run.
@@ -52,11 +56,14 @@ preview → explicit publication labeled **UNREVIEWED**, not independent verific
 | POST | `/api/community/drafts` | Create a private draft; 100/account maximum |
 | GET | `/api/community/drafts/UUID` | Read an owned draft; 404 for another account |
 | PUT | `/api/community/drafts/UUID` | Save with matching `revision`; 409 without overwrite on conflict |
+| DELETE | `/api/community/drafts/UUID` | Body **only** `{"revision": N}`; permanently delete the draft and its private runs |
 
 Writes accept `title`, object-valued `input`, `privateNotes`, and (updates only)
 `revision`. Extra envelope fields, including client-supplied owner IDs, are rejected.
 Saving a generic input object does NOT validate or execute it. Execution is a
-separate explicit operation; neither operation publishes anything.
+separate explicit operation; neither operation publishes anything. Deletion is
+described under retention below and is refused whenever a published report anchors
+the record.
 All routes require active, unblocked sessions; moderator status grants no access
 to someone else's drafts. Authentication/IP quotas also apply to draft requests.
 
@@ -108,6 +115,7 @@ Version 1.0 is the normative baseline; 1.1 remains an unratified draft.
 | POST | `/api/community/drafts/UUID/runs` | Body **only** `{"revision": 1}`; execute the owned saved revision |
 | GET | `/api/community/drafts/UUID/runs?after=SEQ` | Owner-only history, newest first, 25/page |
 | GET | `/api/community/drafts/UUID/runs/RUN_UUID` | Owner-only immutable run and evaluated snapshot |
+| DELETE | `/api/community/drafts/UUID/runs/RUN_UUID` | Body **only** `{}`; permanently delete one saved private run |
 
 Runs require migration 0003; missing migration fails closed. Existing drafts and
 login remain usable independently. The POST rejects submitted inputs/results and
@@ -120,9 +128,34 @@ these records are **not** tamper-proof against trusted database administrators.
 Limits: 20 new execution attempts per account/UTC day (validation failures count),
 200 stored runs/account, 192 KiB/report, plus existing IP and write-attempt quotas.
 A cached run does not consume the new-execution quota but still consumes a write
-attempt. No old runs are automatically deleted; deletion/retention workflows remain
-pending. The UI preserves old runs as historical evidence of computation, not as
-approved temporal declarations. Editor changes, account changes, and sign-out clear
+attempt. The UI preserves old runs as historical evidence of computation, not as
+approved temporal declarations.
+
+### Deletion and retention
+
+Deletion is owner-initiated, explicit and permanent; there is no undo, restore or
+recycle bin, and no automatic retention job removes private data. `DELETE
+/api/community/drafts/UUID` requires the current `revision` and, in one transactional
+batch, removes that draft together with its private runs, its previews and any public
+series row that has no publication. `DELETE /api/community/drafts/UUID/runs/RUN_UUID`
+removes one saved run and its previews. Both require the exact Origin, are
+session-derived and account-scoped, fail closed for blocked, stale, unknown or
+another account's records, and consume one write attempt (not an execution attempt).
+Deleting releases the 100-draft and 200-run quotas immediately.
+
+Public history is never deleted by these routes. A draft or run that anchors a
+published report is refused with 409 — withdraw the report instead — and a
+publication or public event cannot be deleted by any endpoint. Deleting an
+unexpired preview candidate is allowed because the owner is discarding their own
+pending candidate; the preview token stops working. A concurrent publication that
+commits during a delete makes the batch fail closed rather than leaving a dangling
+reference. Database operators can still read or destroy D1 directly; these routes
+are application-level controls, not tamper-proof guarantees.
+
+Deleting a draft that has unsaved editor changes in another tab is not detectable by
+the server; the revision check only ensures the deleted revision is the current one.
+The UI confirms both deletions and clears any displayed private state that the
+deleted record was driving. Editor changes, account changes, and sign-out clear
 the currently displayed run; old-revision results are explicitly labeled older.
 
 ### What the result means
@@ -251,8 +284,9 @@ until subsequent cleanup. No cron or global spending ceiling is configured.
 - Verify two-account isolation, expired/replayed sessions, preview edits/expiry,
   stale drafts, publication correction, withdrawal, reporting, hide and hide/block.
 - Verify both canonical page routes receive CSP/no-store headers on the deployed host.
-- Configure moderator coverage, a privacy/abuse contact and escalation process,
-  retention/deletion policy, backups/export and restore rehearsal, resource monitoring,
+- Configure moderator coverage, a privacy/abuse contact and escalation process, a
+  retention/deletion policy that covers operator-side purge, account deletion and
+  backup expiry, backups/export and restore rehearsal, resource monitoring,
   Cloudflare edge protections, and provider signup abuse controls before public launch.
 - Restrict database/operator/log access. Callback queries contain short-lived codes;
   never add application logs containing tokens, cookies, reports or private notes.
@@ -334,6 +368,53 @@ Expected application tables: `community_users`, `community_drafts`, `community_s
 `community_public_events`, `community_reports`, and `community_moderation_actions`. Wrangler also tracks migrations in `d1_migrations`. Applying
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
+
+## Ordered enablement on main.empty.domains (owner-run)
+
+`/account` and `/audits` are already deployed by every `main` build, but while
+`COMMUNITY_ENABLED=false` they are inert: every `/api/community/*` route fails
+closed with 503 and the register renders its unavailable notice. Enabling the
+D1-backed pages on production is a deliberate, ordered decision. Do these steps in
+order; stop at any failure rather than retrying with shortcuts.
+
+1. **Dashboard variables on the `harshalos` Worker** (Settings → Variables and
+   Secrets, runtime scope). Text: `COMMUNITY_ORIGIN=https://main.empty.domains`,
+   `OIDC_ISSUER`, `OIDC_CLIENT_ID`. Secrets: `OIDC_CLIENT_SECRET`,
+   `COMMUNITY_RATE_SECRET`. `OIDC_ADMIN_SUBJECTS` is already declared in
+   `wrangler.jsonc`; moderators are matched by issuer and subject together.
+   `COMMUNITY_ORIGIN` is intentionally absent from `wrangler.jsonc` (owner-managed),
+   and `tests/production-config-test.mjs` asserts the file's variable set stays at
+   three keys. Do not add issuer/origin values to Git.
+2. **Auth0 production application.** Regular Web Application, Client Secret (Post),
+   only the `openid` scope, with Application Login URI
+   `https://main.empty.domains/api/community/auth/login` and exact callback
+   `https://main.empty.domains/api/community/auth/callback`. No wildcards.
+3. **Read-only inspection and backup.** Run the inspection in the gate above and
+   confirm the only existing table is `_cf_KV`. If any application table or
+   migration record exists, stop and reconcile schema and history first, and export
+   a backup before changing a populated database.
+4. **Apply migrations 0001–0004** to production D1 with the commands in the gate
+   above. Migrations never run automatically during a deploy.
+5. **Flip the flag in the repository.** Explicit values in `wrangler.jsonc` win over
+   dashboard text variables, so setting `COMMUNITY_ENABLED=true` in the dashboard
+   alone will not enable anything while the file says `false`. Change the file, and
+   update `tests/production-config-test.mjs` and this document in the same commit so
+   the enabled state is reviewed as a single, intentional change. Keep that commit
+   separate from unrelated work; it is the enablement decision.
+6. **Deploy and verify on the live host.** `/api/community/status` returns 200 with
+   stage `publication`; `/api/community/me` returns 401 signed out; sign in succeeds
+   and `/account` exposes the private workspace. A configured moderator must sign in
+   before publication is available at all. Then walk the two-account isolation,
+   preview/expiry, publication, withdrawal, report and moderation cases listed in the
+   launch checks above, using synthetic content only.
+7. **Rollback is the flag, not the schema.** To withdraw the feature, set
+   `COMMUNITY_ENABLED=false` and redeploy. Do not drop tables, delete the database or
+   remove secrets; published data and history must survive an emergency disable so
+   the feature can be re-enabled without data loss.
+
+Until every step above is complete, keep production disabled. Local tests passing is
+not evidence that live Auth0, D1 concurrency or the deployed headers behave as
+tested locally.
 
 ## Preserve Auth0 setup for live staging
 
