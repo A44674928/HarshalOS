@@ -83,7 +83,7 @@ window.HOSLLM = (() => {
       model: "gemini-3.8-flash",
       context: 1000000,
       browser: "direct",
-      note: "Uses Google's official @google/genai browser SDK (pinned at 2.24.0), loaded on demand through jsDelivr's ESM endpoint. The SDK code comes from jsDelivr; prompts and the key go directly from this browser to the configured API base URL (Google's Gemini Developer API by default). Google recommends keeping production API keys server-side: this BYOK browser key is visible to anyone with access to this browser. Use a key type and restrictions accepted by Google's current Gemini API guidance."
+      note: "Uses Google's official @google/genai browser SDK (pinned at 2.26.0), loaded on demand through jsDelivr's ESM endpoint. Prompts and the key go directly to the configured Gemini Developer API base URL. Google's Free Tier is finite, project/model-scoped, and its prompts/responses may be used to improve Google products; don't send confidential data. The optional local RPM/input-TPM/RPD guard uses limits you copy from AI Studio, but cannot see traffic from other clients. Google recommends keeping production API keys server-side; this BYOK browser key is visible to anyone with access to this browser."
     },
     openrouter: {
       label: "OpenRouter (many models, one key)",
@@ -208,6 +208,7 @@ window.HOSLLM = (() => {
     try { sessionStorage.removeItem(KEY_SESSION); } catch { /* ignore */ }
     try { localStorage.removeItem(KEY_PERSIST); } catch { /* ignore */ }
     memoryKey = "";
+    invalidateGoogleModelCatalog();
     if (key) {
       let stored = false;
       try { (persist ? localStorage : sessionStorage).setItem(persist ? KEY_PERSIST : KEY_SESSION, key); stored = true; } catch { /* fall through */ }
@@ -218,6 +219,7 @@ window.HOSLLM = (() => {
   }
   function clearKey() {
     memoryKey = "";
+    invalidateGoogleModelCatalog();
     try { sessionStorage.removeItem(KEY_SESSION); } catch { /* ignore */ }
     try { localStorage.removeItem(KEY_PERSIST); } catch { /* ignore */ }
     return keyStorage();
@@ -281,7 +283,7 @@ window.HOSLLM = (() => {
         cors: "THE BROWSER BLOCKED THE CALL", auth: "THE KEY WAS REJECTED", model: "THE MODEL WAS REJECTED",
         "model-list": "MODEL LIST UNAVAILABLE", sdk: "GOOGLE GENAI SDK UNAVAILABLE", rate: "RATE LIMITED",
         budget: "THE TOKEN CEILING IS UNAFFORDABLE", busy: "THE PROVIDER IS STILL SETTLING REQUESTS",
-        quota: "THE GOOGLE API QUOTA IS EXHAUSTED", billing: "THE PROVIDER REFUSED THE CALL", timeout: "NO COMPLETE RESPONSE"
+        quota: "THE GOOGLE API QUOTA IS EXHAUSTED", pace: "THE LOCAL GOOGLE PACE GUARD HELD THIS CALL", billing: "THE PROVIDER REFUSED THE CALL", timeout: "NO COMPLETE RESPONSE"
       })[error.kind] || "THE MODEL CALL FAILED",
       detail: error.message, hint: error.hint
     };
@@ -336,7 +338,7 @@ window.HOSLLM = (() => {
   /* This site has no bundler or package runtime. Load the official package's
      browser entry only when a Google model is listed, tested, or called. Pin
      the version so a CDN-side latest tag cannot silently change the client. */
-  const GOOGLE_GENAI_SDK_VERSION = "2.24.0";
+  const GOOGLE_GENAI_SDK_VERSION = "2.26.0";
   const GOOGLE_GENAI_SDK_URL = `https://cdn.jsdelivr.net/npm/@google/genai@${GOOGLE_GENAI_SDK_VERSION}/+esm`;
   const defaultGoogleSDKLoader = () => import(GOOGLE_GENAI_SDK_URL);
   let googleSDKLoader = defaultGoogleSDKLoader;
@@ -504,21 +506,38 @@ window.HOSLLM = (() => {
       if (signal && signal.aborted) onAbort();
     });
   }
-  function googleModelsClientRows(rows) {
+  let googleModelCatalogCache = { endpoint: "", rows: [] };
+  function invalidateGoogleModelCatalog() {
+    googleModelCatalogCache = { endpoint: "", rows: [] };
+  }
+  function googleModelCatalogRows(rows) {
     const result = [];
     for (const row of rows || []) {
       if (!row || typeof row !== "object") continue;
-      if (Array.isArray(row.supportedActions) && !row.supportedActions.includes("generateContent")) continue;
+      const actions = Array.isArray(row.supportedActions)
+        ? row.supportedActions
+        : Array.isArray(row.supportedGenerationMethods) ? row.supportedGenerationMethods : null;
+      if (actions && !actions.includes("generateContent")) continue;
       const rawName = row.name || row.id || row.slug;
       if (typeof rawName !== "string" || !rawName.trim()) continue;
       const trimmedName = rawName.trim();
       const id = trimmedName.startsWith("models/") ? trimmedName.slice(7) : trimmedName;
-      if (id && !result.includes(id)) result.push(id);
+      if (!id || result.some(item => item.id === id)) continue;
+      const inputTokenLimit = Number(row.inputTokenLimit);
+      const outputTokenLimit = Number(row.outputTokenLimit);
+      result.push({
+        id,
+        displayName: typeof row.displayName === "string" ? row.displayName.slice(0, 160) : "",
+        inputTokenLimit: Number.isSafeInteger(inputTokenLimit) && inputTokenLimit > 0 ? inputTokenLimit : 0,
+        outputTokenLimit: Number.isSafeInteger(outputTokenLimit) && outputTokenLimit > 0 ? outputTokenLimit : 0,
+        supportedActions: actions ? actions.filter(action => typeof action === "string").slice(0, 20) : []
+      });
       if (result.length >= 400) break;
     }
     return result;
   }
-  async function loadGoogleModels(provider, { signal, timeoutMs = 20000 } = {}) {
+  function googleModelsClientRows(rows) { return googleModelCatalogRows(rows).map(row => row.id); }
+  async function fetchGoogleModelRows(provider, { signal, timeoutMs = 20000 } = {}) {
     const key = apiKey();
     if (!key) throw new LlmError(`No key is loaded for ${provider.label}.`, { kind: "auth", hint: "Open LLM Link and paste a Gemini API key. The key stays in this browser and is sent directly to the configured API base URL." });
     const controller = new AbortController();
@@ -541,7 +560,7 @@ window.HOSLLM = (() => {
         }
       } else if (pager && Array.isArray(pager.page)) rows.push(...pager.page.slice(0, 400));
       else throw new LlmError("Google's SDK returned an unreadable model list.", { kind: "model-list" });
-      return googleModelsClientRows(rows);
+      return rows;
     } catch (error) {
       if (timedOut) throw new LlmError(`Listing Google models did not finish within ${Math.round(timeoutMs / 1000)} seconds.`, { kind: "timeout", hint: "Retry when the network is available, or type a model name manually." });
       if (controller.signal.aborted) throw abortReason(controller.signal);
@@ -550,6 +569,22 @@ window.HOSLLM = (() => {
       clearTimeout(timer);
       if (signal) signal.removeEventListener("abort", onAbort);
     }
+  }
+
+  async function loadGoogleModels(provider, options = {}) {
+    return googleModelsClientRows(await fetchGoogleModelRows(provider, options));
+  }
+  async function loadGoogleModelCatalog(provider, options = {}) {
+    const rows = googleModelCatalogRows(await fetchGoogleModelRows(provider, options));
+    googleModelCatalogCache = { endpoint: String(provider && provider.endpoint || "").trim(), rows };
+    return rows;
+  }
+  function googleModelInfo(model = resolved().model) {
+    const current = resolved();
+    if (current.protocol !== "google" || googleModelCatalogCache.endpoint !== current.endpoint) return null;
+    const id = String(model || "").trim().replace(/^models\//, "");
+    const row = googleModelCatalogCache.rows.find(item => item.id === id);
+    return row ? { ...row, supportedActions: row.supportedActions.slice() } : null;
   }
 
   async function loadModels(provider, { signal, timeoutMs = 20000 } = {}) {
@@ -657,11 +692,307 @@ window.HOSLLM = (() => {
 
   const estimateTokens = value => Math.ceil(String(value ?? "").length / 3.6);
 
+  /* Gemini Developer API quotas are per Cloud project and model, not per key.
+     Google does not expose a dependable quota-discovery endpoint to this BYOK
+     browser client, so the custodian copies the active RPM / input-TPM / RPD
+     numbers from AI Studio. A local sliding-window guard then stays below a
+     configurable safety fraction. It is deliberately called a guard, not a
+     quota guarantee: it only sees this browser origin, not other keys, apps,
+     devices, users, or traffic outside this page. Google remains authoritative.
+
+     Persist only the manually configured caps and a small ledger of request
+     timestamps/token estimates. No key, prompt, source text, or model reply is
+     written to this ledger. Web Locks coordinate same-origin tabs where the
+     browser supports them; the in-page queue is the fallback. */
+  const GOOGLE_QUOTA_SETTINGS_KEY = "hos-google-quota-settings-v1";
+  const GOOGLE_QUOTA_LEDGER_PREFIX = "hos-google-quota-ledger-v1:";
+  const GOOGLE_QUOTA_WINDOW_MS = 60_000;
+  const GOOGLE_QUOTA_DEFAULT_SAFETY_PERCENT = 80;
+  const GOOGLE_QUOTA_MAX_SETTING = 1_000_000_000;
+  const googleQuotaLedgerMemory = new Map();
+  const googleQuotaLockQueues = new Map();
+  let googleQuotaSettingsMemory = null;
+  let googleReservationSequence = 0;
+
+  const cleanGoogleQuotaLimit = value => {
+    if (value === null || value === undefined || String(value).trim() === "") return 0;
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number >= 0
+      ? Math.min(number, GOOGLE_QUOTA_MAX_SETTING)
+      : 0;
+  };
+  const emptyGoogleQuotaProfile = () => ({ rpm: 0, tpm: 0, rpd: 0 });
+  const googleQuotaProfileKey = (projectId, model) => `${projectId || "__default_browser_group__"}::${model}`;
+  function normalizeGoogleQuotaSettings(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const profiles = {};
+    if (source.profiles && typeof source.profiles === "object" && !Array.isArray(source.profiles)) {
+      for (const [model, profile] of Object.entries(source.profiles).slice(0, 100)) {
+        const name = String(model || "").trim().slice(0, 200);
+        if (!name || !profile || typeof profile !== "object") continue;
+        profiles[name] = {
+          rpm: cleanGoogleQuotaLimit(profile.rpm),
+          tpm: cleanGoogleQuotaLimit(profile.tpm),
+          rpd: cleanGoogleQuotaLimit(profile.rpd)
+        };
+      }
+    }
+    const requestedSafety = Number(source.safetyPercent);
+    const safetyPercent = Number.isFinite(requestedSafety)
+      ? Math.max(50, Math.min(100, Math.round(requestedSafety)))
+      : GOOGLE_QUOTA_DEFAULT_SAFETY_PERCENT;
+    return {
+      projectId: String(source.projectId || "").trim().slice(0, 120),
+      safetyPercent,
+      profiles
+    };
+  }
+  function readGoogleQuotaSettings() {
+    try {
+      const raw = localStorage.getItem(GOOGLE_QUOTA_SETTINGS_KEY);
+      if (raw) {
+        googleQuotaSettingsMemory = normalizeGoogleQuotaSettings(JSON.parse(raw));
+        return googleQuotaSettingsMemory;
+      }
+    } catch { /* Storage may be disabled; keep a non-persistent in-memory copy. */ }
+    if (!googleQuotaSettingsMemory) googleQuotaSettingsMemory = normalizeGoogleQuotaSettings(null);
+    return googleQuotaSettingsMemory;
+  }
+  function writeGoogleQuotaSettings(settings) {
+    googleQuotaSettingsMemory = normalizeGoogleQuotaSettings(settings);
+    try { localStorage.setItem(GOOGLE_QUOTA_SETTINGS_KEY, JSON.stringify(googleQuotaSettingsMemory)); }
+    catch { /* Quota pacing still works for this page if storage is unavailable. */ }
+    return googleQuotaSettingsMemory;
+  }
+  function googleQuotaSettings(model = resolved().model) {
+    const all = readGoogleQuotaSettings();
+    const name = String(model || "").trim().slice(0, 200);
+    const profileKey = googleQuotaProfileKey(all.projectId, name);
+    const profile = name && all.profiles[profileKey] ? all.profiles[profileKey] : emptyGoogleQuotaProfile();
+    return { model: name, projectId: all.projectId, safetyPercent: all.safetyPercent, ...profile };
+  }
+  function saveGoogleQuotaSettings({ model = resolved().model, projectId, rpm, tpm, rpd, safetyPercent } = {}) {
+    const current = readGoogleQuotaSettings();
+    const next = { ...current, profiles: { ...current.profiles } };
+    if (projectId !== undefined) next.projectId = String(projectId || "").trim().slice(0, 120);
+    if (safetyPercent !== undefined) {
+      const value = Number(safetyPercent);
+      if (Number.isFinite(value)) next.safetyPercent = Math.max(50, Math.min(100, Math.round(value)));
+    }
+    const name = String(model || "").trim().slice(0, 200);
+    if (name) {
+      const profileKey = googleQuotaProfileKey(next.projectId, name);
+      const previous = next.profiles[profileKey] || emptyGoogleQuotaProfile();
+      next.profiles[profileKey] = {
+        rpm: rpm === undefined ? previous.rpm : cleanGoogleQuotaLimit(rpm),
+        tpm: tpm === undefined ? previous.tpm : cleanGoogleQuotaLimit(tpm),
+        rpd: rpd === undefined ? previous.rpd : cleanGoogleQuotaLimit(rpd)
+      };
+    }
+    writeGoogleQuotaSettings(next);
+    return googleQuotaSettings(name);
+  }
+  function googlePacificDayKey(timestamp = Date.now()) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit"
+      }).formatToParts(new Date(timestamp));
+      const pick = type => parts.find(part => part.type === type)?.value || "00";
+      return `${pick("year")}-${pick("month")}-${pick("day")}`;
+    } catch {
+      return new Date(timestamp).toISOString().slice(0, 10);
+    }
+  }
+  function googlePacificResetDelay(timestamp = Date.now()) {
+    const day = googlePacificDayKey(timestamp);
+    let low = timestamp;
+    let high = timestamp + 36 * 60 * 60 * 1000;
+    while (googlePacificDayKey(high) === day) high += 12 * 60 * 60 * 1000;
+    for (let step = 0; step < 48; step++) {
+      const middle = Math.floor((low + high) / 2);
+      if (googlePacificDayKey(middle) === day) low = middle;
+      else high = middle;
+    }
+    return Math.max(1000, high - timestamp);
+  }
+  const effectiveGoogleQuota = (limit, safetyPercent) => limit
+    ? Math.max(1, Math.floor(limit * safetyPercent / 100))
+    : 0;
+  const googleQuotaLedgerKey = (projectId, model) =>
+    `${GOOGLE_QUOTA_LEDGER_PREFIX}${encodeURIComponent(projectId || "__default_browser_group__")}:${encodeURIComponent(model || "unknown-model")}`;
+  function readGoogleQuotaLedger(key, now = Date.now()) {
+    let raw = null;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) raw = JSON.parse(stored);
+    } catch { /* Fall back to memory when local storage is unavailable/corrupt. */ }
+    if (!raw || typeof raw !== "object") raw = googleQuotaLedgerMemory.get(key) || {};
+    const entries = (Array.isArray(raw.entries) ? raw.entries : [])
+      .filter(entry => entry && Number.isFinite(Number(entry.at)) && Number.isFinite(Number(entry.inputTokens)))
+      .map(entry => ({ id: String(entry.id || ""), at: Number(entry.at), inputTokens: Math.max(0, Number(entry.inputTokens)) }))
+      .filter(entry => entry.at > now - GOOGLE_QUOTA_WINDOW_MS)
+      .sort((left, right) => left.at - right.at);
+    const today = googlePacificDayKey(now);
+    return {
+      day: today,
+      dailyCount: raw.day === today ? cleanGoogleQuotaLimit(raw.dailyCount) : 0,
+      entries
+    };
+  }
+  function writeGoogleQuotaLedger(key, ledger) {
+    googleQuotaLedgerMemory.set(key, ledger);
+    try { localStorage.setItem(key, JSON.stringify(ledger)); }
+    catch { /* The in-memory ledger remains usable for the current page. */ }
+  }
+  async function withGoogleQuotaLock(name, operation) {
+    const locks = globalThis.navigator && globalThis.navigator.locks;
+    if (locks && typeof locks.request === "function") {
+      return locks.request(`hos-google-quota:${name}`, { mode: "exclusive" }, operation);
+    }
+    const previous = googleQuotaLockQueues.get(name) || Promise.resolve();
+    let unlock;
+    const barrier = new Promise(resolve => { unlock = resolve; });
+    const queued = previous.then(() => barrier);
+    googleQuotaLockQueues.set(name, queued);
+    await previous;
+    try { return await operation(); }
+    finally {
+      unlock();
+      if (googleQuotaLockQueues.get(name) === queued) googleQuotaLockQueues.delete(name);
+    }
+  }
+  function googleQuotaWaitMs(entries, inputTokens, limits, now) {
+    let requests = entries.length;
+    let tokens = entries.reduce((sum, entry) => sum + entry.inputTokens, 0);
+    const allowed = () => (!limits.rpm || requests + 1 <= limits.rpm)
+      && (!limits.tpm || tokens + inputTokens <= limits.tpm);
+    if (allowed()) return 0;
+    for (const entry of entries) {
+      requests -= 1;
+      tokens -= entry.inputTokens;
+      if (allowed()) return Math.max(1, entry.at + GOOGLE_QUOTA_WINDOW_MS - now + 1);
+    }
+    return 0;
+  }
+  function googleLocalPaceError(model, reason, { limit = 0, estimate = 0, retryAfterMs = 0 } = {}) {
+    const label = model || "the selected model";
+    if (reason === "daily") return new LlmError(
+      `LLM Link's local guard has reached its configured ${limit}-request daily cap for ${label}. No request was sent.`,
+      { status: 429, kind: "pace", retryAfterMs, hint: "The local RPD guard resets at midnight Pacific time. Google enforces its own project quota; check the active project/model limit in AI Studio and account for use from other clients." }
+    );
+    if (reason === "prompt") return new LlmError(
+      `LLM Link's local guard did not send this ${label} prompt: its padded input estimate (${estimate.toLocaleString()} tokens) exceeds the configured per-minute input budget (${limit.toLocaleString()}).`,
+      { status: 429, kind: "pace", hint: "Reduce the source text/prompt, choose a model with a larger active TPM limit, or review the project/model limit in AI Studio. This is a local estimate, not a Google error." }
+    );
+    return new LlmError(
+      `LLM Link's local guard did not send the ${label} request because the next project/model quota slot is about ${waitLabel(retryAfterMs)} away.`,
+      { status: 429, kind: "pace", retryAfterMs, hint: "Wait for the local rolling-minute window to clear, increase the call timeout, or review the active RPM/TPM limits in AI Studio. No provider request was made for this call." }
+    );
+  }
+  function googleQuotaStatus(model = resolved().model) {
+    const name = String(model || "").trim().slice(0, 200);
+    const all = readGoogleQuotaSettings();
+    const profileKey = googleQuotaProfileKey(all.projectId, name);
+    const profile = name && all.profiles[profileKey] ? all.profiles[profileKey] : emptyGoogleQuotaProfile();
+    const key = googleQuotaLedgerKey(all.projectId, name);
+    const ledger = readGoogleQuotaLedger(key);
+    const effective = {
+      rpm: effectiveGoogleQuota(profile.rpm, all.safetyPercent),
+      tpm: effectiveGoogleQuota(profile.tpm, all.safetyPercent),
+      rpd: effectiveGoogleQuota(profile.rpd, all.safetyPercent)
+    };
+    return {
+      model: name,
+      projectId: all.projectId,
+      projectGroup: all.projectId || "default browser quota group",
+      safetyPercent: all.safetyPercent,
+      configured: !!(profile.rpm || profile.tpm || profile.rpd),
+      actual: { ...profile },
+      effective,
+      usage: {
+        requestsPerMinute: ledger.entries.length,
+        inputTokensPerMinute: ledger.entries.reduce((sum, entry) => sum + entry.inputTokens, 0),
+        requestsPerDay: ledger.dailyCount
+      }
+    };
+  }
+  function estimateGoogleInputTokens(system, user) {
+    const text = [String(system || ""), String(user || "")].filter(Boolean).join("\n");
+    if (!text) return 1;
+    /* A padded character-based estimate avoids an extra countTokens API call.
+       It is conservative for the prose/JSON prompts used here, but not a
+       tokenizer and cannot perfectly model code, CJK, or provider overhead. */
+    let asciiCharacters = 0;
+    let otherCodePoints = 0;
+    for (const character of text) {
+      if (character.codePointAt(0) <= 0x7f) asciiCharacters += 1;
+      else otherCodePoints += 1;
+    }
+    return Math.max(1, Math.ceil(asciiCharacters / 2.8 + otherCodePoints * 1.2));
+  }
+  async function reserveGoogleGeneration({ model, system, user, signal, onRetry, startedAt, timeoutMs }) {
+    const all = readGoogleQuotaSettings();
+    const profile = all.profiles[googleQuotaProfileKey(all.projectId, model)] || emptyGoogleQuotaProfile();
+    const limits = {
+      rpm: effectiveGoogleQuota(profile.rpm, all.safetyPercent),
+      tpm: effectiveGoogleQuota(profile.tpm, all.safetyPercent),
+      rpd: effectiveGoogleQuota(profile.rpd, all.safetyPercent)
+    };
+    const inputTokens = estimateGoogleInputTokens(system, user);
+    const ledgerKey = googleQuotaLedgerKey(all.projectId, model);
+    const lockName = `${all.projectId || "__default_browser_group__"}:${model}`;
+    let waits = 0;
+    for (;;) {
+      const result = await withGoogleQuotaLock(lockName, () => {
+        const now = Date.now();
+        const ledger = readGoogleQuotaLedger(ledgerKey, now);
+        if (limits.rpd && ledger.dailyCount >= limits.rpd) {
+          return { blocked: "daily", limit: limits.rpd, waitMs: googlePacificResetDelay(now) };
+        }
+        if (limits.tpm && inputTokens > limits.tpm) {
+          return { blocked: "prompt", limit: limits.tpm, estimate: inputTokens };
+        }
+        const waitMs = googleQuotaWaitMs(ledger.entries, inputTokens, limits, now);
+        if (waitMs) return { waitMs };
+        const id = `${now.toString(36)}-${(++googleReservationSequence).toString(36)}-${Math.random().toString(36).slice(2)}`;
+        ledger.entries.push({ id, at: now, inputTokens });
+        ledger.dailyCount += 1;
+        ledger.day = googlePacificDayKey(now);
+        writeGoogleQuotaLedger(ledgerKey, ledger);
+        return { reservation: { id, ledgerKey, lockName, estimatedInputTokens: inputTokens } };
+      });
+      if (result.blocked === "daily") throw googleLocalPaceError(model, "daily", { limit: result.limit, retryAfterMs: result.waitMs });
+      if (result.blocked === "prompt") throw googleLocalPaceError(model, "prompt", { limit: result.limit, estimate: result.estimate });
+      if (result.waitMs) {
+        const remaining = timeoutMs - (Date.now() - startedAt);
+        if (result.waitMs >= remaining) throw googleLocalPaceError(model, "window", { retryAfterMs: result.waitMs });
+        try { if (typeof onRetry === "function") onRetry({ delayMs: result.waitMs, attempt: ++waits, source: "Google local quota guard" }); }
+        catch { /* Progress reporting must not break the request. */ }
+        await waitForAbortableDelay(result.waitMs, signal);
+        activity.googlePaceWaits += 1;
+        continue;
+      }
+      return result.reservation;
+    }
+  }
+  async function settleGoogleReservation(reservation, actualInputTokens) {
+    const actual = cleanGoogleQuotaLimit(actualInputTokens);
+    if (!reservation || !actual) return;
+    await withGoogleQuotaLock(reservation.lockName, () => {
+      const now = Date.now();
+      const ledger = readGoogleQuotaLedger(reservation.ledgerKey, now);
+      const entry = ledger.entries.find(item => item.id === reservation.id);
+      if (!entry) return;
+      entry.inputTokens = actual;
+      writeGoogleQuotaLedger(reservation.ledgerKey, ledger);
+    });
+  }
+
   /* Session activity. Kept in memory only: how many calls this page made,
      what they cost in tokens, and how long the last one took. */
-  const activity = { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, lastMs: 0, lastModel: "", lastAt: "" };
+  const activity = { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, googlePaceWaits: 0, lastMs: 0, lastModel: "", lastAt: "" };
   const stats = () => ({ ...activity, ceiling: ceiling ? ceiling.maxTokens : 0 });
-  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
+  const resetStats = () => { Object.assign(activity, { calls: 0, failures: 0, input: 0, output: 0, shrunk: 0, inFlightRetries: 0, googlePaceWaits: 0, lastMs: 0, lastModel: "", lastAt: "" }); };
 
   /* ──────────────────────────────────────────────────────────────
      The token ceiling the provider will actually sell us
@@ -853,9 +1184,12 @@ window.HOSLLM = (() => {
          honoring Retry-After and using bounded backoff when no delay is exposed
      `floorTokens` is the least ceiling worth sending at all: below it the
      answer arrives truncated, so the caller is told instead. */
-  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true, onRetry = null, jsonMode = false }) {
+  async function chat({ system = "", user, maxTokens = 4000, temperature = 0, signal, timeoutMs = 120000, model = "", floorTokens = 64, shrinkToAffordable = true, onRetry = null, jsonMode = false, maxGoogleRetries = GOOGLE_MAX_RETRIES }) {
     if (typeof user !== "string" || !user.trim()) throw new LlmError("There is nothing to send.", { kind: "error" });
     const config = resolved();
+    const googleRetryLimit = Number.isSafeInteger(maxGoogleRetries)
+      ? Math.max(0, Math.min(GOOGLE_MAX_RETRIES, maxGoogleRetries))
+      : GOOGLE_MAX_RETRIES;
     if (!config.endpoint) throw new LlmError("No endpoint is configured.", { kind: "error", hint: "Open the LLM Link app and choose a provider." });
     const key = apiKey();
     if (!key && !config.keyOptional && !config.relay) throw new LlmError(`No key is loaded for ${config.label}.`, { kind: "auth", hint: "Open the LLM Link app and paste your own key. This site never sees it." });
@@ -883,9 +1217,14 @@ window.HOSLLM = (() => {
           let retries = 0;
           for (;;) {
             try {
+              const reservation = await reserveGoogleGeneration({
+                model: request.body.model, system, user, signal: controller.signal,
+                onRetry, startedAt: started, timeoutMs
+              });
               const response = await client.models.generateContent(request.body);
               const parsed = readResponse(config, response);
               if (!parsed.text.trim()) throw new LlmError("Google returned no text. The model may have refused the request or reached its output limit.", { kind: "provider", hint: "Retry, lower the reading batch size, or raise the output-token ceiling." });
+              await settleGoogleReservation(reservation, parsed.usage.input);
               activity.calls++; activity.input += parsed.usage.input; activity.output += parsed.usage.output;
               activity.lastMs = Date.now() - started; activity.lastModel = parsed.model || config.model; activity.lastAt = new Date().toISOString();
               return dataOnlyResult({ text: parsed.text, model: parsed.model || config.model, usage: parsed.usage, finishReason: parsed.finishReason, truncated: parsed.truncated, ms: activity.lastMs, provider: config.provider, endpoint: config.endpoint, reserved, shrunk: reserved < maxTokens });
@@ -893,7 +1232,7 @@ window.HOSLLM = (() => {
               if (controller.signal.aborted) throw abortReason(controller.signal);
               if (error instanceof LlmError) throw error;
               const metadata = googleErrorMetadata(error);
-              const retryable = GOOGLE_RETRYABLE_STATUSES.has(metadata.status) && !metadata.dailyQuota && retries < GOOGLE_MAX_RETRIES;
+              const retryable = GOOGLE_RETRYABLE_STATUSES.has(metadata.status) && !metadata.dailyQuota && retries < googleRetryLimit;
               if (!retryable || (metadata.retryAfterMs !== null && metadata.retryAfterMs > MAX_AUTO_RETRY_AFTER_MS)) {
                 throw googleSDKRequestError(config, error);
               }
@@ -1086,7 +1425,8 @@ window.HOSLLM = (() => {
     PROVIDERS, LlmError, GOOGLE_GENAI_SDK_VERSION, GOOGLE_GENAI_SDK_URL,
     loadSettings, saveSettings, resolved, preset, status,
     setKey, clearKey, apiKey, keyStorage, keyHint, redact, looksLikeKey,
-    chat, probe, loadModels, describe, estimateTokens, extractJson, stats, resetStats,
+    chat, probe, loadModels, loadGoogleModelCatalog, googleModelInfo, describe, estimateTokens, estimateGoogleInputTokens, extractJson, stats, resetStats,
+    googleQuotaSettings, saveGoogleQuotaSettings, googleQuotaStatus,
     relayStatus, relayStatusEndpoint, readableDetail,
     applyAuth, buildRequest, readResponse, googleModelsClientRows,
     tokenCeiling, clearCeiling, learnCeiling, parseBudget, affordableTokens,
