@@ -229,17 +229,53 @@ It marks an NPC slot that is deliberately empty. It is not a bug; it is the
 
 ## Placing a new NPC
 
+Every NPC has their **own bedroom** — a folder named `|NPC Name|/` at their
+posting, populated with seven zero-byte pipe-delimited profile-slot tokens
+modeled on the `|EmptyFile|.txt` sentinel:
+
+```
+posting/|NPC Name|/
+├── |Name|.txt      ← nameplate
+├── |Role|.txt      ← job title / posting
+├── |Faction|.txt   ← ring / court / faction alignment
+├── |Dialogue|.txt  ← reserved for dialogue tree (empty until authored)
+├── |Inventory|.txt ← reserved for items, $ chips, # passes carried
+├── |Quest|.txt     ← reserved for quest hook
+└── |Stats|.txt     ← reserved for stats block
+```
+
+The profile is intentionally 0-byte across all seven slots — the names of
+the files are the schema; populating content is a future authoring pass.
+The bedroom pattern mirrors the existing AUM OS attribute-token convention
+used inside the `CleanSlateOS/` and `Repel/` trees (where `|Attribute|.txt`
+tokens are also empty nameplates).
+
+### Placement rules
+
 1. Pick a folder whose title already describes the posting (don't create a
    new folder unless a posting genuinely does not exist).
-2. Name the file `|NPC Name|.txt` using the pipe-delimited convention.
-3. Leave it 0-byte unless/until a character sheet is authored. The name is
-   the roster entry; the file is the nameplate.
-4. If the NPC should appear on the high-speed rolodex, also create a
-   `NPC Name.#` token in the appropriate `…/Rolodex/` or `…/Paintelephone/`
-   directory.
-5. If the NPC carries a clearance, key, or currency chip, create a
-   matching `NPC Name.$` token in `Access/Alphabet/` or the appropriate
-   token directory.
-6. Never delete an `.gitkeep` when placing an NPC; leave it in place so
-   the slot reservation is explicit (the slot was there first; the NPC
-   has checked in).
+2. Create a subfolder named `|NPC Name|/` at that posting — the NPC moves
+   into their bedroom; the parent directory is the hall/castle wing.
+3. Populate the bedroom with the seven `|Slot|.txt` zero-byte files listed
+   above. Do not add non-zero content yet.
+4. If the posting folder *is already* the NPC (e.g. `Johnny Chimpo/`,
+   `Meowie Wowie/`, `Repeater/` — folders named after the NPC themselves),
+   treat that folder as the bedroom directly — do not double-nest.
+5. If the posting folder is part of the public asset allowlist (`js/`,
+   `css/`, `assets/`, `specs/normative/`, `specs/draft/`,
+   `docs/harshal-systems/`, `manuscript/`), place the bedroom in
+   `docs/architecture/npcs/|NPC Name|/` instead, so NPC nameplates do not
+   leak into the browser bundle.
+6. Never delete an `.gitkeep`, alias, or placeholder when moving an NPC in;
+   the slot reservation predates the occupant.
+
+### Token conventions (recap)
+
+| Token extension | Role |
+|---|---|
+| `|Name|/|Slot|.txt` | NPC bedroom + zero-byte profile slots |
+| `|Name|.txt` (legacy / in AUM OS trees) | AUM OS attribute tokens / contact stubs (left as-is in CleanSlateOS/Repel/etc.) |
+| `Name.#` | Suuperposition / Hypperposition entity — a high-authority rolodex contact |
+| `Name.$` | Currency/pass/clearance/deploy token — a key card held in `|Inventory|.txt` |
+| `.gitkeep` | Unfilled spawn slot — a bedroom waiting for an NPC |
+| `|EmptyFile|.txt` | The NPC null token (see `…/API/|EmptyFile|.txt`) |
