@@ -50,6 +50,28 @@ APPS.push({
               <div class="news-finding-label">COMPUTED FINDING <span>·</span> NOT A CERTIFICATION</div>
               <p class="news-finding" id="news-finding"></p>
               <p class="news-scope" id="news-scope"></p>
+              <div class="news-register" id="news-register" hidden>
+                <p class="news-register-head">
+                  <span class="news-register-chip">REGISTER-ISSUED PDH-R</span>
+                  <span class="news-register-id" id="news-register-id"></span>
+                </p>
+                <p class="news-register-doc" id="news-register-doc"></p>
+                <dl class="news-register-facts">
+                  <div><dt>Computed phase (engine)</dt><dd id="news-register-engine"></dd></div>
+                  <div><dt>Register-issued phase</dt><dd id="news-register-scoped"></dd></div>
+                  <div><dt>Constraint record</dt><dd id="news-register-constraints"></dd></div>
+                  <div><dt>Evidence cutoff</dt><dd id="news-register-cutoff"></dd></div>
+                  <div><dt>Audit record SHA-256</dt><dd id="news-register-audit"></dd></div>
+                  <div><dt>Issuance record SHA-256</dt><dd id="news-register-issuance"></dd></div>
+                  <div><dt>Badge class</dt><dd id="news-register-badge"></dd></div>
+                  <div><dt>Expires</dt><dd id="news-register-expires"></dd></div>
+                  <div><dt>Entity attestation</dt><dd id="news-register-attestation"></dd></div>
+                </dl>
+                <p class="news-register-summary" id="news-register-summary" hidden></p>
+                <p class="news-register-scope" id="news-register-scope" hidden></p>
+                <p class="news-register-caveat" id="news-register-caveat" hidden></p>
+                <p class="news-register-note" id="news-register-note"></p>
+              </div>
               <div class="news-actions">
                 <a class="news-action news-action-primary" id="news-newsml" href="#" download hidden>Download NewsML-G2 <span aria-hidden="true">↓</span></a>
                 <a class="news-action" id="news-full-record" href="#">Open public record &amp; history <span aria-hidden="true">↗</span></a>
@@ -66,6 +88,7 @@ APPS.push({
       </section>`;
 
     const $ = selector => body.querySelector(selector);
+    const kicker = $("#news-kicker");
     const feed = $("#news-feed");
     const status = $("#news-status");
     const count = $("#news-count");
@@ -80,6 +103,24 @@ APPS.push({
     const json = $("#news-json");
     const newsml = $("#news-newsml");
     const fullRecord = $("#news-full-record");
+    const register = $("#news-register");
+    const registerFields = {
+      id: $("#news-register-id"),
+      doc: $("#news-register-doc"),
+      engine: $("#news-register-engine"),
+      scoped: $("#news-register-scoped"),
+      constraints: $("#news-register-constraints"),
+      cutoff: $("#news-register-cutoff"),
+      audit: $("#news-register-audit"),
+      issuance: $("#news-register-issuance"),
+      badge: $("#news-register-badge"),
+      expires: $("#news-register-expires"),
+      attestation: $("#news-register-attestation"),
+      summary: $("#news-register-summary"),
+      scope: $("#news-register-scope"),
+      caveat: $("#news-register-caveat"),
+      note: $("#news-register-note")
+    };
     const state = { publications: [], cursor: null, selectedId: null, loading: false, error: "", detailRequest: 0 };
 
     const publishedAt = value => {
@@ -91,6 +132,8 @@ APPS.push({
     const publicAuthor = publication => typeof publication?.author === "string" && publication.author.trim()
       ? publication.author : "Unspecified author label";
     const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
+    const stringy = value => typeof value === "string" && value.trim().length > 0;
+    const cell = value => stringy(value) ? value.trim() : "Not recorded";
 
     async function getJson(path) {
       const response = await window.fetch(path, {
@@ -107,8 +150,63 @@ APPS.push({
       return data;
     }
 
+    function clearRegister() {
+      register.hidden = true;
+      for (const node of Object.values(registerFields)) {
+        node.textContent = "";
+        if (node !== registerFields.note) node.hidden = false;
+      }
+      registerFields.summary.hidden = true;
+      registerFields.scope.hidden = true;
+      registerFields.caveat.hidden = true;
+      kicker.textContent = "PUBLIC REPORT · UNREVIEWED";
+    }
+
+    /* Register-issued case-study records disclose their PDH-R provenance and both
+       phases: the engine's recomputed base phase and the register's scoped badge.
+       Every value is written as text; a register field is never trusted markup. */
+    function drawRegister(report) {
+      const source = object(report?.register) ? report.register : null;
+      if (!source || !stringy(source.headerId)) return false;
+      const constraints = object(source.constraintRecord) ? source.constraintRecord : null;
+      const constraintRecord = constraints
+        ? ["C1", "C2", "C3", "C4"].map(code => `${code} ${constraints[code] ? "✓" : "✗"}`).join(" · ")
+          + (Number.isInteger(constraints.count) ? ` (${constraints.count}/4)` : "")
+        : "Not recorded";
+      const engine = object(source.engine) ? source.engine : {};
+      registerFields.id.textContent = source.headerId.trim();
+      registerFields.doc.textContent = cell(source.documentTitle);
+      registerFields.engine.textContent = stringy(source.basePhase)
+        ? `${source.basePhase} (base, engine-recomputed${stringy(engine.confidence) ? `, ${engine.confidence}` : ""})`
+        : "Not recorded";
+      registerFields.scoped.textContent = stringy(source.scopedPhase)
+        ? `${source.scopedPhase} — register-scoped`
+        : `${cell(source.declaredPhase)} (register-issued header)`;
+      registerFields.constraints.textContent = constraintRecord;
+      registerFields.cutoff.textContent = cell(source.evidenceCutoff);
+      registerFields.audit.textContent = cell(source.auditRecordSha256);
+      registerFields.issuance.textContent = cell(source.issuanceRecordSha256);
+      registerFields.badge.textContent = cell(source.badgeClass);
+      registerFields.expires.textContent = cell(source.expiresAt);
+      registerFields.attestation.textContent = `${cell(source.entityAttestation)}${stringy(source.pdhESupersession) ? ` · ${source.pdhESupersession}` : ""}`;
+      const summary = object(source.summary) ? source.summary.finding : "";
+      registerFields.summary.textContent = stringy(summary) ? `Register finding: ${summary}` : "";
+      registerFields.summary.hidden = !stringy(summary);
+      registerFields.scope.textContent = stringy(source.scopeTag) ? `Scope: ${source.scopeTag}` : "";
+      registerFields.scope.hidden = !stringy(source.scopeTag);
+      registerFields.caveat.textContent = stringy(source.caveat) ? `Caveat recorded by the register: ${source.caveat}` : "";
+      registerFields.caveat.hidden = !stringy(source.caveat);
+      const nonClaims = Array.isArray(source.nonClaims) ? source.nonClaims.filter(stringy).slice(0, 4).join(" ") : "";
+      registerFields.note.textContent = `${nonClaims} Header, hashes, and phases are presented as issued; PDH_VALID remains FALSE for the entity and no attestation exists.`
+        .replace(/^\s+/, "");
+      register.hidden = false;
+      kicker.textContent = "PUBLIC REPORT · REGISTER-ISSUED · UNREVIEWED";
+      return true;
+    }
+
     function clearReader(message) {
       state.selectedId = null;
+      clearRegister();
       article.hidden = true;
       readerEmpty.hidden = false;
       readerEmpty.textContent = message;
@@ -187,6 +285,7 @@ APPS.push({
       finding.textContent = "Loading the exact published report…";
       scope.textContent = "Only active public reports are displayed. This report remains UNREVIEWED.";
       json.textContent = "";
+      clearRegister();
       newsml.hidden = true;
       newsml.href = "#";
       fullRecord.href = `/audits?id=${encodeURIComponent(summary.id)}`;
@@ -222,6 +321,7 @@ APPS.push({
           ? report.scope.notes
           : "This report has no additional scope note. Treat it as unreviewed author-submitted content.";
         json.textContent = JSON.stringify(report, null, 2);
+        drawRegister(report);
         newsml.href = `/api/community/publications/${encodeURIComponent(publication.id)}/newsml`;
         newsml.hidden = false;
         fullRecord.href = `/audits?id=${encodeURIComponent(publication.id)}`;
