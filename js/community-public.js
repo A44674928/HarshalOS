@@ -49,7 +49,11 @@ async function detail() {
   $('publication-meta').textContent = `Version ${current.version} · ${new Date(current.publishedAt).toLocaleString()} · Report SHA-256: ${current.reportHash}`;
   $('publication-json').textContent = current.report ? JSON.stringify(current.report, null, 2) : '';
   $('publication-scope').textContent = current.report ? 'Exact author-approved report. Computed phases, completeness and badge labels are rules outputs, not platform certification. No independent evidence or identity verification was performed.' : 'Report content and author label have been removed. Only the hash and minimal version history remain here.';
-  $('publication-export').hidden = !current.report; $('report-form').hidden = !current.report; await history();
+  $('publication-export').hidden = !current.report;
+  $('publication-newsml-export').hidden = !current.report;
+  $('publication-newsml-export').href = current.report
+    ? '/api/community/publications/' + encodeURIComponent(selected) + '/newsml' : '#';
+  $('report-form').hidden = !current.report; await history();
 }
 $('public-more').addEventListener('click', () => task(() => list(true)));
 $('events-more').addEventListener('click', () => task(() => events(true)));

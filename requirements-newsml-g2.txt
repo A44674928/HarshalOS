@@ -1,0 +1,2 @@
+# Optional local tooling only; this is not a HarshalOS runtime dependency.
+newsmlg2==1.1

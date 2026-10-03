@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import worker from '../worker/index.mjs';
 import { auditTemplate, sha256 } from '../worker/community-audit.mjs';
 import { digest } from '../worker/community-auth.mjs';
+import { Window } from 'happy-dom';
 const origin='https://os.example';
 async function fixture(t) {
   const sql=new DatabaseSync(':memory:'); t.after(()=>sql.close()); sql.exec('PRAGMA foreign_keys=ON');
@@ -42,6 +43,40 @@ test('Publication: preview is private; consent publishes exact recomputed conten
   assert.equal((await (await f.publish(p)).json()).publication.id,publication.id);
   const log=await (await f.call('public-log',{user:null})).json();assert.equal(log.events.length,1);assert.equal(log.events[0].kind,'published');
 });
+test('Publication: NewsML-G2 download serializes the active D1 public report without promoting its trust status',async t=>{
+  const f=await fixture(t);
+  const p=await f.preview({input:{...f.input,name:'Coffee & <Tea>'},author:'<Reporter & Co>'});
+  const publication=(await (await f.publish(p)).json()).publication;
+  const response=await f.call(`publications/${publication.id}/newsml`,{user:null});
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('Content-Type'),/^application\/vnd\.iptc\.g2\.newsitem\+xml; charset=utf-8$/);
+  assert.equal(response.headers.get('Cache-Control'),'no-store');
+  assert.match(response.headers.get('Content-Disposition'),new RegExp(`ground0-${publication.id}-v1\\.xml`));
+
+  const xml=await response.text(),window=new Window();t.after(()=>window.happyDOM.abort());
+  const document=new window.DOMParser().parseFromString(xml,'application/xml');
+  const root=document.documentElement,namespace='http://iptc.org/std/nar/2006-10-01/';
+  assert.equal(root.localName,'newsItem');assert.equal(root.namespaceURI,namespace);
+  assert.equal(root.getAttribute('standard'),'NewsML-G2');assert.equal(root.getAttribute('standardversion'),'2.35');
+  assert.equal(root.getAttribute('conformance'),'power');assert.equal(root.getAttribute('version'),'1');
+  assert.match(root.getAttribute('guid'),new RegExp(`^urn:newsml:os\\.example:[0-9]{8}:community-${publication.seriesId}$`));
+  const elements=name=>document.getElementsByTagNameNS(namespace,name);
+  assert.equal(elements('headline')[0].textContent,'Coffee & <Tea>');
+  assert.equal(elements('creator')[0].getElementsByTagNameNS(namespace,'name')[0].textContent,'<Reporter & Co>');
+  assert.match(elements('description')[0].textContent,/UNREVIEWED/);
+  assert.match(elements('description')[0].textContent,new RegExp(publication.reportHash));
+  const payload=elements('inlineData')[0];assert.ok(payload);
+  assert.equal(payload.getAttribute('contenttype'),'application/json');assert.equal(payload.getAttribute('encoding'),'base64');
+  const exportedJson=Buffer.from(payload.textContent,'base64').toString('utf8');
+  const saved=f.sql.prepare('SELECT report_json FROM community_publications WHERE id=?').get(publication.id);
+  assert.equal(exportedJson,saved.report_json);assert.deepEqual(JSON.parse(exportedJson),publication.report);
+  assert.ok(!xml.includes('<Reporter & Co>'));
+
+  await f.call(`publications/${publication.id}/withdraw`,{method:'POST',data:{}});
+  const withdrawn=await f.call(`publications/${publication.id}/newsml`,{user:null});
+  assert.equal(withdrawn.status,404);
+});
+
 test('Publication: stale/expired/blocked previews fail and moderator gate is enforced',async t=>{
   const f=await fixture(t),p=await f.preview();
   f.env.OIDC_ADMIN_SUBJECTS='';assert.equal((await f.publish(p)).status,503);f.env.OIDC_ADMIN_SUBJECTS='not-signed-in';assert.equal((await f.publish(p)).status,503);f.env.OIDC_ADMIN_SUBJECTS='moderator';
