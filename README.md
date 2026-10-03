@@ -211,10 +211,18 @@ The seven reports run in order: (1) no Human Key → `NO-DEMO-CONFIRMATION`; (2)
 
 ## Boot sequence
 
-The boot screen opens with the **Eye Open:Close** animation (`assets/eye-open-close-hq.gif`,
-1920×1080) — the eye fades in above the bootloader log as the system wakes. The log and the
-animation are independent: the typewriter sequence never blocks on the image, the image fades
-in whenever its data has landed, and if it ever fails to load the boot proceeds cleanly.
+The boot screen is a short ceremony built on the author's true-color source frames
+(`animate-000 … animate-024 Large.png`, 1280×853). While the bootloader typewriter runs, the
+**open eye** (`assets/eye-open-hq.png`) holds full-bleed behind a `HARSHALOS` wordmark, a quiet
+bottom-anchored log, a breathing ambient glow, and a hairline progress bar. When the log
+completes, the eye **closes once** via a lossless true-color APNG (`assets/eye-closing-hq.apng`,
+25 frames × 66 ms, `acTL` num_plays=1) and its near-black final frame hands off to the desktop —
+the OS waking as the eye shuts. The log never blocks on the image and a failed image degrades to
+a clean text-only boot; `assets/eye-closing-hq.apng` was verified byte-identical to the source
+PNGs frame-for-frame. Visitors who prefer reduced motion see the static open eye and skip the
+close. The earlier GIF encodings (`assets/eye-closing-hq.gif`, a pixel-exact `gifsicle -O3` copy
+of the repository-root `Eye Closing HQ.gif`, and the longer 80-frame
+`assets/eye-open-close-hq.gif`) remain in `assets/` as companion artifacts.
 
 ## Creator-ID notation
 

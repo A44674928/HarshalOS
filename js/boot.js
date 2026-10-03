@@ -13,9 +13,13 @@
   let finished = false;
   let cancelled = false;
 
-  // Boot animation — the eye opens as the system wakes.
-  // The GIF fades in when its data has landed; the boot log never waits for it.
+  const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // The true-color open eye holds full-bleed while the bootloader runs; on completion
+  // it closes once (play-once APNG) and its dark final frame hands off to the desktop.
+  // The log never blocks on the image; if the image fails, the boot proceeds cleanly.
   const eye = document.getElementById("boot-eye");
+  const CLOSE_MS = 1650; // 25 frames × 66ms
   if (eye) {
     const showEye = () => eye.classList.add("ready");
     if (eye.complete && eye.naturalWidth > 0) showEye();
@@ -23,7 +27,14 @@
     eye.addEventListener("error", () => eye.remove(), { once: true });
   }
 
-  const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Hairline progress tracks the bootloader read-out line by line.
+  const progressFill = document.getElementById("boot-progress-fill");
+  let linesDone = 0;
+  const TOTAL_LINES = 41;
+  const tick = () => {
+    if (progressFill) progressFill.style.width = `${Math.min(100, Math.round((++linesDone / TOTAL_LINES) * 100))}%`;
+  };
+
   const sleep = ms => new Promise(res => setTimeout(res, REDUCED_MOTION ? Math.min(ms, 15) : ms));
 
   function line(text, cls = "", delay = 60) {
@@ -44,6 +55,7 @@
       }
       log.appendChild(document.createTextNode("\n"));
       log.scrollTop = log.scrollHeight;
+      tick();
       await sleep(delay);
       res();
     });
@@ -99,14 +111,11 @@
     finish();
   }
 
-  function finish() {
-    if (finished) return;
-    finished = true;
-    cancelled = true;
-    boot.classList.add("done");
-    document.body.classList.remove("booting");
-    document.body.classList.add("desktop-live");
-    setTimeout(() => { boot.style.display = "none"; }, 950);
+  // Everything that wakes the desktop beneath the overlay, run exactly once.
+  let shellStarted = false;
+  function startShell() {
+    if (shellStarted) return;
+    shellStarted = true;
     // kick the shared .flame player so the orb core + flame app are warm on first open
     if (typeof FractalFlame !== "undefined") {
       FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 }).start();
@@ -129,6 +138,26 @@
       // Never cover an app the visitor has already opened during startup.
       if (app && shell.windows.size === 0 && window.innerWidth > 860) shell.openApp(app);
     }, 1600);
+  }
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    cancelled = true;
+    if (progressFill) progressFill.style.width = "100%";
+    // Initialize the desktop under the overlay while the eye performs its close.
+    startShell();
+
+    const playClose = !!(eye && eye.dataset.close && !REDUCED_MOTION);
+    if (playClose) eye.src = eye.dataset.close;
+    // Hold until the close lands (its last frame is near-black), then fade the overlay
+    // so the handoff to the desktop reads as the eye shutting and the OS waking.
+    setTimeout(() => {
+      boot.classList.add("done");
+      document.body.classList.remove("booting");
+      document.body.classList.add("desktop-live");
+      setTimeout(() => { boot.style.display = "none"; }, 950);
+    }, playClose ? CLOSE_MS + 120 : 0);
   }
 
   skip.addEventListener("click", finish);

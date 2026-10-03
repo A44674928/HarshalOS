@@ -73,9 +73,8 @@ textarea { resize: vertical; width: 100%; }
 .boot {
   position: fixed; inset: 0;
   z-index: 1000;
-  background:
-    radial-gradient(1200px 700px at 70% 20%, rgba(28, 51, 96, 0.35), transparent 60%),
-    var(--bg-0);
+  background: #000;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -86,25 +85,66 @@ textarea { resize: vertical; width: 100%; }
 }
 .boot.done { opacity: 0; pointer-events: none; }
 
-/* Stationary introduction stays above the animated boot content. */
+/* Soft additive bloom that halos the eye and breathes slowly while it watches. */
+.boot-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(46% 34% at 50% 47%, rgba(96, 156, 255, 0.22), transparent 70%),
+    radial-gradient(18% 12% at 50% 47%, rgba(150, 205, 255, 0.16), transparent 70%);
+  animation: boot-breathe 5.5s ease-in-out infinite;
+}
+@keyframes boot-breathe {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.95; }
+}
+
+/* Vignette + edge falloff: keeps the artwork the hero and the corners deep, while
+   giving the wordmark (top) and log (bottom) quiet, readable zones. */
+.boot-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 92% at 50% 46%, transparent 42%, rgba(0, 0, 0, 0.40) 78%, rgba(0, 0, 0, 0.72) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.58) 0%, transparent 24%, transparent 60%, rgba(0, 0, 0, 0.68) 100%);
+}
+
+/* Stationary introduction stays above the artwork and veil. */
 .boot-intro {
+  position: relative;
+  z-index: 3;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: min(860px, 92vw);
   text-align: center;
+}
+.boot-wordmark {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: clamp(1.35rem, 3.4vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: 0.62em;
+  text-indent: 0.62em;
+  color: var(--gold);
+  text-shadow: 0 0 22px rgba(255, 212, 121, 0.35), 0 0 64px rgba(111, 211, 255, 0.18);
 }
 .boot-tagline {
   width: 100%;
   margin: 0;
   padding: 0 1.5rem;
-  font-size: 0.95rem;
-  letter-spacing: 0.03em;
-  line-height: 1.45;
+  font-size: 0.86rem;
+  letter-spacing: 0.045em;
+  line-height: 1.5;
   color: var(--text-dim);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 .boot-links {
   display: flex;
@@ -120,42 +160,52 @@ textarea { resize: vertical; width: 100%; }
 .boot-links a:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
 
 .boot-animation {
+  position: relative;
+  z-index: 3;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(8px, 1.8vh, 18px);
+  justify-content: flex-end;
   width: 100%;
   min-height: 0;
+  padding-bottom: clamp(18px, 4vh, 34px);
 }
 
-/* the eye opens as the system wakes — fades in when its data has landed */
+/* The true-color open eye holds full-bleed (cover) while the bootloader runs, then
+   closes via a play-once APNG as the shell wakes. Fades in whenever its data has
+   landed; the log never blocks on it. */
 .boot-eye {
-  width: auto;
-  height: auto;
-  max-height: min(32vh, 380px);
-  max-width: min(88vw, 760px);
-  object-fit: contain;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   opacity: 0;
-  transform: scale(0.965);
+  transform: scale(1.02);
   transition: opacity 1.4s ease, transform 1.4s ease;
-  filter: drop-shadow(0 0 26px rgba(111, 211, 255, 0.32));
   pointer-events: none;
   user-select: none;
 }
 .boot-eye.ready { opacity: 1; transform: scale(1); }
 
+/* The bootloader read-out sits low and quiet so the eye owns the frame; older
+   lines dissolve upward via a top mask. */
 .boot-log {
-  width: min(860px, 92vw);
-  max-height: min(42vh, 500px);
+  width: min(760px, 88vw);
+  max-height: min(26vh, 300px);
   overflow: hidden;
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.75;
-  color: var(--ice);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-faint);
   white-space: pre-wrap;
-  text-shadow: 0 0 12px rgba(111, 211, 255, 0.25);
+  text-align: left;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 22%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 22%, #000 100%);
+  text-shadow: 0 0 10px rgba(111, 211, 255, 0.16);
 }
 .boot-log .ok { color: var(--permit); }
 .boot-log .gold { color: var(--gold); }
@@ -164,9 +214,28 @@ textarea { resize: vertical; width: 100%; }
 .boot-log .dim { color: var(--text-faint); }
 .boot-log .rule { color: var(--line-hi); }
 
+/* Hairline progress: fills with the bootloader and flares gold on completion. */
+.boot-progress {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  z-index: 3;
+  background: rgba(29, 44, 74, 0.5);
+}
+.boot-progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--water), var(--ice) 60%, var(--gold));
+  box-shadow: 0 0 12px rgba(111, 211, 255, 0.55);
+  transition: width 0.35s ease;
+}
+
 .boot-skip {
   position: absolute;
-  right: 28px; bottom: 24px;
+  z-index: 4;
+  right: 28px; bottom: 22px;
+  background: rgba(0, 0, 0, 0.4);
   color: var(--text-faint);
   font-family: var(--mono);
   font-size: 12px;
@@ -187,6 +256,8 @@ textarea { resize: vertical; width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .boot { transition-duration: 0.15s; }
   .boot-eye { transition-duration: 0.25s; }
+  .boot-glow { animation: none; opacity: 0.6; }
+  .boot-progress span { transition-duration: 0.1s; }
 }
 
 /* ═══════════════ HUD ═══════════════ */

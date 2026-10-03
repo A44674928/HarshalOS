@@ -68,11 +68,17 @@
     </p>
   </noscript>
 
-  <!-- ══════════════ BOOT SEQUENCE ══════════════ -->
+  <!-- ══════════════ BOOT SEQUENCE ══════════════
+       The open eye (true-color still) watches the bootloader, then closes
+       (play-once true-color APNG) as the shell wakes — a seamless dark handoff. -->
   <div id="boot" class="boot">
+    <img id="boot-eye" class="boot-eye" src="assets/eye-open-hq.png" data-close="assets/eye-closing-hq.apng" alt="" width="1280" height="853" draggable="false" aria-hidden="true">
+    <div class="boot-glow" aria-hidden="true"></div>
+    <div class="boot-veil" aria-hidden="true"></div>
     <div class="boot-intro">
+      <h1 class="boot-wordmark">HARSHALOS</h1>
       <p class="boot-tagline">
-        HarshalOS is an accountability-gated operating system for AI governance:
+        An accountability-gated operating system for AI governance —
         a system that must earn permission before it acts.
       </p>
       <nav class="boot-links" aria-label="Quick links">
@@ -85,9 +91,9 @@
       </nav>
     </div>
     <div class="boot-animation">
-      <img id="boot-eye" class="boot-eye" src="assets/eye-open-close-hq.gif" alt="" width="1920" height="1080" draggable="false" aria-hidden="true">
       <pre id="boot-log" class="boot-log"></pre>
     </div>
+    <div class="boot-progress" aria-hidden="true"><span id="boot-progress-fill"></span></div>
     <button id="boot-skip" class="boot-skip" type="button">skip ▸</button>
   </div>
 
