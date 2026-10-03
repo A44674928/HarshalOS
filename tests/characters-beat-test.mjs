@@ -287,6 +287,99 @@ test("the cast binds to the reviewed Tickerbot allowlist with no second copy", (
   assert.equal(Cast.build(null).watchlistSize, 0);
 });
 
+test("a tiered beat spends exactly the same calls as a single-cadence beat", () => {
+  for (const cadenceMinutes of Beat.CADENCES) {
+    const single = Beat.plan({ monthlyBudget: 10000, cadenceMinutes, castSize: 52 });
+    const tiers = Beat.planTiers({ monthlyBudget: 10000, cadenceMinutes, castSize: 52 });
+    assert.equal(tiers.schema, "characters-tier-plan-v1");
+    assert.equal(tiers.callsPerMonth, single.callsPerMonth, `${cadenceMinutes} min: tiering must not cost extra calls`);
+    assert.equal(tiers.callsPerBeat, single.callsPerBeat);
+    assert.equal(tiers.options.length, Beat.TIER_SWEEP_HOURS.length);
+    for (const option of tiers.options) {
+      assert.equal(option.hotSize + option.sweepPerBeat, single.callsPerBeat, "every call in the beat is accounted for");
+      assert.ok(option.hotSize <= Beat.MAX_SYMBOLS_PER_BEAT);
+      assert.ok(option.sweepPerBeat >= 0);
+      if (option.feasible) {
+        assert.ok(option.hotSize >= 1);
+        assert.ok(option.hotSize < single.callsPerBeat, "a hot lane that eats the whole beat would starve the sweep");
+        assert.ok(option.notes.every(note => note.length > 0));
+        /* The sweep really does finish inside the window it advertises. */
+        assert.ok(option.sweepBeats >= Math.ceil(option.sweepSize / option.sweepPerBeat));
+        assert.ok(option.sweepHours <= option.targetSweepHours + 0.01,
+          `${option.targetSweepHours}h window finished in ${option.sweepHours}h`);
+        assert.equal(option.withinWindow, true);
+      } else {
+        assert.ok(option.notes.length >= 1, "an infeasible window explains itself");
+      }
+    }
+  }
+});
+
+test("the tier plan recommends the widest hot lane that still sweeps the cast in a day", () => {
+  const hourly = Beat.planTiers({ monthlyBudget: 10000, cadenceMinutes: 60, castSize: 52 });
+  assert.ok(hourly.recommended);
+  assert.equal(hourly.recommended.targetSweepHours, 24, "a day is the default window");
+  assert.equal(hourly.recommended.hotSize, 9);
+  assert.equal(hourly.recommended.sweepPerBeat, 2);
+  assert.ok(hourly.recommended.sweepHours <= 24);
+  assert.match(hourly.notes.join(" "), /same 8,030 calls per month/);
+
+  /* Five-minute tempo is not on the list; the fastest reviewed cadence cannot reach 6h. */
+  const fastest = Beat.planTiers({ monthlyBudget: 10000, cadenceMinutes: 15, castSize: 52 });
+  assert.equal(fastest.options.find(option => option.targetSweepHours === 6).feasible, false);
+  assert.equal(fastest.options.find(option => option.targetSweepHours === 12).feasible, false);
+  const dayWindow = fastest.options.find(option => option.targetSweepHours === 24);
+  assert.equal(dayWindow.feasible, true);
+  assert.equal(dayWindow.hotSize, 1, "at 15 minutes the budget affords a single hot berth and a sweep");
+  assert.ok(dayWindow.sweepHours <= 24);
+
+  /* A cast too large for the budget at a slow cadence has no tier split at all. */
+  const squeezed = Beat.planTiers({ monthlyBudget: 400, cadenceMinutes: 60, castSize: 52 });
+  assert.equal(squeezed.options.some(option => option.feasible), false);
+  assert.match(squeezed.notes.join(" "), /sweep alone is the whole plan/);
+});
+
+test("a tiered rotation pays the hot lane first and never exceeds the beat budget", () => {
+  const symbols = Array.from({ length: 52 }, (_, index) => `S${String(index).padStart(2, "0")}`);
+  const now = 5_000_000;
+  const selection = Beat.selectTieredDue({
+    symbols, hotSet: ["S05", "S09"], lastRefreshedAt: {}, now, hotSize: 4, sweepPerBeat: 5
+  });
+  assert.equal(selection.all.length, 9, "hot + sweep, and nothing else");
+  assert.equal(selection.hot.length, 4);
+  assert.equal(selection.sweep.length, 5);
+  assert.deepEqual(selection.lanes.S05, "hot");
+  assert.equal(selection.all.filter(symbol => selection.lanes[symbol] === "hot").length, 4);
+  assert.equal(selection.all.filter(symbol => selection.lanes[symbol] === "sweep").length, 5);
+  assert.equal(new Set(selection.all).size, selection.all.length, "no berth is charged twice in one beat");
+
+  /* More featured tickers than the plan affords still rotate: no berth starves. */
+  const crowded = Beat.selectTieredDue({
+    symbols, hotSet: symbols.slice(0, 12), lastRefreshedAt: {}, now, hotSize: 3, sweepPerBeat: 5
+  });
+  assert.equal(crowded.hot.length, 3);
+  const ages = Object.fromEntries(crowded.hot.map((symbol, index) => [symbol, now - (index + 1) * 1000]));
+  const next = Beat.selectTieredDue({
+    symbols, hotSet: symbols.slice(0, 12), lastRefreshedAt: ages, now, hotSize: 3, sweepPerBeat: 5
+  });
+  assert.equal(next.hot.filter(symbol => ages[symbol] !== undefined).length, 0, "the next beat's hot lane moves on");
+  assert.deepEqual(plain(next), plain(Beat.selectTieredDue({
+    symbols, hotSet: symbols.slice(0, 12), lastRefreshedAt: ages, now, hotSize: 3, sweepPerBeat: 5
+  })));
+
+  /* The plan's own numbers drive a valid selection at every cadence, for every window. */
+  for (const cadenceMinutes of Beat.CADENCES) {
+    const tiers = Beat.planTiers({ monthlyBudget: 10000, cadenceMinutes, castSize: symbols.length });
+    for (const option of tiers.options.filter(entry => entry.feasible)) {
+      const due = Beat.selectTieredDue({
+        symbols, hotSet: ["S01", "S02"], lastRefreshedAt: {}, now, hotSize: option.hotSize, sweepPerBeat: option.sweepPerBeat
+      });
+      assert.ok(due.all.length <= tiers.callsPerBeat, `${cadenceMinutes} min / ${option.targetSweepHours}h overspent the beat`);
+      assert.ok(due.all.every(symbol => symbols.includes(symbol)));
+    }
+  }
+});
+
 test("every watchlist berth survives a full synthetic beat with an honest directive", () => {
   const stage = Cast.build(TICKERBOT_WATCHLIST);
   for (const berth of plain(stage.berths)) {

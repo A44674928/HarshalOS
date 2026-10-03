@@ -91,8 +91,13 @@
         source: "live",
         auto: true,
         stretch: false,
+        tierMode: false,
+        tierSweepHours: 24,
+        laneBySymbol: {},     // symbol -> "hot" | "sweep" from the last beat
+        hotSet: [],           // the operator's hot lane (featured tickers)
         focus: symbols[0] || "",
         ledger: readLedger(),
+        /* Featured tickers double as the hot lane; the ledger is where that choice lives. */
         motions: {},          // symbol -> latest directive from the engine
         displayed: {},        // symbol -> directive blended for rendering
         analyses: {},         // symbol -> small readout for the detail card
@@ -152,6 +157,7 @@
                   <span><i class="ch-swatch ch-swatch-npc"></i>NPC — walks</span>
                   <span><i class="ch-swatch ch-swatch-object"></i>Object — sways</span>
                   <span><i class="ch-swatch ch-swatch-item"></i>Item — flows</span>
+                  <span class="ch-legend-lanes"><i class="ch-swatch ch-swatch-hot"></i>hot lane<i class="ch-swatch ch-swatch-sweep"></i>sweep</span>
                 </div>
               </div>
               <div class="ch-stage" data-ch-stage>
@@ -165,6 +171,8 @@
                 <div class="ch-panel-head"><h2>Budget plan</h2><span data-ch-plan-tag class="ch-tag">—</span></div>
                 <div data-ch-plan></div>
                 <label class="ch-check"><input type="checkbox" data-ch-stretch> Use the reserve stretch (+1 symbol per beat)</label>
+                <label class="ch-check"><input type="checkbox" data-ch-tier> Two-lane beat — feature the ones that must move every beat</label>
+                <div data-ch-tier-panel></div>
                 <p class="ch-fineprint" data-ch-plan-note></p>
               </section>
 
@@ -200,6 +208,7 @@
       const autoButton = $("[data-ch-auto]");
       const beatButton = $("[data-ch-beat]");
       const stretchBox = $("[data-ch-stretch]");
+      const tierBox = $("[data-ch-tier]");
       const featureButton = $("[data-ch-feature]");
       const reduceMotion = Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       const IDLE_MOTION = Beat.motion(null);
@@ -217,15 +226,53 @@
         return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
       }
 
+      function tierPlan() {
+        return Beat.planTiers({
+          monthlyBudget: state.budget,
+          cadenceMinutes: state.cadence,
+          castSize: stage.berths.length,
+          perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
+        });
+      }
+
+      function tierOptionOf(tiers) {
+        return tiers.options.find(option => option.feasible && option.targetSweepHours === state.tierSweepHours)
+          || tiers.recommended
+          || null;
+      }
+
+      /* The berths a beat should refresh. Single-cadence mode is the plain
+         least-recently-refreshed rotation; tier mode pays the hot lane first and gives
+         what is left to the sweep queue — still inside the same callsPerBeat. */
+      function dueForBeat() {
+        const plan = planOf();
+        const perBeat = perBeatOf(plan);
+        const base = { symbols, lastRefreshedAt: state.ledger.lastRefreshedAt, now: Date.now(), featured: state.ledger.featured };
+        if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+        const tiers = tierPlan();
+        const option = tierOptionOf(tiers);
+        if (!option) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+        const selection = Beat.selectTieredDue({
+          ...base,
+          hotSet: state.ledger.featured,
+          hotSize: option.hotSize,
+          sweepPerBeat: option.sweepPerBeat
+        });
+        return { symbols: selection.all, lanes: selection.lanes, tier: option, perBeat };
+      }
+
       function beatIntervalMs() {
         return state.source === "rehearsal" ? REHEARSAL_BEAT_MS : state.cadence * 60_000;
       }
 
       /* ── Data ─────────────────────────────────────────────────────── */
 
-      async function fetchLiveBeat(due, cadenceMinutes) {
+      async function fetchLiveBeat(due, cadenceMinutes, lanes = {}) {
+        const laneParam = Object.entries(lanes).length
+          ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
+          : "";
         const endpoint = `/api/characters/v1/beat?symbols=${encodeURIComponent(due.join(','))}` +
-          `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}`;
+          `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
         const fetcher = window.fetch || globalThis.fetch;
         const response = await fetcher(endpoint, {
           method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
@@ -259,14 +306,12 @@
           drawPanels();
           return;
         }
-        const due = Beat.selectDueSymbols({
-          symbols,
-          lastRefreshedAt: state.ledger.lastRefreshedAt,
-          now: Date.now(),
-          perBeat: perBeatOf(plan),
-          featured: state.ledger.featured
-        });
+        const selection = dueForBeat();
+        const due = selection.symbols;
         if (!due.length) return;
+        /* Lanes are recomputed for the beat that is about to run, so stale labels never
+           survive a rotation (or a stretch) that moved a berth between lanes. */
+        state.laneBySymbol = selection.lanes;
 
         state.pending = true;
         drawPanels();
@@ -274,7 +319,9 @@
         let result = null;
         let error = null;
         try {
-          result = state.source === "live" ? await fetchLiveBeat(due, state.cadence) : rehearsalBeat(due);
+          result = state.source === "live"
+            ? await fetchLiveBeat(due, state.cadence, selection.lanes)
+            : rehearsalBeat(due);
         } catch (caught) {
           error = caught;
         }
@@ -342,6 +389,7 @@
         state.log = [{
           at: now, reason, source: state.source, symbols: refreshed, calls,
           unavailable, cacheHits: result.spend ? result.spend.cacheHits : 0,
+          lanes: { ...state.laneBySymbol },
           moods: refreshed.map(symbol => `${symbol} ${moods[symbol] || "—"}`)
         }, ...state.log].slice(0, 12);
         state.nextBeatAt = now + beatIntervalMs();
@@ -377,6 +425,8 @@
           : "Tickerbot Live · one provider call per symbol per beat";
         $("[data-ch-source-badge]").className = `ch-source-badge${state.source === "rehearsal" ? " ch-source-badge-synthetic" : ""}`;
 
+        const tiers = tierPlan();
+        const tierOption = tierOptionOf(tiers);
         const cadencePlan = Beat.compareCadences({ monthlyBudget: state.budget, castSize: stage.berths.length });
         $("[data-ch-plan]").innerHTML = `
           <dl class="ch-stats">
@@ -384,7 +434,10 @@
             <div><dt>Symbols / beat</dt><dd>${perBeat}${state.stretch && plan.stretchWithinBudget ? " <span class=\"ch-stretch-tag\">stretch</span>" : ""}</dd></div>
             <div><dt>Calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
             <div><dt>Reserve held</dt><dd>${plan.reserveCalls.toLocaleString()}</dd></div>
-            <div><dt>Full sweep</dt><dd>${sweepBeats} beats · ${Beat.formatHours(sweepHours)}</dd></div>
+            <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption
+              ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
+              : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
+            ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}
             <div><dt>Ledger spent</dt><dd>${budget.used.toLocaleString()} <span class="ch-dim">· ${budget.remaining.toLocaleString()} left</span></dd></div>
           </dl>
           <div class="ch-cadence-row">${cadencePlan.map(option => `
@@ -394,11 +447,36 @@
               <i class="ch-chip-bar"><b style="width:${Math.round(Math.min(1, option.budgetUseRatio) * 100)}%"></b></i>
             </button>`).join("")}
           </div>`;
+        const tierFeasible = tiers.options.some(option => option.feasible);
+        $("[data-ch-tier-panel]").innerHTML = !tierFeasible ? `
+          <p class="ch-fineprint">${tiers.notes.join(" ")}</p>` : state.tierMode ? `
+          <div class="ch-tier-wheel">
+            ${tiers.options.map(option => `
+              <button class="ch-tier-chip${option.feasible ? "" : " infeasible"}${tierOption && option.targetSweepHours === tierOption.targetSweepHours ? " active" : ""}"
+                data-ch-tier-target="${option.targetSweepHours}"
+                title="${option.feasible
+                  ? `${option.hotSize} hot every beat · sweep of ${option.sweepSize} in ${option.sweepHours}h · same ${option.callsPerMonth.toLocaleString()} calls/month`
+                  : (option.notes[0] || "No tier split fits this window")}">
+                <b>${option.feasible ? `${option.hotSize} hot` : "—"}</b>
+                <small>all in ${option.targetSweepHours}h</small>
+              </button>`).join("")}
+          </div>
+          <p class="ch-fineprint">${tierOption
+            ? `${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} (your featured tickers) refreshed every beat, ${tierOption.sweepPerBeat} sweep berth${tierOption.sweepPerBeat === 1 ? "" : "s"} per beat. ${tiers.notes.join(" ")}`
+            : tiers.notes.join(" ")}</p>
+          ${state.ledger.featured.length === 0 ? `<p class="ch-fineprint ch-warn-text">No featured ticker yet: pick a berth on the stage and press Feature to nominate the hot lane.</p>` : ""}
+          ${tierOption && !tierOption.withinWindow ? `<p class="ch-fineprint">This window is not reached at this plan; the sweep finishes in ${Beat.formatHours(tierOption.sweepHours)}.</p>` : ""}`
+          : "";
+
         const recommendation = Beat.recommendCadence({ monthlyBudget: state.budget, castSize: stage.berths.length });
-        $("[data-ch-plan-tag]").textContent = `${recommendation.cadenceMinutes}-minute plan`;
+        $("[data-ch-plan-tag]").textContent = state.tierMode && tierOption
+          ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
+          : `${recommendation.cadenceMinutes}-minute plan`;
         $("[data-ch-plan-note]").textContent = `${recommendation.reason} ${plan.notes.join(" ")}`;
         stretchBox.disabled = !plan.stretchWithinBudget;
         stretchBox.checked = state.stretch && plan.stretchWithinBudget;
+        tierBox.checked = state.tierMode;
+        tierBox.disabled = !tiers.options.some(option => option.feasible);
 
         const focused = state.focus;
         const berth = stage.berths.find(entry => entry.symbol === focused);
@@ -422,7 +500,9 @@
           <p class="ch-fineprint">NPC ${directive ? `${directive.npc.formation} formation · speed ${directive.npc.speed.toFixed(2)} · stride ${directive.npc.stride.toFixed(2)} · jitter ${directive.npc.jitter.toFixed(2)}` : "—"}
           · Object ${directive ? `sway ${directive.object.sway.toFixed(2)} · aperture ${directive.object.aperture.toFixed(2)}` : "—"}
           · Item ${directive ? `${directive.item.lane} at ${directive.item.rate.toFixed(2)}/beat` : "—"}</p>
-          <p class="ch-fineprint">${analysis ? `Last beat ${clock(analysis.at)} · ${directive ? directive.status : "unknown"}` : "Awaiting its first beat."}</p>` : "";
+          <p class="ch-fineprint">${analysis ? `Last beat ${clock(analysis.at)} · ${directive ? directive.status : "unknown"}` : "Awaiting its first beat."}${
+            state.laneBySymbol[focused] ? ` · ${state.laneBySymbol[focused] === "hot" ? "hot lane" : "sweep lane"}` : ""}${
+            state.ledger.featured.includes(focused) ? " · nominated for the hot lane" : ""}</p>` : "";
 
         $("[data-ch-log]").innerHTML = state.log.length ? state.log.map(entry => `
           <li>
@@ -438,7 +518,7 @@
           : state.lastBeatAt
             ? (state.source === "rehearsal"
               ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls.`
-              : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.`)
+              : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
         $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. ${Beat.DEFAULTS.reserveRatio * 100}% of the budget is held back by default for manual refreshes and retries.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
@@ -732,15 +812,38 @@
       autoButton.addEventListener("click", () => { state.auto = !state.auto; drawPanels(); schedule(); });
       beatButton.addEventListener("click", () => { beatNow("manual"); });
       stretchBox.addEventListener("change", () => { state.stretch = stretchBox.checked; drawPanels(); });
+      tierBox.addEventListener("change", () => {
+        state.tierMode = tierBox.checked;
+        state.message = state.tierMode
+          ? { kind: "note", text: "Two-lane beat enabled: the featured berths refresh every beat and the remaining calls walk the sweep. The monthly cost is unchanged." }
+          : { kind: "note", text: "Two-lane beat disabled: the plain least-recently-refreshed rotation returns. The monthly cost is unchanged." };
+        drawPanels();
+      });
       featureButton.addEventListener("click", () => {
         const featured = new Set(state.ledger.featured);
         if (featured.has(state.focus)) featured.delete(state.focus);
         else featured.add(state.focus);
         state.ledger = { ...state.ledger, featured: [...featured] };
         writeLedger(state.ledger);
+        if (state.tierMode) {
+          const tiers = tierPlan();
+          const option = tierOptionOf(tiers);
+          state.message = featured.has(state.focus)
+            ? { kind: "note", text: `${state.focus} joins the hot lane — it refreshes every beat${option ? ` alongside ${Math.max(0, option.hotSize - 1)} other berth${option.hotSize - 1 === 1 ? "" : "s"}` : ""}. No extra provider calls.` }
+            : { kind: "note", text: `${state.focus} leaves the hot lane and returns to the sweep. No extra provider calls.` };
+        }
         drawPanels();
       });
       body.addEventListener("click", event => {
+        const tierChip = event.target.closest("[data-ch-tier-target]");
+        if (tierChip) {
+          const target = Number(tierChip.getAttribute("data-ch-tier-target"));
+          if (Beat.TIER_SWEEP_HOURS.includes(target)) {
+            state.tierSweepHours = target;
+            drawPanels();
+          }
+          return;
+        }
         const chip = event.target.closest("[data-ch-cadence-chip]");
         if (!chip) return;
         state.cadence = Number(chip.getAttribute("data-ch-cadence-chip")) || state.cadence;

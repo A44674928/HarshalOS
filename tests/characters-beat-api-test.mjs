@@ -171,6 +171,37 @@ test("the beat cap matches the engine and the Worker never widens its allowlist"
   assert.equal(paths.every(path => path.startsWith("/v2/bars/")), true);
 });
 
+test("lane labels are display hints: they never change the call count or widen the allowlist", async () => {
+  clearCharactersBeatCache();
+  let calls = 0;
+  const response = await handleCharactersBeat(
+    beat("symbols=AAPL,MSFT,NVDA&interval=1h&cadence=60&lanes=AAPL:hot,MSFT:sweep,NVDA:sideways"),
+    { TICKERBOT_API_KEY: KEY },
+    { now: () => NOW, fetch: workersFetch(async () => { calls++; return okResponse(); }) }
+  );
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(calls, 3, "a lane label never adds or removes a provider call");
+  assert.equal(payload.data.spend.upstreamCalls, 3);
+  assert.deepEqual(payload.data.instruments.map(instrument => [instrument.symbol, instrument.lane]), [
+    ["AAPL", "hot"], ["MSFT", "sweep"], ["NVDA", null]
+  ], "an unrecognized lane is dropped, not refused and not invented");
+  assert.deepEqual(payload.data.spend.lanes.hot, ["AAPL"]);
+  assert.deepEqual(payload.data.spend.lanes.sweep, ["MSFT"]);
+  assert.match(payload.data.spend.lanes.note, /never changes how many calls/i);
+
+  /* A lane for a symbol that is not in the request is ignored too. */
+  const stray = await handleCharactersBeat(
+    beat("symbols=AAPL&interval=1h&cadence=60&lanes=XOM:hot"),
+    { TICKERBOT_API_KEY: KEY },
+    { now: () => NOW, fetch: workersFetch(async () => okResponse()) }
+  );
+  const strayPayload = await stray.json();
+  assert.equal(stray.status, 200);
+  assert.equal(strayPayload.data.instruments[0].lane, null);
+  assert.deepEqual(strayPayload.data.spend.lanes.hot, []);
+});
+
 test("the Worker dispatches the beat route read-only", async () => {
   clearCharactersBeatCache();
   const originalFetch = globalThis.fetch;

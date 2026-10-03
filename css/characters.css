@@ -234,3 +234,43 @@
   line-height: 1.6;
   color: var(--ch-faint);
 }
+
+/* ── Two-lane (tier) beat ─────────────────────────────────────── */
+.ch-legend-lanes { gap: 4px; }
+.ch-swatch-hot { background: var(--ch-gold); }
+.ch-swatch-sweep { background: rgba(154, 172, 200, 0.5); margin-left: 6px; }
+.ch-tier-wheel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 4px; }
+.ch-tier-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid var(--ch-border);
+  border-radius: 6px;
+  background: var(--ch-panel-2);
+  font-size: 10px;
+  cursor: pointer;
+}
+.ch-tier-chip b { font-size: 11px; color: var(--ch-ink); }
+.ch-tier-chip small { color: var(--ch-faint); font-size: 9px; }
+.ch-tier-chip.active { border-color: rgba(255, 212, 121, 0.6); background: rgba(255, 212, 121, 0.1); }
+.ch-tier-chip.active b { color: var(--ch-gold); }
+.ch-tier-chip.infeasible { opacity: 0.45; }
+.ch-tier-chip.infeasible b { color: var(--ch-faint); }
+.ch-lane {
+  display: inline-block;
+  margin: 0 3px 0 1px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-style: normal;
+  font-size: 8px;
+  font-family: ui-monospace, monospace;
+  vertical-align: middle;
+}
+.ch-lane-hot { background: rgba(255, 212, 121, 0.22); color: var(--ch-gold); }
+.ch-lane-sweep { background: rgba(154, 172, 200, 0.18); color: var(--ch-dim); }
+.ch-warn-text { color: var(--ch-amber); }
+.ch-app .ch-btn:focus-visible, .ch-app .ch-tier-chip:focus-visible, .ch-app .ch-cadence-chip:focus-visible {
+  outline: 2px solid var(--ch-cyan);
+  outline-offset: 2px;
+}

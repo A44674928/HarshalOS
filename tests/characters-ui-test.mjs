@@ -192,3 +192,59 @@ test("a beat whose instruments carry no bars freezes those berths and says so", 
   const ledger = JSON.parse(container.ownerDocument.defaultView.localStorage.getItem("harshalos.characters.ledger.v1"));
   assert.equal(ledger.calls, 0, "a refused read is not billed to the ledger");
 });
+
+test("two-lane mode nominates the featured berth as hot and labels the request", async t => {
+  const requested = [];
+  const { window, container, text } = await boot(t, {
+    handler: async url => {
+      requested.push(url);
+      const params = new URL(url, "https://os.example").searchParams;
+      const symbols = decodeURIComponent(params.get("symbols") || "").split(",").filter(Boolean);
+      return Response.json(liveBeatPayload(symbols));
+    }
+  });
+  /* Nominate the focused berth, then switch the two-lane beat on. */
+  container.querySelector("[data-ch-feature]").dispatchEvent(new window.Event("click"));
+  await flush();
+  const tiers = container.querySelector("[data-ch-tier]");
+  tiers.checked = true;
+  tiers.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.match(container.querySelector("[data-ch-plan-tag]").textContent, /two-lane/);
+  assert.ok(container.querySelectorAll("[data-ch-tier-target]").length === 4, "every sweep window is offered");
+  assert.match(container.querySelector("[data-ch-tier-panel]").textContent, /every beat/);
+
+  container.querySelector("[data-ch-beat]").dispatchEvent(new window.Event("click"));
+  await flush();
+  const url = new URL(requested[requested.length - 1], "https://os.example");
+  const lanes = Object.fromEntries((url.searchParams.get("lanes") || "").split(",").filter(Boolean).map(entry => {
+    const [symbol, lane] = entry.split(":");
+    return [symbol, lane];
+  }));
+  const featured = JSON.parse(window.localStorage.getItem("harshalos.characters.ledger.v1")).featured;
+  assert.equal(featured.length, 1);
+  assert.equal(lanes[featured[0]], "hot", "the featured berth is paid for first");
+  assert.equal(Object.values(lanes).filter(lane => lane === "hot").length, 9, "an hourly plan affords 9 hot berths");
+  assert.ok(Object.values(lanes).includes("sweep"), "the remaining calls walk the sweep");
+  assert.match(container.querySelector("[data-ch-log]").textContent, /H/, "the beat log marks the hot lane");
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /hot lane/);
+  assert.match(text(), /No extra provider calls|Two-lane beat/);
+});
+
+test("a cadence with no tier split leaves two-lane mode off and says why", async t => {
+  const { window, container } = await boot(t, {
+    handler: async url => {
+      const symbols = decodeURIComponent(new URL(url, "https://os.example").searchParams.get("symbols") || "").split(",").filter(Boolean);
+      return Response.json(liveBeatPayload(symbols));
+    }
+  });
+  const cadence = container.querySelector("[data-ch-cadence]");
+  cadence.value = "1440";
+  cadence.dispatchEvent(new window.Event("change"));
+  await flush();
+  const tiers = container.querySelector("[data-ch-tier]");
+  assert.equal(tiers.disabled, true, "a daily beat cannot split hot from sweep inside a day");
+  const tierPanel = container.querySelector("[data-ch-tier-panel]").textContent;
+  assert.match(tierPanel, /sweep alone is the whole plan/, "the app explains the refused split rather than greying out silently");
+  assert.match(tierPanel, /same .* calls per month/, "and states that tiering would not have cost extra calls");
+});

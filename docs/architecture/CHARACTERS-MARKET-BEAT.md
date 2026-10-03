@@ -6,6 +6,9 @@ invariant. It describes `js/characters-beat.js` (motion + budget engine),
 `worker/characters-beat.mjs` (the batched, cache-held read route), and
 `css/characters.css`.
 
+**Also implemented since the first revision:** a **two-lane (tiered) beat** that spends the
+same calls differently — see §2b.
+
 **One-line boundary:** market data can move a character on a stage; it cannot move
 authority, money, or a decision. This is Stage 2 *Representation* in the canonical model,
 exactly like the Market Context node in [`PINE-OCM-INTEGRATION.md`](PINE-OCM-INTEGRATION.md) —
@@ -103,6 +106,56 @@ dashboard is the authority. A budget you cannot audit is a budget you will overs
 
 ---
 
+## 2b. Two-lane (tiered) beats — the same spend, split by tempo
+
+A single cadence forces one trade: a slow clock and everything moves rarely, or a fast clock
+and only a few berths move. A tiered beat pays for a **hot lane** first (the operator's
+featured tickers, refreshed every beat) and hands the remaining calls to a **sweep** that
+walks the rest of the cast. The monthly cost is *identical* — `planTiers()` copies
+`callsPerBeat` straight from `plan()` — only the destination of each call changes.
+
+The planner solves for the widest hot lane that still sweeps the cast inside a target window:
+
+```text
+B = beats inside the window (e.g. 24 h)
+calls_per_beat − hot ≥ (cast − hot) ÷ B          the sweep keeps up
+        ⇒  hot ≤ (calls_per_beat · B − cast) ÷ (B − 1)
+```
+
+At 10,000 calls per month and 52 berths, with the 15% reserve:
+
+| Cadence | Calls/beat | 6 h window | 12 h window | **24 h window** | 48 h window |
+| :--- | ---: | :--- | :--- | :--- | :--- |
+| 15 min | 2 | — | — | **1 hot + 1 sweep · 12.75 h** | 1 hot + 1 sweep · 12.75 h |
+| 30 min | 5 | — | 2 hot + 3 sweep · 8.5 h | **4 hot + 1 sweep · 24 h** | 4 hot + 1 sweep · 24 h |
+| 60 min | 11 | 2 hot + 9 sweep · 6 h | 7 hot + 4 sweep · 12 h | **9 hot + 2 sweep · 22 h** | 10 hot + 1 sweep · 42 h |
+| 4 h | 12 | — | — | **4 hot + 8 sweep · 24 h** | 8 hot + 4 sweep · 44 h |
+| 1 day | 12 | — | — | — | — |
+
+Read the hourly row against the 15-minute row and the original question answers itself:
+
+- **Hourly, tiered:** 9 berths refresh every hour and the whole cast still completes a sweep
+  in 22 hours — the widest hot lane that keeps a daily cycle, at 80% of budget.
+- **15-minute, tiered:** 1 berth moves every 15 minutes and the full cast still sweeps twice a
+  day (12.75 h) — the fastest tempo the 10,000-call budget can afford, at 58% of budget.
+- A plan whose hot lane would eat every call (daily cadence, for instance) is reported
+  **infeasible** with the reason, not offered as a tier: it would starve the sweep and is
+  just the plain rotation wearing a tier label.
+
+Rules the tier mode keeps:
+
+1. **A lane is a display hint.** The Worker accepts `lanes=SYM:hot,SYM:sweep`, stores the
+   label per instrument, and ignores anything it does not recognize. A lane never changes
+   how many calls a beat makes — it is always one call per requested symbol.
+2. **Hot first, then the eldest.** `selectTieredDue()` pays the hot lane from the featured
+   set (least-recently-refreshed first, so more featured tickers than the plan affords still
+   rotate), then gives the remainder to the next-eldest sweep berths. The beat budget is
+   never exceeded, and no berth is charged twice in one beat.
+3. **Same honesty.** A hot berth without bars still freezes; a synthetic hot lane is still
+   watermarked; the ledger still counts what the provider was actually asked for.
+
+---
+
 ## 3. The mapping: indicator → movement
 
 `motion()` reads the same `gi-market-analysis-v1` packet the Market Charts tab evaluates —
@@ -169,7 +222,7 @@ bar; a pending bar can never mint a confluence event.
 
 | Surface | Detail |
 | :--- | :--- |
-| `GET /api/characters/v1/beat` | `?symbols=A,B,C&interval=1h\|1d&cadence=15\|30\|60\|240\|1440` |
+| `GET /api/characters/v1/beat` | `?symbols=A,B,C&interval=1h\|1d&cadence=15\|30\|60\|240\|1440[&lanes=A:hot,B:sweep]` |
 | Response | `{ success, environment: "characters-beat", data: { schema: "characters-beat-v1", beatAt, interval, cadenceMinutes, holdMs, instruments[], spend } }` |
 | Refusals | 400 (no symbols, over the 12-symbol cap, off-allowlist symbol, bad interval), 405 (non-GET), 503 (no `TICKERBOT_API_KEY`), 429/502/504/404 (whole-beat provider failure, with the whole-beat data attached) |
 | Partial failure | 200 with per-symbol `status: "unavailable"` — a partial beat is still an honest beat |
@@ -198,7 +251,7 @@ never enters assurance scoring, claims, the composite formula, actionability, th
 any Permit/Refuse decision. If a provider read fails, the stage freezes — that is the
 correct outcome, not an error to paper over.
 
-**Follow-ups deliberately left open:** a tiered beat (a hot set at a short cadence plus a
-slow sweep of the rest) inside the same budget; a server-durable call ledger (D1 or KV)
-instead of the isolate-local counters; and a bar-for-bar parity harness against the
-archived Pine sources.
+**Follow-ups deliberately left open:** a server-durable call ledger (D1 or KV) instead of
+the isolate-local counters; a bar-for-bar parity harness against the archived Pine sources;
+and per-berth cadences driven by the operator's own cast size (the tier planner already
+solves for the widest hot lane, but the hot set is still nominated by hand).

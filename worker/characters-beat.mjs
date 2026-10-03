@@ -40,6 +40,7 @@ export const MAX_BEAT_SYMBOLS = 12;
    gets a usable beat rather than an error. */
 export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
 const DEFAULT_CADENCE = 60;
+const LANES = Object.freeze(["hot", "sweep"]);
 const MAX_FETCH_CONCURRENCY = 4;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
@@ -76,6 +77,20 @@ function countSpend(now, calls) {
   spend.monthCalls += calls;
   spend.dayCalls += calls;
   return { month: spend.month, monthCalls: spend.monthCalls, day: spend.day, dayCalls: spend.dayCalls };
+}
+
+/* The client labels each symbol with the lane the tier plan gave it. Unknown or
+   duplicate lane labels are ignored rather than refused: a lane is a display hint,
+   never an input to spend, a path, or a validation decision. */
+function parseLanes(raw) {
+  const lanes = new Map();
+  if (typeof raw !== "string" || !raw.trim()) return lanes;
+  for (const entry of raw.split(",").slice(0, 64)) {
+    const [symbol, lane] = entry.split(":").map(part => (part || "").trim().toUpperCase());
+    if (!symbol || !LANES.includes(String(lane || "").toLowerCase())) continue;
+    if (!lanes.has(symbol)) lanes.set(symbol, String(lane).toLowerCase());
+  }
+  return lanes;
 }
 
 function parseSymbols(raw) {
@@ -119,6 +134,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   if (request.method !== "GET") return failure("The Characters beat is read-only.", 405, { Allow: "GET" });
 
   const { symbols, rejected } = parseSymbols(url.searchParams.get("symbols"));
+  const lanes = parseLanes(url.searchParams.get("lanes"));
   if (!symbols.length) {
     return failure(`Choose at least one ticker from the configured ${TICKERBOT_WATCHLIST.length}-symbol Tickerbot watchlist.`, 400);
   }
@@ -149,10 +165,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
 
   const instruments = await mapWithConcurrency(symbols, MAX_FETCH_CONCURRENCY, async symbol => {
     const key = `${symbol}:${interval}`;
+    const lane = lanes.get(symbol) || null;
     const cached = cache.get(key);
     if (cached && cached.expiresAt > now) {
       cacheHits += 1;
-      return { symbol, status: "cached", marketContext: cached.packet };
+      return { symbol, status: "cached", lane, marketContext: cached.packet };
     }
     if (cached) cache.delete(key);
 
@@ -165,11 +182,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     if (!result.ok) {
       /* A failed read is not cached: the next beat may retry it, and a stale packet is
          never served as if it were this beat's. */
-      return { symbol, status: "unavailable", code: result.code, message: result.message, retryAfter: result.retryAfter };
+      return { symbol, status: "unavailable", lane, code: result.code, message: result.message, retryAfter: result.retryAfter };
     }
     upstreamCalls += 1;
     cache.set(key, { packet: result.packet, expiresAt: now + holdMs });
-    return { symbol, status: "bars", marketContext: result.packet };
+    return { symbol, status: "bars", lane, marketContext: result.packet };
   });
 
   const counters = countSpend(now, upstreamCalls);
@@ -188,6 +205,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       upstreamCalls,
       cacheHits,
       unavailable: failures.length,
+      lanes: {
+        hot: instruments.filter(instrument => instrument.lane === "hot").map(instrument => instrument.symbol),
+        sweep: instruments.filter(instrument => instrument.lane === "sweep").map(instrument => instrument.symbol),
+        note: "Client-supplied lane labels for display and the beat log. A lane never changes how many calls a beat makes: it is always one call per requested symbol."
+      },
       isolate: counters,
       note: "Isolate-local, best-effort counters for a human's own accounting — not a billing record, not a hard budget, and reset by any redeploy. The browser ledger and the provider dashboard are the durable counts."
     }

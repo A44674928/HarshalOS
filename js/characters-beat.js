@@ -32,7 +32,8 @@
 window.CharactersBeat = (() => {
   const SCHEMA = Object.freeze({
     beat: "characters-beat-v1",
-    motion: "characters-market-motion-v1"
+    motion: "characters-market-motion-v1",
+    tierPlan: "characters-tier-plan-v1"
   });
 
   /* Cadences the Worker will hold a beat open for. Each value is also the
@@ -52,6 +53,11 @@ window.CharactersBeat = (() => {
     perRequestCap: MAX_SYMBOLS_PER_BEAT,
     featuredWeight: 2
   });
+
+  /* A tiered beat keeps the same spend and splits it: a HOT lane refreshed every
+     beat, and a SWEEP that walks the rest of the cast in a target window. The
+     windows are what an operator actually thinks in ("everything at least daily"). */
+  const TIER_SWEEP_HOURS = Object.freeze([6, 12, 24, 48]);
 
   const MOODS = Object.freeze([
     "frozen", "warming-up", "drift", "lean-up", "lean-down", "rally",
@@ -181,6 +187,119 @@ window.CharactersBeat = (() => {
       .sort((a, b) => (b.rank - a.rank) || (a.symbol < b.symbol ? -1 : a.symbol > b.symbol ? 1 : 0))
       .slice(0, requested)
       .map(entry => entry.symbol);
+  }
+
+  /* ── Tiered planning ─────────────────────────────────────────────
+     A tiered beat does not spend more than a single-cadence beat: it spends the
+     same callsPerBeat differently. Each beat pays for its hot berths first (the
+     featured tickers, refreshed every beat) and gives whatever is left to the next
+     berths in the sweep queue. The planner answers the operator's question —
+     "how many tickers can move at this tempo while the whole cast still cycles
+     within N hours?" — by solving for the largest hot set that fits:
+
+       n ≤ (callsPerBeat · B − cast) ÷ (B − 1),  B = beats inside the target window
+
+     Rearranged from:  callsPerBeat − n ≥ (cast − n) ÷ B
+     (sweep calls per beat ≥ the berths each remaining beat must cover).       */
+
+  function tierOption(input, base, targetSweepHours) {
+    const beatsInWindow = (targetSweepHours * 60) / input.cadenceMinutes;
+    const rawHot = beatsInWindow > 1
+      ? Math.floor((base.callsPerBeat * beatsInWindow - input.castSize) / (beatsInWindow - 1))
+      : base.callsPerBeat;
+    const hotSize = clamp(rawHot, 0, Math.min(input.perRequestCap, base.callsPerBeat, input.castSize));
+    const sweepPerBeat = Math.max(0, base.callsPerBeat - hotSize);
+    const sweepSize = Math.max(0, input.castSize - hotSize);
+    const sweepBeats = sweepPerBeat > 0 ? Math.ceil(sweepSize / sweepPerBeat) : Infinity;
+    const sweepHours = Number.isFinite(sweepBeats) ? (sweepBeats * input.cadenceMinutes) / 60 : Infinity;
+    /* A hot lane only counts if the sweep still moves: a plan whose hot berths eat
+       every call is the plain rotation wearing a tier label, and it would starve the
+       rest of the cast. It is reported as infeasible instead. */
+    const starvesSweep = sweepSize > 0 && sweepPerBeat === 0;
+    const feasible = hotSize >= 1 && !starvesSweep;
+    const notes = [];
+    if (hotSize === 0) {
+      notes.push(`At ${formatHours(input.cadenceMinutes / 60)} a beat, ${base.callsPerBeat} calls per beat already spend themselves on the sweep: no berth can be hot without missing this window.`);
+    }
+    if (starvesSweep) {
+      notes.push(`A ${hotSize}-berth hot lane would use every call in the beat, so the remaining ${sweepSize} berths would never be swept inside ${formatHours(targetSweepHours)}. Lengthen the cadence or raise the budget.`);
+    }
+    if (feasible && hotSize >= base.callsPerBeat) {
+      notes.push("The hot lane uses every call in the beat; the rest of the cast would never be swept. Lengthen the cadence or raise the budget.");
+    }
+    return Object.freeze({
+      targetSweepHours,
+      feasible,
+      hotSize,
+      hotPerBeat: hotSize,
+      sweepPerBeat,
+      sweepSize,
+      sweepBeats: Number.isFinite(sweepBeats) ? sweepBeats : null,
+      sweepHours: Number.isFinite(sweepHours) ? Math.round(sweepHours * 100) / 100 : null,
+      sweepSize: sweepSize,
+      hotRefreshesPerDay: Math.round((MINUTES_PER_DAY / input.cadenceMinutes) * 10) / 10,
+      withinWindow: Number.isFinite(sweepHours) && sweepHours <= targetSweepHours,
+      callsPerBeat: base.callsPerBeat,
+      callsPerMonth: base.callsPerMonth,
+      budgetUseRatio: base.budgetUseRatio,
+      notes: Object.freeze(notes)
+    });
+  }
+
+  function planTiers(value) {
+    const input = normalizePlanInput(value);
+    const base = plan(input);
+    const options = TIER_SWEEP_HOURS.map(hours => tierOption(input, base, hours));
+    const feasible = options.filter(option => option.feasible);
+    const recommended = feasible.find(option => option.targetSweepHours === 24)
+      || [...feasible].sort((a, b) => (b.hotSize - a.hotSize) || ((a.sweepHours || Infinity) - (b.sweepHours || Infinity)))[0]
+      || null;
+    const notes = [
+      `A tiered beat spends exactly the same ${base.callsPerMonth.toLocaleString()} calls per month as a single-cadence beat at this cadence: it only changes which berths those calls refresh.`
+    ];
+    if (!feasible.length) {
+      notes.push("No tier split fits this budget and cadence; the sweep alone is the whole plan.");
+    } else if (recommended && recommended.targetSweepHours === 24) {
+      notes.push(`Recommended: ${recommended.hotSize} hot berth${recommended.hotSize === 1 ? "" : "s"} refreshed every ${formatHours(input.cadenceMinutes / 60)} and a full sweep of ${recommended.sweepSize} in ${formatHours(recommended.sweepHours)} — the whole cast inside a day.`);
+    }
+    return Object.freeze({
+      schema: SCHEMA.tierPlan,
+      ...input,
+      callsPerBeat: base.callsPerBeat,
+      callsPerMonth: base.callsPerMonth,
+      reserveCalls: base.reserveCalls,
+      usableCalls: base.usableCalls,
+      budgetUseRatio: base.budgetUseRatio,
+      beatsPerDay: Math.round((MINUTES_PER_DAY / input.cadenceMinutes) * 10) / 10,
+      sweepHours: base.sweepHours,
+      options: Object.freeze(options),
+      recommended,
+      notes: Object.freeze(notes)
+    });
+  }
+
+  /* Which berths a tiered beat actually refreshes: the hot lane first (featured
+     berths in least-recently-refreshed order, so more featured tickers than the
+     plan affords still rotate), then the eldest of the rest up to the sweep
+     quota. Everything stays inside one `callsPerBeat` budget. */
+  function selectTieredDue({ symbols = [], hotSet = [], lastRefreshedAt = {}, now = 0, hotSize = 0, sweepPerBeat = 0, featuredWeight = DEFAULTS.featuredWeight } = {}) {
+    const list = [...new Set(symbols.map(symbol => String(symbol).trim().toUpperCase()).filter(Boolean))];
+    const starred = new Set((Array.isArray(hotSet) ? hotSet : []).map(symbol => String(symbol).trim().toUpperCase()));
+    const slots = Math.max(0, Math.min(Math.round(hotSize), list.length));
+    const ranked = selectDueSymbols({ symbols: list, lastRefreshedAt, now, perBeat: list.length, featured: [...starred], featuredWeight });
+    const hot = ranked.filter(symbol => starred.has(symbol)).slice(0, slots);
+    for (const symbol of ranked) {
+      if (hot.length >= slots) break;
+      if (!hot.includes(symbol)) hot.push(symbol);
+    }
+    const rest = ranked.filter(symbol => !hot.includes(symbol));
+    const sweep = rest.slice(0, Math.max(0, Math.round(sweepPerBeat)));
+    return Object.freeze({
+      hot: Object.freeze(hot),
+      sweep: Object.freeze(sweep),
+      all: Object.freeze([...hot, ...sweep]),
+      lanes: Object.freeze(Object.fromEntries([...hot.map(symbol => [symbol, "hot"]), ...sweep.map(symbol => [symbol, "sweep"])]))
+    });
   }
 
   /* ── Reading a bar series ────────────────────────────────────────
@@ -550,8 +669,9 @@ window.CharactersBeat = (() => {
   }
 
   return Object.freeze({
-    SCHEMA, CADENCES, MAX_SYMBOLS_PER_BEAT, DEFAULTS, MOODS, FORMATIONS,
+    SCHEMA, CADENCES, MAX_SYMBOLS_PER_BEAT, DEFAULTS, MOODS, FORMATIONS, TIER_SWEEP_HOURS,
     plan, compareCadences, recommendCadence, formatHours,
+    planTiers, selectTieredDue,
     selectDueSymbols, gaugeOf, marksOf, moodOf, motion, captionFor, blend,
     monthKey, emptyLedger, normalizeLedger, recordBeat, remainingBudget,
     rehearse, hash32
