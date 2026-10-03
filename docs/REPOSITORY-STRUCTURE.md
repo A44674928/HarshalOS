@@ -28,7 +28,8 @@ This layout separates normative specifications, implementation, evidence, operat
 │   ├── architecture/                 Architecture, implementation boundaries, and limitations
 │   │   ├── PLUGIN-ARCHITECTURE.md    Slot-preservation policy for reserved plugin/data slots
 │   │   ├── PINE-OCM-INTEGRATION.md   Read-only Market Context OCM node and future payload boundary
-│   │   └── CELESTIAL-CONTEXT.md      Approximate, display-only Sun/Moon context in UTS/OCM
+│   │   ├── CELESTIAL-CONTEXT.md      Approximate, display-only Sun/Moon context in UTS/OCM
+│   │   └── USER-CENTRIC-SUPERSTRUCTURE.md   Eye-in-the-sky radial map of the superstructure from the |User| origin outward
 │   ├── integrations/                 Optional external-format/library integration notes
 │   │   └── NEWSML-G2.md              D1 public-report NewsML-G2 export; no site Python runtime
 │   ├── harshal-systems/              Book I Reference Library (00 + Parts I–XXVII) & 7 functional collections
