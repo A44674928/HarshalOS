@@ -1,8 +1,9 @@
-# Community D1 — accounts and private drafts
+# Community D1 — accounts, private drafts and execution
 
 ## Status and boundaries
 
-This rebuild now includes the database foundation, OIDC login/session layer **and private account workspace**.
+This rebuild includes the database foundation, OIDC login/session layer,
+private account workspace, and **private Ground-0 execution**.
 It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
 
 Implemented:
@@ -16,19 +17,18 @@ Implemented:
   issuer-bound moderator checks. No provider email/profile/access/ID tokens stored.
 - Origin checks, bounded provider response bodies, timeouts, no followed redirects,
   generic error responses, and D1-backed request limits.
-
 - `/account` UI: sign-in/out, private draft list/editor, explicit save/import/export,
   revision conflict preservation and reload. Dynamic content is rendered as text.
 - Authenticated private draft endpoints with session-derived ownership, exact-Origin
   writes, 96 KiB streaming body limit and 60 write attempts/account/UTC day.
   Listing is paginated (25 per page, stable ID order), not a latest-first feed.
 
-Not implemented: draft deletion, Ground-0 semantic validation/server recomputation,
-public previews/publication/history/withdrawal/moderation UI, self-service account
+Not implemented: draft/run deletion, public previews/publication/history/withdrawal/moderation UI, self-service account
 export/deletion, and community backup/retention workflows. The internal draft
 functions require a verified server-derived owner ID, never a request-supplied one.
-Publication routes remain closed regardless of the feature flag. The two existing
-migrations are unchanged; this checkpoint needs no new migration.
+Publication routes remain closed regardless of the feature flag. Migrations 0001
+and 0002 are unchanged. Private execution adds migration
+`0003_private_runs.sql`; it has only been applied to local test databases.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -53,7 +53,8 @@ preview → explicit publication labeled **UNREVIEWED**, not independent verific
 
 Writes accept `title`, object-valued `input`, `privateNotes`, and (updates only)
 `revision`. Extra envelope fields, including client-supplied owner IDs, are rejected.
-The generic input object is NOT a validated audit/result and is never published.
+Saving a generic input object does NOT validate or execute it. Execution is a
+separate explicit operation; neither operation publishes anything.
 All routes require active, unblocked sessions; moderator status grants no access
 to someone else's drafts. Authentication/IP quotas also apply to draft requests.
 
@@ -87,6 +88,75 @@ buckets only. No cron is provisioned; dormant expired rows may remain until clea
 Database operators can see short-lived PKCE verifiers; protect D1 access/backups.
 Never log tokens, cookies, secrets or raw callback queries. Review platform access-log
 retention since callback URLs carry short-lived authorization codes.
+
+
+## Private execution checkpoint
+
+The UI now has **Use Ground-0 1.0 template**, **Run saved revision**, **Saved runs**,
+and a private result viewer/export. Template loading is local editor setup, not a
+save. Set `input.name`, `version`, and a real `cutoff`, then save first. Exactly five
+behavioral answers and four constraint answers are required. Values are boolean or
+null (unknown), never coerced from strings. Optional method records are type-checked.
+Version 1.0 is the normative baseline; 1.1 remains an unratified draft.
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| GET | `/api/community/audit-template?version=1.0` | Signed-in input template; also supports explicit 1.1 |
+| POST | `/api/community/drafts/UUID/runs` | Body **only** `{"revision": 1}`; execute the owned saved revision |
+| GET | `/api/community/drafts/UUID/runs?after=SEQ` | Owner-only history, newest first, 25/page |
+| GET | `/api/community/drafts/UUID/runs/RUN_UUID` | Owner-only immutable run and evaluated snapshot |
+
+Runs require migration 0003; missing migration fails closed. Existing drafts and
+login remain usable independently. The POST rejects submitted inputs/results and
+reads the draft from D1. After calculation the atomic INSERT rechecks revision,
+input snapshot and unblocked ownership. Unique `(draft, revision, evaluator hash)`
+makes retries/concurrent runs reuse one record. Saving a correction creates a new
+draft revision; existing runs never change. SQL UPDATE triggers prohibit mutation;
+these records are **not** tamper-proof against trusted database administrators.
+
+Limits: 20 new execution attempts per account/UTC day (validation failures count),
+200 stored runs/account, 192 KiB/report, plus existing IP and write-attempt quotas.
+A cached run does not consume the new-execution quota but still consumes a write
+attempt. No old runs are automatically deleted; deletion/retention workflows remain
+pending. The UI preserves old runs as historical evidence of computation, not as
+approved temporal declarations. Editor changes, account changes, and sign-out clear
+the currently displayed run; old-revision results are explicitly labeled older.
+
+### What the result means
+
+The Worker imports the same `js/g0-engine.js` used by the browser. Its environment
+adapter now supports browser `window` and Worker `globalThis`; classification rules
+are unchanged. The evaluator normalizes saved input using the shared normalizer,
+retains automation source eligibility and review-required flags, and excludes
+irrelevant provider diagnostics/source bodies from the evaluated snapshot. Dedicated
+private draft notes are not copied. Author-supplied review flags remain claims,
+not proof that an independent review occurred. Unknown/incomplete inputs stay so.
+Unsupported versions, invalid cutoffs and malformed answer shapes fail with 422
+instead of silently substituting today's date or manufacturing a completed audit.
+
+Each report carries `UNREVIEWED`, `platformCertification: NONE`, specification status,
+exact normalized input, raw-input hash, engine/evaluator source hashes, deterministic
+rule outputs, and explicit scope. There is **no source fetching, independent evidence
+or identity verification, global registry check, cross-run Header-ID conflict check,
+or temporal transition evaluation**. The engine is called with an empty prior-record
+set deliberately. Its `Complete`, `Confirmed`, confidence and badge outputs describe
+rule calculations on claims, not certification by this platform. A valid signature
+only verifies against the user-supplied key and origin.
+
+Report SHA-256 hashes canonical JSON (sorted object keys, array order preserved),
+including input, result and scope but excluding run ID/timestamp/revision envelope.
+The raw-input hash covers the saved input only, not title or separate private notes.
+The shared-engine hash covers engine source bytes; the evaluator hash covers engine
+bytes + a NUL byte + adapter bytes. Tests pin both fingerprints; update them when
+changing either source. These are fingerprints, **not signatures or proof of truth**.
+The run export contains evaluated input and can still contain private information.
+Do not treat that export as a public-preview artifact or upload it without review.
+
+Tests exercise browser/Worker parity across all 32 vectors in both versions,
+signature validation, provenance gates, deterministic hashes, ownership, concurrent
+replays, edit/block races, history pagination, limits and UI invalidation. Unit tests
+use actual SQLite SQL; UI tests mock fetch; local Wrangler validates migrations.
+No full live Auth0 + remote D1 browser flow or production security audit is claimed.
 
 ## Verified target information
 
@@ -155,11 +225,11 @@ npx wrangler d1 migrations apply COMMUNITY_DB --remote
 ```
 
 Expected application tables: `community_users`, `community_drafts`, `community_schema`,
-`community_auth_flows`, `community_sessions`, and `community_auth_rates`. Wrangler also tracks migrations in `d1_migrations`. Applying
+`community_auth_flows`, `community_sessions`, `community_auth_rates`, and `community_runs`. Wrangler also tracks migrations in `d1_migrations`. Applying
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
 
-## Preserve Auth0 setup for stage 2
+## Preserve Auth0 setup for live staging
 
 Keep the existing Regular Web Application and **Client Secret (Post)** setting.
 The planned callback is `https://main.empty.domains/api/community/auth/callback`.
@@ -179,7 +249,7 @@ allowlists, not wildcards. Existing Access protection for owner `/api/storage/*`
 must remain; community callbacks need to be reachable through their own policy.
 
 Next: verify login on a separate staging origin/database/provider application,
-then implement server-side audit recomputation. Follow with exact
+then build exact
 preview-bound publication, version history, withdrawal, abuse reporting and moderation.
 Do not enable production merely because unit tests pass.
 

@@ -178,3 +178,7 @@ export async function authorizeCommunity(request, env, { write = false, now = Ma
   if (write) await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'draft-write:' + user.id, '', 60, 86400, now);
   return user;
 }
+
+export async function limitCommunityRuns(env, userId) {
+  await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'private-run:' + userId, '', 20, 86400, Math.floor(Date.now() / 1000));
+}

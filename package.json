@@ -26,7 +26,7 @@
     "integrity": "node scripts/integrity-report.mjs",
     "prepare:assets": "node scripts/prepare-assets.mjs",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run",
-    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs"
+    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-runs-test.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0",

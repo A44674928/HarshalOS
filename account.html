@@ -12,11 +12,19 @@
 <section class="editor"><div class="section-title"><h2 id="editor-heading">New private draft</h2><span class="pill">PRIVATE</span></div><p id="revision" class="muted">Not saved to your account yet.</p>
 <form id="form" autocomplete="off"><fieldset id="fields"><label for="title">Draft title</label><input id="title" maxlength="200" required placeholder="e.g. Organization review — working notes">
 <label for="input">Ground-0 input <span class="muted">JSON object · max 64 KiB</span></label><textarea id="input" rows="13" spellcheck="false" required>{}</textarea>
-<p class="muted">This editor stores inputs only. It does not execute Ground-0 or verify claims. Do not paste passwords, tokens, or unrelated personal data.</p>
+<p class="muted">Saving only stores inputs. Use a Ground-0 template, set its entity name and cutoff, save, then explicitly run the saved revision. Running applies rules to your claims; it does not independently verify them. Do not paste passwords, tokens, or unrelated personal data.</p>
 <label for="notes">Private notes</label><textarea id="notes" rows="4" maxlength="4000" placeholder="Questions, context, and reminders. These stay private."></textarea>
-<div class="actions"><button class="primary" id="save" type="submit">Save private draft</button><button id="export" type="button">Export local copy</button><button id="reload" type="button" hidden>Reload saved version</button></div>
+<div class="actions"><button id="template" type="button">Use Ground-0 1.0 template</button><button class="primary" id="save" type="submit">Save private draft</button><button id="export" type="button">Export local copy</button><button id="reload" type="button" hidden>Reload saved version</button><button id="run" type="button" disabled>Run saved revision</button><button id="history" type="button" disabled>Saved runs</button></div>
 <label class="import-label" for="import">Import a private-draft export <input id="import" type="file" accept="application/json,.json"></label><p class="muted">Import stays in this editor until you click Save. Only HarshalOS private-draft exports are supported here—not desktop archive files. A downloaded export contains your private notes; keep it secure.</p>
-</fieldset></form></section>
+</fieldset></form>
+<section id="execution" aria-label="Private execution results" hidden>
+<div class="section-title"><h2>Private run review</h2><span class="pill">UNREVIEWED</span></div>
+<p class="muted">These are calculations on submitted claims, not platform certification. No external sources are fetched, no independent identity or evidence verification is performed, and no temporal history or global declaration registry is checked.</p>
+<ul id="run-history"></ul><button id="run-more" type="button" hidden>Older runs</button>
+<div id="run-panel" hidden><h3 id="run-summary"></h3><p id="run-source" class="muted"></p><p id="run-finding"></p>
+<p id="run-hash" class="muted hash"></p><button id="run-export" type="button">Export private run</button>
+<details><summary>Exact evaluated input, calculation and scope</summary><pre id="run-json" tabindex="0"></pre></details></div>
+</section></section>
 </div></div>
-<footer><strong>Publication is not available yet.</strong><p>Private drafts are not audit results or certification. A later step will require an exact public preview and explicit consent before anything is published.</p></footer>
+<footer><strong>Publication is not available yet.</strong><p>Drafts and private runs are not public reports or certification. A later step will require an exact public preview and explicit consent before anything is published.</p></footer>
 </main></body></html>

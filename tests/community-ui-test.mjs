@@ -53,3 +53,42 @@ test('Account UI: import stays local until explicit save, then logout clears pri
   assert.equal(f.$('workspace').hidden, true); assert.equal(f.$('notes').value, ''); assert.equal(f.$('title').value, '');
   assert.equal(f.$('login').hidden, false);
 });
+
+test('Account UI: run sends only saved revision, renders as text and invalidates on edits', async t => {
+  const run = { id: saved.id, revision: 1, createdAt: 1000, reportHash: 'a'.repeat(64), report: { engine: { specificationStatus: 'NORMATIVE BASELINE' }, result: { phase: 'NAB', recordStatus: 'Draft', finding: '<img src=x onerror=alert(1)>' } } };
+  const f = await fixture(t, (url, options) => {
+    if (url.endsWith('/me')) return Response.json({ user: { id: 'alice' } });
+    if (url.endsWith('/runs') && options.method === 'POST') return Response.json({ run, reused: false }, { status: 201 });
+    if (url.endsWith('/drafts')) return Response.json({ drafts: [saved], nextCursor: null });
+    return Response.json({ draft: saved });
+  });
+  assert.equal(f.$('run').disabled, true);
+  f.$('drafts').querySelector('button').click(); await f.flush();
+  assert.equal(f.$('run').disabled, false);
+  f.$('run').click(); await f.flush();
+  assert.deepEqual(JSON.parse(f.calls.find(x => x.options.method === 'POST').options.body), { revision: 1 });
+  assert.equal(f.$('execution').hidden, false); assert.equal(f.$('run-finding').querySelector('img'), null);
+  assert.match(f.$('run-summary').textContent, /UNREVIEWED/);
+  f.$('input').value = '{}'; f.$('input').dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  assert.equal(f.$('run').disabled, true); assert.equal(f.$('execution').hidden, true); assert.equal(f.$('run-json').textContent, '');
+});
+
+test('Account UI: template fills editor without saving; historical runs are labeled older', async t => {
+  const oldRun = { id: saved.id, revision: 1, createdAt: 1000, reportHash: 'b'.repeat(64), report: { engine: { specificationStatus: 'AMENDMENT DRAFT — NOT RATIFIED' }, result: { phase: 'AMBIGUOUS', recordStatus: 'Draft', finding: 'Unreviewed' } } };
+  const f = await fixture(t, (url) => {
+    if (url.endsWith('/me')) return Response.json({ user: { id: 'alice' } });
+    if (url.includes('audit-template')) return Response.json({ input: { version: '1.0', name: '', cutoff: '2026-10-02' } });
+    if (url.endsWith('/runs')) return Response.json({ runs: [{ ...oldRun, phase: 'AMBIGUOUS' }], nextCursor: null });
+    if (url.includes('/runs/')) return Response.json({ run: oldRun });
+    if (url.endsWith('/drafts')) return Response.json({ drafts: [saved], nextCursor: null });
+    return Response.json({ draft: { ...saved, revision: 2 } });
+  });
+  f.$('drafts').querySelector('button').click(); await f.flush();
+  f.$('history').click(); await f.flush();
+  f.$('run-history').querySelector('button').click(); await f.flush();
+  assert.match(f.$('run-source').textContent, /older than the current draft/);
+  f.$('template').click(); await f.flush();
+  assert.equal(JSON.parse(f.$('input').value).version, '1.0'); assert.equal(f.$('execution').hidden, true);
+  assert.equal(f.calls.filter(x => x.options.method === 'POST' || x.options.method === 'PUT').length, 0);
+  assert.equal(f.$('run').disabled, true);
+});
