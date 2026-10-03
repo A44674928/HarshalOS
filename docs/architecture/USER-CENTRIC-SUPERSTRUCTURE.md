@@ -361,3 +361,8 @@ From `|User|` outward: identity → normative gate → runtime → the Book →
 assurance/research → archives/reserved slots. Colors, alphabets, and
 concentric frame counts all describe the same geometry from different
 vantage points; the folder names are the map.
+
+To watch this castle live an average day — every NPC bedroom placed in its
+wing, every resident on a stable daily schedule — open
+[`HARSHALS-PALACE.html`](HARSHALS-PALACE.html), regenerated from the roster by
+`npm run palace:build`.

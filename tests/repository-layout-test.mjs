@@ -381,6 +381,7 @@ test("P13: local preview serves the selected Book I source and Collections libra
       "/docs/REPOSITORY-STRUCTURE.md",
       "/PLUGIN-ARCHITECTURE.md",
       "/docs/architecture/PLUGIN-ARCHITECTURE.md",
+      "/docs/architecture/HARSHALS-PALACE.html",
       "/publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md",
       "/archives/",
       "/archives/Duplicates/DUPLICATE-QUARANTINE-MANIFEST.csv",

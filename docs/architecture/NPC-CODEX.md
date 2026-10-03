@@ -10,6 +10,10 @@ slots. Empty files and Finder aliases are reserved NPC slots whose names
 
 NPCs are arranged by ring, matching the |User|-centric superstructure in
 [`USER-CENTRIC-SUPERSTRUCTURE.md`](USER-CENTRIC-SUPERSTRUCTURE.md).
+The whole cast can be watched living an average day in
+[`HARSHALS-PALACE.html`](HARSHALS-PALACE.html) — a self-contained, deterministic
+visualization of every bedroom on the map (`npm run palace:build` regenerates it
+from this roster on disk).
 
 ---
 

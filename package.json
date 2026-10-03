@@ -27,6 +27,8 @@
     "case-studies:build": "node scripts/case-studies-d1.mjs",
     "case-studies:check": "node scripts/case-studies-d1.mjs --check",
     "prepare:assets": "node scripts/prepare-assets.mjs",
+    "palace:build": "node scripts/palace-day.mjs",
+    "palace:check": "node scripts/palace-day.mjs --check",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run",
     "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-runs-test.mjs tests/community-publication-test.mjs tests/community-deletion-test.mjs tests/case-studies-d1-test.mjs",
     "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
