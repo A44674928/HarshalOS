@@ -176,37 +176,184 @@ allowlist, so nameplates live on-post.
 | `|The Import Dock Master|.txt` | `archives/imports/` |
 
 **In-world castle NPCs** (ETERNAL HORIZON ORANGE) — these are posted in the
-reserved slots under `business plan/` (none of which is staged):
+reserved slots under `business plan/` (none of which is staged). Each
+lives in their own `|NPC Name|/` bedroom at their posting.
+
+**TOTOPOTUS's Imperial Court** (the central castle):
 
 | NPC | Posting |
 |---|---|
-| `|TOTOPOTUS|.txt` | `business plan/StarPortal/Access/Alphabet/TOTOPOTUS/` |
-| `|Captain of the Loyal Wings|.txt` | `…/TOTOPOTUS's Loyal Wings/` |
-| `|Captain of the Royal Wings|.txt` | `…/TOTOPOTUS's Royal Wings/` |
-| `|The Characters Roster Keeper|.txt` | `…/TOTOPOTUS's Characters Under Management/` |
-| `|The Agency Director|.txt` | `…/TOTOPOTUS's Agencies Under Management/` |
-| `|The Fleet Admiral|.txt` | `…/TOTOPOTUS's Imperial Fleet/` |
-| `|The Chief Enginseer|.txt` | `…/TOTOPOTUS's Imperial Machinae/` |
-| `|The Shadow Hand|.txt` | `…/TOTOPOTUS's Stealth Technicians/` |
-| `|The Data Lake Custodian|.txt` | `…/TOTOPOTUS's Server Farms and Data Lakes/` |
-| `|The Inkeeper|.txt` | `…/Combined/InterstellarLounge/Inn/` |
-| `|The Chef|.txt` | `…/InterstellarLounge/Restaurant/` |
-| `|The Lounge Receptionist|.txt` | `…/InterstellarLounge/Check In ANDOR Check Out/` |
-| `|The Information Hub Attendant|.txt` | `…/InterstellarLounge/Services/Information Hub/` |
-| `|The Museum Curator|.txt` | `…/InterstellarLounge/Services/Museums/` |
-| `|The Transportation Concierge|.txt` | `…/InterstellarLounge/Services/Transportation Services/` |
-| `|The Repair Technician|.txt` | `…/InterstellarLounge/Services/Repair Work/` |
-| `|The Clown Provost|.txt` | `…/Telekinetic Psycopathy Operations/Actually Good Alignment 1/Clown College/` |
-| `|The Corporate Liaison|.txt` | `…/Telekinetic Psycopathy Operations/Actually Good Alignment 1/Corporations/` |
-| `|The Paintelephone Operator WA1111-N|.txt` | `…/WA1111-N Paintelephone Operations/Paintelephone/` |
-| `|The Whyland Standard Bearer|.txt` | `…/War Declaration/(THE, Owner)'s Whyland Standard/` |
-| `|The Sorter Apprentice|.txt` | `…/TO SORT/Documents in progress/` |
-| `|The Receiving Clerk|.txt` | `…/TO SORT/Stuff/` |
-| `|The Disclaimer Clerk|.txt` | `…/Disclaimer/Disclaimers/` |
-| `|The EmptyFolder Disclaimer Clerk|.txt` | `…/Disclaimer/EmptyFolder Disclaimer/` |
-| `|Johnny Chimpo|.txt` | `…/Time Gainer/Johnny Chimpo/` (AUM OS familiar) |
-| `|Meowie Wowie|.txt` | `…/Time Gainer/Meowie Wowie/` (AUM OS familiar) |
-| `|The Repeater|.txt` | `…/Time Gainer/Repeater/` (echo entity) |
+| `|TOTOPOTUS|/` | `…/Access/Alphabet/TOTOPOTUS/` |
+| `|Captain of the Loyal Wings|/` | `…/TOTOPOTUS's Loyal Wings/` |
+| `|Captain of the Royal Wings|/` | `…/TOTOPOTUS's Royal Wings/` |
+| `|The Characters Roster Keeper|/` | `…/TOTOPOTUS's Characters Under Management/` |
+| `|The Agency Director|/` | `…/TOTOPOTUS's Agencies Under Management/` |
+| `|The Fleet Admiral|/` | `…/TOTOPOTUS's Imperial Fleet/` |
+| `|The Chief Enginseer|/` | `…/TOTOPOTUS's Imperial Machinae/` |
+| `|The Cavalry Commander|/` | `…/TOTOPOTUS's Imperial Machine Cavalry/` |
+| `|The Shadow Hand|/` | `…/TOTOPOTUS's Stealth Technicians/` |
+| `|The Data Lake Custodian|/` | `…/TOTOPOTUS's Server Farms and Data Lakes/` |
+| `|The Imperial Cartographer|/` | `…/TOTOPOTUS's Age Of Empires/` |
+| `|The Lorekeeper|/` | `…/TOTOPOTUS's Age Of Mythology/` |
+| `|The Swordsmith of Anduril|/` | `…/TOTOPOTUS's Anduril/` |
+| `|The Master Armorer|/` | `…/TOTOPOTUS's Armory And Foundry/` |
+| `|The Treasurer|/` | `…/TOTOPOTUS's Budget/` |
+| `|The Censor|/` | `…/TOTOPOTUS's Censorship/` |
+| `|The Exchequer|/` | `…/TOTOPOTUS's Checkbook/` |
+| `|The Civilization Engineer|/` | `…/TOTOPOTUS's Civilization Engine/` |
+| `|The Corona Architect|/` | `…/TOTOPOTUS's Corona Builder/` |
+| `|The Doge of the Treasury|/` | `…/TOTOPOTUS's DOGE/` |
+| `|The Insult Auditor|/` | `…/TOTOPOTUS's Does Harshal Think I'm Retarded Or Not/` |
+| `|The Frost Mourne Captain|/` | `…/TOTOPOTUS's Frost Mourne Transportation System/` |
+| `|The Ghost Robotics Handler|/` | `…/TOTOPOTUS's Ghost Robotics/` |
+| `|The Ice Bourne Gauntlet Warden|/` | `…/TOTOPOTUS's Ice Bourne Gauntlet/` |
+| `|The Imperial Activities Registrar|/` | `…/TOTOPOTUS's Imperial Activities And Authorities/` |
+| `|The Bandwidth Referee|/` | `…/TOTOPOTUS's Is Your Internet Faster Than Mine Or Not?/` |
+| `|The Ultra Fast Judge|/` | `…/TOTOPOTUS's Legal Overrides And Ultra Fast Judgement System/` |
+| `|The Marine Commandant|/` | `…/TOTOPOTUS's Marine Management Apparatus/` |
+| `|The Jurisdictional Refuser|/` | `…/TOTOPOTUS's My of My Own Isn't Fucking Going To Your Stinky Piss Scented Courtroom/` |
+| `|The Land Number Clerk|/` | `…/TOTOPOTUS's On Land Number Generation System/` |
+| `|The Palantir Seer|/` | `…/TOTOPOTUS's Palantir/` |
+| `|The Prison Warden|/` | `…/TOTOPOTUS's Private Prison Containment System/` |
+| `|The RTS General|/` | `…/TOTOPOTUS's Real Time Strategy/` |
+| `|The Redactor|/` | `…/TOTOPOTUS's Redactions/` |
+| `|The Quartermaster|/` | `…/TOTOPOTUS's Resources/` |
+| `|The Risk Assessor|/` | `…/TOTOPOTUS's Risk/` |
+| `|The Super Secret Server Admin|/` | `…/TOTOPOTUS's Super Secret Server/Local-ExtraDimensional-ExtraDimensional-Local/` |
+| `|The Net Architect|/` | `…/TOTOPOTUS's THE-NET/` |
+| `|The Veto Clerk|/` | `…/TOTOPOTUS's Vetoes/` |
+| `|The Wag The Dog Spin Doctor|/` | `…/TOTOPOTUS's Wag The Dog/` |
+| `|The Wallet Keeper|/` | `…/TOTOPOTUS's Wallets/` |
+| `|The Watch Commander|/` | `…/TOTOPOTUS's Walls And Watches/` |
+| `|The War Game Master|/` | `…/TOTOPOTUS's War Game/` |
+| `|The God Ull Arbiter|/` | `…/TOTOPOTUS's Win God Ull System/` |
+| `|The Insurance Trader|/` | `…/TOTOPOTUS's Insurance/TOTOPOTUS's Insurance Trading Platform/` |
+| `|The Over Insurance Auditor|/` | `…/TOTOPOTUS's Insurance/TOTOPOTUS's Over Insured Areas/` |
+| `|The Under Insurance Advocate|/` | `…/TOTOPOTUS's Insurance/TOTOPOTUS's Under Insured Areas/` |
+| `|The Simultaneous Jobs Dispatcher|/` | `…/TOTOPOTUS's Gig Work/…/Simultaneously Running Jobs/` |
+| `|The Bank of America Teller|/` | `…/Gig Work/…/Bank of America Payouts/` |
+| `|The Chase Bank Teller|/` | `…/Gig Work/…/Chase Bank Payouts/` |
+| `|The Desert Financial Teller|/` | `…/Gig Work/…/Desert Financial Payouts/` |
+
+**Executive Orders Wing** — each figure named in an EO has a bedroom at
+their EO folder, plus a mirror set under the Legal Directory:
+
+| NPC | Posting |
+|---|---|
+| `|Al Gore|/` | `…/Executive Orders/Al Gore/` |
+| `|Barack Obama|/` | `…/Executive Orders/Barack Obama/` |
+| `|Donald Trump|/` | `…/Executive Orders/Donald Trump/` |
+| `|The Designated Survivor|/` | `…/Executive Orders/Designated Survivor/` |
+| `|George W Bush|/` | `…/Executive Orders/George W Bush/` |
+| `|Joe Biden|/` | `…/Executive Orders/Joe Biden/` |
+| `|Kamala Harris|/` | `…/Executive Orders/Kamala Harris/` |
+| `|The White House Sitter|/` | `…/Executive Orders/White House Actual/` |
+| *(+ 8 Legal Directory mirrors of the above at `…/Legal Directory/THE's Executive Orders/`)* | — legal-clerk duplicates |
+
+**Interstellar Lounge** (Waystation):
+
+| NPC | Posting |
+|---|---|
+| `|The Inkeeper|/` | `…/InterstellarLounge/Inn/` |
+| `|The Chef|/` | `…/InterstellarLounge/Restaurant/` |
+| `|The Lounge Receptionist|/` | `…/Check In ANDOR Check Out/` |
+| `|{Color} Lounge Pass Attendant|/` (×10) | `…/Lounge Pass Color Coding Reference List/` — one per color (Dark Blue, Dark Green, Gold, Gray, Light Blue, Light Green, Orange, Red, Silver, White); each carries the matching color `.#` token in their `|Inventory|.txt` |
+| `|The High Grade Lounge Attendant|/` | `…/Services/Empire High Grade Lounges/` |
+| `|The WiFi Technician|/` | `…/Services/Free WiFi/` |
+| `|The Restroom Attendant|/` | `…/Services/Inclusive Restrooms/` |
+| `|The Lounge Attendant|/` | `…/Services/Lounges/` |
+| `|The Nursing Room Attendant|/` | `…/Services/Nursing Rooms/` |
+| `|The Smoking Area Concierge|/` | `…/Services/Smoking Areas/` |
+| `|The Information Hub Attendant|/` | `…/Services/Information Hub/` |
+| `|The Museum Curator|/` | `…/Services/Museums/` |
+| `|The Transportation Concierge|/` | `…/Services/Transportation Services/` |
+| `|The Repair Technician|/` | `…/Services/Repair Work/` |
+
+**Telekinetic Psycopathy Operations** (adversarial/operational cadre):
+
+| NPC | Posting |
+|---|---|
+| `|The Clown Provost|/` | `…/Actually Good Alignment 1/Clown College/` |
+| `|The Corporate Liaison|/` | `…/Actually Good Alignment 1/Corporations/` |
+| `|The Paintelephone Operator WA1111-N|/` | `…/WA1111-N Paintelephone Operations/Paintelephone/` |
+| `|The AV Encoder|/` | `…/Audio Visual Encoding/` |
+| `|The Glossary Clerk|/` | `…/Glossary/` |
+| `|The Hyper Mage|/` | `…/Hyper Mage/` |
+| `|The Life Files Clerk|/` | `…/Life Files/` |
+| `|The Phone Number Operator|/` | `…/Phone Numbers/` |
+| `|The Untitled Entity|/` | `…/untitled folder/` |
+| `|CREATOR|/` | `…/SRAIE/Emperor HP/` — pre-existing 511-byte CREATOR.txt relocated into `|CREATOR|/|Name|.txt`; all other slots zero-byte |
+| `|The Lead Lighter|/` | `…/SRAIE/Lighters/` |
+| `|The Orphan Warden|/` | `…/SRAIE/Orphans/` |
+| `|The Senior Telepath|/` | `…/SRAIE/Telepaths/` |
+| `|The Unseen Agent|/` | `…/SRAIE/Unseen/` |
+
+**Dueling Arena (META):**
+
+| NPC | Posting |
+|---|---|
+| `|Harshal Priyavadan Patel (Arena Founder)|/` | `…/Arena Founders/META/Harshal Priyavadan Patel/` |
+| `|Mark Zuckerberg (Arena Founder)|/` | `…/Arena Founders/META/Mark Zuckerberg/` |
+| `|Harshal Priyavadan Patel (Arena Owner)|/` | `…/Arena Owners/META/Harshal Priyavadan Patel/` |
+| `|Mark Zuckerberg (Arena Owner)|/` | `…/Arena Owners/META/Mark Zuckerberg/` |
+| `|The Beginners Slope Marshall|/` | `…/Arena Locations/Beginners Slope/` |
+| `|The Thunderdome Master|/` | `…/Arena Locations/Thunderdome/` |
+| `|The Metadata Keeper|/` | `…/Arena Records/META/METADATA/` |
+| `|The Results Ledger|/` | `…/Arena Results/META/METADATA/` |
+| `|The Summons Server|/` | `…/Arena Summons/META/Summons/` |
+| `|The Ethics Adjudicator|/` | `…/Personal/Ethics And Morals/` |
+| `|The Evil Data Log Auditor|/` | `…/Evil Bad Data Collection Logs And Associated Profits ANDOR Losses/` |
+
+**War Declaration / Whyland Standard / Financial Entities:**
+
+| NPC | Posting |
+|---|---|
+| `|The Whyland Standard Bearer|/` | `…/War Declaration/(THE, Owner)'s Whyland Standard/` |
+| `|The Imperial Companies Registrar|/` | `…/Companies That (THE, Empire) owns/` |
+| `|The Imperial Treasury Minister|/` | `…/Financial Entities/` |
+| `|The IP-Respectful Banks Ombudsman|/` | `…/Financial Entities That Do Not Support People Operating With Stolen Intellectual Property/` |
+| `|The Funds Unfreezer|/` | `…/Financial Entities That Dont Freeze The Empires Funds Illegally Using Conjured Logics/` |
+| `|The Cease And Desist Process Server|/` | `…/Financial Entities That Force Companies Who Illegally Freeze The Empires Funds…/` |
+| `|The Federal Reserve Chair|/` | `…/Financial Entities/The Federal Reserve/` |
+| `|The Consortium of Central Bankers|/` | `…/Financial Entities/The Other Central Banks/` |
+
+**Other castle services:**
+
+| NPC | Posting |
+|---|---|
+| `|The Supply Chain Tech Demo Clerk|/` | `…/Government Agencies/Supply Chain Tech Demo/Documentation/` |
+| `|The Supply Chain Tech Demo Photographer|/` | `…/Government Agencies/Supply Chain Tech Demo/Visual/` |
+| `|The Purist Flame Tender|/` | `…/Harshal's Body Parts/Flames/New/No Plugins/` |
+| `|The Fiction Flame Tender|/` | `…/Harshal's Body Parts/Flames/New/Novel/Fiction/` |
+| `|The Plugin Flame Tender|/` | `…/Harshal's Body Parts/Flames/New/Plugins/` |
+| `|The Parts Scribe|/` | `…/Harshal's Body Parts/Texts/Parts/` |
+| `|The Story Scribe|/` | `…/Harshal's Body Parts/Texts/Story/` |
+| `|The Sorter Apprentice|/` | `…/TO SORT/Documents in progress/` |
+| `|The Receiving Clerk|/` | `…/TO SORT/Stuff/` |
+| `|The Disclaimer Clerk|/` | `…/Disclaimer/Disclaimers/` |
+| `|The EmptyFolder Disclaimer Clerk|/` | `…/Disclaimer/EmptyFolder Disclaimer/` |
+| `Johnny Chimpo/` | `archives/imports/…/Time Gainer/Johnny Chimpo/` (familiar; eponymous archive folder is the bedroom) |
+| `Meowie Wowie/` | `archives/imports/…/Time Gainer/Meowie Wowie/` (familiar; eponymous archive folder is the bedroom) |
+| `Repeater/` | `archives/imports/…/Time Gainer/Repeater/` (echo entity; eponymous archive folder is the bedroom) |
+
+**Rooms deliberately left as `.gitkeep` attribute slots (no NPC placed):**
+
+The hundreds of `Neo Apophis And (Something And)/` folders under
+`Container Creation Toolkit/Harshal's User Names And/`, the `N*Ull And`
+namespaced Ull-block attribute slots, the `0 Party/Documentation/*`
+category directories under the AUM OS importer, and the TOTOPOTUS
+legal-directory root are **attribute slots / inventory enumerations**, not
+postings for cast NPCs. They retain their `.gitkeep` placeholders as
+originally authored — populating those slots is a content-authoring pass
+separate from NPC casting.
+
+**Bedroom count (as of this writing): 183 bedrooms total** — 1 |User| at
+Ring 0, 18 Ring 1–3 staff rostered in `docs/architecture/npcs/`, 16 Ring 4
+assurance/build staff on-post, 15 Ring 5 archive curators/guards/familiars,
+and 133 Ring 5 in-world castle NPCs in `business plan/` (TOTOPOTUS court,
+EO presidents + legal mirrors, Arena staff, Interstellar Lounge concierge
++ 10 color attendants, Telekinetic Psycopathy Ops cadre, SRAIE faction,
+Financial Entity ombudsmen, War Declaration, and CREATOR).
 
 ## Bestiary (Container / Valve alphabets)
 
