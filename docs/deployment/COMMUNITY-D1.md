@@ -1,5 +1,7 @@
 # Community D1 — accounts, private execution and explicit publication
 
+Dedicated staging setup and exact deploy commands: [COMMUNITY-STAGING.md](COMMUNITY-STAGING.md).
+
 ## Status and boundaries
 
 This rebuild includes the database foundation, OIDC login/session layer,

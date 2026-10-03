@@ -558,3 +558,5 @@ hide/block controls are implemented. Private drafts/runs are not automatically p
 `COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
 operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
 No remote migration or production deployment command was run for these checkpoints.
+
+Staging uses a separate Worker and D1 database: see [staging setup](docs/deployment/COMMUNITY-STAGING.md). Use `npm run deploy:staging`, not the production deploy command.

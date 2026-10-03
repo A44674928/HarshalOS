@@ -26,7 +26,13 @@
     "integrity": "node scripts/integrity-report.mjs",
     "prepare:assets": "node scripts/prepare-assets.mjs",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run",
-    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-runs-test.mjs tests/community-publication-test.mjs"
+    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-runs-test.mjs tests/community-publication-test.mjs",
+    "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
+    "check:deploy:staging": "wrangler deploy --config wrangler.staging.jsonc --dry-run",
+    "db:staging:inspect": "wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote --command \"SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name;\"",
+    "db:staging:migrations:list": "wrangler d1 migrations list COMMUNITY_DB --config wrangler.staging.jsonc --remote",
+    "db:staging:migrate": "wrangler d1 migrations apply COMMUNITY_DB --config wrangler.staging.jsonc --remote",
+    "test:staging": "node --test tests/staging-config-test.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0",
