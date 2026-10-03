@@ -326,6 +326,53 @@ Expected application tables: `community_users`, `community_drafts`, `community_s
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
 
+## Ordered enablement on main.empty.domains (owner-run)
+
+`/account` and `/audits` are already deployed by every `main` build, but while
+`COMMUNITY_ENABLED=false` they are inert: every `/api/community/*` route fails
+closed with 503 and the register renders its unavailable notice. Enabling the
+D1-backed pages on production is a deliberate, ordered decision. Do these steps in
+order; stop at any failure rather than retrying with shortcuts.
+
+1. **Dashboard variables on the `harshalos` Worker** (Settings → Variables and
+   Secrets, runtime scope). Text: `COMMUNITY_ORIGIN=https://main.empty.domains`,
+   `OIDC_ISSUER`, `OIDC_CLIENT_ID`. Secrets: `OIDC_CLIENT_SECRET`,
+   `COMMUNITY_RATE_SECRET`. `OIDC_ADMIN_SUBJECTS` is already declared in
+   `wrangler.jsonc`; moderators are matched by issuer and subject together.
+   `COMMUNITY_ORIGIN` is intentionally absent from `wrangler.jsonc` (owner-managed),
+   and `tests/production-config-test.mjs` asserts the file's variable set stays at
+   three keys. Do not add issuer/origin values to Git.
+2. **Auth0 production application.** Regular Web Application, Client Secret (Post),
+   only the `openid` scope, with Application Login URI
+   `https://main.empty.domains/api/community/auth/login` and exact callback
+   `https://main.empty.domains/api/community/auth/callback`. No wildcards.
+3. **Read-only inspection and backup.** Run the inspection in the gate above and
+   confirm the only existing table is `_cf_KV`. If any application table or
+   migration record exists, stop and reconcile schema and history first, and export
+   a backup before changing a populated database.
+4. **Apply migrations 0001–0004** to production D1 with the commands in the gate
+   above. Migrations never run automatically during a deploy.
+5. **Flip the flag in the repository.** Explicit values in `wrangler.jsonc` win over
+   dashboard text variables, so setting `COMMUNITY_ENABLED=true` in the dashboard
+   alone will not enable anything while the file says `false`. Change the file, and
+   update `tests/production-config-test.mjs` and this document in the same commit so
+   the enabled state is reviewed as a single, intentional change. Keep that commit
+   separate from unrelated work; it is the enablement decision.
+6. **Deploy and verify on the live host.** `/api/community/status` returns 200 with
+   stage `publication`; `/api/community/me` returns 401 signed out; sign in succeeds
+   and `/account` exposes the private workspace. A configured moderator must sign in
+   before publication is available at all. Then walk the two-account isolation,
+   preview/expiry, publication, withdrawal, report and moderation cases listed in the
+   launch checks above, using synthetic content only.
+7. **Rollback is the flag, not the schema.** To withdraw the feature, set
+   `COMMUNITY_ENABLED=false` and redeploy. Do not drop tables, delete the database or
+   remove secrets; published data and history must survive an emergency disable so
+   the feature can be re-enabled without data loss.
+
+Until every step above is complete, keep production disabled. Local tests passing is
+not evidence that live Auth0, D1 concurrency or the deployed headers behave as
+tested locally.
+
 ## Preserve Auth0 setup for live staging
 
 Keep the existing Regular Web Application and **Client Secret (Post)** setting.
