@@ -1,5 +1,5 @@
 import { authorizeCommunity, authJson } from './community-auth.mjs';
-import { CommunityError, createDraft, getDraft, updateDraft, listDrafts } from './community-db.mjs';
+import { CommunityError, createDraft, getDraft, updateDraft, deleteDraft, listDrafts } from './community-db.mjs';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 async function body(request) {
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') throw new CommunityError(415, 'Send application/json.');
@@ -26,13 +26,19 @@ export async function handleDrafts(request, env) {
     const base = url.pathname === '/api/community/drafts';
     const id = url.pathname.slice('/api/community/drafts/'.length);
     if (!base && !uuid.test(id)) throw new CommunityError(404, 'Draft not found.');
-    const allowed = base ? ['GET', 'POST'] : ['GET', 'PUT'];
+    const allowed = base ? ['GET', 'POST'] : ['GET', 'PUT', 'DELETE'];
     if (!allowed.includes(request.method)) return authJson({ error: 'Method not allowed.' }, 405, { Allow: allowed.join(', ') });
     if (request.method === 'GET') {
       if (!base) return authJson({ draft: await getDraft(env.COMMUNITY_DB, user.id, id) });
       const after = url.searchParams.get('after') || '';
       if (after && !uuid.test(after)) throw new CommunityError(400, 'Invalid draft cursor.');
       return authJson(await listDrafts(env.COMMUNITY_DB, user.id, after));
+    }
+    if (request.method === 'DELETE') {
+      const data = await body(request);
+      const keys = Object.keys(data);
+      if (keys.length !== 1 || keys[0] !== 'revision' || !Number.isSafeInteger(data.revision) || data.revision < 1) throw new CommunityError(400, 'Send only a positive integer revision to delete.');
+      return authJson(await deleteDraft(env.COMMUNITY_DB, user.id, id, data.revision));
     }
     const data = await body(request);
     if (base && data.revision !== undefined) throw new CommunityError(400, 'New drafts cannot specify a revision.');

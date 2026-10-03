@@ -20,14 +20,18 @@ Implemented:
 - Origin checks, bounded provider response bodies, timeouts, no followed redirects,
   generic error responses, and D1-backed request limits.
 - `/account` UI: sign-in/out, private draft list/editor, explicit save/import/export,
-  revision conflict preservation and reload. Dynamic content is rendered as text.
+  confirmed private draft/run deletion, revision conflict preservation and reload.
+  Dynamic content is rendered as text.
 - Authenticated private draft endpoints with session-derived ownership, exact-Origin
   writes, 96 KiB streaming body limit and 60 write attempts/account/UTC day.
   Listing is paginated (25 per page, stable ID order), not a latest-first feed.
 
-Not implemented: draft/run deletion, full self-service account export/deletion,
-R2 evidence uploads, and automated community backup/retention workflows. The internal draft
-functions require a verified server-derived owner ID, never a request-supplied one.
+Deletion exists only as the explicit owner-initiated draft/run deletion described
+below: there is no self-service account deletion, no automatic retention job, and no
+recovery of anything deleted. Not implemented: full self-service account
+export/deletion, R2 evidence uploads, and automated community backup/retention
+workflows. The internal draft functions require a verified server-derived owner ID,
+never a request-supplied one.
 All community access remains disabled by default. Migrations 0001–0003 are unchanged;
 publication adds `0004_publication.sql`. All migration testing in this rebuild has
 been local only; no remote migration or deployment command was run.
@@ -52,11 +56,14 @@ preview → explicit publication labeled **UNREVIEWED**, not independent verific
 | POST | `/api/community/drafts` | Create a private draft; 100/account maximum |
 | GET | `/api/community/drafts/UUID` | Read an owned draft; 404 for another account |
 | PUT | `/api/community/drafts/UUID` | Save with matching `revision`; 409 without overwrite on conflict |
+| DELETE | `/api/community/drafts/UUID` | Body **only** `{"revision": N}`; permanently delete the draft and its private runs |
 
 Writes accept `title`, object-valued `input`, `privateNotes`, and (updates only)
 `revision`. Extra envelope fields, including client-supplied owner IDs, are rejected.
 Saving a generic input object does NOT validate or execute it. Execution is a
-separate explicit operation; neither operation publishes anything.
+separate explicit operation; neither operation publishes anything. Deletion is
+described under retention below and is refused whenever a published report anchors
+the record.
 All routes require active, unblocked sessions; moderator status grants no access
 to someone else's drafts. Authentication/IP quotas also apply to draft requests.
 
@@ -108,6 +115,7 @@ Version 1.0 is the normative baseline; 1.1 remains an unratified draft.
 | POST | `/api/community/drafts/UUID/runs` | Body **only** `{"revision": 1}`; execute the owned saved revision |
 | GET | `/api/community/drafts/UUID/runs?after=SEQ` | Owner-only history, newest first, 25/page |
 | GET | `/api/community/drafts/UUID/runs/RUN_UUID` | Owner-only immutable run and evaluated snapshot |
+| DELETE | `/api/community/drafts/UUID/runs/RUN_UUID` | Body **only** `{}`; permanently delete one saved private run |
 
 Runs require migration 0003; missing migration fails closed. Existing drafts and
 login remain usable independently. The POST rejects submitted inputs/results and
@@ -120,9 +128,34 @@ these records are **not** tamper-proof against trusted database administrators.
 Limits: 20 new execution attempts per account/UTC day (validation failures count),
 200 stored runs/account, 192 KiB/report, plus existing IP and write-attempt quotas.
 A cached run does not consume the new-execution quota but still consumes a write
-attempt. No old runs are automatically deleted; deletion/retention workflows remain
-pending. The UI preserves old runs as historical evidence of computation, not as
-approved temporal declarations. Editor changes, account changes, and sign-out clear
+attempt. The UI preserves old runs as historical evidence of computation, not as
+approved temporal declarations.
+
+### Deletion and retention
+
+Deletion is owner-initiated, explicit and permanent; there is no undo, restore or
+recycle bin, and no automatic retention job removes private data. `DELETE
+/api/community/drafts/UUID` requires the current `revision` and, in one transactional
+batch, removes that draft together with its private runs, its previews and any public
+series row that has no publication. `DELETE /api/community/drafts/UUID/runs/RUN_UUID`
+removes one saved run and its previews. Both require the exact Origin, are
+session-derived and account-scoped, fail closed for blocked, stale, unknown or
+another account's records, and consume one write attempt (not an execution attempt).
+Deleting releases the 100-draft and 200-run quotas immediately.
+
+Public history is never deleted by these routes. A draft or run that anchors a
+published report is refused with 409 — withdraw the report instead — and a
+publication or public event cannot be deleted by any endpoint. Deleting an
+unexpired preview candidate is allowed because the owner is discarding their own
+pending candidate; the preview token stops working. A concurrent publication that
+commits during a delete makes the batch fail closed rather than leaving a dangling
+reference. Database operators can still read or destroy D1 directly; these routes
+are application-level controls, not tamper-proof guarantees.
+
+Deleting a draft that has unsaved editor changes in another tab is not detectable by
+the server; the revision check only ensures the deleted revision is the current one.
+The UI confirms both deletions and clears any displayed private state that the
+deleted record was driving. Editor changes, account changes, and sign-out clear
 the currently displayed run; old-revision results are explicitly labeled older.
 
 ### What the result means
@@ -242,8 +275,9 @@ until subsequent cleanup. No cron or global spending ceiling is configured.
 - Verify two-account isolation, expired/replayed sessions, preview edits/expiry,
   stale drafts, publication correction, withdrawal, reporting, hide and hide/block.
 - Verify both canonical page routes receive CSP/no-store headers on the deployed host.
-- Configure moderator coverage, a privacy/abuse contact and escalation process,
-  retention/deletion policy, backups/export and restore rehearsal, resource monitoring,
+- Configure moderator coverage, a privacy/abuse contact and escalation process, a
+  retention/deletion policy that covers operator-side purge, account deletion and
+  backup expiry, backups/export and restore rehearsal, resource monitoring,
   Cloudflare edge protections, and provider signup abuse controls before public launch.
 - Restrict database/operator/log access. Callback queries contain short-lived codes;
   never add application logs containing tokens, cookies, reports or private notes.
