@@ -162,9 +162,12 @@ case-studies/badges/ — register-issued PDH-R badge assets (`*.svg`) and the ba
 case-studies/d1/ — generated D1 artifacts for the same register: `case-studies-d1.json` (engine review manifest) and `case-studies-seed.sql` (idempotent seed for the public register); rebuild with `npm run case-studies:build`, verify with `npm run case-studies:check`
 research/reports/ — supporting research reports (separate from scored case studies)
 archives/         — repository-only historical and source material; not in the browser bundle
+archives/ags-legacy-exports/ — older "AGS"/"AGS++" EPUB/Pages exports, superseded by publications/
 archives/animation-source/ — unused source frames and the earlier eye-closing GIF export
 archives/Duplicates/ — quarantined duplicate files and SHA-256 manifest
+archives/flame-renders/ — archived Fractal Flames PNG renders (Blue Cool palette, etc.)
 archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
+archives/imports/ — unmerged incoming author bundles (new-model slot skeletons, old Fractal Flames backups)
 archives/source-bundles/ — original ZIPs whose contents are organized under updates/
 archives/screenshots/2026-08/ — archived screenshot backup artifacts; not deployed
 tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)
