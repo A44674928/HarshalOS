@@ -344,6 +344,26 @@ npx wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote \
 npx wrangler d1 execute COMMUNITY_DB --remote --file case-studies/d1/case-studies-seed.sql
 ```
 
+To view the register in the News app locally, the exact-origin gate needs TLS, so a
+self-signed certificate is required (all variables here are local overrides; nothing
+remote is contacted):
+
+```sh
+mkdir -p .wrangler/local-cert && openssl req -x509 -newkey rsa:2048 -nodes -days 3 \
+  -subj "/CN=localhost" -keyout .wrangler/local-cert/key.pem -out .wrangler/local-cert/cert.pem
+npx wrangler d1 migrations apply COMMUNITY_DB --local
+npx wrangler d1 execute COMMUNITY_DB --local --file case-studies/d1/case-studies-seed.sql
+npx wrangler dev --local-protocol https --https-cert-path .wrangler/local-cert/cert.pem \
+  --https-key-path .wrangler/local-cert/key.pem \
+  --var COMMUNITY_ENABLED:true --var COMMUNITY_ORIGIN:https://localhost:8787 \
+  --var OIDC_ISSUER:https://issuer.example/ --var OIDC_CLIENT_ID:local \
+  --var OIDC_CLIENT_SECRET:local --var COMMUNITY_RATE_SECRET:<32+ character local secret>
+```
+
+Open `https://localhost:8787`, accept the self-signed certificate, and launch the News
+app. A browser preview on any other origin is refused by design, because public reads
+must come from the exact configured origin.
+
 The file is idempotent: re-running unchanged content inserts nothing, and
 `community_schema` records one marker row (`case-studies-d1` → applied revision). If the
 content changed but the version did not, a guard statement aborts the whole file before
