@@ -2,27 +2,57 @@
 
 ## Status and boundaries
 
-This checkpoint implements only the **database foundation**. It is not the earlier
-unavailable implementation, and earlier test reports do not apply to it.
+This rebuild now includes the database foundation **and OIDC login/session layer**.
+It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
 
 Implemented:
-- Account identity keyed by `(oidc_issuer, oidc_subject)`; no passwords or tokens.
-- Owner-scoped private draft creation/read/update, atomic revision-based saves,
-  blocked-account checks, 100 drafts/account and 64 KiB input limit.
-- Additive migration in `migrations/community/0001_private_drafts.sql`.
-- Internal schema probe and tests against the actual SQL.
-- `/api/community/*` returns 503 without touching D1, even if enabled prematurely.
-  `/api/community/status` is a closed-service status, NOT a live database health check.
+- Issuer-scoped accounts and internal owner-scoped draft storage from checkpoint 1.
+- Additive `0002_auth_sessions.sql`: one-use login flows, hashed sessions and
+  HMAC-pseudonymized rate buckets. Migration 0001 is unchanged.
+- Authorization code + PKCE S256, browser-bound state, nonce, discovery validation,
+  JWKS signature verification (RS256/ES256), issuer/audience/azp/exp/iat checks.
+- Secure HttpOnly host-only cookies. Flows expire in 10 minutes, sessions in 24 hours.
+- Account status, local logout/revocation, blocked-account rejection and current
+  issuer-bound moderator checks. No provider email/profile/access/ID tokens stored.
+- Origin checks, bounded provider response bodies, timeouts, no followed redirects,
+  generic error responses, and D1-backed request limits.
 
-Not implemented: Auth0 login/callback/sessions, request authentication and rate
-limits, HTTP draft CRUD, Ground-0 semantic validation/server recomputation, public
-previews/publication/history/withdrawal/moderation, UI, and community backup/retention
-workflows. The repository functions accept a trusted server-derived owner ID; they
-must never be called with an owner ID supplied by a request body or query string.
+Not implemented: draft HTTP CRUD, Ground-0 semantic validation/server recomputation,
+public previews/publication/history/withdrawal/moderation UI, self-service account
+export/deletion, and community backup/retention workflows. The internal draft
+functions require a verified server-derived owner ID, never a request-supplied one.
+No draft/publication HTTP route is exposed in this checkpoint.
 
-The intended workflow is still managed signup → private drafting → exact public
-preview → explicit publication labeled **UNREVIEWED**. Publication is not independent
-verification. No public-read SQL view or publication endpoint exists in this stage.
+The intended workflow remains managed signup → private drafting → exact public
+preview → explicit publication labeled **UNREVIEWED**, not independent verification.
+
+### Authentication endpoints (only after explicit enablement/configuration)
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| GET | `/api/community/auth/login` | Redirect to managed provider; no arbitrary return URL |
+| GET | `/api/community/auth/callback` | Verify one-use flow and ID token; set session; redirect to `/` |
+| GET | `/api/community/me` | Return private account ID and moderator boolean; 401 if signed out |
+| POST | `/api/community/auth/logout` | Exact Origin required; revoke this browser session/pending flow |
+
+`/api/community/status` still returns 503, `ready: false`: full community editing
+and publication are not ready. It is not a live database health check. The desktop
+has no sign-in/account UI yet; these are backend endpoints for the next checkpoint.
+
+Logout is local to HarshalOS; it does not end the Auth0 SSO session. Existing local
+sessions are not automatically revoked when an account is disabled at Auth0; block
+its local account/revoke sessions when necessary. Reauthentication rotates this
+browser's session; other devices retain their sessions until expiry/revocation.
+
+Auth requests are limited to 90/minute per edge IP; login + callback together are
+limited to 20/15 minutes per IP. IPs are stored only as secret-HMAC window keys.
+These are not a global spend cap or DDoS defense; configure Cloudflare edge protection
+and Auth0 abuse controls before public signup. Shared-IP users share quotas.
+Bounded indexed cleanup on login/callback removes expired flows, sessions and rate
+buckets only. No cron is provisioned; dormant expired rows may remain until cleanup.
+Database operators can see short-lived PKCE verifiers; protect D1 access/backups.
+Never log tokens, cookies, secrets or raw callback queries. Review platform access-log
+retention since callback URLs carry short-lived authorization codes.
 
 ## Verified target information
 
@@ -63,7 +93,8 @@ npm run integrity
 
 The fixture is LOCAL ONLY: its all-zero database ID is not the production ID.
 Never use `--remote` or deploy that fixture. Local state is ignored under `.wrangler/`.
-SQLite unit tests validate the SQL and simulated competing saves. Wrangler local
+SQLite unit tests validate actual SQL and simulated competing saves; authentication
+tests sign real JWTs and mock provider HTTP responses/JWKS. Wrangler local
 migration checks validate local D1 compatibility, not remote D1 concurrency or
 live identity-provider behavior. Integrity includes a deployment **dry-run only**.
 
@@ -89,8 +120,8 @@ npx wrangler d1 migrations list COMMUNITY_DB --remote
 npx wrangler d1 migrations apply COMMUNITY_DB --remote
 ```
 
-Expected new application tables: `community_users`, `community_drafts`, and
-`community_schema`. Wrangler also tracks migrations in `d1_migrations`. Applying
+Expected application tables: `community_users`, `community_drafts`, `community_schema`,
+`community_auth_flows`, `community_sessions`, and `community_auth_rates`. Wrangler also tracks migrations in `d1_migrations`. Applying
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
 
@@ -98,7 +129,7 @@ by keeping community disabled, not by dropping tables.
 
 Keep the existing Regular Web Application and **Client Secret (Post)** setting.
 The planned callback is `https://main.empty.domains/api/community/auth/callback`.
-It is intentionally unavailable in this checkpoint.
+It remains unavailable while the feature is disabled.
 
 Non-secret configuration needed later: `COMMUNITY_ORIGIN`, `OIDC_ISSUER`,
 `OIDC_CLIENT_ID`, and `OIDC_ADMIN_SUBJECTS`. The moderator User ID previously
@@ -107,9 +138,16 @@ Do not grant a role merely because a client sends a matching subject.
 
 `OIDC_CLIENT_SECRET` and `COMMUNITY_RATE_SECRET` belong only in Cloudflare Secrets,
 never Git or chat. Existing provider settings/secrets do not need to be recreated.
-Next stage: PKCE/state/nonce, verified ID tokens, hashed server sessions, same-origin
-write protection and request limits before exposing draft APIs. Then build exact
-preview-bound publication and moderation, followed by separate staging validation.
+Provider compatibility: HTTPS issuer and same-origin discovery endpoints; discovery
+must advertise code flow, S256 and client_secret_post. ID token signing must be
+RS256 or ES256 (not HS256). Only `openid` scope is requested. Set exact callback
+allowlists, not wildcards. Existing Access protection for owner `/api/storage/*`
+must remain; community callbacks need to be reachable through their own policy.
+
+Next: verify login on a separate staging origin/database/provider application,
+then expose authenticated draft APIs and add the account UI. Follow with exact
+preview-bound publication, version history, withdrawal, abuse reporting and moderation.
+Do not enable production merely because unit tests pass.
 
 ## Durable checkpoints
 
