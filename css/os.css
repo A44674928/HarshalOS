@@ -403,27 +403,40 @@ body.desktop-live .hud { opacity: 1; transform: none; }
 .icon-field {
   position: absolute;
   left: 18px; top: 18px; bottom: 18px;
-  width: 92px;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-content: flex-start;
+  width: min(400px, calc(100% - 36px));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 88px);
+  grid-auto-flow: row;
+  grid-auto-rows: 108px;
+  align-content: start;
+  justify-content: start;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(111, 211, 255, 0.24) transparent;
 }
 .desk-icon {
-  width: 84px;
-  padding: 10px 4px 8px;
+  width: 88px;
+  height: 108px;
+  min-height: 108px;
+  padding: 9px 5px 8px;
   border: 1px solid transparent;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
+  overflow: hidden;
   text-align: center;
 }
 .desk-icon:hover { background: rgba(111, 211, 255, 0.08); border-color: var(--line); }
+.desk-icon:focus-visible { background: rgba(111, 211, 255, 0.08); border-color: var(--ice); }
 .desk-icon .di-glyph {
   width: 42px; height: 42px;
+  flex: none;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 20px;
@@ -431,6 +444,15 @@ body.desktop-live .hud { opacity: 1; transform: none; }
   border: 1px solid var(--line);
 }
 .desk-icon .di-label {
+  display: -webkit-box;
+  width: 100%;
+  height: 2.5em;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
   font-size: 10px;
   color: var(--text-dim);
   line-height: 1.25;
@@ -1150,11 +1172,24 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
   .hud-addr, .firewall-chip, .taskbar-status { display: none; }
   .desktop-motto { display: none; }
   .icon-field {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
     width: auto;
-    right: 12px;
-    flex-direction: row;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    grid-auto-flow: row;
+    grid-auto-rows: 104px;
+    gap: 8px;
+    padding: 16px max(12px, env(safe-area-inset-right, 0px)) 24px max(12px, env(safe-area-inset-left, 0px));
   }
+  .desk-icon {
+    width: 100%;
+    height: 104px;
+    min-height: 0;
+    padding: 12px 4px;
+  }
+  .desk-icon .di-label { font-size: 12px; }
   .window {
     min-width: 0;
     left: 8px !important;

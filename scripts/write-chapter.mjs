@@ -20,7 +20,7 @@ import { buildManifest, countWords, readChapter, serializeManifest } from "./man
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const COLLECTION_ID = "the-grand-river-foundation";
 const COLLECTION_DIR = path.join(ROOT, "manuscript", COLLECTION_ID);
-const BOOK_II_PREVIEW_MD = path.join(ROOT, "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md");
+const BOOK_II_PREVIEW_MD = path.join(ROOT, "publications", "grand-river-foundation", "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md");
 
 export const ARCHITECTURAL_CONTINUITY_BIBLE = {
   bookHierarchy: {
@@ -118,7 +118,7 @@ export async function compileBookIIPreview(root = ROOT) {
   }
 
   const output = lines.join("\n");
-  await writeFile(path.join(root, "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md"), output, "utf8");
+  await writeFile(path.join(root, "publications", "grand-river-foundation", "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md"), output, "utf8");
   return { collection, chapterBodies, outputPath: BOOK_II_PREVIEW_MD };
 }
 
@@ -166,7 +166,7 @@ async function main() {
     await writeFile(targetPath, normalizedBody, "utf8");
     const compiled = await compileBookIIPreview(ROOT);
     console.log(`Added Book II chapter: manuscript/${COLLECTION_ID}/${fileName} (${countWords(normalizedBody)} words)`);
-    console.log(`Updated manifest.json and BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md (${compiled.collection.words} total words).`);
+    console.log(`Updated manifest.json and publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md (${compiled.collection.words} total words).`);
     return;
   }
 
@@ -186,7 +186,7 @@ async function main() {
   }
   console.log("----------------------------------------------------------------------");
   console.log("  Synced    : manuscript/manifest.json");
-  console.log("  Synced    : BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md");
+  console.log("  Synced    : publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md");
   console.log("======================================================================");
 }
 

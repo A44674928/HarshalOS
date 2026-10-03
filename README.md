@@ -23,8 +23,8 @@ is refusal. Action is a temporary, highly constrained exception.
 | :--- | :--- | :--- | :--- |
 | **Canonical Formal Contract** | ***Harshal's Systems — Canonical Formal Model & Semantic Registry*** | `CANONICAL_SOURCE` (`NORMATIVE_SPEC`) | [`specs/normative/canonical-model.md`](specs/normative/canonical-model.md) · [`specs/normative/canonical.json`](specs/normative/canonical.json) · [`specs/normative/contradictions.md`](specs/normative/contradictions.md) |
 | **Flagship Research Paper** | ***Accountability in Keyed Human–Machine Hybrid Systems*** | `CANONICAL_SOURCE` (`PUBLIC_RESEARCH_SUMMARY`) | [`research/keyed-human-machine-hybrid-systems.md`](research/keyed-human-machine-hybrid-systems.md) · [`docs/harshal-systems/19-research-papers.md`](docs/harshal-systems/19-research-papers.md) |
-| **Book I — Reference Library** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | [`HARSHAL-SYSTEMS-USER-MANUAL.md`](HARSHAL-SYSTEMS-USER-MANUAL.md) · [`HARSHAL-SYSTEMS-USER-MANUAL.docx`](HARSHAL-SYSTEMS-USER-MANUAL.docx) · [`docs/harshal-systems/`](docs/harshal-systems/README.md) ([7 Functional Collections](docs/harshal-systems/collections/README.md)) · [`Part XXVII — Whole Corpus`](docs/harshal-systems/27-whole-corpus.md) |
-| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (~2100 CE Future-World Sandbox) | `FICTION` (`NARRATIVE_SANDBOX`) | [`BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`](BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md) · [`manuscript/the-grand-river-foundation/`](manuscript/README.md) (`Prologue`, `Chapters 1–5`, & `Interstitial: Cable Select`) |
+| **Book I — Reference Library** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | [Markdown build](publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md) · [Word edition](publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.docx) · [`docs/harshal-systems/`](docs/harshal-systems/README.md) ([7 Functional Collections](docs/harshal-systems/collections/README.md)) · [`Part XXVII — Whole Corpus`](docs/harshal-systems/27-whole-corpus.md) |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (~2100 CE Future-World Sandbox) | `FICTION` (`NARRATIVE_SANDBOX`) | [Preview manuscript](publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md) · [`manuscript/the-grand-river-foundation/`](manuscript/README.md) (`Prologue`, `Chapters 1–5`, & `Interstitial: Cable Select`) |
 | **Book I — Architecture Module** | ***The Grand Architecture*** (Convergence-era infrastructure architecture: six layers, `0•100•000•NNNN` registry, canonical quantity anchors, seven `GA-INV` invariants) | `FICTION` (`NARRATIVE_SANDBOX`) with `DERIVATIVE_BUILD` arithmetic anchors | [`docs/harshal-systems/modules/grand-architecture.md`](docs/harshal-systems/modules/grand-architecture.md) · [`updates/2026-10-02/`](updates/2026-10-02/README.md) · [`CANONICAL-NUMBERS.md`](updates/2026-10-02/02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md) · [`CONTINUITY-AUDIT.md`](updates/2026-10-02/CONTINUITY-AUDIT.md) |
 
 ### The Six-Stage Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`)
@@ -131,20 +131,25 @@ fails to load says so and names the file, rather than rendering an empty page.
 
 ```
 index.html        — Browser-shell entry point (boot, HUD, desktop, taskbar)
+about.html        — Static overview page served alongside the desktop
 css/              — OS, Ground-0 workspace, and manuscript reading styles
 assets/           — runtime images, animation, and rendering data
+publications/     — single-file Book I / Book II builds, separated from their maintained sources
 manuscript/       — plaintext manuscript submissions; only indexed chapters are published
 specs/normative/  — Ground-0 v1.0 finalized normative source; fetched by the spec reader
 specs/draft/      — Ground-0 v1.1 amendment draft; fetched as a draft, not a ratified baseline
+docs/architecture/ — reserved/future architecture notes; not current runtime behavior
 docs/deployment/  — operator setup and deployment guides
 docs/source-material/ — archival combined manuscript transcription; not the app's selected spec
 docs/harshal-systems/modules/ — Book I reference modules: The Grand Architecture, corrected UTS, and Convergence institutions
 updates/          — date-stamped extractions of repository update archives, with their continuity audit and canonical numbers card; source material, not deployed assets
 case-studies/     — standalone OpenAI and Anthropic Ground-0 audit writeups
 research/reports/ — supporting research reports (separate from scored case studies)
-archives/             — unified repository archive for review staging and historical material; not in the browser bundle
-archives/Duplicates/   — quarantined duplicate files and SHA-256 manifest
-archives/ground-0/     — historical standalone ZIP bundles; not normative source or deployed assets
+archives/         — repository-only historical and source material; not in the browser bundle
+archives/animation-source/ — unused source frames and the earlier eye-closing GIF export
+archives/Duplicates/ — quarantined duplicate files and SHA-256 manifest
+archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
+archives/source-bundles/ — original ZIPs whose contents are organized under updates/
 archives/screenshots/2026-08/ — archived screenshot backup artifacts; not deployed
 tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)
 scripts/          — asset staging and integrity-report tooling; not deployed with the site
@@ -152,7 +157,6 @@ docs/GOOD-INTELLIGENCE-ASSURANCE.md — v0.1 score formula, input contract, and 
 worker/           — Cloudflare APIs: private storage, signed synthetic empty.domains GI demo, and the Z.AI free-tier model relay
 .github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
 SECURITY.md       — project-specific threat model and vulnerability-reporting policy
-PLUGIN-ARCHITECTURE.md — reserved/future directory-slot design; not current runtime behavior
 business plan/    — remaining author archive and reserved plugin/data slots; not included in the browser asset bundle
 
 Runtime JavaScript stays in `js/` so the no-build static shell, worker asset staging, and existing

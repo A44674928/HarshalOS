@@ -8,3 +8,11 @@ node_modules/
 .site-assets/
 __pycache__/
 *.pyc
+
+# Finder / Windows Explorer metadata does not belong in source control.
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+._*

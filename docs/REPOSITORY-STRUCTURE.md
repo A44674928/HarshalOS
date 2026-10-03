@@ -14,9 +14,9 @@ This layout separates normative specifications, implementation, evidence, operat
 ├── worker/                           Optional Cloudflare storage API source
 ├── manuscript/                       Book II — Preview plaintext manuscript chapters (The Grand River Foundation);
 │                                     the index is generated, and only indexed chapters are published
-├── HARSHAL-SYSTEMS-USER-MANUAL.md    Umbrella Build Artifact (Book I Parts I–XXVII + Book II Preview mirror)
-├── HARSHAL-SYSTEMS-USER-MANUAL.docx  Publication-grade Word edition of the Umbrella Build Artifact
-├── BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md  Standalone compiled preview of Book II (~2100 novel)
+├── publications/
+│   ├── harshal-systems/              Book I umbrella Markdown and Word builds
+│   └── grand-river-foundation/       Book II — Preview Markdown and Word builds
 ├── specs/
 │   ├── normative/                    Ground-0 v1.0 finalized baseline
 │   └── draft/                        Ground-0 v1.1 unratified amendment draft
@@ -25,11 +25,13 @@ This layout separates normative specifications, implementation, evidence, operat
 │   ├── keyed-human-machine-hybrid-systems.md  Flagship portfolio research paper (Part XIX)
 │   └── reports/                      Supporting research reports
 ├── docs/
+│   ├── architecture/                 Reserved/future architecture notes
 │   ├── harshal-systems/              Book I Reference Library (00 + Parts I–XXVII) & 7 functional collections
 │   ├── deployment/                   Operator/deployment guides
 │   ├── source-material/              Archival manuscript transcription
 │   └── REPOSITORY-STRUCTURE.md       This map
 ├── archives/
+│   ├── animation-source/             Unused original frames and earlier GIF export
 │   ├── Duplicates/                    Surplus byte-identical files and their SHA-256 path manifest
 │   ├── HarshalOS Previews/            OCM preview art; repository-only review archive
 │   ├── Manuscript Working Drafts/     Source-format drafts; not active manuscript chapters
@@ -37,17 +39,17 @@ This layout separates normative specifications, implementation, evidence, operat
 │   ├── ground-0/                     Historical standalone ZIP bundles
 │   ├── manuscript-plaintext/          Preserved plaintext archive material
 │   ├── manuscript-rtf/               Archived working RTF chapter drafts (ARCHIVE provenance)
-│   └── screenshots/2026-08/          Archived screenshot backup artifacts; not deployed
-├── PLUGIN-ARCHITECTURE.md             Reserved/future slot design; no current folder loader
+│   ├── screenshots/2026-08/          Archived screenshot backup artifacts; not deployed
+│   └── source-bundles/                Original ZIPs whose contents are organized elsewhere
 ├── tests/                            Node test harnesses
 ├── scripts/                          Asset-staging and integrity-report tooling
 ├── .github/workflows/                CI automation
 └── business plan/                    Remaining author archive, not a site asset directory
 ```
 
-`archives/` is the unified repository archive: it combines the former `Archive/` review staging area with the pre-existing lowercase `archives/` tree. `archives/Duplicates/` contains quarantined surplus byte-identical copies. Its `DUPLICATE-QUARANTINE-MANIFEST.csv` records hashes, current retained and quarantined paths, and original duplicate paths as historical provenance. The other subfolders preserve review material, historical bundles, and dated screenshots. `business plan/` remains a separate author archive with reserved plugin/data slots; neither tree is a privacy boundary. The slot-preservation policy is documented in [`PLUGIN-ARCHITECTURE.md`](../PLUGIN-ARCHITECTURE.md) and is explicitly reserved/future rather than a current runtime plugin system.
+`archives/` is the unified repository archive: it combines the former `Archive/` review staging area with the pre-existing lowercase `archives/` tree. `archives/Duplicates/` contains quarantined surplus byte-identical copies. Its `DUPLICATE-QUARANTINE-MANIFEST.csv` records hashes, current retained and quarantined paths, and original duplicate paths as historical provenance. The other subfolders preserve review material, historical bundles, source animation files, and dated screenshots. The original `UpdateOct2.zip` bundle is retained under `archives/source-bundles/`; its organized contents are under `updates/2026-10-02/`. `business plan/` remains a separate author archive with reserved plugin/data slots; neither tree is a privacy boundary. The slot-preservation policy is documented in [`docs/architecture/PLUGIN-ARCHITECTURE.md`](architecture/PLUGIN-ARCHITECTURE.md) and is explicitly reserved/future rather than a current runtime plugin system.
 
-`SECURITY.md` remains at the repository root so GitHub can discover the security policy automatically. Root configuration and development files—including `package.json`, `package-lock.json`, `serve.js`, `wrangler.jsonc`, `.assetsignore`, and `.gitignore`—also remain at the root because tooling expects those paths.
+`SECURITY.md` remains at the repository root so GitHub can discover the security policy automatically. The compiled book editions are grouped under `publications/`, and root-level configuration and development files—including `package.json`, `package-lock.json`, `serve.js`, `wrangler.jsonc`, `.assetsignore`, and `.gitignore`—remain at the root because tooling expects those paths. Finder metadata such as `.DS_Store` is excluded from version control.
 
 ## Normative material and evidence
 
@@ -88,7 +90,7 @@ When adding a test, put it under `tests/` and update the suite mapping in `scrip
 
 ## What is and is not deployed
 
-The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, Markdown under `specs/normative/` and `specs/draft/`, the selected Book I source at `book/01-core-book.md`, all 42 Markdown files in the intentionally public `docs/harshal-systems/` library under `book-library/harshal-systems/` plus its generated manifest, and — under `manuscript/` — only the generated `manifest.json` plus the plaintext chapter files that index names. They do not publish the rest of `docs/`, `case-studies/`, `research/`, `archives/`, `tests/`, `scripts/`, `worker/`, `business plan/`, `PLUGIN-ARCHITECTURE.md`, `manuscript/README.md`, or the manuscript's private `_collection.json` metadata as browser assets. Manuscript files are still repository files: committing a chapter publishes it, so private material does not belong in `manuscript/`.
+The browser preview and deploy staging are allowlists, not copies of the repository root. `serve.js` and `scripts/prepare-assets.mjs` publish the shell, CSS, JS, runtime assets, Markdown under `specs/normative/` and `specs/draft/`, the selected Book I source at `book/01-core-book.md`, all 42 Markdown files in the intentionally public `docs/harshal-systems/` library under `book-library/harshal-systems/` plus its generated manifest, and — under `manuscript/` — only the generated `manifest.json` plus the plaintext chapter files that index names. They do not publish the rest of `docs/`, `publications/`, `case-studies/`, `research/`, `archives/`, `tests/`, `scripts/`, `worker/`, `business plan/`, `manuscript/README.md`, or the manuscript's private `_collection.json` metadata as browser assets. Manuscript files are still repository files: committing a chapter publishes it, so private material does not belong in `manuscript/`.
 
 This static-asset boundary does **not** change repository visibility: files committed to this repository can still be read by repository users. Do not store secrets or private material here. Review `.assetsignore`, `serve.js`, `scripts/prepare-assets.mjs`, and `wrangler.jsonc` together whenever the public asset surface changes.
 

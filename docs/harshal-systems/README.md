@@ -120,14 +120,11 @@ These are suggested routes, not prerequisites.
 
 ### Reference Modules
 
-Modules are library documents that sit beside the numbered parts without
-taking a part number. Each one states its own provenance class, status
-taxonomy, and evidence status; none of them alters the normative authority of
-the parts they reference.
+Modules are library documents that sit beside the numbered parts without taking a part number. Each one states its own provenance class, status taxonomy, and evidence status; none changes the normative authority of the parts it references.
 
 | Module | Document | Focus |
 |---|---|---|
-| `grand-architecture` | [modules/grand-architecture.md](modules/grand-architecture.md) | **The Grand Architecture** — the Convergence-era infrastructure architecture: six layers (`GA-0`–`GA-5`), the `0•100•000•NNNN` instance registry, canonical quantity anchors, the planning timeline, and seven `GA-INV` invariants. `FICTION` (`NARRATIVE_SANDBOX`) |
+| `grand-architecture` | [modules/grand-architecture.md](modules/grand-architecture.md) | **The Grand Architecture** — six layers (`GA-0`–`GA-5`), the `0•100•000•NNNN` instance registry, canonical quantity anchors, the planning timeline, and seven `GA-INV` invariants. `FICTION` (`NARRATIVE_SANDBOX`) |
 | `uts-reference` | [modules/uts.md](modules/uts.md) | Universal Timekeeping System — corrected duration units, `UDay` vs. `UDate`, and the browser implementation. `DERIVATIVE_BUILD` |
 | `convergence-institutions` | [modules/convergence-institutions.md](modules/convergence-institutions.md) | GELPA, Celestial Engineers, and Quantum Librarians as fictional setting bodies. `FICTION` (`NARRATIVE_SANDBOX`) |
 

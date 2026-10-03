@@ -32,6 +32,55 @@ if os.path.exists(_CANONICAL_JSON_PATH):
 # ---------------------------------------------------------------------------
 # Priority 1 & 2: Functional Collections & Per-Module Metadata Registry
 # ---------------------------------------------------------------------------
+# Reference-module counts follow the repository's `wc -w` convention and must
+# be refreshed alongside their collection rows whenever the source changes.
+REFERENCE_MODULES = {
+    "uts-reference": {
+        "title": "Universal Timekeeping System — Corrected Reference Module",
+        "file": "modules/uts.md",
+        "provenance_class": "DERIVATIVE_BUILD",
+        "status_taxonomy": "DERIVATIVE_REFERENCE_MODULE",
+        "evidence_status": "CALCULATED_FROM_STATED_DEFINITIONS",
+        "words": 537,
+    },
+    "convergence-institutions": {
+        "title": "Convergence Institutions — Fictional Reference Module",
+        "file": "modules/convergence-institutions.md",
+        "provenance_class": "FICTION",
+        "status_taxonomy": "NARRATIVE_REFERENCE_MODULE",
+        "evidence_status": "NARRATIVE_SANDBOX",
+        "words": 352,
+    },
+    "grand-architecture": {
+        "title": "The Grand Architecture — Convergence-Era Infrastructure Architecture Module",
+        "file": "modules/grand-architecture.md",
+        "provenance_class": "FICTION",
+        "status_taxonomy": "NARRATIVE_ARCHITECTURE_MODULE",
+        "evidence_status": "NARRATIVE_SANDBOX",
+        "words": 1732,
+    },
+}
+
+
+def collection_entries(collection):
+    """Return collection parts and reference modules in their authored order."""
+    modules_after = {}
+    for item in collection.get("reference_modules", []):
+        module_id = item["id"]
+        if module_id not in REFERENCE_MODULES:
+            raise ValueError(f"Unknown reference module: {module_id}")
+        modules_after.setdefault(item["after"], []).append(("reference", module_id))
+
+    entries = []
+    for slug in collection["parts"]:
+        entries.append(("part", slug))
+        entries.extend(modules_after.pop(slug, []))
+    if modules_after:
+        unknown_anchors = ", ".join(sorted(modules_after))
+        raise ValueError(f"Reference-module anchor is not a collection part: {unknown_anchors}")
+    return entries
+
+
 COLLECTIONS = [
     {
         "id": "01-foundations",
@@ -83,11 +132,15 @@ COLLECTIONS = [
             "Led by the flagship research paper 'Accountability in Keyed Human–Machine Hybrid Systems' "
             "(Part XIX), paired with adversarial threat research (Part XVI AGS++ Threat Modeling and "
             "Part XX Supply Chain Attack Vector++), emerging compute architectures (Part XXI "
-            "MicroConvergence & AVE), and the Supporting Policy & Governance Research Archive (Part XXII)."
+            "MicroConvergence & AVE), the Supporting Policy & Governance Research Archive (Part XXII), "
+            "and a corrected derivative UTS reference module."
         ),
         "parts": [
             "19-research-papers", "16-threat-modeling", "20-supply-chain",
             "21-microconvergence", "22-policy-archive"
+        ],
+        "reference_modules": [
+            {"id": "uts-reference", "after": "20-supply-chain"},
         ],
     },
     {
@@ -117,11 +170,19 @@ COLLECTIONS = [
         "title": "Collection VII — Book II Fictional Companion Preview & Part XXVII Whole Corpus",
         "research_layer": "PUBLIC_RESEARCH_SUMMARY",
         "description": (
-            "Houses the synchronized Book II — Preview ('The Grand River Foundation', set in ~2100 CE "
-            "as a non-normative future-world implementation sandbox) and Part XXVII ('Whole Corpus / "
-            "Complete Work'), the umbrella architectural synthesis and master index."
+            "Houses the synchronized Book II — Preview ('The Grand River Foundation', a ~2100 CE "
+            "narrative sandbox), The Grand Architecture module that composes the Convergence-era "
+            "setting into one named architecture, a clearly labeled fictional reference module for "
+            "Convergence institutions, and Part XXVII ('Whole Corpus / Complete Work'), the umbrella "
+            "architectural synthesis and master index. The preview's first operational module is "
+            "targeted circa 2046; 2098 is an interim milestone, not final completion; Mistveil targets "
+            "~80 million residents by 2100."
         ),
         "parts": ["24-the-novel", "27-whole-corpus"],
+        "reference_modules": [
+            {"id": "convergence-institutions", "after": "24-the-novel"},
+            {"id": "grand-architecture", "after": "24-the-novel"},
+        ],
     },
 ]
 
@@ -662,6 +723,66 @@ To prevent category confusion between cryptographic enforcement primitives, geom
         )
         chunk = sc_banner + chunk
 
+        # Preserve the corrected UTS reference and narrative-date clarification
+        # maintained in the generated library; the archived working draft still
+        # contains the superseded UTS unit/date definitions.
+        corrected_uts = """Entry Title: The Universal Timekeeping System (Corrected Reference, 2026-10-02)
+Provenance: The in-world system is FICTION (NARRATIVE_SANDBOX); the arithmetic and browser widget are DERIVATIVE_BUILD. This informational timekeeping convention does not supply trusted system time, authentication, freshness, Ground-0, PDH, authorization, refusal, or PLV authority.
+
+The Universal Second (US) is 1/c Earth seconds, where c = 299,792,458 m/s exactly. Therefore 1 US = 3.33564095198 nanoseconds. Larger duration units are defined by count, not by Earth-scale seconds:
+- 1 Universal Minute (UM) = 60 US.
+- 1 Universal Hour (UH) = 60 UM = 3,600 US.
+- 1 Universal Day (UDay) = 24 UH = 86,400 US.
+- 1 Universal Year (UY) = 365.25 UDay = 31,557,600 US.
+
+Thus 1 UY is approximately 0.105264823 Earth seconds. A Julian Earth year (31,557,600 Earth seconds) equals 299,792,458 UY. The 365.25-day convention defines the UTS duration hierarchy; it does not synchronize the units to cosmic expansion.
+
+Keep absolute dates distinct from durations: UDay is a duration unit; UDate is a timestamp coordinate expressed in UY since a named epoch. Do not abbreviate both as UD. A UTS event 150,000,000 US after an origin is 4.753213172 UY, or about 0.500346143 Earth seconds. A duration of 100 UY is about 10.52648229 Earth seconds.
+
+The browser demonstration uses a clearly labeled, approximate model anchor of 13.799 billion Earth Julian years at 2026-10-02 00:00 UTC. The resulting UDate is about 4.136836 × 10^18 UY. This rounded cosmological age is a model parameter, not an observed exact timestamp. The app displays the device's conventional local Gregorian date/time and Earth UTC separately from UDate.
+
+The repository implementation is documented in updates/2026-10-02/02-Frameworks/Universal-Timekeeping-System/UTS-Specification.md and UTS-Conversion-Guide.md; the generator is uts_generator.py; the HarshalOS Home Screen watch and duration converter are implemented in js/uts.js and js/apps-uts.js. The original author-supplied RTF files remain preserved as source material; where their former arithmetic or UD shorthand conflicts with the corrected definitions above, use the corrected Markdown specification. Browser conversion output is rounded floating-point display, not scientific-grade arbitrary precision.
+"""
+        chunk, uts_count = re.subn(
+            r"(?ms)^Entry Title: The Universal Timekeeping System\n.*?(?=^Model Name: History 2’s Alpaca Ull$)",
+            lambda _match: corrected_uts,
+            chunk,
+            count=1,
+        )
+        if uts_count != 1:
+            raise ValueError("Part XX requires exactly one legacy UTS block to replace.")
+
+        source_date = "In the year 13.799992 UY, during the Era of Great Desolation, the Earth was ailing."
+        corrected_date = (
+            "\n> **Narrative-date clarification:** The chronology in this story is expressed in approximate "
+            "billions of Earth Julian years since the Big Bang. These legacy story labels are not UTS `UY` "
+            "duration values or exact `UDate` timestamps.\n"
+            "In the narrative year 13.799992 billion Earth Julian years after the Big Bang, during the "
+            "Era of Great Desolation, the Earth was ailing."
+        )
+        if source_date not in chunk:
+            raise ValueError("Part XX no longer contains the expected legacy narrative date.")
+        chunk = chunk.replace(source_date, corrected_date, 1)
+
+        source_time_labels = [
+            "In 13.800000 UY, the Exodus One was finally ready.",
+            "1. **Pre-Emergence Era (0 - 13.798 Billion UY):**",
+            "2. **Era of the Great Desolation (13.798 - 13.800 Billion UY):**",
+            "3. **Convergence Era (13.800 - 13.805 Billion UY):**",
+            "4. **MicroConvergence Era (13.805 - Present):**",
+        ]
+        corrected_time_labels = [
+            "At 13.800000 billion Earth Julian years after the Big Bang, the Exodus One was finally ready.",
+            "1. **Pre-Emergence Era (0–13.798 billion Earth Julian years after the Big Bang):**",
+            "2. **Era of the Great Desolation (13.798–13.800 billion Earth Julian years after the Big Bang):**",
+            "3. **Convergence Era (13.800–13.805 billion Earth Julian years after the Big Bang):**",
+            "4. **MicroConvergence Era (after 13.805 billion Earth Julian years; narrative present onward):**",
+        ]
+        for source_label, corrected_label in zip(source_time_labels, corrected_time_labels):
+            if source_label not in chunk:
+                raise ValueError(f"Part XX no longer contains the expected narrative label: {source_label}")
+            chunk = chunk.replace(source_label, corrected_label, 1)
+
     # 8. Part XXI (21-microconvergence):
     #    - Upgrade Procedural Doctrine to the 6-stage Canonical Minimum Model
     elif slug == "21-microconvergence":
@@ -746,7 +867,7 @@ def build_synchronized_novel_part(root_dir):
     header = f"""## Book II — Preview: Architectural Continuity & Normative Separation Notice
 
 > [!IMPORTANT]
-> **Provenance Classification — `FICTION` (`Book II — Preview · Non-Normative Future-World Sandbox`):** *The Grand River Foundation* is **Book II — Preview**, a standalone work of speculative institutional fiction set in **~2100 CE**. Nothing in Book II is a normative specification or factual claim; all binding specifications, equations, and audits reside in **Book I (*Harshal's Systems*, Parts I–XXIII, XXV–XXVII)**. Book II uses the ~2100 setting—the 4,000-foot retrofitted Colorado River Dam (completed 2098), the 500-Coin Western Colonnade of Mutual Underwriting Houses, the 119-NAB Ombudsman's Council, the Point-to-Point South Wall Copper Vault, and the Spherical Orb Chamber (`0–359` address ring closing at the `0°` Zero-Degree Meridian)—as the future-world sandbox for mature civilizational implementations of Book I's architecture. This section is automatically synchronized with `manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`.
+> **Provenance Classification — `FICTION` (`Book II — Preview · Non-Normative Future-World Sandbox`):** *The Grand River Foundation* is **Book II — Preview**, a standalone work of speculative institutional fiction set in **~2100 CE**. Nothing in Book II is a normative specification or factual claim; all binding specifications, equations, and audits reside in **Book I (*Harshal's Systems*, Parts I–XXIII, XXV–XXVII)**. Book II uses the ~2100 setting—the 4,000-foot retrofitted Colorado River Dam (completed 2098), the 500-Coin Western Colonnade of Mutual Underwriting Houses, the 119-NAB Ombudsman's Council, the Point-to-Point South Wall Copper Vault, and the Spherical Orb Chamber (`0–359` address ring closing at the `0°` Zero-Degree Meridian)—as the future-world sandbox for mature civilizational implementations of Book I's architecture. This section is automatically synchronized with `manuscript/the-grand-river-foundation/` and `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`.
 
 ### Synchronized Chapter Roster (Book II — Preview)
 
@@ -819,7 +940,7 @@ def build_part_27_whole_corpus(written_parts, book2_words, book2_chapters):
 
     collection_rows = []
     for col in COLLECTIONS:
-        p_list = ", ".join(f"`{p}`" for p in col["parts"])
+        p_list = ", ".join(f"`{member_id}`" for _, member_id in collection_entries(col))
         collection_rows.append(
             f"| `{col['id']}` | **{col['title']}** | `{col['research_layer']}` | {p_list} |"
         )
@@ -849,8 +970,8 @@ Part 27     = integrated synthesis
 
 | Publishing Tier | Title & Scope | Provenance Class | Normative Status | Primary Repository Artifacts |
 | :--- | :--- | :--- | :--- | :--- |
-| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `HARSHAL-SYSTEMS-USER-MANUAL.md`, `HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/canonical-model.md`, `specs/normative/canonical.json`, `specs/normative/ground-0-v1.0.md` |
-| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (`Prologue`, `Chapters 1–5`, `Interstitial: Cable Select`, & ongoing chapters) | `FICTION` | **Non-Normative Future-World Sandbox (~2100 CE)** | `manuscript/the-grand-river-foundation/*.txt`, `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/manifest.json` |
+| **Book I (Reference Library)** | ***Harshal's Systems: The Ultimate User Manual*** (`Front Matter` + `Parts I–XXVII`) | `CANONICAL_SOURCE` & `DERIVATIVE_BUILD` | **Normative & Analytical Reference Library** | `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`, `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.docx`, `docs/harshal-systems/00-*.md`–`27-*.md`, `specs/normative/canonical-model.md`, `specs/normative/canonical.json`, `specs/normative/ground-0-v1.0.md` |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (`Prologue`, `Chapters 1–5`, `Interstitial: Cable Select`, & ongoing chapters) | `FICTION` | **Non-Normative Future-World Sandbox (~2100 CE)** | `manuscript/the-grand-river-foundation/*.txt`, `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/manifest.json` |
 
 ---
 
@@ -860,7 +981,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 
 ### 3.1 Provenance Class (`provenance_class`)
 - **`CANONICAL_SOURCE`**: Primary specifications, formal equations, research papers, and doctrinal modules authored in the working canon.
-- **`DERIVATIVE_BUILD`**: Deterministic umbrella compilations, indices, and formatted build artifacts (`HARSHAL-SYSTEMS-USER-MANUAL.md`, `.docx`, `manuscript/manifest.json`) generated by `source/build.py`, `scripts/export-docx.py`, and `scripts/write-chapter.mjs`.
+- **`DERIVATIVE_BUILD`**: Deterministic umbrella compilations, indices, and formatted build artifacts (`publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`, `.docx`, `manuscript/manifest.json`) generated by `source/build.py`, `scripts/export-docx.py`, and `scripts/write-chapter.mjs`.
 - **`ARCHIVE`**: Preserved historical drafts, original submission front matter (`00-author-front-matter.md`), ZIP snapshots (`archives/ground-0/`), and raw RTF chapter drafts (`archives/manuscript-rtf/`).
 - **`FICTION`**: Speculative narrative works (*The Grand River Foundation — Book II Preview*) exploring ~2100 implementations of the architecture without claiming factual or normative force.
 - **`AUDIT`**: Point-in-time institutional evaluations, Ground-0 phase re-badging case studies, and external platform compliance records.
@@ -923,7 +1044,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 
 **Whole Corpus Totals:**
 - **Book I Reference Library (`00`–`27`):** {total_book1_words:,} words across Front Matter, Author's Front Matter, and Parts I–XXVII.
-- **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** {book2_words:,} words across {book2_chapters} indexed plaintext chapters (synchronized in Part XXIV and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).
+- **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** {book2_words:,} words across {book2_chapters} indexed plaintext chapters (synchronized in Part XXIV and `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).
 """
 
 
@@ -939,7 +1060,22 @@ def write_functional_collections(outdir, written_parts):
         os.makedirs(cdir, exist_ok=True)
         rows = []
         total_w = 0
-        for slug in col["parts"]:
+        for entry_kind, member in collection_entries(col):
+            if entry_kind == "reference":
+                module = REFERENCE_MODULES[member]
+                module_path = os.path.join(outdir, *module["file"].split("/"))
+                if not os.path.isfile(module_path):
+                    raise FileNotFoundError(f"Reference module is missing: {module_path}")
+                module_words = module["words"]
+                total_w += module_words
+                rows.append(
+                    f"| `{member}` | [{module['title']}](../../{module['file']}) | "
+                    f"`{module['provenance_class']}` | `{module['status_taxonomy']}` | "
+                    f"`{module['evidence_status']}` ({module_words:,} words) |"
+                )
+                continue
+
+            slug = member
             if slug == "00-front-matter":
                 rows.append(
                     "| `00-front-matter` | [Front Matter](../../00-front-matter.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` |"
@@ -970,12 +1106,12 @@ def write_functional_collections(outdir, written_parts):
 """
         open(os.path.join(cdir, "README.md"), "w", encoding="utf-8").write(readme_md)
         root_rows.append(
-            f"| [`{col['id']}`]({col['id']}/README.md) | **{col['title']}** | `{col['research_layer']}` | {len(col['parts'])} modules ({total_w:,} words) |"
+            f"| [`{col['id']}`]({col['id']}/README.md) | **{col['title']}** | `{col['research_layer']}` | {len(collection_entries(col))} modules ({total_w:,} words) |"
         )
 
     col_index_md = f"""# Harshal's Systems — Functional Collections Index
 
-To make **Book I (*Harshal's Systems*)** navigable as a modular reference library rather than a monolithic draft, the 27 Parts and Front Matter are organized into **seven functional collections**:
+To make **Book I (*Harshal's Systems*)** navigable as a modular reference library rather than a monolithic draft, the 27 Parts and Front Matter are organized into **seven functional collections**, with a small number of explicitly labeled derivative and fictional reference modules:
 
 | Collection | Title | Primary Research Layer | Scope |
 | :--- | :--- | :--- | :--- |

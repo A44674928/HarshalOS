@@ -13,7 +13,7 @@ macOS metadata (`__MACOSX` and `.DS_Store`) and repeated ZIP entries were omitte
 | `04-Institutional-Frameworks/` | Convergence Institutions reference documents |
 | Root-level Markdown files | Delivery summaries and UTS package reports |
 
-The original archive remains at the repository root as `UpdateOct2.zip`.
+The original archive is retained at [`archives/source-bundles/UpdateOct2.zip`](../../archives/source-bundles/UpdateOct2.zip).
 
 ## Where this package now lives in HarshalOS
 

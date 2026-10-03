@@ -4,7 +4,7 @@ HarshalOS documentation build.
 
 Reads:   source/working-draft.md   (canonical Owner's Working Draft build input)
 Writes:  docs/harshal-systems/NN-*.md   (one file per part)
-         HARSHAL-SYSTEMS-USER-MANUAL.md (assembled master, repo root)
+         publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md (assembled master)
          docs/harshal-systems/EDITORIAL-REPORT.md
 
 Run from the repository root:  python3 source/build.py
@@ -14,6 +14,7 @@ import re
 import sys
 import json
 import unicodedata
+from urllib.parse import quote, unquote
 
 from corpus_upgrades import (
     CANONICAL_MINIMUM_MODEL,
@@ -35,7 +36,7 @@ ROOT = os.path.dirname(HERE)
 _ROOT_DRAFT = os.path.join(ROOT, "Harshal's Systems (Copyrighted) [Owner's Working Draft].md")
 SRC = _ROOT_DRAFT if os.path.exists(_ROOT_DRAFT) else os.path.join(HERE, 'working-draft.md')
 OUTDIR = os.path.join(ROOT, 'docs', 'harshal-systems')
-MASTER = os.path.join(ROOT, 'HARSHAL-SYSTEMS-USER-MANUAL.md')
+MASTER = os.path.join(ROOT, 'publications', 'harshal-systems', 'HARSHAL-SYSTEMS-USER-MANUAL.md')
 
 # ---------------------------------------------------------------------------
 # 1. Structural segmentation: (start_line, slug, title, blurb)
@@ -653,6 +654,61 @@ def slugify(s):
     return re.sub(r'-+', '-', s).strip('-')
 
 
+def rebase_master_links(markdown):
+    """Rebase repository-local links into the nested publications build."""
+    source_dir = OUTDIR
+    destination_dir = os.path.dirname(MASTER)
+
+    def replace_link(match):
+        raw = match.group(1)
+        parts = raw.split(None, 1)
+        destination = parts[0] if parts else ""
+        title = f" {parts[1]}" if len(parts) > 1 else ""
+        if not destination or destination.startswith("#") or destination.startswith("//"):
+            return match.group(0)
+
+        from urllib.parse import urlsplit
+        parsed = urlsplit(destination)
+        if parsed.scheme or parsed.netloc or not parsed.path:
+            return match.group(0)
+
+        decoded_path = unquote(parsed.path)
+        candidates = [
+            os.path.normpath(os.path.join(source_dir, decoded_path)),
+            os.path.normpath(os.path.join(ROOT, decoded_path.lstrip("/")))
+        ]
+        source_path = next((candidate for candidate in candidates if os.path.exists(candidate)), None)
+        if source_path is None:
+            return match.group(0)
+
+        relative_path = os.path.relpath(source_path, destination_dir).replace(os.sep, "/")
+        if os.path.isdir(source_path) and parsed.path.endswith("/") and not relative_path.endswith("/"):
+            relative_path += "/"
+        rebased = quote(relative_path, safe="/-._~!$&'()*+,;=:@")
+        if parsed.query:
+            rebased += "?" + parsed.query
+        if parsed.fragment:
+            rebased += "#" + parsed.fragment
+        return f"]({rebased}{title})"
+
+    return re.sub(r"\]\(([^)]+)\)", replace_link, markdown)
+
+
+def relocate_publication_references(markdown):
+    """Keep generated references aligned with the grouped publication paths."""
+    locations = {
+        "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md":
+            "publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md",
+        "HARSHAL-SYSTEMS-USER-MANUAL.md":
+            "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md",
+        "HARSHAL-SYSTEMS-USER-MANUAL.docx":
+            "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.docx"
+    }
+    for filename, location in locations.items():
+        markdown = re.sub(rf"(?<![A-Za-z0-9/._-]){re.escape(filename)}", location, markdown)
+    return markdown
+
+
 def collect_headings(text):
     """(level, title) for every ATX heading outside a fence."""
     out, in_fence = [], False
@@ -869,6 +925,7 @@ def main():
         if slug == '24-the-novel':
             chunk = build_synchronized_novel_part(ROOT)
 
+        chunk = relocate_publication_references(chunk)
         chunk = re.sub(r'\n{4,}', '\n\n\n', chunk).strip()
         w_count = len(chunk.split())
         yaml_hdr, table_hdr = format_metadata_header(slug, title, start, end, w_count, include_yaml=True)
@@ -903,7 +960,8 @@ def main():
         'Book II — Preview (Fictional Companion Novel) hierarchy, formalizes the '
         'Document Provenance and Evidence-Status Taxonomies, specifies the six-stage '
         'Canonical Minimum Model, summarizes all conceptual invariants, and indexes '
-        'the seven functional collections across all 27 Parts.'
+        'the seven functional collections across all 27 Parts plus explicitly labeled '
+        'derivative and fictional reference modules.'
     )
     book2_words = next((w['words'] for w in written if w['slug'] == '24-the-novel'), 15326)
     book2_files = [
@@ -940,7 +998,7 @@ def main():
 
     # ---- front matter, authored fresh -------------------------------------
     roman_parts_count = len([w for w in written if w['slug'] != '00-author-front-matter'])
-    frontmatter_body = build_front_matter(n_words_in, roman_parts_count)
+    frontmatter_body = relocate_publication_references(build_front_matter(n_words_in, roman_parts_count))
     fm_yaml, fm_table = format_metadata_header(
         '00-front-matter', 'Front Matter', 1, 325, len(frontmatter_body.split()), include_yaml=True
     )
@@ -959,6 +1017,7 @@ def main():
         featured_header() + '\n\n' + toc + '\n\n' + frontmatter_body.rstrip() + '\n\n---\n\n' +
         '\n\n---\n\n'.join(parts_md) + '\n\n' + footer()
     )
+    master = rebase_master_links(master)
     open(MASTER, 'w', encoding='utf-8').write(master)
 
     # ---- folder index ------------------------------------------------------
@@ -1045,7 +1104,7 @@ This is the consolidated, provenance-indexed **Umbrella Build Artifact (`DERIVAT
 | Publishing Tier | Work | Provenance Class | Role in the Corpus |
 |---|---|---|---|
 | **Book I (Reference Library)** | ***Harshal’s Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | The settled technical, constitutional, topological, and safety reference library (`docs/harshal-systems/` and this Umbrella Manual). |
-| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`), using a 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council as the future-world sandbox for mature implementations of Book I. |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`). Its first modular dam-and-city operation is targeted circa 2046; 2098 is an interim commissioning/expansion milestone, not final completion; construction continues in 20-year supply-chain planning windows (not a physical limit); Mistveil targets ~80 million residents by 2100. The earlier ~40-million count is regional service population, not a competing city resident total. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not one wall or a real-world engineering claim. See `updates/2026-10-02/02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md` for numeric scope and caveats. |
 
 > **Strategic Principle:** *The architecture (Book I) is the library. The novel (Book II) is the work in active production.* Rather than continually rebuilding the foundational canon before writing each new chapter of fiction, Book I serves as the stable reference architecture from which Book II draws its continuity.
 
@@ -1078,7 +1137,7 @@ The parts are ordered so that each one depends only on the ones before it, and a
 | **A philosophical reader** | Parts I, V, XIII | Secondary |
 | **An auditor or operator** | Parts XII, XV, XVI, XXVI | Supporting reasoning |
 | **A systems implementer** | Parts IX, X, XV, XXIII, XXV | Background |
-| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
+| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
 
 ### On refusal
 
@@ -1190,7 +1249,7 @@ def build_toc(frontmatter, written):
     out.append('')
 
     for w in written:
-        out.append(f'## [{w["title"]}]({w["file"]})')
+        out.append(f'## [{w["title"]}]({os.path.basename(w["file"])})')
         out.append('')
         out.append(f'*{w["blurb"]}*')
         out.append('')
@@ -1325,6 +1384,16 @@ These are suggested routes, not prerequisites.
 | XXVI | [26-anthropic-b-side.md](26-anthropic-b-side.md) | Incident Record and External Audit: Anthropic PBC (B Side) |
 | XXVII | [27-whole-corpus.md](27-whole-corpus.md) | Whole Corpus / Complete Work |
 
+### Reference Modules
+
+Modules are library documents that sit beside the numbered parts without taking a part number. Each one states its own provenance class, status taxonomy, and evidence status; none changes the normative authority of the parts it references.
+
+| Module | Document | Focus |
+|---|---|---|
+| `grand-architecture` | [modules/grand-architecture.md](modules/grand-architecture.md) | **The Grand Architecture** — six layers (`GA-0`–`GA-5`), the `0•100•000•NNNN` instance registry, canonical quantity anchors, the planning timeline, and seven `GA-INV` invariants. `FICTION` (`NARRATIVE_SANDBOX`) |
+| `uts-reference` | [modules/uts.md](modules/uts.md) | Universal Timekeeping System — corrected duration units, `UDay` vs. `UDate`, and the browser implementation. `DERIVATIVE_BUILD` |
+| `convergence-institutions` | [modules/convergence-institutions.md](modules/convergence-institutions.md) | GELPA, Celestial Engineers, and Quantum Librarians as fictional setting bodies. `FICTION` (`NARRATIVE_SANDBOX`) |
+
 ## Functional Collections
 
 The collections provide topic-based routes through the numbered corpus.
@@ -1336,10 +1405,10 @@ See each collection guide for its scope and contents.
 | I | [01-foundations](collections/01-foundations/README.md) | Foundational Doctrine and Core Book |
 | II | [02-ags-ocm-core](collections/02-ags-ocm-core/README.md) | AGS+ and Orb Communicator Architecture |
 | III | [03-ground-zero-nab](collections/03-ground-zero-nab/README.md) | Ground-0 Phase Detection and Neural Atomic Bodies |
-| IV | [04-flagship-research](collections/04-flagship-research/README.md) | Flagship Keyed Human–Machine Research, Threat Models, and Supporting Policy Archive |
+| IV | [04-flagship-research](collections/04-flagship-research/README.md) | Flagship Keyed Human–Machine Research, Threat Models, Supporting Policy, and corrected UTS reference module |
 | V | [05-constitutional-specs](collections/05-constitutional-specs/README.md) | Defensive Constitutional Specification Series |
 | VI | [06-incident-audits](collections/06-incident-audits/README.md) | Incident Record and External Platform Audits |
-| VII | [07-companion-fiction-and-corpus](collections/07-companion-fiction-and-corpus/README.md) | Book II Fictional Companion Preview and Part XXVII Whole Corpus |
+| VII | [07-companion-fiction-and-corpus](collections/07-companion-fiction-and-corpus/README.md) | Book II Fictional Companion Preview, The Grand Architecture module, Convergence institution reference module, and Part XXVII Whole Corpus |
 
 ## Status and Evidence
 
@@ -1632,7 +1701,7 @@ python3 source/build.py
 ```
 
 Input: `source/working-draft.md`
-Outputs: `docs/harshal-systems/*.md`, `HARSHAL-SYSTEMS-USER-MANUAL.md`, this report.
+Outputs: `docs/harshal-systems/*.md`, `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`, this report.
 
 Content integrity was verified by diffing the full token multiset of the source against the
 built manual. The only terms present in the source and absent from the manual are exactly the

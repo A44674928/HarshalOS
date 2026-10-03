@@ -16,6 +16,16 @@ function runPython(args) {
   return result.stdout;
 }
 
+test("Book I Part XX keeps corrected UTS units separate from Earth-year narrative dates", () => {
+  const part = readFileSync(path.join(ROOT, "docs/harshal-systems/20-supply-chain.md"), "utf8");
+  assert.match(part, /Entry Title: The Universal Timekeeping System \(Corrected Reference, 2026-10-02\)/);
+  assert.match(part, /Universal Day \(UDay\) = 24 UH = 86,400 US/);
+  assert.match(part, /narrative-date clarification/i);
+  assert.match(part, /13\.800000 billion Earth Julian years after the Big Bang/);
+  assert.doesNotMatch(part, /13\.800000 UY/);
+  assert.doesNotMatch(part, /13\.800 - 13\.805 Billion UY/);
+});
+
 test("UTS timestamp is anchored in approximate Universal Years, not overloaded UDay", () => {
   const output = runPython([SCRIPT, "--date", "2026-10-02T00:00:00Z"]);
   assert.match(output, /Earth UTC:\s+2026-10-02 00:00:00/);

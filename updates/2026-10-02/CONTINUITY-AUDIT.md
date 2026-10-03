@@ -1,7 +1,7 @@
 # Continuity Audit — `updates/2026-10-02` (UpdateOct2)
 
 **Audit date:** 2026-10-02
-**Scope:** All 49 files under `updates/2026-10-02/` (32 Markdown, 6 TXT, 3 RTF, 2 PDF, 4 print documents, 1 XLSX, 1 Python tool), checked against (a) each other, (b) their own source files inside the package, and (c) repository canon: `README.md`, `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/`, `specs/normative/`, `docs/harshal-systems/`, `HARSHAL-SYSTEMS-USER-MANUAL.md`, and `business plan/`.
+**Scope:** All 49 files under `updates/2026-10-02/` (32 Markdown, 6 TXT, 3 RTF, 2 PDF, 4 print documents, 1 XLSX, 1 Python tool), checked against (a) each other, (b) their own source files inside the package, and (c) repository canon: `README.md`, `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`, `manuscript/`, `specs/normative/`, `docs/harshal-systems/`, `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`, and `business plan/`.
 **Method:** Full-text reading of derived documents, extraction of source RTF/PDF/XLSX contents, arithmetic re-derivation of every load-bearing number, re-running the package's own `uts_generator.py` against its documented timestamps, and fact-checking the real-world Storm-0558 claims against Microsoft's disclosures.
 **Classification of this audit:** `DERIVATIVE_BUILD` (analysis only — no canon changed by this document).
 
@@ -14,9 +14,9 @@ The package is the organized extraction of `UpdateOct2.zip` (previously labeled 
 | Lineage | Source-of-truth inside package | Derived deliverables |
 | --- | --- | --- |
 | Storm-0558 threat intelligence | 4 TXT notes + 2 PDFs | 6 MD (analysis, detection rules, roadmap, SCAV++ mapping) |
-| Universal Timekeeping System (UTS) | 2 RTF (verbatim excerpts of `HARSHAL-SYSTEMS-USER-MANUAL.md` / `docs/harshal-systems/20-supply-chain.md`) | Spec, conversion guide, `uts_generator.py`, 3 root reports |
+| Universal Timekeeping System (UTS) | 2 RTF (verbatim excerpts of `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md` / `docs/harshal-systems/20-supply-chain.md`) | Spec, conversion guide, `uts_generator.py`, 3 root reports |
 | Grand River Flow Model | 1 XLSX (2026-08-28 flow/cost model) + `business plan/Grand Canyon Hydropower Render Spec.md` | 21 MD (hyperstructure, Mistveil City, Grand Aqueduct, Convergence Universe) |
-| Convergence Institutions & Official Prints | 3 RTF (verbatim excerpts of `HARSHAL-SYSTEMS-USER-MANUAL.md`) + 4 print PDFs | none (source-only) |
+| Convergence Institutions & Official Prints | 3 RTF (verbatim excerpts of `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`) + 4 print PDFs | none (source-only) |
 
 **Overall verdict:** the package is a rich, well-organized worldbuilding and research layer with **excellent node-address continuity** (the `0•100•000•NNNN` registry is reused correctly across 8 documents and matches the render spec's 358-node ℤ₃₆₀ ring). However, it has **four families of continuity breaks** that should be resolved before any of it is promoted toward canon or the app:
 
@@ -60,7 +60,7 @@ None of these are fatal; all are fixable. Section 10 gives a prioritized path.
 
 ## 3. Universal Timekeeping System (UTS)
 
-The two source RTFs are faithful verbatim excerpts of existing canon (`docs/harshal-systems/20-supply-chain.md`, "Entry Title: The Universal Timekeeping System"; also `HARSHAL-SYSTEMS-USER-MANUAL.md`). The derived deliverables then introduce errors the sources do not contain, and inherit one the sources do.
+The two source RTFs are faithful verbatim excerpts of existing canon (`docs/harshal-systems/20-supply-chain.md`, "Entry Title: The Universal Timekeeping System"; also `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`). The derived deliverables then introduce errors the sources do not contain, and inherit one the sources do.
 
 ### U-1 — Unit-hierarchy Earth equivalents are wrong (×10³ to ×10⁶)
 
@@ -238,7 +238,7 @@ None of this diminishes the worldbuilding — but the documents currently presen
 ## 9. What holds up well (keep and build on these)
 
 1. **OCM node-address continuity is excellent.** The `0•100•000•NNNN` registry (358 distinct nodes in `business plan/Grand Canyon Hydropower Render Spec.md`) is reused across 8 documents with assignments matching the render spec (0091 turbines, 0248 SMR, 0176 Canyon de Chelly bio-reserve, 0180 Inner Shell, 0268 Section 7, 0113 New Capitol…). This cleanly respects the canonical ℤ₃₆₀ ring (`specs/normative/canonical-model.md`, INV-OCM invariants) and the AI Inner Shell's address discipline.
-2. **Source extraction is faithful.** The UTS and Convergence-Institutions RTFs are verbatim excerpts of `HARSHAL-SYSTEMS-USER-MANUAL.md` / `docs/harshal-systems/20-supply-chain.md` — the "gems" are genuinely corpus material, not new inventions.
+2. **Source extraction is faithful.** The UTS and Convergence-Institutions RTFs are verbatim excerpts of `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md` / `docs/harshal-systems/20-supply-chain.md` — the "gems" are genuinely corpus material, not new inventions.
 3. **Stakeholder geography matches** `business plan/Stakeholders.txt` (Four Corners → Distance 1 → national/international), and the 180/120/60 tier split is a reasonable partition of the 360-node ring.
 4. **The requirement-compliance tables** in the Mistveil and Aqueduct summaries track the author's stated requests accurately — the gaps are between the requests/derived docs and the rest of the corpus, not sloppy transcription of the requests.
 5. **The integration instinct is right:** SCAV++, the Good Intelligence desk, UTS, and Book II are the correct connection points — they just haven't been wired yet (§10).
@@ -337,7 +337,7 @@ updates/2026-10-02/
 └── 04-Institutional-Frameworks/Convergence-Institutions/  3 RTF
 ```
 
-*The August Print PDFs (`AGS++ — Accountability-Gated Systems, Accessories and Examples`, 431/545 pp.) duplicate the working-draft corpus already present as `HARSHAL-SYSTEMS-USER-MANUAL.md`; they are consistent with it and raise no continuity issues beyond the AGS++ → Harshal's Systems naming transition already documented in the root README.*
+*The August Print PDFs (`AGS++ — Accountability-Gated Systems, Accessories and Examples`, 431/545 pp.) duplicate the working-draft corpus already present as `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`; they are consistent with it and raise no continuity issues beyond the AGS++ → Harshal's Systems naming transition already documented in the root README.*
 
 ---
 

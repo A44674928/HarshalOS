@@ -21,7 +21,7 @@ canonical_decision_flow: "Identity → Representation → Authorization → Cont
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "1–325"
-words: 1364
+words: 1425
 ---
 
 # Front Matter
@@ -33,7 +33,7 @@ This is the consolidated, provenance-indexed **Umbrella Build Artifact (`DERIVAT
 | Publishing Tier | Work | Provenance Class | Role in the Corpus |
 |---|---|---|---|
 | **Book I (Reference Library)** | ***Harshal’s Systems*** (`Parts I–XXVII`) | `CANONICAL_SOURCE` / `DERIVATIVE_BUILD` | The settled technical, constitutional, topological, and safety reference library (`docs/harshal-systems/` and this Umbrella Manual). |
-| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`), using a 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council as the future-world sandbox for mature implementations of Book I. |
+| **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** | `FICTION` (`NARRATIVE_SANDBOX`) | A standalone fictional companion novel set in **~2100 CE** (`manuscript/the-grand-river-foundation/` and `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`). Its first modular dam-and-city operation is targeted circa 2046; 2098 is an interim commissioning/expansion milestone, not final completion; construction continues in 20-year supply-chain planning windows (not a physical limit); Mistveil targets ~80 million residents by 2100. The earlier ~40-million count is regional service population, not a competing city resident total. The first 40–60 years aspire to 1,200–2,500 feet of cumulative head across distinct stages; 4,000 feet remains the long-range fictional aggregate target, not one wall or a real-world engineering claim. See `updates/2026-10-02/02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md` for numeric scope and caveats. |
 
 > **Strategic Principle:** *The architecture (Book I) is the library. The novel (Book II) is the work in active production.* Rather than continually rebuilding the foundational canon before writing each new chapter of fiction, Book I serves as the stable reference architecture from which Book II draws its continuity.
 
@@ -66,7 +66,7 @@ The parts are ordered so that each one depends only on the ones before it, and a
 | **A philosophical reader** | Parts I, V, XIII | Secondary |
 | **An auditor or operator** | Parts XII, XV, XVI, XXVI | Supporting reasoning |
 | **A systems implementer** | Parts IX, X, XV, XXIII, XXV | Background |
-| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
+| **A fiction reader (`Book II — Preview`)** | **Part XXIV** (or `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`) | The Book I architectural library behind the ~2100 story |
 
 ### On refusal
 

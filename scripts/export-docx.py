@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Convert HARSHAL-SYSTEMS-USER-MANUAL.md into a publication-grade Word document
-(HARSHAL-SYSTEMS-USER-MANUAL.docx).
+Convert the Book I Markdown build into a publication-grade Word document
+beside `publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md`.
 
 Usage:
     python3 scripts/export-docx.py [input.md] [output.docx]
@@ -20,8 +20,9 @@ from docx.shared import Inches, Pt, RGBColor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-DEFAULT_IN = os.path.join(ROOT, "HARSHAL-SYSTEMS-USER-MANUAL.md")
-DEFAULT_OUT = os.path.join(ROOT, "HARSHAL-SYSTEMS-USER-MANUAL.docx")
+PUBLICATION_DIR = os.path.join(ROOT, "publications", "harshal-systems")
+DEFAULT_IN = os.path.join(PUBLICATION_DIR, "HARSHAL-SYSTEMS-USER-MANUAL.md")
+DEFAULT_OUT = os.path.join(PUBLICATION_DIR, "HARSHAL-SYSTEMS-USER-MANUAL.docx")
 
 # ---------------------------------------------------------------------------
 # Color Palette (Executive / Technical Reference Manual Theme)

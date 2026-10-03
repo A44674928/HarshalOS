@@ -63,6 +63,18 @@ test("P13: repository content is separated by status and purpose", async () => {
     "docs/deployment/MONGODB-SETUP.md",
     "docs/source-material/Ground-0 Phase Detection Algorithm.md",
     "docs/REPOSITORY-STRUCTURE.md",
+    "docs/architecture/PLUGIN-ARCHITECTURE.md",
+    "publications/README.md",
+    "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md",
+    "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.docx",
+    "publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md",
+    "publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.docx",
+    "archives/README.md",
+    "archives/animation-source/eye-closing/README.md",
+    "archives/animation-source/eye-closing/Eye Closing HQ.gif",
+    "archives/animation-source/eye-closing/frames/animate-000 Large.png",
+    "archives/source-bundles/README.md",
+    "archives/source-bundles/UpdateOct2.zip",
     "case-studies/GROUND-0 CASE STUDY - Anthropic.md",
     "case-studies/GROUND-0 CASE STUDY - OpenAI.md",
     "research/reports/Research_report_Anthropic_Compliance_and_Enforcement_Mechani.md",
@@ -107,10 +119,89 @@ test("P13: repository content is separated by status and purpose", async () => {
     "GROUND-0 CASE STUDY - OpenAI.md",
     "Research_report_Anthropic_Compliance_and_Enforcement_Mechani.md",
     "ground-0-phase-detection-algorithm.zip",
+    "HARSHAL-SYSTEMS-USER-MANUAL.md",
+    "HARSHAL-SYSTEMS-USER-MANUAL.docx",
+    "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md",
+    "BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.docx",
+    "PLUGIN-ARCHITECTURE.md",
+    "UpdateOct2.zip",
+    "Eye Closing HQ.gif",
+    "animate-000 Large.png",
+    ".DS_Store",
     "Archive",
     "Business Plan",
     "scripts/kernel-api-test.mjs"
   ]) assert.equal(await exists(path.join(ROOT, legacy)), false, `legacy root/script path should be retired: ${legacy}`);
+});
+
+test("P13: root-level files stay limited to app entry points, configuration, and GitHub policy", async () => {
+  const rootFiles = (await readdir(ROOT, { withFileTypes: true }))
+    .filter(entry => entry.isFile())
+    .map(entry => entry.name)
+    .sort();
+  assert.deepEqual(rootFiles, [
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "index.html",
+    "package-lock.json", "package.json", "serve.js", "wrangler.jsonc"
+  ]);
+
+  const tracked = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
+  assert.equal(tracked.status, 0, tracked.stderr || "git ls-files should succeed");
+  const finderMetadata = tracked.stdout.split("\0").filter(file => /(?:^|\/)\.DS_Store$/.test(file));
+  assert.deepEqual(finderMetadata, [], "Finder metadata must not be committed");
+});
+
+test("desktop app icons use fixed grid cells and two-line labels at every breakpoint", async () => {
+  const [desktopCss, mobileCss, html] = await Promise.all([
+    readFile(path.join(ROOT, "css/os.css"), "utf8"),
+    readFile(path.join(ROOT, "css/mobile.css"), "utf8"),
+    readFile(path.join(ROOT, "index.html"), "utf8")
+  ]);
+  const rule = (css, selector) => {
+    const start = css.indexOf(`${selector} {`);
+    const open = css.indexOf("{", start);
+    const close = css.indexOf("}", open);
+    assert.ok(start >= 0 && open >= 0 && close > open, `expected a CSS rule for ${selector}`);
+    return css.slice(open + 1, close);
+  };
+  const desktopField = rule(desktopCss, ".icon-field");
+  const desktopTile = rule(desktopCss, ".desk-icon");
+  const desktopLabel = rule(desktopCss, ".desk-icon .di-label");
+  const mobileField = rule(mobileCss, ".icon-field");
+  const mobileTile = rule(mobileCss, ".desk-icon");
+
+  assert.ok(desktopField.includes("display: grid"));
+  assert.ok(desktopField.includes("grid-template-columns: repeat(auto-fill, 88px)"));
+  assert.ok(desktopField.includes("grid-auto-rows: 108px"));
+  assert.ok(desktopTile.includes("width: 88px") && desktopTile.includes("height: 108px"));
+  assert.ok(desktopLabel.includes("line-clamp: 2"));
+  assert.ok(mobileField.includes("grid-auto-rows: 104px"));
+  assert.ok(mobileTile.includes("height: 104px"));
+  assert.ok(html.includes('id="icon-field" class="icon-field" role="group" aria-label="Desktop applications, sorted alphabetically"'));
+});
+
+test("P13: publication, source-bundle, and animation archive groups are complete", async () => {
+  const frames = (await readdir(path.join(ROOT, "archives/animation-source/eye-closing/frames")))
+    .filter(name => /^animate-\d{3} Large\.png$/.test(name))
+    .sort();
+  assert.equal(frames.length, 25, "all original numbered animation frames are retained together");
+  assert.deepEqual(frames, Array.from({ length: 25 }, (_, index) => `animate-${String(index).padStart(3, "0")} Large.png`));
+});
+
+test("P13: moved Book I publication keeps its repository-relative links valid", async () => {
+  const manual = path.join(ROOT, "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md");
+  const content = await readFile(manual, "utf8");
+  const links = [...content.matchAll(/\]\(([^)]+)\)/g)];
+  let checked = 0;
+  for (const match of links) {
+    const target = match[1].trim().split(/\s+/, 1)[0].replace(/^<|>$/g, "");
+    if (!target || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target) || target.startsWith("#")) continue;
+    const localPath = decodeURIComponent(target.split(/[?#]/, 1)[0]);
+    if (!localPath) continue;
+    const resolved = path.resolve(path.dirname(manual), localPath);
+    assert.equal(await exists(resolved), true, `publication link should resolve: ${target}`);
+    checked++;
+  }
+  assert.ok(checked >= 50, `expected the manual's local navigation links to be checked (${checked})`);
 });
 
 test("P13: public asset staging includes the selected Book I source, all indexed library files, versioned specs, and manuscript chapters", async () => {
@@ -170,7 +261,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(manuscriptFiles.includes("manuscript/README.md"), false, "the folder instructions are not published");
     assert.equal(manuscriptFiles.includes("manuscript/the-grand-river-foundation/_collection.json"), false, "collection metadata is not published");
 
-    for (const excluded of ["docs", "case-studies", "research", "archives", "tests", "scripts", "worker", "business plan", "SECURITY.md", "README.md"]) {
+    for (const excluded of ["docs", "publications", "case-studies", "research", "archives", "tests", "scripts", "worker", "business plan", "SECURITY.md", "README.md"]) {
       assert.equal(await exists(path.join(SITE, excluded)), false, `repository-only content must not be staged: ${excluded}`);
     }
   } finally {
@@ -225,6 +316,8 @@ test("P13: local preview serves the selected Book I source and Collections libra
       "/book-library/private.txt",
       "/docs/REPOSITORY-STRUCTURE.md",
       "/PLUGIN-ARCHITECTURE.md",
+      "/docs/architecture/PLUGIN-ARCHITECTURE.md",
+      "/publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md",
       "/archives/",
       "/archives/Duplicates/DUPLICATE-QUARANTINE-MANIFEST.csv",
       "/archives/screenshots/2026-08/",
