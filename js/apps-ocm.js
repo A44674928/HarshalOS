@@ -78,7 +78,15 @@
       animatingForm: false,
       selected: -1,
       hover: -1,
-      show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true, flame: true },
+      show: { disc: true, axis: true, spokes: true, shell: true, lateral: true, orbs: true, labels: true, flame: true, autoroute: true },
+      autoRoute: true,               // automatic communication routing in the loop
+      autoRouteTimer: 2.8,           // initial countdown (fires promptly after boot)
+      autoRouteInterval: 3.6,        // seconds between route cycles
+      autoRouteCount: 0,             // cycles completed
+      lastSourceIdx: -1,             // sequential source tracker
+      nodeFlares: new Float32Array(n), // flare intensity for destination receipt
+      sourceHighlights: new Float32Array(n), // emitting beacon aura for active source
+      activeRoute: null,             // current route telemetry
       flame: null,                   // FlamePlayer (inner core: Demo.flame, 120 frames)
       outerFlame: null,              // FlamePlayer (outer system: OuterOrb.flame, 600 frames @ 24fps)
       film: null,                    // OrbFilm — the author's rendered surface
@@ -95,14 +103,30 @@
       { tag: "AI-3300", lon: 265, lat: 48 }
     ];
 
+    const routeListeners = [];
+    function notifyRoute() {
+      if (st.activeRoute) {
+        for (let i = 0; i < routeListeners.length; i++) {
+          try { routeListeners[i](st.activeRoute); } catch (_) {}
+        }
+      }
+    }
+
     /* environments without a 2D canvas context get a no-op engine */
     if (!ctx) {
       return {
         state: st,
-        selectNode() {}, onSelect() {},
+        selectNode(i) { st.selected = i; },
+        onSelect() {},
         pulseResolution(i) { return i >= 0 ? i : 0; },
         pulseLateral() { return [0, 1]; },
-        animateFormation() {}, setFormation() {}, setToggle() {}
+        triggerTransmissionSequence(from, to) { return { from: from ?? 0, to: to ?? 1 }; },
+        triggerLateralSequence(a, b) { return [a ?? 0, b ?? 1]; },
+        setAutoRoute(b) { st.autoRoute = !!b; return st.autoRoute; },
+        isAutoRoute() { return !!st.autoRoute; },
+        getActiveRoute() { return st.activeRoute; },
+        onRouteUpdate(cb) { if (typeof cb === "function") routeListeners.push(cb); },
+        animateFormation() {}, setFormation() {}, setToggle(k, v) { if (k === "autoroute") st.autoRoute = !!v; else st.show[k] = v; }
       };
     }
 
@@ -427,6 +451,28 @@
         });
       }
 
+      // Automatic Communication Routing in the engine loop
+      if (st.autoRoute) {
+        if (st.pulses.length === 0) {
+          const outerModSpeed = (outerMod.active ? outerMod.speedMult : 1) * (fMod.speedMult || 1);
+          st.autoRouteTimer += (dt || 0.016) * outerModSpeed;
+          if (st.autoRouteTimer >= st.autoRouteInterval) {
+            st.autoRouteTimer = 0;
+            st.autoRouteCount++;
+            if ((st.autoRouteCount % 4) === 3) {
+              triggerLateralSequence();
+            } else {
+              triggerTransmissionSequence();
+            }
+          }
+        }
+      }
+
+      for (let k = 0; k < n; k++) {
+        if (st.nodeFlares[k] > 0) st.nodeFlares[k] = Math.max(0, st.nodeFlares[k] - 0.022);
+        if (st.sourceHighlights[k] > 0) st.sourceHighlights[k] = Math.max(0, st.sourceHighlights[k] - 0.018);
+      }
+
       /* 9 · radiative nodes (stationary gold orbs) — modulated by 600-frame OuterOrb flame */
       st.projected = [];
       const nodePulse = outerMod.active ? (0.85 + 0.3 * outerMod.energy) : 1;
@@ -439,8 +485,14 @@
         const size = baseSize * nodePulse;
         const color = quadColor(nd.deg);
         const isSel = st.selected === i, isHov = st.hover === i;
+        const isSrc = st.activeRoute && st.activeRoute.from === i && (st.activeRoute.phase === "HOP1_INWARD" || st.activeRoute.phase === "CENTER_RESOLVE");
+        const isDst = st.activeRoute && st.activeRoute.to === i && (st.activeRoute.phase === "HOP2_OUTWARD" || st.activeRoute.phase === "CONFIRMED");
+        const nodeFlare = st.nodeFlares ? st.nodeFlares[i] : 0;
+        const srcGlow = st.sourceHighlights ? st.sourceHighlights[i] : 0;
+
         const nodeAlpha = (isSel ? 1.4 : isHov ? 1 : 0.35) * (outerMod.active ? (0.8 + 0.4 * outerMod.energy) : 1);
         glowDot(sp, isSel || isHov ? size * 1.35 : size, color, nodeAlpha);
+
         if (isSel) {
           ctx.beginPath();
           ctx.arc(sp.x, sp.y, size * 2.1, 0, TAU);
@@ -450,13 +502,41 @@
           ctx.stroke();
           ctx.globalAlpha = 1;
         }
+
+        // Active source transmission beacon
+        if (isSrc || srcGlow > 0.05) {
+          const pulseR = size * (1.6 + 0.4 * Math.sin(now * 0.009));
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, pulseR, 0, TAU);
+          ctx.strokeStyle = `rgba(255, 212, 121, ${Math.min(1, 0.4 + srcGlow * 0.5)})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Destination receipt flare / confirmation shockwave
+        if (nodeFlare > 0.02) {
+          const expandR = size * (1.2 + (1 - nodeFlare) * 4.2);
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, expandR, 0, TAU);
+          ctx.strokeStyle = `rgba(111, 211, 255, ${nodeFlare})`;
+          ctx.lineWidth = 2.0 * nodeFlare;
+          ctx.stroke();
+          // Inner green ring
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, expandR * 0.6, 0, TAU);
+          ctx.strokeStyle = `rgba(92, 230, 168, ${nodeFlare * 0.8})`;
+          ctx.lineWidth = 1.3 * nodeFlare;
+          ctx.stroke();
+        }
+
         st.projected.push({ i, x: sp.x, y: sp.y });
-        if (st.show.labels && (isSel || isHov)) {
-          ctx.fillStyle = "#d9e6f7";
-          ctx.font = "10px ui-monospace, monospace";
+        if (st.show.labels && (isSel || isHov || isSrc || isDst)) {
+          ctx.fillStyle = isSrc ? "#ffd479" : isDst ? "#6fd3ff" : "#d9e6f7";
+          ctx.font = (isSrc || isDst ? "bold 10px " : "10px ") + "ui-monospace, monospace";
           ctx.textAlign = "left";
-          ctx.fillText(`${nd.name}`, sp.x + size + 6, sp.y - 2);
-          ctx.fillStyle = "rgba(255,212,121,0.8)";
+          const roleTag = isSrc ? " [SRC]" : isDst ? " [TARGET]" : "";
+          ctx.fillText(`${nd.name}${roleTag}`, sp.x + size + 6, sp.y - 2);
+          ctx.fillStyle = isSrc ? "rgba(255,212,121,0.9)" : "rgba(255,212,121,0.8)";
           ctx.font = "8px ui-monospace, monospace";
           ctx.fillText(nd.addr, sp.x + size + 6, sp.y + 9);
         }
@@ -471,11 +551,23 @@
       ctx.fillText("0•000•000•0000", cs.x, cs.y + 22);
       if (st.flare > 0) {
         ctx.beginPath();
-        ctx.arc(cs.x, cs.y, 7.5 + (1 - st.flare) * 34, 0, TAU);
+        ctx.arc(cs.x, cs.y, 7.5 + (1 - st.flare) * 36, 0, TAU);
         ctx.strokeStyle = "rgba(255,212,121," + st.flare + ")";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
-        st.flare = Math.max(0, st.flare - 0.02);
+
+        ctx.beginPath();
+        ctx.arc(cs.x, cs.y, 7.5 + (1 - st.flare) * 20, 0, TAU);
+        ctx.strokeStyle = "rgba(111,211,255," + (st.flare * 0.7) + ")";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        if (st.flare > 0.35) {
+          ctx.fillStyle = `rgba(255, 212, 121, ${st.flare})`;
+          ctx.font = "bold 8.5px ui-monospace, monospace";
+          ctx.fillText("RESOLVING", cs.x, cs.y - 14);
+        }
+        st.flare = Math.max(0, st.flare - 0.022);
       }
 
       /* 11 · pulses: inward resolution dominates lateral coordination.
@@ -484,28 +576,63 @@
          Pulse velocity and center flare are modulated by flame harmonic energy. */
       const flameSpeedMult = fMod.active ? (0.9 + 0.2 * fMod.energy) : 1;
       st.pulses = st.pulses.filter(pu => {
-        const speed = (pu.kind === "in" ? 0.038 : 0.012) * flameSpeedMult; // inward resolution outpaces lateral by >3×
+        const baseSpeed = pu.speed || (pu.kind === "in" ? 0.038 : pu.kind === "out" ? 0.034 : 0.012);
+        const speed = baseSpeed * flameSpeedMult;
         pu.t += speed;
         if (pu.t >= 1) {
           if (pu.kind === "in") {
-            st.flare = fMod.active ? (0.9 + 0.3 * fMod.energy) : 1;
-            if (pu.onArrive) pu.onArrive();
+            st.flare = fMod.active ? (1.0 + 0.3 * fMod.energy) : 1.0;
+          }
+          if (pu.onArrive) {
+            try { pu.onArrive(); } catch (_) {}
           }
           return false;
         }
-        let a, b;
+
         if (pu.kind === "in") {
-          a = pos[pu.from]; b = { x: 0, y: 0, z: 0 };
+          const a = pos[pu.from], b = { x: 0, y: 0, z: 0 };
           const cur = {
             x: a.x + (b.x - a.x) * pu.t,
             y: a.y + (b.y - a.y) * pu.t,
             z: a.z + (b.z - a.z) * pu.t
           };
+          line3D(a, cur, CENTER_COLOR, 0.45, 1.2);
+          for (let tr = 1; tr <= 3; tr++) {
+            const tt = Math.max(0, pu.t - tr * 0.035);
+            const tc = {
+              x: a.x + (b.x - a.x) * tt,
+              y: a.y + (b.y - a.y) * tt,
+              z: a.z + (b.z - a.z) * tt
+            };
+            const tsp = toScreen(project(tc));
+            glowDot(tsp, 2.5 / tr, CENTER_COLOR, 0.7 / tr);
+          }
           const sp = toScreen(project(cur));
-          const pSize = 3.8 + (fMod.active ? fMod.energy * 1.2 : 0);
-          glowDot(sp, pSize, CENTER_COLOR, 1.6);
+          const pSize = 4.2 + (fMod.active ? fMod.energy * 1.2 : 0);
+          glowDot(sp, pSize, CENTER_COLOR, 2.2);
+        } else if (pu.kind === "out") {
+          const a = { x: 0, y: 0, z: 0 }, b = pos[pu.to];
+          const cur = {
+            x: a.x + (b.x - a.x) * pu.t,
+            y: a.y + (b.y - a.y) * pu.t,
+            z: a.z + (b.z - a.z) * pu.t
+          };
+          line3D(a, cur, "#6fd3ff", 0.5, 1.2);
+          for (let tr = 1; tr <= 3; tr++) {
+            const tt = Math.max(0, pu.t - tr * 0.035);
+            const tc = {
+              x: a.x + (b.x - a.x) * tt,
+              y: a.y + (b.y - a.y) * tt,
+              z: a.z + (b.z - a.z) * tt
+            };
+            const tsp = toScreen(project(tc));
+            glowDot(tsp, 2.5 / tr, "#6fd3ff", 0.8 / tr);
+          }
+          const sp = toScreen(project(cur));
+          const pSize = 4.2 + (fMod.active ? fMod.energy * 1.2 : 0);
+          glowDot(sp, pSize, "#6fd3ff", 2.2);
         } else {
-          a = pos[pu.from]; b = pos[pu.to];
+          const a = pos[pu.from], b = pos[pu.to];
           const mid = {
             x: (a.x + b.x) * 0.72,
             y: (a.y + b.y) * 0.72 + 0.45,
@@ -517,8 +644,18 @@
             y: u * u * a.y + 2 * u * t * mid.y + t * t * b.y,
             z: u * u * a.z + 2 * u * t * mid.z + t * t * b.z
           };
+          for (let tr = 1; tr <= 2; tr++) {
+            const tt = Math.max(0, pu.t - tr * 0.04), tu = 1 - tt;
+            const tc = {
+              x: tu * tu * a.x + 2 * tu * tt * mid.x + tt * tt * b.x,
+              y: tu * tu * a.y + 2 * tu * tt * mid.y + tt * tt * b.y,
+              z: tu * tu * a.z + 2 * tu * tt * mid.z + tt * tt * b.z
+            };
+            const tsp = toScreen(project(tc));
+            glowDot(tsp, 2.0 / tr, "#b57cff", 0.6 / tr);
+          }
           const sp = toScreen(project(cur));
-          glowDot(sp, 3.0, "#6fd3ff", 1.2);
+          glowDot(sp, 3.4, "#b57cff", 1.5);
         }
         return true;
       });
@@ -605,22 +742,198 @@
     let selectCb = null;
     function selectNode(i) {
       st.selected = i;
+      st.lastSourceIdx = i - 1; // next automatic route cycle will start from this node
+      // If idle, accelerate next transmission cycle so user sees routing from clicked node promptly
+      if (st.autoRoute && st.pulses.length === 0) {
+        st.autoRouteTimer = Math.max(st.autoRouteTimer, st.autoRouteInterval - 0.4);
+      }
       if (selectCb) selectCb(i);
     }
 
-    /* ---------- pulses (animation only — witnessing happens at the app layer) ---------- */
-    function pulseResolution(fromIdx) {
-      const from = fromIdx >= 0 ? fromIdx : Math.floor(Math.random() * n);
-      st.pulses.push({ kind: "in", from, t: 0, onArrive: null });
-      return from;
+    /* ---------- transmission sequences (automatic & manual routing) ---------- */
+    function triggerTransmissionSequence(fromIdx, toIdx) {
+      let from = fromIdx != null && fromIdx >= 0 ? fromIdx : st.selected;
+      if (from < 0 || from >= n) {
+        st.lastSourceIdx = (st.lastSourceIdx + 1) % n;
+        from = st.lastSourceIdx;
+      } else {
+        st.lastSourceIdx = from;
+      }
+
+      let to = toIdx != null && toIdx >= 0 ? toIdx : -1;
+      if (to < 0 || to >= n || to === from) {
+        to = (from + 3 + Math.floor(Math.random() * (n - 4))) % n;
+        if (to === from) to = (from + 1) % n;
+      }
+
+      const fromNode = nodes[from];
+      const toNode = nodes[to];
+
+      const deltaDeg = Math.abs(fromNode.deg - toNode.deg) % 360;
+      const arcDeg = Math.min(deltaDeg, 360 - deltaDeg);
+      const lateralHops = Math.max(2, Math.round(arcDeg / 45) + 1);
+      const savedHops = lateralHops - 1;
+
+      st.activeRoute = {
+        type: "RESOLUTION-FIRST",
+        phase: "HOP1_INWARD",
+        step: 1,
+        from,
+        to,
+        fromName: fromNode.name,
+        fromAddr: fromNode.addr,
+        toName: toNode.name,
+        toAddr: toNode.addr,
+        center: "0•000•000•0000",
+        arcDeg,
+        lateralHops,
+        savedHops,
+        metric: `Cost_resolution < Cost_lateral · ${savedHops} verification hop(s) saved`,
+        statusText: `HOP 1/2 · INWARD RESOLUTION · ${fromNode.name} ⟶ CENTER (0•000•000•0000)`,
+        detailText: `Resolving legitimacy inward to Center Origin. Direct Attachment: 1-hop radial resolution.`,
+        startTime: performance.now()
+      };
+
+      st.sourceHighlights[from] = 1.0;
+      notifyRoute();
+
+      // Clear any prior radial pulses so sequence transitions cleanly
+      st.pulses = st.pulses.filter(p => p.kind === "lat");
+
+      st.pulses.push({
+        kind: "in",
+        from,
+        to,
+        t: 0,
+        speed: 0.038,
+        onArrive() {
+          st.flare = 1.0;
+          if (!st.activeRoute || st.activeRoute.type !== "RESOLUTION-FIRST") return;
+
+          st.activeRoute.phase = "CENTER_RESOLVE";
+          st.activeRoute.step = 2;
+          st.activeRoute.statusText = `CENTER RESOLUTION · 0•000•000•0000 · RESOLVE-AND-FORWARD`;
+          st.activeRoute.detailText = `Legitimacy verified at Center Origin by Human Key. Center forwards verified state outward.`;
+          notifyRoute();
+
+          setTimeout(() => {
+            if (!st.activeRoute || st.activeRoute.type !== "RESOLUTION-FIRST") return;
+            st.activeRoute.phase = "HOP2_OUTWARD";
+            st.activeRoute.step = 3;
+            st.activeRoute.statusText = `HOP 2/2 · OUTWARD TRANSMISSION · CENTER ⟶ ${toNode.name}`;
+            st.activeRoute.detailText = `Transmitting verified legitimacy state outward to destination node ${toNode.addr}.`;
+            notifyRoute();
+
+            st.pulses.push({
+              kind: "out",
+              from,
+              to,
+              t: 0,
+              speed: 0.034,
+              onArrive() {
+                st.nodeFlares[to] = 1.0;
+                if (!st.activeRoute || st.activeRoute.type !== "RESOLUTION-FIRST") return;
+
+                st.activeRoute.phase = "CONFIRMED";
+                st.activeRoute.step = 4;
+                st.activeRoute.statusText = `TRANSMISSION CONFIRMED · ${fromNode.name} ⟶ ${toNode.name} [COMMITTED]`;
+                st.activeRoute.detailText = `Legitimacy state committed. Sequence completed via Center Origin (1 radial hop, saved ${savedHops} lateral hop(s)).`;
+                notifyRoute();
+              }
+            });
+          }, 140);
+        }
+      });
+
+      return { from, to };
     }
 
-    function pulseLateral() {
-      const a = Math.floor(Math.random() * n);
-      let b = Math.floor(Math.random() * n);
-      if (b === a) b = (b + 3) % n;
-      st.pulses.push({ kind: "lat", from: a, to: b, t: 0, onArrive: null });
+    function triggerLateralSequence(fromIdx, toIdx) {
+      let a = fromIdx != null && fromIdx >= 0 ? fromIdx : Math.floor(Math.random() * n);
+      let b = toIdx != null && toIdx >= 0 ? toIdx : -1;
+      if (b < 0 || b === a) {
+        b = (a + 3 + Math.floor(Math.random() * (n - 4))) % n;
+        if (b === a) b = (a + 1) % n;
+      }
+
+      const fromNode = nodes[a];
+      const toNode = nodes[b];
+
+      st.activeRoute = {
+        type: "LATERAL-COORDINATION",
+        phase: "LATERAL_TRANSIT",
+        step: 1,
+        from: a,
+        to: b,
+        fromName: fromNode.name,
+        fromAddr: fromNode.addr,
+        toName: toNode.name,
+        toAddr: toNode.addr,
+        center: "0•000•000•0000",
+        metric: "Lateral Coordination · Free Communication · Non-Transfer of Ownership",
+        statusText: `LATERAL COORDINATION · ${fromNode.name} ↔ ${toNode.name} (NON-AUTHORITATIVE)`,
+        detailText: `Free lateral coordination without reauthorization. Cannot commit state without radial resolution.`,
+        startTime: performance.now()
+      };
+
+      st.sourceHighlights[a] = 0.8;
+      notifyRoute();
+
+      st.pulses.push({
+        kind: "lat",
+        from: a,
+        to: b,
+        t: 0,
+        speed: 0.012,
+        onArrive() {
+          st.nodeFlares[b] = 0.6;
+          if (!st.activeRoute || st.activeRoute.type !== "LATERAL-COORDINATION") return;
+
+          st.activeRoute.phase = "CONFIRMED";
+          st.activeRoute.step = 2;
+          st.activeRoute.statusText = `LATERAL COORDINATION COMPLETE · ${fromNode.name} ↔ ${toNode.name}`;
+          st.activeRoute.detailText = `Exchange ended without reauthorization. Non-transfer of authority (Resolution ≻ Coordination).`;
+          notifyRoute();
+        }
+      });
+
       return [a, b];
+    }
+
+    function pulseResolution(fromIdx, toIdx) {
+      const res = triggerTransmissionSequence(fromIdx, toIdx);
+      return res.from;
+    }
+
+    function pulseLateral(a, b) {
+      return triggerLateralSequence(a, b);
+    }
+
+    function setAutoRoute(enable) {
+      st.autoRoute = !!enable;
+      st.show.autoroute = st.autoRoute;
+      if (st.autoRoute && st.autoRouteTimer > 1.2) {
+        st.autoRouteTimer = 0;
+      }
+      notifyRoute();
+      return st.autoRoute;
+    }
+
+    function isAutoRoute() {
+      return !!st.autoRoute;
+    }
+
+    function getActiveRoute() {
+      return st.activeRoute;
+    }
+
+    function onRouteUpdate(cb) {
+      if (typeof cb === "function") {
+        routeListeners.push(cb);
+        if (st.activeRoute) {
+          try { cb(st.activeRoute); } catch (_) {}
+        }
+      }
     }
 
     /* ---------- lifecycle ---------- */
@@ -632,6 +945,12 @@
       onSelect(cb) { selectCb = cb; if (st.selected >= 0) cb(st.selected); },
       pulseResolution,
       pulseLateral,
+      triggerTransmissionSequence,
+      triggerLateralSequence,
+      setAutoRoute,
+      isAutoRoute,
+      getActiveRoute,
+      onRouteUpdate,
       animateFormation() {
         st.formDir = st.formation >= 1 ? -1 : 1;
         if (st.formation >= 1) {
@@ -646,7 +965,13 @@
         }, 2600);
       },
       setFormation(v) { st.formation = v; },
-      setToggle(key, val) { st.show[key] = val; },
+      setToggle(key, val) {
+        if (key === "autoroute") {
+          setAutoRoute(val);
+        } else {
+          st.show[key] = val;
+        }
+      },
       setFlame(p) { st.flame = p; },
       setOuterFlame(p) { st.outerFlame = p; },
       setFilm(f) { st.film = f; },
@@ -694,9 +1019,10 @@
             <button class="chip-toggle on" data-t="lateral">LATERAL COMMS</button>
             <button class="chip-toggle on" data-t="orbs">INTERACTION ORBS</button>
             <button class="chip-toggle on" data-t="flame">FLAME SURFACE · AUTHOR FILM</button>
+            <button class="chip-toggle on" data-t="autoroute" id="ocm-chip-autoroute">AUTO ROUTING: ACTIVE</button>
           </div>
           <div class="ocm-math mono" id="ocm-math">
-            θ(t) = θ₀ + (2π/90)·t &nbsp;·&nbsp; R(t) = R₀(1 + 0.015·sin 2πt/12) &nbsp;·&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) &nbsp;·&nbsp; surface: A⌊12t⌋ mod 200
+            θ(t) = θ₀ + (2π/90)·t &nbsp;·&nbsp; R(t) = R₀(1 + 0.015·sin 2πt/12) &nbsp;·&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) &nbsp;·&nbsp; Cost_resolution &lt; Cost_lateral &nbsp;·&nbsp; surface: A⌊12t⌋ mod 200
           </div>
 
           <div class="ocm-stage">
@@ -711,6 +1037,59 @@
                 DRAG TO ORBIT · SCROLL TO ZOOM · CLICK A NODE
               </div>
               <div class="ocm-hint mono">THE DISC DEFINES EVERYTHING THAT CAN MATTER</div>
+
+              <!-- Real-time Communication Routing & Telemetry Overlay -->
+              <div class="ocm-routing-hud" id="ocm-routing-hud">
+                <div class="orh-top">
+                  <div class="orh-badge" id="orh-mode-badge">
+                    <span class="orh-dot"></span>
+                    <span class="orh-mode-label">AUTO ROUTING LOOP</span>
+                  </div>
+                  <div class="orh-metric mono" id="orh-metric">Cost_resolution &lt; Cost_lateral · 1 Verification Hop</div>
+                  <div class="orh-controls">
+                    <button type="button" class="orh-btn" id="orh-toggle-btn" title="Pause or Resume Automatic Communication Routing">⏸ PAUSE</button>
+                    <button type="button" class="orh-btn orh-btn-pulse" id="orh-trigger-btn" title="Trigger Transmission Sequence Immediately">⚡ TRANSMIT NOW</button>
+                  </div>
+                </div>
+
+                <div class="orh-seq" id="orh-seq">
+                  <div class="orh-step active" data-step="1">
+                    <div class="orh-step-num">1</div>
+                    <div class="orh-step-body">
+                      <span class="orh-step-title">INWARD RESOLUTION</span>
+                      <span class="orh-step-sub" id="orh-src-label">SOURCE ⟶ CENTER</span>
+                    </div>
+                  </div>
+                  <div class="orh-arrow">⟶</div>
+                  <div class="orh-step" data-step="2">
+                    <div class="orh-step-num">2</div>
+                    <div class="orh-step-body">
+                      <span class="orh-step-title">CENTER RESOLUTION</span>
+                      <span class="orh-step-sub">0•000•000•0000</span>
+                    </div>
+                  </div>
+                  <div class="orh-arrow">⟶</div>
+                  <div class="orh-step" data-step="3">
+                    <div class="orh-step-num">3</div>
+                    <div class="orh-step-body">
+                      <span class="orh-step-title">OUTWARD TRANSMIT</span>
+                      <span class="orh-step-sub" id="orh-dst-label">CENTER ⟶ TARGET</span>
+                    </div>
+                  </div>
+                  <div class="orh-arrow">⟶</div>
+                  <div class="orh-step" data-step="4">
+                    <div class="orh-step-num">✓</div>
+                    <div class="orh-step-body">
+                      <span class="orh-step-title">CONFIRMED</span>
+                      <span class="orh-step-sub" id="orh-conf-label">COMMITTED</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="orh-status mono" id="orh-status">
+                  <span class="orh-status-text" id="orh-status-text">INITIALIZING AUTOMATIC ROUTING LOOP…</span>
+                </div>
+              </div>
             </div>
             <div class="ocm-side">
               <div class="ocm-inspector" id="ocm-inspector"></div>
@@ -747,8 +1126,12 @@
 
           <div class="btn-row">
             <button class="btn btn-gold" id="ocm-reform">↻ RE-FORM SPHERE (DISC → SPHERE)</button>
-            <button class="btn btn-ice" id="ocm-res">⟶ RESOLUTION PULSE (INWARD)</button>
-            <button class="btn" id="ocm-lat">↔ LATERAL PULSE</button>
+            <button class="btn btn-ice" id="ocm-res">⚡ TRANSMIT SEQUENCE (INWARD ⟶ OUTWARD)</button>
+            <button class="btn" id="ocm-lat">↔ LATERAL PULSE (COORDINATION)</button>
+            <button class="btn" id="ocm-autoroute-btn">⏸ PAUSE AUTO ROUTING</button>
+          </div>
+          <div class="slider-cap mono" style="margin-top:6px; color:var(--ice)">
+            ● Automatic Routing Loop is active in the engine loop above. Full transmission sequences (Inward Resolution ⟶ Center Verify ⟶ Outward Transmit ⟶ Receipt Confirmation) execute continuously with real-time on-canvas visual confirmation.
           </div>
 
           <div class="h2">Core Axioms</div>
@@ -875,18 +1258,29 @@
           if (i == null || i < 0) {
             const fp = (typeof FractalFlame !== "undefined") ? FractalFlame.shared() : null;
             const fs = fp && fp.meta ? `${fp.meta.frames} frames · ${fp.meta.xformsMin}–${fp.meta.xformsMax} xforms` : "—";
+            const curRoute = engine.getActiveRoute ? engine.getActiveRoute() : null;
+            const routeStatusHtml = curRoute ? `
+              <div class="oi-why" style="border-color:rgba(111,211,255,0.3); color:var(--ice); margin-top:10px">
+                <strong style="color:var(--text)">AUTOMATIC ROUTING TELEMETRY</strong><br>
+                STATUS: ${curRoute.statusText || "ACTIVE"}<br>
+                ${curRoute.type === "RESOLUTION-FIRST" ? `PATH: ${curRoute.fromName} ⟶ 0•000•000•0000 ⟶ ${curRoute.toName}` : `LATERAL: ${curRoute.fromName} ↔ ${curRoute.toName}`}<br>
+                INVARIANT: ${curRoute.metric || "Cost_resolution < Cost_lateral"}
+              </div>` : "";
+
             inspector.innerHTML = `
               <div class="oi-name">Center (Origin)</div>
               <div class="oi-addr">0•000•000•0000</div>
               <div class="oi-about">The immutable address from which all identities, permissions, and ownership
               are derived. It cannot be duplicated, delegated, or overridden. Click any radiative node in the
-              sphere to inspect its address lineage.</div>
+              sphere to inspect its address lineage and route authority.</div>
+              ${routeStatusHtml}
               <div class="oi-math">
                 <div class="oi-math-t">DRIVING EQUATIONS — THE ORB IS MATHEMATICS</div>
                 <div>rotation&nbsp;&nbsp; θ(t) = θ₀ + ωt,&nbsp; ω = 2π/90 s⁻¹</div>
                 <div>breathing&nbsp;&nbsp; R(t) = R₀·(1 + 0.015·sin(2πt/12))</div>
                 <div>latitudes&nbsp;&nbsp; φᵢ = 0.62·asin(1 − 2(i+½)/n) — equal-area lattice, uniform in solid angle</div>
                 <div>longitudes&nbsp; λᵢ = Dᵢ·π/180 — address-derived (0•DDD•000•0000)</div>
+                <div>routing&nbsp;&nbsp;&nbsp;&nbsp; Cost_resolution &lt; Cost_lateral — resolution outpaces lateral coordination</div>
                 <div>surface&nbsp;&nbsp; I(λ,φ,t) = A⌊t·12⌋ mod 200 — the author's rendered film, wrapped on the sphere by this camera</div>
                 <div>wire core&nbsp;&nbsp; p′ = Σᵢ wᵢ·Nᵢ(A·p + t),&nbsp; k ~ geometric(w) — live .flame IFS modulation</div>
                 <div>harmonic modulation&nbsp; inner/outer shells &amp; radial pulses coupled to Demo.flame energy</div>
@@ -909,15 +1303,21 @@
             <div class="oi-why">
               SECTOR: ${nd.sector} · DISTANCE R = ${nd.r.toFixed(2)}<br>
               OWNERSHIP: DERIVED FROM CENTER · PREFIX INTACT<br>
+              ROUTING: AUTOMATIC RESOLUTION TO 0•000•000•0000<br>
               ${OCM_DATA.center.freshSlateFormat.replace("DDD", String(deg).padStart(3, "0")).replace("RRR", String(Math.round(nd.r * 100)).padStart(3, "0")).replace("####", nd.addr.split("•")[3] || "0001")}
             </div>
-            <div class="btn-row" style="margin:10px 0 0">
+            <div class="btn-row" style="margin:10px 0 0; gap:6px; flex-wrap:wrap">
               <button class="btn btn-ice" id="ocm-open-app">OPEN ${nd.name.toUpperCase()}</button>
+              <button class="btn btn-gold" id="ocm-route-this">ROUTE FROM THIS NODE</button>
             </div>`;
           const openBtn = inspector.querySelector("#ocm-open-app");
           if (openBtn) openBtn.addEventListener("click", () => {
             const app = APPS.find(a => a.id === nd.app);
             if (app) api.openApp(app);
+          });
+          const routeThisBtn = inspector.querySelector("#ocm-route-this");
+          if (routeThisBtn) routeThisBtn.addEventListener("click", () => {
+            engine.triggerTransmissionSequence(i);
           });
         };
         engine.onSelect(drawInspector);
@@ -928,6 +1328,9 @@
           ch.addEventListener("click", () => {
             const on = ch.classList.toggle("on");
             engine.setToggle(ch.dataset.t, on);
+            if (ch.dataset.t === "autoroute") {
+              updateHud(engine.getActiveRoute ? engine.getActiveRoute() : null);
+            }
           });
         });
 
@@ -958,6 +1361,88 @@
           });
         }
 
+        // HUD wiring & real-time updates
+        const hudEl = body.querySelector("#ocm-routing-hud");
+        const modeBadge = body.querySelector("#orh-mode-badge");
+        const metricEl = body.querySelector("#orh-metric");
+        const statusTextEl = body.querySelector("#orh-status-text");
+        const srcLabelEl = body.querySelector("#orh-src-label");
+        const dstLabelEl = body.querySelector("#orh-dst-label");
+        const stepEls = body.querySelectorAll("#orh-seq .orh-step");
+        const toggleBtn = body.querySelector("#orh-toggle-btn");
+        const triggerBtn = body.querySelector("#orh-trigger-btn");
+        const chipAuto = body.querySelector("#ocm-chip-autoroute");
+        const btmAutoBtn = body.querySelector("#ocm-autoroute-btn");
+
+        const updateHud = (route) => {
+          if (!hudEl) return;
+          const isAuto = engine.isAutoRoute ? engine.isAutoRoute() : true;
+          if (modeBadge) {
+            modeBadge.classList.toggle("paused", !isAuto);
+            const lbl = modeBadge.querySelector(".orh-mode-label");
+            if (lbl) lbl.textContent = isAuto ? "AUTO ROUTING LOOP" : "AUTO ROUTING: PAUSED";
+          }
+          if (toggleBtn) {
+            toggleBtn.textContent = isAuto ? "⏸ PAUSE" : "▶ RUN";
+          }
+          if (btmAutoBtn) {
+            btmAutoBtn.textContent = isAuto ? "⏸ PAUSE AUTO ROUTING" : "▶ RESUME AUTO ROUTING";
+          }
+          if (chipAuto) {
+            chipAuto.classList.toggle("on", isAuto);
+            chipAuto.textContent = isAuto ? "AUTO ROUTING: ACTIVE" : "AUTO ROUTING: PAUSED";
+          }
+
+          if (!route) return;
+
+          if (metricEl && route.metric) metricEl.textContent = route.metric;
+          if (statusTextEl && route.statusText) statusTextEl.textContent = route.statusText;
+
+          if (route.type === "RESOLUTION-FIRST") {
+            if (srcLabelEl) srcLabelEl.textContent = `${route.fromName} ⟶ CENTER`;
+            if (dstLabelEl) dstLabelEl.textContent = `CENTER ⟶ ${route.toName}`;
+          } else {
+            if (srcLabelEl) srcLabelEl.textContent = `${route.fromName} ↔ PEER`;
+            if (dstLabelEl) dstLabelEl.textContent = `PEER ↔ ${route.toName}`;
+          }
+
+          const curStep = route.step || 1;
+          stepEls.forEach(el => {
+            const s = parseInt(el.dataset.step, 10);
+            if (route.phase === "CONFIRMED") {
+              el.classList.toggle("active", s <= curStep);
+            } else {
+              el.classList.toggle("active", s === curStep);
+            }
+          });
+        };
+
+        if (engine.onRouteUpdate) {
+          engine.onRouteUpdate(updateHud);
+        }
+        updateHud(engine.getActiveRoute ? engine.getActiveRoute() : null);
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", () => {
+            const next = !engine.isAutoRoute();
+            engine.setAutoRoute(next);
+            updateHud(engine.getActiveRoute ? engine.getActiveRoute() : null);
+          });
+        }
+        if (triggerBtn) {
+          triggerBtn.addEventListener("click", () => {
+            engine.triggerTransmissionSequence();
+          });
+        }
+
+        if (btmAutoBtn) {
+          btmAutoBtn.addEventListener("click", () => {
+            const next = !engine.isAutoRoute();
+            engine.setAutoRoute(next);
+            updateHud(engine.getActiveRoute ? engine.getActiveRoute() : null);
+          });
+        }
+
         body.querySelector("#ocm-reform").addEventListener("click", () => {
           engine.setFormation(0);
           form.value = 0;
@@ -977,14 +1462,15 @@
         });
 
         body.querySelector("#ocm-res").addEventListener("click", () => {
-          const from = engine.pulseResolution(engine.state.selected);
-          const nd = OCM_DATA.nodes[from];
-          HOS.record("info", `OCM — resolution routed to center from ${nd.addr}. Resolution always routes to the center point.`);
-          api.toast("info", "RESOLUTION → CENTER",
-            `${nd.name} (${nd.addr}) resolves inward to 0•000•000•0000. In the event of conflict, ambiguity, or dispute — resolution always routes to the center point.`);
+          const res = engine.triggerTransmissionSequence(engine.state.selected);
+          const nd = OCM_DATA.nodes[res.from];
+          const targetNd = OCM_DATA.nodes[res.to];
+          HOS.record("info", `OCM — transmission sequence initiated ${nd.addr} ⟶ 0•000•000•0000 ⟶ ${targetNd.addr}.`);
+          api.toast("info", "TRANSMISSION SEQUENCE",
+            `${nd.name} resolves inward to 0•000•000•0000, then transmits outward to ${targetNd.name}. 1 radial verification hop.`);
         });
         body.querySelector("#ocm-lat").addEventListener("click", () => {
-          const [a, b] = engine.pulseLateral();
+          const [a, b] = engine.triggerLateralSequence();
           HOS.record("info", `OCM — lateral communication ${OCM_DATA.nodes[a].addr} ↔ ${OCM_DATA.nodes[b].addr} (no reauthorization required; ownership non-transfer).`);
           api.toast("info", "LATERAL COMMUNICATION",
             `${OCM_DATA.nodes[a].name} ↔ ${OCM_DATA.nodes[b].name}. Nodes may communicate freely — but communication does not confer ownership, authority, or origin rights.`);
