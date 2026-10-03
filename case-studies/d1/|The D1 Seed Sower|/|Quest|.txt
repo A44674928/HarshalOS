@@ -1,0 +1,2 @@
+Same Seed, Same Register
+Keep the generated seed idempotent and honest, row after row.

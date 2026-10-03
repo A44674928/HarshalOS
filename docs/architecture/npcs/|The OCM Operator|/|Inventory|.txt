@@ -1,0 +1,3 @@
+the Resolution Axis map
+an address book formatted 0•DDD•RRR•####
+Cost_resolution < Cost_lateral, framed

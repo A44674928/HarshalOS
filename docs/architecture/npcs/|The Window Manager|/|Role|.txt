@@ -1,0 +1,2 @@
+Draws the desktop; arranges icons on the grid
+Posting: js/wm.js

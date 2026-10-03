@@ -12,10 +12,10 @@ NPCs are arranged by ring, matching the |User|-centric superstructure in
 [`USER-CENTRIC-SUPERSTRUCTURE.md`](USER-CENTRIC-SUPERSTRUCTURE.md).
 The whole cast can be watched living an average day in
 [`HARSHALS-PALACE.html`](HARSHALS-PALACE.html) — a self-contained, deterministic
-visualization of every bedroom on the map, speaking their authored
-`|Dialogue|.txt` lines under date-seeded weather and the same approximate
-Moon as the UTS watch (`npm run palace:build` regenerates it from this
-roster on disk).
+visualization of every bedroom on the map, with the full authored profile
+(role, faction, dialogue, inventory, quest, stats) on every character sheet,
+under date-seeded weather and the same approximate Moon as the UTS watch
+(`npm run palace:build` regenerates it from this roster on disk).
 
 ---
 
@@ -384,30 +384,29 @@ It marks an NPC slot that is deliberately empty. It is not a bug; it is the
 
 Every NPC has their **own bedroom** — a folder named `|NPC Name|/` at their
 posting, populated with seven pipe-delimited profile-slot tokens modeled on
-the `|EmptyFile|.txt` sentinel. The **dialogue pass is complete**: every
-bedroom's `|Dialogue|.txt` is authored — one utterance per line, with an
-optional leading `(morning)` / `(noon)` / `(evening)` / `(night)` time tag
-(untagged lines may be spoken at any hour). The remaining five slots are
-still 0-byte: their names are the schema until their authoring pass.
+the `|EmptyFile|.txt` sentinel. **The profile passes are complete**: six of
+the seven slots are authored in every bedroom; only the nameplates stay
+0-byte (the filename is the identity), except CREATOR's.
 
 ```
 posting/|NPC Name|/
-├── |Name|.txt      ← nameplate (authored only for CREATOR)
-├── |Role|.txt      ← job title / posting
-├── |Faction|.txt   ← ring / court / faction alignment
+├── |Name|.txt      ← nameplate (0-byte by design; authored only for CREATOR)
+├── |Role|.txt      ← AUTHORED: role title · "Posting: <path>"
+├── |Faction|.txt   ← AUTHORED: faction · canonical Path color · "Ring N · <wing>"
 ├── |Dialogue|.txt  ← AUTHORED: one utterance per line, optional (morning|noon|evening|night) tag
-├── |Inventory|.txt ← reserved for items, $ chips, # passes carried
-├── |Quest|.txt     ← reserved for quest hook
-└── |Stats|.txt     ← reserved for stats block
+├── |Inventory|.txt ← AUTHORED: one item per line (2–4 items; $ chips and # passes carried)
+├── |Quest|.txt     ← AUTHORED: quest title · quest hook
+└── |Stats|.txt     ← AUTHORED: schedule summary (computed from the average day) · signature stat
 ```
 
-`HARSHALS-PALACE.html` reads the authored dialogue from the bedrooms at
-build time: hovering a resident shows the line they are speaking *right
-now* (selected deterministically from the lines valid at that hour), and
-the character sheet lists the whole file with the current line
-highlighted. The bedroom pattern mirrors the existing AUM OS
-attribute-token convention used inside the `CleanSlateOS/` and `Repel/`
-trees (where `|Attribute|.txt` tokens are also empty nameplates).
+`HARSHALS-PALACE.html` reads every authored slot from the bedrooms at build
+time: hovering a resident shows the line they are speaking *right now*
+(selected deterministically from the lines valid at that hour), and the
+character sheet lists the full profile — role, faction, dialogue with the
+current line highlighted, inventory, quest, and stats (the first stats line
+is recomputed from the resident's schedule, so the numbers are real). The
+bedroom pattern mirrors the existing AUM OS attribute-token convention used
+inside the `CleanSlateOS/` and `Repel/` trees.
 
 ### Placement rules
 
@@ -415,9 +414,11 @@ trees (where `|Attribute|.txt` tokens are also empty nameplates).
    new folder unless a posting genuinely does not exist).
 2. Create a subfolder named `|NPC Name|/` at that posting — the NPC moves
    into their bedroom; the parent directory is the hall/castle wing.
-3. Populate the bedroom with the seven `|Slot|.txt` files listed above.
-   Author `|Dialogue|.txt` (2–5 short utterances, one per line, optional
-   time tags); keep the other slots 0-byte until their pass.
+3. Populate the bedroom with the seven `|Slot|.txt` files listed above and
+   author six of them per the formats in the schema block: role (title +
+   posting line), faction (faction · canonical color · ring/wing), dialogue
+   (2–5 utterances, optional time tags), inventory (2–4 items), quest
+   (title + hook), and stats (schedule summary + signature stat).
 4. If the posting folder *is already* the NPC (e.g. `Johnny Chimpo/`,
    `Meowie Wowie/`, `Repeater/` — folders named after the NPC themselves),
    treat that folder as the bedroom directly — do not double-nest.

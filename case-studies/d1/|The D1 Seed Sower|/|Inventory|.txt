@@ -1,0 +1,3 @@
+case-studies-seed.sql — idempotent
+a seed bag labeled SAME SEED SAME REGISTER
+a watering can (ceremonial)

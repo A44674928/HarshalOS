@@ -1,0 +1,3 @@
+boot.js — the first word
+a watch set to 'always first'
+the Kernel's coffee order

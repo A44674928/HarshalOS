@@ -1,0 +1,2 @@
+Handles optional cloud-storage APIs
+Posting: worker/storage.mjs

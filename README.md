@@ -152,7 +152,7 @@ publications/     — single-file Book I / Book II builds, separated from their 
 manuscript/       — plaintext manuscript submissions; only indexed chapters are published
 specs/normative/  — Ground-0 v1.0 finalized normative source; fetched by the spec reader
 specs/draft/      — Ground-0 v1.1 amendment draft; fetched as a draft, not a ratified baseline
-docs/architecture/ — reserved/future architecture notes; not current runtime behavior. Includes the |User|-centric superstructure map, the NPC codex (cast roster of the `|Name|.txt` bedrooms, with `|Dialogue|.txt` authored for every resident), and `HARSHALS-PALACE.html` — a self-contained, deterministic visualization of the castle on an average day, with resident dialogue, date-seeded weather, and the approximate Moon of the UTS watch (regenerate with `npm run palace:build`)
+docs/architecture/ — reserved/future architecture notes; not current runtime behavior. Includes the |User|-centric superstructure map, the NPC codex (cast roster of the `|Name|.txt` bedrooms, with six of seven profile slots authored for every resident), and `HARSHALS-PALACE.html` — a self-contained, deterministic visualization of the castle on an average day, with full character sheets (role, faction, dialogue, inventory, quest, stats), date-seeded weather, and the approximate Moon of the UTS watch (regenerate with `npm run palace:build`)
 docs/deployment/  — operator setup and deployment guides
 docs/source-material/ — archival combined manuscript transcription; not the app's selected spec
 docs/harshal-systems/modules/ — Book I reference modules: The Grand Architecture, corrected UTS, and Convergence institutions

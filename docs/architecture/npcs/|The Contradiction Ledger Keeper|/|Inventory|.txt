@@ -1,0 +1,3 @@
+contradictions.md — CL-001 through CL-014
+a pen reserved for CL-015
+a very small hope

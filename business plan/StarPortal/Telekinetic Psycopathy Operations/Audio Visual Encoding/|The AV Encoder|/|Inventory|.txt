@@ -1,0 +1,3 @@
+the encoder (if it wasn't encoded, it didn't happen)
+a bitrate gauge — honesty per second
+one clean signal chain

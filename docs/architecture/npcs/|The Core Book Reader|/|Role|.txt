@@ -1,0 +1,2 @@
+Turns the pages of Part I
+Posting: docs/harshal-systems/01-core-book.md

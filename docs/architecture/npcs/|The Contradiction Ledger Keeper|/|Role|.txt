@@ -1,0 +1,2 @@
+Clerk of the contradictions ledger; logs every CL entry
+Posting: specs/normative/contradictions.md

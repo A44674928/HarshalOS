@@ -1,0 +1,2 @@
+Not One File More
+Stage exactly the allowlist. Deny by default, with love.

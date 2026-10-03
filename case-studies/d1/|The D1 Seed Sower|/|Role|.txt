@@ -1,0 +1,2 @@
+Sows the generated D1 register seed
+Posting: case-studies/d1/

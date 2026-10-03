@@ -1,0 +1,2 @@
+In Order, Re-Runnable
+Apply the numbered steps without ever writing one you can't re-run.

@@ -933,33 +933,57 @@ async function buildData() {
     if (bedroom.name === "CREATOR" && bedroom.nameplateBytes > 0) {
       litany = (await readFile(path.join(ROOT, bedroom.bedroom, "|Name|.txt"), "utf8")).trim();
     }
-    /* |Dialogue|.txt is authored in every bedroom: one utterance per line,
-       an optional leading (morning|noon|evening|night) time tag. */
-    let dialogue = [];
-    let dialogueBytes = 0;
-    try {
-      const raw = await readFile(path.join(ROOT, bedroom.bedroom, "|Dialogue|.txt"), "utf8");
-      dialogueBytes = Buffer.byteLength(raw, "utf8");
-      dialogue = raw.split(/\r?\n/).filter(line => line.trim()).map(line => {
-        const m = line.match(/^\((morning|noon|evening|night)\)\s+(.*)$/);
-        return m ? { g: m[1], x: m[2] } : { g: null, x: line };
-      });
-    } catch {
-      dialogue = [];
+    /* Profile slots are authored in every bedroom and read from disk —
+       the bedrooms are the canonical source for the whole page:
+         |Role|.txt      title line + "Posting: <path>"
+         |Faction|.txt   faction · canonical Path color · ring/wing
+         |Dialogue|.txt  utterances, optional (morning|noon|evening|night) tags
+         |Inventory|.txt one item per line
+         |Quest|.txt     quest title + hook line
+         |Stats|.txt     computed schedule summary + signature stat       */
+    const slotFile = {};
+    for (const slot of ["|Role|", "|Faction|", "|Dialogue|", "|Inventory|", "|Quest|", "|Stats|"]) {
+      try {
+        const raw = await readFile(path.join(ROOT, bedroom.bedroom, slot + ".txt"), "utf8");
+        slotFile[slot] = { bytes: Buffer.byteLength(raw, "utf8"), lines: raw.split(/\r?\n/).filter(line => line.trim()) };
+      } catch {
+        slotFile[slot] = { bytes: 0, lines: [] };
+      }
     }
+    const roleTitle = slotFile["|Role|"].lines[0] || null;
+    const questLines = slotFile["|Quest|"].lines;
+    const dialogue = slotFile["|Dialogue|"].lines.map(line => {
+      const m = line.match(/^\((morning|noon|evening|night)\)\s+(.*)$/);
+      return m ? { g: m[1], x: m[2] } : { g: null, x: line };
+    });
     npcs.push({
       name: bedroom.name,
       wing: meta.wing,
       ring: meta.ring,
       faction: meta.faction,
       archetype: meta.archetype,
-      role: deriveRole(bedroom, meta),
+      role: roleTitle || deriveRole(bedroom, meta),
       posting: meta.posting,
       bedroom: bedroom.bedroom,
       nb: bedroom.nameplateBytes,
       note,
       dialogue,
-      db: dialogueBytes,
+      db: slotFile["|Dialogue|"].bytes,
+      inv: slotFile["|Inventory|"].lines,
+      ib: slotFile["|Inventory|"].bytes,
+      quest: questLines.length >= 2 ? { title: questLines[0], hook: questLines[1] } : null,
+      qb: slotFile["|Quest|"].bytes,
+      stats: slotFile["|Stats|"].lines.slice(0, 2),
+      sb: slotFile["|Stats|"].bytes,
+      slotBytes: {
+        name: bedroom.nameplateBytes,
+        role: slotFile["|Role|"].bytes,
+        faction: slotFile["|Faction|"].bytes,
+        dialogue: slotFile["|Dialogue|"].bytes,
+        inventory: slotFile["|Inventory|"].bytes,
+        quest: slotFile["|Quest|"].bytes,
+        stats: slotFile["|Stats|"].bytes
+      },
       sched: buildSchedule(meta.archetype, bedroom.name)
     });
   }
@@ -994,6 +1018,7 @@ async function buildData() {
     total: npcs.length,
     authored: npcs.filter(n => n.nb > 0).length,
     dialogued: npcs.filter(n => n.dialogue.length > 0).length,
+    profiled: npcs.filter(n => n.dialogue.length > 0 && n.inv.length > 0 && n.quest && n.stats.length >= 2 && n.db > 0 && n.ib > 0 && n.qb > 0 && n.sb > 0).length,
     rings: 6
   };
 
@@ -1028,6 +1053,7 @@ async function buildData() {
       wing: n.wing,
       ring: n.ring,
       faction: n.faction,
+      archetype: n.archetype,
       role: n.role,
       posting: n.posting,
       bedroom: n.bedroom,
@@ -1035,6 +1061,10 @@ async function buildData() {
       note: n.note,
       dialogue: n.dialogue,
       db: n.db,
+      inv: n.inv,
+      quest: n.quest,
+      stats: n.stats,
+      slots: n.slotBytes,
       home: n.home,
       angle: Math.round(n.angle * 10) / 10,
       radius: n.radius,
@@ -1227,6 +1257,15 @@ const HTML_PAGE = `<!doctype html>
   .dlg-line.active { color: #f0eefc; background: #a86bff14; border-left-color: var(--eye); }
   .dlg-line .dlg-tag { display: inline-block; font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--moon); margin-right: 7px; }
   .dlg-line em { font-style: italic; }
+  .prof { margin-top: 12px; }
+  .prof-head { font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
+  .prof-head b { color: var(--moon); font-weight: 600; }
+  .inv-item { font-size: 12.5px; color: #b9bdd3; margin: 3px 0; padding-left: 14px; position: relative; }
+  .inv-item::before { content: "·"; position: absolute; left: 3px; color: var(--eye); font-weight: 700; }
+  .quest-title { font-size: 14px; font-weight: 650; color: #fff; }
+  .quest-hook { font-size: 12.5px; color: #c6cadf; margin-top: 2px; font-style: italic; }
+  .stat-line { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: #b9bdd3; margin: 3px 0; word-break: break-word; }
+  .stat-line.sig { color: var(--moon); }
   .cloud { animation: cloudDrift linear infinite; }
   @keyframes cloudDrift { from { transform: translateX(-300px); } to { transform: translateX(1220px); } }
   .raindrop { animation: rainFall linear infinite; }
@@ -1319,11 +1358,11 @@ const HTML_PAGE = `<!doctype html>
 <footer>
   <div id="legend"></div>
   <div>
-    Every resident is a real <span class="tok">|NPC Name|/</span> bedroom folder in this repository, each holding the seven profile slots
+    Every resident is a real <span class="tok">|NPC Name|/</span> bedroom folder in this repository, holding the seven profile slots
     (<span class="tok">|Name| · |Role| · |Faction| · |Dialogue| · |Inventory| · |Quest| · |Stats|</span>).
-    <span class="tok">|Dialogue|.txt</span> is authored in every bedroom — one utterance per line, an optional
-    <span class="tok">(morning|noon|evening|night)</span> tag; the other five slots keep their 0-byte schema until their pass.
-    CREATOR's <span class="tok">|Name|.txt</span> is the only authored nameplate in the castle.
+    Six of the seven are authored in every bedroom — role, faction (canonical Path color), dialogue, inventory, quest, and stats
+    (the stats line is computed from the resident's actual average day). The nameplates stay 0-byte by design;
+    CREATOR's <span class="tok">|Name|.txt</span> is the only authored one in the castle.
     Schedules are derived deterministically from each nameplate (same name, same average day, every run).
     Weather is seeded from today's date — the same sky for everyone watching, all day.
     The Moon follows the same approximate polynomial as the UTS watch (<span class="tok">js/celestial-context.js</span>).
@@ -2137,6 +2176,68 @@ var PALACE = __PALACE_DATA__;
       cardEl.appendChild(dlg);
     }
 
+    /* inventory — the items on the shelf */
+    if (npc.inv && npc.inv.length) {
+      var invBlock = document.createElement("div");
+      invBlock.className = "prof";
+      var invHead = document.createElement("div");
+      invHead.className = "prof-head";
+      var ib = document.createElement("b");
+      ib.textContent = "|Inventory|.txt";
+      invHead.appendChild(ib);
+      invHead.appendChild(document.createTextNode(" — authored · " + npc.inv.length + " items"));
+      invBlock.appendChild(invHead);
+      npc.inv.forEach(function (item) {
+        var line = document.createElement("div");
+        line.className = "inv-item";
+        line.textContent = item;
+        invBlock.appendChild(line);
+      });
+      cardEl.appendChild(invBlock);
+    }
+
+    /* quest — the hook */
+    if (npc.quest) {
+      var questBlock = document.createElement("div");
+      questBlock.className = "prof";
+      var questHead = document.createElement("div");
+      questHead.className = "prof-head";
+      var qb = document.createElement("b");
+      qb.textContent = "|Quest|.txt";
+      questHead.appendChild(qb);
+      questHead.appendChild(document.createTextNode(" — authored"));
+      questBlock.appendChild(questHead);
+      var qt = document.createElement("div");
+      qt.className = "quest-title";
+      qt.textContent = npc.quest.title;
+      questBlock.appendChild(qt);
+      var qh = document.createElement("div");
+      qh.className = "quest-hook";
+      qh.textContent = npc.quest.hook;
+      questBlock.appendChild(qh);
+      cardEl.appendChild(questBlock);
+    }
+
+    /* stats — the computed day plus the signature stat */
+    if (npc.stats && npc.stats.length) {
+      var statBlock = document.createElement("div");
+      statBlock.className = "prof";
+      var statHead = document.createElement("div");
+      statHead.className = "prof-head";
+      var sb = document.createElement("b");
+      sb.textContent = "|Stats|.txt";
+      statHead.appendChild(sb);
+      statHead.appendChild(document.createTextNode(" — authored · computed from the average day"));
+      statBlock.appendChild(statHead);
+      npc.stats.forEach(function (lineText, idx) {
+        var sl = document.createElement("div");
+        sl.className = "stat-line" + (idx > 0 ? " sig" : "");
+        sl.textContent = lineText;
+        statBlock.appendChild(sl);
+      });
+      cardEl.appendChild(statBlock);
+    }
+
     /* schedule ribbon */
     var ribbon = document.createElement("div");
     ribbon.className = "ribbon";
@@ -2165,19 +2266,18 @@ var PALACE = __PALACE_DATA__;
     var table = document.createElement("table");
     table.className = "slots";
     var slots = ["|Name|", "|Role|", "|Faction|", "|Dialogue|", "|Inventory|", "|Quest|", "|Stats|"];
-    slots.forEach(function (slot) {
+    var slotKeys = ["name", "role", "faction", "dialogue", "inventory", "quest", "stats"];
+    slots.forEach(function (slot, slotIdx) {
       var tr = document.createElement("tr");
       var td1 = document.createElement("td");
       td1.textContent = slot + ".txt";
       var td2 = document.createElement("td");
       td2.className = "sz";
-      if (slot === "|Name|" && npc.nb > 0) {
-        td2.textContent = npc.nb + " B — authored";
-        td2.className = "sz authored";
-      } else if (slot === "|Name|") {
+      var bytes = npc.slots ? npc.slots[slotKeys[slotIdx]] : 0;
+      if (slot === "|Name|" && !bytes) {
         td2.textContent = "0 B · nameplate";
-      } else if (slot === "|Dialogue|" && npc.dialogue && npc.dialogue.length) {
-        td2.textContent = npc.db + " B — authored";
+      } else if (bytes) {
+        td2.textContent = bytes + " B — authored";
         td2.className = "sz authored";
       } else {
         td2.textContent = "0 B";
@@ -2212,8 +2312,7 @@ var PALACE = __PALACE_DATA__;
     ["residents", PALACE.counts.total],
     ["rings", PALACE.counts.rings],
     ["wings", PALACE.wings.length],
-    ["slots each", 7],
-    ["dialogue authored", PALACE.counts.dialogued + " / " + PALACE.counts.total],
+    ["bedrooms fully profiled", PALACE.counts.profiled + " / " + PALACE.counts.total],
     ["authored nameplates", PALACE.counts.authored + " (CREATOR)"],
     ["average day", "24:00, deterministic"]
   ].forEach(function (pair) {

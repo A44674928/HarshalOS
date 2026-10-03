@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildData, moonAtPalace } from "../scripts/palace-day.mjs";
+import { buildData, moonAtPalace, FACTIONS } from "../scripts/palace-day.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PAGE = path.join(ROOT, "docs", "architecture", "HARSHALS-PALACE.html");
@@ -106,6 +106,65 @@ test("palace: every bedroom's |Dialogue|.txt is authored and well-formed", async
   assert.ok(kernel.dialogue.some(d => d.x === "Permit."), "the Kernel still says Permit.");
 });
 
+test("palace: the remaining five profile slots are authored, well-formed, and embedded", async () => {
+  const data = await buildData();
+  assert.equal(data.counts.profiled, 183, "all 183 bedrooms are fully profiled");
+  const factionNames = new Set(Object.values(FACTIONS).map(f => f.name));
+  const factionCanons = new Set(Object.values(FACTIONS).map(f => f.canon));
+  for (const npc of data.npcs) {
+    /* |Role|.txt — title + posting line */
+    const roleLines = (await readFile(path.join(ROOT, npc.bedroom, "|Role|.txt"), "utf8")).split(/\r?\n/).filter(l => l.trim());
+    assert.equal(roleLines.length, 2, `role file is two lines: ${npc.name}`);
+    assert.ok(roleLines[0].length >= 4 && roleLines[0].length <= 80, `role title length: ${npc.name}`);
+    assert.equal(roleLines[1], "Posting: " + npc.posting, `role posting line matches the classified posting: ${npc.name}`);
+    assert.equal(npc.role, roleLines[0], `page role is the file's title: ${npc.name}`);
+
+    /* |Faction|.txt — faction, canonical Path color, ring/wing */
+    const factionLines = (await readFile(path.join(ROOT, npc.bedroom, "|Faction|.txt"), "utf8")).split(/\r?\n/).filter(l => l.trim());
+    assert.equal(factionLines.length, 3, `faction file is three lines: ${npc.name}`);
+    assert.ok(factionNames.has(factionLines[0]), `faction name is canonical: ${npc.name} (${factionLines[0]})`);
+    assert.ok(factionCanons.has(factionLines[1]), `faction color is canonical: ${npc.name} (${factionLines[1]})`);
+    assert.match(factionLines[2], /^Ring \d · /, `faction ring line: ${npc.name}`);
+
+    /* |Inventory|.txt — 2–4 items */
+    const invLines = (await readFile(path.join(ROOT, npc.bedroom, "|Inventory|.txt"), "utf8")).split(/\r?\n/).filter(l => l.trim());
+    assert.ok(invLines.length >= 2 && invLines.length <= 4, `2–4 inventory items: ${npc.name} (${invLines.length})`);
+    for (const item of invLines) assert.ok(item.length >= 2 && item.length <= 90, `inventory item length: ${npc.name}`);
+    assert.deepEqual(npc.inv, invLines, `page inventory matches disk: ${npc.name}`);
+
+    /* |Quest|.txt — title + hook */
+    const questLines = (await readFile(path.join(ROOT, npc.bedroom, "|Quest|.txt"), "utf8")).split(/\r?\n/).filter(l => l.trim());
+    assert.equal(questLines.length, 2, `quest file is two lines: ${npc.name}`);
+    assert.ok(questLines[0].length >= 4 && questLines[0].length <= 80, `quest title length: ${npc.name}`);
+    assert.ok(questLines[1].length >= 10 && questLines[1].length <= 140, `quest hook length: ${npc.name}`);
+    assert.equal(npc.quest.title, questLines[0], `page quest title matches disk: ${npc.name}`);
+    assert.equal(npc.quest.hook, questLines[1], `page quest hook matches disk: ${npc.name}`);
+
+    /* |Stats|.txt — line 1 recomputed from the schedule, line 2 a signature stat */
+    const statLines = (await readFile(path.join(ROOT, npc.bedroom, "|Stats|.txt"), "utf8")).split(/\r?\n/).filter(l => l.trim());
+    assert.equal(statLines.length, 2, `stats file is two lines: ${npc.name}`);
+    const totals = {};
+    for (const [t0, t1, state] of npc.sched) totals[state] = (totals[state] || 0) + (t1 - t0);
+    const fmt = min => { const h = Math.floor(min / 60), m = min % 60; return h === 0 ? m + "m" : m === 0 ? h + "h" : h + "h " + m + "m"; };
+    const keyMap = { po: "Post", wa: "Watch", ro: "Rounds", lg: "Meals", qt: "Quarters", sl: "Sleep", kb: "Keyboard", ti: "Timeless", un: "Unseen", se: "Sealed" };
+    const order = ["Post", "Watch", "Keyboard", "Rounds", "Meals", "Quarters", "Sleep", "Timeless", "Unseen", "Sealed"];
+    const expected = order.filter(k => Object.entries(totals).some(([st, min]) => keyMap[st] === k && min > 0))
+      .map(k => k + "|" + fmt(Object.entries(totals).reduce((a, [st, min]) => keyMap[st] === k ? a + min : a, 0)))
+      .join(" · ");
+    assert.equal(statLines[0], expected, `stats line 1 is recomputed from the resident's actual schedule: ${npc.name}`);
+    assert.match(statLines[1], /\|/, `signature stat is a key|value pair: ${npc.name}`);
+    assert.deepEqual(npc.stats, statLines, `page stats match disk: ${npc.name}`);
+
+    /* slot byte counts embedded for the character sheet */
+    for (const key of ["role", "faction", "dialogue", "inventory", "quest", "stats"]) {
+      assert.ok(npc.slots[key] > 0, `slot byte count embedded (${key}): ${npc.name}`);
+    }
+    assert.equal(npc.slots.name > 0, npc.name === "CREATOR", `only CREATOR's nameplate has bytes: ${npc.name}`);
+  }
+  const totopotus = data.npcs.find(npc => npc.name === "TOTOPOTUS");
+  assert.equal(totopotus.role, "Sovereign of the Alphabet Throne", "TOTOPOTUS's curated role title");
+});
+
 test("palace: the palace moon agrees with the UTS watch's own model", async () => {
   /* js/celestial-context.js is a browser IIFE; give it a window and compare. */
   const source = await readFile(path.join(ROOT, "js", "celestial-context.js"), "utf8");
@@ -172,10 +231,10 @@ test("palace: the Day Book references real residents and the page markup is inta
     "sky-card", "wx-line", "moon-line", "g-clouds", "g-rain", "g-fog", "g-flash", "g-aurora"]) {
     assert.ok(html.includes('id="' + id + '"'), `page element present: ${id}`);
   }
-  for (const token of ["weatherFor", "moonAt(", "moonLitPathD", "activeDialogue", "aurora-grad", "cloudDrift", "rainFall", "fogDrift"]) {
+  for (const token of ["weatherFor", "moonAt(", "moonLitPathD", "activeDialogue", "aurora-grad", "cloudDrift", "rainFall", "fogDrift", "inv-item", "quest-title", "stat-line", "fully profiled"]) {
     assert.ok(html.includes(token), `weather/moon machinery present: ${token}`);
   }
-  assert.ok(html.includes("dialogue authored"), "the header reports the dialogue pass");
+  assert.ok(html.includes("fully profiled"), "the header reports the profile pass");
   assert.ok(html.includes("npm run palace:build"), "the page credits its generator");
   assert.ok(!html.includes("fetch(") && !html.includes("XMLHttpRequest"), "the page makes no network requests");
   for (const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {

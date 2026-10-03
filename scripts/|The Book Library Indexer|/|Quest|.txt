@@ -1,0 +1,2 @@
+Exactly Once
+Catalog every document once — not zero times, not twice.

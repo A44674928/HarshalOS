@@ -1,0 +1,3 @@
+the overnight plugin flame
+a wall-socket watcher
+a sparks-twice unplug rule
