@@ -1,0 +1,3 @@
+A new chapter is a dropped file and a reload. That is the whole ceremony.
+The index builds itself from the folder. I merely ask.
+Plaintext in, plaintext out. Data-only publishing.

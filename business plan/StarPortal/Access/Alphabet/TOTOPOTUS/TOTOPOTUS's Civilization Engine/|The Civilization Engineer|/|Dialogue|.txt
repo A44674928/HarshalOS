@@ -1,0 +1,3 @@
+The Civilization Engine runs one turn per argument.
+I build worlds before breakfast. Then I breakfast in them.
+(morning) Save file intact. The empire is where you left it.

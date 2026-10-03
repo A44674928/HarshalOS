@@ -1,0 +1,3 @@
+Migrations one through four, applied in order.
+I shape the community database with small, numbered steps.
+Never write a migration you cannot re-run.

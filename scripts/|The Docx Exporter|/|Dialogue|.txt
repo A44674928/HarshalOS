@@ -1,0 +1,3 @@
+Word format, for a world that asks nicely.
+The manuscript stays plaintext. The export wears a suit.
+Styles are applied after the words are final. Always after.

@@ -1,0 +1,3 @@
+Twenty-three entities, each with its evidence cutoff.
+The ledger remembers what the news forgets.
+Falsifiable, or it does not go in the book.

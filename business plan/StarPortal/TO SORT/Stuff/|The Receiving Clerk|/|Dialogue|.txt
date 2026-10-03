@@ -1,0 +1,3 @@
+Stuff: received.
+If it arrived, I logged it. If I logged it, it arrived.
+The sorting tray has three slots: now, later, and TO SORT.

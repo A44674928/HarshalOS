@@ -1,0 +1,3 @@
+THE-NET routes around everything, including me.
+I drew the net. The net now draws me.
+Latency is a design decision.

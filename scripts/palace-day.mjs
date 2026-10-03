@@ -610,6 +610,100 @@ function buildSchedule(archetype, name) {
   return segs;
 }
 
+/* ── The Moon — faithful port of js/celestial-context.js ─────────
+   Approximate geocentric principal-phase polynomial (itself adapted
+   from the user-supplied Pine v6 sample). Display-only, location-
+   independent, and deliberately identical to the UTS watch's model.
+   Must stay standalone: it is serialized into the page verbatim.   */
+
+function moonAtPalace(value) {
+  const DAY_MS = 86400000;
+  const rad = degrees => degrees * Math.PI / 180;
+  const MOON_PHASES = [
+    { key: "new-moon", name: "New Moon", glyph: "\u{1F311}" },
+    { key: "waxing-crescent", name: "Waxing Crescent", glyph: "\u{1F312}" },
+    { key: "first-quarter", name: "First Quarter", glyph: "\u{1F313}" },
+    { key: "waxing-gibbous", name: "Waxing Gibbous", glyph: "\u{1F314}" },
+    { key: "full-moon", name: "Full Moon", glyph: "\u{1F315}" },
+    { key: "waning-gibbous", name: "Waning Gibbous", glyph: "\u{1F316}" },
+    { key: "last-quarter", name: "Last Quarter", glyph: "\u{1F317}" },
+    { key: "waning-crescent", name: "Waning Crescent", glyph: "\u{1F318}" }
+  ];
+  let date;
+  if (value instanceof Date) date = new Date(value.getTime());
+  else date = new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new TypeError("The palace moon date is invalid.");
+  const year = date.getUTCFullYear();
+  if (year < 1900 || year > 2100) throw new RangeError("Palace moon calculations are supported from 1900 through 2100 UTC.");
+  const instant = date.getTime();
+  const dayOfYear = Math.floor((Date.UTC(year, date.getUTCMonth(), date.getUTCDate()) - Date.UTC(year, 0, 0)) / DAY_MS);
+
+  function principalPhaseJulianDay(k) {
+    const t = k / 1236.85;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const anomalySun = rad(359.2242 + 29.10535608 * k - 0.0000333 * t2 - 0.00000347 * t3);
+    const anomalyMoon = rad(306.0253 + 385.81691806 * k + 0.0107306 * t2 + 0.00001236 * t3);
+    const latitudeArgument = rad(21.2964 + 390.67050646 * k - 0.0016528 * t2 - 0.00000239 * t3);
+    const deviation =
+      (0.1734 - 0.000393 * t) * Math.sin(anomalySun) +
+      0.0021 * Math.sin(2 * anomalySun) -
+      0.4068 * Math.sin(anomalyMoon) +
+      0.0161 * Math.sin(2 * anomalyMoon) -
+      0.0004 * Math.sin(3 * anomalyMoon) +
+      0.0104 * Math.sin(2 * latitudeArgument) -
+      0.0051 * Math.sin(anomalySun + anomalyMoon) -
+      0.0074 * Math.sin(anomalySun - anomalyMoon) +
+      0.0004 * Math.sin(2 * latitudeArgument + anomalySun) -
+      0.0004 * Math.sin(2 * latitudeArgument - anomalySun) -
+      0.0006 * Math.sin(2 * latitudeArgument + anomalyMoon) +
+      0.0010 * Math.sin(2 * latitudeArgument - anomalyMoon) +
+      0.0005 * Math.sin(anomalySun + 2 * anomalyMoon);
+    return 2415020.75933 + 29.53058868 * k + 0.0001178 * t2 - 0.000000155 * t3 +
+      0.00033 * Math.sin(rad(166.56) + rad(132.87) * t - rad(0.009173) * t2) + deviation;
+  }
+
+  function principalPhaseEvent(k) {
+    const julianDay = principalPhaseJulianDay(k);
+    const time = Math.round((julianDay - 2440587.5) * 86400) * 1000;
+    const isNew = Math.abs(k - Math.round(k)) < 1e-8;
+    return { k, kind: isNew ? "new" : "full", time };
+  }
+
+  const kEstimate = (dayOfYear / 364.25 + year - 1900) * 12.3685;
+  const firstK = Math.floor(kEstimate) - 2;
+  const events = [];
+  for (let step = 0; step <= 8; step++) events.push(principalPhaseEvent(firstK + step * 0.5));
+  events.sort((a, b) => a.time - b.time);
+
+  const previous = events.filter(event => event.time <= instant);
+  const upcoming = events.filter(event => event.time > instant);
+  const lastNewMoon = previous.filter(event => event.kind === "new").at(-1);
+  const nextNewMoon = upcoming.find(event => event.kind === "new");
+  if (!lastNewMoon || !nextNewMoon) throw new RangeError("The Moon phase estimate could not bracket this date.");
+
+  const lunationMs = nextNewMoon.time - lastNewMoon.time;
+  const cycleFraction = Math.max(0, Math.min(0.999999999, (instant - lastNewMoon.time) / lunationMs));
+  const phaseIndex = Math.floor((cycleFraction + 0.0625) * 8) % 8;
+  const phase = MOON_PHASES[phaseIndex];
+  const illuminationFraction = (1 - Math.cos(2 * Math.PI * cycleFraction)) / 2;
+  const ageDays = (instant - lastNewMoon.time) / DAY_MS;
+  const trend = cycleFraction < 0.5 ? "waxing" : "waning";
+  return {
+    at: instant,
+    key: phase.key,
+    name: phase.name,
+    glyph: phase.glyph,
+    trend,
+    ageDays,
+    cycleFraction,
+    illuminationFraction,
+    illuminationPercent: Math.round(illuminationFraction * 1000) / 10,
+    lunationDays: lunationMs / DAY_MS,
+    method: "Approximate geocentric principal-phase polynomial; no observer location required."
+  };
+}
+
 /* ── The Day Book — scheduled events of an average day ─────────── */
 
 const EVENTS = [
@@ -839,6 +933,20 @@ async function buildData() {
     if (bedroom.name === "CREATOR" && bedroom.nameplateBytes > 0) {
       litany = (await readFile(path.join(ROOT, bedroom.bedroom, "|Name|.txt"), "utf8")).trim();
     }
+    /* |Dialogue|.txt is authored in every bedroom: one utterance per line,
+       an optional leading (morning|noon|evening|night) time tag. */
+    let dialogue = [];
+    let dialogueBytes = 0;
+    try {
+      const raw = await readFile(path.join(ROOT, bedroom.bedroom, "|Dialogue|.txt"), "utf8");
+      dialogueBytes = Buffer.byteLength(raw, "utf8");
+      dialogue = raw.split(/\r?\n/).filter(line => line.trim()).map(line => {
+        const m = line.match(/^\((morning|noon|evening|night)\)\s+(.*)$/);
+        return m ? { g: m[1], x: m[2] } : { g: null, x: line };
+      });
+    } catch {
+      dialogue = [];
+    }
     npcs.push({
       name: bedroom.name,
       wing: meta.wing,
@@ -850,6 +958,8 @@ async function buildData() {
       bedroom: bedroom.bedroom,
       nb: bedroom.nameplateBytes,
       note,
+      dialogue,
+      db: dialogueBytes,
       sched: buildSchedule(meta.archetype, bedroom.name)
     });
   }
@@ -883,6 +993,7 @@ async function buildData() {
   const counts = {
     total: npcs.length,
     authored: npcs.filter(n => n.nb > 0).length,
+    dialogued: npcs.filter(n => n.dialogue.length > 0).length,
     rings: 6
   };
 
@@ -922,6 +1033,8 @@ async function buildData() {
       bedroom: n.bedroom,
       nb: n.nb,
       note: n.note,
+      dialogue: n.dialogue,
+      db: n.db,
       home: n.home,
       angle: Math.round(n.angle * 10) / 10,
       radius: n.radius,
@@ -1074,6 +1187,7 @@ const HTML_PAGE = `<!doctype html>
     box-shadow: 0 6px 24px #0009;
   }
   #tooltip .tt-state { color: var(--dim); font-size: 11px; letter-spacing: 0.6px; }
+  #tooltip .tt-line { color: var(--moon); font-size: 12px; font-style: italic; }
   .npc { cursor: pointer; }
   .npc circle.body { stroke: #04050c; stroke-width: 1; }
   .npc circle.halo { fill: none; stroke-width: 1.4; opacity: 0; }
@@ -1100,6 +1214,29 @@ const HTML_PAGE = `<!doctype html>
   #eye:not(.closed) .lid-bottom { transform: translateY(122px); }
   .blink #eye:not(.closed) .lid-top { transform: translateY(-60px); }
   .blink #eye:not(.closed) .lid-bottom { transform: translateY(60px); }
+  #sky-card .wx-line { font-size: 13.5px; color: #d5d9ee; }
+  #sky-card .wx-line b { color: #fff; }
+  #sky-card .wx-quip { font-size: 12px; color: #8f98b8; font-style: italic; margin: 2px 0 8px; }
+  #sky-card .moon-line { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: #d5d9ee; }
+  #sky-card .moon-glyph { font-size: 19px; line-height: 1; }
+  #sky-card .moon-sub { font-size: 11px; color: #5d6584; letter-spacing: 0.5px; margin-top: 3px; }
+  .dlg { margin-top: 12px; }
+  .dlg-head { font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+  .dlg-head b { color: var(--moon); font-weight: 600; }
+  .dlg-line { margin: 4px 0; font-size: 13px; color: #b9bdd3; padding: 3px 8px; border-radius: 7px; border-left: 2px solid transparent; }
+  .dlg-line.active { color: #f0eefc; background: #a86bff14; border-left-color: var(--eye); }
+  .dlg-line .dlg-tag { display: inline-block; font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--moon); margin-right: 7px; }
+  .dlg-line em { font-style: italic; }
+  .cloud { animation: cloudDrift linear infinite; }
+  @keyframes cloudDrift { from { transform: translateX(-300px); } to { transform: translateX(1220px); } }
+  .raindrop { animation: rainFall linear infinite; }
+  @keyframes rainFall { from { transform: translateY(-60px); } to { transform: translateY(1220px); } }
+  .fogbank { animation: fogDrift ease-in-out infinite alternate; }
+  @keyframes fogDrift { from { transform: translateX(-26px); } to { transform: translateX(26px); } }
+  .aurora-band { animation: auroraSway ease-in-out infinite alternate; filter: blur(7px); }
+  @keyframes auroraSway { from { transform: translateX(-36px) skewX(-3deg); } to { transform: translateX(36px) skewX(3deg); } }
+  #g-flash rect { transition: opacity 0.35s ease-out; }
+  .bolt { transition: opacity 0.2s linear; }
   noscript p { color: var(--moon); padding: 20px; }
 </style>
 </head>
@@ -1117,13 +1254,18 @@ const HTML_PAGE = `<!doctype html>
       <defs id="map-defs"></defs>
       <g id="g-stars"></g>
       <g id="g-sky-bodies"></g>
+      <g id="g-aurora" style="opacity:0"></g>
+      <g id="g-clouds"></g>
       <g id="g-wall"></g>
       <g id="g-wings"></g>
       <g id="g-rings"></g>
       <g id="g-void"></g>
       <g id="g-npcs"></g>
+      <g id="g-fog"></g>
       <g id="g-eye"></g>
       <g id="g-labels"></g>
+      <g id="g-rain"></g>
+      <g id="g-flash" style="pointer-events:none"></g>
     </svg>
     <div id="tooltip"></div>
     <noscript><p>Harshal's Palace needs JavaScript to run the day. The roster itself lives in docs/architecture/NPC-CODEX.md.</p></noscript>
@@ -1148,6 +1290,13 @@ const HTML_PAGE = `<!doctype html>
       <input id="scrub" type="range" min="0" max="1439.5" step="0.5" value="360" aria-label="Time of day">
       <div id="scrub-label"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
     </div>
+    <div class="card" id="sky-card">
+      <h3>The Sky Tonight · approximate, display-only</h3>
+      <div class="wx-line" id="wx-line">—</div>
+      <div class="wx-quip" id="wx-quip"></div>
+      <div class="moon-line"><span class="moon-glyph" id="moon-glyph">☾</span><span id="moon-line">—</span></div>
+      <div class="moon-sub" id="moon-sub"></div>
+    </div>
     <div class="card" id="census-card">
       <h3>Live Census</h3>
       <div id="census"></div>
@@ -1170,18 +1319,23 @@ const HTML_PAGE = `<!doctype html>
 <footer>
   <div id="legend"></div>
   <div>
-    Every resident is a real <span class="tok">|NPC Name|/</span> bedroom folder in this repository, each holding seven zero-byte profile slots
-    (<span class="tok">|Name| · |Role| · |Faction| · |Dialogue| · |Inventory| · |Quest| · |Stats|</span>) — the filenames are the schema; content authoring is a future pass.
+    Every resident is a real <span class="tok">|NPC Name|/</span> bedroom folder in this repository, each holding the seven profile slots
+    (<span class="tok">|Name| · |Role| · |Faction| · |Dialogue| · |Inventory| · |Quest| · |Stats|</span>).
+    <span class="tok">|Dialogue|.txt</span> is authored in every bedroom — one utterance per line, an optional
+    <span class="tok">(morning|noon|evening|night)</span> tag; the other five slots keep their 0-byte schema until their pass.
     CREATOR's <span class="tok">|Name|.txt</span> is the only authored nameplate in the castle.
     Schedules are derived deterministically from each nameplate (same name, same average day, every run).
+    Weather is seeded from today's date — the same sky for everyone watching, all day.
+    The Moon follows the same approximate polynomial as the UTS watch (<span class="tok">js/celestial-context.js</span>).
     Roster: <span class="tok">docs/architecture/NPC-CODEX.md</span> · Rings: <span class="tok">docs/architecture/USER-CENTRIC-SUPERSTRUCTURE.md</span> ·
     Regenerate this page: <span class="tok">npm run palace:build</span> (deterministic; verified by <span class="tok">npm run palace:check</span>).
-    Wing tints use the thirteen canonical Path colors. The clock, the sky, and everything else here is display-only — like everything UTS.
+    Wing tints use the thirteen canonical Path colors. The clock, the weather, the Moon, and everything else here is display-only — like everything UTS.
   </div>
 </footer>
 <script>
 "use strict";
 var PALACE = __PALACE_DATA__;
+/*__PALACE_RUNTIME__*/
 </script>
 <script>
 "use strict";
@@ -1239,9 +1393,166 @@ var PALACE = __PALACE_DATA__;
   var gSky = document.getElementById("g-sky-bodies");
   var sunHalo = el("circle", { r: 22, fill: "#ffd94a", opacity: 0.12 }, gSky);
   var sun = el("circle", { r: 9, fill: "#ffd94a" }, gSky);
-  var moonHalo = el("circle", { r: 18, fill: "#dfe4ff", opacity: 0.1 }, gSky);
-  var moon = el("circle", { r: 7, fill: "#e6e9f5" }, gSky);
-  var moonBite = el("circle", { r: 5.5, fill: "#0a0e1c" }, gSky);
+  var moonHalo = el("circle", { r: 20, fill: "#dfe4ff", opacity: 0.1 }, gSky);
+  var moonBase = el("circle", { r: 11, fill: "#333b58" }, gSky);
+  var moonLit = el("path", { fill: "#e6e9f5" }, gSky);
+  var moonGroup = [moonHalo, moonBase, moonLit];
+
+  /* ── the moon, in honest phase (approximate, display-only) ─
+     Same polynomial as js/celestial-context.js; the terminator is
+     sampled parametrically so no arc-flag arithmetic is needed.  */
+  var moonToday = null;
+  try { moonToday = moonAt(new Date()); } catch (e) { moonToday = null; }
+  function moonLitPathD(r, f) {
+    var waxing = f < 0.5;
+    var c = Math.cos(2 * Math.PI * f);        /* 1 at new, -1 at full */
+    var rx = Math.abs(c) * r;
+    var towardLit = c > 0;                     /* crescent: terminator hugs the lit limb */
+    var side = waxing ? 1 : -1;                /* lit limb side on the x axis */
+    var pts = [];
+    var steps = 26;
+    for (var i = 0; i <= steps; i++) {         /* lit limb, top → bottom */
+      var th = -Math.PI / 2 + Math.PI * i / steps;
+      pts.push([side * r * Math.cos(th), r * Math.sin(th)]);
+    }
+    for (var j = steps; j >= 0; j--) {         /* terminator, bottom → top */
+      var th2 = -Math.PI / 2 + Math.PI * j / steps;
+      var tx = (towardLit ? side : -side) * rx * Math.cos(th2);
+      pts.push([tx, r * Math.sin(th2)]);
+    }
+    return "M " + pts.map(function (p) { return p[0].toFixed(2) + " " + p[1].toFixed(2); }).join(" L ") + " Z";
+  }
+  if (moonToday) moonLit.setAttribute("d", moonLitPathD(11, moonToday.cycleFraction));
+  else moonLit.setAttribute("d", moonLitPathD(11, 0.5));
+
+  /* ── weather — seeded by today's local date ───────────── */
+  function weatherFor(dayKey) {
+    var r = prng("wx:" + dayKey);
+    var roll = r();
+    var kind = roll < 0.34 ? "clear" : roll < 0.56 ? "wisps" : roll < 0.70 ? "overcast" : roll < 0.80 ? "fog" : roll < 0.92 ? "rain" : "storm";
+    return {
+      kind: kind,
+      wind: 0.4 + r() * 1.2,
+      clouds: kind === "clear" ? 0 : kind === "wisps" ? 4 + Math.floor(r() * 3) : kind === "overcast" ? 10 + Math.floor(r() * 4) : kind === "fog" ? 3 : 8 + Math.floor(r() * 4),
+      rain: kind === "rain" ? 60 + Math.floor(r() * 40) : kind === "storm" ? 110 : 0,
+      fog: kind === "fog" ? 0.55 + r() * 0.3 : r() < 0.3 ? 0.16 : 0,
+      aurora: (kind === "clear" || kind === "wisps") && r() < 0.6
+    };
+  }
+  var WX_TEXT = {
+    clear: ["Clear", "A still sky over the rings."],
+    wisps: ["Drifting wisps", "High and thin, and in a hurry."],
+    overcast: ["Overcast", "The wall lanterns burn a little earlier tonight."],
+    fog: ["Fog", "The Outer Dark is extra dark tonight."],
+    rain: ["Rain", "Steady on the outer flame. The corona hisses politely."],
+    storm: ["Storm", "The corona flickers. The Red Team smiles at the weather."]
+  };
+  var WX_CLOUDINESS = { clear: 0, wisps: 0.25, overcast: 0.85, fog: 0.35, rain: 0.7, storm: 0.9 };
+  var now0 = new Date();
+  var dayKey = now0.getFullYear() + "-" + String(now0.getMonth() + 1).padStart(2, "0") + "-" + String(now0.getDate()).padStart(2, "0");
+  var wx = weatherFor(dayKey);
+  var cloudiness = WX_CLOUDINESS[wx.kind] || 0;
+
+  /* clouds */
+  var gClouds = document.getElementById("g-clouds");
+  var cloudRng = prng("clouds:" + dayKey);
+  for (var ci = 0; ci < wx.clouds; ci++) {
+    var cloud = el("g", { "class": "cloud" }, gClouds);
+    var cy = 30 + cloudRng() * 1080;
+    var scale = 0.7 + cloudRng() * 1.1;
+    var puffs = 3 + Math.floor(cloudRng() * 2);
+    for (var pi = 0; pi < puffs; pi++) {
+      el("ellipse", {
+        cx: (pi - puffs / 2) * 34 * scale, cy: cy + (cloudRng() - 0.5) * 10,
+        rx: (38 + cloudRng() * 26) * scale, ry: (13 + cloudRng() * 8) * scale,
+        fill: "#101828", stroke: "#1f2c46", "stroke-width": 1, opacity: 0.4 + cloudRng() * 0.3
+      }, cloud);
+    }
+    var dur = 150 / (0.5 + wx.wind) * (0.7 + cloudRng() * 0.6);
+    cloud.style.animationDuration = dur.toFixed(1) + "s";
+    cloud.style.animationDelay = "-" + (cloudRng() * dur).toFixed(1) + "s";
+  }
+
+  /* rain */
+  var gRain = document.getElementById("g-rain");
+  gRain.style.opacity = wx.rain ? (wx.kind === "storm" ? 0.75 : 0.5) : 0;
+  var rainRng = prng("rain:" + dayKey);
+  for (var ri = 0; ri < wx.rain; ri++) {
+    var drop = el("line", {
+      x1: rainRng() * 1180 - 20, y1: 0, x2: 7, y2: 26,
+      stroke: "#9fc0e8", "stroke-width": 1.1, "stroke-linecap": "round", opacity: 0.5 + rainRng() * 0.4
+    }, gRain);
+    drop.setAttribute("class", "raindrop");
+    var rdur = 0.55 + rainRng() * 0.4;
+    drop.style.animationDuration = rdur.toFixed(2) + "s";
+    drop.style.animationDelay = "-" + (rainRng() * rdur).toFixed(2) + "s";
+  }
+
+  /* fog — banks drifting through the Outer Dark */
+  var gFog = document.getElementById("g-fog");
+  var fogRng = prng("fog:" + dayKey);
+  if (wx.fog > 0) {
+    for (var fi = 0; fi < 8; fi++) {
+      var ang = fogRng() * 360;
+      var fr = 468 + fogRng() * 100;
+      var a = (ang - 90) * Math.PI / 180;
+      var bank = el("ellipse", {
+        cx: (C + fr * Math.cos(a)).toFixed(1), cy: (C + fr * Math.sin(a)).toFixed(1),
+        rx: 70 + fogRng() * 90, ry: 16 + fogRng() * 22,
+        fill: "#aebdd6", opacity: (wx.fog * 0.16).toFixed(2)
+      }, gFog);
+      bank.setAttribute("class", "fogbank");
+      bank.style.animationDuration = (24 + fogRng() * 26).toFixed(1) + "s";
+      bank.style.animationDelay = "-" + (fogRng() * 20).toFixed(1) + "s";
+    }
+  }
+
+  /* storm lightning */
+  var gFlash = document.getElementById("g-flash");
+  var flashRect = el("rect", { x: 0, y: 0, width: 1140, height: 1140, fill: "#cfd8ff", opacity: 0 }, gFlash);
+  var bolt = el("polyline", { fill: "none", stroke: "#eaf0ff", "stroke-width": 2.5, "stroke-linejoin": "round", opacity: 0, "class": "bolt" }, gFlash);
+  if (wx.kind === "storm") {
+    var strikes = 4 + Math.floor(Math.random() * 9);
+    setInterval(function () {
+      strikes--;
+      if (strikes > 0) return;
+      strikes = 4 + Math.floor(Math.random() * 14);
+      flashRect.setAttribute("opacity", 0.5);
+      setTimeout(function () { flashRect.setAttribute("opacity", 0); }, 60);
+      var bx = 120 + Math.random() * 900;
+      var pts = [bx, 40];
+      var by = 40;
+      while (by < 300 + Math.random() * 220) {
+        by += 30 + Math.random() * 45;
+        pts.push(bx + (Math.random() - 0.5) * 70, by);
+      }
+      bolt.setAttribute("points", pts.map(function (v) { return v.toFixed(0); }).join(","));
+      bolt.setAttribute("opacity", 0.9);
+      setTimeout(function () { bolt.setAttribute("opacity", 0); }, 130);
+    }, 600);
+  }
+
+  /* aurora — STORM BLUE ribbons in the deep night, when the sky is clear enough */
+  var gAurora = document.getElementById("g-aurora");
+  var auroraGrad = el("linearGradient", { id: "aurora-grad", x1: "0", y1: "0", x2: "0", y2: "1" }, defs);
+  el("stop", { offset: "0%", "stop-color": "#4f8dff", "stop-opacity": 0 }, auroraGrad);
+  el("stop", { offset: "35%", "stop-color": "#4f8dff", "stop-opacity": 0.8 }, auroraGrad);
+  el("stop", { offset: "75%", "stop-color": "#35d9e8", "stop-opacity": 0.5 }, auroraGrad);
+  el("stop", { offset: "100%", "stop-color": "#a86bff", "stop-opacity": 0 }, auroraGrad);
+  if (wx.aurora) {
+    var auroraRng = prng("aurora:" + dayKey);
+    for (var ai = 0; ai < 3; ai++) {
+      var ax = 120 + auroraRng() * 800;
+      var aw = 130 + auroraRng() * 160;
+      var band = el("path", {
+        d: "M " + ax + " 60 Q " + (ax + aw / 3) + " " + (140 + auroraRng() * 60) + " " + (ax + aw / 2) + " " + (120 + auroraRng() * 50) + " Q " + (ax + aw * 0.8) + " " + (150 + auroraRng() * 60) + " " + (ax + aw) + " " + (90 + auroraRng() * 40),
+        fill: "none", stroke: "url(#aurora-grad)", "stroke-width": 24 + auroraRng() * 16,
+        opacity: 0.6, "class": "aurora-band"
+      }, gAurora);
+      band.style.animationDuration = (11 + auroraRng() * 8).toFixed(1) + "s";
+      band.style.animationDelay = "-" + (auroraRng() * 8).toFixed(1) + "s";
+    }
+  }
 
   /* ── the wall (outer flame) ───────────────────────────── */
   var gWall = document.getElementById("g-wall");
@@ -1402,6 +1713,21 @@ var PALACE = __PALACE_DATA__;
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function fmt(tMin) { return pad2(Math.floor(tMin / 60) % 24) + ":" + pad2(Math.floor(tMin % 60)); }
 
+  /* ── dialogue: time buckets and the currently spoken line ── */
+  function timeBucket(min) {
+    return min < 360 ? "night" : min < 720 ? "morning" : min < 1020 ? "noon" : min < 1260 ? "evening" : "night";
+  }
+  function activeDialogue(npc, min) {
+    if (!npc.dialogue || !npc.dialogue.length) return null;
+    var bucket = timeBucket(min);
+    var pool = npc.dialogue.filter(function (d) { return !d.g || d.g === bucket; });
+    if (!pool.length) pool = npc.dialogue;
+    var slot = Math.floor(min / 5);
+    return pool[hash32(npc.name + ":" + bucket + ":" + slot) % pool.length];
+  }
+  var curDialogueSlot = -1;
+  var cardDialogueLines = [];
+
   /* ── render loop ──────────────────────────────────────── */
   var lastNow = performance.now();
   function frame(now) {
@@ -1431,9 +1757,11 @@ var PALACE = __PALACE_DATA__;
     document.body.style.setProperty("--sky1", sky[0]);
     document.body.style.setProperty("--sky2", sky[1]);
     var night = t < 330 || t > 1170 ? 1 : t < 420 ? (420 - t) / 90 : t > 1080 ? (t - 1080) / 90 : 0;
-    gStars.setAttribute("opacity", Math.max(0.08, Math.min(1, night)).toFixed(2));
+    gStars.setAttribute("opacity", (Math.max(0.08, Math.min(1, night)) * (1 - cloudiness * 0.8)).toFixed(2));
+    gAurora.setAttribute("opacity", (wx.aurora ? Math.max(0, Math.min(1, night)) * (1 - cloudiness) : 0).toFixed(2));
 
-    /* sun & moon on their arcs (approximate, display-only) */
+    /* sun & moon on their arcs (approximate, display-only); weather decides
+       how much of them actually gets through the clouds */
     function bodyPos(t0, t1, min) {
       var u = (min - t0) / (t1 - t0);
       var x = C - Math.cos(Math.PI * u) * 505;
@@ -1443,14 +1771,18 @@ var PALACE = __PALACE_DATA__;
     var sp = bodyPos(340, 1100, t);
     sun.setAttribute("cx", sp[0]); sun.setAttribute("cy", sp[1]); sunHalo.setAttribute("cx", sp[0]); sunHalo.setAttribute("cy", sp[1]);
     var sunVis = sp[2];
-    sun.setAttribute("opacity", sunVis ? 1 : 0); sunHalo.setAttribute("opacity", sunVis ? 0.12 : 0);
+    var sunDim = 1 - 0.7 * cloudiness;
+    sun.setAttribute("opacity", sunVis ? sunDim : 0); sunHalo.setAttribute("opacity", sunVis ? 0.12 * sunDim : 0);
     var wrapped = t < 300 ? t + 1440 : t;
     var mp = bodyPos(1130, 1520, wrapped);
     var mvis = mp[2];
-    moon.setAttribute("cx", mp[0]); moon.setAttribute("cy", mp[1]);
-    moonBite.setAttribute("cx", mp[0] + 3); moonBite.setAttribute("cy", mp[1] - 2);
-    moonHalo.setAttribute("cx", mp[0]); moonHalo.setAttribute("cy", mp[1]);
-    [moon, moonHalo, moonBite].forEach(function (m) { m.setAttribute("opacity", mvis ? (m === moonHalo ? 0.1 : 1) : 0); });
+    var moonBright = moonToday ? 0.35 + 0.65 * moonToday.illuminationFraction : 1;
+    var moonDim = moonBright * (1 - 0.75 * cloudiness);
+    moonGroup.forEach(function (m) {
+      m.setAttribute("transform", "translate(" + mp[0].toFixed(1) + " " + mp[1].toFixed(1) + ")");
+      if (m === moonHalo) m.setAttribute("opacity", mvis ? 0.1 * moonBright * (1 - cloudiness) : 0);
+      else m.setAttribute("opacity", mvis ? moonDim : 0);
+    });
 
     /* residents */
     var counts = { po: 0, wa: 0, ro: 0, lg: 0, qt: 0, sl: 0, other: 0 };
@@ -1544,6 +1876,19 @@ var PALACE = __PALACE_DATA__;
     if (selected) {
       var cursor = document.getElementById("ribbon-cursor");
       if (cursor) cursor.style.left = (t / 1440 * 100).toFixed(2) + "%";
+    }
+
+    /* spoken line rotates every 5 minutes; highlight it on the open card */
+    var slotNow = Math.floor(t / 5) * 7 + timeBucket(t).length;
+    if (slotNow !== curDialogueSlot) {
+      curDialogueSlot = slotNow;
+      if (selected && cardDialogueLines.length) {
+        var act = activeDialogue(byName[selected], t);
+        cardDialogueLines.forEach(function (pair) {
+          if (act && pair[1] === act) pair[0].classList.add("active");
+          else pair[0].classList.remove("active");
+        });
+      }
     }
   }
 
@@ -1657,6 +2002,14 @@ var PALACE = __PALACE_DATA__;
     s.className = "tt-state";
     s.textContent = stateName + " · " + npc.role;
     tooltip.appendChild(s);
+    var line = activeDialogue(npc, t);
+    if (line) {
+      tooltip.appendChild(document.createElement("br"));
+      var q = document.createElement("span");
+      q.className = "tt-line";
+      q.textContent = "\u201C" + line.x + "\u201D";
+      tooltip.appendChild(q);
+    }
     tooltip.style.display = "block";
     var rect = mapWrap.getBoundingClientRect();
     var npcRect = npc.el.getBoundingClientRect();
@@ -1750,9 +2103,39 @@ var PALACE = __PALACE_DATA__;
     note.className = "note";
     note.textContent = npc.note;
     var small = document.createElement("small");
-    small.textContent = "— the Day Book (visualization copy; profile slots remain 0 bytes)";
+    small.textContent = "— the Day Book (visualization copy)";
     note.appendChild(small);
     cardEl.appendChild(note);
+
+    /* dialogue — authored in the bedroom, read from disk at build time */
+    cardDialogueLines = [];
+    if (npc.dialogue && npc.dialogue.length) {
+      var dlg = document.createElement("div");
+      dlg.className = "dlg";
+      var head = document.createElement("div");
+      head.className = "dlg-head";
+      var hb = document.createElement("b");
+      hb.textContent = "|Dialogue|.txt";
+      head.appendChild(hb);
+      head.appendChild(document.createTextNode(" — authored · " + npc.dialogue.length + " line" + (npc.dialogue.length > 1 ? "s" : "") + " · " + npc.db + " B"));
+      dlg.appendChild(head);
+      npc.dialogue.forEach(function (d) {
+        var p = document.createElement("p");
+        p.className = "dlg-line";
+        if (d.g) {
+          var tag = document.createElement("span");
+          tag.className = "dlg-tag";
+          tag.textContent = d.g;
+          p.appendChild(tag);
+        }
+        var em = document.createElement("em");
+        em.textContent = "\u201C" + d.x + "\u201D";
+        p.appendChild(em);
+        dlg.appendChild(p);
+        cardDialogueLines.push([p, d]);
+      });
+      cardEl.appendChild(dlg);
+    }
 
     /* schedule ribbon */
     var ribbon = document.createElement("div");
@@ -1793,6 +2176,9 @@ var PALACE = __PALACE_DATA__;
         td2.className = "sz authored";
       } else if (slot === "|Name|") {
         td2.textContent = "0 B · nameplate";
+      } else if (slot === "|Dialogue|" && npc.dialogue && npc.dialogue.length) {
+        td2.textContent = npc.db + " B — authored";
+        td2.className = "sz authored";
       } else {
         td2.textContent = "0 B";
       }
@@ -1827,6 +2213,7 @@ var PALACE = __PALACE_DATA__;
     ["rings", PALACE.counts.rings],
     ["wings", PALACE.wings.length],
     ["slots each", 7],
+    ["dialogue authored", PALACE.counts.dialogued + " / " + PALACE.counts.total],
     ["authored nameplates", PALACE.counts.authored + " (CREATOR)"],
     ["average day", "24:00, deterministic"]
   ].forEach(function (pair) {
@@ -1838,6 +2225,31 @@ var PALACE = __PALACE_DATA__;
     chip.appendChild(b);
     chips.appendChild(chip);
   });
+
+  /* the sky card — today's weather and moon, filled once */
+  (function fillSkyCard() {
+    var wxText = WX_TEXT[wx.kind] || WX_TEXT.clear;
+    var wxLine = document.getElementById("wx-line");
+    var wxQuip = document.getElementById("wx-quip");
+    wxLine.textContent = "";
+    var wxB = document.createElement("b");
+    wxB.textContent = wxText[0];
+    wxLine.appendChild(wxB);
+    wxLine.appendChild(document.createTextNode(" · " + dayKey + " · the palace's own seed"));
+    wxQuip.textContent = wxText[1] + (wx.aurora ? " Aurora likely in the deep night." : "");
+    var moonGlyph = document.getElementById("moon-glyph");
+    var moonLine = document.getElementById("moon-line");
+    var moonSub = document.getElementById("moon-sub");
+    if (moonToday) {
+      moonGlyph.textContent = moonToday.glyph;
+      moonLine.textContent = moonToday.name + " — " + moonToday.illuminationPercent + "% lit · " + moonToday.trend;
+      moonSub.textContent = "moon age " + moonToday.ageDays.toFixed(1) + " days · same approximate polynomial as the UTS watch";
+    } else {
+      moonGlyph.textContent = "\u263E";
+      moonLine.textContent = "The Moon is out of range tonight.";
+      moonSub.textContent = "";
+    }
+  })();
 
   applyDim();
   renderCast();
@@ -1852,7 +2264,18 @@ var PALACE = __PALACE_DATA__;
 
 function renderPage(data) {
   const json = JSON.stringify(data).replace(/<\//g, "<\\/");
-  return HTML_PAGE.replace("__PALACE_DATA__", json);
+  /* The page needs three deterministic helpers at view time (moon phase and
+     weather are computed per-date in the browser, not baked at build time).
+     They are serialized from this module so page and generator share one
+     source. moonAtPalace / prng / hash32 must therefore stay standalone. */
+  const runtime = [
+    "var moonAt = " + moonAtPalace.toString() + ";",
+    "var hash32 = " + hash32.toString() + ";",
+    "var prng = " + prng.toString() + ";"
+  ].join("\n");
+  return HTML_PAGE
+    .replace("__PALACE_DATA__", json)
+    .replace("/*__PALACE_RUNTIME__*/", runtime);
 }
 
 async function main() {
@@ -1893,4 +2316,4 @@ if (isDirectRun) {
   });
 }
 
-export { buildData, renderPage, ARCHETYPES, WING_DEFS, FACTIONS };
+export { buildData, renderPage, ARCHETYPES, WING_DEFS, FACTIONS, moonAtPalace };
