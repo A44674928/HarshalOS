@@ -18,6 +18,7 @@
     "test:cloud": "node --test tests/cloud-test.mjs",
     "test:red-team": "node --test tests/red-team-test.mjs",
     "test:layout": "node --test tests/repository-layout-test.mjs tests/spec-consistency-test.mjs",
+    "test:palace": "node --test tests/palace-day-test.mjs",
     "test:spec": "node --test tests/spec-consistency-test.mjs",
     "test:manuscript": "node --test tests/manuscript-test.mjs",
     "test:updates": "node --test tests/uts-generator-test.mjs tests/grand-river-recalculation-test.mjs tests/project-scale-up-test.mjs",

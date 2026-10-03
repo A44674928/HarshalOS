@@ -82,6 +82,11 @@ const SUITES = [
     area: "Manuscript index, plaintext reading view & preview routes",
     script: "test:manuscript",
     files: ["manuscript-test.mjs"]
+  },
+  {
+    area: "Harshal's Palace roster sync, authored profiles, weather & moon",
+    script: "test:palace",
+    files: ["palace-day-test.mjs"]
   }
 ];
 
