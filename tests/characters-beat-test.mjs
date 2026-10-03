@@ -92,6 +92,17 @@ test("the 10,000-call plan never spends more than the budget, at any cadence", (
   }
 });
 
+test("the default 15-minute rotation sweeps 52 berths in 6.5 hours with room under 10,000", () => {
+  assert.equal(Beat.DEFAULTS.cadenceMinutes, 15);
+  const plan = Beat.plan({ monthlyBudget: 10000, cadenceMinutes: 15, castSize: 52 });
+  assert.equal(plan.callsPerBeat, 2);
+  assert.equal(plan.sweepBeats, 26);
+  assert.equal(plan.sweepHours, 6.5);
+  assert.equal(plan.callsPerMonth, 5844);
+  assert.equal(10000 - plan.callsPerMonth, 4156, "4,156 calls remain before the server's hard stop");
+  assert.equal(plan.stretchCallsPerMonth, 8766, "the explicit stretch spends some of the 15% reserve");
+});
+
 test("cadence recommendation stays inside the budget and is drawn from the reviewed list", () => {
   const recommendation = Beat.recommendCadence({ monthlyBudget: 10000, castSize: 52 });
   assert.ok(Beat.CADENCES.includes(recommendation.cadenceMinutes));

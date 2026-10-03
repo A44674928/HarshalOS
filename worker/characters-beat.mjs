@@ -3,22 +3,18 @@
  *
  * `/api/characters/v1/beat?symbols=AAPL,MSFT&interval=1h&cadence=60`
  *
- * Why a route instead of N bars calls: the reviewed Tickerbot plan is 10,000 calls per
- * month, and a beat is a batch. One beat request buys one upstream call per due symbol —
- * never more — and every request inside the same beat window is answered from the Worker's
- * cadence-held cache, so re-rendering the stage (or reloading the page) costs zero calls.
- * The cache TTL is the beat itself: a 60-minute cadence holds a symbol's bars for 60
- * minutes, which is exactly the promise the Characters app makes to the budget.
+ * Why a route instead of N browser bars calls: one beat is a batch. Every uncached symbol
+ * claims one slot in the shared, D1-backed Tickerbot allowance immediately before the
+ * Worker fetches it. A cadence-held isolate cache answers repeated reads without another
+ * provider request. The D1 row is shared across Worker isolates, redeploys, both Tickerbot
+ * routes, and devices; it is an allowance counter, not a provider billing record.
  *
- * Boundaries, matching worker/good-intelligence-tickerbot.mjs and
- * docs/architecture/CHARACTERS-MARKET-BEAT.md:
+ * Boundaries:
  *   · GET only; the fixed Tickerbot allowlist is the only source of upstream ticker paths.
  *   · Partial failures are answered honestly per symbol. A symbol without bars is reported
- *     `unavailable` and the app freezes that berth; no bar is ever fabricated or reused as
- *     if it were fresh.
- *   · The isolate spend counters are best-effort telemetry for a human's own accounting,
- *     not a billing record and not a hard budget enforcement. The browser ledger and the
- *     provider dashboard remain the durable counts.
+ *     `unavailable` and the app freezes that berth; no bar is fabricated or reused as fresh.
+ *   · A missing/unavailable D1 ledger fails closed: no new provider request is sent.
+ *   · Calls are counted conservatively before fetch, including timeouts and failed responses.
  */
 import {
   TICKERBOT_INTERVALS,
@@ -26,28 +22,23 @@ import {
   fetchTickerbotMarketContext,
   isTickerbotSymbol
 } from "./good-intelligence-tickerbot.mjs";
+import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 
 export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
 
-/* One beat may ask for at most this many symbols. It matches the app's own per-request cap
-   (js/characters-beat.js MAX_SYMBOLS_PER_BEAT) and the hourly budget arithmetic: 52 symbols
-   at 10,000 calls/month afford 11-12 symbols per beat, and no cadence in the reviewed list
-   needs more than that. */
+/* One beat may ask for at most this many symbols. It matches the app's per-request cap
+   and the existing 52-symbol watchlist. */
 export const MAX_BEAT_SYMBOLS = 12;
 
-/* Cadence values the app offers, in minutes. Each one is also the cache hold. A value
-   outside this set falls back to 60 instead of being rejected, so a stale client still
-   gets a usable beat rather than an error. */
+/* Cadences the app offers, in minutes. Each one is also the cache hold. A value outside
+   this set falls back to the app's 15-minute default rather than being rejected. */
 export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
-const DEFAULT_CADENCE = 60;
+const DEFAULT_CADENCE = 15;
 const LANES = Object.freeze(["hot", "sweep"]);
 const MAX_FETCH_CONCURRENCY = 4;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const cache = new Map();
-/* Module-scope, isolate-local, best-effort. Everything here resets on redeploy and is not
-   shared between isolates; the response labels it that way so no one bills against it. */
-const spend = { month: "", monthCalls: 0, day: "", dayCalls: 0 };
 
 const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
   status,
@@ -63,25 +54,19 @@ export function clearCharactersBeatCache() {
   cache.clear();
 }
 
-function utcKeys(now) {
-  const date = new Date(now);
-  const month = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  const day = `${month}-${String(date.getUTCDate()).padStart(2, "0")}`;
-  return { month, day };
+/* The newest snapshot received from D1 wins. Call claims in one beat can complete in
+   parallel, so don't let a slower response replace a newer call count with an older one. */
+function newerLedger(current, next) {
+  if (!next) return current;
+  if (!current || next.month > current.month) return next;
+  if (next.month < current.month) return current;
+  if (next.calls > current.calls) return next;
+  if (next.calls === current.calls && Number(next.updatedAt || 0) > Number(current.updatedAt || 0)) return next;
+  return current;
 }
 
-function countSpend(now, calls) {
-  const keys = utcKeys(now);
-  if (spend.month !== keys.month) { spend.month = keys.month; spend.monthCalls = 0; }
-  if (spend.day !== keys.day) { spend.day = keys.day; spend.dayCalls = 0; }
-  spend.monthCalls += calls;
-  spend.dayCalls += calls;
-  return { month: spend.month, monthCalls: spend.monthCalls, day: spend.day, dayCalls: spend.dayCalls };
-}
-
-/* The client labels each symbol with the lane the tier plan gave it. Unknown or
-   duplicate lane labels are ignored rather than refused: a lane is a display hint,
-   never an input to spend, a path, or a validation decision. */
+/* The client labels each symbol with its tier lane. A lane is a display hint only; it
+   never changes the call count, path, or validation decision. */
 function parseLanes(raw) {
   const lanes = new Map();
   if (typeof raw !== "string" || !raw.trim()) return lanes;
@@ -106,10 +91,10 @@ function parseSymbols(raw) {
 }
 
 /* Failure codes from the shared upstream helper become the status the client should see
-   when *every* symbol in the beat failed the same way. Mixed results always answer 200,
-   because a partial beat is still a usable beat. */
+   when every symbol in the beat failed the same way. Mixed results remain a partial beat. */
 function statusForCode(code) {
-  if (code === "rate-limit") return 429;
+  if (code === "rate-limit" || code === "budget-exhausted") return 429;
+  if (code === "ledger-unavailable") return 503;
   if (code === "empty") return 404;
   if (code === "timeout") return 504;
   return 502;
@@ -159,8 +144,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== "function") return failure("Tickerbot is unavailable in this Worker runtime.", 503);
 
+  const held = await readTickerbotCallLedger(env.COMMUNITY_DB, now);
+  let durable = held.ok ? held.ledger : null;
+  let ledgerStatus = held.ok ? "ready" : "unavailable";
   const holdMs = cadenceMinutes * 60_000;
-  let upstreamCalls = 0;
+  let providerAttempts = 0;
   let cacheHits = 0;
 
   const instruments = await mapWithConcurrency(symbols, MAX_FETCH_CONCURRENCY, async symbol => {
@@ -173,6 +161,32 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     }
     if (cached) cache.delete(key);
 
+    /* If this snapshot already shows a full month, don't issue one rejected SQL write per
+       symbol. A concurrent Worker can still consume the final slot after this read; the
+       atomic claim below is authoritative whenever the snapshot has room. */
+    if (durable && durable.exhausted) {
+      return {
+        symbol, status: "unavailable", lane,
+        code: "budget-exhausted",
+        message: `The Worker-routed Tickerbot allowance is exhausted for ${durable.month}: ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} calls. No provider request was sent.`
+      };
+    }
+
+    const claim = await claimTickerbotCall(env.COMMUNITY_DB, now);
+    if (!claim.ok) {
+      if (claim.ledger) durable = newerLedger(durable, claim.ledger);
+      ledgerStatus = claim.reason === "budget-exhausted" ? "ready" : "unavailable";
+      return {
+        symbol, status: "unavailable", lane,
+        code: claim.reason,
+        message: claim.message
+      };
+    }
+
+    /* D1 has now claimed this slot. Count it before fetch; a timeout or upstream error can
+       still have reached the provider, so releasing it would make the cap unsafe. */
+    providerAttempts += 1;
+    durable = newerLedger(durable, claim.ledger);
     const result = await fetchTickerbotMarketContext({
       symbol, interval, apiKey, fetcher, now,
       timeoutMs: UPSTREAM_TIMEOUT_MS,
@@ -180,19 +194,15 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       logFailure: true
     });
     if (!result.ok) {
-      /* A failed read is not cached: the next beat may retry it, and a stale packet is
-         never served as if it were this beat's. */
+      /* Failed bars are not cached. D1 still counts this attempt conservatively. */
       return { symbol, status: "unavailable", lane, code: result.code, message: result.message, retryAfter: result.retryAfter };
     }
-    upstreamCalls += 1;
     cache.set(key, { packet: result.packet, expiresAt: now + holdMs });
     return { symbol, status: "bars", lane, marketContext: result.packet };
   });
 
-  const counters = countSpend(now, upstreamCalls);
   const failures = instruments.filter(instrument => instrument.status === "unavailable");
   const succeeded = instruments.length - failures.length;
-
   const data = {
     schema: "characters-beat-v1",
     beatAt: new Date(now).toISOString(),
@@ -202,21 +212,22 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     instruments,
     spend: {
       requestedSymbols: symbols.length,
-      upstreamCalls,
+      providerAttempts,
       cacheHits,
       unavailable: failures.length,
       lanes: {
         hot: instruments.filter(instrument => instrument.lane === "hot").map(instrument => instrument.symbol),
         sweep: instruments.filter(instrument => instrument.lane === "sweep").map(instrument => instrument.symbol),
-        note: "Client-supplied lane labels for display and the beat log. A lane never changes how many calls a beat makes: it is always one call per requested symbol."
+        note: "Client-supplied lane labels for display and the beat log. A lane never changes how many calls a beat makes: it is at most one call per requested symbol."
       },
-      isolate: counters,
-      note: "Isolate-local, best-effort counters for a human's own accounting — not a billing record, not a hard budget, and reset by any redeploy. The browser ledger and the provider dashboard are the durable counts."
+      durable,
+      ledgerStatus,
+      note: "The D1 aggregate is shared across Worker isolates, redeploys, Characters, and Good Intelligence. One slot is counted immediately before each Worker fetch; failed responses and timeouts count conservatively. Calls made outside these Worker routes are excluded, so Tickerbot's dashboard remains the billing authority."
     }
   };
 
-  /* Whole-beat failure keeps one honest status and, for a rate limit, the provider's
-     Retry-After, so the client backs off instead of hammering the next beat. */
+  /* Whole-beat failure keeps one honest status and, for a provider rate limit, Retry-After.
+     Budget refusals carry the per-symbol data and the durable counter, without a fetch. */
   if (!succeeded) {
     const codes = new Set(failures.map(instrument => instrument.code));
     if (codes.size === 1) {
@@ -226,7 +237,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         success: false,
         message: failures[0].message,
         environment: "characters-beat",
-        data: { ...data, instruments }
+        data
       }, statusForCode(code), headers);
     }
     return json({

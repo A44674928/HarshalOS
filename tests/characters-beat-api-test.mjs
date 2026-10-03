@@ -5,15 +5,20 @@
    zero calls for a refused request, and no key or upstream body in any response. */
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import { after, test } from "node:test";
 import { handleCharactersBeat, clearCharactersBeatCache, MAX_BEAT_SYMBOLS, BEAT_CADENCES } from "../worker/characters-beat.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
+import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
 const NOW = Date.parse("2026-10-03T12:00:00.000Z");
 const KEY = "test-only-worker-secret";
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
+const ledgerFixture = createTickerbotLedgerDb();
 const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
+const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db });
+const env = testEnv(KEY);
+after(() => ledgerFixture.sql.close());
 
 const rows = [
   { t: NOW - 2 * 60 * 60_000, o: 100, h: 102, l: 99, c: 101, v: 1200 },
@@ -48,7 +53,7 @@ test("one beat buys exactly one upstream call per due symbol, then holds the win
   let calls = 0;
   const dependencies = { now: () => NOW, fetch: workersFetch(async () => { calls++; return okResponse(); }) };
 
-  const first = await handleCharactersBeat(beat("symbols=aapl,MSFT,nvda&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, dependencies);
+  const first = await handleCharactersBeat(beat("symbols=aapl,MSFT,nvda&interval=1h&cadence=60"), env, dependencies);
   const firstPayload = await first.json();
   assert.equal(first.status, 200);
   assert.equal(firstPayload.environment, "characters-beat");
@@ -56,7 +61,7 @@ test("one beat buys exactly one upstream call per due symbol, then holds the win
   assert.equal(firstPayload.data.cadenceMinutes, 60);
   assert.equal(firstPayload.data.holdMs, 60 * 60_000);
   assert.equal(calls, 3, "one provider call per symbol, no more");
-  assert.equal(firstPayload.data.spend.upstreamCalls, 3);
+  assert.equal(firstPayload.data.spend.providerAttempts, 3);
   assert.equal(firstPayload.data.spend.cacheHits, 0);
   assert.deepEqual(firstPayload.data.instruments.map(entry => entry.symbol), ["AAPL", "MSFT", "NVDA"]);
   for (const instrument of firstPayload.data.instruments) {
@@ -67,18 +72,18 @@ test("one beat buys exactly one upstream call per due symbol, then holds the win
   }
 
   /* Re-render inside the same beat window: the cache answers, the provider is not called. */
-  const second = await handleCharactersBeat(beat("symbols=AAPL,MSFT,NVDA&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, dependencies);
+  const second = await handleCharactersBeat(beat("symbols=AAPL,MSFT,NVDA&interval=1h&cadence=60"), env, dependencies);
   const secondPayload = await second.json();
   assert.equal(second.status, 200);
   assert.equal(calls, 3, "a reload inside the beat costs nothing");
-  assert.equal(secondPayload.data.spend.upstreamCalls, 0);
+  assert.equal(secondPayload.data.spend.providerAttempts, 0);
   assert.equal(secondPayload.data.spend.cacheHits, 3);
   assert.ok(secondPayload.data.instruments.every(instrument => instrument.status === "cached"));
 
   /* A shorter cadence holds less, but only a *new* beat window may call again. */
   clearCharactersBeatCache();
   const shortWindow = { now: () => NOW + 16 * 60_000, fetch: workersFetch(async () => { calls++; return okResponse(); }) };
-  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=15"), { TICKERBOT_API_KEY: KEY }, shortWindow);
+  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=15"), env, shortWindow);
   assert.equal(calls, 4, "the 15-minute window has expired, so the provider is called again");
 });
 
@@ -86,7 +91,6 @@ test("a refused request spends nothing and never leaks the key or an upstream bo
   clearCharactersBeatCache();
   let calls = 0;
   const dependencies = { now: () => NOW, fetch: async () => { calls++; return okResponse(); } };
-  const env = { TICKERBOT_API_KEY: KEY };
 
   assert.equal((await handleCharactersBeat(beat("symbols="), env, dependencies)).status, 400, "no symbols");
   const overCap = TICKERBOT_WATCHLIST.slice(0, MAX_BEAT_SYMBOLS + 1).map(entry => entry.symbol).join(",");
@@ -107,24 +111,24 @@ test("a refused request spends nothing and never leaks the key or an upstream bo
 
 test("a cadence outside the reviewed list falls back to the default instead of failing the beat", async () => {
   clearCharactersBeatCache();
-  const response = await handleCharactersBeat(beat("symbols=AAPL&cadence=7"), { TICKERBOT_API_KEY: KEY }, {
+  const response = await handleCharactersBeat(beat("symbols=AAPL&cadence=7"), env, {
     now: () => NOW, fetch: workersFetch(async () => okResponse())
   });
   const payload = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(payload.data.cadenceMinutes, 60);
+  assert.equal(payload.data.cadenceMinutes, 15);
   assert.ok(BEAT_CADENCES.includes(payload.data.cadenceMinutes));
 });
 
 test("partial failure is honest per symbol, total failure keeps the provider's status", async () => {
   clearCharactersBeatCache();
-  const partial = await handleCharactersBeat(beat("symbols=AAPL,MSFT&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, {
+  const partial = await handleCharactersBeat(beat("symbols=AAPL,MSFT&interval=1h&cadence=60"), env, {
     now: () => NOW,
     fetch: workersFetch(async url => url.includes("/AAPL/") ? okResponse() : new Response("nope", { status: 500 }))
   });
   const partialPayload = await partial.json();
   assert.equal(partial.status, 200, "a partial beat is still a usable beat");
-  assert.equal(partialPayload.data.spend.upstreamCalls, 1);
+  assert.equal(partialPayload.data.spend.providerAttempts, 2, "HTTP failures are counted conservatively too");
   assert.equal(partialPayload.data.spend.unavailable, 1);
   const msft = partialPayload.data.instruments.find(entry => entry.symbol === "MSFT");
   assert.equal(msft.status, "unavailable");
@@ -138,12 +142,12 @@ test("partial failure is honest per symbol, total failure keeps the provider's s
     now: () => NOW,
     fetch: workersFetch(async () => { retries++; return new Response("nope", { status: 500 }); })
   };
-  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, retryDependencies);
-  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, retryDependencies);
+  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=60"), env, retryDependencies);
+  await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=60"), env, retryDependencies);
   assert.equal(retries, 2, "an unavailable symbol is retried on the next beat");
 
   clearCharactersBeatCache();
-  const limited = await handleCharactersBeat(beat("symbols=AAPL,MSFT&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY }, {
+  const limited = await handleCharactersBeat(beat("symbols=AAPL,MSFT&interval=1h&cadence=60"), env, {
     now: () => NOW,
     fetch: workersFetch(async () => new Response("secret upstream body", {
       status: 429, headers: { "Retry-After": "17" }
@@ -160,7 +164,7 @@ test("the beat cap matches the engine and the Worker never widens its allowlist"
   clearCharactersBeatCache();
   const symbols = TICKERBOT_WATCHLIST.slice(0, MAX_BEAT_SYMBOLS).map(entry => entry.symbol);
   const paths = [];
-  const response = await handleCharactersBeat(beat(`symbols=${symbols.join(",")}&interval=1d&cadence=240`), { TICKERBOT_API_KEY: KEY }, {
+  const response = await handleCharactersBeat(beat(`symbols=${symbols.join(",")}&interval=1d&cadence=240`), env, {
     now: () => NOW,
     fetch: workersFetch(async url => { paths.push(new URL(url).pathname); return okResponse(); })
   });
@@ -176,13 +180,13 @@ test("lane labels are display hints: they never change the call count or widen t
   let calls = 0;
   const response = await handleCharactersBeat(
     beat("symbols=AAPL,MSFT,NVDA&interval=1h&cadence=60&lanes=AAPL:hot,MSFT:sweep,NVDA:sideways"),
-    { TICKERBOT_API_KEY: KEY },
+    env,
     { now: () => NOW, fetch: workersFetch(async () => { calls++; return okResponse(); }) }
   );
   const payload = await response.json();
   assert.equal(response.status, 200);
   assert.equal(calls, 3, "a lane label never adds or removes a provider call");
-  assert.equal(payload.data.spend.upstreamCalls, 3);
+  assert.equal(payload.data.spend.providerAttempts, 3);
   assert.deepEqual(payload.data.instruments.map(instrument => [instrument.symbol, instrument.lane]), [
     ["AAPL", "hot"], ["MSFT", "sweep"], ["NVDA", null]
   ], "an unrecognized lane is dropped, not refused and not invented");
@@ -193,7 +197,7 @@ test("lane labels are display hints: they never change the call count or widen t
   /* A lane for a symbol that is not in the request is ignored too. */
   const stray = await handleCharactersBeat(
     beat("symbols=AAPL&interval=1h&cadence=60&lanes=XOM:hot"),
-    { TICKERBOT_API_KEY: KEY },
+    env,
     { now: () => NOW, fetch: workersFetch(async () => okResponse()) }
   );
   const strayPayload = await stray.json();
@@ -207,12 +211,12 @@ test("the Worker dispatches the beat route read-only", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = workersFetch(async () => okResponse());
   try {
-    const response = await worker.fetch(beat("symbols=AAPL&interval=1h&cadence=60"), { TICKERBOT_API_KEY: KEY });
+    const response = await worker.fetch(beat("symbols=AAPL&interval=1h&cadence=60"), env);
     const payload = await response.json();
     assert.equal(response.status, 200);
     assert.equal(payload.environment, "characters-beat");
     assert.equal(payload.data.instruments[0].symbol, "AAPL");
-    const refused = await worker.fetch(beat("symbols=AAPL", { method: "POST" }), { TICKERBOT_API_KEY: KEY });
+    const refused = await worker.fetch(beat("symbols=AAPL", { method: "POST" }), env);
     assert.equal(refused.status, 405);
   } finally {
     globalThis.fetch = originalFetch;

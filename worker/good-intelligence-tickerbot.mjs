@@ -2,6 +2,8 @@
  * Read-only Tickerbot OHLCV adapter for Good Intelligence Market Charts.
  * The provider key stays inside the Worker; only a fixed upstream origin is used.
  */
+import { claimTickerbotCall } from "./tickerbot-call-ledger.mjs";
+
 const ROUTE = "/api/good-intelligence/v1/market/tickerbot/bars";
 const TICKERBOT_ORIGIN = "https://api.tickerbot.io";
 
@@ -241,6 +243,14 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
 
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== "function") return failure("Tickerbot is unavailable in this Worker runtime.", 503);
+
+  /* One durable, shared allowance covers every Tickerbot route that uses this key. The
+     atomic D1 claim happens immediately before the upstream fetch and fails closed. */
+  const claim = await claimTickerbotCall(env.COMMUNITY_DB, now);
+  if (!claim.ok) {
+    const status = claim.reason === "budget-exhausted" ? 429 : 503;
+    return failure(claim.message, status);
+  }
 
   const result = await fetchTickerbotMarketContext({
     symbol, interval, apiKey, fetcher, now,

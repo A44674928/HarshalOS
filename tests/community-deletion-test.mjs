@@ -10,7 +10,7 @@ const origin = 'https://os.example';
 const count = (sql, table, column, value) => sql.prepare(`SELECT count(*) n FROM ${table} WHERE ${column} = ?`).get(value).n;
 async function fixture(t) {
   const sql = new DatabaseSync(':memory:'); t.after(() => sql.close()); sql.exec('PRAGMA foreign_keys=ON');
-  for (const file of ['0001_private_drafts.sql', '0002_auth_sessions.sql', '0003_private_runs.sql', '0004_publication.sql']) {
+  for (const file of ['0001_private_drafts.sql', '0002_auth_sessions.sql', '0003_private_runs.sql', '0004_publication.sql', '0005_tickerbot_call_ledger.sql']) {
     sql.exec(readFileSync(new URL('../migrations/community/' + file, import.meta.url), 'utf8'));
   }
   const db = {

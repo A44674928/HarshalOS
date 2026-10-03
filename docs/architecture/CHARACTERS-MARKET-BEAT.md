@@ -6,8 +6,8 @@ invariant. It describes `js/characters-beat.js` (motion + budget engine),
 `worker/characters-beat.mjs` (the batched, cache-held read route), and
 `css/characters.css`.
 
-**Also implemented since the first revision:** a **two-lane (tiered) beat** that spends the
-same calls differently — see §2b.
+**Also implemented:** a **two-lane (tiered) beat** that spends the same calls differently
+(§2b), plus a **D1-durable shared call allowance** across both Tickerbot Worker routes (§2c).
 
 **One-line boundary:** market data can move a character on a stage; it cannot move
 authority, money, or a decision. This is Stage 2 *Representation* in the canonical model,
@@ -26,7 +26,8 @@ with a **beat**: one refresh cycle at a chosen cadence. On each beat:
 
 ```text
 due symbols (least-recently-refreshed, featured-weighted)
-      → one provider call per symbol, held in the Worker for the beat window
+      → atomic D1 allowance claim, then one provider call per uncached symbol
+      → successful bars held in the Worker for the beat window
       → gi-market-context-v1 packet per symbol
       → js/good-intelligence-market-context.js evaluate()   (VFI + Fibonacci bands + WaveTrend)
       → js/characters-beat.js motion()                       (mood, gait, sway, flow)
@@ -70,9 +71,11 @@ With the default 15% reserve (1,500 calls held back for manual refreshes and ret
 
 What the table actually says:
 
-- **A faster cadence does not refresh more characters — it refreshes fewer, more often.**
-  At 15 minutes the budget affords ~3 symbols per beat, so a full sweep of 52 characters
-  takes *longer* than at an hour (6.5 h vs. 5 h). Tempo and breadth trade against each other.
+- **A faster cadence refreshes fewer berths per beat.** At the default 15-minute cadence,
+  the reserve-protected plan buys 2 symbols per beat. A full 52-symbol sweep therefore takes
+  26 beats, or **6.5 elapsed hours**; it costs 5,844 calls/month if the visible app runs
+  continuously. That leaves 4,156 calls before the D1 hard stop for manual beats, failures,
+  or deliberate reserve stretch.
 - **The per-beat request cap (12) binds before the budget does** at 4-hour and daily
   cadences, which is why those plans leave most of the budget unused. `npm run
   test:characters` asserts every plan stays inside the budget at every cadence.
@@ -87,22 +90,60 @@ What the table actually says:
   rotation, so it reaches the front of the queue at half the age — roughly twice the
   refresh rate inside the same budget.
 
-The recommendation in the UI is computed, not hard-coded: the fastest cadence whose
-reserve-protected plan does not overspend the budget. At 10,000 calls and 52 berths that is
-hourly (80% of budget); at 52 berths and a 15-minute cadence you get breadth-by-patience.
+The app now opens on the **15-minute** plan to match the requested sweep: 2 symbols each
+beat, 52 berths in about 6.5 hours. Cadence remains selectable. Auto-beat follows wall-clock
+time while the tab is visible; it does not know exchange hours or holidays, so a continuously
+open 15-minute plan uses about 5,844 calls in a 30.44-day month, even when markets are closed.
+Closing/hidden tabs pause calls; there is no server scheduler.
 
 ### Where the counts live
 
 | Count | Where | Durable? |
 | :--- | :--- | :--- |
 | Calls this beat / cache hits | `worker/characters-beat.mjs` response (`data.spend`) | No — per response |
-| Isolate day/month totals | module scope in the Worker | **No** — resets on redeploy, per isolate, best-effort telemetry |
-| Month ledger, rotation ages, featured set | browser `localStorage` (`harshalos.characters.ledger.v1`) | Yes-ish — per browser profile; cleared with site data |
-| True spend | the provider's dashboard | Yes |
+| Worker-routed Tickerbot attempts by UTC month | D1 `tickerbot_call_ledger` (`attempted_calls`) | **Yes** — shared across isolates, redeploys, Characters, and Good Intelligence |
+| Rotation ages, featured set, local beat history | browser `localStorage` (`harshalos.characters.ledger.v1`) | Per browser profile only; cleared with site data |
+| True billed spend | Tickerbot provider dashboard | Yes — the authority for billing |
 
-Nothing in this repository claims to *enforce* the budget. The Worker caps symbols per
-request and holds beats open; the browser ledger keeps the month honest; the provider
-dashboard is the authority. A budget you cannot audit is a budget you will overspend.
+### 2c. What D1 does here (and what it costs)
+
+D1 is Cloudflare's SQLite database service. It is **not** the timer or scheduler: the
+15-minute auto-beat still runs in the open browser. D1 provides one shared, durable month
+counter so another browser, Worker isolate, or redeploy cannot reset the HarshalOS allowance.
+Both `GET /api/characters/v1/beat` and the Good Intelligence Market Charts Tickerbot route
+claim from the same row because they use the same `TICKERBOT_API_KEY`.
+
+The route performs an atomic `INSERT ... ON CONFLICT ... UPDATE ... WHERE calls < 10000
+RETURNING` immediately before each outbound fetch. The claim increments one aggregate row;
+there is one row per UTC month and no symbol-level/per-call history. When the row reaches
+10,000, the Worker refuses further uncached provider requests. A missing binding, missing
+migration, or D1 error also **fails closed**: no new provider fetch is sent. HTTP errors and
+timeouts count conservatively because Tickerbot may already have received the request.
+Calls made directly to Tickerbot or by a route outside this Worker are not visible in D1.
+These read-only GET routes are reachable from the public site: the shared hard cap bounds
+Worker-routed provider spend, but it is not a per-visitor quota, so an unauthenticated caller
+could consume the shared monthly allowance. No user-authentication or per-client rate-limit
+layer is added here; decide on a trusted access/rate-limit control before enabling live calls
+if reserving capacity from public callers is required.
+
+The [Cloudflare D1 Free plan](https://developers.cloudflare.com/d1/platform/pricing/)
+currently includes 5 million rows read/day, 100,000 rows written/day, and 5 GB storage
+(total across the account). This feature writes at most one row per admitted Worker attempt
+(10,000 writes in a full provider month), reads the indexed monthly row, and stores only a
+few aggregate rows per year. That is small relative to the free limits; other D1 features
+share the same account limits, and a D1 daily-limit failure stops live provider calls rather
+than bypassing the ledger. No paid D1 feature or scheduled job is added.
+
+The 15% reserve in the planner is a **planning reserve**, not a second hard cap: normal
+15-minute operation projects 5,844 calls/month, while explicit stretch is allowed up to the
+10,000 Worker limit. The provider dashboard remains the authority for actual billed spend,
+especially if anything calls Tickerbot outside these Worker routes.
+
+The additive schema is `migrations/community/0005_tickerbot_call_ledger.sql`. It must be
+applied to the selected remote D1 database before live data can flow. For production, first
+inspect with `npx wrangler d1 migrations list COMMUNITY_DB --remote`, then apply with
+`npx wrangler d1 migrations apply COMMUNITY_DB --remote`. The application refuses live
+calls until the table exists.
 
 ---
 
@@ -152,7 +193,7 @@ Rules the tier mode keeps:
    rotate), then gives the remainder to the next-eldest sweep berths. The beat budget is
    never exceeded, and no berth is charged twice in one beat.
 3. **Same honesty.** A hot berth without bars still freezes; a synthetic hot lane is still
-   watermarked; the ledger still counts what the provider was actually asked for.
+   watermarked; D1 counts the Worker attempt before fetch, including failures conservatively.
 
 ---
 
@@ -223,21 +264,26 @@ bar; a pending bar can never mint a confluence event.
 | Surface | Detail |
 | :--- | :--- |
 | `GET /api/characters/v1/beat` | `?symbols=A,B,C&interval=1h\|1d&cadence=15\|30\|60\|240\|1440[&lanes=A:hot,B:sweep]` |
-| Response | `{ success, environment: "characters-beat", data: { schema: "characters-beat-v1", beatAt, interval, cadenceMinutes, holdMs, instruments[], spend } }` |
-| Refusals | 400 (no symbols, over the 12-symbol cap, off-allowlist symbol, bad interval), 405 (non-GET), 503 (no `TICKERBOT_API_KEY`), 429/502/504/404 (whole-beat provider failure, with the whole-beat data attached) |
+| Response | `{ success, environment: "characters-beat", data: { schema: "characters-beat-v1", beatAt, interval, cadenceMinutes, holdMs, instruments[], spend: { providerAttempts, cacheHits, durable, ledgerStatus } } }` |
+| Refusals | 400 (no symbols, over the 12-symbol cap, off-allowlist symbol, bad interval), 405 (non-GET), 503 (`TICKERBOT_API_KEY` or D1 ledger unavailable), 429 (monthly cap or provider rate limit), 502/504/404 (whole-beat provider failure, with the whole-beat data attached) |
 | Partial failure | 200 with per-symbol `status: "unavailable"` — a partial beat is still an honest beat |
 | Worker secret | `TICKERBOT_API_KEY` (same secret the Good Intelligence Market Charts tab uses) |
 | Symbols | the reviewed 52-symbol Tickerbot watchlist, imported from `worker/good-intelligence-tickerbot.mjs` — never a second list |
-| Cache | per symbol + interval, TTL = the beat (`cadenceMinutes`), isolate-local |
+| Cache | per symbol + interval, TTL = the beat (`cadenceMinutes`), isolate-local; D1 allowance is shared |
+| Monthly limit | 10,000 Worker-routed attempts per UTC month, shared across Characters + Good Intelligence; provider-direct calls excluded |
 
 ```text
-js/characters-beat.js          budget, rotation, gauges, motion, blend, ledger, rehearsal
+js/characters-beat.js          budget, rotation, gauges, motion, blend, browser activity, rehearsal
 js/characters-cast.js          cast roster, sector objects, item tokens, radial layout
-js/apps-characters.js          the desktop app: canvas stage, controls, ledger, beat log
+js/apps-characters.js          desktop app: canvas stage, controls, D1 usage, beat log
 css/characters.css             app styling
 worker/characters-beat.mjs     batched read route with the beat-held cache
+worker/tickerbot-call-ledger.mjs shared atomic D1 monthly allowance helper
+migrations/community/0005_tickerbot_call_ledger.sql
+                                one compact UTC-month aggregate row; no per-call history
 tests/characters-beat-test.mjs engine + cast tests (budget, determinism, freeze rules)
 tests/characters-beat-api-test.mjs route tests (spend discipline, refusals, no leaks)
+tests/characters-call-ledger-test.mjs D1 limit, concurrency, rollover, shared-route tests
 ```
 
 ---
@@ -251,7 +297,6 @@ never enters assurance scoring, claims, the composite formula, actionability, th
 any Permit/Refuse decision. If a provider read fails, the stage freezes — that is the
 correct outcome, not an error to paper over.
 
-**Follow-ups deliberately left open:** a server-durable call ledger (D1 or KV) instead of
-the isolate-local counters; a bar-for-bar parity harness against the archived Pine sources;
-and per-berth cadences driven by the operator's own cast size (the tier planner already
-solves for the widest hot lane, but the hot set is still nominated by hand).
+**Still open:** a bar-for-bar parity harness against the archived Pine sources; and
+per-berth cadences driven by the operator's own cast size (the tier planner already solves
+for the widest hot lane, but the hot set is still nominated by hand).

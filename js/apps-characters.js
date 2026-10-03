@@ -41,6 +41,20 @@
     return `<span class="ch-meter" role="img" aria-label="${width}%"><i style="width:${width}%"></i></span>`;
   };
   const signed = value => `${Number(value) > 0 ? "+" : ""}${Number(value || 0).toFixed(2)}`;
+  const normalizeServerLedger = value => {
+    if (!value || typeof value !== "object" || !/^[0-9]{4}-[0-9]{2}$/.test(String(value.month || ""))) return null;
+    const integer = input => Math.max(0, Math.floor(Number(input) || 0));
+    const providerBudget = integer(value.providerBudget);
+    const workerLimit = Math.min(providerBudget, integer(value.workerLimit));
+    const calls = integer(value.calls);
+    if (!providerBudget || !workerLimit) return null;
+    return {
+      month: String(value.month), calls, providerBudget, workerLimit,
+      remaining: Math.max(0, workerLimit - calls),
+      exhausted: calls >= workerLimit,
+      updatedAt: integer(value.updatedAt)
+    };
+  };
 
   APPS.push({
     id: "characters",
@@ -97,7 +111,9 @@
         hotSet: [],           // the operator's hot lane (featured tickers)
         focus: symbols[0] || "",
         ledger: readLedger(),
-        /* Featured tickers double as the hot lane; the ledger is where that choice lives. */
+        serverLedger: null,
+        serverLedgerStatus: "waiting",
+        /* Featured tickers double as the hot lane; the browser ledger is where that choice lives. */
         motions: {},          // symbol -> latest directive from the engine
         displayed: {},        // symbol -> directive blended for rendering
         analyses: {},         // symbol -> small readout for the detail card
@@ -131,8 +147,8 @@
             <label class="ch-control"><span>BAR SIZE</span>
               <select data-ch-interval><option value="1h">1 hour</option><option value="1d">1 day</option></select>
             </label>
-            <label class="ch-control"><span>MONTHLY BUDGET</span>
-              <input type="number" min="100" max="1000000" step="100" value="${state.budget}" data-ch-budget aria-label="Provider calls per month">
+            <label class="ch-control"><span>MONTHLY PLAN</span>
+              <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Provider calls per month; planning only">
             </label>
             <label class="ch-control"><span>DATA SOURCE</span>
               <select data-ch-source>
@@ -184,7 +200,8 @@
               <section class="ch-panel ch-log-panel">
                 <div class="ch-panel-head"><h2>Beat log</h2><span class="ch-tag" data-ch-beatcount>0 beats</span></div>
                 <ol class="ch-log" data-ch-log><li class="ch-log-empty">No beats recorded in this session.</li></ol>
-                <p class="ch-fineprint">Browser ledger (best-effort): <span data-ch-ledger>0 calls this month</span>. The provider dashboard remains the authority on spend.</p>
+                <p class="ch-fineprint">Worker D1 ledger: <span data-ch-durable-ledger>Waiting for the first live beat.</span> Shared across Characters and Market Charts; calls outside this Worker are not included.</p>
+                <p class="ch-fineprint">Browser activity (best-effort): <span data-ch-ledger>0 calls this month</span>. Failed fetches may be counted conservatively by D1; the provider dashboard remains the billing authority.</p>
               </section>
             </aside>
           </div>
@@ -267,6 +284,17 @@
 
       /* ── Data ─────────────────────────────────────────────────────── */
 
+      function acceptSpend(spend) {
+        if (!spend || typeof spend !== "object") return;
+        const ledger = normalizeServerLedger(spend.durable);
+        if (ledger && (!state.serverLedger || ledger.month > state.serverLedger.month ||
+          (ledger.month === state.serverLedger.month && ledger.calls >= state.serverLedger.calls))) {
+          state.serverLedger = ledger;
+        }
+        if (spend.ledgerStatus === "unavailable") state.serverLedgerStatus = "unavailable";
+        else if (ledger) state.serverLedgerStatus = "ready";
+      }
+
       async function fetchLiveBeat(due, cadenceMinutes, lanes = {}) {
         const laneParam = Object.entries(lanes).length
           ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
@@ -280,13 +308,19 @@
         });
         let payload = null;
         try { payload = await response.json(); } catch { /* handled below as a format error */ }
-        const instruments = payload && payload.data && Array.isArray(payload.data.instruments) ? payload.data.instruments : [];
+        const data = payload && payload.data && typeof payload.data === "object" ? payload.data : null;
+        const spend = data && data.spend || null;
+        acceptSpend(spend);
+        const currentMonth = Beat.monthKey(Date.now());
+        const hasCurrentLedger = state.serverLedger && state.serverLedger.month === currentMonth;
+        if (!response.ok && !spend && !hasCurrentLedger) state.serverLedgerStatus = "unavailable";
+        const instruments = data && Array.isArray(data.instruments) ? data.instruments : [];
         if (!response.ok && !instruments.length) {
           const error = new Error((payload && payload.message) || `The beat route answered HTTP ${response.status}.`);
           error.kind = response.status === 404 || response.status === 503 ? "unconfigured" : "upstream";
           throw error;
         }
-        return { instruments, spend: (payload && payload.data && payload.data.spend) || null };
+        return { instruments, spend };
       }
 
       function rehearsalBeat(due) {
@@ -300,9 +334,10 @@
       async function beatNow(reason = "manual") {
         if (state.pending) return;
         const plan = planOf();
-        const budget = Beat.remainingBudget(state.ledger, state.budget);
-        if (budget.exhausted) {
-          state.message = { kind: "refusal", text: `The browser ledger already records ${budget.used} calls this month — the budget is spent. No beat was sent.` };
+        const currentMonth = Beat.monthKey(Date.now());
+        const durable = state.serverLedger && state.serverLedger.month === currentMonth ? state.serverLedger : null;
+        if (state.source === "live" && durable && durable.exhausted) {
+          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The monthly limit is reached; no beat was sent.` };
           drawPanels();
           return;
         }
@@ -348,11 +383,15 @@
         const refreshed = [];
         const moods = {};
         let unavailable = 0;
+        let budgetBlocked = 0;
+        let ledgerBlocked = 0;
         for (const instrument of result.instruments) {
           const symbol = String(instrument.symbol || "").toUpperCase();
           if (!symbol) continue;
           if (!instrument.marketContext) {
             unavailable += 1;
+            if (instrument.code === "budget-exhausted") budgetBlocked += 1;
+            if (instrument.code === "ledger-unavailable") ledgerBlocked += 1;
             state.motions[symbol] = Beat.motion(null, { bearingBase: bearingOf(symbol) });
             state.analyses[symbol] = { status: "unavailable", message: instrument.message || "No bars were supplied for this beat.", at: now };
             continue;
@@ -378,7 +417,9 @@
           refreshed.push(symbol);
         }
 
-        const calls = state.source === "live" && result.spend ? Number(result.spend.upstreamCalls) || 0 : 0;
+        const calls = state.source === "live" && result.spend
+          ? Math.max(0, Number(result.spend.providerAttempts ?? result.spend.upstreamCalls) || 0)
+          : 0;
         state.ledger = Beat.recordBeat(state.ledger, {
           at: now, symbols: refreshed, calls, moodBySymbol: moods,
           synthetic: state.source === "rehearsal", cadenceMinutes: state.cadence
@@ -393,7 +434,12 @@
           moods: refreshed.map(symbol => `${symbol} ${moods[symbol] || "—"}`)
         }, ...state.log].slice(0, 12);
         state.nextBeatAt = now + beatIntervalMs();
-        if (!state.message || state.message.kind === "error") {
+        if (budgetBlocked) {
+          const ledger = state.serverLedger;
+          state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No provider request was sent for those berths.` };
+        } else if (ledgerBlocked) {
+          state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 call ledger is unavailable. No provider request was sent for those berths.` };
+        } else if (!state.message || state.message.kind === "error") {
           state.message = refreshed.length
             ? null
             : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
@@ -415,7 +461,9 @@
 
       function drawPanels() {
         const plan = planOf();
-        const budget = Beat.remainingBudget(state.ledger, state.budget);
+        const currentMonth = Beat.monthKey(Date.now());
+        const durable = state.serverLedgerStatus === "ready" && state.serverLedger && state.serverLedger.month === currentMonth
+          ? state.serverLedger : null;
         const perBeat = perBeatOf(plan);
         const sweepBeats = Math.ceil(stage.berths.length / Math.max(1, perBeat));
         const sweepHours = (sweepBeats * state.cadence) / 60;
@@ -438,7 +486,9 @@
               ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
               : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
             ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}
-            <div><dt>Ledger spent</dt><dd>${budget.used.toLocaleString()} <span class="ch-dim">· ${budget.remaining.toLocaleString()} left</span></dd></div>
+            <div><dt>D1 snapshot</dt><dd>${durable
+              ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
+              : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · live calls fail closed" : "awaiting Worker ledger"}</span>`}</dd></div>
           </dl>
           <div class="ch-cadence-row">${cadencePlan.map(option => `
             <button class="ch-cadence-chip${option.cadenceMinutes === state.cadence ? " active" : ""}" data-ch-cadence-chip="${option.cadenceMinutes}"
@@ -468,11 +518,10 @@
           ${tierOption && !tierOption.withinWindow ? `<p class="ch-fineprint">This window is not reached at this plan; the sweep finishes in ${Beat.formatHours(tierOption.sweepHours)}.</p>` : ""}`
           : "";
 
-        const recommendation = Beat.recommendCadence({ monthlyBudget: state.budget, castSize: stage.berths.length });
         $("[data-ch-plan-tag]").textContent = state.tierMode && tierOption
           ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
-          : `${recommendation.cadenceMinutes}-minute plan`;
-        $("[data-ch-plan-note]").textContent = `${recommendation.reason} ${plan.notes.join(" ")}`;
+          : `${state.cadence}-minute plan`;
+        $("[data-ch-plan-note]").textContent = `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The monthly field changes the plan only; the Worker enforces the shared 10,000-call D1 limit.`;
         stretchBox.disabled = !plan.stretchWithinBudget;
         stretchBox.checked = state.stretch && plan.stretchWithinBudget;
         tierBox.checked = state.tierMode;
@@ -508,11 +557,22 @@
           <li>
             <span class="ch-log-time">${clock(entry.at)}</span>
             <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `LIVE ${entry.calls} call${entry.calls === 1 ? "" : "s"}`}</span>
-            <span class="ch-log-body">${entry.symbols.length ? entry.symbols.map(symbol => `<b>${esc(symbol)}</b> ${esc((state.motions[symbol] || {}).mood || "—")}`).join(" · ") : "no symbols due"}${
+            <span class="ch-log-body">${entry.symbols.length ? entry.symbols.map(symbol => {
+              const lane = entry.lanes && entry.lanes[symbol];
+              const laneMark = lane === "hot" || lane === "sweep"
+                ? `<i class="ch-lane ch-lane-${lane}">${lane === "hot" ? "H" : "S"}</i>`
+                : "";
+              return `${laneMark}<b>${esc(symbol)}</b> ${esc((state.motions[symbol] || {}).mood || "—")}`;
+            }).join(" · ") : "no symbols due"}${
               entry.unavailable ? ` <em class="ch-warn">${entry.unavailable} unavailable</em>` : ""}</span>
           </li>`).join("") : `<li class="ch-log-empty">No beats recorded in this session.</li>`;
         $("[data-ch-beatcount]").textContent = `${state.ledger.beats} beat${state.ledger.beats === 1 ? "" : "s"}`;
-        $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} calls in ${state.ledger.month}`;
+        $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} Character call${state.ledger.calls === 1 ? "" : "s"} in ${state.ledger.month} (browser only)`;
+        $("[data-ch-durable-ledger]").textContent = durable
+          ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
+          : state.serverLedgerStatus === "unavailable"
+            ? "No D1 snapshot reported — the live route refused or its ledger is unavailable; new fetches fail closed."
+            : "Waiting for the first live beat.";
         $("[data-ch-stage-note]").textContent = state.message
           ? state.message.text
           : state.lastBeatAt
@@ -520,7 +580,7 @@
               ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls.`
               : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. ${Beat.DEFAULTS.reserveRatio * 100}% of the budget is held back by default for manual refreshes and retries.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. The planner holds ${Beat.DEFAULTS.reserveRatio * 100}% in reserve by default; the D1 Worker ledger atomically stops routed Tickerbot attempts at 10,000 per UTC month across Characters and Market Charts. Direct provider calls are outside that ledger.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -786,7 +846,8 @@
       });
       intervalSelect.addEventListener("change", () => { state.interval = intervalSelect.value === "1d" ? "1d" : "1h"; });
       budgetInput.addEventListener("change", () => {
-        state.budget = Math.max(100, Math.round(Number(budgetInput.value) || Beat.DEFAULTS.monthlyBudget));
+        state.budget = Math.min(Beat.DEFAULTS.monthlyBudget,
+          Math.max(100, Math.round(Number(budgetInput.value) || Beat.DEFAULTS.monthlyBudget)));
         budgetInput.value = String(state.budget);
         drawPanels();
       });

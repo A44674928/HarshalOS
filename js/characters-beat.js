@@ -21,10 +21,10 @@
        motion. No Date.now() inside the engine — callers pass `now`.
 
    Budget math (why a beat is not a per-minute poll): the reviewed Tickerbot
-   plan is 10,000 provider calls per month. One symbol costs one call, so the
-   plan is calls-per-month ÷ beats-per-month = symbols-per-beat. At a 15-minute
-   cadence that is ~3 symbols per beat; at an hour it is ~11. The full table
-   lives in docs/architecture/CHARACTERS-MARKET-BEAT.md.
+   plan is 10,000 provider calls per month. The planner holds 15% in reserve,
+   so a 15-minute cadence safely buys 2 symbols per beat (one full 52-symbol
+   sweep every 6.5 hours); its explicit stretch option can spend into the reserve.
+   The full table lives in docs/architecture/CHARACTERS-MARKET-BEAT.md.
    ═══════════════════════════════════════════════════════════════ */
 
 "use strict";
@@ -48,7 +48,7 @@ window.CharactersBeat = (() => {
     // Held back for manual "Beat now" refreshes, retries and mistakes. The
     // plan spends the usable part; the reserve is never assumed.
     reserveRatio: 0.15,
-    cadenceMinutes: 60,
+    cadenceMinutes: 15,
     castSize: 52,
     perRequestCap: MAX_SYMBOLS_PER_BEAT,
     featuredWeight: 2
