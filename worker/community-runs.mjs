@@ -1,5 +1,5 @@
 import { authorizeCommunity, authJson, limitCommunityRuns } from './community-auth.mjs';
-import { CommunityError, getDraft } from './community-db.mjs';
+import { CommunityError, getDraft, deleteRun } from './community-db.mjs';
 import { evaluateSavedInput, auditTemplate } from './community-audit.mjs';
 import { ENGINE_SHA256, EVALUATOR_SHA256 } from './community-engine-version.mjs';
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -21,6 +21,19 @@ async function revisionBody(request) {
   if (!data || Object.keys(data).length !== 1 || !Number.isSafeInteger(data.revision) || data.revision < 1) throw new CommunityError(400, 'Send only a positive integer revision; results are computed by the server.');
   return data.revision;
 }
+async function emptyBody(request) {
+  if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') throw new CommunityError(415, 'Send application/json.');
+  const reader = request.body?.getReader(); if (!reader) throw new CommunityError(400, 'Missing JSON body.');
+  let text = '', size = 0; const decoder = new TextDecoder();
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    size += value.byteLength;
+    if (size > 1024) { await reader.cancel(); throw new CommunityError(413, 'Delete requests may only contain an empty object.'); }
+    text += decoder.decode(value, { stream: true });
+  }
+  let data; try { data = JSON.parse(text + decoder.decode()); } catch { throw new CommunityError(400, 'Invalid JSON.'); }
+  if (!data || typeof data !== 'object' || Array.isArray(data) || Object.keys(data).length) throw new CommunityError(400, 'Send an empty JSON object; the run to delete is named by its URL.');
+}
 export async function handleRuns(request, env) {
   try {
     const user = await authorizeCommunity(request, env, { write: request.method !== 'GET' });
@@ -32,7 +45,7 @@ export async function handleRuns(request, env) {
     const match = route.exec(url.pathname);
     if (!match) throw new CommunityError(404, 'Unknown execution route.');
     const [, draftId, runId] = match;
-    const allowed = runId ? ['GET'] : ['GET', 'POST'];
+    const allowed = runId ? ['GET', 'DELETE'] : ['GET', 'POST'];
     if (!allowed.includes(request.method)) return authJson({ error: 'Method not allowed.' }, 405, { Allow: allowed.join(', ') });
     const db = env.COMMUNITY_DB;
     const schema = await db.prepare("SELECT version FROM community_schema WHERE component = 'private-runs'").first();
@@ -52,6 +65,10 @@ export async function handleRuns(request, env) {
         WHERE r.draft_id = ? AND r.owner_id = ? AND u.blocked = 0 AND r.seq < ? ORDER BY r.seq DESC LIMIT 26`)
         .bind(draftId, user.id, after ? Number(after) : Number.MAX_SAFE_INTEGER).all();
       return authJson({ runs: results.slice(0, 25).map(({ seq, ...row }) => row), nextCursor: results.length > 25 ? String(results[24].seq) : null });
+    }
+    if (request.method === 'DELETE') {
+      await emptyBody(request);
+      return authJson(await deleteRun(db, user.id, draftId, runId));
     }
     const revision = await revisionBody(request);
     if (draft.revision !== revision) throw new CommunityError(409, 'The saved draft changed. Reload before running.');

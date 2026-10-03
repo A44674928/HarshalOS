@@ -8,7 +8,7 @@
 <section class="session"><div><strong id="identity">Checking account availability…</strong><p id="notice" role="status" aria-live="polite">Connecting securely.</p></div><a id="login" class="button" href="/api/community/auth/login" hidden>Sign in / Create account ↗</a><button id="logout" hidden>Sign out</button></section>
 <div id="workspace" hidden>
 <div class="workspace-grid">
-<aside><div class="section-title"><h2>Your drafts</h2><button id="new">+ New</button></div><p class="muted">Only your signed-in account can access these drafts.</p><ul id="drafts"></ul><button id="more" hidden>Load more</button><button id="refresh">Refresh list</button></aside>
+<aside><div class="section-title"><h2>Your drafts</h2><button id="new">+ New</button></div><p class="muted">Only your signed-in account can access these drafts. Deleting one also deletes its saved private runs; a draft that anchors a published report must be withdrawn instead, and public history is never deleted.</p><ul id="drafts"></ul><button id="more" hidden>Load more</button><button id="refresh">Refresh list</button></aside>
 <section class="editor"><div class="section-title"><h2 id="editor-heading">New private draft</h2><span class="pill">PRIVATE</span></div><p id="revision" class="muted">Not saved to your account yet.</p>
 <form id="form" autocomplete="off"><fieldset id="fields"><label for="title">Draft title</label><input id="title" maxlength="200" required placeholder="e.g. Organization review — working notes">
 <label for="input">Ground-0 input <span class="muted">JSON object · max 64 KiB</span></label><textarea id="input" rows="13" spellcheck="false" required>{}</textarea>
@@ -19,7 +19,7 @@
 </fieldset></form>
 <section id="execution" aria-label="Private execution results" hidden>
 <div class="section-title"><h2>Private run review</h2><span class="pill">UNREVIEWED</span></div>
-<p class="muted">These are calculations on submitted claims, not platform certification. No external sources are fetched, no independent identity or evidence verification is performed, and no temporal history or global declaration registry is checked.</p>
+<p class="muted">These are calculations on submitted claims, not platform certification. No external sources are fetched, no independent identity or evidence verification is performed, and no temporal history or global declaration registry is checked. Saved runs can be deleted individually unless a published report anchors them; deletion is permanent and never edits public history.</p>
 <ul id="run-history"></ul><button id="run-more" type="button" hidden>Older runs</button>
 <div id="run-panel" hidden><h3 id="run-summary"></h3><p id="run-source" class="muted"></p><p id="run-finding"></p>
 <p id="run-hash" class="muted hash"></p><button id="run-export" type="button">Export private run</button>

@@ -56,8 +56,8 @@ test('disabled release rejects community routes before touching D1 or the identi
   const id = '00000000-0000-4000-8000-000000000001';
   const routes = [
     ['GET', 'me'], ['GET', 'auth/login'], ['GET', 'auth/callback'], ['POST', 'auth/logout'],
-    ['GET', 'drafts'], ['POST', 'drafts'], ['GET', `drafts/${id}`], ['PUT', `drafts/${id}`],
-    ['GET', `drafts/${id}/runs`], ['POST', `drafts/${id}/runs`], ['GET', 'audit-template'],
+    ['GET', 'drafts'], ['POST', 'drafts'], ['GET', `drafts/${id}`], ['PUT', `drafts/${id}`], ['DELETE', `drafts/${id}`],
+    ['GET', `drafts/${id}/runs`], ['POST', `drafts/${id}/runs`], ['DELETE', `drafts/${id}/runs/${id}`], ['GET', 'audit-template'],
     ['GET', 'status'], ['GET', 'publications'], ['GET', 'public-log'], ['POST', 'public-preview'],
     ['POST', 'publish'], ['GET', 'my-publications'], ['GET', 'moderation'],
     ['POST', `publications/${id}/withdraw`], ['POST', `publications/${id}/report`]

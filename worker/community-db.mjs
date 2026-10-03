@@ -71,6 +71,66 @@ export async function updateDraft(db, ownerId, id, expectedRevision, value, now 
   return dto(row);
 }
 
+// Deletion is explicit and permanent. It never touches public history: a draft,
+// run or preview that anchors a publication is refused, and published versions
+// must be withdrawn (their rows cannot be deleted at all).
+async function anchorsPublication(db, column, id, ownerId) {
+  const row = await db.prepare(`SELECT 1 AS found FROM community_publications
+    WHERE ${column} = ? AND owner_id = ? LIMIT 1`).bind(id, ownerId).first();
+  return Boolean(row);
+}
+export async function deleteDraft(db, ownerId, id, expectedRevision, now = Date.now()) {
+  identity(ownerId); timestamp(now);
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new CommunityError(400, 'A positive integer revision is required.');
+  // Identical refusal for missing, not-owned or blocked drafts; never confirm another account's data.
+  const owned = await db.prepare(`SELECT d.revision FROM community_drafts d JOIN community_users u ON u.id = d.owner_id
+    WHERE d.id = ? AND d.owner_id = ? AND u.blocked = 0`).bind(id, ownerId).first();
+  if (!owned) throw new CommunityError(409, 'Draft unavailable or changed; reload before deleting.');
+  if (await anchorsPublication(db, 'draft_id', id, ownerId)) throw new CommunityError(409, 'This draft anchors a published report. Withdraw the report instead; published versions cannot be deleted.');
+  if (owned.revision !== expectedRevision) throw new CommunityError(409, 'Draft changed; reload before deleting.');
+  try {
+    // Transactional: previews and private runs of this draft only, then the draft itself.
+    // The revision recheck inside the DELETE is what makes concurrent saves safe.
+    await db.batch([
+      db.prepare('DELETE FROM community_previews WHERE draft_id = ? AND owner_id = ?').bind(id, ownerId),
+      db.prepare(`DELETE FROM community_public_series WHERE draft_id = ? AND id NOT IN
+        (SELECT series_id FROM community_publications) AND draft_id IN
+        (SELECT id FROM community_drafts WHERE id = ? AND owner_id = ?)`).bind(id, id, ownerId),
+      db.prepare('DELETE FROM community_runs WHERE draft_id = ? AND owner_id = ?').bind(id, ownerId),
+      db.prepare(`DELETE FROM community_drafts WHERE id = ? AND owner_id = ? AND revision = ?
+        AND EXISTS (SELECT 1 FROM community_users WHERE id = ? AND blocked = 0)`).bind(id, ownerId, expectedRevision, ownerId)
+    ]);
+  } catch (error) {
+    // A publication that committed during the batch is a refusal, not an outage.
+    if (await anchorsPublication(db, 'draft_id', id, ownerId).catch(() => false)) throw new CommunityError(409, 'This draft anchors a published report. Withdraw the report instead; published versions cannot be deleted.');
+    throw error;
+  }
+  const remaining = await db.prepare('SELECT id FROM community_drafts WHERE id = ? AND owner_id = ?').bind(id, ownerId).first();
+  if (remaining) throw new CommunityError(409, 'Draft changed or is unavailable; reload before deleting.');
+  return { deleted: true };
+}
+export async function deleteRun(db, ownerId, draftId, runId, now = Date.now()) {
+  identity(ownerId); timestamp(now);
+  const run = await db.prepare(`SELECT r.id FROM community_runs r JOIN community_drafts d ON d.id = r.draft_id
+    JOIN community_users u ON u.id = r.owner_id WHERE r.id = ? AND r.draft_id = ? AND r.owner_id = ? AND u.blocked = 0`)
+    .bind(runId, draftId, ownerId).first();
+  if (!run) throw new CommunityError(404, 'Execution not found.');
+  if (await anchorsPublication(db, 'run_id', runId, ownerId)) throw new CommunityError(409, 'This run anchors a published report. Withdraw the report instead; published versions cannot be deleted.');
+  try {
+    await db.batch([
+      // Previews are regenerable candidates; deleting the run discards them explicitly.
+      db.prepare('DELETE FROM community_previews WHERE run_id = ? AND owner_id = ?').bind(runId, ownerId),
+      db.prepare('DELETE FROM community_runs WHERE id = ? AND draft_id = ? AND owner_id = ?').bind(runId, draftId, ownerId)
+    ]);
+  } catch (error) {
+    if (await anchorsPublication(db, 'run_id', runId, ownerId).catch(() => false)) throw new CommunityError(409, 'This run anchors a published report. Withdraw the report instead; published versions cannot be deleted.');
+    throw error;
+  }
+  const remaining = await db.prepare('SELECT id FROM community_runs WHERE id = ? AND owner_id = ?').bind(runId, ownerId).first();
+  if (remaining) throw new CommunityError(409, 'Execution could not be deleted; reload and retry.');
+  return { deleted: true };
+}
+
 export async function listDrafts(db, ownerId, after = '') {
   identity(ownerId);
   const { results } = await db.prepare(`SELECT d.id, d.title, d.revision, d.updated_at AS updatedAt

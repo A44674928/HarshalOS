@@ -121,7 +121,10 @@ Community routes are separate from owner-only `/api/storage/*`; public signup mu
 not relax the legacy owner/Cloudflare Access checks. Sessions use Secure HttpOnly
 host cookies and hashed D1 tokens. Authenticated writes require the exact origin.
 
-Private drafts/runs do not become public automatically. Publication copies an
+Private drafts/runs do not become public automatically. Owners may permanently delete
+their own private drafts and runs; deletion is refused when the record anchors a
+published report, and public rows, events and tombstones cannot be deleted through any
+endpoint. Publication copies an
 owner-bound, expiring, exact preview only after explicit acknowledgement. Public
 reports are UNREVIEWED calculations on user claims, not verified identities or
 evidence. Public DTOs exclude private account/draft/run IDs and moderator/report

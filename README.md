@@ -553,7 +553,9 @@ The rebuild includes `/account` private drafts and Ground-0 execution, plus `/au
 for explicitly published reports, version history and activity. Publication requires
 an exact recomputed preview and explicit consent; reports remain **UNREVIEWED**,
 not platform certification. Author withdrawal, private reporting and moderator
-hide/block controls are implemented. Private drafts/runs are not automatically public.
+hide/block controls are implemented. Owners can permanently delete their own private
+drafts and runs; a record that anchors a published report must be withdrawn instead,
+and public history is never deleted. Private drafts/runs are not automatically public.
 
 `COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
 operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
