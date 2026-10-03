@@ -1,9 +1,9 @@
-# Community D1 — accounts, private drafts and execution
+# Community D1 — accounts, private execution and explicit publication
 
 ## Status and boundaries
 
 This rebuild includes the database foundation, OIDC login/session layer,
-private account workspace, and **private Ground-0 execution**.
+private account workspace, private Ground-0 execution, and **explicit public publication**.
 It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
 
 Implemented:
@@ -23,12 +23,12 @@ Implemented:
   writes, 96 KiB streaming body limit and 60 write attempts/account/UTC day.
   Listing is paginated (25 per page, stable ID order), not a latest-first feed.
 
-Not implemented: draft/run deletion, public previews/publication/history/withdrawal/moderation UI, self-service account
-export/deletion, and community backup/retention workflows. The internal draft
+Not implemented: draft/run deletion, full self-service account export/deletion,
+R2 evidence uploads, and automated community backup/retention workflows. The internal draft
 functions require a verified server-derived owner ID, never a request-supplied one.
-Publication routes remain closed regardless of the feature flag. Migrations 0001
-and 0002 are unchanged. Private execution adds migration
-`0003_private_runs.sql`; it has only been applied to local test databases.
+All community access remains disabled by default. Migrations 0001–0003 are unchanged;
+publication adds `0004_publication.sql`. All migration testing in this rebuild has
+been local only; no remote migration or deployment command was run.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -59,9 +59,10 @@ All routes require active, unblocked sessions; moderator status grants no access
 to someone else's drafts. Authentication/IP quotas also apply to draft requests.
 
 The account page is linked from the desktop boot links and Overview page.
-`/api/community/status` still returns 503, `ready: false`, because the complete
-public auditing service is not ready. It is not a live database health check.
-Both `/account` and `/account.html` are Worker-first and receive no-store, no-referrer,
+`/api/community/status` returns 503 while disabled/unconfigured or missing the
+publication migration. When enabled/configured it reports the publication stage
+and UNREVIEWED policy; it is not proof of a working live provider or production readiness.
+Both canonical and `.html` forms of `/account` and `/audits` are Worker-first and receive no-store, no-referrer,
 nosniff and restrictive CSP headers. Framing is blocked when community is enabled;
 disabled previews can be embedded. The editor does not persist data in localStorage.
 Sign-out and detected session expiry clear displayed private state. Unsaved edits
@@ -158,6 +159,98 @@ replays, edit/block races, history pagination, limits and UI invalidation. Unit 
 use actual SQLite SQL; UI tests mock fetch; local Wrangler validates migrations.
 No full live Auth0 + remote D1 browser flow or production security audit is claimed.
 
+
+## Explicit public publication
+
+`/audits` is the public register/detail/history/activity page; `/account` includes
+public-candidate preparation, My publications/withdrawal, and the moderator queue.
+Every report is immediately listed as **UNREVIEWED** after explicit publication.
+No moderator approval is needed before listing, but a configured moderator must
+have signed in at least once and remain unblocked before a new publication can be
+inserted. This availability condition is rechecked in the atomic publication SQL.
+Author labels are self-chosen; they are not verified identities or role badges.
+
+Workflow:
+1. Load/run the current saved draft revision with the current evaluator.
+2. Prepare the public input candidate. The UI initially blanks declaration,
+   public-key and trusted-origin fields. Separate private notes, raw source bodies
+   and provider diagnostics are not copied. Input claims/quotes/URLs can still
+   contain sensitive information: the author must inspect/redact them.
+3. Request a preview with `runId`, `input`, and a public `author` label. The server
+   recomputes the candidate, which can differ from the private run. The preview's
+   exact canonical report includes normalized public input, public-input hash,
+   author label, engine fingerprints, result, scope and UNREVIEWED/NONE labels.
+   The private raw-input hash and private identifiers are excluded.
+4. The browser displays the entire JSON report and its hash. Candidate edits clear
+   the displayed preview and consent. The author must explicitly acknowledge public
+   availability, copying, and the limits of withdrawal.
+5. Publish sends **only** the preview token and acknowledgement
+   `PUBLISH_PUBLIC_UNREVIEWED`. The server copies the stored preview, never a
+   replacement report from the publish request.
+
+Preview tokens have 256 bits of randomness, are stored hashed, owner-bound and
+expire after 15 minutes. Published tokens are idempotent; competing previews of
+one draft revision cannot both publish. The INSERT checks current draft revision,
+current evaluator and unblocked author. Corrections require a new saved revision,
+run and preview. Public series IDs do not expose private draft/run/account IDs.
+Report hashes cover the report including author label, not its ID/version/time
+metadata envelope. Hashes and logs are not signatures or administrator-proof history.
+
+### Routes
+
+| Access | Method / route | Purpose |
+| --- | --- | --- |
+| Signed-in author | POST `/api/community/public-preview` | Exact private preview; 30/day |
+| Signed-in author | POST `/api/community/publish` | Explicit consent/token only; 10 new attempts/day |
+| Public | GET `/api/community/publications` | Active register, newest first, 25/page |
+| Public | GET `/api/community/publications/UUID` | Published report or minimal removed tombstone |
+| Public | GET `/api/community/publications/UUID/history` | Series versions, 25/page |
+| Public | GET `/api/community/public-log` | Publish/withdraw/hide events, 50/page |
+| Signed-in author | GET `/api/community/my-publications` | Owned versions, 25/page |
+| Owner only | POST `/api/community/publications/UUID/withdraw` | Empty JSON object; redact public payload |
+| Signed in | POST `/api/community/publications/UUID/report` | Private `details`, max 2000 chars; 20/day |
+| Moderator only | GET `/api/community/moderation` | 100 oldest unresolved private reports |
+| Moderator only | POST `/api/community/moderation/REPORT_UUID` | `action` + private `note` |
+
+Paged routes return `nextCursor`; pass it as `after`. Reports are deduplicated to
+one report per reporter per publication version, including resolved reports.
+Withdrawal and hide clear public report/title/author/phase; hash, ID, version,
+timestamps and minimal public activity remain. External copies cannot be recalled.
+Private drafts, runs, unexpired previews, abuse reports and backups are not erased
+by withdrawal. There is no public restore/unhide or silent-edit endpoint.
+
+Moderation supports `dismiss`, `hide`, and `hide-and-block`. Hide-and-block removes
+**all active publications by that author**, blocks the local account and revokes
+its sessions. Resolution claims and D1 transactional batches prevent concurrent
+staff actions or partial failure from producing mixed outcomes. Private moderation
+notes/report details are never included in public DTOs or events. No action marks
+a report verified/certified. Operator intervention is required for account unblocking;
+maintain a recovery administrator and do not rely on a single irreplaceable moderator.
+
+Public reads use a secret-HMAC IP quota of 180/minute with bounded expired-rate-row
+cleanup. Authenticated write attempts also share the existing 60/day quota. Preview
+requests delete up to 100 expired preview rows; inactive expired rows may remain
+until subsequent cleanup. No cron or global spending ceiling is configured.
+
+### Required launch checks (not completed by local tests)
+
+- Separate staging resources, exact HTTPS origins/callbacks, and actual Auth0 sign-in.
+- Apply migrations only after verifying the Cloudflare account/database; preserve
+  `_cf_KV`, existing owner storage and all other dashboard bindings.
+- Verify two-account isolation, expired/replayed sessions, preview edits/expiry,
+  stale drafts, publication correction, withdrawal, reporting, hide and hide/block.
+- Verify both canonical page routes receive CSP/no-store headers on the deployed host.
+- Configure moderator coverage, a privacy/abuse contact and escalation process,
+  retention/deletion policy, backups/export and restore rehearsal, resource monitoring,
+  Cloudflare edge protections, and provider signup abuse controls before public launch.
+- Restrict database/operator/log access. Callback queries contain short-lived codes;
+  never add application logs containing tokens, cookies, reports or private notes.
+
+Keep `COMMUNITY_ENABLED=false` until these operational checks are approved.
+Emergency disable: set the flag false; do not drop tables or delete cloud resources.
+Local tests use real SQLite SQL, mocked OIDC HTTP/DOM fetch, and local Wrangler D1;
+remote D1 concurrency and full live-browser/provider behavior remain unvalidated.
+
 ## Verified target information
 
 The owner supplied:
@@ -225,7 +318,9 @@ npx wrangler d1 migrations apply COMMUNITY_DB --remote
 ```
 
 Expected application tables: `community_users`, `community_drafts`, `community_schema`,
-`community_auth_flows`, `community_sessions`, `community_auth_rates`, and `community_runs`. Wrangler also tracks migrations in `d1_migrations`. Applying
+`community_auth_flows`, `community_sessions`, `community_auth_rates`, `community_runs`,
+`community_public_series`, `community_previews`, `community_publications`,
+`community_public_events`, `community_reports`, and `community_moderation_actions`. Wrangler also tracks migrations in `d1_migrations`. Applying
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
 
@@ -248,10 +343,8 @@ RS256 or ES256 (not HS256). Only `openid` scope is requested. Set exact callback
 allowlists, not wildcards. Existing Access protection for owner `/api/storage/*`
 must remain; community callbacks need to be reachable through their own policy.
 
-Next: verify login on a separate staging origin/database/provider application,
-then build exact
-preview-bound publication, version history, withdrawal, abuse reporting and moderation.
-Do not enable production merely because unit tests pass.
+Next: verify the complete workflow on a separate staging origin/database/provider
+application. Do not enable production merely because unit tests pass.
 
 ## Durable checkpoints
 

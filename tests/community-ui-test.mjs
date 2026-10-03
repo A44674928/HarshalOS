@@ -92,3 +92,44 @@ test('Account UI: template fills editor without saving; historical runs are labe
   assert.equal(f.calls.filter(x => x.options.method === 'POST' || x.options.method === 'PUT').length, 0);
   assert.equal(f.$('run').disabled, true);
 });
+
+test('Account UI: public preview requires consent, sends token only, and is invalidated by edits', async t => {
+  const input = { name: 'Entity', version: '1.0', cutoff: '2026-10-02', headerText: 'PRIVATE_DECLARATION', publicKeyText: 'PRIVATE_KEY_FIELD', trustedOrigin: 'PRIVATE_ORIGIN' };
+  const run = { id: saved.id, revision: 1, createdAt: 1000, reportHash: 'a'.repeat(64), report: { input, engine: { specificationStatus: 'NORMATIVE BASELINE' }, result: { phase: 'NAB', recordStatus: 'Draft', finding: 'Private calculation' } } };
+  const report = { schema: 'ground0-public-v1', reviewStatus: 'UNREVIEWED', input: { name: '<img src=x onerror=alert(1)>' } };
+  const f = await fixture(t, (url, options) => {
+    if (url.endsWith('/me')) return Response.json({ user: { id: 'alice' } });
+    if (url.endsWith('/runs')) return Response.json({ run });
+    if (url.endsWith('/public-preview')) return Response.json({ token: 't'.repeat(43), expiresAt: Date.now() + 900000, reportHash: 'b'.repeat(64), report });
+    if (url.endsWith('/publish')) return Response.json({ publication: { id: saved.id, state: 'published' } });
+    if (url.endsWith('/my-publications')) return Response.json({ publications: [], nextCursor: null });
+    if (url.endsWith('/drafts')) return Response.json({ drafts: [saved], nextCursor: null });
+    return Response.json({ draft: saved });
+  });
+  f.$('drafts').querySelector('button').click(); await f.flush(); f.$('run').click(); await f.flush();
+  const candidate = JSON.parse(f.$('public-input').value); assert.equal(candidate.headerText, ''); assert.equal(candidate.publicKeyText, ''); assert.equal(candidate.trustedOrigin, '');
+  f.$('public-author').value = 'Pseudonym'; f.$('preview-public').click(); await f.flush();
+  assert.equal(f.$('public-preview').hidden, false); assert.equal(f.$('preview-json').querySelector('img'), null); assert.equal(f.$('publish-public').disabled, true);
+  f.$('public-consent').checked = true; f.$('public-consent').dispatchEvent(new f.window.Event('change')); assert.equal(f.$('publish-public').disabled, false);
+  f.$('public-author').dispatchEvent(new f.window.Event('input', { bubbles: true })); assert.equal(f.$('public-preview').hidden, true); assert.equal(f.$('public-consent').checked, false);
+  f.$('preview-public').click(); await f.flush(); f.$('public-consent').checked = true; f.$('public-consent').dispatchEvent(new f.window.Event('change')); f.$('publish-public').click(); await f.flush();
+  const submitted = JSON.parse(f.calls.find(x => x.url.endsWith('/publish')).options.body);
+  assert.deepEqual(submitted, { token: 't'.repeat(43), acknowledgement: 'PUBLISH_PUBLIC_UNREVIEWED' });
+  assert.equal(f.$('public-preview').hidden, true);
+});
+
+test('Public register UI: untrusted report text is not HTML; removed reports expose no payload', async t => {
+  for (const removed of [false, true]) {
+    const window = new Window({ url: 'https://os.example/audits?id=pub-id', settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+    t.after(() => window.happyDOM.abort());
+    const publication = { id: 'pub-id', seriesId: 'series', version: 1, state: removed ? 'withdrawn' : 'published', reportHash: 'a'.repeat(64), publishedAt: 1000,
+      ...(removed ? {} : { title: '<img src=x onerror=alert(1)>', author: '<script>bad()</script>', phase: 'NAB', report: { reviewStatus: 'UNREVIEWED', note: '<script>bad()</script>' } }) };
+    window.fetch = async url => Response.json(url.endsWith('/public-log') ? { events: [], nextCursor: null } : url.endsWith('/publications') || url.endsWith('/history') ? { publications: [publication], nextCursor: null } : { publication });
+    window.document.write(readFileSync(new URL('../audits.html', import.meta.url), 'utf8').replace(/<script[^>]*>.*?<\/script>/g, ''));
+    window.eval(readFileSync(new URL('../js/community-public.js', import.meta.url), 'utf8')); await window.happyDOM.waitUntilComplete();
+    const $ = id => window.document.getElementById(id);
+    assert.equal($('public-list').querySelector('img'), null); assert.equal($('publication-json').querySelector('script'), null);
+    assert.equal($('publication-export').hidden, removed); assert.equal($('report-form').hidden, removed);
+    if (removed) assert.equal($('publication-json').textContent, ''); else assert.match($('publication-state').textContent, /UNREVIEWED/);
+  }
+});

@@ -121,7 +121,7 @@ export async function handleApi(request, env, dependencies = {}) {
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
-    if (path === '/account' || path === '/account.html') {
+    if (path === '/account' || path === '/account.html' || path === '/audits' || path === '/audits.html') {
       const asset = await env.ASSETS.fetch(request);
       const response = new Response(asset.body, asset);
       response.headers.set('Cache-Control', 'no-store');

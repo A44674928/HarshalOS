@@ -545,13 +545,14 @@ through direct inquiry.*
 *All scenario content in this demonstration is abstract, not descriptive · structural, not
 behavioral · evaluative, not directive · contained, not externalized.*
 
-## D1 community accounts (disabled)
+## D1 community accounts and public audit register (disabled)
 
-The rebuild includes the `/account` private workspace, authenticated draft APIs,
-OIDC login/session backend, and saved-revision Ground-0 execution, with tests.
-`COMMUNITY_ENABLED=false` keeps account access off. Public publication remains
-closed regardless of the flag. Private runs carry UNREVIEWED labels, exact
-evaluated inputs and engine fingerprints.
-Public reporting and live-provider verification are still pending.
-See [D1 setup and implementation status](docs/deployment/COMMUNITY-D1.md).
-No remote migration or production deployment is included in these checkpoints.
+The rebuild includes `/account` private drafts and Ground-0 execution, plus `/audits`
+for explicitly published reports, version history and activity. Publication requires
+an exact recomputed preview and explicit consent; reports remain **UNREVIEWED**,
+not platform certification. Author withdrawal, private reporting and moderator
+hide/block controls are implemented. Private drafts/runs are not automatically public.
+
+`COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
+operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
+No remote migration or production deployment command was run for these checkpoints.

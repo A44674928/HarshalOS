@@ -68,7 +68,7 @@ test('Draft HTTP: write quota is account-scoped across IPs', async t => {
   assert.equal((await f.call('', { method: 'POST', data: draft, user: 'bob' })).status, 201);
 });
 test('Account HTML: canonical and .html paths carry privacy/security headers', async () => {
-  for (const path of ['/account', '/account.html']) {
+  for (const path of ['/account', '/account.html', '/audits', '/audits.html']) {
     const response = await worker.fetch(new Request(origin + path), { COMMUNITY_ENABLED: 'true', ASSETS: { fetch: async () => new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } }) } });
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
     assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');

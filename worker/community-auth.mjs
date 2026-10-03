@@ -182,3 +182,14 @@ export async function authorizeCommunity(request, env, { write = false, now = Ma
 export async function limitCommunityRuns(env, userId) {
   await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'private-run:' + userId, '', 20, 86400, Math.floor(Date.now() / 1000));
 }
+
+export async function allowCommunityPublicRead(request, env) {
+  if (env.COMMUNITY_ENABLED !== 'true') throw new CommunityError(503, 'Community is disabled.');
+  configuration(request, env);
+  const now = Math.floor(Date.now() / 1000);
+  await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'public-read', request.headers.get('CF-Connecting-IP') || 'unknown', 180, 60, now);
+  await env.COMMUNITY_DB.prepare('DELETE FROM community_auth_rates WHERE bucket IN (SELECT bucket FROM community_auth_rates WHERE expires_at<=? ORDER BY expires_at LIMIT 20)').bind(now).run();
+}
+export async function limitCommunityAction(env, userId, action, limit) {
+  await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, action + ':' + userId, '', limit, 86400, Math.floor(Date.now() / 1000));
+}

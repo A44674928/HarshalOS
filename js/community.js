@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 let user = null, selected = null, dirty = false, busy = false, cursor = null, currentRun = null, runCursor = null, epoch = 0;
+let publicPreview = null, myCursor = null;
 const notice = text => { $('notice').textContent = text; };
 function controls() {
   $('workspace').hidden = !user; $('logout').hidden = !user;
@@ -7,17 +8,27 @@ function controls() {
   for (const id of ['new', 'refresh', 'more', 'logout']) $(id).disabled = busy;
   for (const button of $('drafts').querySelectorAll('button')) button.disabled = busy;
   $('reload').hidden = !selected;
+  $('publication-fields').disabled = busy || !user || !currentRun || dirty || currentRun.revision !== selected?.revision;
+  $('publish-public').disabled = busy || !publicPreview || !$('public-consent').checked || publicPreview.expiresAt <= Date.now();
+  $('public-consent').disabled = busy || !publicPreview;
+  $('moderation-box').hidden = !user?.moderator;
+  for (const id of ['my-publications','my-publication-more','moderation-load']) $(id).disabled = busy || !user;
+  for (const button of document.querySelectorAll('#my-publication-list button, #moderation-list button, #moderation-list textarea')) button.disabled = busy;
   for (const id of ['run', 'history', 'run-more']) $(id).disabled = busy || !user || !selected || dirty;
   $('run-export').disabled = busy || !currentRun;
   for (const button of $('run-history').querySelectorAll('button')) button.disabled = busy || dirty;
 }
+function clearPublicPreview() {
+  publicPreview = null; $('public-preview').hidden = true; $('preview-json').textContent = ''; $('preview-meta').textContent = ''; $('public-consent').checked = false; $('publish-public').disabled = true;
+}
 function clearRun() {
+  clearPublicPreview(); $('public-author').value = ''; $('public-input').value = '';
   currentRun = null; runCursor = null; $('execution').hidden = true; $('run-panel').hidden = true; $('run-more').hidden = true;
   $('run-history').replaceChildren();
   for (const id of ['run-summary', 'run-source', 'run-finding', 'run-hash', 'run-json']) $(id).textContent = '';
 }
 function reset() {
-  epoch++; clearRun();
+  epoch++; clearRun(); myCursor = null; $('my-publication-list').replaceChildren(); $('moderation-list').replaceChildren(); $('my-publication-more').hidden = true;
   user = null; selected = null; dirty = false; cursor = null;
   $('drafts').replaceChildren(); $('title').value = ''; $('input').value = '{}'; $('notes').value = ''; $('import').value = '';
   $('identity').textContent = 'Signed out'; $('login').hidden = true;
@@ -117,6 +128,10 @@ $('logout').addEventListener('click', () => { if (busy || !mayDiscard()) return;
 window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
 window.addEventListener('pageshow', event => { if (event.persisted) { reset(); window.location.reload(); } });
 function showRun(run) {
+  clearPublicPreview(); $('public-author').value = '';
+  const candidate = JSON.parse(JSON.stringify(run.report.input || {}));
+  candidate.headerText = ''; candidate.publicKeyText = ''; candidate.trustedOrigin = '';
+  $('public-input').value = JSON.stringify(candidate, null, 2);
   currentRun = run; $('execution').hidden = false; $('run-panel').hidden = false;
   const result = run.report.result;
   $('run-summary').textContent = `${result.phase} · Engine record: ${result.recordStatus} · UNREVIEWED`;
@@ -155,4 +170,58 @@ $('run-export').addEventListener('click', () => {
   const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = 'ground0-private-run.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   notice('Exported this private run and evaluated input. Dedicated draft notes are excluded, but input claims can still contain private information. Store the file securely.');
 });
+$('publication-fields').addEventListener('input', () => { clearPublicPreview(); controls(); });
+$('public-consent').addEventListener('change', controls);
+$('preview-public').addEventListener('click', () => {
+  if (busy || dirty || !currentRun || currentRun.revision !== selected?.revision) return;
+  task(async () => {
+    clearPublicPreview();
+    const input = JSON.parse($('public-input').value);
+    const data = await api('public-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runId: currentRun.id, input, author: $('public-author').value }) });
+    publicPreview = data; $('public-preview').hidden = false;
+    $('preview-meta').textContent = `Report SHA-256: ${data.reportHash} · Preview expires ${new Date(data.expiresAt).toLocaleTimeString()}. Fingerprint, not certification.`;
+    $('preview-json').textContent = JSON.stringify(data.report, null, 2);
+    notice('Review the entire exact public preview. Nothing is published yet. Any edits invalidate this preview.');
+  });
+});
+$('publish-public').addEventListener('click', () => {
+  if (busy || !publicPreview || !$('public-consent').checked) return;
+  if (Date.now() >= publicPreview.expiresAt) { clearPublicPreview(); controls(); notice('Preview expired. Generate a new preview before publishing.'); return; }
+  task(async () => {
+    const result = await api('publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: publicPreview.token, acknowledgement: 'PUBLISH_PUBLIC_UNREVIEWED' }) });
+    clearPublicPreview(); notice(`Public report ${result.publication.id} is ${result.publication.state}. Use My publications to view or withdraw it. Corrections require a new saved revision and preview.`);
+    try { await myPublications(); } catch { if (user) notice(`Report ${result.publication.id} was published, but the list could not refresh. Load My publications to retry.`); }
+  });
+});
+async function myPublications(append = false) {
+  const data = await api('my-publications' + (append && myCursor ? '?after=' + encodeURIComponent(myCursor) : ''));
+  if (!append) $('my-publication-list').replaceChildren();
+  for (const publication of data.publications) {
+    const li = document.createElement('li'), link = document.createElement('a');
+    link.href = '/audits?id=' + encodeURIComponent(publication.id); link.textContent = `${publication.title || 'Removed report'} · version ${publication.version} · ${publication.state}`; li.append(link);
+    if (publication.state === 'published') {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Withdraw';
+      button.addEventListener('click', () => { if (busy || !window.confirm('Remove this public report and author label? Its hash and minimal history remain. External copies cannot be recalled.')) return; task(async () => { await api('publications/' + publication.id + '/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); await myPublications(); notice('Report withdrawn from this service.'); }); }); li.append(button);
+    }
+    $('my-publication-list').append(li);
+  }
+  myCursor = data.nextCursor; $('my-publication-more').hidden = !myCursor;
+}
+$('my-publications').addEventListener('click', () => task(() => myPublications()));
+$('my-publication-more').addEventListener('click', () => task(() => myPublications(true)));
+async function moderationQueue() {
+  const data = await api('moderation'); $('moderation-list').replaceChildren();
+  for (const report of data.reports) {
+    const li = document.createElement('li'), link = document.createElement('a'), details = document.createElement('p'), note = document.createElement('textarea');
+    link.href = '/audits?id=' + encodeURIComponent(report.publicationId); link.textContent = 'Inspect public report'; details.textContent = report.details;
+    note.maxLength = 2000; note.setAttribute('aria-label', 'Private moderator note'); note.placeholder = 'Private moderator note'; li.append(link, details, note);
+    for (const [action, label] of [['dismiss','Dismiss report'],['hide','Hide publication'],['hide-and-block','Hide all by author and block']]) {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+      button.addEventListener('click', () => { if (busy || !window.confirm(label + '? This does not certify any findings.')) return; task(async () => { await api('moderation/' + report.id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, note: note.value }) }); await moderationQueue(); notice('Moderation action recorded privately.'); }); }); li.append(button);
+    }
+    $('moderation-list').append(li);
+  }
+  if (!data.reports.length) notice('No unresolved reports.');
+}
+$('moderation-load').addEventListener('click', () => task(moderationQueue));
 reset(); session();
