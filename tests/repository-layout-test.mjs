@@ -60,6 +60,7 @@ test("P13: repository content is separated by status and purpose", async () => {
     "specs/normative/contradictions.md",
     "specs/normative/ground-0-v1.0.md",
     "specs/draft/ground-0-v1.1.md",
+    "specs/draft/ground-0-v1.2.md",
     "docs/deployment/MONGODB-SETUP.md",
     "docs/source-material/Ground-0 Phase Detection Algorithm.md",
     "docs/REPOSITORY-STRUCTURE.md",
@@ -303,6 +304,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     const specFiles = (await listFiles(path.join(SITE, "specs"), "specs")).sort();
     assert.deepEqual(specFiles, [
       "specs/draft/ground-0-v1.1.md",
+      "specs/draft/ground-0-v1.2.md",
       "specs/normative/canonical-model.md",
       "specs/normative/canonical.json",
       "specs/normative/contradictions.md",
@@ -342,7 +344,8 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const base = `http://127.0.0.1:${port}`;
     for (const [pathname, marker] of [
       ["/specs/normative/ground-0-v1.0.md", "Ground-0 Phase Detection Algorithm"],
-      ["/specs/draft/ground-0-v1.1.md", "Proposed amendment"]
+      ["/specs/draft/ground-0-v1.1.md", "Proposed amendment"],
+      ["/specs/draft/ground-0-v1.2.md", "PDH-R"]
     ]) {
       const response = await fetch(`${base}${pathname}`);
       assert.equal(response.status, 200, `${pathname} should be served`);
