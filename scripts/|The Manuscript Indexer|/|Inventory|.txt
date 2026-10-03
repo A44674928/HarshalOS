@@ -1,0 +1,3 @@
+manifest.json — built from the folder
+a drop-a-file-and-reload ceremony guide
+no other ceremony

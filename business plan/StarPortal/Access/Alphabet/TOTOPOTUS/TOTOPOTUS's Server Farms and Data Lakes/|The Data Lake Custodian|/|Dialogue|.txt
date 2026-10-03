@@ -1,0 +1,3 @@
+The lake is deep, cold, and backed up.
+Do not swim in the data lake. It is a figure of speech.
+Every ripple is logged.

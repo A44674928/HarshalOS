@@ -1,0 +1,3 @@
+export-docx.py — styles applied after words
+one suit for the manuscript
+a 'plaintext at home' policy

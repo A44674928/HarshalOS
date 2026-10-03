@@ -1,0 +1,2 @@
+Maintains the Editorial Report between builds
+Posting: docs/harshal-systems/EDITORIAL-REPORT.md

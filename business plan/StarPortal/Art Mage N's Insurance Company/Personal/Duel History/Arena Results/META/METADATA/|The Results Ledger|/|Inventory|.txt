@@ -1,0 +1,3 @@
+rows: win, loss, draw, disqualification
+the Thunderdome's history, legible
+a 'never wrong, only behind' inkwell

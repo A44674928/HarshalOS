@@ -1,0 +1,3 @@
+.assetsignore — deny by default
+prepare-assets.mjs
+a list of everything that stays home

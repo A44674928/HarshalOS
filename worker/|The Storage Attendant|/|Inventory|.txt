@@ -1,0 +1,3 @@
+storage.mjs — optional, like the cloud
+a receipt for every sync
+a 'back up first' badge

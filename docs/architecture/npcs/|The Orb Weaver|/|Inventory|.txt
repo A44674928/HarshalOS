@@ -1,0 +1,3 @@
+the loom — 200 AVIF threads
+one frame buffer
+a sign: DO NOT TOUCH THE LOOM

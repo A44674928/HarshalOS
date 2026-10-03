@@ -1,0 +1,2 @@
+Deterministic build tooling — re-runnable, every time
+Posting: scripts/

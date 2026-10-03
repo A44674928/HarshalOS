@@ -1,0 +1,3 @@
+I inspect the documentation of the documentation.
+Trust the manifest. Verify the manifest. Trust the verification.
+Every dependency has a face. Most of them are fine.

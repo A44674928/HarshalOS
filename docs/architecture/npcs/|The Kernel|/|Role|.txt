@@ -1,0 +1,2 @@
+Executes the Permit/Refuse decision gate
+Posting: js/kernel.js

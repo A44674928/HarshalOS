@@ -1,0 +1,3 @@
+Audio and visual, encoded.
+If it happened and was not encoded, did it happen? No.
+Bitrate is honesty per second.

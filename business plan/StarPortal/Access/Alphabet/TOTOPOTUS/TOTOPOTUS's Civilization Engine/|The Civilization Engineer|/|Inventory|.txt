@@ -1,0 +1,3 @@
+the Civilization Engine save file
+one worker, always first
+a turn counter

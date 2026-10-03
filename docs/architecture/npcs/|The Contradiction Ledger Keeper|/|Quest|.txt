@@ -1,0 +1,2 @@
+The Fifteenth Entry
+Catch the next inconsistency before it ships. Log it, close it, sleep.

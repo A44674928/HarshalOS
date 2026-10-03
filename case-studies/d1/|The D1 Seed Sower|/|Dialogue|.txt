@@ -1,0 +1,3 @@
+The seed is generated, idempotent, and honest.
+Same seed, same register. Every time.
+I sow rows, not opinions.

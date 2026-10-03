@@ -1,0 +1,3 @@
+celestial-context.js — approximate by design
+a moon chart, lightly wrong
+night vision (display-only)

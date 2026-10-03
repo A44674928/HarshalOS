@@ -1,0 +1,2 @@
+All Of Them At Once
+Run every job simultaneously and call it the average day.

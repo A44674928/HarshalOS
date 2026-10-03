@@ -1,0 +1,3 @@
+First awake. Always.
+I say go exactly once per boot. Everything after is the Kernel's problem.
+(morning) Good morning. It is always the first morning somewhere.

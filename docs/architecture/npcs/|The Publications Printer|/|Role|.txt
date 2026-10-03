@@ -1,0 +1,2 @@
+Compiles .docx / assembled .md editions
+Posting: publications/

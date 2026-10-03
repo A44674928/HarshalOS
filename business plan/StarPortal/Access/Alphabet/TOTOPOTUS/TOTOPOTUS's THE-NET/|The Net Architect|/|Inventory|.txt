@@ -1,0 +1,3 @@
+THE-NET's original drawings
+a route that routes around everything
+latency, as a design decision

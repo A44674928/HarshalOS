@@ -1,0 +1,3 @@
+19 checks, 19 passes
+a 'nothing is where it was not' stamp
+yesterday's report (identical)

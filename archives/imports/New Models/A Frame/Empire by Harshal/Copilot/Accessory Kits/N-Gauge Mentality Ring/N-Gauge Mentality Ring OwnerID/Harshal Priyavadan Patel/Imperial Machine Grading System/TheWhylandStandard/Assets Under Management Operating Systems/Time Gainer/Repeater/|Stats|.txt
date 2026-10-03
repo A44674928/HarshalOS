@@ -1,0 +1,2 @@
+Post|8h · Meals|2h 30m · Quarters|7h · Sleep|6h 30m
+Delay|60 minutes, always

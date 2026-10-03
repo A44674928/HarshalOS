@@ -1,0 +1,3 @@
+The outside world gets printouts.
+Markdown inside, docx outside. Same words, different clothes.
+Compiling... compiling... compiled. Sign here.

@@ -1,0 +1,3 @@
+Cloud storage is optional. I will wait while you decide.
+I handle the optional APIs with mandatory care.
+Sync is a rumor until the receipt says otherwise.

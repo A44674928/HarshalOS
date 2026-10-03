@@ -152,7 +152,7 @@ publications/     — single-file Book I / Book II builds, separated from their 
 manuscript/       — plaintext manuscript submissions; only indexed chapters are published
 specs/normative/  — Ground-0 v1.0 finalized normative source; fetched by the spec reader
 specs/draft/      — Ground-0 v1.1 amendment draft; fetched as a draft, not a ratified baseline
-docs/architecture/ — reserved/future architecture notes; not current runtime behavior
+docs/architecture/ — reserved/future architecture notes; not current runtime behavior. Includes the |User|-centric superstructure map, the NPC codex (cast roster of the `|Name|.txt` bedrooms, with six of seven profile slots authored for every resident), and `HARSHALS-PALACE.html` — a self-contained, deterministic visualization of the castle on an average day, with full character sheets (role, faction, dialogue, inventory, quest, stats), date-seeded weather, and the approximate Moon of the UTS watch (regenerate with `npm run palace:build`)
 docs/deployment/  — operator setup and deployment guides
 docs/source-material/ — archival combined manuscript transcription; not the app's selected spec
 docs/harshal-systems/modules/ — Book I reference modules: The Grand Architecture, corrected UTS, and Convergence institutions
@@ -162,9 +162,12 @@ case-studies/badges/ — register-issued PDH-R badge assets (`*.svg`) and the ba
 case-studies/d1/ — generated D1 artifacts for the same register: `case-studies-d1.json` (engine review manifest) and `case-studies-seed.sql` (idempotent seed for the public register); rebuild with `npm run case-studies:build`, verify with `npm run case-studies:check`
 research/reports/ — supporting research reports (separate from scored case studies)
 archives/         — repository-only historical and source material; not in the browser bundle
+archives/ags-legacy-exports/ — older "AGS"/"AGS++" EPUB/Pages exports, superseded by publications/
 archives/animation-source/ — unused source frames and the earlier eye-closing GIF export
 archives/Duplicates/ — quarantined duplicate files and SHA-256 manifest
+archives/flame-renders/ — archived Fractal Flames PNG renders (Blue Cool palette, etc.)
 archives/ground-0/ — historical standalone ZIP bundles; not normative source or deployed assets
+archives/imports/ — unmerged incoming author bundles (new-model slot skeletons, old Fractal Flames backups)
 archives/source-bundles/ — original ZIPs whose contents are organized under updates/
 archives/screenshots/2026-08/ — archived screenshot backup artifacts; not deployed
 tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)

@@ -1,0 +1,2 @@
+Optional, Handled
+Care for the optional APIs with mandatory care, and say so twice.
