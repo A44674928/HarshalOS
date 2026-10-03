@@ -63,7 +63,7 @@ function fixture(t) {
 test('OIDC: login, PKCE exchange, hashed session, account status, logout and replay rejection', async t => {
   const f = fixture(t); const flow = await f.login();
   const response = await f.call(flow.path, { cookies: flow.cookies }); assert.equal(response.status, 303);
-  assert.equal(response.headers.get('Location'), origin + '/');
+  assert.equal(response.headers.get('Location'), origin + '/account');
   const cookies = cookiePair(response);
   const raw = /__Host-hos_session=([^;]+)/.exec(cookies)[1];
   const stored = f.sql.prepare('SELECT * FROM community_sessions').get();

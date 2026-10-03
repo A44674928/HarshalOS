@@ -19,7 +19,7 @@ const SUITES = [
   {
     area: "D1 community database and OIDC sessions (local tests)",
     script: "test:community",
-    files: ["community-db-test.mjs", "community-auth-test.mjs"]
+    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs"]
   },
   {
     area: "Kernel, phase, temporal, PDH, ledger & session",

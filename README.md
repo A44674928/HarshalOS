@@ -547,9 +547,9 @@ behavioral · evaluative, not directive · contained, not externalized.*
 
 ## D1 community accounts (disabled)
 
-The rebuild includes a private-draft data layer and OIDC login/session backend,
-with tests. `COMMUNITY_ENABLED=false` keeps authentication off; draft and public
-publication HTTP routes remain closed regardless of that flag. The account UI,
-public reporting pipeline and live-provider verification are still pending.
+The rebuild includes the `/account` private workspace, authenticated draft APIs,
+and OIDC login/session backend, with tests. `COMMUNITY_ENABLED=false` keeps account
+access off. Public publication remains closed regardless of the flag. Server-side
+audit execution, public reporting and live-provider verification are still pending.
 See [D1 setup and implementation status](docs/deployment/COMMUNITY-D1.md).
 No remote migration or production deployment is included in these checkpoints.

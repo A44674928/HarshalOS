@@ -1,8 +1,8 @@
-# Community D1 — first rebuilt checkpoint
+# Community D1 — accounts and private drafts
 
 ## Status and boundaries
 
-This rebuild now includes the database foundation **and OIDC login/session layer**.
+This rebuild now includes the database foundation, OIDC login/session layer **and private account workspace**.
 It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
 
 Implemented:
@@ -17,11 +17,18 @@ Implemented:
 - Origin checks, bounded provider response bodies, timeouts, no followed redirects,
   generic error responses, and D1-backed request limits.
 
-Not implemented: draft HTTP CRUD, Ground-0 semantic validation/server recomputation,
+- `/account` UI: sign-in/out, private draft list/editor, explicit save/import/export,
+  revision conflict preservation and reload. Dynamic content is rendered as text.
+- Authenticated private draft endpoints with session-derived ownership, exact-Origin
+  writes, 96 KiB streaming body limit and 60 write attempts/account/UTC day.
+  Listing is paginated (25 per page, stable ID order), not a latest-first feed.
+
+Not implemented: draft deletion, Ground-0 semantic validation/server recomputation,
 public previews/publication/history/withdrawal/moderation UI, self-service account
 export/deletion, and community backup/retention workflows. The internal draft
 functions require a verified server-derived owner ID, never a request-supplied one.
-No draft/publication HTTP route is exposed in this checkpoint.
+Publication routes remain closed regardless of the feature flag. The two existing
+migrations are unchanged; this checkpoint needs no new migration.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -31,13 +38,40 @@ preview → explicit publication labeled **UNREVIEWED**, not independent verific
 | Method | Route | Behavior |
 | --- | --- | --- |
 | GET | `/api/community/auth/login` | Redirect to managed provider; no arbitrary return URL |
-| GET | `/api/community/auth/callback` | Verify one-use flow and ID token; set session; redirect to `/` |
+| GET | `/api/community/auth/callback` | Verify one-use flow and ID token; set session; redirect to `/account` |
 | GET | `/api/community/me` | Return private account ID and moderator boolean; 401 if signed out |
 | POST | `/api/community/auth/logout` | Exact Origin required; revoke this browser session/pending flow |
 
-`/api/community/status` still returns 503, `ready: false`: full community editing
-and publication are not ready. It is not a live database health check. The desktop
-has no sign-in/account UI yet; these are backend endpoints for the next checkpoint.
+### Private draft endpoints
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| GET | `/api/community/drafts?after=UUID` | Account-owned summaries, 25/page and nextCursor |
+| POST | `/api/community/drafts` | Create a private draft; 100/account maximum |
+| GET | `/api/community/drafts/UUID` | Read an owned draft; 404 for another account |
+| PUT | `/api/community/drafts/UUID` | Save with matching `revision`; 409 without overwrite on conflict |
+
+Writes accept `title`, object-valued `input`, `privateNotes`, and (updates only)
+`revision`. Extra envelope fields, including client-supplied owner IDs, are rejected.
+The generic input object is NOT a validated audit/result and is never published.
+All routes require active, unblocked sessions; moderator status grants no access
+to someone else's drafts. Authentication/IP quotas also apply to draft requests.
+
+The account page is linked from the desktop boot links and Overview page.
+`/api/community/status` still returns 503, `ready: false`, because the complete
+public auditing service is not ready. It is not a live database health check.
+Both `/account` and `/account.html` are Worker-first and receive no-store, no-referrer,
+nosniff and restrictive CSP headers. Framing is blocked when community is enabled;
+disabled previews can be embedded. The editor does not persist data in localStorage.
+Sign-out and detected session expiry clear displayed private state. Unsaved edits
+are not autosaved; export them before signing out or leaving the page. Conflicts
+preserve the editor and require a deliberate reload, not a forced overwrite.
+
+Private exports use `harshalos-private-draft-v1` and include private notes. Import
+only fills the editor; clicking Save creates a new account-owned draft. Desktop
+Ground-0 archives are not supported by this importer yet. Store downloads securely.
+Exports are user copies, not automated backups. Network retries of a create request
+may create a duplicate: the client does not automatically retry writes.
 
 Logout is local to HarshalOS; it does not end the Auth0 SSO session. Existing local
 sessions are not automatically revoked when an account is disabled at Auth0; block
@@ -145,7 +179,7 @@ allowlists, not wildcards. Existing Access protection for owner `/api/storage/*`
 must remain; community callbacks need to be reachable through their own policy.
 
 Next: verify login on a separate staging origin/database/provider application,
-then expose authenticated draft APIs and add the account UI. Follow with exact
+then implement server-side audit recomputation. Follow with exact
 preview-bound publication, version history, withdrawal, abuse reporting and moderation.
 Do not enable production merely because unit tests pass.
 

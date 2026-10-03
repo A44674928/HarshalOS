@@ -1,5 +1,5 @@
 // Internal functions only: ownerId MUST come from a verified server session,
-// never request input. No HTTP read/write endpoints expose these functions yet.
+// never request input. Private HTTP routes enforce the session guard first.
 export class CommunityError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -69,4 +69,12 @@ export async function updateDraft(db, ownerId, id, expectedRevision, value, now 
   // Identical response for missing, blocked, stale, or another user's draft.
   if (!row) throw new CommunityError(409, 'Draft unavailable or changed; reload before saving.');
   return dto(row);
+}
+
+export async function listDrafts(db, ownerId, after = '') {
+  identity(ownerId);
+  const { results } = await db.prepare(`SELECT d.id, d.title, d.revision, d.updated_at AS updatedAt
+    FROM community_drafts d JOIN community_users u ON u.id = d.owner_id
+    WHERE d.owner_id = ? AND u.blocked = 0 AND d.id > ? ORDER BY d.id LIMIT 26`).bind(ownerId, after).all();
+  return { drafts: results.slice(0, 25), nextCursor: results.length > 25 ? results[24].id : null };
 }

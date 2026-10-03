@@ -96,10 +96,10 @@ test('D1: schema probe rejects missing/unsupported schema without SQL details', 
   await assert.rejects(checkCommunitySchema(db), error => error.status === 503 && !error.message.includes('SELECT'));
   await assert.rejects(checkCommunitySchema(undefined), status(503));
 });
-test('D1: draft/publication HTTP stays closed even if enabled; legacy storage remains protected', async () => {
+test('D1: publication HTTP stays closed even if enabled; legacy storage remains protected', async () => {
   const db = { prepare() { throw new Error('Must not access D1 through HTTP yet'); } };
   for (const env of [{}, { COMMUNITY_ENABLED: 'false', COMMUNITY_DB: db }, { COMMUNITY_ENABLED: 'true' }, { COMMUNITY_ENABLED: 'true', COMMUNITY_DB: db }]) {
-    for (const path of ['/api/community/status', '/api/community/drafts', '/api/community/publications']) {
+    for (const path of ['/api/community/status', '/api/community/publications']) {
       for (const method of ['GET', 'POST', 'PUT', 'DELETE']) {
         const response = await worker.fetch(new Request('https://os.example' + path, { method }), env);
         assert.equal(response.status, 503);

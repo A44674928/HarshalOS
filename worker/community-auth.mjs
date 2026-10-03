@@ -156,7 +156,7 @@ export async function handleCommunityAuth(request, env, dependencies = {}) {
     // Revoke this browser's previous session rather than reusing its identifier.
     const old = readCookie(request, SESSION);
     if (old) await db.prepare('DELETE FROM community_sessions WHERE token_hash = ?').bind(await digest(old)).run();
-    const headers = new Headers({ Location: config.origin + '/', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    const headers = new Headers({ Location: config.origin + '/account', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     headers.append('Set-Cookie', cookie(SESSION, session, 86400));
     headers.append('Set-Cookie', cookie(FLOW, '', 0));
     return new Response(null, { status: 303, headers });
@@ -164,4 +164,17 @@ export async function handleCommunityAuth(request, env, dependencies = {}) {
     return authJson({ error: error instanceof CommunityError ? error.message : 'Community authentication unavailable. Please retry later.' },
       error instanceof CommunityError ? error.status : 503, callback ? { 'Set-Cookie': cookie(FLOW, '', 0) } : {});
   }
+}
+
+// Shared guard for private APIs. Caller identity is always session-derived.
+export async function authorizeCommunity(request, env, { write = false, now = Math.floor(Date.now() / 1000) } = {}) {
+  if (env.COMMUNITY_ENABLED !== 'true') throw new CommunityError(503, 'Community is disabled.');
+  const config = configuration(request, env);
+  if (write && request.headers.get('Origin') !== config.origin) throw new CommunityError(403, 'Same-origin request required.');
+  const schema = await env.COMMUNITY_DB.prepare("SELECT version FROM community_schema WHERE component = 'authentication'").first();
+  if (schema?.version !== 1) throw new CommunityError(503, 'Authentication migration is required.');
+  await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'all', request.headers.get('CF-Connecting-IP') || 'unknown', 90, 60, now);
+  const user = await currentUser(request, env, config, now);
+  if (write) await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'draft-write:' + user.id, '', 60, 86400, now);
+  return user;
 }
