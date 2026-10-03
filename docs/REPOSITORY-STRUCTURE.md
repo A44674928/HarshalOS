@@ -20,7 +20,7 @@ This layout separates normative specifications, implementation, evidence, operat
 ├── specs/
 │   ├── normative/                    Ground-0 v1.0 finalized baseline
 │   └── draft/                        Ground-0 v1.1 unratified amendment draft
-├── case-studies/                     OpenAI and Anthropic audit writeups
+├── case-studies/                     Ground-0 audit writeups (v1.0 originals + v1.1 register) and PDH-R badge registry
 ├── research/
 │   ├── keyed-human-machine-hybrid-systems.md  Flagship portfolio research paper (Part XIX)
 │   └── reports/                      Supporting research reports
@@ -62,7 +62,7 @@ This layout separates normative specifications, implementation, evidence, operat
 - **Normative Ground-0 baseline:** [`specs/normative/ground-0-v1.0.md`](../specs/normative/ground-0-v1.0.md).
 - **Draft only:** [`specs/draft/ground-0-v1.1.md`](../specs/draft/ground-0-v1.1.md). It is not ratified and does not supersede v1.0.
 - **Source provenance:** [`docs/source-material/Ground-0 Phase Detection Algorithm.md`](source-material/Ground-0%20Phase%20Detection%20Algorithm.md) is the combined manuscript transcription retained for reference. It contains both versions; it is not the file selected by the app's version switch.
-- **Case studies:** `case-studies/` contains the standalone OpenAI and Anthropic audit reports. Supporting background research is kept separately in `research/reports/`.
+- **Case studies:** `case-studies/` contains the standalone OpenAI and Anthropic audit reports, the v1.1 manual audit register (21 files / 23 entities, each with a declared evidence cutoff and a hash-bound PDH-R issuance record in Appendix C), and the register-issued badge assets under `badges/`. Reproduction: `node scripts/issue-pdh-badges.mjs`. Supporting background research is kept separately in `research/reports/`.
 - **Historical bundles:** `archives/ground-0/` contains previously produced ZIP packages. They are archived distributions, not the normative source and not the code used by the current static shell.
 
 The app reader and download links use only the explicit `specs/normative/` and `specs/draft/` paths. Keep status visible in directory names and document headers; do not silently replace a normative file with a draft.

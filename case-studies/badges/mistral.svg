@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="132" viewBox="0 0 460 132" role="img" aria-label="Mistral AI — GSRB, register-issued PDH-R, unattested">
+  <rect width="460" height="132" rx="14" fill="#0b0f14"/>
+  <rect x="0.75" y="0.75" width="458.5" height="130.5" rx="13.25" fill="none" stroke="#7f9cf5" stroke-opacity=".45"/>
+  <rect x="0" y="0" width="5" height="132" rx="2.5" fill="#7f9cf5"/>
+  <text x="22" y="34" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#e8eef5">Mistral AI</text>
+  <text x="22" y="72" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="27" font-weight="800" letter-spacing="2.5" fill="#7f9cf5">GSRB</text>
+  <rect x="188" y="46" width="86" height="18" rx="9" fill="rgba(127,156,245,.16)" stroke="#7f9cf5" stroke-opacity=".55"/>
+  <text x="231" y="58.5" text-anchor="middle" font-size="8.6" letter-spacing="1.4" fill="#7f9cf5" font-weight="700">CONDITIONAL</text>
+  <text x="22" y="92" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="9.2" letter-spacing="1.5" fill="#8fa3b8">REGISTER-ISSUED PDH-R · UNATTESTED · EVIDENCE 2026-10-02</text>
+  <text x="22" y="112" font-size="8.4" fill="#6b7f93">scope: platform/service surface</text>
+  <text x="22" y="123" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="8.2" fill="#5c7086">PDH-R-2026-1002-MISTRAL-001 · sha256:431c2573f052… · expires 2026-12-31</text>
+  <line x1="330" y1="24" x2="330" y2="108" stroke="#1e2a36"/>
+  <text x="352" y="46" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="9" letter-spacing="1.4" fill="#6b7f93">CONSTRAINT</text>
+  <text x="352" y="72" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#c9d6e4">C 0/4</text>
+</svg>
