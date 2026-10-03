@@ -234,6 +234,23 @@ if (utsApi) {
   ok(!!homeWidget && !!localClock && !!calendarDays, "Home Screen includes the local clock and Gregorian calendar widget");
   ok(!!(localClock && localClock.textContent && localClock.textContent !== "—"), "Home Screen clock is populated from the device clock");
   ok(!!(calendarDays && calendarDays.querySelectorAll(".home-cal-day").length >= 35), "Home Screen renders a Monday-first monthly calendar grid");
+  /* The Home Screen clock can be minimized. On phones and tablets it is a card
+     at the top of the desktop's scroll flow rather than a floating overlay, so
+     either state leaves every icon reachable (see css/uts.css). */
+  const widget = body.querySelector("#home-time-widget");
+  const widgetToggle = body.querySelector("#home-widget-toggle");
+  const widgetBody = body.querySelector("#home-time-body");
+  ok(!!widgetToggle && !!widgetBody, "Home Screen clock exposes a minimize control and a collapsible body");
+  if (widget && widgetToggle && widgetBody) {
+    ok(widgetToggle.attrs["aria-expanded"] === "true", "the clock starts expanded and says so");
+    widgetToggle.click();
+    ok(widget.classList.contains("is-collapsed"), "the minimize control collapses the clock card");
+    ok(widgetBody.hidden === true, "the collapsed clock removes its body from the layout");
+    ok(widgetToggle.attrs["aria-expanded"] === "false", "the collapsed clock reports its state");
+    widgetToggle.click();
+    ok(!widget.classList.contains("is-collapsed") && widgetBody.hidden !== true, "the control restores the full clock and calendar");
+  }
+
   const utsOpen = body.querySelector("#home-uts-open");
   if (utsOpen) utsOpen.click();
   const utsWindow = shell.windows.get("uts");

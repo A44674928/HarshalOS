@@ -134,6 +134,23 @@
     if (dateLabel) dateLabel.textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" });
   }
 
+  /* Minimize/restore. The collapsed state is display-only, like the rest of the
+     widget: it changes no authority, freshness or PLV state. */
+  function setHomeWidgetCollapsed(collapsed) {
+    const widget = document.getElementById("home-time-widget");
+    const toggle = document.getElementById("home-widget-toggle");
+    const body = document.getElementById("home-time-body");
+    if (!widget || !toggle || !body) return false;
+    widget.classList.toggle("is-collapsed", collapsed);
+    body.hidden = collapsed;
+    toggle.textContent = collapsed ? "+" : "–";
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    const label = collapsed ? "Expand the clock and calendar" : "Minimize the clock and calendar";
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+    return collapsed;
+  }
+
   function attachHomeWidget(openApp) {
     homeWidgetOpen = typeof openApp === "function" ? openApp : null;
     const widget = document.getElementById("home-time-widget");
@@ -153,6 +170,9 @@
       renderCalendar(new Date());
     });
     open?.addEventListener("click", () => homeWidgetOpen && homeWidgetOpen());
+    document.getElementById("home-widget-toggle")?.addEventListener("click", () => {
+      setHomeWidgetCollapsed(!widget.classList.contains("is-collapsed"));
+    });
   }
 
   function updateHomeWidget(now = new Date()) {
@@ -160,8 +180,11 @@
     const zone = document.getElementById("home-local-zone");
     const utc = document.getElementById("home-utc-clock");
     const udate = document.getElementById("home-uts-date");
+    const summary = document.getElementById("home-widget-summary");
     if (!clock) return;
     clock.textContent = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const compact = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    if (summary) summary.textContent = `${compact} · ${dateOnly(now)}`;
     if (zone) {
       const zoneName = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(now).find(part => part.type === "timeZoneName")?.value || "local";
       zone.textContent = `${zoneName} · device clock`;
@@ -266,6 +289,6 @@
   window.HOSUTS = Object.freeze({
     C, US_PER_UM, US_PER_UH, US_PER_UDAY, US_PER_UY, UNITS,
     durationToUnits, uDateParts, formatUDate, formatUDateScientific,
-    formatNumber, attachHomeWidget, updateHomeWidget, renderApp
+    formatNumber, attachHomeWidget, updateHomeWidget, setHomeWidgetCollapsed, renderApp
   });
 })();

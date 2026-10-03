@@ -179,6 +179,67 @@ test("desktop app icons use fixed grid cells and two-line labels at every breakp
   assert.ok(html.includes('id="icon-field" class="icon-field" role="group" aria-label="Desktop applications, sorted alphabetically"'));
 });
 
+test("mobile shells scroll the desktop and place the clock card in that flow", async () => {
+  const [mobileCss, utsCss, html] = await Promise.all([
+    readFile(path.join(ROOT, "css/mobile.css"), "utf8"),
+    readFile(path.join(ROOT, "css/uts.css"), "utf8"),
+    readFile(path.join(ROOT, "index.html"), "utf8")
+  ]);
+  const block = (css, header) => {
+    const open = css.indexOf("{", css.indexOf(header));
+    assert.ok(open >= 0, `expected a ${header} block`);
+    let depth = 0;
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === "{") depth++;
+      else if (css[i] === "}" && --depth === 0) return css.slice(open + 1, i);
+    }
+    assert.fail(`unbalanced braces after ${header}`);
+  };
+  /* A file may carry several blocks with the same media query; a media query
+     only ever narrows the rules above it, so asserting over their union is
+     exactly what a device at that width sees. */
+  const blocks = (css, header) => {
+    let out = "";
+    let rest = css;
+    while (rest.includes(header)) {
+      out += block(rest, header);
+      rest = rest.slice(rest.indexOf(header) + header.length);
+    }
+    assert.ok(out, `expected a ${header} block`);
+    return out;
+  };
+
+  /* The widget keeps a fixed overlay on desktop, where the icon grid is a
+     narrow left-hand column and the panel has room of its own. */
+  assert.ok(block(utsCss, ".home-time-widget {").includes("position: absolute"),
+    "the clock stays a desktop overlay on wide screens");
+
+  const mobileWidget = blocks(utsCss, "@media (max-width: 860px)");
+  assert.ok(mobileWidget.includes("position: static"), "on mobile the clock joins the document flow");
+  assert.ok(mobileWidget.includes("order: -1"), "the clock card is the first item in the desktop's scroll flow");
+  assert.ok(mobileWidget.includes(".home-time-widget.is-collapsed .home-time-body { display: none; }"),
+    "the collapsed clock hides its body instead of shrinking over the icons");
+
+  const narrowWidget = blocks(utsCss, "@media (max-width: 620px)");
+  assert.ok(narrowWidget.includes("margin: 0 14px 14px"), "the phone card uses the same 14px gutter as the icon grid");
+
+  const mobileShell = blocks(mobileCss, "@media (max-width: 860px)");
+  assert.ok(block(mobileShell, ".desktop {").includes("overflow-y: auto"),
+    "the mobile desktop is a scroll region, not a fixed stage");
+  assert.ok(block(mobileShell, ".desktop {").includes("flex-direction: column"),
+    "home-screen items share one vertical flow");
+  assert.ok(block(mobileShell, ".window-layer {").includes("position: fixed"),
+    "an open window stays pinned to the viewport while the desktop scrolls underneath");
+  assert.ok(block(mobileShell, ".icon-field {").includes("position: static"),
+    "the icon grid scrolls with the page instead of clipping inside itself");
+  assert.ok(mobileShell.includes(".home-time-widget .home-widget-toggle {"), "the touch target for minimizing is sized in the mobile shell");
+
+  assert.ok(html.includes('id="home-widget-toggle"') && html.includes('aria-controls="home-time-body"'),
+    "the clock markup exposes the minimize control and its collapsible body");
+  assert.ok(html.indexOf('id="home-time-widget"') < html.indexOf('id="icon-field"'),
+    "the clock card precedes the icons in the scroll flow");
+});
+
 test("P13: publication, source-bundle, and animation archive groups are complete", async () => {
   const frames = (await readdir(path.join(ROOT, "archives/animation-source/eye-closing/frames")))
     .filter(name => /^animate-\d{3} Large\.png$/.test(name))
