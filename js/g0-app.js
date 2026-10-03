@@ -91,7 +91,7 @@ APPS.push({
       prefs: loadPrefs(),
       wiz: null,            // { input, step, errors, pdh, checking, preview, mode, editingId }
       auto: { stage: "input", query: "", cutoff: G0.today(), candidates: [], selected: 0, progress: null, outcome: null, error: "", controller: null },
-      reading: { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" },
+      reading: { stage: "idle", mode: "staged", progress: null, reading: null, error: "", controller: null, include: null, applied: "" },
       detail: null,         // audit record (object reference)
       detailTab: "summary",
       phaseDetail: null,
@@ -320,7 +320,8 @@ APPS.push({
         autoCancel() { if (S.auto.controller) S.auto.controller.abort(); },
         autoRetry() { S.auto.stage = "input"; S.auto.error = ""; render(); },
         autoBack() { S.auto.stage = "input"; S.auto.candidates = []; S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" }; render(); },
-        readRecord() { startReading(); },
+        readRecord() { startReading("staged"); },
+        readRecordSingle() { startReading("single"); },
         cancelReading() { if (S.reading.controller) S.reading.controller.abort(); S.reading = { ...S.reading, stage: "idle", progress: null }; render(); },
         discardReading() {
           S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
@@ -1248,18 +1249,23 @@ APPS.push({
           <p class="g0-section-note">A reading is not a citation. Save the quote as the artifact's claim, then cite the artifact from an audit — the audit is what scores it.</p>
         </div>`;
     }
-    function startReading() {
+    function startReading(mode = "staged") {
       const a = S.auto; const o = a.outcome;
       if (!o) return;
-      if (!G0LLM || !LLM || !LLM.status().linked) { openLlmLink(); return; }
-      S.reading = { ...S.reading, stage: "running", error: "", reading: null, progress: { step: 0, message: "Preparing the retrieved record…", completed: 0, total: 5 }, include: null, applied: "" };
+      const status = LLM && LLM.status ? LLM.status() : null;
+      if (!G0LLM || !LLM || !status || !status.linked) { openLlmLink(); return; }
+      if (mode === "single" && status.protocol !== "google") {
+        api.toast("warn", "ONE-REQUEST MODE NEEDS GOOGLE", "Link the Gemini Developer API in LLM Link to use the one-request read.");
+        return;
+      }
+      S.reading = { ...S.reading, stage: "running", mode, error: "", reading: null, progress: { step: 0, message: "Preparing the retrieved record…", completed: 0, total: 5 }, include: null, applied: "" };
       S.reading.controller = new AbortController();
       render();
-      announce("Reading the retrieved record with your linked model.");
+      announce(mode === "single" ? "Sending the full audit reading in one Gemini generation request." : "Reading the retrieved record with your linked model.");
       G0LLM.readSources({
         input: o.input, sources: (o.input.automation && o.input.automation.sources) || [], version: o.input.version || S.version,
         cutoff: o.input.cutoff, entity: o.organization.name, website: o.organization.website,
-        signal: S.reading.controller.signal, followLinks: true,
+        signal: S.reading.controller.signal, followLinks: mode !== "single", singleRequest: mode === "single",
         onProgress: progress => { S.reading.progress = progress; if (S.reading.stage === "running") readingProgress(); }
       }).then(reading => {
         if (S.reading.controller.signal.aborted) return;
@@ -1316,6 +1322,27 @@ APPS.push({
         ${problems.length ? `<ul class="g0-ul">${problems.slice(0, 12).map(call => `<li>Pass ${call.pass}, ${esc(call.codes.join(", "))}: ${esc(names[call.outcome])}${call.detail ? ` — ${esc(call.detail)}` : ""}${call.finishReason ? ` (provider stop: ${esc(call.finishReason)})` : ""}. Sources: ${esc(call.sourceIds.join(", "))}.</li>`).join("")}</ul><p class="g0-section-note">Only missing/invalid output gets a format retry, against the same sources and no higher token ceiling (at most ${G0LLM.LIMITS.maxFormatRetries} extra calls per run). Valid UNKNOWN answers and rejected quotations are never retried to seek a positive answer.</p>` : `<p class="g0-section-note">The model returned usable findings for the questions asked. An explicit UNKNOWN is a reading of these supplied records, not a proven negative or a successful search of the entire public record.</p>`}
       </details>`;
     }
+    function singleRequestPreflight(o, status) {
+      const sources = (o.input.automation && o.input.automation.sources) || [];
+      const estimate = G0LLM.estimateSingleRequest({
+        input: o.input, sources, version: o.input.version || S.version, cutoff: o.input.cutoff || "", entity: o.organization.name || o.input.name || ""
+      });
+      const model = LLM && typeof LLM.googleModelInfo === "function" ? LLM.googleModelInfo(status.model) : null;
+      const quota = LLM && typeof LLM.googleQuotaStatus === "function" ? LLM.googleQuotaStatus(status.model) : null;
+      const contextLimit = Number(model && model.inputTokenLimit) || 0;
+      const tpmLimit = Number(quota && quota.effective && quota.effective.tpm) || 0;
+      const rpdLimit = Number(quota && quota.effective && quota.effective.rpd) || 0;
+      const localRequestsToday = Number(quota && quota.usage && quota.usage.requestsPerDay) || 0;
+      const localTokensThisMinute = Number(quota && quota.usage && quota.usage.inputTokensPerMinute) || 0;
+      const exceedsContext = !!contextLimit && estimate.estimatedInputTokens > contextLimit;
+      const exceedsTpm = !!tpmLimit && estimate.estimatedInputTokens > tpmLimit;
+      const tpmWouldWait = !!tpmLimit && !exceedsTpm && localTokensThisMinute + estimate.estimatedInputTokens > tpmLimit;
+      const localDailyFull = !!rpdLimit && localRequestsToday >= rpdLimit;
+      const hasSources = estimate.includedSourceCount > 0;
+      const oneRequestAllowed = hasSources && !exceedsContext && !exceedsTpm && !localDailyFull;
+      return { estimate, model, quota, contextLimit, tpmLimit, rpdLimit, localRequestsToday, localTokensThisMinute, exceedsContext, exceedsTpm, tpmWouldWait, localDailyFull, hasSources, oneRequestAllowed };
+    }
+
     function readingPanel(o) {
       const status = llmStatus();
       const state = S.reading;
@@ -1361,22 +1388,58 @@ APPS.push({
             <div class="g0-callout"><span aria-hidden="true">ℹ</span><p>Nothing was classified, scored or saved. The keyword reading above is untouched.</p></div>
             <div class="g0-btn-row">
               <button class="g0-btn ghost" data-act="openLlmLink">Open LLM Link</button>
-              <button class="g0-btn primary" data-act="readRecord">Try the reading again</button>
+              <button class="g0-btn primary" data-act="${state.mode === "single" ? "readRecordSingle" : "readRecord"}">${state.mode === "single" ? "Try the one-request read again" : "Try the reading again"}</button>
             </div>
           </div>`;
       }
       if (!state.reading) {
-        const readable = ((o.input.automation && o.input.automation.sources) || []).filter(source => G0LLM ? G0LLM.readable(source) : false).length;
-        const stored = ((o.input.automation && o.input.automation.sources) || []).filter(source => source.text && !G0LLM.isLead(source)).length;
+        const sources = (o.input.automation && o.input.automation.sources) || [];
+        const readable = sources.filter(source => G0LLM ? G0LLM.readable(source) : false).length;
+        const stored = sources.filter(source => source.text && !G0LLM.isLead(source)).length;
+        const google = status.protocol === "google";
+        const preflight = google ? singleRequestPreflight(o, status) : null;
+        const estimate = preflight && preflight.estimate;
+        const quota = preflight && preflight.quota;
+        const contextStatus = preflight && preflight.contextLimit
+          ? `Listed model input limit ${preflight.contextLimit.toLocaleString()} tokens — estimate ${preflight.exceedsContext ? "exceeds it" : "fits"}.`
+          : "Model input limit not loaded; use LLM Link → All available to compare context metadata.";
+        const rpmStatus = quota && quota.actual.rpm
+          ? `Saved RPM ${quota.actual.rpm.toLocaleString()}, local guard ${quota.effective.rpm.toLocaleString()} at ${quota.safetyPercent}% safety${quota.usage.requestsPerMinute >= quota.effective.rpm ? " — the local guard may wait for a slot" : ""}.`
+          : "No local RPM cap is configured; the audit still uses one generation request.";
+        const tpmStatus = quota && quota.actual.tpm
+          ? `Saved TPM ${quota.actual.tpm.toLocaleString()}, local guard ${quota.effective.tpm.toLocaleString()} at ${quota.safetyPercent}% safety; local rolling estimate ${preflight.localTokensThisMinute.toLocaleString()} + this prompt ${estimate.estimatedInputTokens.toLocaleString()} = ${(preflight.localTokensThisMinute + estimate.estimatedInputTokens).toLocaleString()} tokens. ${preflight.exceedsTpm ? "This prompt alone exceeds the guard." : preflight.tpmWouldWait ? "The local guard may wait for older usage to clear." : "This fits the current local window."}`
+          : "No local input-TPM cap is configured; this page cannot confirm remaining project quota.";
+        const rpdStatus = quota && quota.actual.rpd
+          ? `Local requests today ${preflight.localRequestsToday}/${quota.effective.rpd} allowed by the safety guard${preflight.localDailyFull ? " — daily local cap reached" : ""}; requests from other apps/devices are not visible here.`
+          : "No local RPD cap is configured; shared Google usage from other apps/devices is not visible here.";
+        const preflightWarning = preflight && (preflight.exceedsContext || preflight.exceedsTpm || preflight.localDailyFull || !preflight.hasSources);
+        const preflightHtml = google ? `
+          <div class="g0-callout${preflightWarning ? " amber" : ""}"><span aria-hidden="true">${preflightWarning ? "⚠" : "⏱"}</span><div class="g0-preflight-copy">
+            <p><strong>One-request Google audit preflight — local only; no generation call sent.</strong> Padded local estimate: about <strong>${estimate.estimatedInputTokens.toLocaleString()} input tokens</strong> across ${estimate.promptCharacters.toLocaleString()} prompt characters. It includes system instructions, all ${estimate.questionCount} audit questions, the response shape, and the bundled source text.</p>
+            <p class="g0-section-note">Source pack: ${estimate.includedSourceCount}/${estimate.readableSourceCount} readable sources, ${estimate.sourceCharacters.toLocaleString()} source characters${estimate.truncatedSourceCount ? `; ${estimate.truncatedSourceCount} source(s) shortened` : ""}${estimate.omittedSourceCount ? `; ${estimate.omittedSourceCount} retrieved record(s) not bundled` : ""}. One generation attempt; no automatic format retry, link follow-up, or conflict-weighing call.</p>
+            <p class="g0-section-note">${contextStatus} ${rpmStatus} ${tpmStatus} ${rpdStatus}</p>
+            <p class="g0-section-note">This character-based estimate is not Google's tokenizer/countTokens result; actual token use and context fit can differ. The local quota guard sees only this browser, not Google's shared live usage.</p>
+            ${preflightWarning ? `<p class="g0-section-note"><strong>One-request mode is blocked by this preflight.</strong> ${preflight.exceedsContext ? "The estimated prompt is above the listed context window. " : ""}${preflight.exceedsTpm ? "The estimate is above the saved local TPM guard. " : ""}${preflight.localDailyFull ? "The local daily request allowance is exhausted. " : ""}${!preflight.hasSources ? "No readable source text is available. " : ""}${preflight.localDailyFull ? "Wait for the local daily reset or change model/quota settings." : "Use the staged fallback if it fits the source/context limits."}</p>` : ""}
+          </div></div>` : "";
+        const primaryAction = google && preflight.oneRequestAllowed ? "readRecordSingle" : "readRecord";
+        const primaryDisabled = !readable || !!(google && preflight.localDailyFull);
+        const primaryLabel = google
+          ? preflight.oneRequestAllowed
+            ? `One-request audit (~${estimate.estimatedInputTokens.toLocaleString()} estimated input tokens)`
+            : `Staged audit fallback with ${esc(status.model || "the linked model")}`
+          : `Read the retrieved record with ${esc(status.model || "the linked model")}`;
         return `
           <div class="g0-panel g0-llm">
             ${header}
             <p class="g0-section-note">${stored
-              ? `${readable} of ${((o.input.automation && o.input.automation.sources) || []).length} retrieved sources carry readable text (${stored} with stored source text). The model reads those, may request linked pages the record itself contains, and returns a quote for every answer it proposes.`
+              ? `${readable} of ${sources.length} retrieved sources carry readable text (${stored} with stored source text). The staged fallback asks questions in smaller calls and can request linked pages the record itself contains.`
               : "No primary page text is stored in this draft. Excerpts may be readable, but they are not full documents. Re-run research to capture primary pages; news/indexed leads cannot support a finding."}</p>
+            ${preflightHtml}
+            ${google ? `<div class="g0-callout"><span aria-hidden="true">↗</span><p><strong>Google default: one request when preflight finds no known blocker.</strong> This reduces generation-call pressure, but trades away recovery and linked-page expansion. Ground-0 still verifies quotes locally and computes phase only from reviewed answers; the model never issues a phase verdict. Human review and explicit selection are still required.</p></div>` : ""}
             ${applied}
             <div class="g0-btn-row">
-              <button class="g0-btn primary" data-act="readRecord"${readable ? "" : " disabled"}><span aria-hidden="true">✦</span> Read the retrieved record with ${esc(status.model || "the linked model")}</button>
+              <button class="g0-btn primary" data-act="${primaryAction}"${primaryDisabled ? " disabled" : ""}><span aria-hidden="true">✦</span> ${primaryLabel}</button>
+              ${google ? `<button class="g0-btn ghost" data-act="${preflight.oneRequestAllowed ? "readRecord" : "readRecordSingle"}"${preflight.oneRequestAllowed ? (preflight.localDailyFull ? " disabled" : "") : " disabled"}>${preflight.oneRequestAllowed ? "Staged read fallback (more calls)" : "One-request audit unavailable"}</button>` : ""}
               <button class="g0-btn ghost" data-act="openLlmLink">LLM Link</button>
             </div>
           </div>`;
@@ -1390,7 +1453,9 @@ APPS.push({
          output ceiling it reserves, so the audit is staged one question per
          call and each call stays small enough to be paid for. */
       const staging = (reading.block && reading.block.staging) || null;
-      const staged = staging ? `${staging.questionsAsked} questions asked ${staging.codesPerCall === 1 ? "one per call" : `${staging.codesPerCall} per call`} · each call reserved ≤${staging.ceilingPerCall} output tokens${staging.providerCeiling ? ` · the provider will reserve at most ${staging.providerCeiling}` : ""}${staging.callsFailed ? ` · ${staging.callsFailed} call${staging.callsFailed === 1 ? "" : "s"} failed and left that question UNKNOWN` : ""}` : "";
+      const staged = staging ? staging.mode === "single-request"
+        ? `${staging.questionsAsked} questions bundled into one generation call · follow-up, weighing, format retries disabled`
+        : `${staging.questionsAsked} questions asked ${staging.codesPerCall === 1 ? "one per call" : `${staging.codesPerCall} per call`} · each call reserved ≤${staging.ceilingPerCall} output tokens${staging.providerCeiling ? ` · the provider will reserve at most ${staging.providerCeiling}` : ""}${staging.callsFailed ? ` · ${staging.callsFailed} call${staging.callsFailed === 1 ? "" : "s"} failed and left that question UNKNOWN` : ""}` : "";
       return `
         <div class="g0-panel g0-llm">
           ${header}
@@ -1428,7 +1493,7 @@ APPS.push({
           </details>` : ""}
           <div class="g0-btn-row end">
             <button class="g0-btn ghost" data-act="discardReading">Discard this reading</button>
-            <button class="g0-btn ghost" data-act="readRecord">Read again</button>
+            <button class="g0-btn ghost" data-act="${staging && staging.mode === "single-request" ? "readRecordSingle" : "readRecord"}">${staging && staging.mode === "single-request" ? "One-request read again" : "Read again"}</button>
             <button class="g0-btn primary" data-act="applyReading">Apply ticked readings to this draft <span aria-hidden="true">▸</span></button>
           </div>
           <p class="g0-section-note">Applying writes the quotes in as suggested answers and files the draft in the register with these readings attached${o.record && o.record.id && S.audits.some(record => record.id === o.record.id) ? ", replacing the earlier copy of this audit" : ""}. Nothing is certified and no badge is issued — the record is still marked for human review.</p>

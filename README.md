@@ -338,22 +338,31 @@ words is recorded as a coverage gap — honestly labelled, never guessed at, and
 1. **Retrieval keeps what it read.** Page text is stored with the source (governing documents
    first, bounded per source and per audit) instead of being reduced to a 650-character excerpt.
    Without this there would be nothing for a model to read.
-2. **Read passes, staged one question at a time.** Documents are packed into batches (about three
-   documents and 12k characters each, inside a per-run budget), and each batch is then read against
-   the nine Ground-0 questions **one question per model call** (`LIMITS.codesPerCall`). The model
-   answers only with a quote. Staging is deliberate: a provider prices a call by the output ceiling
-   it *reserves*, so one call demanding all nine answers reserves a ceiling a small balance cannot
-   cover and is refused outright — OpenRouter answers `402 … you requested up to 6000 tokens, but
-   can only afford 2664`. Nine small calls reserve ~700 tokens each, an answer cannot arrive
-   truncated half-way through the ninth question, and one isolated failed call costs one question
-   rather than the whole audit: it is recorded as a failed call, never as a silent record. If a 402
-   says the in-flight budget is full, running or recently completed calls may still be holding it.
-   The connection honors OpenRouter's `Retry-After` header for waits up to two minutes and shows the
-   wait in progress; a longer wait is surfaced rather than retried early. When no header is exposed,
-   it uses a short bounded backoff. If the refusal persists, the audit stops rather than repeating it
-   for every question, and says to wait rather than mislabeling the failure as an empty balance. Raise
+2. **Google's automatic-audit read defaults to one request unless preflight finds a known conflict.** After
+   retrieval, the page estimates the complete Gemini prompt locally — system rules, all nine
+   questions, response shape and packed source text — before the model button is clicked. It makes
+   no extra API/token-count call. The padded character estimate is not Google's tokenizer result.
+   When model-context metadata is available and the saved local TPM/RPD guard allows it, the primary
+   action bundles up to 216,000 source characters (roughly 60k prose tokens before instructions)
+   into one `models.generateContent` attempt. If context or TPM metadata is missing, the preflight
+   warns and leaves the one-request action available; that is not proof the prompt fits. One request
+   reduces RPM/RPD pressure, but the full input still counts against TPM. The estimate and guard
+   cannot see live Google usage from other apps, users or devices; Google remains authoritative. If
+   the known context or local TPM estimate
+   is too large, the UI switches the primary action to the staged fallback and explains why.
+
+   **Staged reading remains an explicit fallback and the default for other providers.** It packs
+   documents into batches (about three documents and 12k characters each, inside a per-run budget),
+   then asks the nine Ground-0 questions one per model call (`LIMITS.codesPerCall`). Staging keeps
+   answers small, isolates failures, can follow qualifying links in the retrieved text, and leaves a
+   failed question UNKNOWN rather than treating it as a silent record. The connection honors
+   OpenRouter's `Retry-After` header for waits up to two minutes, shows the wait, and surfaces longer
+   waits instead of retrying early; without a header it uses a short bounded backoff. Raise
    `codesPerCall` to group questions and re-send the same source text fewer times when the balance
-   allows it.
+   allows it. The one-request Google path disables automatic format retries, linked-page follow-ups,
+   and separate candidate weighing; an incomplete reply stays unresolved. Both paths verify quotes
+   locally, and Ground-0's rules — not the model — determine phase after a person reviews and applies
+   readings.
 3. **Verification is the gate.** Every quote is normalised and matched character-for-character
    against the stored source text. A quote that is not found is discarded, with the reason shown,
    and that question stays **UNKNOWN — never NO**. Quotes must come from a source on or before the
@@ -378,38 +387,57 @@ unverifiable reading is thrown away in front of you, with the reason.
 
 ### Google Gemini Developer API (BYOK)
 
-LLM Link includes a **Google Gemini Developer API (GenAI SDK)** preset. It uses the official
-`@google/genai` JavaScript SDK's browser build (`models.list` and `models.generateContent`), pinned
-to **2.24.0** and imported only when Google model listing, connection testing, or a Ground-0 read
-actually needs it. HarshalOS has no npm build pipeline, so the static page uses jsDelivr's ESM
-conversion of that pinned official package instead of committing a generated bundle. The browser
-fetches the SDK module and its dependencies from jsDelivr; **no API key or prompt is sent to the
-CDN**. Model requests go directly from the browser to the configured API base URL (Google's
-Gemini Developer API by default). The app uses the SDK's model methods; it does not hand-build a
-Gemini REST request or route Gemini through an OpenAI-compatible endpoint.
+LLM Link includes a **Google Gemini Developer API (GenAI SDK)** preset. It uses Google's official
+`@google/genai` JavaScript browser build (`models.list` and `models.generateContent`), pinned to
+**2.26.0** and imported only when Google model listing, connection testing, or a Ground-0 read needs
+it. This static site has no npm build pipeline, so it loads the pinned package through jsDelivr's ESM
+conversion rather than committing a generated bundle. The SDK code and its dependencies come from
+the CDN; **the API key and prompt do not**. Model requests go directly from this browser to the
+configured base URL (the Gemini Developer API by default), using the official SDK methods—not a
+hand-built REST call or an OpenAI-compatible shim. The existing connector remains a plain,
+tool-free `generateContent` reader; Antigravity's separate Interactions/managed-agent surface is not
+silently substituted into this data-only path.
 
 The Google call passes `systemInstruction`, `maxOutputTokens`, temperature, and the active abort
-signal through the SDK. Ground-0 still asks **one audit question per recall** (including its separate
-weighing calls); it does not turn the audit into one large call. SDK responses are normalized into
-the same usage, model, and text shape as the other providers, then pass through the unchanged
+signal through the SDK. Ground-0 still asks **one audit question per recall** (including separate
+weighing calls); it does not turn the audit into one large call. SDK responses normalize into the
+same usage/model/text shape as the other providers, then pass through the unchanged
 character-for-character quote check and human-review gate.
 
 Google's SDK defaults to multiple HTTP attempts, so generation calls set its per-request attempt
 count to one and let HarshalOS handle transient retries in one place. It honors Google's structured
-`RetryInfo` / `Retry-After` delays (with small jitter), or uses a short exponential backoff for
+`RetryInfo` / `Retry-After` delays (with small jitter), or uses bounded exponential backoff for
 transient 408, 429, 500, 502, 503, and 504 responses, with at most three retries and an abortable
-two-minute wait ceiling (subject to the call's overall timeout). A per-day quota is never retried. If
-a rate limit persists after those retries,
-Ground-0 stops instead of sending the same account-wide failure for every question; a still-failing
-503 is reported as a failed call, never as evidence. This retry handling does not alter the
-question-by-question staging.
+two-minute wait ceiling (subject to the call timeout). A detected per-day quota is not retried. If a
+rate limit persists, Ground-0 stops rather than fanning the same account-wide failure across every
+question; provider failures remain failures, never evidence.
 
-**Key warning:** Google advises against exposing API keys in client-side production code. This
-browser BYOK flow is convenient but a person with access to the browser can inspect the key. The
-key remains in session storage by default (persistent storage requires opting in), and is sent
-directly to the API endpoint; HarshalOS does not receive it. Use a Gemini API key type and
-restrictions currently accepted by Google's API guidance. The selected model provider receives the
-prompt and handles it under its own data policies; the browser copy of the audit remains local.
+**Google quota guard.** Google's Gemini API limits are model- and project-specific, measured in
+requests per minute (RPM), **input** tokens per minute (TPM), and requests per day (RPD); keys in the
+same project share the quota, and RPD resets at midnight Pacific. AI Studio is authoritative for the
+active values—there is no dependable quota-discovery API for this browser connector. In LLM Link,
+open **Gemini project pace guard**, copy the selected model's active limits from [Google AI Studio's
+rate-limit page](https://aistudio.google.com/rate-limit?timeRange=last-28-days), choose a safety
+ceiling (80% by default), and save. The client then gates Google generation attempts through a
+same-origin rolling-minute request/input-token window and a Pacific-day request counter. It uses a
+padded character-based input-token estimate before a call and replaces it with Google's reported
+prompt-token count afterward when available. Retry attempts are counted too. No prompt, response, or
+key is stored in the quota ledger; only timestamps and token counts are stored in this browser.
+
+This is a **local pacing guard, not project-wide enforcement**: Web Locks coordinate tabs where
+supported, but it cannot see a different browser/device, another person, another application, API
+model-list calls, or a different key/client's traffic. Copying the active values and leaving headroom
+reduces accidental 429s; it cannot guarantee no 429. The provider still decides and returns the actual
+quota response. See **[Google Free Tier & Antigravity setup](docs/deployment/GEMINI-FREE-TIER.md)**
+for the exact Free Tier scope, privacy, Antigravity options, and setup.
+
+**Key and data warning:** Google recommends keeping production API keys server-side. LLM Link's
+personal BYOK key is sent directly from the browser and is visible to anyone with access to it; session
+storage is the default, and persistent storage is opt-in. On Google's Free Tier, prompts and responses
+may be used to improve Google products—do not send confidential or sensitive material. Check the
+model/mode's current pricing and data terms; merely seeing a model in `List models` does not mean it
+is Free Tier eligible. HarshalOS does not receive the key or the provider prompt; the browser copy of
+the audit remains local.
 
 ### Z.AI free tier through this deployment's relay
 
@@ -479,10 +507,13 @@ transient in-flight-budget refusal honors `Retry-After` and is retried without c
 an unresolved account-wide refusal stops before fanning out across the nine questions, one failed call
 leaves that one question UNKNOWN and says the call failed, and a reading
 in which no call completes throws instead of returning an empty audit. The LLM harness also
-injects a Google GenAI SDK mock to verify SDK-based model listing, request/response mapping, key
-redaction, and a complete question-by-question Ground-0 read without raw REST calls; it also checks
-bounded 503 backoff, the 34-second 429 `RetryInfo`, aborting during a provider wait, no retry for a
-per-day quota, and stopping the staged audit after a persistent account-wide rate limit.
+injects a Google GenAI SDK mock to verify the All available model catalog and context metadata,
+request/response mapping, key redaction, a complete staged read and the one-request bundle without
+raw REST calls; it also checks the project/model-scoped local RPM/input-TPM/RPD guard, pacing before
+a provider call, exact-usage
+settlement, local daily/oversized-prompt refusals, bounded 503 backoff, the 34-second 429 `RetryInfo`,
+abort during a provider wait, no retry for a per-day quota, and stopping the staged audit after a
+persistent account-wide rate limit.
 `node --test tests/llm-relay-test.mjs` covers the Worker relay's own contract against a stubbed Z.AI:
 no upstream call when the relay is unconfigured, the accepted secret names, the exact forwarded body
 and the dropped fields, a caller-supplied `Authorization` header never being forwarded, reply

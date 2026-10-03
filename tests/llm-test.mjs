@@ -169,8 +169,9 @@ const sources = [
           list: async params => {
             googleListCalls.push(params);
             return (async function* () {
-              yield { name: "models/gemini-test", supportedActions: ["generateContent", "countTokens"] };
+              yield { name: "models/gemini-test", displayName: "Gemini Test", inputTokenLimit: 100000, outputTokenLimit: 8192, supportedActions: ["generateContent", "countTokens"] };
               yield { name: "models/embed-only", supportedActions: ["embedContent"] };
+              yield { name: "models/gemini-live", displayName: "Gemini Live", inputTokenLimit: 64000, supportedActions: ["bidiGenerateContent"] };
               yield { name: "models/gemini-pro", supportedActions: ["generateContent"] };
             })();
           },
@@ -187,12 +188,19 @@ const sources = [
     LLM.setKey(googleKey, false);
     LLM.saveSettings({ provider: "google", protocol: "", endpoint: googleEndpoint, model: "gemini-test" });
     eq(LLM.resolved().protocol, "google", "the Google preset resolves to its dedicated SDK protocol");
-    eq(LLM.GOOGLE_GENAI_SDK_VERSION, "2.24.0", "the official SDK version is pinned");
-    ok(LLM.GOOGLE_GENAI_SDK_URL.includes("@google/genai@2.24.0/+esm"), "the browser imports the pinned official package through jsDelivr ESM");
+    eq(LLM.GOOGLE_GENAI_SDK_VERSION, "2.26.0", "the official SDK version is pinned");
+    ok(LLM.GOOGLE_GENAI_SDK_URL.includes("@google/genai@2.26.0/+esm"), "the browser imports the pinned official package through jsDelivr ESM");
     const googleModels = await LLM.loadModels(LLM.resolved());
     eq(googleModels.join(","), "gemini-test,gemini-pro", "Google models are listed through the SDK and non-generation models are omitted");
     eq(googleListCalls[0].config.pageSize, 100, "SDK model listing asks for a page of models");
     ok(googleListCalls[0].config.abortSignal instanceof AbortSignal, "SDK model listing receives an abort signal");
+    const googleCatalog = await LLM.loadGoogleModelCatalog(LLM.resolved());
+    eq(googleCatalog.length, 2, "the expanded Google catalog still omits models without generateContent support");
+    ok(!googleCatalog.some(row => row.id === "gemini-live"), "Live-only models are not misrepresented as generateContent choices");
+    eq(googleCatalog[0].inputTokenLimit, 100000, "Google's available-model discovery exposes the declared input context limit");
+    eq(googleCatalog[0].outputTokenLimit, 8192, "Google's available-model discovery exposes the declared output limit");
+    eq(googleCatalog[0].displayName, "Gemini Test", "Google's available-model discovery retains the display name");
+    eq(LLM.googleModelInfo("gemini-test").inputTokenLimit, 100000, "the audit preflight can read the selected model's context limit from the last catalog discovery");
     const googleProbe = await LLM.probe({});
     ok(googleProbe.ok && googleProbe.model === "gemini-mock", "the SDK connection probe returns the model that answered");
     eq(googleProbe.usage.input, 11, "Gemini prompt token usage is normalized");
@@ -209,17 +217,68 @@ const sources = [
 
     const withFastGoogleRetryTimers = async operation => {
       const originalSetTimeout = globalThis.setTimeout;
+      const originalNow = Date.now;
       const waits = [];
+      let virtualNow = originalNow();
+      Date.now = () => virtualNow;
       globalThis.setTimeout = (callback, delay, ...args) => {
         if (Number.isFinite(delay) && delay > 0 && delay < 120000) {
           waits.push(delay);
+          virtualNow += delay;
           return originalSetTimeout(callback, 0, ...args);
         }
         return originalSetTimeout(callback, delay, ...args);
       };
       try { return { result: await operation(), waits }; }
-      finally { globalThis.setTimeout = originalSetTimeout; }
+      finally { globalThis.setTimeout = originalSetTimeout; Date.now = originalNow; }
     };
+    /* Project/model-specific proactive quota guard. The cap values are
+       deliberately test inputs copied from a hypothetical AI Studio project;
+       LLM Link does not assume a universal Free Tier RPM/TPM/RPD. */
+    LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "guard-rpm-project", rpm: 1, tpm: 10000, rpd: 0, safetyPercent: 100 });
+    const guardStatus = LLM.googleQuotaStatus("gemini-test");
+    eq(guardStatus.effective.rpm, 1, "the manual project/model RPM setting is active at the chosen safety percentage");
+    eq(guardStatus.effective.tpm, 10000, "the input-token budget is reported separately from requests per minute");
+    const beforeGuardFirst = googleCalls.length;
+    const guardFirst = await LLM.chat({ user: "First call inside the configured project quota." });
+    eq(googleCalls.length - beforeGuardFirst, 1, "a call inside the configured Google quota reaches the SDK once");
+    eq(LLM.googleQuotaStatus("gemini-test").usage.inputTokensPerMinute, 11, "the local estimate is replaced with Google's returned prompt-token usage");
+    const beforePaced = googleCalls.length;
+    const guardRetryEvents = [];
+    const paced = await withFastGoogleRetryTimers(() => LLM.chat({
+      user: "Second call must wait until the one-request rolling minute opens.",
+      onRetry: event => guardRetryEvents.push(event)
+    }));
+    eq(paced.result.text, "link established, model responding", "a call resumes after the local RPM slot opens");
+    eq(googleCalls.length - beforePaced, 1, "local pacing sends one SDK request after its delay, not a burst");
+    eq(paced.waits.length, 1, "the local rolling-window guard waits once for the RPM slot");
+    eq(guardRetryEvents[0].source, "Google local quota guard", "local quota pacing is distinguishable from Google's RetryInfo");
+    ok(LLM.stats().googlePaceWaits >= 1, "the session activity records a local Gemini pacing wait");
+
+    LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "guard-daily-project", rpm: 0, tpm: 0, rpd: 1, safetyPercent: 100 });
+    await LLM.chat({ user: "Use the one-call local daily allowance." });
+    const beforeDailyGuard = googleCalls.length;
+    let dailyGuardError = null;
+    try { await LLM.chat({ user: "The configured daily allowance is already used." }); } catch (error) { dailyGuardError = error; }
+    eq(dailyGuardError && dailyGuardError.kind, "pace", "a locally exhausted daily cap is not mislabeled as Google's own quota error");
+    eq(LLM.describe(dailyGuardError).title, "THE LOCAL GOOGLE PACE GUARD HELD THIS CALL", "the UI identifies a local preflight refusal");
+    ok(/No request was sent/i.test(dailyGuardError.message), "the local daily cap refuses before another provider call");
+    eq(googleCalls.length, beforeDailyGuard, "the locally refused daily request never reaches Google's SDK");
+
+    LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "guard-tpm-project", rpm: 0, tpm: 5, rpd: 0, safetyPercent: 100 });
+    const beforeTpmGuard = googleCalls.length;
+    let tpmGuardError = null;
+    try { await LLM.chat({ user: "This prompt must exceed five estimated input tokens." }); } catch (error) { tpmGuardError = error; }
+    eq(tpmGuardError && tpmGuardError.kind, "pace", "a prompt larger than the configured TPM budget is refused locally");
+    eq(googleCalls.length, beforeTpmGuard, "an over-budget input prompt is never sent to Google");
+
+    /* Profiles are project-and-model keyed: changing the project cannot
+       silently reuse another project's more generous caps. */
+    LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "guard-rpm-project", rpm: 1, tpm: 10000, rpd: 0, safetyPercent: 100 });
+    eq(LLM.googleQuotaSettings("gemini-test").rpm, 1, "the RPM profile is retained for its Google project/model pair");
+    eq(LLM.googleQuotaStatus("gemini-test").projectGroup, "guard-rpm-project", "the quota ledger is grouped under the explicit project label");
+    LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "guard-retry-project", rpm: 0, tpm: 0, rpd: 0, safetyPercent: 80 });
+
     const before503 = googleCalls.length;
     googleErrorQueue.push(Object.assign(new Error("The model is currently experiencing high demand."), { status: 503 }));
     const retryEvents503 = [];
@@ -242,6 +301,13 @@ const sources = [
     eq(retryEvents429[0].source, "RetryInfo", "Google's structured RetryInfo is distinguished from app backoff");
     ok(retryEvents429[0].delayMs >= 34091 && retryEvents429[0].delayMs <= 34592, "the Google retry waits at least the server's 34.09-second delay plus bounded jitter");
     ok(retry429.waits[0] >= 34091, "the abortable wait uses Google's reported RetryInfo delay");
+
+    const beforeSingleAttempt = googleCalls.length;
+    googleErrorQueue.push(Object.assign(new Error(JSON.stringify(rateLimitBody)), { status: 429 }));
+    let singleAttemptError = null;
+    try { await LLM.chat({ user: "The one-request scan must not retry a provider refusal.", maxGoogleRetries: 0 }); } catch (error) { singleAttemptError = error; }
+    eq(singleAttemptError && singleAttemptError.kind, "rate", "a single-attempt Google request surfaces a rate refusal without retrying");
+    eq(googleCalls.length - beforeSingleAttempt, 1, "maxGoogleRetries zero keeps the single-request mode to one generation attempt");
 
     const beforeAbort = googleCalls.length;
     const retryAbort = new AbortController();
@@ -650,6 +716,51 @@ const linkPriced = () => {
   eq(reading.answers[3].value, true, "grouping does not change what was verified");
 }
 
+/* ── Google one-request preflight counts the complete prompt locally ── */
+{
+  linkPriced();
+  const input = stagedInput();
+  const before = pricedCalls.length;
+  const pack = G0LLM.packSources(stagedSources, {
+    perSource: G0LLM.LIMITS.singleRequestChars,
+    budget: G0LLM.LIMITS.singleRequestChars,
+    batchSources: stagedSources.length
+  });
+  const user = G0LLM.readInstruction({
+    input, batch: pack.batches[0], codes: G0LLM.allCodes(), batchIndex: 0, batchCount: 1,
+    questionIndex: 0, questionCount: 1, version: "1.1"
+  });
+  const estimate = G0LLM.estimateSingleRequest({ input, sources: stagedSources, version: "1.1", cutoff, entity: org });
+  eq(estimate.estimatedInputTokens, LLM.estimateGoogleInputTokens(G0LLM.SYSTEM, user), "preflight estimates the actual system prompt, all questions, response shape and packed sources");
+  eq(estimate.questionCount, 9, "preflight counts every Ground-0 audit question");
+  eq(estimate.generationAttempts, 1, "preflight describes one planned generation attempt");
+  eq(estimate.modelTokenizerUsed, false, "preflight does not make a model/token-count call");
+  eq(pricedCalls.length, before, "estimating the one-request prompt sends no generation request");
+}
+
+/* ── preferred Google one-request evidence read bundles sources and all questions ── */
+{
+  linkPriced();
+  const stop = stubPricedProvider({ afford: 4000, handler: (body, call, prompt) => stagedReply(prompt) });
+  const before = pricedCalls.length;
+  const reading = await G0LLM.readSources({
+    input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff,
+    entity: org, followLinks: true, singleRequest: true, onProgress: () => {}
+  });
+  stop();
+  const requests = pricedCalls.slice(before).filter(call => /TO ANSWER IN THIS CALL/.test(call.prompt));
+  eq(requests.length, 1, "one-request mode sends a single bundled generation prompt for all readable sources");
+  eq(askedCodes(requests[0].prompt).length, 9, "the single request asks all nine Ground-0 audit questions together");
+  eq(reading.passes, 1, "the successful one-request read uses one model response");
+  eq(reading.block.staging.plannedCalls, 1, "the reading record declares a one-request plan");
+  eq(reading.block.staging.mode, "single-request", "the record identifies its one-request mode");
+  eq(reading.block.staging.codesPerCall, 9, "the record shows all questions bundled into the call");
+  eq(reading.block.staging.followUpsDisabled, true, "one-request mode cannot silently add a linked-page call");
+  eq(reading.block.staging.weighingDisabled, true, "one-request mode cannot silently add candidate-weighing calls");
+  eq(reading.answers[3].value, true, "local quote verification still accepts the exact B4 source quote");
+  ok(reading.notes.some(note => /link selection and follow-up reads were disabled/i.test(note)), "the result discloses that linked-page expansion was skipped");
+}
+
 /* ── the transport: a priced ceiling is learned, and the call retried inside it ── */
 {
   linkPriced();
@@ -905,6 +1016,16 @@ const linkPriced = () => {
   finally { globalThis.setTimeout = originalSetTimeout; }
   eq(rateLimitedReadError && rateLimitedReadError.kind, "rate", "a still-active per-minute quota stops Ground-0 with a rate-limit error");
   eq(sdkCalls.length - beforeRateLimitedRead, 4, "after bounded Google retries are exhausted, Ground-0 stops rather than sending the same account-wide 429 for every question");
+
+  LLM.saveGoogleQuotaSettings({ model: "gemini-test", projectId: "ground0-local-rpd-cap", rpm: 0, tpm: 0, rpd: 1, safetyPercent: 100 });
+  await LLM.chat({ user: "Spend the one-call local daily allowance." });
+  const beforeLocalPaceRead = sdkCalls.length;
+  let localPaceReadError = null;
+  try {
+    await G0LLM.readSources({ input: stagedInput(), sources: stagedSources.map(source => ({ ...source })), version: "1.1", cutoff, entity: org, followLinks: false, onProgress: () => {} });
+  } catch (error) { localPaceReadError = error; }
+  eq(localPaceReadError && localPaceReadError.kind, "pace", "Ground-0 treats a configured local project cap as a fatal shared pace refusal");
+  eq(sdkCalls.length, beforeLocalPaceRead, "an exhausted local daily cap stops before the SDK call and does not fan out across audit questions");
 
   eq(rawFetches, 0, "Ground-0's Google reading goes through the SDK, not a parallel REST call");
   ok(sdkClients.every(client => client.apiKey === key), "Ground-0 supplies the user's key to the SDK client");

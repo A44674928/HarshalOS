@@ -38,6 +38,7 @@ class El {
   set innerHTML(html) { this._html = String(html); this.children = parse(String(html), this); }
   get innerHTML() { return this._html; }
   appendChild(child) { child.parent = this; this.children.push(child); return child; }
+  contains(node) { for (let current = node; current; current = current.parent) if (current === this) return true; return false; }
   remove() { if (this.parent) this.parent.children = this.parent.children.filter(c => c !== this); }
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
   removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(f => f !== fn); }
@@ -187,6 +188,7 @@ body.innerHTML = bodyInner;
 globalThis.document = {
   body,
   createElement: tag => new El(tag),
+  createTextNode: text => { const node = new El("#text"); node.textContent = String(text); return node; },
   querySelector: sel => body.querySelector(sel),
   querySelectorAll: sel => body.querySelectorAll(sel),
   getElementById: id => body.querySelector(`#${id}`),

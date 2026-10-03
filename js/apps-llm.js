@@ -17,7 +17,7 @@ APPS.push({
   render(body, api) {
     const LLM = window.HOSLLM;
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-    const local = { models: [], busy: "", result: null, saved: "", relay: null, relayLoading: false };
+    const local = { models: [], modelCatalog: [], busy: "", result: null, saved: "", relay: null, relayLoading: false };
 
     if (!LLM) { body.innerHTML = `<div class="h1">LLM Link</div><div class="rule-box refusal">The connection layer (js/llm.js) is not loaded in this deployment.</div>`; return; }
 
@@ -58,6 +58,8 @@ APPS.push({
       const stats = LLM.stats();
       const preset = LLM.preset(settings.provider);
       const keyField = LLM.keyStorage() === "none" ? "" : LLM.keyHint();
+      const googleQuota = config.protocol === "google" ? LLM.googleQuotaStatus(config.model) : null;
+      const showQuota = value => value ? Number(value).toLocaleString() : "not set";
       body.innerHTML = `
         <div class="h1">LLM Link</div>
         <div class="sub">Bring your own model. HarshalOS has no model of its own and no server of its own: with a link, the
@@ -73,7 +75,31 @@ APPS.push({
         ${status.storageNote ? `<div class="rule-box refusal">${esc(status.storageNote)}</div>` : ""}
         <div class="rule-box refusal"><strong>DATA-ONLY AUTHORITY BOUNDARY:</strong> Replies are inert, untrusted data. This app exposes no model-tool dispatcher or code-execution path from a reply into HOS. Ground-0 readings stay review-required, and no quote-backed answer is preselected. This is application-level separation, not a browser sandbox.</div>
         ${relayBox(config, local.relay, local.relayLoading)}
-        ${config.protocol === "google" ? `<div class="rule-box refusal"><strong>BROWSER KEY WARNING:</strong> Google recommends not exposing API keys in client-side code for production. This BYOK connection sends the key directly to the endpoint above (Google's Gemini Developer API by default), but anyone with access to this browser can inspect it. Use only a key type and restrictions currently accepted by Google for the Gemini API.</div>` : ""}
+        ${config.protocol === "google" ? `<div class="rule-box refusal"><strong>GOOGLE KEY / FREE-TIER DATA WARNING:</strong> Google recommends not exposing API keys in client-side code for production. This BYOK connection sends the key directly to the Gemini Developer API; anyone with access to this browser can inspect it. Google's Free Tier prompts and responses may be used to improve Google products, so do not send confidential or sensitive data. Use an eligible key type and restrictions for the Gemini API.</div>` : ""}
+        ${googleQuota ? `
+        <div class="h2">Gemini project pace guard</div>
+        <div class="rule-box">Gemini limits are <strong>per project and model</strong> (RPM, input TPM and RPD); exact active values change and are shown in <a href="https://aistudio.google.com/rate-limit?timeRange=last-28-days" target="_blank" rel="noopener noreferrer">Google AI Studio's rate-limit page</a>. Copy the limits for <span class="mono">${esc(config.model)}</span> below. LLM Link applies a local rolling-minute guard and counts daily requests to midnight Pacific. It coordinates same-origin tabs where supported, but cannot see other browsers, devices, users, API keys/apps, or requests made outside this page; Google remains the authority. A model shown by List models is not necessarily Free Tier eligible; confirm its current pricing before testing it.</div>
+        <div class="ll-grid">
+          <label class="ll-field wide"><span>Google Cloud project ID / local quota group</span>
+            <input id="ll-google-project" type="text" spellcheck="false" value="${esc(googleQuota.projectId)}" placeholder="Optional; use the same project ID for keys sharing one quota">
+          </label>
+          <label class="ll-field"><span>Active RPM for this model</span>
+            <input id="ll-google-rpm" type="number" min="0" step="1" value="${googleQuota.actual.rpm || ""}" placeholder="blank = no local cap">
+          </label>
+          <label class="ll-field"><span>Active input TPM for this model</span>
+            <input id="ll-google-tpm" type="number" min="0" step="1" value="${googleQuota.actual.tpm || ""}" placeholder="blank = no local cap">
+          </label>
+          <label class="ll-field"><span>Active RPD for this model</span>
+            <input id="ll-google-rpd" type="number" min="0" step="1" value="${googleQuota.actual.rpd || ""}" placeholder="blank = no local cap">
+          </label>
+          <label class="ll-field"><span>Local safety ceiling</span>
+            <select id="ll-google-safety">${[60, 70, 80, 90, 100].map(value => `<option value="${value}"${googleQuota.safetyPercent === value ? " selected" : ""}>${value}% of the entered limit</option>`).join("")}</select>
+          </label>
+        </div>
+        <p class="body mono">${googleQuota.configured
+          ? `Local cap: ${showQuota(googleQuota.effective.rpm)} RPM · ${showQuota(googleQuota.effective.tpm)} estimated input TPM · ${showQuota(googleQuota.effective.rpd)} RPD. Tracked here: ${googleQuota.usage.requestsPerMinute} requests / ${googleQuota.usage.inputTokensPerMinute.toLocaleString()} input tokens in the last minute · ${googleQuota.usage.requestsPerDay} requests today (Pacific).`
+          : `No local caps are set for ${esc(config.model)}. Google 429/RetryInfo handling still applies, but proactive pacing is off until you copy the active limits above.`}</p>
+        <div class="btn-row"><button class="btn" id="ll-google-quota-save" type="button">Save Gemini pace limits</button></div>` : ""}
 
         <div class="h2">Connection</div>
         <div class="ll-grid">
@@ -94,9 +120,10 @@ APPS.push({
           <label class="ll-field wide"><span>Model</span>
             <span class="ll-inline">
               <input id="ll-model" type="text" spellcheck="false" value="${esc(settings.model || preset.model)}" placeholder="model name or id">
-              <button class="btn" id="ll-models" type="button">List models</button>
+              <button class="btn" id="ll-models" type="button">${config.protocol === "google" ? "All available" : "List models"}</button>
             </span>
           </label>
+          ${config.protocol === "google" ? `<p class="sub">“All available” lists models Google exposes to this key that support generateContent, plus reported context limits. It sends no sample generation call. Listing is not a Free Tier/quota check: some models can show 0/0 in AI Studio.</p>` : ""}
           <label class="ll-field wide"><span>API key ${config.relay ? "(held by this deployment's Worker — nothing to paste here)" : preset.keyOptional ? "(optional — this endpoint may need none)" : ""}</span>
             <input id="ll-key" type="password" spellcheck="false" autocomplete="off"${config.relay ? " disabled" : ""} placeholder="${config.relay ? "no browser key: the relay holds the Z.AI key server-side" : keyField ? esc(keyField) : config.protocol === "google" ? "paste your Gemini API key — sent directly to the API base URL above" : "paste your own key — it is sent only to the endpoint above"}">
           </label>
@@ -113,8 +140,17 @@ APPS.push({
 
         ${local.models.length ? `
         <div class="ll-models">
-          <div class="sub mono">${local.models.length} model${local.models.length === 1 ? "" : "s"} available to this key — pick one:</div>
-          <div class="ll-model-list">${local.models.slice(0, 60).map(id => `<button class="ll-model-chip${id === config.model ? " on" : ""}" data-model="${esc(id)}" type="button">${esc(id)}</button>`).join("")}</div>
+          <div class="sub mono">${config.protocol === "google"
+            ? `${local.models.length} Google model${local.models.length === 1 ? "" : "s"} listed by this key with generateContent support — pick one:`
+            : `${local.models.length} model${local.models.length === 1 ? "" : "s"} available to this key — pick one:`}</div>
+          <div class="ll-model-list">${local.models.slice(0, 60).map(id => {
+            const info = local.modelCatalog.find(row => row.id === id);
+            const inputLimit = info && info.inputTokenLimit ? `${info.inputTokenLimit.toLocaleString()} input tokens` : "input limit not reported";
+            const outputLimit = info && info.outputTokenLimit ? `${info.outputTokenLimit.toLocaleString()} output tokens` : "output limit not reported";
+            const title = info ? `${info.displayName || id} · ${inputLimit} · ${outputLimit}` : id;
+            return `<button class="ll-model-chip${id === config.model ? " on" : ""}" data-model="${esc(id)}" title="${esc(title)}" type="button">${esc(id)}${info && info.inputTokenLimit ? ` · ${info.inputTokenLimit.toLocaleString()} in` : ""}</button>`;
+          }).join("")}</div>
+          ${config.protocol === "google" ? `<p class="sub">This is Google's model catalogue, not a Free Tier or quota check: listed models may still have 0/0 project limits or require billing. No sample generation call is sent. Check active RPM/TPM/RPD in AI Studio before use.</p>` : ""}
         </div>` : ""}
 
         ${local.result ? `
@@ -139,15 +175,19 @@ APPS.push({
             request size and output ceiling, and paces each caller over a sliding minute under a ceiling this whole
             deployment shares, so a public page can neither spend money through it nor burn a day of free quota in seconds.</li>`
             : `<li class="li">The key, to the endpoint above and nowhere else.</li>`}
-          <li class="li">Request metadata the provider requires (model, token ceiling, temperature). The Ground-0 audit is
-          staged one question per call, so each call reserves a small output ceiling instead of one large one — a provider
-          that prices a call by the ceiling it reserves can then answer it on a small balance.</li>
+          <li class="li">Request metadata the provider requires (model, token ceiling, temperature). Google's Automatic Audit
+          prefers one bundled request when its local preflight finds no known context, TPM or daily-guard conflict; missing
+          model/quota metadata is disclosed, not treated as proof of a fit. Other providers default to staged one-question
+          calls, and Google keeps staged reading as a fallback. The one-request estimate uses no generation/token-count call,
+          is not Google's tokenizer, and cannot see shared usage from other clients. A
+          bundled read uses one RPM/RPD request but its full input-token volume counts against TPM; format retries,
+          linked-page follow-ups and extra weighing calls are disabled.</li>
           ${config.relay ? `<li class="li">Z.AI cannot sample greedily through its OpenAI-compatible route, so the relay translates a
           <span class="mono">0</span> temperature into <span class="mono">do_sample:false</span> and clamps anything above
           <span class="mono">1</span> down to <span class="mono">1</span>. It also disables GLM chain-of-thought by default so the
           output ceiling buys answer text rather than reasoning. Each response reports what was actually sent.</li>` : ""}
           <li class="li">For Google only: on the first SDK action, this page downloads Google's official, version-pinned
-          <span class="mono">@google/genai@2.24.0</span> browser module and its module dependencies from jsDelivr. This
+          <span class="mono">@google/genai@2.26.0</span> browser module and its module dependencies from jsDelivr. This
           code download contains no key or prompt; requests go directly to the configured base URL (Google by default).</li>
         </ul>
         <div class="rule-box">What stays in this browser: ${config.relay ? "saved audits" : "your key (unless you paste it into another tool), saved audits"},
@@ -160,10 +200,11 @@ APPS.push({
 
         <div class="h2">Where the link is used</div>
         <ul class="ul">
-          <li class="li"><strong>Ground-0 → Automatic audit</strong> — after the research run, “Read the retrieved record with the
-          model”: the model is called once per question over the documents this browser fetched, proposes an answer with a
-          verbatim quote, and asks for specific linked pages the record itself contains where text is missing. An isolated
-          failed call costs one question; an account-wide in-flight refusal that survives retries stops the read.</li>
+          <li class="li"><strong>Ground-0 → Automatic audit</strong> — after research, Google defaults to one bundled request
+          unless its local full-prompt preflight identifies a known context or local guard conflict; missing metadata is
+          flagged, not assumed to fit. The staged multi-call read remains the fallback. Other providers use staged questions
+          by default and may follow qualifying links. Both modes
+          propose quote-backed answers only; the application verifies quotes and still requires human review.</li>
           <li class="li"><strong>Ground-0 → Evidence</strong> — read one saved artifact and see which questions it can support.</li>
           <li class="li refusal">A model reading never scores by itself: every quote is checked character-for-character against
           the stored text, unverifiable readings are discarded, and the record still requires human review. The working badge
@@ -171,7 +212,7 @@ APPS.push({
         </ul>
 
         <div class="h2">Session activity</div>
-        <p class="body mono">${stats.calls} call${stats.calls === 1 ? "" : "s"} · ${stats.input.toLocaleString()} tokens in · ${stats.output.toLocaleString()} tokens out${stats.lastModel ? ` · last: ${esc(stats.lastModel)} in ${stats.lastMs} ms` : ""}${stats.failures ? ` · ${stats.failures} failed` : ""}${stats.shrunk ? ` · ${stats.shrunk} sent inside a smaller ceiling` : ""}${stats.inFlightRetries ? ` · ${stats.inFlightRetries} in-flight retries` : ""}</p>
+        <p class="body mono">${stats.calls} call${stats.calls === 1 ? "" : "s"} · ${stats.input.toLocaleString()} tokens in · ${stats.output.toLocaleString()} tokens out${stats.lastModel ? ` · last: ${esc(stats.lastModel)} in ${stats.lastMs} ms` : ""}${stats.failures ? ` · ${stats.failures} failed` : ""}${stats.shrunk ? ` · ${stats.shrunk} sent inside a smaller ceiling` : ""}${stats.inFlightRetries ? ` · ${stats.inFlightRetries} in-flight retries` : ""}${stats.googlePaceWaits ? ` · ${stats.googlePaceWaits} Google pacing waits` : ""}</p>
         ${stats.ceiling ? `<p class="body mono">${esc(config.label)} told this page it will reserve at most ${stats.ceiling} output tokens on this key. Calls are sent inside that ceiling; reconnecting or adding credits clears it.</p>` : ""}
         <div class="btn-row"><button class="btn" id="ll-reset-stats" type="button">Reset activity</button></div>
 
@@ -193,6 +234,31 @@ APPS.push({
         const key = body.querySelector("#ll-key").value.trim() || LLM.apiKey();
         if (key) LLM.setKey(key, persist);
         draw();
+      });
+      const googleQuotaSave = body.querySelector("#ll-google-quota-save");
+      if (googleQuotaSave) googleQuotaSave.addEventListener("click", () => {
+        const readLimit = selector => {
+          const field = body.querySelector(selector);
+          const text = String(field && field.value || "").trim();
+          if (!text) return 0;
+          const value = Number(text);
+          return Number.isSafeInteger(value) && value >= 0 ? value : null;
+        };
+        const rpm = readLimit("#ll-google-rpm");
+        const tpm = readLimit("#ll-google-tpm");
+        const rpd = readLimit("#ll-google-rpd");
+        if ([rpm, tpm, rpd].some(value => value === null)) {
+          api.toast("warn", "INVALID GEMINI LIMIT", "Enter a whole number greater than or equal to zero, or leave the field blank to disable that local cap.");
+          return;
+        }
+        const model = body.querySelector("#ll-model").value.trim();
+        const projectId = body.querySelector("#ll-google-project").value.trim();
+        const safetyPercent = Number(body.querySelector("#ll-google-safety").value);
+        if (model) LLM.saveSettings({ model });
+        LLM.saveGoogleQuotaSettings({ model, projectId, rpm, tpm, rpd, safetyPercent });
+        local.result = null;
+        draw();
+        api.toast("info", "GEMINI PACE SAVED", `LLM Link applies a ${safetyPercent}% local guard for ${model || "the selected model"}; Google enforces the actual project quota.`);
       });
       body.querySelector("#ll-save").addEventListener("click", () => {
         const provider = body.querySelector("#ll-provider").value;
@@ -221,12 +287,22 @@ APPS.push({
         const key = body.querySelector("#ll-key").value.trim();
         LLM.saveSettings({ provider: body.querySelector("#ll-provider").value, protocol: body.querySelector("#ll-protocol").value, endpoint, model });
         if (key) LLM.setKey(key, body.querySelector("#ll-persist").checked);
-        local.busy = "Listing models…"; draw();
+        const provider = LLM.resolved();
+        local.busy = provider.protocol === "google" ? "Discovering Google models…" : "Listing models…";
+        local.models = []; local.modelCatalog = []; draw();
         try {
-          const models = await LLM.loadModels(LLM.resolved());
-          local.models = models; local.busy = ""; local.result = null;
+          if (provider.protocol === "google" && typeof LLM.loadGoogleModelCatalog === "function") {
+            local.modelCatalog = await LLM.loadGoogleModelCatalog(provider);
+            local.models = local.modelCatalog.map(row => row.id);
+          } else {
+            local.models = await LLM.loadModels(provider);
+          }
+          local.busy = ""; local.result = null;
           draw();
-          api.toast(models.length ? "info" : "warn", models.length ? `${models.length} MODELS AVAILABLE` : "NO MODELS RETURNED", models.length ? "Pick one from the list." : "The endpoint answered but listed no models. Type the model name instead.");
+          const found = local.models.length;
+          api.toast(found ? "info" : "warn", found ? `${found} MODELS LISTED` : "NO MODELS RETURNED", found
+            ? (provider.protocol === "google" ? "These models support text generation; check AI Studio for Free Tier eligibility and active quotas." : "Pick one from the list.")
+            : "The endpoint answered but listed no models. Type the model name instead.");
         } catch (error) {
           local.busy = ""; local.result = { ok: false, ...LLM.describe(error) };
           draw();

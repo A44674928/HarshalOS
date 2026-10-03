@@ -235,8 +235,37 @@ ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one gr
   ok(linkRoot.innerHTML.includes("Google GenAI SDK (@google/genai)"), "the protocol selector names the official SDK");
   LLM.saveSettings({ provider: "google", protocol: "", endpoint: "", model: "" });
   linkApp.render(linkRoot, { toast() {} });
-  ok(linkRoot.innerHTML.includes("BROWSER KEY WARNING"), "Google's browser API-key warning is shown before a connection is linked");
+  ok(linkRoot.innerHTML.includes("GOOGLE KEY / FREE-TIER DATA WARNING"), "Google's browser-key and Free Tier data-use warning is shown before a connection is linked");
   ok(linkRoot.innerHTML.includes("jsDelivr"), "the UI discloses the lazy SDK code download separately from API requests");
+  ok(linkRoot.innerHTML.includes("ll-google-rpm") && linkRoot.innerHTML.includes("ll-google-tpm") && linkRoot.innerHTML.includes("ll-google-rpd"), "LLM Link exposes manual project/model RPM, input-TPM and RPD guard settings");
+  ok(linkRoot.innerHTML.includes(">All available</button>"), "Google's model discovery is exposed as one concise All available button");
+  ok(linkRoot.innerHTML.includes("not a Free Tier/quota check"), "model discovery explicitly distinguishes API visibility from Free Tier eligibility");
+  ok(linkRoot.innerHTML.includes("aistudio.google.com/rate-limit"), "the Google pace guard links to the authoritative active quota view");
+  let generated = 0;
+  class GoogleCatalogMock {
+    constructor() {
+      this.models = {
+        list: async () => (async function* () {
+          yield { name: "models/gemini-3.8-flash", displayName: "Gemini 3.8 Flash", inputTokenLimit: 1000000, outputTokenLimit: 64000, supportedActions: ["generateContent"] };
+        })(),
+        generateContent: async () => { generated++; throw new Error("Discovery must not generate content."); }
+      };
+    }
+  }
+  LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: GoogleCatalogMock }));
+  LLM.setKey("AIzaSyD-model-catalog-test-key-123456789", false);
+  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-3.8-flash" });
+  linkApp.render(linkRoot, { toast() {} });
+  linkRoot.querySelector("#ll-provider").value = "google";
+  linkRoot.querySelector("#ll-protocol").value = "google";
+  linkRoot.querySelector("#ll-endpoint").value = "https://generativelanguage.googleapis.com";
+  linkRoot.querySelector("#ll-model").value = "gemini-3.8-flash";
+  linkRoot.querySelector("#ll-key").value = "";
+  linkRoot.querySelector("#ll-models").click();
+  ok(await waitFor(() => linkRoot.innerHTML.includes("1,000,000 in")), "All available lists the model's reported input context without a generation call");
+  ok(generated === 0, "Google model discovery does not send a sample generation prompt");
+  LLM._setGoogleSDKLoaderForTests(null);
+  LLM.clearKey();
   LLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "", model: "" });
 }
 
@@ -613,9 +642,43 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     ok(saved.status === "Draft" && saved.badge === "Unissued" && saved.confidence === "NONE", "a model reading never certifies: the record stays a confidence-NONE, unissued draft");
     ok(saved.report.Review_Status === "HUMAN_REVIEW_REQUIRED" && saved.report.Badge_Status === "Unissued", "the persisted report states the review gate and withheld formal badge");
     ok(!JSON.stringify(saved).includes("sk-ant-harness-key"), "the key is never written into the record");
+
+    const requestsBeforePreflight = readingPrompts.length;
+    let googleInputLimit = 1000000;
+    class Ground0GoogleCatalogMock {
+      constructor() {
+        this.models = { list: async () => (async function* () {
+          yield { name: "models/gemini-3.8-flash", displayName: "Gemini 3.8 Flash", inputTokenLimit: googleInputLimit, outputTokenLimit: 64000, supportedActions: ["generateContent"] };
+        })() };
+      }
+    }
+    LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-3.8-flash" });
+    LLM.setKey("AIzaSyD-ground0-preflight-test-key-123456", false);
+    LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: Ground0GoogleCatalogMock }));
+    await LLM.loadGoogleModelCatalog(LLM.resolved());
+    root3.querySelectorAll(".g0-rail-btn").find(button => button.dataset.tab === "automatic").click();
+    const oneRequestButton = main3.querySelector('[data-act="readRecordSingle"]');
+    const stagedFallbackButton = main3.querySelector('[data-act="readRecord"]');
+    ok(!!oneRequestButton && !oneRequestButton.disabled, "Google's default audit action is the available one-request read");
+    ok(!!stagedFallbackButton && !stagedFallbackButton.disabled, "the staged multi-call reading remains an explicit fallback");
+    ok(main3.innerHTML.includes("One-request Google audit preflight") && main3.innerHTML.includes("input tokens"), "the audit page shows a full-prompt token estimate before model reading");
+    ok(main3.innerHTML.includes("Listed model input limit 1,000,000 tokens"), "the preflight compares against the model context limit discovered by All available");
+    ok(readingPrompts.length === requestsBeforePreflight, "rendering the token preflight sends no extra model-generation request");
+
+    googleInputLimit = 1;
+    await LLM.loadGoogleModelCatalog(LLM.resolved());
+    root3.querySelectorAll(".g0-rail-btn").find(button => button.dataset.tab === "automatic").click();
+    const stagedPrimary = main3.querySelector('[data-act="readRecord"]');
+    const blockedOneRequest = main3.querySelector('[data-act="readRecordSingle"]');
+    ok(!!stagedPrimary && !stagedPrimary.disabled, "a known context overflow changes the Google primary action to staged reading");
+    ok(!!blockedOneRequest && blockedOneRequest.disabled, "the one-request action is disabled when its estimate exceeds listed input context");
+    ok(main3.innerHTML.includes("One-request mode is blocked by this preflight"), "the preflight states why the one-request path is blocked");
+    ok(readingPrompts.length === requestsBeforePreflight, "recomputing and checking context fit still sends no model-generation request");
   } finally {
     globalThis.fetch = realFetch;
+    globalThis.HOSLLM._setGoogleSDKLoaderForTests(null);
     globalThis.HOSLLM.clearKey();
+    globalThis.HOSLLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5", persist: false });
   }
 }
 

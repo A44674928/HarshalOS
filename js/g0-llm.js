@@ -19,18 +19,17 @@
      · It does not issue a badge. The engine still decides, and the
        record still requires human review.
 
-   How it asks: one question per call. A single call that must return nine
-   answers, two structures, coverage notes and gap lists reserves a large
-   output ceiling — and providers that price a call by the ceiling it
-   *reserves* refuse it outright when the balance cannot cover that number
-   (OpenRouter answers 402: "you requested up to 6000 tokens, but can only
-   afford 2664"). Staging the audit question by question means the model is
-   recalled many times with a small ceiling each time, which a small balance
-   can actually pay for, an answer never arrives truncated half-way through
-   the ninth question, and one failed recall costs one question instead of
-   the whole reading. `LIMITS.codesPerCall` is the dial: 1 asks a single
-   question per call, a higher number groups questions and re-sends the same
-   source text fewer times.
+   How it asks: the staged path defaults to one question per call. A single call
+   that must return nine answers, two structures, coverage notes and gap lists
+   reserves a larger output ceiling, and providers that price the ceiling they
+   reserve can refuse it before generation (OpenRouter has returned a 402 for
+   this). Staging keeps each answer small and isolates failures. The Google
+   Automatic Audit UI now prefers one bundled generation attempt when a local
+   full-prompt preflight fits the known context and configured guard; the staged
+   path remains the fallback. One-request mode skips link follow-ups, format
+   retries and separate candidate weighing. The app still verifies quotes and
+   computes phase locally; an incomplete response remains unresolved.
+   `LIMITS.codesPerCall` groups staged questions.
 
    Exposed as window.G0LLM. Requires window.G0, window.G0Research and
    a configured window.HOSLLM connection.
@@ -64,8 +63,9 @@ window.G0LLM = (() => {
 
   const LIMITS = Object.freeze({
     perSource: 20000,        // characters of one document handed to the model
-    budget: 150000,          // characters per reading run (~42k tokens), split into passes
-    batchSources: 3,         // documents per pass
+    budget: 150000,          // characters per staged reading run (~42k tokens), split into passes
+    batchSources: 3,         // documents per staged pass
+    singleRequestChars: 216000, // one-request source bundle for Google (~60k prose tokens, before instructions)
     maxFollowUps: 4,         // additional pages the model may request from links it was shown
     codesPerCall: 1,         // questions asked per model call — 1 stages the audit question by question
     maxTokensRead: 700,      // ceiling for a one-question reading call: one quote, one reason, one gap
@@ -137,6 +137,13 @@ window.G0LLM = (() => {
     for (let i = 0; i < usable.length; i += size) batches.push(usable.slice(i, i + size));
     return { batches, packed: usable, totalChars: usable.reduce((sum, item) => sum + item.chars, 0), skipped: sources.length - usable.length };
   }
+  function packSingleRequest(sources) {
+    return packSources(sources, {
+      perSource: LIMITS.singleRequestChars,
+      budget: LIMITS.singleRequestChars,
+      batchSources: Math.max(1, sources.length)
+    });
+  }
 
   const blockFor = source => [
     `SOURCE ${source.index} — ${source.lead ? "LEAD ONLY (never supports an answer)" : "readable record"}`,
@@ -198,7 +205,7 @@ window.G0LLM = (() => {
     "Absolute rules:",
     "1. Use ONLY the SOURCE blocks supplied in this message. Never use outside knowledge or memory, and never infer from the organization's reputation.",
     "2. Every yes/no finding must carry a verbatim quote of 8 to 45 words, copied from one SOURCE block (not from the <<< >>> fences). Copy literal source text, including any Markdown inside the quote. The checker normalizes whitespace and typography, but never accepts paraphrases.",
-    "3. Answer ONLY the question or questions named in this message. You are asked one question at a time, in a series of calls over the same sources; a finding for a question you were not asked is ignored.",
+    "3. Answer ONLY the question or questions named in this message. Some modes group several questions into one call; treat each independently. A finding for a question this call did not ask is ignored.",
     "4. Choose yes or no only when an operative rule, policy, decision, order, or outcome supports that answer. Otherwise report unknown. Absence of evidence is not evidence for no.",
     "5. Sources marked LEAD ONLY (news indexes, search results) can never support yes or no. They may only be listed under \"leads\".",
     "6. Quote only operative text: a rule, policy, decision, order, or outcome. Not captions, headlines, filing dates, requests, proposals, press description, or app-written guidance.",
@@ -240,6 +247,43 @@ window.G0LLM = (() => {
         ? `Answer ${asked} only, with one finding object inside "findings". For b4, basis must be TERMINAL_RULE, RESOLVED_APPEALS, NO_PENALTY_EXIT, or NOT_DEMONSTRATED. For b4 and c2 fill fields only from quoted text, and leave the numbers empty unless a source states them. If no supplied source bears on ${asked}, return one finding with value "unknown" and say what is missing in "gap".`
         : `Answer ${asked} only, with exactly ${codes.length} finding objects inside "findings", one per question. For b4, basis must be TERMINAL_RULE, RESOLVED_APPEALS, NO_PENALTY_EXIT, or NOT_DEMONSTRATED. For b4 and c2 fill fields only from quoted text, and leave the numbers empty unless a source states them.`
     ].join("\n");
+  }
+
+  /* Preflight the exact single-request prompt locally: same source pack, all
+     nine question instructions, system rules and response shape as the one-shot
+     reader. This never calls the provider; Google tokenization can differ. */
+  function estimateSingleRequest({ input, sources, version = "1.0", cutoff = "", entity = "" } = {}) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("The Ground-0 input draft is required to estimate a reading.");
+    const pool = (Array.isArray(sources) ? sources : []).map(source => ({ ...source, codes: Array.isArray(source.codes) ? source.codes.slice() : [] }));
+    const target = { ...input, name: entity || input.name, cutoff: cutoff || input.cutoff || "" };
+    const pack = packSingleRequest(pool);
+    const codes = allCodes();
+    const batch = pack.batches[0] || [];
+    const user = batch.length ? readInstruction({
+      input: target, batch, codes, batchIndex: 0, batchCount: 1, questionIndex: 0, questionCount: 1, version
+    }) : "";
+    const promptCharacters = batch.length ? SYSTEM.length + 1 + user.length : 0;
+    const estimatedInputTokens = batch.length
+      ? LLM && typeof LLM.estimateGoogleInputTokens === "function"
+        ? LLM.estimateGoogleInputTokens(SYSTEM, user)
+        : Math.max(1, Math.ceil(promptCharacters / 2.8))
+      : 0;
+    const truncatedSources = pack.packed.filter(source => source.full > source.chars);
+    return {
+      estimatedInputTokens,
+      promptCharacters,
+      sourceCharacters: pack.totalChars,
+      sourceCount: pool.length,
+      readableSourceCount: pool.filter(readable).length,
+      includedSourceCount: pack.packed.length,
+      omittedSourceCount: Math.max(0, pool.length - pack.packed.length),
+      truncatedSourceCount: truncatedSources.length,
+      truncatedCharacters: truncatedSources.reduce((sum, source) => sum + source.full - source.chars, 0),
+      questionCount: codes.length,
+      generationAttempts: 1,
+      outputTokenCeiling: readCeiling(codes.length),
+      modelTokenizerUsed: false
+    };
   }
 
   /* Weighing is staged the same way: one call per contested question, so the
@@ -389,16 +433,16 @@ window.G0LLM = (() => {
 
   /* A call that never reached the model is not a question that failed: it
      ends the reading, rather than quietly producing an empty one that looks
-     like "no evidence found". Persistent account-wide auth, rate, quota and
-     in-flight pressure also stops the staged pass instead of repeating the
-     same provider refusal for every question. */
-  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy", "rate", "quota", "sdk"]);
+     like "no evidence found". Persistent account-wide auth, provider/local pace,
+     quota and in-flight pressure also stops the staged pass instead of repeating
+     the same refusal for every question. */
+  const FATAL_KINDS = new Set(["auth", "cors", "model", "busy", "rate", "quota", "pace", "sdk"]);
   const isFatal = error => FATAL_KINDS.has(error && error.kind) || /no endpoint|no model|nothing to send|not loaded/i.test(String((error && error.message) || ""));
 
   async function readSources({
     input, sources, version = "1.0", cutoff = input.cutoff, signal,
     followLinks = true, onProgress = () => {}, model = "", website = "", entity = "",
-    codesPerCall = LIMITS.codesPerCall
+    codesPerCall = LIMITS.codesPerCall, singleRequest = false
   }) {
     if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("The Ground-0 input draft is required for this reading.");
     if (!LLM) throw new Error("The LLM connection layer is not loaded.");
@@ -407,6 +451,7 @@ window.G0LLM = (() => {
     if (!Array.isArray(sources) || !sources.length) throw new Error("There are no retrieved sources to read. Run the automatic research first.");
 
     const pool = sources.map(source => ({ ...source, codes: Array.isArray(source.codes) ? source.codes.slice() : [] }));
+    const oneRequest = singleRequest === true;
     const target = { ...input, name: entity || input.name, cutoff };
     const progress = (step, message, completed, total = 5) => onProgress({ step, message, completed, total });
     const usage = { input: 0, output: 0 };
@@ -426,7 +471,7 @@ window.G0LLM = (() => {
     const takeUnknowns = rows => (rows || []).forEach(row => { if (row && row.reason && !unknownReason.has(row.code)) unknownReason.set(row.code, row.reason); });
     let passes = 0; let callsOk = 0; let callsFailed = 0; let lastError = null;
 
-    const pack = packSources(pool);
+    const pack = oneRequest ? packSingleRequest(pool) : packSources(pool);
     if (!pack.batches.length) throw new Error("No readable text from primary sources is available. News/indexed leads cannot answer audit questions and will not be sent through nine calls each. Re-run research or add a dated public policy, appeal procedure, court order, or other primary artifact in the Evidence library.");
     if (diagnostics.leadsSkipped) noteOnce(notes, `${diagnostics.leadsSkipped} news/indexed lead${diagnostics.leadsSkipped === 1 ? " was" : "s were"} kept in the source list but not sent to the model; leads cannot support findings.`);
 
@@ -434,7 +479,7 @@ window.G0LLM = (() => {
        question by default, so each ceiling stays small enough to be paid for
        and each answer arrives complete. */
     const codes = allCodes();
-    const plan = questionChunks(codes, codesPerCall);
+    const plan = questionChunks(codes, oneRequest ? codes.length : codesPerCall);
     let unitsDone = 0;
     let unitsTotal = plan.length * pack.batches.length;
     /* The bar moves once per question call rather than once per batch, so a
@@ -445,32 +490,36 @@ window.G0LLM = (() => {
       const seconds = Math.max(1, Math.ceil(delayMs / 1000));
       const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) === 1 ? "" : "s"}` : `${seconds} second${seconds === 1 ? "" : "s"}`;
       const provider = status.label || "The provider";
-      const message = /retry-?after|retry-?info/i.test(String(source || ""))
-        ? `${provider} asked us to wait ${wait} before retrying ${subject}…`
-        : `${provider} returned a temporary error; retrying ${subject} after a ${wait} backoff…`;
+      const retrySource = String(source || "");
+      const message = /google local quota guard/i.test(retrySource)
+        ? `LLM Link is pacing ${subject} for ${wait} to stay inside the saved Google project limits…`
+        : /retry-?after|retry-?info/i.test(retrySource)
+          ? `${provider} asked us to wait ${wait} before retrying ${subject}…`
+          : `${provider} returned a temporary error; retrying ${subject} after a ${wait} backoff…`;
       progress(step, message, step === 2 ? stepAt() : step);
     };
 
     const ask = async (user, maxTokens, temperature = 0, onRetry = null) => {
-      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model, floorTokens: LIMITS.floorTokens, onRetry, jsonMode: true });
+      const result = await LLM.chat({ system: SYSTEM, user, maxTokens, temperature, signal, model, floorTokens: LIMITS.floorTokens, onRetry, jsonMode: true, maxGoogleRetries: oneRequest ? 0 : undefined });
       passes++;
       usage.input += result.usage.input; usage.output += result.usage.output;
       if (result.shrunk) noteOnce(notes, `The provider would only reserve a ${result.reserved}-token ceiling for a call, so this one was sent inside it instead of ${maxTokens}.`);
       return { data: result.truncated ? null : LLM.extractJson(result.text), finishReason: result.finishReason || "", truncated: !!result.truncated };
     };
 
-    /* One source batch, read question by question. A failure inside one
-       question costs that question, not the batch and not the audit. */
+    /* One source batch, read according to the selected question grouping.
+       In staged mode, a failed call costs its questions, not the whole audit. */
     const readPass = async (batch, index, count) => {
       const findings = []; const heldHere = []; const rejectedHere = []; const gaps = []; const unknownHere = [];
       for (const [questionIndex, chunk] of plan.entries()) {
         unitsDone++;
         let askedCodes = chunk.slice();
-        // One retry for malformed serialization, with a global two-call cap.
+        // Staged mode may retry malformed serialization under the global cap.
+        // One-request mode trades recovery for exactly one generation attempt.
         // Never retry a valid UNKNOWN or a rejected quote to fish for a YES.
-        for (let attempt = 0; attempt < 2; attempt++) {
+        for (let attempt = 0; attempt < (oneRequest ? 1 : 2); attempt++) {
           signal && signal.throwIfAborted();
-          progress(2, `${attempt ? "Retrying output format for" : "Reading"} ${askedCodes.join(", ")} — pass ${index + 1} of ${count}, question ${questionIndex + 1} of ${plan.length} (${batch.map(item => item.id).join(", ")})…`, stepAt());
+          progress(2, `${attempt ? "Retrying output format for" : "Reading"} ${askedCodes.join(", ")} — ${oneRequest ? "single bundled request" : `pass ${index + 1} of ${count}, question ${questionIndex + 1} of ${plan.length}`} (${batch.map(item => item.id).join(", ")})…`, stepAt());
           const entry = { pass: index + 1, codes: askedCodes.slice(), sourceIds: batch.map(item => item.id), outcome: "", finishReason: "", missingCodes: [] };
           diagnostics.readCalls++;
           let result;
@@ -522,7 +571,7 @@ window.G0LLM = (() => {
           entry.detail = formatReason;
           diagnostics.calls.push(entry);
           if (!missing.length) break;
-          if (!attempt && diagnostics.formatRetries < LIMITS.maxFormatRetries) {
+          if (!oneRequest && !attempt && diagnostics.formatRetries < LIMITS.maxFormatRetries) {
             diagnostics.formatRetries++;
             noteOnce(notes, `Retrying ${missing.join(", ")} once against the same sources because ${formatReason}. Evidence standards are unchanged.`);
             askedCodes = missing;
@@ -536,9 +585,11 @@ window.G0LLM = (() => {
       return { findings, held: heldHere, rejected: rejectedHere, unknown: unknownHere, summary: { gaps } };
     };
 
-    progress(1, `Opening ${pack.packed.length} readable record${pack.packed.length === 1 ? "" : "s"} (${Math.round(pack.totalChars / 1000)}k characters) in ${pack.batches.length} pass${pack.batches.length === 1 ? "" : "es"} · ${codes.length} questions staged ${plan.length === codes.length ? "one per call" : `${plan.length} calls of ${plan[0].length}`}…`, 1);
+    progress(1, oneRequest
+      ? `Bundling ${pack.packed.length} readable record${pack.packed.length === 1 ? "" : "s"} (~${Math.round(pack.totalChars / 3.6).toLocaleString()} estimated source tokens) and all ${codes.length} questions into one generation request…`
+      : `Opening ${pack.packed.length} readable record${pack.packed.length === 1 ? "" : "s"} (${Math.round(pack.totalChars / 1000)}k characters) in ${pack.batches.length} pass${pack.batches.length === 1 ? "" : "es"} · ${codes.length} questions staged ${plan.length === codes.length ? "one per call" : `${plan.length} calls of ${plan[0].length}`}…`, 1);
 
-    /* Pass 1 — read every document, one question at a time. */
+    /* Pass 1 — read every source batch using the chosen staged or one-request plan. */
     const passesOut = [];
     for (const [index, batch] of pack.batches.entries()) {
       signal && signal.throwIfAborted();
@@ -568,8 +619,9 @@ window.G0LLM = (() => {
     addCandidates(passesOut.flatMap(result => result.findings));
 
     let followCharsRead = 0;
+    if (oneRequest && followLinks) noteOnce(notes, "One-request mode used only the retrieved sources in its single prompt; model-requested link selection and follow-up reads were disabled.");
     /* Follow-up reading — the model may only pick from links it was shown. */
-    if (followLinks && R.readWithArchive) {
+    if (!oneRequest && followLinks && R.readWithArchive) {
       const missing = codes.filter(code => !candidates.some(candidate => candidate.code === code && candidate.value !== "unknown"));
       const links = linkCandidates(pool, pool.map(source => source.url));
       if (missing.length && links.length) {
@@ -641,7 +693,8 @@ window.G0LLM = (() => {
        verified candidate has nothing to weigh and costs no call at all. */
     let decisions = null;
     const contested = codes.filter(code => candidates.filter(candidate => candidate.code === code).length > 1);
-    if (contested.length) {
+    if (oneRequest && contested.length) noteOnce(notes, `One-request mode made no follow-up weighing calls for ${contested.join(", ")}; the reading keeps the highest-confidence quote for review, not an automatic finding.`);
+    if (contested.length && !oneRequest) {
       decisions = [];
       for (const [index, code] of contested.entries()) {
         signal && signal.throwIfAborted();
@@ -802,10 +855,13 @@ window.G0LLM = (() => {
         provider: status.label || status.provider, model: model || status.model,
         endpoint: status.endpoint, generatedAt: new Date().toISOString(), reviewRequired: true,
         passes, sourcesRead, charsRead, verified: candidates.length,
-        /* How the reading was staged: how many questions each call asked, the
-           ceiling each call reserved, and what it cost when a call failed.
-           A record that was read question by question says so. */
+        /* How the reading was staged or bundled: question grouping, request
+           ceiling, extra-call policy, and the cost when a call failed. */
         staging: {
+          mode: oneRequest ? "single-request" : "staged",
+          singleRequest: oneRequest,
+          followUpsDisabled: oneRequest,
+          weighingDisabled: oneRequest,
           codesPerCall: plan[0] ? plan[0].length : 0, questionsAsked: codes.length,
           ceilingPerCall: readCeiling(plan[0] ? plan[0].length : 1), weighed: contested.length, callsFailed, plannedCalls: unitsTotal, formatRetries: diagnostics.formatRetries,
           failedCodes: [...failedCodes.keys()], unusableCodes: [...unusableCodes.keys()],
@@ -898,6 +954,6 @@ window.G0LLM = (() => {
     linkCandidates, parseFindings, parseSummary, sourceText, isLead, citationDate, readable, normalize, label,
     /* the staged call plan — exposed so the interface and the tests can see
        exactly how many calls an audit will make, and what each one asks */
-    allCodes, questionFor, questionChunks, questionBlock, readInstruction, weighInstruction, SYSTEM
+    allCodes, questionFor, questionChunks, questionBlock, readInstruction, estimateSingleRequest, weighInstruction, SYSTEM
   });
 })();
