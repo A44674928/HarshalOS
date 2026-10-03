@@ -1,0 +1,462 @@
+﻿<flames name="rendersAV">
+<flame name="space waves and time rivers, 2.2g 1.1b 1.7v, calc.bmp" version="Apophysis AV Phoenix Edition" size="10240 6827" center="0 0" scale="1565.0749775015" angle="4.71238898038469" rotate="-270" zoom="0.721" oversample="3" filter="1.7" quality="10000" background="0 0 0" brightness="1.1" gamma="2.2" vibrancy="1.7" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="cylinder zblur dc_bubble npolar auger julian2 julia3D hypertile loonie extrude sinusoidal julian checks zcone dc_mandelbrot fisheye sinusgrid pre_bwraps" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="cylinder zblur " cylinder="0.938537321984768" zblur="0.0614626780152321" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="dc_bubble dc_bubble npolar " dc_bubble="0.491270661121234" dc_bubble="0.491270661121234" npolar="0.508729338878766" coefs="1 0 0 1 0 0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" dc_bubble_style="0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" npolar_parity="0" npolar_n="1" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="auger julian2 " auger="0.895015619229525" julian2="0.104984380770475" coefs="3.814697 0 0 3.814697 0 0" auger_freq="5" auger_weight="0.5" auger_scale="0.1" auger_sym="0" julian2_power="2" julian2_dist="1" julian2_a="1" julian2_b="0" julian2_c="0" julian2_d="1" julian2_e="0" julian2_f="0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="julia3D hypertile hypertile " julia3D="0.912636770168319" hypertile="0.0873632298316807" hypertile="0.0873632298316807" coefs="1 0 0 1 0 0" julia3D_power="-5" hypertile_p="3" hypertile_q="7" hypertile_n="0" hypertile_p="3" hypertile_q="7" hypertile_n="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="loonie extrude " loonie="0.495324852876365" extrude="0.504675147123635" coefs="-1 0 0 -1 0 0" loonie_use3D="0" extrude_root_face="0.5" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="sinusoidal julian " sinusoidal="0.327996595995501" julian="0.672003404004499" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="zblur checks " zblur="0.944222619291395" checks="0.055777380708605" coefs="1 0 0 1 0 0" checks_x="0.5" checks_y="0.5" checks_size="0.5" checks_rnd="0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="zcone dc_mandelbrot " zcone="0.719377911882475" dc_mandelbrot="0.280622088117525" coefs="0 -1 1 0 0 0" dcm_iter="25" dcm_miniter="1" dcm_smooth_iter="0" dcm_retries="50" dcm_mode="0" dcm_pow="2" dcm_color_method="0" dcm_invert="0" dcm_xmin="-2" dcm_xmax="2" dcm_ymin="-1.5" dcm_ymax="1.5" dcm_scatter="0" dcm_sx="0" dcm_sy="0" dcm_zscale="0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="fisheye sinusgrid " fisheye="0.621383501216769" sinusgrid="0.378616498783231" coefs="0 1 -1 0 0 0" sinusgrid_ampx="0.5" sinusgrid_ampy="0.5" sinusgrid_freqx="1" sinusgrid_freqy="1" opacity="1" />
+   <xform weight="0.5" color="1" var_order="julian pre_bwraps " julian="0.406396402278915" pre_bwraps="0.593603597721085" coefs="-1 0 0 -1 0 0" julian_power="4" julian_dist="1" pre_bwraps_cellsize="1" pre_bwraps_space="0" pre_bwraps_gain="1" pre_bwraps_inner_twist="0" pre_bwraps_outer_twist="0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="space waves and time rivers, 2.2g 1.1b 1.7v, calc, rotated twoseventy.png" version="Apophysis AV Phoenix Edition" size="10240 6827" center="0 0" scale="1565.0749775015" angle="4.71238898038469" rotate="-270" zoom="0.721" oversample="3" filter="1.7" quality="10000" background="0 0 0" brightness="1.1" gamma="2.2" vibrancy="1.7" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="cylinder zblur dc_bubble npolar auger julian2 julia3D hypertile loonie extrude sinusoidal julian checks zcone dc_mandelbrot fisheye sinusgrid pre_bwraps" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="cylinder zblur " cylinder="0.938537321984768" zblur="0.0614626780152321" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="dc_bubble npolar dc_bubble " dc_bubble="0.491270661121234" npolar="0.508729338878766" dc_bubble="0.491270661121234" coefs="1 0 0 1 0 0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" dc_bubble_style="0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" npolar_parity="0" npolar_n="1" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="auger julian2 " auger="0.895015619229525" julian2="0.104984380770475" coefs="3.814697 0 0 3.814697 0 0" auger_freq="5" auger_weight="0.5" auger_scale="0.1" auger_sym="0" julian2_power="2" julian2_dist="1" julian2_a="1" julian2_b="0" julian2_c="0" julian2_d="1" julian2_e="0" julian2_f="0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="julia3D hypertile hypertile " julia3D="0.912636770168319" hypertile="0.0873632298316807" hypertile="0.0873632298316807" coefs="1 0 0 1 0 0" julia3D_power="-5" hypertile_p="3" hypertile_q="7" hypertile_n="0" hypertile_p="3" hypertile_q="7" hypertile_n="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="loonie extrude " loonie="0.495324852876365" extrude="0.504675147123635" coefs="-1 0 0 -1 0 0" loonie_use3D="0" extrude_root_face="0.5" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="sinusoidal julian " sinusoidal="0.327996595995501" julian="0.672003404004499" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="zblur checks " zblur="0.944222619291395" checks="0.055777380708605" coefs="1 0 0 1 0 0" checks_x="0.5" checks_y="0.5" checks_size="0.5" checks_rnd="0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="zcone dc_mandelbrot " zcone="0.719377911882475" dc_mandelbrot="0.280622088117525" coefs="0 -1 1 0 0 0" dcm_iter="25" dcm_miniter="1" dcm_smooth_iter="0" dcm_retries="50" dcm_mode="0" dcm_pow="2" dcm_color_method="0" dcm_invert="0" dcm_xmin="-2" dcm_xmax="2" dcm_ymin="-1.5" dcm_ymax="1.5" dcm_scatter="0" dcm_sx="0" dcm_sy="0" dcm_zscale="0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="fisheye sinusgrid " fisheye="0.621383501216769" sinusgrid="0.378616498783231" coefs="0 1 -1 0 0 0" sinusgrid_ampx="0.5" sinusgrid_ampy="0.5" sinusgrid_freqx="1" sinusgrid_freqy="1" opacity="1" />
+   <xform weight="0.5" color="1" var_order="julian pre_bwraps " julian="0.406396402278915" pre_bwraps="0.593603597721085" coefs="-1 0 0 -1 0 0" julian_power="4" julian_dist="1" pre_bwraps_cellsize="1" pre_bwraps_space="0" pre_bwraps_gain="1" pre_bwraps_inner_twist="0" pre_bwraps_outer_twist="0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="space waves and time rivers, 2.2g 1.1b 1.7v, calc, rotated twoseventy.bmp" version="Apophysis AV Phoenix Edition" size="10240 6827" center="0 0" scale="1565.0749775015" angle="4.71238898038469" rotate="-270" zoom="0.721" oversample="3" filter="1.7" quality="10000" background="0 0 0" brightness="1.1" gamma="2.2" vibrancy="1.7" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="cylinder zblur dc_bubble npolar auger julian2 julia3D hypertile loonie extrude sinusoidal julian checks zcone dc_mandelbrot fisheye sinusgrid pre_bwraps" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="cylinder zblur " cylinder="0.938537321984768" zblur="0.0614626780152321" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="dc_bubble npolar dc_bubble " dc_bubble="0.491270661121234" npolar="0.508729338878766" dc_bubble="0.491270661121234" coefs="1 0 0 1 0 0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" dc_bubble_style="0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" npolar_parity="0" npolar_n="1" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="auger julian2 " auger="0.895015619229525" julian2="0.104984380770475" coefs="3.814697 0 0 3.814697 0 0" auger_freq="5" auger_weight="0.5" auger_scale="0.1" auger_sym="0" julian2_power="2" julian2_dist="1" julian2_a="1" julian2_b="0" julian2_c="0" julian2_d="1" julian2_e="0" julian2_f="0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="julia3D hypertile hypertile " julia3D="0.912636770168319" hypertile="0.0873632298316807" hypertile="0.0873632298316807" coefs="1 0 0 1 0 0" julia3D_power="-5" hypertile_p="3" hypertile_q="7" hypertile_n="0" hypertile_p="3" hypertile_q="7" hypertile_n="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="loonie extrude " loonie="0.495324852876365" extrude="0.504675147123635" coefs="-1 0 0 -1 0 0" loonie_use3D="0" extrude_root_face="0.5" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="sinusoidal julian " sinusoidal="0.327996595995501" julian="0.672003404004499" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="zblur checks " zblur="0.944222619291395" checks="0.055777380708605" coefs="1 0 0 1 0 0" checks_x="0.5" checks_y="0.5" checks_size="0.5" checks_rnd="0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="zcone dc_mandelbrot " zcone="0.719377911882475" dc_mandelbrot="0.280622088117525" coefs="0 -1 1 0 0 0" dcm_iter="25" dcm_miniter="1" dcm_smooth_iter="0" dcm_retries="50" dcm_mode="0" dcm_pow="2" dcm_color_method="0" dcm_invert="0" dcm_xmin="-2" dcm_xmax="2" dcm_ymin="-1.5" dcm_ymax="1.5" dcm_scatter="0" dcm_sx="0" dcm_sy="0" dcm_zscale="0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="fisheye sinusgrid " fisheye="0.621383501216769" sinusgrid="0.378616498783231" coefs="0 1 -1 0 0 0" sinusgrid_ampx="0.5" sinusgrid_ampy="0.5" sinusgrid_freqx="1" sinusgrid_freqy="1" opacity="1" />
+   <xform weight="0.5" color="1" var_order="julian pre_bwraps " julian="0.406396402278915" pre_bwraps="0.593603597721085" coefs="-1 0 0 -1 0 0" julian_power="4" julian_dist="1" pre_bwraps_cellsize="1" pre_bwraps_space="0" pre_bwraps_gain="1" pre_bwraps_inner_twist="0" pre_bwraps_outer_twist="0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="space waves and time rivers, 2.2g 1.1b 1.7v, calc, rotated twoseventy.bmp (05-28-2023 18-05-29)" version="Apophysis AV Phoenix Edition" size="10240 6827" center="0 0" scale="1565.0749775015" angle="4.71238898038469" rotate="-270" zoom="0.721" oversample="3" filter="1.7" quality="10000" background="0 0 0" brightness="1.1" gamma="2.2" vibrancy="1.7" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="cylinder zblur dc_bubble npolar auger julian2 julia3D hypertile loonie extrude sinusoidal julian checks zcone dc_mandelbrot fisheye sinusgrid pre_bwraps" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="cylinder zblur " cylinder="0.938537321984768" zblur="0.0614626780152321" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="dc_bubble npolar dc_bubble " dc_bubble="0.491270661121234" npolar="0.508729338878766" dc_bubble="0.491270661121234" coefs="1 0 0 1 0 0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" dc_bubble_style="0" dc_bubble_centerx="0" dc_bubble_centery="0" dc_bubble_scale="1" npolar_parity="0" npolar_n="1" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="auger julian2 " auger="0.895015619229525" julian2="0.104984380770475" coefs="3.814697 0 0 3.814697 0 0" auger_freq="5" auger_weight="0.5" auger_scale="0.1" auger_sym="0" julian2_power="2" julian2_dist="1" julian2_a="1" julian2_b="0" julian2_c="0" julian2_d="1" julian2_e="0" julian2_f="0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="julia3D hypertile hypertile " julia3D="0.912636770168319" hypertile="0.0873632298316807" hypertile="0.0873632298316807" coefs="1 0 0 1 0 0" julia3D_power="-5" hypertile_p="3" hypertile_q="7" hypertile_n="0" hypertile_p="3" hypertile_q="7" hypertile_n="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="loonie extrude " loonie="0.495324852876365" extrude="0.504675147123635" coefs="-1 0 0 -1 0 0" loonie_use3D="0" extrude_root_face="0.5" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="sinusoidal julian " sinusoidal="0.327996595995501" julian="0.672003404004499" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="zblur checks " zblur="0.944222619291395" checks="0.055777380708605" coefs="1 0 0 1 0 0" checks_x="0.5" checks_y="0.5" checks_size="0.5" checks_rnd="0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="zcone dc_mandelbrot " zcone="0.719377911882475" dc_mandelbrot="0.280622088117525" coefs="0 -1 1 0 0 0" dcm_iter="25" dcm_miniter="1" dcm_smooth_iter="0" dcm_retries="50" dcm_mode="0" dcm_pow="2" dcm_color_method="0" dcm_invert="0" dcm_xmin="-2" dcm_xmax="2" dcm_ymin="-1.5" dcm_ymax="1.5" dcm_scatter="0" dcm_sx="0" dcm_sy="0" dcm_zscale="0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="fisheye sinusgrid " fisheye="0.621383501216769" sinusgrid="0.378616498783231" coefs="0 1 -1 0 0 0" sinusgrid_ampx="0.5" sinusgrid_ampy="0.5" sinusgrid_freqx="1" sinusgrid_freqy="1" opacity="1" />
+   <xform weight="0.5" color="1" var_order="julian pre_bwraps " julian="0.406396402278915" pre_bwraps="0.593603597721085" coefs="-1 0 0 -1 0 0" julian_power="4" julian_dist="1" pre_bwraps_cellsize="1" pre_bwraps_space="0" pre_bwraps_gain="1" pre_bwraps_inner_twist="0" pre_bwraps_outer_twist="0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar center gamma four.fortytwo.png" version="Apophysis AV Phoenix Edition" size="9000 6000" center="0 0.288" scale="3689.496" oversample="4" filter="1" quality="20000" background="0 0 0" brightness="1" gamma="4.42" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar center gamma four.fortytwo.png (05-30-2023 04-03-59)" version="Apophysis AV Phoenix Edition" size="9000 6000" center="0 0.288" scale="3689.496" oversample="4" filter="1" quality="20000" background="0 0 0" brightness="1" gamma="4.42" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar fft.bmp" version="Apophysis AV Phoenix Edition" size="9000 6000" center="0 0.288" scale="3689.496" oversample="4" filter="1" quality="20000" background="0 0 0" brightness="1" gamma="4.42" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar fft.bmp (05-30-2023 13-43-10)" version="Apophysis AV Phoenix Edition" size="30000 20000" center="0 0.288" scale="12298.32" oversample="1" filter="1" quality="10000" background="0 0 0" brightness="1" gamma="4.42" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar center gamma nineweigteen.bmp" version="Apophysis AV Phoenix Edition" size="15000 10000" center="0 0.288" scale="6149.2" oversample="1" filter="1" quality="10000" background="0 0 0" brightness="1" gamma="9.18" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="unpolar center gamma nineweigteen.png" version="Apophysis AV Phoenix Edition" size="15000 10000" center="0 0.288" scale="6149.2" oversample="2" filter="1" quality="1000000" background="0 0 0" brightness="1" gamma="9.18" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="unpolar" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0.111111111111111" symmetry="0.5" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.222222222222222" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="3.814697 0 0 3.814697 0 0" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.333333333333333" symmetry="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0.444444444444444" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.555555555555556" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.666666666666667" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="1 0 0 1 0 0" opacity="1" />
+   <xform weight="0.5" color="0.777777777777778" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0.888888888888889" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="1" var_order="unpolar unpolar " unpolar="1" unpolar="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+</flames>

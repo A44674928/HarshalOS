@@ -1,0 +1,3230 @@
+enr-flame-a {
+; Flame Fractal Coloring Method by Erik Reckase
+
+; Modified for compatibility with Apophysis 2.0
+; by Mark Townsend, January 2004
+
+global: 
+; Initialization and parameter array initialization
+  int seed = 1234567890
+  int pix[(#width*@oversample)+40,(#height*@oversample)+40,4]
+                                  ; rgb storage + extra for entire image - BIG
+  float iterbuf[1,3]              ; storage for an iterated point
+  int fuse = 15                   ; skip this many iterations when starting to iterate
+  float prefilter_white = 2^10    ; parameterize?      
+  float xform_density[12]         ; probability of using this xform's coefs when iterating
+  float xform_color[12]           ; if this xform is used, average this val into the color
+  float xform_symmetry[12]        ; skip color coord if this is 1
+  float xform_coefs[12,6]         ; IFS coefficients
+  float xform_vars[12,20]         ; percentage of variance contribution
+
+  float sf_gauss[20,20]           ; contains gaussian spatial filter kernel
+  color newcmap[256]              ; modified colormap from gradient
+  int scl_cmap[256,4]             ; white-balanced colormap
+  float eps = 1E-10               ; small number
+
+  float xc = real(#center)        ; Scaling constants
+  float yc = -imag(#center)
+  
+  int gutter_width = 20           ; assume that a 20x20 gaussian is the max
+
+  int num_xforms = @xforms        ; make a variable for random param generation
+
+  int x = 0, int y = 0, int z = 0 ; counter initialization
+
+  ; read specifics from parameters
+  ; we may not use them, but then again, we might
+  xform_density[0] = @xf0_p
+  xform_color[0] = @xf0_c
+  xform_symmetry[0] = @xf0_sym
+  xform_coefs[0,0] = @xf0_cfa
+  xform_coefs[0,1] = @xf0_cfb
+  xform_coefs[0,2] = @xf0_cfc
+  xform_coefs[0,3] = @xf0_cfd
+  xform_coefs[0,4] = @xf0_cfe
+  xform_coefs[0,5] = @xf0_cff
+  xform_vars[0,0] = @xf0_var0
+  xform_vars[0,1] = @xf0_var1
+  xform_vars[0,2] = @xf0_var2
+  xform_vars[0,3] = @xf0_var3
+  xform_vars[0,4] = @xf0_var4
+  xform_vars[0,5] = @xf0_var5
+  xform_vars[0,6] = @xf0_var6
+  xform_vars[0,7] = @xf0_var7
+  xform_vars[0,8] = @xf0_var8
+  xform_vars[0,9] = @xf0_var9
+  xform_vars[0,10] = @xf0_var10
+  xform_vars[0,11] = @xf0_var11
+  xform_vars[0,12] = @xf0_var12
+  xform_vars[0,13] = @xf0_var13
+  xform_vars[0,14] = @xf0_var14
+  xform_vars[0,15] = @xf0_var15
+  xform_vars[0,16] = @xf0_var16
+  xform_vars[0,17] = @xf0_var17
+
+  xform_density[1] = @xf1_p
+  xform_color[1] = @xf1_c
+  xform_symmetry[1] = @xf1_sym
+  xform_coefs[1,0] = @xf1_cfa
+  xform_coefs[1,1] = @xf1_cfb
+  xform_coefs[1,2] = @xf1_cfc
+  xform_coefs[1,3] = @xf1_cfd
+  xform_coefs[1,4] = @xf1_cfe
+  xform_coefs[1,5] = @xf1_cff
+  xform_vars[1,0] = @xf1_var0
+  xform_vars[1,1] = @xf1_var1
+  xform_vars[1,2] = @xf1_var2
+  xform_vars[1,3] = @xf1_var3
+  xform_vars[1,4] = @xf1_var4
+  xform_vars[1,5] = @xf1_var5
+  xform_vars[1,6] = @xf1_var6
+  xform_vars[1,7] = @xf1_var7
+  xform_vars[1,8] = @xf1_var8
+  xform_vars[1,9] = @xf1_var9
+  xform_vars[1,10] = @xf1_var10
+  xform_vars[1,11] = @xf1_var11
+  xform_vars[1,12] = @xf1_var12
+  xform_vars[1,13] = @xf1_var13
+  xform_vars[1,14] = @xf1_var14
+  xform_vars[1,15] = @xf1_var15
+  xform_vars[1,16] = @xf1_var16
+  xform_vars[1,17] = @xf1_var17
+
+  xform_density[2] = @xf2_p
+  xform_color[2] = @xf2_c
+  xform_symmetry[2] = @xf2_sym
+  xform_coefs[2,0] = @xf2_cfa
+  xform_coefs[2,1] = @xf2_cfb
+  xform_coefs[2,2] = @xf2_cfc
+  xform_coefs[2,3] = @xf2_cfd
+  xform_coefs[2,4] = @xf2_cfe
+  xform_coefs[2,5] = @xf2_cff
+  xform_vars[2,0] = @xf2_var0
+  xform_vars[2,1] = @xf2_var1
+  xform_vars[2,2] = @xf2_var2
+  xform_vars[2,3] = @xf2_var3
+  xform_vars[2,4] = @xf2_var4
+  xform_vars[2,5] = @xf2_var5
+  xform_vars[2,6] = @xf2_var6
+  xform_vars[2,7] = @xf2_var7
+  xform_vars[2,8] = @xf2_var8
+  xform_vars[2,9] = @xf2_var9
+  xform_vars[2,10] = @xf2_var10
+  xform_vars[2,11] = @xf2_var11
+  xform_vars[2,12] = @xf2_var12
+  xform_vars[2,13] = @xf2_var13
+  xform_vars[2,14] = @xf2_var14
+  xform_vars[2,15] = @xf2_var15
+  xform_vars[2,16] = @xf2_var16
+  xform_vars[2,17] = @xf2_var17
+
+  xform_density[3] = @xf3_p
+  xform_color[3] = @xf3_c
+  xform_symmetry[3] = @xf3_sym
+  xform_coefs[3,0] = @xf3_cfa
+  xform_coefs[3,1] = @xf3_cfb
+  xform_coefs[3,2] = @xf3_cfc
+  xform_coefs[3,3] = @xf3_cfd
+  xform_coefs[3,4] = @xf3_cfe
+  xform_coefs[3,5] = @xf3_cff
+  xform_vars[3,0] = @xf3_var0
+  xform_vars[3,1] = @xf3_var1
+  xform_vars[3,2] = @xf3_var2
+  xform_vars[3,3] = @xf3_var3
+  xform_vars[3,4] = @xf3_var4
+  xform_vars[3,5] = @xf3_var5
+  xform_vars[3,6] = @xf3_var6
+  xform_vars[3,7] = @xf3_var7
+  xform_vars[3,8] = @xf3_var8
+  xform_vars[3,9] = @xf3_var9
+  xform_vars[3,10] = @xf3_var10
+  xform_vars[3,11] = @xf3_var11
+  xform_vars[3,12] = @xf3_var12
+  xform_vars[3,13] = @xf3_var13
+  xform_vars[3,14] = @xf3_var14
+  xform_vars[3,15] = @xf3_var15
+  xform_vars[3,16] = @xf3_var16
+  xform_vars[3,17] = @xf3_var17
+
+  xform_density[4] = @xf4_p
+  xform_color[4] = @xf4_c
+  xform_symmetry[4] = @xf4_sym
+  xform_coefs[4,0] = @xf4_cfa
+  xform_coefs[4,1] = @xf4_cfb
+  xform_coefs[4,2] = @xf4_cfc
+  xform_coefs[4,3] = @xf4_cfd
+  xform_coefs[4,4] = @xf4_cfe
+  xform_coefs[4,5] = @xf4_cff
+  xform_vars[4,0] = @xf4_var0
+  xform_vars[4,1] = @xf4_var1
+  xform_vars[4,2] = @xf4_var2
+  xform_vars[4,3] = @xf4_var3
+  xform_vars[4,4] = @xf4_var4
+  xform_vars[4,5] = @xf4_var5
+  xform_vars[4,6] = @xf4_var6
+  xform_vars[4,7] = @xf4_var7
+  xform_vars[4,8] = @xf4_var8
+  xform_vars[4,9] = @xf4_var9
+  xform_vars[4,10] = @xf4_var10
+  xform_vars[4,11] = @xf4_var11
+  xform_vars[4,12] = @xf4_var12
+  xform_vars[4,13] = @xf4_var13
+  xform_vars[4,14] = @xf4_var14
+  xform_vars[4,15] = @xf4_var15
+  xform_vars[4,16] = @xf4_var16
+  xform_vars[4,17] = @xf4_var17
+
+  xform_density[5] = @xf5_p
+  xform_color[5] = @xf5_c
+  xform_symmetry[5] = @xf5_sym
+  xform_coefs[5,0] = @xf5_cfa
+  xform_coefs[5,1] = @xf5_cfb
+  xform_coefs[5,2] = @xf5_cfc
+  xform_coefs[5,3] = @xf5_cfd
+  xform_coefs[5,4] = @xf5_cfe
+  xform_coefs[5,5] = @xf5_cff
+  xform_vars[5,0] = @xf5_var0
+  xform_vars[5,1] = @xf5_var1
+  xform_vars[5,2] = @xf5_var2
+  xform_vars[5,3] = @xf5_var3
+  xform_vars[5,4] = @xf5_var4
+  xform_vars[5,5] = @xf5_var5
+  xform_vars[5,6] = @xf5_var6
+  xform_vars[5,7] = @xf5_var7
+  xform_vars[5,8] = @xf5_var8
+  xform_vars[5,9] = @xf5_var9
+  xform_vars[5,10] = @xf5_var10
+  xform_vars[5,11] = @xf5_var11
+  xform_vars[5,12] = @xf5_var12
+  xform_vars[5,13] = @xf5_var13
+  xform_vars[5,14] = @xf5_var14
+  xform_vars[5,15] = @xf5_var15
+  xform_vars[5,16] = @xf5_var16
+  xform_vars[5,17] = @xf5_var17
+
+  xform_density[6] = @xf6_p
+  xform_color[6] = @xf6_c
+  xform_symmetry[6] = @xf6_sym
+  xform_coefs[6,0] = @xf6_cfa
+  xform_coefs[6,1] = @xf6_cfb
+  xform_coefs[6,2] = @xf6_cfc
+  xform_coefs[6,3] = @xf6_cfd
+  xform_coefs[6,4] = @xf6_cfe
+  xform_coefs[6,5] = @xf6_cff
+  xform_vars[6,0] = @xf6_var0
+  xform_vars[6,1] = @xf6_var1
+  xform_vars[6,2] = @xf6_var2
+  xform_vars[6,3] = @xf6_var3
+  xform_vars[6,4] = @xf6_var4
+  xform_vars[6,5] = @xf6_var5
+  xform_vars[6,6] = @xf6_var6
+  xform_vars[6,7] = @xf6_var7
+  xform_vars[6,8] = @xf6_var8
+  xform_vars[6,9] = @xf6_var9
+  xform_vars[6,10] = @xf6_var10
+  xform_vars[6,11] = @xf6_var11
+  xform_vars[6,12] = @xf6_var12
+  xform_vars[6,13] = @xf6_var13
+  xform_vars[6,14] = @xf6_var14
+  xform_vars[6,15] = @xf6_var15
+  xform_vars[6,16] = @xf6_var16
+  xform_vars[6,17] = @xf6_var17
+
+  xform_density[7] = @xf7_p
+  xform_color[7] = @xf7_c
+  xform_symmetry[7] = @xf7_sym
+  xform_coefs[7,0] = @xf7_cfa
+  xform_coefs[7,1] = @xf7_cfb
+  xform_coefs[7,2] = @xf7_cfc
+  xform_coefs[7,3] = @xf7_cfd
+  xform_coefs[7,4] = @xf7_cfe
+  xform_coefs[7,5] = @xf7_cff
+  xform_vars[7,0] = @xf7_var0
+  xform_vars[7,1] = @xf7_var1
+  xform_vars[7,2] = @xf7_var2
+  xform_vars[7,3] = @xf7_var3
+  xform_vars[7,4] = @xf7_var4
+  xform_vars[7,5] = @xf7_var5
+  xform_vars[7,6] = @xf7_var6
+  xform_vars[7,7] = @xf7_var7
+  xform_vars[7,8] = @xf7_var8
+  xform_vars[7,9] = @xf7_var9
+  xform_vars[7,10] = @xf7_var10
+  xform_vars[7,11] = @xf7_var11
+  xform_vars[7,12] = @xf7_var12
+  xform_vars[7,13] = @xf7_var13
+  xform_vars[7,14] = @xf7_var14
+  xform_vars[7,15] = @xf7_var15
+  xform_vars[7,16] = @xf7_var16
+  xform_vars[7,17] = @xf7_var17
+
+  xform_density[8] = @xf8_p
+  xform_color[8] = @xf8_c
+  xform_symmetry[8] = @xf8_sym
+  xform_coefs[8,0] = @xf8_cfa
+  xform_coefs[8,1] = @xf8_cfb
+  xform_coefs[8,2] = @xf8_cfc
+  xform_coefs[8,3] = @xf8_cfd
+  xform_coefs[8,4] = @xf8_cfe
+  xform_coefs[8,5] = @xf8_cff
+  xform_vars[8,0] = @xf8_var0
+  xform_vars[8,1] = @xf8_var1
+  xform_vars[8,2] = @xf8_var2
+  xform_vars[8,3] = @xf8_var3
+  xform_vars[8,4] = @xf8_var4
+  xform_vars[8,5] = @xf8_var5
+  xform_vars[8,6] = @xf8_var6
+  xform_vars[8,7] = @xf8_var7
+  xform_vars[8,8] = @xf8_var8
+  xform_vars[8,9] = @xf8_var9
+  xform_vars[8,10] = @xf8_var10
+  xform_vars[8,11] = @xf8_var11
+  xform_vars[8,12] = @xf8_var12
+  xform_vars[8,13] = @xf8_var13
+  xform_vars[8,14] = @xf8_var14
+  xform_vars[8,15] = @xf8_var15
+  xform_vars[8,16] = @xf8_var16
+  xform_vars[8,17] = @xf8_var17
+
+  xform_density[9] = @xf9_p
+  xform_color[9] = @xf9_c
+  xform_symmetry[9] = @xf9_sym
+  xform_coefs[9,0] = @xf9_cfa
+  xform_coefs[9,1] = @xf9_cfb
+  xform_coefs[9,2] = @xf9_cfc
+  xform_coefs[9,3] = @xf9_cfd
+  xform_coefs[9,4] = @xf9_cfe
+  xform_coefs[9,5] = @xf9_cff
+  xform_vars[9,0] = @xf9_var0
+  xform_vars[9,1] = @xf9_var1
+  xform_vars[9,2] = @xf9_var2
+  xform_vars[9,3] = @xf9_var3
+  xform_vars[9,4] = @xf9_var4
+  xform_vars[9,5] = @xf9_var5
+  xform_vars[9,6] = @xf9_var6
+  xform_vars[9,7] = @xf9_var7
+  xform_vars[9,8] = @xf9_var8
+  xform_vars[9,9] = @xf9_var9
+  xform_vars[9,10] = @xf9_var10
+  xform_vars[9,11] = @xf9_var11
+  xform_vars[9,12] = @xf9_var12
+  xform_vars[9,13] = @xf9_var13
+  xform_vars[9,14] = @xf9_var14
+  xform_vars[9,15] = @xf9_var15
+  xform_vars[9,16] = @xf9_var16
+  xform_vars[9,17] = @xf9_var17
+  
+  xform_density[10] = @xf10_p
+  xform_color[10] = @xf10_c
+  xform_symmetry[10] = @xf10_sym
+  xform_coefs[10,0] = @xf10_cfa
+  xform_coefs[10,1] = @xf10_cfb
+  xform_coefs[10,2] = @xf10_cfc
+  xform_coefs[10,3] = @xf10_cfd
+  xform_coefs[10,4] = @xf10_cfe
+  xform_coefs[10,5] = @xf10_cff
+  xform_vars[10,0] = @xf10_var0
+  xform_vars[10,1] = @xf10_var1
+  xform_vars[10,2] = @xf10_var2
+  xform_vars[10,3] = @xf10_var3
+  xform_vars[10,4] = @xf10_var4
+  xform_vars[10,5] = @xf10_var5
+  xform_vars[10,6] = @xf10_var6
+  xform_vars[10,7] = @xf10_var7
+  xform_vars[10,8] = @xf10_var8
+  xform_vars[10,9] = @xf10_var9
+  xform_vars[10,10] = @xf10_var10
+  xform_vars[10,11] = @xf10_var11
+  xform_vars[10,12] = @xf10_var12
+  xform_vars[10,13] = @xf10_var13
+  xform_vars[10,14] = @xf10_var14
+  xform_vars[10,15] = @xf10_var15
+  xform_vars[10,16] = @xf10_var16
+  xform_vars[10,17] = @xf10_var17
+
+  xform_density[11] = @xf11_p
+  xform_color[11] = @xf11_c
+  xform_symmetry[11] = @xf11_sym
+  xform_coefs[11,0] = @xf11_cfa
+  xform_coefs[11,1] = @xf11_cfb
+  xform_coefs[11,2] = @xf11_cfc
+  xform_coefs[11,3] = @xf11_cfd
+  xform_coefs[11,4] = @xf11_cfe
+  xform_coefs[11,5] = @xf11_cff
+  xform_vars[11,0] = @xf11_var0
+  xform_vars[11,1] = @xf11_var1
+  xform_vars[11,2] = @xf11_var2
+  xform_vars[11,3] = @xf11_var3
+  xform_vars[11,4] = @xf11_var4
+  xform_vars[11,5] = @xf11_var5
+  xform_vars[11,6] = @xf11_var6
+  xform_vars[11,7] = @xf11_var7
+  xform_vars[11,8] = @xf11_var8
+  xform_vars[11,9] = @xf11_var9
+  xform_vars[11,10] = @xf11_var10
+  xform_vars[11,11] = @xf11_var11
+  xform_vars[11,12] = @xf11_var12
+  xform_vars[11,13] = @xf11_var13
+  xform_vars[11,14] = @xf11_var14
+  xform_vars[11,15] = @xf11_var15
+  xform_vars[11,16] = @xf11_var16
+  xform_vars[11,17] = @xf11_var17
+  
+   
+; generate the gaussian kernel for spatial filtration
+  int filter_width = round(2*2.5*@oversample*@spat_filt_rad);
+
+; maintain parity with oversample
+  int chk = filter_width + @oversample
+  if (chk % 2 == 1 && filter_width > 0)
+    filter_width = filter_width + 1
+  endif
+
+; limit to gutter width
+  if (filter_width-@oversample)>(2*gutter_width)
+    filter_width = filter_width - 2
+  endif
+  print(filter_width)
+
+; calculate gaussian
+  float ii, float jj, float tot=0.0
+  x=0
+  while (x<filter_width)
+    y=0
+    while (y<filter_width)
+      ii = ((2.0*x + 1) / filter_width - 1.0) * 2.5
+      jj = ((2.0*y + 1) / filter_width - 1.0) * 2.5
+      sf_gauss[x,y] = exp(-2.0*(ii*ii + jj*jj))
+      tot = tot + sf_gauss[x,y]
+      y = y + 1
+    endwhile
+    x = x + 1
+  endwhile
+
+; normalize the gaussian  
+  x = 0
+  while (x<filter_width)
+    y = 0
+    while (y<filter_width)
+      sf_gauss[x,y] = sf_gauss[x,y] / tot
+      print(sf_gauss[x,y])
+      y = y + 1
+    endwhile
+    x = x + 1
+  endwhile
+  
+; create a new colormap based on the current gradient, normalizing to (0-@white_level)
+  int cmidx=0
+  while (cmidx<=255)
+    newcmap[cmidx] = gradient(cmidx/255)
+    ; convert colors to 0-@white_level integer range
+    ; use biggest number you can without overflowing for most accurate color
+    scl_cmap[cmidx,0] = round(red(newcmap[cmidx])*@white_level)
+    scl_cmap[cmidx,1] = round(green(newcmap[cmidx])*@white_level)
+    scl_cmap[cmidx,2] = round(blue(newcmap[cmidx])*@white_level)
+    scl_cmap[cmidx,3] = @white_level
+;    scl_cmap[cmidx,3] = round(alpha(newcmap[cmidx])*@white_level)
+    cmidx = cmidx + 1
+  endwhile
+  
+; adjust scaling for aspect ratio  
+  float scale
+  if 3 * #width < 4 * #height     
+    scale = (#width * #magn) / 4
+   else
+    scale = (#height * #magn) / 3
+  endif
+
+; calculate the image boundaries, not forgetting the gutter
+; (the gutter is used to prevent problems with spatial filtering
+; near the edge of the image)
+  float bounds[4]
+  float t0 = gutter_width / (@oversample*scale)
+  bounds[0] = xc - #width/scale/2 - t0
+  bounds[1] = yc - #height/scale/2 - t0
+  bounds[2] = bounds[0] + #width/scale + 2*t0
+  bounds[3] = bounds[1] + #height/scale + 2*t0
+    
+  int ht = @oversample * #height + 2*gutter_width
+  int wd = @oversample * #width + 2*gutter_width
+  
+  float nuscale = wd / (bounds[2] - bounds[0])
+  float wd2 = wd/2, float ht2 = ht/2
+  
+; initialize array
+  x = 0, y = 0, z = 0
+  while x < wd
+    y = 0
+    while y < ht
+      z = 0
+      while z < 4
+        pix[x, y, z] = 0
+        z = z + 1
+      endwhile
+      y = y + 1
+    endwhile
+    x = x + 1
+  endwhile
+
+; pre-calculate the cos and sin of #angle, so that
+; it is removed from the iterative binning loop
+; (probably already done by the compiler, but...)
+  float cosan = cos(#angle)
+  float sinan = sin(#angle)
+      
+; start the iteration process
+; Draves code divides by the square of the oversample, but that seems too
+; harsh of a divisor unless an agressive gaussian is used.
+  int nsamples = round(#width*#height*@iter_density/(@oversample*@oversample))
+  if (nsamples<0)
+    nsamples=round(#randomrange-1)
+  endif
+  int fn
+  float tx, float ty
+  int it = -fuse, int clr_index
+
+  float xp, float yp
+
+  ; first, generate the starting point, (-1:1, -1:1, 0:1)
+  seed = random(seed), iterbuf[0,0] = (seed/#randomrange)
+  seed = random(seed), iterbuf[0,1] = (seed/#randomrange)
+  seed = random(seed), iterbuf[0,2] = abs(seed/#randomrange)
+
+; loop through our iterations
+
+  while(it < nsamples)
+  
+
+    seed = random(seed), float rd = abs(seed / #randomrange)
+    int j=0
+    repeat 
+      ; Pick xform to use based on probability
+      rd = rd - xform_density[j]
+      fn = j, j = j + 1
+    until (rd < 0) || (j == num_xforms)
+            
+    ; compute color of next point
+    float s = xform_symmetry[fn]
+    iterbuf[0,2] = (iterbuf[0,2] + xform_color[fn]) * 0.5 * (1 - s) + s * iterbuf[0,2]
+
+    ; affine transformation
+    tx = xform_coefs[fn,0]*iterbuf[0,0] + xform_coefs[fn,1]*iterbuf[0,1] + xform_coefs[fn,4]
+    ty = xform_coefs[fn,2]*iterbuf[0,0] + xform_coefs[fn,3]*iterbuf[0,1] + xform_coefs[fn,5]
+    
+    iterbuf[0,0] = 0.0, iterbuf[0,1] = 0.0
+    float c1, float c2, float r2, float a, float nx, float ny
+    float dx, float dy
+
+    ; add proportional amounts of each variation
+    if (xform_vars[fn,0]!=0.0); linear
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,0]*tx
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,0]*ty
+    endif
+        
+    if (xform_vars[fn,1]!=0.0); sinusoidal
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,1]*sin(tx)
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,1]*sin(ty)
+    endif
+
+    if (xform_vars[fn,2]!=0.0); complex
+      r2 = tx*tx + ty*ty + .000001
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,2]*tx/r2
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,2]*ty/r2
+    endif
+      
+    if (xform_vars[fn,3]!=0.0); swirl
+      r2 = tx*tx + ty*ty
+      c1 = sin(r2), c2 = cos(r2)  
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,3]*(c1*tx - c2*ty)
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,3]*(c2*tx + c1*ty)
+    endif
+      
+    if (xform_vars[fn,4]!=0.0); horseshoe
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif    
+      c1 = sin(a), c2 = cos(a)  
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,4]*(c1*tx - c2*ty)
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,4]*(c2*tx + c1*ty)
+    endif
+      
+    if (xform_vars[fn,5]!=0.0); polar
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))/#pi
+      endif
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,5]*a
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,5]*(sqrt(tx*tx + ty*ty)-1.0)
+    endif
+
+    if (xform_vars[fn,6]!=0.0); folded handkerchief 
+      a = 0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty);
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,6]*sin(a+r2)*r2
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,6]*cos(a-r2)*r2
+    endif
+      
+    if (xform_vars[fn,7]!=0.0) ; heart
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty);
+      a = a * r2
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,7]*sin(a)*r2
+      iterbuf[0,1] = iterbuf[0,1] - xform_vars[fn,7]*cos(a)*r2
+    endif
+
+    if (xform_vars[fn,8]!=0.0) ; disk
+      a=0.0
+      float nx = tx * #pi
+      float ny = ty * #pi
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(nx*nx + ny*ny);
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,8]*sin(r2)*a/PI
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,8]*cos(r2)*a/PI
+    endif
+
+    if (xform_vars[fn,9]!=0.0); spiral
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty) + 1E-6;
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,9]*(cos(a) + sin(r2))/r2
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,9]*(sin(a) - cos(r2))/r2
+    endif
+
+    if (xform_vars[fn,10]!=0.0) ; hyperbolic
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty) + 1E-6;
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,10]*sin(a)/r2
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,10]*cos(a)*r2
+    endif
+
+    if (xform_vars[fn,11]!=0.0)     ; Diamond aka square
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty);
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,11]*sin(a) * cos(r2);
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,11]*cos(a) * sin(r2)
+    endif
+
+    if (xform_vars[fn,12]!=0.0) ; Ex
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx))
+      endif
+      r2 = sqrt(tx*tx + ty*ty);
+      float n0 = sin(a+r2)
+      float n1 = cos(a-r2)
+      float m0 = n0^3 * r2
+      float m1 = n1^3 * r2
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,12]*(m0+m1)
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,12]*(m0-m1)
+    endif
+  
+    if (xform_vars[fn,13]!=0.0) ; julia
+      a=0.0
+      if ( (tx < -EPS) || (tx > EPS) || (ty < -EPS) || (ty > EPS) )
+        a = atan2(ty + flip(tx)) / 2;
+      endif
+      seed = random(seed)
+      ; seed seems to retain the same parity!...but jumps
+      ; between positive and negative randomly
+      if seed > 0 
+        a = a + #pi
+      endif
+      r2 = (tx*tx + ty*ty)^0.25;
+      nx = r2 * cos(a)
+      ny = r2 * sin(a)
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,13]*nx
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,13]*ny
+    endif
+    
+    if (xform_vars[fn,14]!=0.0); bent
+      c1 = tx
+      c2 = ty
+      if (c1 < 0.0)
+        c1 = 2*c1
+      endif  
+      if (c2 < 0.0)
+        c2 = c2 / 2.0
+      endif  
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,14]*c1
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,14]*c2
+    endif
+
+    if (xform_vars[fn,15]!=0.0) ; Waves
+      dx = xform_coefs[fn,4]
+      dy = xform_coefs[fn,5]
+      nx = tx + xform_coefs[fn,1] * sin(ty / ((dx*dx) + EPS))
+      ny = ty + xform_coefs[fn,3] * sin(tx / ((dy*dy) + EPS))
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,15]*nx
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,15]*ny
+    endif
+
+    if (xform_vars[fn,16]!=0.0) ; Fisheye
+      r2 = sqrt(tx*tx + ty*ty)
+      a = atan2(ty + flip(tx))
+      r2 = 2.0 * r2 / ( r2 + 1.0 )
+      nx = r2 * cos(a)
+      ny = r2 * sin(a)
+      iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,16]*nx
+      iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,16]*ny      
+    endif
+
+    if (xform_vars[fn,17]!=0.0) ; Popcorn
+       dx = tan(3.0 * ty)
+       dy = tan(3.0 * tx)
+       nx = tx + xform_coefs[fn,4] * sin(dx)
+       ny = ty + xform_coefs[fn,5] * sin(dy)
+       iterbuf[0,0] = iterbuf[0,0] + xform_vars[fn,17]*nx
+       iterbuf[0,1] = iterbuf[0,1] + xform_vars[fn,17]*ny 
+             
+     endif
+      
+    ; Bin the point if it's inside the image limits and past the fuse
+    if (it>=0)
+      ; generate the x and y location in the image      
+      xp = (iterbuf[0,0]-xc)
+;      yp = (-iterbuf[0,1]-yc)
+      yp = (iterbuf[0,1]-yc)
+      
+      x = round((xp*cosan - yp*sinan)*nuscale + wd2)
+      y = round((xp*sinan + yp*cosan)*nuscale + ht2)
+                  
+      ; is this in our image?
+      if (x>=0 && x<wd && y>=0 && y<ht)
+        clr_index = round(iterbuf[0,2] * 256.0)
+        if (clr_index<0)
+          clr_index = 0
+        elseif (clr_index>255)
+          clr_index = 255
+        endif
+        
+        ; add the *color* to the accumulator
+        ; check for overflow later
+        pix[x,y,0] = pix[x,y,0] + scl_cmap[clr_index,0]
+        pix[x,y,1] = pix[x,y,1] + scl_cmap[clr_index,1]
+        pix[x,y,2] = pix[x,y,2] + scl_cmap[clr_index,2]
+        pix[x,y,3] = pix[x,y,3] + scl_cmap[clr_index,3]
+        
+      endif
+      
+    endif
+      
+    ; iterate some more
+    it = it + 1
+  endwhile
+  ; Now we do some log magic - calculate the 
+  ; "where did these come from" k1 and k2 values
+  float k1 = @contrast * @brightness * prefilter_white * 268.0 / 256.0
+  float area = #height * #width / (scale * scale * @oversample * @oversample)
+  float k2 = @oversample*@oversample / (@contrast * area * @white_level * @iter_density)
+  
+  ; loop through each pixel and perform log calculation
+  x = 0
+  float ls = 0, float lc[4]
+  while (x < wd)
+    y = 0
+    while (y < ht)
+      if (pix[x,y,3]>0)
+        ; we can break up this calculation as follows:
+        ; normalize each pixel's color by the number of iterations in the bucket * white_level
+        ; this puts each component (R,G,B,Accum) in the range (0-1),
+        ; and the last term is ALWAYS 1.0.
+        ; Now, for each pixel, we have (R,G,B,1.0), and we want to scale the 'Y'
+        ; component of this color by the log of the number of iterations.
+        ; 
+        ; contr*bright* prefilter_white * 268                    iters
+        ; ----------------------------------- * log (1.0 + ----------------)
+        ;                256                               contrast * nsamp
+        ;
+        ; the log term will be bounded by (0-.6931) for contrast values >= 1.0.
+        ; standard values for the first terms lead to
+        ;
+        ; 4288*(0-.6931) or 0-2972 values.  The range doesn't really matter, since
+        ; we re-normalize by prefilter white to give (0-2.902) range, then
+        
+        
+        ; brightness is a multiplier for the color.
+        
+        ; scale by the log of the number of occurrences
+        ls = k1 * log(1.0 + pix[x,y,3]*k2) / pix[x,y,3]
+        lc[0] = pix[x,y,0] * ls
+        lc[1] = pix[x,y,1] * ls
+        lc[2] = pix[x,y,2] * ls
+        lc[3] = pix[x,y,3] * ls
+
+        pix[x,y,0] = round(lc[0] + 0.5)
+        pix[x,y,1] = round(lc[1] + 0.5)
+        pix[x,y,2] = round(lc[2] + 0.5)
+        pix[x,y,3] = round(lc[3] + 0.5)
+      endif
+      y = y + 1
+    endwhile
+    x = x + 1
+  endwhile
+  
+  ; precalculate a gamma term
+  float g = 1/@gamma
+  
+final:
+  
+  float fr, float fg, float fb, float fo
+  float t[4], float lgs
+  int xid, int yid
+  
+  t[0] = 0, t[1] = 0, t[2] = 0, t[3] = 0
+; apply the spatial filter, if necessary
+  int xadj, int yadj
+  int sfadj = gutter_width - floor((filter_width-1)/2)
+  int xcrd = #x*@oversample
+  int ycrd = #y*@oversample
+  if (filter_width>0)
+    xid = 0 
+    while (xid<filter_width)
+      xadj = xid + sfadj
+      yid = 0
+      while (yid<filter_width)
+        yadj = yid + sfadj
+        t[0] = t[0] + sf_gauss[xid,yid] * pix[xcrd+xadj,ycrd+yadj,0]
+        t[1] = t[1] + sf_gauss[xid,yid] * pix[xcrd+xadj,ycrd+yadj,1]
+        t[2] = t[2] + sf_gauss[xid,yid] * pix[xcrd+xadj,ycrd+yadj,2]
+        t[3] = t[3] + sf_gauss[xid,yid] * pix[xcrd+xadj,ycrd+yadj,3]
+        yid = yid + 1
+      endwhile
+      xid = xid + 1
+    endwhile
+  else
+    ; average values from each of the @oversample^2 points.
+    xid = 0
+    int ov2 = round(@oversample*@oversample)
+    int myadj = gutter_width - round(@oversample/2)
+    while (xid<@oversample)
+      xadj = xid + myadj
+      yid = 0
+      while (yid<@oversample)
+        yadj = yid + myadj
+        t[0] = t[0] + pix[xcrd+xadj,ycrd+yadj,0]/ov2
+        t[1] = t[1] + pix[xcrd+xadj,ycrd+yadj,1]/ov2
+        t[2] = t[2] + pix[xcrd+xadj,ycrd+yadj,2]/ov2
+        t[3] = t[3] + pix[xcrd+xadj,ycrd+yadj,3]/ov2
+        yid = yid + 1
+      endwhile
+      xid = xid + 1
+    endwhile
+  endif
+  
+  float alpha = t[3]
+  if (alpha > 0.0)
+    lgs = ((alpha/prefilter_white)^(g-1))/prefilter_white
+    alpha = (alpha/prefilter_white)^g
+    if alpha<0.0
+      alpha = 0.0
+    elseif alpha>1.0
+      alpha = 1.0
+    endif
+  else
+    lgs = 0.0
+  endif
+  float invalp = 1.0-alpha
+
+  ; perhaps we should spatial filter / anti-alias here, in color space,
+  ; instead of doing it in arbitrary space.
+
+  fr = lgs * t[0]
+  fg = lgs * t[1]
+  fb = lgs * t[2]
+  fo = lgs * t[3]
+
+  #color = rgba(fr,fg,fb,fo) + @bk_color*invalp
+  
+default:
+  
+  title = "Flame Fractals (Apophysis 2.0)"
+  
+;  render = false
+  
+  helpfile = "flame.chm"
+  
+  heading
+    caption = "Render Settings"
+  endheading
+
+  int param iter_density
+    caption = "Sample Density"
+    default = 35
+    min = 1
+    hint = "By default, the number of iterations run by the program \
+            is this value times the total number of pixels in the image. \
+            If the image appears spotty, increase this value."
+  endparam
+  
+  float param spat_filt_rad
+    caption = "Filter Radius"
+    default = 0.7
+    min = 0.0
+    hint = "This radius controls the amount of 'smearing' applied to the \
+            image.  It specifically controls the size of the gaussian \
+            kernel that is convolved with the image. Setting to 0.0 \
+            turns the filter off.  Try values around 0.3, with the \
+            spatial oversample set to 2 or 3 for nice results. "
+  endparam
+  
+  int param oversample
+    caption = "Oversample"
+    default = 3
+    min = 1
+    hint = "Increasing this parameter increases the number of iterations \
+            as well as the number of histogram bins, effectively allowing \
+            anti-aliasing to be performed.  A value of 2 increases the \
+            number of bins by 4x, 3 by 9x, etc."
+  endparam
+   
+  heading
+    caption = "Color Settings"
+  endheading  
+   
+  color param bk_color
+    caption = "Background Color"
+    default = rgba(0,0,0,1.0)
+  endparam
+  
+  float param contrast
+    caption = "Contrast"
+    default = 1.0
+    min = 1.0
+   endparam
+   
+  float param brightness
+    caption = "Brightness"
+    default = 4.0
+
+   endparam
+   
+  float param gamma
+    caption = "Gamma"
+    default = 2.0
+    min = 1.0
+  endparam
+   
+  int param white_level
+    caption = "White Level"
+    default = 200
+    min = 0
+    max = 255
+  endparam
+  
+  heading
+    caption = ""
+  endheading
+
+  int param xforms
+    caption = "No. of Transforms"
+    default = 2
+    max = 12
+    min = 2
+  endparam
+  
+  param visible_xform
+    caption = "Visible Parameters"
+    enum = "Transform 1" "Transform 2" "Transform 3" "Transform 4" "Transform 5" \
+    "Transform 6" "Transform 7" "Transform 8" "Transform 9" "Transform 10" \
+    "Transform 11" "Transform 12" 
+    default = 0
+  endparam
+    
+  heading
+    caption = "Transform 1"
+    visible = @visible_xform == 0
+  endheading
+
+  float param xf0_p
+    caption = "Probability"
+    default = 1.0
+    max = 1.0
+    min = 0.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_c
+    caption = "Color"
+    default = 1.0
+    max = 1.0
+    min = 0.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 0
+  endparam
+  
+  float param xf0_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 0
+  endparam
+  
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 0
+  endheading  
+  
+  float param xf0_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 0
+  endparam
+  
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 0
+  endheading  
+    
+  float param xf0_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  float param xf0_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 0
+  endparam
+
+  heading
+    caption = "Transform 2"
+    visible = @visible_xform == 1
+  endheading
+
+  float param xf1_p
+    caption = "Probability"
+    default = 1.0
+    max = 1.0
+    min = 0.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_c
+    caption = "Color"
+    default = 0.0
+    max = 1.0
+    min = 0.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 1
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 1
+  endheading  
+
+  float param xf1_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 1
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 1
+  endheading  
+
+  float param xf1_var0
+    caption = "Linear"
+    default = 1.0
+    max = 1.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  float param xf1_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 1
+  endparam
+
+  heading
+    caption = "Transform 3"
+    visible = @visible_xform == 2
+  endheading
+
+  float param xf2_p
+    caption = "Probability"
+    default = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_c
+    caption = "Color"
+    default = 0.0
+    max = 1.0
+    min = 0.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 2
+  endparam
+  
+ float param xf2_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 2
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 2
+  endheading  
+
+  float param xf2_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 2
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 2
+  endheading  
+
+  float param xf2_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  float param xf2_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 2
+  endparam
+
+  heading
+    caption = "Transform 4"
+    visible = @visible_xform == 3
+  endheading
+
+  float param xf3_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 3
+  endparam
+  
+  float param xf3_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 3
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 3
+  endheading  
+
+  float param xf3_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 3
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 3
+  endheading  
+
+  float param xf3_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+  float param xf3_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 3
+  endparam
+
+
+  heading
+    caption = "Transform 5"
+    visible = @visible_xform == 4
+  endheading
+
+  float param xf4_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 4
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 4
+  endheading  
+
+  float param xf4_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 4
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 4
+  endheading  
+
+  float param xf4_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  float param xf4_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 4
+  endparam
+
+  heading
+    caption = "Transform 6"
+    visible = @visible_xform == 5
+  endheading
+
+  float param xf5_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 5
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 5
+  endheading  
+  
+  float param xf5_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 5
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 5
+  endheading  
+
+  float param xf5_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  float param xf5_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 5
+  endparam
+
+  heading
+    caption = "Transform 7"
+    visible = @visible_xform == 6
+  endheading
+
+  float param xf6_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 6
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 6
+  endheading  
+
+  float param xf6_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 6
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 6
+  endheading  
+
+  float param xf6_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  float param xf6_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 6
+  endparam
+
+  heading
+    caption = "Transform 8"
+    visible = @visible_xform == 7
+  endheading
+
+  float param xf7_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 7
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 7
+  endheading  
+
+  float param xf7_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 7
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 7
+  endheading  
+
+  float param xf7_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  float param xf7_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 7
+  endparam
+
+  heading
+    caption = "Transform 9"
+    visible = @visible_xform == 8
+  endheading
+
+  float param xf8_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 8
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 8
+  endheading  
+
+  float param xf8_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 8
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 8
+  endheading  
+
+  float param xf8_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  float param xf8_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 8
+  endparam
+
+  heading
+    caption = "Transform 10"
+    visible = @visible_xform == 9
+  endheading
+
+  float param xf9_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_c
+    caption = "Color"
+    default = 0.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 9
+  endparam
+  
+  float param xf9_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 9
+  endparam
+
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 9
+  endheading  
+
+  float param xf9_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 9
+  endparam
+
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 9
+  endheading  
+
+  float param xf9_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  float param xf9_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 9
+  endparam
+
+  heading
+    caption = "Transform 11"
+    visible = @visible_xform == 10
+  endheading
+
+  float param xf10_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_c
+    caption = "Color"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 10
+  endparam
+  
+  float param xf10_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 10
+  endparam
+  
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 10
+  endheading  
+  
+  float param xf10_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 10
+  endparam
+  
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 10
+  endheading  
+    
+  float param xf10_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  float param xf10_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 10
+  endparam
+
+  heading
+    caption = "Transform 12"
+    visible = @visible_xform == 11
+  endheading
+
+  float param xf11_p
+    caption = "Probability"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control the probability of \
+            this transform's coefficients being used in the \
+            iterative loop."
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_c
+    caption = "Color"
+    default = 1.0
+    min = 0.0
+    max = 1.0    
+    hint = "Use this parameter to control how the fractal is colored.\
+            For best results, set one Xform's color to 1.0, and the rest 0.0."
+    visible = @visible_xform == 11
+  endparam
+  
+  float param xf11_sym
+    caption = "Symmetry"
+    default = 0
+    max = 1
+    min = 0
+    hint = "Determines whether the color coordinate is calculated \
+            for this transform"
+    visible = @visible_xform == 11
+  endparam
+  
+  heading
+    caption = "Coefficients"
+    visible = @visible_xform == 11
+  endheading  
+  
+  float param xf11_cfa
+    caption = "a"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_cfb
+    caption = "b"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_cfc
+    caption = "c"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_cfd
+    caption = "d"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_cfe
+    caption = "e"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_cff
+    caption = "f"
+    default = 0.5
+    visible = @visible_xform == 11
+  endparam
+  
+  heading 
+    caption = "Variations"
+    visible = @visible_xform == 11
+  endheading  
+    
+  float param xf11_var0
+    caption = "Linear"
+    default = 1.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var1
+    caption = "Sinusoidal"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var2
+    caption = "Spherical"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var3
+    caption = "Swirl"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var4
+    caption = "Horseshoe"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var5
+    caption = "Polar"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var6
+    caption = "Handkerchief"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var7
+    caption = "Heart"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var8
+    caption = "Disc"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var9
+    caption = "Spiral"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var10
+    caption = "Hyperbolic"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var11
+    caption = "Diamond"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var12
+    caption = "Ex"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var13
+    caption = "Julia"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var14
+    caption = "Bent"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var15
+    caption = "Waves"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var16
+    caption = "Fisheye"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+  float param xf11_var17
+    caption = "Popcorn"
+    default = 0.0
+    visible = @visible_xform == 11
+  endparam
+
+}

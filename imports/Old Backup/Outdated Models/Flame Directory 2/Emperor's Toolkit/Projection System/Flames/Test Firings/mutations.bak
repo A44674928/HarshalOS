@@ -1,0 +1,551 @@
+﻿<flames name="mutations">
+<flame name="The All Seeing Eye Rev 2 + Mutation 0" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0.0889743856662426 -0.0875091354580088" scale="438.633535135205" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="spherical bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="1.9375" color="0" symmetry="0.375" var_order="spherical bubble blur " spherical="0.25" bubble="0.75" blur="0.075" coefs="0.954038800904527 -0.162047196761705 -0.187929756008089 0.784618225996383 0.231560382526368 -0.18641777173616" opacity="1" />
+   <xform weight="1.1875" color="0.0833333333333333" symmetry="0.375" var_order="spherical hemisphere " spherical="0.25" hemisphere="1.125" coefs="0.878305312711746 -0.167055265395902 -0.209663471905515 0.86753161100205 -0.147997841238976 -0.375227853422985" opacity="1" />
+   <xform weight="0.4375" color="0.166666666666667" var_order="spherical pre_blur Epispiral radial_blur " spherical="0.25" pre_blur="0.75" Epispiral="0.075" radial_blur="0.075" coefs="2.85835896696942 -0.0236026236088946 0.214178230147809 2.9560947899851 -0.0348798329941928 0.150903436122462" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.554788" opacity="0.25" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.375" color="0" var_order="linear hyperbolic rings2 " linear="0.25" hyperbolic="0.075" rings2="0.075" coefs="-0.5 0 0 -0.5 0 0" rings2_val="0.439952" rings2_old="0" opacity="1" />
+   <xform weight="0.375" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.25" hyperbolic="0.075" noise="0.075" blur="0.075" sinusoidal="0.075" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.375" color="0" var_order="linear swirl sinusoidal " linear="0.25" swirl="0.075" sinusoidal="0.15" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.25 -0.75 0.75 0.25 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.25 0.75 -0.75 0.25 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="-0.5 0 0 -0.5 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.9744445 0.19411425 -0.19411425 0.9744445 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.89951875 0.375 -0.375 0.89951875 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.78033025 0.53033025 -0.53033025 0.78033025 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.625 0.64951875 -0.64951875 0.625 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.44411425 0.7244445 -0.7244445 0.44411425 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.05588575 0.7244445 -0.7244445 0.05588575 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="-0.39951875 -0.375 0.375 -0.39951875 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="-0.28033025 -0.53033025 0.53033025 -0.28033025 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="-0.125 -0.64951875 0.64951875 -0.125 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.05588575 -0.7244445 0.7244445 0.05588575 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.44411425 -0.7244445 0.7244445 0.44411425 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.625 -0.64951875 0.64951875 0.625 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.78033025 -0.53033025 0.53033025 0.78033025 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.89951875 -0.375 0.375 0.89951875 0 0" opacity="1" />
+   <xform weight="0.375" color="0" linear="1" coefs="0.9744445 -0.19411425 0.19411425 0.9744445 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 1" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0 -0.0732421875" scale="489.781132075472" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="1.53645833333333" color="0" symmetry="0.28125" var_order="spherical bubble blur " spherical="0.1875" bubble="0.8125" blur="0.05625" coefs="0.634447157441173 0.0590480570972431 -0.223648634855635 0.739116592885693 0.634668724960648 0.142244663380552" opacity="1" />
+   <xform weight="0.973958333333333" color="0.1875" symmetry="0.28125" var_order="spherical bubble hemisphere " spherical="0.1875" bubble="0.25" hemisphere="0.84375" coefs="0.763512617908418 -0.248134580237092 -0.0348678675363772 0.617708461155416 -0.276599658420309 -0.0891194979776628" opacity="1" />
+   <xform weight="0.411458333333333" color="0.375" var_order="spherical bubble pre_blur Epispiral radial_blur " spherical="0.1875" bubble="0.25" pre_blur="0.5625" Epispiral="0.05625" radial_blur="0.05625" coefs="2.37372138072306 0.190373014105717 -0.000641560880467296 2.00651308711304 0.257479832624085 0.273015013022814" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.621042" opacity="0.4375" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.28125" color="0" var_order="linear hyperbolic rings2 " linear="0.4375" hyperbolic="0.05625" rings2="0.05625" coefs="-0.125 0 0 -0.125 0 0" rings2_val="0.687018" rings2_old="0" opacity="1" />
+   <xform weight="0.28125" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.4375" hyperbolic="0.05625" noise="0.05625" blur="0.05625" sinusoidal="0.05625" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.28125" color="0" var_order="linear swirl sinusoidal " linear="0.4375" swirl="0.05625" sinusoidal="0.1125" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.4375 -0.5625 0.5625 0.4375 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.4375 0.5625 -0.5625 0.4375 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="-0.125 0 0 -0.125 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.980833375 0.1455856875 -0.1455856875 0.980833375 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.9246390625 0.28125 -0.28125 0.9246390625 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.8352476875 0.3977476875 -0.3977476875 0.8352476875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.71875 0.4871390625 -0.4871390625 0.71875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.5830856875 0.543333375 -0.543333375 0.5830856875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.2919143125 0.543333375 -0.543333375 0.2919143125 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="-0.0496390625000001 -0.28125 0.28125 -0.0496390625000001 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.0397523125 -0.3977476875 0.3977476875 0.0397523125 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.15625 -0.4871390625 0.4871390625 0.15625 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.2919143125 -0.543333375 0.543333375 0.2919143125 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.5830856875 -0.543333375 0.543333375 0.5830856875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.71875 -0.4871390625 0.4871390625 0.71875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.8352476875 -0.3977476875 0.3977476875 0.8352476875 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.9246390625 -0.28125 0.28125 0.9246390625 0 0" opacity="1" />
+   <xform weight="0.28125" color="0" linear="1" coefs="0.980833375 -0.1455856875 0.1455856875 0.980833375 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 2" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0 -0.439" scale="739.56" oversample="1" filter="0.2" quality="50" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="1.23567708333333" color="0" symmetry="0.2109375" var_order="spherical bubble blur pdj " spherical="0.140625" bubble="0.609375" blur="0.0421875" pdj="0.25" coefs="0.473547 -0.110963 -0.120837 0.435621 0.957738 0.005524" pdj_a="-1.14861" pdj_b="1.26415" pdj_c="-1.40594" pdj_d="-0.248311" opacity="1" />
+   <xform weight="0.813802083333333" color="0.265625" symmetry="0.2109375" var_order="spherical bubble hemisphere pdj " spherical="0.140625" bubble="0.1875" hemisphere="0.6328125" pdj="0.25" coefs="0.604402 0.012595 0.194383 0.410283 0.186727 -0.430585" pdj_a="1.04061" pdj_b="-0.129071" pdj_c="1.49383" pdj_d="-1.44625" opacity="1" />
+   <xform weight="0.391927083333333" color="0.53125" var_order="spherical bubble pre_blur Epispiral pdj radial_blur " spherical="0.140625" bubble="0.1875" pre_blur="0.421875" Epispiral="0.0421875" pdj="0.25" radial_blur="0.0421875" coefs="1.590938 0.14916 -0.242227 1.551284 0.332317 0.036748" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="-0.517559" pdj_b="0.516134" pdj_c="-1.71564" pdj_d="-0.18876" radial_blur_angle="0.670733" opacity="0.578125" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.2109375" color="0" var_order="linear hyperbolic rings2 " linear="0.578125" hyperbolic="0.0421875" rings2="0.0421875" coefs="0.15625 0 0 0.15625 0 0" rings2_val="0.872317" rings2_old="0" opacity="1" />
+   <xform weight="0.2109375" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.578125" hyperbolic="0.0421875" noise="0.0421875" blur="0.0421875" sinusoidal="0.0421875" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.2109375" color="0" var_order="linear swirl sinusoidal " linear="0.578125" swirl="0.0421875" sinusoidal="0.084375" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.578125 -0.421875 0.421875 0.578125 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.578125 0.421875 -0.421875 0.578125 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.15625 0 0 0.15625 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.985625 0.109189 -0.109189 0.985625 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.943479 0.210938 -0.210938 0.943479 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.876436 0.298311 -0.298311 0.876436 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.789063 0.365354 -0.365354 0.789063 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.687314 0.4075 -0.4075 0.687314 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.468936 0.4075 -0.4075 0.468936 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.212771 -0.210938 0.210938 0.212771 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.279814 -0.298311 0.298311 0.279814 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.367188 -0.365354 0.365354 0.367188 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.468936 -0.4075 0.4075 0.468936 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.687314 -0.4075 0.4075 0.687314 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.789063 -0.365354 0.365354 0.789063 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.876436 -0.298311 0.298311 0.876436 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.943479 -0.210938 0.210938 0.943479 0 0" opacity="1" />
+   <xform weight="0.2109375" color="0" linear="1" coefs="0.985625 -0.109189 0.109189 0.985625 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 3" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0.1708984375 -0.445744458804109" scale="759.320141981952" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="1.0517578125" color="0" symmetry="0.158203125" var_order="spherical bubble blur pdj julian " spherical="0.10546875" bubble="0.45703125" blur="0.031640625" pdj="0.1875" julian="0.25" coefs="0.379500940346435 -0.252800259867109 -0.237389435609818 0.331402195114203 0.618996619969219 -0.488498978198662" pdj_a="-0.291116" pdj_b="0.426458" pdj_c="-1.03672" pdj_d="-0.0238235" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.7353515625" color="0.44921875" symmetry="0.158203125" var_order="spherical bubble hemisphere pdj julian " spherical="0.10546875" bubble="0.140625" hemisphere="0.474609375" pdj="0.1875" julian="0.25" coefs="0.388474999863595 0.249617624403872 0.390396434795991 0.55585912052276 0.576266639099956 0.0409970989308506" pdj_a="0.223125" pdj_b="0.417409" pdj_c="0.549116" pdj_d="-0.640995" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.2939453125" color="0.3984375" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.25" spherical="0.10546875" bubble="0.140625" pre_blur="0.31640625" Epispiral="0.031640625" pdj="0.1875" radial_blur="0.031640625" coefs="1.4432035 0.11187 -0.18167025 1.413463 0.24923775 0.027561" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="0.0249763" pdj_b="0.945054" pdj_c="-0.689332" pdj_d="-0.798343" radial_blur_angle="0.482083" opacity="0.68359375" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.158203125" color="0" var_order="linear hyperbolic rings2 " linear="0.68359375" hyperbolic="0.031640625" rings2="0.031640625" coefs="0.3671875 0 0 0.3671875 0 0" rings2_val="0.863818" rings2_old="0" opacity="1" />
+   <xform weight="0.158203125" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.68359375" hyperbolic="0.031640625" noise="0.031640625" blur="0.031640625" sinusoidal="0.031640625" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.158203125" color="0" var_order="linear swirl sinusoidal " linear="0.68359375" swirl="0.031640625" sinusoidal="0.06328125" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.68359375 -0.31640625 0.31640625 0.68359375 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.68359375 0.31640625 -0.31640625 0.68359375 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.3671875 0 0 0.3671875 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.98921875 0.08189175 -0.08189175 0.98921875 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.95760925 0.1582035 -0.1582035 0.95760925 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.907327 0.22373325 -0.22373325 0.907327 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.84179725 0.2740155 -0.2740155 0.84179725 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.7654855 0.305625 -0.305625 0.7654855 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.601702 0.305625 -0.305625 0.601702 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.40957825 -0.1582035 0.1582035 0.40957825 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.4598605 -0.22373325 0.22373325 0.4598605 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.525391 -0.2740155 0.2740155 0.525391 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.601702 -0.305625 0.305625 0.601702 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.7654855 -0.305625 0.305625 0.7654855 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.84179725 -0.2740155 0.2740155 0.84179725 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.907327 -0.22373325 0.22373325 0.907327 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.95760925 -0.1582035 0.1582035 0.95760925 0 0" opacity="1" />
+   <xform weight="0.158203125" color="0" linear="1" coefs="0.98921875 -0.08189175 0.08189175 0.98921875 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 4" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0.0732421875 -0.34133093621271" scale="534.81321811336" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="0.913818359374998" color="0" symmetry="0.11865234375" var_order="spherical bubble blur pdj julian " spherical="0.0791015625" bubble="0.3427734375" blur="0.02373046875" pdj="0.140625" julian="0.4375" coefs="0.308966395606261 -0.359178204767441 -0.324803762317181 0.253238091449855 0.364940584946133 -0.859016211847659" pdj_a="0.352007" pdj_b="-0.201813" pdj_c="-0.759815" pdj_d="0.144542" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.676513671875" color="0.5869140625" symmetry="0.11865234375" var_order="spherical bubble hemisphere pdj julian " spherical="0.0791015625" bubble="0.10546875" hemisphere="0.35595703125" pdj="0.140625" julian="0.4375" coefs="0.226529749761291 0.427384592706775 0.537406510892984 0.66504121091483 0.868421368424922 0.394683673128989" pdj_a="-0.389986" pdj_b="0.827269" pdj_c="-0.159423" pdj_d="-0.0370572" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.220458984375" color="0.298828125" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.4375" spherical="0.0791015625" bubble="0.10546875" pre_blur="0.2373046875" Epispiral="0.02373046875" pdj="0.140625" radial_blur="0.02373046875" coefs="1.332402625 0.0839025 -0.1362526875 1.31009725 0.1869283125 0.02067075" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="0.431878" pdj_b="1.26674" pdj_c="0.0804008" pdj_d="-1.25553" radial_blur_angle="0.340595" opacity="0.7626953125" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.11865234375" color="0" var_order="linear hyperbolic rings2 " linear="0.7626953125" hyperbolic="0.02373046875" rings2="0.02373046875" coefs="0.525390625 0 0 0.525390625 0 0" rings2_val="0.857444" rings2_old="0" opacity="1" />
+   <xform weight="0.11865234375" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.7626953125" hyperbolic="0.02373046875" noise="0.02373046875" blur="0.02373046875" sinusoidal="0.02373046875" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.11865234375" color="0" var_order="linear swirl sinusoidal " linear="0.7626953125" swirl="0.02373046875" sinusoidal="0.0474609375" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.7626953125 -0.2373046875 0.2373046875 0.7626953125 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.7626953125 0.2373046875 -0.2373046875 0.7626953125 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.525390625 0 0 0.525390625 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.9919140625 0.0614188125 -0.0614188125 0.9919140625 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.9682069375 0.118652625 -0.118652625 0.9682069375 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.93049525 0.1677999375 -0.1677999375 0.93049525 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.8813479375 0.205511625 -0.205511625 0.8813479375 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.824114125 0.22921875 -0.22921875 0.824114125 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.7012765 0.22921875 -0.22921875 0.7012765 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.5571836875 -0.118652625 0.118652625 0.5571836875 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.594895375 -0.1677999375 0.1677999375 0.594895375 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.64404325 -0.205511625 0.205511625 0.64404325 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.7012765 -0.22921875 0.22921875 0.7012765 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.824114125 -0.22921875 0.22921875 0.824114125 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.8813479375 -0.205511625 0.205511625 0.8813479375 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.93049525 -0.1677999375 0.1677999375 0.93049525 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.9682069375 -0.118652625 0.118652625 0.9682069375 0 0" opacity="1" />
+   <xform weight="0.11865234375" color="0" linear="1" coefs="0.9919140625 -0.0614188125 0.0614188125 0.9919140625 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 5" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0.48828125 0.772548581455684" scale="374.602764854918" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="0.65985616048177" color="0" symmetry="0.066741943359375" var_order="spherical bubble blur pdj julian " spherical="0.48199462890625" bubble="0.19281005859375" blur="0.013348388671875" pdj="0.0791015625" julian="0.24609375" coefs="0.33620318794022 -0.115304077250903 -0.37173789013367 0.288389618507168 0.180468083998723 0.239827623509692" pdj_a="-0.155965" pdj_b="-1.4384" pdj_c="-0.318681" pdj_d="0.865072" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.526372273763021" color="0.54888916015625" symmetry="0.066741943359375" var_order="spherical bubble hemisphere pdj julian " spherical="0.48199462890625" bubble="0.059326171875" hemisphere="0.200225830078125" pdj="0.0791015625" julian="0.24609375" coefs="-0.310028155753938 0.574846161477165 0.0958324681630691 0.760443880489662 1.34173058801088 0.822871069877691" pdj_a="0.0439374" pdj_b="0.762762" pdj_c="0.179338" pdj_d="-0.11242" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.269841512044271" color="0.6055908203125" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.24609375" spherical="0.48199462890625" bubble="0.059326171875" pre_blur="0.13348388671875" Epispiral="0.013348388671875" pdj="0.0791015625" radial_blur="0.013348388671875" coefs="0.458134581063 0.345289068267066 0.265808407781275 1.03421324977485 0.487661340273272 -0.234944672482319" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="0.799263" pdj_b="-0.45649" pdj_c="-0.788172" pdj_d="0.0806669" radial_blur_angle="0.528251" opacity="0.86651611328125" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.066741943359375" color="0" var_order="linear hyperbolic rings2 " linear="0.86651611328125" hyperbolic="0.013348388671875" rings2="0.013348388671875" coefs="0.7330322265625 0 0 0.7330322265625 0 0" rings2_val="0.743218" rings2_old="0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.86651611328125" hyperbolic="0.013348388671875" noise="0.013348388671875" blur="0.013348388671875" sinusoidal="0.013348388671875" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" var_order="linear swirl sinusoidal " linear="0.86651611328125" swirl="0.013348388671875" sinusoidal="0.02669677734375" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.86651611328125 -0.13348388671875 0.13348388671875 0.86651611328125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.86651611328125 0.13348388671875 -0.13348388671875 0.86651611328125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.7330322265625 0 0 0.7330322265625 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.99545166015625 0.03454808203125 -0.03454808203125 0.99545166015625 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.98211640234375 0.0667421015625 -0.0667421015625 0.98211640234375 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.960903578125 0.09438746484375 -0.09438746484375 0.960903578125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.93325821484375 0.1156002890625 -0.1156002890625 0.93325821484375 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.9010641953125 0.128935546875 -0.128935546875 0.9010641953125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.83196803125 0.128935546875 -0.128935546875 0.83196803125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.75091582421875 -0.0667421015625 0.0667421015625 0.75091582421875 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.7721286484375 -0.09438746484375 0.09438746484375 0.7721286484375 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.799774328125 -0.1156002890625 0.1156002890625 0.799774328125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.83196803125 -0.128935546875 0.128935546875 0.83196803125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.9010641953125 -0.128935546875 0.128935546875 0.9010641953125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.93325821484375 -0.1156002890625 0.1156002890625 0.93325821484375 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.960903578125 -0.09438746484375 0.09438746484375 0.960903578125 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.98211640234375 -0.0667421015625 0.0667421015625 0.98211640234375 0 0" opacity="1" />
+   <xform weight="0.066741943359375" color="0" linear="1" coefs="0.99545166015625 -0.03454808203125 0.03454808203125 0.99545166015625 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation 6" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0.4150390625 0.849117571248275" scale="422.713642311783" oversample="1" filter="0.2" quality="0.1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="0.578225453694661" color="0" symmetry="0.0500564575195313" var_order="spherical bubble blur pdj julian " spherical="0.611495971679688" bubble="0.144607543945313" blur="0.0100112915039062" pdj="0.059326171875" julian="0.1845703125" coefs="0.344957871190421 -0.0369159648348727 -0.38682385978897 0.299688323632733 0.121173351551342 0.593027427731698" pdj_a="-0.319242" pdj_b="-1.83587" pdj_c="-0.176888" pdj_d="1.09667" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.478112538655599" color="0.536666870117188" symmetry="0.0500564575195313" var_order="spherical bubble hemisphere pdj julian " spherical="0.611495971679688" bubble="0.04449462890625" hemisphere="0.150169372558594" pdj="0.059326171875" julian="0.1845703125" coefs="-0.482493196812404 0.622244522867647 -0.0461020455715462 0.791109024281572 1.49386569430637 0.960502733118346" pdj_a="0.183413" pdj_b="0.742028" pdj_c="0.288225" pdj_d="-0.136644" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.285714467366536" color="0.704193115234375" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.1845703125" spherical="0.611495971679688" bubble="0.04449462890625" pre_blur="0.100112915039062" Epispiral="0.0100112915039062" pdj="0.059326171875" radial_blur="0.0100112915039062" coefs="0.177119852654679 0.429306179495766 0.395042331264542 0.945536249702482 0.584325527771824 -0.317106772565922" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="0.917351" pdj_b="-1.01039" pdj_c="-1.06736" pdj_d="0.510159" radial_blur_angle="0.588569" opacity="0.899887084960937" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.0500564575195313" color="0" var_order="linear hyperbolic rings2 " linear="0.899887084960937" hyperbolic="0.0100112915039062" rings2="0.0100112915039062" coefs="0.799774169921875 0 0 0.799774169921875 0 0" rings2_val="0.706503" rings2_old="0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.899887084960937" hyperbolic="0.0100112915039062" noise="0.0100112915039062" blur="0.0100112915039062" sinusoidal="0.0100112915039062" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" var_order="linear swirl sinusoidal " linear="0.899887084960937" swirl="0.0100112915039062" sinusoidal="0.0200225830078125" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.899887084960937 -0.100112915039062 0.100112915039062 0.899887084960937 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.899887084960937 0.100112915039062 -0.100112915039062 0.899887084960937 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.799774169921875 0 0 0.799774169921875 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.996588745117187 0.0259110615234375 -0.0259110615234375 0.996588745117187 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.986587301757813 0.050056576171875 -0.050056576171875 0.986587301757813 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.97067768359375 0.0707905986328125 -0.0707905986328125 0.97067768359375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.949943661132813 0.086700216796875 -0.086700216796875 0.949943661132813 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.925798146484375 0.09670166015625 -0.09670166015625 0.925798146484375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.8739760234375 0.09670166015625 -0.09670166015625 0.8739760234375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.813186868164062 -0.050056576171875 0.050056576171875 0.813186868164062 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.829096486328125 -0.0707905986328125 0.0707905986328125 0.829096486328125 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.84983074609375 -0.086700216796875 0.086700216796875 0.84983074609375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.8739760234375 -0.09670166015625 0.09670166015625 0.8739760234375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.925798146484375 -0.09670166015625 0.09670166015625 0.925798146484375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.949943661132813 -0.086700216796875 0.086700216796875 0.949943661132813 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.97067768359375 -0.0707905986328125 0.0707905986328125 0.97067768359375 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.986587301757813 -0.050056576171875 0.050056576171875 0.986587301757813 0 0" opacity="1" />
+   <xform weight="0.0500564575195313" color="0" linear="1" coefs="0.996588745117187 -0.0259110615234375 0.0259110615234375 0.996588745117187 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2 + Mutation Miniaturized Black Hole Reactor" version="Apophysis AV Phoenix Edition" size="1500 1000" center="-1.196 -2.266" scale="122.14" oversample="1" filter="0.2" quality="50" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+<!--thieves .. sigh-->
+   <xform weight="0.558669090270996" color="0" symmetry="0.0375423431396484" var_order="spherical bubble blur zscale pdj julian " spherical="0.458621978759766" bubble="0.108455657958984" blur="0.00750846862792969" zscale="0.25" pdj="0.04449462890625" julian="0.138427734375" coefs="0.283059 -0.197265 -0.43688 0.229453 -0.008427 -0.047871" pdj_a="0.330912" pdj_b="-1.89856" pdj_c="-0.114938" pdj_d="0.984913" julian_power="5" julian_dist="1" opacity="1" />
+   <xform weight="0.483584403991699" color="0.652500152587891" symmetry="0.0375423431396484" var_order="spherical bubble zscale hemisphere pdj julian " spherical="0.458621978759766" bubble="0.0333709716796875" zscale="0.25" hemisphere="0.112627029418945" pdj="0.04449462890625" julian="0.138427734375" coefs="-0.426696 0.706855 0.210033 0.841479 1.556621 1.084313" pdj_a="-0.41977" pdj_b="1.07073" pdj_c="-0.355091" pdj_d="0.341206" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.214285850524902" color="0.528144836425781" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.388427734375" spherical="0.458621978759766" bubble="0.0333709716796875" pre_blur="0.0750846862792969" Epispiral="0.00750846862792969" pdj="0.04449462890625" radial_blur="0.00750846862792969" coefs="0.38284 0.32198 0.296282 0.959152 0.438244 -0.23783" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="1.10116" pdj_b="-0.199837" pdj_c="-0.203117" pdj_d="-0.274154" radial_blur_angle="0.42046" opacity="0.924915313720703" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear hyperbolic rings2 " linear="0.924915313720703" hyperbolic="0.00750846862792969" rings2="0.00750846862792969" coefs="0.849831 0 0 0.849831 0 0" rings2_val="0.739458" rings2_old="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.924915313720703" hyperbolic="0.00750846862792969" noise="0.00750846862792969" blur="0.00750846862792969" sinusoidal="0.00750846862792969" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear swirl sinusoidal " linear="0.924915313720703" swirl="0.00750846862792969" sinusoidal="0.0150169372558594" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.924915 -0.075085 0.075085 0.924915 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.924915 0.075085 -0.075085 0.924915 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.849831 0 0 0.849831 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.997442 0.019433 -0.019433 0.997442 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.98994 0.037542 -0.037542 0.98994 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.978008 0.053093 -0.053093 0.978008 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.962458 0.065025 -0.065025 0.962458 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.944349 0.072526 -0.072526 0.944349 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.905482 0.072526 -0.072526 0.905482 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.85989 -0.037542 0.037542 0.85989 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.871822 -0.053093 0.053093 0.871822 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.887373 -0.065025 0.065025 0.887373 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.905482 -0.072526 0.072526 0.905482 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.944349 -0.072526 0.072526 0.944349 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.962458 -0.065025 0.065025 0.962458 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.978008 -0.053093 0.053093 0.978008 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.98994 -0.037542 0.037542 0.98994 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.997442 -0.019433 0.019433 0.997442 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="The All Seeing Eye Rev 2" version="Apophysis AV Phoenix Edition" size="1500 1000" center="0 -2.465" scale="104" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="0.483584403991699" color="0.652500152587891" symmetry="0.0375423431396484" var_order="spherical bubble zscale hemisphere pdj julian " spherical="0.458621978759766" bubble="0.0333709716796875" zscale="0.25" hemisphere="0.112627029418945" pdj="0.04449462890625" julian="0.138427734375" coefs="-0.874692 0.822897 -0.035564 1.260994 0.901832 -0.283041" pdj_a="-0.41977" pdj_b="1.07073" pdj_c="-0.355091" pdj_d="0.341206" julian_power="4" julian_dist="1" opacity="1" />
+   <xform weight="0.214285850524902" color="0.528144836425781" var_order="linear spherical bubble pre_blur Epispiral pdj radial_blur " linear="0.388427734375" spherical="0.458621978759766" bubble="0.0333709716796875" pre_blur="0.0750846862792969" Epispiral="0.00750846862792969" pdj="0.04449462890625" radial_blur="0.00750846862792969" coefs="0.38284 0.32198 0.296282 0.959152 0.438244 -0.23783" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" pdj_a="1.10116" pdj_b="-0.199837" pdj_c="-0.203117" pdj_d="-0.274154" radial_blur_angle="0.42046" opacity="0.924915313720703" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 0 " opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear hyperbolic rings2 " linear="0.924915313720703" hyperbolic="0.00750846862792969" rings2="0.00750846862792969" coefs="0.849831 0 0 0.849831 0 0" rings2_val="0.739458" rings2_old="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear hyperbolic noise blur sinusoidal " linear="0.924915313720703" hyperbolic="0.00750846862792969" noise="0.00750846862792969" blur="0.00750846862792969" sinusoidal="0.00750846862792969" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" var_order="linear swirl sinusoidal " linear="0.924915313720703" swirl="0.00750846862792969" sinusoidal="0.0150169372558594" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.924915 -0.075085 0.075085 0.924915 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.924915 0.075085 -0.075085 0.924915 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.849831 0 0 0.849831 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.997442 0.019433 -0.019433 0.997442 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.98994 0.037542 -0.037542 0.98994 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.978008 0.053093 -0.053093 0.978008 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.962458 0.065025 -0.065025 0.962458 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.944349 0.072526 -0.072526 0.944349 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.905482 0.072526 -0.072526 0.905482 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.85989 -0.037542 0.037542 0.85989 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.871822 -0.053093 0.053093 0.871822 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.887373 -0.065025 0.065025 0.887373 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.905482 -0.072526 0.072526 0.905482 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.944349 -0.072526 0.072526 0.944349 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.962458 -0.065025 0.065025 0.962458 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.978008 -0.053093 0.053093 0.978008 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.98994 -0.037542 0.037542 0.98994 0 0" opacity="1" />
+   <xform weight="0.0375423431396484" color="0" linear="1" coefs="0.997442 -0.019433 0.019433 0.997442 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+</flames>

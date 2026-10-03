@@ -1,0 +1,1152 @@
+﻿<flames name="harshalxanimate-000.png (animated)">
+<flame name="animate-000" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+   </palette>
+</flame>
+<flame name="animate-001" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      7F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BE
+      D0EF96BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD7
+      3554CE2D4CC6061892142CA62241BB3150CA4160DA5B7AE5
+      7695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1
+      B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75D
+      F6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74
+      ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88C
+      D7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C5
+      98B7CD90AFD67695F0708FF56B8AFB6685FB6281FB6584FC
+      6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7
+      C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE
+      9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89D
+      C7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C2
+      99B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC
+      405FD93352CC2C4BC53857D14564DE4F6EE85978F27695F0
+      8CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208
+      9778019071085536433C3C802443BD2948C22E4DC73D5CD6
+      4160DA4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF
+      5776F05A79F35D7CF65877F15372EC5170EA506FE94A69E3
+      4564DE4160DA3655CF3352CC3756D03C5BD54362DC4B6AE4
+      5372EC5B7AF45A79F35776F05574EE5170EA506FE94F6EE8
+      506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F5
+      7291F47392F37695F07796EF7897EE7D9CE97C9BEA7897EE
+      7695F07695F07695F07695F07A99EC7E9DE8809FE68AA9DC
+      97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9
+      BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76D
+      FFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98
+      C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA
+      6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF
+      6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF8
+      7291F47594F17594F17695F07695F07695F07695F07B9AEB
+      7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF81A0E5
+   </palette>
+</flame>
+<flame name="animate-002" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      7695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED7
+      87A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5
+      A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC
+      4867E13E5DD73554CE2D4CC6061892142CA62241BB3150CA
+      4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BE
+      AECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65
+      F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53
+      EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88
+      DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2
+      AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB
+      6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4
+      B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD
+      94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96
+      CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8
+      AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE5
+      4766E04362DC405FD93352CC2C4BC53857D14564DE4F6EE8
+      5978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70
+      A6870DA182089778019071085536433C3C802443BD2948C2
+      2E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8
+      506FE95675EF5776F05A79F35D7CF65877F15372EC5170EA
+      506FE94A69E34564DE4160DA3655CF3352CC3756D03C5BD5
+      4362DC4B6AE45372EC5B7AF45A79F35776F05574EE5170EA
+      506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF9
+      6F8EF77190F57291F47392F37695F07796EF7897EE7D9CE9
+      7C9BEA7897EE7695F07695F07695F07695F07A99EC7E9DE8
+      809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AE
+      BAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97F
+      F2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77D
+      E6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F0
+      6F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB
+      6988FD6685FF6685FF6685FF6584FE6584FE6584FE6887FE
+      6B8AFB6E8DF87291F47594F17594F17695F07695F07695F0
+   </palette>
+</flame>
+<flame name="animate-003" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6584FE6584FE6887FE6B8AFB6E8DF87291F47594F17594F1
+      7695F07695F07695F07695F07B9AEB7E9DE887A6DF8EADD8
+      91B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE8
+      7E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF
+      5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6061892
+      142CA62241BB3150CA4160DA5B7AE57695F07F9EE788A7DE
+      A1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98
+      E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55B
+      D7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97
+      D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69F
+      BCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0
+      708FF56B8AFB6685FB6281FB6584FC6988FD7291F47D9CE9
+      96B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4
+      A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AE
+      C6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8AD
+      B5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE6
+      6D8CF95C7BEF4C6BE54766E04362DC405FD93352CC2C4BC5
+      3857D14564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AF
+      CDEC99E1EB84F6EA70A6870DA18208977801907108553643
+      3C3C802443BD2948C22E4DC73D5CD64160DA4463DD4766E0
+      4B6AE44D6CE64F6EE8506FE95675EF5776F05A79F35D7CF6
+      5877F15372EC5170EA506FE94A69E34564DE4160DA3655CF
+      3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F3
+      5776F05574EE5170EA506FE94F6EE8506FE95574EE5C7BF5
+      6A89FC6B8AFA6D8CF96F8EF77190F57291F47392F37695F0
+      7796EF7897EE7D9CE97C9BEA7897EE7695F07695F07695F0
+      7695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7
+      B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69F
+      CDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62
+      FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C2
+      92B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF
+      6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE
+   </palette>
+</flame>
+<flame name="animate-004" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF
+      6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F4
+      7594F17594F17695F07695F07695F07695F07B9AEB7E9DE8
+      87A6DF8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE7
+      7E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96
+      BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD73554CE
+      2D4CC6061892142CA62241BB3150CA4160DA5B7AE57695F0
+      7F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8AC
+      BEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75D
+      F4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379
+      E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68F
+      D6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD
+      90AFD67695F0708FF56B8AFB6685FB6281FB6584FC6988FD
+      7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5
+      BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCA
+      A9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69F
+      C6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD
+      8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC405FD9
+      3352CC2C4BC53857D14564DE4F6EE85978F27695F08CABDA
+      A4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801
+      9071085536433C3C802443BD2948C22E4DC73D5CD64160DA
+      4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF5776F0
+      5A79F35D7CF65877F15372EC5170EA506FE94A69E34564DE
+      4160DA3655CF3352CC3756D03C5BD54362DC4B6AE45372EC
+      5B7AF45A79F35776F05574EE5170EA506FE94F6EE8506FE9
+      5574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F4
+      7392F37695F07796EF7897EE7D9CE97C9BEA7897EE7695F0
+      7695F07695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF
+      9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7
+      C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167
+      FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4
+      B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF
+   </palette>
+</flame>
+<flame name="animate-005" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF7
+      6C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD
+      6685FF6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB
+      6E8DF87291F47594F17594F17695F07695F07695F07695F0
+      7B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF
+      81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6
+      A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC4867E1
+      3E5DD73554CE2D4CC6061892142CA62241BB3150CA4160DA
+      5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7
+      B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85E
+      F6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63
+      F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8A
+      D9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BB
+      A1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB6281FB
+      6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7AD
+      BFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D2
+      98B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99
+      C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BC
+      A4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E0
+      4362DC405FD93352CC2C4BC53857D14564DE4F6EE85978F2
+      7695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870D
+      A182089778019071085536433C3C802443BD2948C22E4DC7
+      3D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8506FE9
+      5675EF5776F05A79F35D7CF65877F15372EC5170EA506FE9
+      4A69E34564DE4160DA3655CF3352CC3756D03C5BD54362DC
+      4B6AE45372EC5B7AF45A79F35776F05574EE5170EA506FE9
+      4F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF7
+      7190F57291F47392F37695F07796EF7897EE7D9CE97C9BEA
+      7897EE7695F07695F07695F07695F07A99EC7E9DE8809FE6
+      8AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9AC
+      BDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74
+      F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80
+   </palette>
+</flame>
+<flame name="animate-006" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      E7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67C
+      E9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE7
+      7695F06F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC
+      6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE6584FE
+      6887FE6B8AFB6E8DF87291F47594F17594F17695F07695F0
+      7695F07695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D0
+      8FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E3
+      91B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F2
+      5372EC4867E13E5DD73554CE2D4CC6061892142CA62241BB
+      3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1
+      A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66C
+      F8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248
+      ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87
+      DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AE
+      B4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB
+      6685FB6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2
+      B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC9
+      98B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9B
+      D0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5
+      ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF
+      4C6BE54766E04362DC405FD93352CC2C4BC53857D14564DE
+      4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84
+      F6EA70A6870DA182089778019071085536433C3C802443BD
+      2948C22E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE6
+      4F6EE8506FE95675EF5776F05A79F35D7CF65877F15372EC
+      5170EA506FE94A69E34564DE4160DA3655CF3352CC3756D0
+      3C5BD54362DC4B6AE45372EC5B7AF45A79F35776F05574EE
+      5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA
+      6D8CF96F8EF77190F57291F47392F37695F07796EF7897EE
+      7D9CE97C9BEA7897EE7695F07695F07695F07695F07A99EC
+      7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2
+      B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8B
+   </palette>
+</flame>
+<flame name="animate-007" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+   </palette>
+</flame>
+<flame name="animate-008" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      7695F07695F07695F07695F07A99EC7E9DE8809FE68AA9DC
+      97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9
+      BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76D
+      FFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98
+      C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA
+      6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF
+      6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF8
+      7291F47594F17594F17695F07695F07695F07695F07B9AEB
+      7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF81A0E5
+      7F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BE
+      D0EF96BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD7
+      3554CE2D4CC6061892142CA62241BB3150CA4160DA5B7AE5
+      7695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1
+      B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75D
+      F6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74
+      ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88C
+      D7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C5
+      98B7CD90AFD67695F0708FF56B8AFB6685FB6281FB6584FC
+      6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7
+      C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE
+      9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89D
+      C7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C2
+      99B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC
+      405FD93352CC2C4BC53857D14564DE4F6EE85978F27695F0
+      8CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208
+      9778019071085536433C3C802443BD2948C22E4DC73D5CD6
+      4160DA4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF
+      5776F05A79F35D7CF65877F15372EC5170EA506FE94A69E3
+      4564DE4160DA3655CF3352CC3756D03C5BD54362DC4B6AE4
+      5372EC5B7AF45A79F35776F05574EE5170EA506FE94F6EE8
+      506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F5
+      7291F47392F37695F07796EF7897EE7D9CE97C9BEA7897EE
+   </palette>
+</flame>
+<flame name="animate-009" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6F8EF77190F57291F47392F37695F07796EF7897EE7D9CE9
+      7C9BEA7897EE7695F07695F07695F07695F07A99EC7E9DE8
+      809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AE
+      BAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97F
+      F2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77D
+      E6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F0
+      6F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB
+      6988FD6685FF6685FF6685FF6584FE6584FE6584FE6887FE
+      6B8AFB6E8DF87291F47594F17594F17695F07695F07695F0
+      7695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED7
+      87A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5
+      A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC
+      4867E13E5DD73554CE2D4CC6061892142CA62241BB3150CA
+      4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BE
+      AECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65
+      F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53
+      EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88
+      DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2
+      AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB
+      6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4
+      B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD
+      94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96
+      CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8
+      AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE5
+      4766E04362DC405FD93352CC2C4BC53857D14564DE4F6EE8
+      5978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70
+      A6870DA182089778019071085536433C3C802443BD2948C2
+      2E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8
+      506FE95675EF5776F05A79F35D7CF65877F15372EC5170EA
+      506FE94A69E34564DE4160DA3655CF3352CC3756D03C5BD5
+      4362DC4B6AE45372EC5B7AF45A79F35776F05574EE5170EA
+      506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF9
+   </palette>
+</flame>
+<flame name="animate-010" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      5574EE5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC
+      6B8AFA6D8CF96F8EF77190F57291F47392F37695F07796EF
+      7897EE7D9CE97C9BEA7897EE7695F07695F07695F07695F0
+      7A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4
+      B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99
+      DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66C
+      EAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D4
+      7F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF6988FD
+      6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE
+      6584FE6887FE6B8AFB6E8DF87291F47594F17594F17695F0
+      7695F07695F07695F07B9AEB7E9DE887A6DF8EADD891B0D5
+      96B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE8
+      83A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF8
+      5978F25372EC4867E13E5DD73554CE2D4CC6061892142CA6
+      2241BB3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5
+      A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982
+      FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83E
+      E1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68F
+      DFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAA
+      B8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF5
+      6B8AFB6685FB6281FB6584FC6988FD7291F47D9CE996B5D0
+      A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE
+      9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0
+      CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1
+      B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF9
+      5C7BEF4C6BE54766E04362DC405FD93352CC2C4BC53857D1
+      4564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99
+      E1EB84F6EA70A6870DA182089778019071085536433C3C80
+      2443BD2948C22E4DC73D5CD64160DA4463DD4766E04B6AE4
+      4D6CE64F6EE8506FE95675EF5776F05A79F35D7CF65877F1
+      5372EC5170EA506FE94A69E34564DE4160DA3655CF3352CC
+      3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F35776F0
+   </palette>
+</flame>
+<flame name="animate-011" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      4160DA3655CF3352CC3756D03C5BD54362DC4B6AE45372EC
+      5B7AF45A79F35776F05574EE5170EA506FE94F6EE8506FE9
+      5574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F4
+      7392F37695F07796EF7897EE7D9CE97C9BEA7897EE7695F0
+      7695F07695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF
+      9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7
+      C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167
+      FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4
+      B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF
+      6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF
+      6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F4
+      7594F17594F17695F07695F07695F07695F07B9AEB7E9DE8
+      87A6DF8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE7
+      7E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96
+      BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD73554CE
+      2D4CC6061892142CA62241BB3150CA4160DA5B7AE57695F0
+      7F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8AC
+      BEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75D
+      F4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379
+      E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68F
+      D6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD
+      90AFD67695F0708FF56B8AFB6685FB6281FB6584FC6988FD
+      7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5
+      BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCA
+      A9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69F
+      C6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD
+      8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC405FD9
+      3352CC2C4BC53857D14564DE4F6EE85978F27695F08CABDA
+      A4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801
+      9071085536433C3C802443BD2948C22E4DC73D5CD64160DA
+      4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF5776F0
+      5A79F35D7CF65877F15372EC5170EA506FE94A69E34564DE
+   </palette>
+</flame>
+<flame name="animate-012" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      5675EF5776F05A79F35D7CF65877F15372EC5170EA506FE9
+      4A69E34564DE4160DA3655CF3352CC3756D03C5BD54362DC
+      4B6AE45372EC5B7AF45A79F35776F05574EE5170EA506FE9
+      4F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF7
+      7190F57291F47392F37695F07796EF7897EE7D9CE97C9BEA
+      7897EE7695F07695F07695F07695F07A99EC7E9DE8809FE6
+      8AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9AC
+      BDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74
+      F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80
+      CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF7
+      6C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD
+      6685FF6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB
+      6E8DF87291F47594F17594F17695F07695F07695F07695F0
+      7B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF
+      81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6
+      A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC4867E1
+      3E5DD73554CE2D4CC6061892142CA62241BB3150CA4160DA
+      5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7
+      B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85E
+      F6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63
+      F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8A
+      D9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BB
+      A1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB6281FB
+      6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7AD
+      BFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D2
+      98B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99
+      C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BC
+      A4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E0
+      4362DC405FD93352CC2C4BC53857D14564DE4F6EE85978F2
+      7695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870D
+      A182089778019071085536433C3C802443BD2948C22E4DC7
+      3D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8506FE9
+   </palette>
+</flame>
+<flame name="animate-013" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      2948C22E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE6
+      4F6EE8506FE95675EF5776F05A79F35D7CF65877F15372EC
+      5170EA506FE94A69E34564DE4160DA3655CF3352CC3756D0
+      3C5BD54362DC4B6AE45372EC5B7AF45A79F35776F05574EE
+      5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA
+      6D8CF96F8EF77190F57291F47392F37695F07796EF7897EE
+      7D9CE97C9BEA7897EE7695F07695F07695F07695F07A99EC
+      7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2
+      B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8B
+      E7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67C
+      E9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE7
+      7695F06F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC
+      6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE6584FE
+      6887FE6B8AFB6E8DF87291F47594F17594F17695F07695F0
+      7695F07695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D0
+      8FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E3
+      91B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F2
+      5372EC4867E13E5DD73554CE2D4CC6061892142CA62241BB
+      3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1
+      A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66C
+      F8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248
+      ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87
+      DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AE
+      B4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB
+      6685FB6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2
+      B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC9
+      98B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9B
+      D0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5
+      ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF
+      4C6BE54766E04362DC405FD93352CC2C4BC53857D14564DE
+      4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84
+      F6EA70A6870DA182089778019071085536433C3C802443BD
+   </palette>
+</flame>
+<flame name="animate-014" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      CDEC99E1EB84F6EA70A6870DA18208977801907108553643
+      3C3C802443BD2948C22E4DC73D5CD64160DA4463DD4766E0
+      4B6AE44D6CE64F6EE8506FE95675EF5776F05A79F35D7CF6
+      5877F15372EC5170EA506FE94A69E34564DE4160DA3655CF
+      3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F3
+      5776F05574EE5170EA506FE94F6EE8506FE95574EE5C7BF5
+      6A89FC6B8AFA6D8CF96F8EF77190F57291F47392F37695F0
+      7796EF7897EE7D9CE97C9BEA7897EE7695F07695F07695F0
+      7695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7
+      B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69F
+      CDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62
+      FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C2
+      92B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF
+      6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE
+      6584FE6584FE6887FE6B8AFB6E8DF87291F47594F17594F1
+      7695F07695F07695F07695F07B9AEB7E9DE887A6DF8EADD8
+      91B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE8
+      7E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF
+      5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6061892
+      142CA62241BB3150CA4160DA5B7AE57695F07F9EE788A7DE
+      A1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98
+      E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55B
+      D7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97
+      D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69F
+      BCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0
+      708FF56B8AFB6685FB6281FB6584FC6988FD7291F47D9CE9
+      96B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4
+      A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AE
+      C6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8AD
+      B5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE6
+      6D8CF95C7BEF4C6BE54766E04362DC405FD93352CC2C4BC5
+      3857D14564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AF
+   </palette>
+</flame>
+<flame name="animate-015" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      405FD93352CC2C4BC53857D14564DE4F6EE85978F27695F0
+      8CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208
+      9778019071085536433C3C802443BD2948C22E4DC73D5CD6
+      4160DA4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF
+      5776F05A79F35D7CF65877F15372EC5170EA506FE94A69E3
+      4564DE4160DA3655CF3352CC3756D03C5BD54362DC4B6AE4
+      5372EC5B7AF45A79F35776F05574EE5170EA506FE94F6EE8
+      506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F5
+      7291F47392F37695F07796EF7897EE7D9CE97C9BEA7897EE
+      7695F07695F07695F07695F07A99EC7E9DE8809FE68AA9DC
+      97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9
+      BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76D
+      FFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98
+      C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA
+      6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF
+      6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF8
+      7291F47594F17594F17695F07695F07695F07695F07B9AEB
+      7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF81A0E5
+      7F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BE
+      D0EF96BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD7
+      3554CE2D4CC6061892142CA62241BB3150CA4160DA5B7AE5
+      7695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1
+      B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75D
+      F6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74
+      ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88C
+      D7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C5
+      98B7CD90AFD67695F0708FF56B8AFB6685FB6281FB6584FC
+      6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7
+      C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE
+      9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89D
+      C7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C2
+      99B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC
+   </palette>
+</flame>
+<flame name="animate-016" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE5
+      4766E04362DC405FD93352CC2C4BC53857D14564DE4F6EE8
+      5978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70
+      A6870DA182089778019071085536433C3C802443BD2948C2
+      2E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8
+      506FE95675EF5776F05A79F35D7CF65877F15372EC5170EA
+      506FE94A69E34564DE4160DA3655CF3352CC3756D03C5BD5
+      4362DC4B6AE45372EC5B7AF45A79F35776F05574EE5170EA
+      506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF9
+      6F8EF77190F57291F47392F37695F07796EF7897EE7D9CE9
+      7C9BEA7897EE7695F07695F07695F07695F07A99EC7E9DE8
+      809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AE
+      BAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97F
+      F2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77D
+      E6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F0
+      6F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB
+      6988FD6685FF6685FF6685FF6584FE6584FE6584FE6887FE
+      6B8AFB6E8DF87291F47594F17594F17695F07695F07695F0
+      7695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED7
+      87A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5
+      A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC
+      4867E13E5DD73554CE2D4CC6061892142CA62241BB3150CA
+      4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BE
+      AECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65
+      F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53
+      EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88
+      DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2
+      AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB
+      6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4
+      B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD
+      94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96
+      CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8
+   </palette>
+</flame>
+<flame name="animate-017" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1
+      B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF9
+      5C7BEF4C6BE54766E04362DC405FD93352CC2C4BC53857D1
+      4564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99
+      E1EB84F6EA70A6870DA182089778019071085536433C3C80
+      2443BD2948C22E4DC73D5CD64160DA4463DD4766E04B6AE4
+      4D6CE64F6EE8506FE95675EF5776F05A79F35D7CF65877F1
+      5372EC5170EA506FE94A69E34564DE4160DA3655CF3352CC
+      3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F35776F0
+      5574EE5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC
+      6B8AFA6D8CF96F8EF77190F57291F47392F37695F07796EF
+      7897EE7D9CE97C9BEA7897EE7695F07695F07695F07695F0
+      7A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4
+      B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99
+      DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66C
+      EAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D4
+      7F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF6988FD
+      6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE
+      6584FE6887FE6B8AFB6E8DF87291F47594F17594F17695F0
+      7695F07695F07695F07B9AEB7E9DE887A6DF8EADD891B0D5
+      96B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE8
+      83A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF8
+      5978F25372EC4867E13E5DD73554CE2D4CC6061892142CA6
+      2241BB3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5
+      A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982
+      FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83E
+      E1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68F
+      DFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAA
+      B8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF5
+      6B8AFB6685FB6281FB6584FC6988FD7291F47D9CE996B5D0
+      A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE
+      9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0
+   </palette>
+</flame>
+<flame name="animate-018" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BD
+      B8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0
+      B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB
+      809FE66D8CF95C7BEF4C6BE54766E04362DC405FD93352CC
+      2C4BC53857D14564DE4F6EE85978F27695F08CABDAA4C3C2
+      B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801907108
+      5536433C3C802443BD2948C22E4DC73D5CD64160DA4463DD
+      4766E04B6AE44D6CE64F6EE8506FE95675EF5776F05A79F3
+      5D7CF65877F15372EC5170EA506FE94A69E34564DE4160DA
+      3655CF3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF4
+      5A79F35776F05574EE5170EA506FE94F6EE8506FE95574EE
+      5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F47392F3
+      7695F07796EF7897EE7D9CE97C9BEA7897EE7695F07695F0
+      7695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8
+      AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2
+      C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62
+      FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2
+      A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE
+      6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF
+      6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F47594F1
+      7594F17695F07695F07695F07695F07B9AEB7E9DE887A6DF
+      8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE8
+      7E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC
+      6786FF5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6
+      061892142CA62241BB3150CA4160DA5B7AE57695F07F9EE7
+      88A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8
+      CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55B
+      F4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97F
+      CFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590
+      C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD6
+      7695F0708FF56B8AFB6685FB6281FB6584FC6988FD7291F4
+      7D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9
+   </palette>
+</flame>
+<flame name="animate-019" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4B8D7AD
+      BFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D2
+      98B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99
+      C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BC
+      A4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE54766E0
+      4362DC405FD93352CC2C4BC53857D14564DE4F6EE85978F2
+      7695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70A6870D
+      A182089778019071085536433C3C802443BD2948C22E4DC7
+      3D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8506FE9
+      5675EF5776F05A79F35D7CF65877F15372EC5170EA506FE9
+      4A69E34564DE4160DA3655CF3352CC3756D03C5BD54362DC
+      4B6AE45372EC5B7AF45A79F35776F05574EE5170EA506FE9
+      4F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF96F8EF7
+      7190F57291F47392F37695F07796EF7897EE7D9CE97C9BEA
+      7897EE7695F07695F07695F07695F07A99EC7E9DE8809FE6
+      8AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9AC
+      BDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74
+      F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80
+      CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F06F8EF7
+      6C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB6988FD
+      6685FF6685FF6685FF6584FE6584FE6584FE6887FE6B8AFB
+      6E8DF87291F47594F17594F17695F07695F07695F07695F0
+      7B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED787A6DF
+      81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5A0BFC6
+      A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC4867E1
+      3E5DD73554CE2D4CC6061892142CA62241BB3150CA4160DA
+      5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7
+      B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65F7D85E
+      F6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53EFDD63
+      F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8A
+      D9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BB
+      A1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB6281FB
+   </palette>
+</flame>
+<flame name="animate-020" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      B4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB
+      6685FB6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2
+      B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC9
+      98B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9B
+      D0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5
+      ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF
+      4C6BE54766E04362DC405FD93352CC2C4BC53857D14564DE
+      4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84
+      F6EA70A6870DA182089778019071085536433C3C802443BD
+      2948C22E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE6
+      4F6EE8506FE95675EF5776F05A79F35D7CF65877F15372EC
+      5170EA506FE94A69E34564DE4160DA3655CF3352CC3756D0
+      3C5BD54362DC4B6AE45372EC5B7AF45A79F35776F05574EE
+      5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA
+      6D8CF96F8EF77190F57291F47392F37695F07796EF7897EE
+      7D9CE97C9BEA7897EE7695F07695F07695F07695F07A99EC
+      7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2
+      B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8B
+      E7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67C
+      E9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE7
+      7695F06F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC
+      6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE6584FE
+      6887FE6B8AFB6E8DF87291F47594F17594F17695F07695F0
+      7695F07695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D0
+      8FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E3
+      91B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F2
+      5372EC4867E13E5DD73554CE2D4CC6061892142CA62241BB
+      3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1
+      A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66C
+      F8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248
+      ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87
+      DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AE
+   </palette>
+</flame>
+<flame name="animate-021" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69F
+      BCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0
+      708FF56B8AFB6685FB6281FB6584FC6988FD7291F47D9CE9
+      96B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4
+      A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AE
+      C6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8AD
+      B5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE6
+      6D8CF95C7BEF4C6BE54766E04362DC405FD93352CC2C4BC5
+      3857D14564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AF
+      CDEC99E1EB84F6EA70A6870DA18208977801907108553643
+      3C3C802443BD2948C22E4DC73D5CD64160DA4463DD4766E0
+      4B6AE44D6CE64F6EE8506FE95675EF5776F05A79F35D7CF6
+      5877F15372EC5170EA506FE94A69E34564DE4160DA3655CF
+      3352CC3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F3
+      5776F05574EE5170EA506FE94F6EE8506FE95574EE5C7BF5
+      6A89FC6B8AFA6D8CF96F8EF77190F57291F47392F37695F0
+      7796EF7897EE7D9CE97C9BEA7897EE7695F07695F07695F0
+      7695F07A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7
+      B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69F
+      CDEC99DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62
+      FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C2
+      92B1D47F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF
+      6988FD6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE
+      6584FE6584FE6887FE6B8AFB6E8DF87291F47594F17594F1
+      7695F07695F07695F07695F07B9AEB7E9DE887A6DF8EADD8
+      91B0D596B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE8
+      7E9DE883A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF
+      5F7EF85978F25372EC4867E13E5DD73554CE2D4CC6061892
+      142CA62241BB3150CA4160DA5B7AE57695F07F9EE788A7DE
+      A1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98
+      E4E982FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55B
+      D7B83EE1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97
+   </palette>
+</flame>
+<flame name="animate-022" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      F4D55BF4D55BD7B83EE1C248ECCD53EFDD63F2EE74ECF379
+      E7F97FCFEE97D7F68FDFFE87DDFC88DCFB8AD9F88CD7F68F
+      D6F590C7E69FBCDBAAB8D7AEB4D3B2AAC9BBA1C0C598B7CD
+      90AFD67695F0708FF56B8AFB6685FB6281FB6584FC6988FD
+      7291F47D9CE996B5D0A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5
+      BDDCA9B2D1B4A7C6BE9DBCC998B7CD94B3D298B7CE9CBBCA
+      A9C8BDB8D7AEC6E5A0CBEA9BD0EF96CCEB99C9E89DC7E69F
+      C6E5A0B9D8ADB5D4B1B1D0B5ADCCB8AAC9BCA4C3C299B8CD
+      8BAADB809FE66D8CF95C7BEF4C6BE54766E04362DC405FD9
+      3352CC2C4BC53857D14564DE4F6EE85978F27695F08CABDA
+      A4C3C2B7D6AFCDEC99E1EB84F6EA70A6870DA18208977801
+      9071085536433C3C802443BD2948C22E4DC73D5CD64160DA
+      4463DD4766E04B6AE44D6CE64F6EE8506FE95675EF5776F0
+      5A79F35D7CF65877F15372EC5170EA506FE94A69E34564DE
+      4160DA3655CF3352CC3756D03C5BD54362DC4B6AE45372EC
+      5B7AF45A79F35776F05574EE5170EA506FE94F6EE8506FE9
+      5574EE5C7BF56A89FC6B8AFA6D8CF96F8EF77190F57291F4
+      7392F37695F07796EF7897EE7D9CE97C9BEA7897EE7695F0
+      7695F07695F07695F07A99EC7E9DE8809FE68AA9DC97B6CF
+      9EBDC8AFCEB7B1D0B4B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7
+      C4E3A2C7E69FCDEC99DBFA8BE7F97FF2EE74F9E76DFFE167
+      FBDC62FBDC62FAE66CEAF67CE9F77DE6FA80CEED98C2E1A4
+      B4D3B2A4C3C292B1D47F9EE77695F06F8EF76C8BFA6786FF
+      6584FE6786FF6988FD6A89FC6B8AFB6988FD6685FF6685FF
+      6685FF6584FE6584FE6584FE6887FE6B8AFB6E8DF87291F4
+      7594F17594F17695F07695F07695F07695F07B9AEB7E9DE8
+      87A6DF8EADD891B0D596B5D08FAED787A6DF81A0E57F9EE7
+      7E9DE87E9DE87E9DE883A2E391B0D5A0BFC6A8C7BED0EF96
+      BAD9AC6786FF5F7EF85978F25372EC4867E13E5DD73554CE
+      2D4CC6061892142CA62241BB3150CA4160DA5B7AE57695F0
+      7F9EE788A7DEA1C0C5A4C3C1A8C7BEAECDB7B5D4B1B9D8AC
+      BEDDA8CEED98E4E982FAE66CF8DF65F7D85EF6D75DF6D75D
+   </palette>
+</flame>
+<flame name="animate-023" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      AECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982FAE66CF8DF65
+      F7D85EF6D75DF6D75DF4D55BF4D55BD7B83EE1C248ECCD53
+      EFDD63F2EE74ECF379E7F97FCFEE97D7F68FDFFE87DDFC88
+      DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAAB8D7AEB4D3B2
+      AAC9BBA1C0C598B7CD90AFD67695F0708FF56B8AFB6685FB
+      6281FB6584FC6988FD7291F47D9CE996B5D0A4C3C2B2D1B4
+      B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE9DBCC998B7CD
+      94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0CBEA9BD0EF96
+      CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1B1D0B5ADCCB8
+      AAC9BCA4C3C299B8CD8BAADB809FE66D8CF95C7BEF4C6BE5
+      4766E04362DC405FD93352CC2C4BC53857D14564DE4F6EE8
+      5978F27695F08CABDAA4C3C2B7D6AFCDEC99E1EB84F6EA70
+      A6870DA182089778019071085536433C3C802443BD2948C2
+      2E4DC73D5CD64160DA4463DD4766E04B6AE44D6CE64F6EE8
+      506FE95675EF5776F05A79F35D7CF65877F15372EC5170EA
+      506FE94A69E34564DE4160DA3655CF3352CC3756D03C5BD5
+      4362DC4B6AE45372EC5B7AF45A79F35776F05574EE5170EA
+      506FE94F6EE8506FE95574EE5C7BF56A89FC6B8AFA6D8CF9
+      6F8EF77190F57291F47392F37695F07796EF7897EE7D9CE9
+      7C9BEA7897EE7695F07695F07695F07695F07A99EC7E9DE8
+      809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4B4D3B2B8D7AE
+      BAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99DBFA8BE7F97F
+      F2EE74F9E76DFFE167FBDC62FBDC62FAE66CEAF67CE9F77D
+      E6FA80CEED98C2E1A4B4D3B2A4C3C292B1D47F9EE77695F0
+      6F8EF76C8BFA6786FF6584FE6786FF6988FD6A89FC6B8AFB
+      6988FD6685FF6685FF6685FF6584FE6584FE6584FE6887FE
+      6B8AFB6E8DF87291F47594F17594F17695F07695F07695F0
+      7695F07B9AEB7E9DE887A6DF8EADD891B0D596B5D08FAED7
+      87A6DF81A0E57F9EE77E9DE87E9DE87E9DE883A2E391B0D5
+      A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF85978F25372EC
+      4867E13E5DD73554CE2D4CC6061892142CA62241BB3150CA
+      4160DA5B7AE57695F07F9EE788A7DEA1C0C5A4C3C1A8C7BE
+   </palette>
+</flame>
+<flame name="animate-024" version="Apophysis AV Phoenix Edition" size="3000 2000" center="0 0" scale="164.332616245553" zoom="1.978" cam_pitch="0.000523598775598299" cam_yaw="0.000523598775598299" cam_roll="0.000523598775598299" oversample="1" filter="0.2" quality="1" background="0 0 0" brightness="1" gamma="1" estimator_radius="9" estimator_minimum="0" estimator_curve="0.4" enable_de="0" plugins="bubble blur hemisphere pre_blur Epispiral radial_blur linear rectangles escher lazysusan hyperbolic rings2 noise sinusoidal swirl" new_linear="1" curves="0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1 0 0 1 0 0 1 1 1 1 1 1 1" >
+   <xform weight="2.5" color="0" symmetry="0.5" var_order="bubble blur " bubble="1" blur="0.1" coefs="1.25 0 0 1.25 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="1.5" color="0" symmetry="0.5" hemisphere="1.5" coefs="1 0 0 1 0 0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="pre_blur Epispiral radial_blur " pre_blur="1" Epispiral="0.1" radial_blur="0.1" coefs="3.814697 0 0 3.814697 0 0" Epispiral_n="6" Epispiral_thickness="0" Epispiral_holes="1" Epispiral_old="1" radial_blur_angle="0.806236" chaos="0 0 0 " opacity="0" />
+   <xform weight="0.5" color="0.33" symmetry="1" var_order="linear rectangles escher lazysusan " linear="1" rectangles="0.1" escher="1" lazysusan="0.1" coefs="1 0 0 1 0 0" rectangles_x="1" rectangles_y="1" rectangles_z="0" rectangles_use3D="0" escher_beta="0" lazysusan_spin="3.14159" lazysusan_space="0" lazysusan_twist="0" lazysusan_x="0" lazysusan_y="0" chaos="1 1 1 0 " opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic rings2 " hyperbolic="0.1" rings2="0.1" coefs="-1 0 0 -1 0 0" rings2_val="0.208621" rings2_old="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="hyperbolic noise blur sinusoidal " hyperbolic="0.1" noise="0.1" blur="0.1" sinusoidal="0.1" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" var_order="swirl sinusoidal " swirl="0.1" sinusoidal="0.2" coefs="1 0 0 1 0 0" sinusoidal_use3D="0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 -1 1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="0 1 -1 0 0 0" opacity="1" />
+   <xform weight="0.5" color="0" linear="1" coefs="-1 0 0 -1 0 0" opacity="1" />
+   <palette count="256" format="RGB">
+      2241BB3150CA4160DA5B7AE57695F07F9EE788A7DEA1C0C5
+      A4C3C1A8C7BEAECDB7B5D4B1B9D8ACBEDDA8CEED98E4E982
+      FAE66CF8DF65F7D85EF6D75DF6D75DF4D55BF4D55BD7B83E
+      E1C248ECCD53EFDD63F2EE74ECF379E7F97FCFEE97D7F68F
+      DFFE87DDFC88DCFB8AD9F88CD7F68FD6F590C7E69FBCDBAA
+      B8D7AEB4D3B2AAC9BBA1C0C598B7CD90AFD67695F0708FF5
+      6B8AFB6685FB6281FB6584FC6988FD7291F47D9CE996B5D0
+      A4C3C2B2D1B4B8D7ADBFDEA7C1E0A5BDDCA9B2D1B4A7C6BE
+      9DBCC998B7CD94B3D298B7CE9CBBCAA9C8BDB8D7AEC6E5A0
+      CBEA9BD0EF96CCEB99C9E89DC7E69FC6E5A0B9D8ADB5D4B1
+      B1D0B5ADCCB8AAC9BCA4C3C299B8CD8BAADB809FE66D8CF9
+      5C7BEF4C6BE54766E04362DC405FD93352CC2C4BC53857D1
+      4564DE4F6EE85978F27695F08CABDAA4C3C2B7D6AFCDEC99
+      E1EB84F6EA70A6870DA182089778019071085536433C3C80
+      2443BD2948C22E4DC73D5CD64160DA4463DD4766E04B6AE4
+      4D6CE64F6EE8506FE95675EF5776F05A79F35D7CF65877F1
+      5372EC5170EA506FE94A69E34564DE4160DA3655CF3352CC
+      3756D03C5BD54362DC4B6AE45372EC5B7AF45A79F35776F0
+      5574EE5170EA506FE94F6EE8506FE95574EE5C7BF56A89FC
+      6B8AFA6D8CF96F8EF77190F57291F47392F37695F07796EF
+      7897EE7D9CE97C9BEA7897EE7695F07695F07695F07695F0
+      7A99EC7E9DE8809FE68AA9DC97B6CF9EBDC8AFCEB7B1D0B4
+      B4D3B2B8D7AEBAD9ACBDDCA9BFDEA7C4E3A2C7E69FCDEC99
+      DBFA8BE7F97FF2EE74F9E76DFFE167FBDC62FBDC62FAE66C
+      EAF67CE9F77DE6FA80CEED98C2E1A4B4D3B2A4C3C292B1D4
+      7F9EE77695F06F8EF76C8BFA6786FF6584FE6786FF6988FD
+      6A89FC6B8AFB6988FD6685FF6685FF6685FF6584FE6584FE
+      6584FE6887FE6B8AFB6E8DF87291F47594F17594F17695F0
+      7695F07695F07695F07B9AEB7E9DE887A6DF8EADD891B0D5
+      96B5D08FAED787A6DF81A0E57F9EE77E9DE87E9DE87E9DE8
+      83A2E391B0D5A0BFC6A8C7BED0EF96BAD9AC6786FF5F7EF8
+      5978F25372EC4867E13E5DD73554CE2D4CC6061892142CA6
+   </palette>
+</flame>
+</flames>
