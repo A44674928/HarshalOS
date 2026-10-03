@@ -17,6 +17,11 @@ const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
   {
+    area: "D1 community foundation (not live authentication)",
+    script: "test:community",
+    files: ["community-db-test.mjs"]
+  },
+  {
     area: "Kernel, phase, temporal, PDH, ledger & session",
     script: "test:kernel",
     files: ["kernel-api-test.mjs", "session-receipt-test.mjs"]

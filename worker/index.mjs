@@ -1,3 +1,4 @@
+import { handleCommunity } from './community.mjs';
 import { MongoClient } from 'mongodb';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } from './storage.mjs';
@@ -120,6 +121,7 @@ export async function handleApi(request, env, dependencies = {}) {
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a

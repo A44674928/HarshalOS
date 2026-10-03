@@ -25,7 +25,8 @@
     "manuscript:write": "node scripts/write-chapter.mjs --add",
     "integrity": "node scripts/integrity-report.mjs",
     "prepare:assets": "node scripts/prepare-assets.mjs",
-    "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run"
+    "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run",
+    "test:community": "node --test tests/community-db-test.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0",

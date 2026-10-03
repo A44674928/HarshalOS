@@ -36,9 +36,19 @@
     }
   },
 
+  // Production database identified by the owner; no remote migration applied.
+  "d1_databases": [{
+    "binding": "COMMUNITY_DB",
+    "database_name": "community_db",
+    "database_id": "ea508a07-e00c-4d41-a657-428937ba8110",
+    "migrations_dir": "migrations/community"
+  }],
+
   // Secrets are configured in Cloudflare, not in this file.
   "vars": {
-    "MONGODB_DATABASE": "harshalos"
+    "MONGODB_DATABASE": "harshalos",
+    "COMMUNITY_ENABLED": "false",
+    "OIDC_ADMIN_SUBJECTS": "auth0|6ac0807a3d49089da60ed21e"
   },
 
   // Preview uses a separate database. Branch preview URLs are public, so add a

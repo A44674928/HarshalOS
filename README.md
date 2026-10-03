@@ -544,3 +544,10 @@ through direct inquiry.*
 
 *All scenario content in this demonstration is abstract, not descriptive · structural, not
 behavioral · evaluative, not directive · contained, not externalized.*
+
+## D1 community foundation (disabled)
+
+The rebuilt community layer currently provides a private-draft schema and tested
+internal data access, not live accounts or public publishing. Community HTTP routes
+remain closed. See [D1 setup and implementation status](docs/deployment/COMMUNITY-D1.md).
+Existing owner storage is unchanged; no remote migration is included in this stage.
