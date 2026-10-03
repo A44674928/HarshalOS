@@ -136,12 +136,12 @@
       <p class="motto-line dim">The default state of the system is refusal.</p>
       <p class="motto-line dimmer">An intelligence that cannot define its own origin can never own the world it understands.</p>
     </div>
-    <aside id="home-time-widget" class="home-time-widget" aria-label="Local clock, UTS watch, and calendar">
+    <aside id="home-time-widget" class="home-time-widget" aria-label="Local clock, celestial context, UTS watch, and calendar">
       <div class="home-time-head">
-        <span class="home-widget-label">TIME &amp; CALENDAR</span>
+        <span class="home-widget-label">TIME · SKY · CALENDAR</span>
         <span id="home-widget-summary" class="home-widget-summary mono" aria-hidden="true">—</span>
         <div class="home-widget-actions">
-          <button id="home-widget-toggle" class="home-widget-toggle" type="button" aria-controls="home-time-body" aria-expanded="true" aria-label="Minimize the clock and calendar" title="Minimize the clock and calendar">–</button>
+          <button id="home-widget-toggle" class="home-widget-toggle" type="button" aria-controls="home-time-body" aria-expanded="true" aria-label="Minimize the clock, celestial context, and calendar" title="Minimize the clock, celestial context, and calendar">–</button>
           <button id="home-uts-open" class="home-uts-open" type="button" aria-label="Open UTS Watch and Converter">OPEN UTS ↗</button>
         </div>
       </div>
@@ -158,6 +158,10 @@
             <span id="home-uts-date" class="home-uts-date">—</span>
             <span class="home-uts-model-note">approximate epoch model</span>
           </div>
+        </div>
+        <div class="home-celestial-row" aria-label="Approximate celestial context">
+          <span id="home-moon-phase">—</span>
+          <span id="home-sun-cycle">—</span>
         </div>
         <div class="home-cal-head">
           <span id="home-calendar-date" class="home-cal-date">—</span>
@@ -206,10 +210,11 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <script defer src="js/data.js?v=2026-09-30i"></script>
-  <script defer src="js/ocm-data.js?v=2026-09-30h"></script>
+  <script defer src="js/ocm-data.js?v=2026-10-03celestial1"></script>
   <script defer src="js/crypto.js?v=2026-09-30h"></script>
   <script defer src="js/kernel.js?v=2026-09-30o"></script>
-  <script defer src="js/uts.js?v=2026-10-03clock1"></script>
+  <script defer src="js/celestial-context.js?v=2026-10-03celestial1"></script>
+  <script defer src="js/uts.js?v=2026-10-03celestial1"></script>
   <script defer src="js/grand-architecture-data.js?v=2026-10-02ga1"></script>
   <script defer src="js/ocm-directory.js?v=2026-10-02odm2"></script>
   <script defer src="js/g0-engine.js?v=2026-10-01research1"></script>

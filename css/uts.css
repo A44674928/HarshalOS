@@ -76,6 +76,17 @@
   border-top: 1px solid rgba(197, 222, 235, 0.1);
   border-bottom: 1px solid rgba(197, 222, 235, 0.1);
 }
+.home-celestial-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0 2px;
+  color: rgba(211, 229, 239, 0.72);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.home-celestial-row span { min-width: 0; }
+.home-celestial-row span:last-child { text-align: right; }
 .home-local-clock {
   display: block;
   margin-top: 4px;
@@ -135,6 +146,31 @@
   border-radius: 12px;
   background: linear-gradient(135deg, rgba(26, 52, 74, 0.46), rgba(17, 24, 43, 0.57));
 }
+.uts-celestial-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.uts-celestial-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(126, 195, 225, 0.16);
+  border-radius: 10px;
+  background: rgba(14, 25, 42, 0.52);
+}
+.uts-celestial-card > strong, .uts-moon-readout strong {
+  display: block;
+  margin-top: 8px;
+  color: #e9f3f6;
+  font: 13px/1.4 var(--mono);
+}
+.uts-moon-readout { display: flex; align-items: center; gap: 9px; margin-top: 8px; }
+.uts-moon-readout > span { color: #dbeeff; font-size: 28px; line-height: 1; }
+.uts-moon-readout strong { margin: 0; }
+.uts-celestial-card p { margin: 8px 0 0; color: rgba(208, 225, 236, 0.76); font: 10px/1.55 var(--sans); }
+.uts-celestial-card small { display: block; margin-top: 7px; color: rgba(186, 211, 226, 0.56); font: 9px/1.45 var(--mono); }
+.uts-celestial-note { margin: 0 0 18px; color: rgba(190, 216, 231, 0.48); font: 9px/1.5 var(--sans); }
 .uts-watch-primary strong { display: block; margin-top: 7px; color: #f4f7f7; font: 32px var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.06em; }
 .uts-eyebrow { color: rgba(190, 216, 231, 0.56); font: 9px var(--mono); letter-spacing: 0.14em; }
 .uts-watch-primary small { display: block; margin-top: 5px; color: var(--text-dim); font-size: 11px; }
@@ -226,6 +262,7 @@
   .home-cal-day { min-height: 17px; }
   .uts-watch-panel { grid-template-columns: 1fr; gap: 13px; }
   .uts-watch-secondary { grid-template-columns: 1fr; }
+  .uts-celestial-panel { grid-template-columns: 1fr; }
   .uts-converter { grid-template-columns: 1fr 1fr; align-items: end; }
   .uts-converter label:nth-of-type(2) { grid-column: 1 / -1; }
   .uts-converter select { grid-column: 1 / -1; }

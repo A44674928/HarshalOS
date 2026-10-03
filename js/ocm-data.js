@@ -444,8 +444,13 @@ const OCM_DATA = (() => {
     { app: "discs",       name: "Discs",             addr: "0•240•000•0008•DISC",   deg: 240, r: 1.25, sector: "Contexts", note: "Expansion — bounded operational contexts with blast-radius control." },
     { app: "innershell",  name: "Inner Shell",       addr: "0•110•000•0009•AISH",   deg: 110, r: 0.85, sector: "AI",     note: "Artificial intelligence — tightly coupled inner layer, capability without sovereignty." },
     { app: "whyland",     name: "Whyland Console",   addr: "0•120•000•0010•WHY",    deg: 120, r: 1.9, sector: "Inquiry", note: "Science of asking — the contextual inquiry layer." },
-    { app: "glossary",    name: "Glossary",          addr: "0•330•000•0011•GLOSS",  deg: 330, r: 1.55, sector: "Archive", note: "Archival systems — stabilized terms against semantic drift." }
+    { app: "glossary",    name: "Glossary",          addr: "0•330•000•0011•GLOSS",  deg: 330, r: 1.55, sector: "Archive", note: "Archival systems — stabilized terms against semantic drift." },
+    /* Read-only observations. Radius is OCM coupling/scope, never astronomical distance. */
+    { app: "good-intelligence", name: "Market Context", addr: "0•116•000•0012•MKT",  deg: 116, r: 2.45, sector: "Observation", note: "Optional provider OHLCV and indicator context. Read-only; never authorizes, overrides, or commits state." },
+    { app: "uts",         name: "Sun",                addr: "0•009•000•0013•SUN",   deg: 9,   r: 2.3, sector: "Celestial Context", note: "Approximate apparent solar annual cycle and declination. Not lunar-style phases, local sunrise/sunset, solar activity, or authority time." },
+    { app: "uts",         name: "Moon",               addr: "0•163•000•0014•MOON",  deg: 163, r: 2.3, sector: "Celestial Context", note: "Approximate display-only lunar phase and illumination context. No observer-location or visibility claim; no authority effect." }
   ];
+
 
   /* ---------- Interaction Orbs (non-additive extension) ---------- */
   const arithmetic = {
