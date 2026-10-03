@@ -1,0 +1,11 @@
+{
+  // LOCAL TEST ONLY. Never deploy or use --remote with this configuration.
+  "name": "harshalos-community-local-test",
+  "compatibility_date": "2026-09-30",
+  "d1_databases": [{
+    "binding": "COMMUNITY_DB",
+    "database_name": "community-foundation-local-test",
+    "database_id": "00000000-0000-0000-0000-000000000000",
+    "migrations_dir": "../../migrations/community"
+  }]
+}

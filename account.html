@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Private workspace · HarshalOS</title><link rel="stylesheet" href="/css/community.css"><script type="module" src="/js/community.js"></script></head>
+<body>
+<header><a class="brand" href="/">H<span>HarshalOS</span></a><span class="tag">COMMUNITY / PRIVATE WORKSPACE</span><a href="/audits">Public register ↗</a></header>
+<main>
+<section class="intro"><p class="eyebrow">YOUR ACCOUNT · YOUR WORK</p><h1>A private place to<br>develop your audit.</h1><p>Save your inputs, keep notes, and return to your work. Nothing on this page is published.</p></section>
+<section class="session"><div><strong id="identity">Checking account availability…</strong><p id="notice" role="status" aria-live="polite">Connecting securely.</p></div><a id="login" class="button" href="/api/community/auth/login" hidden>Sign in / Create account ↗</a><button id="logout" hidden>Sign out</button></section>
+<div id="workspace" hidden>
+<div class="workspace-grid">
+<aside><div class="section-title"><h2>Your drafts</h2><button id="new">+ New</button></div><p class="muted">Only your signed-in account can access these drafts.</p><ul id="drafts"></ul><button id="more" hidden>Load more</button><button id="refresh">Refresh list</button></aside>
+<section class="editor"><div class="section-title"><h2 id="editor-heading">New private draft</h2><span class="pill">PRIVATE</span></div><p id="revision" class="muted">Not saved to your account yet.</p>
+<form id="form" autocomplete="off"><fieldset id="fields"><label for="title">Draft title</label><input id="title" maxlength="200" required placeholder="e.g. Organization review — working notes">
+<label for="input">Ground-0 input <span class="muted">JSON object · max 64 KiB</span></label><textarea id="input" rows="13" spellcheck="false" required>{}</textarea>
+<p class="muted">Saving only stores inputs. Use a Ground-0 template, set its entity name and cutoff, save, then explicitly run the saved revision. Running applies rules to your claims; it does not independently verify them. Do not paste passwords, tokens, or unrelated personal data.</p>
+<label for="notes">Private notes</label><textarea id="notes" rows="4" maxlength="4000" placeholder="Questions, context, and reminders. These stay private."></textarea>
+<div class="actions"><button id="template" type="button">Use Ground-0 1.0 template</button><button class="primary" id="save" type="submit">Save private draft</button><button id="export" type="button">Export local copy</button><button id="reload" type="button" hidden>Reload saved version</button><button id="run" type="button" disabled>Run saved revision</button><button id="history" type="button" disabled>Saved runs</button></div>
+<label class="import-label" for="import">Import a private-draft export <input id="import" type="file" accept="application/json,.json"></label><p class="muted">Import stays in this editor until you click Save. Only HarshalOS private-draft exports are supported here—not desktop archive files. A downloaded export contains your private notes; keep it secure.</p>
+</fieldset></form>
+<section id="execution" aria-label="Private execution results" hidden>
+<div class="section-title"><h2>Private run review</h2><span class="pill">UNREVIEWED</span></div>
+<p class="muted">These are calculations on submitted claims, not platform certification. No external sources are fetched, no independent identity or evidence verification is performed, and no temporal history or global declaration registry is checked.</p>
+<ul id="run-history"></ul><button id="run-more" type="button" hidden>Older runs</button>
+<div id="run-panel" hidden><h3 id="run-summary"></h3><p id="run-source" class="muted"></p><p id="run-finding"></p>
+<p id="run-hash" class="muted hash"></p><button id="run-export" type="button">Export private run</button>
+<details><summary>Exact evaluated input, calculation and scope</summary><pre id="run-json" tabindex="0"></pre></details>
+<section id="publication-box"><h3>Prepare a public report</h3>
+<p class="muted">This is a separate public candidate. Declaration and key fields start blank. Remove any confidential names, quotes, URLs or personal information. The server recomputes this candidate, so its outcome can differ from your private run. Dedicated private notes are never copied.</p>
+<fieldset id="publication-fields"><label for="public-author">Public author label (self-chosen, not verified)</label><input id="public-author" maxlength="80" placeholder="Name or pseudonym you want to publish">
+<label for="public-input">Public input candidate · editable JSON</label><textarea id="public-input" rows="10" spellcheck="false"></textarea>
+<button id="preview-public" type="button">Generate exact public preview</button></fieldset>
+<div id="public-preview" hidden><h3>Exactly what will be public</h3><p id="preview-meta" class="muted hash"></p><pre id="preview-json" tabindex="0"></pre>
+<label class="consent"><input id="public-consent" type="checkbox"> I reviewed the entire preview and authorize publishing it immediately as UNREVIEWED. Anyone can read or copy it. Withdrawal cannot recall external copies; a minimal hash/history tombstone remains.</label>
+<button id="publish-public" type="button" class="primary" disabled>Publish this exact report</button></div></section></div>
+</section></section>
+</div>
+<section class="editor account-extra"><h2>My publications</h2><p class="muted">Withdrawing removes the report and author label from this service, not from copies others already saved.</p><button id="my-publications" type="button">Load my publications</button><ul id="my-publication-list"></ul><button id="my-publication-more" type="button" hidden>Older publications</button></section>
+<section id="moderation-box" class="editor account-extra" hidden><h2>Private moderation queue</h2><p class="muted">Actions remove content; they do not verify or certify reports. Hide and block removes all active publications by that author and revokes their sessions.</p><button id="moderation-load" type="button">Load unresolved reports</button><ul id="moderation-list"></ul></section>
+</div>
+<footer><strong>Private by default. Public only by explicit consent.</strong><p>Public reports remain UNREVIEWED and are not certification. <a href="/audits">Browse the public register and activity log.</a></p></footer>
+</main></body></html>

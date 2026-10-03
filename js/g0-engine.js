@@ -23,12 +23,13 @@
      · the working badge presumes CWO (witness-only) until evidence
        disproves it; the formal badge still requires a valid signed PDH
 
-   Exposed as window.G0. No build step, no dependencies.
+   Exposed as window.G0 in browsers and globalThis.G0 in Workers. No dependencies.
    ═══════════════════════════════════════════════════════════════ */
 
 "use strict";
 
-window.G0 = (() => {
+(typeof window !== "undefined" ? window : globalThis).G0 = (() => {
+  const host = typeof window !== "undefined" ? window : globalThis;
 
   /* ──────────────────────────────────────────────────────────────
      Validation — strict calendar dates, safe public URLs, archives.
@@ -271,7 +272,7 @@ window.G0 = (() => {
     const phaseDef = phaseDefinitions.find(def => def.phase === phase);
     const fieldNames = ["Center-Capability", "Legitimacy-Source", "Refusal-Semantics", "Symbolism-Executability", "Time-Authority-Effect"];
     result.consistency = !!phaseDef && fieldNames.every((field, i) => phase === "CWO" && i === 3 ? ["Disabled", "Archived"].includes(String(header[field])) : String(header[field]) === phaseDef.fields[i]);
-    if (input.publicKeyText.trim() && input.trustedOrigin.trim() === header["Center-Origin"] && window.crypto && crypto.subtle) {
+    if (input.publicKeyText.trim() && input.trustedOrigin.trim() === header["Center-Origin"] && host.crypto && crypto.subtle) {
       try {
         const jwk = JSON.parse(input.publicKeyText);
         if (jwk.kty !== "EC" || jwk.crv !== "P-256" || jwk.d) throw new Error("A public P-256 key is required");
@@ -455,7 +456,7 @@ window.G0 = (() => {
     const method = input.automation ? "automatic" : "manual";
     const status = !complete ? "Draft" : (phase === "AMBIGUOUS" || phase === "INCOHERENT" || (transition && (transition.status === "FORBIDDEN" || transition.status === "DECLARATION_REVIEW_REQUIRED"))) ? "Needs review" : "Complete";
     return {
-      workingBadge, input, method, id: (window.crypto && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+      workingBadge, input, method, id: (host.crypto && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       name: input.name.trim(), identifier: input.identifier.trim(), version: input.version, createdAt: now, cutoff: input.cutoff,
       reportedDeclared: pdh.declared === "NONE" ? "None" : pdh.declared, phase, confidence, severity, compliance, badge, status, baseline: false,
       evidence, answers: input.answers, constraints: input.constraints, pdh, finding, replicationRisk, temporalPattern, transition, report
@@ -681,7 +682,7 @@ window.G0 = (() => {
   }
   function saveAuditRecords(list) {
     storageNote = "";
-    if (window.HOSCloudStorageGuard && !window.HOSCloudStorageGuard()) {
+    if (host.HOSCloudStorageGuard && !host.HOSCloudStorageGuard()) {
       storageNote = "Another tab changed saved data. Export this workspace, then reload before saving.";
       return false;
     }
@@ -699,7 +700,7 @@ window.G0 = (() => {
     }
   }
   function saveEvidenceRecords(list) {
-    if (window.HOSCloudStorageGuard && !window.HOSCloudStorageGuard()) return false;
+    if (host.HOSCloudStorageGuard && !host.HOSCloudStorageGuard()) return false;
     try { localStorage.setItem(EVIDENCE_KEY, JSON.stringify(list)); return true; }
     catch { return false; }
   }

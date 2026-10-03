@@ -286,7 +286,7 @@ test("pine scripts: the Markdown archive stays outside the public asset allowlis
   const copyList = /for \(const entry of \[([^\]]+)\]\)/.exec(staging);
   assert.ok(copyList, "prepare-assets.mjs should stage from an explicit allowlist");
   const entries = copyList[1].split(",").map(entry => entry.trim().replace(/^['"]|['"]$/g, ""));
-  assert.deepEqual(entries, ["index.html", "about.html", "css", "js", "assets", "specs"],
+  assert.deepEqual(entries, ["index.html", "about.html", "account.html", "audits.html", "css", "js", "assets", "specs"],
     "the staging allowlist changed — re-review whether scripts/pine/ can now be published");
   assert.ok(!entries.includes("scripts") && !entries.includes("docs"),
     "neither scripts/ nor docs/ may be staged wholesale");

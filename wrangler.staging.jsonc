@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "harshalos-staging",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-09-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "keep_vars": true,
+  "routes": [
+    { "pattern": "staging.empty.domains", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": ".site-assets",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/account", "/account.html", "/audits", "/audits.html"]
+  },
+  "build": { "command": "node scripts/prepare-assets.mjs" },
+  "observability": { "enabled": false },
+  "d1_databases": [
+    {
+      "binding": "COMMUNITY_DB",
+      "database_name": "community_db_staging",
+      "database_id": "74f281fe-3ab9-49b1-bff6-4686cb768ca7",
+      "migrations_dir": "migrations/community"
+    }
+  ],
+  "vars": {
+    "COMMUNITY_ORIGIN": "https://staging.empty.domains",
+    "COMMUNITY_ENABLED": "false"
+  }
+}

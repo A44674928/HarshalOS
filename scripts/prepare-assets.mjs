@@ -10,7 +10,7 @@ const allowedSpecDirectories = new Set(['specs', 'specs/normative', 'specs/draft
 const allowedSpecDocument = /^specs\/(?:normative\/[A-Za-z0-9._-]+\.(?:md|json)|draft\/[A-Za-z0-9._-]+\.md)$/;
 await rm(dest, { recursive: true, force: true });
 await mkdir(dest);
-for (const entry of ['index.html', 'about.html', 'css', 'js', 'assets', 'specs']) {
+for (const entry of ['index.html', 'about.html', 'account.html', 'audits.html', 'css', 'js', 'assets', 'specs']) {
   await cp(path.join(root, entry), path.join(dest, entry), {
     recursive: true,
     filter: async source => {

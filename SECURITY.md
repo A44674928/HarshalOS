@@ -114,3 +114,22 @@ Please report suspected vulnerabilities **privately**, with the affected commit 
 Use [GitHub's private vulnerability reporting for this repository](https://github.com/A44674928/HarshalOS/security/advisories/new) if it is enabled. If private reporting is unavailable, contact the repository maintainer through GitHub and avoid publishing exploit details in a public issue until a fix or coordinated disclosure is possible.
 
 There is no published bug-bounty program or guaranteed response/remediation SLA. Please allow reasonable time for triage and coordinated disclosure; do not access, modify, or retain other people's data while investigating.
+
+## Community accounts and publication (disabled by default)
+
+Community routes are separate from owner-only `/api/storage/*`; public signup must
+not relax the legacy owner/Cloudflare Access checks. Sessions use Secure HttpOnly
+host cookies and hashed D1 tokens. Authenticated writes require the exact origin.
+
+Private drafts/runs do not become public automatically. Publication copies an
+owner-bound, expiring, exact preview only after explicit acknowledgement. Public
+reports are UNREVIEWED calculations on user claims, not verified identities or
+evidence. Public DTOs exclude private account/draft/run IDs and moderator/report
+details. Withdrawal/hide redacts the payload and author label but keeps a minimal
+hash/history tombstone; external copies cannot be recalled. Database operators
+and backup access remain trusted, and hashes are not tamper-proof signatures.
+
+Before enabling, complete the staging, moderation, privacy/retention, backup and
+abuse-control gates in `docs/deployment/COMMUNITY-D1.md`. Live-provider/remote-D1
+verification is not established by the automated local tests. Do not post secrets
+or private audit/report contents to public issue trackers.

@@ -5,11 +5,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
+  // Preserve dashboard-only text variables; explicit vars below still win.
+  "keep_vars": true,
   "assets": {
     "directory": ".site-assets",
     "not_found_handling": "none",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/account", "/account.html", "/audits", "/audits.html"]
   },
 
   // Regenerate the public asset staging directory before Wrangler bundles.
@@ -36,9 +38,26 @@
     }
   },
 
+  // Production database identified by the owner; no remote migration applied.
+  "d1_databases": [{
+    "binding": "COMMUNITY_DB",
+    "database_name": "community_db",
+    "database_id": "ea508a07-e00c-4d41-a657-428937ba8110",
+    "migrations_dir": "migrations/community"
+  }],
+
+  // Preserve the owner-confirmed binding. Storage still uses MongoDB; this
+  // does not migrate data or implement R2-primary / MongoDB-backup.
+  "r2_buckets": [{
+    "binding": "STORAGE_BUCKET",
+    "bucket_name": "main-empty-domains"
+  }],
+
   // Secrets are configured in Cloudflare, not in this file.
   "vars": {
-    "MONGODB_DATABASE": "harshalos"
+    "MONGODB_DATABASE": "harshalos",
+    "COMMUNITY_ENABLED": "false",
+    "OIDC_ADMIN_SUBJECTS": "auth0|6ac0807a3d49089da60ed21e"
   },
 
   // Preview uses a separate database. Branch preview URLs are public, so add a
@@ -46,7 +65,11 @@
   // LLM_RELAY_OUTBOUND_DIAGNOSTIC; see docs/deployment/ZAI-FREE-TIER.md) only for
   // as long as it is needed, never in the base "vars" above, and remove it after.
   "previews": {
+    // No production D1 or R2 access in branch previews.
+    "d1_databases": [],
+    "r2_buckets": [],
     "vars": {
+      "COMMUNITY_ENABLED": "false",
       "MONGODB_DATABASE": "harshalos_preview"
     }
   }

@@ -141,8 +141,8 @@ test("P13: root-level files stay limited to app entry points, configuration, and
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
-    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "index.html",
-    "package-lock.json", "package.json", "serve.js", "wrangler.jsonc"
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
+    "package-lock.json", "package.json", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
   const tracked = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
@@ -277,7 +277,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "assets", "book", "book-library", "css", "index.html", "js", "manuscript", "specs"]);
+    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "specs"]);
 
     const bookFiles = (await listFiles(path.join(SITE, "book"), "book")).sort();
     assert.deepEqual(bookFiles, ["book/01-core-book.md"], "only the explicitly selected Book I source is published");

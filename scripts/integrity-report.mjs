@@ -16,6 +16,13 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
+  { area: "Production disabled-release safeguards", script: "test:production", files: ["production-config-test.mjs"] },
+  { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
+  {
+    area: "D1 community database and OIDC sessions (local tests)",
+    script: "test:community",
+    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs", "community-runs-test.mjs", "community-publication-test.mjs"]
+  },
   {
     area: "Kernel, phase, temporal, PDH, ledger & session",
     script: "test:kernel",
@@ -162,6 +169,7 @@ for (const suite of SUITES) {
 }
 
 results.push(runCommand("Deployment bundle (Wrangler dry-run)", ["run", "check:deploy"]));
+results.push(runCommand("Staging bundle (Wrangler dry-run)", ["run", "check:deploy:staging"]));
 
 const rows = results.map(result => {
   let details = result.details || "";

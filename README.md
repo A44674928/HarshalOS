@@ -546,3 +546,17 @@ through direct inquiry.*
 
 *All scenario content in this demonstration is abstract, not descriptive · structural, not
 behavioral · evaluative, not directive · contained, not externalized.*
+
+## D1 community accounts and public audit register (disabled)
+
+The rebuild includes `/account` private drafts and Ground-0 execution, plus `/audits`
+for explicitly published reports, version history and activity. Publication requires
+an exact recomputed preview and explicit consent; reports remain **UNREVIEWED**,
+not platform certification. Author withdrawal, private reporting and moderator
+hide/block controls are implemented. Private drafts/runs are not automatically public.
+
+`COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
+operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
+No remote migration or production deployment command was run for these checkpoints.
+
+Staging uses a separate Worker and D1 database: see [staging setup](docs/deployment/COMMUNITY-STAGING.md). Use `npm run deploy:staging`, not the production deploy command.
