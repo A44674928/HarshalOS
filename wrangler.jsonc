@@ -56,7 +56,10 @@
   // Secrets are configured in Cloudflare, not in this file.
   "vars": {
     "MONGODB_DATABASE": "harshalos",
-    "COMMUNITY_ENABLED": "false",
+    // Enablement decision. Explicit file values win over dashboard text variables.
+    // Requires the dashboard origin/OIDC variables and secrets, applied migrations,
+    // and a configured moderator before the feature is actually usable.
+    "COMMUNITY_ENABLED": "true",
     "OIDC_ADMIN_SUBJECTS": "auth0|6ac0807a3d49089da60ed21e"
   },
 

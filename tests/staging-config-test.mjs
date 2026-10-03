@@ -25,7 +25,9 @@ test('staging stays disabled, retains dashboard variables and contains no creden
   assert.equal(staging.observability.enabled, false);
   assert.deepEqual(Object.keys(staging.vars).sort(), ['COMMUNITY_ENABLED', 'COMMUNITY_ORIGIN']);
   for (const key of ['r2_buckets', 'services', 'kv_namespaces', 'env', 'previews']) assert.equal(key in staging, false);
-  assert.match(production, /"COMMUNITY_ENABLED": "false"/);
+  // Production enablement never leaks into branch previews: the override still wins there.
+  const previews = JSON.parse(production.replace(/^\s*\/\/.*$/gm, '')).previews;
+  assert.equal(previews.vars.COMMUNITY_ENABLED, 'false');
 });
 
 test('staging commands always name the staging config; deploy never applies migrations', () => {

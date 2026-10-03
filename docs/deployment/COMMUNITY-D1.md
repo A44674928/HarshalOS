@@ -6,7 +6,11 @@ Dedicated staging setup and exact deploy commands: [COMMUNITY-STAGING.md](COMMUN
 
 This rebuild includes the database foundation, OIDC login/session layer,
 private account workspace, private Ground-0 execution, and **explicit public publication**.
-It is not deployed or live-provider validated. `COMMUNITY_ENABLED` remains `false`.
+It is not yet live-provider validated on production. `COMMUNITY_ENABLED` is now `true` in
+`wrangler.jsonc` — the enablement decision — while branch previews stay `false`. The flag
+only takes effect on the next production deployment, and nothing below is usable until the
+owner-run dashboard variables/secrets, migrations and register seed exist (`§ Ordered
+enablement`).
 
 Implemented:
 - Issuer-scoped accounts and internal owner-scoped draft storage from checkpoint 1.
@@ -32,9 +36,11 @@ recovery of anything deleted. Not implemented: full self-service account
 export/deletion, R2 evidence uploads, and automated community backup/retention
 workflows. The internal draft functions require a verified server-derived owner ID,
 never a request-supplied one.
-All community access remains disabled by default. Migrations 0001–0003 are unchanged;
-publication adds `0004_publication.sql`. All migration testing in this rebuild has
-been local only; no remote migration or deployment command was run.
+Community access is enabled in the production configuration and disabled in branch
+previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
+Migration and seed testing in this rebuild has been local only: no remote migration,
+remote seed or production deployment command has been run from the build environment,
+which has no Cloudflare credentials.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -296,6 +302,81 @@ Emergency disable: set the flag false; do not drop tables or delete cloud resour
 Local tests use real SQLite SQL, mocked OIDC HTTP/DOM fetch, and local Wrangler D1;
 remote D1 concurrency and full live-browser/provider behavior remain unvalidated.
 
+## Register-issued case studies (Ground-0 audit register)
+
+The 23 register-issued `PDH-R` case studies in `case-studies/` are processed into the
+same public D1 tables, so the News app serves them from D1 instead of hardcoded data.
+Each case study is re-evaluated by the real Ground-0 engine during the build; the file
+refuses to emit anything unless the recomputed base phase and confidence reproduce
+`case-studies/pdh-registry.json` and the audit text still matches the register's
+`audit_record_sha256` / `issuance_record_sha256`.
+
+```sh
+npm run case-studies:build     # rebuild both artifacts (deterministic)
+npm run case-studies:check     # fail if the committed artifacts differ
+npm run case-studies:build -- --revision 2   # publish a changed audit record as a new version
+```
+
+| Artifact | Purpose |
+| --- | --- |
+| `case-studies/d1/case-studies-d1.json` | Review manifest: per record the engine result, hashes, ids and the exact public report that will be served |
+| `case-studies/d1/case-studies-seed.sql` | Seed applied to D1; all statements are `SELECT … WHERE NOT EXISTS` or `ON CONFLICT DO NOTHING` |
+
+Row mapping: one synthetic register account (issuer `urn:harshalos:register`, subject
+`ground-0-audit-register`, no sessions, cannot authenticate), one draft and one run per
+header, one public series per `header_id`, and one published row per content revision.
+`report.result.phase` stays the engine-recomputed base phase; the register-scoped phase,
+badge class, constraint record, evidence cutoff, expiry and both record hashes travel in
+`report.register`, which the News app displays next to the finding. `PDH_VALID` remains
+FALSE and entity attestation is ABSENT for every record. The seed writes only public
+rows: no sessions, previews, reports or moderation actions are created, and rows stay
+subject to the existing withdrawal/hide rules. Hiding the register account with
+hide-and-block would hide the whole register; withdraw or hide individual rows instead.
+
+Apply (owner-run, after the remote migration gate above):
+
+```sh
+# local fixture only
+npx wrangler d1 execute COMMUNITY_DB --local \
+  --config tests/fixtures/community-d1-local.jsonc \
+  --persist-to .wrangler/community-foundation-tests \
+  --file case-studies/d1/case-studies-seed.sql
+
+# staging
+npx wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote \
+  --file case-studies/d1/case-studies-seed.sql
+
+# production: only after the migration gate and an explicit decision to publish the register
+npx wrangler d1 execute COMMUNITY_DB --remote --file case-studies/d1/case-studies-seed.sql
+```
+
+To view the register in the News app locally, the exact-origin gate needs TLS, so a
+self-signed certificate is required (all variables here are local overrides; nothing
+remote is contacted):
+
+```sh
+mkdir -p .wrangler/local-cert && openssl req -x509 -newkey rsa:2048 -nodes -days 3 \
+  -subj "/CN=localhost" -keyout .wrangler/local-cert/key.pem -out .wrangler/local-cert/cert.pem
+npx wrangler d1 migrations apply COMMUNITY_DB --local
+npx wrangler d1 execute COMMUNITY_DB --local --file case-studies/d1/case-studies-seed.sql
+npx wrangler dev --local-protocol https --https-cert-path .wrangler/local-cert/cert.pem \
+  --https-key-path .wrangler/local-cert/key.pem \
+  --var COMMUNITY_ENABLED:true --var COMMUNITY_ORIGIN:https://localhost:8787 \
+  --var OIDC_ISSUER:https://issuer.example/ --var OIDC_CLIENT_ID:local \
+  --var OIDC_CLIENT_SECRET:local --var COMMUNITY_RATE_SECRET:<32+ character local secret>
+```
+
+Open `https://localhost:8787`, accept the self-signed certificate, and launch the News
+app. A browser preview on any other origin is refused by design, because public reads
+must come from the exact configured origin.
+
+The file is idempotent: re-running unchanged content inserts nothing, and
+`community_schema` records one marker row (`case-studies-d1` → applied revision). If the
+content changed but the version did not, a guard statement aborts the whole file before
+any insert instead of silently replacing a published version — corrections are new
+versions (`--revision N+1`). `tests/case-studies-d1-test.mjs` applies the committed seed
+to real SQLite, then exercises the public feed, detail, correction and NewsML routes.
+
 ## Verified target information
 
 The owner supplied:
@@ -371,12 +452,20 @@ by keeping community disabled, not by dropping tables.
 
 ## Ordered enablement on main.empty.domains (owner-run)
 
-`/account` and `/audits` are already deployed by every `main` build, but while
-`COMMUNITY_ENABLED=false` they are inert: every `/api/community/*` route fails
-closed with 503 and the register renders its unavailable notice. Enabling the
-D1-backed pages on production is a deliberate, ordered decision. Do these steps in
-order; stop at any failure rather than retrying with shortcuts.
+`/account` and `/audits` are already deployed by every `main` build, but they are
+inert until the ordered steps below are complete: before the dashboard configuration
+and migrations exist, every `/api/community/*` route fails closed with 503 and the
+register renders its unavailable notice. Enabling the D1-backed pages on production is
+a deliberate, ordered decision. Do these steps in order; stop at any failure rather
+than retrying with shortcuts.
 
+0. **Status of this sequence.** Step 5 (the flag) is committed in the repository, so
+   the sequence now describes what remains before the deployed Worker can serve the
+   feature. Steps 1–4 and 6–7 are owner-run: the build environment has no Cloudflare
+   credentials and cannot reach the Cloudflare API, so it has applied no remote
+   migration, no remote seed and no deployment. Until steps 1–4 are complete the
+   enabled Worker fails closed with 503s on every `/api/community/*` route, exactly as
+   the regression test in `tests/production-config-test.mjs` asserts.
 1. **Dashboard variables on the `harshalos` Worker** (Settings → Variables and
    Secrets, runtime scope). Text: `COMMUNITY_ORIGIN=https://main.empty.domains`,
    `OIDC_ISSUER`, `OIDC_CLIENT_ID`. Secrets: `OIDC_CLIENT_SECRET`,
@@ -392,15 +481,31 @@ order; stop at any failure rather than retrying with shortcuts.
 3. **Read-only inspection and backup.** Run the inspection in the gate above and
    confirm the only existing table is `_cf_KV`. If any application table or
    migration record exists, stop and reconcile schema and history first, and export
-   a backup before changing a populated database.
-4. **Apply migrations 0001–0004** to production D1 with the commands in the gate
-   above. Migrations never run automatically during a deploy.
-5. **Flip the flag in the repository.** Explicit values in `wrangler.jsonc` win over
-   dashboard text variables, so setting `COMMUNITY_ENABLED=true` in the dashboard
-   alone will not enable anything while the file says `false`. Change the file, and
-   update `tests/production-config-test.mjs` and this document in the same commit so
-   the enabled state is reviewed as a single, intentional change. Keep that commit
-   separate from unrelated work; it is the enablement decision.
+   a backup before changing a populated database:
+
+   ```sh
+   npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
+   ```
+
+4. **Apply migrations 0001–0004 and the register seed** to production D1. Migrations
+   never run automatically during a deploy:
+
+   ```sh
+   npx wrangler d1 migrations list COMMUNITY_DB --remote
+   npx wrangler d1 migrations apply COMMUNITY_DB --remote
+   npx wrangler d1 execute COMMUNITY_DB --remote --file case-studies/d1/case-studies-seed.sql
+   npx wrangler d1 execute COMMUNITY_DB --remote \
+     --command "SELECT (SELECT COUNT(*) FROM community_publications) AS publications, (SELECT COUNT(*) FROM community_public_series) AS series;"
+   ```
+
+   Expected from the committed seed: 23 publications, 23 series, one register account.
+5. **Flip the flag in the repository — done.** Explicit values in `wrangler.jsonc` win
+   over dashboard text variables, so a dashboard `COMMUNITY_ENABLED=true` alone would
+   not have enabled anything. `wrangler.jsonc` now says `true`, and
+   `tests/production-config-test.mjs` proves the enabled Worker fails closed on every
+   route before any D1 query while step 1 is missing, that branch previews still
+   override to `false`, and that the file's variable set is unchanged. Step 5 landed as
+   its own commit, separate from unrelated work.
 6. **Deploy and verify on the live host.** `/api/community/status` returns 200 with
    stage `publication`; `/api/community/me` returns 401 signed out; sign in succeeds
    and `/account` exposes the private workspace. A configured moderator must sign in
@@ -444,12 +549,14 @@ Commit and push tested changes only to `arena/01a0fef9-harshalos`. Verify the re
 SHA after pushing; local commits alone are not a remote backup. Do not merge to main
 or run deployment/remote-migration commands as part of checkpoint preservation.
 
-## Disabled production release (PR #42)
+## Production release and the enablement decision (PR #42, then the flag commit)
 
-The production configuration now preserves dashboard-only text variables with
+The production configuration preserves dashboard-only text variables with
 `keep_vars: true` and declares the owner-confirmed `STORAGE_BUCKET` binding to
-`main-empty-domains`, alongside the production D1 binding. Explicit `vars` still
-win: `COMMUNITY_ENABLED=false` is intentional on every Git deployment. Secrets
+`main-empty-domains`, alongside the production D1 binding. Explicit `vars` still win:
+the commit that flipped `COMMUNITY_ENABLED` to `true` is the enablement decision and is
+the only change that turns the feature on. Branch-preview overrides still force
+`false`, and no dashboard variable can re-enable previews. Secrets
 remain dashboard-managed. Inventory any additional bindings before deployment;
 `keep_vars` preserves text/JSON variables, not arbitrary resource bindings.
 
@@ -469,9 +576,11 @@ false, D1 is `community_db`, R2 is `main-empty-domains`, and dashboard-only OIDC
 Access variables/secrets remain configured. Verify existing owner storage without
 writing or deleting data. `/api/community/me` must remain unavailable (503).
 
-Enabling production remains a separate decision. Inspect/back up/migrate the
-production schema as necessary; complete the launch checks above, especially
-callback-log privacy, two-account isolation and publication/withdrawal/moderation.
+The enablement decision has been taken in the repository (see the ordered enablement
+section); the remaining work is the owner-run dashboard configuration, the backup,
+migration and seed on production D1, and the live verification. Complete the launch
+checks above before publishing, especially callback-log privacy, two-account isolation
+and publication/withdrawal/moderation.
 The current production observability settings are **not** a sign-off for logging
 authentication callback queries. One existing account is not an admission allowlist.
 If deployment has an issue, keep community disabled and inspect the active version;

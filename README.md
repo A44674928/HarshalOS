@@ -79,6 +79,15 @@ of a same-origin relay. Without it, every BYOK connection point still works exac
 
 The desktop includes a standalone **News** app for the D1-backed public register. It reads only active, explicitly published reports, keeps private drafts, runs, and previews outside the feed, and labels every item **UNREVIEWED**. Selecting a report opens its exact public JSON, the public record and history, and a NewsML-G2 download. The JavaScript Worker builds that export from the published D1 row; no Python runtime or external feed is involved. The optional Python library pin in [`requirements-newsml-g2.txt`](requirements-newsml-g2.txt) is for local parsing experiments only. See the [NewsML-G2 integration note](docs/integrations/NEWSML-G2.md) for record mapping, limits, and install instructions.
 
+The 23 register-issued `PDH-R` case studies are processed into that same D1 register:
+`npm run case-studies:build` re-evaluates every audit with the real engine, refuses to
+emit anything that does not reproduce `case-studies/pdh-registry.json`, and writes a
+review manifest plus an idempotent seed under `case-studies/d1/`. The News reader shows
+each record's register provenance (header ID, both phases, constraint record, record
+hashes and attestation) next to its finding, and the seed is applied to D1 by the owner —
+`npm run test:community` applies it to real SQLite and exercises the feed, detail and
+NewsML routes.
+
 ---
 
 ## What is implemented
@@ -150,6 +159,7 @@ docs/harshal-systems/modules/ — Book I reference modules: The Grand Architectu
 updates/          — date-stamped extractions of repository update archives, with their continuity audit and canonical numbers card; source material, not deployed assets
 case-studies/     — standalone Ground-0 audit writeups: the original OpenAI and Anthropic case studies plus the v1.1 manual audit register (21 case-study files / 23 entities, each with a declared Evidence_Cutoff, ledger ID, falsifiability section and an Appendix C PDH-R issuance record)
 case-studies/badges/ — register-issued PDH-R badge assets (`*.svg`) and the badge gallery (`index.html`); regenerate with `node scripts/issue-pdh-badges.mjs`
+case-studies/d1/ — generated D1 artifacts for the same register: `case-studies-d1.json` (engine review manifest) and `case-studies-seed.sql` (idempotent seed for the public register); rebuild with `npm run case-studies:build`, verify with `npm run case-studies:check`
 research/reports/ — supporting research reports (separate from scored case studies)
 archives/         — repository-only historical and source material; not in the browser bundle
 archives/animation-source/ — unused source frames and the earlier eye-closing GIF export
@@ -559,7 +569,7 @@ through direct inquiry.*
 *All scenario content in this demonstration is abstract, not descriptive · structural, not
 behavioral · evaluative, not directive · contained, not externalized.*
 
-## D1 community accounts and public audit register (disabled)
+## D1 community accounts and public audit register (enabled)
 
 The rebuild includes `/account` private drafts and Ground-0 execution, plus `/audits`
 for explicitly published reports, version history and activity. The public detail page can
@@ -568,8 +578,15 @@ exact recomputed preview and explicit consent; reports remain **UNREVIEWED**, no
 certification. Author withdrawal, private reporting and moderator hide/block controls are
 implemented. Private drafts/runs are not automatically public.
 
-`COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
-operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).
-No remote migration or production deployment command was run for these checkpoints.
+`COMMUNITY_ENABLED=true` is the repository decision; branch previews keep it `false`.
+The switch takes effect only on the next production deployment, and the pages below stay
+inert until the owner-managed dashboard variables/secrets exist, migrations 0001–0004 are
+applied to production D1, and the register seed is applied. Live Auth0/D1 verification and
+the launch checklist remain pending. See
+[setup, ordered enablement and launch gates](docs/deployment/COMMUNITY-D1.md).
+
+The 23 register-issued case studies are seeded into the same public register (see the News
+section above); every row is register-issued, `UNREVIEWED` and unattested, and
+`PDH_VALID` remains FALSE for every audited entity.
 
 Staging uses a separate Worker and D1 database: see [staging setup](docs/deployment/COMMUNITY-STAGING.md). Use `npm run deploy:staging`, not the production deploy command.
