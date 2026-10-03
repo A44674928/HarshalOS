@@ -32,7 +32,8 @@
     "db:staging:inspect": "wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote --command \"SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name;\"",
     "db:staging:migrations:list": "wrangler d1 migrations list COMMUNITY_DB --config wrangler.staging.jsonc --remote",
     "db:staging:migrate": "wrangler d1 migrations apply COMMUNITY_DB --config wrangler.staging.jsonc --remote",
-    "test:staging": "node --test tests/staging-config-test.mjs"
+    "test:staging": "node --test tests/staging-config-test.mjs",
+    "test:production": "node --test tests/production-config-test.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0",

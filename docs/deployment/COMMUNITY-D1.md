@@ -353,3 +353,36 @@ application. Do not enable production merely because unit tests pass.
 Commit and push tested changes only to `arena/01a0fef9-harshalos`. Verify the remote
 SHA after pushing; local commits alone are not a remote backup. Do not merge to main
 or run deployment/remote-migration commands as part of checkpoint preservation.
+
+## Disabled production release (PR #42)
+
+The production configuration now preserves dashboard-only text variables with
+`keep_vars: true` and declares the owner-confirmed `STORAGE_BUCKET` binding to
+`main-empty-domains`, alongside the production D1 binding. Explicit `vars` still
+win: `COMMUNITY_ENABLED=false` is intentional on every Git deployment. Secrets
+remain dashboard-managed. Inventory any additional bindings before deployment;
+`keep_vars` preserves text/JSON variables, not arbitrary resource bindings.
+
+This binding change does **not** migrate owner storage to R2. The existing storage
+API still uses MongoDB and owner-only Access authentication. Keep MongoDB and its
+credentials and data intact. Production branch-preview overrides explicitly omit
+D1 and R2 and disable community; review dashboard preview policies/secrets as well.
+
+Before merging, require the fresh integrity suite (including `test:production`)
+and inspect the intended-target Cloudflare build checks. A main merge may trigger
+production deployment; neither `npm run deploy` nor the Wrangler build command
+applies database migrations. Production D1 migrations are not required to serve
+the disabled feature: regression probes reject community routes before D1 access.
+
+After deployment, verify the active Worker is `harshalos`, community remains
+false, D1 is `community_db`, R2 is `main-empty-domains`, and dashboard-only OIDC and
+Access variables/secrets remain configured. Verify existing owner storage without
+writing or deleting data. `/api/community/me` must remain unavailable (503).
+
+Enabling production remains a separate decision. Inspect/back up/migrate the
+production schema as necessary; complete the launch checks above, especially
+callback-log privacy, two-account isolation and publication/withdrawal/moderation.
+The current production observability settings are **not** a sign-off for logging
+authentication callback queries. One existing account is not an admission allowlist.
+If deployment has an issue, keep community disabled and inspect the active version;
+do not drop tables, delete resources, or blindly restore stale bindings.
