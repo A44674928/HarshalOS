@@ -204,6 +204,7 @@ const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  �
 /* ── load every script index.html references, in order ────────── */
 const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]);
 ok(srcs.length >= 10, `index.html loads ${srcs.length} scripts`);
+ok(html.includes('<link rel="stylesheet" href="css/news.css?v=2026-10-03news1">'), "the standalone News app stylesheet is linked from index.html");
 for (const src of srcs) {
   const url = pathToFileURL(path.join(root, src.split("?")[0])).href;
   try { await import(url); }
@@ -212,6 +213,9 @@ for (const src of srcs) {
 
 /* ── the app must be registered before the desktop builds ─────── */
 ok(Array.isArray(globalThis.APPS), "APPS registry exists (apps-core loaded)");
+const newsApp = globalThis.APPS.find(a => a.id === "news");
+ok(!!newsApp, "standalone News app is registered in APPS");
+ok(newsApp && newsApp.short === "News" && newsApp.glyph === "📰", "News has its own desktop icon and label");
 const g0 = globalThis.APPS.find(a => a.id === "ground0");
 ok(!!g0, "Ground-0 Audit registered in APPS");
 ok(g0 && g0.short === "Ground-0 Audit", "desktop label is 'Ground-0 Audit'");
@@ -350,6 +354,9 @@ ok(icons.length === globalThis.APPS.length, `every app gets a desktop icon (${ic
 const iconLabels = icons.map(icon => icon.querySelector(".di-label")?.textContent || "");
 const alphabeticLabels = [...iconLabels].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }));
 ok(iconLabels.every((label, index) => label === alphabeticLabels[index]), "desktop icons follow a stable alphabetical reading order");
+const newsIcon = icons.find(i => (i.textContent || "").includes("News"));
+ok(!!newsIcon, "standalone News icon is on the desktop");
+ok(!!(newsIcon && newsIcon.attrs["aria-label"] === "Open News"), "News icon exposes its own accessible launch action");
 const g0icon = icons.find(i => (i.textContent || "").includes("Ground-0 Audit"));
 ok(!!g0icon, "Ground-0 Audit icon is on the desktop");
 ok(!!(g0icon && (g0icon.textContent || "").includes("⚖")), "the icon shows the scales glyph");
@@ -1274,6 +1281,7 @@ const menuBtns = menuList ? menuList.querySelectorAll(".om-app") : [];
 ok(menuBtns.some(b => (b.textContent || "").includes("Ground-0 Audit")), "origin menu lists Ground-0 Audit");
 ok(menuBtns.some(b => (b.textContent || "").includes("Adversarial Mode")), "origin menu lists Adversarial Mode");
 ok(menuBtns.some(b => (b.textContent || "").includes("Guided Demonstration")), "origin menu lists Guided Demonstration");
+ok(menuBtns.some(b => (b.textContent || "").includes("News")), "origin menu lists News as a standalone app");
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

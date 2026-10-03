@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Window } from 'happy-dom';
 const html = readFileSync(new URL('../account.html', import.meta.url), 'utf8').replace(/<script[^>]*>.*?<\/script>/g, '');
 const script = readFileSync(new URL('../js/community.js', import.meta.url), 'utf8');
+const newsScript = readFileSync(new URL('../js/apps-news.js', import.meta.url), 'utf8');
 const saved = { id: '11111111-1111-4111-8111-111111111111', revision: 1, title: '<img src=x onerror=alert(1)>', input: { entity: 'Example' }, privateNotes: 'Secret note', updatedAt: 1000 };
 async function fixture(t, handler) {
   const window = new Window({ url: 'https://os.example/account', settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
@@ -129,7 +130,108 @@ test('Public register UI: untrusted report text is not HTML; removed reports exp
     window.eval(readFileSync(new URL('../js/community-public.js', import.meta.url), 'utf8')); await window.happyDOM.waitUntilComplete();
     const $ = id => window.document.getElementById(id);
     assert.equal($('public-list').querySelector('img'), null); assert.equal($('publication-json').querySelector('script'), null);
-    assert.equal($('publication-export').hidden, removed); assert.equal($('report-form').hidden, removed);
+    assert.equal($('publication-export').hidden, removed); assert.equal($('publication-newsml-export').hidden, removed); assert.equal($('report-form').hidden, removed);
+    assert.equal($('publication-newsml-export').getAttribute('href'), removed ? '#' : '/api/community/publications/pub-id/newsml');
     if (removed) assert.equal($('publication-json').textContent, ''); else assert.match($('publication-state').textContent, /UNREVIEWED/);
   }
+});
+
+async function newsFixture(t, handler) {
+  const window = new Window({ url: 'https://os.example/', settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+  t.after(() => window.happyDOM.abort());
+  const calls = [];
+  window.APPS = [];
+  window.fetch = async (url, options = {}) => { calls.push({ url, options }); return handler(url, options); };
+  window.document.body.innerHTML = '<div id="news-host"></div>';
+  window.eval(newsScript);
+  const app = window.APPS.find(candidate => candidate.id === 'news');
+  assert.ok(app, 'News is registered as its own desktop application');
+  app.render(window.document.getElementById('news-host'));
+  await window.happyDOM.waitUntilComplete();
+  return { window, app, calls, root: window.document.querySelector('.news-app'), $: selector => window.document.querySelector(selector), flush: () => window.happyDOM.waitUntilComplete() };
+}
+
+test('News app: reads only active public D1 reports and renders untrusted report content as text', async t => {
+  const summary = {
+    id: 'pub-id', seriesId: 'series-id', version: 2, state: 'published',
+    reportHash: 'a'.repeat(64), publishedAt: 1790966400000,
+    title: '<img src=x onerror=alert(1)>', author: '<script>bad()</script>', phase: 'NAB', reviewStatus: 'UNREVIEWED'
+  };
+  const publication = {
+    ...summary,
+    report: {
+      schema: 'ground0-public-v1', reviewStatus: 'UNREVIEWED', platformCertification: 'NONE',
+      author: summary.author, input: { name: summary.title },
+      scope: { notes: 'Rules applied to author-submitted claims only.' },
+      result: { phase: 'NAB', finding: '<svg onload=alert(1)>Unreviewed finding</svg>' }
+    }
+  };
+  const f = await newsFixture(t, url => {
+    if (url === '/api/community/publications') return Response.json({ publications: [summary], nextCursor: null });
+    if (url === '/api/community/publications/pub-id') return Response.json({ publication });
+    return Response.json({ error: 'Unexpected route.' }, { status: 404 });
+  });
+
+  assert.equal(f.app.title, 'News');
+  assert.equal(f.$('#news-status').dataset.state, 'ready');
+  assert.equal(f.$('#news-headline').textContent, summary.title);
+  assert.equal(f.$('#news-finding').textContent, publication.report.result.finding);
+  assert.equal(f.$('#news-headline').querySelector('img'), null);
+  assert.equal(f.root.querySelector('img, script, svg'), null);
+  assert.match(f.$('#news-json').textContent, /ground0-public-v1/);
+  assert.match(f.$('#news-json').textContent, /<svg onload=alert\(1\)>/);
+  assert.match(f.$('#news-kicker').textContent, /UNREVIEWED/);
+  assert.equal(f.$('#news-newsml').hidden, false);
+  assert.equal(f.$('#news-newsml').getAttribute('href'), '/api/community/publications/pub-id/newsml');
+  assert.equal(f.$('#news-full-record').getAttribute('href'), '/audits?id=pub-id');
+  assert.match(f.$('#news-feed').textContent, /<script>bad\(\)<\/script>/);
+  assert.equal(f.$('#news-feed').querySelector('script'), null);
+  assert.deepEqual(f.calls.map(call => call.url), ['/api/community/publications', '/api/community/publications/pub-id']);
+  for (const call of f.calls) {
+    assert.equal(call.options.credentials, 'same-origin');
+    assert.equal(call.options.cache, 'no-store');
+    assert.equal(call.url.includes('/drafts'), false);
+    assert.equal(call.url.includes('/runs'), false);
+    assert.equal(call.url.includes('/public-preview'), false);
+  }
+});
+
+test('News app: disabled public register fails closed without substituting private workspace data', async t => {
+  const f = await newsFixture(t, () => Response.json({ error: 'Community is disabled.' }, { status: 503 }));
+  assert.equal(f.$('#news-status').dataset.state, 'error');
+  assert.match(f.$('#news-status').textContent, /Public register unavailable/);
+  assert.match(f.$('#news-feed').textContent, /No drafts, runs, or previews/);
+  assert.match(f.$('#news-reader-empty').textContent, /may be disabled/);
+  assert.equal(f.$('#news-newsml').hidden, true);
+  assert.deepEqual(f.calls.map(call => call.url), ['/api/community/publications']);
+});
+
+test('News app: withdrawn report tombstone does not retain its cached story or export link', async t => {
+  const summary = { id: 'pub-id', version: 1, state: 'published', publishedAt: 1790966400000, title: 'A published report', author: 'Public label', phase: 'NAB', reviewStatus: 'UNREVIEWED' };
+  const f = await newsFixture(t, url => url === '/api/community/publications'
+    ? Response.json({ publications: [summary], nextCursor: null })
+    : Response.json({ publication: { id: 'pub-id', version: 1, state: 'withdrawn', publishedAt: summary.publishedAt, reportHash: 'b'.repeat(64) } }));
+  assert.equal(f.$('#news-newsml').hidden, true);
+  assert.equal(f.$('#news-json').textContent, '');
+  assert.match(f.$('#news-reader-empty').textContent, /no longer active/);
+  assert.doesNotMatch(f.$('#news-reader-empty').textContent, /A published report|Public label/);
+  assert.doesNotMatch(f.$('#news-feed').textContent, /A published report|Public label/);
+  assert.equal(f.$('#news-count').textContent, '0');
+  assert.match(f.$('#news-status').textContent, /no longer active/);
+});
+
+test('News app: mismatched report envelope is refused instead of appearing reviewed or certified', async t => {
+  const summary = { id: 'pub-id', version: 1, state: 'published', publishedAt: 1790966400000, title: 'Report', author: 'Public label', phase: 'NAB', reviewStatus: 'UNREVIEWED' };
+  const publication = { ...summary, report: {
+    schema: 'ground0-public-v1', reviewStatus: 'REVIEWED', platformCertification: 'CERTIFIED',
+    author: summary.author, input: { name: summary.title }, result: { phase: summary.phase, finding: 'Must not be shown' }
+  } };
+  const f = await newsFixture(t, url => url === '/api/community/publications'
+    ? Response.json({ publications: [summary], nextCursor: null })
+    : Response.json({ publication }));
+  assert.equal(f.$('#news-newsml').hidden, true);
+  assert.equal(f.$('#news-json').textContent, '');
+  assert.match(f.$('#news-reader-empty').textContent, /required UNREVIEWED record envelope/);
+  assert.match(f.$('#news-status').textContent, /envelope check failed/);
+  assert.doesNotMatch(f.root.textContent, /Must not be shown/);
 });

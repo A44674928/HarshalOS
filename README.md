@@ -75,6 +75,10 @@ says so. Follow **[Z.AI free-tier guide](docs/deployment/ZAI-FREE-TIER.md)** for
 accepts, the request limits, Z.AI's sampling translation, verification calls, and the honest limits
 of a same-origin relay. Without it, every BYOK connection point still works exactly as before.
 
+### Standalone News app & NewsML-G2 export
+
+The desktop includes a standalone **News** app for the D1-backed public register. It reads only active, explicitly published reports, keeps private drafts, runs, and previews outside the feed, and labels every item **UNREVIEWED**. Selecting a report opens its exact public JSON, the public record and history, and a NewsML-G2 download. The JavaScript Worker builds that export from the published D1 row; no Python runtime or external feed is involved. The optional Python library pin in [`requirements-newsml-g2.txt`](requirements-newsml-g2.txt) is for local parsing experiments only. See the [NewsML-G2 integration note](docs/integrations/NEWSML-G2.md) for record mapping, limits, and install instructions.
+
 ---
 
 ## What is implemented
@@ -550,10 +554,11 @@ behavioral · evaluative, not directive · contained, not externalized.*
 ## D1 community accounts and public audit register (disabled)
 
 The rebuild includes `/account` private drafts and Ground-0 execution, plus `/audits`
-for explicitly published reports, version history and activity. Publication requires
-an exact recomputed preview and explicit consent; reports remain **UNREVIEWED**,
-not platform certification. Author withdrawal, private reporting and moderator
-hide/block controls are implemented. Private drafts/runs are not automatically public.
+for explicitly published reports, version history and activity. The public detail page can
+export each active D1-backed report as a NewsML-G2 XML `newsItem`. Publication requires an
+exact recomputed preview and explicit consent; reports remain **UNREVIEWED**, not platform
+certification. Author withdrawal, private reporting and moderator hide/block controls are
+implemented. Private drafts/runs are not automatically public.
 
 `COMMUNITY_ENABLED=false` remains the default. Live Auth0/D1 verification and launch
 operations are pending. See [setup, limits and launch gates](docs/deployment/COMMUNITY-D1.md).

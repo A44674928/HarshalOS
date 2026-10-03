@@ -2,9 +2,10 @@ import { authorizeCommunity, authJson, allowCommunityPublicRead, limitCommunityA
 import { CommunityError } from './community-db.mjs';
 import { evaluateSavedInput, canonical, sha256 } from './community-audit.mjs';
 import { EVALUATOR_SHA256 } from './community-engine-version.mjs';
+import { buildPublicReportNewsML, NEWSML_CONTENT_TYPE } from './community-newsml.mjs';
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const validId = value => typeof value === 'string' && new RegExp('^' + UUID + '$').test(value);
-const publicMatch = new RegExp(`^/api/community/publications/(${UUID})(?:/(history|withdraw|report))?$`);
+const publicMatch = new RegExp(`^/api/community/publications/(${UUID})(?:/(history|withdraw|report|newsml))?$`);
 const moderationMatch = new RegExp(`^/api/community/moderation/(${UUID})$`);
 const fields = 'id, series_id, version, state, title, author, phase, report_hash, created_at, changed_at';
 function dto(row) {
@@ -43,7 +44,7 @@ export async function handlePublication(request, env) {
   try {
     const url = new URL(request.url), path = url.pathname, method = request.method;
     const match = publicMatch.exec(path), moderation = moderationMatch.exec(path);
-    const anonymous = method === 'GET' && (path === '/api/community/status' || path === '/api/community/publications' || path === '/api/community/public-log' || (match && (!match[2] || match[2] === 'history')));
+    const anonymous = method === 'GET' && (path === '/api/community/status' || path === '/api/community/publications' || path === '/api/community/public-log' || (match && (!match[2] || match[2] === 'history' || match[2] === 'newsml')));
     let user;
     if (anonymous) await allowCommunityPublicRead(request, env);
     else user = await authorizeCommunity(request, env, { write: method !== 'GET' });
@@ -114,6 +115,29 @@ export async function handlePublication(request, env) {
     }
     if (match) {
       const [, id, action] = match;
+      if (method === 'GET' && action === 'newsml') {
+        const row = await db.prepare(`SELECT p.id,p.series_id,p.version,p.state,p.title,p.author,p.phase,p.report_json,p.report_hash,p.created_at,
+          (SELECT MIN(first_version.created_at) FROM community_publications first_version WHERE first_version.series_id=p.series_id) AS series_created_at
+          FROM community_publications p WHERE p.id=? AND p.state='published'`).bind(id).first();
+        if (!row) throw new CommunityError(404, 'Active publication not found.');
+        let report;
+        try { report = JSON.parse(row.report_json); } catch { throw new CommunityError(503, 'Public report export is unavailable.'); }
+        if (!report || typeof report !== 'object' || Array.isArray(report)
+          || report.schema !== 'ground0-public-v1' || report.reviewStatus !== 'UNREVIEWED'
+          || report.platformCertification !== 'NONE' || report.author !== row.author
+          || report.input?.name !== row.title || report.result?.phase !== row.phase
+          || await sha256(report) !== row.report_hash) {
+          throw new CommunityError(503, 'Public report export integrity check failed.');
+        }
+        const xml = buildPublicReportNewsML(row, url.origin);
+        return new Response(xml, { headers: {
+          'Content-Type': NEWSML_CONTENT_TYPE,
+          'Content-Disposition': `attachment; filename="ground0-${row.id}-v${row.version}.xml"`,
+          'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; sandbox"
+        } });
+      }
       if (method === 'GET' && !action) {
         const row = await db.prepare('SELECT * FROM community_publications WHERE id=?').bind(id).first();
         if (!row) throw new CommunityError(404, 'Publication not found.');

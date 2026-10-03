@@ -206,6 +206,7 @@ metadata envelope. Hashes and logs are not signatures or administrator-proof his
 | Signed-in author | POST `/api/community/publish` | Explicit consent/token only; 10 new attempts/day |
 | Public | GET `/api/community/publications` | Active register, newest first, 25/page |
 | Public | GET `/api/community/publications/UUID` | Published report or minimal removed tombstone |
+| Public | GET `/api/community/publications/UUID/newsml` | Active D1 report as a NewsML-G2 2.35 `newsItem` XML download |
 | Public | GET `/api/community/publications/UUID/history` | Series versions, 25/page |
 | Public | GET `/api/community/public-log` | Publish/withdraw/hide events, 50/page |
 | Signed-in author | GET `/api/community/my-publications` | Owned versions, 25/page |
@@ -213,6 +214,14 @@ metadata envelope. Hashes and logs are not signatures or administrator-proof his
 | Signed in | POST `/api/community/publications/UUID/report` | Private `details`, max 2000 chars; 20/day |
 | Moderator only | GET `/api/community/moderation` | 100 oldest unresolved private reports |
 | Moderator only | POST `/api/community/moderation/REPORT_UUID` | `action` + private `note` |
+
+The public detail page offers a NewsML-G2 XML download. The Worker reads only an active
+`published` D1 row, checks the public report hash, and emits one 2.35 `newsItem`; its
+`inlineData` contains the exact public report JSON encoded as base64. The record preserves
+`UNREVIEWED`, uses a stable item GUID across D1 correction versions, and does not infer
+identity, verification, rights, or an embargo. Withdrawn/hidden records return 404 for this
+export. XML generation is JavaScript; the optional `newsmlg2` Python dependency is for local
+parsing experiments, not a deployed runtime.
 
 Paged routes return `nextCursor`; pass it as `after`. Reports are deduplicated to
 one report per reporter per publication version, including resolved reports.

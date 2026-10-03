@@ -135,14 +135,14 @@ test("P13: repository content is separated by status and purpose", async () => {
   ]) assert.equal(await exists(path.join(ROOT, legacy)), false, `legacy root/script path should be retired: ${legacy}`);
 });
 
-test("P13: root-level files stay limited to app entry points, configuration, and GitHub policy", async () => {
+test("P13: root-level files stay limited to app entry points, configuration, optional tooling, and GitHub policy", async () => {
   const rootFiles = (await readdir(ROOT, { withFileTypes: true }))
     .filter(entry => entry.isFile())
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
     ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
-    "package-lock.json", "package.json", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
+    "package-lock.json", "package.json", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
   const tracked = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
