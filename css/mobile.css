@@ -113,6 +113,18 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   .g0-logic-grid, .g0-cards2, .g0-spec-layout { grid-template-columns: minmax(0, 1fr); }
   .gi-app { padding: 16px 12px; }
   .gi-tab { padding-inline: 8px; }
+  .ocm-routing-hud {
+    padding: 6px 8px;
+    gap: 4px;
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+  }
+  .orh-top { gap: 6px; }
+  .orh-metric { display: none; }
+  .orh-step-sub { display: none; }
+  .orh-seq { padding: 4px 6px; gap: 3px; }
+  .orh-step-title { font-size: 7.5px; }
 }
 
 @media (pointer: coarse) {
