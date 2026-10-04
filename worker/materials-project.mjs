@@ -210,84 +210,6 @@ export function clearMaterialsProjectCache() {
   clientBudgets = new Map();
 }
 
-/* ── Temporary upstream error-body diagnostic (2026-10) ────────────────────
- * Reads a small slice of a non-OK Materials Project response, extracts the first
- * short message-like field, scrubs the API key, and emits a single console.warn
- * that shows up in Cloudflare Workers Logs / `wrangler tail`. Never logs the URL,
- * headers, query, full body, or the API key. Remove once the upstream error is
- * identified; this is intentionally not wired into the client response. */
-const MP_ERROR_BODY_READ_BYTES = 4096;
-const MP_ERROR_MESSAGE_MAX = 200;
-function mpScrub(text, apiKey) {
-  let out = String(text ?? "");
-  if (apiKey) out = out.split(apiKey).join("[REDACTED_API_KEY]");
-  // Collapse any obvious bearer/key-shaped token just in case.
-  out = out.replace(/(?:api[_-]?key|token|bearer)\s*[:=]\s*[A-Za-z0-9._-]{8,}/gi, "$1=[REDACTED]");
-  return out.replace(/[\r\n\t]+/g, " ").trim();
-}
-function extractProviderMessage(payloadText) {
-  // Try to parse as JSON and pluck the conventional error fields.
-  try {
-    const parsed = JSON.parse(payloadText);
-    if (parsed && typeof parsed === "object") {
-      for (const key of ["message", "detail", "error", "error_message", "description"]) {
-        const field = parsed[key];
-        if (typeof field === "string" && field.trim()) return field.trim();
-        // FastAPI often surfaces { detail: [{ msg: "…" }] }.
-        if (Array.isArray(field)) {
-          const first = field.find(item => item && (typeof item.msg === "string" || typeof item.message === "string"));
-          const msg = first && (first.msg || first.message);
-          if (typeof msg === "string" && msg.trim()) return msg.trim();
-        }
-        if (field && typeof field === "object") {
-          const nested = field.message || field.msg || field.error;
-          if (typeof nested === "string" && nested.trim()) return nested.trim();
-        }
-      }
-    }
-  } catch { /* fall through to a text snippet */ }
-  // Not JSON or no structured field: return a short prefix of the body.
-  return payloadText.trim();
-}
-async function logUpstreamErrorBody(response, { apiKey, dependencies, status } = {}) {
-  if (!response || typeof response.text !== "function") return;
-  try {
-    /* Read a bounded slice of the body. `clone()` keeps the original response
-     * untouched (we don't consume it on this error path anyway). We cap the raw
-     * text at MP_ERROR_BODY_READ_BYTES after read to bound memory, then extract
-     * one message-like field and scrub it. */
-    let raw = "";
-    try {
-      raw = await response.clone().text();
-    } catch {
-      raw = "";
-    }
-    raw = String(raw ?? "").slice(0, MP_ERROR_BODY_READ_BYTES);
-    const provider = raw
-      ? mpScrub(extractProviderMessage(raw), apiKey).slice(0, MP_ERROR_MESSAGE_MAX)
-      : "";
-    const entry = {
-      event: "materials_project_upstream_http_error",
-      status: Number.isFinite(Number(status)) ? Number(status) : 0,
-      providerMessage: provider || "(no provider message in body)",
-      bodySizeHint: raw.length,
-      note: "Temporary diagnostic — remove after identifying the upstream error."
-    };
-    if (typeof dependencies.log === "function") dependencies.log(entry);
-    else console.warn("[HarshalOS Materials Project]", entry);
-  } catch (readError) {
-    /* Reading the body must never itself fail the request. Log the read failure
-     * without leaking anything else. */
-    const entry = {
-      event: "materials_project_upstream_error_body_unreadable",
-      status: Number.isFinite(Number(status)) ? Number(status) : 0,
-      readErrorName: readError && typeof readError.name === "string" ? readError.name : "Error"
-    };
-    if (typeof dependencies.log === "function") dependencies.log(entry);
-    else console.warn("[HarshalOS Materials Project]", entry);
-  }
-}
-
 /** GET /api/materials-project/v1/search?q=Si&limit=10 */
 export async function handleMaterialsProject(request, env = {}, dependencies = {}) {
   const url = new URL(request.url);
@@ -331,7 +253,7 @@ export async function handleMaterialsProject(request, env = {}, dependencies = {
   upstreamUrl.searchParams.set(parsed.parameter, parsed.query);
   upstreamUrl.searchParams.set("_fields", SEARCH_FIELDS.join(","));
   upstreamUrl.searchParams.set("_limit", String(limit));
-  upstreamUrl.searchParams.set("_sort_fields", "energy_above_hull,material_id");
+  upstreamUrl.searchParams.set("_sort_fields", "energy_above_hull");
   upstreamUrl.searchParams.set("id_format", "legacy");
   // Explicitly retain Materials Project's commercial-license scope; do not
   // request the wider set that may include GNoME's separate BY-NC records.
@@ -349,12 +271,6 @@ export async function handleMaterialsProject(request, env = {}, dependencies = {
     });
     if (!response || !response.ok) {
       const status = Number(response && response.status) || 0;
-      /* TEMPORARY diagnostic (2026-10): read the provider's error body, redact the
-       * API key, and surface a short sanitized message via console.warn so the next
-       * failed Materials Project search shows why in Workers Logs / `wrangler tail`.
-       * Only a capped slice of body is read; URL, headers, query, and full body are
-       * never logged. Remove once the upstream error is identified. */
-      await logUpstreamErrorBody(response, { apiKey, dependencies, status });
       if (status === 429) return failure("rate-limited", "Materials Project rate limit reached. Wait before searching again.", 429);
       if (status === 401 || status === 403) return failure("credentials-rejected", "Materials Project rejected the Worker key. Check the Worker secret in Cloudflare; do not paste it into HarshalOS.", 502);
       if (status === 422) return failure("query-rejected", "Materials Project could not apply this search. Try a Materials Project ID, formula, or chemical system.", 400);
@@ -382,24 +298,6 @@ export async function handleMaterialsProject(request, env = {}, dependencies = {
     return json({ success: true, cached: false, data });
   } catch (error) {
     const timedOut = error && error.name === "AbortError";
-    /* Temporary diagnostic: log a scrubbed fetch-failure breadcrumb so network
-     * errors (DNS/TLS/abort) also surface in Workers Logs. Never logs URL, key,
-     * headers, or stack. */
-    try {
-      const cause = error && typeof error.cause === "object" ? error.cause : null;
-      const scrubName = v => typeof v === "string" && /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(v) ? v : "";
-      const scrubCode = v => typeof v === "string" && /^[A-Za-z0-9_:-]{1,40}$/.test(v) ? v : "";
-      const entry = {
-        event: "materials_project_upstream_fetch_failed",
-        timedOut: !!timedOut,
-        errorName: scrubName(error && error.name) || "Error",
-        causeName: scrubName(cause && cause.name),
-        causeCode: scrubCode(cause && cause.code),
-        note: "Temporary diagnostic — remove after identifying the upstream error."
-      };
-      if (typeof dependencies.log === "function") dependencies.log(entry);
-      else console.warn("[HarshalOS Materials Project]", entry);
-    } catch { /* logging must never affect the response */ }
     return failure(timedOut ? "timeout" : "unreachable",
       timedOut ? "Materials Project search timed out. Try again shortly." : "Materials Project could not be reached from this Worker.",
       timedOut ? 504 : 502);

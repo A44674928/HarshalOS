@@ -73,7 +73,7 @@ test("summary lookup uses fixed upstream, a secret header, bounded fields, and n
   assert.equal(upstream.searchParams.get("_limit"), "10", "the default result limit is ten when omitted");
   assert.equal(upstream.searchParams.get("license"), "BY-C", "non-commercial-only records are not requested");
   assert.equal(upstream.searchParams.get("id_format"), "legacy");
-  assert.equal(upstream.searchParams.get("_sort_fields"), "energy_above_hull,material_id", "lower computed-hull energy is shown first for formula/system searches");
+  assert.equal(upstream.searchParams.get("_sort_fields"), "energy_above_hull", "the Summary API accepts one sort field, set here to energy above hull");
   const fields = new Set(upstream.searchParams.get("_fields").split(","));
   for (const field of ["material_id", "formula_pretty", "density", "band_gap", "formation_energy_per_atom", "bulk_modulus", "shear_modulus", "origins", "warnings"]) {
     assert.ok(fields.has(field), `the fixed projection includes ${field}`);
