@@ -59,6 +59,11 @@ const SUITES = [
     files: ["materials-project-api-test.mjs", "materials-project-ui-test.mjs"]
   },
   {
+    area: "Massive Markets REST adapter and desktop app (stubbed upstream)",
+    script: "test:massive",
+    files: ["massive-api-test.mjs", "massive-ui-test.mjs"]
+  },
+  {
     area: "Character material matching and multi-Disc spheroids",
     script: "test:character-materials",
     files: ["character-material-model-test.mjs", "character-materials-ui-test.mjs"]

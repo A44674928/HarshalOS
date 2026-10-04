@@ -8,6 +8,7 @@ import { handleCharactersBeat } from './characters-beat.mjs';
 import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
+import { handleMassive } from './massive.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -140,6 +141,9 @@ export default {
     // and keeps Alpha Vantage's daily request quota separate from Tickerbot's monthly ledger.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
     if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);
+    // Massive REST market data (display-only): validated queries only, the
+    // MASSIVE_API_KEY secret stays in the Worker, pacing is best-effort in-memory.
+    if (path === '/api/massive/v1' || path.startsWith('/api/massive/v1/')) return handleMassive(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a
     // same-origin POST, and paces each caller and the deployment as a whole
