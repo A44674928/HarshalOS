@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
+import { after, test } from "node:test";
 import { handleGoodIntelligenceTickerbot, clearTickerbotCache, TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
+import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
 const watchlistFields = entries => entries.map(({ symbol, name, sector }) => ({ symbol, name, sector }));
 
 const NOW = Date.parse("2026-10-01T12:00:00.000Z");
+const ledgerFixture = createTickerbotLedgerDb();
+after(() => ledgerFixture.sql.close());
+const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db });
 const route = symbol => new Request(`https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=${symbol}&interval=1h`);
 const rows = [
   { t: NOW - 2 * 60 * 60_000, o: 100, h: 102, l: 99, c: 101, v: 1200 },
@@ -44,7 +48,7 @@ test("Tickerbot bars become the existing gi-market-context packet without exposi
   /* workersFetch makes this the regression guard for the Workers fetch contract:
      with `redirect: "error"` the call throws, the adapter answers 502, and the
      status assertion below fails. */
-  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), testEnv("test-only-worker-secret"), {
     now: () => NOW,
     fetch: workersFetch(async (url, options) => { calledUrl = url; calledOptions = options; return okResponse(); })
   });
@@ -73,7 +77,7 @@ test("Tickerbot bars become the existing gi-market-context packet without exposi
 test("Tickerbot adapter refuses a redirect instead of following it and never replays the key", async () => {
   clearTickerbotCache();
   let calls = 0;
-  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), testEnv("test-only-worker-secret"), {
     now: () => NOW,
     fetch: workersFetch(async () => {
       calls++;
@@ -96,7 +100,7 @@ test("Tickerbot logs only a sanitized failure category when the upstream call th
   const logs = [];
   const attempt = (error, symbol) => {
     clearTickerbotCache();
-    return handleGoodIntelligenceTickerbot(route(symbol), { TICKERBOT_API_KEY: KEY }, {
+    return handleGoodIntelligenceTickerbot(route(symbol), testEnv(KEY), {
       now: () => NOW,
       fetch: workersFetch(async () => { throw error; }),
       log: entry => logs.push(entry)
@@ -129,10 +133,10 @@ test("Tickerbot logs only a sanitized failure category when the upstream call th
   /* A successful read and an HTTP refusal are not connection failures, so neither logs. */
   logs.length = 0;
   clearTickerbotCache();
-  await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: KEY }, {
+  await handleGoodIntelligenceTickerbot(route("AAPL"), testEnv(KEY), {
     now: () => NOW, fetch: workersFetch(async () => okResponse()), log: entry => logs.push(entry)
   });
-  const refused = await handleGoodIntelligenceTickerbot(route("MSFT"), { TICKERBOT_API_KEY: KEY }, {
+  const refused = await handleGoodIntelligenceTickerbot(route("MSFT"), testEnv(KEY), {
     now: () => NOW, fetch: workersFetch(async () => new Response("denied", { status: 401 })), log: entry => logs.push(entry)
   });
   assert.equal(refused.status, 502);
@@ -142,7 +146,7 @@ test("Tickerbot logs only a sanitized failure category when the upstream call th
 test("Tickerbot timeouts are logged as AbortError and still answer 504", async () => {
   clearTickerbotCache();
   const logs = [];
-  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), testEnv("test-only-worker-secret"), {
     now: () => NOW,
     fetch: workersFetch(async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); }),
     log: entry => logs.push(entry)
@@ -157,7 +161,7 @@ test("Tickerbot failure logging defaults to console.warn and can never break the
   console.warn = (...args) => seen.push(args);
   try {
     clearTickerbotCache();
-    const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+    const response = await handleGoodIntelligenceTickerbot(route("AAPL"), testEnv("test-only-worker-secret"), {
       now: () => NOW, fetch: workersFetch(async () => { throw new TypeError("nope"); })
     });
     assert.equal(response.status, 502);
@@ -166,7 +170,7 @@ test("Tickerbot failure logging defaults to console.warn and can never break the
     assert.equal(seen[0][1].errorName, "TypeError");
 
     clearTickerbotCache();
-    const explodingSink = await handleGoodIntelligenceTickerbot(route("MSFT"), { TICKERBOT_API_KEY: "test-only-worker-secret" }, {
+    const explodingSink = await handleGoodIntelligenceTickerbot(route("MSFT"), testEnv("test-only-worker-secret"), {
       now: () => NOW,
       fetch: workersFetch(async () => { throw new TypeError("nope"); }),
       log: () => { throw new Error("sink exploded"); }
@@ -181,7 +185,7 @@ test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", asy
   clearTickerbotCache();
   let calls = 0;
   const dependencies = { now: () => NOW, fetch: async () => { calls++; return okResponse(); } };
-  const env = { TICKERBOT_API_KEY: "test" };
+  const env = testEnv("test");
   assert.equal((await handleGoodIntelligenceTickerbot(route("AAPL,MSFT"), env, dependencies)).status, 400);
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL&interval=5m"), env, dependencies)).status, 400);
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL", { method: "POST" }), env, dependencies)).status, 405);
@@ -206,7 +210,7 @@ test("the expanded watchlist enables the requested tickers and every entry is a 
 
 test("every enabled watchlist symbol builds one fixed upstream bars path and answers 200", async () => {
   clearTickerbotCache();
-  const env = { TICKERBOT_API_KEY: "test-only-worker-secret" };
+  const env = testEnv("test-only-worker-secret");
   const paths = [];
   const dependencies = {
     now: () => NOW,
@@ -243,7 +247,7 @@ test("the browser search list mirrors the Worker allowlist exactly", async () =>
 test("Tickerbot adapter caches identical reads briefly and sanitizes rate-limit responses", async () => {
   clearTickerbotCache();
   let calls = 0;
-  const env = { TICKERBOT_API_KEY: "test" };
+  const env = testEnv("test");
   const dependencies = { now: () => NOW, fetch: async () => { calls++; return okResponse(); } };
   await handleGoodIntelligenceTickerbot(route("MSFT"), env, dependencies);
   await handleGoodIntelligenceTickerbot(route("MSFT"), env, dependencies);
@@ -264,7 +268,7 @@ test("Worker dispatches Tickerbot bars before the demo and private-storage API r
   const originalFetch = globalThis.fetch;
   globalThis.fetch = workersFetch(async () => okResponse());
   try {
-    const response = await worker.fetch(route("AAPL"), { TICKERBOT_API_KEY: "worker-test-key" });
+    const response = await worker.fetch(route("AAPL"), testEnv("worker-test-key"));
     const payload = await response.json();
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-hos-demo-api"), null);

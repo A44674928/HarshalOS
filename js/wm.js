@@ -312,6 +312,16 @@ const shell = (() => {
   };
 
   /* ─────────── wiring ─────────── */
+  /* Deep link: #app=<id> opens one already-registered app after the desktop builds.
+     It selects by id only — an unknown id opens nothing and reports nothing, and the
+     hash grants no authority over any app's own gate. */
+  function openDeepLinkedApp() {
+    const match = /^#app=([a-z0-9-]{1,40})$/i.exec(window.location.hash || "");
+    if (!match) return;
+    const app = APPS.find(candidate => candidate.id === match[1].toLowerCase());
+    if (app) openApp(app);
+  }
+
   function init() {
     buildOriginMenu();
     buildDesktopIcons();
@@ -343,6 +353,7 @@ const shell = (() => {
     HOS.subscribe("tick", updateHud);
     setInterval(updateHud, 1000);
     updateHud();
+    openDeepLinkedApp();
   }
 
   return { init, openApp, toast, api, windows };

@@ -9,7 +9,7 @@ import { Window } from 'happy-dom';
 const origin='https://os.example';
 async function fixture(t) {
   const sql=new DatabaseSync(':memory:'); t.after(()=>sql.close()); sql.exec('PRAGMA foreign_keys=ON');
-  for (const file of ['0001_private_drafts.sql','0002_auth_sessions.sql','0003_private_runs.sql','0004_publication.sql']) sql.exec(readFileSync(new URL('../migrations/community/'+file,import.meta.url),'utf8'));
+  for (const file of ['0001_private_drafts.sql','0002_auth_sessions.sql','0003_private_runs.sql','0004_publication.sql','0005_tickerbot_call_ledger.sql']) sql.exec(readFileSync(new URL('../migrations/community/'+file,import.meta.url),'utf8'));
   let intercept=null;
   const db={prepare(text){
     if (text.startsWith('INSERT INTO community_publications') && intercept) { const fn=intercept; intercept=null; fn(); }

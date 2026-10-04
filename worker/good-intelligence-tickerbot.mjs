@@ -2,6 +2,8 @@
  * Read-only Tickerbot OHLCV adapter for Good Intelligence Market Charts.
  * The provider key stays inside the Worker; only a fixed upstream origin is used.
  */
+import { claimTickerbotCall } from "./tickerbot-call-ledger.mjs";
+
 const ROUTE = "/api/good-intelligence/v1/market/tickerbot/bars";
 const TICKERBOT_ORIGIN = "https://api.tickerbot.io";
 
@@ -74,7 +76,8 @@ const WATCHLIST = [
 // The allowlist is immutable at runtime: nothing in this Worker can widen it per request.
 export const TICKERBOT_WATCHLIST = Object.freeze(WATCHLIST.map(entry => Object.freeze(entry)));
 const SYMBOLS = new Set(TICKERBOT_WATCHLIST.map(entry => entry.symbol));
-const INTERVALS = new Set(["1h", "1d"]);
+export const TICKERBOT_INTERVALS = Object.freeze(["1h", "1d"]);
+const INTERVALS = new Set(TICKERBOT_INTERVALS);
 const BAR_LIMIT = 360;
 const CACHE_TTL_MS = 60_000;
 const cache = new Map();
@@ -89,7 +92,14 @@ const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
 });
 const failure = (message, status = 502, extraHeaders = {}) => json({ success: false, message }, status, extraHeaders);
 
-function toBar(row) {
+/* The allowlist is the only place an upstream ticker path can come from. The Characters
+ * beat route (worker/characters-beat.mjs) imports these helpers instead of keeping a second
+ * copy, so both routes accept exactly the same symbols and the same bar shape. */
+export function isTickerbotSymbol(value) {
+  return SYMBOLS.has(String(value === undefined || value === null ? "" : value).trim().toUpperCase());
+}
+
+export function toTickerbotBar(row) {
   if (!row || typeof row !== "object" || Array.isArray(row)) return null;
   const values = [Number(row.o), Number(row.h), Number(row.l), Number(row.c), Number(row.v)];
   const time = typeof row.t === "number" ? row.t : Number(row.t);
@@ -102,6 +112,89 @@ function toBar(row) {
 
 export function clearTickerbotCache() {
   cache.clear();
+}
+
+/*
+ * One upstream read, shared by the single-symbol bars route and the Characters beat route.
+ * It never throws: it answers a result object so each route can apply its own status mapping,
+ * caching policy and budget accounting.
+ *
+ *   { ok: true, packet }                       — normalized gi-market-context-v1 packet
+ *   { ok: false, code, message, retryAfter? }  — code: rate-limit | unauthorized | forbidden |
+ *                                                upstream | unreadable | empty | timeout | unreachable
+ */
+export async function fetchTickerbotMarketContext({
+  symbol,
+  interval = "1h",
+  apiKey,
+  fetcher,
+  now = Date.now(),
+  timeoutMs = 12_000,
+  logFailure = true,
+  dependencies = {}
+} = {}) {
+  const timeout = (typeof timeoutMs === "number" && Number.isFinite(timeoutMs)) ? timeoutMs : 12_000;
+  const upstreamUrl = new URL(`/v2/bars/${symbol}/${interval}`, TICKERBOT_ORIGIN);
+  upstreamUrl.searchParams.set("limit", String(BAR_LIMIT));
+  // Tickerbot's asof contract returns only bars that have closed by this time.
+  upstreamUrl.searchParams.set("asof", new Date(now).toISOString());
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
+
+  try {
+    const response = await fetcher(upstreamUrl.toString(), {
+      method: "GET",
+      headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
+      // Workers implements only "follow" and "manual": "error" makes fetch() throw a
+      // TypeError before any network I/O, which surfaced as "could not be reached".
+      // "manual" returns a 3xx as a plain response (never followed, so the key is
+      // never replayed to another host); every non-2xx status is refused below.
+      redirect: "manual",
+      ...(controller ? { signal: controller.signal } : {})
+    });
+    if (!response || !response.ok) {
+      const status = Number(response && response.status) || 0;
+      if (status === 429) {
+        const retryAfter = response.headers && response.headers.get ? response.headers.get("retry-after") : "";
+        return {
+          ok: false, code: "rate-limit",
+          message: "Tickerbot rate limit reached. Wait before refreshing.",
+          retryAfter: /^\d{1,5}$/.test(retryAfter || "") ? retryAfter : "60"
+        };
+      }
+      if (status === 401) return { ok: false, code: "unauthorized", message: "Tickerbot rejected the configured API key. Check the Worker secret." };
+      if (status === 403) return { ok: false, code: "forbidden", message: "The Tickerbot account does not have access to this bars request." };
+      return { ok: false, code: "upstream", message: "Tickerbot could not provide market bars right now." };
+    }
+
+    let payload;
+    try { payload = await response.json(); }
+    catch { return { ok: false, code: "unreadable", message: "Tickerbot returned unreadable market data." }; }
+    const rows = Array.isArray(payload && payload.bars) ? payload.bars : [];
+    const bars = rows.map(toTickerbotBar).filter(Boolean).slice(-BAR_LIMIT);
+    if (!bars.length) return { ok: false, code: "empty", message: "Tickerbot returned no bars for this ticker and interval." };
+
+    const sourceTime = typeof payload.as_of === "string" ? payload.as_of.slice(0, 40) : "response time unavailable";
+    return {
+      ok: true,
+      packet: {
+        schema: "gi-market-context-v1",
+        synthetic: false,
+        source: `Tickerbot · split-adjusted OHLCV · as of ${sourceTime}`,
+        symbol,
+        timeframe: interval,
+        bars
+      }
+    };
+  } catch (error) {
+    if (logFailure) logUpstreamFetchFailure(error, dependencies, apiKey);
+    if (error && error.name === "AbortError") {
+      return { ok: false, code: "timeout", message: "Tickerbot market request timed out. Try again shortly." };
+    }
+    return { ok: false, code: "unreachable", message: "Tickerbot could not be reached. Check the Worker connection and retry." };
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
 }
 
 /*
@@ -150,60 +243,26 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
 
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== "function") return failure("Tickerbot is unavailable in this Worker runtime.", 503);
-  const upstreamUrl = new URL(`/v2/bars/${symbol}/${interval}`, TICKERBOT_ORIGIN);
-  upstreamUrl.searchParams.set("limit", String(BAR_LIMIT));
-  // Tickerbot's asof contract returns only bars that have closed by this time.
-  upstreamUrl.searchParams.set("asof", new Date(now).toISOString());
-  const controller = typeof AbortController === "function" ? new AbortController() : null;
-  const timeout = controller ? setTimeout(() => controller.abort(), 12_000) : null;
 
-  try {
-    const response = await fetcher(upstreamUrl.toString(), {
-      method: "GET",
-      headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
-      // Workers implements only "follow" and "manual": "error" makes fetch() throw a
-      // TypeError before any network I/O, which surfaced as "could not be reached".
-      // "manual" returns a 3xx as a plain response (never followed, so the key is
-      // never replayed to another host); every non-2xx status is refused below.
-      redirect: "manual",
-      ...(controller ? { signal: controller.signal } : {})
-    });
-    if (!response || !response.ok) {
-      const status = Number(response && response.status) || 0;
-      if (status === 429) {
-        const retryAfter = response.headers && response.headers.get ? response.headers.get("retry-after") : "";
-        const safeRetryAfter = /^\d{1,5}$/.test(retryAfter || "") ? retryAfter : "60";
-        return failure("Tickerbot rate limit reached. Wait before refreshing.", 429, { "Retry-After": safeRetryAfter });
-      }
-      if (status === 401) return failure("Tickerbot rejected the configured API key. Check the Worker secret.", 502);
-      if (status === 403) return failure("The Tickerbot account does not have access to this bars request.", 502);
-      return failure("Tickerbot could not provide market bars right now.", 502);
-    }
-
-    let payload;
-    try { payload = await response.json(); }
-    catch { return failure("Tickerbot returned unreadable market data.", 502); }
-    const rows = Array.isArray(payload && payload.bars) ? payload.bars : [];
-    const bars = rows.map(toBar).filter(Boolean).slice(-BAR_LIMIT);
-    if (!bars.length) return failure("Tickerbot returned no bars for this ticker and interval.", 404);
-
-    const sourceTime = typeof payload.as_of === "string" ? payload.as_of.slice(0, 40) : "response time unavailable";
-    const marketContext = {
-      schema: "gi-market-context-v1",
-      synthetic: false,
-      source: `Tickerbot · split-adjusted OHLCV · as of ${sourceTime}`,
-      symbol,
-      timeframe: interval,
-      bars
-    };
-    const result = { success: true, environment: "tickerbot", data: marketContext };
-    cache.set(cacheKey, { payload: result, expiresAt: now + CACHE_TTL_MS });
-    return json(result);
-  } catch (error) {
-    logUpstreamFetchFailure(error, dependencies, apiKey);
-    if (error && error.name === "AbortError") return failure("Tickerbot market request timed out. Try again shortly.", 504);
-    return failure("Tickerbot could not be reached. Check the Worker connection and retry.", 502);
-  } finally {
-    if (timeout !== null) clearTimeout(timeout);
+  /* One durable, shared allowance covers every Tickerbot route that uses this key. The
+     atomic D1 claim happens immediately before the upstream fetch and fails closed. */
+  const claim = await claimTickerbotCall(env.COMMUNITY_DB, now);
+  if (!claim.ok) {
+    const status = claim.reason === "budget-exhausted" ? 429 : 503;
+    return failure(claim.message, status);
   }
+
+  const result = await fetchTickerbotMarketContext({
+    symbol, interval, apiKey, fetcher, now,
+    dependencies, logFailure: true
+  });
+  if (!result.ok) {
+    if (result.code === "rate-limit") return failure(result.message, 429, { "Retry-After": result.retryAfter || "60" });
+    if (result.code === "empty") return failure(result.message, 404);
+    if (result.code === "timeout") return failure(result.message, 504);
+    return failure(result.message, 502);
+  }
+  const payload = { success: true, environment: "tickerbot", data: result.packet };
+  cache.set(cacheKey, { payload, expiresAt: now + CACHE_TTL_MS });
+  return json(payload);
 }

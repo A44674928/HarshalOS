@@ -49,6 +49,11 @@ const SUITES = [
     files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-tradingview-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs"]
   },
   {
+    area: "Characters market beat and shared D1 call ledger",
+    script: "test:characters",
+    files: ["characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs", "characters-call-ledger-test.mjs"]
+  },
+  {
     area: "LLM data / authority boundary",
     script: "test:llm",
     files: ["llm-test.mjs", "llm-authority-test.mjs", "g0-llm-diagnostics-test.mjs"]

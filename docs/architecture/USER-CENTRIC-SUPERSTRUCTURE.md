@@ -298,7 +298,7 @@ governs them. The mirror copies under `archives/imports/New Models/` use the
 same naming conventions for the A-Frame / Container / Valve taxonomy.
 
 ```
-migrations/community/                                ← D1 SQL migrations (0001–0004)
+migrations/community/                                ← D1 SQL migrations (0001–0005)
 ```
 
 Migrations are ring-4 machinery but live beside the worker because they shape

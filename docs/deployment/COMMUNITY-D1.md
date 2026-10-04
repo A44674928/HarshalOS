@@ -38,7 +38,9 @@ workflows. The internal draft functions require a verified server-derived owner 
 never a request-supplied one.
 Community access is enabled in the production configuration and disabled in branch
 previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
-Migration and seed testing in this rebuild has been local only: no remote migration,
+`0005_tickerbot_call_ledger.sql` is an additive aggregate counter for the Characters and
+Good Intelligence Tickerbot routes; it stores no community/user records. Apply it in order
+before enabling live Characters beats. Migration and seed testing in this rebuild has been local only: no remote migration,
 remote seed or production deployment command has been run from the build environment,
 which has no Cloudflare credentials.
 
@@ -487,7 +489,7 @@ than retrying with shortcuts.
    npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
    ```
 
-4. **Apply migrations 0001–0004 and the register seed** to production D1. Migrations
+4. **Apply migrations 0001–0005 and the register seed** to production D1. Migrations
    never run automatically during a deploy:
 
    ```sh
