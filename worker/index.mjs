@@ -137,8 +137,8 @@ export default {
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request);
-    // The Characters beat batches due instruments, holds monthly series for a full UTC day,
-    // and keeps Alpha Vantage's daily request quota separate from Tickerbot's monthly ledger.
+    // Characters has three narrow providers: Massive automatic daily Disc beats,
+    // Tickerbot on-demand stock beats, and Alpha Vantage Disc1 monthly spotlight beats.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
     if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);
     // Massive REST market data (display-only): validated queries only, the

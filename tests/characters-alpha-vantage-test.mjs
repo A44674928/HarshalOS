@@ -14,7 +14,7 @@ import {
   claimAlphaVantageDailyCall,
   readAlphaVantageDailyCallLedger
 } from "../worker/alpha-vantage-daily-call-ledger.mjs";
-import { clearCharactersBeatCache, handleCharactersBeat, MAX_BEAT_SYMBOLS } from "../worker/characters-beat.mjs";
+import { clearCharactersBeatCache, handleCharactersBeat } from "../worker/characters-beat.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
@@ -22,7 +22,10 @@ const NOW = Date.parse("2026-10-05T17:00:00.000Z");
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
 const TICKERBOT_KEY = "tickerbot-test-secret";
 const ALPHA_KEY = "alpha-vantage-test-secret";
-const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
+/* Keep existing fixture calls focused on their provider. The production browser
+   now always supplies provider= explicitly; this helper mirrors that contract
+   while preserving the short readable query strings below. */
+const beat = (query, init) => new Request(`${ROUTE}?${query.includes("1mo") ? "provider=alpha&" : query.includes("1d") ? "provider=tickerbot&" : ""}${query}`, init);
 const fixture = () => createTickerbotLedgerDb();
 
 function alphaRow({ open = 10, high = 12, low = 9, close = 11, volume } = {}) {
@@ -225,7 +228,7 @@ test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if th
   assert.equal(monthlyPayload.data.spend.alphaVantageAttempts, 1);
   assert.equal(monthlyPayload.data.spend.providerAttempts, 1);
   assert.equal(monthlyPayload.data.spend.alphaVantageDaily.dailyLimit, 25);
-  assert.match(monthlyPayload.data.spend.note, /interval does not change the cap/i);
+  assert.match(monthlyPayload.data.spend.note, /strict 25-per-UTC-day allowance/i);
 
   const cached = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=60&provider=alpha"), env, {
     now: () => NOW + 1000,
@@ -258,32 +261,71 @@ test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if th
     "the subsequent daily request uses Tickerbot only");
 });
 
-test("the 25-request UTC-day cap aggregates monthly calls across beats and refuses request 26", async t => {
+test("Alpha normalizes an omitted cadence to its exact hourly fixed loop and refuses a different cadence", async t => {
   clearCharactersBeatCache();
   const { db, sql } = fixture();
   t.after(() => sql.close());
   const env = { ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db };
+  let fetches = 0;
   const dependencies = {
     now: () => NOW,
-    fetch: workersFetch(async input => Response.json(validStockMonthlyPayload(new URL(input).searchParams.get("symbol"))))
+    fetch: workersFetch(async input => {
+      fetches += 1;
+      return Response.json(validStockMonthlyPayload(new URL(input).searchParams.get("symbol")));
+    })
   };
-  const firstSymbols = TICKERBOT_WATCHLIST.slice(0, 12).map(entry => entry.symbol);
-  const secondSymbols = TICKERBOT_WATCHLIST.slice(12, 24).map(entry => entry.symbol);
-  const lastTwo = TICKERBOT_WATCHLIST.slice(24, 26).map(entry => entry.symbol);
-  assert.equal(MAX_BEAT_SYMBOLS, 12);
-  for (const symbols of [firstSymbols, secondSymbols]) {
-    const response = await handleCharactersBeat(beat(`disc=stocks&symbols=${symbols.join(",")}&interval=1mo&cadence=60&provider=alpha`), env, dependencies);
+  const omitted = await handleCharactersBeat(
+    new Request(`${ROUTE}?disc=stocks&provider=alpha&symbols=AAPL&interval=1mo`), env, dependencies
+  );
+  const payload = await omitted.json();
+  assert.equal(omitted.status, 200);
+  assert.equal(payload.data.cadenceMinutes, 60);
+  assert.equal(payload.data.instruments.length, 1);
+  assert.equal(fetches, 1);
+
+  const wrongCadence = await handleCharactersBeat(
+    new Request(`${ROUTE}?disc=stocks&provider=alpha&symbols=MSFT&interval=1mo&cadence=15`), env, dependencies
+  );
+  assert.equal(wrongCadence.status, 400);
+  assert.match((await wrongCadence.json()).message, /exactly cadence=60/i);
+  assert.equal(fetches, 1, "the invalid cadence never reaches Alpha Vantage");
+});
+
+test("the 25-request UTC-day cap permits one Alpha ticker per hourly beat and refuses request 26", async t => {  clearCharactersBeatCache();
+  const { db, sql } = fixture();
+  t.after(() => sql.close());
+  const env = { ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db };
+  let fetches = 0;
+  const dependencies = {
+    now: () => NOW,
+    fetch: workersFetch(async input => {
+      fetches += 1;
+      return Response.json(validStockMonthlyPayload(new URL(input).searchParams.get("symbol")));
+    })
+  };
+
+  const batch = await handleCharactersBeat(
+    beat("disc=stocks&symbols=AAPL,MSFT&interval=1mo&cadence=60&provider=alpha"), env, dependencies
+  );
+  assert.equal(batch.status, 400, "the route refuses a crafted multi-symbol Alpha batch");
+  assert.match((await batch.json()).message, /exactly one locally selected/i);
+  assert.equal(fetches, 0);
+
+  const hourlySymbols = TICKERBOT_WATCHLIST.slice(0, 25).map(entry => entry.symbol);
+  for (const symbol of hourlySymbols) {
+    const response = await handleCharactersBeat(
+      beat(`disc=stocks&symbols=${symbol}&interval=1mo&cadence=60&provider=alpha`), env, dependencies
+    );
     const payload = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 12);
+    assert.equal(payload.data.cadenceMinutes, 60);
+    assert.equal(payload.data.spend.alphaVantageAttempts, 1);
+    assert.equal(payload.data.instruments.length, 1);
   }
-  const partial = await handleCharactersBeat(beat(`disc=stocks&symbols=${lastTwo.join(",")}&interval=1mo&cadence=60&provider=alpha`), env, dependencies);
-  const partialPayload = await partial.json();
-  assert.equal(partial.status, 200, "one final allowance remains, so the beat has one usable observation");
-  assert.equal(partialPayload.data.spend.alphaVantageAttempts, 1);
-  assert.equal(partialPayload.data.spend.unavailable, 1);
-  assert.equal(partialPayload.data.spend.alphaVantageDaily.calls, 25);
-  assert.equal(partialPayload.data.spend.alphaVantageDaily.remaining, 0);
+  assert.equal(fetches, 25);
+  const daily = await readAlphaVantageDailyCallLedger(db, NOW);
+  assert.equal(daily.ledger.calls, 25);
+  assert.equal(daily.ledger.remaining, 0);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 1);
 
   const unusedSymbol = TICKERBOT_WATCHLIST[30].symbol;

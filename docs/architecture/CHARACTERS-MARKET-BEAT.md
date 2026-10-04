@@ -1,91 +1,86 @@
-# Characters: multi-Disc market beat
+# Characters: triple-provider market beat
 
-**Status:** read-only market-data display. Characters turns market observations into stage motion; it does not authorize, recommend, trade, or make decisions. This document describes the current app and Worker implementation, not a new canonical HarshalOS invariant.
+**Status:** read-only market-data display. Characters turns available observations into stage motion; it does not authorize, recommend, trade, or make decisions. This document describes the application and Worker routing, not a HarshalOS invariant.
 
-The main surfaces are `js/characters-disc-catalog.js` (shared Disc metadata), `js/characters-cast.js` (runtime cast/layout), `js/apps-characters.js` (Disc, interval, cadence, focus and source controls), `js/good-intelligence-market-context.js` (normalization/evaluation), `js/characters-beat.js` (budget/rotation/motion), and `worker/characters-beat.mjs` (validated Worker data route).
+The primary surfaces are `js/characters-disc-catalog.js` (reviewed Disc metadata), `js/characters-cast.js` (runtime cast/layout), `js/apps-characters.js` (controls and local rotation), `js/good-intelligence-market-context.js` (normalization/evaluation), `js/characters-beat.js` (motion), and `worker/characters-beat.mjs` (validated routing).
 
-## 1. Discs and their current catalogs
+## Reviewed Discs
 
-| Disc | Catalog | Ranking / provenance | Available live interval |
+| Disc | Catalog | Daily provider | Notes |
 | :--- | :--- | :--- | :--- |
-| **Disc1 — The 52 Cards** | The existing 52-stock Tickerbot watchlist; unchanged | Reviewed application watchlist, imported from `worker/good-intelligence-tickerbot.mjs` | Tickerbot `1h` and `1d`; Alpha Vantage only when explicitly switched to `1mo` |
-| **Disc2 — Fiat / FX** | 23 individually named non-USD currencies, each quoted against USD | BIS 2025 Triennial Survey detailed tables | Alpha Vantage `1mo` |
-| **Disc3 — Crypto** | Live top 52 **unique ticker symbols** by CoinGecko trailing 24-hour USD `total_volume` | CoinGecko `/api/v3/coins/markets`, `order=volume_desc`; snapshot includes provider time and audit flags | Alpha Vantage `1mo` |
-| **Disc4 — Commodities** | Crude oil (WTI, Brent), natural gas, industrial metals, and agricultural series | Alpha Vantage monthly commodity price series; scalar values are kept value-only | Alpha Vantage `1mo` |
+| **Disc1 — The 52 Cards** | Existing reviewed 52-stock deck | Massive automatic `1d` | Tickerbot stays available on demand for `1h`/`1d`; Alpha Vantage is the separate `1mo` path. |
+| **Disc2 — Fiat / FX** | 23 individually published non-USD BIS 2025 codes, quoted against USD | Massive automatic `1d` | The detailed BIS tables do not establish a top 52, so no ranks are invented. |
+| **Disc3 — Crypto** | CoinGecko top 52 unique ticker symbols by positive trailing-24-hour USD `total_volume` | Massive automatic `1d` | Ranking is provisional and carries stablecoin/missing-market-cap/extreme-price audit flags. |
+| **Disc4 — Commodities** | Reviewed WTI/Brent, natural-gas, metal, and agriculture futures contracts | Massive automatic `1d` | Contract metadata is reviewed and fixed; an unavailable/stale contract is shown unavailable, not silently rolled. |
+| **Disc5 — Indices** | Reviewed U.S. benchmark and volatility index roster | Massive automatic `1d` | Reference series only; not tradable instruments or advice. |
 
-### Catalog qualifications
+Energy-company equities remain Disc1 stocks. Disc4's WTI, Brent, and natural gas carry their own commodity/energy metadata.
 
-- **Disc1 remains the existing 52 stock tickers.** Energy-company equities stay in Disc1. Crude oil is a Disc4 commodity and carries the `Energy` tag; natural gas also carries `Energy`.
-- **The BIS publication does not establish a top-52 non-USD currency list.** Its inspected 2025 detailed tables publish 23 non-USD codes individually and aggregate the rest as `OTH`. Disc2 therefore shows those 23 named currencies and states the limitation; it does not pad or invent ranks 24–52. A complete top-52 catalog needs another reviewed, compatible source.
-- **Disc3 is a provisional volume ranking, not a vetted investment catalog.** It selects unique ticker symbols among the first 100 CoinGecko markets ordered by positive 24-hour USD volume. Stablecoins remain eligible and are flagged for review. The snapshot carries rank, volume, current price and market capitalization when supplied; missing market caps and extreme nominal prices are surfaced as audit hints. These hints do not silently filter the ranking. A volume rank is not a quality, legitimacy, liquidity-depth, or safety screen. Duplicate tickers are skipped because the downstream Alpha Vantage symbol interface cannot disambiguate them reliably.
-- The crypto list is fetched by the Worker and cached in memory for 15 minutes. The browser fetches `GET /api/characters/v1/discs?disc=crypto`; a ranking failure is shown instead of being replaced by a synthetic or stale catalog.
-
-## 2. Provider routing and interval boundaries
+## Provider boundary
 
 ```text
-Disc1 + interval 1h/1d
-    → Tickerbot only
-    → shared Tickerbot UTC-month D1 claim (10,000 max)
+Automatic interval 1d, any reviewed Disc
+  → provider=massive
+  → one reviewed instrument per minute in the browser loop
+  → shared Massive in-memory per-minute envelope
+  → separate Characters D1 UTC-day guard (migration 0007)
+  → successful daily packet held until next UTC midnight
 
-Any supported Disc + explicit interval 1mo
-    → Alpha Vantage monthly adapter only
-    → separate Characters UTC-day D1 claim (25 max across all 1mo assets)
-    → closed monthly observations → gi-market-context-v1
+On-demand Disc1 interval 1h or 1d
+  → provider=tickerbot
+  → reviewed stock deck only
+  → shared Tickerbot D1 UTC-month ledger (migration 0005)
+
+Disc1 explicit interval 1mo
+  → provider=alpha
+  → one local best-performing ticker per hour
+  → separate Alpha Vantage D1 UTC-day allowance (migration 0006)
 ```
 
-There is **no Alpha Vantage daily fallback**. A failed, exhausted, or unconfigured Tickerbot request does not become an Alpha Vantage request. A monthly Alpha Vantage packet has `timeframe: "1mo"` and is keyed/cached separately; it cannot answer a requested `1h` or `1d` beat. Tickerbot remains unchanged for Disc1 `1h`/`1d` reads.
+`provider`, `interval`, cadence, and beat width are validated by the Worker. Massive only accepts one reviewed `1d` instrument at `cadence=1`; Alpha Vantage only accepts one Disc1 `1mo` ticker at `cadence=60`; Tickerbot only accepts Disc1 `1h` or `1d` under its bounded manual planner. A provider failure, exhausted budget, or missing secret never falls through to another provider. Monthly bars never answer an hourly or daily request.
 
-Alpha Vantage monthly endpoints are selected by reviewed asset metadata: stock `TIME_SERIES_MONTHLY`, FX `FX_MONTHLY`, digital currency `DIGITAL_CURRENCY_MONTHLY`, and monthly commodity series such as `WTI` and `BRENT`. The adapter withholds the current incomplete month and returns only completed monthly observations.
+The app's automatic loop is browser-visible, not a server-side scheduler: hidden tabs spend no calls. It selects a least-recently-refreshed reviewed instrument for Massive each minute. Alpha's hourly selection uses the highest `(close - previous close) / previous close` across locally held **confirmed** bars; before any usable local pair exists it uses deterministic least-recently-refreshed selection.
 
-### Independent Worker caps
+## Quotas, caching, and secrets
 
-- Tickerbot keeps the existing shared `tickerbot_call_ledger`: one aggregate UTC-month counter used by Characters and Good Intelligence Market Charts, hard-stopped at 10,000 attempts.
-- Alpha Vantage uses the separate `alpha_vantage_daily_call_ledger`: despite the legacy table/module name, this is a **UTC-day request quota**, not a daily-bar mode. It counts all Characters Alpha Vantage `1mo` requests across stocks, FX, crypto, and commodities. The Worker atomically claims one slot immediately before each external request and fails closed if D1 or migration 0006 is unavailable. Failures and timeouts count conservatively. The hard limit is 25 requests per UTC day, independent of interval and separate from Tickerbot's monthly ledger.
-- Each beat is capped at 12 symbols. In live `1mo` mode the app schedules at most one automatic beat per 24 hours; it selects up to 12 due instruments, so a 52-instrument Disc takes about five daily beats for a full rotation. Manual beats remain subject to the shared 25-per-day Alpha Vantage cap.
-- Successful observations are cached in the Worker by Disc, symbol and interval for one beat. Failed reads are not cached. The D1 tables store only aggregate counts, configured limits, and update times—not keys, symbols, or request histories. Direct provider calls outside this Worker are not included; provider account dashboards remain authoritative.
+- **Massive:** `MASSIVE_API_KEY` is a Worker secret sent only as `Authorization: Bearer`. `worker/massive.mjs` supplies best-effort per-isolate deployment/client sliding windows (default 5 upstream requests/minute). Characters shares that envelope and additionally claims the `massive_daily_call_ledger` before an outbound daily request. The default conservative Characters daily guard is 300 Worker-routed attempts, reset at UTC midnight. Cache entries are keyed by Disc, provider, symbol, and interval; successful Massive daily packets expire at the next UTC midnight.
+- **Tickerbot:** `TICKERBOT_API_KEY` is a Worker secret. Its `tickerbot_call_ledger` is shared with Good Intelligence and atomically caps Worker-routed attempts at 10,000 per UTC month.
+- **Alpha Vantage:** `ALPHA_VANTAGE_API_KEY` is a Worker secret. It remains query-string-only upstream, so production observability must keep query-string redaction enabled. The `alpha_vantage_daily_call_ledger` atomically caps Characters at 25 attempts per UTC day; the hourly app loop schedules 24 maximum. A successful monthly spotlight packet is held for one hour, never used to answer a `1h` or `1d` request.
+- A D1 ledger failure fails closed before provider work. Claimed attempts that subsequently fail or time out count conservatively. Provider dashboards remain the billing/entitlement authority, and direct calls outside this Worker are not represented by these ledgers.
 
-### Disc1 stock refresh plan
+Never put any provider secret in browser code, static configuration, local storage, a committed `.env`, browser URL, logs, or response body.
 
-Tickerbot's existing monthly planner remains stock-focused. The app defaults to a 15-minute cadence. With a 10,000-call planning budget and 15% reserve, it requests 2 due symbols per beat and estimates a full 52-stock sweep every 6.5 elapsed hours (5,844 planned calls/month if continuously open), which preserves the goal of at least two full-deck refreshes daily where provider availability, session hours, and tab visibility permit. The 12-symbol Worker cap binds at slower cadences. Two-lane/hot-sweep planning remains available for Tickerbot stock modes and is disabled for `1mo`.
+## Observation shapes
 
-Hidden tabs do not spend calls. There is no server-side scheduler. Manual refreshes, retries, failures, and provider limits can make realized cadence differ from the plan.
+Provider packets are normalized to `gi-market-context-v1` without manufacturing fields:
 
-## 3. Observation shapes and indicators
+- **OHLCV** stays OHLCV when a provider supplied all four price fields and volume.
+- **OHLC** stays OHLC when a provider supplied complete prices but no volume.
+- **Value/close-only** observations remain value-only. No open, high, low, or volume is fabricated.
 
-Every provider packet is normalized into `gi-market-context-v1` without manufacturing missing fields:
+Incomplete OHLC tuples are rejected. VFI, crowd/relative-volume display, and item flow require real complete OHLCV. Price-based motion can still use valid OHLC or close-only observations. A current forming daily bar is marked unconfirmed, so it is held rather than presented as a completed move.
 
-- **OHLCV:** when the provider supplies open, high, low, close, and volume.
-- **OHLC:** FX or other bars with the complete price tuple but no volume. `volume` remains absent.
-- **Value-only / close-only:** commodity scalar observations (or a supplied close-only series). These are represented as dated `close` values with `dataShape: "value"`; no open, high, low, or volume is fabricated. The commodity's quote unit, such as `USD/barrel` or `USD/MMBtu`, remains metadata.
+## UI behavior
 
-Rows with only part of an OHLC tuple are rejected. Observed fields determine the reported shape even if upstream metadata overstates it. The evaluator still supports price-based bands and WaveTrend on close-only series. VFI is unavailable unless every bar has complete OHLC and volume. VWMA falls back to SMA when volume is absent. Relative volume, crowd/volume display, and item flow are marked unavailable when the supplied volume field is absent; charts retain null volume rather than drawing zeros. Scalar commodity observations therefore stay separate from OHLC bars.
+- **Disc selector:** rebuilds the cast, focus menu, local ledger, and Disc-specific catalog. Crypto is fetched from `GET /api/characters/v1/discs?disc=crypto`; a ranking failure is reported rather than replaced with stale/synthetic constituents.
+- **Opening mode / Auto-beat + `1d`:** opens on, and selects, Massive. Cadence/budget and Tickerbot lane controls are fixed because the loop advances one reviewed instrument per minute.
+- **Disc1 `1h`:** is always an on-demand Tickerbot mode: selecting it and leaving Auto-beat on never starts background polling; use **Beat now**. Pausing Disc1 automatic `1d` similarly selects manual Tickerbot `1d`. The 15-minute default, 15% reserve, and 12-symbol Worker ceiling retain the existing 52-card planning behavior; two-lane/hot-sweep controls apply here only.
+- **`1mo`:** selects Alpha Vantage's Disc1-only best-performer spotlight and resumes its hourly auto loop. The cadence is fixed to one hour and no Tickerbot/Massive data substitutes for it.
+- **Rehearsal:** is a separately labeled local deterministic generator. No live observation is silently replaced by synthetic data.
 
-The Characters motion engine maps available price context to NPC gait, Object sway, and stage formations. Items flow only when the motion engine has real volume observations; absent volume never creates a measured value. No bars means a frozen berth. Rehearsal data is a separate, watermarked local generator and is never mixed with live data.
+The stage is representation only—not investment advice, a signal, a recommendation, permission to act, an assurance result, or an input to Permit/Refuse decisions.
 
-## 4. App behavior
-
-- **Disc selector:** rebuilds the cast, sector layout, focus menu, and local rotation ledger for the selected catalog. The FX note makes the BIS 23-code limitation explicit. The crypto note shows CoinGecko snapshot time, ranking metric, and audit counts; focus details expose rank, supplied volume/price/market-cap fields, and per-instrument audit flags.
-- **Bar size:** stocks can select Tickerbot `1h`, Tickerbot `1d`, or explicit Alpha Vantage `1mo`. FX, crypto, and commodities expose only `1mo`.
-- **Cadence/budget:** applies to Tickerbot stock planning. It is disabled in `1mo`; the monthly-mode panel instead shows the 12-symbol beat ceiling, the 25-request UTC-day cap, and an approximate Disc rotation time.
-- **Data source:** live provider data or synthetic rehearsal. No live bar is silently replaced by synthetic data; if the Worker is unconfigured, the app labels and switches to rehearsal.
-- **Local state:** browser ledgers are separated by Disc and interval (with the existing Disc1/`1h` key retained for compatibility). They record activity/rotation only and are not provider billing authority.
-
-The stage is Stage 2 representation only. It is not investment advice, a trade signal, a recommendation, permission to act, or an input to assurance scoring or Permit/Refuse decisions.
-
-## 5. Routes, storage, and secrets
+## Routes and migrations
 
 | Surface | Contract |
 | :--- | :--- |
-| `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities&symbols=A,B&interval=1h\|1d\|1mo&cadence=...`; lanes are display hints only. |
-| `GET /api/characters/v1/discs?disc=crypto` | Read-only CoinGecko ranking snapshot and audit metadata; no Alpha Vantage key or market bar data. |
-| Worker validation | Disc membership, interval, and 12-symbol ceiling are enforced server-side; FX/commodities use the shared reviewed catalog, crypto is checked against the current ranking list, and stocks use the existing Tickerbot watchlist. |
-| Worker secrets | `TICKERBOT_API_KEY` for stock `1h`/`1d`; `ALPHA_VANTAGE_API_KEY` only for explicit `1mo`. Neither is sent to browser code. |
-| D1 migrations | `0005_tickerbot_call_ledger.sql` and `0006_alpha_vantage_daily_call_ledger.sql`; apply both to the selected remote D1 before enabling live provider calls. |
+| `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities\|indices&provider=massive\|tickerbot\|alpha&symbols=A,B&interval=1h\|1d\|1mo&cadence=...`; Massive is one `1d` symbol at `1`, Alpha is one Disc1 `1mo` symbol at `60`, and only manual Tickerbot accepts a bounded multi-symbol beat. |
+| `GET /api/characters/v1/discs?disc=crypto` | Read-only CoinGecko ranking snapshot/audit metadata; no provider secret or bar data. |
+| `GET /api/massive/v1/*` | Independently bounded, same-origin Massive desktop proxy; see [`docs/integrations/MASSIVE-REST.md`](../integrations/MASSIVE-REST.md). |
+| D1 migrations | `0005_tickerbot_call_ledger.sql`, `0006_alpha_vantage_daily_call_ledger.sql`, and `0007_massive_daily_call_ledger.sql`. Apply all relevant migrations before enabling live beats. |
 
-Alpha Vantage requires its API key in the query string. It must be configured only as a Worker secret, and production Wrangler observability must keep `redact_query_string: true` enabled before any live request. Keep the site behind the owner's Cloudflare Access policy. Do not put a provider key in source, `wrangler.jsonc`, local storage, URLs constructed in browser code, or response bodies.
+## Validation
 
-## 6. Validation
+Run `npm run test:characters` for the routing, ledgers, adapters, catalog, and UI. Run `npm run test:massive` for the standalone Massive proxy/app. `npm test` runs the full repository suite; `npm run check:deploy` runs the Worker dry-run after asset preparation.
 
-Run `npm run test:characters` for the market-beat engine, UI, Tickerbot route/ledger, Disc catalog/ranking feed, Alpha Vantage monthly adapter, and request cap. Run `node --test tests/good-intelligence-market-context-test.mjs` for OHLCV/OHLC/value-only normalization and indicator availability. `npm test` runs the full repository suite. `npm run check:deploy` performs the Worker dry-run after asset preparation.
-
-The tests verify that `1mo` never calls Tickerbot, `1h`/`1d` never call Alpha Vantage, the two D1 counters stay independent, the 25th request is admitted while the 26th is refused, missing ledgers fail closed, current partial months are withheld, and no API key or upstream response body leaks into browser-facing responses.
+Tests verify provider/interval isolation, allowlist enforcement, cache separation, ledger atomicity, daily rollover, Massive bearer-header handling, no secret/upstream-body leakage, and honest unavailable/rate-limited responses.

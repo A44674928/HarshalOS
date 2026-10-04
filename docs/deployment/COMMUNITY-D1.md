@@ -40,8 +40,9 @@ Community access is enabled in the production configuration and disabled in bran
 previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
 `0005_tickerbot_call_ledger.sql` is an additive aggregate counter for the Characters and
 Good Intelligence Tickerbot routes; `0006_alpha_vantage_daily_call_ledger.sql` is a
-separate 25-per-UTC-day request cap for Characters' explicit Alpha Vantage `1mo` mode
-(across all supported assets, not daily bars). Neither stores community/user records.
+separate 25-per-UTC-day request cap for Characters' explicit Alpha Vantage `1mo` mode;
+`0007_massive_daily_call_ledger.sql` is the separate UTC-day aggregate guard for
+Characters' automatic Massive daily beats. Neither stores community/user records.
 Apply the market-data migrations in order before enabling the corresponding provider route. Migration and seed testing in this rebuild has been local only:
 no remote migration, remote seed or production deployment command has been run from the build
 environment, which has no Cloudflare credentials.
@@ -491,7 +492,7 @@ than retrying with shortcuts.
    npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
    ```
 
-4. **Apply migrations 0001–0006 and the register seed** to production D1. Migrations
+4. **Apply migrations 0001–0007 and the register seed** to production D1. Migrations
    never run automatically during a deploy:
 
    ```sh

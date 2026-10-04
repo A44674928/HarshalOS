@@ -105,7 +105,10 @@ function envLimit(value, fallback) {
 /* Sliding-window budget: one window shared by the whole deployment (the
    Massive key belongs to the owner, so every visitor spends the same quota)
    and one window per client IP so a single caller cannot spend it all. */
-function consumeMassiveBudget(request, env, now) {
+/* Exported so other bounded Worker routes that use the same owner key can
+   share this exact per-isolate envelope instead of maintaining a second,
+   divergent rate bucket. */
+export function consumeMassiveBudget(request, env, now) {
   const deploymentLimit = envLimit(env.MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE, DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE);
   const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
 
