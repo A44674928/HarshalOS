@@ -8,7 +8,8 @@
    this module never receives provider secrets and cannot send OCM traffic. No OCM message is sent.
 
    CharactersBeat owns planning, rotation, analysis-to-motion mapping, blending,
-   and the synthetic rehearsal generator. CharactersCast and CharactersDiscCatalog
+   and the live provider routes. Synthetic/demo mode is disabled in this view —
+   unavailable beats stay held, never substituted. CharactersCast and CharactersDiscCatalog
    own the reviewed cast and Discs. This module composes those existing pieces in
    a 3D view rather than forking their market rules.
 
@@ -86,7 +87,6 @@
   const PROVIDER_COOLDOWN_MS = 60_000;
   const MASSIVE_BEAT_MS = 60_000;
   const ALPHA_BEAT_MS = 60 * 60_000;
-  const REHEARSAL_BEAT_MS = 5_000;
   const MAX_HISTORY = 120;
   const MAX_LOCAL_HISTORY = 24;
   const PALETTE = Object.freeze([
@@ -475,7 +475,9 @@
     const state = {
       discId: initialDisc,
       interval: initialInterval,
-      source: preferences && preferences.source === "rehearsal" ? "rehearsal" : "live",
+      /* Synthetic/demo mode is disabled: this view is live-only. A stale local
+         preference cannot resurrect the retired rehearsal source. */
+      source: "live",
       auto: preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
       cadence: validCadence(preferences && preferences.cadence),
       budget: validBudget(preferences && preferences.budget),
@@ -543,13 +545,13 @@
       state.auto = true;
       state.interval = "1d";
     }
-    if (state.interval === "1h" && state.source === "live") state.auto = false;
+    if (state.interval === "1h") state.auto = false;
 
     const swatch = (color, label) => `<span class="gi-orb2-color-swatch"><i style="--gi-orb2-swatch:${escapeHtml(color)}" aria-hidden="true"></i>${escapeHtml(label)}</span>`;
     const moodLegend = Object.entries(MOOD_COLORS).filter(([mood]) => mood !== "unknown")
       .map(([mood, color]) => swatch(color, mood)).join("");
     const providerLegend = [
-      ["massive", "Massive"], ["tickerbot", "Tickerbot"], ["alpha", "Alpha Vantage"], ["rehearsal", "Synthetic rehearsal"], ["unknown", "Unspecified"]
+      ["massive", "Massive"], ["tickerbot", "Tickerbot"], ["alpha", "Alpha Vantage"], ["unknown", "Unspecified"]
     ].map(([key, label]) => swatch(PROVIDER_COLORS[key], label)).join("");
     const flowLegend = [
       [DATA_COLORS.flowAbove, "VFI above · inbound"], [DATA_COLORS.flowBelow, "VFI below · outbound"],
@@ -681,7 +683,6 @@
           <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
           <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
           <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
-          <label class="gi-orb2-control"><span>DATA SOURCE</span><select data-gi-orb2-source aria-label="Choose live data or synthetic rehearsal"><option value="live">Live provider data</option><option value="rehearsal">Synthetic rehearsal</option></select></label>
           <label class="gi-orb2-control gi-orb2-focus-control"><span>FOCUS INSTRUMENT</span><select data-gi-orb2-focus aria-label="Choose an instrument to inspect"></select></label>
           <div class="gi-orb2-beat-flags">
             <label class="gi-orb2-toggle"><input data-gi-orb2-stretch type="checkbox"><span>Use reserve stretch</span></label>
@@ -737,7 +738,7 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing; synthetic rehearsal is explicitly labeled and never substituted for a live beat. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The double helix and its rungs are a descriptive arrangement of supplied Fibonacci-band position, band width, and midline stretch; they are not a rating, ranking service, signal, or recommendation.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The double helix and its rungs are a descriptive arrangement of supplied Fibonacci-band position, band width, and midline stretch; they are not a rating, ranking service, signal, or recommendation.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -748,7 +749,6 @@
     const intervalSelect = $("[data-gi-orb2-interval]");
     const cadenceSelect = $("[data-gi-orb2-cadence]");
     const budgetInput = $("[data-gi-orb2-budget]");
-    const sourceSelect = $("[data-gi-orb2-source]");
     const focusSelect = $("[data-gi-orb2-focus]");
     const nodeSelect = $("[data-gi-orb2-node]");
     const beatButton = $("[data-gi-orb2-beat]");
@@ -844,7 +844,7 @@
     function persistLocal() {
       if (!storage) return;
       const savedPrefs = {
-        discId: state.discId, interval: state.interval, source: state.source,
+        discId: state.discId, interval: state.interval,
         auto: state.auto, cadence: state.cadence, budget: state.budget,
         stretch: state.stretch, tierMode: state.tierMode, tierSweepHours: state.tierSweepHours,
         showDataBits: state.showDataBits, showFractal: state.showFractal,
@@ -956,7 +956,6 @@
     }
 
     function currentProvider() {
-      if (state.source === "rehearsal") return "rehearsal";
       if (state.interval === "1mo") return "alpha";
       if (state.interval === "1d" && (state.auto || state.discId !== "stocks")) return "massive";
       return "tickerbot";
@@ -966,7 +965,7 @@
       if (provider === "massive") return "Massive · AUTOMATIC DAILY";
       if (provider === "tickerbot") return "Tickerbot · ON DEMAND";
       if (provider === "alpha") return "Alpha Vantage · HOURLY SPOTLIGHT";
-      return "Synthetic rehearsal · NOT LIVE";
+      return "Unspecified provider";
     }
 
     function cadenceMinutesForBeat(provider = currentProvider()) {
@@ -1121,7 +1120,7 @@
       } : null;
       return {
         symbol, displaySymbol,
-        status: instrument.status || (mode === "rehearsal" ? "rehearsal" : "bars"),
+        status: instrument.status || "bars",
         provider: providerId,
         code: String(instrument.code || "").slice(0, 48),
         message: String(instrument.message || "").slice(0, 240),
@@ -1247,7 +1246,6 @@
         .map(minutes => `<option value="${minutes}">${escapeHtml(Beat.formatHours(minutes / 60))}</option>`).join("");
       cadenceSelect.value = String(state.cadence);
       budgetInput.value = String(state.budget);
-      sourceSelect.value = state.source;
       stretchBox.checked = state.stretch;
       tierBox.checked = state.tierMode;
       if (seriesModeSelect) seriesModeSelect.value = state.seriesMode;
@@ -1259,7 +1257,6 @@
       tierBox.disabled = currentProvider() !== "tickerbot" || state.pending;
       intervalSelect.disabled = modes.length <= 1 || state.pending || state.loadingCatalog;
       discSelect.disabled = state.pending || state.loadingCatalog;
-      sourceSelect.disabled = state.pending;
       budgetInput.value = String(state.budget);
       syncFocusOptions();
       syncNodeOptions();
@@ -1332,8 +1329,7 @@
           : `${perBeatCount} instrument${perBeatCount === 1 ? "" : "s"} per manual beat · ${Beat.formatHours(plan.sweepHours)} full sweep`;
       const status = provider === "massive" ? "Massive's separate UTC-day D1 guard and shared per-minute envelope are required."
         : provider === "alpha" ? "Alpha Vantage uses a separate 25-attempt UTC-day D1 guard; 1mo never answers a 1h/1d request."
-          : provider === "tickerbot" ? `Tickerbot's shared monthly D1 limit is ${state.budget.toLocaleString()} in the local plan; the Worker cap is enforced separately.`
-            : "Synthetic rehearsal spends zero provider calls; generated bars remain explicitly labeled.";
+          : "Tickerbot's shared monthly D1 limit is enforced by the Worker separately from the local plan.";
       const isTickerbot = provider === "tickerbot";
       const tiers = tierPlan();
       const chosenTier = tierOption(tiers);
@@ -1355,10 +1351,8 @@
     function latestObservationForFocus() {
       if (!state.focus) return null;
       const mode = currentProvider();
-      if (mode !== "rehearsal") {
-        const exact = latestObservation(state.discId, state.focus, mode, state.interval);
-        if (exact) return exact;
-      }
+      const exact = latestObservation(state.discId, state.focus, mode, state.interval);
+      if (exact) return exact;
       return latestObservation(state.discId, state.focus);
     }
 
@@ -1503,7 +1497,6 @@
 
     function currentDelay() {
       const provider = currentProvider();
-      if (state.source === "rehearsal") return REHEARSAL_BEAT_MS;
       if (provider === "massive") return MASSIVE_BEAT_MS;
       if (provider === "alpha") return ALPHA_BEAT_MS;
       return state.cadence * 60_000;
@@ -1512,11 +1505,11 @@
     function drawStatus() {
       const provider = currentProvider();
       providerHost.textContent = providerDescription(provider);
-      providerHost.className = `gi-orb2-provider-pill ${state.source === "rehearsal" ? "synthetic" : provider}`;
+      providerHost.className = `gi-orb2-provider-pill ${provider}`;
       if (state.pending) countdownHost.textContent = "BEAT IN FLIGHT · WORKER REQUEST";
       else if (state.cooldownUntil > Date.now()) countdownHost.textContent = `PROVIDER WARM-UP · ${formatCountdown(state.cooldownUntil - Date.now())}`;
       else if (!state.auto) countdownHost.textContent = "AUTO-BEAT PAUSED · use Beat now";
-      else if (state.source === "live" && provider === "tickerbot") countdownHost.textContent = "TICKERBOT IS ON-DEMAND · use Beat now";
+      else if (provider === "tickerbot") countdownHost.textContent = "TICKERBOT IS ON-DEMAND · use Beat now";
       else if (state.lastBeatAt) {
         const remaining = state.nextBeatAt > Date.now() ? state.nextBeatAt - Date.now() : currentDelay();
         countdownHost.textContent = `LAST BEAT ${shortTime(state.lastBeatAt)} · NEXT IN ${formatCountdown(remaining)}`;
@@ -1549,8 +1542,7 @@
       autoButton.setAttribute("aria-pressed", String(state.auto));
       beatButton.disabled = state.pending || state.loadingCatalog;
       canvasStatus.textContent = !context2d ? "CANVAS UNAVAILABLE · BEAT LOG / INSPECTOR STILL ACTIVE"
-        : state.source === "rehearsal" ? "SYNTHETIC · LOCAL REHEARSAL"
-          : "LIVE API-DERIVED MOTION · VISUAL PATHS ONLY";
+        : "LIVE API-DERIVED MOTION · VISUAL PATHS ONLY";
       const documentRef = host.ownerDocument || globalThis.document;
       const modelFullscreenActive = fallbackFullscreen || Boolean(documentRef && documentRef.fullscreenElement === root);
       fullscreenButton.textContent = modelFullscreenActive ? "⛶ Exit model full screen" : "⛶ Model full screen";
@@ -1568,10 +1560,6 @@
     }
 
     function updateProviderSteps(provider, spend = state.spend, error = null) {
-      if (state.source === "rehearsal" || provider === "rehearsal") {
-        state.routeSteps = { provider: "LOCAL SYNTHETIC", worker: "NOT USED", ledger: "0 CALLS", model: "RENDERED" };
-        return;
-      }
       const ledgerStatus = provider === "massive" ? spend && spend.massiveLedgerStatus
         : provider === "alpha" ? spend && spend.alphaVantageLedgerStatus
           : spend && spend.ledgerStatus;
@@ -1642,19 +1630,6 @@
       return { instruments, spend };
     }
 
-    function rehearsalBeat(due) {
-      const beatNumber = state.ledger.beats + 1;
-      return {
-        instruments: due.map(symbol => ({
-          symbol,
-          status: "rehearsal",
-          provider: "synthetic",
-          marketContext: Beat.rehearse({ symbol, at: Date.now(), beat: beatNumber })
-        })),
-        spend: null
-      };
-    }
-
     async function beatNow(reason = "manual") {
       if (state.pending || state.loadingCatalog || state.destroyed) return false;
       if (state.cooldownUntil > Date.now()) {
@@ -1665,7 +1640,7 @@
       let provider = currentProvider();
       const durable = state.spend && state.spend.durable;
       const currentMonth = Beat.monthKey(Date.now());
-      if (state.source === "live" && provider === "tickerbot" && durable && durable.month === currentMonth && durable.exhausted) {
+      if (provider === "tickerbot" && durable && durable.month === currentMonth && durable.exhausted) {
         state.message = { kind: "refusal", text: `The shared D1 ledger records ${Number(durable.calls).toLocaleString()} of ${Number(durable.workerLimit).toLocaleString()} Tickerbot attempts for ${durable.month}. No on-demand request was sent. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths.` };
         draw();
         return false;
@@ -1681,41 +1656,31 @@
       state.pending = true;
       state.error = null;
       state.message = { kind: "note", text: `Sending ${due.join(", ")} through ${providerTitle(provider)} → the same-origin Characters Worker. No substitute provider is permitted.` };
-      state.routeSteps = provider === "rehearsal"
-        ? { provider: "LOCAL SYNTHETIC", worker: "NOT USED", ledger: "0 CALLS", model: "RENDERING" }
-        : { provider: "REQUESTING", worker: "REQUESTING", ledger: "CHECKING", model: "WAITING" };
+      state.routeSteps = { provider: "REQUESTING", worker: "REQUESTING", ledger: "CHECKING", model: "WAITING" };
       syncFormControls();
       drawStatus();
       let result = null;
       let error = null;
       try {
-        result = state.source === "live"
-          ? await fetchLiveBeat(due, cadenceMinutesForBeat(provider), selection.lanes, provider)
-          : rehearsalBeat(due);
+        result = await fetchLiveBeat(due, cadenceMinutesForBeat(provider), selection.lanes, provider);
       } catch (caught) {
         error = caught;
       }
       state.pending = false;
       if (error) {
-        if (error.kind === "unconfigured" && state.source === "live") {
-          state.source = "rehearsal";
-          sourceSelect.value = "rehearsal";
-          state.message = { kind: "note", text: `Live beat unavailable (${error.message}) — switched to explicitly labeled synthetic rehearsal, matching Characters' fail-closed preview behavior. No provider call was made.` };
-          result = rehearsalBeat(due);
-          state.routeSteps = { provider: "LOCAL SYNTHETIC", worker: "NOT USED", ledger: "0 CALLS", model: "RENDERED" };
-          provider = "rehearsal";
-        } else {
-          state.error = error;
-          state.message = { kind: "refusal", text: error.message || "The beat request failed. No alternate provider was used." };
-          updateProviderSteps(provider, state.spend, error);
-          draw();
-          schedule();
-          return false;
-        }
+        /* Synthetic/demo mode is disabled: a failed live beat stays failed.
+           The berths keep their last reviewed observation, the refusal is
+           stated plainly, and nothing synthetic is substituted. */
+        state.error = error;
+        state.message = { kind: "refusal", text: `${error.message || "The beat request failed. No alternate provider was used."} The model stays on its last reviewed observation — synthetic or demo data is not substituted.` };
+        updateProviderSteps(provider, state.spend, error);
+        draw();
+        schedule();
+        return false;
       }
       updateProviderSteps(provider, result && result.spend || state.spend);
       const at = Date.now();
-      const { event, calls, instruments } = makeEvent(result, selection, state.source === "rehearsal" ? "rehearsal" : reason, provider);
+      const { event, calls, instruments } = makeEvent(result, selection, reason, provider);
       const refreshed = instruments.filter(item => item.market).map(item => item.symbol);
       const moodBySymbol = Object.fromEntries(instruments.map(item => [item.symbol, item.motion && item.motion.mood || "unknown"]));
       state.ledger = Beat.recordBeat(state.ledger, {
@@ -1723,7 +1688,7 @@
         symbols: refreshed,
         calls,
         moodBySymbol,
-        synthetic: state.source === "rehearsal",
+        synthetic: false,
         cadenceMinutes: cadenceMinutesForBeat(provider)
       });
       writeLedger(state.ledger);
@@ -1734,7 +1699,7 @@
       }
       addEvent(event);
       updateUnavailableMessage(result.instruments);
-      if (state.source === "live" && refreshed.length) {
+      if (refreshed.length) {
         const spend = result.spend || {};
         const attempts = calls;
         const unavailableCount = instruments.filter(item => !item.market).length;
@@ -1744,11 +1709,9 @@
         if (provider === "massive" && spend.massiveLedgerStatus === "ready") state.routeSteps.ledger = "READY · MASSIVE D1";
         else if (provider === "alpha" && spend.alphaVantageLedgerStatus === "ready") state.routeSteps.ledger = "READY · ALPHA D1";
         else if (provider === "tickerbot" && spend.ledgerStatus === "ready") state.routeSteps.ledger = "READY · TICKERBOT D1";
-      } else if (state.source === "live" && !refreshed.length) {
+      } else if (!refreshed.length) {
         updateUnavailableMessage(result.instruments);
         state.routeSteps.model = "HELD · NO DATA";
-      } else if (state.source === "rehearsal") {
-        state.message = { kind: "note", text: "Synthetic rehearsal beat rendered locally · 0 provider calls · not real market data." };
       }
       draw();
       schedule();
@@ -1768,7 +1731,7 @@
         return;
       }
       const provider = currentProvider();
-      if (state.source === "live" && provider === "tickerbot") {
+      if (provider === "tickerbot") {
         drawStatus();
         return;
       }
@@ -1840,7 +1803,7 @@
         state.message = changedProvider ? state.message : { kind: "note", text: disc.ranking };
         persistLocal();
         draw();
-        if (!changedProvider && !(state.source === "live" && nextProvider === "tickerbot")) await beatNow("disc-change");
+        if (!changedProvider && nextProvider !== "tickerbot") await beatNow("disc-change");
         schedule();
       } catch (error) {
         state.discId = previousDisc;
@@ -1875,35 +1838,15 @@
           : { kind: "note", text: `On-demand Tickerbot ${nextInterval} mode selected. Use Beat now; no background Tickerbot poll is scheduled.` };
       persistLocal();
       draw();
-      if (!changedProvider && state.source === "live" && nextProvider !== "tickerbot") beatNow("interval-change");
+      if (!changedProvider && nextProvider !== "tickerbot") beatNow("interval-change");
       schedule();
     }
 
-    function switchSource(nextSource) {
-      const source = nextSource === "rehearsal" ? "rehearsal" : "live";
-      if (source === state.source) return;
-      state.source = source;
-      if (source === "live" && state.interval === "1h") state.auto = false;
-      state.message = source === "rehearsal"
-        ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, zero provider calls, clearly labeled and never mixed into live observations." }
-        : currentProvider() === "massive"
-          ? { kind: "note", text: "Live 1d mode uses Massive's reviewed daily route. A due instrument is chosen with Characters' least-recently-refreshed rotation." }
-          : currentProvider() === "alpha"
-            ? { kind: "note", text: "Live Disc1 1mo mode uses Alpha Vantage's separate monthly spotlight and daily D1 guard." }
-            : { kind: "note", text: "Live Disc1 1h/1d uses Tickerbot on demand. Press Beat now; no background provider loop runs." };
-      persistLocal();
-      draw();
-      if (source === "live" && currentProvider() !== "tickerbot") {
-        const previous = state.lastEvent && state.lastEvent.provider || currentProvider();
-        if (previous !== currentProvider()) setProviderCooldown(previous, currentProvider());
-        else beatNow("manual");
-      }
-      schedule();
-    }
+
 
     function toggleAuto() {
       const previousProvider = currentProvider();
-      if (state.source === "live" && state.interval === "1h") {
+      if (state.interval === "1h") {
         state.auto = false;
         state.message = { kind: "note", text: "Tickerbot 1h is on demand only. Use Beat now for reviewed Disc1 stock data; no background polling is scheduled." };
       } else {
@@ -1912,7 +1855,7 @@
       const nextProvider = currentProvider();
       const changedProvider = setProviderCooldown(previousProvider, nextProvider);
       if (!changedProvider && !state.auto) {
-        state.message = state.source === "live" && nextProvider === "tickerbot"
+        state.message = nextProvider === "tickerbot"
           ? { kind: "note", text: `Auto-beat paused; Disc1 ${state.interval} now uses on-demand Tickerbot. Beat now is available after the provider warm-up.` }
           : { kind: "note", text: "Auto-beat paused. Beat now remains available; no background provider calls will run." };
       } else if (!changedProvider && state.auto) {
@@ -2956,12 +2899,10 @@
         state.ranking = result.ranking;
         buildStage(result.entries, state.discId);
         state.loadingCatalog = false;
-        state.routeSteps = state.source === "rehearsal"
-          ? { provider: "LOCAL SYNTHETIC", worker: "NOT USED", ledger: "0 CALLS", model: "READY" }
-          : { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" };
+        state.routeSteps = { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" };
         drawCanvasWhenReady();
         loadServerHistory();
-        if (state.source === "live" && currentProvider() === "tickerbot") {
+        if (currentProvider() === "tickerbot") {
           state.message = { kind: "note", text: "Tickerbot is on-demand in Characters. Choose Beat now; no automatic Tickerbot request is scheduled." };
           draw();
         } else {
@@ -2987,7 +2928,6 @@
       budgetInput.value = String(state.budget);
       persistLocal(); draw();
     });
-    sourceSelect.addEventListener("change", () => switchSource(sourceSelect.value));
     focusSelect.addEventListener("change", () => {
       state.focus = focusSelect.value;
       const berth = stage && stage.berths.find(entry => entry.symbol === state.focus);

@@ -36,6 +36,8 @@ The repository's production Wrangler config declares `COMMUNITY_DB` for `communi
 
 `worker/good-intelligence-orb2-beats.mjs` stores compact, validated market observations and the corresponding Characters motion directive in `orb2_saved_beats`. The browser keeps only a random opaque session UUID plus a best-effort local recovery copy. The server keeps at most 120 beats per browser session for 90 days. It stores no API keys, identity records, or full bar series. Synthetic rehearsal is not written as live server history.
 
+**Live-only view.** Orb 2's browser view no longer offers a synthetic/demo data source. A failed, unconfigured, or refused live beat leaves the affected berths held with an explicit refusal message — the model keeps its last reviewed observation and nothing synthetic is substituted. Old local recovery copies that still contain clearly labeled rehearsal events remain honestly labeled and are never re-saved as live history.
+
 Apply migration `0008_orb2_saved_beats.sql` to the same D1 database used by the Worker before enabling server persistence. If the history table is missing or D1 is unavailable, the page labels the condition and preserves the local recovery copy when browser storage is available. This persistence route never initiates a provider request.
 
 ## Ticker-orb mode and The Orb's fractal frames

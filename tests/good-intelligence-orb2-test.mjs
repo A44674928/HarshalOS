@@ -295,6 +295,11 @@ test("the Orb 2 module stays browser-local: same-origin routes only, no provider
   assert.match(orbSource, /MODEL BOUNDARY/, "the model boundary paragraph is displayed");
   assert.match(orbSource, /not an OCM message, market signal, recommendation, authorization, transaction, or permission to act/, "the boundary names every refused action");
   assert.match(orbSource, /fractal frame processing/i, "The Orb's fractal frame processing is carried over as display-only");
+  assert.doesNotMatch(orbSource, /data-gi-orb2-source/, "the retired synthetic/demo data source control is not shipped to the browser");
+  assert.doesNotMatch(orbSource, /rehearsalBeat|Beat\.rehearse/, "no synthetic rehearsal generator runs in this view");
+  assert.doesNotMatch(orbSource, /switched to explicitly labeled synthetic rehearsal/, "a failed live beat never switches itself to synthetic data");
+  assert.match(orbSource, /synthetic or demo data is not substituted/i, "an unavailable beat leaves its berth held and says so plainly");
+  assert.match(orbSource, /source: "live"/, "the model boots live-only and stays live-only");
 });
 
 test("Orb 2 restores the last saved beat from the server after a page refresh", async t => {
