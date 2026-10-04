@@ -22,6 +22,8 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
+    // Alpha Vantage requires its API key in the query string; never persist query values in logs/traces.
+    "redact_query_string": true,
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,

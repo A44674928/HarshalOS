@@ -1,9 +1,9 @@
 /* HarshalOS — Characters: Objects, NPCs, and Items moved by the market beat.
 
-   The cast (js/characters-cast.js) is bound to the reviewed Tickerbot watchlist;
-   the motion engine (js/characters-beat.js) turns the last closed bar — evaluated by
-   js/good-intelligence-market-context.js, the JS port of the user-supplied Pine v6
-   VFI + Fibonacci Bands and WaveTrend sources — into walking speed, sway, and flow.
+   The cast (js/characters-cast.js) is built from the selected Disc: the reviewed
+   Tickerbot stock deck, BIS-listed FX, CoinGecko volume-ranked crypto, or commodities.
+   Tickerbot supplies stock 1h/1d; Alpha Vantage supplies only explicit 1mo observations.
+   Price-only series do not acquire invented OHLC or volume.
 
    Everything on this stage is display-only. No beat authorizes anything, spends
    anything except the provider calls it must, or becomes investment advice. No bars
@@ -14,6 +14,8 @@
 (() => {
   const STORAGE_KEY = "harshalos.characters.ledger.v1";
   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
+  const ALPHA_VANTAGE_DAILY_REQUEST_CAP = 25;
+  const MONTHLY_BEAT_MS = 24 * 60 * 60_000;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -41,6 +43,9 @@
     return `<span class="ch-meter" role="img" aria-label="${width}%"><i style="width:${width}%"></i></span>`;
   };
   const signed = value => `${Number(value) > 0 ? "+" : ""}${Number(value || 0).toFixed(2)}`;
+  const compactUsd = value => Number.isFinite(Number(value)) && Number(value) > 0
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 2 }).format(Number(value))
+    : "—";
   const normalizeServerLedger = value => {
     if (!value || typeof value !== "object" || !/^[0-9]{4}-[0-9]{2}$/.test(String(value.month || ""))) return null;
     const integer = input => Math.max(0, Math.floor(Number(input) || 0));
@@ -52,6 +57,19 @@
       month: String(value.month), calls, providerBudget, workerLimit,
       remaining: Math.max(0, workerLimit - calls),
       exhausted: calls >= workerLimit,
+      updatedAt: integer(value.updatedAt)
+    };
+  };
+  const normalizeAlphaVantageDailyLedger = value => {
+    if (!value || typeof value !== "object" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value.day || ""))) return null;
+    const integer = input => Math.max(0, Math.floor(Number(input) || 0));
+    const dailyLimit = integer(value.dailyLimit);
+    const calls = integer(value.calls);
+    if (!dailyLimit) return null;
+    return {
+      day: String(value.day), calls, dailyLimit,
+      remaining: Math.max(0, dailyLimit - calls),
+      exhausted: calls >= dailyLimit,
       updatedAt: integer(value.updatedAt)
     };
   };
@@ -68,15 +86,19 @@
       const Beat = window.CharactersBeat;
       const Cast = window.CharactersCast;
       const MarketContext = window.GoodIntelligenceMarketContext;
+      const DiscCatalog = window.CharactersDiscCatalog;
       const watchlist = ((window.APPS || []).find(app => app.id === "good-intelligence") || {}).tickerbotWatchlist;
-      if (!Beat || !Cast || !MarketContext || !Array.isArray(watchlist) || !watchlist.length) {
+      if (!Beat || !Cast || !MarketContext || !DiscCatalog || !Array.isArray(watchlist) || !watchlist.length) {
         body.innerHTML = `<div class="ch-app"><div class="h1">Characters</div>
-          <div class="rule-box refusal">The beat engine, the cast, the market-context evaluator, or the reviewed Tickerbot watchlist is not loaded. Check the script order in index.html and the Good Intelligence app entry.</div></div>`;
+          <div class="rule-box refusal">The beat engine, cast, Disc catalog, market-context evaluator, or reviewed Tickerbot watchlist is not loaded. Check the script order in index.html and the Good Intelligence app entry.</div></div>`;
         return;
       }
 
-      const stage = Cast.build(watchlist);
-      const symbols = stage.berths.map(berth => berth.symbol);
+      const activeDisc = { current: "stocks", ranking: null };
+      let stage = Cast.build(watchlist, { discId: "stocks" });
+      let symbols = stage.berths.map(berth => berth.symbol);
+      const discStorageKey = (discId, interval) => discId === "stocks" && interval === "1h"
+        ? STORAGE_KEY : `${STORAGE_KEY}.${discId}.${interval}`;
       const storage = (() => {
         try {
           const probe = window.localStorage;
@@ -86,19 +108,21 @@
         } catch { return null; }
       })();
 
-      function readLedger() {
+      function readLedger(discId = activeDisc.current, interval = "1h") {
         if (!storage) return Beat.emptyLedger(Date.now());
         try {
-          return Beat.normalizeLedger(JSON.parse(storage.getItem(STORAGE_KEY) || "null"), Date.now());
+          return Beat.normalizeLedger(JSON.parse(storage.getItem(discStorageKey(discId, interval)) || "null"), Date.now());
         } catch { return Beat.emptyLedger(Date.now()); }
       }
 
-      function writeLedger(ledger) {
+      function writeLedger(ledger, discId = activeDisc.current, interval = state.interval) {
         if (!storage) return;
-        try { storage.setItem(STORAGE_KEY, JSON.stringify(ledger)); } catch { /* the ledger is best-effort */ }
+        try { storage.setItem(discStorageKey(discId, interval), JSON.stringify(ledger)); } catch { /* the ledger is best-effort */ }
       }
 
       const state = {
+        discId: "stocks",
+        ranking: null,
         cadence: Beat.DEFAULTS.cadenceMinutes,
         budget: Beat.DEFAULTS.monthlyBudget,
         interval: "1h",
@@ -113,6 +137,8 @@
         ledger: readLedger(),
         serverLedger: null,
         serverLedgerStatus: "waiting",
+        alphaVantageDailyLedger: null,
+        alphaVantageLedgerStatus: "waiting",
         /* Featured tickers double as the hot lane; the browser ledger is where that choice lives. */
         motions: {},          // symbol -> latest directive from the engine
         displayed: {},        // symbol -> directive blended for rendering
@@ -134,36 +160,39 @@
             <div>
               <p class="ch-eyebrow">HARSHAALOS · MARKET BEAT</p>
               <h1>Characters</h1>
-              <p class="ch-lede">Objects, NPCs, and Items walking to the last <strong>closed</strong> bar. Every refresh is a beat;
-              the plan spends at most <strong>${Beat.MAX_SYMBOLS_PER_BEAT}</strong> provider calls per beat, and re-drawing the stage spends none.</p>
+              <p class="ch-lede">Select a Disc to cast the reviewed stock deck, BIS FX instruments, volume-ranked crypto, or commodities. Tickerbot keeps stock <strong>1h/1d</strong> behavior; Alpha Vantage answers only explicit <strong>1mo</strong> requests. Missing fields stay missing; re-drawing the stage spends no provider calls.</p>
             </div>
             <div class="ch-source-badge" data-ch-source-badge>Synthetic rehearsal · 0 calls</div>
           </header>
 
           <section class="ch-controls">
+            <label class="ch-control"><span>DISC</span>
+              <select data-ch-disc>${DiscCatalog.discs.map(disc => `<option value="${esc(disc.id)}">${esc(disc.label)}</option>`).join("")}</select>
+            </label>
             <label class="ch-control"><span>CADENCE</span>
               <select data-ch-cadence>${Beat.CADENCES.map(minutes => `<option value="${minutes}">${Beat.formatHours(minutes / 60)}</option>`).join("")}</select>
             </label>
             <label class="ch-control"><span>BAR SIZE</span>
-              <select data-ch-interval><option value="1h">1 hour</option><option value="1d">1 day</option></select>
+              <select data-ch-interval><option value="1h">1 hour · Tickerbot</option><option value="1d">1 day · Tickerbot</option><option value="1mo">1 month · Alpha Vantage</option></select>
             </label>
-            <label class="ch-control"><span>MONTHLY PLAN</span>
-              <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Provider calls per month; planning only">
+            <label class="ch-control"><span>TICKERBOT PLAN</span>
+              <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Tickerbot calls per month; planning only">
             </label>
             <label class="ch-control"><span>DATA SOURCE</span>
               <select data-ch-source>
-                <option value="live">Tickerbot Live</option>
+                <option value="live">Live provider data</option>
                 <option value="rehearsal">Synthetic rehearsal</option>
               </select>
             </label>
             <label class="ch-control ch-focus-control"><span>FOCUS</span>
-              <select data-ch-focus aria-label="Focus a ticker">${symbols.map(symbol => `<option value="${esc(symbol)}">${esc(symbol)}</option>`).join("")}</select>
+              <select data-ch-focus aria-label="Focus an instrument">${stage.berths.map(berth => `<option value="${esc(berth.symbol)}">${esc(berth.displaySymbol)} · ${esc(berth.name)}</option>`).join("")}</select>
             </label>
             <div class="ch-buttons">
               <button class="ch-btn ch-btn-primary" data-ch-beat>Beat now</button>
               <button class="ch-btn" data-ch-auto aria-pressed="true">Auto-beat: on</button>
             </div>
           </section>
+          <p class="ch-disc-note" data-ch-disc-note></p>
 
           <div class="ch-grid">
             <section class="ch-panel ch-stage-panel">
@@ -177,14 +206,14 @@
                 </div>
               </div>
               <div class="ch-stage" data-ch-stage>
-                <canvas data-ch-canvas width="880" height="620" tabindex="0" aria-label="Radial stage of the Characters cast. Each berth is one ticker; use the Focus selector for details."></canvas>
+                <canvas data-ch-canvas width="880" height="620" tabindex="0" aria-label="Radial stage of the selected Characters Disc. Each berth is one instrument; use the Focus selector for details."></canvas>
               </div>
               <p class="ch-stage-note" data-ch-stage-note>No beat yet. Characters stand at their berths; nothing has been invented.</p>
             </section>
 
             <aside class="ch-side">
               <section class="ch-panel ch-plan-panel">
-                <div class="ch-panel-head"><h2>Budget plan</h2><span data-ch-plan-tag class="ch-tag">—</span></div>
+                <div class="ch-panel-head"><h2 data-ch-plan-title>Budget plan</h2><span data-ch-plan-tag class="ch-tag">—</span></div>
                 <div data-ch-plan></div>
                 <label class="ch-check"><input type="checkbox" data-ch-stretch> Use the reserve stretch (+1 symbol per beat)</label>
                 <label class="ch-check"><input type="checkbox" data-ch-tier> Two-lane beat — feature the ones that must move every beat</label>
@@ -217,6 +246,7 @@
         try { return canvas.getContext("2d"); } catch { return null; }
       })();
       const stageHost = $("[data-ch-stage]");
+      const discSelect = $("[data-ch-disc]");
       const cadenceSelect = $("[data-ch-cadence]");
       const intervalSelect = $("[data-ch-interval]");
       const budgetInput = $("[data-ch-budget]");
@@ -230,20 +260,66 @@
       const reduceMotion = Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       const IDLE_MOTION = Beat.motion(null);
 
+      function updateFocusOptions() {
+        focusSelect.innerHTML = stage.berths.map(berth =>
+          `<option value="${esc(berth.symbol)}">${esc(berth.displaySymbol)} · ${esc(berth.name)}</option>`
+        ).join("");
+        focusSelect.value = state.focus;
+        focusSelect.disabled = stage.berths.length === 0;
+      }
+
+      function configureIntervalOptions(discId, preferred = state.interval) {
+        const disc = DiscCatalog.disc(discId);
+        const modes = disc ? disc.intervalModes : ["1h"];
+        state.interval = modes.includes(preferred) ? preferred : modes[0];
+        intervalSelect.innerHTML = modes.map(interval => {
+          const label = interval === "1mo" ? "1 month · Alpha Vantage" : interval === "1d" ? "1 day · Tickerbot" : "1 hour · Tickerbot";
+          return `<option value="${interval}">${label}</option>`;
+        }).join("");
+        intervalSelect.value = state.interval;
+        intervalSelect.disabled = modes.length <= 1 || state.pending;
+        cadenceSelect.disabled = state.interval === "1mo" || state.pending;
+        budgetInput.disabled = state.interval === "1mo" || state.pending;
+        stretchBox.disabled = state.interval === "1mo" || state.pending;
+        tierBox.disabled = state.interval === "1mo" || state.pending;
+      }
+
+      function resetStageForSelection() {
+        state.motions = {};
+        state.displayed = {};
+        state.analyses = {};
+        state.blends = {};
+        state.items = new Map();
+        state.laneBySymbol = {};
+        state.lastBeatAt = 0;
+        state.nextBeatAt = Date.now();
+        state.log = [];
+        state.focus = symbols[0] || "";
+        state.tierMode = false;
+        state.stretch = false;
+        stretchBox.checked = false;
+        tierBox.checked = false;
+        updateFocusOptions();
+        configureIntervalOptions(state.discId, state.interval);
+        state.ledger = readLedger(state.discId, state.interval);
+      }
+
       function planOf() {
         return Beat.plan({
           monthlyBudget: state.budget,
-          cadenceMinutes: state.cadence,
+          cadenceMinutes: state.interval === "1mo" ? 1440 : state.cadence,
           castSize: stage.berths.length,
           perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
         });
       }
 
       function perBeatOf(plan) {
+        if (state.interval === "1mo") return Math.min(Beat.MAX_SYMBOLS_PER_BEAT, ALPHA_VANTAGE_DAILY_REQUEST_CAP);
         return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
       }
 
       function tierPlan() {
+        if (state.interval === "1mo") return { options: [], recommended: null, notes: ["Two-lane Tickerbot rotation is not used in explicit 1mo mode."] };
         return Beat.planTiers({
           monthlyBudget: state.budget,
           cadenceMinutes: state.cadence,
@@ -265,7 +341,7 @@
         const plan = planOf();
         const perBeat = perBeatOf(plan);
         const base = { symbols, lastRefreshedAt: state.ledger.lastRefreshedAt, now: Date.now(), featured: state.ledger.featured };
-        if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+        if (state.interval === "1mo" || !state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
         const tiers = tierPlan();
         const option = tierOptionOf(tiers);
         if (!option) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
@@ -278,8 +354,13 @@
         return { symbols: selection.all, lanes: selection.lanes, tier: option, perBeat };
       }
 
+      function cadenceMinutesForBeat() {
+        return state.interval === "1mo" ? 1440 : state.cadence;
+      }
+
       function beatIntervalMs() {
-        return state.source === "rehearsal" ? REHEARSAL_BEAT_MS : state.cadence * 60_000;
+        if (state.source === "rehearsal") return REHEARSAL_BEAT_MS;
+        return state.interval === "1mo" ? MONTHLY_BEAT_MS : state.cadence * 60_000;
       }
 
       /* ── Data ─────────────────────────────────────────────────────── */
@@ -292,14 +373,25 @@
           state.serverLedger = ledger;
         }
         if (spend.ledgerStatus === "unavailable") state.serverLedgerStatus = "unavailable";
+        else if (spend.ledgerStatus === "not-configured") state.serverLedgerStatus = "not-configured";
         else if (ledger) state.serverLedgerStatus = "ready";
+
+        const alphaDaily = normalizeAlphaVantageDailyLedger(spend.alphaVantageDaily);
+        if (alphaDaily && (!state.alphaVantageDailyLedger || alphaDaily.day > state.alphaVantageDailyLedger.day ||
+          (alphaDaily.day === state.alphaVantageDailyLedger.day && alphaDaily.calls >= state.alphaVantageDailyLedger.calls))) {
+          state.alphaVantageDailyLedger = alphaDaily;
+        }
+        if (spend.alphaVantageLedgerStatus === "unavailable") state.alphaVantageLedgerStatus = "unavailable";
+        else if (alphaDaily) state.alphaVantageLedgerStatus = "ready";
+        else if (spend.alphaVantageLedgerStatus === "not-configured") state.alphaVantageLedgerStatus = "not-configured";
       }
 
       async function fetchLiveBeat(due, cadenceMinutes, lanes = {}) {
         const laneParam = Object.entries(lanes).length
           ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
           : "";
-        const endpoint = `/api/characters/v1/beat?symbols=${encodeURIComponent(due.join(','))}` +
+        const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(state.discId)}` +
+          `&symbols=${encodeURIComponent(due.join(','))}` +
           `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
         const fetcher = window.fetch || globalThis.fetch;
         const response = await fetcher(endpoint, {
@@ -336,8 +428,8 @@
         const plan = planOf();
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedger && state.serverLedger.month === currentMonth ? state.serverLedger : null;
-        if (state.source === "live" && durable && durable.exhausted) {
-          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The monthly limit is reached; no beat was sent.` };
+        if (state.source === "live" && durable && durable.exhausted && state.interval !== "1mo") {
+          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The Tickerbot monthly limit is reached; no ${state.interval} request was sent. Explicit 1mo mode is separate and is not a daily substitute.` };
           drawPanels();
           return;
         }
@@ -355,7 +447,7 @@
         let error = null;
         try {
           result = state.source === "live"
-            ? await fetchLiveBeat(due, state.cadence, selection.lanes)
+            ? await fetchLiveBeat(due, cadenceMinutesForBeat(), selection.lanes)
             : rehearsalBeat(due);
         } catch (caught) {
           error = caught;
@@ -385,6 +477,8 @@
         let unavailable = 0;
         let budgetBlocked = 0;
         let ledgerBlocked = 0;
+        let alphaVantageBudgetBlocked = 0;
+        let alphaVantageLedgerBlocked = 0;
         for (const instrument of result.instruments) {
           const symbol = String(instrument.symbol || "").toUpperCase();
           if (!symbol) continue;
@@ -392,6 +486,8 @@
             unavailable += 1;
             if (instrument.code === "budget-exhausted") budgetBlocked += 1;
             if (instrument.code === "ledger-unavailable") ledgerBlocked += 1;
+            if (instrument.code === "alpha-vantage-budget-exhausted") alphaVantageBudgetBlocked += 1;
+            if (instrument.code === "alpha-vantage-ledger-unavailable") alphaVantageLedgerBlocked += 1;
             state.motions[symbol] = Beat.motion(null, { bearingBase: bearingOf(symbol) });
             state.analyses[symbol] = { status: "unavailable", message: instrument.message || "No bars were supplied for this beat.", at: now };
             continue;
@@ -408,6 +504,9 @@
             source: directive.source,
             bars: directive.barCount,
             close: analysis && analysis.close,
+            dataShape: analysis && analysis.dataShape,
+            quoteCurrency: analysis && analysis.quoteCurrency,
+            volumeAvailable: analysis && analysis.volumeAvailable === true,
             gauge: directive.gauge,
             marks: directive.marks,
             zone: analysis && analysis.waveTrend ? analysis.waveTrend.zone : "unknown",
@@ -422,13 +521,14 @@
           : 0;
         state.ledger = Beat.recordBeat(state.ledger, {
           at: now, symbols: refreshed, calls, moodBySymbol: moods,
-          synthetic: state.source === "rehearsal", cadenceMinutes: state.cadence
+          synthetic: state.source === "rehearsal", cadenceMinutes: cadenceMinutesForBeat()
         });
         writeLedger(state.ledger);
         state.lastBeatAt = now;
         state.beats += 1;
-        state.log = [{
-          at: now, reason, source: state.source, symbols: refreshed, calls,
+          state.log = [{
+          at: now, reason, disc: state.discId, interval: state.interval, source: state.source, symbols: refreshed, calls,
+          alphaVantageAttempts: result.spend ? Math.max(0, Number(result.spend.alphaVantageAttempts) || 0) : 0,
           unavailable, cacheHits: result.spend ? result.spend.cacheHits : 0,
           lanes: { ...state.laneBySymbol },
           moods: refreshed.map(symbol => `${symbol} ${moods[symbol] || "—"}`)
@@ -436,16 +536,25 @@
         state.nextBeatAt = now + beatIntervalMs();
         if (budgetBlocked) {
           const ledger = state.serverLedger;
-          state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No provider request was sent for those berths.` };
+          state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit for Tickerbot${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No Tickerbot request was sent for those berths.` };
+        } else if (alphaVantageBudgetBlocked) {
+          const ledger = state.alphaVantageDailyLedger;
+          state.message = { kind: "refusal", text: `${alphaVantageBudgetBlocked} due berth${alphaVantageBudgetBlocked === 1 ? " was" : "s were"} refused by Alpha Vantage's separate daily cap${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.dailyLimit.toLocaleString()} in ${ledger.day} UTC)` : ""}. No additional Alpha Vantage request was sent.` };
+        } else if (alphaVantageLedgerBlocked) {
+          state.message = { kind: "refusal", text: `${alphaVantageLedgerBlocked} due berth${alphaVantageLedgerBlocked === 1 ? " was" : "s were"} not sent to Alpha Vantage because its separate D1 daily ledger is unavailable. No request was sent.` };
         } else if (ledgerBlocked) {
-          state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 call ledger is unavailable. No provider request was sent for those berths.` };
+          state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 monthly call ledger is unavailable. No request was sent.` };
+        } else if (state.source === "live" && state.message && ["error", "refusal"].includes(state.message.kind)) {
+          state.message = refreshed.length
+            ? null
+            : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
         } else if (!state.message || state.message.kind === "error") {
           state.message = refreshed.length
             ? null
             : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
         }
         if (state.source === "live") {
-          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from Tickerbot (${calls} provider call${calls === 1 ? "" : "s"}). Display-only motion.` +
+          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from live market data (${calls} provider request${calls === 1 ? "" : "s"}, including ${result.spend ? Number(result.spend.tickerbotAttempts) || 0 : 0} Tickerbot and ${result.spend ? Number(result.spend.alphaVantageAttempts) || 0 : 0} Alpha Vantage 1mo attempts). Display-only motion.` +
             (unavailable ? ` ${unavailable} symbol(s) returned no bars and stayed frozen.` : ""));
         }
         state.displayed = { ...state.displayed };
@@ -464,48 +573,78 @@
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedgerStatus === "ready" && state.serverLedger && state.serverLedger.month === currentMonth
           ? state.serverLedger : null;
+        const currentUtcDay = new Date(Date.now()).toISOString().slice(0, 10);
+        const alphaVantageDaily = state.alphaVantageLedgerStatus === "ready" && state.alphaVantageDailyLedger &&
+          state.alphaVantageDailyLedger.day === currentUtcDay ? state.alphaVantageDailyLedger : null;
+        const alphaVantageDailyText = alphaVantageDaily
+          ? `${alphaVantageDaily.calls.toLocaleString()} / ${alphaVantageDaily.dailyLimit.toLocaleString()} used · ${alphaVantageDaily.remaining.toLocaleString()} left (${alphaVantageDaily.day} UTC)`
+          : state.alphaVantageLedgerStatus === "unavailable"
+            ? "D1 UTC-day ledger unavailable · Alpha Vantage requests fail closed"
+            : state.alphaVantageLedgerStatus === "not-configured"
+              ? "Not configured · add ALPHA_VANTAGE_API_KEY for explicit 1mo mode"
+              : `${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Worker attempts per UTC day · all Alpha Vantage intervals`;
+        const disc = DiscCatalog.disc(state.discId);
+        const monthlyMode = state.interval === "1mo";
         const perBeat = perBeatOf(plan);
         const sweepBeats = Math.ceil(stage.berths.length / Math.max(1, perBeat));
-        const sweepHours = (sweepBeats * state.cadence) / 60;
+        const sweepHours = monthlyMode ? sweepBeats * 24 : (sweepBeats * state.cadence) / 60;
+        const cryptoRankNote = state.discId === "crypto" && state.ranking
+          ? `Live ${state.ranking.provider || "CoinGecko"} ranking · ${state.ranking.metric || "trailing 24-hour total_volume, USD"}${state.ranking.rankedAt ? ` · snapshot ${stamp(state.ranking.rankedAt)}` : ""}${state.ranking.cached ? " · cached ranking" : ""}. Audit flags: ${state.ranking.audit ? `${state.ranking.audit.stablecoinCandidateCount || 0} stablecoin candidate(s), ${state.ranking.audit.missingMarketCapCount || 0} missing market cap(s), ${(state.ranking.audit.extremeNominalPriceCandidates || []).length} extreme nominal price flag(s)` : "eligibility audit unavailable"}. Constituents can include stablecoins and other eligible market-listed assets; this is a provisional volume ranking, not an investment-quality screen.`
+          : (disc && disc.ranking) || "";
+        $("[data-ch-disc-note]").textContent = cryptoRankNote;
 
         $("[data-ch-source-badge]").textContent = state.source === "rehearsal"
           ? "Synthetic rehearsal · 0 provider calls · not real market data"
-          : "Tickerbot Live · one provider call per symbol per beat";
+          : monthlyMode
+            ? "Alpha Vantage · explicit 1mo only · 25 requests/UTC day"
+            : "Tickerbot Live · stock 1h/1d only · monthly Tickerbot ledger";
         $("[data-ch-source-badge]").className = `ch-source-badge${state.source === "rehearsal" ? " ch-source-badge-synthetic" : ""}`;
 
         const tiers = tierPlan();
         const tierOption = tierOptionOf(tiers);
-        const cadencePlan = Beat.compareCadences({ monthlyBudget: state.budget, castSize: stage.berths.length });
+        const cadencePlan = monthlyMode ? [] : Beat.compareCadences({ monthlyBudget: state.budget, castSize: stage.berths.length });
+        $("[data-ch-plan-title]").textContent = monthlyMode ? "1mo mode" : "Tickerbot plan";
+        const tickerbotStats = `
+          <div><dt>Beats / month</dt><dd>${plan.beatsPerMonth.toLocaleString()}</dd></div>
+          <div><dt>Symbols / beat</dt><dd>${perBeat}${state.stretch && plan.stretchWithinBudget ? " <span class=\"ch-stretch-tag\">stretch</span>" : ""}</dd></div>
+          <div><dt>Tickerbot calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
+          <div><dt>Reserve held</dt><dd>${plan.reserveCalls.toLocaleString()}</dd></div>
+          <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption
+            ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
+            : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
+          ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}`;
+        const monthlyStats = `
+          <div><dt>Bar interval</dt><dd>1mo · Alpha Vantage only</dd></div>
+          <div><dt>Requests / beat</dt><dd>up to ${perBeat} instruments</dd></div>
+          <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests</dd></div>
+          <div><dt>Approx. full Disc rotation</dt><dd>${sweepBeats} daily beat${sweepBeats === 1 ? "" : "s"} · about ${sweepBeats} day${sweepBeats === 1 ? "" : "s"}</dd></div>`;
+        const tickerbotLedgerRow = monthlyMode
+          ? `<div><dt>Tickerbot UTC-month ledger</dt><dd><span class="ch-dim">Not used in 1mo mode</span></dd></div>`
+          : `<div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
+            ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
+            : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · Tickerbot calls fail closed" : state.serverLedgerStatus === "not-configured" ? "Tickerbot secret not configured" : "awaiting Worker ledger"}</span>`}</dd></div>`;
+        const monthlyCadenceControls = cadencePlan.length ? `<div class="ch-cadence-row">${cadencePlan.map(option => `
+          <button class="ch-cadence-chip${option.cadenceMinutes === state.cadence ? " active" : ""}" data-ch-cadence-chip="${option.cadenceMinutes}"
+            title="${option.callsPerBeat} Tickerbot calls/beat · ${option.callsPerMonth.toLocaleString()} Tickerbot calls/month · ${Beat.formatHours(option.sweepHours)} sweep">
+            ${Beat.formatHours(option.cadenceMinutes / 60)}<small>${option.callsPerBeat}/beat</small>
+            <i class="ch-chip-bar"><b style="width:${Math.round(Math.min(1, option.budgetUseRatio) * 100)}%"></b></i>
+          </button>`).join("")}</div>` : "";
         $("[data-ch-plan]").innerHTML = `
           <dl class="ch-stats">
-            <div><dt>Beats / month</dt><dd>${plan.beatsPerMonth.toLocaleString()}</dd></div>
-            <div><dt>Symbols / beat</dt><dd>${perBeat}${state.stretch && plan.stretchWithinBudget ? " <span class=\"ch-stretch-tag\">stretch</span>" : ""}</dd></div>
-            <div><dt>Calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
-            <div><dt>Reserve held</dt><dd>${plan.reserveCalls.toLocaleString()}</dd></div>
-            <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption
-              ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
-              : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
-            ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}
-            <div><dt>D1 snapshot</dt><dd>${durable
-              ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
-              : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · live calls fail closed" : "awaiting Worker ledger"}</span>`}</dd></div>
-          </dl>
-          <div class="ch-cadence-row">${cadencePlan.map(option => `
-            <button class="ch-cadence-chip${option.cadenceMinutes === state.cadence ? " active" : ""}" data-ch-cadence-chip="${option.cadenceMinutes}"
-              title="${option.callsPerBeat} per beat · ${option.callsPerMonth.toLocaleString()} calls/month · ${Beat.formatHours(option.sweepHours)} sweep">
-              ${Beat.formatHours(option.cadenceMinutes / 60)}<small>${option.callsPerBeat}/beat</small>
-              <i class="ch-chip-bar"><b style="width:${Math.round(Math.min(1, option.budgetUseRatio) * 100)}%"></b></i>
-            </button>`).join("")}
-          </div>`;
+            ${monthlyMode ? monthlyStats : tickerbotStats}
+            ${tickerbotLedgerRow}
+            <div><dt>Alpha Vantage UTC-day cap</dt><dd><span class="ch-dim">${monthlyMode ? alphaVantageDailyText : "Not used for stock 1h/1d; explicit 1mo mode only"}</span></dd></div>
+          </dl>${monthlyCadenceControls}`;
         const tierFeasible = tiers.options.some(option => option.feasible);
-        $("[data-ch-tier-panel]").innerHTML = !tierFeasible ? `
-          <p class="ch-fineprint">${tiers.notes.join(" ")}</p>` : state.tierMode ? `
+        $("[data-ch-tier-panel]").innerHTML = monthlyMode
+          ? `<p class="ch-fineprint">Two-lane Tickerbot rotation is disabled in explicit 1mo mode.</p>`
+          : !tierFeasible ? `<p class="ch-fineprint">${tiers.notes.join(" ")}</p>` : state.tierMode ? `
           <div class="ch-tier-wheel">
             ${tiers.options.map(option => `
               <button class="ch-tier-chip${option.feasible ? "" : " infeasible"}${tierOption && option.targetSweepHours === tierOption.targetSweepHours ? " active" : ""}"
                 data-ch-tier-target="${option.targetSweepHours}"
                 title="${option.feasible
-                  ? `${option.hotSize} hot every beat · sweep of ${option.sweepSize} in ${option.sweepHours}h · same ${option.callsPerMonth.toLocaleString()} calls/month`
+                  ? `${option.hotSize} hot every beat · sweep of ${option.sweepSize} in ${option.sweepHours}h · same ${option.callsPerMonth.toLocaleString()} Tickerbot calls/month`
                   : (option.notes[0] || "No tier split fits this window")}">
                 <b>${option.feasible ? `${option.hotSize} hot` : "—"}</b>
                 <small>all in ${option.targetSweepHours}h</small>
@@ -518,33 +657,41 @@
           ${tierOption && !tierOption.withinWindow ? `<p class="ch-fineprint">This window is not reached at this plan; the sweep finishes in ${Beat.formatHours(tierOption.sweepHours)}.</p>` : ""}`
           : "";
 
-        $("[data-ch-plan-tag]").textContent = state.tierMode && tierOption
-          ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
-          : `${state.cadence}-minute plan`;
-        $("[data-ch-plan-note]").textContent = `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The monthly field changes the plan only; the Worker enforces the shared 10,000-call D1 limit.`;
-        stretchBox.disabled = !plan.stretchWithinBudget;
-        stretchBox.checked = state.stretch && plan.stretchWithinBudget;
-        tierBox.checked = state.tierMode;
-        tierBox.disabled = !tiers.options.some(option => option.feasible);
+        $("[data-ch-plan-tag]").textContent = monthlyMode
+          ? "Alpha Vantage · UTC-day cap"
+          : state.tierMode && tierOption
+            ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
+            : `${state.cadence}-minute plan`;
+        $("[data-ch-plan-note]").textContent = monthlyMode
+          ? `The Worker requests only explicit 1mo Alpha Vantage data, capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day, independent of requested bar interval. A beat selects at most ${perBeat} instruments; the full ${stage.berths.length}-instrument Disc takes about ${sweepBeats} daily beats at the live cadence. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}.`
+          : `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The monthly field changes the Tickerbot plan only; the Worker separately caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 requests per UTC day in explicit 1mo mode. Alpha Vantage is not a daily-bar fallback.`;
+        stretchBox.disabled = monthlyMode || !plan.stretchWithinBudget || state.pending;
+        stretchBox.checked = state.stretch && plan.stretchWithinBudget && !monthlyMode;
+        tierBox.checked = state.tierMode && !monthlyMode;
+        tierBox.disabled = monthlyMode || state.pending || !tiers.options.some(option => option.feasible);
 
         const focused = state.focus;
         const berth = stage.berths.find(entry => entry.symbol === focused);
         const directive = state.motions[focused];
         const analysis = state.analyses[focused];
-        $("[data-ch-detail-title]").textContent = berth ? `${focused} · ${berth.npc.name}` : "Berth";
+        $("[data-ch-detail-title]").textContent = berth ? `${berth.displaySymbol} · ${berth.npc.name}` : "Berth";
         $("[data-ch-detail]").innerHTML = berth ? `
-          <p class="ch-detail-role">${esc(berth.npc.role)} — posted to ${esc(berth.sectorName)}.</p>
+          <p class="ch-detail-role">${esc(berth.name)} · ${esc(berth.assetClass)} · ${esc(berth.quoteCurrency)} — ${esc(berth.npc.role)}; posted to ${esc(berth.sectorName)}.${berth.tags.length ? ` Tags: ${berth.tags.map(esc).join(", ")}.` : ""}</p>
+          ${berth.rank || berth.volumeUsd || berth.currentPriceUsd || berth.marketCapUsd ? `<p class="ch-fineprint">${berth.assetClass === "fx" ? "BIS FX turnover rank" : "Disc rank"} ${berth.rank || "—"}${berth.rankingProvider ? ` · ${esc(berth.rankingProvider)}` : ""}${berth.volumeUsd ? ` · trailing 24h volume ${compactUsd(berth.volumeUsd)}` : ""}${berth.currentPriceUsd ? ` · price ${compactUsd(berth.currentPriceUsd)}` : ""}${berth.marketCapUsd ? ` · market cap ${compactUsd(berth.marketCapUsd)}` : ""}</p>` : ""}
+          ${Array.isArray(berth.audit) && berth.audit.length ? `<p class="ch-fineprint">Ranking audit flags: ${berth.audit.map(flag => esc(String(flag).replace(/-/g, " "))).join(" · ")}</p>` : ""}
           <p class="ch-detail-caption">${esc(directive ? directive.caption : "No beat has reached this berth yet.")}</p>
           ${directive ? `
             <dl class="ch-gauges">
               <div><dt>Bias vs basis</dt><dd>${signed(directive.gauge.bias)} ${meter(Math.abs(directive.gauge.bias))}</dd></div>
-              <div><dt>Flow (VFI − signal)</dt><dd>${signed(directive.gauge.flow)} ${meter(Math.abs(directive.gauge.flow))}</dd></div>
+              <div><dt>Flow (VFI − signal)</dt><dd>${directive.gauge.flowAvailable ? `${signed(directive.gauge.flow)} ${meter(Math.abs(directive.gauge.flow))}` : "n/a · VFI unavailable"}</dd></div>
               <div><dt>Heat (WaveTrend)</dt><dd>${directive.gauge.heat.toFixed(2)} ${meter(directive.gauge.heat)}</dd></div>
               <div><dt>Charge (volatility)</dt><dd>${directive.gauge.charge.toFixed(2)} ${meter(directive.gauge.charge)}</dd></div>
-              <div><dt>Crowd (relative volume)</dt><dd>${directive.gauge.crowd.toFixed(2)} ${meter(directive.gauge.crowd)}</dd></div>
+              <div><dt>Crowd (relative volume)</dt><dd>${directive.gauge.crowdAvailable ? `${directive.gauge.crowd.toFixed(2)} ${meter(directive.gauge.crowd)}` : "n/a · volume unavailable"}</dd></div>
             </dl>
             <p class="ch-detail-marks">${directive.marks.length ? directive.marks.map(mark => `<span>${esc(mark)}</span>`).join("") : "<span class=\"ch-dim\">No indicator events on the latest closed bar.</span>"}</p>
-            <p class="ch-fineprint">${analysis ? `${esc(analysis.combined)} · ${esc(analysis.zone)} · ${analysis.bars} bars` : ""}
+            <p class="ch-fineprint">${analysis && Number.isFinite(Number(analysis.bars))
+              ? `${esc(analysis.combined || "Market context ready")} · ${esc(analysis.zone || "unknown")} · ${analysis.bars} bars · ${esc(analysis.dataShape || berth.dataShape)} · quote ${esc(analysis.quoteCurrency || berth.quoteCurrency)} · volume ${analysis.volumeAvailable ? "available" : "unavailable"}`
+              : analysis && analysis.status === "unavailable" ? `No market observations · ${esc(analysis.message || "the provider returned no usable observations")}` : ""}
             ${analysis && analysis.synthetic ? " · SYNTHETIC REHEARSAL" : analysis && analysis.source ? ` · ${esc(analysis.source)}` : ""}</p>` : ""}
           <p class="ch-fineprint">NPC ${directive ? `${directive.npc.formation} formation · speed ${directive.npc.speed.toFixed(2)} · stride ${directive.npc.stride.toFixed(2)} · jitter ${directive.npc.jitter.toFixed(2)}` : "—"}
           · Object ${directive ? `sway ${directive.object.sway.toFixed(2)} · aperture ${directive.object.aperture.toFixed(2)}` : "—"}
@@ -556,7 +703,7 @@
         $("[data-ch-log]").innerHTML = state.log.length ? state.log.map(entry => `
           <li>
             <span class="ch-log-time">${clock(entry.at)}</span>
-            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `LIVE ${entry.calls} call${entry.calls === 1 ? "" : "s"}`}</span>
+            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `${esc(entry.disc)} ${esc(entry.interval)} · LIVE ${entry.calls} request${entry.calls === 1 ? "" : "s"}${entry.alphaVantageAttempts ? ` · Alpha 1mo ${entry.alphaVantageAttempts}` : ""}`}</span>
             <span class="ch-log-body">${entry.symbols.length ? entry.symbols.map(symbol => {
               const lane = entry.lanes && entry.lanes[symbol];
               const laneMark = lane === "hot" || lane === "sweep"
@@ -568,11 +715,15 @@
           </li>`).join("") : `<li class="ch-log-empty">No beats recorded in this session.</li>`;
         $("[data-ch-beatcount]").textContent = `${state.ledger.beats} beat${state.ledger.beats === 1 ? "" : "s"}`;
         $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} Character call${state.ledger.calls === 1 ? "" : "s"} in ${state.ledger.month} (browser only)`;
-        $("[data-ch-durable-ledger]").textContent = durable
-          ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
-          : state.serverLedgerStatus === "unavailable"
-            ? "No D1 snapshot reported — the live route refused or its ledger is unavailable; new fetches fail closed."
-            : "Waiting for the first live beat.";
+        $("[data-ch-durable-ledger]").textContent = monthlyMode
+          ? "Not used for explicit Alpha Vantage 1mo requests."
+          : durable
+            ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
+            : state.serverLedgerStatus === "unavailable"
+              ? "No D1 snapshot reported — the live route refused or the Tickerbot ledger is unavailable; Tickerbot fetches fail closed."
+              : state.serverLedgerStatus === "not-configured"
+                ? "Tickerbot is not configured; explicit 1mo mode uses a separate Alpha Vantage path."
+                : "Waiting for the first live beat.";
         $("[data-ch-stage-note]").textContent = state.message
           ? state.message.text
           : state.lastBeatAt
@@ -580,7 +731,7 @@
               ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls.`
               : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. The planner holds ${Beat.DEFAULTS.reserveRatio * 100}% in reserve by default; the D1 Worker ledger atomically stops routed Tickerbot attempts at 10,000 per UTC month across Characters and Market Charts. Direct provider calls are outside that ledger.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Stock 1h/1d requests use Tickerbot under its 10,000-per-UTC-month Worker cap. Explicit 1mo requests use Alpha Vantage only under a separate 25-requests-per-UTC-day Worker cap; monthly data never substitutes for daily bars. Direct provider calls are outside those ledgers.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -839,12 +990,95 @@
         }, beatIntervalMs());
       }
 
+      async function switchDisc(discId) {
+        const disc = DiscCatalog.disc(discId);
+        if (!disc || state.pending) {
+          discSelect.value = state.discId;
+          return;
+        }
+        const previousDisc = state.discId;
+        discSelect.disabled = true;
+        state.message = { kind: "note", text: `Loading ${disc.label} catalog…` };
+        drawPanels();
+        try {
+          let entries;
+          let ranking = null;
+          if (discId === "stocks") {
+            entries = watchlist;
+          } else if (discId === "crypto") {
+            const fetcher = window.fetch || globalThis.fetch;
+            const response = await fetcher("/api/characters/v1/discs?disc=crypto", {
+              method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
+              headers: { Accept: "application/json" }
+            });
+            let payload = null;
+            try { payload = await response.json(); } catch { /* reported below */ }
+            if (!response.ok || !payload || payload.success !== true || !Array.isArray(payload.instruments) || payload.instruments.length !== 52) {
+              throw new Error(payload && payload.message || `The crypto ranking route answered HTTP ${response.status}.`);
+            }
+            entries = payload.instruments;
+            ranking = payload.ranking || null;
+          } else {
+            entries = DiscCatalog.staticInstruments(discId);
+          }
+          if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${disc.label}.`);
+
+          state.discId = discId;
+          activeDisc.current = discId;
+          state.ranking = ranking;
+          activeDisc.ranking = ranking;
+          stage = Cast.build(entries, { discId });
+          symbols = stage.berths.map(berth => berth.symbol);
+          resetStageForSelection();
+          state.message = { kind: "note", text: disc.ranking };
+          discSelect.value = discId;
+          drawPanels();
+          await beatNow("disc-change");
+          schedule();
+        } catch (error) {
+          discSelect.value = previousDisc;
+          state.message = { kind: "error", text: error && error.message || `Unable to load ${disc.label}.` };
+          drawPanels();
+        } finally {
+          discSelect.disabled = state.pending;
+        }
+      }
+
+      function switchInterval(nextInterval) {
+        const disc = DiscCatalog.disc(state.discId);
+        if (!disc || !disc.intervalModes.includes(nextInterval) || state.pending) {
+          intervalSelect.value = state.interval;
+          return;
+        }
+        if (nextInterval === state.interval) return;
+        state.interval = nextInterval;
+        state.tierMode = false;
+        state.stretch = false;
+        state.motions = {};
+        state.displayed = {};
+        state.analyses = {};
+        state.blends = {};
+        state.items = new Map();
+        state.lastBeatAt = 0;
+        state.nextBeatAt = Date.now();
+        state.log = [];
+        state.ledger = readLedger(state.discId, state.interval);
+        configureIntervalOptions(state.discId, state.interval);
+        state.message = nextInterval === "1mo"
+          ? { kind: "note", text: "Explicit 1mo mode: Alpha Vantage monthly observations only. Tickerbot is not called, and these bars never answer 1h or 1d requests." }
+          : { kind: "note", text: `Tickerbot ${nextInterval} mode selected. Alpha Vantage is not a daily/hourly fallback; this is a separate provider path.` };
+        drawPanels();
+        if (state.source === "live") beatNow("interval-change");
+        schedule();
+      }
+
+      discSelect.addEventListener("change", () => { switchDisc(discSelect.value); });
       cadenceSelect.addEventListener("change", () => {
         state.cadence = Number(cadenceSelect.value) || Beat.DEFAULTS.cadenceMinutes;
         drawPanels();
         schedule();
       });
-      intervalSelect.addEventListener("change", () => { state.interval = intervalSelect.value === "1d" ? "1d" : "1h"; });
+      intervalSelect.addEventListener("change", () => { switchInterval(intervalSelect.value); });
       budgetInput.addEventListener("change", () => {
         state.budget = Math.min(Beat.DEFAULTS.monthlyBudget,
           Math.max(100, Math.round(Number(budgetInput.value) || Beat.DEFAULTS.monthlyBudget)));
@@ -862,8 +1096,10 @@
         state.blends = {};
         state.items = new Map();
         state.message = next === "rehearsal"
-          ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to Tickerbot Live for real data." }
-          : { kind: "note", text: "Tickerbot Live selected. The next beat spends one provider call per due symbol; inside a beat window the Worker answers from its cadence cache." };
+          ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to live provider data for real observations." }
+          : state.interval === "1mo"
+            ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations only. The Worker caps Alpha Vantage at 25 requests per UTC day, independent of interval." }
+            : { kind: "note", text: "Live 1h/1d mode uses Tickerbot. Alpha Vantage is not used as a daily-bar fallback; choose explicit 1mo for monthly observations." };
         drawPanels();
         schedule();
       }
@@ -876,8 +1112,8 @@
       tierBox.addEventListener("change", () => {
         state.tierMode = tierBox.checked;
         state.message = state.tierMode
-          ? { kind: "note", text: "Two-lane beat enabled: the featured berths refresh every beat and the remaining calls walk the sweep. The monthly cost is unchanged." }
-          : { kind: "note", text: "Two-lane beat disabled: the plain least-recently-refreshed rotation returns. The monthly cost is unchanged." };
+          ? { kind: "note", text: "Two-lane Tickerbot rotation enabled: featured berths refresh every beat and remaining calls walk the sweep. Monthly 1mo mode does not use the Tickerbot lanes." }
+          : { kind: "note", text: "Two-lane Tickerbot rotation disabled: the plain least-recently-refreshed rotation returns. Monthly 1mo mode does not use the Tickerbot lanes." };
         drawPanels();
       });
       featureButton.addEventListener("click", () => {
@@ -937,6 +1173,8 @@
         if (!document.hidden && state.auto) schedule();
       });
 
+      configureIntervalOptions(state.discId, state.interval);
+      updateFocusOptions();
       resizeCanvas();
       drawPanels();
       state.nextBeatAt = Date.now();

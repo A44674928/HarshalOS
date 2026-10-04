@@ -44,10 +44,52 @@ test("market context accepts only the versioned packet and bounds normalized OHL
     { time: "2026-09-30T14:00:00Z", open: 1, high: 2, low: 0.5, close: 1.5, volume: null }
   ] });
   const normalized = Model.normalizePacket(unsafe);
-  assert.equal(normalized.bars.length, 3);
+  assert.equal(normalized.bars.length, 4, "a complete OHLC row without volume remains a valid observation");
+  assert.equal(Object.hasOwn(normalized.bars.at(-1), "volume"), false);
   assert.ok(normalized.bars.every(bar => bar.high >= Math.max(bar.open, bar.close) && bar.low <= Math.min(bar.open, bar.close)));
   assert.equal(Model.normalizeParameters({ vfiLen: 99999 }).vfiLen, 1000);
   assert.equal(Model.normalizeParameters({ bandMa: "INVALID" }).bandMa, "VWMA");
+});
+
+test("OHLC, close-only, and scalar monthly observations preserve shape and disable unavailable measures", () => {
+  const sourceBars = bars(360);
+  const ohlc = sourceBars.map(({ volume, ...bar }) => bar);
+  const ohlcPacket = packet({
+    dataShape: "ohlcv", bars: ohlc,
+    parameters: { ...packet().parameters, bandMa: "VWMA" }
+  });
+  const normalizedOhlc = Model.normalizePacket(ohlcPacket);
+  assert.equal(Object.hasOwn(normalizedOhlc.bars[0], "volume"), false, "missing volume remains absent");
+  const ohlcResult = Model.evaluate(ohlcPacket);
+  assert.equal(ohlcResult.dataShape, "ohlc", "observed fields outrank a stale declared shape");
+  assert.equal(ohlcResult.volumeAvailable, false);
+  assert.equal(ohlcResult.vfi.available, false);
+  assert.equal(ohlcResult.vfi.value, null);
+  assert.equal(ohlcResult.vfi.signal, null);
+  assert.equal(ohlcResult.signals.priceOnly, true);
+  assert.equal(ohlcResult.chartSeries.at(-1).volume, null, "no zero-volume series is fabricated for charts");
+  assert.equal(ohlcResult.status, "partial");
+  const smaResult = Model.evaluate(packet({
+    bars: ohlc,
+    parameters: { ...packet().parameters, bandMa: "SMA" }
+  }));
+  assert.equal(ohlcResult.bands.basis, smaResult.bands.basis, "VWMA falls back to SMA when volume is absent");
+
+  const closeOnly = sourceBars.map(({ time, close, confirmed }) => ({ time, close, confirmed }));
+  const scalar = Model.evaluate(packet({
+    dataShape: "ohlcv", quoteCurrency: "USD/barrel", bars: closeOnly
+  }));
+  assert.equal(scalar.dataShape, "value");
+  assert.equal(scalar.quoteCurrency, "USD/barrel");
+  assert.equal(scalar.volumeAvailable, false);
+  assert.equal(scalar.vfi.available, false);
+  assert.equal(scalar.chartSeries.at(-1).volume, null);
+  assert.equal(Object.hasOwn(Model.normalizePacket(packet({ bars: closeOnly })).bars[0], "open"), false);
+
+  const partialOhlc = Model.normalizePacket(packet({ bars: [{
+    time: "2026-09-30T12:00:00.000Z", open: 10, close: 11, confirmed: true
+  }] }));
+  assert.equal(partialOhlc.bars.length, 0, "a partial OHLC tuple is rejected rather than completed with made-up prices");
 });
 
 test("VFI, Fibonacci bands, and WaveTrend calculate separate price-volume context without a score", () => {

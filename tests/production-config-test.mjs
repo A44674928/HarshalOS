@@ -26,7 +26,7 @@ test('production declares the confirmed D1 and R2 targets without sharing them w
   assert.deepEqual(production.r2_buckets, [{ binding: 'STORAGE_BUCKET', bucket_name: 'main-empty-domains' }]);
   assert.notEqual(production.d1_databases[0].database_id, staging.d1_databases[0].database_id);
   assert.equal(staging.r2_buckets, undefined);
-  for (const secret of ['OIDC_CLIENT_SECRET', 'COMMUNITY_RATE_SECRET', 'MONGODB_URI']) {
+  for (const secret of ['OIDC_CLIENT_SECRET', 'COMMUNITY_RATE_SECRET', 'MONGODB_URI', 'MATERIALS_PROJECT_API_KEY']) {
     assert.equal(secret in production.vars, false);
     assert.equal(secret in staging.vars, false);
   }
@@ -37,6 +37,12 @@ test('production branch-preview overrides contain no production D1 or R2 and kee
   assert.deepEqual(production.previews.r2_buckets, []);
   assert.equal(production.previews.vars.COMMUNITY_ENABLED, 'false');
   assert.equal(production.previews.vars.MONGODB_DATABASE, 'harshalos_preview');
+});
+
+test('production observability redacts query strings before persisting Alpha Vantage requests', () => {
+  assert.equal(production.observability.enabled, true);
+  assert.equal(production.observability.redact_query_string, true,
+    'Alpha Vantage requires its Worker secret in the API query string');
 });
 
 test('production deployment remains separate from migration and staging deployment', () => {

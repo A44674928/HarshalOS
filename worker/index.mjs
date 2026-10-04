@@ -5,7 +5,9 @@ import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } f
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
 import { handleCharactersBeat } from './characters-beat.mjs';
+import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
+import { handleMaterialsProject } from './materials-project.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -133,9 +135,11 @@ export default {
     }
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
-    // The Characters beat batches one due symbol per provider call and holds each symbol's
-    // bars for the chosen beat, so the stage cannot spend the monthly budget by re-rendering.
+    if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request);
+    // The Characters beat batches due instruments, holds monthly series for a full UTC day,
+    // and keeps Alpha Vantage's daily request quota separate from Tickerbot's monthly ledger.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
+    if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a
     // same-origin POST, and paces each caller and the deployment as a whole

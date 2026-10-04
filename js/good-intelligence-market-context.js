@@ -39,13 +39,38 @@ window.GoodIntelligenceMarketContext = (() => {
     const rows = value.slice(-MAX_BARS).map(row => {
       if (!row || typeof row !== "object" || Array.isArray(row)) return null;
       const time = timestamp(row.time);
-      if (row.volume === null || row.volume === undefined || row.volume === "") return null;
+      const close = row.close === null || row.close === undefined || row.close === "" ? null : Number(row.close);
+      if (time === null || !finite(close)) return null;
+      const hasOpen = row.open !== null && row.open !== undefined && row.open !== "";
+      const hasHigh = row.high !== null && row.high !== undefined && row.high !== "";
+      const hasLow = row.low !== null && row.low !== undefined && row.low !== "";
+      const hasAnyOhlc = hasOpen || hasHigh || hasLow;
+      const hasAllOhlc = hasOpen && hasHigh && hasLow;
+      if (hasAnyOhlc !== hasAllOhlc) return null;
+
+      const volumePresent = row.volume !== null && row.volume !== undefined && row.volume !== "";
+      let volume = null;
+      if (volumePresent) {
+        volume = Number(row.volume);
+        if (!finite(volume) || volume < 0) return null;
+      }
+      if (!hasAllOhlc) {
+        return {
+          time, close, dataShape: "value",
+          ...(volumePresent ? { volume } : {}),
+          confirmed: row.confirmed === true
+        };
+      }
+
       const open = Number(row.open), high = Number(row.high), low = Number(row.low);
-      const close = Number(row.close), volume = Number(row.volume);
-      if (time === null || ![open, high, low, close, volume].every(Number.isFinite) ||
-          Math.min(open, high, low, close) <= 0 || volume < 0 ||
+      if (![open, high, low].every(finite) || Math.min(open, high, low, close) <= 0 ||
           high < Math.max(open, close) || low > Math.min(open, close) || high < low) return null;
-      return { time, open, high, low, close, volume, confirmed: row.confirmed === true };
+      return {
+        time, open, high, low, close,
+        dataShape: volumePresent ? "ohlcv" : "ohlc",
+        ...(volumePresent ? { volume } : {}),
+        confirmed: row.confirmed === true
+      };
     }).filter(Boolean);
     const unique = new Map();
     rows.forEach(row => unique.set(row.time, row));
@@ -95,6 +120,8 @@ window.GoodIntelligenceMarketContext = (() => {
       source: text(value.source, 160),
       symbol: text(value.symbol, 40),
       timeframe: text(value.timeframe, 24),
+      dataShape: enumValue(value.dataShape, ["ohlcv", "ohlc", "value"], ""),
+      quoteCurrency: text(value.quoteCurrency, 40),
       bars: normalizeBars(value.bars),
       higherTimeframeBars: normalizeBars(value.higherTimeframeBars),
       parameters: normalizeParameters(value.parameters)
@@ -103,12 +130,13 @@ window.GoodIntelligenceMarketContext = (() => {
 
   function sourceValues(bars, source) {
     return bars.map(bar => {
+      const hasRange = finite(bar.high) && finite(bar.low);
       if (source === "close") return bar.close;
-      if (source === "open") return bar.open;
-      if (source === "high") return bar.high;
-      if (source === "low") return bar.low;
-      if (source === "hl2") return (bar.high + bar.low) / 2;
-      return (bar.high + bar.low + bar.close) / 3;
+      if (source === "open") return finite(bar.open) ? bar.open : bar.close;
+      if (source === "high") return finite(bar.high) ? bar.high : bar.close;
+      if (source === "low") return finite(bar.low) ? bar.low : bar.close;
+      if (source === "hl2") return hasRange ? (bar.high + bar.low) / 2 : bar.close;
+      return hasRange ? (bar.high + bar.low + bar.close) / 3 : bar.close;
     });
   }
 
@@ -200,6 +228,12 @@ window.GoodIntelligenceMarketContext = (() => {
 
   function computeVfi(bars, parameters) {
     const n = bars.length;
+    const volumeReady = bars.length > 0 && bars.every(bar =>
+      finite(bar.open) && finite(bar.high) && finite(bar.low) && finite(bar.volume));
+    if (!volumeReady) {
+      const unavailable = Array(n).fill(null);
+      return { vfi: unavailable, signal: Array(n).fill(null), raw: Array(n).fill(null), available: false };
+    }
     const typical = bars.map(bar => (bar.high + bar.low + bar.close) / 3);
     const volumes = bars.map(bar => bar.volume);
     const inter = Array(n).fill(null);
@@ -231,12 +265,14 @@ window.GoodIntelligenceMarketContext = (() => {
     const smoothed = parameters.vfiSmooth
       ? movingAverage(rawVfi, parameters.vfiSmoothLen, parameters.vfiSmoothType)
       : rawVfi;
-    return { vfi: smoothed, signal: ema(smoothed, parameters.vfiSignalLen), raw: rawVfi };
+    return { vfi: smoothed, signal: ema(smoothed, parameters.vfiSignalLen), raw: rawVfi, available: true };
   }
 
   function computeBands(bars, parameters) {
     const source = sourceValues(bars, parameters.bandSrc);
-    const basis = movingAverage(source, parameters.bandLen, parameters.bandMa, bars.map(bar => bar.volume));
+    const volumeAvailable = bars.length > 0 && bars.every(bar => finite(bar.volume));
+    const maType = parameters.bandMa === "VWMA" && !volumeAvailable ? "SMA" : parameters.bandMa;
+    const basis = movingAverage(source, parameters.bandLen, maType, bars.map(bar => bar.volume));
     const deviation = rollingStdev(source, parameters.bandLen).map(value => finite(value) ? value * parameters.bandMult : null);
     const bands = source.map((_, i) => {
       const base = basis[i], dev = deviation[i];
@@ -292,7 +328,7 @@ window.GoodIntelligenceMarketContext = (() => {
     for (let detected = lookback * 2; detected < bars.length; detected++) {
       const pivot = detected - lookback;
       if (isPivot(wt1, pivot, true)) {
-        const current = { wt: wt1[pivot], price: bars[pivot].low, time: bars[pivot].time };
+        const current = { wt: wt1[pivot], price: finite(bars[pivot].low) ? bars[pivot].low : bars[pivot].close, time: bars[pivot].time };
         if (previousLow) {
           if (current.wt > previousLow.wt && current.price < previousLow.price && previousLow.wt < parameters.osLevel2) {
             events.push({ type: "Regular bullish", time: current.time, detectedIndex: detected });
@@ -305,7 +341,7 @@ window.GoodIntelligenceMarketContext = (() => {
         previousLow = current;
       }
       if (isPivot(wt1, pivot, false)) {
-        const current = { wt: wt1[pivot], price: bars[pivot].high, time: bars[pivot].time };
+        const current = { wt: wt1[pivot], price: finite(bars[pivot].high) ? bars[pivot].high : bars[pivot].close, time: bars[pivot].time };
         if (previousHigh) {
           if (current.wt < previousHigh.wt && current.price > previousHigh.price && previousHigh.wt > parameters.obLevel2) {
             events.push({ type: "Regular bearish", time: current.time, detectedIndex: detected });
@@ -332,9 +368,13 @@ window.GoodIntelligenceMarketContext = (() => {
     if (!bars.length) return {
       schema: "gi-market-analysis-v1", status: "no-data", synthetic: context.synthetic,
       symbol: context.symbol, timeframe: context.timeframe, bars: 0, signals: [],
-      note: "No valid OHLCV candles were supplied. Technical context does not affect assurance coverage."
+      dataShape: context.dataShape || "unknown", volumeAvailable: false,
+      note: "No valid market observations were supplied. Technical context does not affect assurance coverage."
     };
 
+    const volumeAvailable = bars.every(bar => finite(bar.volume));
+    const hasOhlc = bars.every(bar => finite(bar.open) && finite(bar.high) && finite(bar.low));
+    const dataShape = hasOhlc ? (volumeAvailable ? "ohlcv" : "ohlc") : "value";
     const flow = computeVfi(bars, parameters);
     const bands = computeBands(bars, parameters);
     let wave = computeWaveTrend(bars, parameters);
@@ -355,22 +395,23 @@ window.GoodIntelligenceMarketContext = (() => {
     const bandReady = !!currentBands && !!bands.bands[last - 1];
     const waveReady = [wave.wt1[last], wave.wt2[last], wave.wt1[last - 1], wave.wt2[last - 1]].every(finite);
     const canConfirm = !parameters.confirmClose || bars[last].confirmed;
-    const canSignal = flowReady && bandReady && canConfirm;
+    const canPriceSignal = bandReady && canConfirm;
+    const canFlowSignal = flowReady && canPriceSignal;
     const zero = Array(bars.length).fill(0);
     const rawVfiBull = crossover(flow.vfi, flow.signal, last);
     const rawVfiBear = crossunder(flow.vfi, flow.signal, last);
-    const rawZeroUp = crossover(flow.vfi, zero, last);
-    const rawZeroDown = crossunder(flow.vfi, zero, last);
+    const rawZeroUp = flowReady && crossover(flow.vfi, zero, last);
+    const rawZeroDown = flowReady && crossunder(flow.vfi, zero, last);
     const rawUpper = currentBands ? crossover(bars.map(bar => bar.close), bands.bands.map(row => row && row.upper1000), last) : false;
     const rawLower = currentBands ? crossunder(bars.map(bar => bar.close), bands.bands.map(row => row && row.lower1000), last) : false;
-    const vfiBull = rawVfiBull && canSignal;
-    const vfiBear = rawVfiBear && canSignal;
-    const upperBreak = rawUpper && canSignal;
-    const lowerBreak = rawLower && canSignal;
-    const confluenceBull = ((((rawVfiBull || rawZeroUp) && currentBands && bars[last].close > currentBands.basis) ||
-      (rawUpper && flow.vfi[last] > 0 && flow.vfi[last] >= flow.signal[last])) && canSignal);
-    const confluenceBear = ((((rawVfiBear || rawZeroDown) && currentBands && bars[last].close < currentBands.basis) ||
-      (rawLower && flow.vfi[last] < 0 && flow.vfi[last] <= flow.signal[last])) && canSignal);
+    const vfiBull = rawVfiBull && canFlowSignal;
+    const vfiBear = rawVfiBear && canFlowSignal;
+    const upperBreak = rawUpper && canPriceSignal;
+    const lowerBreak = rawLower && canPriceSignal;
+    const confluenceBull = flowReady && ((((rawVfiBull || rawZeroUp) && currentBands && bars[last].close > currentBands.basis) ||
+      (rawUpper && flow.vfi[last] > 0 && flow.vfi[last] >= flow.signal[last])) && canFlowSignal);
+    const confluenceBear = flowReady && ((((rawVfiBear || rawZeroDown) && currentBands && bars[last].close < currentBands.basis) ||
+      (rawLower && flow.vfi[last] < 0 && flow.vfi[last] <= flow.signal[last])) && canFlowSignal);
 
     const rawWtBull = crossover(wave.wt1, wave.wt2, last);
     const rawWtBear = crossunder(wave.wt1, wave.wt2, last);
@@ -401,11 +442,14 @@ window.GoodIntelligenceMarketContext = (() => {
       : confluenceBear && wtBear ? "bearish agreement"
         : confluenceBull && wtBear || confluenceBear && wtBull ? "mixed indicators"
           : confluenceBull ? "VFI/Fibonacci bullish only" : confluenceBear ? "VFI/Fibonacci bearish only"
-            : wtBull ? "WaveTrend bullish cross only" : wtBear ? "WaveTrend bearish cross only" : "no current confluence";
+            : upperBreak ? "price-only upper Fibonacci-band break"
+              : lowerBreak ? "price-only lower Fibonacci-band break"
+                : wtBull ? "WaveTrend bullish cross only" : wtBear ? "WaveTrend bearish cross only"
+                  : !volumeAvailable ? "price-only context · volume measures disabled" : "no current confluence";
     const enoughForBands = !!currentBands;
     const enoughForFlow = flowReady;
-    const status = enoughForBands && enoughForFlow && waveReady ? "ready"
-      : !enoughForBands || !enoughForFlow ? "warming-up" : "partial";
+    const status = enoughForBands && waveReady && (!volumeAvailable || enoughForFlow)
+      ? (volumeAvailable ? "ready" : "partial") : "warming-up";
     const close = bars[last].close;
     const wtValue = wave.wt1[last];
     const zone = !finite(wtValue) ? "unknown"
@@ -420,7 +464,7 @@ window.GoodIntelligenceMarketContext = (() => {
       const i = chartStart + offset;
       const band = bands.bands[i];
       return {
-        time: bar.time, close: safeValue(bar.close),
+        time: bar.time, close: safeValue(bar.close), volume: safeValue(bar.volume),
         basis: safeValue(band && band.basis),
         upper382: safeValue(band && band.upper382), upper618: safeValue(band && band.upper618),
         upper764: safeValue(band && band.upper764), upper1000: safeValue(band && band.upper1000),
@@ -438,12 +482,18 @@ window.GoodIntelligenceMarketContext = (() => {
       symbol: context.symbol,
       timeframe: context.timeframe,
       source: context.source,
+      dataShape,
+      quoteCurrency: context.quoteCurrency,
+      volumeAvailable,
       barCount: bars.length,
       lastBarConfirmed: bars[last].confirmed,
       chartSeries,
       parameters,
       combined,
-      vfi: { value: safeValue(flow.vfi[last]), signal: safeValue(flow.signal[last]), ready: flowReady },
+      vfi: {
+        value: safeValue(flow.vfi[last]), signal: safeValue(flow.signal[last]), ready: flowReady,
+        available: flow.available, reason: flow.available ? null : "Volume and complete OHLC are required; VFI is disabled for this series."
+      },
       bands: currentBands ? Object.fromEntries(Object.entries(currentBands).map(([key, value]) => [key, safeValue(value)])) : null,
       close: safeValue(close),
       waveTrend: {
@@ -455,11 +505,14 @@ window.GoodIntelligenceMarketContext = (() => {
           extremeBearish: wtBearExtreme, divergence: currentDivergence }
       },
       signals: { vfiBull, vfiBear, upperBreak, lowerBreak, bullishConfluence: confluenceBull,
-        bearishConfluence: confluenceBear, barClosePending: parameters.confirmClose && !bars[last].confirmed },
+        bearishConfluence: confluenceBear, volumeMeasuresAvailable: volumeAvailable,
+        priceOnly: !volumeAvailable, barClosePending: parameters.confirmClose && !bars[last].confirmed },
       recentDivergences: divergence.filter(event => event.type.startsWith("Regular") ? parameters.showRegDiv : parameters.showHidDiv)
         .map(event => ({ type: event.type, time: event.time, detectedAt: bars[event.detectedIndex].time })),
       alerts,
-      note: "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact TradingView parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
+      note: !volumeAvailable
+        ? "Price-only analysis from the supplied close or OHLC observations. VFI, relative volume, and other volume-based measures are disabled because this series has no volume; no OHLC or volume fields were fabricated. Display-only context, not investment advice or permission to act."
+        : "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact TradingView parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
     };
   }
 

@@ -148,7 +148,7 @@ test("no bars means no motion: a frozen berth invents nothing", () => {
   assert.equal(missing.npc.stride, 0);
   assert.equal(missing.item.rate, 0);
   assert.equal(missing.object.pulse, 0);
-  assert.match(missing.caption, /no bars/i);
+  assert.match(missing.caption, /no observations|no bars/i);
 
   const empty = Beat.motion(MarketContext.evaluate(packet({ bars: [] })));
   assert.equal(empty.status, "no-data");
@@ -156,6 +156,23 @@ test("no bars means no motion: a frozen berth invents nothing", () => {
   assert.equal(empty.npc.speed, 0);
   assert.match(empty.caption, /stand(s)? still/i);
   assert.ok(empty.gauge.known === false);
+});
+
+test("OHLC without volume keeps price motion but disables VFI, crowd, and item flow", () => {
+  const priceBars = bars(300).map(({ volume, ...bar }) => bar);
+  const analysis = MarketContext.evaluate({
+    schema: "gi-market-context-v1", synthetic: false, source: "test OHLC", symbol: "EUR/USD", timeframe: "1mo",
+    dataShape: "ohlcv", quoteCurrency: "USD", bars: priceBars,
+    parameters: { ...MarketContext.DEFAULTS, bandLen: 24, vfiLen: 18, vfiVolLen: 8, channelLength: 6, averageLength: 12, signalLength: 3 }
+  });
+  assert.equal(analysis.dataShape, "ohlc", "the observed shape overrides overstated metadata");
+  assert.equal(analysis.volumeAvailable, false);
+  assert.equal(analysis.vfi.available, false);
+  const directive = Beat.motion(analysis);
+  assert.equal(directive.volumeAvailable, false);
+  assert.equal(directive.item.rate, 0, "without observed volume, items do not pretend to flow");
+  assert.match(directive.caption, /volume flow unavailable/i);
+  assert.equal(directive.frozen, false, "price-only observations can still move price-based motion");
 });
 
 test("a beaten berth produces a bounded, deterministic directive for every class", () => {
@@ -296,6 +313,28 @@ test("the cast binds to the reviewed Tickerbot allowlist with no second copy", (
   assert.deepEqual(plain(Cast.build(TICKERBOT_WATCHLIST).berths).map(berth => berth.npc.name), plain(stage.berths).map(berth => berth.npc.name), "casting is deterministic");
   assert.equal(Cast.build([]).berths.length, 0);
   assert.equal(Cast.build(null).watchlistSize, 0);
+
+  const commodity = Cast.build([{
+    symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy",
+    discId: "commodities", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"]
+  }], { discId: "commodities" });
+  assert.equal(commodity.discId, "commodities");
+  assert.equal(commodity.berths[0].assetClass, "commodity");
+  assert.equal(commodity.berths[0].dataShape, "value");
+  assert.equal(commodity.berths[0].quoteCurrency, "USD/barrel");
+  assert.deepEqual(plain(commodity.berths[0].tags), ["Energy", "Crude oil"]);
+
+  const crypto = Cast.build([{
+    symbol: "PRA", displaySymbol: "PRA/USD", name: "Maya Preferred PRA", sector: "Cryptocurrency",
+    discId: "crypto", assetClass: "crypto", dataShape: "ohlcv", quoteCurrency: "USD", rank: 52,
+    rankingProvider: "CoinGecko", providerId: "maya-preferred-pra", volumeUsd: 900, currentPriceUsd: 90_000_000, marketCapUsd: null
+  }], { discId: "crypto" });
+  assert.equal(crypto.berths[0].rank, 52);
+  assert.equal(crypto.berths[0].rankingProvider, "CoinGecko");
+  assert.equal(crypto.berths[0].providerId, "maya-preferred-pra");
+  assert.equal(crypto.berths[0].volumeUsd, 900);
+  assert.equal(crypto.berths[0].currentPriceUsd, 90_000_000);
+  assert.equal(crypto.berths[0].marketCapUsd, null);
 });
 
 test("a tiered beat spends exactly the same calls as a single-cadence beat", () => {
