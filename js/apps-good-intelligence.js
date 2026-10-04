@@ -104,12 +104,13 @@
     title: "Good Intelligence",
     short: "Good Intelligence",
     glyph: "∅",
-    desc: "Read-only intel feed, rankings, market charts, TradingView Lightweight Charts™, and the local Orb 2 OCM model",
+    desc: "Read-only intel, market charts, and a live Characters-powered Orb 2 3D OCM beat model",
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
     w: 1160,
     h: 760,
+    fullscreen: true,
     render(body, api) {
       const Client = window.GoodIntelligenceClient;
       const Assurance = window.GoodIntelligenceAssurance;
@@ -1112,7 +1113,12 @@
         }
         state.orb2Engine = Orb2.mount(orb2Host, {
           roster: window.CharactersCast && Array.isArray(window.CharactersCast.NPC_ROSTER)
-            ? window.CharactersCast.NPC_ROSTER : []
+            ? window.CharactersCast.NPC_ROSTER : [],
+          watchlist: TICKERBOT_WATCHLIST,
+          beat: window.CharactersBeat,
+          cast: window.CharactersCast,
+          discCatalog: window.CharactersDiscCatalog,
+          marketContext: window.GoodIntelligenceMarketContext
         });
       }
 
@@ -1138,7 +1144,7 @@
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
               : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
-                : "A local 3D view of the Characters roster through the OCM disc-to-sphere model. It sends no messages, fetches no market data, and confers no authority.";
+                : "A live Characters-style 3D OCM beat across reviewed Discs, with provider pathways, a beat log, and full-screen controls. All paths are display-only; no OCM message or trade action is sent.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
