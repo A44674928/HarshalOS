@@ -4,6 +4,7 @@ import test from "node:test";
 import { Window } from "happy-dom";
 
 const appSource = readFileSync(new URL("../js/apps-materials-project.js", import.meta.url), "utf8");
+const materialModelSource = readFileSync(new URL("../js/character-material-model.js", import.meta.url), "utf8");
 const flush = async () => { for (let turn = 0; turn < 30; turn++) await Promise.resolve(); };
 
 function resultRecord(overrides = {}) {
@@ -54,6 +55,7 @@ function mount(t, handler = async () => ({
   };
   window.document.write("<!doctype html><html><body><div id=\"host\"></div></body></html>");
   window.eval("var APPS = window.APPS = [];");
+  window.eval(materialModelSource);
   window.eval(appSource);
   const app = window.APPS.find(item => item.id === "materials-project");
   assert.ok(app, "the Materials Project app registers itself");
@@ -78,11 +80,12 @@ test("the app opens without a provider call and states its scope, limits, and at
   assert.match(text(), /GNoME-origin data may be subject to a separate CC BY-NC license/i);
   assert.match(text(), /Suggested citation/i);
   assert.match(text(), /BY-C/);
+  assert.match(text(), /Save to Material Spheroids/);
   assert.equal(container.querySelector("#mp-query").getAttribute("maxlength"), "64");
   assert.equal(container.querySelector("#mp-limit option[value='20']").textContent, "20 max");
   assert.equal(container.querySelector("[data-mp-submit]").disabled, false);
   assert.doesNotMatch(appSource, /X-API-KEY/i, "the API key header is Worker-only");
-  assert.doesNotMatch(appSource, /stub-materials-project-secret/i);
+  assert.doesNotMatch(appSource, /stub-materials-project-secret/);
 });
 
 test("search uses only the same-origin Worker and safely renders units, provenance, and records", async t => {
@@ -176,4 +179,20 @@ test("cancel stops the browser wait and communicates that an upstream request ma
   await flush();
   assert.equal(container.querySelector("[data-mp-submit]").disabled, false);
   assert.match(container.querySelector("[data-mp-status]").textContent, /request already received by the Worker may still finish upstream/i);
+});
+
+test("Materials Project result can be saved as a normalized local model record", async t => {
+  const { window, container, requests } = mount(t);
+  submit(window, container, "SiO2", "5");
+  await flush();
+  assert.equal(requests.length, 1);
+  const saveButton = container.querySelector("[data-mp-save-material]");
+  assert.ok(saveButton);
+  saveButton.click();
+  const library = window.CharacterMaterialModel.readMaterials(window.localStorage);
+  assert.equal(library.length, 1);
+  assert.equal(library[0].materialId, "mp-149");
+  assert.equal(library[0].licenseFilter, "BY-C");
+  assert.equal(library[0].retrievedAt, "2026-10-03T12:00:00.000Z");
+  assert.match(container.querySelector(".mp-model-save-note").textContent, /available in the Material Spheroids app/i);
 });

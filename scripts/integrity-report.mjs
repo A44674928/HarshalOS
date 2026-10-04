@@ -59,6 +59,11 @@ const SUITES = [
     files: ["materials-project-api-test.mjs", "materials-project-ui-test.mjs"]
   },
   {
+    area: "Character material matching and multi-Disc spheroids",
+    script: "test:character-materials",
+    files: ["character-material-model-test.mjs", "character-materials-ui-test.mjs"]
+  },
+  {
     area: "LLM data / authority boundary",
     script: "test:llm",
     files: ["llm-test.mjs", "llm-authority-test.mjs", "g0-llm-diagnostics-test.mjs"]
