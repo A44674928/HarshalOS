@@ -1,0 +1,3 @@
+(morning) This example profile stays at Center Origin: 0•000•000•0000.
+(noon) The PDH status is subject-declared, not independent verification.
+(night) The profile stays brief; the panel reference holds the detail.
