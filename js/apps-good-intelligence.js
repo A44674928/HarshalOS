@@ -124,7 +124,8 @@
       }
 
       const state = {
-        view: "feed",
+        view: "news",
+        newsSubview: "feed",
         apiBase: Client.getApiBase(),
         ground0Audits: Assurance.readLocalGround0Audits(),
         query: "",
@@ -186,15 +187,15 @@
                   <p class="gi-muted" data-gi-view-description>Signals returned by the configured Good Intelligence API; assurance is assessed separately.</p>
                 </div>
                 <nav class="gi-tabs" aria-label="Good Intelligence views">
-                  <button type="button" class="gi-tab active" data-gi-view="feed" aria-pressed="true">Intel feed</button>
-                  <button type="button" class="gi-tab" data-gi-view="rankings" aria-pressed="false">Rankings</button>
+                  <button type="button" class="gi-tab active" data-gi-view="news" aria-pressed="true">News</button>
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
                   <button type="button" class="gi-tab" data-gi-view="tradingview" aria-pressed="false">TradingView</button>
                   <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false">Orb 2</button>
                 </nav>
               </div>
+              <nav class="gi-tabs gi-news-tabs" aria-label="News views" data-gi-news-tabs><button type="button" class="gi-tab active" data-gi-news-view="feed" aria-pressed="true">Intel feed</button><button type="button" class="gi-tab" data-gi-news-view="rankings" aria-pressed="false">Rankings</button></nav>
 
-              <section class="gi-feed-panel" data-gi-feed-panel aria-label="Intel feed">
+              <section class="gi-feed-panel" data-gi-feed-panel aria-label="News intel feed">
                 <div class="gi-feed-tools">
                   <label class="gi-search">
                     <span class="gi-sr-only">Search intel</span>
@@ -288,7 +289,7 @@
               </footer>
             </main>
 
-            <aside class="gi-rail" aria-label="Network overview and connection">
+            <aside class="gi-rail" aria-label="Network overview and connection" hidden>
               <section class="gi-rail-card gi-network-card">
                 <div class="gi-rail-heading"><div><p class="gi-eyebrow">NETWORK SNAPSHOT</p><h3>Top members</h3></div><button class="gi-text-button" type="button" data-gi-open-rankings>View all <span aria-hidden="true">↗</span></button></div>
                 <div class="gi-mini-rankings" data-gi-mini-rankings></div>
@@ -1112,31 +1113,59 @@
           return;
         }
         state.orb2Engine = Orb2.mount(orb2Host, {
-          roster: window.CharactersCast && Array.isArray(window.CharactersCast.NPC_ROSTER)
-            ? window.CharactersCast.NPC_ROSTER : [],
-          watchlist: TICKERBOT_WATCHLIST,
-          beat: window.CharactersBeat,
-          cast: window.CharactersCast,
-          discCatalog: window.CharactersDiscCatalog,
-          marketContext: window.GoodIntelligenceMarketContext
+          tickers: TICKERBOT_WATCHLIST,
+          timeframe: state.marketInterval,
+          onClearBeats: () => {
+            body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:clear"));
+            const status = orb2Host.querySelector("[data-gi-orb2-beat-status]");
+            if (status) status.textContent = "Beat context cleared from the active view. Saved D1 history is retained for restoration.";
+          },
+          onRestoreBeats: async () => {
+            const status = orb2Host.querySelector("[data-gi-orb2-beat-status]");
+            const sessionId = Orb2.getSavedBeatSessionId();
+            if (!sessionId) { if (status) status.textContent = "This browser cannot create a saved-beat session; restoring only in-memory beats."; body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:restore")); return; }
+            if (status) status.textContent = "Loading saved beats from D1…";
+            try {
+              const response = await fetch(`/api/orb2/v1/beats?sessionId=${encodeURIComponent(sessionId)}`, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+              const result = await response.json();
+              if (!response.ok || !result.success || !Array.isArray(result.beats)) throw new Error("archive unavailable");
+              body.ownerDocument.__harshalosPendingSavedBeats = result.beats;
+              body.ownerDocument.__harshalosStoredCharacterBeats = result.beats.length > 0;
+              body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:status", { detail: { hasStored: result.beats.length > 0 } }));
+              body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:restore", { detail: { beats: result.beats } }));
+              if (status) status.textContent = result.beats.length ? `Restored ${result.beats.length} saved beat${result.beats.length === 1 ? "" : "s"} from D1.` : "No saved D1 beats found; restoring any session-held beats.";
+            } catch {
+              body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:characters-beats:restore"));
+              if (status) status.textContent = "D1 archive is unavailable; restored any beats held in this session.";
+            }
+          },
+          onTimeframeChange: timeframe => {
+            state.marketInterval = timeframe;
+            if (state.orb2Engine) state.orb2Engine.destroy();
+            state.orb2Engine = null;
+            orb2Host.innerHTML = "";
+            drawOrb2();
+            drawMarketPanels();
+          }
         });
       }
 
       function updateView() {
-        const feedView = state.view === "feed";
-        const rankingsView = state.view === "rankings";
+        const newsView = state.view === "news";
+        const feedView = newsView && state.newsSubview === "feed";
+        const rankingsView = newsView && state.newsSubview === "rankings";
         const marketsView = state.view === "markets";
         const tradingView = state.view === "tradingview";
         const orb2View = state.view === "orb2";
         $("[data-gi-feed-panel]").hidden = !feedView;
+        $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
         $("[data-gi-markets-panel]").hidden = !marketsView;
         $("[data-gi-tv-panel]").hidden = !tradingView;
         $("[data-gi-orb2-panel]").hidden = !orb2View;
         if (state.orb2Engine) state.orb2Engine.setVisible(orb2View);
         if (orb2View) drawOrb2();
-        $("[data-gi-view-title]").textContent = feedView ? "Member intel feed"
-          : rankingsView ? "Network rankings"
+        $("[data-gi-view-title]").textContent = newsView ? (feedView ? "Member intel feed" : "Network rankings")
             : marketsView ? "Market Charts"
               : tradingView ? "TradingView" : "Orb 2 · OCM roster model";
         $("[data-gi-view-description]").textContent = feedView
@@ -1144,7 +1173,7 @@
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
               : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
-                : "A live Characters-style 3D OCM beat across reviewed Discs, with provider pathways, a beat log, and full-screen controls. All paths are display-only; no OCM message or trade action is sent.";
+                : "A local 3D model of reviewed ticker symbols. The interval selector rebuilds the hourly or daily orb geometry; it sends no messages, fetches no market data, and confers no authority.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
@@ -1208,13 +1237,28 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["feed", "rankings", "markets", "tradingview", "orb2"].includes(button.dataset.giView) ? button.dataset.giView : "feed";
+        state.view = ["news", "markets", "tradingview", "orb2"].includes(button.dataset.giView) ? button.dataset.giView : "news";
         updateView();
         // Entering the TradingView view builds its chart; leaving it disposes the canvas.
         drawMarketPanels();
       }));
+      body.querySelectorAll("[data-gi-news-view]").forEach(button => button.addEventListener("click", () => {
+        state.newsSubview = button.dataset.giNewsView === "rankings" ? "rankings" : "feed";
+        body.querySelectorAll("[data-gi-news-view]").forEach(tab => {
+          const active = tab === button;
+          tab.classList.toggle("active", active);
+          tab.setAttribute("aria-pressed", String(active));
+        });
+        updateView();
+      }));
       $("[data-gi-open-rankings]").addEventListener("click", () => {
-        state.view = "rankings";
+        state.view = "news";
+        state.newsSubview = "rankings";
+        body.querySelectorAll("[data-gi-news-view]").forEach(tab => {
+          const active = tab.dataset.giNewsView === "rankings";
+          tab.classList.toggle("active", active);
+          tab.setAttribute("aria-pressed", String(active));
+        });
         updateView();
         drawMarketPanels();
       });

@@ -13,6 +13,8 @@
 
 (() => {
   const STORAGE_KEY = "harshalos.characters.ledger.v1";
+      const savedBeatSessionId = window.GoodIntelligenceOrb2?.getSavedBeatSessionId?.() || "";
+      const savedBeatsEndpoint = "/api/orb2/v1/beats";
   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
   const ALPHA_VANTAGE_DAILY_REQUEST_CAP = 25;
   const MASSIVE_DAILY_REQUEST_CAP = 300;
@@ -153,6 +155,8 @@
         analyses: {},         // symbol -> small readout for the detail card
         items: new Map(),     // symbol -> live item sprites
         log: [],
+        archivedBeatLog: [],
+        savedBeatsAvailable: false,
         blends: {},           // symbol -> { from, to, startedAt } for the glide between beats
         beats: 0,
         pending: false,
@@ -238,6 +242,7 @@
                 <div class="ch-panel-head"><h2>Beat log</h2><span class="ch-tag" data-ch-beatcount>0 beats</span></div>
                 <ol class="ch-log" data-ch-log><li class="ch-log-empty">No beats recorded in this session.</li></ol>
                 <p class="ch-fineprint">Worker D1 ledger: <span data-ch-durable-ledger>Waiting for the first live beat.</span> Shared across Characters and Market Charts; calls outside this Worker are not included.</p>
+                <p class="ch-fineprint" data-ch-archive-status role="status">Checking the anonymous Orb 2 beat archive…</p>
                 <p class="ch-fineprint">Browser activity (best-effort): <span data-ch-ledger>0 calls this month</span>. Failed fetches may be counted conservatively by D1; the provider dashboard remains the billing authority.</p>
               </section>
             </aside>
@@ -615,14 +620,16 @@
         writeLedger(state.ledger);
         state.lastBeatAt = now;
         state.beats += 1;
-        state.log = [{
+        const savedBeatEntry = {
           at: now, reason, disc: state.discId, interval: state.interval, source: state.source, provider: state.source === "live" ? liveProvider() : "synthetic", symbols: refreshed, calls,
           massiveAttempts: result.spend ? Math.max(0, Number(result.spend.massiveAttempts) || 0) : 0,
           alphaVantageAttempts: result.spend ? Math.max(0, Number(result.spend.alphaVantageAttempts) || 0) : 0,
           unavailable, cacheHits: result.spend ? result.spend.cacheHits : 0,
-          lanes: { ...state.laneBySymbol },
+          lanes: { ...state.laneBySymbol }, moodBySymbol: { ...moods },
           moods: refreshed.map(symbol => `${symbol} ${moods[symbol] || "—"}`)
-        }, ...state.log].slice(0, 12);
+        };
+        state.log = [savedBeatEntry, ...state.log].slice(0, 12);
+        void persistSavedBeat(savedBeatEntry);
         state.nextBeatAt = now + beatIntervalMs();
         if (budgetBlocked) {
           const ledger = state.serverLedger;
@@ -832,11 +839,11 @@
               const laneMark = lane === "hot" || lane === "sweep"
                 ? `<i class="ch-lane ch-lane-${lane}">${lane === "hot" ? "H" : "S"}</i>`
                 : "";
-              return `${laneMark}<b>${esc(symbol)}</b> ${esc((state.motions[symbol] || {}).mood || "—")}`;
+              return `${laneMark}<b>${esc(symbol)}</b> ${esc(entry.moodBySymbol?.[symbol] || (state.motions[symbol] || {}).mood || "—")}`;
             }).join(" · ") : "no symbols due"}${
               entry.unavailable ? ` <em class="ch-warn">${entry.unavailable} unavailable</em>` : ""}</span>
           </li>`).join("") : `<li class="ch-log-empty">No beats recorded in this session.</li>`;
-        $("[data-ch-beatcount]").textContent = `${state.ledger.beats} beat${state.ledger.beats === 1 ? "" : "s"}`;
+        $("[data-ch-beatcount]").textContent = `${state.log.length} visible beat${state.log.length === 1 ? "" : "s"}`;
         $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} Character call${state.ledger.calls === 1 ? "" : "s"} in ${state.ledger.month} (browser only)`;
         $("[data-ch-durable-ledger]").textContent = isMassive
           ? massiveDaily
@@ -869,6 +876,123 @@
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
       }
+
+      const eventDocument = body.ownerDocument;
+      const emitBeatHistoryStatus = () => {
+        eventDocument.__harshalosStoredCharacterBeats = state.archivedBeatLog.length > 0 || state.savedBeatsAvailable;
+        eventDocument.dispatchEvent(new eventDocument.defaultView.CustomEvent(
+          "harshalos:characters-beats:status", { detail: { hasStored: eventDocument.__harshalosStoredCharacterBeats } }
+        ));
+      };
+      const compactSavedEntry = raw => {
+        const entry = raw && typeof raw === "object" ? raw.payload?.entry : null;
+        if (!entry || !Array.isArray(entry.symbols)) return null;
+        return {
+          at: Number(raw.beatAt) || Number(entry.at) || Date.now(), reason: "restored", disc: String(entry.disc || raw.discId || "stocks"),
+          interval: String(entry.interval || "1d"), source: String(entry.source || "live"), provider: String(raw.provider || entry.provider || "massive"),
+          symbols: entry.symbols.filter(symbol => typeof symbol === "string").slice(0, 200), calls: Math.max(0, Number(entry.calls) || 0),
+          massiveAttempts: Math.max(0, Number(entry.massiveAttempts) || 0), alphaVantageAttempts: Math.max(0, Number(entry.alphaVantageAttempts) || 0),
+          unavailable: Math.max(0, Number(entry.unavailable) || 0), cacheHits: Math.max(0, Number(entry.cacheHits) || 0),
+          lanes: entry.lanes && typeof entry.lanes === "object" ? entry.lanes : {},
+          moods: Array.isArray(entry.moods) ? entry.moods : [],
+          moodBySymbol: entry.moodBySymbol && typeof entry.moodBySymbol === "object" ? entry.moodBySymbol : {}
+        };
+      };
+      const clearSessionBeatLog = () => {
+        if (state.log.length) {
+          state.archivedBeatLog = [...state.log, ...state.archivedBeatLog]
+            .sort((a, b) => b.at - a.at).slice(0, 48);
+          state.log = [];
+          drawPanels();
+        }
+        emitBeatHistoryStatus();
+      };
+      const restoreSessionBeatLog = event => {
+        if (Array.isArray(event?.detail?.beats)) delete eventDocument.__harshalosPendingSavedBeats;
+        const fromD1 = Array.isArray(event?.detail?.beats)
+          ? event.detail.beats.map(compactSavedEntry).filter(Boolean) : [];
+        if (fromD1.length) {
+          state.savedBeatsAvailable = true;
+          state.archivedBeatLog = [...fromD1, ...state.archivedBeatLog].sort((a, b) => b.at - a.at).slice(0, 120);
+        }
+        if (state.archivedBeatLog.length) {
+          const merged = [...state.log, ...state.archivedBeatLog];
+          const unique = new Map(merged.map(entry => [`${entry.at}:${entry.disc}:${entry.interval}`, entry]));
+          state.log = [...unique.values()].sort((a, b) => b.at - a.at).slice(0, 12);
+          state.archivedBeatLog = [];
+          drawPanels();
+        }
+        emitBeatHistoryStatus();
+      };
+      eventDocument.addEventListener("harshalos:characters-beats:clear", clearSessionBeatLog);
+      eventDocument.addEventListener("harshalos:characters-beats:restore", restoreSessionBeatLog);
+      const setArchiveStatus = text => {
+        const host = $("[data-ch-archive-status]");
+        if (host) host.textContent = text;
+      };
+      let savedBeatWriteRevision = 0;
+      async function loadSavedBeatArchive() {
+        const readRevision = savedBeatWriteRevision;
+        if (!savedBeatSessionId) { setArchiveStatus("D1 archive unavailable in this browser; beats remain session-local."); emitBeatHistoryStatus(); return; }
+        try {
+          const response = await window.fetch(`${savedBeatsEndpoint}?sessionId=${encodeURIComponent(savedBeatSessionId)}`, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+          const data = await response.json();
+          if (!response.ok || !data.success || !Array.isArray(data.beats)) throw new Error("unavailable");
+          if (readRevision === savedBeatWriteRevision) {
+            state.archivedBeatLog = data.beats.map(compactSavedEntry).filter(Boolean).slice(0, 120);
+            state.savedBeatsAvailable = state.archivedBeatLog.length > 0;
+          }
+          setArchiveStatus(state.archivedBeatLog.length ? `${state.archivedBeatLog.length} saved beat${state.archivedBeatLog.length === 1 ? "" : "s"} available in D1 · expires after 30 days.` : "D1 archive ready · no saved beats yet.");
+        } catch { setArchiveStatus("D1 archive unavailable. New beats remain local until the Worker and migration are ready."); }
+        emitBeatHistoryStatus();
+      }
+      async function persistSavedBeat(entry) {
+        if (!savedBeatSessionId) return;
+        savedBeatWriteRevision += 1;
+        const providerText = String(entry.provider || "").toLowerCase();
+        const provider = entry.source === "rehearsal" ? "rehearsal"
+          : providerText.includes("massive") ? "massive"
+            : providerText.includes("alpha") ? "alpha" : "tickerbot";
+        const observations = entry.symbols.map(symbol => {
+          const analysis = state.analyses[symbol] || {};
+          const gauge = analysis.gauge || {};
+          const finite = value => Number.isFinite(Number(value)) ? Number(value) : null;
+          return {
+            ticker: symbol, mood: String(entry.moodBySymbol[symbol] || "—").slice(0, 40),
+            status: String(analysis.status || "unavailable").slice(0, 40), close: finite(analysis.close), previousClose: finite(analysis.prevClose),
+            zone: String(analysis.zone || "unknown").slice(0, 48), combined: String(analysis.combined || "").slice(0, 100),
+            gauges: { flow: finite(gauge.flow), heat: finite(gauge.heat), charge: finite(gauge.charge), crowd: finite(gauge.crowd) },
+            marks: Array.isArray(analysis.marks) ? analysis.marks.filter(mark => typeof mark === "string").slice(0, 8).map(mark => mark.slice(0, 80)) : []
+          };
+        });
+        const beatId = window.crypto?.randomUUID?.();
+        if (!beatId) return;
+        const record = {
+          sessionId: savedBeatSessionId, beatId, beatAt: entry.at, provider,
+          discId: ["stocks", "fx", "crypto", "commodities", "indices"].includes(entry.disc) ? entry.disc : "stocks",
+          payload: { schema: "orb2-beat-v1", observations, entry: {
+            at: entry.at, disc: entry.disc, interval: entry.interval, source: entry.source, provider: entry.provider,
+            symbols: entry.symbols, calls: entry.calls, massiveAttempts: entry.massiveAttempts,
+            alphaVantageAttempts: entry.alphaVantageAttempts, unavailable: entry.unavailable, cacheHits: entry.cacheHits,
+            lanes: entry.lanes, moods: entry.moods, moodBySymbol: entry.moodBySymbol
+          } }
+        };
+        try {
+          const response = await window.fetch(savedBeatsEndpoint, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(record) });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error("unavailable");
+          setArchiveStatus("Beat saved to the anonymous D1 archive · retained up to 30 days.");
+          state.savedBeatsAvailable = true;
+          if (!state.archivedBeatLog.some(saved => saved.at === entry.at)) state.archivedBeatLog.unshift(entry);
+          emitBeatHistoryStatus();
+        } catch { setArchiveStatus("D1 save unavailable; this beat remains in the current browser session."); }
+      }
+      if (eventDocument.__harshalosPendingSavedBeats) {
+        restoreSessionBeatLog({ detail: { beats: eventDocument.__harshalosPendingSavedBeats } });
+        delete eventDocument.__harshalosPendingSavedBeats;
+      }
+      emitBeatHistoryStatus();
+      void loadSavedBeatArchive();
 
       /* ── Rendering: the stage ────────────────────────────────────── */
 

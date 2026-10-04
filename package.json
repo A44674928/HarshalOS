@@ -19,7 +19,7 @@
     "test:red-team": "node --test tests/red-team-test.mjs",
     "test:layout": "node --test tests/repository-layout-test.mjs tests/spec-consistency-test.mjs",
     "test:palace": "node --test tests/palace-day-test.mjs",
-    "test:characters": "node --test tests/characters-beat-test.mjs tests/characters-beat-api-test.mjs tests/characters-ui-test.mjs tests/characters-call-ledger-test.mjs tests/characters-alpha-vantage-test.mjs tests/characters-massive-test.mjs tests/characters-disc-test.mjs",
+    "test:characters": "node --test tests/characters-beat-test.mjs tests/characters-beat-api-test.mjs tests/characters-ui-test.mjs tests/characters-call-ledger-test.mjs tests/characters-alpha-vantage-test.mjs tests/characters-massive-test.mjs tests/characters-disc-test.mjs tests/orb2-saved-beats-test.mjs",
     "test:materials-project": "node --test tests/materials-project-api-test.mjs tests/materials-project-ui-test.mjs",
     "test:massive": "node --test tests/massive-api-test.mjs tests/massive-ui-test.mjs",
     "test:character-materials": "node --test tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs",

@@ -221,6 +221,22 @@ test("an unconfigured Worker falls back to labeled rehearsal and spends nothing"
   assert.match(container.querySelector("[data-ch-detail]").textContent, new RegExp(firstSymbol));
 });
 
+test("clearing beat context archives it reversibly without touching the provider-use ledger", async t => {
+  const { window, container } = await boot(t, {
+    handler: async () => Response.json({ success: false, message: "No live data available." }, { status: 503 })
+  });
+  const log = container.querySelector("[data-ch-log]");
+  const ledger = container.querySelector("[data-ch-ledger]").textContent;
+  assert.match(log.textContent, /SYNTH/, "the session has a beat to archive");
+  window.document.dispatchEvent(new window.CustomEvent("harshalos:characters-beats:clear"));
+  assert.match(log.textContent, /No beats recorded/, "clearing removes beats from the visible session context");
+  assert.match(container.querySelector("[data-ch-beatcount]").textContent, /^0 visible beats$/);
+  assert.equal(container.querySelector("[data-ch-ledger]").textContent, ledger, "clearing does not erase provider-call accounting");
+  window.document.dispatchEvent(new window.CustomEvent("harshalos:characters-beats:restore"));
+  assert.match(log.textContent, /SYNTH/, "archived beats can be gracefully restored");
+  assert.match(container.querySelector("[data-ch-beatcount]").textContent, /visible beat/);
+});
+
 test("a live beat requests only the due berths and records the Worker-attempt count", async t => {
   const requested = [];
   const { window, container, text } = await boot(t, {

@@ -587,7 +587,7 @@ implemented. Private drafts/runs are not automatically public.
 
 `COMMUNITY_ENABLED=true` is the repository decision; branch previews keep it `false`.
 The switch takes effect only on the next production deployment, and the pages below stay
-inert until the owner-managed dashboard variables/secrets exist, migrations 0001–0007 are
+inert until the owner-managed dashboard variables/secrets exist, migrations 0001–0008 are
 applied to production D1, and the register seed is applied. Live Auth0/D1 verification and
 the launch checklist remain pending. See
 [setup, ordered enablement and launch gates](docs/deployment/COMMUNITY-D1.md).
