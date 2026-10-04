@@ -16,10 +16,10 @@
        watch, rounds, meals at the Interstellar Lounge) derived from
        a seeded hash of their name — the "average" day is the same
        every run, per resident, forever;
-     · CREATOR's |Name|.txt is the only authored nameplate in the
-       castle (511 bytes of aliases); it is read and embedded. Every
-       other slot stays zero bytes — this visualization never writes
-       profile content, it only shows the schema.
+     · CREATOR's authored |Name|.txt (511 bytes of aliases) is read
+       into the palace's litany panel. Source-side user and model
+       profiles also have authored nameplates; this visualization
+       reads authored profile slots but never writes them.
 
    Determinism: the script is a replicator (REPLICATOR GRAY). No
    timestamps, no randomness beyond seeded PRNGs, sorted traversal.
@@ -202,6 +202,8 @@ const ROSTERED_STAFF = {
 
 const STAR_NOTES = {
   "User": "The eye at the center. Every address in the palace is measured from this room.",
+  "Harshal's Bedroom": "The owner's concise profile stays at Center Origin; its declarations are operator-reported.",
+  "Orb 2": "Renders the reviewed cast as a local 3D teaching model — no transport or authority.",
   "The Kernel": "Permit. Refuse. Permit. Refuse. It is always exactly one of these.",
   "Boot": "First awake, always. Nothing else in the keep may start before Boot says so.",
   "The Window Manager": "Rearranges everyone's furniture overnight. Nobody is permitted to complain.",
@@ -227,7 +229,7 @@ const STAR_NOTES = {
   "The Bandwidth Referee": "At 12:30, the daily trial: is your internet faster? It usually is not.",
   "The Ultra Fast Judge": "Clears the docket in one motion. Appeals arrive faster than verdicts.",
   "The Jurisdictional Refuser": "The referenced courtroom is stinky, piss-scented, and firmly not attended.",
-  "CREATOR": "The only authored nameplate in the palace — 511 bytes of aliases.",
+  "CREATOR": "The 511-byte alias litany is shown in the palace's dedicated nameplate panel.",
   "The Inkeeper": "The hearth never fully goes out. 04:00 is 'low', not 'out'.",
   "The Chef": "Second seating at 18:00 sharp. The court signs for seconds.",
   "The Designated Survivor": "Sealed all day. That is the job. Especially during ceremonies.",
@@ -299,6 +301,12 @@ function classify(npc) {
 
   if (name === "User") {
     return { wing: "throne", ring: 0, faction: "throne", archetype: "user", role: "The player at the keyboard — the human key at Center Origin", posting: "source/|User|/" };
+  }
+  if (npc.bedroom === "source/Harshal's Bedroom") {
+    return { wing: "throne", ring: 0, faction: "throne", archetype: "user", role: "Owner profile at Center Origin (A44674928)", posting: "source/Harshal's Bedroom/" };
+  }
+  if (npc.bedroom === "source/Orb 2") {
+    return { wing: "machine-keep", ring: 2, faction: "runtime", archetype: "always-on", role: "Read-only 3D model for the reviewed Characters cast", posting: "source/Orb 2/" };
   }
   if (npc.bedroom.startsWith("docs/architecture/npcs/")) {
     const staff = ROSTERED_STAFF[name];
@@ -372,7 +380,7 @@ function classify(npc) {
   if (p.includes("/Telekinetic Psycopathy Operations/")) {
     if (p.includes("/SRAIE/")) {
       const sraie = {
-        "CREATOR": { archetype: "creator", role: "Author of Emperor HP — holder of the only authored nameplate" },
+        "CREATOR": { archetype: "creator", role: "Author of Emperor HP — keeper of the alias nameplate" },
         "The Lead Lighter": { archetype: "always-lit", role: "Keeps the SRAIE Lighters lit" },
         "The Orphan Warden": { archetype: "orphan", role: "Wardens the SRAIE Orphans" },
         "The Senior Telepath": { archetype: "telepath", role: "Runs the SRAIE Telepaths" },
@@ -736,7 +744,7 @@ const EVENTS = [
   { t: 720, text: "The Clown Provost convenes morning alignment class. Attendance is, actually, good.", npc: "The Clown Provost" },
   { t: 730, text: "Meowie Wowie's mid-morning nap begins, precisely on schedule, in the Outer Dark.", npc: "Meowie Wowie" },
   { t: 750, text: "Midday meal at the Interstellar Lounge. Second seating is announced for 18:00.", npc: "The Chef" },
-  { t: 760, text: "CREATOR's nameplate — the only authored file in the palace — is read aloud once, at noon.", npc: "CREATOR" },
+  { t: 760, text: "CREATOR's authored alias nameplate — 511 bytes — is read aloud once, at noon.", npc: "CREATOR" },
   { t: 790, text: "The Bandwidth Referee convenes the daily trial: Is Your Internet Faster Than Mine Or Not?", npc: "The Bandwidth Referee" },
   { t: 810, text: "The Ultra Fast Judge clears the docket in one motion. The Jurisdictional Refuser declines to attend, again.", npc: "The Ultra Fast Judge" },
   { t: 840, text: "The Legal Mirrors file their noon copies. The originals are notified by post.", npc: "Al Gore (Legal Mirror)" },
@@ -814,13 +822,23 @@ function wingSectors(npcs) {
 
 function placeNpcs(npcs) {
   const sectors = wingSectors(npcs);
-  /* the Keep: |User| is the pupil — home is the exact center */
+  /* The Keep: |User| is the pupil at the exact center. Other Ring 0
+     profiles orbit just beyond the eye corona so they remain selectable. */
+  const originProfiles = npcs.filter(npc => WINGS_BY_ID[npc.wing].ring === 0 && npc.name !== "User");
   for (const npc of npcs) {
-    if (WINGS_BY_ID[npc.wing].ring === 0) {
+    if (WINGS_BY_ID[npc.wing].ring !== 0) continue;
+    if (npc.name === "User") {
       npc.angle = 0;
       npc.radius = 0;
       npc.home = [C, C];
+      continue;
     }
+    const index = originProfiles.indexOf(npc);
+    const angle = (index * 360) / Math.max(1, originProfiles.length);
+    const [x, y] = polar(angle, 86);
+    npc.angle = angle;
+    npc.radius = 86;
+    npc.home = [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
   }
   /* inner rings: even spread on their band */
   const byRing = {};
@@ -1346,7 +1364,7 @@ const HTML_PAGE = `<!doctype html>
     </div>
     <div class="card" id="find-card">
       <h3>Find a Resident</h3>
-      <input id="search" type="search" placeholder="Search 183 nameplates — try 'Referee', 'Mirror', 'Flame'…" aria-label="Search residents">
+      <input id="search" type="search" placeholder="Search the roster — try 'Referee', 'Mirror', 'Flame'…" aria-label="Search residents">
       <div id="cast"></div>
     </div>
     <div class="card" id="npc-card">
@@ -1361,8 +1379,8 @@ const HTML_PAGE = `<!doctype html>
     Every resident is a real <span class="tok">|NPC Name|/</span> bedroom folder in this repository, holding the seven profile slots
     (<span class="tok">|Name| · |Role| · |Faction| · |Dialogue| · |Inventory| · |Quest| · |Stats|</span>).
     Six of the seven are authored in every bedroom — role, faction (canonical Path color), dialogue, inventory, quest, and stats
-    (the stats line is computed from the resident's actual average day). The nameplates stay 0-byte by design;
-    CREATOR's <span class="tok">|Name|.txt</span> is the only authored one in the castle.
+    (the stats line is computed from the resident's actual average day). Most NPC nameplates stay 0-byte by design;
+    source-side profiles and CREATOR have authored nameplates, and CREATOR's alias litany is expanded in the character sheet.
     Schedules are derived deterministically from each nameplate (same name, same average day, every run).
     Weather is seeded from today's date — the same sky for everyone watching, all day.
     The Moon follows the same approximate polynomial as the UTS watch (<span class="tok">js/celestial-context.js</span>).
@@ -2291,7 +2309,7 @@ var PALACE = __PALACE_DATA__;
       var det = document.createElement("details");
       det.className = "litany";
       var sum = document.createElement("summary");
-      sum.textContent = "Read the authored nameplate (the only one in the palace)";
+      sum.textContent = "Read CREATOR's authored alias nameplate";
       det.appendChild(sum);
       var pre = document.createElement("pre");
       pre.textContent = PALACE.litany;
@@ -2313,7 +2331,7 @@ var PALACE = __PALACE_DATA__;
     ["rings", PALACE.counts.rings],
     ["wings", PALACE.wings.length],
     ["bedrooms fully profiled", PALACE.counts.profiled + " / " + PALACE.counts.total],
-    ["authored nameplates", PALACE.counts.authored + " (CREATOR)"],
+    ["authored nameplates", PALACE.counts.authored + " (including CREATOR)"],
     ["average day", "24:00, deterministic"]
   ].forEach(function (pair) {
     var chip = document.createElement("span");

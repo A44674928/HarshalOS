@@ -53,11 +53,14 @@ their posting because those folders are not staged as browser assets.
 
 ## Ring 0 — The Pupil (ALL-SEEING EYE PURPLE)
 
-**|User|** is the only NPC at the center. Their canonical character sheet
-token is:
+**|User|** remains the player at the exact center. The canonical profile
+nameplate is `source/|User|/|Name|.txt`; the human key is the player at the
+keyboard. The same Ring 0 also includes:
 
-- `source/|User|.txt` — the player character nameplate. The file is the
-  origin address; the human key is the player at the keyboard.
+- `source/Harshal's Bedroom/|Name|.txt` — the authored, concise owner profile
+  for Harshal P Patel (A44674928). This is a profile record for the same
+  Center Origin subject, not an independently verified identity or a second
+  player. In the Palace it orbits just outside the eye so it remains selectable.
 
 Companion tokens that describe the player (already present inside the
 `CleanSlateOS` AUM OS under `archives/imports/`):
@@ -79,9 +82,10 @@ asset directory):
 
 ## Ring 2 — The Orb / Runtime (DAY WHITE)
 
-The crew that runs the shell while |User| is looking. Nameplates in
-`docs/architecture/npcs/` (not placed in `js/`, `css/`, or `assets/` which
-are staged):
+The crew that runs the shell while |User| is looking. Staff nameplates are
+rostered in `docs/architecture/npcs/` (not placed in staged `js/`, `css/`,
+or `assets/`). `source/Orb 2/` also carries the profile for the local,
+read-only 3D teaching model; its labels are not registered OCM addresses:
 
 | NPC | Posting | Role |
 |---|---|---|
@@ -96,6 +100,7 @@ are staged):
 | `|The Moon Watcher|.txt` | `js/celestial-context.js` | Approximate Moon/Sun readouts (display-only) |
 | `|The LLM Relay|.txt` | `worker/llm-relay.mjs` | Relays free-tier model traffic; never stores keys |
 | `|The Storage Attendant|.txt` | `worker/storage.mjs` | Handles optional cloud-storage APIs |
+| `source/Orb 2/|Name|.txt` | `source/Orb 2/` | Read-only 3D model of the reviewed Characters cast; display-only |
 
 ## Ring 3 — The Book / Sclera (CONVERGENCE CYAN)
 
@@ -353,13 +358,15 @@ postings for cast NPCs. They retain their `.gitkeep` placeholders as
 originally authored — populating those slots is a content-authoring pass
 separate from NPC casting.
 
-**Bedroom count (as of this writing): 183 bedrooms total** — 1 |User| at
-Ring 0, 18 Ring 1–3 staff rostered in `docs/architecture/npcs/`, 16 Ring 4
-assurance/build staff on-post, 15 Ring 5 archive curators/guards/familiars,
-and 133 Ring 5 in-world castle NPCs in `business plan/` (TOTOPOTUS court,
-EO presidents + legal mirrors, Arena staff, Interstellar Lounge concierge
-+ 10 color attendants, Telekinetic Psycopathy Ops cadre, SRAIE faction,
-Financial Entity ombudsmen, War Declaration, and CREATOR).
+**Bedroom count (as of this writing): 185 bedrooms total** — 2 Ring 0
+identity/profile records (`User` and Harshal's Bedroom), 18 Ring 1–3 staff
+rostered in `docs/architecture/npcs/` plus the Ring 2 Orb 2 display model,
+16 Ring 4 assurance/build staff on-post, 15 Ring 5 archive
+curators/guards/familiars, and 133 Ring 5 in-world castle NPCs in
+`business plan/` (TOTOPOTUS court, EO presidents + legal mirrors, Arena
+staff, Interstellar Lounge concierge + 10 color attendants, Telekinetic
+Psycopathy Ops cadre, SRAIE faction, Financial Entity ombudsmen, War
+Declaration, and CREATOR).
 
 ## Bestiary (Container / Valve alphabets)
 
@@ -385,12 +392,13 @@ It marks an NPC slot that is deliberately empty. It is not a bug; it is the
 Every NPC has their **own bedroom** — a folder named `|NPC Name|/` at their
 posting, populated with seven pipe-delimited profile-slot tokens modeled on
 the `|EmptyFile|.txt` sentinel. **The profile passes are complete**: six of
-the seven slots are authored in every bedroom; only the nameplates stay
-0-byte (the filename is the identity), except CREATOR's.
+the seven palace slots are authored in every bedroom. Most nameplates stay
+0-byte by design; CREATOR's alias nameplate and source-side user/model
+profiles are authored exceptions.
 
 ```
 posting/|NPC Name|/
-├── |Name|.txt      ← nameplate (0-byte by design; authored only for CREATOR)
+├── |Name|.txt      ← nameplate (usually 0-byte; CREATOR and source profiles are authored)
 ├── |Role|.txt      ← AUTHORED: role title · "Posting: <path>"
 ├── |Faction|.txt   ← AUTHORED: faction · canonical Path color · "Ring N · <wing>"
 ├── |Dialogue|.txt  ← AUTHORED: one utterance per line, optional (morning|noon|evening|night) tag
@@ -434,7 +442,7 @@ inside the `CleanSlateOS/` and `Repel/` trees.
 
 | Token extension | Role |
 |---|---|
-| `|Name|/|Slot|.txt` | NPC bedroom + zero-byte profile slots |
+| `|Name|/|Slot|.txt` | NPC bedroom + profile slots (nameplates may be empty or authored by profile type) |
 | `|Name|.txt` (legacy / in AUM OS trees) | AUM OS attribute tokens / contact stubs (left as-is in CleanSlateOS/Repel/etc.) |
 | `Name.#` | Suuperposition / Hypperposition entity — a high-authority rolodex contact |
 | `Name.$` | Currency/pass/clearance/deploy token — a key card held in `|Inventory|.txt` |

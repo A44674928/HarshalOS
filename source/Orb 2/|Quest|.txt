@@ -1,0 +1,2 @@
+Keep the Orb 2 Model Display-Only
+Render the roster without creating addresses, transport, authority, recommendations, or transactions.

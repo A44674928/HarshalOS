@@ -431,13 +431,13 @@ test("Orb 2 can process The Orb's fractal frames through its own camera and degr
   const { window, host, engine, frames, canvasCalls } = interactiveHarness(t);
   await flush();
   assert.ok(host.querySelector("[data-gi-orb2-fractal]"), "the fractal core toggle is offered with the display controls");
-  assert.ok(host.querySelector("[data-gi-orb2-fractal-status]"), "a dedicated status line reports the fractal frame sources");
+  assert.equal(host.querySelector("[data-gi-orb2-fractal-status]"), null, "the removed fractal status box is not mounted over the model");
+  assert.equal(host.querySelector("[data-gi-orb2-flow-readout]"), null, "the removed flow status box is not mounted over the model");
+  assert.doesNotMatch(appCss, /gi-orb2-flow-readout|gi-orb2-flow-rate-note/, "the old horizontal HUD boxes have no residual styling");
   const idleFrame = frames.shift();
   assert.equal(typeof idleFrame, "function", "the model schedules its wire-core render frame");
   idleFrame(150);
-  const idleStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
-  assert.match(idleStatus, /FRACTAL FRAMES/i);
-  assert.match(idleStatus, /unavailable|module absent|not started/i, "without the film or flame modules the model stays on its wire core");
+  assert.ok(canvasCalls.includes("stroke"), "without the film or flame modules the model still draws its wire core");
 
   /* The Orb's frame processors, stubbed exactly as the real globals appear:
      one shared 200-frame film and one shared 120-frame Demo.flame player. */
@@ -478,11 +478,6 @@ test("Orb 2 can process The Orb's fractal frames through its own camera and degr
   assert.equal(coreDraws.length, 1, "without exposed bounce frames the Demo.flame core uses the shared billboard draw");
   assert.ok(coreDraws[0].size >= 44 && coreDraws[0].size <= 62, "the core breathes with the flame's harmonic energy");
   assert.ok(coreDraws[0].alpha > 0 && coreDraws[0].alpha <= 1, "the core obeys the same legitimacy gate as The Orb");
-  const liveStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
-  assert.match(liveStatus, /film live/i, "the status line reports the film without a frame counter");
-  assert.match(liveStatus, /core live/i, "the status line reports the core without a frame counter");
-  assert.match(liveStatus, /outer shell live/i, "the OuterOrb macro-flame completes The Orb's dual flame system");
-  assert.doesNotMatch(liveStatus, /\d/, "no frame counters remain in the fractal status line");
 
   /* The film clock must advance with wall time — the frozen film-strip regression. */
   pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
@@ -509,8 +504,8 @@ test("Orb 2 can process The Orb's fractal frames through its own camera and degr
   assert.ok(canvasCalls.filter(call => call === "drawImage").length > drawImageBefore,
     "the .flame frame is drawn as an oriented image through the rotated reference triangle");
   assert.equal(coreDraws.length, billboardDraws, "the billboard fallback is retired once bounce frames are exposed");
-  assert.match(host.querySelector("[data-gi-orb2-fractal-status]").textContent, /core live/i,
-    "the status line still reports the live core after switching to the 3D reference draw");
+  assert.equal(host.querySelector("[data-gi-orb2-fractal-status]"), null,
+    "fractal frame rendering stays active without restoring the removed status box");
 
   /* Hiding the fractal core restores the plain wire model without breaking the beat view. */
   const toggle = host.querySelector("[data-gi-orb2-fractal]");
@@ -527,14 +522,14 @@ test("Orb 2 can process The Orb's fractal frames through its own camera and degr
   offFrame(240);
   assert.equal(wrapped.length, wrappedBefore, "no film frame is processed once the fractal core is hidden");
   assert.equal(canvasCalls.filter(call => call === "drawImage").length, drawnBefore, "no core frame is drawn once the fractal core is hidden");
-  assert.match(host.querySelector("[data-gi-orb2-fractal-status]").textContent, /HIDDEN/, "the status line states the frames are hidden");
+  assert.equal(host.querySelector("[data-gi-orb2-fractal-status]"), null, "hiding the frames does not restore a canvas status box");
 });
 
 test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix", async t => {
   /* Massive rotates one reviewed instrument per minute, so the Worker answer
      is widened here the way a settled multi-beat session would look: every
-     strand symbol observed once, each with a different drift so the helix
-     re-ranking has real separation to show. */
+     strand symbol observed once, each with a different drift so band ranks
+     and the paired inner-spheroid layout have real separation to show. */
   const driftPayload = symbols => {
     /* 260 bars: the reviewed Fibonacci band length is 200, so a shorter
        series honestly stays band-less ("warming-up") and every orb would
@@ -608,17 +603,45 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
     "strand order re-ranks by Fibonacci-band position, not by list order");
   assert.ok(helix.rungs >= 1, "rank-matched rungs connect the two strands");
 
-  const helixLatitudeMax = Math.PI / 2 - 0.08;
-  for (const entry of helix.positions) {
-    const bandP = Math.max(0, Math.min(1, entry.p));
-    const expectedLatitude = Math.asin((2 * bandP - 1) * Math.sin(helixLatitudeMax));
-    const expectedLongitude = -Math.PI / 2 + bandP * Math.PI * 2 * 2.5 + (entry.series === "B" ? Math.PI : 0);
-    assert.ok(Math.abs(entry.latitude - expectedLatitude) < 1e-9,
-      `${entry.symbol} uses its own band value across the near-pole-to-pole latitude range`);
-    assert.ok(Math.abs(entry.longitude - expectedLongitude) < 1e-9,
-      `${entry.symbol} winds around its strand from the same Fibonacci-band value`);
+  const pairCount = Math.max(helix.strands.a, helix.strands.b);
+  const innerFieldRadius = 2.06 * 0.62;
+  const uniqueTickerSites = new Set(helix.positions.map(entry => [entry.x, entry.y, entry.z].map(value => value.toFixed(6)).join(":")));
+  assert.equal(uniqueTickerSites.size, helix.positions.length, "every ticker occupies its own position inside the nested field");
+  assert.ok(helix.positions.every(entry => entry.orbRadius >= 0.19 && entry.orbRadius <= 0.235),
+    "each ticker berth carries an individual spheroid radius, widened only by supplied volatility");
+  const expectedCenterRadius = Math.hypot(innerFieldRadius, 0.2);
+  assert.ok(helix.positions.every(entry => Math.abs(Math.hypot(entry.x, entry.y, entry.z) - expectedCenterRadius) < 1e-9),
+    "each individual ticker spheroid sits on the same nested inner-field shell");
+  for (let rank = 0; rank < pairCount; rank += 1) {
+    const pairA = helix.positions.find(entry => entry.series === "A" && entry.rank === rank);
+    const pairB = helix.positions.find(entry => entry.series === "B" && entry.rank === rank);
+    assert.ok(pairA && pairB, `rank ${rank + 1} has an individually addressable A/B pair`);
+    assert.equal(pairA.pairIndex, pairB.pairIndex, "paired ticker orbs share a Fibonacci-distributed inner-field site");
+    assert.ok(Math.abs(pairA.latitude - pairB.latitude) < 1e-9 && Math.abs(pairA.longitude - pairB.longitude) < 1e-9,
+      "the paired spheroids are arranged as a local interlinked pair, not as two opposite series hubs");
+    const pairDistance = Math.hypot(pairA.x - pairB.x, pairA.y - pairB.y, pairA.z - pairB.z);
+    assert.ok(Math.abs(pairDistance - 0.4) < 1e-9, "each pair's two ticker spheroids have a short, direct connector");
+    const expectedY = Math.max(-Math.sin(Math.PI / 2 - 0.08), Math.min(Math.sin(Math.PI / 2 - 0.08), 1 - 2 * ((rank + 0.5) / pairCount)));
+    const expectedLatitude = Math.asin(expectedY);
+    const expectedLongitude = -Math.PI / 2 + rank * Math.PI * (3 - Math.sqrt(5));
+    assert.ok(Math.abs(pairA.latitude - expectedLatitude) < 1e-9,
+      "matched rank pairs occupy Fibonacci-spaced sites on the inner spheroid");
+    assert.ok(Math.abs(pairA.longitude - expectedLongitude) < 1e-9,
+      "each rank pair gets a distinct golden-angle longitude");
   }
-  assert.ok(canvasCalls.includes("ellipse"), "the canvas draws a lit spherical shell and not only flat rings");
+  assert.ok(helix.positions.every(entry => Math.hypot(entry.x, entry.y, entry.z) + entry.orbRadius < 2.06),
+    "all ticker spheroids remain inside Orb 2's larger outer shell");
+  assert.ok(engine.state.projected.every(point => point.model && point.orbRadius > 0 && point.visualRadius > 0),
+    "the live canvas projection retains an individual 3D center and clickable visual radius for each ticker orb");
+  for (let rank = 0; rank < pairCount; rank += 1) {
+    const pointA = engine.state.projected.find(point => point.node.series === "A" && point.node.symbol === helix.positions.find(entry => entry.series === "A" && entry.rank === rank)?.symbol);
+    const pointB = engine.state.projected.find(point => point.node.series === "B" && point.node.symbol === helix.positions.find(entry => entry.series === "B" && entry.rank === rank)?.symbol);
+    assert.ok(pointA && pointB && Math.abs(Math.hypot(pointA.model.x - pointB.model.x, pointA.model.y - pointB.model.y, pointA.model.z - pointB.model.z) - 0.4) < 1e-6,
+      "live Characters motion cannot collapse each rank-matched pair back into one shared node");
+  }
+  assert.match(canvas.getAttribute("aria-label"), /nested ticker spheroids/i,
+    "the ticker-specific nested-orb structure is described to assistive technology");
+  assert.ok(canvasCalls.includes("ellipse"), "the canvas draws nested, lit spheroids and not only flat rings");
   assert.ok(canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#6fd3ff")
     && canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#ffc857"),
   "the continuous A and B guide strands are rendered as separate helical rails");

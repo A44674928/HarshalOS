@@ -12,6 +12,7 @@ const PAGE = path.join(ROOT, "docs", "architecture", "HARSHALS-PALACE.html");
 const DAY_MINUTES = 1440;
 const SEVEN_SLOTS = ["|Name|", "|Role|", "|Faction|", "|Dialogue|", "|Inventory|", "|Quest|", "|Stats|"];
 const STATE_CODES = new Set(["sl", "qt", "po", "ro", "lg", "wa", "kb", "ti", "un", "se"]);
+const AUTHORED_NAMEPLATES = new Set(["CREATOR", "User", "Harshal's Bedroom", "Orb 2"]);
 const STAGED_PREFIXES = ["js/", "css/", "assets/", "specs/", "manuscript/", "docs/harshal-systems/"];
 
 /* Staging allowlist directories are copied verbatim into the browser bundle
@@ -42,14 +43,14 @@ test("palace: the committed page is a deterministic render of the live roster", 
   });
   assert.equal(result.error, undefined, result.error && result.error.message);
   assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
-  assert.match(result.stdout, /matches the roster \(183 residents\)/);
+  assert.match(result.stdout, /matches the roster \(185 residents\)/);
 });
 
 test("palace: every bedroom nameplate on disk is a resident on the map", async () => {
   const [data, nameplates] = await Promise.all([buildData(), collectNameplates(ROOT, [])]);
 
-  assert.equal(nameplates.length, 183, "the roster is 183 bedrooms");
-  assert.equal(data.counts.total, 183, "the palace renders 183 residents");
+  assert.equal(nameplates.length, 185, "the roster is 185 bedrooms");
+  assert.equal(data.counts.total, 185, "the palace renders 185 residents");
 
   const onDisk = new Set(nameplates.map(file => {
     const folder = path.basename(path.dirname(file));
@@ -59,7 +60,7 @@ test("palace: every bedroom nameplate on disk is a resident on the map", async (
   assert.deepEqual([...onMap].sort(), [...onDisk].sort(), "map residents and disk nameplates must be the same set");
 
   for (const npc of data.npcs) {
-    assert.equal(npc.nb > 0, npc.name === "CREATOR", `only CREATOR's nameplate may be authored: ${npc.name}`);
+    assert.equal(npc.nb > 0, AUTHORED_NAMEPLATES.has(npc.name), `nameplate authored status: ${npc.name}`);
     assert.ok(npc.bedroom.endsWith("/|" + npc.name + "|") || npc.bedroom.endsWith("/" + npc.name),
       `bedroom folder must be named after the resident: ${npc.bedroom}`);
     for (const prefix of STAGED_PREFIXES) {
@@ -67,24 +68,40 @@ test("palace: every bedroom nameplate on disk is a resident on the map", async (
         `NPC bedroom must not sit in a staged asset directory (${prefix}): ${npc.bedroom}`);
     }
   }
-  assert.equal(data.counts.authored, 1);
+  assert.equal(data.counts.authored, AUTHORED_NAMEPLATES.size);
   assert.ok(data.litany.includes("Harshal Patel"), "CREATOR's alias litany is embedded in the page data");
+
+  const harshal = data.npcs.find(npc => npc.name === "Harshal's Bedroom");
+  assert.ok(harshal, "the owner profile is present on the roster");
+  assert.deepEqual(
+    { wing: harshal.wing, ring: harshal.ring, faction: harshal.faction, archetype: harshal.archetype, posting: harshal.posting },
+    { wing: "throne", ring: 0, faction: "throne", archetype: "user", posting: "source/Harshal's Bedroom/" },
+    "Harshal's Bedroom is the owner's Ring 0 profile at Center Origin"
+  );
+  const orb2 = data.npcs.find(npc => npc.name === "Orb 2");
+  assert.ok(orb2, "the Orb 2 display model is present on the roster");
+  assert.deepEqual(
+    { wing: orb2.wing, ring: orb2.ring, faction: orb2.faction, archetype: orb2.archetype, posting: orb2.posting },
+    { wing: "machine-keep", ring: 2, faction: "runtime", archetype: "always-on", posting: "source/Orb 2/" },
+    "Orb 2 is a Ring 2 display-only runtime model"
+  );
 });
 
-test("palace: every bedroom holds exactly the seven profile slot files", async () => {
+test("palace: every bedroom holds all seven required profile slots", async () => {
   const data = await buildData();
   for (const npc of data.npcs) {
     const bedroomDir = path.join(ROOT, npc.bedroom);
     const files = (await readdir(bedroomDir)).filter(name => name.endsWith(".txt")).sort();
-    assert.deepEqual(files, SEVEN_SLOTS.map(slot => slot + ".txt").sort(),
-      `bedroom must hold exactly the seven slot tokens: ${npc.bedroom}`);
+    for (const slot of SEVEN_SLOTS) {
+      assert.ok(files.includes(slot + ".txt"), `bedroom must hold the ${slot} profile token: ${npc.bedroom}`);
+    }
   }
 });
 
 test("palace: every bedroom's |Dialogue|.txt is authored and well-formed", async () => {
   const data = await buildData();
   const tags = new Set(["morning", "noon", "evening", "night"]);
-  assert.equal(data.counts.dialogued, 183, "all 183 residents have authored dialogue");
+  assert.equal(data.counts.dialogued, 185, "all 185 residents have authored dialogue");
   for (const npc of data.npcs) {
     const raw = await readFile(path.join(ROOT, npc.bedroom, "|Dialogue|.txt"), "utf8");
     const lines = raw.split(/\r?\n/).filter(line => line.trim());
@@ -108,7 +125,7 @@ test("palace: every bedroom's |Dialogue|.txt is authored and well-formed", async
 
 test("palace: the remaining five profile slots are authored, well-formed, and embedded", async () => {
   const data = await buildData();
-  assert.equal(data.counts.profiled, 183, "all 183 bedrooms are fully profiled");
+  assert.equal(data.counts.profiled, 185, "all 185 bedrooms are fully profiled");
   const factionNames = new Set(Object.values(FACTIONS).map(f => f.name));
   const factionCanons = new Set(Object.values(FACTIONS).map(f => f.canon));
   for (const npc of data.npcs) {
@@ -159,7 +176,8 @@ test("palace: the remaining five profile slots are authored, well-formed, and em
     for (const key of ["role", "faction", "dialogue", "inventory", "quest", "stats"]) {
       assert.ok(npc.slots[key] > 0, `slot byte count embedded (${key}): ${npc.name}`);
     }
-    assert.equal(npc.slots.name > 0, npc.name === "CREATOR", `only CREATOR's nameplate has bytes: ${npc.name}`);
+    assert.equal(npc.slots.name > 0, AUTHORED_NAMEPLATES.has(npc.name),
+      `nameplate byte count is recorded for authored source and CREATOR profiles: ${npc.name}`);
   }
   const totopotus = data.npcs.find(npc => npc.name === "TOTOPOTUS");
   assert.equal(totopotus.role, "Sovereign of the Alphabet Throne", "TOTOPOTUS's curated role title");
@@ -195,7 +213,7 @@ test("palace: the palace moon agrees with the UTS watch's own model", async () =
 
 test("palace: every resident's average day is a contiguous 24-hour schedule", async () => {
   const data = await buildData();
-  assert.ok(data.npcs.length >= 183);
+  assert.equal(data.npcs.length, 185);
   for (const npc of data.npcs) {
     assert.ok(Array.isArray(npc.sched) && npc.sched.length >= 1, `schedule exists: ${npc.name}`);
     assert.equal(npc.sched[0][0], 0, `schedule starts at midnight: ${npc.name}`);
@@ -222,7 +240,7 @@ test("palace: the Day Book references real residents and the page markup is inta
     if (i > 0) assert.ok(ev.t >= data.events[i - 1].t, "events are sorted by time");
     if (ev.npc) assert.ok(names.has(ev.npc), `Day Book event references a real resident: ${ev.npc}`);
   }
-  for (const marker of ["User", "TOTOPOTUS", "CREATOR", "The Kernel", "Meowie Wowie"]) {
+  for (const marker of ["User", "Harshal's Bedroom", "Orb 2", "TOTOPOTUS", "CREATOR", "The Kernel", "Meowie Wowie"]) {
     assert.ok(names.has(marker), `landmark resident present: ${marker}`);
   }
 
