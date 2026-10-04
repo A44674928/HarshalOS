@@ -151,9 +151,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const disc = resolveDisc(discId);
   if (!disc) return failure("Choose a reviewed Characters Disc.", 400);
   const interval = (url.searchParams.get("interval") || "1h").trim();
+  const provider = (url.searchParams.get("provider") || "").trim().toLowerCase();
   /* Disc 1 (stocks) accepts Tickerbot 1h/1d plus an explicit 1mo Alpha Vantage mode.
    * Discs 2–4 (FX, Crypto, Commodities) are Tickerbot-only at 1h/1d; Alpha Vantage 1mo
-   * is intentionally disabled for them until the upcoming Tickerbot multi-asset rollout. */
+   * is intentionally disabled for them until the upcoming Tickerbot multi-asset rollout.
+   * `provider=alpha` is an explicit opt-in for Alpha Vantage on Disc 1. */
   const supportedModes = discId === "stocks"
     ? [...TICKERBOT_INTERVALS, "1mo"]
     : [...TICKERBOT_INTERVALS];
@@ -203,8 +205,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
   const alphaVantageApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
   /* Alpha Vantage 1mo is intentionally restricted to Disc1 (stocks) while we bring up
-   * multi-asset Tickerbot support for Discs 2–4. */
-  const monthlyMode = interval === "1mo" && discId === "stocks";
+   * multi-asset Tickerbot support for Discs 2–4. `provider=alpha` is an explicit client
+   * opt-in that also triggers monthly mode on Disc 1. */
+  const monthlyMode = (interval === "1mo" || provider === "alpha") && discId === "stocks";
 
   if (monthlyMode && !alphaVantageApiKey) {
     return failure("Alpha Vantage monthly data is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret; Tickerbot is not used for 1mo.", 503);

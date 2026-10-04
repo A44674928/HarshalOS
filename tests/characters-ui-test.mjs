@@ -54,7 +54,7 @@ const monthlyBeatPayload = (symbols, { shape = "ohlc", quoteCurrency = "USD" } =
   success: true,
   environment: "characters-beat",
   data: {
-    schema: "characters-beat-v1", disc: "monthly", beatAt: new Date(NOW).toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
+    schema: "characters-beat-v1", disc: "monthly", beatAt: new Date(NOW).toISOString(), interval: "1mo", cadenceMinutes: 60, holdMs: 86_400_000,
     instruments: symbols.map(symbol => ({
       symbol, status: "bars", provider: "alpha-vantage",
       marketContext: {
@@ -256,7 +256,7 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
         return Response.json({
           success: true, environment: "characters-beat",
           data: {
-            schema: "characters-beat-v1", disc: "stocks", beatAt: new Date().toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
+            schema: "characters-beat-v1", disc: "stocks", beatAt: new Date().toISOString(), interval: "1mo", cadenceMinutes: 60, holdMs: 86_400_000,
             instruments: symbols.map(symbol => ({
               symbol, status: "bars", provider: "alpha-vantage",
               marketContext: {
@@ -304,15 +304,16 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
   const monthlyUrl = new URL(requested[1], "https://os.example");
   assert.equal(monthlyUrl.searchParams.get("disc"), "stocks");
   assert.equal(monthlyUrl.searchParams.get("interval"), "1mo");
-  assert.equal(monthlyUrl.searchParams.get("cadence"), "1440");
-  assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 12, "monthly mode respects the Worker beat cap");
+  assert.equal(monthlyUrl.searchParams.get("cadence"), "60");
+  assert.equal(monthlyUrl.searchParams.get("provider"), "alpha", "1mo mode sends provider=alpha");
+  assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 1, "monthly mode selects 1 best-performing ticker per hour");
   assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
   assert.match(container.querySelector("[data-ch-plan]").textContent, /25 Alpha Vantage requests/);
   assert.match(container.querySelector("[data-ch-plan]").textContent, /Not used in 1mo mode/);
-  assert.match(container.querySelector("[data-ch-plan-note]").textContent, /independent of requested bar interval/i);
+  assert.match(container.querySelector("[data-ch-plan-note]").textContent, /24 at hourly cadence/i);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /Alpha Vantage.*monthly stock OHLC without volume/);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /volume unavailable/);
-  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha 1mo 12/);
+  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha 1mo 1/);
   assert.match(container.querySelector("[data-ch-durable-ledger]").textContent, /Not used for explicit.*1mo/);
   assert.doesNotMatch(text(), /daily-bar fallback/i);
 });

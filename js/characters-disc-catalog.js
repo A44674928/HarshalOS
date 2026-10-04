@@ -53,7 +53,7 @@
       id: "stocks", number: 1, name: "The 52 Cards", label: "Disc1 · The 52 Cards",
       assetClass: "equity", intervalModes: Object.freeze(["1h", "1d", "1mo"]),
       defaultProvider: "tickerbot",
-      ranking: "Reviewed Tickerbot US stock watchlist; unchanged."
+      ranking: "Reviewed Tickerbot US stock watchlist; unchanged. Alpha Vantage covers 1mo for the single best-performing ticker per hour."
     }),
     Object.freeze({
       id: "fx", number: 2, name: "Fiat / FX", label: "Disc2 · Fiat / FX",

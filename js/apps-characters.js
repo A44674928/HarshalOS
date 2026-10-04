@@ -277,7 +277,7 @@
         intervalSelect.innerHTML = modes.map(interval => {
           let label;
           if (interval === "1mo") {
-            label = "1 month · Alpha Vantage (Disc1 only)";
+            label = "1 month · Alpha Vantage best-performer hourly";
           } else if (interval === "1d") {
             label = "1 day · Tickerbot";
           } else {
@@ -316,14 +316,14 @@
       function planOf() {
         return Beat.plan({
           monthlyBudget: state.budget,
-          cadenceMinutes: state.interval === "1mo" ? 1440 : state.cadence,
+          cadenceMinutes: state.interval === "1mo" ? 60 : state.cadence,
           castSize: stage.berths.length,
           perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
         });
       }
 
       function perBeatOf(plan) {
-        if (state.interval === "1mo") return Math.min(Beat.MAX_SYMBOLS_PER_BEAT, ALPHA_VANTAGE_DAILY_REQUEST_CAP);
+        if (state.interval === "1mo") return 1;
         return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
       }
 
@@ -350,7 +350,26 @@
         const plan = planOf();
         const perBeat = perBeatOf(plan);
         const base = { symbols, lastRefreshedAt: state.ledger.lastRefreshedAt, now: Date.now(), featured: state.ledger.featured };
-        if (state.interval === "1mo" || !state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+        if (state.interval === "1mo") {
+          /* Alpha Vantage 1mo: select the single best-performing ticker by
+           * comparing current close to previous close in the local analyses state. */
+          let bestSymbol = null;
+          let bestGain = -Infinity;
+          for (const symbol of symbols) {
+            const analysis = state.analyses[symbol];
+            if (!analysis) continue;
+            if (!Number.isFinite(analysis.close) || !Number.isFinite(analysis.prevClose) || analysis.prevClose === 0) continue;
+            const gain = (analysis.close - analysis.prevClose) / analysis.prevClose;
+            if (gain > bestGain) {
+              bestGain = gain;
+              bestSymbol = symbol;
+            }
+          }
+          if (bestSymbol) return { symbols: [bestSymbol], lanes: {}, tier: null, perBeat: 1 };
+          /* Fallback: no analysis data yet — use least-recently-refreshed for one symbol. */
+          return { symbols: Beat.selectDueSymbols({ ...base, perBeat: 1 }), lanes: {}, tier: null, perBeat: 1 };
+        }
+        if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
         const tiers = tierPlan();
         const option = tierOptionOf(tiers);
         if (!option) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
@@ -364,12 +383,12 @@
       }
 
       function cadenceMinutesForBeat() {
-        return state.interval === "1mo" ? 1440 : state.cadence;
+        return state.interval === "1mo" ? 60 : state.cadence;
       }
 
       function beatIntervalMs() {
         if (state.source === "rehearsal") return REHEARSAL_BEAT_MS;
-        return state.interval === "1mo" ? MONTHLY_BEAT_MS : state.cadence * 60_000;
+        return state.interval === "1mo" ? 60 * 60_000 : state.cadence * 60_000;
       }
 
       /* ── Data ─────────────────────────────────────────────────────── */
@@ -399,9 +418,10 @@
         const laneParam = Object.entries(lanes).length
           ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
           : "";
+        const providerParam = state.interval === "1mo" ? "&provider=alpha" : "";
         const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(state.discId)}` +
           `&symbols=${encodeURIComponent(due.join(','))}` +
-          `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
+          `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${providerParam}${laneParam}`;
         const fetcher = window.fetch || globalThis.fetch;
         const response = await fetcher(endpoint, {
           method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
@@ -508,6 +528,9 @@
           const directive = Beat.motion(analysis, { bearingBase: bearingOf(symbol) });
           state.motions[symbol] = directive;
           moods[symbol] = directive.mood;
+          /* Extract previous close from the bars for the best-performer comparison. */
+          const bars = packet && Array.isArray(packet.bars) ? packet.bars : [];
+          const prevClose = bars.length > 1 ? Number(bars[bars.length - 2].close) : null;
           state.analyses[symbol] = {
             at: now,
             status: directive.status,
@@ -515,6 +538,7 @@
             source: directive.source,
             bars: directive.barCount,
             close: analysis && analysis.close,
+            prevClose,
             dataShape: analysis && analysis.dataShape,
             quoteCurrency: analysis && analysis.quoteCurrency,
             volumeAvailable: analysis && analysis.volumeAvailable === true,
@@ -610,7 +634,7 @@
         $("[data-ch-source-badge]").textContent = state.source === "rehearsal"
           ? "Synthetic rehearsal · 0 provider calls · not real market data"
           : monthlyMode
-            ? "Alpha Vantage · 1mo · Disc1 stocks only · 25 req/UTC day"
+            ? "Alpha Vantage · 1mo · best-performer hourly · 25 req/UTC day"
             : state.discId === "stocks"
               ? "Tickerbot Live · stock 1h/1d · monthly ledger"
               : `Tickerbot Live · ${(DiscCatalog.disc(state.discId) || {}).label || state.discId} · multi-asset rollout in progress`;
@@ -631,9 +655,8 @@
           ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}`;
         const monthlyStats = `
           <div><dt>Bar interval</dt><dd>1mo · Alpha Vantage · Disc1 stocks only</dd></div>
-          <div><dt>Requests / beat</dt><dd>up to ${perBeat} instruments</dd></div>
-          <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests</dd></div>
-          <div><dt>Approx. full Disc rotation</dt><dd>${sweepBeats} daily beat${sweepBeats === 1 ? "" : "s"} · about ${sweepBeats} day${sweepBeats === 1 ? "" : "s"}</dd></div>`;
+          <div><dt>Best-performing ticker</dt><dd>1 symbol per hour · highest gain in local analyses</dd></div>
+          <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests · 24 used/day at hourly cadence</dd></div>`;
         const tickerbotLedgerRow = monthlyMode
           ? `<div><dt>Tickerbot UTC-month ledger</dt><dd><span class="ch-dim">Not used in 1mo mode</span></dd></div>`
           : `<div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
@@ -679,9 +702,9 @@
             ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
             : `${state.cadence}-minute plan`;
         $("[data-ch-plan-note]").textContent = monthlyMode
-          ? `The Worker requests only explicit 1mo Alpha Vantage data for Disc1 stocks, capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day, independent of requested bar interval. A beat selects at most ${perBeat} instruments; the full ${stage.berths.length}-instrument Disc takes about ${sweepBeats} daily beats at the live cadence. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}. Alpha Vantage is disabled for Discs 2–4.`
+          ? `Alpha Vantage covers 1mo data for Disc1 stocks only. Each hourly beat selects the single best-performing ticker (highest gain in local analyses), capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day — 24 at hourly cadence. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}. Alpha Vantage is disabled for Discs 2–4.`
           : state.discId === "stocks"
-            ? `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The Worker caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 requests per UTC day in Disc1-only explicit 1mo mode. Alpha Vantage is not a daily-bar fallback and is disabled for Discs 2–4.`
+            ? `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The Worker caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 requests per UTC day (24 at hourly cadence) in Disc1-only explicit 1mo best-performer mode. Alpha Vantage is not a daily-bar fallback and is disabled for Discs 2–4.`
             : `Tickerbot is the default provider for ${(DiscCatalog.disc(state.discId) || {}).label || state.discId}. Multi-asset Tickerbot coverage is in progress; instruments not yet on Tickerbot's reviewed allowlist will show as unavailable until the rollout lands rather than falling back to Alpha Vantage (which is disabled for this Disc). ${perBeat} symbols per beat at ${state.cadence} minutes; cadence planning uses Tickerbot's 10,000/month ledger.`;
         stretchBox.disabled = monthlyMode || !plan.stretchWithinBudget || state.pending;
         stretchBox.checked = state.stretch && plan.stretchWithinBudget && !monthlyMode;
@@ -734,7 +757,7 @@
         $("[data-ch-beatcount]").textContent = `${state.ledger.beats} beat${state.ledger.beats === 1 ? "" : "s"}`;
         $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} Character call${state.ledger.calls === 1 ? "" : "s"} in ${state.ledger.month} (browser only)`;
         $("[data-ch-durable-ledger]").textContent = monthlyMode
-          ? "Not used for explicit Alpha Vantage 1mo requests."
+          ? "Not used for explicit Alpha Vantage 1mo best-performer requests."
           : durable
             ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
             : state.serverLedgerStatus === "unavailable"
@@ -749,7 +772,7 @@
               ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls. Non-stock symbols not yet covered by Tickerbot also fall back to synthetic rehearsal.`
               : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Tickerbot is the default provider on every Disc — Disc1 stocks today, with FX, crypto and commodities queued for the upcoming multi-asset rollout — under a 10,000-per-UTC-month Worker cap. Disc1 retains an explicit 1mo Alpha Vantage mode under a separate 25-requests-per-UTC-day cap; Alpha Vantage is disabled for Discs 2–4, and monthly data never substitutes for daily bars. Direct provider calls are outside those ledgers.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Tickerbot is the default provider on every Disc — Disc1 stocks today, with FX, crypto and commodities queued for the upcoming multi-asset rollout — under a 10,000-per-UTC-month Worker cap. Disc1 retains an explicit 1mo Alpha Vantage mode salvaged as an hourly best-performer spotlight (1 ticker/hour, 24 requests/day) under a separate 25-requests-per-UTC-day cap; Alpha Vantage is disabled for Discs 2–4, and monthly data never substitutes for daily bars. Direct provider calls are outside those ledgers.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -1083,7 +1106,7 @@
         state.ledger = readLedger(state.discId, state.interval);
         configureIntervalOptions(state.discId, state.interval);
         state.message = nextInterval === "1mo"
-          ? { kind: "note", text: "Explicit 1mo mode (Disc1 stocks only): Alpha Vantage monthly observations. Tickerbot is not called, and these bars never answer 1h or 1d requests." }
+          ? { kind: "note", text: "Explicit 1mo mode (Disc1 stocks only): Alpha Vantage monthly observations for the single best-performing ticker per hour. Tickerbot is not called, and these bars never answer 1h or 1d requests." }
           : { kind: "note", text: `Tickerbot ${nextInterval} mode selected${state.discId !== "stocks" ? " for " + (DiscCatalog.disc(state.discId)?.label || state.discId) + " — multi-asset Tickerbot coverage is in progress; symbols not yet on the reviewed allowlist will be unavailable until rollout" : ""}. Alpha Vantage is not a daily/hourly fallback; this is a separate provider path.` };
         drawPanels();
         if (state.source === "live") beatNow("interval-change");
@@ -1116,7 +1139,7 @@
         state.message = next === "rehearsal"
           ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to live provider data for real observations." }
           : state.interval === "1mo"
-            ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations only. The Worker caps Alpha Vantage at 25 requests per UTC day, independent of interval." }
+            ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations for the best-performing ticker per hour. The Worker caps Alpha Vantage at 25 requests per UTC day (24 at hourly cadence)." }
             : { kind: "note", text: "Live 1h/1d mode uses Tickerbot. Alpha Vantage is not used as a daily-bar fallback; choose explicit 1mo for monthly observations." };
         drawPanels();
         schedule();

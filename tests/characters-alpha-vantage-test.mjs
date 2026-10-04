@@ -216,7 +216,7 @@ test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if th
     })
   };
   const env = { TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db };
-  const monthly = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=1440"), env, dependencies);
+  const monthly = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=60&provider=alpha"), env, dependencies);
   const monthlyPayload = await monthly.json();
   assert.equal(monthly.status, 200);
   assert.deepEqual(hosts, ["www.alphavantage.co"], "1mo never reaches Tickerbot, even with its ledger exhausted");
@@ -227,7 +227,7 @@ test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if th
   assert.equal(monthlyPayload.data.spend.alphaVantageDaily.dailyLimit, 25);
   assert.match(monthlyPayload.data.spend.note, /interval does not change the cap/i);
 
-  const cached = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=1440"), env, {
+  const cached = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=60&provider=alpha"), env, {
     now: () => NOW + 1000,
     fetch: async () => { throw new Error("same monthly interval is cached"); }
   });
@@ -272,12 +272,12 @@ test("the 25-request UTC-day cap aggregates monthly calls across beats and refus
   const lastTwo = TICKERBOT_WATCHLIST.slice(24, 26).map(entry => entry.symbol);
   assert.equal(MAX_BEAT_SYMBOLS, 12);
   for (const symbols of [firstSymbols, secondSymbols]) {
-    const response = await handleCharactersBeat(beat(`disc=stocks&symbols=${symbols.join(",")}&interval=1mo&cadence=1440`), env, dependencies);
+    const response = await handleCharactersBeat(beat(`disc=stocks&symbols=${symbols.join(",")}&interval=1mo&cadence=60&provider=alpha`), env, dependencies);
     const payload = await response.json();
     assert.equal(response.status, 200);
     assert.equal(payload.data.spend.alphaVantageAttempts, 12);
   }
-  const partial = await handleCharactersBeat(beat(`disc=stocks&symbols=${lastTwo.join(",")}&interval=1mo&cadence=1440`), env, dependencies);
+  const partial = await handleCharactersBeat(beat(`disc=stocks&symbols=${lastTwo.join(",")}&interval=1mo&cadence=60&provider=alpha`), env, dependencies);
   const partialPayload = await partial.json();
   assert.equal(partial.status, 200, "one final allowance remains, so the beat has one usable observation");
   assert.equal(partialPayload.data.spend.alphaVantageAttempts, 1);
@@ -287,7 +287,7 @@ test("the 25-request UTC-day cap aggregates monthly calls across beats and refus
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 1);
 
   const unusedSymbol = TICKERBOT_WATCHLIST[30].symbol;
-  const refused = await handleCharactersBeat(beat(`disc=stocks&symbols=${unusedSymbol}&interval=1mo&cadence=1440`), env, {
+  const refused = await handleCharactersBeat(beat(`disc=stocks&symbols=${unusedSymbol}&interval=1mo&cadence=60&provider=alpha`), env, {
     now: () => NOW,
     fetch: async () => { throw new Error("the cap must refuse before the provider request"); }
   });
