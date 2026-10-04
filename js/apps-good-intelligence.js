@@ -104,7 +104,7 @@
     title: "Good Intelligence",
     short: "Good Intelligence",
     glyph: "∅",
-    desc: "Read-only intel feed, network rankings, Market Charts, and TradingView Lightweight Charts™ over synthetic-safe OHLCV",
+    desc: "Read-only intel feed, rankings, market charts, TradingView Lightweight Charts™, and the local Orb 2 OCM model",
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
@@ -116,6 +116,7 @@
       const MarketContext = window.GoodIntelligenceMarketContext;
       const TradingView = window.GoodIntelligenceTradingView;
       const Verifier = window.GoodIntelligenceVerifier;
+      const Orb2 = window.GoodIntelligenceOrb2;
       if (!Client || !Assurance || !MarketContext || !TradingView || !Verifier) {
         body.innerHTML = `<div class="h1">Good Intelligence</div><div class="rule-box refusal">The read-only API, assurance, market-context, TradingView-adapter, and signature-verification modules are not loaded. Check their script order in index.html.</div>`;
         return;
@@ -145,6 +146,7 @@
         marketGeneration: 0,
         tvChartType: TradingView.DEFAULT_CHART_TYPE,
         tvShowVolume: true,
+        orb2Engine: null,
         updatedAt: "",
         settingsError: "",
         controller: null,
@@ -162,9 +164,6 @@
               </div>
             </div>
             <div class="gi-demo-badge" data-gi-demo-mode role="note" hidden>EMPTY.DOMAINS DEMO API · SYNTHETIC FIXTURES · NOT LIVE INTELLIGENCE</div>
-<div class="gi-orb2-reference" role="note" aria-label="Orb 2 — 3D NPC Spheroid / Disc / OCM">
-  <strong>Orb 2 / NPC Spheroid</strong> — 3D Disc (D²↪B³ at r=0) / OCM node network / full Characters cast / Massive's API + Tickerbot / VALID PDH / reference: docs/characters/emptyfolder-reference.md. Custom design: second Orb Communicator Model using live API beats; profile framework supports 157+ diverse members via master source/|User|/ template. Not manufactured; not investment advice; display-only.
-</div>
             <div class="gi-header-tools">
               <div class="gi-connection" data-gi-connection role="status"><span class="gi-connection-dot"></span><span data-gi-connection-label>CONNECTING</span></div>
               <button class="gi-button gi-button-primary" type="button" data-gi-refresh><span aria-hidden="true">↻</span> Refresh</button>
@@ -190,6 +189,7 @@
                   <button type="button" class="gi-tab" data-gi-view="rankings" aria-pressed="false">Rankings</button>
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
                   <button type="button" class="gi-tab" data-gi-view="tradingview" aria-pressed="false">TradingView</button>
+                  <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false">Orb 2</button>
                 </nav>
               </div>
 
@@ -277,6 +277,10 @@
                 </p>
               </section>
 
+              <section class="gi-orb2-panel" data-gi-orb2-panel aria-label="Orb 2 3D OCM model" hidden>
+                <div data-gi-orb2-host aria-live="polite"></div>
+              </section>
+
               <footer class="gi-footer">
                 <span>API data is shown as received; missing fields are not inferred.</span>
                 <span>Information only · independently verify time-sensitive claims.</span>
@@ -350,6 +354,7 @@
       const tvSearchHelp = $("[data-gi-tv-search-help]");
       const tvHost = $("[data-gi-tv-host]");
       const tvAttribution = $("[data-gi-tv-attribution]");
+      const orb2Host = $("[data-gi-orb2-host]");
       const categorySelect = $("[data-gi-category]");
       const searchInput = $("[data-gi-search]");
       const apiInput = $("[data-gi-api-input]");
@@ -1095,23 +1100,45 @@
           <tr><td class="gi-rank-number">${escapeHtml(formatCount(row.rank || index + 1))}</td><td class="gi-address">${escapeHtml(row.address || "Address not supplied")}</td><td>${row.score === null ? "—" : escapeHtml(formatCount(row.score))}</td><td>${escapeHtml(row.tokens || "—")}</td></tr>`).join("");
       }
 
+      function drawOrb2() {
+        if (state.view !== "orb2") return;
+        if (state.orb2Engine) {
+          state.orb2Engine.setVisible(true);
+          return;
+        }
+        if (!Orb2 || typeof Orb2.mount !== "function") {
+          orb2Host.innerHTML = messageBlock("Orb 2 module not loaded", "The local 3D OCM renderer was not available. No roster, market, or network request was made.", "error");
+          return;
+        }
+        state.orb2Engine = Orb2.mount(orb2Host, {
+          roster: window.CharactersCast && Array.isArray(window.CharactersCast.NPC_ROSTER)
+            ? window.CharactersCast.NPC_ROSTER : []
+        });
+      }
+
       function updateView() {
         const feedView = state.view === "feed";
         const rankingsView = state.view === "rankings";
         const marketsView = state.view === "markets";
         const tradingView = state.view === "tradingview";
+        const orb2View = state.view === "orb2";
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
         $("[data-gi-markets-panel]").hidden = !marketsView;
         $("[data-gi-tv-panel]").hidden = !tradingView;
+        $("[data-gi-orb2-panel]").hidden = !orb2View;
+        if (state.orb2Engine) state.orb2Engine.setVisible(orb2View);
+        if (orb2View) drawOrb2();
         $("[data-gi-view-title]").textContent = feedView ? "Member intel feed"
           : rankingsView ? "Network rankings"
-            : marketsView ? "Market Charts" : "TradingView";
+            : marketsView ? "Market Charts"
+              : tradingView ? "TradingView" : "Orb 2 · OCM roster model";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
-              : `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`;
+              : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
+                : "A local 3D view of the Characters roster through the OCM disc-to-sphere model. It sends no messages, fetches no market data, and confers no authority.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
@@ -1175,7 +1202,7 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["feed", "rankings", "markets", "tradingview"].includes(button.dataset.giView) ? button.dataset.giView : "feed";
+        state.view = ["feed", "rankings", "markets", "tradingview", "orb2"].includes(button.dataset.giView) ? button.dataset.giView : "feed";
         updateView();
         // Entering the TradingView view builds its chart; leaving it disposes the canvas.
         drawMarketPanels();

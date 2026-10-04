@@ -82,17 +82,21 @@ test("index.html loads the vendored library and adapter locally, before the app"
   assert.doesNotMatch(indexHtml, /<script[^>]+src="https?:\/\//, "every script the page loads is same-origin — no third-party CDN at runtime");
 });
 
-test("TradingView is a tab immediately after Market Charts and its panel exists", () => {
+test("TradingView stays immediately after Market Charts while Orb 2 follows as a fifth tab", () => {
   const marketsTab = appSource.indexOf('data-gi-view="markets"');
   const tvTab = appSource.indexOf('data-gi-view="tradingview"');
-  assert.ok(marketsTab !== -1 && tvTab !== -1, "both tab buttons exist");
-  assert.ok(marketsTab < tvTab, "the TradingView tab is declared after Market Charts");
+  const orbTab = appSource.indexOf('data-gi-view="orb2"');
+  assert.ok(marketsTab !== -1 && tvTab !== -1 && orbTab !== -1, "all three tab buttons exist");
+  assert.ok(marketsTab < tvTab && tvTab < orbTab, "TradingView follows Market Charts and Orb 2 follows TradingView");
   assert.equal(appSource.match(/data-gi-view="markets"/g).length, 1, "Market Charts keeps one tab button");
   assert.equal(appSource.match(/data-gi-view="tradingview"/g).length, 1, "TradingView has exactly one tab button");
+  assert.equal(appSource.match(/data-gi-view="orb2"/g).length, 1, "Orb 2 has exactly one tab button");
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="markets"[^>]*>Market Charts<\/button>/, "the Market Charts tab keeps its title");
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="tradingview"[^>]*>TradingView<\/button>/, "the TradingView tab is titled TradingView");
+  assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="orb2"[^>]*>Orb 2<\/button>/, "the local OCM tab is titled Orb 2");
   assert.match(appSource, /data-gi-tv-panel[^>]*hidden/, "the TradingView panel starts hidden until its tab is opened");
-  assert.match(appSource, /\["feed", "rankings", "markets", "tradingview"\]\.includes/, "the view switcher accepts the new tab");
+  assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the Orb 2 panel starts hidden until selected");
+  assert.match(appSource, /\["feed", "rankings", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts both newer tabs");
 });
 
 test("Tickerbot Live is the first and default data source on both chart panels", () => {

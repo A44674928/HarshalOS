@@ -694,9 +694,13 @@ if (giApp) {
   const tvProvider = giWindow && giWindow.body.querySelector("[data-gi-tv-provider]");
   const tvType = giWindow && giWindow.body.querySelector("[data-gi-tv-type]");
   const tvHost = giWindow && giWindow.body.querySelector("[data-gi-tv-host]");
+  const orbTab = giWindow && giWindow.body.querySelector('[data-gi-view="orb2"]');
+  const orbPanel = giWindow && giWindow.body.querySelector("[data-gi-orb2-panel]");
+  const orbHost = giWindow && giWindow.body.querySelector("[data-gi-orb2-host]");
   ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
+  ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "Intel feed > Rankings > Market Charts > TradingView", "the tab strip orders TradingView immediately after Market Charts");
+  ok(tabLabels.join(" > ") === "Intel feed > Rankings > Market Charts > TradingView > Orb 2", "the tab strip keeps TradingView after Market Charts and adds Orb 2 as the local fifth view");
   ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
   ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
   /* This Node harness has no canvas, so the real library is swapped for a
@@ -748,7 +752,14 @@ if (giApp) {
     ok(!!(marketPanel.hidden === false && tvPanel.hidden === true), "returning to Market Charts hides the TradingView panel again");
     ok(chartRecords.removed >= 1, "leaving the TradingView tab disposes the library chart");
   } finally { globalThis.LightweightCharts = realChartLibrary; }
-  ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, and searching Good Intelligence does not write to the HOS ledger");
+  const callsBeforeOrb = giCalls.length;
+  if (orbTab) orbTab.click();
+  const orbText = orbHost ? orbHost.textContent : "";
+  ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
+  ok(orbText.includes("Disc-to-sphere roster view") && orbText.includes("REVIEWED BEAT CONTEXT"), "Orb 2 presents the roster model with explicitly reviewed beat context");
+  ok(orbText.includes("does not expose a 2D canvas") && orbText.includes("No nodes or routes were invented"), "a no-canvas runtime receives an honest readable Orb 2 fallback");
+  ok(giCalls.length === callsBeforeOrb, "opening Orb 2 fetches no Good Intelligence or market payload");
+  ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;
 

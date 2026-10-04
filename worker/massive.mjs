@@ -6,8 +6,9 @@
    This route accepts only bounded, validated queries (asset class, ticker
    shape, bar window, currency codes); it is not an arbitrary Massive API
    relay. The Massive response JSON is passed through unchanged inside a
-   { success, cached, data } envelope so the desktop app reads Massive's own
-   documented field names (status, results, request_id, …).
+   { success, cached, data } envelope so an approved bounded caller can read
+   Massive's documented field names (status, results, request_id, …). The former
+   standalone desktop window has been retired.
 
    Pacing is best-effort and in-memory: one deployment-wide sliding window
    plus one per-client sliding window, both per Worker isolate. Cloudflare
@@ -25,11 +26,11 @@ export const MASSIVE_API_ROUTES = Object.freeze({
   conversion: `${MASSIVE_ROUTE_PREFIX}/conversion`
 });
 
-/* Asset classes and their Massive ticker shapes. js/apps-massive.js mirrors
-   these patterns and timespans for client-side guidance; tests/massive-ui-test.mjs
-   fails if the two drift apart. Massive ticker formats: U.S. stocks are bare
-   symbols (AAPL, BRK.A); crypto pairs use the X: prefix (X:BTCUSD); forex
-   pairs use C: (C:EURUSD); indices use I: (I:SPX). */
+/* Asset classes and their Massive ticker shapes for the retained bounded
+   Worker routes. There is no active standalone browser app for these routes.
+   Massive ticker formats: U.S. stocks are bare symbols (AAPL, BRK.A); crypto
+   pairs use the X: prefix (X:BTCUSD); forex pairs use C: (C:EURUSD); indices
+   use I: (I:SPX). */
 export const MASSIVE_ASSETS = Object.freeze({
   stocks: Object.freeze({ label: "U.S. stocks", tickerPattern: "^[A-Z][A-Z0-9.\\-]{0,11}$", example: "AAPL" }),
   crypto: Object.freeze({ label: "Crypto pairs", tickerPattern: "^X:[A-Z0-9]{3,24}$", example: "X:BTCUSD" }),
@@ -105,7 +106,10 @@ function envLimit(value, fallback) {
 /* Sliding-window budget: one window shared by the whole deployment (the
    Massive key belongs to the owner, so every visitor spends the same quota)
    and one window per client IP so a single caller cannot spend it all. */
-function consumeMassiveBudget(request, env, now) {
+/* Exported so other bounded Worker routes that use the same owner key can
+   share this exact per-isolate envelope instead of maintaining a second,
+   divergent rate bucket. */
+export function consumeMassiveBudget(request, env, now) {
   const deploymentLimit = envLimit(env.MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE, DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE);
   const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
 
@@ -295,20 +299,6 @@ function logUpstreamFetchFailure(error, dependencies, apiKey) {
   } catch { /* Logging must never affect request handling. */ }
 }
 
-async function upstreamErrorMessage(response) {
-  try {
-    const payload = await response.json();
-    if (!payload || typeof payload !== "object") return null;
-    const message = typeof payload.error === "string" ? payload.error
-      : typeof payload.message === "string" ? payload.message
-      : "";
-    const trimmed = message.trim().slice(0, 200);
-    return trimmed || null;
-  } catch {
-    return null;
-  }
-}
-
 /** GET /api/massive/v1/{bars|previous-day|ticker-details|last-trade|dividends|conversion} */
 export async function handleMassive(request, env = {}, dependencies = {}) {
   const url = new URL(request.url);
@@ -377,8 +367,9 @@ export async function handleMassive(request, env = {}, dependencies = {}) {
       if (status === 401 || status === 403) {
         return failure("credentials-rejected", "Massive rejected the Worker key. Check the MASSIVE_API_KEY Worker secret in Cloudflare; do not paste it into HarshalOS.", 502);
       }
-      const upstreamMessage = response ? await upstreamErrorMessage(response) : null;
-      return failure("upstream-error", "Massive could not serve this request.", 502, upstreamMessage ? { upstreamMessage } : {});
+      // Provider error bodies can include account- or request-specific detail.
+      // Keep them out of the public API; callers receive a stable refusal only.
+      return failure("upstream-error", "Massive could not serve this request.", 502);
     }
 
     let payload;

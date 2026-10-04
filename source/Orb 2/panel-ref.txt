@@ -1,2 +1,3 @@
-3D Orb reference: docs/characters/emptyfolder-reference.md § Orb 2 (NPC Spheroid / D²↪B³ / OCM node architecture / full cast / resolution axis / address domain ℤ₃₆₀ / emergency invariants / 360°≡0°).
-All characters from characters-cast.js mapped as nodes. No over-engineering in source/.
+3D Orb reference: docs/characters/emptyfolder-reference.md § Orb 2 (NPC Spheroid / D²↪B³ / local roster display / Resolution Axis teaching geometry / address domain ℤ₃₆₀ / 360°≡0°).
+All visible characters derive from characters-cast.js at runtime. Peripheral identifiers are local display labels, not OCM registrations.
+No market or OCM transport is mounted by Orb 2; visual traces are non-authoritative teaching references.

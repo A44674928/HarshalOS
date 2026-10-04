@@ -1,79 +1,90 @@
 # Massive REST market data
 
-**Status:** read-only desktop market-data viewer backed by the [Massive REST API](https://massive.com/docs/rest/quickstart). Validation uses stubbed upstream responses; this integration has not been live-tested or deployed from this change.
+**Status:** bounded Worker integration retained; the standalone **Massive Markets** desktop window was retired on 2026-10-04. The active desktop no longer loads `js/apps-massive.js` or `css/massive.css`.
 
-## Scope and data flow
+Massive remains relevant to the reviewed Characters market-beat architecture. Retiring the old browser window does **not** expose the key, remove the Worker guardrails, create a new market-data feed, or make a financial claim.
 
-The **Massive Markets** desktop app displays market data across four asset classes — U.S. stocks, crypto pairs, forex pairs, and indices — through six bounded Massive REST endpoints. It makes no request when opened; a request is sent only after the operator loads a snapshot, draws bars, fetches dividends, or converts a currency.
+## Active boundaries
+
+There are two deliberately separate server-side paths:
 
 ```text
-Browser app (js/apps-massive.js)
-  GET /api/massive/v1/{bars|previous-day|ticker-details|last-trade|dividends|conversion}
-        ↓ same-origin request
-Cloudflare Worker: worker/massive.mjs
-  validate asset/ticker/window → cache / pace → fixed Massive request
+Characters desktop
+  GET /api/characters/v1/beat (reviewed Disc + provider plan)
+        ↓ same-origin Worker
+worker/characters-massive.mjs
+  fixed reviewed instrument + 1d-only shape + D1 / minute guards
         ↓ Authorization: Bearer header only
 https://api.massive.com
 ```
 
-The Worker is a narrow proxy, not a general Massive relay. It accepts only the six documented sub-routes; validates the asset class, ticker shape per asset class (`AAPL`, `X:BTCUSD`, `C:EURUSD`, `I:SPX`), bar multiplier (1–100), timespan (`minute`–`year`), `YYYY-MM-DD` windows with per-timespan range caps, bar/dividend limits, and three-letter currency codes; refuses redirects; times out upstream work; and passes Massive's documented JSON response through unchanged inside a `{ success, cached, data }` envelope. The browser reads Massive's own field names (`status`, `results`, `request_id`, `o/h/l/c/v/vw/t`, …). Successful responses are cached in Worker memory for up to 60 seconds.
+- Characters owns the active use: automatic Massive observations are restricted to reviewed `1d` Disc instruments. It does not accept an arbitrary Massive ticker from browser input.
+- `worker/characters-massive.mjs` is narrower than the generic adapter. It selects documented stock, FX, live-ranked crypto, commodity-futures, or index shapes from the reviewed catalog and normalizes only an honest packet for the Characters stage.
+- The standalone `/api/massive/v1/*` adapter remains a bounded compatibility/operations surface in `worker/massive.mjs`; it is **not** registered as a desktop app and no active browser UI calls it. It may only serve its fixed GET routes and is not a general Massive relay.
+- Good Intelligence’s Orb 2 visualization is browser-local. It receives no Massive packet, quote, ranking, signal, recommendation, or transaction capability.
 
-Typed input can never reach Massive outside the validated shapes: the Worker reconstructs each upstream path from parsed, regex-checked values, so traversal attempts such as `AAPL/../v3/reference/tickers` are refused locally (400) before any provider request.
+The browser never receives `MASSIVE_API_KEY`. The key is read only from the Worker environment and sent upstream in an `Authorization: Bearer` header—never in a URL, browser setting, static source value, log field, or response field.
+
+## Characters cadence and honesty
+
+The active Characters rule set is documented in [`CHARACTERS-MARKET-BEAT.md`](../architecture/CHARACTERS-MARKET-BEAT.md):
+
+- Massive is the reviewed automatic `1d` provider across the five Discs, with **one reviewed instrument per minute** and a separate per-UTC-day D1 allowance.
+- Tickerbot is manual/on-demand Disc1 stock observation for `1h` or `1d`; it does not silently substitute for a missing Massive packet.
+- Alpha Vantage is the Disc1 `1mo` spotlight: exactly one best-performing reviewed ticker per hour. It is independent of Massive.
+- Missing, unavailable, rate-limited, malformed, or empty provider responses stay visibly unavailable. No provider is silently replaced and no price, recommendation, or authorization is inferred.
+
+This is display context only—not investment advice, a trade instruction, an executable quote, an assurance result, or an input to a Permit/Refuse decision.
+
+## Retained generic adapter
+
+`worker/massive.mjs` still validates and reconstructs a small fixed REST surface. It accepts only GET requests for these routes:
+
+| Retained same-origin route | Fixed Massive endpoint |
+| --- | --- |
+| `GET /api/massive/v1/previous-day` | [`GET /v2/aggs/ticker/{ticker}/prev`](https://massive.com/docs/rest/stocks/aggregates/previous-day-bar) |
+| `GET /api/massive/v1/bars` | [`GET /v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from}/{to}`](https://massive.com/docs/rest/stocks/aggregates/custom-bars) |
+| `GET /api/massive/v1/ticker-details` | [`GET /v3/reference/tickers/{ticker}`](https://massive.com/docs/rest/stocks/tickers/ticker-overview) |
+| `GET /api/massive/v1/last-trade` | [`GET /v2/last/trade/{stocksTicker}`](https://massive.com/docs/rest/stocks/trades-quotes/last-trade) |
+| `GET /api/massive/v1/dividends` | [`GET /stocks/v1/dividends`](https://massive.com/docs/rest/stocks/corporate-actions/dividends) |
+| `GET /api/massive/v1/conversion` | [`GET /v1/conversion/{from}/{to}`](https://massive.com/docs/rest/forex/currency-conversion) |
+
+The adapter validates asset/ticker shapes (`AAPL`, `X:BTCUSD`, `C:EURUSD`, `I:SPX`), multiplier, documented aggregate timespan, ISO date windows, range caps, result limits, and currency codes before it reconstructs an upstream request. A traversal-shaped value such as `AAPL/../v3/reference/tickers` is refused locally; it cannot become an upstream path.
+
+Successful adapter responses use `{ success, cached, data }`. The in-memory cache is at most 60 seconds. Failures use stable public codes/messages; upstream error bodies are not an API response channel. Redirects are refused, upstream calls time out, and the Worker never mirrors an arbitrary provider URL.
 
 ### Pacing
 
-The Massive key belongs to the deployment owner, so every visitor spends the same quota. The Worker enforces two best-effort sliding windows **per Worker isolate**: one deployment-wide (default 5 upstream requests per minute, matching Massive's entry plans) and one per client IP (default 5 per minute). Both are configurable via `MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE` and `MASSIVE_CLIENT_LIMIT_PER_MINUTE` environment values. Cloudflare isolate distribution/restarts mean this is a safeguard for the shared key, not a durable or global quota; Massive's own plan limits remain the binding boundary. Budget-exhausted requests answer 429 with a `retryAfterSeconds` hint and never reach the provider.
+The retained generic adapter has best-effort per-Worker-isolate sliding windows: one deployment-wide and one per client IP, both defaulting to five upstream requests per minute. `MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE` and `MASSIVE_CLIENT_LIMIT_PER_MINUTE` can narrow or widen those safeguards. Cloudflare isolate distribution/restarts mean they are not a durable global quota; the owner’s Massive plan remains binding.
 
-### Data recency and honesty
-
-Recency and history depth follow the owner's Massive plan (end-of-day, 15-minute delayed, or real-time). The app says so in its boundary strip: the data is display-only, may be delayed, is not investment advice, and no order, trade, or transaction is possible from the window. Missing fields stay missing; empty bar windows are shown as empty (Massive produces no bar when no qualifying trades occurred). The Worker's refusal codes (`not-configured`, `rate-limited`, `credentials-rejected`, `upstream-error`, `timeout`, `unreachable`, …) are surfaced verbatim in the app's status line; Massive's own error message is included only for `upstream-error`, capped at 200 characters.
-
-The API key is read from the Worker environment as `MASSIVE_API_KEY` and sent only in the `Authorization: Bearer` header — never as a query parameter, browser setting, static variable, log field, or returned field. If the secret is absent, the route fails closed with a configuration response and makes no provider request.
+Characters has its own narrower reviewed adapter plus its D1 daily allowance and shared per-minute envelope. It is not a bypass around the generic adapter’s validation or pacing model.
 
 ## Worker secret setup
 
-Get a key from the [Massive dashboard](https://massive.com/dashboard/keys) ([signup](https://massive.com/dashboard/signup) if needed). Choose the intended Worker environment first, then enter the key through Wrangler's interactive prompt (or the Cloudflare dashboard's Worker Secrets UI). Do not paste it into HarshalOS, a source file, a browser console, a URL, a ticket, or chat.
-
-Production Worker:
+Get a key from the [Massive dashboard](https://massive.com/dashboard/keys) ([signup](https://massive.com/dashboard/signup) if needed). Choose the intended Worker environment first, then enter it through Wrangler’s interactive prompt or Cloudflare’s Worker Secrets UI. Do not paste it into source, a browser console, a URL, a ticket, or chat.
 
 ```bash
+# Production Worker
 npx wrangler secret put MASSIVE_API_KEY
-```
 
-A separately configured staging Worker, only if you intentionally enable it:
-
-```bash
+# Intentional staging Worker only
 npx wrangler secret put MASSIVE_API_KEY --config wrangler.staging.jsonc
 ```
 
-For local `wrangler dev`, a developer may create the ignored `.dev.vars` file manually with a `MASSIVE_API_KEY` entry. `.dev.vars` is gitignored; still verify it is not staged or shared. Never put the secret in `wrangler.jsonc`, `wrangler.staging.jsonc`, the browser bundle, or a committed `.env` file. No secret is required to run the automated tests.
-
-## Endpoints wired
-
-| App action | Same-origin route | Massive endpoint |
-| --- | --- | --- |
-| Snapshot bars | `GET /api/massive/v1/previous-day` | [`GET /v2/aggs/ticker/{ticker}/prev`](https://massive.com/docs/rest/stocks/aggregates/previous-day-bar) |
-| Custom bars | `GET /api/massive/v1/bars` | [`GET /v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from}/{to}`](https://massive.com/docs/rest/stocks/aggregates/custom-bars) |
-| Ticker details | `GET /api/massive/v1/ticker-details` | [`GET /v3/reference/tickers/{ticker}`](https://massive.com/docs/rest/stocks/tickers/ticker-overview) |
-| Last trade (stocks) | `GET /api/massive/v1/last-trade` | [`GET /v2/last/trade/{stocksTicker}`](https://massive.com/docs/rest/stocks/trades-quotes/last-trade) |
-| Dividends (stocks) | `GET /api/massive/v1/dividends` | [`GET /stocks/v1/dividends`](https://massive.com/docs/rest/stocks/corporate-actions/dividends) |
-| Currency conversion | `GET /api/massive/v1/conversion` | [`GET /v1/conversion/{from}/{to}`](https://massive.com/docs/rest/forex/currency-conversion) |
-
-Aggregate windows use the same `/v2/aggs/...` shapes across asset classes with Massive's ticker prefixes (`X:` crypto, `C:` forex, `I:` indices). Dividends are sorted newest ex-dividend date first and capped at 100 rows per request. Conversion always sends explicit `amount` and `precision` (defaults 1 and 2).
+For `wrangler dev`, an operator may create the ignored `.dev.vars` file with `MASSIVE_API_KEY`. Never put that secret in `wrangler.jsonc`, `wrangler.staging.jsonc`, a browser bundle, or a committed `.env` file. No secret is needed for the automated tests.
 
 ## Tests and verification
 
-Run the focused stub-only suite:
-
 ```bash
 npm run test:massive
+npm run test:characters
 ```
 
-`tests/massive-api-test.mjs` checks the Worker adapter: documented upstream paths and bearer-header auth (never a query-string key), the full validation matrix, secret-absent fail-closed behavior, both pacing windows and their rollover, Massive error mapping (401/403, 429, error bodies), unreadable/aborted/unreachable handling, scrubbed log breadcrumbs, and response caching — all with a stub fetcher. `tests/massive-ui-test.mjs` renders the app in happy-dom with stubbed same-origin responses and checks the read-only framing, provider-string escaping, honest configuration/pacing refusals, bars/dividends/conversion rendering, and that the app's asset/ticker/timespan constants have not drifted from the Worker's. Neither test makes a live Massive request or requires the API key.
+`tests/massive-api-test.mjs` covers the retained generic Worker adapter with stubbed upstream responses: fixed paths, bearer-header handling, validation, cache/pacing behavior, secret-absent fail-closed handling, error mapping, and no credential leakage. `tests/massive-ui-test.mjs` verifies retirement of the browser window while ensuring the Worker surfaces remain present. `tests/characters-massive-test.mjs` covers the active reviewed Characters adapter, including futures-session normalization. None of these tests makes a live Massive request.
 
 ## Official references
 
 - [Massive REST quickstart](https://massive.com/docs/rest/quickstart)
 - [Massive REST stocks overview](https://massive.com/docs/rest/stocks/overview)
-- [Massive docs index for LLMs](https://massive.com/docs/llms.txt) (append `.md` to any docs URL for Markdown)
+- [Massive REST futures aggregates](https://massive.com/docs/rest/futures/aggregates)
 - [Massive dashboard API keys](https://massive.com/dashboard/keys)

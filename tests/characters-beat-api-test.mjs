@@ -17,7 +17,7 @@ const KEY = "test-only-worker-secret";
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
 const ledgerFixture = createTickerbotLedgerDb();
 const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
-const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db });
+const testEnv = key => ({ TICKERBOT_API_KEY: key, MASSIVE_API_KEY: "massive-test-secret", ALPHA_VANTAGE_API_KEY: "alpha-test-secret", COMMUNITY_DB: ledgerFixture.db });
 const env = testEnv(KEY);
 after(() => ledgerFixture.sql.close());
 
@@ -165,7 +165,7 @@ test("the beat cap matches the engine and the Worker never widens its allowlist"
   clearCharactersBeatCache();
   const symbols = TICKERBOT_WATCHLIST.slice(0, MAX_BEAT_SYMBOLS).map(entry => entry.symbol);
   const paths = [];
-  const response = await handleCharactersBeat(beat(`symbols=${symbols.join(",")}&interval=1d&cadence=240`), env, {
+  const response = await handleCharactersBeat(beat(`provider=tickerbot&symbols=${symbols.join(",")}&interval=1d&cadence=240`), env, {
     now: () => NOW,
     fetch: workersFetch(async url => { paths.push(new URL(url).pathname); return okResponse(); })
   });

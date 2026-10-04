@@ -46,12 +46,12 @@ const SUITES = [
   {
     area: "Desktop apps, guided demo & Good Intelligence assurance & market data",
     script: "test:app",
-    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-tradingview-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs"]
+    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-tradingview-test.mjs", "good-intelligence-orb2-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs"]
   },
   {
     area: "Characters market beat and shared D1 call ledger",
     script: "test:characters",
-    files: ["characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs", "characters-call-ledger-test.mjs", "characters-alpha-vantage-test.mjs", "characters-disc-test.mjs"]
+    files: ["characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs", "characters-call-ledger-test.mjs", "characters-alpha-vantage-test.mjs", "characters-massive-test.mjs", "characters-disc-test.mjs"]
   },
   {
     area: "Materials Project lookup and Worker proxy (stubbed upstream)",
@@ -59,7 +59,7 @@ const SUITES = [
     files: ["materials-project-api-test.mjs", "materials-project-ui-test.mjs"]
   },
   {
-    area: "Massive Markets REST adapter and desktop app (stubbed upstream)",
+    area: "Retained Massive REST adapter and retired-desktop guard (stubbed upstream)",
     script: "test:massive",
     files: ["massive-api-test.mjs", "massive-ui-test.mjs"]
   },

@@ -26,7 +26,8 @@ function marketRows(count = 70) {
   }));
 }
 
-test("the Disc catalog preserves the stock deck and discloses the BIS 23-code limit", () => {
+test("the five-Disc catalog preserves the stock deck and discloses the BIS 23-code limit", () => {
+  assert.deepEqual(Catalog.discs.map(disc => disc.id), ["stocks", "fx", "crypto", "commodities", "indices"]);
   assert.equal(Catalog.disc("stocks").name, "The 52 Cards");
   assert.deepEqual(Catalog.disc("stocks").intervalModes, ["1h", "1d", "1mo"]);
   assert.equal(Catalog.disc("fx").number, 2);
@@ -36,6 +37,9 @@ test("the Disc catalog preserves the stock deck and discloses the BIS 23-code li
   assert.match(Catalog.disc("fx").ranking, /23 non-USD currencies individually/);
   assert.equal(Catalog.disc("crypto").number, 3);
   assert.equal(Catalog.disc("commodities").number, 4);
+  assert.equal(Catalog.disc("indices").number, 5);
+  assert.equal(Catalog.disc("indices").defaultProvider, "massive");
+  assert.ok(Catalog.staticInstruments("indices").some(entry => entry.symbol === "SPX"));
 });
 
 test("commodities remain scalar, and crude oil carries Energy tags without moving energy equities", () => {
@@ -46,11 +50,11 @@ test("commodities remain scalar, and crude oil carries Energy tags without movin
   assert.deepEqual(wti.tags, ["Energy", "Crude oil"]);
   assert.deepEqual(brent.tags, ["Energy", "Crude oil"]);
   assert.equal(wti.quoteCurrency, "USD/barrel");
-  /* Disc 4 (commodities) defaults to Tickerbot (1h/1d); Alpha Vantage 1mo is disabled
-   * for non-stock Discs while multi-asset Tickerbot support is in progress. */
-  assert.deepEqual(Catalog.disc("commodities").intervalModes, ["1h", "1d"]);
-  assert.equal(Catalog.disc("commodities").defaultProvider, "tickerbot");
-  assert.match(Catalog.disc("commodities").ranking, /Tickerbot/);
+  /* Non-stock Discs are automatic Massive 1d loops; Alpha Vantage's 1mo
+   * spotlight and Tickerbot's manual paths remain Disc1-only. */
+  assert.deepEqual(Catalog.disc("commodities").intervalModes, ["1d"]);
+  assert.equal(Catalog.disc("commodities").defaultProvider, "massive");
+  assert.match(Catalog.disc("commodities").ranking, /Massive/);
   /* Disc 1 (stocks) keeps its explicit 1mo Alpha Vantage mode. */
   assert.ok(Catalog.disc("stocks").intervalModes.includes("1mo"));
 

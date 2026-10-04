@@ -1,15 +1,13 @@
-/* HarshalOS — Characters: Objects, NPCs, and Items moved by the market beat.
+/* HarshalOS — Characters: Objects, NPCs, and Items moved by a display-only market beat.
 
-   The cast (js/characters-cast.js) is built from the selected Disc: the reviewed
-   Tickerbot stock deck, BIS-listed FX, CoinGecko volume-ranked crypto, or commodities.
-   Tickerbot is the default provider on every Disc — stock 1h/1d live today, and
-   Discs 2–4 queued for the upcoming multi-asset Tickerbot rollout. Disc1 (stocks)
-   retains an explicit 1mo Alpha Vantage mode; Alpha Vantage is disabled for Discs
-   2–4. Price-only series do not acquire invented OHLC or volume.
+   Triple-provider boundary:
+   • Massive supplies automatic 1d bars across the five reviewed Discs.
+   • Tickerbot remains the on-demand Disc1 stock provider for 1h / 1d.
+   • Alpha Vantage is a separate Disc1-only 1mo best-performer spotlight.
 
-   Everything on this stage is display-only. No beat authorizes anything, spends
-   anything except the provider calls it must, or becomes investment advice. No bars
-   means no motion: a berth without data stands still rather than pretending.
+   Price-only series do not acquire invented OHLC or volume. Everything on this
+   stage is display-only: no beat authorizes an action or becomes investment
+   advice. No bars means no motion; a berth without data stands still.
    */
 "use strict";
 
@@ -17,7 +15,9 @@
   const STORAGE_KEY = "harshalos.characters.ledger.v1";
   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
   const ALPHA_VANTAGE_DAILY_REQUEST_CAP = 25;
-  const MONTHLY_BEAT_MS = 24 * 60 * 60_000;
+  const MASSIVE_DAILY_REQUEST_CAP = 300;
+  const MASSIVE_BEAT_MS = 60_000; // one reviewed daily instrument per minute
+  const ALPHA_MONTHLY_BEAT_MS = 60 * 60_000;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -62,7 +62,7 @@
       updatedAt: integer(value.updatedAt)
     };
   };
-  const normalizeAlphaVantageDailyLedger = value => {
+  const normalizeDailyLedger = value => {
     if (!value || typeof value !== "object" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value.day || ""))) return null;
     const integer = input => Math.max(0, Math.floor(Number(input) || 0));
     const dailyLimit = integer(value.dailyLimit);
@@ -75,6 +75,8 @@
       updatedAt: integer(value.updatedAt)
     };
   };
+  const normalizeAlphaVantageDailyLedger = normalizeDailyLedger;
+  const normalizeMassiveDailyLedger = normalizeDailyLedger;
 
   APPS.push({
     id: "characters",
@@ -127,7 +129,9 @@
         ranking: null,
         cadence: Beat.DEFAULTS.cadenceMinutes,
         budget: Beat.DEFAULTS.monthlyBudget,
-        interval: "1h",
+        /* Open on the automatic Massive daily path. Tickerbot is selected only
+           by an explicit on-demand 1h/1d choice below. */
+        interval: "1d",
         source: "live",
         auto: true,
         stretch: false,
@@ -139,6 +143,8 @@
         ledger: readLedger(),
         serverLedger: null,
         serverLedgerStatus: "waiting",
+        massiveDailyLedger: null,
+        massiveLedgerStatus: "waiting",
         alphaVantageDailyLedger: null,
         alphaVantageLedgerStatus: "waiting",
         /* Featured tickers double as the hot lane; the browser ledger is where that choice lives. */
@@ -162,7 +168,7 @@
             <div>
               <p class="ch-eyebrow">HARSHAALOS · MARKET BEAT</p>
               <h1>Characters</h1>
-              <p class="ch-lede">Select a Disc to cast the reviewed stock deck, BIS FX instruments, volume-ranked crypto, or commodities. Tickerbot is the default provider on every Disc (<strong>1h/1d</strong>). Disc1 keeps an explicit <strong>1mo</strong> Alpha Vantage mode; Alpha Vantage is disabled for Discs 2–4 while multi-asset Tickerbot support is in progress. Missing fields stay missing; re-drawing the stage spends no provider calls.</p>
+              <p class="ch-lede">Select a Disc to cast the reviewed stock deck, BIS FX instruments, volume-ranked crypto, commodities, or indices. Automatic <strong>1d</strong> beats use Massive; on-demand Disc1 <strong>1h/1d</strong> beats use Tickerbot; Disc1 <strong>1mo</strong> is an Alpha Vantage best-performer spotlight. Missing fields stay missing; re-drawing the stage spends no provider calls.</p>
             </div>
             <div class="ch-source-badge" data-ch-source-badge>Synthetic rehearsal · 0 calls</div>
           </header>
@@ -172,10 +178,10 @@
               <select data-ch-disc>${DiscCatalog.discs.map(disc => `<option value="${esc(disc.id)}">${esc(disc.label)}</option>`).join("")}</select>
             </label>
             <label class="ch-control"><span>CADENCE</span>
-              <select data-ch-cadence>${Beat.CADENCES.map(minutes => `<option value="${minutes}">${Beat.formatHours(minutes / 60)}</option>`).join("")}</select>
+              <select data-ch-cadence>${Beat.CADENCES.filter(minutes => minutes > 1).map(minutes => `<option value="${minutes}">${Beat.formatHours(minutes / 60)}</option>`).join("")}</select>
             </label>
             <label class="ch-control"><span>BAR SIZE</span>
-              <select data-ch-interval><option value="1h">1 hour · Tickerbot</option><option value="1d">1 day · Tickerbot</option><option value="1mo">1 month · Alpha Vantage</option></select>
+              <select data-ch-interval><option value="1h">1 hour · Tickerbot on demand</option><option value="1d">1 day · Massive automatic</option><option value="1mo">1 month · Alpha Vantage spotlight</option></select>
             </label>
             <label class="ch-control"><span>TICKERBOT PLAN</span>
               <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Tickerbot calls per month; planning only">
@@ -270,27 +276,43 @@
         focusSelect.disabled = stage.berths.length === 0;
       }
 
+      /* The automatic provider is chosen by mode, never by a user-entered URL.
+         A manual Disc1 1d beat intentionally remains Tickerbot so operators can
+         request its reviewed stock data without turning it into an automatic
+         Massive sweep. */
+      function liveProvider() {
+        if (state.interval === "1mo") return "alpha";
+        /* Non-stock Discs are reviewed Massive-only daily modes. Disc1 lets an
+           operator pause its automatic daily loop and make a manual Tickerbot
+           1d request instead. */
+        if (state.interval === "1d" && (state.auto || state.discId !== "stocks")) return "massive";
+        return "tickerbot";
+      }
+
+      function massiveMode() { return liveProvider() === "massive"; }
+      function alphaMode() { return liveProvider() === "alpha"; }
+      function tickerbotMode() { return liveProvider() === "tickerbot"; }
+
       function configureIntervalOptions(discId, preferred = state.interval) {
         const disc = DiscCatalog.disc(discId);
         const modes = disc ? disc.intervalModes : ["1h"];
         state.interval = modes.includes(preferred) ? preferred : modes[0];
         intervalSelect.innerHTML = modes.map(interval => {
           let label;
-          if (interval === "1mo") {
-            label = "1 month · Alpha Vantage (Disc1 only)";
-          } else if (interval === "1d") {
-            label = "1 day · Tickerbot";
-          } else {
-            label = "1 hour · Tickerbot";
-          }
+          if (interval === "1mo") label = "1 month · Alpha Vantage best-performer hourly";
+          else if (interval === "1d") label = state.auto
+            ? "1 day · Massive automatic"
+            : "1 day · Tickerbot on demand";
+          else label = "1 hour · Tickerbot on demand";
           return `<option value="${interval}">${label}</option>`;
         }).join("");
         intervalSelect.value = state.interval;
         intervalSelect.disabled = modes.length <= 1 || state.pending;
-        cadenceSelect.disabled = state.interval === "1mo" || state.pending;
-        budgetInput.disabled = state.interval === "1mo" || state.pending;
-        stretchBox.disabled = state.interval === "1mo" || state.pending;
-        tierBox.disabled = state.interval === "1mo" || state.pending;
+        const fixedProviderCadence = massiveMode() || alphaMode();
+        cadenceSelect.disabled = fixedProviderCadence || state.pending;
+        budgetInput.disabled = fixedProviderCadence || state.pending;
+        stretchBox.disabled = fixedProviderCadence || state.pending;
+        tierBox.disabled = fixedProviderCadence || state.pending;
       }
 
       function resetStageForSelection() {
@@ -314,21 +336,26 @@
       }
 
       function planOf() {
+        const provider = liveProvider();
+        /* Beat.plan models Tickerbot's monthly budget cadences only. Fixed
+           provider loops retain a harmless reviewed planner cadence; their
+           displayed and scheduled cadence comes from cadenceMinutesForBeat(). */
+        const fixedCadence = provider === "alpha" ? 60 : state.cadence;
         return Beat.plan({
           monthlyBudget: state.budget,
-          cadenceMinutes: state.interval === "1mo" ? 1440 : state.cadence,
+          cadenceMinutes: fixedCadence,
           castSize: stage.berths.length,
-          perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
+          perRequestCap: provider === "tickerbot" ? Beat.MAX_SYMBOLS_PER_BEAT : 1
         });
       }
 
       function perBeatOf(plan) {
-        if (state.interval === "1mo") return Math.min(Beat.MAX_SYMBOLS_PER_BEAT, ALPHA_VANTAGE_DAILY_REQUEST_CAP);
+        if (massiveMode() || alphaMode()) return 1;
         return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
       }
 
       function tierPlan() {
-        if (state.interval === "1mo") return { options: [], recommended: null, notes: ["Two-lane Tickerbot rotation is not used in explicit 1mo mode."] };
+        if (!tickerbotMode()) return { options: [], recommended: null, notes: ["Two-lane rotation is available only for on-demand Tickerbot beats."] };
         return Beat.planTiers({
           monthlyBudget: state.budget,
           cadenceMinutes: state.cadence,
@@ -350,7 +377,27 @@
         const plan = planOf();
         const perBeat = perBeatOf(plan);
         const base = { symbols, lastRefreshedAt: state.ledger.lastRefreshedAt, now: Date.now(), featured: state.ledger.featured };
-        if (state.interval === "1mo" || !state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+        if (alphaMode()) {
+          /* Alpha Vantage 1mo: the local closed-bar change chooses one ticker.
+             On the first pass no analysis exists, so LRU gives every berth a
+             deterministic chance to establish a baseline. */
+          let bestSymbol = null;
+          let bestGain = -Infinity;
+          for (const symbol of symbols) {
+            const analysis = state.analyses[symbol];
+            if (!analysis || !Number.isFinite(analysis.close) || !Number.isFinite(analysis.prevClose) || analysis.prevClose <= 0) continue;
+            const gain = (analysis.close - analysis.prevClose) / analysis.prevClose;
+            if (gain > bestGain || (gain === bestGain && symbol < bestSymbol)) {
+              bestGain = gain;
+              bestSymbol = symbol;
+            }
+          }
+          return { symbols: bestSymbol ? [bestSymbol] : Beat.selectDueSymbols({ ...base, perBeat: 1 }), lanes: {}, tier: null, perBeat: 1 };
+        }
+        if (massiveMode()) {
+          return { symbols: Beat.selectDueSymbols({ ...base, perBeat: 1 }), lanes: {}, tier: null, perBeat: 1 };
+        }
+        if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
         const tiers = tierPlan();
         const option = tierOptionOf(tiers);
         if (!option) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
@@ -364,12 +411,16 @@
       }
 
       function cadenceMinutesForBeat() {
-        return state.interval === "1mo" ? 1440 : state.cadence;
+        if (massiveMode()) return 1;
+        if (alphaMode()) return 60;
+        return state.cadence;
       }
 
       function beatIntervalMs() {
         if (state.source === "rehearsal") return REHEARSAL_BEAT_MS;
-        return state.interval === "1mo" ? MONTHLY_BEAT_MS : state.cadence * 60_000;
+        if (massiveMode()) return MASSIVE_BEAT_MS;
+        if (alphaMode()) return ALPHA_MONTHLY_BEAT_MS;
+        return state.cadence * 60_000;
       }
 
       /* ── Data ─────────────────────────────────────────────────────── */
@@ -385,6 +436,15 @@
         else if (spend.ledgerStatus === "not-configured") state.serverLedgerStatus = "not-configured";
         else if (ledger) state.serverLedgerStatus = "ready";
 
+        const massiveDaily = normalizeMassiveDailyLedger(spend.massiveDaily);
+        if (massiveDaily && (!state.massiveDailyLedger || massiveDaily.day > state.massiveDailyLedger.day ||
+          (massiveDaily.day === state.massiveDailyLedger.day && massiveDaily.calls >= state.massiveDailyLedger.calls))) {
+          state.massiveDailyLedger = massiveDaily;
+        }
+        if (spend.massiveLedgerStatus === "unavailable") state.massiveLedgerStatus = "unavailable";
+        else if (massiveDaily) state.massiveLedgerStatus = "ready";
+        else if (spend.massiveLedgerStatus === "not-configured") state.massiveLedgerStatus = "not-configured";
+
         const alphaDaily = normalizeAlphaVantageDailyLedger(spend.alphaVantageDaily);
         if (alphaDaily && (!state.alphaVantageDailyLedger || alphaDaily.day > state.alphaVantageDailyLedger.day ||
           (alphaDaily.day === state.alphaVantageDailyLedger.day && alphaDaily.calls >= state.alphaVantageDailyLedger.calls))) {
@@ -399,7 +459,9 @@
         const laneParam = Object.entries(lanes).length
           ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
           : "";
+        const provider = liveProvider();
         const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(state.discId)}` +
+          `&provider=${encodeURIComponent(provider)}` +
           `&symbols=${encodeURIComponent(due.join(','))}` +
           `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
         const fetcher = window.fetch || globalThis.fetch;
@@ -437,8 +499,8 @@
         const plan = planOf();
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedger && state.serverLedger.month === currentMonth ? state.serverLedger : null;
-        if (state.source === "live" && durable && durable.exhausted && state.interval !== "1mo") {
-          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The Tickerbot monthly limit is reached; no ${state.interval} request was sent. Explicit 1mo mode is separate and is not a daily substitute.` };
+        if (state.source === "live" && tickerbotMode() && durable && durable.exhausted) {
+          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The Tickerbot monthly limit is reached; no on-demand ${state.interval} request was sent. Massive automatic 1d and Alpha Vantage 1mo modes are separate.` };
           drawPanels();
           return;
         }
@@ -486,6 +548,9 @@
         let unavailable = 0;
         let budgetBlocked = 0;
         let ledgerBlocked = 0;
+        let massiveBudgetBlocked = 0;
+        let massiveLedgerBlocked = 0;
+        let massiveRateLimited = 0;
         let alphaVantageBudgetBlocked = 0;
         let alphaVantageLedgerBlocked = 0;
         let tickerbotNotCovered = 0;
@@ -496,6 +561,9 @@
             unavailable += 1;
             if (instrument.code === "budget-exhausted") budgetBlocked += 1;
             if (instrument.code === "ledger-unavailable") ledgerBlocked += 1;
+            if (instrument.code === "massive-budget-exhausted") massiveBudgetBlocked += 1;
+            if (instrument.code === "massive-ledger-unavailable") massiveLedgerBlocked += 1;
+            if (instrument.code === "massive-rate-limit") massiveRateLimited += 1;
             if (instrument.code === "alpha-vantage-budget-exhausted") alphaVantageBudgetBlocked += 1;
             if (instrument.code === "alpha-vantage-ledger-unavailable") alphaVantageLedgerBlocked += 1;
             if (instrument.code === "tickerbot-symbol-not-covered") tickerbotNotCovered += 1;
@@ -508,13 +576,23 @@
           const directive = Beat.motion(analysis, { bearingBase: bearingOf(symbol) });
           state.motions[symbol] = directive;
           moods[symbol] = directive.mood;
+          /* The Alpha spotlight ranks only locally held closed bars. A forming
+             Massive daily bar may animate as held context, but it cannot make a
+             ticker look like the best performer before that daily candle closes. */
+          const bars = packet && Array.isArray(packet.bars) ? packet.bars : [];
+          const closedBars = bars.filter(bar => bar && bar.confirmed === true && Number.isFinite(Number(bar.close)));
+          const latestClosed = closedBars.at(-1) || null;
+          const priorClosed = closedBars.length > 1 ? closedBars.at(-2) : null;
+          const close = latestClosed ? Number(latestClosed.close) : null;
+          const prevClose = priorClosed ? Number(priorClosed.close) : null;
           state.analyses[symbol] = {
             at: now,
             status: directive.status,
             synthetic: directive.synthetic,
             source: directive.source,
             bars: directive.barCount,
-            close: analysis && analysis.close,
+            close,
+            prevClose,
             dataShape: analysis && analysis.dataShape,
             quoteCurrency: analysis && analysis.quoteCurrency,
             volumeAvailable: analysis && analysis.volumeAvailable === true,
@@ -537,8 +615,9 @@
         writeLedger(state.ledger);
         state.lastBeatAt = now;
         state.beats += 1;
-          state.log = [{
-          at: now, reason, disc: state.discId, interval: state.interval, source: state.source, symbols: refreshed, calls,
+        state.log = [{
+          at: now, reason, disc: state.discId, interval: state.interval, source: state.source, provider: state.source === "live" ? liveProvider() : "synthetic", symbols: refreshed, calls,
+          massiveAttempts: result.spend ? Math.max(0, Number(result.spend.massiveAttempts) || 0) : 0,
           alphaVantageAttempts: result.spend ? Math.max(0, Number(result.spend.alphaVantageAttempts) || 0) : 0,
           unavailable, cacheHits: result.spend ? result.spend.cacheHits : 0,
           lanes: { ...state.laneBySymbol },
@@ -548,6 +627,13 @@
         if (budgetBlocked) {
           const ledger = state.serverLedger;
           state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit for Tickerbot${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No Tickerbot request was sent for those berths.` };
+        } else if (massiveBudgetBlocked) {
+          const ledger = state.massiveDailyLedger;
+          state.message = { kind: "refusal", text: `${massiveBudgetBlocked} due berth${massiveBudgetBlocked === 1 ? " was" : "s were"} refused by Massive's daily Characters allowance${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.dailyLimit.toLocaleString()} in ${ledger.day} UTC)` : ""}. No Massive request was sent for those berths.` };
+        } else if (massiveLedgerBlocked) {
+          state.message = { kind: "refusal", text: `${massiveLedgerBlocked} due berth${massiveLedgerBlocked === 1 ? " was" : "s were"} not sent because the Massive daily D1 ledger is unavailable. No request was sent.` };
+        } else if (massiveRateLimited) {
+          state.message = { kind: "refusal", text: `${massiveRateLimited} due berth${massiveRateLimited === 1 ? " was" : "s were"} held by Massive's shared per-minute envelope. Wait briefly; no substitute provider was used.` };
         } else if (alphaVantageBudgetBlocked) {
           const ledger = state.alphaVantageDailyLedger;
           state.message = { kind: "refusal", text: `${alphaVantageBudgetBlocked} due berth${alphaVantageBudgetBlocked === 1 ? " was" : "s were"} refused by Alpha Vantage's separate daily cap${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.dailyLimit.toLocaleString()} in ${ledger.day} UTC)` : ""}. No additional Alpha Vantage request was sent.` };
@@ -557,18 +643,17 @@
           state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 monthly call ledger is unavailable. No request was sent.` };
         } else if (tickerbotNotCovered) {
           const disc = DiscCatalog.disc(state.discId);
-          state.message = { kind: "note", text: `${tickerbotNotCovered} instrument${tickerbotNotCovered === 1 ? "" : "s"} on ${disc ? disc.label : state.discId} ${state.interval} are not yet on Tickerbot's reviewed multi-asset allowlist. Alpha Vantage is disabled for this Disc; switch to Synthetic rehearsal above to preview stage motion while multi-asset Tickerbot coverage rolls out.` };
-        } else if (state.source === "live" && state.message && ["error", "refusal"].includes(state.message.kind)) {
-          state.message = refreshed.length
-            ? null
-            : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
-        } else if (!state.message || state.message.kind === "error") {
-          state.message = refreshed.length
-            ? null
-            : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
+          state.message = { kind: "note", text: `${tickerbotNotCovered} instrument${tickerbotNotCovered === 1 ? "" : "s"} on ${disc ? disc.label : state.discId} are not eligible for an on-demand Tickerbot beat. Re-enable Auto-beat for Massive daily observations, or use Synthetic rehearsal to preview stage motion.` };
+        } else if (!refreshed.length) {
+          /* A completed empty beat supersedes stale mode-selection copy. The
+             stage must say plainly that no observation arrived rather than
+             leaving an earlier provider note that implies a successful read. */
+          state.message = { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
+        } else if (state.source === "live") {
+          state.message = null;
         }
         if (state.source === "live") {
-          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from live market data (${calls} provider request${calls === 1 ? "" : "s"}, including ${result.spend ? Number(result.spend.tickerbotAttempts) || 0 : 0} Tickerbot and ${result.spend ? Number(result.spend.alphaVantageAttempts) || 0 : 0} Alpha Vantage 1mo attempts). Display-only motion.` +
+          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from live market data (${calls} provider request${calls === 1 ? "" : "s"}, including ${result.spend ? Number(result.spend.massiveAttempts) || 0 : 0} Massive, ${result.spend ? Number(result.spend.tickerbotAttempts) || 0 : 0} Tickerbot, and ${result.spend ? Number(result.spend.alphaVantageAttempts) || 0 : 0} Alpha Vantage 1mo attempts). Display-only motion.` +
             (unavailable ? ` ${unavailable} symbol(s) returned no bars and stayed frozen.` : ""));
         }
         state.displayed = { ...state.displayed };
@@ -584,24 +669,36 @@
 
       function drawPanels() {
         const plan = planOf();
+        const provider = liveProvider();
+        const isMassive = provider === "massive";
+        const isAlpha = provider === "alpha";
+        const isTickerbot = provider === "tickerbot";
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedgerStatus === "ready" && state.serverLedger && state.serverLedger.month === currentMonth
           ? state.serverLedger : null;
         const currentUtcDay = new Date(Date.now()).toISOString().slice(0, 10);
+        const massiveDaily = state.massiveLedgerStatus === "ready" && state.massiveDailyLedger && state.massiveDailyLedger.day === currentUtcDay
+          ? state.massiveDailyLedger : null;
         const alphaVantageDaily = state.alphaVantageLedgerStatus === "ready" && state.alphaVantageDailyLedger &&
           state.alphaVantageDailyLedger.day === currentUtcDay ? state.alphaVantageDailyLedger : null;
+        const massiveDailyText = massiveDaily
+          ? `${massiveDaily.calls.toLocaleString()} / ${massiveDaily.dailyLimit.toLocaleString()} used · ${massiveDaily.remaining.toLocaleString()} left (${massiveDaily.day} UTC)`
+          : state.massiveLedgerStatus === "unavailable"
+            ? "D1 UTC-day ledger unavailable · Massive requests fail closed"
+            : state.massiveLedgerStatus === "not-configured"
+              ? "Not configured · add MASSIVE_API_KEY for automatic daily beats"
+              : `${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()} Worker attempts per UTC day`;
         const alphaVantageDailyText = alphaVantageDaily
           ? `${alphaVantageDaily.calls.toLocaleString()} / ${alphaVantageDaily.dailyLimit.toLocaleString()} used · ${alphaVantageDaily.remaining.toLocaleString()} left (${alphaVantageDaily.day} UTC)`
           : state.alphaVantageLedgerStatus === "unavailable"
             ? "D1 UTC-day ledger unavailable · Alpha Vantage requests fail closed"
             : state.alphaVantageLedgerStatus === "not-configured"
               ? "Not configured · add ALPHA_VANTAGE_API_KEY for explicit 1mo mode"
-              : `${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Worker attempts per UTC day · all Alpha Vantage intervals`;
+              : `${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Worker attempts per UTC day`;
         const disc = DiscCatalog.disc(state.discId);
-        const monthlyMode = state.interval === "1mo";
         const perBeat = perBeatOf(plan);
         const sweepBeats = Math.ceil(stage.berths.length / Math.max(1, perBeat));
-        const sweepHours = monthlyMode ? sweepBeats * 24 : (sweepBeats * state.cadence) / 60;
+        const sweepHours = (sweepBeats * cadenceMinutesForBeat()) / 60;
         const cryptoRankNote = state.discId === "crypto" && state.ranking
           ? `Live ${state.ranking.provider || "CoinGecko"} ranking · ${state.ranking.metric || "trailing 24-hour total_volume, USD"}${state.ranking.rankedAt ? ` · snapshot ${stamp(state.ranking.rankedAt)}` : ""}${state.ranking.cached ? " · cached ranking" : ""}. Audit flags: ${state.ranking.audit ? `${state.ranking.audit.stablecoinCandidateCount || 0} stablecoin candidate(s), ${state.ranking.audit.missingMarketCapCount || 0} missing market cap(s), ${(state.ranking.audit.extremeNominalPriceCandidates || []).length} extreme nominal price flag(s)` : "eligibility audit unavailable"}. Constituents can include stablecoins and other eligible market-listed assets; this is a provisional volume ranking, not an investment-quality screen.`
           : (disc && disc.ranking) || "";
@@ -609,37 +706,42 @@
 
         $("[data-ch-source-badge]").textContent = state.source === "rehearsal"
           ? "Synthetic rehearsal · 0 provider calls · not real market data"
-          : monthlyMode
-            ? "Alpha Vantage · 1mo · Disc1 stocks only · 25 req/UTC day"
-            : state.discId === "stocks"
-              ? "Tickerbot Live · stock 1h/1d · monthly ledger"
-              : `Tickerbot Live · ${(DiscCatalog.disc(state.discId) || {}).label || state.discId} · multi-asset rollout in progress`;
+          : isMassive
+            ? "Massive · automatic 1d · one instrument/minute"
+            : isAlpha
+              ? "Alpha Vantage · 1mo · best-performer hourly · 25 req/UTC day"
+              : "Tickerbot Live · on-demand Disc1 stock 1h/1d · monthly ledger";
         $("[data-ch-source-badge]").className = `ch-source-badge${state.source === "rehearsal" ? " ch-source-badge-synthetic" : ""}`;
 
         const tiers = tierPlan();
         const tierOption = tierOptionOf(tiers);
-        const cadencePlan = monthlyMode ? [] : Beat.compareCadences({ monthlyBudget: state.budget, castSize: stage.berths.length });
-        $("[data-ch-plan-title]").textContent = monthlyMode ? "1mo mode" : "Tickerbot plan";
+        const cadencePlan = isTickerbot ? Beat.compareCadences({ monthlyBudget: state.budget, castSize: stage.berths.length }).filter(option => option.cadenceMinutes > 1) : [];
+        $("[data-ch-plan-title]").textContent = isMassive ? "Massive daily loop" : isAlpha ? "1mo mode" : "Tickerbot plan";
         const tickerbotStats = `
           <div><dt>Beats / month</dt><dd>${plan.beatsPerMonth.toLocaleString()}</dd></div>
           <div><dt>Symbols / beat</dt><dd>${perBeat}${state.stretch && plan.stretchWithinBudget ? " <span class=\"ch-stretch-tag\">stretch</span>" : ""}</dd></div>
           <div><dt>Tickerbot calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
           <div><dt>Reserve held</dt><dd>${plan.reserveCalls.toLocaleString()}</dd></div>
-          <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption
-            ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
-            : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
+          <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}` : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
           ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}`;
+        const massiveStats = `
+          <div><dt>Bar interval</dt><dd>1d · Massive · ${esc((disc && disc.label) || state.discId)}</dd></div>
+          <div><dt>Automatic cadence</dt><dd>1 reviewed instrument / minute</dd></div>
+          <div><dt>Daily packet hold</dt><dd>Through the next UTC midnight</dd></div>
+          <div><dt>Full Disc sweep</dt><dd>${sweepBeats} beats · about ${Beat.formatHours(sweepHours)}</dd></div>
+          <div><dt>Massive UTC-day guard</dt><dd>${massiveDailyText}</dd></div>`;
         const monthlyStats = `
           <div><dt>Bar interval</dt><dd>1mo · Alpha Vantage · Disc1 stocks only</dd></div>
-          <div><dt>Requests / beat</dt><dd>up to ${perBeat} instruments</dd></div>
-          <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests</dd></div>
-          <div><dt>Approx. full Disc rotation</dt><dd>${sweepBeats} daily beat${sweepBeats === 1 ? "" : "s"} · about ${sweepBeats} day${sweepBeats === 1 ? "" : "s"}</dd></div>`;
-        const tickerbotLedgerRow = monthlyMode
-          ? `<div><dt>Tickerbot UTC-month ledger</dt><dd><span class="ch-dim">Not used in 1mo mode</span></dd></div>`
-          : `<div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
-            ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
-            : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · Tickerbot calls fail closed" : state.serverLedgerStatus === "not-configured" ? "Tickerbot secret not configured" : "awaiting Worker ledger"}</span>`}</dd></div>`;
-        const monthlyCadenceControls = cadencePlan.length ? `<div class="ch-cadence-row">${cadencePlan.map(option => `
+          <div><dt>Best-performing ticker</dt><dd>1 symbol per hour · highest local closed-bar gain</dd></div>
+          <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests · 24 at hourly cadence</dd></div>`;
+        const ledgerRow = isMassive
+          ? `<div><dt>D1 snapshot · Massive / day</dt><dd><span class="ch-dim">${massiveDailyText}</span></dd></div>`
+          : isAlpha
+            ? `<div><dt>Tickerbot UTC-month ledger</dt><dd><span class="ch-dim">Not used in 1mo mode</span></dd></div>`
+            : `<div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
+              ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
+              : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · Tickerbot calls fail closed" : state.serverLedgerStatus === "not-configured" ? "Tickerbot secret not configured" : "awaiting Worker ledger"}</span>`}</dd></div>`;
+        const cadenceControls = cadencePlan.length ? `<div class="ch-cadence-row">${cadencePlan.map(option => `
           <button class="ch-cadence-chip${option.cadenceMinutes === state.cadence ? " active" : ""}" data-ch-cadence-chip="${option.cadenceMinutes}"
             title="${option.callsPerBeat} Tickerbot calls/beat · ${option.callsPerMonth.toLocaleString()} Tickerbot calls/month · ${Beat.formatHours(option.sweepHours)} sweep">
             ${Beat.formatHours(option.cadenceMinutes / 60)}<small>${option.callsPerBeat}/beat</small>
@@ -647,13 +749,14 @@
           </button>`).join("")}</div>` : "";
         $("[data-ch-plan]").innerHTML = `
           <dl class="ch-stats">
-            ${monthlyMode ? monthlyStats : tickerbotStats}
-            ${tickerbotLedgerRow}
-            <div><dt>Alpha Vantage UTC-day cap</dt><dd><span class="ch-dim">${monthlyMode ? alphaVantageDailyText : "Disabled for Discs 2–4; Disc1 stocks only in explicit 1mo mode"}</span></dd></div>
-          </dl>${monthlyCadenceControls}`;
+            ${isMassive ? massiveStats : isAlpha ? monthlyStats : tickerbotStats}
+            ${ledgerRow}
+            ${!isMassive ? `<div><dt>Massive daily mode</dt><dd><span class="ch-dim">Automatic 1d only · ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()} UTC-day guard</span></dd></div>` : ""}
+            ${!isAlpha ? `<div><dt>Alpha Vantage cap</dt><dd><span class="ch-dim">Disc1 explicit 1mo only · ${ALPHA_VANTAGE_DAILY_REQUEST_CAP}/UTC day</span></dd></div>` : ""}
+          </dl>${cadenceControls}`;
         const tierFeasible = tiers.options.some(option => option.feasible);
-        $("[data-ch-tier-panel]").innerHTML = monthlyMode
-          ? `<p class="ch-fineprint">Two-lane Tickerbot rotation is disabled in explicit 1mo mode.</p>`
+        $("[data-ch-tier-panel]").innerHTML = !isTickerbot
+          ? `<p class="ch-fineprint">Two-lane Tickerbot rotation is disabled for this provider mode.</p>`
           : !tierFeasible ? `<p class="ch-fineprint">${tiers.notes.join(" ")}</p>` : state.tierMode ? `
           <div class="ch-tier-wheel">
             ${tiers.options.map(option => `
@@ -673,20 +776,22 @@
           ${tierOption && !tierOption.withinWindow ? `<p class="ch-fineprint">This window is not reached at this plan; the sweep finishes in ${Beat.formatHours(tierOption.sweepHours)}.</p>` : ""}`
           : "";
 
-        $("[data-ch-plan-tag]").textContent = monthlyMode
-          ? "Alpha Vantage · UTC-day cap"
-          : state.tierMode && tierOption
-            ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
-            : `${state.cadence}-minute plan`;
-        $("[data-ch-plan-note]").textContent = monthlyMode
-          ? `The Worker requests only explicit 1mo Alpha Vantage data for Disc1 stocks, capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day, independent of requested bar interval. A beat selects at most ${perBeat} instruments; the full ${stage.berths.length}-instrument Disc takes about ${sweepBeats} daily beats at the live cadence. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}. Alpha Vantage is disabled for Discs 2–4.`
-          : state.discId === "stocks"
-            ? `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The Worker caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 requests per UTC day in Disc1-only explicit 1mo mode. Alpha Vantage is not a daily-bar fallback and is disabled for Discs 2–4.`
-            : `Tickerbot is the default provider for ${(DiscCatalog.disc(state.discId) || {}).label || state.discId}. Multi-asset Tickerbot coverage is in progress; instruments not yet on Tickerbot's reviewed allowlist will show as unavailable until the rollout lands rather than falling back to Alpha Vantage (which is disabled for this Disc). ${perBeat} symbols per beat at ${state.cadence} minutes; cadence planning uses Tickerbot's 10,000/month ledger.`;
-        stretchBox.disabled = monthlyMode || !plan.stretchWithinBudget || state.pending;
-        stretchBox.checked = state.stretch && plan.stretchWithinBudget && !monthlyMode;
-        tierBox.checked = state.tierMode && !monthlyMode;
-        tierBox.disabled = monthlyMode || state.pending || !tiers.options.some(option => option.feasible);
+        $("[data-ch-plan-tag]").textContent = isMassive
+          ? "Massive · UTC-day guard"
+          : isAlpha
+            ? "Alpha Vantage · UTC-day cap"
+            : state.tierMode && tierOption
+              ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
+              : `${state.cadence}-minute plan`;
+        $("[data-ch-plan-note]").textContent = isMassive
+          ? `Massive is the automatic daily provider for ${(disc && disc.label) || state.discId}. One reviewed instrument is selected per minute; successful daily packets are held through UTC midnight. The shared per-minute envelope and ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()}-attempt D1 daily guard both fail closed. Tickerbot does not substitute for a missing Massive bar.`
+          : isAlpha
+            ? `Alpha Vantage covers 1mo data for Disc1 stocks only. Each hourly beat selects the single best-performing ticker (highest gain in local analyses), capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day — 24 at hourly cadence. Tickerbot and Massive daily ledgers are not used. ${alphaVantageDailyText}.`
+            : `${perBeat} Disc1 stock symbol${perBeat === 1 ? "" : "s"} per beat on-demand through Tickerbot at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} Automatic 1d mode uses Massive instead; Alpha Vantage is not a daily fallback.`;
+        stretchBox.disabled = !isTickerbot || !plan.stretchWithinBudget || state.pending;
+        stretchBox.checked = state.stretch && plan.stretchWithinBudget && isTickerbot;
+        tierBox.checked = state.tierMode && isTickerbot;
+        tierBox.disabled = !isTickerbot || state.pending || !tiers.options.some(option => option.feasible);
 
         const focused = state.focus;
         const berth = stage.berths.find(entry => entry.symbol === focused);
@@ -721,7 +826,7 @@
         $("[data-ch-log]").innerHTML = state.log.length ? state.log.map(entry => `
           <li>
             <span class="ch-log-time">${clock(entry.at)}</span>
-            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `${esc(entry.disc)} ${esc(entry.interval)} · LIVE ${entry.calls} request${entry.calls === 1 ? "" : "s"}${entry.alphaVantageAttempts ? ` · Alpha 1mo ${entry.alphaVantageAttempts}` : ""}`}</span>
+            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `${esc(entry.disc)} ${esc(entry.interval)} · ${esc(String(entry.provider || "live").toUpperCase())} ${entry.calls} request${entry.calls === 1 ? "" : "s"}${entry.massiveAttempts ? ` · Massive 1d ${entry.massiveAttempts}` : ""}${entry.alphaVantageAttempts ? ` · Alpha 1mo ${entry.alphaVantageAttempts}` : ""}`}</span>
             <span class="ch-log-body">${entry.symbols.length ? entry.symbols.map(symbol => {
               const lane = entry.lanes && entry.lanes[symbol];
               const laneMark = lane === "hot" || lane === "sweep"
@@ -733,23 +838,33 @@
           </li>`).join("") : `<li class="ch-log-empty">No beats recorded in this session.</li>`;
         $("[data-ch-beatcount]").textContent = `${state.ledger.beats} beat${state.ledger.beats === 1 ? "" : "s"}`;
         $("[data-ch-ledger]").textContent = `${state.ledger.calls.toLocaleString()} Character call${state.ledger.calls === 1 ? "" : "s"} in ${state.ledger.month} (browser only)`;
-        $("[data-ch-durable-ledger]").textContent = monthlyMode
-          ? "Not used for explicit Alpha Vantage 1mo requests."
-          : durable
-            ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
-            : state.serverLedgerStatus === "unavailable"
-              ? "No D1 snapshot reported — the live route refused or the Tickerbot ledger is unavailable; Tickerbot fetches fail closed."
-              : state.serverLedgerStatus === "not-configured"
-                ? "Tickerbot is not configured. Alpha Vantage is reserved for Disc1-only 1mo; Discs 2–4 default to Tickerbot."
-                : "Waiting for the first live beat.";
+        $("[data-ch-durable-ledger]").textContent = isMassive
+          ? massiveDaily
+            ? `${massiveDaily.calls.toLocaleString()} / ${massiveDaily.dailyLimit.toLocaleString()} Worker attempts in ${massiveDaily.day} UTC · ${massiveDaily.remaining.toLocaleString()} left`
+            : state.massiveLedgerStatus === "unavailable"
+              ? "No Massive D1 snapshot reported — automatic daily beats fail closed."
+              : state.massiveLedgerStatus === "not-configured"
+                ? "Massive is not configured. Add MASSIVE_API_KEY as a Worker secret."
+                : "Waiting for the first Massive daily beat."
+          : isAlpha
+            ? "Not used for explicit Alpha Vantage 1mo best-performer requests."
+            : durable
+              ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
+              : state.serverLedgerStatus === "unavailable"
+                ? "No D1 snapshot reported — the live route refused or the Tickerbot ledger is unavailable; Tickerbot fetches fail closed."
+                : state.serverLedgerStatus === "not-configured"
+                  ? "Tickerbot is not configured. Massive is automatic 1d; Alpha Vantage is Disc1-only 1mo."
+                  : "Waiting for the first live beat.";
         $("[data-ch-stage-note]").textContent = state.message
           ? state.message.text
           : state.lastBeatAt
             ? (state.source === "rehearsal"
-              ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls. Non-stock symbols not yet covered by Tickerbot also fall back to synthetic rehearsal.`
-              : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
+              ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls.`
+              : isTickerbot
+                ? "Tickerbot is on demand. Use Beat now to request reviewed Disc1 stock bars; no background provider loop is scheduled."
+                : `Next ${isMassive ? "Massive automatic" : "Alpha Vantage"} beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Tickerbot is the default provider on every Disc — Disc1 stocks today, with FX, crypto and commodities queued for the upcoming multi-asset rollout — under a 10,000-per-UTC-month Worker cap. Disc1 retains an explicit 1mo Alpha Vantage mode under a separate 25-requests-per-UTC-day cap; Alpha Vantage is disabled for Discs 2–4, and monthly data never substitutes for daily bars. Direct provider calls are outside those ledgers.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Massive is the automatic 1d provider for the reviewed stock, FX, crypto, commodity, and index Discs under a shared per-minute envelope and a conservative UTC-day Characters guard. Tickerbot is only an on-demand Disc1 stock provider under its 10,000-per-UTC-month Worker cap. Disc1 also retains a separate Alpha Vantage 1mo hourly best-performer spotlight (one ticker/hour, 24 scheduled requests/day) under a 25-per-UTC-day cap. Providers never silently substitute for one another; direct provider calls are outside those ledgers.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -994,7 +1109,10 @@
       function schedule() {
         if (beatTimer) clearTimeout(beatTimer);
         beatTimer = null;
-        if (!state.auto) return;
+        /* Tickerbot is intentionally on-demand: a live stock 1h/1d selection
+           never becomes a recurring provider loop. Synthetic rehearsal may
+           still loop for preview purposes. */
+        if (!state.auto || (state.source === "live" && tickerbotMode())) return;
         beatTimer = setTimeout(async () => {
           if (document.hidden) {
             /* A hidden tab does not spend calls; the ledger says so. */
@@ -1042,6 +1160,10 @@
           if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${disc.label}.`);
 
           state.discId = discId;
+          /* Discs2–5 expose only Massive's automatic daily path. Entering one
+             returns the live loop to its automatic setting; Disc1 can still be
+             deliberately paused into an on-demand Tickerbot 1d request. */
+          if (discId !== "stocks") state.auto = true;
           activeDisc.current = discId;
           state.ranking = ranking;
           activeDisc.ranking = ranking;
@@ -1051,7 +1173,9 @@
           state.message = { kind: "note", text: disc.ranking };
           discSelect.value = discId;
           drawPanels();
-          await beatNow("disc-change");
+          /* A Disc1 manual Tickerbot selection waits for the explicit Beat now
+             action; only Massive/Alpha modes start their automatic live beat. */
+          if (!tickerbotMode()) await beatNow("disc-change");
           schedule();
         } catch (error) {
           discSelect.value = previousDisc;
@@ -1070,11 +1194,19 @@
         }
         if (nextInterval === state.interval) return;
         state.interval = nextInterval;
+        /* Tickerbot remains a manual Disc1 provider. Alpha's 1mo path resumes
+           its fixed hourly loop when selected; an operator may still pause it
+           afterward with Auto-beat. */
+        if (nextInterval === "1h") state.auto = false;
+        else if (nextInterval === "1mo") state.auto = true;
         state.tierMode = false;
         state.stretch = false;
         state.motions = {};
         state.displayed = {};
-        state.analyses = {};
+        /* The Alpha spotlight deliberately carries locally observed analyses
+           into 1mo mode so it can choose the best performer on its first
+           hourly beat. Other interval changes start a fresh analysis set. */
+        if (nextInterval !== "1mo") state.analyses = {};
         state.blends = {};
         state.items = new Map();
         state.lastBeatAt = 0;
@@ -1083,10 +1215,13 @@
         state.ledger = readLedger(state.discId, state.interval);
         configureIntervalOptions(state.discId, state.interval);
         state.message = nextInterval === "1mo"
-          ? { kind: "note", text: "Explicit 1mo mode (Disc1 stocks only): Alpha Vantage monthly observations. Tickerbot is not called, and these bars never answer 1h or 1d requests." }
-          : { kind: "note", text: `Tickerbot ${nextInterval} mode selected${state.discId !== "stocks" ? " for " + (DiscCatalog.disc(state.discId)?.label || state.discId) + " — multi-asset Tickerbot coverage is in progress; symbols not yet on the reviewed allowlist will be unavailable until rollout" : ""}. Alpha Vantage is not a daily/hourly fallback; this is a separate provider path.` };
+          ? { kind: "note", text: "Explicit 1mo mode (Disc1 stocks only): Alpha Vantage monthly observations for the single best-performing ticker per hour. These bars never answer a 1h or 1d request." }
+          : nextInterval === "1d" && state.auto
+            ? { kind: "note", text: "Automatic 1d mode selected: Massive refreshes one reviewed instrument per minute and holds successful daily packets through UTC midnight. No Tickerbot or Alpha Vantage substitution occurs." }
+            : { kind: "note", text: `On-demand Tickerbot ${nextInterval} mode selected for Disc1 stocks. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths.` };
         drawPanels();
-        if (state.source === "live") beatNow("interval-change");
+        /* Selecting a manual Tickerbot interval never itself spends a call. */
+        if (state.source === "live" && !tickerbotMode()) beatNow("interval-change");
         schedule();
       }
 
@@ -1109,29 +1244,50 @@
       function switchSource(next) {
         if (next === state.source) return;
         state.source = next;
+        /* A rehearsal loop can be switched back to live, but never turns a
+           selected 1h Tickerbot view into a background polling loop. */
+        if (next === "live" && state.interval === "1h") state.auto = false;
         state.motions = {};
         state.displayed = {};
+        /* Never let a synthetic rehearsal analysis rank a later live Alpha
+           spotlight (or let a live one rank a rehearsal beat). */
+        state.analyses = {};
         state.blends = {};
         state.items = new Map();
         state.message = next === "rehearsal"
           ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to live provider data for real observations." }
-          : state.interval === "1mo"
-            ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations only. The Worker caps Alpha Vantage at 25 requests per UTC day, independent of interval." }
-            : { kind: "note", text: "Live 1h/1d mode uses Tickerbot. Alpha Vantage is not used as a daily-bar fallback; choose explicit 1mo for monthly observations." };
+          : massiveMode()
+            ? { kind: "note", text: "Live automatic 1d mode uses Massive for one reviewed instrument per minute. Successful daily packets cache through UTC midnight; no fallback provider is used." }
+            : alphaMode()
+              ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations for the best-performing ticker per hour. The Worker caps Alpha Vantage at 25 requests per UTC day (24 scheduled at hourly cadence)." }
+              : { kind: "note", text: "Live on-demand 1h/1d Disc1 mode uses Tickerbot. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths." };
         drawPanels();
         schedule();
       }
 
       sourceSelect.addEventListener("change", () => switchSource(sourceSelect.value === "rehearsal" ? "rehearsal" : "live"));
       focusSelect.addEventListener("change", () => { state.focus = focusSelect.value; drawStage(Date.now()); drawPanels(); });
-      autoButton.addEventListener("click", () => { state.auto = !state.auto; drawPanels(); schedule(); });
+      autoButton.addEventListener("click", () => {
+        if (state.source === "live" && state.interval === "1h") {
+          state.auto = false;
+          state.message = { kind: "note", text: "Tickerbot 1h is on demand only. Choose Beat now to request the reviewed Disc1 stock data; no background loop is scheduled." };
+        } else {
+          state.auto = !state.auto;
+        }
+        /* In Disc1 1d mode this deliberately switches between the automatic
+           Massive loop and a manual Tickerbot request. Non-stock Discs remain
+           Massive-only even when an operator pauses their timer. */
+        configureIntervalOptions(state.discId, state.interval);
+        drawPanels();
+        schedule();
+      });
       beatButton.addEventListener("click", () => { beatNow("manual"); });
       stretchBox.addEventListener("change", () => { state.stretch = stretchBox.checked; drawPanels(); });
       tierBox.addEventListener("change", () => {
         state.tierMode = tierBox.checked;
         state.message = state.tierMode
-          ? { kind: "note", text: "Two-lane Tickerbot rotation enabled: featured berths refresh every beat and remaining calls walk the sweep. Monthly 1mo mode does not use the Tickerbot lanes." }
-          : { kind: "note", text: "Two-lane Tickerbot rotation disabled: the plain least-recently-refreshed rotation returns. Monthly 1mo mode does not use the Tickerbot lanes." };
+          ? { kind: "note", text: "Two-lane Tickerbot rotation enabled: featured Disc1 stock berths refresh every on-demand beat and remaining calls walk the sweep." }
+          : { kind: "note", text: "Two-lane Tickerbot rotation disabled: the plain least-recently-refreshed on-demand rotation returns." };
         drawPanels();
       });
       featureButton.addEventListener("click", () => {
