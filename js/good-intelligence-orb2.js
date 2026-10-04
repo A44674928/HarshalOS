@@ -46,7 +46,7 @@
   const DATA_COLORS = Object.freeze({
     unknown: "#718096",
     priceUp: "#35d0c1", priceDown: "#fb7185", priceFlat: "#cbd5e1",
-    flowAbove: "#4ade80", flowBelow: "#f472b6", flowEqual: "#c4b5fd",
+    flowAbove: "#42dd78", flowBelow: "#ff4d6d", flowEqual: "#c4b5fd",
     basisAbove: "#fbbf24", basisBelow: "#818cf8", basisEqual: "#94a3b8",
     waveOversold: "#38bdf8", waveNeutral: "#c084fc", waveOverbought: "#fb923c",
     packetConfirmed: "#34d399", packetUnconfirmed: "#facc15",
@@ -101,12 +101,56 @@
     return PROVIDER_COLORS[key];
   };
 
+  function flowStateForMarket(market) {
+    const vfi = isRecord(market) && isRecord(market.vfi) ? market.vfi : null;
+    const value = numeric(vfi && vfi.value);
+    const signal = numeric(vfi && vfi.signal);
+    if (!vfi || vfi.available !== true || value === null || signal === null) {
+      return { state: "unavailable", color: DATA_COLORS.unknown, value: null, signal: null };
+    }
+    const state = value > signal ? "above" : value < signal ? "below" : "equal";
+    const color = state === "above" ? DATA_COLORS.flowAbove : state === "below" ? DATA_COLORS.flowBelow : DATA_COLORS.flowEqual;
+    return { state, color, value, signal };
+  }
+
+  function flowPathForObservation(observation, motionOverride = null) {
+    const market = isRecord(observation && observation.market) ? observation.market : null;
+    const motion = isRecord(motionOverride) ? motionOverride : isRecord(observation && observation.motion) ? observation.motion : null;
+    const item = motion && isRecord(motion.item) ? motion.item : null;
+    const flow = flowStateForMarket(market);
+    const latestConfirmed = Boolean(market && market.latestBar && market.latestBar.confirmed === true);
+    const volumeAvailable = Boolean(market && market.volumeAvailable === true && motion && motion.volumeAvailable === true);
+    const rate = numeric(item && item.rate);
+    const lane = item && item.lane;
+    let reason = "";
+    if (!market) reason = "Market observation unavailable";
+    else if (!latestConfirmed) reason = "Paused · latest bar not confirmed";
+    else if (!volumeAvailable) reason = "Paused · OHLCV volume unavailable";
+    else if (flow.state === "unavailable") reason = "Paused · VFI or signal unavailable";
+    else if (flow.state === "equal") reason = "Paused · VFI equals its signal";
+    else if (!motion || motion.frozen) reason = "Paused · Characters motion held";
+    else if (rate === null || rate <= 0) reason = "Paused · relative-volume cadence unavailable";
+    else if (lane !== "inbound" && lane !== "outbound") reason = "Paused · flow direction unavailable";
+    else if (lane !== (flow.state === "above" ? "inbound" : "outbound")) reason = "Paused · Characters direction transitioning";
+    const moving = reason === "";
+    return {
+      state: flow.state,
+      color: moving || flow.state === "equal" ? flow.color : DATA_COLORS.unknown,
+      label: flow.state === "above" ? "VFI above signal" : flow.state === "below" ? "VFI below signal"
+        : flow.state === "equal" ? "VFI at signal" : "VFI unavailable",
+      moving,
+      reason,
+      rate: moving ? rate : null,
+      lane: moving ? lane : "stationary",
+      direction: moving ? lane === "inbound" ? "Center → node" : "node → Center" : "stationary"
+    };
+  }
+
   function dataBitsForMarket(market) {
     if (!isRecord(market)) return [];
     const close = numeric(market.latestBar && market.latestBar.close);
     const changePct = numeric(market.changePct);
-    const vfiValue = numeric(market.vfi && market.vfi.value);
-    const vfiSignal = numeric(market.vfi && market.vfi.signal);
+    const flow = flowStateForMarket(market);
     const basis = numeric(market.basis);
     const zone = String(market.waveTrend && market.waveTrend.zone || "").toLowerCase();
     const waveValue = numeric(market.waveTrend && market.waveTrend.wt1);
@@ -114,8 +158,8 @@
     const confirmed = Boolean(market.latestBar && market.latestBar.confirmed === true);
     const compare = (left, right) => left === right ? 0 : left > right ? 1 : -1;
     const signState = changePct === null ? "unavailable" : changePct > 0 ? "up" : changePct < 0 ? "down" : "flat";
-    const vfiAvailable = Boolean(market.vfi && market.vfi.available === true && vfiValue !== null && vfiSignal !== null);
-    const vfiState = vfiAvailable ? compare(vfiValue, vfiSignal) > 0 ? "above" : compare(vfiValue, vfiSignal) < 0 ? "below" : "equal" : "unavailable";
+    const vfiAvailable = flow.state !== "unavailable";
+    const vfiState = flow.state;
     const basisAvailable = close !== null && basis !== null;
     const basisState = basisAvailable ? compare(close, basis) > 0 ? "above" : compare(close, basis) < 0 ? "below" : "equal" : "unavailable";
     const waveState = zone.includes("overbought") ? "overbought"
@@ -131,8 +175,7 @@
         changePct === null ? "Price change is not supplied." : "Change from the previous confirmed bar; descriptive context only.",
         signState === "up" ? DATA_COLORS.priceUp : signState === "down" ? DATA_COLORS.priceDown : signState === "flat" ? DATA_COLORS.priceFlat : DATA_COLORS.unknown),
       bit("flow", "VFI", vfiState, vfiAvailable ? vfiState === "equal" ? "at signal" : `${vfiState} signal` : "not supplied",
-        vfiAvailable ? "Observed Volume Flow Indicator compared with its supplied signal; not claim assurance." : "VFI or its signal is unavailable for this observation.",
-        vfiState === "above" ? DATA_COLORS.flowAbove : vfiState === "below" ? DATA_COLORS.flowBelow : vfiState === "equal" ? DATA_COLORS.flowEqual : DATA_COLORS.unknown),
+        vfiAvailable ? "Observed Volume Flow Indicator compared with its supplied signal; not claim assurance." : "VFI or its signal is unavailable for this observation.", flow.color),
       bit("basis", "FIB BASIS", basisState, basisAvailable ? `${basisState} basis` : "not supplied",
         basisAvailable ? `Latest close is ${basisState} the supplied Fibonacci-band basis.` : "A close or Fibonacci-band basis is unavailable.",
         basisState === "above" ? DATA_COLORS.basisAbove : basisState === "below" ? DATA_COLORS.basisBelow : basisState === "equal" ? DATA_COLORS.basisEqual : DATA_COLORS.unknown),
@@ -340,6 +383,10 @@
     const providerLegend = [
       ["massive", "Massive"], ["tickerbot", "Tickerbot"], ["alpha", "Alpha Vantage"], ["rehearsal", "Synthetic rehearsal"], ["unknown", "Unspecified"]
     ].map(([key, label]) => swatch(PROVIDER_COLORS[key], label)).join("");
+    const flowLegend = [
+      [DATA_COLORS.flowAbove, "VFI above · inbound"], [DATA_COLORS.flowBelow, "VFI below · outbound"],
+      [DATA_COLORS.flowEqual, "equal · held"], [DATA_COLORS.unknown, "unavailable · held"]
+    ].map(([color, label]) => swatch(color, label)).join("");
     const routeLegend = [
       ["#6fd3ff", "inward"], ["#ffd479", "center resolve"], ["#5ce6a8", "outward"], ["#ffb45c", "lateral"]
     ].map(([color, label]) => swatch(color, label)).join("");
@@ -351,12 +398,12 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos and communication paths use provider identity; five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos and communication paths use provider identity; volume-flow runners are green when supplied VFI is above its signal and travel from center to node, red when below and travel node to center. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
-        <summary><strong>COLOR KEY</strong><span>Characters mood · provider path · five market data bits</span></summary>
+        <summary><strong>COLOR KEY</strong><span>Characters mood · provider path · VFI flow cue · five market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
           <section><h4>CORE ORB · CHARACTERS BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
-          <section><h4>HALO + MARKET PATH · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent.</p></section>
+          <section><h4>HALO + COMMUNICATION PATH · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green flows inward for VFI above its signal; red flows outward for VFI below. The runner overlays—but does not recolor—the provider path. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent.</p></section>
           <section><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
           <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid paths mean a complete confirmed observation; dashed paths mark cached, synthetic, partial, or unconfirmed data; dotted paths mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
           <p class="gi-orb2-color-key-boundary">Price, volume, band, and WaveTrend colors are descriptive market context only. They do not establish claim assurance, indicate permission to act, or provide a trading instruction.</p>
@@ -499,7 +546,7 @@
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
             <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
-            <div class="gi-orb2-canvas-hud" aria-hidden="true"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span></div>
+            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
@@ -520,6 +567,7 @@
     const $ = selector => host.querySelector(selector);
     const root = $("[data-gi-orb2-root]");
     const canvas = $("[data-gi-orb2-canvas]");
+    const flowReadout = $("[data-gi-orb2-flow-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
     const cadenceSelect = $("[data-gi-orb2-cadence]");
@@ -1132,6 +1180,9 @@
       }
       const fields = priceRows(market);
       const vfi = market.vfi && market.vfi.available ? `VFI ${formatPrice(market.vfi.value)} · signal ${formatPrice(market.vfi.signal)}` : "VFI unavailable without complete OHLCV";
+      const flow = flowPathForObservation(observation, observation.motion);
+      const flowText = flow.moving ? `${flow.label} · ${flow.direction} · ${flow.rate.toFixed(2)} visual cycles/s`
+        : `${flow.reason || "Paused"} · ${flow.label}`;
       const wave = market.waveTrend ? `WaveTrend ${formatPrice(market.waveTrend.wt1)} / ${formatPrice(market.waveTrend.wt2)} · ${market.waveTrend.zone || "unknown"}` : "WaveTrend unavailable";
       const bits = dataBitsForMarket(market).map(bit => `
         <span class="gi-orb2-data-bit" style="--gi-orb2-bit:${escapeHtml(bit.color)}" title="${escapeHtml(bit.detail)}" aria-label="${escapeHtml(`${bit.label}: ${bit.value}. ${bit.detail}`)}">
@@ -1141,7 +1192,7 @@
         <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)}</span></div>
         <p class="gi-orb2-observation-source">${escapeHtml(market.source || "Provider source not supplied")} · ${escapeHtml(market.timeframe || observation.interval)} · ${market.barCount} bars</p>
         <dl class="gi-orb2-node-meta">${fields}<div><dt>Characters motion</dt><dd style="color:${escapeHtml(color)}">${escapeHtml(observation.motion && observation.motion.caption || mood)}</dd></div>
-          <div><dt>Volume-flow context</dt><dd>${escapeHtml(vfi)}</dd></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div></dl>
+          <div><dt>Observed VFI</dt><dd>${escapeHtml(vfi)}</dd></div><div class="gi-orb2-flow-detail"><dt>Volume-flow path · Characters</dt><dd style="color:${escapeHtml(flow.color)}">${escapeHtml(flowText)}</dd><small>Visual cadence only—not volume per second.</small></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div></dl>
         <section class="gi-orb2-market-bits" aria-label="Observed market data channels">
           <h5>FIVE MARKET DATA BITS <span>NOT ASSURANCE</span></h5><div>${bits}</div>
         </section>
@@ -1777,6 +1828,61 @@
       return [];
     }
 
+    function updateFlowReadout(point) {
+      if (!flowReadout) return;
+      const observation = point && point.observation;
+      const cue = flowPathForObservation(observation, point && point.directive);
+      const subject = observation && observation.symbol || point && point.node && point.node.name || "No selected node";
+      const activity = cue.moving
+        ? `${cue.direction} · ${cue.rate.toFixed(2)} cycles/s${pathsToggle.checked ? "" : " · path hidden"}${reduceMotion && !state.autoRotate ? " · reduced-motion preview" : ""}`
+        : cue.reason || "Paused · no confirmed flow data";
+      const text = `${subject} · ${cue.label} · ${activity}`;
+      if (flowReadout.textContent !== text) flowReadout.textContent = text;
+      flowReadout.style.color = cue.color;
+      flowReadout.dataset.flowState = cue.moving ? cue.state : "paused";
+      flowReadout.title = cue.moving
+        ? `Characters item cadence: ${cue.rate.toFixed(2)} visual cycles per second. This is not a volume-per-second measurement.`
+        : `${cue.reason || "Flow is paused."} No unsupported or unconfirmed volume is animated.`;
+    }
+
+    function drawFlowRunner(point, center, now, wallNow, index, cue) {
+      if (!cue.moving || !pathsToggle.checked) return;
+      const dx = point.x - center.x;
+      const dy = point.y - center.y;
+      const travel = cue.lane === "inbound" ? 1 : -1;
+      const cycle = ((now / 1000 * cue.rate) + index * 0.371) % 1;
+      const fraction = travel > 0 ? cycle : 1 - cycle;
+      const trailFraction = clamp(fraction - travel * 0.12, 0, 1);
+      const x = center.x + dx * fraction;
+      const y = center.y + dy * fraction;
+      const tailX = center.x + dx * trailFraction;
+      const tailY = center.y + dy * trailFraction;
+      const freshness = snapshotFreshness(point.observation, wallNow);
+      context2d.save();
+      context2d.strokeStyle = cue.color;
+      context2d.globalAlpha = clamp(0.46 + freshness * 0.46, 0.46, 0.92);
+      context2d.lineWidth = 2.2;
+      context2d.lineCap = "round";
+      context2d.shadowBlur = 8;
+      context2d.shadowColor = cue.color;
+      context2d.beginPath(); context2d.moveTo(tailX, tailY); context2d.lineTo(x, y); context2d.stroke();
+      for (let trail = 1; trail <= 2; trail += 1) {
+        const beadFraction = clamp(fraction - travel * trail * 0.055, 0, 1);
+        const beadX = center.x + dx * beadFraction;
+        const beadY = center.y + dy * beadFraction;
+        context2d.globalAlpha = clamp((0.52 - trail * 0.15) * (0.65 + freshness * 0.35), 0.16, 0.5);
+        context2d.beginPath(); context2d.arc(beadX, beadY, trail === 1 ? 2.2 : 1.5, 0, TAU); context2d.fillStyle = cue.color; context2d.fill();
+      }
+      context2d.globalAlpha = clamp(0.72 + freshness * 0.28, 0.72, 1);
+      context2d.fillStyle = cue.color;
+      context2d.shadowBlur = 11;
+      context2d.beginPath(); context2d.arc(x, y, 3.1, 0, TAU); context2d.fill();
+      context2d.translate(x, y);
+      context2d.rotate(Math.atan2(dy * travel, dx * travel));
+      context2d.beginPath(); context2d.moveTo(5.2, 0); context2d.lineTo(-3.8, -3); context2d.lineTo(-3.8, 3); context2d.closePath(); context2d.fill();
+      context2d.restore();
+    }
+
     function drawActivity(point, center, now, wallNow, index) {
       const observation = point.observation;
       const directive = point.directive;
@@ -1807,21 +1913,8 @@
         context2d.stroke();
         context2d.restore();
       }
-      const item = directive.item || {};
-      if (pathsToggle.checked && observation.market && directive.volumeAvailable && item.rate > 0) {
-        const cycle = ((now / 1000 * item.rate) + index * 0.371) % 1;
-        const fraction = item.lane === "outbound" ? 1 - cycle : cycle;
-        const x = center.x + (point.x - center.x) * fraction;
-        const y = center.y + (point.y - center.y) * fraction;
-        const tokenColor = observation.berth && observation.berth.item && observation.berth.item.color || sourceColor;
-        context2d.save();
-        context2d.fillStyle = tokenColor;
-        context2d.globalAlpha = clamp(0.18 + freshness * 0.78, 0.18, 0.9);
-        context2d.shadowBlur = 8 + item.spin * 8;
-        context2d.shadowColor = tokenColor;
-        context2d.beginPath(); context2d.arc(x, y, 1.5 + item.bob * 1.5, 0, TAU); context2d.fill();
-        context2d.restore();
-      }
+      const flow = flowPathForObservation(observation, directive);
+      drawFlowRunner(point, center, now, wallNow, index, flow);
       const beat = state.beatAnimation;
       const beatAge = beat ? wallNow - beat.at : Infinity;
       if (pathsToggle.checked && observation.market && state.showDataBits && beat
@@ -1901,6 +1994,7 @@
         const directive = displayMotion(observation, now);
         return { ...project(modelPoint(node, now, directive), width, height), node, observation, directive };
       });
+      updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
       drawRoute(now, center);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
@@ -2247,6 +2341,6 @@
 
   window.GoodIntelligenceOrb2 = Object.freeze({
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
-    dataBitsForMarket, buildNodes, mount
+    dataBitsForMarket, flowPathForObservation, buildNodes, mount
   });
 })();

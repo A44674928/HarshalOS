@@ -44,7 +44,7 @@ function marketBars(count = 80) {
   });
 }
 
-function livePayload(symbols, disc = "stocks", provider = "massive", intervalOverride = null) {
+function livePayload(symbols, disc = "stocks", provider = "massive", intervalOverride = null, barCount = 80) {
   const providerId = provider === "alpha" ? "alpha-vantage" : provider;
   const interval = intervalOverride || (provider === "alpha" ? "1mo" : provider === "tickerbot" ? "1h" : "1d");
   return {
@@ -70,7 +70,7 @@ function livePayload(symbols, disc = "stocks", provider = "massive", intervalOve
           source: `${providerId} · reviewed OHLCV · as of ${new Date(NOW).toISOString()}`,
           symbol,
           timeframe: interval,
-          bars: marketBars()
+          bars: marketBars(barCount)
         }
       })),
       spend: {
@@ -242,6 +242,53 @@ test("Orb 2 gives mood, provider route, and the five actual market fields separa
   assert.match(orb.MOOD_COLORS.rally, /^#/);
 });
 
+test("Orb 2 colors and paces only confirmed volume flow against the supplied VFI signal", () => {
+  const { orb } = harness();
+  const makeObservation = ({ value, signal, lane, rate = 0.75, confirmed = true, volumeAvailable = true, motionAvailable = true, frozen = false }) => ({
+    market: {
+      volumeAvailable,
+      latestBar: { confirmed },
+      vfi: { available: Number.isFinite(value) && Number.isFinite(signal), value, signal }
+    },
+    motion: { volumeAvailable: motionAvailable, frozen, item: { lane, rate } }
+  });
+
+  const inbound = orb.flowPathForObservation(makeObservation({ value: 2, signal: 1, lane: "inbound", rate: 0.75 }));
+  assert.equal(inbound.moving, true);
+  assert.equal(inbound.state, "above");
+  assert.equal(inbound.color, orb.DATA_COLORS.flowAbove);
+  assert.equal(inbound.direction, "Center → node");
+  assert.equal(inbound.rate, 0.75, "the Characters item rate is exposed in cycles per second, not as a volume quantity");
+
+  const outbound = orb.flowPathForObservation(makeObservation({ value: 1, signal: 2, lane: "outbound", rate: 1.25 }));
+  assert.equal(outbound.moving, true);
+  assert.equal(outbound.state, "below");
+  assert.equal(outbound.color, orb.DATA_COLORS.flowBelow);
+  assert.equal(outbound.direction, "node → Center");
+  assert.equal(outbound.rate, 1.25);
+
+  const pausedCases = [
+    [makeObservation({ value: 2, signal: 1, lane: "inbound", confirmed: false }), /bar not confirmed/],
+    [makeObservation({ value: 2, signal: 1, lane: "inbound", volumeAvailable: false, motionAvailable: false }), /volume unavailable/],
+    [makeObservation({ value: null, signal: null, lane: "stationary" }), /VFI or signal unavailable/],
+    [makeObservation({ value: 2, signal: 1, lane: "inbound", frozen: true }), /motion held/],
+    [makeObservation({ value: 2, signal: 1, lane: "outbound" }), /direction transitioning/],
+    [makeObservation({ value: 2, signal: 1, lane: "stationary", rate: 0 }), /cadence unavailable/]
+  ];
+  for (const [observation, reason] of pausedCases) {
+    const result = orb.flowPathForObservation(observation);
+    assert.equal(result.moving, false);
+    assert.equal(result.rate, null, "paused or unconfirmed observations do not claim a visual flow rate");
+    assert.match(result.reason, reason);
+  }
+
+  const equal = orb.flowPathForObservation(makeObservation({ value: 2, signal: 2, lane: "inbound" }));
+  assert.equal(equal.moving, false, "equal VFI and signal is stationary rather than assigned a direction");
+  assert.equal(equal.state, "equal");
+  assert.equal(equal.color, orb.DATA_COLORS.flowEqual);
+  assert.match(equal.reason, /equals its signal/);
+});
+
 test("Orb 2 rejects empty and duplicate roster entries instead of inventing members", () => {
   const { orb } = harness();
   const nodes = orb.buildNodes([
@@ -268,6 +315,24 @@ test("Orb 2 mounts the shared Characters beat, exact motion, and reduced-motion 
   assert.ok(canvasStyles.some(([, color]) => color === window.GoodIntelligenceOrb2.DATA_COLORS.unknown)
     && canvasStyles.some(([, color]) => color === window.GoodIntelligenceOrb2.DATA_COLORS.packetConfirmed),
   "market satellites retain separate unavailable and confirmed-bar encodings");
+  assert.ok(host.querySelector("[data-gi-orb2-flow-readout]"), "the canvas includes a live volume-flow direction and cadence readout");
+  assert.match(host.textContent, /visual cycles\/s—not volume per second/i, "the shown rate is explicitly not presented as a volume measurement");
+  assert.ok(host.querySelector("[data-gi-orb2-color-key]").textContent.includes("VOLUME-FLOW RUNNER")
+    && host.querySelector("[data-gi-orb2-color-key]").textContent.includes("provider path"),
+  "the key distinguishes the green/red VFI runner from the unchanged provider-colored path");
+  const observedNode = engine.state.projected.find(point => point.observation && point.observation.symbol === "AAPL");
+  assert.ok(observedNode, "the mounted model places the returned instrument on its reviewed Characters node");
+  engine.selectNode(observedNode.node.order);
+  const selectedFrame = frames.shift();
+  assert.equal(typeof selectedFrame, "function");
+  selectedFrame(160);
+  const flowReadout = host.querySelector("[data-gi-orb2-flow-readout]");
+  assert.match(flowReadout.textContent, /AAPL/,
+    "the canvas readout follows the selected node's provider observation");
+  assert.match(flowReadout.textContent, /Paused · VFI or signal unavailable/i,
+    "the selected-node readout holds instead of inventing flow when the fixture lacks enough VFI history");
+  assert.equal(flowReadout.style.color, window.GoodIntelligenceOrb2.DATA_COLORS.unknown,
+    "an unavailable flow remains grey rather than borrowing a direction color");
   assert.ok(host.querySelector("[data-gi-orb2-color-key]").textContent.includes("Close vs band basis")
     && host.textContent.includes("PRICE Δ") && host.textContent.includes("NOT ASSURANCE"),
   "the visible color key and inspector label the market fields and keep assurance distinct");
@@ -311,6 +376,44 @@ test("Orb 2 mounts the shared Characters beat, exact motion, and reduced-motion 
   assert.equal(engine.state.visible, false, "leaving the Orb 2 tab pauses the renderer and auto timer");
   engine.setVisible(true);
   assert.equal(engine.state.visible, true, "returning to the view resumes it");
+});
+
+test("Orb 2 displays a green/red moving runner and relative-volume visual cadence for confirmed VFI data", async t => {
+  const beatHandler = path => {
+    const requestUrl = new URL(path, "https://os.example");
+    const symbols = (requestUrl.searchParams.get("symbols") || "AAPL").split(",").filter(Boolean);
+    return Response.json(livePayload(symbols, "stocks", "massive", "1d", 360));
+  };
+  const { window, host, engine, frames, canvasCalls, canvasStyles } = interactiveHarness(t, { beatHandler });
+  await flush();
+  const firstFrame = frames.shift();
+  assert.equal(typeof firstFrame, "function");
+  firstFrame(100);
+  const point = engine.state.projected.find(item => item.observation && item.observation.symbol === "AAPL");
+  assert.ok(point, "the confirmed fixture is attached to the reviewed market berth");
+  const { market, motion } = point.observation;
+  assert.equal(market.latestBar.confirmed, true);
+  assert.equal(market.volumeAvailable, true);
+  assert.equal(market.vfi.available, true, "the fixture contains enough confirmed OHLCV history for VFI");
+  assert.ok(motion.item.rate > 0, "the shared Characters directive supplies the animation cadence");
+  const above = market.vfi.value > market.vfi.signal;
+  assert.notEqual(market.vfi.value, market.vfi.signal);
+  const expectedColor = above ? window.GoodIntelligenceOrb2.DATA_COLORS.flowAbove : window.GoodIntelligenceOrb2.DATA_COLORS.flowBelow;
+  const expectedDirection = above ? "Center → node" : "node → Center";
+
+  engine.selectNode(point.node.order);
+  const selectedFrame = frames.shift();
+  assert.equal(typeof selectedFrame, "function");
+  selectedFrame(200);
+  const readout = host.querySelector("[data-gi-orb2-flow-readout]");
+  assert.match(readout.textContent, /AAPL/);
+  assert.ok(readout.textContent.includes(expectedDirection));
+  assert.match(readout.textContent, /cycles\/s/i, "the relative-volume rate is shown in the same units used by the animation loop");
+  assert.equal(readout.style.color, expectedColor);
+  assert.ok(canvasStyles.some(([, color]) => color === expectedColor), "the moving runner uses the VFI direction color");
+  assert.ok(canvasStyles.some(([, color]) => color === window.GoodIntelligenceOrb2.PROVIDER_COLORS.massive),
+    "the underlying communication path remains provider-colored");
+  assert.ok(canvasCalls.includes("translate") && canvasCalls.includes("rotate"), "the runner draws an arrowhead along the path");
 });
 
 test("Orb 2 restores the last saved beat from the server after a page refresh", async t => {
