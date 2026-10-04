@@ -553,6 +553,29 @@ body.desktop-live .hud { opacity: 1; transform: none; }
 }
 .window.focused { border-color: rgba(111, 211, 255, 0.5); }
 .window.minimized { display: none; }
+.window.window-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  max-height: 100dvh !important;
+  border-radius: 0;
+  z-index: 2147483000 !important;
+  animation: none;
+}
+.window:fullscreen {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.window.window-fullscreen .win-title { cursor: default; }
+.win-ctl.fullscreen { color: var(--ice); font-size: 14px; }
+.win-ctl.fullscreen[aria-pressed="true"] { border-color: rgba(111, 211, 255, 0.65); color: var(--text); }
 
 .win-title {
   display: flex;

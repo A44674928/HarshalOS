@@ -21,7 +21,7 @@ https://api.massive.com
 - Characters owns the active use: automatic Massive observations are restricted to reviewed `1d` Disc instruments. It does not accept an arbitrary Massive ticker from browser input.
 - `worker/characters-massive.mjs` is narrower than the generic adapter. It selects documented stock, FX, live-ranked crypto, commodity-futures, or index shapes from the reviewed catalog and normalizes only an honest packet for the Characters stage.
 - The standalone `/api/massive/v1/*` adapter remains a bounded compatibility/operations surface in `worker/massive.mjs`; it is **not** registered as a desktop app and no active browser UI calls it. It may only serve its fixed GET routes and is not a general Massive relay.
-- Good Intelligence’s Orb 2 visualization is browser-local. It receives no Massive packet, quote, ranking, signal, recommendation, or transaction capability.
+- Good Intelligence’s Orb 2 calls the same narrow `/api/characters/v1/beat` route used by Characters, which can return Massive’s reviewed daily packets. It uses those observations only with the shared Characters display-motion engine; the 3D model is not a direct Massive client, receives no provider secret, and gains no recommendation, authorization, or transaction capability. Server-side Orb 2 history stores only compact observation/motion summaries through a separate D1 endpoint.
 
 The browser never receives `MASSIVE_API_KEY`. The key is read only from the Worker environment and sent upstream in an `Authorization: Bearer` header—never in a URL, browser setting, static source value, log field, or response field.
 

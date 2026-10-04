@@ -185,6 +185,8 @@ globalThis.confirm = () => true;
 /* ── the real page: index.html body as the document ───────────── */
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const html = readFileSync(path.join(root, "index.html"), "utf8");
+const osCss = readFileSync(path.join(root, "css/os.css"), "utf8");
+const mobileCss = readFileSync(path.join(root, "css/mobile.css"), "utf8");
 const bodyInner = html.slice(html.indexOf("<body"), html.indexOf("</body>")).replace(/^<body[^>]*>/, "");
 const body = new El("body");
 body.innerHTML = bodyInner;
@@ -564,6 +566,38 @@ if (giApp) {
   shell.openApp(giApp);
   const giWindow = shell.windows.get("good-intelligence");
   ok(!!giWindow, "Good Intelligence opens as a HarshalOS desktop window");
+  ok(giApp.fullscreen === true, "Good Intelligence requests a whole-app window fullscreen control");
+  const appFullscreen = giWindow && giWindow.el.querySelector(".win-ctl.fullscreen");
+  ok(!!(appFullscreen && appFullscreen.attrs.type === "button" && appFullscreen.attrs["aria-pressed"] === "false"),
+    "the titlebar has a dedicated accessible fullscreen button separate from the Orb model control");
+  if (appFullscreen) {
+    appFullscreen.click();
+    await new Promise(resolve => setImmediate(resolve));
+    ok(giWindow.el.classList.contains("window-fullscreen") && appFullscreen.attrs["aria-pressed"] === "true",
+      "one click uses the fixed-viewport fallback when native fullscreen is unavailable");
+    dispatch(giWindow.el.querySelector(".win-title"), "pointerdown");
+    ok(giWindow.el.classList.contains("window-fullscreen"), "a fullscreen fallback window cannot be dragged out of the viewport");
+    appFullscreen.click();
+    await new Promise(resolve => setImmediate(resolve));
+    ok(!giWindow.el.classList.contains("window-fullscreen") && appFullscreen.attrs["aria-pressed"] === "false",
+      "the same control exits fallback fullscreen and reports its state");
+
+    giWindow.el.requestFullscreen = async () => { document.fullscreenElement = giWindow.el; };
+    document.exitFullscreen = async () => { document.fullscreenElement = null; };
+    appFullscreen.click();
+    await new Promise(resolve => setImmediate(resolve));
+    ok(appFullscreen.attrs["aria-pressed"] === "true" && !giWindow.el.classList.contains("window-fullscreen"),
+      "the control prefers the browser Fullscreen API when available");
+    appFullscreen.click();
+    await new Promise(resolve => setImmediate(resolve));
+    ok(appFullscreen.attrs["aria-pressed"] === "false" && !document.fullscreenElement,
+      "the titlebar control exits native fullscreen for the whole app window");
+    delete giWindow.el.requestFullscreen;
+    delete document.exitFullscreen;
+    delete document.fullscreenElement;
+  }
+  ok(osCss.includes(".window.window-fullscreen") && osCss.includes(".window:fullscreen")
+    && mobileCss.includes(".window.window-fullscreen"), "fullscreen has desktop, native, and mobile app-viewport styling");
   ok(!!(giWindow && giWindow.body.innerHTML.includes("Signal desk") && giWindow.body.innerHTML.includes("READ-ONLY VIEW")), "the first release clearly identifies its read-only intel dashboard");
   const demoBanner = giWindow && giWindow.body.querySelector("[data-gi-demo-mode]");
   ok(!!(demoBanner && demoBanner.hidden === false), "the default endpoint is visibly identified as synthetic empty.domains demo data");
@@ -754,11 +788,21 @@ if (giApp) {
   } finally { globalThis.LightweightCharts = realChartLibrary; }
   const callsBeforeOrb = giCalls.length;
   if (orbTab) orbTab.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
   const orbText = orbHost ? orbHost.textContent : "";
+  const orbRequests = giCalls.slice(callsBeforeOrb);
+  const orbCanvasStatus = orbHost && orbHost.querySelector("[data-gi-orb2-canvas-status]");
+  const modelFullscreen = orbHost && orbHost.querySelector("[data-gi-orb2-fullscreen]");
   ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
-  ok(orbText.includes("Disc-to-sphere roster view") && orbText.includes("REVIEWED BEAT CONTEXT"), "Orb 2 presents the roster model with explicitly reviewed beat context");
-  ok(orbText.includes("does not expose a 2D canvas") && orbText.includes("No nodes or routes were invented"), "a no-canvas runtime receives an honest readable Orb 2 fallback");
-  ok(giCalls.length === callsBeforeOrb, "opening Orb 2 fetches no Good Intelligence or market payload");
+  ok(orbText.includes("Orb Communicator Model") && orbText.includes("BEAT CONTRACT"), "Orb 2 presents its custom 3D model with the shared Characters beat contract");
+  ok(!!(modelFullscreen && modelFullscreen.textContent.includes("Model full screen") && appFullscreen),
+    "Orb 2's view-only fullscreen remains a separate button from the whole-app titlebar control");
+  ok(!!(orbCanvasStatus && orbCanvasStatus.textContent.includes("CANVAS UNAVAILABLE") && orbText.includes("BEAT LOG / INSPECTOR STILL ACTIVE")), "a runtime without 2D canvas support keeps the beat log and inspector available with an explicit status");
+  ok(orbRequests.some(call => call.url.startsWith("/api/characters/v1/beat?disc=stocks&provider=massive")), "opening the default Orb 2 mode requests its due live Massive beat through the Characters Worker");
+  ok(orbRequests.some(call => call.url.startsWith("/api/good-intelligence/v1/orb2/beats?")), "Orb 2 attempts to restore its server-side beat history");
+  ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")), "all Orb 2 data traffic stays on same-origin Worker routes");
+  ok(!orbRequests.some(call => /\/content\/me|\/categories|\/rank\?|\/market\/tickerbot\/bars|\/ocm\//.test(call.url)), "Orb 2 does not substitute demo feed, chart data, or OCM transport routes for its beat");
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;
