@@ -5,6 +5,7 @@ import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } f
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
 import { handleCharactersBeat } from './characters-beat.mjs';
+import { handleOrb2SavedBeats } from './orb2-saved-beats.mjs';
 import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
@@ -140,6 +141,7 @@ export default {
     // Characters has three narrow providers: Massive automatic daily Disc beats,
     // Tickerbot on-demand stock beats, and Alpha Vantage Disc1 monthly spotlight beats.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
+    if (path === '/api/orb2/v1/beats') return handleOrb2SavedBeats(request, env);
     if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);
     // Massive REST market data (display-only): validated queries only, the
     // MASSIVE_API_KEY secret stays in the Worker, pacing is best-effort in-memory.

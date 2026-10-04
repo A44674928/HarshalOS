@@ -1,20 +1,29 @@
 /* ═══════════════════════════════════════════════════════════════
    HarshalOS — Good Intelligence / Orb 2
 
-   A browser-local 3D rendering of the Characters roster in the Orb
-   Communicator Model's disc-to-sphere teaching geometry. It is a visual
+   A browser-local 3D rendering of the reviewed ticker watchlist. It is a visual
    model: it does not register identities, send OCM traffic, authorize a
    request, fetch market data, or turn a market observation into a signal.
 
-   The only source of NPC names is CharactersCast.NPC_ROSTER. The center is
-   labelled with the existing OCM Center Origin; every peripheral identifier
-   is deliberately labelled as a local visual node, not an OCM-directory
-   registration.
+   Peripheral labels are ticker symbols from the static reviewed watchlist,
+   never invented IDs or OCM-directory registrations.
    ═══════════════════════════════════════════════════════════════ */
 "use strict";
 
 (() => {
   const SCHEMA = "gi-orb2-v1";
+  const SAVED_BEAT_SESSION_KEY = "harshalos.orb2.saved-beats.session.v1";
+  function getSavedBeatSessionId() {
+    try {
+      const storage = globalThis.localStorage;
+      const current = storage.getItem(SAVED_BEAT_SESSION_KEY);
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(current || "")) return current;
+      const id = globalThis.crypto?.randomUUID?.();
+      if (!id) return "";
+      storage.setItem(SAVED_BEAT_SESSION_KEY, id);
+      return id;
+    } catch { return ""; }
+  }
   const TAU = Math.PI * 2;
   const CENTER_ADDRESS = "0•000•000•0000";
   const PALETTE = Object.freeze([
@@ -31,63 +40,43 @@
   };
   const slug = value => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-  function normalizedRoster(input) {
-    const roster = Array.isArray(input)
-      ? input
-      : globalThis.CharactersCast && Array.isArray(globalThis.CharactersCast.NPC_ROSTER)
-        ? globalThis.CharactersCast.NPC_ROSTER
-        : [];
-    const seen = new Set();
-    return roster.flatMap(entry => {
-      const name = typeof entry?.name === "string" ? entry.name.trim().slice(0, 96) : "";
-      if (!name || seen.has(name)) return [];
-      seen.add(name);
-      const affinity = Array.isArray(entry.affinity)
-        ? entry.affinity.filter(value => typeof value === "string" && value.trim()).map(value => value.trim().slice(0, 64)).slice(0, 5)
-        : [];
-      return [{
-        name,
-        role: typeof entry.role === "string" ? entry.role.trim().slice(0, 240) : "No roster role supplied.",
-        glyph: typeof entry.glyph === "string" && entry.glyph.trim() ? entry.glyph.trim().slice(0, 8) : "◌",
-        affinity: affinity.length ? affinity : ["Unassigned"]
-      }];
-    });
-  }
 
   /** Build deterministic display-only node metadata from the runtime cast. */
-  function buildNodes(roster) {
-    const entries = normalizedRoster(roster);
-    const sectors = [...new Set(entries.map(entry => entry.affinity[0]))];
+  function buildNodes(tickers, timeframe = "1h") {
+    const entries = (Array.isArray(tickers) ? tickers : []).filter(item => item && /^[A-Z0-9.-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
+      .map(item => ({ symbol: String(item.symbol).toUpperCase(), name: String(item.name || item.symbol).slice(0, 96), sector: String(item.sector || "Market").slice(0, 64) }));
+    const sectors = [...new Set(entries.map(entry => entry.sector))];
     const counts = new Map(sectors.map(sector => [sector, 0]));
     return Object.freeze(entries.map((entry, index) => {
-      const sector = entry.affinity[0];
+      const sector = entry.sector;
       const sectorIndex = sectors.indexOf(sector);
       const withinSector = counts.get(sector) || 0;
       counts.set(sector, withinSector + 1);
       /* The first angle is sector-stable; the fibonacci fraction distributes
          members over latitude in sphere mode without creating a hidden rank. */
       const longitude = -Math.PI / 2 + (sectorIndex / Math.max(1, sectors.length)) * TAU +
-        ((withinSector + 0.5) / Math.max(1, entries.filter(item => item.affinity[0] === sector).length) - 0.5) * (TAU / Math.max(1, sectors.length)) * 0.82;
+        ((withinSector + 0.5) / Math.max(1, entries.filter(item => item.sector === sector).length) - 0.5) * (TAU / Math.max(1, sectors.length)) * 0.82;
       const latitude = Math.asin(clamp(1 - 2 * ((index + 0.5) / Math.max(1, entries.length)), -1, 1)) * 0.82;
       return Object.freeze({
-        id: `${slug(entry.name) || "npc"}-${String(index + 1).padStart(2, "0")}`,
-        visualId: `NPC-${String(index + 1).padStart(2, "0")}`,
+        id: `${slug(entry.symbol) || "ticker"}-${timeframe}`,
+        visualId: entry.symbol,
+        symbol: entry.symbol,
         name: entry.name,
-        role: entry.role,
-        glyph: entry.glyph,
-        affinity: Object.freeze([...entry.affinity]),
+        role: `${entry.name} · ${entry.symbol} ticker orb for ${timeframe} bars. Market data is not loaded in this view.`,
+        glyph: "◉",
+        affinity: Object.freeze([entry.sector]),
         sector,
         sectorIndex,
-        color: PALETTE[sectorIndex % PALETTE.length],
-        longitude,
-        latitude,
+        color: PALETTE[(sectorIndex + (timeframe === "1d" ? 3 : 0)) % PALETTE.length],
+        longitude: longitude + (timeframe === "1d" ? 0.21 : 0),
+        latitude: latitude + (timeframe === "1d" ? 0.13 : 0),
         order: index
       });
     }));
   }
 
   function friendlyRoute(route) {
-    if (!route) return "Select a character node, then trace a visual route. No message is sent.";
+    if (!route) return "Select a ticker orb, then trace a visual route. No message is sent.";
     if (route.type === "lateral") return "Lateral observation is visualized only. It neither resolves legitimacy nor transfers authority.";
     if (route.phase === "inward") return `Visual trace: ${route.from.name} → Center Origin.`;
     if (route.phase === "resolve") return "Visual trace at Center Origin. Resolution is not an authority source.";
@@ -95,9 +84,10 @@
     return `Visual resolution path complete: ${route.from.name} → Center Origin → ${route.to.name}.`;
   }
 
-  function mount(host, { roster } = {}) {
+  function mount(host, { tickers, timeframe = "1h", onTimeframeChange = () => {}, onClearBeats = () => {}, onRestoreBeats = () => {} } = {}) {
     if (!host || typeof host.innerHTML !== "string") return null;
-    const nodes = buildNodes(roster);
+    timeframe = timeframe === "1d" ? "1d" : "1h";
+    const nodes = buildNodes(tickers, timeframe);
     if (!nodes.length) {
       host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 roster unavailable</strong><p>The Characters cast module did not provide a reviewed roster. No nodes or routes were invented.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
@@ -107,16 +97,20 @@
       <section class="gi-orb2" aria-label="Orb 2 3D OCM visualization">
         <div class="gi-orb2-toolbar">
           <div>
-            <p class="gi-eyebrow">ORB 2 · CHARACTERS / OCM</p>
-            <h3>Disc-to-sphere roster view</h3>
-            <p>Local visual model of ${nodes.length} Characters roster members. Drag to orbit, scroll to zoom, or choose a node below.</p>
+            <p class="gi-eyebrow">ORB 2 · MARKET TICKER MODEL</p>
+            <h3>${timeframe === "1h" ? "Hourly" : "Daily"} ticker orbs</h3>
+            <p>One local orb per reviewed ticker. Select a ticker below; switch chart interval in Market Charts to build its distinct timeframe orb. No prices or signals appear here.</p>
           </div>
           <div class="gi-orb2-actions">
+            <label class="gi-chart-control"><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1h" ? "selected" : ""}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
             <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
             <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
+            <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
+            <button class="gi-button" type="button" data-gi-orb2-restore-beats>Restore stored beats</button>
             <button class="gi-button" type="button" data-gi-orb2-reset>Reset view</button>
           </div>
         </div>
+        <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Compact beat snapshots save to D1 when available; Clear hides active context and Restore reloads the archive.</p>
         <div class="gi-orb2-controls" aria-label="Orb 2 display controls">
           <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox" checked><span>Auto-rotate</span></label>
@@ -126,13 +120,13 @@
         <p class="gi-orb2-context"><strong>REVIEWED BEAT CONTEXT</strong> · Characters keeps market observation in its own read-only stage: Massive covers one reviewed <code>1d</code> instrument per minute, Tickerbot remains manual for Disc1 <code>1h</code>/<code>1d</code>, and Alpha Vantage's Disc1 <code>1mo</code> spotlight is one best-performing ticker per hour. Orb 2 receives none of those packets—no price, rank, signal, or recommendation is rendered here.</p>
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
-            <canvas data-gi-orb2-canvas tabindex="0" aria-label="Interactive 3D Orb 2 model. Drag to orbit. Select a visible character node to inspect it."></canvas>
+            <canvas data-gi-orb2-canvas tabindex="0" aria-label="Interactive 3D ticker orb model. Drag to orbit. Select a visible ticker orb to inspect it."></canvas>
             <div class="gi-orb2-canvas-hud" aria-hidden="true"><span>3D OCM MODEL</span><span>LOCAL / DISPLAY ONLY</span></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
-            <p class="gi-eyebrow">NODE INSPECTOR</p>
-            <label class="gi-orb2-node-select"><span>CHARACTER NODE</span><select data-gi-orb2-select aria-label="Choose a character node"></select></label>
+            <p class="gi-eyebrow">TICKER ORB</p>
+            <label class="gi-orb2-node-select"><span>SELECT TICKER</span><select data-gi-orb2-select aria-label="Choose a ticker orb"></select></label>
             <div data-gi-orb2-detail></div>
             <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
           </aside>
@@ -152,8 +146,17 @@
     const routeButton = $("[data-gi-orb2-route]");
     const lateralButton = $("[data-gi-orb2-lateral]");
     const resetButton = $("[data-gi-orb2-reset]");
+    const clearBeatsButton = $("[data-gi-orb2-clear-beats]");
+    const restoreBeatsButton = $("[data-gi-orb2-restore-beats]");
+    const timeframeSelect = $("[data-gi-orb2-timeframe]");
+    timeframeSelect.addEventListener("change", () => onTimeframeChange(timeframeSelect.value === "1d" ? "1d" : "1h"));
+    const ownerDocument = host.ownerDocument;
+    const beatStatusHandler = event => { restoreBeatsButton.hidden = !event.detail?.hasStored; };
+    ownerDocument?.addEventListener("harshalos:characters-beats:status", beatStatusHandler);
+    clearBeatsButton.addEventListener("click", () => { state.route = null; showInspector(); onClearBeats(); });
+    restoreBeatsButton.addEventListener("click", () => { state.route = null; showInspector(); onRestoreBeats(); });
 
-    select.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.visualId)} · ${escapeHtml(node.name)}</option>`).join("");
+    select.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.name)} · ${escapeHtml(node.symbol)}</option>`).join("");
 
     const state = {
       yaw: -0.68,
@@ -183,10 +186,10 @@
       const node = selectedNode();
       select.value = node.id;
       detail.innerHTML = `
-        <div class="gi-orb2-node-head"><span style="--gi-orb2-node:${escapeHtml(node.color)}">${escapeHtml(node.glyph)}</span><div><h4>${escapeHtml(node.name)}</h4><p>${escapeHtml(node.visualId)} · local visual node</p></div></div>
-        <dl class="gi-orb2-node-meta"><div><dt>Affinity</dt><dd>${escapeHtml(node.affinity.join(" · "))}</dd></div><div><dt>Model relation</dt><dd>Direct visual ray to Center Origin</dd></div></dl>
+        <div class="gi-orb2-node-head"><span style="--gi-orb2-node:${escapeHtml(node.color)}">${escapeHtml(node.glyph)}</span><div><h4>${escapeHtml(node.name)}</h4><p>${escapeHtml(node.symbol)} · ${timeframe} ticker orb</p></div></div>
+        <dl class="gi-orb2-node-meta"><div><dt>COMPANY</dt><dd>${escapeHtml(node.name)}</dd></div><div><dt>SECTOR</dt><dd>${escapeHtml(node.affinity.join(" · "))}</dd></div><div><dt>TIMEFRAME</dt><dd>${timeframe}</dd></div></dl>
         <p class="gi-orb2-node-role">${escapeHtml(node.role)}</p>
-        <p class="gi-orb2-node-caveat">This peripheral label is not a registered OCM address or identity claim.</p>`;
+        <p class="gi-orb2-node-caveat">Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity.</p>`;
       routeNote.textContent = friendlyRoute(state.route);
     }
 
@@ -209,9 +212,9 @@
       routeButton.disabled = true;
       lateralButton.disabled = true;
       showInspector();
-      routeNote.textContent = "The roster and inspector are available, but this browser/runtime does not expose a 2D canvas for the 3D render. No nodes or routes were invented.";
+      routeNote.textContent = "Ticker selection is available, but this browser/runtime does not expose a 2D canvas for the orb render. No nodes or routes were invented.";
       select.addEventListener("change", () => setSelected(nodes.findIndex(node => node.id === select.value)));
-      return Object.freeze({ schema: SCHEMA, nodes, state, destroy() {}, setVisible() {} });
+      return Object.freeze({ schema: SCHEMA, nodes, state, destroy() { ownerDocument?.removeEventListener("harshalos:characters-beats:status", beatStatusHandler); }, setVisible() {} });
     }
 
     function bounds() {
@@ -394,7 +397,7 @@
           ctx.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
           ctx.textAlign = point.x > width * 0.52 ? "left" : "right";
           const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
-          ctx.fillText(node.name, point.x + offset, point.y - radius - 4);
+          ctx.fillText(node.symbol, point.x + offset, point.y - radius - 4);
           ctx.restore();
         }
       });
@@ -496,6 +499,7 @@
       state.yaw = -0.68; state.pitch = 0.32; state.zoom = 1; state.formation = 1;
       formation.value = "100"; formationLabel.textContent = "SPHERE";
       state.route = null; state.lastRoutePhase = ""; showInspector();
+      onClearBeats();
     });
 
     showInspector();
@@ -516,6 +520,7 @@
         }
       },
       destroy() {
+        ownerDocument?.removeEventListener("harshalos:characters-beats:status", beatStatusHandler);
         state.destroyed = true;
         if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(state.animation);
         state.animation = 0;
@@ -528,5 +533,5 @@
     });
   }
 
-  window.GoodIntelligenceOrb2 = Object.freeze({ SCHEMA, CENTER_ADDRESS, PALETTE, buildNodes, mount });
+  window.GoodIntelligenceOrb2 = Object.freeze({ SCHEMA, CENTER_ADDRESS, PALETTE, buildNodes, mount, getSavedBeatSessionId });
 })();

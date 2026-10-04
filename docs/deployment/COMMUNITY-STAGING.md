@@ -112,7 +112,7 @@ npm run db:staging:migrate
 npm run deploy:staging
 ```
 
-Migration applies every outstanding additive migration (currently 0001–0007) to staging only. Neither
+Migration applies every outstanding additive migration (currently 0001–0008) to staging only. Neither
 command changes production through this configuration. Automatic Workers Builds
 may deploy after a push if enabled, so finish the correct build-target setup first.
 

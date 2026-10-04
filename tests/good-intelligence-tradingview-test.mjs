@@ -96,7 +96,7 @@ test("TradingView stays immediately after Market Charts while Orb 2 follows as a
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="orb2"[^>]*>Orb 2<\/button>/, "the local OCM tab is titled Orb 2");
   assert.match(appSource, /data-gi-tv-panel[^>]*hidden/, "the TradingView panel starts hidden until its tab is opened");
   assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the Orb 2 panel starts hidden until selected");
-  assert.match(appSource, /\["feed", "rankings", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts both newer tabs");
+  assert.match(appSource, /\["news", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts both newer tabs");
 });
 
 test("Tickerbot Live is the first and default data source on both chart panels", () => {

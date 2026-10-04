@@ -700,7 +700,7 @@ if (giApp) {
   ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
   ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "Intel feed > Rankings > Market Charts > TradingView > Orb 2", "the tab strip keeps TradingView after Market Charts and adds Orb 2 as the local fifth view");
+  ok(tabLabels.join(" > ") === "News > Market Charts > TradingView > Orb 2 > Intel feed > Rankings", "the main tab strip groups Intel feed and Rankings under News while keeping the chart views");
   ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
   ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
   /* This Node harness has no canvas, so the real library is swapped for a
@@ -756,7 +756,7 @@ if (giApp) {
   if (orbTab) orbTab.click();
   const orbText = orbHost ? orbHost.textContent : "";
   ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
-  ok(orbText.includes("Disc-to-sphere roster view") && orbText.includes("REVIEWED BEAT CONTEXT"), "Orb 2 presents the roster model with explicitly reviewed beat context");
+  ok(orbText.includes("ticker orbs") && orbText.includes("TIMEFRAME"), "Orb 2 presents ticker orbs with an interval switch");
   ok(orbText.includes("does not expose a 2D canvas") && orbText.includes("No nodes or routes were invented"), "a no-canvas runtime receives an honest readable Orb 2 fallback");
   ok(giCalls.length === callsBeforeOrb, "opening Orb 2 fetches no Good Intelligence or market payload");
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");
