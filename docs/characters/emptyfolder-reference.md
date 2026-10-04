@@ -16,7 +16,7 @@ Status: Local, deterministic, browser-only prototype; not engineering / manufact
 - Fail: closed if secret unavailable; no browser credential; same-origin GET.
 
 **Characters market providers (market / beat domain)**
-- Massive: automatic reviewed `1d` observations across all five Discs—stocks, FX, live volume-ranked crypto, commodity futures, and indices—at one instrument per minute. It retains each source's actual OHLC/OHLCV shape and shares the standalone Massive minute envelope.
+- Massive: automatic reviewed `1d` observations across all five Discs—stocks, FX, live volume-ranked crypto, commodity futures, and indices—at one instrument per minute. It retains each source's actual OHLC/OHLCV shape and uses the reviewed Characters Worker minute envelope; the former standalone Massive desktop window is retired.
 - Tickerbot: manual/on-demand Disc1 stock observations only for `1h` or `1d`, under its 10,000-request/UTC-month Worker ledger.
 - Alpha Vantage: a Disc1-only `1mo` best-performer spotlight, exactly one locally selected ticker per hour (24 planned requests/day) beneath its independent 25-request UTC-day cap.
 - Use: disc context / stage rendering / share normalization — NEVER influences material properties. No provider silently substitutes for another.
@@ -64,6 +64,11 @@ Not validated as engineering / manufacturing / safety method. Material match doe
 Orb 2 is not a second disc — it is the **same Disc architecture evolved into full 3D** from the start (`D² ↪ B³`, per `specs/normative/canonical-model.md` §8–§10 and `docs/harshal-systems/09-disc-lifecycle.md`).
 The Characters 2D stage (unit-circle disc, pure geometry, radial authority depth, sector boundaries, 0° reserved for Center Origin) closes topologically into the spherical manifold with the human key at geometric center (`r = 0`).
 
+### Browser implementation boundary (Good Intelligence Orb 2)
+The shipped **Orb 2** tab is a local, read-only teaching render—not an OCM directory, transport, identity system, or authority surface. It derives its visible members only from `CharactersCast.NPC_ROSTER`; `NPC-01`-style peripheral labels are local visual identifiers, not registered addresses. Its only formal address label is the already documented Center Origin reference `0•000•000•0000`.
+
+The tab does not fetch a Characters beat, Massive, Tickerbot, Alpha Vantage, Materials Project, or any other service. The reviewed provider/cadence summary is explanatory context only: no price, packet, rank, signal, recommendation, material assignment, PDH assertion, or authority effect is imported. The canvas has no message transmission, no persistence, no transaction, and no identity creation. Its inward/outward and lateral traces are visual teaching traces only; they cannot resolve legitimacy, authorize, override, commit, or transfer authority.
+
 ### Mechanical mapping
 - **Disc (pedagogical / flat)**: `r ∈ [0,1]`, `θ ∈ [0°,359°]`; address domain `ℤ₃₆₀` (0 = Center Origin); 360° ≡ 0° return-to-origin.
 - **Spheroid / Orb (operational / 3D)**: `(r, θ, φ)` — same identity, full spherical depth; no structural difference except the topological closure.
@@ -91,9 +96,9 @@ Every NPC in the cast becomes a node in the Orb 2 network:
 | The Palantir Seer | ◉ | Software, cloud & cyber | Observation / watch | Watches; Shadow Hand not watched |
 | The Shadow Hand | ✧ | Crypto & fintech | Unofficial / unseen | Officially not in this wing |
 
-### Node communication rules (OCM)
-- Each node communicates along the Resolution Axis — not laterally.
-- Lateral coordination (between nodes at same radial depth) can observe but **never authorize**, override, or commit state.
+### Node communication rules (OCM conceptual model; not browser behavior)
+- The conceptual model depicts resolution through the Resolution Axis; the shipped browser tab sends no node communication.
+- Lateral coordination is only visual observation in Orb 2 and can **never authorize**, override, commit state, or transfer authority.
 - Authority originates only at Center Origin (`r = 0`); nodes at `r > 0` are bounded by scope, distance, and time.
 - Emergency conditions never generate legitimacy; emergency execution requires pre-authorized bounded context or externally issued authorization — never spontaneous.
 - Every node must maintain its PDH declaration (NAB / CWO / GSRB) as part of its node state; a node without a declared phase or with `MISSING` / `INVALID` / `AMBIGUOUS` blocks its own transmission until the operator updates.
@@ -103,7 +108,7 @@ Every NPC in the cast becomes a node in the Orb 2 network:
 - **Color / identity**: Each node or disc component uses the canonical palette (ALL-SEEING EYE PURPLE, VISION RED, etc.) to identify itself; color does not predict microstructure, appearance, or material.
 - **PV / density reference**: The ideal volume-weighted `ρ_reference = Σ φᵢ · ρᵢ` applies when constituents report density; it is ideal only and excludes porosity, interfaces, reactions, phase changes, processing, orientation, geometry.
 - **Material assignment**: Each node's material (if assigned) must come from saved MP library record (`harshalos.character-materials.library.v1`); physical bounds determine `Match`; unknown never fabricated.
-- **Financial / market context**: Massive's automatic daily loop feeds the five reviewed Discs; manual Tickerbot `1h`/`1d` and Alpha Vantage's `1mo` hourly spotlight remain Disc1-stock-only. Market observations are display-only and never influence physical property matching.
+- **Financial / market context**: Characters—not Orb 2—owns Massive's automatic reviewed daily loop across the five Discs. Manual Tickerbot `1h`/`1d` and Alpha Vantage's one-ticker-per-hour `1mo` spotlight remain Disc1-stock-only. The retired standalone Massive desktop window is not a data source; market observations remain display-only and never influence physical property matching.
 - **No hidden defaults**: Every node, disc, and spheroid state must be explicitly entered or derived from saved records; nothing is imputed or defaulted.
 
 ### Profile / storage (lightweight source folder)

@@ -1,7 +1,9 @@
-Orb 2 — NPC Spheroid (3D Disc / Full B³ Manifold)
-Profile: All Characters as OCM nodes · Disc + The Orb Communicator Model
-3D from start — D² closes to B³ at r=0 (Center Origin / 0•000•000•0000)
-Full cast: Tickerbot · Magistrate · Red Team Adversary · OCM Operator · Librarian · Timekeeper · Supply Chain Inspector · Bandwidth Referee · Chef · Inkeeper · Designated Survivor · Meowie Wowie · Hyper Mage · Palantir Seer · Shadow Hand
-Phase: NAB · Status: VALID (operator-declared by subject)
+Orb 2 — NPC Spheroid (3D Disc / local B³ teaching model)
+Profile: Reviewed Characters roster displayed as local visual nodes · Disc + Orb Communicator Model geometry
+3D display: D² closes to B³ at the Center Origin reference (0•000•000•0000)
+Full cast source: js/characters-cast.js (runtime NPC_ROSTER only)
+
+Display boundary: no registered peripheral OCM addresses, identity assertion, transmission, authorization, market packet, recommendation, or transaction.
+Phase / PDH: not emitted or asserted by this browser display; any source-profile annotation remains non-authoritative.
 Updated 2026-10-04 · Reference: docs/characters/emptyfolder-reference.md § Orb 2
-3D display: Nodes labeled by Character Names / glyphs (Tickerbot ◈, Magistrate ⚖, etc.), not market tickers. Disc layers (stocks/fx/crypto/commodities / Massive's API) provide context; Orb 2 provides topology.
+3D display: Nodes use Character Names / glyphs (Tickerbot ◈, Magistrate ⚖, and peers), not market tickers. Reviewed beat rules provide static context only; Orb 2 receives no provider data.

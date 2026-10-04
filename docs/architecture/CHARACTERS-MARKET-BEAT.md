@@ -70,17 +70,21 @@ Incomplete OHLC tuples are rejected. VFI, crowd/relative-volume display, and ite
 
 The stage is representation only—not investment advice, a signal, a recommendation, permission to act, an assurance result, or an input to Permit/Refuse decisions.
 
+## Orb 2 reference boundary
+
+Good Intelligence's **Orb 2** is a separate local teaching visualization, not another Characters data consumer. It builds peripheral display nodes only from `CharactersCast.NPC_ROSTER` and shows the provider/cadence rules above as reviewed context. It does not call `/api/characters/v1/beat`, `/api/massive/v1/*`, Tickerbot, Alpha Vantage, or any OCM transport; it receives no live packet, price, rank, or recommendation. Its disc-to-sphere routes are visual traces only and cannot resolve legitimacy, transfer authority, create an identity, or commit a transaction.
+
 ## Routes and migrations
 
 | Surface | Contract |
 | :--- | :--- |
 | `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities\|indices&provider=massive\|tickerbot\|alpha&symbols=A,B&interval=1h\|1d\|1mo&cadence=...`; Massive is one `1d` symbol at `1`, Alpha is one Disc1 `1mo` symbol at `60`, and only manual Tickerbot accepts a bounded multi-symbol beat. |
 | `GET /api/characters/v1/discs?disc=crypto` | Read-only CoinGecko ranking snapshot/audit metadata; no provider secret or bar data. |
-| `GET /api/massive/v1/*` | Independently bounded, same-origin Massive desktop proxy; see [`docs/integrations/MASSIVE-REST.md`](../integrations/MASSIVE-REST.md). |
+| `GET /api/massive/v1/*` | Retained bounded same-origin Massive Worker adapter; the standalone desktop window is retired. Characters uses the narrower reviewed daily adapter, not an arbitrary browser ticker path; see [`docs/integrations/MASSIVE-REST.md`](../integrations/MASSIVE-REST.md). |
 | D1 migrations | `0005_tickerbot_call_ledger.sql`, `0006_alpha_vantage_daily_call_ledger.sql`, and `0007_massive_daily_call_ledger.sql`. Apply all relevant migrations before enabling live beats. |
 
 ## Validation
 
-Run `npm run test:characters` for the routing, ledgers, adapters, catalog, and UI. Run `npm run test:massive` for the standalone Massive proxy/app. `npm test` runs the full repository suite; `npm run check:deploy` runs the Worker dry-run after asset preparation.
+Run `npm run test:characters` for the routing, ledgers, adapters, catalog, and UI. Run `npm run test:massive` for the retained Massive Worker adapter and the retirement guard for the former desktop window. `npm test` runs the full repository suite; `npm run check:deploy` runs the Worker dry-run after asset preparation.
 
 Tests verify provider/interval isolation, allowlist enforcement, cache separation, ledger atomicity, daily rollover, Massive bearer-header handling, no secret/upstream-body leakage, and honest unavailable/rate-limited responses.

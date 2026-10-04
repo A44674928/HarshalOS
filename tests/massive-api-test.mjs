@@ -292,7 +292,7 @@ test("Massive's own refusals are mapped without leaking the key", async t => {
   assert.equal(erroredResponse.status, 502);
   const erroredBody = await erroredResponse.json();
   assert.equal(erroredBody.code, "upstream-error");
-  assert.equal(erroredBody.upstreamMessage, "unknown ticker");
+  assert.equal("upstreamMessage" in erroredBody, false, "provider error text is never reflected to the caller");
 });
 
 test("unreadable, aborted, and unreachable upstream answers fail closed", async t => {
