@@ -15,10 +15,11 @@ Status: Local, deterministic, browser-only prototype; not engineering / manufact
 - License: BY-C; GNoME-origin may be CC BY-NC.
 - Fail: closed if secret unavailable; no browser credential; same-origin GET.
 
-**Commodities API / Disc4 (market / beat domain)**
-- Interim: Massive's API monthly scalar (`WTI`, `BRENT`, `NATURAL_GAS`, `COPPER`, `ALUMINUM`, `WHEAT`, `CORN`, `COTTON`, `SUGAR`, `COFFEE`); value-only close (`dataShape: value`); quote units preserved (`USD/barrel`, `USD/MMBtu`, `USD/metric ton`, `USD/lb`); incomplete current month withheld; 25/UTC-day shared cap.
-- Future: Tickerbot multi-asset rollout queued (`1h`/`1d` for Disc4); 10,000-request/UTC-month ledger.
-- Use: disc context / stage rendering / share normalization — NEVER influences material properties.
+**Characters market providers (market / beat domain)**
+- Massive: automatic reviewed `1d` observations across all five Discs—stocks, FX, live volume-ranked crypto, commodity futures, and indices—at one instrument per minute. It retains each source's actual OHLC/OHLCV shape and shares the standalone Massive minute envelope.
+- Tickerbot: manual/on-demand Disc1 stock observations only for `1h` or `1d`, under its 10,000-request/UTC-month Worker ledger.
+- Alpha Vantage: a Disc1-only `1mo` best-performer spotlight, exactly one locally selected ticker per hour (24 planned requests/day) beneath its independent 25-request UTC-day cap.
+- Use: disc context / stage rendering / share normalization — NEVER influences material properties. No provider silently substitutes for another.
 - Cross-API rule: intersect ONLY at disc identity + normalized share (`φᵢ = wᵢ / Σ wⱼ`); never at property.
 
 ## Populated Field Summary (lightweight source/ files)
@@ -31,7 +32,7 @@ Status: Local, deterministic, browser-only prototype; not engineering / manufact
 - `|Neural Atomic Body Type|`: `NAB` / `NAB-Constrained`; refusal-bound; `0•000•000•0000`; no internal authorization.
 
 ## Disc / Spheroid Calculator (from `|Disc Spheroid|.txt` / docs)
-- Components: 2–4 distinct Discs (`stocks`, `fx`, `crypto`, `commodities`).
+- Components: 2–5 distinct Discs (`stocks`, `fx`, `crypto`, `commodities`, `indices`).
 - Weights: operator `wᵢ`; normalized `φᵢ = wᵢ / Σ wⱼ`; sum = 1.
 - Material per component must achieve `Match` + PDH clear.
 - Ideal density: `ρ_reference = Σ φᵢ × ρᵢ` — shown ONLY when all constituents report density.
@@ -42,7 +43,7 @@ Status: Local, deterministic, browser-only prototype; not engineering / manufact
 - Stage: pure geometry on unit circle (angle radians, radius stage fraction); topological disc-to-sphere closure (`D² ↪ B³`).
 - Address: `ℤ₃₆₀`; 0 = Center Origin; no 360; 360° ≡ 0° return-to-origin.
 - Cast: full NPC roster (Tickerbot, Magistrate, Red Team Adversary, OCM Operator, etc.) with sector affinities.
-- Feed: Tickerbot default (`stocks` `1h`/`1d`); Massive's API `1mo` reserved Disc1; commodities Interim → future.
+- Feed: Massive automatic `1d` across the five reviewed Discs; manual Tickerbot for Disc1 stock `1h`/`1d`; and Alpha Vantage's Disc1-only one-ticker `1mo` hourly spotlight.
 - Display-only: never trade signal / recommendation / permission / identity proof / authority.
 - Missing fields remain missing; no fabrication; no hidden defaults; deterministic; reviewable.
 
@@ -102,7 +103,7 @@ Every NPC in the cast becomes a node in the Orb 2 network:
 - **Color / identity**: Each node or disc component uses the canonical palette (ALL-SEEING EYE PURPLE, VISION RED, etc.) to identify itself; color does not predict microstructure, appearance, or material.
 - **PV / density reference**: The ideal volume-weighted `ρ_reference = Σ φᵢ · ρᵢ` applies when constituents report density; it is ideal only and excludes porosity, interfaces, reactions, phase changes, processing, orientation, geometry.
 - **Material assignment**: Each node's material (if assigned) must come from saved MP library record (`harshalos.character-materials.library.v1`); physical bounds determine `Match`; unknown never fabricated.
-- **Financial / market context**: Massive's API feeds Disc4 (commodities) and the Tickerbot watchlist feeds Disc1 (stocks); market observations are display-only and never influence physical property matching.
+- **Financial / market context**: Massive's automatic daily loop feeds the five reviewed Discs; manual Tickerbot `1h`/`1d` and Alpha Vantage's `1mo` hourly spotlight remain Disc1-stock-only. Market observations are display-only and never influence physical property matching.
 - **No hidden defaults**: Every node, disc, and spheroid state must be explicitly entered or derived from saved records; nothing is imputed or defaulted.
 
 ### Profile / storage (lightweight source folder)
