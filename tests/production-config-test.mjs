@@ -39,6 +39,12 @@ test('production branch-preview overrides contain no production D1 or R2 and kee
   assert.equal(production.previews.vars.MONGODB_DATABASE, 'harshalos_preview');
 });
 
+test('production observability redacts query strings before persisting Alpha Vantage requests', () => {
+  assert.equal(production.observability.enabled, true);
+  assert.equal(production.observability.redact_query_string, true,
+    'Alpha Vantage requires its Worker secret in the API query string');
+});
+
 test('production deployment remains separate from migration and staging deployment', () => {
   assert.equal(scripts.deploy, 'npm run prepare:assets && wrangler deploy');
   assert.equal(production.build.command, 'node scripts/prepare-assets.mjs');

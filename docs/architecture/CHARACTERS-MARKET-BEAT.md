@@ -6,8 +6,9 @@ invariant. It describes `js/characters-beat.js` (motion + budget engine),
 `worker/characters-beat.mjs` (the batched, cache-held read route), and
 `css/characters.css`.
 
-**Also implemented:** a **two-lane (tiered) beat** that spends the same calls differently
-(§2b), plus a **D1-durable shared call allowance** across both Tickerbot Worker routes (§2c).
+**Also implemented:** a **two-lane (tiered) beat** that allocates the same planned Tickerbot calls differently
+(§2b), a **D1-durable shared Tickerbot monthly allowance** across both Tickerbot Worker
+routes (§2c), and a **Characters-only Alpha Vantage daily fallback** with its own D1 cap (§2d).
 
 **One-line boundary:** market data can move a character on a stage; it cannot move
 authority, money, or a decision. This is Stage 2 *Representation* in the canonical model,
@@ -26,7 +27,7 @@ with a **beat**: one refresh cycle at a chosen cadence. On each beat:
 
 ```text
 due symbols (least-recently-refreshed, featured-weighted)
-      → atomic D1 allowance claim, then one provider call per uncached symbol
+      → Tickerbot D1 claim + primary call; for a failed 1d read only, a separate Alpha Vantage D1 claim + daily fallback
       → successful bars held in the Worker for the beat window
       → gi-market-context-v1 packet per symbol
       → js/good-intelligence-market-context.js evaluate()   (VFI + Fibonacci bands + WaveTrend)
@@ -49,9 +50,9 @@ from the Worker's own exported list.
 
 ---
 
-## 2. The budget: 10,000 calls per month
+## 2. The Tickerbot plan: 10,000 calls per month
 
-The reviewed plan is 10,000 provider calls per month. One symbol costs one call, so:
+The reviewed plan is 10,000 Tickerbot calls per month. One due symbol costs one planned Tickerbot attempt, so:
 
 ```text
 beats per month  = (30.44 days × 1440 min) ÷ cadence
@@ -93,7 +94,9 @@ What the table actually says:
 The app now opens on the **15-minute** plan to match the requested sweep: 2 symbols each
 beat, 52 berths in about 6.5 hours. Cadence remains selectable. Auto-beat follows wall-clock
 time while the tab is visible; it does not know exchange hours or holidays, so a continuously
-open 15-minute plan uses about 5,844 calls in a 30.44-day month, even when markets are closed.
+open 15-minute plan uses about 5,844 planned Tickerbot calls in a 30.44-day month, even when
+markets are closed. Daily Alpha Vantage fallback attempts are separate and only happen after
+Tickerbot cannot supply the due daily bars.
 Closing/hidden tabs pause calls; there is no server scheduler.
 
 ### Where the counts live
@@ -102,8 +105,9 @@ Closing/hidden tabs pause calls; there is no server scheduler.
 | :--- | :--- | :--- |
 | Calls this beat / cache hits | `worker/characters-beat.mjs` response (`data.spend`) | No — per response |
 | Worker-routed Tickerbot attempts by UTC month | D1 `tickerbot_call_ledger` (`attempted_calls`) | **Yes** — shared across isolates, redeploys, Characters, and Good Intelligence |
+| Characters Alpha Vantage daily-fallback attempts by UTC day | D1 `alpha_vantage_daily_call_ledger` (`attempted_calls`) | **Yes** — independent hard cap of 25/day; no symbols or keys stored |
 | Rotation ages, featured set, local beat history | browser `localStorage` (`harshalos.characters.ledger.v1`) | Per browser profile only; cleared with site data |
-| True billed spend | Tickerbot provider dashboard | Yes — the authority for billing |
+| True billed spend | Tickerbot and Alpha Vantage account dashboards | Provider accounts remain authoritative for billing and total usage |
 
 ### 2c. What D1 does here (and what it costs)
 
@@ -116,34 +120,77 @@ claim from the same row because they use the same `TICKERBOT_API_KEY`.
 The route performs an atomic `INSERT ... ON CONFLICT ... UPDATE ... WHERE calls < 10000
 RETURNING` immediately before each outbound fetch. The claim increments one aggregate row;
 there is one row per UTC month and no symbol-level/per-call history. When the row reaches
-10,000, the Worker refuses further uncached provider requests. A missing binding, missing
-migration, or D1 error also **fails closed**: no new provider fetch is sent. HTTP errors and
-timeouts count conservatively because Tickerbot may already have received the request.
-Calls made directly to Tickerbot or by a route outside this Worker are not visible in D1.
-These read-only GET routes are reachable from the public site: the shared hard cap bounds
-Worker-routed provider spend, but it is not a per-visitor quota, so an unauthenticated caller
-could consume the shared monthly allowance. No user-authentication or per-client rate-limit
-layer is added here; decide on a trusted access/rate-limit control before enabling live calls
-if reserving capacity from public callers is required.
+10,000, the Worker refuses further Tickerbot requests. A missing binding, missing
+migration, or D1 error also **fails closed** for Tickerbot. Only a requested daily beat may
+then try Alpha Vantage, and only after a separate atomic claim in its own daily ledger.
+HTTP errors and timeouts count conservatively because the provider may already have received
+the request. Calls made directly to either provider or by a route outside this Worker are not
+visible in these D1 counters.
+These read-only GET routes do not add an app-level sign-in or per-visitor quota: if the
+site hostname is public, an unauthenticated caller could consume either shared allowance.
+Keep the site owner-only behind Cloudflare Access before configuring live provider secrets.
+If the site is later made public, review each provider's external-display license and add an
+appropriate access/rate-limit control; the shared hard caps are not visitor quotas.
 
 The [Cloudflare D1 Free plan](https://developers.cloudflare.com/d1/platform/pricing/)
 currently includes 5 million rows read/day, 100,000 rows written/day, and 5 GB storage
-(total across the account). This feature writes at most one row per admitted Worker attempt
-(10,000 writes in a full provider month), reads the indexed monthly row, and stores only a
-few aggregate rows per year. That is small relative to the free limits; other D1 features
-share the same account limits, and a D1 daily-limit failure stops live provider calls rather
-than bypassing the ledger. No paid D1 feature or scheduled job is added.
+(total across the account). This feature writes at most one row per admitted attempt (up to
+10,000 Tickerbot attempts/month and 25 Alpha Vantage attempts/day), reads indexed month/day
+rows, and stores one aggregate row per used UTC month/day. That is small relative to the free
+limits; other D1 features share the same account limits, and a D1 daily-limit failure stops
+provider fetches rather than bypassing either cap. No paid D1 feature or scheduled job is added.
 
 The 15% reserve in the planner is a **planning reserve**, not a second hard cap: normal
 15-minute operation projects 5,844 calls/month, while explicit stretch is allowed up to the
 10,000 Worker limit. The provider dashboard remains the authority for actual billed spend,
 especially if anything calls Tickerbot outside these Worker routes.
 
-The additive schema is `migrations/community/0005_tickerbot_call_ledger.sql`. It must be
-applied to the selected remote D1 database before live data can flow. For production, first
-inspect with `npx wrangler d1 migrations list COMMUNITY_DB --remote`, then apply with
-`npx wrangler d1 migrations apply COMMUNITY_DB --remote`. The application refuses live
-calls until the table exists.
+The additive schemas are `migrations/community/0005_tickerbot_call_ledger.sql` (Tickerbot)
+and `migrations/community/0006_alpha_vantage_daily_call_ledger.sql` (Alpha Vantage). Apply
+both to the selected remote D1 database before enabling live data or the daily fallback.
+For production, first inspect with `npx wrangler d1 migrations list COMMUNITY_DB --remote`,
+then apply with `npx wrangler d1 migrations apply COMMUNITY_DB --remote`. Each provider
+fails closed if its own ledger table is unavailable.
+
+---
+
+## 2d. Alpha Vantage daily-only fallback
+
+Tickerbot Live remains the primary source. On a requested `1d` beat, a Tickerbot failure,
+missing primary secret, exhausted Tickerbot monthly allowance, or refused Tickerbot ledger
+claim may trigger **one** Alpha Vantage fallback request for that symbol. A successful
+Tickerbot read never calls Alpha Vantage. The fallback is not used for `1h`, is not a
+quote substitute, and is not used by Good Intelligence or any chart route. The Worker never
+stitches bars from the two providers; the packet identifies the provider that supplied it,
+and a successful fallback packet is held under the same one-beat cache.
+
+The adapter calls Alpha Vantage's fixed [`TIME_SERIES_DAILY` endpoint](https://www.alphavantage.co/documentation/) with `outputsize=compact`.
+The free compact series contains at most the latest 100 daily points and is **unadjusted**;
+values are normalized to the existing `gi-market-context-v1` bar shape. Any row dated today
+in America/New_York is withheld until 16:15 Eastern, so an in-progress daily candle cannot
+move a character. The latest confirmed prior session can still be used before then. The
+existing indicators are not silently retuned: compact 100-bar data is shorter than the
+current 130-bar VFI and 200-bar band warmups, so those may remain `warming-up`; the detail
+card identifies the Alpha Vantage source and its actual data status.
+
+The free-provider hard stop is **25 Worker-routed Alpha Vantage requests per UTC day**,
+independent of Tickerbot's 10,000/month allowance. `alpha_vantage_daily_call_ledger` stores
+only the aggregate count, configured cap and update time—no key, symbol, or per-request
+record. An atomic D1 claim occurs before every outbound Alpha Vantage fetch; failures and
+timeouts consume a slot. Missing D1/migration fails closed. The response exposes the daily
+snapshot and separately reports `tickerbotAttempts`, `alphaVantageAttempts`, and total
+`providerAttempts`; a failed Tickerbot read followed by a successful daily fallback can
+therefore count two provider attempts for one due symbol. Direct Alpha Vantage calls are not
+included in D1, and Alpha Vantage's account dashboard remains authoritative.
+
+Configure the key only as the `ALPHA_VANTAGE_API_KEY` Worker secret (for example,
+`npx wrangler secret put ALPHA_VANTAGE_API_KEY`); never place it in `wrangler.jsonc`, browser
+storage, or a response. Alpha Vantage requires the key in a query parameter. Production
+Wrangler observability therefore sets `redact_query_string: true` so persisted logs/traces
+do not retain query values. Keep the hostname behind owner-only Cloudflare Access; if the
+site is made public, re-check Alpha Vantage's display/redistribution terms before showing
+market-derived Characters to other people. The 25-call fallback is not enough to refresh a
+52-symbol deck twice daily; Tickerbot remains responsible for the full-deck target.
 
 ---
 
@@ -151,9 +198,11 @@ calls until the table exists.
 
 A single cadence forces one trade: a slow clock and everything moves rarely, or a fast clock
 and only a few berths move. A tiered beat pays for a **hot lane** first (the operator's
-featured tickers, refreshed every beat) and hands the remaining calls to a **sweep** that
-walks the rest of the cast. The monthly cost is *identical* — `planTiers()` copies
-`callsPerBeat` straight from `plan()` — only the destination of each call changes.
+featured tickers, refreshed every beat) and hands the remaining planned Tickerbot calls to a
+**sweep** that walks the rest of the cast. The planned Tickerbot monthly cost is *identical* —
+`planTiers()` copies `callsPerBeat` straight from `plan()` — only the destination of each
+Tickerbot call changes. A failed daily Tickerbot read may additionally make one separately
+capped Alpha Vantage request for that symbol.
 
 The planner solves for the widest hot lane that still sweeps the cast inside a target window:
 
@@ -187,11 +236,13 @@ Rules the tier mode keeps:
 
 1. **A lane is a display hint.** The Worker accepts `lanes=SYM:hot,SYM:sweep`, stores the
    label per instrument, and ignores anything it does not recognize. A lane never changes
-   how many calls a beat makes — it is always one call per requested symbol.
+   which symbols are due or their provider order: Tickerbot is attempted once per due symbol;
+   a failed `1d` read may add one Alpha Vantage request under its separate daily cap.
 2. **Hot first, then the eldest.** `selectTieredDue()` pays the hot lane from the featured
    set (least-recently-refreshed first, so more featured tickers than the plan affords still
-   rotate), then gives the remainder to the next-eldest sweep berths. The beat budget is
-   never exceeded, and no berth is charged twice in one beat.
+   rotate), then gives the remainder to the next-eldest sweep berths. The planned Tickerbot
+   budget is never exceeded, and no berth is charged twice in one beat. A daily fallback can
+   add separately capped Alpha Vantage attempts beyond that Tickerbot plan.
 3. **Same honesty.** A hot berth without bars still freezes; a synthetic hot lane is still
    watermarked; D1 counts the Worker attempt before fetch, including failures conservatively.
 
@@ -250,8 +301,9 @@ bar; a pending bar can never mint a confluence event.
    Switching DATA SOURCE clears the other source's motion rather than blending it.
 3. **Provenance travels with the motion.** Every directive carries `synthetic`, `source`,
    `barCount`, `status`, and the symbol, and the detail card prints them.
-4. **The last closed bar, always.** The Worker requests bars with `asof`, the app displays
-   the bar time, and an unconfirmed newest candle is held and labeled.
+4. **The last closed bar, always.** Tickerbot requests use `asof`; the Alpha Vantage daily
+   adapter withholds today's New York session until 16:15 Eastern. The app displays the
+   provider source, and no in-progress daily candle can move a character.
 5. **No advice.** The stage footer, the directive `note`, and the app description all say
    the same thing: display-only, not investment advice, not a trade signal, and not
    permission to act. Indicator event labels are not trade instructions.
@@ -264,26 +316,29 @@ bar; a pending bar can never mint a confluence event.
 | Surface | Detail |
 | :--- | :--- |
 | `GET /api/characters/v1/beat` | `?symbols=A,B,C&interval=1h\|1d&cadence=15\|30\|60\|240\|1440[&lanes=A:hot,B:sweep]` |
-| Response | `{ success, environment: "characters-beat", data: { schema: "characters-beat-v1", beatAt, interval, cadenceMinutes, holdMs, instruments[], spend: { providerAttempts, cacheHits, durable, ledgerStatus } } }` |
-| Refusals | 400 (no symbols, over the 12-symbol cap, off-allowlist symbol, bad interval), 405 (non-GET), 503 (`TICKERBOT_API_KEY` or D1 ledger unavailable), 429 (monthly cap or provider rate limit), 502/504/404 (whole-beat provider failure, with the whole-beat data attached) |
+| Response | `{ success, environment: "characters-beat", data: { schema: "characters-beat-v1", beatAt, interval, cadenceMinutes, holdMs, instruments[], spend: { providerAttempts, tickerbotAttempts, alphaVantageAttempts, cacheHits, durable, ledgerStatus, alphaVantageDaily, alphaVantageLedgerStatus } } }` |
+| Refusals | 400 (no symbols, over the 12-symbol cap, off-allowlist symbol, bad interval), 405 (non-GET), 503 (required provider secret or D1 ledger unavailable), 429 (provider cap/rate limit), 502/504/404 (whole-beat provider failure, with the whole-beat data attached) |
 | Partial failure | 200 with per-symbol `status: "unavailable"` — a partial beat is still an honest beat |
-| Worker secret | `TICKERBOT_API_KEY` (same secret the Good Intelligence Market Charts tab uses) |
+| Worker secrets | `TICKERBOT_API_KEY` (also used by Good Intelligence Market Charts) and optional `ALPHA_VANTAGE_API_KEY` (Characters daily fallback only) |
 | Symbols | the reviewed 52-symbol Tickerbot watchlist, imported from `worker/good-intelligence-tickerbot.mjs` — never a second list |
-| Cache | per symbol + interval, TTL = the beat (`cadenceMinutes`), isolate-local; D1 allowance is shared |
-| Monthly limit | 10,000 Worker-routed attempts per UTC month, shared across Characters + Good Intelligence; provider-direct calls excluded |
+| Cache | per symbol + interval, TTL = the beat (`cadenceMinutes`), isolate-local; successful fallback keeps Alpha Vantage provenance |
+| Provider limits | Tickerbot: 10,000 Worker attempts/month shared with Good Intelligence; Alpha Vantage: 25 Characters fallback attempts/UTC day; direct provider calls excluded |
 
 ```text
 js/characters-beat.js          budget, rotation, gauges, motion, blend, browser activity, rehearsal
 js/characters-cast.js          cast roster, sector objects, item tokens, radial layout
 js/apps-characters.js          desktop app: canvas stage, controls, D1 usage, beat log
 css/characters.css             app styling
-worker/characters-beat.mjs     batched read route with the beat-held cache
-worker/tickerbot-call-ledger.mjs shared atomic D1 monthly allowance helper
-migrations/community/0005_tickerbot_call_ledger.sql
-                                one compact UTC-month aggregate row; no per-call history
+worker/characters-beat.mjs     batched read route with the beat-held cache and provider failover
+worker/tickerbot-call-ledger.mjs shared atomic D1 monthly Tickerbot allowance helper
+worker/characters-alpha-vantage.mjs Alpha Vantage compact daily OHLCV adapter (Characters only)
+worker/alpha-vantage-daily-call-ledger.mjs separate atomic D1 UTC-day Alpha fallback cap
+migrations/community/0005_tickerbot_call_ledger.sql one compact UTC-month Tickerbot aggregate row
+migrations/community/0006_alpha_vantage_daily_call_ledger.sql one compact UTC-day Alpha aggregate row
 tests/characters-beat-test.mjs engine + cast tests (budget, determinism, freeze rules)
 tests/characters-beat-api-test.mjs route tests (spend discipline, refusals, no leaks)
-tests/characters-call-ledger-test.mjs D1 limit, concurrency, rollover, shared-route tests
+tests/characters-call-ledger-test.mjs Tickerbot D1 limit, concurrency, rollover, shared routes
+tests/characters-alpha-vantage-test.mjs Alpha adapter, failover, closed bars and daily cap
 ```
 
 ---

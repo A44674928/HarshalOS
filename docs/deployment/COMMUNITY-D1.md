@@ -39,10 +39,12 @@ never a request-supplied one.
 Community access is enabled in the production configuration and disabled in branch
 previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
 `0005_tickerbot_call_ledger.sql` is an additive aggregate counter for the Characters and
-Good Intelligence Tickerbot routes; it stores no community/user records. Apply it in order
-before enabling live Characters beats. Migration and seed testing in this rebuild has been local only: no remote migration,
-remote seed or production deployment command has been run from the build environment,
-which has no Cloudflare credentials.
+Good Intelligence Tickerbot routes; `0006_alpha_vantage_daily_call_ledger.sql` is a
+separate daily cap for Characters' optional Alpha Vantage fallback. Neither stores
+community/user records. Apply the market-data migrations in order before enabling the
+corresponding provider route. Migration and seed testing in this rebuild has been local only:
+no remote migration, remote seed or production deployment command has been run from the build
+environment, which has no Cloudflare credentials.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -448,7 +450,7 @@ npx wrangler d1 migrations apply COMMUNITY_DB --remote
 Expected application tables: `community_users`, `community_drafts`, `community_schema`,
 `community_auth_flows`, `community_sessions`, `community_auth_rates`, `community_runs`,
 `community_public_series`, `community_previews`, `community_publications`,
-`community_public_events`, `community_reports`, and `community_moderation_actions`. Wrangler also tracks migrations in `d1_migrations`. Applying
+`community_public_events`, `community_reports`, `community_moderation_actions`, `tickerbot_call_ledger`, and `alpha_vantage_daily_call_ledger`. Wrangler also tracks migrations in `d1_migrations`. Applying
 this migration does not enable login or publish any data. Roll back service access
 by keeping community disabled, not by dropping tables.
 
@@ -489,7 +491,7 @@ than retrying with shortcuts.
    npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
    ```
 
-4. **Apply migrations 0001–0005 and the register seed** to production D1. Migrations
+4. **Apply migrations 0001–0006 and the register seed** to production D1. Migrations
    never run automatically during a deploy:
 
    ```sh

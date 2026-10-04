@@ -14,6 +14,7 @@
 (() => {
   const STORAGE_KEY = "harshalos.characters.ledger.v1";
   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
+  const ALPHA_VANTAGE_DAILY_CAP = 25;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -52,6 +53,19 @@
       month: String(value.month), calls, providerBudget, workerLimit,
       remaining: Math.max(0, workerLimit - calls),
       exhausted: calls >= workerLimit,
+      updatedAt: integer(value.updatedAt)
+    };
+  };
+  const normalizeAlphaVantageDailyLedger = value => {
+    if (!value || typeof value !== "object" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value.day || ""))) return null;
+    const integer = input => Math.max(0, Math.floor(Number(input) || 0));
+    const dailyLimit = integer(value.dailyLimit);
+    const calls = integer(value.calls);
+    if (!dailyLimit) return null;
+    return {
+      day: String(value.day), calls, dailyLimit,
+      remaining: Math.max(0, dailyLimit - calls),
+      exhausted: calls >= dailyLimit,
       updatedAt: integer(value.updatedAt)
     };
   };
@@ -113,6 +127,8 @@
         ledger: readLedger(),
         serverLedger: null,
         serverLedgerStatus: "waiting",
+        alphaVantageDailyLedger: null,
+        alphaVantageLedgerStatus: "waiting",
         /* Featured tickers double as the hot lane; the browser ledger is where that choice lives. */
         motions: {},          // symbol -> latest directive from the engine
         displayed: {},        // symbol -> directive blended for rendering
@@ -135,7 +151,7 @@
               <p class="ch-eyebrow">HARSHAALOS · MARKET BEAT</p>
               <h1>Characters</h1>
               <p class="ch-lede">Objects, NPCs, and Items walking to the last <strong>closed</strong> bar. Every refresh is a beat;
-              the plan spends at most <strong>${Beat.MAX_SYMBOLS_PER_BEAT}</strong> provider calls per beat, and re-drawing the stage spends none.</p>
+              the Tickerbot plan requests at most <strong>${Beat.MAX_SYMBOLS_PER_BEAT}</strong> due symbols per beat. If Tickerbot fails on a daily beat, Alpha Vantage may add one separately capped request per due symbol; re-drawing the stage spends none.</p>
             </div>
             <div class="ch-source-badge" data-ch-source-badge>Synthetic rehearsal · 0 calls</div>
           </header>
@@ -148,7 +164,7 @@
               <select data-ch-interval><option value="1h">1 hour</option><option value="1d">1 day</option></select>
             </label>
             <label class="ch-control"><span>MONTHLY PLAN</span>
-              <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Provider calls per month; planning only">
+              <input type="number" min="100" max="10000" step="100" value="${state.budget}" data-ch-budget aria-label="Tickerbot calls per month; planning only">
             </label>
             <label class="ch-control"><span>DATA SOURCE</span>
               <select data-ch-source>
@@ -292,7 +308,17 @@
           state.serverLedger = ledger;
         }
         if (spend.ledgerStatus === "unavailable") state.serverLedgerStatus = "unavailable";
+        else if (spend.ledgerStatus === "not-configured") state.serverLedgerStatus = "not-configured";
         else if (ledger) state.serverLedgerStatus = "ready";
+
+        const alphaDaily = normalizeAlphaVantageDailyLedger(spend.alphaVantageDaily);
+        if (alphaDaily && (!state.alphaVantageDailyLedger || alphaDaily.day > state.alphaVantageDailyLedger.day ||
+          (alphaDaily.day === state.alphaVantageDailyLedger.day && alphaDaily.calls >= state.alphaVantageDailyLedger.calls))) {
+          state.alphaVantageDailyLedger = alphaDaily;
+        }
+        if (spend.alphaVantageLedgerStatus === "unavailable") state.alphaVantageLedgerStatus = "unavailable";
+        else if (alphaDaily) state.alphaVantageLedgerStatus = "ready";
+        else if (spend.alphaVantageLedgerStatus === "not-configured") state.alphaVantageLedgerStatus = "not-configured";
       }
 
       async function fetchLiveBeat(due, cadenceMinutes, lanes = {}) {
@@ -336,8 +362,8 @@
         const plan = planOf();
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedger && state.serverLedger.month === currentMonth ? state.serverLedger : null;
-        if (state.source === "live" && durable && durable.exhausted) {
-          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The monthly limit is reached; no beat was sent.` };
+        if (state.source === "live" && durable && durable.exhausted && state.interval !== "1d") {
+          state.message = { kind: "refusal", text: `The shared D1 ledger records ${durable.calls.toLocaleString()} of ${durable.workerLimit.toLocaleString()} Worker-routed Tickerbot attempts for ${durable.month}. The monthly limit is reached; no hourly beat was sent. Choose 1 day to allow the separately capped Alpha Vantage daily fallback.` };
           drawPanels();
           return;
         }
@@ -385,6 +411,8 @@
         let unavailable = 0;
         let budgetBlocked = 0;
         let ledgerBlocked = 0;
+        let alphaVantageBudgetBlocked = 0;
+        let alphaVantageLedgerBlocked = 0;
         for (const instrument of result.instruments) {
           const symbol = String(instrument.symbol || "").toUpperCase();
           if (!symbol) continue;
@@ -392,6 +420,8 @@
             unavailable += 1;
             if (instrument.code === "budget-exhausted") budgetBlocked += 1;
             if (instrument.code === "ledger-unavailable") ledgerBlocked += 1;
+            if (instrument.code === "alpha-vantage-budget-exhausted") alphaVantageBudgetBlocked += 1;
+            if (instrument.code === "alpha-vantage-ledger-unavailable") alphaVantageLedgerBlocked += 1;
             state.motions[symbol] = Beat.motion(null, { bearingBase: bearingOf(symbol) });
             state.analyses[symbol] = { status: "unavailable", message: instrument.message || "No bars were supplied for this beat.", at: now };
             continue;
@@ -429,6 +459,7 @@
         state.beats += 1;
         state.log = [{
           at: now, reason, source: state.source, symbols: refreshed, calls,
+          alphaVantageAttempts: result.spend ? Math.max(0, Number(result.spend.alphaVantageAttempts) || 0) : 0,
           unavailable, cacheHits: result.spend ? result.spend.cacheHits : 0,
           lanes: { ...state.laneBySymbol },
           moods: refreshed.map(symbol => `${symbol} ${moods[symbol] || "—"}`)
@@ -436,16 +467,25 @@
         state.nextBeatAt = now + beatIntervalMs();
         if (budgetBlocked) {
           const ledger = state.serverLedger;
-          state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No provider request was sent for those berths.` };
+          state.message = { kind: "refusal", text: `${budgetBlocked} due berth${budgetBlocked === 1 ? " was" : "s were"} refused by the shared D1 monthly call limit for Tickerbot${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.workerLimit.toLocaleString()} in ${ledger.month} UTC)` : ""}. No Tickerbot request was sent for those berths.` };
+        } else if (alphaVantageBudgetBlocked) {
+          const ledger = state.alphaVantageDailyLedger;
+          state.message = { kind: "refusal", text: `${alphaVantageBudgetBlocked} due berth${alphaVantageBudgetBlocked === 1 ? " was" : "s were"} refused by Alpha Vantage's separate daily cap${ledger ? ` (${ledger.calls.toLocaleString()} / ${ledger.dailyLimit.toLocaleString()} in ${ledger.day} UTC)` : ""}. No additional Alpha Vantage request was sent.` };
+        } else if (alphaVantageLedgerBlocked) {
+          state.message = { kind: "refusal", text: `${alphaVantageLedgerBlocked} due berth${alphaVantageLedgerBlocked === 1 ? " was" : "s were"} not sent to Alpha Vantage because its separate D1 daily ledger is unavailable. No request was sent.` };
         } else if (ledgerBlocked) {
-          state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 call ledger is unavailable. No provider request was sent for those berths.` };
+          state.message = { kind: "refusal", text: `${ledgerBlocked} due berth${ledgerBlocked === 1 ? " was" : "s were"} not sent to Tickerbot because the D1 monthly call ledger is unavailable. No request was sent.` };
+        } else if (state.source === "live" && state.message && ["error", "refusal"].includes(state.message.kind)) {
+          state.message = refreshed.length
+            ? null
+            : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
         } else if (!state.message || state.message.kind === "error") {
           state.message = refreshed.length
             ? null
             : { kind: "note", text: "No symbol in this beat returned bars. Those berths stay frozen; nothing was fabricated." };
         }
         if (state.source === "live") {
-          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from Tickerbot (${calls} provider call${calls === 1 ? "" : "s"}). Display-only motion.` +
+          HOS.record("info", `Characters beat — ${refreshed.length} berth(s) refreshed from live market data (${calls} provider request${calls === 1 ? "" : "s"}, including ${result.spend ? Number(result.spend.tickerbotAttempts) || 0 : 0} Tickerbot and ${result.spend ? Number(result.spend.alphaVantageAttempts) || 0 : 0} Alpha Vantage daily attempts). Display-only motion.` +
             (unavailable ? ` ${unavailable} symbol(s) returned no bars and stayed frozen.` : ""));
         }
         state.displayed = { ...state.displayed };
@@ -464,13 +504,23 @@
         const currentMonth = Beat.monthKey(Date.now());
         const durable = state.serverLedgerStatus === "ready" && state.serverLedger && state.serverLedger.month === currentMonth
           ? state.serverLedger : null;
+        const currentUtcDay = new Date(Date.now()).toISOString().slice(0, 10);
+        const alphaVantageDaily = state.alphaVantageLedgerStatus === "ready" && state.alphaVantageDailyLedger &&
+          state.alphaVantageDailyLedger.day === currentUtcDay ? state.alphaVantageDailyLedger : null;
+        const alphaVantageDailyText = alphaVantageDaily
+          ? `${alphaVantageDaily.calls.toLocaleString()} / ${alphaVantageDaily.dailyLimit.toLocaleString()} used · ${alphaVantageDaily.remaining.toLocaleString()} left (${alphaVantageDaily.day} UTC)`
+          : state.alphaVantageLedgerStatus === "unavailable"
+            ? "D1 daily ledger unavailable · fallback fails closed"
+            : state.alphaVantageLedgerStatus === "not-configured"
+              ? "Not configured · add ALPHA_VANTAGE_API_KEY for daily fallback"
+              : `${ALPHA_VANTAGE_DAILY_CAP} Worker attempts/day max · daily bars only`;
         const perBeat = perBeatOf(plan);
         const sweepBeats = Math.ceil(stage.berths.length / Math.max(1, perBeat));
         const sweepHours = (sweepBeats * state.cadence) / 60;
 
         $("[data-ch-source-badge]").textContent = state.source === "rehearsal"
           ? "Synthetic rehearsal · 0 provider calls · not real market data"
-          : "Tickerbot Live · one provider call per symbol per beat";
+          : "Tickerbot Live primary · optional Alpha Vantage daily fallback · 25 requests/UTC day";
         $("[data-ch-source-badge]").className = `ch-source-badge${state.source === "rehearsal" ? " ch-source-badge-synthetic" : ""}`;
 
         const tiers = tierPlan();
@@ -480,19 +530,20 @@
           <dl class="ch-stats">
             <div><dt>Beats / month</dt><dd>${plan.beatsPerMonth.toLocaleString()}</dd></div>
             <div><dt>Symbols / beat</dt><dd>${perBeat}${state.stretch && plan.stretchWithinBudget ? " <span class=\"ch-stretch-tag\">stretch</span>" : ""}</dd></div>
-            <div><dt>Calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
+            <div><dt>Tickerbot calls / month</dt><dd>${(perBeat * plan.beatsPerMonth).toLocaleString()} <span class="ch-dim">of ${state.budget.toLocaleString()}</span></dd></div>
             <div><dt>Reserve held</dt><dd>${plan.reserveCalls.toLocaleString()}</dd></div>
             <div><dt>Full sweep</dt><dd>${state.tierMode && tierOption
               ? `${tierOption.sweepBeats} beats · ${Beat.formatHours(tierOption.sweepHours)}`
               : `${sweepBeats} beats · ${Beat.formatHours(sweepHours)}`}</dd></div>
             ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}
-            <div><dt>D1 snapshot</dt><dd>${durable
+            <div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
               ? `${durable.calls.toLocaleString()} <span class="ch-dim">· last confirmed; ${durable.remaining.toLocaleString()} of ${durable.workerLimit.toLocaleString()} left</span>`
-              : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · live calls fail closed" : "awaiting Worker ledger"}</span>`}</dd></div>
+              : `<span class="ch-dim">${state.serverLedgerStatus === "unavailable" ? "no current D1 snapshot · Tickerbot calls fail closed" : state.serverLedgerStatus === "not-configured" ? "Tickerbot secret not configured" : "awaiting Worker ledger"}</span>`}</dd></div>
+            <div><dt>Alpha Vantage D1 / day</dt><dd><span class="ch-dim">${alphaVantageDailyText}</span></dd></div>
           </dl>
           <div class="ch-cadence-row">${cadencePlan.map(option => `
             <button class="ch-cadence-chip${option.cadenceMinutes === state.cadence ? " active" : ""}" data-ch-cadence-chip="${option.cadenceMinutes}"
-              title="${option.callsPerBeat} per beat · ${option.callsPerMonth.toLocaleString()} calls/month · ${Beat.formatHours(option.sweepHours)} sweep">
+              title="${option.callsPerBeat} Tickerbot calls/beat · ${option.callsPerMonth.toLocaleString()} Tickerbot calls/month · ${Beat.formatHours(option.sweepHours)} sweep">
               ${Beat.formatHours(option.cadenceMinutes / 60)}<small>${option.callsPerBeat}/beat</small>
               <i class="ch-chip-bar"><b style="width:${Math.round(Math.min(1, option.budgetUseRatio) * 100)}%"></b></i>
             </button>`).join("")}
@@ -505,7 +556,7 @@
               <button class="ch-tier-chip${option.feasible ? "" : " infeasible"}${tierOption && option.targetSweepHours === tierOption.targetSweepHours ? " active" : ""}"
                 data-ch-tier-target="${option.targetSweepHours}"
                 title="${option.feasible
-                  ? `${option.hotSize} hot every beat · sweep of ${option.sweepSize} in ${option.sweepHours}h · same ${option.callsPerMonth.toLocaleString()} calls/month`
+                  ? `${option.hotSize} hot every beat · sweep of ${option.sweepSize} in ${option.sweepHours}h · same ${option.callsPerMonth.toLocaleString()} Tickerbot calls/month`
                   : (option.notes[0] || "No tier split fits this window")}">
                 <b>${option.feasible ? `${option.hotSize} hot` : "—"}</b>
                 <small>all in ${option.targetSweepHours}h</small>
@@ -521,7 +572,7 @@
         $("[data-ch-plan-tag]").textContent = state.tierMode && tierOption
           ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
           : `${state.cadence}-minute plan`;
-        $("[data-ch-plan-note]").textContent = `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The monthly field changes the plan only; the Worker enforces the shared 10,000-call D1 limit.`;
+        $("[data-ch-plan-note]").textContent = `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The monthly field changes the Tickerbot plan only; the Worker separately caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 attempts/day for daily fallback.`;
         stretchBox.disabled = !plan.stretchWithinBudget;
         stretchBox.checked = state.stretch && plan.stretchWithinBudget;
         tierBox.checked = state.tierMode;
@@ -556,7 +607,7 @@
         $("[data-ch-log]").innerHTML = state.log.length ? state.log.map(entry => `
           <li>
             <span class="ch-log-time">${clock(entry.at)}</span>
-            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `LIVE ${entry.calls} call${entry.calls === 1 ? "" : "s"}`}</span>
+            <span class="ch-log-source ${entry.source === "rehearsal" ? "synthetic" : ""}">${entry.source === "rehearsal" ? "SYNTH" : `LIVE ${entry.calls} call${entry.calls === 1 ? "" : "s"}${entry.alphaVantageAttempts ? ` · Alpha daily ${entry.alphaVantageAttempts}` : ""}`}</span>
             <span class="ch-log-body">${entry.symbols.length ? entry.symbols.map(symbol => {
               const lane = entry.lanes && entry.lanes[symbol];
               const laneMark = lane === "hot" || lane === "sweep"
@@ -571,8 +622,10 @@
         $("[data-ch-durable-ledger]").textContent = durable
           ? `${durable.calls.toLocaleString()} / ${durable.workerLimit.toLocaleString()} Worker attempts in ${durable.month} UTC · ${durable.remaining.toLocaleString()} left${state.serverLedgerStatus === "unavailable" ? " · last known; D1 currently unavailable" : ""}`
           : state.serverLedgerStatus === "unavailable"
-            ? "No D1 snapshot reported — the live route refused or its ledger is unavailable; new fetches fail closed."
-            : "Waiting for the first live beat.";
+            ? "No D1 snapshot reported — the live route refused or the Tickerbot ledger is unavailable; Tickerbot fetches fail closed."
+            : state.serverLedgerStatus === "not-configured"
+              ? "Tickerbot is not configured; only daily Alpha Vantage fallback may be available."
+              : "Waiting for the first live beat.";
         $("[data-ch-stage-note]").textContent = state.message
           ? state.message.text
           : state.lastBeatAt
@@ -580,7 +633,7 @@
               ? `Rehearsing every ${REHEARSAL_BEAT_MS / 1000}s with synthetic bars — compressed for preview, 0 provider calls.`
               : `Next automatic beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.${state.tierMode ? " Two-lane beat: featured berths every beat, the rest walking the sweep." : ""}`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. The planner holds ${Beat.DEFAULTS.reserveRatio * 100}% in reserve by default; the D1 Worker ledger atomically stops routed Tickerbot attempts at 10,000 per UTC month across Characters and Market Charts. Direct provider calls are outside that ledger.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for price/volume context — the same Stage 2 representation the Pine/OCM boundary describes. They are not investment advice, a trade signal, a recommendation, or permission to act, and indicator event labels are display-only. The planner holds ${Beat.DEFAULTS.reserveRatio * 100}% in reserve by default; the Worker separately stops routed Tickerbot attempts at 10,000 per UTC month and Alpha Vantage daily-fallback attempts at 25 per UTC day. Direct provider calls are outside those ledgers.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -863,7 +916,7 @@
         state.items = new Map();
         state.message = next === "rehearsal"
           ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to Tickerbot Live for real data." }
-          : { kind: "note", text: "Tickerbot Live selected. The next beat spends one provider call per due symbol; inside a beat window the Worker answers from its cadence cache." };
+          : { kind: "note", text: "Tickerbot Live is primary. When configured, a daily beat can fall back to Alpha Vantage once per symbol if Tickerbot fails, under a separate 25-request UTC-day cap; cached bars cost no new calls." };
         drawPanels();
         schedule();
       }
@@ -876,8 +929,8 @@
       tierBox.addEventListener("change", () => {
         state.tierMode = tierBox.checked;
         state.message = state.tierMode
-          ? { kind: "note", text: "Two-lane beat enabled: the featured berths refresh every beat and the remaining calls walk the sweep. The monthly cost is unchanged." }
-          : { kind: "note", text: "Two-lane beat disabled: the plain least-recently-refreshed rotation returns. The monthly cost is unchanged." };
+          ? { kind: "note", text: "Two-lane beat enabled: the featured berths refresh every beat and the remaining calls walk the sweep. The planned Tickerbot monthly spend is unchanged; a failed daily read can still add a separately capped Alpha Vantage request." }
+          : { kind: "note", text: "Two-lane beat disabled: the plain least-recently-refreshed rotation returns. The planned Tickerbot monthly spend is unchanged; a failed daily read can still add a separately capped Alpha Vantage request." };
         drawPanels();
       });
       featureButton.addEventListener("click", () => {

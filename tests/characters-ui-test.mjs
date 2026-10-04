@@ -35,6 +35,20 @@ function bars(count = 120, drift = 0.05) {
   });
 }
 
+function dailyBars(count = 100, drift = 0.05) {
+  let previous = 100;
+  return Array.from({ length: count }, (_, index) => {
+    const close = 100 + index * drift + Math.sin(index / 9) * 1.4;
+    const open = previous;
+    previous = close;
+    return {
+      time: new Date(NOW - (count - index) * 24 * 60 * 60_000).toISOString(),
+      open, high: Math.max(open, close) + 0.2, low: Math.min(open, close) - 0.2, close,
+      volume: 1000 + 200 * Math.sin(index / 4), confirmed: true
+    };
+  });
+}
+
 const liveBeatPayload = symbols => ({
   success: true,
   environment: "characters-beat",
@@ -127,7 +141,7 @@ test("an unconfigured Worker falls back to labeled rehearsal and spends nothing"
   assert.match(container.querySelector("[data-ch-log]").textContent, /AAPL/);
   assert.match(container.querySelector("[data-ch-ledger]").textContent, /0 Character calls/);
   assert.match(container.querySelector("[data-ch-plan]").textContent, /D1 snapshot/i);
-  assert.match(container.querySelector("[data-ch-plan]").textContent, /no current D1 snapshot · live calls fail closed/i);
+  assert.match(container.querySelector("[data-ch-plan]").textContent, /no current D1 snapshot · Tickerbot calls fail closed/i);
   const firstSymbol = TICKERBOT_WATCHLIST[0].symbol;
   assert.match(container.querySelector("[data-ch-detail]").textContent, new RegExp(firstSymbol));
 });
@@ -190,6 +204,76 @@ test("the browser ledger is not authoritative; the Worker D1 limit refuses an ex
   assert.match(container.querySelector("[data-ch-durable-ledger]").textContent, /10,000 \/ 10,000 Worker attempts/);
   assert.match(container.querySelector("[data-ch-ledger]").textContent, /10,000 Character calls/,
     "the local activity count remains separate from the Worker-wide allowance");
+});
+
+test("the exhausted Tickerbot month still permits a separately capped Alpha Vantage daily beat", async t => {
+  const requested = [];
+  const { container, text } = await boot(t, {
+    handler: async url => {
+      requested.push(url);
+      const params = new URL(url, "https://os.example").searchParams;
+      const symbols = (params.get("symbols") || "").split(",").filter(Boolean);
+      if (params.get("interval") === "1d") {
+        const day = new Date().toISOString().slice(0, 10);
+        return Response.json({
+          success: true, environment: "characters-beat",
+          data: {
+            schema: "characters-beat-v1", beatAt: new Date().toISOString(), interval: "1d", cadenceMinutes: 15, holdMs: 900_000,
+            instruments: symbols.map(symbol => ({
+              symbol, status: "bars", provider: "alpha-vantage",
+              marketContext: {
+                schema: "gi-market-context-v1", synthetic: false,
+                source: "Alpha Vantage · unadjusted compact daily OHLCV · last closed session 2026-10-02",
+                symbol, timeframe: "1d", bars: dailyBars()
+              }
+            })),
+            spend: {
+              requestedSymbols: symbols.length, providerAttempts: symbols.length,
+              tickerbotAttempts: 0, alphaVantageAttempts: symbols.length, cacheHits: 0, unavailable: 0,
+              durable: { schema: "tickerbot-call-ledger-v1", month: day.slice(0, 7), calls: 10000,
+                providerBudget: 10000, workerLimit: 10000, remaining: 0, exhausted: true, updatedAt: Date.now() },
+              ledgerStatus: "ready",
+              alphaVantageDaily: { schema: "alpha-vantage-daily-call-ledger-v1", day,
+                calls: symbols.length, dailyLimit: 25, remaining: 25 - symbols.length, exhausted: false, updatedAt: Date.now() },
+              alphaVantageLedgerStatus: "ready"
+            }
+          }
+        });
+      }
+      return Response.json({
+        success: false, environment: "characters-beat", message: "Tickerbot monthly allowance is exhausted.",
+        data: {
+          schema: "characters-beat-v1", beatAt: new Date().toISOString(), interval: "1h", cadenceMinutes: 15, holdMs: 900_000,
+          instruments: symbols.map(symbol => ({ symbol, status: "unavailable", provider: "tickerbot", code: "budget-exhausted", message: "No Tickerbot request was sent." })),
+          spend: {
+            requestedSymbols: symbols.length, providerAttempts: 0, tickerbotAttempts: 0, alphaVantageAttempts: 0,
+            cacheHits: 0, unavailable: symbols.length,
+            durable: { schema: "tickerbot-call-ledger-v1", month: "2026-10", calls: 10000,
+              providerBudget: 10000, workerLimit: 10000, remaining: 0, exhausted: true, updatedAt: Date.now() },
+            ledgerStatus: "ready", alphaVantageDaily: null, alphaVantageLedgerStatus: "not-applicable"
+          }
+        }
+      }, { status: 429 });
+    }
+  });
+
+  assert.equal(requested.length, 1, "the first hourly beat is refused by the Tickerbot monthly cap");
+  assert.match(text(), /monthly call limit/i);
+  const interval = container.querySelector("[data-ch-interval]");
+  interval.value = "1d";
+  interval.dispatchEvent(new container.ownerDocument.defaultView.Event("change"));
+  container.querySelector("[data-ch-beat]").dispatchEvent(new container.ownerDocument.defaultView.Event("click"));
+  await flush();
+
+  assert.equal(requested.length, 2, "daily mode is allowed to reach the Worker despite the exhausted Tickerbot month");
+  assert.equal(new URL(requested[1], "https://os.example").searchParams.get("interval"), "1d");
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /Alpha Vantage.*unadjusted compact daily OHLCV/);
+  assert.match(container.querySelector("[data-ch-plan]").textContent, /2 \/ 25 used/);
+  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha daily 2/);
+  assert.doesNotMatch(container.querySelector("[data-ch-stage-note]").textContent, /monthly call limit/i,
+    "a successful daily fallback clears the stale Tickerbot-cap refusal");
+  assert.match(text(), /10,000 \/ 10,000 Worker attempts/,
+    "Alpha Vantage's success does not change or conceal Tickerbot's separate monthly ledger");
 });
 
 test("a beat whose instruments carry no bars freezes those berths and says so", async t => {

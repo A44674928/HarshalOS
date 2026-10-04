@@ -1,8 +1,9 @@
 /* Tests for the Characters beat route (worker/characters-beat.mjs).
 
-   The beat is the only place the app spends provider calls, so these tests are about
-   spend discipline: one upstream call per due symbol, zero calls inside a beat window,
-   zero calls for a refused request, and no key or upstream body in any response. */
+   These tests cover spend discipline: Tickerbot is attempted once per due symbol,
+   successful bars cost zero calls inside a beat window, refused requests cost zero,
+   and no key or upstream body appears in a response. Daily Alpha Vantage fallback is
+   covered in its own suite with its separate durable allowance. */
 
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
@@ -48,7 +49,7 @@ test("a beat without the Worker secret makes no upstream call and says what to c
   assert.equal(calls, 0);
 });
 
-test("one beat buys exactly one upstream call per due symbol, then holds the window", async () => {
+test("one hourly beat buys one Tickerbot call per due symbol, then holds the window", async () => {
   clearCharactersBeatCache();
   let calls = 0;
   const dependencies = { now: () => NOW, fetch: workersFetch(async () => { calls++; return okResponse(); }) };
@@ -60,7 +61,7 @@ test("one beat buys exactly one upstream call per due symbol, then holds the win
   assert.equal(firstPayload.data.schema, "characters-beat-v1");
   assert.equal(firstPayload.data.cadenceMinutes, 60);
   assert.equal(firstPayload.data.holdMs, 60 * 60_000);
-  assert.equal(calls, 3, "one provider call per symbol, no more");
+  assert.equal(calls, 3, "one Tickerbot call per symbol, no more");
   assert.equal(firstPayload.data.spend.providerAttempts, 3);
   assert.equal(firstPayload.data.spend.cacheHits, 0);
   assert.deepEqual(firstPayload.data.instruments.map(entry => entry.symbol), ["AAPL", "MSFT", "NVDA"]);
