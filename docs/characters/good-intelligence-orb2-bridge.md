@@ -36,7 +36,24 @@ The repository's production Wrangler config declares `COMMUNITY_DB` for `communi
 
 `worker/good-intelligence-orb2-beats.mjs` stores compact, validated market observations and the corresponding Characters motion directive in `orb2_saved_beats`. The browser keeps only a random opaque session UUID plus a best-effort local recovery copy. The server keeps at most 120 beats per browser session for 90 days. It stores no API keys, identity records, or full bar series. Synthetic rehearsal is not written as live server history.
 
+**Live-only view.** Orb 2's browser view no longer offers a synthetic/demo data source. A failed, unconfigured, or refused live beat leaves the affected berths held with an explicit refusal message — the model keeps its last reviewed observation and nothing synthetic is substituted. Old local recovery copies that still contain clearly labeled rehearsal events remain honestly labeled and are never re-saved as live history.
+
 Apply migration `0008_orb2_saved_beats.sql` to the same D1 database used by the Worker before enabling server persistence. If the history table is missing or D1 is unavailable, the page labels the condition and preserves the local recovery copy when browser storage is available. This persistence route never initiates a provider request.
+
+## Ticker-orb mode and The Orb's fractal frames
+
+- When Good Intelligence mounts Orb 2 over its reviewed watchlist, the toolbar offers a `TIMEFRAME` selector; switching it rebuilds the ticker orbs locally without another network request, and the empty state names the reviewed watchlist it is waiting on.
+- Orb 2 reuses The Orb's shared fractal frame processors: the 200-frame `OrbFilm` surface film is wrapped through Orb 2's own 3D camera and node shell with an equal-energy sub-frame crossfade, and the dual flame system from The Orb governs the core — `Demo.flame` (120 frames) burns at Center Origin inside a counter-rotating AI inner shell, while `OuterOrb.flame` (600 frames) never draws pixels and instead modulates the counter-rotating depth shells and the helix rungs' breathing, exactly as The Orb's outer system does. Both are display-only: no OCM message, market signal, recommendation, authorization, transaction, or permission to act is produced by any of them.
+- The ApophysisAV `.flame` frames are authored 3D animations. Orb 2 draws them through the flame's reference triangle — the O-X-Y basis every IFS point is expressed against — rotated in 3D (slow precession with a breathing tilt) and projected through Orb 2's own camera as an oriented quad, so the render sits inside the model's space instead of lying flat against it. The shared billboard draw remains the fallback for any player that does not expose its bounce frames.
+- The toolbar's `FRACTAL FRAMES` status line reports quiet state words only — film/core/outer shell live, baking, unavailable, or hidden — with no frame counters. The `Fractal core` toggle hides the frames without disturbing the beat view, and the choice persists with Orb 2's anonymous local preferences. When the film or flame modules are absent, not started, or still baking, the model stays on its wire core and the status line says so; nothing is invented.
+
+## Double helix: two reviewed ticker sets
+
+- The `SERIES` control switches between the single-set sector sphere and a double helix of two reviewed ticker sets (`SERIES A` / `SERIES B` inputs, comma or space separated). Unknown symbols are refused with an honest note — never invented — and both sets persist with the anonymous local preferences. Series changes rearrange nodes locally and never force a provider request.
+- Height is each orb's position inside its supplied Fibonacci Bollinger band range: the lower band at the bottom ring, the basis at the equator, the upper band at the top ring, with the 0.618 levels labeled between. The winding order within each strand re-ranks by that position, so the strands rearrange themselves as performance changes; all movement is eased.
+- Supplied band width over basis draws each orb's volatility ring; the normalized stretch from the band midline is its potential energy (node glow and rung intensity); a supplied band break flashes gold; an orb without supplied bands rests at the basis ring with a dashed held ring and a `HELD` label.
+- Rank-matched rungs connect the two strands. Their color states directional agreement (both rising green, both falling red, diverging amber, held dashed slate); their brightness follows combined potential energy and the OuterOrb macro-flame's breathing. The inspector reports strand, rank, band position, band width, potential energy, and the rank-matched partner for the selected orb.
+- The arrangement is descriptive only. It is not a rating, ranking service, relative-strength measure, signal, or recommendation, and missing fields stay missing.
 
 ## Validation
 

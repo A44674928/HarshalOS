@@ -795,9 +795,17 @@ if (giApp) {
   const orbCanvasStatus = orbHost && orbHost.querySelector("[data-gi-orb2-canvas-status]");
   const modelFullscreen = orbHost && orbHost.querySelector("[data-gi-orb2-fullscreen]");
   ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
-  ok(orbText.includes("ticker orbs") && orbText.includes("TIMEFRAME"), "Orb 2 presents ticker orbs with an interval switch");
-  ok(orbText.includes("does not expose a 2D canvas") && orbText.includes("No nodes or routes were invented"), "a no-canvas runtime receives an honest readable Orb 2 fallback");
-  ok(giCalls.length === callsBeforeOrb, "opening Orb 2 fetches no Good Intelligence or market payload");
+  ok(orbText.includes("Orb Communicator Model") && orbText.includes("BEAT CONTRACT"), "Orb 2 presents its custom 3D model with the shared Characters beat contract");
+  ok(orbText.includes("ticker orb") && orbText.includes("TIMEFRAME"), "the reviewed watchlist is rendered as ticker orbs with an interval switch");
+  ok(orbText.includes("Clear beats") && orbText.includes("Restore stored beats"), "the durable saved-beat archive controls remain available on the Orb 2 toolbar");
+  ok(orbText.includes("SERIES A") && orbText.includes("SERIES B") && orbText.includes("Double helix"), "the dual-series double-helix controls are offered on the Orb 2 toolbar");
+  ok(!!(modelFullscreen && modelFullscreen.textContent.includes("Model full screen") && appFullscreen),
+    "Orb 2's view-only fullscreen remains a separate button from the whole-app titlebar control");
+  ok(!!(orbCanvasStatus && orbCanvasStatus.textContent.includes("CANVAS UNAVAILABLE") && orbText.includes("BEAT LOG / INSPECTOR STILL ACTIVE")), "a runtime without 2D canvas support keeps the beat log and inspector available with an explicit status");
+  ok(orbRequests.some(call => call.url.startsWith("/api/characters/v1/beat?disc=stocks&provider=massive")), "opening the default Orb 2 mode requests its due live Massive beat through the Characters Worker");
+  ok(orbRequests.some(call => call.url.startsWith("/api/good-intelligence/v1/orb2/beats?")), "Orb 2 attempts to restore its server-side beat history");
+  ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")), "all Orb 2 data traffic stays on same-origin Worker routes");
+  ok(!orbRequests.some(call => /\/content\/me|\/categories|\/rank\?|\/market\/tickerbot\/bars|\/ocm\//.test(call.url)), "Orb 2 does not substitute demo feed, chart data, or OCM transport routes for its beat");
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;

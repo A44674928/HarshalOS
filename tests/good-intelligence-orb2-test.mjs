@@ -216,8 +216,8 @@ test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbo
   assert.equal(nodes[0].symbol, "AAPL");
 });
 
-test("Orb 2 mounts interactive local controls and defaults motion off for reduced-motion visitors", t => {
-  const { window, calls, frames } = interactiveHarness();
+test("Orb 2 mounts interactive local controls and defaults motion off for reduced-motion visitors", async t => {
+  const { window, calls, frames, persisted, canvasCalls } = interactiveHarness(t);
   t.after(() => window.happyDOM.abort());
   const host = window.document.createElement("div");
   window.document.body.appendChild(host);
@@ -233,10 +233,12 @@ test("Orb 2 mounts interactive local controls and defaults motion off for reduce
     clientWidth: { configurable: true, value: 720 },
     clientHeight: { configurable: true, value: 440 }
   });
+  await flush();
   const firstFrame = frames.shift();
   assert.equal(typeof firstFrame, "function", "mount schedules a render frame when canvas is available");
+  frames.splice(0).forEach(pending => pending(100));
   firstFrame(100);
-  assert.ok(calls.includes("fillRect") && calls.includes("arc"), "the scheduled frame paints the projected sphere and nodes");
+  assert.ok(canvasCalls.includes("fillRect") && canvasCalls.includes("arc"), "the scheduled frame paints the projected sphere and nodes");
   assert.equal(engine.nodes.length, 1);
   assert.equal(engine.state.autoRotate, false, "prefers-reduced-motion starts with rotation disabled");
   assert.ok(calls.some(call => call.url.includes("/api/characters/v1/beat?disc=stocks&provider=massive")), "opening the live Orb starts the same Massive daily beat route as Characters");
@@ -279,17 +281,25 @@ test("Orb 2 mounts interactive local controls and defaults motion off for reduce
   assert.equal(engine.state.visible, false, "leaving the Orb 2 tab pauses the renderer and auto timer");
   engine.setVisible(true);
   assert.equal(engine.state.visible, true, "returning to the view resumes it");
+  engine.destroy();
 });
 
-test("the Orb 2 module is browser-local and makes no provider or authority call", () => {
-  assert.doesNotMatch(orbSource, /\bfetch\s*\(/, "the renderer does not fetch market or network data");
-  assert.doesNotMatch(orbSource, /sessionStorage|XMLHttpRequest|WebSocket/, "the renderer does not open a separate storage or network channel");
+test("the Orb 2 module stays browser-local: same-origin routes only, no provider or authority call", () => {
+  assert.doesNotMatch(orbSource, /https?:\/\//, "no absolute provider or authority URL is shipped to the browser");
+  assert.doesNotMatch(orbSource, /XMLHttpRequest|WebSocket|EventSource/, "the renderer opens no separate network channel");
+  assert.match(orbSource, /\/api\/characters\/v1\/beat/, "live market beats use only the same-origin Characters Worker route");
+  assert.match(orbSource, /\/api\/good-intelligence\/v1\/orb2\/beats/, "beat history uses only the same-origin Orb 2 history route");
   assert.match(orbSource, /SAVED_BEAT_SESSION_KEY/, "only an opaque random browser key is retained locally for the D1 archive");
-  assert.match(orbSource, /No message is sent/, "the default route copy states its no-transmission boundary");
-  assert.match(orbSource, /cannot authorize, resolve, commit, or transact/, "the visual model states its authority boundary");
+  assert.match(orbSource, /no OCM message is sent/i, "the route copy states its no-transmission boundary");
   assert.match(orbSource, /Resolution is not an authority source/, "the Resolution Axis invariant is retained in the displayed model");
-  assert.match(orbSource, /REVIEWED BEAT CONTEXT/, "the model labels the reviewed Characters beat context instead of fabricating a live quote");
-  assert.match(orbSource, /Orb 2 receives none of those packets/, "the context explicitly excludes prices, ranks, and signals from this canvas");
+  assert.match(orbSource, /MODEL BOUNDARY/, "the model boundary paragraph is displayed");
+  assert.match(orbSource, /not an OCM message, market signal, recommendation, authorization, transaction, or permission to act/, "the boundary names every refused action");
+  assert.match(orbSource, /fractal frame processing/i, "The Orb's fractal frame processing is carried over as display-only");
+  assert.doesNotMatch(orbSource, /data-gi-orb2-source/, "the retired synthetic/demo data source control is not shipped to the browser");
+  assert.doesNotMatch(orbSource, /rehearsalBeat|Beat\.rehearse/, "no synthetic rehearsal generator runs in this view");
+  assert.doesNotMatch(orbSource, /switched to explicitly labeled synthetic rehearsal/, "a failed live beat never switches itself to synthetic data");
+  assert.match(orbSource, /synthetic or demo data is not substituted/i, "an unavailable beat leaves its berth held and says so plainly");
+  assert.match(orbSource, /source: "live"/, "the model boots live-only and stays live-only");
 });
 
 test("Orb 2 restores the last saved beat from the server after a page refresh", async t => {
@@ -417,6 +427,217 @@ test("Orb 2 explains and records an Alpha Vantage D1-ledger refusal without subs
   assert.equal(persisted.at(-1).instruments[0].market, null);
 });
 
+test("Orb 2 can process The Orb's fractal frames through its own camera and degrades without them", async t => {
+  const { window, host, engine, frames, canvasCalls } = interactiveHarness(t);
+  await flush();
+  assert.ok(host.querySelector("[data-gi-orb2-fractal]"), "the fractal core toggle is offered with the display controls");
+  assert.ok(host.querySelector("[data-gi-orb2-fractal-status]"), "a dedicated status line reports the fractal frame sources");
+  const idleFrame = frames.shift();
+  assert.equal(typeof idleFrame, "function", "the model schedules its wire-core render frame");
+  idleFrame(150);
+  const idleStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
+  assert.match(idleStatus, /FRACTAL FRAMES/i);
+  assert.match(idleStatus, /unavailable|module absent|not started/i, "without the film or flame modules the model stays on its wire core");
+
+  /* The Orb's frame processors, stubbed exactly as the real globals appear:
+     one shared 200-frame film and one shared 120-frame Demo.flame player. */
+  const wrapped = [];
+  const coreDraws = [];
+  const playheads = [];
+  const frameImage = { naturalWidth: 1500, naturalHeight: 1000 };
+  const film = {
+    ready: true, dead: false, loaded: 200, total: 200,
+    frameAt: () => 42,
+    sampleAt: time => { playheads.push(time); return { i0: 42, i1: 43, frac: 0.5, img0: frameImage, img1: null }; }
+  };
+  window.OrbFilm = {
+    shared: () => film,
+    drawWrapped: (ctx, options) => { wrapped.push(options); return true; },
+    CFG: { alphaMax: 0.9 }
+  };
+  const flame = {
+    ready: true, baking: false, current: 17.25, frames: new Array(120),
+    flameModulation: () => ({ energy: 0.75, pulse: 0.5, phase: 1, speedMult: 1, active: true }),
+    drawOn: (ctx, cx, cy, size, alpha) => { coreDraws.push({ cx, cy, size, alpha }); return true; }
+  };
+  window.FractalFlame = { shared: () => flame };
+
+  /* The reduced-motion harness does not auto-reschedule frames, so a display
+     change is used to schedule the render that processes the fractal frames. */
+  const pathsToggle = host.querySelector("[data-gi-orb2-paths]");
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const nextFrame = frames.shift();
+  assert.equal(typeof nextFrame, "function", "a render frame is pending after the beat settles");
+  nextFrame(200);
+  assert.equal(wrapped.length, 1, "the shared OrbFilm frame is wrapped onto the model's node shell");
+  assert.equal(typeof wrapped[0].project, "function", "the wrap uses this model's own 3D camera");
+  assert.equal(typeof wrapped[0].toScreen, "function", "the wrap uses this model's own screen projection");
+  assert.equal(wrapped[0].R, 2.06, "the film wraps on the same node shell the model draws");
+  assert.ok(Number.isFinite(wrapped[0].cs.x) && Number.isFinite(wrapped[0].cs.y), "the wrap is anchored at this model's projected center");
+  assert.ok(wrapped[0].alpha > 0 && wrapped[0].alpha <= 0.5, "the film stays translucent so market paths remain legible");
+  assert.equal(coreDraws.length, 1, "without exposed bounce frames the Demo.flame core uses the shared billboard draw");
+  assert.ok(coreDraws[0].size >= 44 && coreDraws[0].size <= 62, "the core breathes with the flame's harmonic energy");
+  assert.ok(coreDraws[0].alpha > 0 && coreDraws[0].alpha <= 1, "the core obeys the same legitimacy gate as The Orb");
+  const liveStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
+  assert.match(liveStatus, /film live/i, "the status line reports the film without a frame counter");
+  assert.match(liveStatus, /core live/i, "the status line reports the core without a frame counter");
+  assert.match(liveStatus, /outer shell live/i, "the OuterOrb macro-flame completes The Orb's dual flame system");
+  assert.doesNotMatch(liveStatus, /\d/, "no frame counters remain in the fractal status line");
+
+  /* The film clock must advance with wall time — the frozen film-strip regression. */
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const advanceFrame = frames.shift();
+  assert.equal(typeof advanceFrame, "function", "another render frame is pending");
+  advanceFrame(216);
+  assert.equal(wrapped.length, 2, "the film is processed again on the next frame");
+  assert.ok(playheads.length >= 2, "the film playhead is sampled on every processed frame");
+  assert.equal(playheads[1] - playheads[0], 16, "the film clock advances with frame time instead of freezing");
+
+  /* With bounce frames exposed, the ApophysisAV render is drawn through the 3D
+     reference triangle — the O-X-Y basis rotated in space and projected through
+     this model's own camera — instead of a camera-facing billboard. */
+  const billboardDraws = coreDraws.length;
+  const coreFrames = [window.document.createElement("canvas"), window.document.createElement("canvas")];
+  coreFrames.forEach((canvasFrame, index) => { canvasFrame.width = 40 + index; canvasFrame.height = 40 + index; });
+  flame.playhead = () => ({ cur: 17.25, i0: 0, i1: 1, frac: 0.5, dir: 1 });
+  flame.frames = coreFrames;
+  const drawImageBefore = canvasCalls.filter(call => call === "drawImage").length;
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const quadFrame = frames.shift();
+  assert.equal(typeof quadFrame, "function", "a render frame follows the core change");
+  quadFrame(232);
+  assert.ok(canvasCalls.filter(call => call === "drawImage").length > drawImageBefore,
+    "the .flame frame is drawn as an oriented image through the rotated reference triangle");
+  assert.equal(coreDraws.length, billboardDraws, "the billboard fallback is retired once bounce frames are exposed");
+  assert.match(host.querySelector("[data-gi-orb2-fractal-status]").textContent, /core live/i,
+    "the status line still reports the live core after switching to the 3D reference draw");
+
+  /* Hiding the fractal core restores the plain wire model without breaking the beat view. */
+  const toggle = host.querySelector("[data-gi-orb2-fractal]");
+  toggle.checked = false;
+  toggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(engine.state.showFractal, false);
+  assert.equal(JSON.parse(window.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1")).showFractal, false,
+    "the fractal display choice persists with the existing anonymous local preferences");
+  const wrappedBefore = wrapped.length;
+  const drawnBefore = canvasCalls.filter(call => call === "drawImage").length;
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const offFrame = frames.shift();
+  assert.equal(typeof offFrame, "function", "a render frame follows the display change");
+  offFrame(240);
+  assert.equal(wrapped.length, wrappedBefore, "no film frame is processed once the fractal core is hidden");
+  assert.equal(canvasCalls.filter(call => call === "drawImage").length, drawnBefore, "no core frame is drawn once the fractal core is hidden");
+  assert.match(host.querySelector("[data-gi-orb2-fractal-status]").textContent, /HIDDEN/, "the status line states the frames are hidden");
+});
+
+test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix", async t => {
+  /* Massive rotates one reviewed instrument per minute, so the Worker answer
+     is widened here the way a settled multi-beat session would look: every
+     strand symbol observed once, each with a different drift so the helix
+     re-ranking has real separation to show. */
+  const driftPayload = symbols => {
+    /* 260 bars: the reviewed Fibonacci band length is 200, so a shorter
+       series honestly stays band-less ("warming-up") and every orb would
+       rest held at the basis ring. */
+    const payload = livePayload(symbols, "stocks", "massive", null, 260);
+    payload.data.instruments.forEach((instrument, index) => {
+      const bars = instrument.marketContext.bars;
+      for (let bar = bars.length - 12; bar < bars.length; bar += 1) {
+        const shift = 1 + (index - symbols.length / 2) * 0.02;
+        bars[bar].close *= shift;
+        bars[bar].high = Math.max(bars[bar].high, bars[bar].close) + 0.2 * shift;
+        bars[bar].low = Math.min(bars[bar].low, bars[bar].close) - 0.2 * shift;
+      }
+    });
+    return payload;
+  };
+  const { window, frames } = interactiveHarness(t, {
+    beatHandler: () => Response.json(driftPayload(["AAPL", "MSFT", "NVDA", "AMD", "CVX", "XOM"]))
+  });
+  const tickers = [
+    { symbol: "AAPL", name: "Apple", sector: "Technology & platforms" },
+    { symbol: "MSFT", name: "Microsoft", sector: "Technology & platforms" },
+    { symbol: "NVDA", name: "NVIDIA", sector: "Semiconductors" },
+    { symbol: "AMD", name: "Advanced Micro Devices", sector: "Semiconductors" },
+    { symbol: "CVX", name: "Chevron", sector: "Energy" },
+    { symbol: "XOM", name: "Exxon Mobil", sector: "Energy" }
+  ];
+  const host = window.document.createElement("div");
+  window.document.body.appendChild(host);
+  const engine = window.GoodIntelligenceOrb2.mount(host, {
+    tickers, watchlist: tickers, timeframe: "1h",
+    beat: window.CharactersBeat, cast: window.CharactersCast,
+    discCatalog: window.CharactersDiscCatalog, marketContext: window.GoodIntelligenceMarketContext
+  });
+  const canvas = host.querySelector("[data-gi-orb2-canvas]");
+  Object.defineProperties(canvas, {
+    offsetParent: { configurable: true, value: host },
+    clientWidth: { configurable: true, value: 720 },
+    clientHeight: { configurable: true, value: 440 }
+  });
+  t.after(() => engine.destroy());
+
+  /* Beats settle before any assertion: a failure with fetches still in flight
+     would deadlock the happy-dom teardown. */
+  await flush();
+  frames.splice(0).forEach(callback => callback(300));
+
+  assert.ok(host.querySelector("[data-gi-orb2-series-mode]"), "the series mode control is offered with the ticker view");
+  assert.ok(host.querySelector("[data-gi-orb2-series-a]"), "Series A has an editable reviewed-symbol input");
+  assert.ok(host.querySelector("[data-gi-orb2-series-b]"), "Series B has an editable reviewed-symbol input");
+  assert.equal(engine.helixState.mode, "dual", "the ticker view defaults to the double helix");
+  assert.equal(engine.helixState.strands.a, 3, "Series A carries its half of the reviewed watchlist");
+  assert.equal(engine.helixState.strands.b, 3, "Series B carries the other half");
+  assert.equal(engine.nodes.length, 6, "both strands draw only their reviewed sets");
+
+  /* The reduced-motion harness does not auto-reschedule, so each inspection
+     pump drains the shared frame queue after nudging the display controls. */
+  const drawOnce = () => {
+    host.querySelector("[data-gi-orb2-paths]").dispatchEvent(new window.Event("change", { bubbles: true }));
+    frames.splice(0).forEach(callback => callback(300));
+  };
+  drawOnce();
+  const helix = engine.helixState;
+  assert.equal(helix.positions.length, 6, "every dual-series orb receives a helix berth");
+  assert.ok(helix.positions.every(entry => entry.p === null || (entry.p >= -0.06 && entry.p <= 1.06)),
+    "Fibonacci-band positions stay inside the supplied band range");
+  const strandA = helix.positions.filter(entry => entry.series === "A").sort((x, y) => x.rank - y.rank);
+  assert.equal(strandA.length, 3);
+  assert.ok(strandA.every(entry => entry.p !== null), "the live beat supplies bands for every Series A orb");
+  assert.ok(strandA.every((entry, index) => index === 0 || strandA[index - 1].p <= entry.p),
+    "strand winding order re-ranks by Fibonacci-band position, not by list order");
+  assert.ok(helix.rungs >= 1, "rank-matched rungs connect the two strands");
+
+  /* The inspector explains the helix placement for the selected orb. */
+  const detail = host.querySelector("[data-gi-orb2-detail]");
+  assert.ok(detail.textContent.includes("Helix strand"), "the inspector names the orb's strand and rank");
+  assert.ok(detail.textContent.includes("Fibonacci band position"), "the inspector reports the band position");
+  assert.ok(detail.textContent.includes("Cross-series rung"), "the inspector names the rank-matched partner");
+  assert.ok(detail.textContent.includes("Potential energy"), "the inspector reports the midline stretch");
+
+  /* Unknown symbols are refused, never invented; valid ones are kept. */
+  const seriesBInput = host.querySelector("[data-gi-orb2-series-b]");
+  seriesBInput.value = "ZZZZ, TSLA, AAPL";
+  seriesBInput.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.ok(host.textContent.includes("unreviewed symbol"), "an honest note explains the refused symbols");
+  const afterRefusal = engine.helixState;
+  assert.equal(afterRefusal.seriesB.length, 1, "only reviewed watchlist symbols are kept on Series B");
+  assert.equal(afterRefusal.seriesB[0], "AAPL");
+  assert.equal(afterRefusal.strands.b, 1, "the B strand shrinks to its reviewed members");
+  const savedPrefs = JSON.parse(window.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1"));
+  assert.deepEqual(savedPrefs.seriesB, ["AAPL"], "the reshaped series persists in the anonymous local preferences");
+
+  /* Single-set mode restores the whole-watchlist sector sphere. */
+  const seriesModeSelect = host.querySelector("[data-gi-orb2-series-mode]");
+  seriesModeSelect.value = "single";
+  seriesModeSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(engine.helixState.mode, "single");
+  assert.equal(engine.nodes.length, 6, "single-set mode draws the full reviewed watchlist");
+  assert.equal(engine.helixState.rungs, 0, "no rungs are drawn outside the double helix");
+  drawOnce();
+  assert.equal(engine.helixState.positions.length, 0, "helix berths are vacated in single-set mode");
+});
+
 test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and keeps the authority boundary", () => {
   const tvTab = appSource.indexOf('data-gi-view="tradingview"');
   const orbTab = appSource.indexOf('data-gi-view="orb2"');
@@ -424,7 +645,7 @@ test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and kee
   assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the heavy canvas panel is hidden until selected");
   assert.match(appSource, /\["news", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts Orb 2");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
-  assert.match(appSource, /sends no messages, fetches no market data, and confers no authority/i);
+  assert.match(appSource, /sends no OCM message, no trade or order, and confers no authority/i);
 });
 
 test("the standalone Massive Markets desktop window remains retired", () => {
