@@ -328,6 +328,31 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
       audit: index === 0 ? ["stablecoin-candidate"] : []
     };
   });
+  /* Discs 2–4 now default to Tickerbot (1h/1d); Alpha Vantage 1mo is disabled for them.
+   * Since Tickerbot's reviewed allowlist does not yet cover FX/crypto/commodity symbols,
+   * the Worker answers per-instrument "not yet covered" rather than serving bars. */
+  const tickerbotNotCoveredPayload = symbols => ({
+    success: true,
+    environment: "characters-beat",
+    data: {
+      schema: "characters-beat-v1",
+      beatAt: new Date(NOW).toISOString(),
+      interval: "1h",
+      cadenceMinutes: 15,
+      holdMs: 900_000,
+      instruments: symbols.map(symbol => ({
+        symbol, status: "unavailable", provider: "tickerbot",
+        code: "tickerbot-symbol-not-covered",
+        message: `${symbol} is not yet on Tickerbot's reviewed multi-asset allowlist. Alpha Vantage is disabled for this Disc; the symbol will be served through Tickerbot in the upcoming multi-asset release.`
+      })),
+      spend: {
+        requestedSymbols: symbols.length, providerAttempts: 0, tickerbotAttempts: 0,
+        alphaVantageAttempts: 0, cacheHits: 0, unavailable: symbols.length, durable: null,
+        ledgerStatus: "ready", alphaVantageDaily: null, alphaVantageLedgerStatus: "not-applicable",
+        note: "Tickerbot is the default provider; multi-asset coverage is in progress."
+      }
+    }
+  });
   const { window, container } = await boot(t, {
     handler: async url => {
       const parsed = new URL(url, "https://os.example");
@@ -341,7 +366,7 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
       }
       requestedBeats.push(parsed);
       const symbols = (parsed.searchParams.get("symbols") || "").split(",").filter(Boolean);
-      return Response.json(monthlyBeatPayload(symbols, { shape: parsed.searchParams.get("disc") === "crypto" ? "ohlcv" : "ohlc" }));
+      return Response.json(tickerbotNotCoveredPayload(symbols));
     }
   });
 
@@ -350,26 +375,30 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
   disc.dispatchEvent(new window.Event("change"));
   await flush();
   assert.equal(requestedBeats.at(-1).searchParams.get("disc"), "fx");
-  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1mo");
+  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1h", "FX defaults to Tickerbot 1h; Alpha Vantage 1mo is disabled for Discs 2–4");
   assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 23,
     "the published BIS detailed tables support 23 individually listed non-USD codes, not a fabricated 52");
   assert.match(container.querySelector("[data-ch-disc-note]").textContent, /23 non-USD currencies individually/);
   assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /EUR\/USD · Euro/);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /BIS FX turnover rank 2.*BIS 2025/);
-  assert.equal(container.querySelector("[data-ch-interval]").disabled, true, "FX exposes only explicit 1mo mode");
+  assert.equal(container.querySelector("[data-ch-interval]").disabled, false, "FX exposes the Tickerbot 1h/1d selector");
+  assert.equal(container.querySelector("[data-ch-interval] option[value=\"1mo\"]"), null, "1mo Alpha Vantage option is not offered on Discs 2–4");
 
   disc.value = "crypto";
   disc.dispatchEvent(new window.Event("change"));
   await flush();
   assert.equal(requestedBeats.at(-1).searchParams.get("disc"), "crypto");
-  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1mo");
-  assert.equal(requestedBeats.at(-1).searchParams.get("symbols").split(",").length, 12);
+  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1h", "Crypto defaults to Tickerbot 1h; Alpha Vantage 1mo is disabled for Discs 2–4");
+  /* Crypto uses the same Tickerbot monthly planner as Disc1; at 15min cadence the
+   * 52-coin cast fits within the reserve-protected budget at several symbols/beat. */
+  const cryptoSymbolsRequested = requestedBeats.at(-1).searchParams.get("symbols").split(",").length;
+  assert.ok(cryptoSymbolsRequested >= 1 && cryptoSymbolsRequested <= 12, `crypto beat size is within the MAX_BEAT_SYMBOLS cap (got ${cryptoSymbolsRequested})`);
   assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 52);
   assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /C00\/USD · Coin 00/);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /Ranking audit flags: stablecoin candidate/);
   assert.match(container.querySelector("[data-ch-disc-note]").textContent, /CoinGecko.*total_volume/);
   assert.match(container.querySelector("[data-ch-disc-note]").textContent, /not an investment-quality screen/);
-  assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
+  assert.doesNotMatch(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/, "Non-stock Discs do not show the 1mo Alpha Vantage plan");
 });
 
 test("a beat whose instruments carry no bars freezes those berths and says so", async t => {

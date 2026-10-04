@@ -46,7 +46,13 @@ test("commodities remain scalar, and crude oil carries Energy tags without movin
   assert.deepEqual(wti.tags, ["Energy", "Crude oil"]);
   assert.deepEqual(brent.tags, ["Energy", "Crude oil"]);
   assert.equal(wti.quoteCurrency, "USD/barrel");
-  assert.equal(Catalog.disc("commodities").intervalModes.includes("1mo"), true);
+  /* Disc 4 (commodities) defaults to Tickerbot (1h/1d); Alpha Vantage 1mo is disabled
+   * for non-stock Discs while multi-asset Tickerbot support is in progress. */
+  assert.deepEqual(Catalog.disc("commodities").intervalModes, ["1h", "1d"]);
+  assert.equal(Catalog.disc("commodities").defaultProvider, "tickerbot");
+  assert.match(Catalog.disc("commodities").ranking, /Tickerbot/);
+  /* Disc 1 (stocks) keeps its explicit 1mo Alpha Vantage mode. */
+  assert.ok(Catalog.disc("stocks").intervalModes.includes("1mo"));
 
   const energyStock = TICKERBOT_WATCHLIST.find(entry => entry.sector === "Energy");
   assert.ok(energyStock, "the reviewed stock deck retains its energy-company equities");
