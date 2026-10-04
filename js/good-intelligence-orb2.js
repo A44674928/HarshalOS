@@ -56,6 +56,24 @@
       return sharedFlamePlayer;
     } catch { return null; }
   };
+  /* The Orb's outer macro-flame (OuterOrb.flame, 600 frames). It never draws
+     pixels: its harmonics govern the counter-rotating depth shells and the
+     helix rungs' breath, exactly as The Orb's outer system does. Resolving it
+     lazily starts the shared bake once, so The Orb, the Fractal Flame app,
+     and Orb 2 all reuse one player. */
+  let sharedOuterFlamePlayer = null;
+  const outerFlamePlayer = () => {
+    try {
+      const api = globalThis.FractalFlame;
+      if (!api || typeof api.shared !== "function") return null;
+      if (!sharedOuterFlamePlayer) {
+        sharedOuterFlamePlayer = api.shared("assets/OuterOrb.flame", { w: 160, h: 160 });
+        if (sharedOuterFlamePlayer && !sharedOuterFlamePlayer.ready && !sharedOuterFlamePlayer.baking
+          && typeof sharedOuterFlamePlayer.start === "function") sharedOuterFlamePlayer.start();
+      }
+      return sharedOuterFlamePlayer;
+    } catch { return null; }
+  };
   const legitimacyGate = () => {
     try {
       const hos = globalThis.HOS;
@@ -153,6 +171,32 @@
     const state = value > signal ? "above" : value < signal ? "below" : "equal";
     const color = state === "above" ? DATA_COLORS.flowAbove : state === "below" ? DATA_COLORS.flowBelow : DATA_COLORS.flowEqual;
     return { state, color, value, signal };
+  }
+
+  /** Double-helix placement metrics — computed only from supplied packet fields.
+      p is the close's position inside the supplied Fibonacci band range
+      [lower1000, upper1000] (0 at the lower band, 1 at the upper band, 0.5 at
+      the basis); volatility is the supplied band width over the basis; potential
+      energy is the normalized stretch from the band midline. Missing fields stay
+      missing — a held node rests at the basis ring and is labeled held. */
+  function helixMetricsForMarket(market) {
+    if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    const close = numeric(market.latestBar && market.latestBar.close);
+    const bands = isRecord(market.bands) ? market.bands : null;
+    const lower = bands ? numeric(bands.lower1000) : null;
+    const upper = bands ? numeric(bands.upper1000) : null;
+    const basis = numeric(market.basis);
+    if (close === null || lower === null || upper === null || !finite(lower) || !finite(upper) || upper <= lower) {
+      return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    }
+    const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
+      : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
+    const p = clamp((close - lower) / (upper - lower), -0.06, 1.06);
+    const width = upper - lower;
+    const volatilityPct = basis !== null && basis > 0 ? (width / basis) * 100 : null;
+    const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
+    const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
+    return { held: false, p, volatility, volatilityPct, potential, breakSide };
   }
 
   function flowPathForObservation(observation, motionOverride = null) {
@@ -372,6 +416,24 @@
     const watchlist = Array.isArray(options.watchlist) ? options.watchlist
       : tickerMode ? options.tickers
         : appEntry && Array.isArray(appEntry.tickerbotWatchlist) ? appEntry.tickerbotWatchlist : [];
+    /* Double-helix series: two reviewed ticker sets compared strand against
+       strand. Defaults split the reviewed watchlist in watchlist order; the
+       toolbar inputs let a reviewer reshape both sets, and unknown symbols are
+       refused rather than invented. */
+    const reviewedSymbolSet = new Set(nodes.map(node => node.symbol).filter(Boolean));
+    const defaultSeriesA = nodes.filter((_, index) => index % 2 === 0).map(node => node.symbol);
+    const defaultSeriesB = nodes.filter((_, index) => index % 2 === 1).map(node => node.symbol);
+    const parseSeriesInput = value => String(value || "")
+      .split(/[\s,;]+/).map(part => part.trim().toUpperCase())
+      .filter(part => part.length > 0);
+    const seriesFromValue = (value, fallback) => {
+      const raw = Array.isArray(value) ? value.map(symbol => String(symbol).toUpperCase()) : parseSeriesInput(value);
+      const valid = [...new Set(raw.filter(symbol => reviewedSymbolSet.has(symbol)))];
+      return valid.length ? valid : fallback;
+    };
+    const helixBerths = new Map();
+    const helixState = { ranked: null, counts: { a: 0, b: 0 }, rungs: 0, held: 0 };
+
     const storage = (() => {
       try {
         const candidate = globalThis.localStorage;
@@ -436,6 +498,14 @@
       labels: false,
       showDataBits: preferences && typeof preferences.showDataBits === "boolean" ? preferences.showDataBits : true,
       showFractal: preferences && typeof preferences.showFractal === "boolean" ? preferences.showFractal : true,
+      seriesMode: tickerMode && preferences && preferences.seriesMode === "single" ? "single" : "dual",
+      seriesA: tickerMode ? seriesFromValue(preferences && preferences.seriesA, defaultSeriesA) : [],
+      seriesB: tickerMode ? seriesFromValue(preferences && preferences.seriesB, defaultSeriesB) : [],
+      helix: { glide: new Map(), lastT: 0 },
+      innerAngle: 0,
+      outerAngle1: 0,
+      outerAngle2: 0,
+      coreTime: 0,
       filmTime: 0,
       hover: -1,
       dragging: false,
@@ -588,13 +658,16 @@
           <div>
             <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
             <h3>Orb Communicator Model</h3>
-            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces.</p>
+            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. In dual-series mode, two reviewed ticker sets wind into a double helix whose height and winding order follow each orb's supplied Fibonacci-band position.</p>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
             <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
             <button class="gi-button" type="button" data-gi-orb2-fullscreen aria-pressed="false">⛶ Model full screen</button>
             <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
+            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-row ${tickerMode ? "" : "hidden"}><span>SERIES</span><select data-gi-orb2-series-mode aria-label="Choose single-set or double-helix series mode"><option value="dual" ${preferences && preferences.seriesMode === "single" ? "" : "selected"}>Double helix · A × B</option><option value="single" ${preferences && preferences.seriesMode === "single" ? "selected" : ""}>Single set</option></select></label>
+            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-a-row ${tickerMode ? "" : "hidden"}><span>SERIES A</span><input data-gi-orb2-series-a type="text" spellcheck="false" autocomplete="off" aria-label="Series A reviewed ticker symbols"></label>
+            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-b-row ${tickerMode ? "" : "hidden"}><span>SERIES B</span><input data-gi-orb2-series-b type="text" spellcheck="false" autocomplete="off" aria-label="Series B reviewed ticker symbols"></label>
             <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
             <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
             <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
@@ -649,7 +722,7 @@
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
             <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
-            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM AND CORE</div></div>
+            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM, CORE, AND OUTER SHELL</div></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
@@ -664,7 +737,7 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing; synthetic rehearsal is explicitly labeled and never substituted for a live beat. The Orb's fractal frame processing — the shared OrbFilm film and Demo.flame core drawn through this camera — is display-only, adds no request, and encodes no market meaning.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing; synthetic rehearsal is explicitly labeled and never substituted for a live beat. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The double helix and its rungs are a descriptive arrangement of supplied Fibonacci-band position, band width, and midline stretch; they are not a rating, ranking service, signal, or recommendation.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -713,6 +786,9 @@
     const restoreBeatsButton = $("[data-gi-orb2-restore-beats]");
     const nodeSelectLabel = $("[data-gi-orb2-node-label]");
     const fractalToggle = $("[data-gi-orb2-fractal]");
+    const seriesModeSelect = $("[data-gi-orb2-series-mode]");
+    const seriesAInput = $("[data-gi-orb2-series-a]");
+    const seriesBInput = $("[data-gi-orb2-series-b]");
     const fractalStatus = $("[data-gi-orb2-fractal-status]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
     if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
@@ -771,7 +847,8 @@
         discId: state.discId, interval: state.interval, source: state.source,
         auto: state.auto, cadence: state.cadence, budget: state.budget,
         stretch: state.stretch, tierMode: state.tierMode, tierSweepHours: state.tierSweepHours,
-        showDataBits: state.showDataBits, showFractal: state.showFractal
+        showDataBits: state.showDataBits, showFractal: state.showFractal,
+        seriesMode: state.seriesMode, seriesA: state.seriesA, seriesB: state.seriesB
       };
       try {
         storage.setItem(PREFS_KEY, JSON.stringify(savedPrefs));
@@ -1028,6 +1105,17 @@
         previousClose: compareClose,
         changePct,
         basis: analysis.bands && numeric(analysis.bands.basis),
+        bands: analysis.bands ? {
+          deviation: numeric(analysis.bands.deviation),
+          upper382: numeric(analysis.bands.upper382), upper618: numeric(analysis.bands.upper618),
+          upper764: numeric(analysis.bands.upper764), upper1000: numeric(analysis.bands.upper1000),
+          lower382: numeric(analysis.bands.lower382), lower618: numeric(analysis.bands.lower618),
+          lower764: numeric(analysis.bands.lower764), lower1000: numeric(analysis.bands.lower1000)
+        } : null,
+        bandSignals: analysis.signals ? {
+          upperBreak: analysis.signals.upperBreak === true,
+          lowerBreak: analysis.signals.lowerBreak === true
+        } : null,
         vfi: analysis.vfi ? { value: numeric(analysis.vfi.value), signal: numeric(analysis.vfi.signal), available: analysis.vfi.available === true } : null,
         waveTrend: analysis.waveTrend ? { wt1: numeric(analysis.waveTrend.wt1), wt2: numeric(analysis.waveTrend.wt2), zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48) } : null
       } : null;
@@ -1162,6 +1250,9 @@
       sourceSelect.value = state.source;
       stretchBox.checked = state.stretch;
       tierBox.checked = state.tierMode;
+      if (seriesModeSelect) seriesModeSelect.value = state.seriesMode;
+      if (seriesAInput) seriesAInput.value = state.seriesA.join(", ");
+      if (seriesBInput) seriesBInput.value = state.seriesB.join(", ");
       cadenceSelect.disabled = ["massive", "alpha"].includes(currentProvider()) || state.pending;
       budgetInput.disabled = currentProvider() !== "tickerbot" || state.pending;
       stretchBox.disabled = currentProvider() !== "tickerbot" || state.pending;
@@ -1197,7 +1288,7 @@
 
     function syncNodeOptions() {
       const previous = nodes[state.selected] && nodes[state.selected].id;
-      nodeSelect.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.visualId)} · ${escapeHtml(node.name)}</option>`).join("");
+      nodeSelect.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.visualId)}${node.series ? " · " + node.series : ""} · ${escapeHtml(node.name)}</option>`).join("");
       nodeSelect.value = previous || nodes[0].id;
     }
 
@@ -1335,6 +1426,37 @@
         <p class="gi-orb2-observation-time">Observed ${escapeHtml(shortTime(observation.at))} · ${market.synthetic ? "synthetic rehearsal · not live" : "API-supplied · verify provider"}${market.latestBar && market.latestBar.confirmed ? " · confirmed bar" : " · latest bar not confirmed"}</p>`;
     }
 
+    /* Double-helix readouts for the inspected orb: strand, rank, Fibonacci-band
+       position, supplied band width, potential energy, and the rank-matched
+       cross-series rung. Every value comes from the supplied packet; held
+       states say so. */
+    function helixInspectorRows(node) {
+      if (!tickerMode || state.seriesMode !== "dual" || !node || !node.symbol) return "";
+      const berth = helixBerths.get(node.id);
+      if (!berth) return `\n          <div><dt>Double helix</dt><dd>Settling — waiting for the first rendered frame.</dd></div>`;
+      const strandSize = helixState.counts[berth.series === "B" ? "b" : "a"];
+      const partnerList = helixState.ranked ? helixState.ranked[berth.series === "A" ? "B" : "A"] : [];
+      const partner = partnerList[berth.rank];
+      let rung = "No rank-matched partner on the other strand.";
+      if (partner) {
+        const partnerBerth = helixBerths.get(partner.id);
+        const other = partnerBerth ? partnerBerth.direction : null;
+        const agreement = berth.direction === null || other === null ? "not comparable — an observation is held"
+          : berth.direction > 0 && other > 0 ? "both rising"
+          : berth.direction < 0 && other < 0 ? "both falling"
+          : berth.direction === other ? "both flat"
+          : "diverging";
+        rung = `Pairs with ${partner.symbol} (Series ${berth.series === "A" ? "B" : "A"}) · ${agreement}`;
+      }
+      const metrics = berth.metrics;
+      return `
+          <div><dt>Helix strand</dt><dd>Series ${berth.series} · rank ${berth.rank + 1} of ${strandSize}</dd></div>
+          <div><dt>Fibonacci band position</dt><dd>${berth.held ? "Held — band values were not supplied; the orb rests at the basis ring." : `${Math.round(berth.p * 100)}% of the band range${metrics.breakSide ? ` · ${metrics.breakSide} band break signaled` : ""}`}</dd></div>
+          <div><dt>Volatility · band width</dt><dd>${metrics.volatilityPct === null ? "Band width was not supplied." : `${metrics.volatilityPct.toFixed(2)}% of basis`}</dd></div>
+          <div><dt>Potential energy</dt><dd>${berth.held ? "Not measurable without supplied bands." : `${Math.round(metrics.potential * 100)}% stretched from the band midline`}</dd></div>
+          <div><dt>Cross-series rung</dt><dd>${escapeHtml(rung)}</dd></div>`;
+    }
+
     function drawInspector() {
       const node = nodes[state.selected] || nodes[0];
       const focusBerth = stage && stage.berths.find(berth => berth.symbol === state.focus);
@@ -1352,6 +1474,7 @@
           <div><dt>${node.symbol ? "Reviewed berth" : "Characters-cast assignment"}</dt><dd>${node.symbol ? `${escapeHtml(node.symbol)} on ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}` : `${assignments} reviewed berth${assignments === 1 ? "" : "s"} · ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}`}</dd></div>
           <div><dt>Latest node pathway</dt><dd>${escapeHtml(nodeSource)}</dd></div>
           <div><dt>${node.symbol ? "Orb motion" : "NPC motion"} · ${escapeHtml(providerTitle(provider))}</dt><dd>${escapeHtml(nodeActivity)}</dd></div>
+          ${helixInspectorRows(node)}
         </dl>
         <div class="gi-orb2-focus-readout"><p class="gi-eyebrow">FOCUS · ${escapeHtml(state.focus || "—")}</p>${observationMarkup(activeObservation)}</div>
         <p class="gi-orb2-node-role">${escapeHtml(node.role)}</p>
@@ -1817,8 +1940,12 @@
     function modelPoint(node, now, directive) {
       const sphereRadius = 2.06;
       const discRadius = 1.04 + ((node.order * 17) % 5) * 0.12;
-      let longitude = node.longitude;
-      let latitude = node.latitude;
+      /* In dual-series mode the berth comes from the eased double-helix
+         position (Fibonacci-band height × re-ranking winding order), not the
+         static sector sphere; motion directives still wobble around it. */
+      const helixBerth = helixBerths.get(node.id);
+      let longitude = helixBerth ? helixBerth.longitude : node.longitude;
+      let latitude = helixBerth ? helixBerth.latitude : node.latitude;
       if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
         const phase = (now / 1000) * (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) + node.order * 1.71;
@@ -2108,6 +2235,168 @@
       });
     }
 
+    /* ── Double-helix engine ───────────────────────────────────────────
+       Two reviewed ticker sets wind strand against strand around the shared
+       axis. Height is each orb's supplied Fibonacci-band position (lower band
+       at the bottom, upper band at the top, basis at the equator); the winding
+       order re-ranks by that position, so the strands rearrange themselves as
+       performance changes. Everything is eased, and every value comes from the
+       supplied packet — held orbs rest at the basis ring, labeled held. */
+    const HELIX_LAT_MAX = 1.0;
+    const HELIX_BASE_LON = -Math.PI / 2;
+
+    function circle3D(radius, latitude, rotation, color, alpha, width, canvasW, canvasH) {
+      const cosLat = Math.cos(latitude), sinLat = Math.sin(latitude);
+      context2d.save();
+      context2d.strokeStyle = color;
+      context2d.globalAlpha = clamp(alpha, 0, 1);
+      context2d.lineWidth = width;
+      context2d.beginPath();
+      for (let step = 0; step <= 64; step += 1) {
+        const longitude = rotation + (step / 64) * TAU;
+        const point = project({ x: radius * cosLat * Math.cos(longitude), y: radius * sinLat, z: radius * cosLat * Math.sin(longitude) }, canvasW, canvasH);
+        if (step) context2d.lineTo(point.x, point.y); else context2d.moveTo(point.x, point.y);
+      }
+      context2d.stroke();
+      context2d.restore();
+    }
+
+    function meridian3D(radius, longitude, rotation, color, alpha, width, canvasW, canvasH) {
+      context2d.save();
+      context2d.strokeStyle = color;
+      context2d.globalAlpha = clamp(alpha, 0, 1);
+      context2d.lineWidth = width;
+      context2d.beginPath();
+      for (let step = 0; step <= 40; step += 1) {
+        const latitude = -Math.PI / 2 + (step / 40) * Math.PI;
+        const point = project({
+          x: radius * Math.cos(latitude) * Math.cos(longitude + rotation),
+          y: radius * Math.sin(latitude),
+          z: radius * Math.cos(latitude) * Math.sin(longitude + rotation)
+        }, canvasW, canvasH);
+        if (step) context2d.lineTo(point.x, point.y); else context2d.moveTo(point.x, point.y);
+      }
+      context2d.stroke();
+      context2d.restore();
+    }
+
+    function updateHelixBerths(now) {
+      const hadBerths = helixBerths.size > 0;
+      helixBerths.clear();
+      const groups = { A: [], B: [] };
+      nodes.forEach(node => { (node.series === "B" ? groups.B : groups.A).push(node); });
+      const perNode = new Map();
+      nodes.forEach(node => {
+        const observation = latestForNode(node);
+        perNode.set(node.id, { observation, metrics: helixMetricsForMarket(observation && observation.market) });
+      });
+      const targetP = id => {
+        const entry = perNode.get(id);
+        return entry && entry.metrics.held ? 0.5 : entry.metrics.p;
+      };
+      const byPosition = (x, y) => (targetP(x.id) - targetP(y.id)) || (x.symbol < y.symbol ? -1 : x.symbol > y.symbol ? 1 : 0);
+      const ranked = { A: [...groups.A].sort(byPosition), B: [...groups.B].sort(byPosition) };
+      const dt = state.helix.lastT ? Math.max(0, Math.min(120, now - state.helix.lastT)) : 16;
+      const glide = 1 - Math.exp(-dt / 650);
+      let held = 0;
+      ["A", "B"].forEach(series => {
+        const strand = ranked[series];
+        strand.forEach((node, rank) => {
+          const entry = perNode.get(node.id) || { observation: null, metrics: helixMetricsForMarket(null) };
+          const metrics = entry.metrics;
+          if (metrics.held) held += 1;
+          const p = metrics.held ? 0.5 : metrics.p;
+          const targetLat = (2 * p - 1) * HELIX_LAT_MAX;
+          const targetLon = HELIX_BASE_LON + (strand.length > 1 ? rank / (strand.length - 1) : 0.5) * TAU + (series === "B" ? Math.PI : 0);
+          const previous = state.helix.glide.get(node.id) || { lat: targetLat, lon: targetLon };
+          const latitude = previous.lat + (targetLat - previous.lat) * glide;
+          const longitude = previous.lon + (targetLon - previous.lon) * glide;
+          state.helix.glide.set(node.id, { lat: latitude, lon: longitude });
+          const market = entry.observation && entry.observation.market;
+          const changePct = market ? numeric(market.changePct) : null;
+          helixBerths.set(node.id, {
+            latitude, longitude, series, rank,
+            p: metrics.held ? null : metrics.p,
+            held: metrics.held,
+            metrics,
+            observation: entry.observation,
+            direction: changePct === null ? null : changePct > 0 ? 1 : changePct < 0 ? -1 : 0
+          });
+        });
+      });
+      state.helix.lastT = now;
+      helixState.ranked = ranked;
+      helixState.counts = { a: ranked.A.length, b: ranked.B.length };
+      helixState.rungs = Math.min(ranked.A.length, ranked.B.length);
+      helixState.held = held;
+      /* The first frame that settles helix berths also refreshes the
+         inspector, so its strand/band/rung readouts never stay on the
+         pre-render "settling" row after the geometry is live. */
+      if (!hadBerths && helixBerths.size > 0) drawInspector();
+      return helixState;
+    }
+
+    /* The latitude rings become the Fibonacci band scale: the lower band at the
+       bottom ring, the basis at the equator, the upper band at the top ring,
+       with the 0.618 levels between. */
+    function drawFibRings(width, height) {
+      const levels = [
+        { p: 0, label: "LOWER 1.000", color: "#516983", alpha: 0.22 },
+        { p: 0.191, label: "L 0.618", color: "#516983", alpha: 0.16 },
+        { p: 0.5, label: "BASIS", color: "#6fd3ff", alpha: 0.38 },
+        { p: 0.809, label: "U 0.618", color: "#516983", alpha: 0.16 },
+        { p: 1, label: "UPPER 1.000", color: "#516983", alpha: 0.22 }
+      ];
+      context2d.save();
+      context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+      levels.forEach(level => {
+        const latitude = (2 * level.p - 1) * HELIX_LAT_MAX;
+        ring(latitude, width, height, level.color, level.alpha);
+        const anchor = project({ x: 0, y: 2.06 * Math.sin(latitude), z: 0 }, width, height);
+        context2d.globalAlpha = 0.85;
+        context2d.fillStyle = level.color;
+        context2d.textAlign = "right";
+        context2d.fillText(level.label, width - 10, anchor.y - 3);
+      });
+      const caption = project({ x: 0, y: 2.06 * Math.sin(HELIX_LAT_MAX), z: 0 }, width, height);
+      context2d.globalAlpha = 0.6;
+      context2d.fillStyle = "#8fa7c4";
+      context2d.fillText("FIBONACCI BANDS", width - 10, caption.y - 14);
+      context2d.restore();
+    }
+
+    /* Cross-series rungs: the rank-matched pair on the two strands, colored by
+       directional agreement, brightened by combined potential energy and the
+       outer flame's breath. A descriptive comparison — nothing more. */
+    function drawHelixRungs(outerMod) {
+      if (!helixState.ranked) return;
+      const pointById = new Map(state.projected.map(point => [point.node.id, point]));
+      const count = Math.min(helixState.ranked.A.length, helixState.ranked.B.length);
+      for (let index = 0; index < count; index += 1) {
+        const nodeA = helixState.ranked.A[index];
+        const nodeB = helixState.ranked.B[index];
+        const pointA = pointById.get(nodeA.id);
+        const pointB = pointById.get(nodeB.id);
+        if (!pointA || !pointB) continue;
+        const berthA = helixBerths.get(nodeA.id);
+        const berthB = helixBerths.get(nodeB.id);
+        const directionA = berthA ? berthA.direction : null;
+        const directionB = berthB ? berthB.direction : null;
+        const dash = directionA === null || directionB === null ? [4, 4] : [];
+        const color = directionA === null || directionB === null ? DATA_COLORS.unknown
+          : directionA > 0 && directionB > 0 ? DATA_COLORS.priceUp
+          : directionA < 0 && directionB < 0 ? DATA_COLORS.priceDown
+          : directionA === directionB ? DATA_COLORS.priceFlat
+          : "#ffc857";
+        const potentialA = berthA && !berthA.held ? berthA.metrics.potential : 0;
+        const potentialB = berthB && !berthB.held ? berthB.metrics.potential : 0;
+        const potential = (potentialA + potentialB) / 2;
+        const depth = clamp(0.32 + (1 - ((pointA.z + pointB.z) / 2) / 5) * 0.34, 0.3, 1);
+        const alpha = (0.16 + 0.4 * potential) * (outerMod && outerMod.active ? 0.8 + 0.4 * clamp(outerMod.energy, 0, 1) : 1) * depth;
+        line(pointA, pointB, color, alpha, 0.9 + 0.5 * potential, dash);
+      }
+    }
+
     /* ── The Orb's fractal frame processing, carried into Orb 2 ──────────
        Surface: the shared OrbFilm film (200 author frames, bounce clock)
        wrapped onto this model's node shell through rotate3()/toScreen().
@@ -2116,53 +2405,178 @@
        same legitimacy gate as The Orb (α = 0.22 + 0.78·L(t)); the render is
        display-only and encodes no market meaning. Both sources resolve
        lazily and degrade to the plain wire core when unavailable. */
-    function drawFractalFrames(now, center, width, height, dpr) {
+    /* The .flame frames are authored 3D animations (ApophysisAV). Rather than
+       pasting each frame on as a camera-facing billboard, the flame's reference
+       triangle — the O-X-Y basis every IFS point is expressed against — is
+       rotated in 3D (a slow precession with a breathing tilt) and the frame is
+       projected through this model's own camera as an oriented quad. The
+       ApophysisAV render is untouched; only its placement in the orb gains
+       depth. Falls back to the shared billboard drawOn when the player does
+       not expose its bounce frames. */
+    function drawFlameCore3D(flame, center, size, alpha, width, height, energy, dpr = 1) {
+      if (!flame || typeof flame.playhead !== "function" || !Array.isArray(flame.frames)) return false;
+      const playhead = flame.playhead();
+      const frame0 = flame.frames[playhead && playhead.i0];
+      const frame1 = flame.frames[playhead && playhead.i1];
+      if (!frame0 || typeof frame0.width !== "number" || frame0.width < 1) return false;
+      /* The requested core size is in screen pixels; the reference triangle
+         lives in model units. Convert through the center's projected scale so
+         the quad occupies the same on-screen footprint the billboard would. */
+      const unitPixels = Math.max(1, (center.scale || 1) * Math.min(width, height) * 0.315);
+      const half = (size / 2) / unitPixels;
+      const t = state.coreTime;
+      /* Reference-triangle rotation: in-plane spin, a tilt that never sits the
+         plane flat (and never turns it edge-on), and a gentle yaw swing — all
+         breathing with the flame's own harmonic energy. */
+      const spin = t * 0.00012;
+      const tilt = 0.95 + Math.sin(t * 0.00021) * 0.24 + (energy - 0.5) * 0.08;
+      const yaw = Math.sin(t * 0.00017) * 0.3;
+      const cSpin = Math.cos(spin), sSpin = Math.sin(spin);
+      const cTilt = Math.cos(tilt), sTilt = Math.sin(tilt);
+      const cYaw = Math.cos(yaw), sYaw = Math.sin(yaw);
+      const referenceCorner = (u, v) => {
+        /* Rz(spin) · Rx(tilt) · Ry(yaw) applied to the basis point (u, v, 0). */
+        const x1 = u * cSpin - v * sSpin;
+        const y1 = u * sSpin + v * cSpin;
+        const y2 = y1 * cTilt;
+        const z2 = y1 * sTilt;
+        const x3 = x1 * cYaw + z2 * sYaw;
+        const z3 = -x1 * sYaw + z2 * cYaw;
+        return project({ x: x3 * half, y: y2 * half, z: z3 * half }, width, height);
+      };
+      const p00 = referenceCorner(-1, -1);
+      const p10 = referenceCorner(1, -1);
+      const p01 = referenceCorner(-1, 1);
+      const edgeX = Math.hypot(p10.x - p00.x, p10.y - p00.y);
+      const edgeY = Math.hypot(p01.x - p00.x, p01.y - p00.y);
+      if (edgeX < 8 || edgeY < 8) return true; /* nearly edge-on to the camera */
+      const frac = playhead.frac || 0;
+      const alpha0 = alpha * Math.cos(frac * (Math.PI / 2));
+      const alpha1 = alpha * Math.sin(frac * (Math.PI / 2));
+      context2d.save();
+      context2d.globalCompositeOperation = "lighter";
+      context2d.imageSmoothingEnabled = true;
+      const pixelRatio = Math.max(1, Number(dpr) || 1);
+      const quadTransform = frame => {
+        context2d.setTransform(
+          (p10.x - p00.x) / frame.width * pixelRatio, (p10.y - p00.y) / frame.width * pixelRatio,
+          (p01.x - p00.x) / frame.height * pixelRatio, (p01.y - p00.y) / frame.height * pixelRatio,
+          p00.x * pixelRatio, p00.y * pixelRatio
+        );
+        context2d.drawImage(frame, 0, 0);
+      };
+      if (alpha0 > 0.01) { context2d.globalAlpha = alpha0; quadTransform(frame0); }
+      if (frame1 && frac > 0.002 && alpha1 > 0.01) { context2d.globalAlpha = alpha1; quadTransform(frame1); }
+      context2d.restore();
+      return true;
+    }
+
+    function drawFractalFrames(now, frameDelta, center, width, height, dpr) {
       const filmApi = orbFilmApi();
       const film = filmApi && typeof filmApi.shared === "function" ? filmApi.shared() : null;
       const flame = flameCore();
-      let filmNote = "film unavailable";
+      const outer = outerFlamePlayer();
+      const fMod = flame && typeof flame.flameModulation === "function" ? flame.flameModulation() : null;
+      const outerMod = outer && typeof outer.flameModulation === "function" ? outer.flameModulation() : null;
+
+      /* 0 · the shared OrbFilm surface — the author's 200-frame film wrapped
+         through this model's own camera. The clock advances with frame time
+         coupled to the inner flame's harmonic speed, exactly as The Orb drives
+         it, and adjacent sub-frames cross-fade at equal energy. */
+      let filmNote = "film module absent";
       if (filmApi && film) {
         if (film.ready && typeof filmApi.drawWrapped === "function") {
-          if (!state.filmTime) state.filmTime = now;
-          state.filmTime += state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
+          state.filmTime += (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
           const sample = film.sampleAt ? film.sampleAt(state.filmTime) : null;
           const alpha = (0.22 + 0.78 * legitimacyGate()) * 0.34;
-          if (sample && sample.img0 && alpha > 0.01) {
-            filmApi.drawWrapped(context2d, {
-              img: sample.img0,
-              project: rotate3,
-              toScreen: point => toScreen(point, width, height),
-              cs: center,
-              R: 2.06,
-              fov: 6.4 / state.zoom,
-              alpha,
-              dpr
-            });
+          if (sample && (sample.img0 || sample.img1) && alpha > 0.01) {
+            const frac = sample.frac || 0;
+            const alpha0 = alpha * Math.cos(frac * (Math.PI / 2));
+            const alpha1 = alpha * Math.sin(frac * (Math.PI / 2));
+            if (sample.img0 && alpha0 > 0.01) {
+              filmApi.drawWrapped(context2d, {
+                img: sample.img0, project: rotate3, toScreen: point => toScreen(point, width, height),
+                cs: center, R: 2.06, fov: 6.4 / state.zoom, alpha: alpha0, dpr
+              });
+            }
+            if (sample.img1 && alpha1 > 0.01 && frac > 0.002) {
+              filmApi.drawWrapped(context2d, {
+                img: sample.img1, project: rotate3, toScreen: point => toScreen(point, width, height),
+                cs: center, R: 2.06, fov: 6.4 / state.zoom, alpha: alpha1, dpr
+              });
+            }
           }
-          filmNote = `film ${film.frameAt ? film.frameAt(state.filmTime) + 1 : "?"}/200 · bounce`;
+          filmNote = "film live";
         } else if (film.dead) filmNote = "film unavailable";
-        else if (film.loaded > 0) filmNote = `film loading ${film.loaded}/${film.total}`;
+        else if (film.loaded > 0) filmNote = "film loading";
         else filmNote = "film not started";
       }
+
+      /* 1 · the AI inner shell — Demo.flame's 120-frame harmonics govern the
+         burning core at Center Origin and a small counter-rotating wireframe
+         shell around it, as in The Orb. */
+      const dt = (frameDelta || 16) / 1000;
+      state.coreTime = (state.coreTime || 0) + (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
+      const innerSpeed = (fMod && fMod.speedMult) || 1;
+      state.innerAngle += dt * 0.4 * innerSpeed;
       let coreNote = "core module absent";
       let coreLive = false;
       if (flame) {
         if (flame.ready && Array.isArray(flame.frames) && flame.frames.length) {
-          const modulation = typeof flame.flameModulation === "function" ? flame.flameModulation() : null;
-          const energy = modulation && modulation.active ? clamp(modulation.energy, 0, 1) : 0.5;
-          if (typeof flame.drawOn === "function") {
-            flame.drawOn(context2d, center.x, center.y, 44 + energy * 18, (0.22 + 0.78 * legitimacyGate()) * 0.9);
+          const energy = fMod && fMod.active ? clamp(fMod.energy, 0, 1) : 0.5;
+          const coreAlpha = (0.22 + 0.78 * legitimacyGate()) * 0.9;
+          const coreSize = 44 + energy * 18;
+          /* Prefer the 3D reference-triangle placement; the shared billboard
+             drawOn remains the honest fallback for any player that does not
+             expose its bounce frames. */
+          if (!drawFlameCore3D(flame, center, coreSize, coreAlpha, width, height, energy, dpr)
+            && typeof flame.drawOn === "function") {
+            flame.drawOn(context2d, center.x, center.y, coreSize, coreAlpha);
           }
-          coreNote = `Demo.flame core frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
+          const shellRadius = 0.62 + (fMod && fMod.active ? fMod.pulse * 0.03 : 0);
+          const shellAlpha = fMod && fMod.active ? 0.28 + 0.14 * energy : 0.35;
+          circle3D(shellRadius, 0, state.innerAngle, "#4a9eff", shellAlpha * state.formation, 1, width, height);
+          circle3D(shellRadius, 0.45, -state.innerAngle * 0.8, "#4a9eff", (shellAlpha - 0.1) * state.formation, 1, width, height);
+          meridian3D(shellRadius, 0, state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
+          meridian3D(shellRadius, Math.PI / 2, -state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
+          const anchor = project({ x: 0, y: shellRadius, z: 0 }, width, height);
+          context2d.save();
+          context2d.fillStyle = "#ffd479";
+          context2d.globalAlpha = 0.85 * state.formation;
+          context2d.beginPath(); context2d.arc(anchor.x, anchor.y, 2.6, 0, TAU); context2d.fill();
+          context2d.restore();
+          coreNote = "core live";
           coreLive = true;
         } else if (flame.baking) coreNote = "core baking";
         else coreNote = "core unavailable";
       }
+
+      /* 2 · the outer macro-flame — OuterOrb.flame (600 frames) never draws
+         pixels here; its harmonics govern the counter-rotating depth shells
+         and (via drawHelixRungs) the rungs' breath, exactly as The Orb's
+         outer system governs its depth shells and nodes. */
+      const outerSpeed = ((outerMod && outerMod.active ? outerMod.speedMult : 1) || 1) * innerSpeed;
+      state.outerAngle1 += dt * 0.25 * outerSpeed;
+      state.outerAngle2 -= dt * 0.18 * outerSpeed;
+      let outerNote = "outer shell module absent";
+      if (outer) {
+        if (outer.ready && Array.isArray(outer.frames) && outer.frames.length) {
+          const energy = outerMod && outerMod.active ? clamp(outerMod.energy, 0, 1) : 0.5;
+          const pulse = outerMod && outerMod.active ? outerMod.pulse * 0.06 : 0;
+          const outerAlpha = outerMod && outerMod.active ? 0.22 + 0.14 * energy : 0.22;
+          [[1.15, -0.42 * 0.9, state.outerAngle1, 1], [1.8, 0.5 * 0.9, state.outerAngle2, -0.8]].forEach(([radius, tilt, rotation, pulseSign]) => {
+            circle3D(radius + pulse * pulseSign, tilt, rotation, "#243a63", outerAlpha * state.formation, 1 + (outerMod && outerMod.active ? energy * 0.6 : 0), width, height);
+          });
+          outerNote = "outer shell live";
+        } else if (outer.baking) outerNote = "outer shell baking";
+        else outerNote = "outer shell unavailable";
+      }
+
       if (fractalStatus) {
-        const text = `FRACTAL FRAMES · ${filmNote} · ${coreNote}`;
+        const text = `FRACTAL FRAMES · ${filmNote} · ${coreNote} · ${outerNote}`;
         if (fractalStatus.textContent !== text) fractalStatus.textContent = text;
       }
-      return coreLive;
+      return { coreLive, fMod, outerMod };
     }
 
     function drawCanvas(now) {
@@ -2177,18 +2591,24 @@
       background.addColorStop(1, "#060b14");
       context2d.fillStyle = background;
       context2d.fillRect(0, 0, width, height);
+      const frameDelta = state.lastFrame ? Math.max(0, Math.min(80, now - state.lastFrame)) : 16;
       if (state.autoRotate && !state.dragging) {
-        const dt = state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
-        state.yaw += dt * 0.00013;
+        state.yaw += frameDelta * 0.00013;
       }
       state.lastFrame = now;
+      /* Double-helix berths are eased toward each orb's supplied Fibonacci-band
+         position before any projection, so routes, rungs, and labels all share
+         the same living geometry. */
+      const helix = tickerMode && state.seriesMode === "dual" ? updateHelixBerths(now) : null;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
       /* The Orb's fractal frame processing — film surface under the model,
-         flame core at Center Origin; both degrade to wire when unavailable. */
-      let fractalCoreLive = false;
-      if (state.showFractal) fractalCoreLive = drawFractalFrames(now, center, width, height, dpr);
+         dual flame system (Demo.flame core + OuterOrb.flame shells) at Center
+         Origin; both degrade to wire when unavailable. */
+      let fractal = { coreLive: false, fMod: null, outerMod: null };
+      if (state.showFractal) fractal = drawFractalFrames(now, frameDelta, center, width, height, dpr);
       else if (fractalStatus && fractalStatus.textContent !== "FRACTAL FRAMES · HIDDEN") fractalStatus.textContent = "FRACTAL FRAMES · HIDDEN";
-      [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
+      if (helix) drawFibRings(width, height);
+      else [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
       for (let index = 0; index < 8; index += 1) {
         const longitude = (index / 8) * TAU;
         const a = project({ x: 2.06 * Math.cos(longitude), y: 0, z: 2.06 * Math.sin(longitude) }, width, height);
@@ -2203,6 +2623,7 @@
       updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
       drawRoute(now, center);
+      if (helix) drawHelixRungs(fractal.outerMod);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
         const node = point.node;
@@ -2215,11 +2636,44 @@
           ? MOOD_COLORS[directive.mood] || node.color : node.color;
         const pulse = directive && directive.object ? directive.object.pulse : 0;
         const radius = clamp(3.2 + point.scale * 2.5 + (chosen ? 1.9 : 0) + pulse * 1.6, 3, 9);
+        const berth = helixBerths.get(node.id);
+        if (berth) {
+          /* Supplied band width widens the orb's volatility ring; potential
+             energy feeds the glow; a signaled band break flashes gold; a held
+             orb gets a dashed neutral ring. All states are drawn, never
+             invented. */
+          const volatility = berth.metrics.volatility;
+          if (volatility !== null) {
+            context2d.save();
+            context2d.strokeStyle = "#9fb6d4";
+            context2d.globalAlpha = 0.1 + 0.28 * volatility;
+            context2d.lineWidth = 0.8;
+            context2d.beginPath(); context2d.arc(point.x, point.y, radius * (1.3 + volatility * 0.6), 0, TAU); context2d.stroke();
+            context2d.restore();
+          }
+          if (berth.metrics.breakSide) {
+            context2d.save();
+            context2d.strokeStyle = "#ffd479";
+            context2d.globalAlpha = 0.5 + 0.25 * Math.sin(now / 140);
+            context2d.lineWidth = 1.2;
+            context2d.beginPath(); context2d.arc(point.x, point.y, radius * (2 + 0.22 * Math.sin(now / 140)), 0, TAU); context2d.stroke();
+            context2d.restore();
+          }
+          if (berth.held) {
+            context2d.save();
+            context2d.strokeStyle = "#516983";
+            context2d.globalAlpha = 0.45;
+            context2d.lineWidth = 0.9;
+            context2d.setLineDash([3, 4]);
+            context2d.beginPath(); context2d.arc(point.x, point.y, radius + 4, 0, TAU); context2d.stroke();
+            context2d.restore();
+          }
+        }
         drawProviderHalo(point, radius, observation, wallNow);
         context2d.save();
         context2d.globalAlpha = observation && observation.market ? clamp(0.42 + fresh * 0.5, 0.42, 0.96) : clamp(0.32 + (1 - point.z / 5) * 0.34, 0.3, 1);
         context2d.fillStyle = color;
-        context2d.shadowBlur = chosen || hovered || (directive && !directive.frozen) ? 22 : 9;
+        context2d.shadowBlur = (chosen || hovered || (directive && !directive.frozen) ? 22 : 9) + (berth && !berth.held ? berth.metrics.potential * 14 : 0);
         context2d.shadowColor = color;
         context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
         if (chosen || hovered) {
@@ -2235,14 +2689,15 @@
           context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
           context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
           const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
-          context2d.fillText(node.symbol || node.name, point.x + offset, point.y - radius - 4);
+          const tag = `${node.series && (chosen || hovered) ? " · " + node.series : ""}${berth && berth.held && (chosen || hovered) ? " · HELD" : ""}`;
+          context2d.fillText(`${node.symbol || node.name}${tag}`, point.x + offset, point.y - radius - 4);
           context2d.restore();
         }
       });
       context2d.save();
       /* When the shared fractal core is burning, it replaces the plain center dot;
          the resolution ring and CENTER label remain so the origin stays legible. */
-      if (!fractalCoreLive) {
+      if (!fractal.coreLive) {
         context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
         context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
         context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
@@ -2362,6 +2817,82 @@
       persistLocal();
       scheduleRender();
     });
+
+    /* ── Double-helix series controls ──────────────────────────────
+       Two reviewed ticker sets, strand against strand. Series changes
+       rearrange nodes locally; they never force a provider request. */
+    function applySeriesNodes() {
+      if (!tickerMode) return;
+      const base = buildNodes(options.tickers, timeframe === "1d" ? "1d" : "1h");
+      let strandCounts = { a: 0, b: 0 };
+      if (state.seriesMode === "dual") {
+        const bySymbol = new Map(base.map(node => [node.symbol, node]));
+        const strand = (symbols, series) => symbols.map(symbol => bySymbol.get(symbol)).filter(Boolean)
+          .map(node => Object.freeze({ ...node, id: `${node.id}-${series.toLowerCase()}`, series }));
+        const a = strand(state.seriesA, "A");
+        const b = strand(state.seriesB, "B");
+        strandCounts = { a: a.length, b: b.length };
+        nodes = Object.freeze([...a, ...b].map((node, index) => Object.freeze({ ...node, order: index })));
+      } else {
+        nodes = base;
+      }
+      nodeIndexByName = new Map(nodes.map((node, index) => [state.seriesMode === "dual" ? node.id : node.name, index]));
+      state.selected = 0;
+      state.route = null;
+      state.lastRoutePhase = "";
+      state.helix.glide.clear();
+      state.helix.lastT = 0;
+      helixBerths.clear();
+      helixState.ranked = null;
+      helixState.counts = { ...strandCounts };
+      helixState.rungs = Math.min(strandCounts.a, strandCounts.b);
+      helixState.held = 0;
+    }
+    applySeriesNodes();
+
+    function applySeriesInput(input, seriesKey, label) {
+      const parsed = parseSeriesInput(input.value);
+      const unknown = [...new Set(parsed.filter(symbol => !reviewedSymbolSet.has(symbol)))];
+      const valid = [...new Set(parsed.filter(symbol => reviewedSymbolSet.has(symbol)))];
+      if (!valid.length) {
+        state.message = {
+          kind: "note",
+          text: `Series ${label} was left unchanged: no reviewed watchlist symbol was recognized${unknown.length ? ` (${unknown.join(", ")} not reviewed)` : ""}. No node was invented.`
+        };
+        input.value = state[seriesKey].join(", ");
+        draw();
+        return;
+      }
+      state[seriesKey] = valid;
+      state.message = {
+        kind: "note",
+        text: unknown.length
+          ? `Series ${label} drawn without ${unknown.length} unreviewed symbol${unknown.length === 1 ? "" : "s"} (${unknown.join(", ")}); only reviewed watchlist symbols are drawn.`
+          : `Series ${label} set to ${valid.length} reviewed ticker${valid.length === 1 ? "" : "s"}. The double helix rearranges locally; no new provider request is forced.`
+      };
+      persistLocal();
+      applySeriesNodes();
+      syncNodeOptions();
+      syncFormControls();
+      drawInspector();
+      draw();
+    }
+    if (seriesModeSelect) seriesModeSelect.addEventListener("change", () => {
+      state.seriesMode = seriesModeSelect.value === "single" ? "single" : "dual";
+      state.message = {
+        kind: "note",
+        text: state.seriesMode === "dual"
+          ? "Double helix: Series A and Series B wind strand against strand, arranged by supplied Fibonacci-band position."
+          : "Single set: every reviewed watchlist orb returns to the sector sphere."
+      };
+      persistLocal();
+      applySeriesNodes();
+      syncNodeOptions();
+      drawInspector();
+      draw();
+    });
+    if (seriesAInput) seriesAInput.addEventListener("change", () => applySeriesInput(seriesAInput, "seriesA", "A"));
+    if (seriesBInput) seriesBInput.addEventListener("change", () => applySeriesInput(seriesBInput, "seriesB", "B"));
     routeButton.addEventListener("click", () => setRoute("resolution"));
     lateralButton.addEventListener("click", () => setRoute("lateral"));
     resetButton.addEventListener("click", () => {
@@ -2378,12 +2909,11 @@
       const rebuilt = buildNodes(options.tickers, nextTimeframe === "1d" ? "1d" : "1h");
       if (!rebuilt.length) return;
       timeframe = nextTimeframe === "1d" ? "1d" : "1h";
-      nodes = rebuilt;
-      nodeIndexByName = new Map(nodes.map((node, index) => [node.name, index]));
       state.selected = 0;
       state.route = null;
       state.lastRoutePhase = "";
       if (timeframeSelect) timeframeSelect.value = timeframe;
+      applySeriesNodes();
       syncNodeOptions();
       drawInspector();
       scheduleRender();
@@ -2564,6 +3094,21 @@
     return Object.freeze({
       schema: SCHEMA,
       get nodes() { return nodes; },
+      get helixState() {
+        return {
+          mode: tickerMode ? state.seriesMode : "roster",
+          seriesA: [...state.seriesA],
+          seriesB: [...state.seriesB],
+          strands: { ...helixState.counts },
+          rungs: helixState.rungs,
+          held: helixState.held,
+          positions: helixState.ranked ? ["A", "B"].flatMap(series =>
+            helixState.ranked[series].map((node, rank) => {
+              const berth = helixBerths.get(node.id);
+              return berth ? { symbol: node.symbol, series, rank, p: berth.p, held: berth.held } : null;
+            }).filter(Boolean)) : []
+        };
+      },
       state,
       selectNode,
       beatNow,

@@ -798,6 +798,7 @@ if (giApp) {
   ok(orbText.includes("Orb Communicator Model") && orbText.includes("BEAT CONTRACT"), "Orb 2 presents its custom 3D model with the shared Characters beat contract");
   ok(orbText.includes("ticker orb") && orbText.includes("TIMEFRAME"), "the reviewed watchlist is rendered as ticker orbs with an interval switch");
   ok(orbText.includes("Clear beats") && orbText.includes("Restore stored beats"), "the durable saved-beat archive controls remain available on the Orb 2 toolbar");
+  ok(orbText.includes("SERIES A") && orbText.includes("SERIES B") && orbText.includes("Double helix"), "the dual-series double-helix controls are offered on the Orb 2 toolbar");
   ok(!!(modelFullscreen && modelFullscreen.textContent.includes("Model full screen") && appFullscreen),
     "Orb 2's view-only fullscreen remains a separate button from the whole-app titlebar control");
   ok(!!(orbCanvasStatus && orbCanvasStatus.textContent.includes("CANVAS UNAVAILABLE") && orbText.includes("BEAT LOG / INSPECTOR STILL ACTIVE")), "a runtime without 2D canvas support keeps the beat log and inspector available with an explicit status");

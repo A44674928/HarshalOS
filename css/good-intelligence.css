@@ -322,6 +322,11 @@
 .gi-chart-control { display: flex; flex-direction: column; gap: 5px; min-width: 112px; color: var(--gi-faint); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
 .gi-chart-control select { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--gi-border-hi); border-radius: 6px; color: var(--gi-ink); background: #0a1220; font-family: var(--mono); font-size: 10px; letter-spacing: 0; cursor: pointer; }
 .gi-chart-control select:disabled { border-color: var(--gi-border); color: var(--gi-faint); cursor: not-allowed; }
+/* Orb 2 double-helix series inputs — reviewed ticker sets, comma or space separated */
+.gi-orb2-series-control input[type="text"] { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--gi-border-hi); border-radius: 6px; color: var(--gi-ink); background: #0a1220; font-family: var(--mono); font-size: 10px; letter-spacing: 0; }
+.gi-orb2-series-control input[type="text"]:focus { outline: 1px solid var(--gi-accent, #6fd3ff); outline-offset: 1px; }
+.gi-orb2-series-control[data-gi-orb2-series-a-row] input { border-left: 2px solid #6fd3ff; }
+.gi-orb2-series-control[data-gi-orb2-series-b-row] input { border-left: 2px solid #ffc857; }
 /* Sector headings in the watchlist selector; browsers style the popup natively, so
    these only keep the popup readable where the platform honors them. */
 .gi-chart-control select optgroup { color: var(--gi-dim); background: #0a1220; font-style: normal; font-weight: 650; }
