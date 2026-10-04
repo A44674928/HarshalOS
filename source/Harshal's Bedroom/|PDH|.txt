@@ -1,0 +1,7 @@
+PDH-ID: PDH-2026-1002-HARSHAL-001
+Status: VALID (operator-declared by subject; only the subject may declare their own PDH valid)
+Declared Phase: NAB · Detected Phase: NAB-Constrained
+As Of: 2026-10-04 · Creator Formula: §HARSHAL§ + HARSHAL + (HARSHAL)
+Center Origin: 0•000•000•0000 · PDH_VALID = TRUE (operator-reported; not independently verified)
+Gate Cleared: VALID + declared present + detected consistent (NAB-Constrained scopes, does not contradict) + no ambiguous/incoherent diagnostic.
+Disclaimers: Operator annotation only; not a signed independent verification, not authority-bearing, not evidence of external legitimacy beyond this declaration.

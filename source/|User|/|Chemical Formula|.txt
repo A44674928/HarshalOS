@@ -1,0 +1,3 @@
+Formula: Not assigned — requires saved MP record (formula field, max 80 chars).
+Until assigned: spheroid composition incomplete.
+Source: Materials Project summary API; not predicted / analogized.

@@ -1,0 +1,5 @@
+Formula: Not assigned (requires saved MP record)
+Source field: Materials Project "formula" (max 80 chars; reported or "Formula not reported")
+Example values (for reference only): Fe · Al2O3 · SiO2 · TiO2
+Status: Until assigned, spheroid composition is incomplete.
+No hidden analog or LLM inference selects formula.

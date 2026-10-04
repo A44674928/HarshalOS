@@ -1,0 +1,2 @@
+3D Orb reference: docs/characters/emptyfolder-reference.md § Orb 2 (NPC Spheroid / D²↪B³ / OCM node architecture / full cast / resolution axis / address domain ℤ₃₆₀ / emergency invariants / 360°≡0°).
+All characters from characters-cast.js mapped as nodes. No over-engineering in source/.

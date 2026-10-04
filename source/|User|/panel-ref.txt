@@ -1,0 +1,7 @@
+Panel / Calculator Reference (heavy content lives outside this folder)
+This lightweight profile (source/|User|/) points to:
+- docs/characters/emptyfolder-reference.md (immersive panel + two-API integration)
+- docs/integrations/CHARACTER-MATERIAL-MODEL.md (canonical model)
+- business plan/StarPortal/Telekinetic Psycopathy Operations/Actually Good Alignment 1/EmptyFolder/ (optional profile storage)
+- js/character-material-model.js (model schema; localStorage keys)
+Rules: PDH operator-annotated; material requires saved MP record; unknown = not pass; commodities Disc4 = value-only close scalar (interim Massive's API → future Tickerbot); spheroid schematic only; ρ_reference ideal only; display-only; no fabrication.

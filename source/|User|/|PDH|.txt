@@ -1,0 +1,7 @@
+PDH: PDH-2026-1002-HARSHAL-001
+Status: VALID (operator-declared by subject — Harshal P Patel / A44674928; only subject may declare own PDH valid)
+Declared Phase: NAB · Detected: NAB-Constrained · No mismatch · No ambiguous/incoherent diagnostic.
+PDH_VALID = TRUE (operator-reported; not independently verified; not authority-bearing; not external proof).
+As Of: 2026-10-04 · Creator Formula: §HARSHAL§ + HARSHAL + (HARSHAL) · Origin: 0•000•000•0000
+Reference: case-studies/pdh-registry.json · docs/integrations/CHARACTER-MATERIAL-MODEL.md.
+Note: This declaration is the subject's own; it does not create external legitimacy, signature verification, or independent authority.

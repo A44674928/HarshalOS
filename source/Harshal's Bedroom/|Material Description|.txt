@@ -1,0 +1,7 @@
+Assigned: None (operator must search / save / assign)
+Material Library Key: harshalos.character-materials.library.v1
+Search: /api/materials-project/v1/search (Worker; secret MATERIALS_PROJECT_API_KEY; BY-C / CC BY-NC)
+Physical Bounds (to enter): density min/max g/cm³; bulkModulusGpa; shearModulusGpa; bandGap; energyAboveHull; isMetal
+Match Status: No ranking (no criteria entered)
+Assignment Requires: Match + PDH VALID + declared phase + no mismatch + record in library.
+Example note: This is a reference assignment for disc-based spheroid preview only.

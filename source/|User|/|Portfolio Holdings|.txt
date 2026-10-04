@@ -1,0 +1,3 @@
+Holdings: reference-only for disc normalization (φ = w / Σ w).
+1. Creator-ID origin token (not a security). 2. Optional PDH-R badge ref.
+Not investment advice; not verified brokerage positions.
