@@ -46,7 +46,7 @@
     if (formatted !== null) addProperty(host, label, unit ? `${formatted} ${unit}` : formatted);
   }
 
-  function renderRecord(record) {
+  function renderRecord(record, resultContext = {}) {
     const article = make("article", "mp-record");
     const header = make("header", "mp-record-head");
     const identity = make("div", "mp-record-identity");
@@ -133,6 +133,39 @@
       footerBits.push(`Available property groups: ${shown.join(", ")}${record.availableProperties.length > shown.length ? ` +${record.availableProperties.length - shown.length} more` : ""}`);
     }
     if (footerBits.length) article.appendChild(make("p", "mp-record-foot", footerBits.join(" · ")));
+
+    /* Saved records are the only bridge into the local Character Materials model.
+       The model receives this fixed summary projection, never a key or live object. */
+    const materialModel = window.CharacterMaterialModel;
+    if (materialModel && validMaterialId(record.materialId)) {
+      const actions = make("div", "mp-model-actions");
+      const save = make("button", "mp-button mp-model-save", "Save to Material Spheroids");
+      save.type = "button";
+      save.dataset.mpSaveMaterial = record.materialId.toLowerCase();
+      const note = make("span", "mp-model-save-note", "Browser-local only");
+      save.addEventListener("click", () => {
+        let localStorage = null;
+        try { localStorage = window.localStorage; } catch { /* storage can be disabled */ }
+        const result = materialModel.saveMaterial(localStorage, record, {
+          licenseFilter: resultContext.licenseFilter,
+          retrievedAt: resultContext.retrievedAt,
+          savedAt: new Date().toISOString()
+        });
+        if (!result.ok) {
+          note.textContent = result.code === "storage-unavailable"
+            ? "Browser storage unavailable; not saved."
+            : result.code === "library-full" ? "Local material library is full."
+              : "This result could not be saved.";
+          note.className = "mp-model-save-note error";
+          return;
+        }
+        save.textContent = result.code === "updated" ? "Update local model record" : "Saved · Material Spheroids";
+        note.textContent = `${result.material.formula} (${result.material.materialId}) is available in the Material Spheroids app.`;
+        note.className = "mp-model-save-note success";
+      });
+      actions.append(save, note);
+      article.appendChild(actions);
+    }
     return article;
   }
 
@@ -186,6 +219,7 @@
             <strong>Interpretation limit:</strong> many values are computationally derived, may be absent for a record, and are not guaranteed experimental measurements or engineering performance. Do not use this display alone to certify a material or design.
           </div>
 
+          <p class="mp-help">To use a result in the local assignment model, select <strong>Save to Material Spheroids</strong> on its card. Saved summaries stay in this browser and are not uploaded.</p>
           <div class="mp-status" data-mp-status role="status" aria-live="polite">No lookup has been run. Search is manual; opening this app makes no provider request.</div>
           <section class="mp-results" data-mp-results aria-label="Materials Project search results" aria-busy="false"></section>
 
@@ -273,7 +307,7 @@
             return;
           }
           const fragment = document.createDocumentFragment();
-          for (const record of safeResults) fragment.appendChild(renderRecord(record));
+          for (const record of safeResults) fragment.appendChild(renderRecord(record, data));
           results.replaceChildren(fragment);
           const cached = payload.cached === true ? " · Worker-memory cache" : "";
           const retrieved = displayDate(data.retrievedAt);

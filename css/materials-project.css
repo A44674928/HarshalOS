@@ -154,6 +154,11 @@
 .mp-provenance { margin-top: 8px; color: var(--mp-dim); font-size: 10px; }
 .mp-provenance summary { width: fit-content; cursor: pointer; color: var(--mp-cyan); }
 .mp-record-foot { margin: 8px 0 0; color: var(--mp-faint); font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+.mp-model-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 9px; }
+.mp-model-actions .mp-button { min-height: 30px; font-size: 10px; }
+.mp-model-save-note { color: var(--mp-faint); font-size: 10px; }
+.mp-model-save-note.success { color: var(--mp-green); }
+.mp-model-save-note.error { color: var(--mp-amber); }
 
 .mp-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .mp-info-card { padding: 11px 13px; border: 1px solid var(--mp-line); border-radius: 8px; background: rgba(10, 17, 30, 0.72); }

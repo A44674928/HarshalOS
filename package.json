@@ -21,6 +21,7 @@
     "test:palace": "node --test tests/palace-day-test.mjs",
     "test:characters": "node --test tests/characters-beat-test.mjs tests/characters-beat-api-test.mjs tests/characters-ui-test.mjs tests/characters-call-ledger-test.mjs tests/characters-alpha-vantage-test.mjs tests/characters-disc-test.mjs",
     "test:materials-project": "node --test tests/materials-project-api-test.mjs tests/materials-project-ui-test.mjs",
+    "test:character-materials": "node --test tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs",
     "test:spec": "node --test tests/spec-consistency-test.mjs",
     "test:manuscript": "node --test tests/manuscript-test.mjs",
     "test:updates": "node --test tests/uts-generator-test.mjs tests/grand-river-recalculation-test.mjs tests/project-scale-up-test.mjs",
