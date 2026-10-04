@@ -1,0 +1,5 @@
+Massive's API (commodities / market feed — replaces Alpha Vantage)
+Status: Active / incorporated by operator (not interim); preferred over Alpha Vantage.
+Use: Disc4 commodities + market context; supports everything Alpha Vantage was intended for but fails to deliver.
+Integration: source/|User|/ profile → panel-ref → docs/characters/emptyfolder-reference.md.
+No fabricated OHLC/volume; no hidden defaults; fail-closed.

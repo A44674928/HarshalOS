@@ -1,0 +1,4 @@
+Panel ref: docs/characters/emptyfolder-reference.md (immersive panel + two-API + calculator).
+Lightweight profile only — heavy content lives in docs/.
+Rule: one user per folder (bedroom = profile location). Keep original files brief; never bloat template.
+Massive's API = commodities/market feed; Materials API = physical match; cross-API only at disc identity + φ share.

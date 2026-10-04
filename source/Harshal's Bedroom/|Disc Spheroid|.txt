@@ -1,0 +1,8 @@
+Disc Assignment: stocks (Tickerbot 1h/1d) — Disc1 bound to market feed.
+Components: 2–4 distinct Discs required (stocks / fx / crypto / commodities).
+Weights: operator wᵢ; normalized φᵢ = wᵢ / Σ wⱼ (sum = 1).
+Material per component must be Match + PDH clear + assigned from library.
+Density Reference: ρ = Σ φᵢ·ρᵢ — shown only if all constituents report density; ideal only.
+Visual: SVG latitude bands (color = Disc identity; not material appearance).
+Commodities Feed: Massive's API (replaces Alpha Vantage) for Disc4 market/beat.
+Status: No ranking; no material assigned; PDH MISSING.

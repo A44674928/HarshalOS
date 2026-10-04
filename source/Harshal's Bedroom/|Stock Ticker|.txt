@@ -1,0 +1,5 @@
+Preferred Ticker: HARSHAL / A44674928 — creator-origin reference (not a tradable security).
+Disc Binding: stocks (Disc1) bound to reviewed Tickerbot watchlist at runtime.
+Market Feed: Massive's API replaces Alpha Vantage for commodities/market context.
+Not validated against external market data; not a brokerage position.
+Not an investment recommendation.

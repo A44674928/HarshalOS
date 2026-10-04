@@ -1,0 +1,3 @@
+Ticker: HARSHAL / A44674928 (creator-origin reference, not tradable).
+Disc binding: stocks (Tickerbot watchlist at runtime; Disc1 1h/1d).
+Not validated against external market data; not a brokerage position.

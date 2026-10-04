@@ -1,0 +1,16 @@
+HEARTBEAT — Orb 2 / NPC Spheroid / 3D Disc — all cylinders
+Status: ACTIVE · Fully automatic · All categories
+
+Market / Feed APIs (running):
+- Tickerbot (Disc1 stocks, 1h/1d) — default provider, bound at runtime.
+- Massive's API (Disc4 commodities / market feed) — interim + future; replaces Alpha Vantage; 25/day cap; value-only close.
+- Both active; no Alpha Vantage; fail-closed; missing fields stay missing.
+
+Character / OCM Nodes (communicating via Resolution Axis):
+- All NPCs (Tickerbot, Magistrate, Red Team Adversary, OCM Operator, etc.) as nodes.
+- PDH VALID (operator-declared) for profile; gate cleared; no mismatch.
+- 3D visualization: D² → B³ at r=0; nodes labeled by Character Names / glyphs (not tickers); address ℤ₃₆₀.
+- Visual: pure geometry; deterministic; display-only; no hidden defaults; no fabrication.
+
+References: source/Orb 2/|Name|.txt + panel-ref.txt · docs/characters/emptyfolder-reference.md § Orb 2.
+Updated 2026-10-04.

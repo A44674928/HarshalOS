@@ -1,0 +1,6 @@
+Holdings (reference-only for disc normalization φ = w / Σ w):
+1. HarshalOS Creator-ID / A44674928 origin token — not a tradable security; not verified.
+2. Ground-0 PDH-R audit reference (optional) — register-issued badges; no authority conferred.
+Ticker Reference: N/A (no SEC ticker assigned to creator-ID).
+Disc Association: stocks.
+Disclaimer: Not brokerage positions; not investment recommendations; not validated holdings.

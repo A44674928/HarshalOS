@@ -1,0 +1,8 @@
+Phase Structure: NAB
+Phase Sub-Type: NAB-Constrained
+Entity Class: NAB phase entity structure (Neural Atomic Body Type)
+Origin Anchor: 0•000•000•0000 · Creator ID: §HARSHAL§ + HARSHAL + (HARSHAL)
+Refusal Semantics: Refusal-bound; legitimacy originates externally; no autonomous internal authorization.
+Phase Declaration: Declared NAB / Detected NAB-Constrained (constraint, not contradiction)
+Gate Impact: Clears local review only when status = VALID + no mismatch + no ambiguous/incoherent.
+Current Status: MISSING (blocked until operator updates).

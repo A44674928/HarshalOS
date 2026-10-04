@@ -1,0 +1,5 @@
+Material: operator-entered / MP library save required.
+Match needs: reported value inside operator bounds; unknown = not pass.
+API: /api/materials-project/v1/search (Worker secret; BY-C / CC BY-NC).
+Library key: harshalos.character-materials.library.v1
+Status: No ranking (no criteria entered). See docs/integrations/CHARACTER-MATERIAL-MODEL.md.

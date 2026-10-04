@@ -162,6 +162,9 @@
               </div>
             </div>
             <div class="gi-demo-badge" data-gi-demo-mode role="note" hidden>EMPTY.DOMAINS DEMO API · SYNTHETIC FIXTURES · NOT LIVE INTELLIGENCE</div>
+<div class="gi-orb2-reference" role="note" aria-label="Orb 2 — 3D NPC Spheroid / Disc / OCM">
+  <strong>Orb 2 / NPC Spheroid</strong> — 3D Disc (D²↪B³ at r=0) / OCM node network / full Characters cast / Massive's API + Tickerbot / VALID PDH / reference: docs/characters/emptyfolder-reference.md. Custom design: second Orb Communicator Model using live API beats; profile framework supports 157+ diverse members via master source/|User|/ template. Not manufactured; not investment advice; display-only.
+</div>
             <div class="gi-header-tools">
               <div class="gi-connection" data-gi-connection role="status"><span class="gi-connection-dot"></span><span data-gi-connection-label>CONNECTING</span></div>
               <button class="gi-button gi-button-primary" type="button" data-gi-refresh><span aria-hidden="true">↻</span> Refresh</button>
