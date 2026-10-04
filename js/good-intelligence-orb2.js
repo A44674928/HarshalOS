@@ -1,17 +1,37 @@
 /* ═══════════════════════════════════════════════════════════════
    HarshalOS — Good Intelligence / Orb 2
 
-   A browser-local 3D rendering of the reviewed ticker watchlist. It is a visual
-   model: it does not register identities, send OCM traffic, authorize a
-   request, fetch market data, or turn a market observation into a signal.
+   Orb 2 combines the Orb Communicator Model's 3D disc-to-sphere view with
+   the same reviewed market-beat contract and motion engine used by Characters.
+   Live data still travels only through the same-origin Characters Worker route and its
+   characters-beat-v1 response contract;
+   this module never receives provider secrets and cannot send OCM traffic. No OCM message is sent.
 
-   Peripheral labels are ticker symbols from the static reviewed watchlist,
-   never invented IDs or OCM-directory registrations.
+   CharactersBeat owns planning, rotation, analysis-to-motion mapping, blending,
+   and the synthetic rehearsal generator. CharactersCast and CharactersDiscCatalog
+   own the reviewed cast and Discs. This module composes those existing pieces in
+   a 3D view rather than forking their market rules.
+
+   Good Intelligence mounts this model over its reviewed ticker watchlist: each
+   ticker becomes a display-only orb with distinct hourly and daily geometry, and
+   Clear beats / Restore stored beats bridge the anonymous D1 saved-beat archive
+   (SAVED_BEAT_SESSION_KEY) shared with the Characters app.
+
+   The Orb's fractal frame processing — the shared OrbFilm surface film and the
+   Demo.flame IFS core — is available here through this model's own camera. It is
+   display-only: it adds no request, sends no message, and encodes no market meaning.
    ═══════════════════════════════════════════════════════════════ */
 "use strict";
 
 (() => {
-  const SCHEMA = "gi-orb2-v1";
+  const SCHEMA = "gi-orb2-v2";
+  const BEAT_SCHEMA = "gi-orb2-beat-v1";
+  const STORE_ROUTE = "/api/good-intelligence/v1/orb2/beats";
+  const PREFS_KEY = "harshalos.good-intelligence.orb2.preferences.v1";
+  const SESSION_KEY = "harshalos.good-intelligence.orb2.session.v1";
+  const EVENTS_KEY = "harshalos.good-intelligence.orb2.history.v1";
+  /* Anonymous browser key for the separate shared saved-beat archive
+     (/api/orb2/v1/beats). It carries no identity, roster, or market claim. */
   const SAVED_BEAT_SESSION_KEY = "harshalos.orb2.saved-beats.session.v1";
   function getSavedBeatSessionId() {
     try {
@@ -24,6 +44,25 @@
       return id;
     } catch { return ""; }
   }
+  /* The Orb's fractal frame sources, resolved lazily so load order or their
+     absence can never break this model — absent ⇒ wire core only. */
+  const orbFilmApi = () => globalThis.OrbFilm || null;
+  let sharedFlamePlayer = null;
+  const flameCore = () => {
+    try {
+      const api = globalThis.FractalFlame;
+      if (!api || typeof api.shared !== "function") return null;
+      if (!sharedFlamePlayer) sharedFlamePlayer = api.shared("assets/Demo.flame", { w: 160, h: 160 });
+      return sharedFlamePlayer;
+    } catch { return null; }
+  };
+  const legitimacyGate = () => {
+    try {
+      const hos = globalThis.HOS;
+      if (hos && typeof hos.legitimacy === "function") return clamp(hos.legitimacy(), 0, 1);
+    } catch { /* display-only fallback below */ }
+    return 0.5;
+  };
   const TAU = Math.PI * 2;
   const CENTER_ADDRESS = "0•000•000•0000";
   const PROVIDER_COOLDOWN_MS = 60_000;
@@ -197,55 +236,131 @@
     ];
   }
 
+  function normalizedRoster(input) {
+    const roster = Array.isArray(input)
+      ? input
+      : globalThis.CharactersCast && Array.isArray(globalThis.CharactersCast.NPC_ROSTER)
+        ? globalThis.CharactersCast.NPC_ROSTER
+        : [];
+    const seen = new Set();
+    return roster.flatMap(entry => {
+      const name = typeof entry?.name === "string" ? entry.name.trim().slice(0, 96) : "";
+      if (!name || seen.has(name)) return [];
+      seen.add(name);
+      const affinity = Array.isArray(entry.affinity)
+        ? entry.affinity.filter(value => typeof value === "string" && value.trim()).map(value => value.trim().slice(0, 64)).slice(0, 5)
+        : [];
+      return [{
+        name,
+        role: typeof entry.role === "string" ? entry.role.trim().slice(0, 240) : "No roster role supplied.",
+        glyph: typeof entry.glyph === "string" && entry.glyph.trim() ? entry.glyph.trim().slice(0, 8) : "◌",
+        affinity: affinity.length ? affinity : ["Unassigned"]
+      }];
+    });
+  }
 
-  /** Build deterministic display-only node metadata from the runtime cast. */
-  function buildNodes(tickers, timeframe = "1h") {
-    const entries = (Array.isArray(tickers) ? tickers : []).filter(item => item && /^[A-Z0-9.-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
-      .map(item => ({ symbol: String(item.symbol).toUpperCase(), name: String(item.name || item.symbol).slice(0, 96), sector: String(item.sector || "Market").slice(0, 64) }));
+  /** Ticker rows (the reviewed Good Intelligence watchlist) build display-only
+      ticker orbs with distinct hourly and daily geometry. */
+  function normalizedTickers(tickers, timeframe = "1h") {
+    const time = timeframe === "1d" ? "1d" : "1h";
+    const entries = (Array.isArray(tickers) ? tickers : [])
+      .filter(item => item && /^[A-Z0-9.-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
+      .map(item => ({
+        symbol: String(item.symbol).toUpperCase(),
+        name: String(item.name || item.symbol).slice(0, 96),
+        sector: String(item.sector || "Market").slice(0, 64)
+      }));
     const sectors = [...new Set(entries.map(entry => entry.sector))];
     const counts = new Map(sectors.map(sector => [sector, 0]));
-    const totals = new Map(sectors.map(sector => [sector, entries.filter(item => item.affinity[0] === sector).length]));
     return Object.freeze(entries.map((entry, index) => {
       const sector = entry.sector;
       const sectorIndex = sectors.indexOf(sector);
       const withinSector = counts.get(sector) || 0;
       counts.set(sector, withinSector + 1);
+      /* The first angle is sector-stable; the fibonacci fraction distributes
+         members over latitude in sphere mode without creating a hidden rank. */
       const longitude = -Math.PI / 2 + (sectorIndex / Math.max(1, sectors.length)) * TAU +
         ((withinSector + 0.5) / Math.max(1, entries.filter(item => item.sector === sector).length) - 0.5) * (TAU / Math.max(1, sectors.length)) * 0.82;
       const latitude = Math.asin(clamp(1 - 2 * ((index + 0.5) / Math.max(1, entries.length)), -1, 1)) * 0.82;
       return Object.freeze({
-        id: `${slug(entry.symbol) || "ticker"}-${timeframe}`,
+        id: `${slug(entry.symbol) || "ticker"}-${time}`,
         visualId: entry.symbol,
         symbol: entry.symbol,
         name: entry.name,
-        role: `${entry.name} · ${entry.symbol} ticker orb for ${timeframe} bars. Market data is not loaded in this view.`,
+        role: `${entry.name} · ${entry.symbol} ticker orb for ${time} bars. Market data is display-only context.`,
         glyph: "◉",
         affinity: Object.freeze([entry.sector]),
         sector,
         sectorIndex,
-        color: PALETTE[(sectorIndex + (timeframe === "1d" ? 3 : 0)) % PALETTE.length],
-        longitude: longitude + (timeframe === "1d" ? 0.21 : 0),
-        latitude: latitude + (timeframe === "1d" ? 0.13 : 0),
+        color: PALETTE[(sectorIndex + (time === "1d" ? 3 : 0)) % PALETTE.length],
+        longitude: longitude + (time === "1d" ? 0.21 : 0),
+        latitude: latitude + (time === "1d" ? 0.13 : 0),
+        order: index
+      });
+    }));
+  }
+
+  /** The full reviewed Characters roster remains the model's character-node source;
+      a reviewed ticker watchlist builds the Good Intelligence ticker-orb view instead. */
+  function buildNodes(input, timeframe = null) {
+    const tickerRows = Array.isArray(input) && input.some(entry => entry && typeof entry.symbol === "string" && entry.symbol.trim());
+    if (tickerRows || timeframe === "1h" || timeframe === "1d") return normalizedTickers(input, timeframe);
+    const entries = normalizedRoster(input);
+    const sectors = [...new Set(entries.map(entry => entry.affinity[0]))];
+    const counts = new Map(sectors.map(sector => [sector, 0]));
+    const totals = new Map(sectors.map(sector => [sector, entries.filter(item => item.affinity[0] === sector).length]));
+    return Object.freeze(entries.map((entry, index) => {
+      const sector = entry.affinity[0];
+      const sectorIndex = sectors.indexOf(sector);
+      const withinSector = counts.get(sector) || 0;
+      counts.set(sector, withinSector + 1);
+      const longitude = -Math.PI / 2 + (sectorIndex / Math.max(1, sectors.length)) * TAU +
+        ((withinSector + 0.5) / Math.max(1, totals.get(sector) || 1) - 0.5) * (TAU / Math.max(1, sectors.length)) * 0.82;
+      const latitude = Math.asin(clamp(1 - 2 * ((index + 0.5) / Math.max(1, entries.length)), -1, 1)) * 0.82;
+      return Object.freeze({
+        id: `${slug(entry.name) || "npc"}-${String(index + 1).padStart(2, "0")}`,
+        visualId: `NPC-${String(index + 1).padStart(2, "0")}`,
+        name: entry.name,
+        role: entry.role,
+        glyph: entry.glyph,
+        affinity: Object.freeze([...entry.affinity]),
+        sector,
+        sectorIndex,
+        color: PALETTE[sectorIndex % PALETTE.length],
+        longitude,
+        latitude,
         order: index
       });
     }));
   }
 
   function friendlyRoute(route) {
-    if (!route) return "Select a ticker orb, then trace a visual route. No message is sent.";
-    if (route.type === "lateral") return "Lateral observation is visualized only. It neither resolves legitimacy nor transfers authority.";
+    if (!route) return "Choose a character node to inspect its assigned Disc berth. All drawn paths are local teaching traces; no OCM message is sent.";
+    if (route.type === "lateral") return "Lateral observation is a local display trace only; it neither resolves legitimacy nor transfers authority.";
     if (route.phase === "inward") return `Visual trace: ${route.from.name} → Center Origin.`;
     if (route.phase === "resolve") return "Visual trace at Center Origin. Resolution is not an authority source.";
     if (route.phase === "outward") return `Visual trace: Center Origin → ${route.to.name}.`;
     return `Visual trace complete: ${route.from.name} → Center Origin → ${route.to.name}.`;
   }
 
-  function mount(host, { tickers, timeframe = "1h", onTimeframeChange = () => {}, onClearBeats = () => {}, onRestoreBeats = () => {} } = {}) {
+  function mount(host, options = {}) {
     if (!host || typeof host.innerHTML !== "string") return null;
-    timeframe = timeframe === "1d" ? "1d" : "1h";
-    const nodes = buildNodes(tickers, timeframe);
+    const Beat = options.beat || globalThis.CharactersBeat;
+    const Cast = options.cast || globalThis.CharactersCast;
+    const DiscCatalog = options.discCatalog || globalThis.CharactersDiscCatalog;
+    const MarketContext = options.marketContext || globalThis.GoodIntelligenceMarketContext;
+    /* Good Intelligence mounts this model over its reviewed ticker watchlist:
+       ticker rows become display-only orbs with hourly/daily geometry. */
+    const tickerMode = Array.isArray(options.tickers) && options.tickers.length > 0;
+    let timeframe = tickerMode ? (options.timeframe === "1d" ? "1d" : "1h") : null;
+    const onTimeframeChange = typeof options.onTimeframeChange === "function" ? options.onTimeframeChange : null;
+    const onClearBeats = typeof options.onClearBeats === "function" ? options.onClearBeats : null;
+    const onRestoreBeats = typeof options.onRestoreBeats === "function" ? options.onRestoreBeats : null;
+    let nodes = buildNodes(tickerMode ? options.tickers : options.roster, timeframe);
     if (!nodes.length) {
-      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 roster unavailable</strong><p>The Characters cast did not provide a reviewed roster. No nodes or routes were invented.</p></div>`;
+      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 roster unavailable</strong><p>${tickerMode
+        ? "The reviewed ticker watchlist did not provide a valid symbol."
+        : "The Characters cast did not provide a reviewed roster."} No nodes or routes were invented.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
     }
     if (!Beat || !Cast || !DiscCatalog || !MarketContext) {
@@ -255,7 +370,8 @@
 
     const appEntry = (globalThis.APPS || []).find(app => app && app.id === "good-intelligence");
     const watchlist = Array.isArray(options.watchlist) ? options.watchlist
-      : appEntry && Array.isArray(appEntry.tickerbotWatchlist) ? appEntry.tickerbotWatchlist : [];
+      : tickerMode ? options.tickers
+        : appEntry && Array.isArray(appEntry.tickerbotWatchlist) ? appEntry.tickerbotWatchlist : [];
     const storage = (() => {
       try {
         const candidate = globalThis.localStorage;
@@ -319,6 +435,8 @@
       autoRotate: !Boolean(globalThis.matchMedia && globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches),
       labels: false,
       showDataBits: preferences && typeof preferences.showDataBits === "boolean" ? preferences.showDataBits : true,
+      showFractal: preferences && typeof preferences.showFractal === "boolean" ? preferences.showFractal : true,
+      filmTime: 0,
       hover: -1,
       dragging: false,
       downX: 0,
@@ -468,38 +586,76 @@
       <section class="gi-orb2" data-gi-orb2-root aria-label="Orb 2 live 3D OCM market-beat model">
         <div class="gi-orb2-toolbar">
           <div>
-            <p class="gi-eyebrow">ORB 2 · MARKET TICKER MODEL</p>
-            <h3>${timeframe === "1h" ? "Hourly" : "Daily"} ticker orbs</h3>
-            <p>One local orb per reviewed ticker. Select a ticker below; switch chart interval in Market Charts to build its distinct timeframe orb. No prices or signals appear here.</p>
+            <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
+            <h3>Orb Communicator Model</h3>
+            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces.</p>
           </div>
           <div class="gi-orb2-actions">
-            <label class="gi-chart-control"><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1h" ? "selected" : ""}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
+            <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
+            <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
+            <button class="gi-button" type="button" data-gi-orb2-fullscreen aria-pressed="false">⛶ Model full screen</button>
+            <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
             <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
             <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
             <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
-            <button class="gi-button" type="button" data-gi-orb2-restore-beats>Restore stored beats</button>
+            <button class="gi-button" type="button" data-gi-orb2-restore-beats hidden>Restore stored beats</button>
             <button class="gi-button" type="button" data-gi-orb2-reset>Reset view</button>
           </div>
         </div>
         <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Compact beat snapshots save to D1 when available; Clear hides active context and Restore reloads the archive.</p>
-        <div class="gi-orb2-controls" aria-label="Orb 2 display controls">
+        <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
+          <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
+          <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
+          <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
+          <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
+          <label class="gi-orb2-control"><span>DATA SOURCE</span><select data-gi-orb2-source aria-label="Choose live data or synthetic rehearsal"><option value="live">Live provider data</option><option value="rehearsal">Synthetic rehearsal</option></select></label>
+          <label class="gi-orb2-control gi-orb2-focus-control"><span>FOCUS INSTRUMENT</span><select data-gi-orb2-focus aria-label="Choose an instrument to inspect"></select></label>
+          <div class="gi-orb2-beat-flags">
+            <label class="gi-orb2-toggle"><input data-gi-orb2-stretch type="checkbox"><span>Use reserve stretch</span></label>
+            <label class="gi-orb2-toggle"><input data-gi-orb2-tier type="checkbox"><span>Two-lane hot/sweep rotation</span></label>
+          </div>
+        </div>
+        <div class="gi-orb2-live-strip" role="status" aria-live="polite">
+          <span class="gi-orb2-provider-pill" data-gi-orb2-provider>Massive · AUTOMATIC DAILY</span>
+          <span class="gi-orb2-live-state" data-gi-orb2-countdown>Awaiting first beat</span>
+          <span class="gi-orb2-persist-state" data-gi-orb2-persistence>Loading saved beat history…</span>
+          <span class="gi-orb2-counts" data-gi-orb2-counts>0 calls · 0 beats</span>
+        </div>
+        <div class="gi-orb2-plan-row">
+          <div data-gi-orb2-plan></div>
+          <button class="gi-button gi-orb2-feature" type="button" data-gi-orb2-feature>Feature focus</button>
+        </div>
+        <div class="gi-orb2-message" data-gi-orb2-message role="status" hidden></div>
+        <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive automatically rotates one reviewed <code>1d</code> instrument per minute across Discs 1–5. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. A provider change gets a visible 60-second warm-up before any new request. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
+        <div class="gi-orb2-pathways" aria-label="Live data pathway status">
+          <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div>
+          <i aria-hidden="true">→</i>
+          <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div>
+          <i aria-hidden="true">→</i>
+          <div class="gi-orb2-path-step"><span>03 · D1 ALLOWANCE</span><strong data-gi-orb2-path-ledger>WAITING</strong></div>
+          <i aria-hidden="true">→</i>
+          <div class="gi-orb2-path-step"><span>04 · 3D BEAT</span><strong data-gi-orb2-path-model>READY</strong></div>
+        </div>
+        <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
           <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-data-bits type="checkbox" checked><span>Market data bits</span></label>
+          <label class="gi-orb2-toggle"><input data-gi-orb2-fractal type="checkbox" checked><span>Fractal core</span></label>
           <span class="gi-orb2-center">CENTER ORIGIN · ${CENTER_ADDRESS}</span>
         </div>
         ${colorKey}
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
-            <canvas data-gi-orb2-canvas tabindex="0" aria-label="Interactive 3D ticker orb model. Drag to orbit. Select a visible ticker orb to inspect it."></canvas>
-            <div class="gi-orb2-canvas-hud" aria-hidden="true"><span>3D OCM MODEL</span><span>LOCAL / DISPLAY ONLY</span></div>
+            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
+            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM AND CORE</div></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
-            <p class="gi-eyebrow">TICKER ORB</p>
-            <label class="gi-orb2-node-select"><span>SELECT TICKER</span><select data-gi-orb2-select aria-label="Choose a ticker orb"></select></label>
+            <p class="gi-eyebrow">NODE / MARKET INSPECTOR</p>
+            <label class="gi-orb2-node-select"><span data-gi-orb2-node-label>CHARACTER NODE</span><select data-gi-orb2-node data-gi-orb2-select aria-label="Choose a character node"></select></label>
+            <button class="gi-button gi-orb2-feature-inline" type="button" data-gi-orb2-feature-inline>Feature focus</button>
             <div data-gi-orb2-detail></div>
             <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
           </aside>
@@ -508,7 +664,7 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing; synthetic rehearsal is explicitly labeled and never substituted for a live beat.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing; synthetic rehearsal is explicitly labeled and never substituted for a live beat. The Orb's fractal frame processing — the shared OrbFilm film and Demo.flame core drawn through this camera — is display-only, adds no request, and encodes no market meaning.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -533,20 +689,67 @@
     const formationLabel = $("[data-gi-orb2-formation-label]");
     const rotateToggle = $("[data-gi-orb2-rotate]");
     const labelsToggle = $("[data-gi-orb2-labels]");
-    const routeButton = $("[data-gi-orb2-route]");
-    const lateralButton = $("[data-gi-orb2-lateral]");
-    const resetButton = $("[data-gi-orb2-reset]");
+    const pathsToggle = $("[data-gi-orb2-paths]");
+    const dataBitsToggle = $("[data-gi-orb2-data-bits]");
+    const detail = $("[data-gi-orb2-detail]");
+    const routeNote = $("[data-gi-orb2-route-note]");
+    const planHost = $("[data-gi-orb2-plan]");
+    const messageHost = $("[data-gi-orb2-message]");
+    const providerHost = $("[data-gi-orb2-provider]");
+    const countdownHost = $("[data-gi-orb2-countdown]");
+    const persistenceHost = $("[data-gi-orb2-persistence]");
+    const countsHost = $("[data-gi-orb2-counts]");
+    const historyHost = $("[data-gi-orb2-history-list]");
+    const historyCount = $("[data-gi-orb2-history-count]");
+    const canvasStatus = $("[data-gi-orb2-canvas-status]");
+    const routeStepProvider = $("[data-gi-orb2-path-provider]");
+    const routeStepWorker = $("[data-gi-orb2-path-worker]");
+    const routeStepLedger = $("[data-gi-orb2-path-ledger]");
+    const routeStepModel = $("[data-gi-orb2-path-model]");
+    const stretchBox = $("[data-gi-orb2-stretch]");
+    const tierBox = $("[data-gi-orb2-tier]");
+    const timeframeSelect = $("[data-gi-orb2-timeframe]");
     const clearBeatsButton = $("[data-gi-orb2-clear-beats]");
     const restoreBeatsButton = $("[data-gi-orb2-restore-beats]");
-    const timeframeSelect = $("[data-gi-orb2-timeframe]");
-    timeframeSelect.addEventListener("change", () => onTimeframeChange(timeframeSelect.value === "1d" ? "1d" : "1h"));
-    const ownerDocument = host.ownerDocument;
-    const beatStatusHandler = event => { restoreBeatsButton.hidden = !event.detail?.hasStored; };
+    const nodeSelectLabel = $("[data-gi-orb2-node-label]");
+    const fractalToggle = $("[data-gi-orb2-fractal]");
+    const fractalStatus = $("[data-gi-orb2-fractal-status]");
+    const ownerDocument = host.ownerDocument || globalThis.document || null;
+    if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
+    /* The Characters app reports whether an anonymous saved-beat archive exists
+       for this browser; Restore stored beats reloads it on demand. */
+    const beatStatusHandler = event => { if (restoreBeatsButton) restoreBeatsButton.hidden = !event.detail?.hasStored; };
     ownerDocument?.addEventListener("harshalos:characters-beats:status", beatStatusHandler);
-    clearBeatsButton.addEventListener("click", () => { state.route = null; showInspector(); onClearBeats(); });
-    restoreBeatsButton.addEventListener("click", () => { state.route = null; showInspector(); onRestoreBeats(); });
+    clearBeatsButton?.addEventListener("click", () => {
+      state.route = null; state.lastRoutePhase = "";
+      drawInspector(); scheduleRender();
+      if (onClearBeats) onClearBeats();
+    });
+    restoreBeatsButton?.addEventListener("click", () => {
+      state.route = null; state.lastRoutePhase = "";
+      drawInspector(); scheduleRender();
+      if (onRestoreBeats) onRestoreBeats();
+    });
+    timeframeSelect?.addEventListener("change", () => {
+      const next = timeframeSelect.value === "1d" ? "1d" : "1h";
+      if (onTimeframeChange) { onTimeframeChange(next); return; }
+      rebuildTickerNodes(next);
+    });
+    const reduceMotion = Boolean(globalThis.matchMedia && globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    let nodeIndexByName = new Map(nodes.map((node, index) => [node.name, index]));
+    let stage = null;
+    let symbols = [];
+    let context2d = null;
+    let beatTimer = null;
+    let countdownTimer = null;
+    let resizeObserver = null;
+    let fallbackFullscreen = false;
+    let disposed = false;
 
-    select.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.name)} · ${escapeHtml(node.symbol)}</option>`).join("");
+    try { context2d = canvas.getContext("2d"); } catch { context2d = null; }
+    if (context2d) {
+      try { canvas.style.touchAction = "none"; } catch { /* optional */ }
+    }
 
     const savedLocalEvents = state.events;
     function mergeEvents(events) {
@@ -568,7 +771,7 @@
         discId: state.discId, interval: state.interval, source: state.source,
         auto: state.auto, cadence: state.cadence, budget: state.budget,
         stretch: state.stretch, tierMode: state.tierMode, tierSweepHours: state.tierSweepHours,
-        showDataBits: state.showDataBits
+        showDataBits: state.showDataBits, showFractal: state.showFractal
       };
       try {
         storage.setItem(PREFS_KEY, JSON.stringify(savedPrefs));
@@ -974,6 +1177,7 @@
       beatButton.disabled = state.pending || state.loadingCatalog;
       rotateToggle.checked = state.autoRotate;
       dataBitsToggle.checked = state.showDataBits;
+      if (fractalToggle) fractalToggle.checked = state.showFractal;
     }
 
     function syncFocusOptions() {
@@ -1069,6 +1273,12 @@
 
     function latestForNode(node) {
       if (!stage) return null;
+      if (node.symbol) {
+        /* Ticker orbs map straight to their reviewed berth symbol. */
+        const observation = latestObservation(state.discId, node.symbol);
+        const berth = stage.berths.find(entry => entry.symbol === node.symbol);
+        return observation ? { ...observation, berth } : null;
+      }
       const berths = stage.berths.filter(berth => berth.npc && berth.npc.name === node.name);
       let latest = null;
       for (const berth of berths) {
@@ -1136,10 +1346,17 @@
       const nodeActivity = nodeObservation && nodeObservation.motion ? nodeObservation.motion.caption : "No market observation — the character stands still.";
       const assignments = stage ? stage.berths.filter(berth => berth.npc && berth.npc.name === node.name).length : 0;
       detail.innerHTML = `
-        <div class="gi-orb2-node-head"><span style="--gi-orb2-node:${escapeHtml(node.color)}">${escapeHtml(node.glyph)}</span><div><h4>${escapeHtml(node.name)}</h4><p>${escapeHtml(node.symbol)} · ${timeframe} ticker orb</p></div></div>
-        <dl class="gi-orb2-node-meta"><div><dt>COMPANY</dt><dd>${escapeHtml(node.name)}</dd></div><div><dt>SECTOR</dt><dd>${escapeHtml(node.affinity.join(" · "))}</dd></div><div><dt>TIMEFRAME</dt><dd>${timeframe}</dd></div></dl>
+        <div class="gi-orb2-node-head"><span style="--gi-orb2-node:${escapeHtml(node.color)}">${escapeHtml(node.glyph)}</span><div><h4>${escapeHtml(node.name)}</h4><p>${node.symbol ? `${escapeHtml(node.symbol)} · ${timeframe || "1h"} ticker orb` : `${escapeHtml(node.visualId)} · local visual node`}</p></div></div>
+        <dl class="gi-orb2-node-meta">
+          <div><dt>Affinity / sector</dt><dd>${escapeHtml(node.affinity.join(" · "))}</dd></div>
+          <div><dt>${node.symbol ? "Reviewed berth" : "Characters-cast assignment"}</dt><dd>${node.symbol ? `${escapeHtml(node.symbol)} on ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}` : `${assignments} reviewed berth${assignments === 1 ? "" : "s"} · ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}`}</dd></div>
+          <div><dt>Latest node pathway</dt><dd>${escapeHtml(nodeSource)}</dd></div>
+          <div><dt>${node.symbol ? "Orb motion" : "NPC motion"} · ${escapeHtml(providerTitle(provider))}</dt><dd>${escapeHtml(nodeActivity)}</dd></div>
+        </dl>
+        <div class="gi-orb2-focus-readout"><p class="gi-eyebrow">FOCUS · ${escapeHtml(state.focus || "—")}</p>${observationMarkup(activeObservation)}</div>
         <p class="gi-orb2-node-role">${escapeHtml(node.role)}</p>
-        <p class="gi-orb2-node-caveat">Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity.</p>`;
+        <p class="gi-orb2-node-caveat">${node.symbol ? "Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity." : "This character label is from the reviewed local cast. It is not a registered OCM address or identity claim."}</p>`;
+      nodeSelect.value = node.id;
       routeNote.textContent = friendlyRoute(state.route);
     }
 
@@ -1169,14 +1386,54 @@
       return state.cadence * 60_000;
     }
 
-    const ctx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
-    if (!ctx) {
-      routeButton.disabled = true;
-      lateralButton.disabled = true;
-      showInspector();
-      routeNote.textContent = "Ticker selection is available, but this browser/runtime does not expose a 2D canvas for the orb render. No nodes or routes were invented.";
-      select.addEventListener("change", () => setSelected(nodes.findIndex(node => node.id === select.value)));
-      return Object.freeze({ schema: SCHEMA, nodes, state, destroy() { ownerDocument?.removeEventListener("harshalos:characters-beats:status", beatStatusHandler); }, setVisible() {} });
+    function drawStatus() {
+      const provider = currentProvider();
+      providerHost.textContent = providerDescription(provider);
+      providerHost.className = `gi-orb2-provider-pill ${state.source === "rehearsal" ? "synthetic" : provider}`;
+      if (state.pending) countdownHost.textContent = "BEAT IN FLIGHT · WORKER REQUEST";
+      else if (state.cooldownUntil > Date.now()) countdownHost.textContent = `PROVIDER WARM-UP · ${formatCountdown(state.cooldownUntil - Date.now())}`;
+      else if (!state.auto) countdownHost.textContent = "AUTO-BEAT PAUSED · use Beat now";
+      else if (state.source === "live" && provider === "tickerbot") countdownHost.textContent = "TICKERBOT IS ON-DEMAND · use Beat now";
+      else if (state.lastBeatAt) {
+        const remaining = state.nextBeatAt > Date.now() ? state.nextBeatAt - Date.now() : currentDelay();
+        countdownHost.textContent = `LAST BEAT ${shortTime(state.lastBeatAt)} · NEXT IN ${formatCountdown(remaining)}`;
+      }
+      else countdownHost.textContent = "READY · first live beat is starting";
+      persistenceHost.textContent = state.persistence === "saved" ? "SERVER HISTORY · SAVED"
+        : state.persistence === "saving" ? "SERVER HISTORY · SAVING"
+          : state.persistence === "loading" ? "SERVER HISTORY · LOADING"
+            : state.persistence === "local-only" ? "LOCAL RECOVERY · SERVER UNAVAILABLE"
+              : state.persistence === "local-storage-unavailable" ? "SESSION STORAGE BLOCKED" : state.persistence;
+      persistenceHost.title = state.persistenceNote;
+      countsHost.textContent = `${state.ledger.calls.toLocaleString()} local calls · ${state.ledger.beats.toLocaleString()} beats · ${symbols.length} berths`;
+      routeStepProvider.textContent = state.routeSteps.provider;
+      routeStepWorker.textContent = state.routeSteps.worker;
+      routeStepLedger.textContent = state.routeSteps.ledger;
+      routeStepModel.textContent = state.routeSteps.model;
+      [routeStepProvider, routeStepWorker, routeStepLedger, routeStepModel].forEach(element => {
+        element.classList.toggle("blocked", /UNAVAILABLE|BLOCKED|REFUSED/i.test(element.textContent));
+        element.classList.toggle("active", /REQUESTING|FETCHING/i.test(element.textContent));
+      });
+      if (state.message) {
+        messageHost.hidden = false;
+        messageHost.className = `gi-orb2-message ${state.message.kind || "note"}`;
+        messageHost.textContent = state.message.text;
+      } else {
+        messageHost.hidden = true;
+        messageHost.textContent = "";
+      }
+      autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
+      autoButton.setAttribute("aria-pressed", String(state.auto));
+      beatButton.disabled = state.pending || state.loadingCatalog;
+      canvasStatus.textContent = !context2d ? "CANVAS UNAVAILABLE · BEAT LOG / INSPECTOR STILL ACTIVE"
+        : state.source === "rehearsal" ? "SYNTHETIC · LOCAL REHEARSAL"
+          : "LIVE API-DERIVED MOTION · VISUAL PATHS ONLY";
+      const documentRef = host.ownerDocument || globalThis.document;
+      const modelFullscreenActive = fallbackFullscreen || Boolean(documentRef && documentRef.fullscreenElement === root);
+      fullscreenButton.textContent = modelFullscreenActive ? "⛶ Exit model full screen" : "⛶ Model full screen";
+      fullscreenButton.setAttribute("aria-label", modelFullscreenActive ? "Exit Orb 2 model fullscreen" : "Fullscreen Orb 2 model only");
+      fullscreenButton.setAttribute("aria-pressed", String(modelFullscreenActive));
+      drawPlan();
     }
 
     function draw() {
@@ -1589,17 +1846,25 @@
       };
     }
 
-    function project(point, width, height) {
+    /* The camera is split so The Orb's fractal frame processing (OrbFilm.drawWrapped)
+       can wrap frames through this model's exact rotation, pitch, and zoom. */
+    function rotate3(point) {
       const cy = Math.cos(state.yaw), sy = Math.sin(state.yaw);
       const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
       const x = point.x * cy - point.z * sy;
       const z0 = point.x * sy + point.z * cy;
-      const y = point.y * cp - z0 * sp;
-      const z = point.y * sp + z0 * cp;
+      return { x, y: point.y * cp - z0 * sp, z: point.y * sp + z0 * cp };
+    }
+
+    function toScreen(point, width, height) {
       const fov = 6.4 / state.zoom;
-      const scale = fov / (fov + z);
+      const scale = fov / (fov + point.z);
       const radius = Math.min(width, height) * 0.315;
-      return { x: width / 2 + x * scale * radius, y: height / 2 - y * scale * radius, z, scale };
+      return { x: width / 2 + point.x * scale * radius, y: height / 2 - point.y * scale * radius, z: point.z, scale };
+    }
+
+    function project(point, width, height) {
+      return toScreen(rotate3(point), width, height);
     }
 
     function canvasBounds() {
@@ -1843,6 +2108,63 @@
       });
     }
 
+    /* ── The Orb's fractal frame processing, carried into Orb 2 ──────────
+       Surface: the shared OrbFilm film (200 author frames, bounce clock)
+       wrapped onto this model's node shell through rotate3()/toScreen().
+       Core: the shared Demo.flame IFS player — the same core that burns in
+       The Orb — drawn additively at Center Origin. Brightness follows the
+       same legitimacy gate as The Orb (α = 0.22 + 0.78·L(t)); the render is
+       display-only and encodes no market meaning. Both sources resolve
+       lazily and degrade to the plain wire core when unavailable. */
+    function drawFractalFrames(now, center, width, height, dpr) {
+      const filmApi = orbFilmApi();
+      const film = filmApi && typeof filmApi.shared === "function" ? filmApi.shared() : null;
+      const flame = flameCore();
+      let filmNote = "film unavailable";
+      if (filmApi && film) {
+        if (film.ready && typeof filmApi.drawWrapped === "function") {
+          if (!state.filmTime) state.filmTime = now;
+          state.filmTime += state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
+          const sample = film.sampleAt ? film.sampleAt(state.filmTime) : null;
+          const alpha = (0.22 + 0.78 * legitimacyGate()) * 0.34;
+          if (sample && sample.img0 && alpha > 0.01) {
+            filmApi.drawWrapped(context2d, {
+              img: sample.img0,
+              project: rotate3,
+              toScreen: point => toScreen(point, width, height),
+              cs: center,
+              R: 2.06,
+              fov: 6.4 / state.zoom,
+              alpha,
+              dpr
+            });
+          }
+          filmNote = `film ${film.frameAt ? film.frameAt(state.filmTime) + 1 : "?"}/200 · bounce`;
+        } else if (film.dead) filmNote = "film unavailable";
+        else if (film.loaded > 0) filmNote = `film loading ${film.loaded}/${film.total}`;
+        else filmNote = "film not started";
+      }
+      let coreNote = "core module absent";
+      let coreLive = false;
+      if (flame) {
+        if (flame.ready && Array.isArray(flame.frames) && flame.frames.length) {
+          const modulation = typeof flame.flameModulation === "function" ? flame.flameModulation() : null;
+          const energy = modulation && modulation.active ? clamp(modulation.energy, 0, 1) : 0.5;
+          if (typeof flame.drawOn === "function") {
+            flame.drawOn(context2d, center.x, center.y, 44 + energy * 18, (0.22 + 0.78 * legitimacyGate()) * 0.9);
+          }
+          coreNote = `Demo.flame core frame ${Math.floor(flame.current) + 1}/${flame.frames.length}`;
+          coreLive = true;
+        } else if (flame.baking) coreNote = "core baking";
+        else coreNote = "core unavailable";
+      }
+      if (fractalStatus) {
+        const text = `FRACTAL FRAMES · ${filmNote} · ${coreNote}`;
+        if (fractalStatus.textContent !== text) fractalStatus.textContent = text;
+      }
+      return coreLive;
+    }
+
     function drawCanvas(now) {
       if (!context2d || state.destroyed || !state.visible) return;
       const wallNow = Date.now();
@@ -1861,6 +2183,11 @@
       }
       state.lastFrame = now;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
+      /* The Orb's fractal frame processing — film surface under the model,
+         flame core at Center Origin; both degrade to wire when unavailable. */
+      let fractalCoreLive = false;
+      if (state.showFractal) fractalCoreLive = drawFractalFrames(now, center, width, height, dpr);
+      else if (fractalStatus && fractalStatus.textContent !== "FRACTAL FRAMES · HIDDEN") fractalStatus.textContent = "FRACTAL FRAMES · HIDDEN";
       [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
       for (let index = 0; index < 8; index += 1) {
         const longitude = (index / 8) * TAU;
@@ -1908,15 +2235,19 @@
           context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
           context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
           const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
-          ctx.fillText(node.symbol, point.x + offset, point.y - radius - 4);
-          ctx.restore();
+          context2d.fillText(node.symbol || node.name, point.x + offset, point.y - radius - 4);
+          context2d.restore();
         }
       });
       context2d.save();
-      context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
-      context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
-      context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
-      context2d.beginPath(); context2d.arc(center.x, center.y, state.pending ? 9 : 7, 0, TAU); context2d.fill();
+      /* When the shared fractal core is burning, it replaces the plain center dot;
+         the resolution ring and CENTER label remain so the origin stays legible. */
+      if (!fractalCoreLive) {
+        context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
+        context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
+        context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
+        context2d.beginPath(); context2d.arc(center.x, center.y, state.pending ? 9 : 7, 0, TAU); context2d.fill();
+      }
       context2d.shadowBlur = 0;
       context2d.strokeStyle = "rgba(255,212,121,.8)";
       context2d.lineWidth = 1;
@@ -2026,14 +2357,37 @@
       persistLocal();
       scheduleRender();
     });
+    if (fractalToggle) fractalToggle.addEventListener("change", () => {
+      state.showFractal = !!fractalToggle.checked;
+      persistLocal();
+      scheduleRender();
+    });
     routeButton.addEventListener("click", () => setRoute("resolution"));
     lateralButton.addEventListener("click", () => setRoute("lateral"));
     resetButton.addEventListener("click", () => {
       state.yaw = -0.68; state.pitch = 0.32; state.zoom = 1; state.formation = 1;
       formation.value = "100"; formationLabel.textContent = "SPHERE";
-      state.route = null; state.lastRoutePhase = ""; showInspector();
-      onClearBeats();
+      state.route = null; state.lastRoutePhase = "";
+      drawInspector(); scheduleRender();
+      if (onClearBeats) onClearBeats();
     });
+
+    /* Rebuild ticker-orb geometry in place when no app-level remount is requested. */
+    function rebuildTickerNodes(nextTimeframe) {
+      if (!tickerMode) return;
+      const rebuilt = buildNodes(options.tickers, nextTimeframe === "1d" ? "1d" : "1h");
+      if (!rebuilt.length) return;
+      timeframe = nextTimeframe === "1d" ? "1d" : "1h";
+      nodes = rebuilt;
+      nodeIndexByName = new Map(nodes.map((node, index) => [node.name, index]));
+      state.selected = 0;
+      state.route = null;
+      state.lastRoutePhase = "";
+      if (timeframeSelect) timeframeSelect.value = timeframe;
+      syncNodeOptions();
+      drawInspector();
+      scheduleRender();
+    }
 
     if (globalThis.ResizeObserver) {
       resizeObserver = new globalThis.ResizeObserver(() => scheduleRender());
@@ -2178,17 +2532,6 @@
           globalThis.cancelAnimationFrame(state.animation);
           state.animation = 0;
         }
-      },
-      destroy() {
-        ownerDocument?.removeEventListener("harshalos:characters-beats:status", beatStatusHandler);
-        state.destroyed = true;
-        if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(state.animation);
-        state.animation = 0;
-        canvas.removeEventListener("pointerdown", onPointerDown);
-        canvas.removeEventListener("pointermove", onPointerMove);
-        canvas.removeEventListener("pointerup", onPointerUp);
-        canvas.removeEventListener("wheel", onWheel);
-        canvas.removeEventListener("keydown", onKeyDown);
       }
     }
     function destroy() {
@@ -2198,6 +2541,7 @@
       if (state.animation && typeof globalThis.cancelAnimationFrame === "function") globalThis.cancelAnimationFrame(state.animation);
       state.animation = 0;
       if (resizeObserver) resizeObserver.disconnect();
+      ownerDocument?.removeEventListener("harshalos:characters-beats:status", beatStatusHandler);
       if (documentRef) {
         documentRef.removeEventListener("fullscreenchange", onFullscreenChange);
         documentRef.removeEventListener("visibilitychange", onVisibilityChange);
@@ -2219,7 +2563,7 @@
 
     return Object.freeze({
       schema: SCHEMA,
-      nodes: initialNodes,
+      get nodes() { return nodes; },
       state,
       selectNode,
       beatNow,
@@ -2229,5 +2573,8 @@
     });
   }
 
-  window.GoodIntelligenceOrb2 = Object.freeze({ SCHEMA, CENTER_ADDRESS, PALETTE, buildNodes, mount, getSavedBeatSessionId });
+  window.GoodIntelligenceOrb2 = Object.freeze({
+    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
+    dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+  });
 })();

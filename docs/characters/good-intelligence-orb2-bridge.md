@@ -38,6 +38,12 @@ The repository's production Wrangler config declares `COMMUNITY_DB` for `communi
 
 Apply migration `0008_orb2_saved_beats.sql` to the same D1 database used by the Worker before enabling server persistence. If the history table is missing or D1 is unavailable, the page labels the condition and preserves the local recovery copy when browser storage is available. This persistence route never initiates a provider request.
 
+## Ticker-orb mode and The Orb's fractal frames
+
+- When Good Intelligence mounts Orb 2 over its reviewed watchlist, the toolbar offers a `TIMEFRAME` selector; switching it rebuilds the ticker orbs locally without another network request, and the empty state names the reviewed watchlist it is waiting on.
+- Orb 2 reuses The Orb's shared fractal frame processors when they are already running in the page: the 200-frame `OrbFilm` surface film is wrapped through Orb 2's own 3D camera and node shell, and the `Demo.flame` / `OuterOrb.flame` IFS core burns at Center Origin with the same harmonic modulation gate The Orb uses. Both are display-only: no OCM message, market signal, recommendation, authorization, transaction, or permission to act is produced by either processor.
+- The toolbar's `FRACTAL FRAMES` status line reports film readiness and the current core frame. The `Fractal core` toggle hides the frames without disturbing the beat view, and the choice persists with Orb 2's anonymous local preferences. When the film or flame modules are absent, not started, or still baking, the model stays on its wire core and the status line says so; nothing is invented.
+
 ## Validation
 
 - `npm run test:characters` covers the provider contracts and beat/motion engine.

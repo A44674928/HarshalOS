@@ -1173,7 +1173,7 @@
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
               : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
-                : "A local 3D model of reviewed ticker symbols. The interval selector rebuilds the hourly or daily orb geometry; it sends no messages, fetches no market data, and confers no authority.";
+                : "A live, display-only 3D OCM beat model over the reviewed watchlist. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);

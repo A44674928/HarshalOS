@@ -216,8 +216,8 @@ test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbo
   assert.equal(nodes[0].symbol, "AAPL");
 });
 
-test("Orb 2 mounts interactive local controls and defaults motion off for reduced-motion visitors", t => {
-  const { window, calls, frames } = interactiveHarness();
+test("Orb 2 mounts interactive local controls and defaults motion off for reduced-motion visitors", async t => {
+  const { window, calls, frames, persisted, canvasCalls } = interactiveHarness(t);
   t.after(() => window.happyDOM.abort());
   const host = window.document.createElement("div");
   window.document.body.appendChild(host);
@@ -233,10 +233,12 @@ test("Orb 2 mounts interactive local controls and defaults motion off for reduce
     clientWidth: { configurable: true, value: 720 },
     clientHeight: { configurable: true, value: 440 }
   });
+  await flush();
   const firstFrame = frames.shift();
   assert.equal(typeof firstFrame, "function", "mount schedules a render frame when canvas is available");
+  frames.splice(0).forEach(pending => pending(100));
   firstFrame(100);
-  assert.ok(calls.includes("fillRect") && calls.includes("arc"), "the scheduled frame paints the projected sphere and nodes");
+  assert.ok(canvasCalls.includes("fillRect") && canvasCalls.includes("arc"), "the scheduled frame paints the projected sphere and nodes");
   assert.equal(engine.nodes.length, 1);
   assert.equal(engine.state.autoRotate, false, "prefers-reduced-motion starts with rotation disabled");
   assert.ok(calls.some(call => call.url.includes("/api/characters/v1/beat?disc=stocks&provider=massive")), "opening the live Orb starts the same Massive daily beat route as Characters");
@@ -279,17 +281,20 @@ test("Orb 2 mounts interactive local controls and defaults motion off for reduce
   assert.equal(engine.state.visible, false, "leaving the Orb 2 tab pauses the renderer and auto timer");
   engine.setVisible(true);
   assert.equal(engine.state.visible, true, "returning to the view resumes it");
+  engine.destroy();
 });
 
-test("the Orb 2 module is browser-local and makes no provider or authority call", () => {
-  assert.doesNotMatch(orbSource, /\bfetch\s*\(/, "the renderer does not fetch market or network data");
-  assert.doesNotMatch(orbSource, /sessionStorage|XMLHttpRequest|WebSocket/, "the renderer does not open a separate storage or network channel");
+test("the Orb 2 module stays browser-local: same-origin routes only, no provider or authority call", () => {
+  assert.doesNotMatch(orbSource, /https?:\/\//, "no absolute provider or authority URL is shipped to the browser");
+  assert.doesNotMatch(orbSource, /XMLHttpRequest|WebSocket|EventSource/, "the renderer opens no separate network channel");
+  assert.match(orbSource, /\/api\/characters\/v1\/beat/, "live market beats use only the same-origin Characters Worker route");
+  assert.match(orbSource, /\/api\/good-intelligence\/v1\/orb2\/beats/, "beat history uses only the same-origin Orb 2 history route");
   assert.match(orbSource, /SAVED_BEAT_SESSION_KEY/, "only an opaque random browser key is retained locally for the D1 archive");
-  assert.match(orbSource, /No message is sent/, "the default route copy states its no-transmission boundary");
-  assert.match(orbSource, /cannot authorize, resolve, commit, or transact/, "the visual model states its authority boundary");
+  assert.match(orbSource, /no OCM message is sent/i, "the route copy states its no-transmission boundary");
   assert.match(orbSource, /Resolution is not an authority source/, "the Resolution Axis invariant is retained in the displayed model");
-  assert.match(orbSource, /REVIEWED BEAT CONTEXT/, "the model labels the reviewed Characters beat context instead of fabricating a live quote");
-  assert.match(orbSource, /Orb 2 receives none of those packets/, "the context explicitly excludes prices, ranks, and signals from this canvas");
+  assert.match(orbSource, /MODEL BOUNDARY/, "the model boundary paragraph is displayed");
+  assert.match(orbSource, /not an OCM message, market signal, recommendation, authorization, transaction, or permission to act/, "the boundary names every refused action");
+  assert.match(orbSource, /fractal frame processing/i, "The Orb's fractal frame processing is carried over as display-only");
 });
 
 test("Orb 2 restores the last saved beat from the server after a page refresh", async t => {
@@ -417,6 +422,76 @@ test("Orb 2 explains and records an Alpha Vantage D1-ledger refusal without subs
   assert.equal(persisted.at(-1).instruments[0].market, null);
 });
 
+test("Orb 2 can process The Orb's fractal frames through its own camera and degrades without them", async t => {
+  const { window, host, engine, frames } = interactiveHarness(t);
+  await flush();
+  assert.ok(host.querySelector("[data-gi-orb2-fractal]"), "the fractal core toggle is offered with the display controls");
+  assert.ok(host.querySelector("[data-gi-orb2-fractal-status]"), "a dedicated status line reports the fractal frame sources");
+  const idleFrame = frames.shift();
+  assert.equal(typeof idleFrame, "function", "the model schedules its wire-core render frame");
+  idleFrame(150);
+  const idleStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
+  assert.match(idleStatus, /FRACTAL FRAMES/i);
+  assert.match(idleStatus, /unavailable|module absent|not started/i, "without the film or flame modules the model stays on its wire core");
+
+  /* The Orb's frame processors, stubbed exactly as the real globals appear:
+     one shared 200-frame film and one shared 120-frame Demo.flame player. */
+  const wrapped = [];
+  const coreDraws = [];
+  const frameImage = { naturalWidth: 1500, naturalHeight: 1000 };
+  const film = {
+    ready: true, dead: false, loaded: 200, total: 200,
+    frameAt: () => 42,
+    sampleAt: () => ({ i0: 42, i1: 43, frac: 0.5, img0: frameImage, img1: null })
+  };
+  window.OrbFilm = {
+    shared: () => film,
+    drawWrapped: (ctx, options) => { wrapped.push(options); return true; },
+    CFG: { alphaMax: 0.9 }
+  };
+  const flame = {
+    ready: true, baking: false, current: 17.25, frames: new Array(120),
+    flameModulation: () => ({ energy: 0.75, pulse: 0.5, phase: 1, speedMult: 1, active: true }),
+    drawOn: (ctx, cx, cy, size, alpha) => { coreDraws.push({ cx, cy, size, alpha }); return true; }
+  };
+  window.FractalFlame = { shared: () => flame };
+
+  /* The reduced-motion harness does not auto-reschedule frames, so a display
+     change is used to schedule the render that processes the fractal frames. */
+  const pathsToggle = host.querySelector("[data-gi-orb2-paths]");
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const nextFrame = frames.shift();
+  assert.equal(typeof nextFrame, "function", "a render frame is pending after the beat settles");
+  nextFrame(200);
+  assert.equal(wrapped.length, 1, "the shared OrbFilm frame is wrapped onto the model's node shell");
+  assert.equal(typeof wrapped[0].project, "function", "the wrap uses this model's own 3D camera");
+  assert.equal(typeof wrapped[0].toScreen, "function", "the wrap uses this model's own screen projection");
+  assert.equal(wrapped[0].R, 2.06, "the film wraps on the same node shell the model draws");
+  assert.ok(Number.isFinite(wrapped[0].cs.x) && Number.isFinite(wrapped[0].cs.y), "the wrap is anchored at this model's projected center");
+  assert.ok(wrapped[0].alpha > 0 && wrapped[0].alpha <= 0.5, "the film stays translucent so market paths remain legible");
+  assert.equal(coreDraws.length, 1, "the shared Demo.flame core burns at Center Origin");
+  assert.ok(coreDraws[0].size >= 44 && coreDraws[0].size <= 62, "the core breathes with the flame's harmonic energy");
+  assert.ok(coreDraws[0].alpha > 0 && coreDraws[0].alpha <= 1, "the core obeys the same legitimacy gate as The Orb");
+  const liveStatus = host.querySelector("[data-gi-orb2-fractal-status]").textContent;
+  assert.match(liveStatus, /film 43\/200/, "the status line names the sampled film frame");
+  assert.match(liveStatus, /Demo\.flame core frame 18\/120/, "the status line names the burning core frame");
+
+  /* Hiding the fractal core restores the plain wire model without breaking the beat view. */
+  const toggle = host.querySelector("[data-gi-orb2-fractal]");
+  toggle.checked = false;
+  toggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(engine.state.showFractal, false);
+  assert.equal(JSON.parse(window.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1")).showFractal, false,
+    "the fractal display choice persists with the existing anonymous local preferences");
+  pathsToggle.dispatchEvent(new window.Event("change", { bubbles: true }));
+  const offFrame = frames.shift();
+  assert.equal(typeof offFrame, "function", "a render frame follows the display change");
+  offFrame(240);
+  assert.equal(wrapped.length, 1, "no film frame is processed once the fractal core is hidden");
+  assert.equal(coreDraws.length, 1, "no core frame is drawn once the fractal core is hidden");
+  assert.match(host.querySelector("[data-gi-orb2-fractal-status]").textContent, /HIDDEN/, "the status line states the frames are hidden");
+});
+
 test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and keeps the authority boundary", () => {
   const tvTab = appSource.indexOf('data-gi-view="tradingview"');
   const orbTab = appSource.indexOf('data-gi-view="orb2"');
@@ -424,7 +499,7 @@ test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and kee
   assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the heavy canvas panel is hidden until selected");
   assert.match(appSource, /\["news", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts Orb 2");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
-  assert.match(appSource, /sends no messages, fetches no market data, and confers no authority/i);
+  assert.match(appSource, /sends no OCM message, no trade or order, and confers no authority/i);
 });
 
 test("the standalone Massive Markets desktop window remains retired", () => {
