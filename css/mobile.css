@@ -86,6 +86,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
     min-height: 0;
     border-radius: 0;
   }
+  .window.window-fullscreen {
+    top: var(--hud-h) !important;
+    bottom: var(--tb-h) !important;
+    height: auto !important;
+  }
   .win-title { flex-shrink: 0; padding: 4px 8px; gap: 8px; cursor: default; }
   .win-name { min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
   .win-pdh { display: none; }

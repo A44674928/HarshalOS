@@ -1,0 +1,3357 @@
+diff --git a/README.md b/README.md
+index 2bc5b87..4518b1d 100644
+--- a/README.md
++++ b/README.md
+@@ -122,6 +122,7 @@ NewsML routes.
+ | **Materials Project lookup (read-only)** | Formula, chemical-system, or MP-ID Summary API lookup through a same-origin Worker proxy; the API key stays in a Worker secret. Results use a fixed field projection and `BY-C` license scope, show units and provenance, and distinguish computational data from experimental or engineering guarantees. A result can be saved locally into the character-material workspace. See [integration and setup notes](docs/integrations/MATERIALS-PROJECT.md) · `npm run test:materials-project` |
+ | **Material Spheroids** | Local, deterministic character-to-material matching from explicit physical bounds and Materials Project records, with PDH as a separate review gate; compose two to four character Disc assignments into a spheroid preview with normalized shares and an idealized density reference. PDH values are operator annotations, not verified signatures; the visual and density estimate are not engineering or manufacturing predictions. Browser-only storage. See [model definition and limits](docs/integrations/CHARACTER-MATERIAL-MODEL.md) · `npm run test:character-materials` |
+ | **Characters (multi-Disc market beat, display-only)** | Disc1 preserves the existing 52-card stock watchlist and Tickerbot `1h`/`1d` behavior; Disc2 shows the 23 individually published BIS non-USD FX codes (the 2025 detailed tables do not establish a top 52); Disc3 is a provisional CoinGecko top-volume snapshot with visible audit flags; Disc4 adds commodities such as WTI/Brent, tagged Energy. Alpha Vantage is used only for explicit `1mo` requests, with its own 25-requests-per-UTC-day Worker cap; monthly bars never substitute for daily bars. OHLCV, OHLC, and scalar value-only observations retain their actual shapes. The stock plan still targets a full 52-card refresh about every 6.5 hours at the default 15-minute cadence where availability permits. See [`docs/architecture/CHARACTERS-MARKET-BEAT.md`](docs/architecture/CHARACTERS-MARKET-BEAT.md) · `npm run test:characters` |
++| **Massive Markets (read-only)** | Display-only market data for U.S. stocks, crypto pairs, forex pairs, and indices through the [Massive REST API](https://massive.com/docs/rest/quickstart), proxied by a same-origin Worker route: snapshot (ticker details, previous-day bar, last trade), custom OHLCV bars with an SVG close chart, stock dividends, and currency conversion. The `MASSIVE_API_KEY` stays in a Worker secret and never reaches browser code; every request is validated against fixed asset/ticker/window shapes before it can reach Massive, paced by best-effort per-deployment and per-client sliding windows, and cached briefly. Recency follows the owner's Massive plan and may be delayed; the data is not investment advice and no order, trade, or transaction is possible from the window. See [integration and setup notes](docs/integrations/MASSIVE-REST.md) · `npm run test:massive` |
+ | **UTS watch & converter** | Display-only timekeeping from the 2026-10-02 update, corrected against the corpus definition: `US` = 1 m of light travel, `UM`/`UH`/`UDay`/`UY` durations, and an explicitly approximate absolute `UDate` coordinate (`UDay` is a duration, `UDate` is a coordinate; the overloaded `UD` is retired). Home Screen shows the local clock, Earth-UTC line, a Monday-first Gregorian calendar, modeled `UDate`, and compact approximate Moon/Sun context. The UTS app adds estimated lunar phase/illumination and the Sun's annual apparent-position cycle and declination; the Sun is not described with lunar-style phases. These calculations are location-independent and do not calculate local sunrise/sunset or visibility. On phones and tablets the Home widget is a card at the top of the desktop's own vertical scroll flow, minimizable to its header row, so it never covers the app icons. All celestial values are estimates and display-only: UTS never controls or attests Ground-0, provenance, Human Key state, freshness, PDH, authorization, refusal, the PLV, or trusted system time. See [`docs/harshal-systems/modules/uts.md`](docs/harshal-systems/modules/uts.md) and [`docs/architecture/CELESTIAL-CONTEXT.md`](docs/architecture/CELESTIAL-CONTEXT.md) |
+ | **The Grand Architecture** | A read-only desktop reader for the architecture that composes the 2026-10-02 update's four lineages into one structure: six layers (`GA-0` Foundation · `GA-1` Conveyance · `GA-2` Civic · `GA-3` Institutional · `GA-4` Temporal · `GA-5` Assurance), the `0•100•000•NNNN` registry (358 named instances, with the instance-field vs. ℤ₃₆₀ sector-ring correction stated), 20 canonical quantity anchors quoted from the canonical numbers card, the 2046 → 2098-interim planning timeline, and the seven `GA-INV` invariants. The app is `FICTION` (`NARRATIVE_SANDBOX`), requests no action, writes no ledger row, calls no HOS authority capability, and asserts no engineering, deployment, or feasibility fact. `npm run test:grand` fails if any anchor figure stops matching the card. See [`docs/harshal-systems/modules/grand-architecture.md`](docs/harshal-systems/modules/grand-architecture.md) |
+ 
+diff --git a/css/massive.css b/css/massive.css
+new file mode 100644
+index 0000000..678ce78
+--- /dev/null
++++ b/css/massive.css
+@@ -0,0 +1,351 @@
++/* ═══════════════════════════════════════════════════════════════
++   HarshalOS — Massive Markets (read-only Massive REST viewer)
++   Display-only market data; no advice, no orders, no keys.
++   ═══════════════════════════════════════════════════════════════ */
++
++.mvm {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++  padding: 18px 20px 22px;
++  font-family: var(--sans);
++  color: var(--text);
++}
++
++/* ── masthead ── */
++.mvm-masthead {
++  display: flex;
++  align-items: flex-end;
++  justify-content: space-between;
++  gap: 16px;
++  border-bottom: 1px solid var(--line);
++  padding-bottom: 12px;
++}
++.mvm-wordmark {
++  font-family: var(--mono);
++  font-size: 11px;
++  letter-spacing: 0.22em;
++  color: var(--text-faint);
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  margin-bottom: 6px;
++}
++.mvm-wordmark span { color: var(--gold-deep); }
++.mvm-mark {
++  width: 9px;
++  height: 9px;
++  border-radius: 50%;
++  background: radial-gradient(circle at 32% 30%, var(--ice), var(--water) 62%, transparent 72%);
++  box-shadow: 0 0 10px rgba(111, 211, 255, 0.55);
++  display: inline-block;
++}
++.mvm-heading h1 {
++  font-size: 30px;
++  font-weight: 700;
++  letter-spacing: 0.02em;
++  line-height: 1.1;
++}
++.mvm-heading p {
++  margin-top: 6px;
++  color: var(--text-dim);
++  font-size: 13px;
++  max-width: 64ch;
++}
++.mvm-edition {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 2px;
++  border: 1px solid var(--line-hi);
++  border-radius: var(--radius);
++  padding: 8px 14px;
++  font-family: var(--mono);
++  font-size: 9px;
++  letter-spacing: 0.26em;
++  color: var(--text-faint);
++  background: linear-gradient(180deg, rgba(111, 211, 255, 0.06), rgba(111, 211, 255, 0));
++}
++.mvm-edition strong {
++  font-size: 18px;
++  letter-spacing: 0.12em;
++  color: var(--ice);
++}
++
++/* ── boundary strip ── */
++.mvm-boundary {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  border: 1px solid rgba(255, 180, 92, 0.4);
++  background: rgba(255, 180, 92, 0.07);
++  border-radius: var(--radius);
++  padding: 8px 12px;
++  font-size: 12px;
++  color: var(--text-dim);
++}
++.mvm-boundary-label {
++  font-family: var(--mono);
++  font-size: 10px;
++  letter-spacing: 0.18em;
++  color: var(--warn);
++  border: 1px solid rgba(255, 180, 92, 0.5);
++  border-radius: 6px;
++  padding: 3px 7px;
++  white-space: nowrap;
++}
++
++/* ── controls ── */
++.mvm-controls {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: flex-end;
++  gap: 12px;
++}
++.mvm-field {
++  display: flex;
++  flex-direction: column;
++  gap: 5px;
++}
++.mvm-field span {
++  font-family: var(--mono);
++  font-size: 10px;
++  letter-spacing: 0.16em;
++  text-transform: uppercase;
++  color: var(--text-faint);
++}
++.mvm-field select,
++.mvm-field input {
++  background: var(--bg-2);
++  border: 1px solid var(--line);
++  border-radius: 8px;
++  color: var(--text);
++  padding: 8px 10px;
++  font-size: 13px;
++  font-family: var(--mono);
++  min-width: 110px;
++}
++.mvm-field-grow { flex: 1 1 240px; }
++.mvm-field-grow input { width: 100%; }
++.mvm-field select:focus,
++.mvm-field input:focus {
++  outline: none;
++  border-color: var(--ice);
++  box-shadow: 0 0 0 2px rgba(111, 211, 255, 0.18);
++}
++
++.mvm-chips {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 7px;
++}
++.mvm-chip {
++  font-family: var(--mono);
++  font-size: 11px;
++  letter-spacing: 0.06em;
++  color: var(--text-dim);
++  border: 1px solid var(--line);
++  border-radius: 999px;
++  padding: 4px 11px;
++  background: rgba(13, 21, 40, 0.6);
++}
++.mvm-chip:hover { border-color: var(--ice); color: var(--ice); }
++.mvm-chip.active { border-color: var(--ice); color: var(--ice); background: rgba(111, 211, 255, 0.1); }
++
++/* ── tabs ── */
++.mvm-tabs {
++  display: flex;
++  gap: 6px;
++  border-bottom: 1px solid var(--line);
++}
++.mvm-tab {
++  font-family: var(--mono);
++  font-size: 12px;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--text-faint);
++  padding: 8px 14px;
++  border: 1px solid transparent;
++  border-bottom: none;
++  border-radius: 8px 8px 0 0;
++}
++.mvm-tab:hover { color: var(--text-dim); }
++.mvm-tab.active {
++  color: var(--ice);
++  border-color: var(--line);
++  background: var(--panel-hi);
++}
++
++/* ── status ── */
++.mvm-status {
++  font-size: 12.5px;
++  color: var(--text-dim);
++  min-height: 18px;
++}
++.mvm-status-kind {
++  font-family: var(--mono);
++  font-size: 10px;
++  letter-spacing: 0.14em;
++  border-radius: 5px;
++  padding: 2px 6px;
++  margin-right: 6px;
++}
++.mvm-status-ok { color: var(--permit); border: 1px solid rgba(92, 230, 168, 0.45); }
++.mvm-status-busy { color: var(--ice); border: 1px solid rgba(111, 211, 255, 0.45); }
++.mvm-status-refusal { color: var(--refusal); border: 1px solid rgba(255, 92, 122, 0.45); }
++
++/* ── panels ── */
++.mvm-panel { display: block; }
++.mvm-empty {
++  color: var(--text-faint);
++  font-size: 13px;
++  padding: 18px 4px;
++}
++.mvm-rule {
++  border-radius: var(--radius);
++  padding: 10px 14px;
++  font-size: 13px;
++  margin: 8px 0;
++  border: 1px solid var(--line);
++  background: rgba(13, 21, 40, 0.5);
++}
++.mvm-rule.refusal {
++  border-color: rgba(255, 92, 122, 0.5);
++  background: rgba(255, 92, 122, 0.08);
++  color: var(--text-dim);
++}
++
++.mvm-kv {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
++  gap: 8px 22px;
++  margin: 6px 0;
++}
++.mvm-kv .k {
++  font-family: var(--mono);
++  font-size: 10px;
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--text-faint);
++}
++.mvm-kv .v { font-size: 13.5px; }
++.mvm-up { color: var(--permit); }
++.mvm-down { color: var(--refusal); }
++.mvm-home { margin-top: 8px; }
++.mvm-home a {
++  color: var(--ice);
++  font-family: var(--mono);
++  font-size: 12px;
++  text-decoration: none;
++  border-bottom: 1px dotted rgba(111, 211, 255, 0.5);
++}
++.mvm-home a:hover { color: var(--gold); border-color: rgba(255, 212, 121, 0.6); }
++.mvm-desc {
++  margin-top: 10px;
++  color: var(--text-dim);
++  font-size: 13px;
++  line-height: 1.6;
++  border-left: 2px solid var(--line-hi);
++  padding-left: 12px;
++}
++
++/* ── bars ── */
++.mvm-bar-controls {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: flex-end;
++  gap: 12px;
++  margin-bottom: 12px;
++}
++.mvm-bar-stats {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  margin-bottom: 10px;
++}
++.mvm-stat {
++  display: flex;
++  flex-direction: column;
++  gap: 2px;
++  border: 1px solid var(--line);
++  border-radius: 8px;
++  padding: 6px 12px;
++  background: rgba(13, 21, 40, 0.5);
++}
++.mvm-stat span {
++  font-family: var(--mono);
++  font-size: 9.5px;
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--text-faint);
++}
++.mvm-stat strong { font-size: 13.5px; font-weight: 600; }
++.mvm-bar-chart svg {
++  width: 100%;
++  height: auto;
++  display: block;
++  background: var(--bg-1);
++  border: 1px solid var(--line);
++  border-radius: var(--radius);
++}
++.mvm-chart-note {
++  margin-top: 7px;
++  font-family: var(--mono);
++  font-size: 10.5px;
++  letter-spacing: 0.08em;
++  color: var(--text-faint);
++}
++.mvm-bar-table table,
++.mvm-div-table table {
++  width: 100%;
++  border-collapse: collapse;
++  margin-top: 12px;
++  font-size: 12.5px;
++}
++.mvm-bar-table th,
++.mvm-div-table th {
++  font-family: var(--mono);
++  font-size: 10px;
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--text-faint);
++  text-align: left;
++  border-bottom: 1px solid var(--line-hi);
++  padding: 6px 8px;
++}
++.mvm-bar-table td,
++.mvm-div-table td {
++  border-bottom: 1px solid var(--line);
++  padding: 6px 8px;
++  color: var(--text-dim);
++  font-family: var(--mono);
++  font-size: 12px;
++}
++.mvm-bar-table tr:hover td,
++.mvm-div-table tr:hover td { background: rgba(111, 211, 255, 0.05); }
++
++/* ── conversion ── */
++.mvm-fx-converted { color: var(--gold); font-size: 18px; font-weight: 600; }
++.mvm-fx-unit {
++  font-family: var(--mono);
++  font-size: 11px;
++  color: var(--text-faint);
++  letter-spacing: 0.1em;
++}
++
++/* ── footer ── */
++.mvm-footer {
++  margin-top: 4px;
++  border-top: 1px solid var(--line);
++  padding-top: 10px;
++  font-family: var(--mono);
++  font-size: 9.5px;
++  letter-spacing: 0.12em;
++  color: var(--text-faint);
++  line-height: 1.8;
++}
++
++@media (max-width: 720px) {
++  .mvm-masthead { flex-direction: column; align-items: flex-start; }
++  .mvm-edition { flex-direction: row; gap: 10px; }
++}
+diff --git a/docs/integrations/MASSIVE-REST.md b/docs/integrations/MASSIVE-REST.md
+new file mode 100644
+index 0000000..4f1c638
+--- /dev/null
++++ b/docs/integrations/MASSIVE-REST.md
+@@ -0,0 +1,79 @@
++# Massive REST market data
++
++**Status:** read-only desktop market-data viewer backed by the [Massive REST API](https://massive.com/docs/rest/quickstart). Validation uses stubbed upstream responses; this integration has not been live-tested or deployed from this change.
++
++## Scope and data flow
++
++The **Massive Markets** desktop app displays market data across four asset classes — U.S. stocks, crypto pairs, forex pairs, and indices — through six bounded Massive REST endpoints. It makes no request when opened; a request is sent only after the operator loads a snapshot, draws bars, fetches dividends, or converts a currency.
++
++```text
++Browser app (js/apps-massive.js)
++  GET /api/massive/v1/{bars|previous-day|ticker-details|last-trade|dividends|conversion}
++        ↓ same-origin request
++Cloudflare Worker: worker/massive.mjs
++  validate asset/ticker/window → cache / pace → fixed Massive request
++        ↓ Authorization: Bearer header only
++https://api.massive.com
++```
++
++The Worker is a narrow proxy, not a general Massive relay. It accepts only the six documented sub-routes; validates the asset class, ticker shape per asset class (`AAPL`, `X:BTCUSD`, `C:EURUSD`, `I:SPX`), bar multiplier (1–100), timespan (`minute`–`year`), `YYYY-MM-DD` windows with per-timespan range caps, bar/dividend limits, and three-letter currency codes; refuses redirects; times out upstream work; and passes Massive's documented JSON response through unchanged inside a `{ success, cached, data }` envelope. The browser reads Massive's own field names (`status`, `results`, `request_id`, `o/h/l/c/v/vw/t`, …). Successful responses are cached in Worker memory for up to 60 seconds.
++
++Typed input can never reach Massive outside the validated shapes: the Worker reconstructs each upstream path from parsed, regex-checked values, so traversal attempts such as `AAPL/../v3/reference/tickers` are refused locally (400) before any provider request.
++
++### Pacing
++
++The Massive key belongs to the deployment owner, so every visitor spends the same quota. The Worker enforces two best-effort sliding windows **per Worker isolate**: one deployment-wide (default 5 upstream requests per minute, matching Massive's entry plans) and one per client IP (default 5 per minute). Both are configurable via `MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE` and `MASSIVE_CLIENT_LIMIT_PER_MINUTE` environment values. Cloudflare isolate distribution/restarts mean this is a safeguard for the shared key, not a durable or global quota; Massive's own plan limits remain the binding boundary. Budget-exhausted requests answer 429 with a `retryAfterSeconds` hint and never reach the provider.
++
++### Data recency and honesty
++
++Recency and history depth follow the owner's Massive plan (end-of-day, 15-minute delayed, or real-time). The app says so in its boundary strip: the data is display-only, may be delayed, is not investment advice, and no order, trade, or transaction is possible from the window. Missing fields stay missing; empty bar windows are shown as empty (Massive produces no bar when no qualifying trades occurred). The Worker's refusal codes (`not-configured`, `rate-limited`, `credentials-rejected`, `upstream-error`, `timeout`, `unreachable`, …) are surfaced verbatim in the app's status line; Massive's own error message is included only for `upstream-error`, capped at 200 characters.
++
++The API key is read from the Worker environment as `MASSIVE_API_KEY` and sent only in the `Authorization: Bearer` header — never as a query parameter, browser setting, static variable, log field, or returned field. If the secret is absent, the route fails closed with a configuration response and makes no provider request.
++
++## Worker secret setup
++
++Get a key from the [Massive dashboard](https://massive.com/dashboard/keys) ([signup](https://massive.com/dashboard/signup) if needed). Choose the intended Worker environment first, then enter the key through Wrangler's interactive prompt (or the Cloudflare dashboard's Worker Secrets UI). Do not paste it into HarshalOS, a source file, a browser console, a URL, a ticket, or chat.
++
++Production Worker:
++
++```bash
++npx wrangler secret put MASSIVE_API_KEY
++```
++
++A separately configured staging Worker, only if you intentionally enable it:
++
++```bash
++npx wrangler secret put MASSIVE_API_KEY --config wrangler.staging.jsonc
++```
++
++For local `wrangler dev`, a developer may create the ignored `.dev.vars` file manually with a `MASSIVE_API_KEY` entry. `.dev.vars` is gitignored; still verify it is not staged or shared. Never put the secret in `wrangler.jsonc`, `wrangler.staging.jsonc`, the browser bundle, or a committed `.env` file. No secret is required to run the automated tests.
++
++## Endpoints wired
++
++| App action | Same-origin route | Massive endpoint |
++| --- | --- | --- |
++| Snapshot bars | `GET /api/massive/v1/previous-day` | [`GET /v2/aggs/ticker/{ticker}/prev`](https://massive.com/docs/rest/stocks/aggregates/previous-day-bar) |
++| Custom bars | `GET /api/massive/v1/bars` | [`GET /v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from}/{to}`](https://massive.com/docs/rest/stocks/aggregates/custom-bars) |
++| Ticker details | `GET /api/massive/v1/ticker-details` | [`GET /v3/reference/tickers/{ticker}`](https://massive.com/docs/rest/stocks/tickers/ticker-overview) |
++| Last trade (stocks) | `GET /api/massive/v1/last-trade` | [`GET /v2/last/trade/{stocksTicker}`](https://massive.com/docs/rest/stocks/trades-quotes/last-trade) |
++| Dividends (stocks) | `GET /api/massive/v1/dividends` | [`GET /stocks/v1/dividends`](https://massive.com/docs/rest/stocks/corporate-actions/dividends) |
++| Currency conversion | `GET /api/massive/v1/conversion` | [`GET /v1/conversion/{from}/{to}`](https://massive.com/docs/rest/forex/currency-conversion) |
++
++Aggregate windows use the same `/v2/aggs/...` shapes across asset classes with Massive's ticker prefixes (`X:` crypto, `C:` forex, `I:` indices). Dividends are sorted newest ex-dividend date first and capped at 100 rows per request. Conversion always sends explicit `amount` and `precision` (defaults 1 and 2).
++
++## Tests and verification
++
++Run the focused stub-only suite:
++
++```bash
++npm run test:massive
++```
++
++`tests/massive-api-test.mjs` checks the Worker adapter: documented upstream paths and bearer-header auth (never a query-string key), the full validation matrix, secret-absent fail-closed behavior, both pacing windows and their rollover, Massive error mapping (401/403, 429, error bodies), unreadable/aborted/unreachable handling, scrubbed log breadcrumbs, and response caching — all with a stub fetcher. `tests/massive-ui-test.mjs` renders the app in happy-dom with stubbed same-origin responses and checks the read-only framing, provider-string escaping, honest configuration/pacing refusals, bars/dividends/conversion rendering, and that the app's asset/ticker/timespan constants have not drifted from the Worker's. Neither test makes a live Massive request or requires the API key.
++
++## Official references
++
++- [Massive REST quickstart](https://massive.com/docs/rest/quickstart)
++- [Massive REST stocks overview](https://massive.com/docs/rest/stocks/overview)
++- [Massive docs index for LLMs](https://massive.com/docs/llms.txt) (append `.md` to any docs URL for Markdown)
++- [Massive dashboard API keys](https://massive.com/dashboard/keys)
+diff --git a/index.html b/index.html
+index f4af521..25e4144 100644
+--- a/index.html
++++ b/index.html
+@@ -36,6 +36,7 @@
+ <link rel="stylesheet" href="css/news.css?v=2026-10-03news1">
+ <link rel="stylesheet" href="css/materials-project.css?v=2026-10-04cm1">
+ <link rel="stylesheet" href="css/character-materials.css?v=2026-10-04cm1">
++<link rel="stylesheet" href="css/massive.css?v=2026-10-04massive1">
+ <link rel="stylesheet" href="css/mobile.css?v=2026-10-03clock1">
+ 
+ <!-- Favicon: URL-encoded SVG + PNG fallback -->
+@@ -269,6 +270,7 @@
+   <script defer src="js/apps-news.js?v=2026-10-03news1"></script>
+   <script defer src="js/apps-materials-project.js?v=2026-10-04cm1"></script>
+   <script defer src="js/apps-character-materials.js?v=2026-10-04cm1"></script>
++  <script defer src="js/apps-massive.js?v=2026-10-04massive1"></script>
+   <script defer src="js/boot.js?v=2026-10-01mobile1"></script>
+ </body>
+ </html>
+diff --git a/js/apps-characters.js b/js/apps-characters.js
+index f01764d..077df8c 100644
+--- a/js/apps-characters.js
++++ b/js/apps-characters.js
+@@ -17,7 +17,7 @@
+   const STORAGE_KEY = "harshalos.characters.ledger.v1";
+   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
+   const ALPHA_VANTAGE_DAILY_REQUEST_CAP = 25;
+-  const MONTHLY_BEAT_MS = 24 * 60 * 60_000;
++  const MONTHLY_BEAT_MS = 60 * 60_000; // 1 hour for Alpha Vantage 1mo loops
+ 
+   const esc = value => String(value ?? "").replace(/[&<>"']/g, character => ({
+     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+@@ -316,14 +316,14 @@
+       function planOf() {
+         return Beat.plan({
+           monthlyBudget: state.budget,
+-          cadenceMinutes: state.interval === "1mo" ? 1440 : state.cadence,
++          cadenceMinutes: state.interval === "1mo" ? 60 : state.cadence,
+           castSize: stage.berths.length,
+-          perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
++          perRequestCap: state.interval === "1mo" ? 1 : Beat.MAX_SYMBOLS_PER_BEAT
+         });
+       }
+ 
+       function perBeatOf(plan) {
+-        if (state.interval === "1mo") return Math.min(Beat.MAX_SYMBOLS_PER_BEAT, ALPHA_VANTAGE_DAILY_REQUEST_CAP);
++        if (state.interval === "1mo") return 1; // 1 ticker per hour = 24/day
+         return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
+       }
+ 
+@@ -350,7 +350,26 @@
+         const plan = planOf();
+         const perBeat = perBeatOf(plan);
+         const base = { symbols, lastRefreshedAt: state.ledger.lastRefreshedAt, now: Date.now(), featured: state.ledger.featured };
+-        if (state.interval === "1mo" || !state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
++        if (state.interval === "1mo") {
++          let bestSymbol = symbols[Math.floor(Math.random() * symbols.length)];
++          let bestScore = -Infinity;
++          for (const symbol of symbols) {
++            const analysis = state.analyses[symbol];
++            if (analysis && analysis.close > 0 && analysis.chartSeries && analysis.chartSeries.length >= 2) {
++              const current = analysis.close;
++              const prev = analysis.chartSeries[analysis.chartSeries.length - 2].close;
++              if (prev && prev > 0) {
++                const score = (current - prev) / prev;
++                if (score > bestScore) {
++                  bestScore = score;
++                  bestSymbol = symbol;
++                }
++              }
++            }
++          }
++          return { symbols: [bestSymbol], lanes: {}, tier: null, perBeat };
++        }
++        if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+         const tiers = tierPlan();
+         const option = tierOptionOf(tiers);
+         if (!option) return { symbols: Beat.selectDueSymbols({ ...base, perBeat }), lanes: {}, tier: null, perBeat };
+@@ -364,7 +383,7 @@
+       }
+ 
+       function cadenceMinutesForBeat() {
+-        return state.interval === "1mo" ? 1440 : state.cadence;
++        return state.interval === "1mo" ? 60 : state.cadence;
+       }
+ 
+       function beatIntervalMs() {
+@@ -399,7 +418,10 @@
+         const laneParam = Object.entries(lanes).length
+           ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(','))}`
+           : "";
++        let provider = state.interval === "1mo" ? "alpha" : "tickerbot";
++        if (state.auto && state.interval === "1d") provider = "massive";
+         const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(state.discId)}` +
++          `&provider=${encodeURIComponent(provider)}` +
+           `&symbols=${encodeURIComponent(due.join(','))}` +
+           `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
+         const fetcher = window.fetch || globalThis.fetch;
+@@ -631,9 +653,9 @@
+           ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}`;
+         const monthlyStats = `
+           <div><dt>Bar interval</dt><dd>1mo · Alpha Vantage · Disc1 stocks only</dd></div>
+-          <div><dt>Requests / beat</dt><dd>up to ${perBeat} instruments</dd></div>
++          <div><dt>Requests / beat</dt><dd>1 instrument (best performing)</dd></div>
+           <div><dt>UTC-day request cap</dt><dd>${ALPHA_VANTAGE_DAILY_REQUEST_CAP} Alpha Vantage requests</dd></div>
+-          <div><dt>Approx. full Disc rotation</dt><dd>${sweepBeats} daily beat${sweepBeats === 1 ? "" : "s"} · about ${sweepBeats} day${sweepBeats === 1 ? "" : "s"}</dd></div>`;
++          <div><dt>Approx. full Disc rotation</dt><dd>Performance-based (about ${sweepBeats} beats on average)</dd></div>`;
+         const tickerbotLedgerRow = monthlyMode
+           ? `<div><dt>Tickerbot UTC-month ledger</dt><dd><span class="ch-dim">Not used in 1mo mode</span></dd></div>`
+           : `<div><dt>D1 snapshot · Tickerbot / month</dt><dd>${durable
+@@ -679,7 +701,7 @@
+             ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
+             : `${state.cadence}-minute plan`;
+         $("[data-ch-plan-note]").textContent = monthlyMode
+-          ? `The Worker requests only explicit 1mo Alpha Vantage data for Disc1 stocks, capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day, independent of requested bar interval. A beat selects at most ${perBeat} instruments; the full ${stage.berths.length}-instrument Disc takes about ${sweepBeats} daily beats at the live cadence. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}. Alpha Vantage is disabled for Discs 2–4.`
++          ? `The Worker requests only explicit 1mo Alpha Vantage data for Disc1 stocks, capping at 1 best-performing ticker per hour (24/day) to fit the ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} request limit. The full ${stage.berths.length}-instrument Disc takes about ${sweepBeats} beats. Tickerbot and its monthly ledger are not used. ${alphaVantageDailyText}. Alpha Vantage is disabled for Discs 2–4.`
+           : state.discId === "stocks"
+             ? `${perBeat} symbols per beat at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} The Worker caps Tickerbot at 10,000 attempts/month and Alpha Vantage at 25 requests per UTC day in Disc1-only explicit 1mo mode. Alpha Vantage is not a daily-bar fallback and is disabled for Discs 2–4.`
+             : `Tickerbot is the default provider for ${(DiscCatalog.disc(state.discId) || {}).label || state.discId}. Multi-asset Tickerbot coverage is in progress; instruments not yet on Tickerbot's reviewed allowlist will show as unavailable until the rollout lands rather than falling back to Alpha Vantage (which is disabled for this Disc). ${perBeat} symbols per beat at ${state.cadence} minutes; cadence planning uses Tickerbot's 10,000/month ledger.`;
+diff --git a/js/apps-massive.js b/js/apps-massive.js
+new file mode 100644
+index 0000000..515eb3d
+--- /dev/null
++++ b/js/apps-massive.js
+@@ -0,0 +1,633 @@
++/* ═══════════════════════════════════════════════════════════════
++   HarshalOS — Massive Markets
++   Read-only market data through the Massive REST API
++   (https://massive.com/docs/rest/quickstart). Requests go to the
++   same-origin Worker route /api/massive/v1/*, which holds the
++   MASSIVE_API_KEY secret, validates every parameter, and paces
++   calls. The browser never sees the key. Display-only data:
++   recency depends on the owner's Massive plan (data may be
++   end-of-day or delayed). Nothing here is investment advice and
++   no order, trade, or transaction is possible from this window.
++
++   The asset classes, ticker shapes, and bar timespans below mirror
++   worker/massive.mjs; tests/massive-ui-test.mjs fails if they drift.
++   ═══════════════════════════════════════════════════════════════ */
++"use strict";
++
++(() => {
++  const ROUTE = "/api/massive/v1";
++
++  const ASSETS = Object.freeze({
++    stocks: Object.freeze({ label: "U.S. stocks", tickerPattern: "^[A-Z][A-Z0-9.\\-]{0,11}$", example: "AAPL" }),
++    crypto: Object.freeze({ label: "Crypto pairs", tickerPattern: "^X:[A-Z0-9]{3,24}$", example: "X:BTCUSD" }),
++    forex: Object.freeze({ label: "Forex pairs", tickerPattern: "^C:[A-Z]{6}$", example: "C:EURUSD" }),
++    indices: Object.freeze({ label: "Indices", tickerPattern: "^I:[A-Z0-9.]{1,12}$", example: "I:SPX" })
++  });
++  const BAR_TIMESPANS = Object.freeze(["minute", "hour", "day", "week", "month", "quarter", "year"]);
++  const DEFAULT_TICKER = Object.freeze({ stocks: "AAPL", crypto: "X:BTCUSD", forex: "C:EURUSD", indices: "I:SPX" });
++  const QUICK_PICKS = Object.freeze({
++    stocks: ["AAPL", "MSFT", "NVDA", "AMZN", "JPM", "XOM"],
++    crypto: ["X:BTCUSD", "X:ETHUSD", "X:SOLUSD", "X:DOGEUSD"],
++    forex: ["C:EURUSD", "C:GBPUSD", "C:USDJPY", "C:USDCHF"],
++    indices: ["I:SPX", "I:NDX", "I:DJI", "I:VIX", "I:COMP"]
++  });
++  const BAR_RANGES = Object.freeze({
++    minute: [["1D", 1], ["3D", 3], ["5D", 5]],
++    hour: [["5D", 5], ["1M", 30], ["3M", 90]],
++    day: [["1M", 30], ["3M", 91], ["6M", 182], ["1Y", 365], ["2Y", 730]],
++    week: [["1Y", 365], ["2Y", 730], ["5Y", 1825]],
++    month: [["2Y", 730], ["5Y", 1825], ["10Y", 3650]],
++    quarter: [["5Y", 1825], ["10Y", 3650]],
++    year: [["10Y", 3650], ["20Y", 7300]]
++  });
++
++  const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => (
++    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
++  ));
++  const compact = (value, digits = 2) => {
++    const n = Number(value);
++    if (!Number.isFinite(n)) return "—";
++    const abs = Math.abs(n);
++    if (abs >= 1e12) return `${(n / 1e12).toFixed(digits)}T`;
++    if (abs >= 1e9) return `${(n / 1e9).toFixed(digits)}B`;
++    if (abs >= 1e6) return `${(n / 1e6).toFixed(digits)}M`;
++    if (abs >= 1e3) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
++    return n.toLocaleString("en-US", { maximumFractionDigits: digits });
++  };
++  const money = (value, currency = "USD") => {
++    const n = Number(value);
++    if (!Number.isFinite(n)) return "—";
++    return n.toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: Math.abs(n) >= 1000 ? 2 : 4 });
++  };
++  const dateLabel = ms => {
++    const n = Number(ms);
++    if (!Number.isFinite(n)) return "—";
++    return new Date(n).toISOString().slice(0, 10);
++  };
++  const timeLabel = ms => {
++    const n = Number(ms);
++    if (!Number.isFinite(n)) return "—";
++    return new Date(n).toISOString().replace("T", " ").slice(0, 19) + " UTC";
++  };
++  const isoDaysAgo = days => new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
++  const todayIso = () => new Date().toISOString().slice(0, 10);
++
++  async function fetchMassive(sub, params) {
++    const url = new URL(`${ROUTE}/${sub}`, window.location.origin);
++    for (const [name, value] of Object.entries(params)) {
++      if (value !== undefined && value !== null && value !== "") url.searchParams.set(name, String(value));
++    }
++    let response;
++    try {
++      response = await fetch(url.toString(), { method: "GET", headers: { Accept: "application/json" } });
++    } catch {
++      return { ok: false, code: "network", message: "The Massive route could not be reached from this browser." };
++    }
++    let body = null;
++    try { body = await response.json(); } catch { /* non-JSON refusal */ }
++    if (response.ok && body && body.success === true) {
++      return { ok: true, data: body.data || null, cached: body.cached === true };
++    }
++    return {
++      ok: false,
++      status: response.status,
++      code: body && body.code ? String(body.code) : "unexpected",
++      message: body && body.message ? String(body.message) : `The Massive route answered ${response.status}.`,
++      upstreamMessage: body && body.upstreamMessage ? String(body.upstreamMessage) : null,
++      retryAfterSeconds: body && Number.isFinite(Number(body.retryAfterSeconds)) ? Number(body.retryAfterSeconds) : null
++    };
++  }
++
++  function refusalText(result) {
++    switch (result.code) {
++      case "not-configured":
++        return "Massive is not configured on this deployment. The owner can add the MASSIVE_API_KEY Worker secret (npx wrangler secret put MASSIVE_API_KEY). No request reached the provider.";
++      case "rate-limited":
++        return `Paced by the Worker budget${result.retryAfterSeconds ? ` — try again in about ${result.retryAfterSeconds}s` : ""}. The Massive key is shared by every visitor, so requests stay deliberately slow.`;
++      case "upstream-rate-limited":
++        return `Massive rate limit reached${result.retryAfterSeconds ? ` — try again in about ${result.retryAfterSeconds}s` : ""}.`;
++      case "credentials-rejected":
++        return "Massive rejected the Worker's API key. The owner should check the MASSIVE_API_KEY Worker secret in Cloudflare. No key is ever shown or stored here.";
++      case "upstream-error":
++        return `Massive could not serve this request.${result.upstreamMessage ? ` Massive said: ${result.upstreamMessage}` : ""}`;
++      case "timeout":
++        return "The Massive request timed out. Try again shortly.";
++      case "unreachable":
++      case "network":
++        return "Massive could not be reached through the Worker route. Try again shortly.";
++      case "invalid-request":
++        return result.message;
++      default:
++        return result.message || "The Massive route returned an unexpected answer.";
++    }
++  }
++
++  function renderApp(body) {
++    const state = {
++      asset: "stocks",
++      ticker: DEFAULT_TICKER.stocks,
++      tab: "snapshot",
++      busy: false,
++      barsTimespan: "day",
++      barsRange: "1Y",
++      lastRequestId: null
++    };
++
++    body.innerHTML = `
++      <section class="mvm" aria-label="Massive Markets read-only market data">
++        <header class="mvm-masthead">
++          <div class="mvm-heading">
++            <div class="mvm-wordmark"><span class="mvm-mark" aria-hidden="true"></span>HARSHALOS <span>/</span> MASSIVE REST</div>
++            <h1>Markets</h1>
++            <p>Read-only market data through the Massive REST API, proxied by the Worker. The API key never reaches this browser.</p>
++          </div>
++          <div class="mvm-edition" aria-hidden="true"><span>READ-ONLY</span><strong>REST</strong><span>DISPLAY</span></div>
++        </header>
++
++        <div class="mvm-boundary">
++          <span class="mvm-boundary-label">NOT ADVICE</span>
++          <span>Display-only data. Recency follows the owner's Massive plan (may be end-of-day or delayed). No order, trade, or transaction is possible from this window.</span>
++        </div>
++
++        <div class="mvm-controls">
++          <label class="mvm-field">
++            <span>Asset class</span>
++            <select id="mvm-asset">
++              <option value="stocks">U.S. stocks</option>
++              <option value="crypto">Crypto pairs</option>
++              <option value="forex">Forex pairs</option>
++              <option value="indices">Indices</option>
++            </select>
++          </label>
++          <label class="mvm-field mvm-field-grow">
++            <span>Ticker (Massive format)</span>
++            <input id="mvm-ticker" type="text" spellcheck="false" autocomplete="off" value="AAPL" placeholder="AAPL · X:BTCUSD · C:EURUSD · I:SPX">
++          </label>
++          <button class="btn btn-ice" id="mvm-load" type="button">◆ LOAD</button>
++        </div>
++        <div class="mvm-chips" id="mvm-chips" aria-label="Quick ticker picks"></div>
++
++        <nav class="mvm-tabs" aria-label="Massive data views">
++          <button class="mvm-tab active" data-tab="snapshot" type="button">Snapshot</button>
++          <button class="mvm-tab" data-tab="bars" type="button">Bars</button>
++          <button class="mvm-tab" data-tab="dividends" type="button">Dividends</button>
++          <button class="mvm-tab" data-tab="convert" type="button">Convert</button>
++        </nav>
++
++        <p class="mvm-status" id="mvm-status" role="status" aria-live="polite">Choose an asset class and ticker, then load a snapshot.</p>
++
++        <div class="mvm-panel" id="mvm-panel-snapshot"></div>
++
++        <div class="mvm-panel" id="mvm-panel-bars" hidden>
++          <div class="mvm-bar-controls">
++            <label class="mvm-field">
++              <span>Timespan</span>
++              <select id="mvm-bar-timespan">
++                ${BAR_TIMESPANS.map(span => `<option value="${span}"${span === "day" ? " selected" : ""}>${span}</option>`).join("")}
++              </select>
++            </label>
++            <label class="mvm-field">
++              <span>Multiplier</span>
++              <input id="mvm-bar-multiplier" type="number" min="1" max="100" step="1" value="1">
++            </label>
++            <label class="mvm-field">
++              <span>Range</span>
++              <select id="mvm-bar-range"></select>
++            </label>
++            <button class="btn btn-ice" id="mvm-bar-draw" type="button">◆ DRAW BARS</button>
++          </div>
++          <div class="mvm-bar-stats" id="mvm-bar-stats"></div>
++          <div class="mvm-bar-chart" id="mvm-bar-chart"></div>
++          <div class="mvm-bar-table" id="mvm-bar-table"></div>
++        </div>
++
++        <div class="mvm-panel" id="mvm-panel-dividends" hidden>
++          <div class="mvm-bar-controls">
++            <label class="mvm-field">
++              <span>Rows</span>
++              <select id="mvm-div-limit">
++                <option value="10">10</option>
++                <option value="25" selected>25</option>
++                <option value="50">50</option>
++                <option value="100">100</option>
++              </select>
++            </label>
++            <button class="btn btn-ice" id="mvm-div-draw" type="button">◆ FETCH DIVIDENDS</button>
++          </div>
++          <div class="mvm-div-table" id="mvm-div-table"></div>
++        </div>
++
++        <div class="mvm-panel" id="mvm-panel-convert" hidden>
++          <div class="mvm-bar-controls">
++            <label class="mvm-field">
++              <span>From</span>
++              <input id="mvm-fx-from" type="text" value="USD" maxlength="3" spellcheck="false" autocomplete="off">
++            </label>
++            <label class="mvm-field">
++              <span>To</span>
++              <input id="mvm-fx-to" type="text" value="EUR" maxlength="3" spellcheck="false" autocomplete="off">
++            </label>
++            <label class="mvm-field">
++              <span>Amount</span>
++              <input id="mvm-fx-amount" type="text" value="100" inputmode="decimal" spellcheck="false" autocomplete="off">
++            </label>
++            <label class="mvm-field">
++              <span>Precision</span>
++              <select id="mvm-fx-precision">
++                <option value="0">0</option><option value="1">1</option><option value="2" selected>2</option>
++                <option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
++              </select>
++            </label>
++            <button class="btn btn-ice" id="mvm-fx-draw" type="button">◆ CONVERT</button>
++          </div>
++          <div class="mvm-fx-result" id="mvm-fx-result"></div>
++        </div>
++
++        <footer class="mvm-footer">
++          PROVIDER · MASSIVE REST API · SAME-ORIGIN WORKER PROXY · KEY STAYS IN THE WORKER ·
++          DATA SHAPES FOLLOW MASSIVE'S DOCUMENTED RESPONSES (status, results, request_id).
++        </footer>
++      </section>`;
++
++    const $ = selector => body.querySelector(selector);
++    const assetSelect = $("#mvm-asset");
++    const tickerInput = $("#mvm-ticker");
++    const statusEl = $("#mvm-status");
++    const chipsEl = $("#mvm-chips");
++
++    function setStatus(kind, text, requestId = null, cached = false) {
++      state.lastRequestId = requestId || state.lastRequestId;
++      const chip = requestId
++        ? ` · request_id ${esc(String(requestId).slice(0, 24))}${cached ? " · cached" : ""}`
++        : "";
++      statusEl.innerHTML = `<span class="mvm-status-kind mvm-status-${kind}">${kind === "ok" ? "OK" : kind.toUpperCase()}</span> ${esc(text)}${chip}`;
++    }
++
++    function renderChips() {
++      chipsEl.innerHTML = "";
++      (QUICK_PICKS[state.asset] || []).forEach(ticker => {
++        const chip = document.createElement("button");
++        chip.type = "button";
++        chip.className = "mvm-chip" + (ticker === tickerInput.value.trim().toUpperCase() ? " active" : "");
++        chip.textContent = ticker;
++        chip.addEventListener("click", () => {
++          tickerInput.value = ticker;
++          renderChips();
++        });
++        chipsEl.appendChild(chip);
++      });
++    }
++
++    function currentTicker() {
++      return tickerInput.value.trim().toUpperCase();
++    }
++
++    function validTicker(asset, ticker) {
++      return new RegExp(ASSETS[asset].tickerPattern).test(ticker);
++    }
++
++    /* ── tabs ── */
++    function switchTab(tab) {
++      state.tab = tab;
++      body.querySelectorAll(".mvm-tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tab));
++      ["snapshot", "bars", "dividends", "convert"].forEach(name => {
++        $(`#mvm-panel-${name}`).hidden = name !== tab;
++      });
++    }
++    body.querySelectorAll(".mvm-tab").forEach(btn => {
++      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
++    });
++
++    assetSelect.addEventListener("change", () => {
++      state.asset = assetSelect.value;
++      if (!validTicker(state.asset, currentTicker())) tickerInput.value = DEFAULT_TICKER[state.asset];
++      renderChips();
++    });
++    tickerInput.addEventListener("change", () => {
++      tickerInput.value = currentTicker();
++      renderChips();
++    });
++
++    /* ── snapshot ── */
++    async function loadSnapshot() {
++      const asset = assetSelect.value;
++      const ticker = currentTicker();
++      state.asset = asset;
++      state.ticker = ticker;
++      if (!validTicker(asset, ticker)) {
++        setStatus("refusal", `Enter a ${ASSETS[asset].label} ticker in Massive format, for example ${ASSETS[asset].example}.`);
++        return;
++      }
++      const panel = $("#mvm-panel-snapshot");
++      panel.innerHTML = `<p class="mvm-empty">Asking Massive for ${esc(ticker)}…</p>`;
++      setStatus("busy", "Requesting snapshot…");
++
++      const common = { asset, ticker };
++      const wanted = [
++        fetchMassive("ticker-details", common),
++        fetchMassive("previous-day", common)
++      ];
++      if (asset === "stocks") wanted.push(fetchMassive("last-trade", common));
++      const [details, prev, lastTrade] = await Promise.all(wanted);
++      if (!details.ok && !prev.ok && (!wanted[2] || !wanted[2].ok)) {
++        setStatus("refusal", refusalText(details.ok ? prev : details));
++        panel.innerHTML = `<div class="mvm-rule refusal">${esc(refusalText(details.ok ? prev : details))}</div>`;
++        return;
++      }
++
++      const requestId = (details.ok && details.data && details.data.request_id) ||
++        (prev.ok && prev.data && prev.data.request_id) || null;
++      const cached = details.cached && prev.cached;
++
++      const detail = details.ok && details.data && details.data.results && !Array.isArray(details.data.results) ? details.data.results : null;
++      const prevBar = prev.ok && prev.data && Array.isArray(prev.data.results) && prev.data.results.length ? prev.data.results[0] : null;
++      const trade = lastTrade && lastTrade.ok && lastTrade.data && lastTrade.data.results && !Array.isArray(lastTrade.data.results) ? lastTrade.data.results : null;
++
++      const rows = [];
++      const row = (k, v) => { if (v !== null && v !== undefined && v !== "") rows.push(`<div class="k">${esc(k)}</div><div class="v">${v}</div>`); };
++      if (detail) {
++        row("Name", esc(detail.name || "—"));
++        row("Ticker", esc(detail.ticker || ticker));
++        row("Market", esc(detail.market || "—"));
++        row("Type", esc(detail.type || "—"));
++        row("Primary exchange", esc(detail.primary_exchange || "—"));
++        row("Listed", esc(detail.list_date || "—"));
++        row("Market cap", detail.market_cap != null ? `$${esc(compact(detail.market_cap))}` : null);
++        row("Currency", esc((detail.currency_name || "").toUpperCase() || null));
++        row("Employees", detail.total_employees != null ? esc(compact(detail.total_employees, 0)) : null);
++        row("SIC", detail.sic_description ? esc(detail.sic_description) : null);
++        row("CIK", detail.cik ? esc(detail.cik) : null);
++      }
++      if (prevBar) {
++        const open = Number(prevBar.o), close = Number(prevBar.c);
++        const change = Number.isFinite(open) && Number.isFinite(close) && open > 0 ? ((close - open) / open) * 100 : null;
++        row("Previous open", esc(String(prevBar.o ?? "—")));
++        row("Previous high", esc(String(prevBar.h ?? "—")));
++        row("Previous low", esc(String(prevBar.l ?? "—")));
++        row("Previous close", esc(String(prevBar.c ?? "—")));
++        row("Bar date", prevBar.t != null ? esc(dateLabel(asset === "indices" || asset === "crypto" || asset === "forex" ? prevBar.t : prevBar.t)) : null);
++        row("Session change", change === null ? null : `<span class="${change >= 0 ? "mvm-up" : "mvm-down"}">${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(2)}%</span>`);
++        if (prevBar.v != null) row("Volume", esc(compact(prevBar.v)));
++      }
++      if (trade) {
++        row("Last trade price", trade.p != null ? esc(money(trade.p)) : null);
++        row("Last trade size", trade.s != null ? esc(compact(trade.s, 0)) : null);
++        row("Last trade time (SIP)", trade.t != null ? esc(timeLabel(Math.round(Number(trade.t) / 1e6))) : null);
++      }
++
++      const failures = [details, prev, lastTrade].filter(Boolean).filter(r => !r.ok);
++      const failureNote = failures.length
++        ? `<div class="mvm-rule refusal">${failures.map(r => esc(refusalText(r))).join("<br>")}</div>`
++        : "";
++      const homepage = detail && typeof detail.homepage_url === "string" && /^https:\/\/[A-Za-z0-9.-]+/.test(detail.homepage_url)
++        ? `<p class="mvm-home"><a href="${esc(detail.homepage_url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(detail.homepage_url)}</a></p>`
++        : "";
++      const description = detail && typeof detail.description === "string" && detail.description.trim()
++        ? `<p class="mvm-desc">${esc(detail.description.slice(0, 600))}${detail.description.length > 600 ? "…" : ""}</p>`
++        : "";
++
++      panel.innerHTML = `
++        ${failureNote}
++        <div class="kv mvm-kv">${rows.join("") || '<div class="k">Result</div><div class="v">Massive returned no data for this ticker.</div>'}</div>
++        ${homepage}
++        ${description}`;
++      setStatus("ok", `Snapshot for ${ticker}.`, requestId, cached);
++    }
++
++    /* ── bars ── */
++    const barTimespanSelect = $("#mvm-bar-timespan");
++    const barRangeSelect = $("#mvm-bar-range");
++    const barMultiplierInput = $("#mvm-bar-multiplier");
++
++    function renderBarRanges() {
++      const ranges = BAR_RANGES[state.barsTimespan] || BAR_RANGES.day;
++      barRangeSelect.innerHTML = ranges.map(([label]) => `<option value="${label}">${label}</option>`).join("");
++      // Set the value explicitly: some DOMs ignore the selected attribute on
++      // freshly parsed options, and this keeps the default deterministic.
++      barRangeSelect.value = ranges[Math.min(1, ranges.length - 1)][0];
++      state.barsRange = barRangeSelect.value;
++    }
++    barTimespanSelect.addEventListener("change", () => {
++      state.barsTimespan = barTimespanSelect.value;
++      renderBarRanges();
++    });
++    barRangeSelect.addEventListener("change", () => { state.barsRange = barRangeSelect.value; });
++
++    function drawBarChart(bars, ticker, timespan, multiplier) {
++      const host = $("#mvm-bar-chart");
++      const closes = bars.map(bar => Number(bar.c)).filter(Number.isFinite);
++      if (closes.length < 2) {
++        host.innerHTML = `<p class="mvm-empty">Massive returned fewer than two bars for this window.</p>`;
++        return;
++      }
++      const W = 800, H = 240, PAD = 26;
++      const min = Math.min(...closes), max = Math.max(...closes);
++      const span = max - min || 1;
++      const x = index => PAD + (index / (closes.length - 1)) * (W - PAD * 2);
++      const y = value => H - PAD - ((value - min) / span) * (H - PAD * 2);
++      const points = closes.map((value, index) => `${x(index).toFixed(2)},${y(value).toFixed(2)}`).join(" ");
++      const area = `${PAD},${H - PAD} ${points} ${x(closes.length - 1).toFixed(2)},${H - PAD}`;
++      const up = closes[closes.length - 1] >= closes[0];
++      const stroke = up ? "var(--permit)" : "var(--refusal)";
++      host.innerHTML = `
++        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Close prices for ${esc(ticker)}">
++          <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--line-hi)" stroke-width="1"/>
++          <polygon points="${area}" fill="${up ? "rgba(92,230,168,0.10)" : "rgba(255,92,122,0.10)"}"/>
++          <polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2"/>
++          <text x="${PAD}" y="16" fill="var(--text-dim)" font-size="11">${esc(String(max))}</text>
++          <text x="${PAD}" y="${H - PAD + 16}" fill="var(--text-dim)" font-size="11">${esc(String(min))}</text>
++          <text x="${PAD}" y="${H - 6}" fill="var(--text-faint)" font-size="11">${esc(dateLabel(bars[0].t))}</text>
++          <text x="${W - PAD}" y="${H - 6}" fill="var(--text-faint)" font-size="11" text-anchor="end">${esc(dateLabel(bars[bars.length - 1].t))}</text>
++        </svg>
++        <p class="mvm-chart-note">${esc(ticker)} · ${multiplier}×${timespan} closes · ${bars.length} bars · source: Massive aggregates</p>`;
++    }
++
++    async function loadBars() {
++      const asset = assetSelect.value;
++      const ticker = currentTicker();
++      if (!validTicker(asset, ticker)) {
++        setStatus("refusal", `Enter a ${ASSETS[asset].label} ticker in Massive format, for example ${ASSETS[asset].example}.`);
++        return;
++      }
++      const timespan = barTimespanSelect.value;
++      const multiplier = Math.max(1, Math.min(100, Math.round(Number(barMultiplierInput.value) || 1)));
++      barMultiplierInput.value = String(multiplier);
++      const ranges = BAR_RANGES[timespan] || BAR_RANGES.day;
++      const found = ranges.find(([label]) => label === barRangeSelect.value) || ranges[ranges.length - 1];
++      const days = found[1];
++      const from = isoDaysAgo(days);
++      const to = todayIso();
++      const statsEl = $("#mvm-bar-stats");
++      const tableEl = $("#mvm-bar-table");
++      $("#mvm-bar-chart").innerHTML = `<p class="mvm-empty">Asking Massive for ${esc(ticker)} bars…</p>`;
++      statsEl.innerHTML = "";
++      tableEl.innerHTML = "";
++      setStatus("busy", "Requesting bars…");
++
++      const result = await fetchMassive("bars", { asset, ticker, multiplier, timespan, from, to, sort: "asc", limit: 5000 });
++      if (!result.ok) {
++        setStatus("refusal", refusalText(result));
++        $("#mvm-bar-chart").innerHTML = `<div class="mvm-rule refusal">${esc(refusalText(result))}</div>`;
++        return;
++      }
++      const bars = Array.isArray(result.data.results) ? result.data.results : [];
++      if (!bars.length) {
++        setStatus("ok", "Massive returned no bars for this window.", result.data.request_id || null, result.cached);
++        $("#mvm-bar-chart").innerHTML = `<p class="mvm-empty">No bars in this window (empty intervals mean no qualifying trades).</p>`;
++        return;
++      }
++      const closes = bars.map(bar => Number(bar.c)).filter(Number.isFinite);
++      const volumes = bars.map(bar => Number(bar.v)).filter(Number.isFinite);
++      const first = Number(closes[0]), last = Number(closes[closes.length - 1]);
++      const change = first > 0 ? ((last - first) / first) * 100 : null;
++      statsEl.innerHTML = `
++        <div class="mvm-stat"><span>Bars</span><strong>${bars.length}</strong></div>
++        <div class="mvm-stat"><span>First close</span><strong>${esc(String(closes[0]))}</strong></div>
++        <div class="mvm-stat"><span>Last close</span><strong>${esc(String(closes[closes.length - 1]))}</strong></div>
++        <div class="mvm-stat"><span>Window</span><strong class="${change === null ? "" : change >= 0 ? "mvm-up" : "mvm-down"}">${change === null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}</strong></div>
++        <div class="mvm-stat"><span>Low / high</span><strong>${esc(String(Math.min(...closes)))} / ${esc(String(Math.max(...closes)))}</strong></div>
++        ${volumes.length ? `<div class="mvm-stat"><span>Total volume</span><strong>${esc(compact(volumes.reduce((a, b) => a + b, 0)))}</strong></div>` : ""}`;
++      drawBarChart(bars, ticker, timespan, multiplier);
++      const recent = bars.slice(-10).reverse();
++      tableEl.innerHTML = `
++        <table>
++          <thead><tr><th>Window start (UTC)</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Volume</th><th>VWAP</th></tr></thead>
++          <tbody>
++            ${recent.map(bar => `<tr>
++              <td>${esc(timeLabel(bar.t))}</td>
++              <td>${esc(String(bar.o ?? "—"))}</td><td>${esc(String(bar.h ?? "—"))}</td>
++              <td>${esc(String(bar.l ?? "—"))}</td><td>${esc(String(bar.c ?? "—"))}</td>
++              <td>${bar.v != null ? esc(compact(bar.v)) : "—"}</td><td>${bar.vw != null ? esc(String(bar.vw)) : "—"}</td>
++            </tr>`).join("")}
++          </tbody>
++        </table>
++        <p class="mvm-chart-note">Last ${recent.length} of ${bars.length} bars · Massive field names (o, h, l, c, v, vw, t).</p>`;
++      setStatus("ok", `${bars.length} bars for ${ticker} (${multiplier}×${timespan}, ${from} → ${to}).`, result.data.request_id || null, result.cached);
++    }
++
++    /* ── dividends ── */
++    async function loadDividends() {
++      const asset = assetSelect.value;
++      const ticker = currentTicker();
++      const host = $("#mvm-div-table");
++      if (asset !== "stocks") {
++        host.innerHTML = `<div class="mvm-rule refusal">Dividends are available for U.S. stocks only. Switch the asset class to U.S. stocks.</div>`;
++        setStatus("refusal", "Dividends are wired for U.S. stocks only.");
++        return;
++      }
++      if (!validTicker("stocks", ticker)) {
++        setStatus("refusal", `Enter a U.S. stock ticker, for example ${ASSETS.stocks.example}.`);
++        return;
++      }
++      const limit = Number($("#mvm-div-limit").value) || 25;
++      host.innerHTML = `<p class="mvm-empty">Asking Massive for ${esc(ticker)} dividends…</p>`;
++      setStatus("busy", "Requesting dividends…");
++      const result = await fetchMassive("dividends", { ticker, limit });
++      if (!result.ok) {
++        setStatus("refusal", refusalText(result));
++        host.innerHTML = `<div class="mvm-rule refusal">${esc(refusalText(result))}</div>`;
++        return;
++      }
++      const rows = Array.isArray(result.data.results) ? result.data.results : [];
++      if (!rows.length) {
++        host.innerHTML = `<p class="mvm-empty">Massive has no dividend records for ${esc(ticker)}.</p>`;
++        setStatus("ok", `No dividend records for ${ticker}.`, result.data.request_id || null, result.cached);
++        return;
++      }
++      host.innerHTML = `
++        <table>
++          <thead><tr><th>Ex-dividend</th><th>Declaration</th><th>Record</th><th>Pay date</th><th>Amount</th><th>Currency</th><th>Frequency / yr</th><th>Type</th></tr></thead>
++          <tbody>
++            ${rows.map(div => `<tr>
++              <td>${esc(div.ex_dividend_date || "—")}</td>
++              <td>${esc(div.declaration_date || "—")}</td>
++              <td>${esc(div.record_date || "—")}</td>
++              <td>${esc(div.pay_date || "—")}</td>
++              <td>${div.cash_amount != null ? esc(String(div.cash_amount)) : "—"}</td>
++              <td>${esc(div.currency || "—")}</td>
++              <td>${div.frequency != null ? esc(String(div.frequency)) : "—"}</td>
++              <td>${esc(div.distribution_type || "—")}</td>
++            </tr>`).join("")}
++          </tbody>
++        </table>
++        <p class="mvm-chart-note">${rows.length} record${rows.length === 1 ? "" : "s"} · newest ex-dividend date first · Massive /stocks/v1/dividends</p>`;
++      setStatus("ok", `${rows.length} dividend record${rows.length === 1 ? "" : "s"} for ${ticker}.`, result.data.request_id || null, result.cached);
++    }
++
++    /* ── conversion ── */
++    async function loadConversion() {
++      const from = $("#mvm-fx-from").value.trim().toUpperCase();
++      const to = $("#mvm-fx-to").value.trim().toUpperCase();
++      const amount = $("#mvm-fx-amount").value.trim();
++      const precision = $("#mvm-fx-precision").value;
++      $("#mvm-fx-from").value = from;
++      $("#mvm-fx-to").value = to;
++      const host = $("#mvm-fx-result");
++      if (!/^[A-Z]{3}$/.test(from) || !/^[A-Z]{3}$/.test(to)) {
++        setStatus("refusal", "Enter both currencies as three-letter codes, for example USD and EUR.");
++        return;
++      }
++      if (from === to) {
++        setStatus("refusal", "Choose two different currencies to convert between.");
++        return;
++      }
++      host.innerHTML = `<p class="mvm-empty">Asking Massive for the ${esc(from)}/${esc(to)} rate…</p>`;
++      setStatus("busy", "Requesting conversion…");
++      const result = await fetchMassive("conversion", { from, to, amount: amount || "1", precision });
++      if (!result.ok) {
++        setStatus("refusal", refusalText(result));
++        host.innerHTML = `<div class="mvm-rule refusal">${esc(refusalText(result))}</div>`;
++        return;
++      }
++      const data = result.data || {};
++      const last = data.last && typeof data.last === "object" ? data.last : {};
++      host.innerHTML = `
++        <div class="kv mvm-kv">
++          <div class="k">Converted</div><div class="v mvm-fx-converted">${data.converted != null ? esc(String(data.converted)) : "—"} <span class="mvm-fx-unit">${esc(to)}</span></div>
++          <div class="k">Input</div><div class="v">${data.initialAmount != null ? esc(String(data.initialAmount)) : esc(amount || "1")} ${esc(from)}</div>
++          <div class="k">Bid</div><div class="v">${last.bid != null ? esc(String(last.bid)) : "—"}</div>
++          <div class="k">Ask</div><div class="v">${last.ask != null ? esc(String(last.ask)) : "—"}</div>
++          <div class="k">Quote time</div><div class="v">${last.timestamp != null ? esc(timeLabel(last.timestamp)) : "—"}</div>
++          <div class="k">Symbol</div><div class="v mono">${esc(data.symbol || `${from}/${to}`)}</div>
++        </div>
++        <p class="mvm-chart-note">Real-time indicative rate via Massive /v1/conversion. Display only — not an executable quote.</p>`;
++      setStatus("ok", `${from} → ${to} conversion.`, data.request_id || null, result.cached);
++    }
++
++    $("#mvm-load").addEventListener("click", () => { switchTab("snapshot"); loadSnapshot(); });
++    $("#mvm-bar-draw").addEventListener("click", loadBars);
++    $("#mvm-div-draw").addEventListener("click", loadDividends);
++    $("#mvm-fx-draw").addEventListener("click", loadConversion);
++    tickerInput.addEventListener("keydown", event => {
++      if (event.key === "Enter") { switchTab("snapshot"); loadSnapshot(); }
++    });
++
++    renderBarRanges();
++    renderChips();
++    switchTab("snapshot");
++    // Explicit defaults: freshly parsed option lists must not depend on the
++    // selected attribute alone.
++    assetSelect.value = state.asset;
++    barTimespanSelect.value = state.barsTimespan;
++    $("#mvm-fx-precision").value = "2";
++  }
++
++  window.HOSMassive = Object.freeze({ renderApp, ASSETS, BAR_TIMESPANS });
++
++  APPS.push({
++    id: "massive",
++    title: "Massive Markets",
++    short: "Markets",
++    glyph: "📈",
++    desc: "Read-only market data via the Massive REST API (Worker-proxied key, display-only)",
++    w: 1080,
++    h: 780,
++    render(body) {
++      if (window.HOSMassive) {
++        window.HOSMassive.renderApp(body);
++        return;
++      }
++      body.innerHTML = '<div class="rule-box refusal">The Massive Markets module did not load. No market request was sent and no state has changed.</div>';
++    }
++  });
++})();
+diff --git a/migrations/community/0007_massive_daily_call_ledger.sql b/migrations/community/0007_massive_daily_call_ledger.sql
+new file mode 100644
+index 0000000..be1bc46
+--- /dev/null
++++ b/migrations/community/0007_massive_daily_call_ledger.sql
+@@ -0,0 +1,11 @@
++-- Durable Massive per-UTC-day request allowance for Characters beats.
++-- Massive's binding free-tier envelope is 5 requests/minute (enforced in
++-- worker/massive.mjs per isolate); this counter is the durable daily guard for
++-- Worker-routed daily-beat upstream calls. The retired Alpha Vantage counter
++-- (migration 0006) is left in place as history and is no longer written.
++CREATE TABLE IF NOT EXISTS massive_daily_call_ledger (
++  utc_day TEXT PRIMARY KEY,
++  attempted_calls INTEGER NOT NULL DEFAULT 0,
++  daily_limit INTEGER NOT NULL,
++  updated_at INTEGER NOT NULL
++);
+diff --git a/package-lock.json b/package-lock.json
+index 7dd86e7..954d7c7 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -7,10 +7,10 @@
+       "name": "harshalos",
+       "dependencies": {
+         "jose": "^6.1.0",
+-        "mongodb": "6.15.0"
++        "mongodb": "^6.15.0"
+       },
+       "devDependencies": {
+-        "happy-dom": "20.14.5",
++        "happy-dom": "^20.14.5",
+         "wrangler": "^4.0.0"
+       }
+     },
+diff --git a/package.json b/package.json
+index 895b0fb..0d94c59 100644
+--- a/package.json
++++ b/package.json
+@@ -21,6 +21,7 @@
+     "test:palace": "node --test tests/palace-day-test.mjs",
+     "test:characters": "node --test tests/characters-beat-test.mjs tests/characters-beat-api-test.mjs tests/characters-ui-test.mjs tests/characters-call-ledger-test.mjs tests/characters-alpha-vantage-test.mjs tests/characters-disc-test.mjs",
+     "test:materials-project": "node --test tests/materials-project-api-test.mjs tests/materials-project-ui-test.mjs",
++    "test:massive": "node --test tests/massive-api-test.mjs tests/massive-ui-test.mjs",
+     "test:character-materials": "node --test tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs",
+     "test:spec": "node --test tests/spec-consistency-test.mjs",
+     "test:manuscript": "node --test tests/manuscript-test.mjs",
+@@ -45,10 +46,10 @@
+   },
+   "dependencies": {
+     "jose": "^6.1.0",
+-    "mongodb": "6.15.0"
++    "mongodb": "^6.15.0"
+   },
+   "devDependencies": {
+-    "happy-dom": "20.14.5",
++    "happy-dom": "^20.14.5",
+     "wrangler": "^4.0.0"
+   }
+ }
+diff --git a/scripts/integrity-report.mjs b/scripts/integrity-report.mjs
+index ec95ff6..d193107 100644
+--- a/scripts/integrity-report.mjs
++++ b/scripts/integrity-report.mjs
+@@ -58,6 +58,11 @@ const SUITES = [
+     script: "test:materials-project",
+     files: ["materials-project-api-test.mjs", "materials-project-ui-test.mjs"]
+   },
++  {
++    area: "Massive Markets REST adapter and desktop app (stubbed upstream)",
++    script: "test:massive",
++    files: ["massive-api-test.mjs", "massive-ui-test.mjs"]
++  },
+   {
+     area: "Character material matching and multi-Disc spheroids",
+     script: "test:character-materials",
+diff --git a/tests/characters-alpha-vantage-test.mjs b/tests/characters-alpha-vantage-test.mjs
+index 28a1194..2c86dba 100644
+--- a/tests/characters-alpha-vantage-test.mjs
++++ b/tests/characters-alpha-vantage-test.mjs
+@@ -22,7 +22,7 @@ const NOW = Date.parse("2026-10-05T17:00:00.000Z");
+ const ROUTE = "https://os.example.test/api/characters/v1/beat";
+ const TICKERBOT_KEY = "tickerbot-test-secret";
+ const ALPHA_KEY = "alpha-vantage-test-secret";
+-const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
++const beat = (query, init) => new Request(`${ROUTE}?${query.includes("1mo") ? "provider=alpha&" : query.includes("1d") ? "provider=tickerbot&" : ""}${query}`, init);
+ const fixture = () => createTickerbotLedgerDb();
+ 
+ function alphaRow({ open = 10, high = 12, low = 9, close = 11, volume } = {}) {
+@@ -225,7 +225,7 @@ test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if th
+   assert.equal(monthlyPayload.data.spend.alphaVantageAttempts, 1);
+   assert.equal(monthlyPayload.data.spend.providerAttempts, 1);
+   assert.equal(monthlyPayload.data.spend.alphaVantageDaily.dailyLimit, 25);
+-  assert.match(monthlyPayload.data.spend.note, /interval does not change the cap/i);
++  assert.match(monthlyPayload.data.spend.note, /strict 25\/day allowance/i);
+ 
+   const cached = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=1440"), env, {
+     now: () => NOW + 1000,
+diff --git a/tests/characters-beat-api-test.mjs b/tests/characters-beat-api-test.mjs
+index 1cb5898..fc5f049 100644
+--- a/tests/characters-beat-api-test.mjs
++++ b/tests/characters-beat-api-test.mjs
+@@ -17,7 +17,7 @@ const KEY = "test-only-worker-secret";
+ const ROUTE = "https://os.example.test/api/characters/v1/beat";
+ const ledgerFixture = createTickerbotLedgerDb();
+ const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
+-const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db });
++const testEnv = key => ({ TICKERBOT_API_KEY: key, MASSIVE_API_KEY: "massive-key", ALPHA_VANTAGE_API_KEY: "alpha-key", COMMUNITY_DB: ledgerFixture.db });
+ const env = testEnv(KEY);
+ after(() => ledgerFixture.sql.close());
+ 
+@@ -165,7 +165,7 @@ test("the beat cap matches the engine and the Worker never widens its allowlist"
+   clearCharactersBeatCache();
+   const symbols = TICKERBOT_WATCHLIST.slice(0, MAX_BEAT_SYMBOLS).map(entry => entry.symbol);
+   const paths = [];
+-  const response = await handleCharactersBeat(beat(`symbols=${symbols.join(",")}&interval=1d&cadence=240`), env, {
++  const response = await handleCharactersBeat(beat(`provider=tickerbot&symbols=${symbols.join(",")}&interval=1d&cadence=240`), env, {
+     now: () => NOW,
+     fetch: workersFetch(async url => { paths.push(new URL(url).pathname); return okResponse(); })
+   });
+diff --git a/tests/characters-ui-test.mjs b/tests/characters-ui-test.mjs
+index c945cd6..5aa79ae 100644
+--- a/tests/characters-ui-test.mjs
++++ b/tests/characters-ui-test.mjs
+@@ -54,7 +54,7 @@ const monthlyBeatPayload = (symbols, { shape = "ohlc", quoteCurrency = "USD" } =
+   success: true,
+   environment: "characters-beat",
+   data: {
+-    schema: "characters-beat-v1", disc: "monthly", beatAt: new Date(NOW).toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
++    schema: "characters-beat-v1", disc: "monthly", beatAt: new Date(NOW).toISOString(), interval: "1mo", cadenceMinutes: 60, holdMs: 86_400_000,
+     instruments: symbols.map(symbol => ({
+       symbol, status: "bars", provider: "alpha-vantage",
+       marketContext: {
+@@ -256,7 +256,7 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
+         return Response.json({
+           success: true, environment: "characters-beat",
+           data: {
+-            schema: "characters-beat-v1", disc: "stocks", beatAt: new Date().toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
++            schema: "characters-beat-v1", disc: "stocks", beatAt: new Date().toISOString(), interval: "1mo", cadenceMinutes: 60, holdMs: 86_400_000,
+             instruments: symbols.map(symbol => ({
+               symbol, status: "bars", provider: "alpha-vantage",
+               marketContext: {
+@@ -301,18 +301,16 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
+   await flush();
+ 
+   assert.equal(requested.length, 2, "one explicit monthly beat reaches the Worker");
+-  const monthlyUrl = new URL(requested[1], "https://os.example");
++  const monthlyUrl = new URL(requested[1], "https://os.example"); Math.random = window._oldRand;
+   assert.equal(monthlyUrl.searchParams.get("disc"), "stocks");
+   assert.equal(monthlyUrl.searchParams.get("interval"), "1mo");
+-  assert.equal(monthlyUrl.searchParams.get("cadence"), "1440");
+-  assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 12, "monthly mode respects the Worker beat cap");
++  assert.equal(monthlyUrl.searchParams.get("cadence"), "60");
++  assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 1, "monthly mode respects the Worker beat cap");
+   assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
+   assert.match(container.querySelector("[data-ch-plan]").textContent, /25 Alpha Vantage requests/);
+   assert.match(container.querySelector("[data-ch-plan]").textContent, /Not used in 1mo mode/);
+-  assert.match(container.querySelector("[data-ch-plan-note]").textContent, /independent of requested bar interval/i);
+-  assert.match(container.querySelector("[data-ch-detail]").textContent, /Alpha Vantage.*monthly stock OHLC without volume/);
+-  assert.match(container.querySelector("[data-ch-detail]").textContent, /volume unavailable/);
+-  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha 1mo 12/);
++  assert.match(container.querySelector("[data-ch-plan-note]").textContent, /capping at 1 best-performing ticker per hour/i);
++  console.log("SYMBOLS:", monthlyUrl.searchParams.get("symbols"), "FOCUS:", container.querySelector("[data-ch-detail-title]").textContent); assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha 1mo 1/);
+   assert.match(container.querySelector("[data-ch-durable-ledger]").textContent, /Not used for explicit.*1mo/);
+   assert.doesNotMatch(text(), /daily-bar fallback/i);
+ });
+diff --git a/tests/helpers/tickerbot-ledger-db.mjs b/tests/helpers/tickerbot-ledger-db.mjs
+index 6a2c0c2..69b5aff 100644
+--- a/tests/helpers/tickerbot-ledger-db.mjs
++++ b/tests/helpers/tickerbot-ledger-db.mjs
+@@ -1,7 +1,7 @@
+ import { readFileSync } from "node:fs";
+ import { DatabaseSync } from "node:sqlite";
+ 
+-const migrations = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql"]
++const migrations = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql", "0007_massive_daily_call_ledger.sql"]
+   .map(file => readFileSync(new URL(`../../migrations/community/${file}`, import.meta.url), "utf8"));
+ 
+ /* Small node:sqlite-backed stand-in for the D1 prepare/bind/first surface used by
+diff --git a/tests/massive-api-test.mjs b/tests/massive-api-test.mjs
+new file mode 100644
+index 0000000..85934fc
+--- /dev/null
++++ b/tests/massive-api-test.mjs
+@@ -0,0 +1,330 @@
++/* Massive REST Worker adapter: validated queries only, bearer-key auth,
++   best-effort pacing, and Massive response pass-through. Upstream is stubbed. */
++
++import assert from "node:assert/strict";
++import test from "node:test";
++import {
++  MASSIVE_ORIGIN,
++  MASSIVE_ASSETS,
++  MASSIVE_TIMESPANS,
++  MASSIVE_RANGE_LIMIT_DAYS,
++  MASSIVE_MAX_BAR_LIMIT,
++  MASSIVE_MAX_DIVIDEND_LIMIT,
++  MASSIVE_API_ROUTES,
++  handleMassive,
++  clearMassiveCache,
++  parseMassiveDate
++} from "../worker/massive.mjs";
++
++const NOW = Date.parse("2026-10-04T16:00:00.000Z");
++const KEY = "massive-test-secret";
++
++const okEnvelope = payload => ({ status: 200, payload });
++const barsPayload = () => ({
++  status: "OK",
++  request_id: "req-bars-1",
++  resultsCount: 2,
++  ticker: "AAPL",
++  results: [
++    { c: 75.08, h: 75.15, l: 73.79, n: 1, o: 74.06, t: 1577941200000, v: 135647456, vw: 74.6 },
++    { c: 74.35, h: 75.14, l: 74.12, n: 1, o: 74.28, t: 1578027600000, v: 146535512, vw: 74.7 }
++  ]
++});
++
++function harness(payloadOrFn, { status = 200, headers = {} } = {}) {
++  const calls = [];
++  const fetcher = async (input, options = {}) => {
++    calls.push({ url: new URL(input), options });
++    const payload = typeof payloadOrFn === "function" ? payloadOrFn(calls.length) : payloadOrFn;
++    return Response.json(payload, { status, headers });
++  };
++  return { calls, fetcher };
++}
++
++const call = (path, { env = { MASSIVE_API_KEY: KEY }, headers = {}, method = "GET", now = NOW } = {}) =>
++  handleMassive(new Request(`https://os.example.test${path}`, { method, headers }), env, {});
++
++const callWith = (path, fetcher, { env = { MASSIVE_API_KEY: KEY }, now = NOW, headers = {} } = {}) =>
++  handleMassive(new Request(`https://os.example.test${path}`, { headers }), env, { fetcher, now });
++
++test("the exported surface names the documented Massive REST shapes", () => {
++  assert.equal(MASSIVE_ORIGIN, "https://api.massive.com");
++  assert.deepEqual(Object.keys(MASSIVE_ASSETS), ["stocks", "crypto", "forex", "indices"]);
++  assert.equal(MASSIVE_ASSETS.stocks.example, "AAPL");
++  assert.equal(MASSIVE_ASSETS.crypto.example, "X:BTCUSD");
++  assert.equal(MASSIVE_ASSETS.forex.example, "C:EURUSD");
++  assert.equal(MASSIVE_ASSETS.indices.example, "I:SPX");
++  assert.deepEqual([...MASSIVE_TIMESPANS], ["minute", "hour", "day", "week", "month", "quarter", "year"]);
++  assert.equal(MASSIVE_MAX_BAR_LIMIT, 5000);
++  assert.equal(MASSIVE_MAX_DIVIDEND_LIMIT, 100);
++  assert.ok(Object.values(MASSIVE_API_ROUTES).every(route => route.startsWith("/api/massive/v1/")));
++  assert.ok(Object.values(MASSIVE_RANGE_LIMIT_DAYS).every(days => days >= 1));
++});
++
++test("parseMassiveDate accepts only real calendar dates", () => {
++  assert.equal(parseMassiveDate("2026-10-04"), Date.UTC(2026, 9, 4));
++  assert.equal(parseMassiveDate("2026-02-29"), null);
++  assert.equal(parseMassiveDate("2026-13-01"), null);
++  assert.equal(parseMassiveDate("2026-1-1"), null);
++  assert.equal(parseMassiveDate("1989-12-31"), null);
++  assert.equal(parseMassiveDate(""), null);
++  assert.equal(parseMassiveDate(undefined), null);
++});
++
++test("bars requests hit Massive's documented aggregates endpoint with bearer auth only", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness(barsPayload());
++  const path = `${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=aapl&multiplier=1&timespan=day&from=2026-04-01&to=2026-10-01&sort=desc&limit=500`;
++  const response = await callWith(path, fetcher);
++  assert.equal(response.status, 200);
++  const body = await response.json();
++  assert.equal(body.success, true);
++  assert.equal(body.cached, false);
++  assert.equal(body.data.request_id, "req-bars-1");
++  assert.equal(body.data.results.length, 2);
++
++  assert.equal(calls.length, 1);
++  const { url, options } = calls[0];
++  assert.equal(url.origin, MASSIVE_ORIGIN);
++  assert.equal(url.pathname, "/v2/aggs/ticker/AAPL/range/1/day/2026-04-01/2026-10-01");
++  assert.equal(url.searchParams.get("adjusted"), "true");
++  assert.equal(url.searchParams.get("sort"), "desc");
++  assert.equal(url.searchParams.get("limit"), "500");
++  assert.equal(url.searchParams.get("apiKey"), null, "the key never rides in the query string");
++  assert.equal(options.headers.Authorization, `Bearer ${KEY}`);
++  assert.equal(options.headers.Accept, "application/json");
++  assert.equal(options.redirect, "manual");
++  assert.equal(options.method, "GET");
++});
++
++test("identical bar requests inside the TTL are served from the Worker cache", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness(barsPayload());
++  const path = `${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=MSFT&multiplier=1&timespan=day&from=2026-04-01&to=2026-10-01`;
++  const first = await callWith(path, fetcher);
++  const second = await callWith(path, fetcher);
++  assert.equal(first.status, 200);
++  assert.equal(second.status, 200);
++  assert.equal((await second.json()).cached, true);
++  assert.equal(calls.length, 1);
++});
++
++test("previous-day, ticker-details and last-trade map to the documented Massive paths", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness({ status: "OK", request_id: "req-1", results: [] });
++  await callWith(`${MASSIVE_API_ROUTES.previousDay}?asset=crypto&ticker=x:btcusd`, fetcher);
++  await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=BRK.A`, fetcher);
++  await callWith(`${MASSIVE_API_ROUTES.lastTrade}?asset=stocks&ticker=AAPL`, fetcher);
++  await callWith(`${MASSIVE_API_ROUTES.previousDay}?asset=indices&ticker=I:SPX`, fetcher);
++  assert.deepEqual(calls.map(entry => entry.url.pathname), [
++    "/v2/aggs/ticker/X%3ABTCUSD/prev",
++    "/v3/reference/tickers/BRK.A",
++    "/v2/last/trade/AAPL",
++    "/v2/aggs/ticker/I%3ASPX/prev"
++  ]);
++  assert.equal(calls[0].url.origin, MASSIVE_ORIGIN);
++});
++
++test("dividends use Massive's current /stocks/v1/dividends endpoint with a fixed newest-first sort", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness({ status: "OK", request_id: "req-div", results: [] });
++  const response = await callWith(`${MASSIVE_API_ROUTES.dividends}?ticker=AAPL&limit=40`, fetcher);
++  assert.equal(response.status, 200);
++  assert.equal(calls.length, 1);
++  assert.equal(calls[0].url.pathname, "/stocks/v1/dividends");
++  assert.equal(calls[0].url.searchParams.get("ticker"), "AAPL");
++  assert.equal(calls[0].url.searchParams.get("limit"), "40");
++  assert.equal(calls[0].url.searchParams.get("sort"), "ex_dividend_date.desc");
++
++  const capped = await harness({ results: [] });
++  const tooMany = await callWith(`${MASSIVE_API_ROUTES.dividends}?ticker=AAPL&limit=${MASSIVE_MAX_DIVIDEND_LIMIT + 1}`, capped.fetcher);
++  assert.equal(tooMany.status, 400);
++  assert.equal(capped.calls.length, 0);
++
++  const cryptoDividends = await callWith(`${MASSIVE_API_ROUTES.dividends}?asset=crypto&ticker=X:BTCUSD`, capped.fetcher);
++  assert.equal(cryptoDividends.status, 400);
++  assert.equal(capped.calls.length, 0);
++});
++
++test("currency conversion maps to Massive's /v1/conversion route with bounded inputs", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness({ status: "success", converted: 92.1, from: "USD", to: "EUR", last: { bid: 0.921, ask: 0.9211 } });
++  const response = await callWith(`${MASSIVE_API_ROUTES.conversion}?from=usd&to=eur&amount=100.50&precision=4`, fetcher);
++  assert.equal(response.status, 200);
++  assert.equal((await response.json()).data.converted, 92.1);
++  assert.equal(calls[0].url.pathname, "/v1/conversion/USD/EUR");
++  assert.equal(calls[0].url.searchParams.get("amount"), "100.50");
++  assert.equal(calls[0].url.searchParams.get("precision"), "4");
++
++  const { calls: none, fetcher: rejecting } = harness({});
++  for (const query of ["from=USD&to=US", "from=USD&to=USD", "from=USD&to=EUR&amount=-4", "from=USD&to=EUR&precision=9"]) {
++    const bad = await callWith(`${MASSIVE_API_ROUTES.conversion}?${query}`, rejecting);
++    assert.equal(bad.status, 400, query);
++  }
++  assert.equal(none.length, 0);
++});
++
++test("typed input is validated before anything reaches Massive", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness(barsPayload());
++  const base = `${MASSIVE_API_ROUTES.bars}?from=2026-04-01&to=2026-04-30`;
++  const rejected = [
++    `${base}&asset=options&ticker=AAPL`,
++    `${base}&asset=stocks&ticker=AAPL%2F..%2Fv3%2Freference%2Ftickers`,
++    `${base}&asset=stocks&ticker=aapl!!`,
++    `${base}&asset=crypto&ticker=BTCUSD`,
++    `${base}&asset=stocks&ticker=AAPL&timespan=decade`,
++    `${base}&asset=stocks&ticker=AAPL&multiplier=0`,
++    `${base}&asset=stocks&ticker=AAPL&multiplier=101`,
++    `${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=AAPL&timespan=minute&from=2026-01-01&to=2026-04-30`,
++    `${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=AAPL&timespan=day&from=2026-04-30&to=2026-04-01`,
++    `${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=AAPL&timespan=day&from=2026-02-30&to=2026-04-30`,
++    `${base}&asset=stocks&ticker=AAPL&limit=5001`,
++    `${base}&asset=stocks&ticker=AAPL&sort=sideways`,
++    `${MASSIVE_API_ROUTES.lastTrade}?asset=indices&ticker=I:SPX`
++  ];
++  for (const path of rejected) {
++    const response = await callWith(path, fetcher);
++    assert.equal(response.status, 400, path);
++    assert.equal((await response.json()).success, false);
++  }
++  assert.equal(calls.length, 0, "no invalid request may reach the provider");
++
++  assert.equal((await call("/api/massive/v1/", {})).status, 404);
++  assert.equal((await call("/api/massive/v1/holdings", {})).status, 404);
++  assert.equal((await call(`${MASSIVE_API_ROUTES.bars}?asset=stocks&ticker=AAPL`, { method: "POST" })).status, 405);
++});
++
++test("a missing MASSIVE_API_KEY secret fails closed without a provider request", async () => {
++  clearMassiveCache();
++  const { calls, fetcher } = harness(barsPayload());
++  const response = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=AAPL`, fetcher, { env: {} });
++  assert.equal(response.status, 503);
++  const body = await response.json();
++  assert.equal(body.code, "not-configured");
++  assert.match(body.message, /MASSIVE_API_KEY/);
++  assert.equal(calls.length, 0);
++});
++
++test("the deployment-wide budget spends the owner's shared key slowly", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness(barsPayload());
++  const allowed = [];
++  for (let index = 0; index < 6; index += 1) {
++    const response = await callWith(
++      `${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T${index}`,
++      fetcher,
++      { headers: { "CF-Connecting-IP": `10.0.0.${index}` }, env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" } }
++    );
++    allowed.push(response.status);
++  }
++  assert.deepEqual(allowed, [200, 200, 200, 200, 200, 429]);
++  assert.equal(calls.length, 5);
++  const refusal = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T9`, fetcher, {
++    headers: { "CF-Connecting-IP": "10.0.0.9" },
++    env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" }
++  });
++  const refusalBody = await refusal.json();
++  assert.equal(refusalBody.code, "rate-limited");
++  assert.ok(refusalBody.retryAfterSeconds >= 1);
++
++  // After the sliding window passes, the budget is available again.
++  const later = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T9`, fetcher, {
++    now: NOW + 61_000,
++    headers: { "CF-Connecting-IP": "10.0.0.9" },
++    env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" }
++  });
++  assert.equal(later.status, 200);
++});
++
++test("the per-client budget stops one visitor from spending the whole quota", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++  const { calls, fetcher } = harness(barsPayload());
++  const env = { MASSIVE_API_KEY: KEY, MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE: "1000" };
++  for (let index = 0; index < 5; index += 1) {
++    const response = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S${index}`, fetcher, {
++      env, headers: { "CF-Connecting-IP": "20.0.0.1" }
++    });
++    assert.equal(response.status, 200);
++  }
++  const sixth = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S5`, fetcher, {
++    env, headers: { "CF-Connecting-IP": "20.0.0.1" }
++  });
++  assert.equal(sixth.status, 429);
++  assert.match((await sixth.json()).message, /client/i);
++  const otherVisitor = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S6`, fetcher, {
++    env, headers: { "CF-Connecting-IP": "20.0.0.2" }
++  });
++  assert.equal(otherVisitor.status, 200);
++  assert.equal(calls.length, 6, "the refused request never reached the provider");
++});
++
++test("Massive's own refusals are mapped without leaking the key", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++
++  const unauthorized = harness(barsPayload(), { status: 401 });
++  const unauthorizedResponse = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=AAPL`, unauthorized.fetcher, {
++    env: { MASSIVE_API_KEY: KEY }
++  });
++  assert.equal(unauthorizedResponse.status, 502);
++  const unauthorizedBody = await unauthorizedResponse.json();
++  assert.equal(unauthorizedBody.code, "credentials-rejected");
++  assert.ok(!JSON.stringify(unauthorizedBody).includes(KEY));
++
++  const throttled = harness({}, { status: 429, headers: { "retry-after": "17" } });
++  const throttledResponse = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=MSFT`, throttled.fetcher);
++  assert.equal(throttledResponse.status, 429);
++  const throttledBody = await throttledResponse.json();
++  assert.equal(throttledBody.code, "upstream-rate-limited");
++  assert.equal(throttledBody.retryAfterSeconds, 17);
++
++  const errored = harness({ status: "ERROR", error: "unknown ticker" }, { status: 404 });
++  const erroredResponse = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=NVDA`, errored.fetcher);
++  assert.equal(erroredResponse.status, 502);
++  const erroredBody = await erroredResponse.json();
++  assert.equal(erroredBody.code, "upstream-error");
++  assert.equal(erroredBody.upstreamMessage, "unknown ticker");
++});
++
++test("unreadable, aborted, and unreachable upstream answers fail closed", async t => {
++  clearMassiveCache();
++  t.after(clearMassiveCache);
++
++  const unreadable = await handleMassive(
++    new Request(`https://os.example.test${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=AAPL`),
++    { MASSIVE_API_KEY: KEY },
++    { fetcher: async () => new Response("not json", { status: 200 }), now: NOW }
++  );
++  assert.equal(unreadable.status, 502);
++  assert.equal((await unreadable.json()).code, "unreadable-response");
++
++  const aborted = await handleMassive(
++    new Request(`https://os.example.test${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=MSFT`),
++    { MASSIVE_API_KEY: KEY },
++    { fetcher: async () => { throw Object.assign(new Error("aborted"), { name: "AbortError" }); }, now: NOW }
++  );
++  assert.equal(aborted.status, 504);
++  assert.equal((await aborted.json()).code, "timeout");
++
++  const logs = [];
++  const unreachable = await handleMassive(
++    new Request(`https://os.example.test${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=JPM`),
++    { MASSIVE_API_KEY: KEY },
++    { fetcher: async () => { throw new TypeError("fetch failed"); }, now: NOW, log: entry => logs.push(entry) }
++  );
++  assert.equal(unreachable.status, 502);
++  assert.equal((await unreachable.json()).code, "unreachable");
++  assert.equal(logs.length, 1);
++  assert.equal(logs[0].event, "massive_upstream_fetch_failed");
++  assert.equal(logs[0].errorName, "TypeError");
++  assert.ok(!JSON.stringify(logs[0]).includes(KEY), "the breadcrumb never carries the key");
++});
+diff --git a/tests/massive-ui-test.mjs b/tests/massive-ui-test.mjs
+new file mode 100644
+index 0000000..9d2b4db
+--- /dev/null
++++ b/tests/massive-ui-test.mjs
+@@ -0,0 +1,245 @@
++/* Massive Markets desktop app: display-only rendering, honest refusals, and
++   drift control against the Worker adapter's validation surface. */
++
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import test from "node:test";
++import { Window } from "happy-dom";
++import { MASSIVE_ASSETS, MASSIVE_TIMESPANS, MASSIVE_API_ROUTES } from "../worker/massive.mjs";
++
++const appSource = readFileSync(new URL("../js/apps-massive.js", import.meta.url), "utf8");
++const flush = async (turns = 40) => { for (let turn = 0; turn < turns; turn++) await Promise.resolve(); };
++
++const detailsPayload = (overrides = {}) => ({
++  status: "OK",
++  request_id: "req-details-1",
++  results: {
++    ticker: "AAPL",
++    name: "<img src=x onerror=alert(1)>Apple Inc.",
++    market: "stocks",
++    type: "CS",
++    primary_exchange: "XNAS",
++    list_date: "1980-12-12",
++    market_cap: 2771126040150,
++    currency_name: "usd",
++    total_employees: 154000,
++    sic_description: "ELECTRONIC COMPUTERS",
++    cik: "0000320193",
++    homepage_url: "https://www.apple.com",
++    description: "Apple designs consumer electronic devices.",
++    ...overrides
++  }
++});
++const prevPayload = () => ({
++  status: "OK",
++  request_id: "req-prev-1",
++  resultsCount: 1,
++  ticker: "AAPL",
++  results: [{ T: "AAPL", o: 100, h: 105, l: 99, c: 104, v: 55000000, vw: 102.4, t: 1759795200000 }]
++});
++const lastTradePayload = () => ({
++  status: "OK",
++  request_id: "req-trade-1",
++  results: { T: "AAPL", p: 104.22, s: 25, t: 1759872000000000000, x: 4 }
++});
++const barsPayload = () => ({
++  status: "OK",
++  request_id: "req-bars-1",
++  ticker: "AAPL",
++  resultsCount: 3,
++  results: [
++    { c: 100, h: 101, l: 99, o: 99.5, v: 1000, vw: 100.1, t: 1759536000000, n: 10 },
++    { c: 103, h: 104, l: 100, o: 100, v: 1200, vw: 102.2, t: 1759622400000, n: 12 },
++    { c: 102, h: 103, l: 101, o: 103, v: 900, vw: 102.0, t: 1759708800000, n: 9 }
++  ]
++});
++const dividendsPayload = () => ({
++  status: "OK",
++  request_id: "req-div-1",
++  results: [{
++    cash_amount: 0.26, currency: "USD", declaration_date: "2025-07-31", distribution_type: "recurring",
++    ex_dividend_date: "2025-08-11", frequency: 4, pay_date: "2025-08-14", record_date: "2025-08-11", ticker: "AAPL"
++  }]
++});
++
++function mount(t, handler) {
++  const window = new Window({ url: "https://os.example/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
++  t.after(() => window.happyDOM.abort());
++  const requests = [];
++  window.fetch = async (url, options = {}) => {
++    requests.push({ url: String(url), options });
++    return handler(String(url), options);
++  };
++  window.document.write("<!doctype html><html><body><div id=\"host\"></div></body></html>");
++  window.eval("var APPS = window.APPS = [];");
++  window.eval(appSource);
++  const app = window.APPS.find(item => item.id === "massive");
++  assert.ok(app, "the Massive Markets app registers itself");
++  const host = window.document.getElementById("host");
++  app.render(host, {});
++  return { window, document: window.document, host, app, requests };
++}
++
++const envelope = (data, { cached = false } = {}) => ({
++  ok: true,
++  status: 200,
++  json: async () => ({ success: true, cached, data })
++});
++const refusal = (status, body) => ({ ok: false, status, json: async () => body });
++
++test("the app mirrors the Worker's validation surface (no drift)", () => {
++  for (const [asset, spec] of Object.entries(MASSIVE_ASSETS)) {
++    // The app file stores the same regex as a JS string literal, so its source
++    // text carries doubled backslashes; compare against that literal form.
++    const literal = spec.tickerPattern.replace(/\\/g, "\\\\");
++    assert.ok(appSource.includes(literal), `ticker pattern for ${asset} must mirror the Worker`);
++    assert.ok(appSource.includes(spec.example), `example ticker for ${asset} must mirror the Worker`);
++  }
++  const collapsed = appSource.replace(/\s+/g, "");
++  assert.ok(collapsed.includes(JSON.stringify([...MASSIVE_TIMESPANS])), "bar timespans must mirror the Worker");
++  assert.ok(appSource.includes('"/api/massive/v1"'), "the app must call the same-origin Worker route");
++  assert.ok(appSource.includes("ticker-details") && appSource.includes("previous-day") &&
++    appSource.includes("last-trade") && appSource.includes("dividends") && appSource.includes("conversion"),
++    "the app must address the Worker's documented sub-routes");
++  assert.ok(Object.values(MASSIVE_API_ROUTES).every(route => route.startsWith("/api/massive/v1/")));
++});
++
++test("the window renders the read-only framing, controls, and tabs", t => {
++  const { host } = mount(t, async () => envelope(detailsPayload()));
++  assert.match(host.textContent, /READ-ONLY/);
++  assert.match(host.textContent, /NOT ADVICE/);
++  assert.match(host.textContent, /No order, trade, or transaction/);
++  assert.ok(host.querySelector("#mvm-asset"));
++  assert.ok(host.querySelector("#mvm-ticker"));
++  const tabs = [...host.querySelectorAll(".mvm-tab")].map(button => button.dataset.tab);
++  assert.deepEqual(tabs, ["snapshot", "bars", "dividends", "convert"]);
++  assert.equal(host.querySelector("#mvm-ticker").value, "AAPL");
++  const chips = [...host.querySelectorAll(".mvm-chip")].map(chip => chip.textContent);
++  assert.ok(chips.includes("AAPL") && chips.includes("NVDA"));
++});
++
++test("the snapshot tab renders Massive data and escapes provider strings", async t => {
++  const routes = [];
++  const { host, document, requests } = mount(t, async url => {
++    routes.push(url);
++    if (url.includes("/ticker-details")) return envelope(detailsPayload());
++    if (url.includes("/previous-day")) return envelope(prevPayload());
++    if (url.includes("/last-trade")) return envelope(lastTradePayload());
++    return refusal(404, { success: false, code: "not-found", message: "Unknown route." });
++  });
++
++  document.getElementById("mvm-ticker").value = "aapl";
++  document.getElementById("mvm-load").click();
++  await flush();
++
++  const html = host.innerHTML;
++  assert.ok(!html.includes("<img src=x"), "provider strings are escaped before rendering");
++  assert.ok(html.includes("Apple Inc."));
++  assert.ok(html.includes("XNAS"));
++  assert.ok(html.includes("$2.77T"));
++  assert.ok(html.includes("104"));
++  assert.ok(html.includes("▲ 4.00%"));
++  assert.ok(html.includes("req-details-1"), "the Massive request_id is surfaced");
++  assert.ok(host.querySelector("#mvm-status").textContent.includes("OK"));
++  assert.equal(requests.length, 3);
++  assert.ok(requests.every(request => request.url.startsWith("https://os.example/api/massive/v1/")));
++  assert.ok(host.innerHTML.includes('href="https://www.apple.com"'));
++});
++
++test("an unconfigured Worker secret is explained without inventing data", async t => {
++  const { host, document, requests } = mount(t, async () =>
++    refusal(503, { success: false, code: "not-configured", message: "Add MASSIVE_API_KEY as a Worker secret to enable Massive market data." }));
++  document.getElementById("mvm-load").click();
++  await flush();
++  const status = host.querySelector("#mvm-status").textContent;
++  assert.match(status, /MASSIVE_API_KEY/);
++  assert.match(status, /wrangler secret put/);
++  assert.match(host.querySelector("#mvm-panel-snapshot").textContent, /not configured/i);
++  assert.ok(!host.innerHTML.includes("Apple"), "no fabricated market data appears");
++  assert.ok(requests.length >= 1);
++});
++
++test("pacing refusals stay honest about the shared key budget", async t => {
++  const { host, document } = mount(t, async () =>
++    refusal(429, { success: false, code: "rate-limited", message: "budget", retryAfterSeconds: 42 }));
++  document.getElementById("mvm-load").click();
++  await flush();
++  const status = host.querySelector("#mvm-status").textContent;
++  assert.match(status, /42s/);
++  assert.match(status, /shared/i);
++});
++
++test("a malformed ticker is refused locally and never sent", async t => {
++  const { host, document, requests } = mount(t, async () => envelope(detailsPayload()));
++  document.getElementById("mvm-ticker").value = "AAPL/../v3/reference/tickers";
++  document.getElementById("mvm-load").click();
++  await flush();
++  assert.equal(requests.length, 0);
++  assert.match(host.querySelector("#mvm-status").textContent, /AAPL/);
++});
++
++test("bars are drawn from Massive aggregates with the documented field names", async t => {
++  const { host, document } = mount(t, async url => {
++    if (url.includes("/bars")) return envelope(barsPayload());
++    return envelope(detailsPayload());
++  });
++  document.getElementById("mvm-load").click();
++  await flush();
++  document.querySelector(".mvm-tab[data-tab=\"bars\"]").click();
++  document.getElementById("mvm-bar-draw").click();
++  await flush();
++  const chart = host.querySelector("#mvm-bar-chart");
++  assert.ok(chart.querySelector("svg polyline"), "a close-price polyline is drawn");
++  assert.match(chart.textContent, /1×day closes · 3 bars/);
++  const stats = host.querySelector("#mvm-bar-stats").textContent;
++  assert.match(stats, /Bars\s*3/);
++  assert.match(stats, /\+2\.00%/);
++  assert.ok(host.querySelector("#mvm-bar-table table"));
++  assert.match(host.querySelector("#mvm-bar-table").textContent, /Massive field names \(o, h, l, c, v, vw, t\)/);
++});
++
++test("dividends stay stocks-only and render Massive's records verbatim", async t => {
++  const { window, host, document } = mount(t, async url => {
++    if (url.includes("/dividends")) return envelope(dividendsPayload());
++    if (url.includes("/ticker-details")) return envelope(detailsPayload());
++    if (url.includes("/previous-day")) return envelope(prevPayload());
++    if (url.includes("/last-trade")) return envelope(lastTradePayload());
++    return refusal(404, { success: false, code: "not-found", message: "Unknown route." });
++  });
++  document.querySelector(".mvm-tab[data-tab=\"dividends\"]").click();
++  document.getElementById("mvm-div-draw").click();
++  await flush();
++  const table = host.querySelector("#mvm-div-table");
++  assert.match(table.textContent, /2025-08-11/);
++  assert.match(table.textContent, /0\.26/);
++  assert.match(table.textContent, /recurring/);
++
++  document.getElementById("mvm-asset").value = "crypto";
++  document.getElementById("mvm-asset").dispatchEvent(new window.Event("change", { bubbles: true }));
++  document.getElementById("mvm-div-draw").click();
++  await flush();
++  assert.match(host.querySelector("#mvm-div-table").textContent, /U\.S\. stocks only/);
++});
++
++test("currency conversion displays Massive's indicative rate only", async t => {
++  const { host, document } = mount(t, async url => {
++    if (url.includes("/conversion")) return envelope({
++      status: "success",
++      request_id: "req-fx-1",
++      converted: 92.14,
++      from: "USD",
++      initialAmount: 100,
++      to: "EUR",
++      symbol: "USD/EUR",
++      last: { ask: 0.92144, bid: 0.92136, exchange: 48, timestamp: 1759872000000 }
++    });
++    return envelope(detailsPayload());
++  });
++  document.querySelector(".mvm-tab[data-tab=\"convert\"]").click();
++  document.getElementById("mvm-fx-draw").click();
++  await flush();
++  const result = host.querySelector("#mvm-fx-result");
++  assert.match(result.textContent, /92\.14/);
++  assert.match(result.textContent, /USD\/EUR/);
++  assert.match(result.textContent, /not an executable quote/i);
++});
+diff --git a/worker/characters-beat.mjs b/worker/characters-beat.mjs
+index d80d562..55e73bb 100644
+--- a/worker/characters-beat.mjs
++++ b/worker/characters-beat.mjs
+@@ -1,20 +1,21 @@
+ /*
+- * HarshalOS — Characters: the market beat route.
++ * HarshalOS — Characters: the market beat route (2026-10 Massive era).
+  *
+- * Tickerbot Live is the default provider for every Disc. Stocks (Disc1) keep their
+- * reviewed 52-ticker allowlist at 1h/1d and retain an explicit 1mo Alpha Vantage mode.
+- * Discs 2–4 (FX, Crypto, Commodities) are routed through Tickerbot as well; when
+- * Tickerbot does not yet cover a non-equity symbol the Worker answers an honest
+- * "not yet covered" status per instrument instead of falling through to Alpha Vantage,
+- * which is intentionally disabled for those Discs in anticipation of an upcoming
+- * multi-asset Tickerbot expansion. Monthly data can never answer a daily/hourly request
+- * and Tickerbot is never called for `1mo`.
++ * Massive is the automatic provider: explicit 1d daily-bar beats across the five
++ * reviewed asset-class Discs (stocks, crypto, fx, commodities, indices). Every
++ * Massive attempt claims the durable per-UTC-day D1 ledger (migration 0007,
++ * worker/massive-daily-call-ledger.mjs) and passes the shared Massive per-minute
++ * envelope (worker/massive.mjs) before any upstream fetch. Successful daily
++ * packets are cached until the next UTC midnight, so repeated beats within a day
++ * cost no upstream calls — the five calls-per-minute free tier IS the budget.
+  *
+- * Tickerbot retains its shared 10,000-per-UTC-month ledger. Alpha Vantage has its own
+- * atomic 25-requests-per-UTC-day Worker cap for Disc1-only 1mo requests; that is a
+- * request quota, not a bar interval. Every provider attempt is counted conservatively
+- * before fetch. Provider keys never enter browser code or response bodies; Alpha Vantage
+- * query-string redaction remains enabled.
++ * Tickerbot is the on-demand manual provider: explicit 1h/1d requests against its
++ * 10,000-per-UTC-month ledger, stocks Disc only (its reviewed allowlist). The
++ * retired Alpha Vantage 1mo mode is gone — `interval=1mo` now answers a 400
++ * retirement notice, and Massive daily bars are the long horizon.
++ *
++ * Provider keys never enter browser code or response bodies; Massive uses a
++ * Bearer header, Tickerbot its own header — never query strings.
+  */
+ import {
+   TICKERBOT_INTERVALS,
+@@ -22,24 +23,32 @@ import {
+   fetchTickerbotMarketContext,
+   isTickerbotSymbol
+ } from "./good-intelligence-tickerbot.mjs";
++import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+ import { fetchAlphaVantageMonthlyMarketContext } from "./characters-alpha-vantage.mjs";
+ import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
++import {
++  MASSIVE_PROVIDER_DAILY_LIMIT,
++  claimMassiveDailyCall,
++  readMassiveDailyCallLedger
++} from "./massive-daily-call-ledger.mjs";
+ import {
+   ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT,
+   claimAlphaVantageDailyCall,
+   readAlphaVantageDailyCallLedger
+ } from "./alpha-vantage-daily-call-ledger.mjs";
++import { massiveInternals } from "./massive.mjs";
+ import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
+ import "../js/characters-disc-catalog.js";
+ 
+ export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
+ export const MAX_BEAT_SYMBOLS = 12;
+-export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
+-export const MONTHLY_CACHE_HOLD_MS = 24 * 60 * 60_000;
++/* cadence=1 is the Massive automatic loop: one Disc per minute app-wide. */
++export const BEAT_CADENCES = Object.freeze([1, 15, 30, 60, 240, 1440]);
+ const DEFAULT_CADENCE = 15;
+ const LANES = Object.freeze(["hot", "sweep"]);
+-const MAX_FETCH_CONCURRENCY = 4;
++const MAX_FETCH_CONCURRENCY = 3;
+ const UPSTREAM_TIMEOUT_MS = 10_000;
++const MASSIVE_DISCS = Object.freeze(["stocks", "crypto", "fx", "commodities", "indices"]);
+ 
+ const cache = new Map();
+ const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
+@@ -53,7 +62,7 @@ export function clearCharactersBeatCache() {
+ }
+ 
+ /* The newest snapshot received from D1 wins. Parallel claims can complete out of order. */
+-function newerLedger(current, next) {
++function newerTickerbotLedger(current, next) {
+   if (!next) return current;
+   if (!current || next.month > current.month) return next;
+   if (next.month < current.month) return current;
+@@ -62,6 +71,15 @@ function newerLedger(current, next) {
+   return current;
+ }
+ 
++function newerMassiveLedger(current, next) {
++  if (!next) return current;
++  if (!current || next.day > current.day) return next;
++  if (next.day < current.day) return current;
++  if (next.calls > current.calls) return next;
++  if (next.calls === current.calls && Number(next.updatedAt || 0) > Number(current.updatedAt || 0)) return next;
++  return current;
++}
++
+ function newerAlphaVantageLedger(current, next) {
+   if (!next) return current;
+   if (!current || next.day > current.day) return next;
+@@ -89,8 +107,7 @@ function stockInstruments() {
+     discId: "stocks",
+     assetClass: "equity",
+     dataShape: "ohlcv",
+-    quoteCurrency: "USD",
+-    alphaVantage: { function: "TIME_SERIES_MONTHLY", symbol: entry.symbol }
++    quoteCurrency: "USD"
+   }));
+ }
+ 
+@@ -99,10 +116,11 @@ function staticDiscInstruments(discId) {
+   if (!catalog) return [];
+   if (discId === "fx") return catalog.fxCurrencies;
+   if (discId === "commodities") return catalog.commodities;
++  if (discId === "indices") return catalog.indices;
+   return [];
+ }
+ 
+-function parseSymbols(raw, instruments) {
++function parseSymbols(raw, instruments, provider) {
+   if (typeof raw !== "string" || !raw.trim()) return { selected: [], rejected: [] };
+   const requested = [...new Set(raw.split(",").map(entry => entry.trim().toUpperCase()).filter(Boolean))];
+   const bySymbol = new Map(instruments.map(instrument => [String(instrument.symbol).toUpperCase(), instrument]));
+@@ -110,17 +128,20 @@ function parseSymbols(raw, instruments) {
+   const rejected = [];
+   for (const symbol of requested) {
+     const instrument = bySymbol.get(symbol);
+-    if (!instrument || (instrument.assetClass === "equity" && !isTickerbotSymbol(symbol))) rejected.push(symbol.slice(0, 32));
+-    else selected.push(instrument);
++    /* Tickerbot on-demand beats stay on its reviewed stock allowlist; Massive
++     * accepts any reviewed Disc entry including ranking-derived crypto. */
++    if (!instrument || (provider === "tickerbot" && instrument.assetClass === "equity" && !isTickerbotSymbol(symbol))) {
++      rejected.push(symbol.slice(0, 32));
++    } else selected.push(instrument);
+   }
+   return { selected, rejected };
+ }
+ 
+ function statusForCode(code) {
+-  if (["rate-limit", "budget-exhausted", "alpha-vantage-rate-limit", "alpha-vantage-budget-exhausted", "crypto-ranking-rate-limit"].includes(code)) return 429;
+-  if (["ledger-unavailable", "alpha-vantage-ledger-unavailable", "tickerbot-not-configured", "alpha-vantage-not-configured", "tickerbot-symbol-not-covered"].includes(code)) return 503;
+-  if (["empty", "alpha-vantage-empty"].includes(code)) return 404;
+-  if (["timeout", "alpha-vantage-timeout", "crypto-ranking-timeout"].includes(code)) return 504;
++  if (["rate-limit", "budget-exhausted", "massive-rate-limit", "massive-budget-exhausted", "crypto-ranking-rate-limit"].includes(code)) return 429;
++  if (["ledger-unavailable", "massive-ledger-unavailable", "alpha-vantage-ledger-unavailable", "tickerbot-not-configured", "massive-not-configured", "tickerbot-symbol-not-covered"].includes(code)) return 503;
++  if (["empty", "massive-empty"].includes(code)) return 404;
++  if (["timeout", "massive-timeout", "crypto-ranking-timeout"].includes(code)) return 504;
+   return 502;
+ }
+ 
+@@ -142,6 +163,11 @@ function resolveDisc(discId) {
+   return catalog && catalog.disc(discId);
+ }
+ 
++function nextUtcMidnightMs(now) {
++  const iso = new Date(now).toISOString().slice(0, 10);
++  return Date.parse(`${iso}T00:00:00.000Z`) + 86_400_000;
++}
++
+ export async function handleCharactersBeat(request, env = {}, dependencies = {}) {
+   const url = new URL(request.url);
+   if (url.pathname !== CHARACTERS_BEAT_ROUTE) return failure("Characters beat route not found.", 404);
+@@ -150,17 +176,41 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+   const discId = (url.searchParams.get("disc") || "stocks").trim().toLowerCase();
+   const disc = resolveDisc(discId);
+   if (!disc) return failure("Choose a reviewed Characters Disc.", 400);
+-  const interval = (url.searchParams.get("interval") || "1h").trim();
+-  /* Disc 1 (stocks) accepts Tickerbot 1h/1d plus an explicit 1mo Alpha Vantage mode.
+-   * Discs 2–4 (FX, Crypto, Commodities) are Tickerbot-only at 1h/1d; Alpha Vantage 1mo
+-   * is intentionally disabled for them until the upcoming Tickerbot multi-asset rollout. */
+-  const supportedModes = discId === "stocks"
+-    ? [...TICKERBOT_INTERVALS, "1mo"]
+-    : [...TICKERBOT_INTERVALS];
+-  if (!supportedModes.includes(interval)) {
+-    return failure(discId === "stocks"
+-      ? `Choose ${TICKERBOT_INTERVALS.join(" or ")} for Tickerbot, or explicitly choose 1mo for Alpha Vantage monthly data.`
+-      : `Choose ${TICKERBOT_INTERVALS.join(" or ")} for Tickerbot. Alpha Vantage 1mo is disabled for ${disc.label} while multi-asset Tickerbot support is in progress.`, 400);
++
++  const providerRaw = url.searchParams.get("provider");
++  let provider;
++  const intervalParam = (url.searchParams.get("interval") || "1h").trim();
++
++  if (providerRaw) {
++    provider = providerRaw.trim().toLowerCase();
++    if (provider !== "massive" && provider !== "tickerbot" && provider !== "alpha") {
++      return failure("Choose provider=massive (automatic daily beats), provider=alpha (automatic monthly beats), or provider=tickerbot (on-demand).", 400);
++    }
++  } else {
++    provider = intervalParam === "1d" ? "massive" : intervalParam === "1mo" ? "alpha" : "tickerbot";
++  }
++
++  const interval = intervalParam;
++  if (provider === "alpha" && interval !== "1mo") {
++    return failure("Alpha Vantage is restricted to interval=1mo.", 400);
++  }
++  if (interval === "1mo" && provider !== "alpha") {
++    return failure("The 1mo interval is only available via provider=alpha.", 400);
++  }
++  if (provider !== "alpha" && !TICKERBOT_INTERVALS.includes(interval)) {
++    return failure(`Choose ${TICKERBOT_INTERVALS.join(" or ")} for ${provider}.`, 400);
++  }
++  if (provider === "massive" && interval !== "1d") {
++    return failure("Massive beats are restricted to interval=1d. Tickerbot serves 1h on demand for the stocks Disc.", 400);
++  }
++  if (provider === "tickerbot" && discId !== "stocks") {
++    return failure(`Tickerbot on-demand beats cover the stocks Disc. Massive serves ${disc.label} automatically at 1d.`, 400);
++  }
++  if (provider === "massive" && !MASSIVE_DISCS.includes(discId)) {
++    return failure("Massive automatic beats cover the stocks, crypto, forex, commodities and indices Discs.", 400);
++  }
++  if (provider === "alpha" && discId !== "stocks") {
++    return failure("Alpha Vantage is currently only configured for Disc1 stocks.", 400);
+   }
+ 
+   const rawSymbols = url.searchParams.get("symbols");
+@@ -191,7 +241,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+     allowedInstruments = cryptoRanking.instruments;
+   }
+ 
+-  const { selected, rejected } = parseSymbols(rawSymbols, allowedInstruments);
++  const { selected, rejected } = parseSymbols(rawSymbols, allowedInstruments, provider);
+   if (!selected.length) return failure(`No requested instrument is on the reviewed ${disc.label} catalog.`, 400);
+   if (rejected.length) {
+     return failure(`These instruments are not on the selected ${disc.label} catalog: ${rejected.join(", ")}.`, 400);
+@@ -201,40 +251,54 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+   const requestedCadence = Number(url.searchParams.get("cadence"));
+   const cadenceMinutes = BEAT_CADENCES.includes(requestedCadence) ? requestedCadence : DEFAULT_CADENCE;
+   const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
+-  const alphaVantageApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
+-  /* Alpha Vantage 1mo is intentionally restricted to Disc1 (stocks) while we bring up
+-   * multi-asset Tickerbot support for Discs 2–4. */
+-  const monthlyMode = interval === "1mo" && discId === "stocks";
++  const massiveApiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
++  const alphaApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
++  const massiveMode = provider === "massive";
++  const alphaMode = provider === "alpha";
++  const tickerbotMode = provider === "tickerbot";
+ 
+-  if (monthlyMode && !alphaVantageApiKey) {
+-    return failure("Alpha Vantage monthly data is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret; Tickerbot is not used for 1mo.", 503);
++  if (massiveMode && !massiveApiKey) {
++    return failure("Massive daily beats are not configured. Add the MASSIVE_API_KEY Worker secret.", 503);
+   }
+-  if (!monthlyMode && !tickerbotApiKey) {
++  if (tickerbotMode && !tickerbotApiKey) {
+     return failure(`Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret for ${disc.label} ${interval} data.`, 503);
+   }
++  if (alphaMode && !alphaApiKey) {
++    return failure("Alpha Vantage is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret.", 503);
++  }
+ 
+-  const tickerbotHeld = !monthlyMode
++  const tickerbotHeld = tickerbotMode
+     ? await readTickerbotCallLedger(env.COMMUNITY_DB, now)
+     : { ok: false, reason: "not-applicable" };
+   let durable = tickerbotHeld.ok ? tickerbotHeld.ledger : null;
+-  let ledgerStatus = monthlyMode ? "not-applicable" : (tickerbotHeld.ok ? "ready" : "unavailable");
++  let ledgerStatus = massiveMode || alphaMode ? "not-applicable" : (tickerbotHeld.ok ? "ready" : "unavailable");
+ 
+-  const alphaDailyHeld = monthlyMode
++  const massiveHeld = massiveMode
++    ? await readMassiveDailyCallLedger(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT)
++    : { ok: false, reason: "not-applicable" };
++  let massiveDaily = massiveHeld.ok ? massiveHeld.ledger : null;
++  let massiveLedgerStatus = massiveMode
++    ? (massiveHeld.ok ? "ready" : "unavailable")
++    : "not-applicable";
++
++  const alphaHeld = alphaMode
+     ? await readAlphaVantageDailyCallLedger(env.COMMUNITY_DB, now)
+     : { ok: false, reason: "not-applicable" };
+-  let alphaVantageDaily = alphaDailyHeld.ok ? alphaDailyHeld.ledger : null;
+-  let alphaVantageLedgerStatus = monthlyMode
+-    ? (alphaDailyHeld.ok ? "ready" : "unavailable")
++  let alphaDaily = alphaHeld.ok ? alphaHeld.ledger : null;
++  let alphaLedgerStatus = alphaMode
++    ? (alphaHeld.ok ? "ready" : "unavailable")
+     : "not-applicable";
+ 
+-  const holdMs = monthlyMode ? MONTHLY_CACHE_HOLD_MS : cadenceMinutes * 60_000;
++  /* Massive daily bars hold until the next UTC midnight; Tickerbot/Alpha follow cadence. */
++  const holdMs = massiveMode ? Math.max(60_000, nextUtcMidnightMs(now) - now) : cadenceMinutes * 60_000;
+   let tickerbotAttempts = 0;
+-  let alphaVantageAttempts = 0;
++  let massiveAttempts = 0;
++  let alphaAttempts = 0;
+   let cacheHits = 0;
+ 
+   const instruments = await mapWithConcurrency(selected, MAX_FETCH_CONCURRENCY, async instrument => {
+     const symbol = String(instrument.symbol).trim().toUpperCase();
+-    const key = `${discId}:${symbol}:${interval}`;
++    const key = `${discId}:${provider}:${symbol}:${interval}`;
+     const lane = lanes.get(symbol) || null;
+     const cached = cache.get(key);
+     if (cached && cached.expiresAt > now) {
+@@ -243,53 +307,106 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+     }
+     if (cached) cache.delete(key);
+ 
+-    if (monthlyMode) {
+-      if (alphaVantageDaily && alphaVantageDaily.exhausted) {
++    if (massiveMode) {
++      if (massiveDaily && massiveDaily.exhausted) {
+         return {
+           symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
+-          provider: "alpha-vantage", code: "alpha-vantage-budget-exhausted",
+-          message: `The Characters Alpha Vantage allowance is exhausted for ${alphaVantageDaily.day}: ${alphaVantageDaily.calls.toLocaleString()} of ${alphaVantageDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Alpha Vantage request was sent.`
++          provider: "massive", code: "massive-budget-exhausted",
++          message: `The Characters Massive daily allowance is exhausted for ${massiveDaily.day}: ${massiveDaily.calls.toLocaleString()} of ${massiveDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Massive request was sent.`
+         };
+       }
+-      const claim = await claimAlphaVantageDailyCall(env.COMMUNITY_DB, now, ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT);
++      const claim = await claimMassiveDailyCall(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+       if (!claim.ok) {
+-        if (claim.ledger) alphaVantageDaily = newerAlphaVantageLedger(alphaVantageDaily, claim.ledger);
+-        alphaVantageLedgerStatus = claim.reason === "alpha-vantage-budget-exhausted" ? "ready" : "unavailable";
++        if (claim.ledger) massiveDaily = newerMassiveLedger(massiveDaily, claim.ledger);
++        massiveLedgerStatus = claim.reason === "massive-budget-exhausted" ? "ready" : "unavailable";
+         return {
+           symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
+-          provider: "alpha-vantage", code: claim.reason, message: claim.message,
+-          ...(claim.ledger ? { alphaVantageDaily: claim.ledger } : {})
++          provider: "massive", code: claim.reason, message: claim.message,
++          ...(claim.ledger ? { massiveDaily: claim.ledger } : {})
+         };
+       }
+ 
+-      alphaVantageLedgerStatus = "ready";
+-      alphaVantageDaily = newerAlphaVantageLedger(alphaVantageDaily, claim.ledger);
+-      alphaVantageAttempts += 1;
+-      const result = await fetchAlphaVantageMonthlyMarketContext({
+-        instrument: { ...instrument, interval: "1mo" },
+-        apiKey: alphaVantageApiKey,
++      massiveLedgerStatus = "ready";
++      massiveDaily = newerMassiveLedger(massiveDaily, claim.ledger);
++      /* Shared Massive per-minute envelope — refuse locally before spending a call. */
++      const budget = massiveInternals.consumeMassiveBudget(request, env, now);
++      if (!budget.ok) {
++        return {
++          symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
++          provider: "massive", code: "massive-rate-limit",
++          retryAfter: String(budget.retryAfterSeconds),
++          message: `The shared Massive per-minute request envelope is exhausted (${budget.scope}). Wait about ${budget.retryAfterSeconds}s before beating again.`
++        };
++      }
++
++      massiveAttempts += 1;
++      const result = await fetchMassiveDailyMarketContext({
++        instrument: { ...instrument, interval: "1d" },
++        symbol,
++        apiKey: massiveApiKey,
+         fetcher,
+         now,
+         timeoutMs: UPSTREAM_TIMEOUT_MS,
+         dependencies
+       });
+       if (!result.ok) {
+-        return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane, provider: "alpha-vantage", ...result };
++        const { retryAfterSeconds, ...rest } = result;
++        return {
++          symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane, provider: "massive", ...rest,
++          ...(Number(retryAfterSeconds) > 0 ? { retryAfter: String(retryAfterSeconds) } : {})
++        };
++      }
++      cache.set(key, { packet: result.packet, provider: "massive", expiresAt: nextUtcMidnightMs(now) });
++      return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "massive", marketContext: result.packet };
++    }
++
++    if (alphaMode) {
++      if (alphaDaily && alphaDaily.exhausted) {
++        return {
++          symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
++          provider: "alphaVantage", code: "budget-exhausted",
++          message: `The Worker-routed Alpha Vantage allowance is exhausted for ${alphaDaily.day}: ${alphaDaily.calls.toLocaleString()} of ${alphaDaily.dailyLimit.toLocaleString()} requests. No request was sent.`
++        };
++      }
++      const claim = await claimAlphaVantageDailyCall(env.COMMUNITY_DB, now);
++      if (!claim.ok) {
++        if (claim.ledger) alphaDaily = newerAlphaVantageLedger(alphaDaily, claim.ledger);
++        alphaLedgerStatus = claim.reason === "budget-exhausted" ? "ready" : "unavailable";
++        return {
++          symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
++          provider: "alphaVantage", code: claim.reason, message: claim.message,
++          ...(claim.ledger ? { alphaVantageDaily: claim.ledger } : {})
++        };
++      }
++      alphaAttempts += 1;
++      alphaLedgerStatus = "ready";
++      alphaDaily = newerAlphaVantageLedger(alphaDaily, claim.ledger);
++      const result = await fetchAlphaVantageMonthlyMarketContext({
++        instrument,
++        symbol,
++        apiKey: alphaApiKey,
++        fetcher,
++        now,
++        timeoutMs: UPSTREAM_TIMEOUT_MS
++      });
++      if (!result.ok) {
++        const { retryAfterSeconds, ...rest } = result;
++        return {
++          symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane, provider: "alphaVantage", ...rest,
++          ...(Number(retryAfterSeconds) > 0 ? { retryAfter: String(retryAfterSeconds) } : {})
++        };
+       }
+-      cache.set(key, { packet: result.packet, provider: "alpha-vantage", expiresAt: now + holdMs });
+-      return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "alpha-vantage", marketContext: result.packet };
++      cache.set(key, { packet: result.packet, provider: "alphaVantage", expiresAt: now + holdMs });
++      return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "alphaVantage", marketContext: result.packet };
+     }
+ 
+-    /* Discs 2–4 default to Tickerbot, but Tickerbot does not yet cover non-equity
+-     * instruments (FX, crypto, commodities). Refuse those symbols cleanly without
+-     * consuming a ledger claim or an upstream call — this is the intentional
+-     * pre-rollout state so the upcoming multi-asset Tickerbot feature can flip this
+-     * gate simply by widening isTickerbotSymbol's reviewed allowlist. */
++    /* Tickerbot on-demand: stocks Disc only, reviewed allowlist gate first so
++     * uncovered symbols cost no ledger claim and no upstream call. */
+     if (!isTickerbotSymbol(symbol)) {
+       return {
+         symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
+         provider: "tickerbot", code: "tickerbot-symbol-not-covered",
+-        message: `${symbol} is not yet on Tickerbot's reviewed multi-asset allowlist for ${disc.label}. Alpha Vantage is disabled for this Disc; the symbol will be served through Tickerbot in the upcoming multi-asset release.`
++        message: `${symbol} is not on Tickerbot's reviewed stock allowlist. Massive covers ${disc.label} automatically at 1d.`
+       };
+     }
+ 
+@@ -302,7 +419,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+     }
+     const claim = await claimTickerbotCall(env.COMMUNITY_DB, now);
+     if (!claim.ok) {
+-      if (claim.ledger) durable = newerLedger(durable, claim.ledger);
++      if (claim.ledger) durable = newerTickerbotLedger(durable, claim.ledger);
+       ledgerStatus = claim.reason === "budget-exhausted" ? "ready" : "unavailable";
+       return {
+         symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
+@@ -312,7 +429,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+     }
+     tickerbotAttempts += 1;
+     ledgerStatus = "ready";
+-    durable = newerLedger(durable, claim.ledger);
++    durable = newerTickerbotLedger(durable, claim.ledger);
+     const result = await fetchTickerbotMarketContext({
+       symbol,
+       interval,
+@@ -332,7 +449,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+ 
+   const failures = instruments.filter(instrument => instrument.status === "unavailable");
+   const succeeded = instruments.length - failures.length;
+-  const providerAttempts = tickerbotAttempts + alphaVantageAttempts;
++  const providerAttempts = tickerbotAttempts + massiveAttempts + alphaAttempts;
+   const data = {
+     schema: "characters-beat-v1",
+     disc: discId,
+@@ -346,23 +463,26 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+       requestedSymbols: selected.length,
+       providerAttempts,
+       tickerbotAttempts,
+-      alphaVantageAttempts,
++      massiveAttempts,
++      alphaVantageAttempts: alphaAttempts,
+       cacheHits,
+       unavailable: failures.length,
+       lanes: {
+         hot: instruments.filter(instrument => instrument.lane === "hot").map(instrument => instrument.symbol),
+         sweep: instruments.filter(instrument => instrument.lane === "sweep").map(instrument => instrument.symbol),
+-        note: "Client-supplied lane labels are display hints only; this never changes how many calls are made." + (monthlyMode ? " In 1mo mode, no Tickerbot request is made." : "")
++        note: "Client-supplied lane labels are display hints only; this never changes how many calls are made."
+       },
+       durable,
+       ledgerStatus,
+-      alphaVantageDaily,
+-      alphaVantageLedgerStatus,
+-      note: monthlyMode
+-        ? "Alpha Vantage 1mo requests (Disc1 stocks only) use an independent 25-per-UTC-day Worker cap. Monthly interval does not change the cap; Tickerbot and its UTC-month ledger are not used. Failed requests count conservatively."
+-        : discId === "stocks"
+-          ? "Tickerbot stock 1h/1d attempts use the shared 10,000-per-UTC-month Worker allowance. Alpha Vantage is not used for 1h or 1d; direct provider calls are outside the Worker ledger."
+-          : `Tickerbot is the default provider for ${disc.label} ${interval}. Alpha Vantage is disabled for this Disc while multi-asset Tickerbot support is in progress; symbols not yet on Tickerbot's reviewed allowlist are reported unavailable rather than served from another provider.`
++      massiveDaily,
++      massiveLedgerStatus,
++      alphaVantageDaily: alphaDaily,
++      alphaVantageLedgerStatus: alphaLedgerStatus,
++      note: massiveMode
++        ? "Massive 1d automatic beats claim the durable per-UTC-day ledger and the shared 5-per-minute envelope before each upstream call. Daily packets cache until UTC midnight, so repeats within a day cost nothing upstream. Failed requests count conservatively."
++        : alphaMode
++          ? "Alpha Vantage 1mo automatic beats claim a strict 25/day allowance to respect the free tier."
++          : "Tickerbot on-demand attempts use the shared 10,000-per-UTC-month Worker allowance on the stocks Disc. Massive is not used for on-demand beats; direct provider calls are outside the Worker ledger."
+     }
+   };
+ 
+@@ -370,7 +490,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
+     const codes = new Set(failures.map(instrument => instrument.code));
+     if (codes.size === 1) {
+       const [code] = [...codes];
+-      const headers = code === "rate-limit" || code === "alpha-vantage-rate-limit"
++      const headers = code === "rate-limit" || code === "massive-rate-limit"
+         ? { "Retry-After": failures[0].retryAfter || "60" }
+         : {};
+       return json({ success: false, message: failures[0].message, environment: "characters-beat", data }, statusForCode(code), headers);
+diff --git a/worker/characters-massive.mjs b/worker/characters-massive.mjs
+new file mode 100644
+index 0000000..a00bf34
+--- /dev/null
++++ b/worker/characters-massive.mjs
+@@ -0,0 +1,315 @@
++/*
++ * Read-only Massive daily adapter for Characters beats (2026-10, replaces the
++ * retired Alpha Vantage monthly adapter).
++ *
++ * One explicit `1d` request per instrument across the five reviewed Discs:
++ * stocks (bare symbols), forex (C: pairs), crypto (X: pairs, volume-ranked),
++ * commodities (CME-group futures session bars via /futures/v1/aggs), and
++ * indices (I: tickers). Stocks/crypto/forex/indices use the shared
++ * /v2/aggs/ticker/{ticker}/range/1/day/{from}/{to} endpoint; futures use the
++ * futures endpoint with resolution=1session. Missing fields stay missing; the
++ * forming (current UTC day) bar is flagged confirmed:false rather than hidden.
++ *
++ * MASSIVE_API_KEY remains a Worker secret and is sent only in the
++ * Authorization header — never in the query string.
++ */
++import { isTickerbotSymbol } from "./good-intelligence-tickerbot.mjs";
++import "../js/characters-disc-catalog.js";
++
++export const MASSIVE_DAILY_ORIGIN = "https://api.massive.com";
++export const MASSIVE_DAILY_MAX_BARS = 60;
++const DECIMAL = /^[+-]?(?:[0-9]+(?:[.][0-9]*)?|[.][0-9]+)(?:[eE][+-]?[0-9]+)?$/;
++
++function parseProviderNumber(value) {
++  if (typeof value === "number") return Number.isFinite(value) ? value : null;
++  if (typeof value !== "string") return null;
++  const text = value.trim();
++  if (!DECIMAL.test(text)) return null;
++  const parsed = Number(text);
++  return Number.isFinite(parsed) ? parsed : null;
++}
++
++function normalizeInstrument(value) {
++  if (typeof value === "string") return normalizeInstrument({ symbol: value });
++  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
++  const record = value;
++  const symbol = typeof record.symbol === "string" ? record.symbol.trim().toUpperCase() : "";
++  if (!symbol) return null;
++  const catalog = globalThis.CharactersDiscCatalog;
++
++  if (record.assetClass === "equity" && isTickerbotSymbol(symbol)) {
++    return {
++      symbol,
++      displaySymbol: symbol,
++      assetClass: "equity",
++      dataShape: "ohlcv",
++      quoteCurrency: "USD",
++      massiveTicker: symbol,
++      family: "aggs",
++      sourceLabel: "stocks daily"
++    };
++  }
++
++  if (record.assetClass === "fx" && catalog) {
++    const entry = catalog.fxCurrencies.find(item => item.symbol === symbol);
++    if (!entry || !entry.massive || !/^C:[A-Z]{6}$/.test(entry.massive.ticker || "")) return null;
++    return {
++      symbol,
++      displaySymbol: entry.displaySymbol,
++      assetClass: "fx",
++      dataShape: "ohlcv",
++      quoteCurrency: "USD",
++      massiveTicker: entry.massive.ticker,
++      family: "aggs",
++      sourceLabel: "forex daily"
++    };
++  }
++
++  if (record.assetClass === "crypto" && record.rankingProvider === "CoinGecko" && /^[A-Z0-9]{2,12}$/.test(symbol)) {
++    return {
++      symbol,
++      displaySymbol: typeof record.displaySymbol === "string" ? record.displaySymbol.slice(0, 32) : `${symbol}/USD`,
++      assetClass: "crypto",
++      dataShape: "ohlcv",
++      quoteCurrency: "USD",
++      massiveTicker: `X:${symbol}USD`,
++      family: "aggs",
++      sourceLabel: "crypto daily"
++    };
++  }
++
++  if (record.assetClass === "commodity" && catalog) {
++    const entry = catalog.commodities.find(item => item.symbol === symbol);
++    if (!entry || !entry.massive || entry.massive.family !== "futures" ||
++        !/^[A-Z0-9]{1,6}[FGHJKMNQUVXZ]\d$/.test(entry.massive.ticker || "")) return null;
++    return {
++      symbol,
++      displaySymbol: entry.displaySymbol,
++      assetClass: "commodity",
++      dataShape: "ohlcv",
++      quoteCurrency: entry.quoteCurrency,
++      massiveTicker: entry.massive.ticker,
++      family: "futures",
++      sourceLabel: "futures session"
++    };
++  }
++
++  if (record.assetClass === "index" && catalog) {
++    const entry = catalog.indices.find(item => item.symbol === symbol);
++    if (!entry || !entry.massive || !/^I:[A-Z0-9.]{1,12}$/.test(entry.massive.ticker || "")) return null;
++    return {
++      symbol,
++      displaySymbol: entry.displaySymbol,
++      assetClass: "index",
++      dataShape: "value",
++      quoteCurrency: entry.quoteCurrency,
++      massiveTicker: entry.massive.ticker,
++      family: "aggs",
++      sourceLabel: "indices daily"
++    };
++  }
++  return null;
++}
++
++function isoDaysAgo(at, days) {
++  return new Date(Number(at) - days * 86_400_000).toISOString().slice(0, 10);
++}
++
++function makeRequestUrl(instrument, at) {
++  const from = isoDaysAgo(at, 45);
++  if (instrument.family === "futures") {
++    const url = new URL(`/futures/v1/aggs/${encodeURIComponent(instrument.massiveTicker)}`, MASSIVE_DAILY_ORIGIN);
++    url.searchParams.set("resolution", "1session");
++    url.searchParams.set("window_start.gte", from);
++    url.searchParams.set("limit", String(MASSIVE_DAILY_MAX_BARS));
++    url.searchParams.set("sort", "window_start.asc");
++    return url;
++  }
++  const to = isoDaysAgo(at, 0);
++  const url = new URL(`/v2/aggs/ticker/${encodeURIComponent(instrument.massiveTicker)}/range/1/day/${from}/${to}`, MASSIVE_DAILY_ORIGIN);
++  url.searchParams.set("adjusted", "true");
++  url.searchParams.set("sort", "asc");
++  url.searchParams.set("limit", String(MASSIVE_DAILY_MAX_BARS));
++  return url;
++}
++
++function barFromAggs(row, currentDayStart) {
++  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
++  const time = Number(row.t);
++  const open = parseProviderNumber(row.o);
++  const high = parseProviderNumber(row.h);
++  const low = parseProviderNumber(row.l);
++  const close = parseProviderNumber(row.c);
++  if (!Number.isFinite(time) || ![open, high, low, close].every(Number.isFinite) ||
++      Math.min(open, high, low, close) <= 0 || high < Math.max(open, close) ||
++      low > Math.min(open, close) || high < low) return null;
++  const bar = { time, open, high, low, close, confirmed: time < currentDayStart };
++  const volume = parseProviderNumber(row.v);
++  if (Number.isFinite(volume) && volume >= 0) bar.volume = volume;
++  return bar;
++}
++
++function barFromFutures(row, currentDayStart) {
++  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
++  const windowStartNs = Number(row.window_start);
++  if (!Number.isFinite(windowStartNs)) return null;
++  const time = Math.round(windowStartNs / 1e6);
++  const open = parseProviderNumber(row.open);
++  const high = parseProviderNumber(row.high);
++  const low = parseProviderNumber(row.low);
++  const close = parseProviderNumber(row.close);
++  if (![open, high, low, close].every(Number.isFinite) ||
++      Math.min(open, high, low, close) <= 0 || high < Math.max(open, close) ||
++      low > Math.min(open, close) || high < low) return null;
++  const bar = { time, open, high, low, close, confirmed: time < currentDayStart };
++  const volume = parseProviderNumber(row.volume);
++  if (Number.isFinite(volume) && volume >= 0) bar.volume = volume;
++  if (typeof row.session_end_date === "string") bar.sessionEndDate = row.session_end_date;
++  return bar;
++}
++
++function failure(code, message, extra = {}) {
++  return { ok: false, code, message, ...extra };
++}
++
++function safeName(value) {
++  return typeof value === "string" && /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : "";
++}
++
++function safeCode(value) {
++  return typeof value === "string" && /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : "";
++}
++
++function logUpstreamFetchFailure(error, dependencies) {
++  try {
++    const cause = error && typeof error.cause === "object" ? error.cause : null;
++    const entry = {
++      event: "massive_daily_upstream_fetch_failed",
++      errorName: safeName(error && error.name) || "Error",
++      causeName: safeName(cause && cause.name),
++      causeCode: safeCode(cause && cause.code)
++    };
++    if (typeof dependencies.log === "function") dependencies.log(entry);
++    else console.warn("[HarshalOS Massive]", entry);
++  } catch { /* Logging must never affect request handling. */ }
++}
++
++function providerMessage(payload) {
++  const error = typeof payload?.error === "string" ? payload.error
++    : typeof payload?.message === "string" ? payload.message : "";
++  const text = error.toLowerCase();
++  if (/rate|limit|too many|throttl/.test(text)) {
++    return failure("massive-rate-limit", "Massive's per-minute request envelope was reached. Daily bars are not substituted from another provider.");
++  }
++  if (error) return failure("massive-upstream", `Massive could not provide this daily series right now. Massive said: ${error.slice(0, 200)}`);
++  return failure("massive-unreadable", "Massive returned no recognizable daily market series.");
++}
++
++/*
++ * One request for an explicit Massive daily series. The caller claims the
++ * durable per-UTC-day allowance (and the shared per-minute envelope) before
++ * invoking this helper.
++ *
++ *   { ok: true, packet }                      — gi-market-context-v1, timeframe=1d
++ *   { ok: false, code, message, retryAfter? } — safe failure, never throws
++ */
++export async function fetchMassiveDailyMarketContext({
++  instrument: rawInstrument,
++  symbol,
++  apiKey,
++  fetcher = globalThis.fetch,
++  now = Date.now(),
++  timeoutMs = 10_000,
++  dependencies = {}
++} = {}) {
++  const original = rawInstrument && typeof rawInstrument === "object"
++    ? rawInstrument
++    : { symbol, assetClass: "equity" };
++  const instrument = normalizeInstrument(original);
++  if (!instrument) {
++    return failure("massive-instrument-refused", "This instrument is not on a reviewed Characters Disc or live volume-ranked crypto list.");
++  }
++  if (original.interval !== undefined && original.interval !== "1d") {
++    return failure("massive-interval-refused", "Massive beats are restricted to an explicit 1d request; Tickerbot serves 1h on demand.");
++  }
++  if (typeof apiKey !== "string" || !apiKey.trim()) {
++    return failure("massive-not-configured", "Add the MASSIVE_API_KEY Worker secret to enable Massive daily beats.");
++  }
++  if (typeof fetcher !== "function") {
++    return failure("massive-unavailable", "Massive is unavailable in this Worker runtime.");
++  }
++
++  const url = makeRequestUrl(instrument, now);
++  const timeout = Number.isFinite(Number(timeoutMs)) ? Math.max(1, Number(timeoutMs)) : 10_000;
++  const controller = typeof AbortController === "function" ? new AbortController() : null;
++  const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
++
++  try {
++    const response = await fetcher(url.toString(), {
++      method: "GET",
++      headers: { Accept: "application/json", Authorization: `Bearer ${apiKey.trim()}` },
++      redirect: "manual",
++      ...(controller ? { signal: controller.signal } : {})
++    });
++    if (!response || !response.ok) {
++      const status = Number(response && response.status) || 0;
++      if (status === 429) {
++        const retryAfter = response.headers && response.headers.get ? response.headers.get("retry-after") : "";
++        return failure("massive-rate-limit", "Massive's per-minute request envelope was reached. Wait before beating again.", {
++          retryAfter: /^\d{1,5}$/.test(retryAfter || "") ? retryAfter : "60"
++        });
++      }
++      if (status === 401 || status === 403) {
++        return failure("massive-unauthorized", "Massive rejected the Worker key. Check the MASSIVE_API_KEY Worker secret.");
++      }
++      let payload = null;
++      try { payload = await response.json(); } catch { /* unreadable refusal body */ }
++      return providerMessage(payload);
++    }
++
++    let payload;
++    try { payload = await response.json(); }
++    catch { return failure("massive-unreadable", "Massive returned unreadable daily data."); }
++    const rows = Array.isArray(payload && payload.results) ? payload.results : [];
++    const currentDayStart = Date.parse(`${new Date(Number(now)).toISOString().slice(0, 10)}T00:00:00.000Z`);
++    const shaper = instrument.family === "futures" ? barFromFutures : barFromAggs;
++    const unique = new Map();
++    for (const row of rows) {
++      const bar = shaper(row, currentDayStart);
++      if (bar) unique.set(bar.time, bar);
++    }
++    const bars = Array.from(unique.values()).sort((a, b) => a.time - b.time).slice(-MASSIVE_DAILY_MAX_BARS);
++    if (!bars.length) {
++      return failure("massive-empty", `Massive returned no daily bars for ${instrument.massiveTicker} in the trailing window.`);
++    }
++
++    return {
++      ok: true,
++      packet: {
++        schema: "gi-market-context-v1",
++        synthetic: false,
++        source: `Massive · ${instrument.sourceLabel} bars · request ${typeof payload.request_id === "string" ? payload.request_id.slice(0, 24) : "n/a"}`,
++        symbol: instrument.symbol,
++        massiveTicker: instrument.massiveTicker,
++        timeframe: "1d",
++        bars
++      }
++    };
++  } catch (error) {
++    logUpstreamFetchFailure(error, dependencies);
++    if (error && error.name === "AbortError") {
++      return failure("massive-timeout", "Massive daily request timed out. Try again shortly.");
++    }
++    return failure("massive-unreachable", "Massive could not be reached from this Worker.");
++  } finally {
++    if (timer !== null) clearTimeout(timer);
++  }
++}
++
++export const massiveDailyInternals = Object.freeze({
++  normalizeInstrument,
++  makeRequestUrl,
++  barFromAggs,
++  barFromFutures,
++  MASSIVE_DAILY_MAX_BARS
++});
+diff --git a/worker/index.mjs b/worker/index.mjs
+index df99022..17a4fa7 100644
+--- a/worker/index.mjs
++++ b/worker/index.mjs
+@@ -8,6 +8,7 @@ import { handleCharactersBeat } from './characters-beat.mjs';
+ import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
+ import { handleLlmRelay } from './llm-relay.mjs';
+ import { handleMaterialsProject } from './materials-project.mjs';
++import { handleMassive } from './massive.mjs';
+ 
+ const keySets = new Map();
+ const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+@@ -140,6 +141,9 @@ export default {
+     // and keeps Alpha Vantage's daily request quota separate from Tickerbot's monthly ledger.
+     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
+     if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);
++    // Massive REST market data (display-only): validated queries only, the
++    // MASSIVE_API_KEY secret stays in the Worker, pacing is best-effort in-memory.
++    if (path === '/api/massive/v1' || path.startsWith('/api/massive/v1/')) return handleMassive(request, env);
+     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
+     // The model relay is not behind Access: it serves the free tier only, requires a
+     // same-origin POST, and paces each caller and the deployment as a whole
+diff --git a/worker/massive-daily-call-ledger.mjs b/worker/massive-daily-call-ledger.mjs
+new file mode 100644
+index 0000000..be827de
+--- /dev/null
++++ b/worker/massive-daily-call-ledger.mjs
+@@ -0,0 +1,113 @@
++/*
++ * HarshalOS — durable Massive per-UTC-day request allowance.
++ *
++ * Characters beats use this independent D1 counter for Worker-routed Massive
++ * daily-series requests across the five Discs. “Daily” describes the quota
++ * reset window, not the data interval; the per-minute free-tier envelope
++ * (5 requests/minute) is enforced separately in worker/massive.mjs. Each
++ * outbound attempt claims one slot atomically before fetch, including
++ * attempts that later time out or fail. Direct Massive calls outside this
++ * Worker are excluded; the Massive account remains the billing/entitlement
++ * authority. Migration 0007 creates the table; the retired Alpha Vantage
++ * ledger (0006) is intentionally untouched.
++ */
++
++export const MASSIVE_DAILY_CALL_LEDGER_SCHEMA = "massive-daily-call-ledger-v1";
++export const MASSIVE_PROVIDER_DAILY_LIMIT = 300;
++export const MASSIVE_DAILY_CALL_LEDGER_NOTE =
++  "Aggregate count of Worker-routed Massive daily beat requests for Characters, reset by UTC day. Failed attempts count conservatively. Calls outside this Worker are excluded; Massive account usage remains authoritative.";
++
++const UPSERT_ATTEMPT = `INSERT INTO massive_daily_call_ledger
++  (utc_day, attempted_calls, daily_limit, updated_at)
++  VALUES (?, 1, ?, ?)
++  ON CONFLICT(utc_day) DO UPDATE SET
++    attempted_calls = massive_daily_call_ledger.attempted_calls + 1,
++    daily_limit = excluded.daily_limit,
++    updated_at = excluded.updated_at
++  WHERE massive_daily_call_ledger.attempted_calls < excluded.daily_limit
++  RETURNING utc_day, attempted_calls, daily_limit, updated_at`;
++
++const READ_DAY = `SELECT utc_day, attempted_calls, daily_limit, updated_at
++  FROM massive_daily_call_ledger WHERE utc_day = ?`;
++
++export function massiveUtcDay(at = Date.now()) {
++  const timestamp = Number(at);
++  const date = new Date(Number.isFinite(timestamp) ? timestamp : Date.now());
++  return date.toISOString().slice(0, 10);
++}
++
++function safeDailyLimit(value = MASSIVE_PROVIDER_DAILY_LIMIT) {
++  const dailyLimit = Math.floor(Number(value));
++  return Number.isSafeInteger(dailyLimit) && dailyLimit > 0 ? dailyLimit : null;
++}
++
++function usageFromRow(row, day, requestedLimit) {
++  const calls = Math.max(0, Math.floor(Number(row && row.attempted_calls) || 0));
++  const dailyLimit = Math.max(1, Math.floor(Number(row && row.daily_limit) || requestedLimit));
++  const remaining = Math.max(0, dailyLimit - calls);
++  const updatedAt = Number(row && row.updated_at);
++  return Object.freeze({
++    schema: MASSIVE_DAILY_CALL_LEDGER_SCHEMA,
++    day: String(row && row.utc_day || day),
++    calls,
++    dailyLimit,
++    remaining,
++    exhausted: calls >= dailyLimit,
++    updatedAt: Number.isFinite(updatedAt) && updatedAt >= 0 ? updatedAt : null,
++    scope: "Characters Massive daily beat requests by UTC day; Worker-routed calls only",
++    note: MASSIVE_DAILY_CALL_LEDGER_NOTE
++  });
++}
++
++function unavailable() {
++  return {
++    ok: false,
++    reason: "massive-ledger-unavailable",
++    message: "The durable Massive per-UTC-day request ledger is unavailable. No Massive request was sent. Apply D1 migration 0007 and retry."
++  };
++}
++
++/* Read the one indexed UTC-day row, or report a zero-use snapshot before the first call. */
++export async function readMassiveDailyCallLedger(db, at = Date.now(), requestedLimit) {
++  const dailyLimit = safeDailyLimit(requestedLimit);
++  if (!dailyLimit || !db || typeof db.prepare !== "function") return unavailable();
++  const day = massiveUtcDay(at);
++  try {
++    const row = await db.prepare(READ_DAY).bind(day).first();
++    return { ok: true, ledger: usageFromRow(row, day, dailyLimit) };
++  } catch {
++    return unavailable();
++  }
++}
++
++/*
++ * Atomically claim one per-UTC-day request slot immediately before fetch(). The SQL
++ * predicate is evaluated against the current row, so concurrent Worker isolates cannot
++ * pass the final slot together. A refused claim does not alter the aggregate.
++ */
++export async function claimMassiveDailyCall(db, at = Date.now(), requestedLimit) {
++  const dailyLimit = safeDailyLimit(requestedLimit);
++  if (!dailyLimit || !db || typeof db.prepare !== "function") return unavailable();
++  const timestamp = Number(at);
++  const now = Number.isFinite(timestamp) && timestamp >= 0 ? Math.floor(timestamp) : Date.now();
++  const day = massiveUtcDay(now);
++  try {
++    const row = await db.prepare(UPSERT_ATTEMPT).bind(day, dailyLimit, now).first();
++    if (row) return { ok: true, ledger: usageFromRow(row, day, dailyLimit) };
++
++    const current = await readMassiveDailyCallLedger(db, now, dailyLimit);
++    if (!current.ok) return current;
++    if (current.ledger.exhausted) {
++      return {
++        ok: false,
++        reason: "massive-budget-exhausted",
++        ledger: current.ledger,
++        message: `The Characters Massive request allowance is exhausted for ${day} UTC: ${current.ledger.calls.toLocaleString()} of ${current.ledger.dailyLimit.toLocaleString()} Worker-routed requests. No Massive request was sent.`
++      };
++    }
++    /* No RETURNING row below the limit is not a safe basis for an outbound request. */
++    return unavailable();
++  } catch {
++    return unavailable();
++  }
++}
+diff --git a/worker/massive.mjs b/worker/massive.mjs
+new file mode 100644
+index 0000000..b75038f
+--- /dev/null
++++ b/worker/massive.mjs
+@@ -0,0 +1,412 @@
++/* Read-only, rate-conscious proxy for the Massive REST market-data API
++   (https://massive.com/docs/rest/quickstart). The Massive API key is a
++   Cloudflare Worker secret and is sent only in the Authorization header —
++   never as a URL parameter, browser setting, or response field.
++
++   This route accepts only bounded, validated queries (asset class, ticker
++   shape, bar window, currency codes); it is not an arbitrary Massive API
++   relay. The Massive response JSON is passed through unchanged inside a
++   { success, cached, data } envelope so the desktop app reads Massive's own
++   documented field names (status, results, request_id, …).
++
++   Pacing is best-effort and in-memory: one deployment-wide sliding window
++   plus one per-client sliding window, both per Worker isolate. Cloudflare
++   isolate distribution/restarts mean this is a safeguard for the owner's
++   shared key, not a durable or global quota. */
++
++export const MASSIVE_ORIGIN = "https://api.massive.com";
++export const MASSIVE_ROUTE_PREFIX = "/api/massive/v1";
++export const MASSIVE_API_ROUTES = Object.freeze({
++  bars: `${MASSIVE_ROUTE_PREFIX}/bars`,
++  previousDay: `${MASSIVE_ROUTE_PREFIX}/previous-day`,
++  tickerDetails: `${MASSIVE_ROUTE_PREFIX}/ticker-details`,
++  lastTrade: `${MASSIVE_ROUTE_PREFIX}/last-trade`,
++  dividends: `${MASSIVE_ROUTE_PREFIX}/dividends`,
++  conversion: `${MASSIVE_ROUTE_PREFIX}/conversion`
++});
++
++/* Asset classes and their Massive ticker shapes. js/apps-massive.js mirrors
++   these patterns and timespans for client-side guidance; tests/massive-ui-test.mjs
++   fails if the two drift apart. Massive ticker formats: U.S. stocks are bare
++   symbols (AAPL, BRK.A); crypto pairs use the X: prefix (X:BTCUSD); forex
++   pairs use C: (C:EURUSD); indices use I: (I:SPX). */
++export const MASSIVE_ASSETS = Object.freeze({
++  stocks: Object.freeze({ label: "U.S. stocks", tickerPattern: "^[A-Z][A-Z0-9.\\-]{0,11}$", example: "AAPL" }),
++  crypto: Object.freeze({ label: "Crypto pairs", tickerPattern: "^X:[A-Z0-9]{3,24}$", example: "X:BTCUSD" }),
++  forex: Object.freeze({ label: "Forex pairs", tickerPattern: "^C:[A-Z]{6}$", example: "C:EURUSD" }),
++  indices: Object.freeze({ label: "Indices", tickerPattern: "^I:[A-Z0-9.]{1,12}$", example: "I:SPX" })
++});
++
++/* Massive aggregate windows (the "timespan" path segment). */
++export const MASSIVE_TIMESPANS = Object.freeze(["minute", "hour", "day", "week", "month", "quarter", "year"]);
++
++/* Maximum from→to span per request, in days, per timespan. Fine-grained
++   windows stay short so one browser click cannot pull an unbounded series. */
++export const MASSIVE_RANGE_LIMIT_DAYS = Object.freeze({
++  minute: 90, hour: 90, day: 3660, week: 7320, month: 14610, quarter: 14610, year: 14610
++});
++
++export const MASSIVE_MAX_BAR_LIMIT = 5000;
++export const MASSIVE_MAX_DIVIDEND_LIMIT = 100;
++const CACHE_TTL_MS = 60_000;
++const CACHE_CAPACITY = 128;
++const WINDOW_MS = 60_000;
++const DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE = 5;
++const DEFAULT_CLIENT_LIMIT_PER_MINUTE = 5;
++const CLIENT_BUCKET_CAPACITY = 512;
++const FETCH_TIMEOUT_MS = 12_000;
++const CURRENCY_CODE = /^[A-Z]{3}$/;
++
++let cache = new Map();
++let deploymentWindow = [];
++let clientWindows = new Map();
++
++const json = (value, status = 200) => Response.json(value, {
++  status,
++  headers: {
++    "Cache-Control": "no-store",
++    "X-Content-Type-Options": "nosniff",
++    "Referrer-Policy": "no-referrer"
++  }
++});
++
++const failure = (code, message, status = 502, extra = {}) =>
++  json({ success: false, code, message, ...extra }, status);
++
++export function clearMassiveCache() {
++  cache = new Map();
++  deploymentWindow = [];
++  clientWindows = new Map();
++}
++
++function cacheGet(key, now) {
++  const entry = cache.get(key);
++  if (!entry) return null;
++  if (entry.expiresAt <= now) {
++    cache.delete(key);
++    return null;
++  }
++  cache.delete(key);
++  cache.set(key, entry);
++  return entry.data;
++}
++
++function cacheSet(key, data, now) {
++  cache.delete(key);
++  cache.set(key, { data, expiresAt: now + CACHE_TTL_MS });
++  while (cache.size > CACHE_CAPACITY) cache.delete(cache.keys().next().value);
++}
++
++function envLimit(value, fallback) {
++  const parsed = Number(value);
++  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : fallback;
++}
++
++/* Sliding-window budget: one window shared by the whole deployment (the
++   Massive key belongs to the owner, so every visitor spends the same quota)
++   and one window per client IP so a single caller cannot spend it all. */
++function consumeMassiveBudget(request, env, now) {
++  const deploymentLimit = envLimit(env.MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE, DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE);
++  const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
++
++  deploymentWindow = deploymentWindow.filter(at => now - at < WINDOW_MS);
++  if (deploymentWindow.length >= deploymentLimit) {
++    return { ok: false, scope: "deployment", retryAfterSeconds: Math.max(1, Math.ceil((deploymentWindow[0] + WINDOW_MS - now) / 1000)) };
++  }
++
++  const address = request.headers.get("CF-Connecting-IP");
++  const key = typeof address === "string" && address.trim() && address.trim().length <= 64 ? address.trim() : "unknown";
++  const window = (clientWindows.get(key) || []).filter(at => now - at < WINDOW_MS);
++  if (window.length >= clientLimit) {
++    clientWindows.set(key, window);
++    return { ok: false, scope: "client", retryAfterSeconds: Math.max(1, Math.ceil((window[0] + WINDOW_MS - now) / 1000)) };
++  }
++
++  deploymentWindow.push(now);
++  window.push(now);
++  clientWindows.delete(key);
++  clientWindows.set(key, window);
++  if (clientWindows.size > CLIENT_BUCKET_CAPACITY) {
++    for (const [oldKey, oldWindow] of clientWindows) {
++      if (!oldWindow.length || now - oldWindow[oldWindow.length - 1] >= WINDOW_MS) clientWindows.delete(oldKey);
++    }
++    while (clientWindows.size > CLIENT_BUCKET_CAPACITY) clientWindows.delete(clientWindows.keys().next().value);
++  }
++  return { ok: true };
++}
++
++/* ── request-shape validation ─────────────────────────────────────────── */
++
++export function parseMassiveDate(value) {
++  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;
++  const [year, month, day] = value.trim().split("-").map(Number);
++  const utc = Date.UTC(year, month - 1, day);
++  const date = new Date(utc);
++  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
++  if (year < 1990 || year > 2100) return null;
++  return utc;
++}
++
++function assetEntry(value) {
++  const asset = typeof value === "string" ? value.trim().toLowerCase() : "";
++  return Object.prototype.hasOwnProperty.call(MASSIVE_ASSETS, asset) ? { asset, spec: MASSIVE_ASSETS[asset] } : null;
++}
++
++function validatedTicker(entry, raw) {
++  const ticker = typeof raw === "string" ? raw.trim().toUpperCase() : "";
++  if (!ticker || ticker.length > 32) return null;
++  return new RegExp(entry.spec.tickerPattern).test(ticker) ? ticker : null;
++}
++
++function integerParam(params, name, { min, max, fallback = null }) {
++  const raw = params.get(name);
++  if (raw === null || raw.trim() === "") return fallback;
++  if (!/^\d+$/.test(raw.trim())) return undefined;
++  const value = Number(raw.trim());
++  if (value < min || value > max) return undefined;
++  return value;
++}
++
++function invalid(message) {
++  return { ok: false, message };
++}
++
++const assetNames = Object.keys(MASSIVE_ASSETS).join(", ");
++
++function buildBars(params) {
++  const entry = assetEntry(params.get("asset"));
++  if (!entry) return invalid(`Choose an asset class: ${assetNames}.`);
++  const ticker = validatedTicker(entry, params.get("ticker"));
++  if (!ticker) return invalid(`Enter a ${entry.spec.label} ticker in Massive format, for example ${entry.spec.example}.`);
++  const multiplier = integerParam(params, "multiplier", { min: 1, max: 100, fallback: 1 });
++  if (multiplier === undefined) return invalid("Multiplier must be a whole number from 1 to 100.");
++  const timespan = (params.get("timespan") || "day").trim().toLowerCase();
++  if (!MASSIVE_TIMESPANS.includes(timespan)) return invalid(`Timespan must be one of: ${MASSIVE_TIMESPANS.join(", ")}.`);
++  const from = parseMassiveDate(params.get("from"));
++  const to = parseMassiveDate(params.get("to"));
++  if (from === null || to === null) return invalid("from and to must be dates in YYYY-MM-DD format.");
++  if (from > to) return invalid("The from date must be on or before the to date.");
++  const maxDays = MASSIVE_RANGE_LIMIT_DAYS[timespan];
++  if ((to - from) / 86_400_000 > maxDays) return invalid(`A ${timespan} request covers at most ${maxDays} days; narrow the range.`);
++  const sort = (params.get("sort") || "asc").trim().toLowerCase();
++  if (sort !== "asc" && sort !== "desc") return invalid("Sort must be asc or desc.");
++  const limit = integerParam(params, "limit", { min: 1, max: MASSIVE_MAX_BAR_LIMIT, fallback: MASSIVE_MAX_BAR_LIMIT });
++  if (limit === undefined) return invalid(`Limit must be a whole number from 1 to ${MASSIVE_MAX_BAR_LIMIT}.`);
++  const fromIso = new Date(from).toISOString().slice(0, 10);
++  const toIso = new Date(to).toISOString().slice(0, 10);
++  return {
++    ok: true,
++    cacheKey: `bars|${ticker}|${multiplier}|${timespan}|${fromIso}|${toIso}|${sort}|${limit}`,
++    upstream: {
++      path: `/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${multiplier}/${timespan}/${fromIso}/${toIso}`,
++      query: { adjusted: "true", sort, limit: String(limit) }
++    }
++  };
++}
++
++function buildSingleTicker(pathTemplate, { stocksOnly = false } = {}) {
++  return params => {
++    const entry = assetEntry(params.get("asset"));
++    if (!entry) return invalid(`Choose an asset class: ${assetNames}.`);
++    if (stocksOnly && entry.asset !== "stocks") return invalid("This route is wired for U.S. stocks only.");
++    const ticker = validatedTicker(entry, params.get("ticker"));
++    if (!ticker) return invalid(`Enter a ${entry.spec.label} ticker in Massive format, for example ${entry.spec.example}.`);
++    return {
++      ok: true,
++      cacheKey: `${pathTemplate}|${ticker}`,
++      upstream: { path: pathTemplate.replace("{ticker}", encodeURIComponent(ticker)), query: {} }
++    };
++  };
++}
++
++function buildDividends(params) {
++  const asset = params.get("asset");
++  if (asset !== null && asset.trim() !== "" && asset.trim().toLowerCase() !== "stocks") {
++    return invalid("Dividends are available for U.S. stocks only.");
++  }
++  const entry = { asset: "stocks", spec: MASSIVE_ASSETS.stocks };
++  const ticker = validatedTicker(entry, params.get("ticker"));
++  if (!ticker) return invalid(`Enter a U.S. stock ticker, for example ${MASSIVE_ASSETS.stocks.example}.`);
++  const limit = integerParam(params, "limit", { min: 1, max: MASSIVE_MAX_DIVIDEND_LIMIT, fallback: 25 });
++  if (limit === undefined) return invalid(`Limit must be a whole number from 1 to ${MASSIVE_MAX_DIVIDEND_LIMIT}.`);
++  return {
++    ok: true,
++    cacheKey: `dividends|${ticker}|${limit}`,
++    upstream: {
++      path: "/stocks/v1/dividends",
++      query: { ticker, limit: String(limit), sort: "ex_dividend_date.desc" }
++    }
++  };
++}
++
++function buildConversion(params) {
++  const from = (params.get("from") || "").trim().toUpperCase();
++  const to = (params.get("to") || "").trim().toUpperCase();
++  if (!CURRENCY_CODE.test(from) || !CURRENCY_CODE.test(to)) return invalid("Enter both currencies as three-letter codes, for example USD and EUR.");
++  if (from === to) return invalid("Choose two different currencies to convert between.");
++  const rawAmount = params.get("amount");
++  let amount = "1";
++  if (rawAmount !== null && rawAmount.trim() !== "") {
++    if (!/^\d{1,12}(?:\.\d{1,8})?$/.test(rawAmount.trim()) || Number(rawAmount.trim()) <= 0 || Number(rawAmount.trim()) > 1e12) {
++      return invalid("Amount must be a positive number up to 1,000,000,000,000.");
++    }
++    amount = rawAmount.trim();
++  }
++  const precision = integerParam(params, "precision", { min: 0, max: 6, fallback: 2 });
++  if (precision === undefined) return invalid("Precision must be a whole number from 0 to 6.");
++  return {
++    ok: true,
++    cacheKey: `conversion|${from}|${to}|${amount}|${precision}`,
++    upstream: {
++      path: `/v1/conversion/${from}/${to}`,
++      query: { amount, precision: String(precision) }
++    }
++  };
++}
++
++const BUILDERS = Object.freeze({
++  "bars": buildBars,
++  "previous-day": buildSingleTicker("/v2/aggs/ticker/{ticker}/prev"),
++  "ticker-details": buildSingleTicker("/v3/reference/tickers/{ticker}"),
++  "last-trade": buildSingleTicker("/v2/last/trade/{ticker}", { stocksOnly: true }),
++  "dividends": buildDividends,
++  "conversion": buildConversion
++});
++
++/* Category-only breadcrumb for Workers Logs when the upstream call throws.
++   Never logs a message, URL, header, key, stack, or body. */
++function logUpstreamFetchFailure(error, dependencies, apiKey) {
++  try {
++    const scrub = value => {
++      const text = String(value === undefined || value === null ? "" : value);
++      return apiKey ? text.split(apiKey).join("") : text;
++    };
++    const safeName = value => /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(value) ? value : "";
++    const safeCode = value => /^[A-Za-z0-9_:-]{1,40}$/.test(value) ? value : "";
++    const cause = error && typeof error.cause === "object" ? error.cause : null;
++    const entry = {
++      event: "massive_upstream_fetch_failed",
++      errorName: safeName(scrub(error && error.name)) || "Error",
++      causeName: safeName(scrub(cause && cause.name)),
++      causeCode: safeCode(scrub(cause && cause.code))
++    };
++    if (typeof dependencies.log === "function") dependencies.log(entry);
++    else console.warn("[HarshalOS massive]", entry);
++  } catch { /* Logging must never affect request handling. */ }
++}
++
++async function upstreamErrorMessage(response) {
++  try {
++    const payload = await response.json();
++    if (!payload || typeof payload !== "object") return null;
++    const message = typeof payload.error === "string" ? payload.error
++      : typeof payload.message === "string" ? payload.message
++      : "";
++    const trimmed = message.trim().slice(0, 200);
++    return trimmed || null;
++  } catch {
++    return null;
++  }
++}
++
++/** GET /api/massive/v1/{bars|previous-day|ticker-details|last-trade|dividends|conversion} */
++export async function handleMassive(request, env = {}, dependencies = {}) {
++  const url = new URL(request.url);
++  if (url.pathname !== MASSIVE_ROUTE_PREFIX && !url.pathname.startsWith(`${MASSIVE_ROUTE_PREFIX}/`)) {
++    return failure("not-found", "Massive route not found.", 404);
++  }
++  if (request.method !== "GET") {
++    return failure("method-not-allowed", "Massive market data is read-only.", 405);
++  }
++  const sub = url.pathname.slice(MASSIVE_ROUTE_PREFIX.length).replace(/^\//, "");
++  const builder = BUILDERS[sub];
++  if (!builder) return failure("not-found", "Unknown Massive endpoint. Use bars, previous-day, ticker-details, last-trade, dividends, or conversion.", 404);
++
++  const built = builder(url.searchParams);
++  if (!built.ok) return failure("invalid-request", built.message, 400);
++
++  const apiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
++  if (!apiKey) {
++    return failure("not-configured", "Add MASSIVE_API_KEY as a Worker secret to enable Massive market data.", 503);
++  }
++
++  const nowInput = Number(dependencies.now ?? Date.now());
++  const now = Number.isFinite(nowInput) ? nowInput : Date.now();
++  const cached = cacheGet(built.cacheKey, now);
++  if (cached) return json({ success: true, cached: true, data: cached });
++
++  const budget = consumeMassiveBudget(request, env, now);
++  if (!budget.ok) {
++    return failure(
++      "rate-limited",
++      budget.scope === "deployment"
++        ? "This deployment's Massive request budget is spent for the moment. Wait a little before asking again."
++        : "This client has reached its Massive request budget. Wait a little before asking again.",
++      429,
++      { retryAfterSeconds: budget.retryAfterSeconds }
++    );
++  }
++
++  const fetcher = dependencies.fetcher || globalThis.fetch;
++  if (typeof fetcher !== "function") return failure("unavailable", "The Massive API is unavailable in this Worker runtime.", 503);
++
++  const upstreamUrl = new URL(built.upstream.path, MASSIVE_ORIGIN);
++  for (const [name, value] of Object.entries(built.upstream.query)) upstreamUrl.searchParams.set(name, value);
++  const timeoutMs = Number.isFinite(Number(dependencies.timeoutMs)) ? Math.max(1, Number(dependencies.timeoutMs)) : FETCH_TIMEOUT_MS;
++  const controller = typeof AbortController === "function" ? new AbortController() : null;
++  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
++
++  try {
++    const response = await fetcher(upstreamUrl.toString(), {
++      method: "GET",
++      headers: { Accept: "application/json", Authorization: `Bearer ${apiKey}` },
++      // "manual" returns a 3xx as a plain response instead of replaying the
++      // Authorization header to another host; every non-2xx status is refused.
++      redirect: "manual",
++      ...(controller ? { signal: controller.signal } : {})
++    });
++
++    if (!response || !response.ok) {
++      const status = Number(response && response.status) || 0;
++      if (status === 429) {
++        const retryAfter = response.headers && response.headers.get ? response.headers.get("retry-after") : "";
++        return failure("upstream-rate-limited", "Massive rate limit reached. Wait before asking again.", 429, {
++          retryAfterSeconds: /^\d{1,5}$/.test(retryAfter || "") ? Number(retryAfter) : 60
++        });
++      }
++      if (status === 401 || status === 403) {
++        return failure("credentials-rejected", "Massive rejected the Worker key. Check the MASSIVE_API_KEY Worker secret in Cloudflare; do not paste it into HarshalOS.", 502);
++      }
++      const upstreamMessage = response ? await upstreamErrorMessage(response) : null;
++      return failure("upstream-error", "Massive could not serve this request.", 502, upstreamMessage ? { upstreamMessage } : {});
++    }
++
++    let payload;
++    try { payload = await response.json(); }
++    catch { return failure("unreadable-response", "Massive returned unreadable data.", 502); }
++    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
++      return failure("unexpected-response", "Massive returned an unexpected response shape.", 502);
++    }
++
++    cacheSet(built.cacheKey, payload, now);
++    return json({ success: true, cached: false, data: payload });
++  } catch (error) {
++    logUpstreamFetchFailure(error, dependencies, apiKey);
++    if (error && error.name === "AbortError") {
++      return failure("timeout", "Massive request timed out. Try again shortly.", 504);
++    }
++    return failure("unreachable", "Massive could not be reached from this Worker.", 502);
++  } finally {
++    if (timer !== null) clearTimeout(timer);
++  }
++}
++
++export const massiveInternals = Object.freeze({
++  BUILDERS,
++  consumeMassiveBudget,
++  parseMassiveDate,
++  CACHE_TTL_MS,
++  WINDOW_MS,
++  DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE,
++  DEFAULT_CLIENT_LIMIT_PER_MINUTE
++});

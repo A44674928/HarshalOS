@@ -104,12 +104,13 @@
     title: "Good Intelligence",
     short: "Good Intelligence",
     glyph: "∅",
-    desc: "Read-only intel feed, rankings, market charts, TradingView Lightweight Charts™, and the local Orb 2 OCM model",
+    desc: "Read-only intel, market charts, and a live Characters-powered Orb 2 3D OCM beat model",
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
     w: 1160,
     h: 760,
+    fullscreen: true,
     render(body, api) {
       const Client = window.GoodIntelligenceClient;
       const Assurance = window.GoodIntelligenceAssurance;

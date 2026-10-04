@@ -70,9 +70,11 @@ Incomplete OHLC tuples are rejected. VFI, crowd/relative-volume display, and ite
 
 The stage is representation only—not investment advice, a signal, a recommendation, permission to act, an assurance result, or an input to Permit/Refuse decisions.
 
-## Orb 2 reference boundary
+## Orb 2 integration boundary
 
-Good Intelligence's **Orb 2** is a separate local teaching visualization, not another Characters data consumer. It builds peripheral display nodes only from `CharactersCast.NPC_ROSTER` and shows the provider/cadence rules above as reviewed context. It does not call `/api/characters/v1/beat`, `/api/massive/v1/*`, Tickerbot, Alpha Vantage, or any OCM transport; it receives no live packet, price, rank, or recommendation. Its disc-to-sphere routes are visual traces only and cannot resolve legitimacy, transfer authority, create an identity, or commit a transaction.
+Good Intelligence's **Orb 2** is the second, custom OCM view. It builds character nodes only from `CharactersCast.NPC_ROSTER`, obtains reviewed Disc berths through `CharactersCast`/`CharactersDiscCatalog`, and calls the same `/api/characters/v1/beat` route as Characters. It uses the same `CharactersBeat` planner, `GoodIntelligenceMarketContext` evaluator, rotation ledger, and NPC/object/item motion directives; Massive remains automatic across Discs 1–5, Tickerbot stays on-demand for Disc1 `1h`/`1d`, and Alpha Vantage remains the separate Disc1 `1mo` spotlight. A provider switch has a visible 60-second warm-up; D1-ledger failures still fail closed and are not fixed by waiting. The OCM paths, movement, and particles are local visualization only: they cannot create an identity, send OCM traffic, resolve legitimacy, transfer authority, or commit a transaction.
+
+Orb 2 stores compact validated observation/motion snapshots through `/api/good-intelligence/v1/orb2/beats` in the `orb2_saved_beats` D1 table (migration `0008_orb2_saved_beats.sql`). It uses a random opaque browser-session id, retains at most 120 beats for 90 days, and does not persist provider secrets or full bar histories. This history route is separate from provider calls and does not weaken the provider D1 allowance guards.
 
 ## Routes and migrations
 

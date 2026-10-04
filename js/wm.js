@@ -8,10 +8,80 @@
 const shell = (() => {
 
   const windows = new Map();     // appId -> window record
+  const WINDOW_FULLSCREEN_CLASS = "window-fullscreen";
   let zTop = 100;
   let spawnOffset = 0;
 
   const $ = sel => document.querySelector(sel);
+
+  function nativeFullscreenFor(rec) {
+    const doc = rec.el.ownerDocument || document;
+    const active = doc.fullscreenElement;
+    return Boolean(active && (active === rec.el || rec.el.contains(active)));
+  }
+
+  function syncFullscreenControl(rec) {
+    const button = rec.el.querySelector(".win-ctl.fullscreen");
+    if (!button) return;
+    const active = rec.el.classList.contains(WINDOW_FULLSCREEN_CLASS) || nativeFullscreenFor(rec);
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute("aria-label", `${active ? "Exit" : "Enter"} whole-app fullscreen for ${rec.app.title}`);
+    button.title = `${active ? "Exit" : "Enter"} whole-app fullscreen`;
+    button.textContent = active ? "⤢" : "⛶";
+  }
+
+  function syncAllFullscreenControls() {
+    windows.forEach(syncFullscreenControl);
+  }
+
+  async function toggleWindowFullscreen(id) {
+    const rec = windows.get(id);
+    if (!rec) return;
+    const doc = rec.el.ownerDocument || document;
+    if (rec.el.classList.contains(WINDOW_FULLSCREEN_CLASS)) {
+      rec.el.classList.remove(WINDOW_FULLSCREEN_CLASS);
+      syncFullscreenControl(rec);
+      return;
+    }
+    if (nativeFullscreenFor(rec)) {
+      try {
+        if (typeof doc.exitFullscreen === "function") await doc.exitFullscreen();
+      } catch { /* retain the current state if the browser refuses to exit */ }
+      syncFullscreenControl(rec);
+      return;
+    }
+    try {
+      if (typeof rec.el.requestFullscreen !== "function") throw new Error("Fullscreen API unavailable");
+      await rec.el.requestFullscreen();
+    } catch {
+      // Single-click fallback fills the app viewport if native fullscreen is
+      // blocked by the browser or preview iframe's permissions policy.
+      rec.el.classList.add(WINDOW_FULLSCREEN_CLASS);
+    }
+    syncFullscreenControl(rec);
+  }
+
+  function releaseWindowFullscreen(rec) {
+    if (!rec) return;
+    const doc = rec.el.ownerDocument || document;
+    rec.el.classList.remove(WINDOW_FULLSCREEN_CLASS);
+    if (nativeFullscreenFor(rec) && typeof doc.exitFullscreen === "function") {
+      try {
+        const result = doc.exitFullscreen();
+        if (result && typeof result.catch === "function") result.catch(() => {});
+      } catch { /* closing/minimizing the window remains allowed */ }
+    }
+    syncFullscreenControl(rec);
+  }
+
+  function exitFallbackFullscreenOnEscape(event) {
+    if (event.key !== "Escape") return;
+    const rec = [...windows.values()].find(windowRecord => windowRecord.el.classList.contains(WINDOW_FULLSCREEN_CLASS));
+    if (!rec) return;
+    event.preventDefault();
+    rec.el.classList.remove(WINDOW_FULLSCREEN_CLASS);
+    syncFullscreenControl(rec);
+  }
 
   /* ─────────── toasts ─────────── */
   function toast(kind, title, body, ms = 5200) {
@@ -59,8 +129,9 @@ const shell = (() => {
         <span class="win-name"></span>
         <span class="win-pdh mono">PDH · ${app.id.toUpperCase()} · NON-ACTING</span>
         <div class="win-controls">
-          <button class="win-ctl min" title="Minimize">–</button>
-          <button class="win-ctl close" title="Close">✕</button>
+          ${app.fullscreen === true ? '<button class="win-ctl fullscreen" type="button" title="Enter whole-app fullscreen" aria-label="Enter whole-app fullscreen" aria-pressed="false">⛶</button>' : ""}
+          <button class="win-ctl min" type="button" title="Minimize" aria-label="Minimize window">–</button>
+          <button class="win-ctl close" type="button" title="Close" aria-label="Close window">✕</button>
         </div>
       </div>
       <div class="win-body"></div>`;
@@ -78,7 +149,8 @@ const shell = (() => {
     const title = el.querySelector(".win-title");
     let drag = null;
     title.addEventListener("pointerdown", e => {
-      if (e.target.closest(".win-ctl") || window.innerWidth <= 860 || e.button > 0) return;
+      if (e.target.closest(".win-ctl") || window.innerWidth <= 860 || e.button > 0
+        || el.classList.contains(WINDOW_FULLSCREEN_CLASS) || nativeFullscreenFor(rec)) return;
       drag = { x: e.clientX, y: e.clientY, l: el.offsetLeft, t: el.offsetTop };
       focus(app.id);
       title.setPointerCapture(e.pointerId);
@@ -97,6 +169,8 @@ const shell = (() => {
     el.addEventListener("pointerdown", () => focus(app.id));
     el.querySelector(".win-ctl.close").addEventListener("click", () => closeApp(app.id));
     el.querySelector(".win-ctl.min").addEventListener("click", () => minimizeApp(app.id));
+    const fullscreenButton = el.querySelector(".win-ctl.fullscreen");
+    if (fullscreenButton) fullscreenButton.addEventListener("click", () => { void toggleWindowFullscreen(app.id); });
 
     focus(app.id);
     renderTaskbar();
@@ -106,6 +180,7 @@ const shell = (() => {
   function closeApp(id) {
     const rec = windows.get(id);
     if (!rec) return;
+    releaseWindowFullscreen(rec);
     rec.el.remove();
     windows.delete(id);
     renderTaskbar();
@@ -114,6 +189,7 @@ const shell = (() => {
   function minimizeApp(id) {
     const rec = windows.get(id);
     if (!rec) return;
+    releaseWindowFullscreen(rec);
     rec.el.classList.add("minimized");
     renderTaskbar();
   }
@@ -337,8 +413,11 @@ const shell = (() => {
     $("#origin-btn").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
     $("#taskbar-origin").addEventListener("click", e => { e.stopPropagation(); toggleMenu(); });
     document.addEventListener("keydown", e => {
+      exitFallbackFullscreenOnEscape(e);
       if (e.key === "Escape") toggleMenu(false);
     });
+    document.addEventListener("fullscreenchange", syncAllFullscreenControls);
+    document.addEventListener("fullscreenerror", syncAllFullscreenControls);
     document.addEventListener("click", e => {
       if (!e.target.closest("#origin-menu") && !e.target.closest("#origin-btn") && !e.target.closest("#taskbar-origin")) {
         toggleMenu(false);
