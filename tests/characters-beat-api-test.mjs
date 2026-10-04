@@ -2,8 +2,8 @@
 
    These tests cover spend discipline: Tickerbot is attempted once per due symbol,
    successful bars cost zero calls inside a beat window, refused requests cost zero,
-   and no key or upstream body appears in a response. Daily Alpha Vantage fallback is
-   covered in its own suite with its separate durable allowance. */
+   and no key or upstream body appears in a response. Explicit 1mo Alpha Vantage
+   requests and their separate UTC-day allowance are covered in their own suite. */
 
 import assert from "node:assert/strict";
 import { after, test } from "node:test";

@@ -7,10 +7,10 @@
    codex defines — passes, chips, capsules, deploy tokens — and the Objects
    are the berth furniture the market wings need (a stone, a gate, a mast).
 
-   The cast is *bound to the reviewed Tickerbot watchlist at runtime*, never
-   to a second copy of it: every sector is a watchlist sector, every berth is
-   one symbol, and if the watchlist changes the stage changes with it. Nothing
-   here is a second allowlist that could drift from the Worker's.
+   Disc1 is *bound to the reviewed Tickerbot watchlist at runtime*, never to a
+   second stock list: if that watchlist changes, the stock stage changes with it.
+   Other Discs pass their Worker/catalog-reviewed metadata into the same pure layout;
+   this module does not approve upstream instruments or call a provider.
 
    Layout is pure geometry on a unit circle (angle in radians, radius as a
    fraction of the stage): deterministic, testable, and independent of the
@@ -84,7 +84,12 @@ window.CharactersCast = (() => {
     "Industrial & defense": { kind: "crane", glyph: "⌹" },
     "Autos & EV": { kind: "charging plinth", glyph: "⌺" },
     "Crypto & fintech": { kind: "capsule dispenser", glyph: "◍" },
-    "Index & sector ETFs": { kind: "weather vane", glyph: "✥" }
+    "Index & sector ETFs": { kind: "weather vane", glyph: "✥" },
+    "FX majors": { kind: "exchange arch", glyph: "⇌" },
+    "FX emerging": { kind: "currency gate", glyph: "¤" },
+    "Cryptocurrency": { kind: "market relay", glyph: "₿" },
+    "Industrial metals": { kind: "foundry wheel", glyph: "⚙" },
+    "Agriculture": { kind: "harvest granary", glyph: "▧" }
   });
   const FALLBACK_OBJECT = Object.freeze({ kind: "berth plinth", glyph: "▫" });
 
@@ -129,8 +134,23 @@ window.CharactersCast = (() => {
       .filter(entry => entry && typeof entry.symbol === "string" && entry.symbol.trim())
       .map(entry => ({
         symbol: entry.symbol.trim().toUpperCase(),
-        name: String(entry.name || entry.symbol).trim(),
-        sector: String(entry.sector || "Unassigned").trim()
+        displaySymbol: String(entry.displaySymbol || entry.symbol).trim().slice(0, 48),
+        name: String(entry.name || entry.symbol).trim().slice(0, 96),
+        sector: String(entry.sector || "Unassigned").trim().slice(0, 64),
+        discId: String(entry.discId || options.discId || "stocks").trim().slice(0, 24),
+        assetClass: String(entry.assetClass || "equity").trim().slice(0, 24),
+        dataShape: String(entry.dataShape || "ohlcv").trim().slice(0, 16),
+        quoteCurrency: String(entry.quoteCurrency || "USD").trim().slice(0, 40),
+        tags: Array.isArray(entry.tags) ? entry.tags.filter(tag => typeof tag === "string").slice(0, 8).map(tag => tag.slice(0, 32)) : [],
+        audit: Array.isArray(entry.audit) ? entry.audit.filter(flag => typeof flag === "string").slice(0, 8).map(flag => flag.slice(0, 48)) : [],
+        rank: Number.isSafeInteger(Number(entry.rank ?? entry.turnoverRank)) && Number(entry.rank ?? entry.turnoverRank) > 0
+          ? Number(entry.rank ?? entry.turnoverRank) : null,
+        volumeUsd: Number.isFinite(Number(entry.volumeUsd)) && Number(entry.volumeUsd) > 0 ? Number(entry.volumeUsd) : null,
+        currentPriceUsd: Number.isFinite(Number(entry.currentPriceUsd)) && Number(entry.currentPriceUsd) > 0 ? Number(entry.currentPriceUsd) : null,
+        marketCapUsd: Number.isFinite(Number(entry.marketCapUsd)) && Number(entry.marketCapUsd) > 0 ? Number(entry.marketCapUsd) : null,
+        providerId: typeof entry.providerId === "string" ? entry.providerId.slice(0, 80) : "",
+        rankingProvider: typeof entry.rankingProvider === "string" ? entry.rankingProvider.slice(0, 32)
+          : Number.isSafeInteger(Number(entry.turnoverRank)) && Number(entry.turnoverRank) > 0 ? "BIS 2025" : ""
       }));
     const sectorsById = new Map();
     entries.forEach(entry => {
@@ -161,7 +181,20 @@ window.CharactersCast = (() => {
     const npcs = assignNpcs(berthSeeds);
     const berths = berthSeeds.map((seed, index) => ({
       symbol: seed.symbol,
+      displaySymbol: seed.displaySymbol,
       name: seed.name,
+      discId: seed.discId,
+      assetClass: seed.assetClass,
+      dataShape: seed.dataShape,
+      quoteCurrency: seed.quoteCurrency,
+      tags: Object.freeze([...seed.tags]),
+      audit: Object.freeze([...seed.audit]),
+      rank: seed.rank,
+      volumeUsd: seed.volumeUsd,
+      currentPriceUsd: seed.currentPriceUsd,
+      marketCapUsd: seed.marketCapUsd,
+      providerId: seed.providerId,
+      rankingProvider: seed.rankingProvider,
       sectorName: seed.sectorName,
       sectorId: seed.sectorId,
       sectorTint: PALETTE[seed.sectorIndex % PALETTE.length],
@@ -173,6 +206,7 @@ window.CharactersCast = (() => {
 
     return Object.freeze({
       schema: SCHEMA,
+      discId: String(options.discId || (entries[0] && entries[0].discId) || "stocks"),
       watchlistSize: entries.length,
       sectors: Object.freeze(sectors.map(sector => Object.freeze({ ...sector, symbols: Object.freeze(sector.symbols) }))),
       berths: Object.freeze(berths.map(berth => Object.freeze({ ...berth, npc: Object.freeze(berth.npc), item: Object.freeze(berth.item) }))),

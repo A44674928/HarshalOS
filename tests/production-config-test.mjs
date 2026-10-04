@@ -26,7 +26,7 @@ test('production declares the confirmed D1 and R2 targets without sharing them w
   assert.deepEqual(production.r2_buckets, [{ binding: 'STORAGE_BUCKET', bucket_name: 'main-empty-domains' }]);
   assert.notEqual(production.d1_databases[0].database_id, staging.d1_databases[0].database_id);
   assert.equal(staging.r2_buckets, undefined);
-  for (const secret of ['OIDC_CLIENT_SECRET', 'COMMUNITY_RATE_SECRET', 'MONGODB_URI']) {
+  for (const secret of ['OIDC_CLIENT_SECRET', 'COMMUNITY_RATE_SECRET', 'MONGODB_URI', 'MATERIALS_PROJECT_API_KEY']) {
     assert.equal(secret in production.vars, false);
     assert.equal(secret in staging.vars, false);
   }

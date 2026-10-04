@@ -1,17 +1,18 @@
 /*
- * HarshalOS — durable Alpha Vantage daily fallback allowance.
+ * HarshalOS — durable Alpha Vantage per-UTC-day request allowance.
  *
- * Characters uses this independent D1 counter only for TIME_SERIES_DAILY compact
- * requests. It is deliberately separate from Tickerbot's UTC-month counter. Each
- * outbound attempt claims one slot atomically before fetch, including attempts that
- * later time out or fail. Direct Alpha Vantage calls outside this Worker are excluded;
- * the provider account remains the billing/entitlement authority.
+ * Characters uses this independent D1 counter for explicitly requested 1mo series
+ * across all supported asset classes. “Daily” describes the quota reset window, not
+ * the data interval. It is separate from Tickerbot's UTC-month counter. Each outbound
+ * attempt claims one slot atomically before fetch, including attempts that later time
+ * out or fail. Direct Alpha Vantage calls outside this Worker are excluded; the provider
+ * account remains the billing/entitlement authority.
  */
 
 export const ALPHA_VANTAGE_DAILY_CALL_LEDGER_SCHEMA = "alpha-vantage-daily-call-ledger-v1";
 export const ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT = 25;
 export const ALPHA_VANTAGE_DAILY_CALL_LEDGER_NOTE =
-  "Aggregate count of Worker-routed Alpha Vantage TIME_SERIES_DAILY compact attempts for the Characters fallback. Failed attempts count conservatively. Calls outside this Worker are excluded; Alpha Vantage account usage remains authoritative.";
+  "Aggregate count of Worker-routed Alpha Vantage 1mo market-series requests for Characters, reset by UTC day. Failed attempts count conservatively. Calls outside this Worker are excluded; Alpha Vantage account usage remains authoritative.";
 
 const UPSERT_ATTEMPT = `INSERT INTO alpha_vantage_daily_call_ledger
   (utc_day, attempted_calls, daily_limit, updated_at)
@@ -50,7 +51,7 @@ function usageFromRow(row, day, requestedLimit) {
     remaining,
     exhausted: calls >= dailyLimit,
     updatedAt: Number.isFinite(updatedAt) && updatedAt >= 0 ? updatedAt : null,
-    scope: "Characters Alpha Vantage daily fallback; Worker-routed calls only",
+    scope: "Characters Alpha Vantage 1mo series requests by UTC day; Worker-routed calls only",
     note: ALPHA_VANTAGE_DAILY_CALL_LEDGER_NOTE
   });
 }
@@ -59,7 +60,7 @@ function unavailable() {
   return {
     ok: false,
     reason: "alpha-vantage-ledger-unavailable",
-    message: "The durable Alpha Vantage daily call ledger is unavailable. No Alpha Vantage request was sent. Apply D1 migration 0006 and retry."
+    message: "The durable Alpha Vantage per-UTC-day request ledger is unavailable. No Alpha Vantage request was sent. Apply D1 migration 0006 and retry."
   };
 }
 
@@ -77,9 +78,9 @@ export async function readAlphaVantageDailyCallLedger(db, at = Date.now(), reque
 }
 
 /*
- * Atomically claim one daily slot immediately before fetch(). The SQL predicate is
- * evaluated against the current row, so concurrent Worker isolates cannot pass the
- * final slot together. A refused claim does not alter the aggregate.
+ * Atomically claim one per-UTC-day request slot immediately before fetch(). The SQL
+ * predicate is evaluated against the current row, so concurrent Worker isolates cannot
+ * pass the final slot together. A refused claim does not alter the aggregate.
  */
 export async function claimAlphaVantageDailyCall(db, at = Date.now(), requestedLimit) {
   const dailyLimit = safeDailyLimit(requestedLimit);
@@ -98,7 +99,7 @@ export async function claimAlphaVantageDailyCall(db, at = Date.now(), requestedL
         ok: false,
         reason: "alpha-vantage-budget-exhausted",
         ledger: current.ledger,
-        message: `The Characters Alpha Vantage fallback allowance is exhausted for ${day}: ${current.ledger.calls.toLocaleString()} of ${current.ledger.dailyLimit.toLocaleString()} Worker-routed requests. No Alpha Vantage request was sent.`
+        message: `The Characters Alpha Vantage request allowance is exhausted for ${day} UTC: ${current.ledger.calls.toLocaleString()} of ${current.ledger.dailyLimit.toLocaleString()} Worker-routed requests. No Alpha Vantage request was sent.`
       };
     }
     /* No RETURNING row below the limit is not a safe basis for an outbound request. */

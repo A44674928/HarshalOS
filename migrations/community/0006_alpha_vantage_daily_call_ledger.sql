@@ -1,4 +1,5 @@
--- Independent daily hard cap for Characters' Alpha Vantage fallback.
+-- Independent per-UTC-day Alpha Vantage request cap for Characters 1mo series.
+-- “Daily” describes the quota window, not the bar interval.
 -- One compact aggregate row per UTC day; no symbols, keys, or request history are stored.
 CREATE TABLE alpha_vantage_daily_call_ledger (
   utc_day TEXT PRIMARY KEY NOT NULL

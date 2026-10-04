@@ -51,7 +51,12 @@ const SUITES = [
   {
     area: "Characters market beat and shared D1 call ledger",
     script: "test:characters",
-    files: ["characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs", "characters-call-ledger-test.mjs"]
+    files: ["characters-beat-test.mjs", "characters-beat-api-test.mjs", "characters-ui-test.mjs", "characters-call-ledger-test.mjs", "characters-alpha-vantage-test.mjs", "characters-disc-test.mjs"]
+  },
+  {
+    area: "Materials Project lookup and Worker proxy (stubbed upstream)",
+    script: "test:materials-project",
+    files: ["materials-project-api-test.mjs", "materials-project-ui-test.mjs"]
   },
   {
     area: "LLM data / authority boundary",

@@ -3,11 +3,10 @@
 
    Why this exists: the palace already shows the cast going about a
    deterministic average day (docs/architecture/HARSHALS-PALACE.html). This
-   module lets the same cast move to *live* market data instead: every
-   refresh is a BEAT, and the last closed OHLCV bar — evaluated through the
-   existing js/good-intelligence-market-context.js port of the user-supplied
-   Pine v6 VFI + Fibonacci Bands and WaveTrend scripts — decides how the
-   NPCs walk, how the Objects sway, and how the Items flow.
+   module lets the same cast move to *live* market observations instead:
+   every refresh is a BEAT. Supplied OHLCV, OHLC, or value-only observations
+   pass through js/good-intelligence-market-context.js; available price/volume
+   context moves NPCs and Objects, and Items flow only with real volume.
 
    Boundaries (matching docs/architecture/PINE-OCM-INTEGRATION.md):
      · Motion is Stage 2 *Representation* only. It never authorizes, never
@@ -20,8 +19,8 @@
      · Every function here is pure and deterministic: same packet, same
        motion. No Date.now() inside the engine — callers pass `now`.
 
-   Budget math (why a beat is not a per-minute poll): the reviewed Tickerbot
-   plan is 10,000 provider calls per month. The planner holds 15% in reserve,
+   Disc1 budget math (why a beat is not a per-minute poll): the reviewed
+   Tickerbot plan is 10,000 provider calls per month. The planner holds 15% in reserve,
    so a 15-minute cadence safely buys 2 symbols per beat (one full 52-symbol
    sweep every 6.5 hours); its explicit stretch option can spend into the reserve.
    The full table lives in docs/architecture/CHARACTERS-MARKET-BEAT.md.
@@ -319,7 +318,9 @@ window.CharactersBeat = (() => {
 
   function relativeVolume(series) {
     if (!Array.isArray(series) || series.length < 3) return null;
-    const volumes = series.slice(-21).map(point => Number(point && point.volume)).filter(finite);
+    const recent = series.slice(-21);
+    if (recent.some(point => !point || point.volume === null || point.volume === undefined || !finite(Number(point.volume)))) return null;
+    const volumes = recent.map(point => Number(point.volume));
     if (volumes.length < 3) return null;
     const latest = volumes[volumes.length - 1];
     const average = volumes.slice(0, -1).reduce((sum, value) => sum + value, 0) / (volumes.length - 1);
@@ -348,9 +349,8 @@ window.CharactersBeat = (() => {
     }
 
     const vfi = analysis.vfi || {};
-    const flow = finite(Number(vfi.value)) && finite(Number(vfi.signal))
-      ? squash(Number(vfi.value) - Number(vfi.signal), 0.35)
-      : 0;
+    const flowAvailable = vfi.available === true && finite(Number(vfi.value)) && finite(Number(vfi.signal));
+    const flow = flowAvailable ? squash(Number(vfi.value) - Number(vfi.signal), 0.35) : 0;
 
     const wave = analysis.waveTrend || {};
     const heat = finite(Number(wave.wt1)) ? clamp(Math.abs(Number(wave.wt1)) / 60, 0, 1) : 0;
@@ -363,7 +363,9 @@ window.CharactersBeat = (() => {
     const charge = clamp(stdev(returns.slice(-20)) / 0.02, 0, 1);
 
     const volume = relativeVolume(series);
-    const crowd = volume === null ? 0.25 : clamp((volume - 0.75) / 1.25, 0, 1);
+    const volumeAvailable = analysis.volumeAvailable === true;
+    const crowdAvailable = volume !== null;
+    const crowd = crowdAvailable ? clamp((volume - 0.75) / 1.25, 0, 1) : 0;
 
     return Object.freeze({
       bias: Math.round(bias * 1000) / 1000,
@@ -371,6 +373,9 @@ window.CharactersBeat = (() => {
       heat: Math.round(heat * 1000) / 1000,
       charge: Math.round(charge * 1000) / 1000,
       crowd: Math.round(crowd * 1000) / 1000,
+      volumeAvailable,
+      crowdAvailable,
+      flowAvailable,
       known: Boolean(close) && (ready || closes.length >= 6)
     });
   }
@@ -408,8 +413,8 @@ window.CharactersBeat = (() => {
     const wave = (analysis.waveTrend && analysis.waveTrend.signals) || {};
     if (signals.bearishConfluence || wave.extremeBearish) return "flinch";
     if (signals.bullishConfluence || wave.extremeBullish) return "surge";
-    if (gauge.bias >= 0.35 && gauge.flow >= 0) return "rally";
-    if (gauge.bias <= -0.35 && gauge.flow <= 0) return "selloff";
+    if (gauge.bias >= 0.35 && (!gauge.flowAvailable || gauge.flow >= 0)) return "rally";
+    if (gauge.bias <= -0.35 && (!gauge.flowAvailable || gauge.flow <= 0)) return "selloff";
     if (gauge.heat >= 0.85) return "coil";
     if (gauge.charge >= 0.55 && Math.abs(gauge.bias) < 0.3) return "churn";
     if (Math.abs(gauge.bias) < 0.15) return "drift";
@@ -425,6 +430,7 @@ window.CharactersBeat = (() => {
 
   function motion(value, options = {}) {
     const analysis = value && typeof value === "object" ? value : null;
+    const volumeAvailable = Boolean(analysis && analysis.volumeAvailable === true);
     const gauge = gaugeOf(analysis);
     const mood = moodOf(analysis, gauge);
     const frozen = mood === "frozen" || mood === "warming-up";
@@ -436,11 +442,11 @@ window.CharactersBeat = (() => {
     const stride = frozen ? 0 : clamp(0.3 + 0.5 * gauge.charge + 0.2 * gauge.heat, 0.2, 1);
     const jitter = frozen ? 0 : clamp(gauge.charge * 0.8 + (mood === "churn" ? 0.2 : 0) + (mood === "flinch" ? 0.15 : 0), 0, 1);
     const energy = frozen ? 0 : clamp(0.15 + 0.45 * speed + 0.4 * gauge.heat, 0, 1);
-    const bearing = frozen ? bearingBase : bearingBase + gauge.bias * (Math.PI * 0.5) + gauge.flow * (Math.PI * 0.12);
+    const bearing = frozen ? bearingBase : bearingBase + gauge.bias * (Math.PI * 0.5) + (gauge.flowAvailable ? gauge.flow * (Math.PI * 0.12) : 0);
     const formation = frozen ? "ring"
       : gauge.heat >= 0.7 ? "rim"
-        : gauge.crowd >= 0.55 ? "tight"
-          : Math.abs(gauge.bias) < 0.15 ? "ring"
+        : gauge.crowdAvailable && gauge.crowd >= 0.55 ? "tight"
+          : !gauge.flowAvailable || Math.abs(gauge.bias) < 0.15 ? "ring"
             : gauge.flow > 0 ? "column" : "scatter";
     const bandBreak = Boolean(analysis && analysis.signals && (analysis.signals.upperBreak || analysis.signals.lowerBreak));
 
@@ -451,14 +457,15 @@ window.CharactersBeat = (() => {
     const object = Object.freeze({
       sway: round(frozen ? 0 : clamp(0.1 + 0.7 * gauge.charge + 0.2 * gauge.heat, 0, 1)),
       pulse: round(frozen ? 0 : clamp(0.15 + 0.85 * energy, 0, 1)),
-      aperture: round(frozen ? 0 : bandBreak ? 1 : clamp(0.1 + gauge.crowd * 0.6, 0, 1)),
+      aperture: round(frozen ? 0 : bandBreak ? 1 : clamp(0.1 + (gauge.crowdAvailable ? gauge.crowd : 0) * 0.6, 0, 1)),
       tilt: round(frozen ? 0 : gauge.bias * 0.5, 4)
     });
     const item = Object.freeze({
-      rate: round(frozen ? 0 : clamp(0.25 + 1.5 * gauge.crowd + (mood === "rally" || mood === "surge" ? 0.4 : 0), 0.1, 2)),
+      rate: round(frozen || !volumeAvailable || !gauge.crowdAvailable || !gauge.flowAvailable
+        ? 0 : clamp(0.25 + 1.5 * gauge.crowd + (mood === "rally" || mood === "surge" ? 0.4 : 0), 0.1, 2)),
       bob: round(frozen ? 0 : clamp(0.3 + 0.7 * speed, 0, 1)),
       spin: round(frozen ? 0 : clamp(0.2 + 0.8 * jitter, 0, 1)),
-      lane: gauge.flow >= 0 ? "inbound" : "outbound"
+      lane: !gauge.flowAvailable ? "stationary" : gauge.flow >= 0 ? "inbound" : "outbound"
     });
 
     const source = analysis ? String(analysis.source || "") : "";
@@ -468,6 +475,7 @@ window.CharactersBeat = (() => {
       status: !analysis ? "missing" : String(analysis.status || "unknown"),
       synthetic: Boolean(analysis && analysis.synthetic),
       source,
+      volumeAvailable,
       barCount: analysis && finite(Number(analysis.barCount)) ? Number(analysis.barCount) : 0,
       mood,
       frozen,
@@ -476,16 +484,17 @@ window.CharactersBeat = (() => {
       npc,
       object,
       item,
-      caption: captionFor({ mood, gauge, frozen, marks, symbol: analysis ? analysis.symbol : "" }),
+      caption: captionFor({ mood, gauge, frozen, marks, symbol: analysis ? analysis.symbol : "", flowAvailable: gauge.flowAvailable }),
       note: "Display-only motion derived from the last closed bar. Not investment advice, a trade signal, or permission to act; indicator event labels are not trade instructions."
     });
   }
 
-  function captionFor({ mood, gauge, frozen, marks, symbol }) {
+  function captionFor({ mood, gauge, frozen, marks, symbol, flowAvailable }) {
     const label = symbol ? `${symbol}: ` : "";
-    if (frozen) return `${label}${mood === "frozen" ? "no bars — the berth stands still" : "warming up — not enough closed bars to move"}`;
+    if (frozen) return `${label}${mood === "frozen" ? "no observations — the berth stands still" : "warming up — not enough closed bars to move"}`;
     const direction = gauge.bias > 0.08 ? "above basis" : gauge.bias < -0.08 ? "below basis" : "at basis";
-    const flowText = gauge.flow > 0.08 ? "flow up" : gauge.flow < -0.08 ? "flow down" : "flow flat";
+    const flowText = !flowAvailable ? "volume flow unavailable"
+      : gauge.flow > 0.08 ? "flow up" : gauge.flow < -0.08 ? "flow down" : "flow flat";
     const heatText = gauge.heat >= 0.7 ? "wound tight" : gauge.heat <= 0.2 ? "settled" : "mid-band";
     const event = marks.length ? ` · ${marks[0]}` : "";
     return `${label}${mood} · ${direction} · ${flowText} · ${heatText}${event}`;

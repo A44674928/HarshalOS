@@ -40,9 +40,9 @@ Community access is enabled in the production configuration and disabled in bran
 previews. Migrations 0001–0003 are unchanged; publication adds `0004_publication.sql`.
 `0005_tickerbot_call_ledger.sql` is an additive aggregate counter for the Characters and
 Good Intelligence Tickerbot routes; `0006_alpha_vantage_daily_call_ledger.sql` is a
-separate daily cap for Characters' optional Alpha Vantage fallback. Neither stores
-community/user records. Apply the market-data migrations in order before enabling the
-corresponding provider route. Migration and seed testing in this rebuild has been local only:
+separate 25-per-UTC-day request cap for Characters' explicit Alpha Vantage `1mo` mode
+(across all supported assets, not daily bars). Neither stores community/user records.
+Apply the market-data migrations in order before enabling the corresponding provider route. Migration and seed testing in this rebuild has been local only:
 no remote migration, remote seed or production deployment command has been run from the build
 environment, which has no Cloudflare credentials.
 

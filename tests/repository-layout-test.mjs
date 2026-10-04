@@ -65,6 +65,7 @@ test("P13: repository content is separated by status and purpose", async () => {
     "docs/source-material/Ground-0 Phase Detection Algorithm.md",
     "docs/REPOSITORY-STRUCTURE.md",
     "docs/architecture/PLUGIN-ARCHITECTURE.md",
+    "docs/integrations/MATERIALS-PROJECT.md",
     "publications/README.md",
     "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.md",
     "publications/harshal-systems/HARSHAL-SYSTEMS-USER-MANUAL.docx",
@@ -98,6 +99,11 @@ test("P13: repository content is separated by status and purpose", async () => {
     "manuscript/the-grand-river-foundation/08-chapter-7-the-origin-continuity-covenant.txt",
     "js/manuscript.js",
     "css/manuscript.css",
+    "js/apps-materials-project.js",
+    "css/materials-project.css",
+    "worker/materials-project.mjs",
+    "tests/materials-project-api-test.mjs",
+    "tests/materials-project-ui-test.mjs",
     "js/core-book-reader.js",
     "css/core-book.css",
     "css/book-library.css",
@@ -278,6 +284,11 @@ test("P13: public asset staging includes the selected Book I source, all indexed
 
     const topLevel = (await readdir(SITE)).sort();
     assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "specs"]);
+    for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js"]) {
+      assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
+    }
+    assert.equal(await exists(path.join(SITE, "worker/materials-project.mjs")), false, "Worker source and its secret-handling code are not browser assets");
+    assert.equal(await exists(path.join(SITE, "docs/integrations/MATERIALS-PROJECT.md")), false, "operator documentation stays repository-only");
 
     const bookFiles = (await listFiles(path.join(SITE, "book"), "book")).sort();
     assert.deepEqual(bookFiles, ["book/01-core-book.md"], "only the explicitly selected Book I source is published");

@@ -16,6 +16,7 @@ import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 
 const beatSource = readFileSync(new URL("../js/characters-beat.js", import.meta.url), "utf8");
 const castSource = readFileSync(new URL("../js/characters-cast.js", import.meta.url), "utf8");
+const catalogSource = readFileSync(new URL("../js/characters-disc-catalog.js", import.meta.url), "utf8");
 const marketSource = readFileSync(new URL("../js/good-intelligence-market-context.js", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../js/apps-characters.js", import.meta.url), "utf8");
 
@@ -48,6 +49,37 @@ function dailyBars(count = 100, drift = 0.05) {
     };
   });
 }
+
+const monthlyBeatPayload = (symbols, { shape = "ohlc", quoteCurrency = "USD" } = {}) => ({
+  success: true,
+  environment: "characters-beat",
+  data: {
+    schema: "characters-beat-v1", disc: "monthly", beatAt: new Date(NOW).toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
+    instruments: symbols.map(symbol => ({
+      symbol, status: "bars", provider: "alpha-vantage",
+      marketContext: {
+        schema: "gi-market-context-v1", synthetic: false, dataShape: shape, quoteCurrency,
+        source: `Alpha Vantage · monthly ${shape.toUpperCase()}`,
+        symbol, timeframe: "1mo",
+        bars: Array.from({ length: 30 }, (_, index) => {
+          const close = 100 + index * 0.3;
+          return {
+            time: new Date(Date.UTC(2023, index, 1)).toISOString(), open: close - 0.5, high: close + 1, low: close - 1, close,
+            ...(shape === "ohlcv" ? { volume: 1000 + index } : {}), confirmed: true
+          };
+        })
+      }
+    })),
+    spend: {
+      requestedSymbols: symbols.length, providerAttempts: symbols.length, tickerbotAttempts: 0,
+      alphaVantageAttempts: symbols.length, cacheHits: 0, unavailable: 0, durable: null,
+      ledgerStatus: "not-applicable",
+      alphaVantageDaily: { schema: "alpha-vantage-daily-call-ledger-v1", day: "2026-10-03", calls: symbols.length,
+        dailyLimit: 25, remaining: 25 - symbols.length, exhausted: false, updatedAt: NOW },
+      alphaVantageLedgerStatus: "ready"
+    }
+  }
+});
 
 const liveBeatPayload = symbols => ({
   success: true,
@@ -97,6 +129,7 @@ async function boot(t, { handler, seed } = {}) {
   window.eval(marketSource);
   window.eval(beatSource);
   window.eval(castSource);
+  window.eval(catalogSource);
   window.eval(appSource);
   const APPS = window.APPS;
   assert.ok(APPS.some(app => app.id === "characters"), "the app registered itself");
@@ -115,12 +148,12 @@ async function boot(t, { handler, seed } = {}) {
 test("the app renders the plan, the cast, and the honesty footer without any provider call", async t => {
   const { text, calls, container } = await boot(t, { handler: async () => { throw new Error("no network in this test"); } });
   const body = text();
-  assert.match(body, /Budget plan/);
+  assert.match(body, /Tickerbot plan/);
   assert.match(body, /Reserve held/);
   assert.match(body, /1,500/);
   assert.match(body, /Full sweep/);
   assert.match(body, /not investment advice/i);
-  assert.match(body, /provider dashboard remains the billing authority/i);
+  assert.match(body, /direct provider calls are outside those ledgers/i);
   assert.ok(container.querySelectorAll("[data-ch-cadence-chip]").length === 5, "every reviewed cadence is offered");
   assert.match(container.querySelector("[data-ch-plan-note]").textContent, /symbols per beat/);
   assert.match(container.querySelector("[data-ch-plan-note]").textContent, /sweep/i, "the plan states what a full sweep costs in wall-clock time");
@@ -170,7 +203,7 @@ test("a live beat requests only the due berths and records the Worker-attempt co
   assert.equal(ledger.beats, 1);
   assert.deepEqual(ledger.history[0].symbols.sort(), [...due].sort());
   assert.equal(ledger.history[0].synthetic, false);
-  assert.match(text(), /LIVE 2 calls/);
+  assert.match(text(), /LIVE 2 requests/);
   assert.match(container.querySelector("[data-ch-durable-ledger]").textContent, /2 \/ 10,000 Worker attempts/);
   assert.doesNotMatch(text(), /SYNTHETIC REHEARSAL — NOT REAL MARKET DATA/, "a live beat is not watermarked synthetic");
 
@@ -206,33 +239,36 @@ test("the browser ledger is not authoritative; the Worker D1 limit refuses an ex
     "the local activity count remains separate from the Worker-wide allowance");
 });
 
-test("the exhausted Tickerbot month still permits a separately capped Alpha Vantage daily beat", async t => {
+test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitute", async t => {
   const requested = [];
-  const { container, text } = await boot(t, {
+  const { container, text, window } = await boot(t, {
     handler: async url => {
       requested.push(url);
       const params = new URL(url, "https://os.example").searchParams;
       const symbols = (params.get("symbols") || "").split(",").filter(Boolean);
-      if (params.get("interval") === "1d") {
+      const interval = params.get("interval");
+      if (interval === "1mo") {
         const day = new Date().toISOString().slice(0, 10);
+        const monthly = Array.from({ length: 30 }, (_, index) => {
+          const close = 100 + index * 0.25;
+          return { time: new Date(Date.UTC(2024, index, 1)).toISOString(), open: close - 0.5, high: close + 1, low: close - 1, close, confirmed: true };
+        });
         return Response.json({
           success: true, environment: "characters-beat",
           data: {
-            schema: "characters-beat-v1", beatAt: new Date().toISOString(), interval: "1d", cadenceMinutes: 15, holdMs: 900_000,
+            schema: "characters-beat-v1", disc: "stocks", beatAt: new Date().toISOString(), interval: "1mo", cadenceMinutes: 1440, holdMs: 86_400_000,
             instruments: symbols.map(symbol => ({
               symbol, status: "bars", provider: "alpha-vantage",
               marketContext: {
-                schema: "gi-market-context-v1", synthetic: false,
-                source: "Alpha Vantage · unadjusted compact daily OHLCV · last closed session 2026-10-02",
-                symbol, timeframe: "1d", bars: dailyBars()
+                schema: "gi-market-context-v1", synthetic: false, dataShape: "ohlc", quoteCurrency: "USD",
+                source: "Alpha Vantage · monthly stock OHLC without volume · last completed month 2026-09-30",
+                symbol, timeframe: "1mo", bars: monthly
               }
             })),
             spend: {
               requestedSymbols: symbols.length, providerAttempts: symbols.length,
               tickerbotAttempts: 0, alphaVantageAttempts: symbols.length, cacheHits: 0, unavailable: 0,
-              durable: { schema: "tickerbot-call-ledger-v1", month: day.slice(0, 7), calls: 10000,
-                providerBudget: 10000, workerLimit: 10000, remaining: 0, exhausted: true, updatedAt: Date.now() },
-              ledgerStatus: "ready",
+              durable: null, ledgerStatus: "not-applicable",
               alphaVantageDaily: { schema: "alpha-vantage-daily-call-ledger-v1", day,
                 calls: symbols.length, dailyLimit: 25, remaining: 25 - symbols.length, exhausted: false, updatedAt: Date.now() },
               alphaVantageLedgerStatus: "ready"
@@ -257,23 +293,83 @@ test("the exhausted Tickerbot month still permits a separately capped Alpha Vant
     }
   });
 
-  assert.equal(requested.length, 1, "the first hourly beat is refused by the Tickerbot monthly cap");
+  assert.equal(requested.length, 1, "the initial 1h beat is refused by Tickerbot's monthly cap");
   assert.match(text(), /monthly call limit/i);
   const interval = container.querySelector("[data-ch-interval]");
-  interval.value = "1d";
-  interval.dispatchEvent(new container.ownerDocument.defaultView.Event("change"));
-  container.querySelector("[data-ch-beat]").dispatchEvent(new container.ownerDocument.defaultView.Event("click"));
+  interval.value = "1mo";
+  interval.dispatchEvent(new window.Event("change"));
   await flush();
 
-  assert.equal(requested.length, 2, "daily mode is allowed to reach the Worker despite the exhausted Tickerbot month");
-  assert.equal(new URL(requested[1], "https://os.example").searchParams.get("interval"), "1d");
-  assert.match(container.querySelector("[data-ch-detail]").textContent, /Alpha Vantage.*unadjusted compact daily OHLCV/);
-  assert.match(container.querySelector("[data-ch-plan]").textContent, /2 \/ 25 used/);
-  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha daily 2/);
-  assert.doesNotMatch(container.querySelector("[data-ch-stage-note]").textContent, /monthly call limit/i,
-    "a successful daily fallback clears the stale Tickerbot-cap refusal");
-  assert.match(text(), /10,000 \/ 10,000 Worker attempts/,
-    "Alpha Vantage's success does not change or conceal Tickerbot's separate monthly ledger");
+  assert.equal(requested.length, 2, "one explicit monthly beat reaches the Worker");
+  const monthlyUrl = new URL(requested[1], "https://os.example");
+  assert.equal(monthlyUrl.searchParams.get("disc"), "stocks");
+  assert.equal(monthlyUrl.searchParams.get("interval"), "1mo");
+  assert.equal(monthlyUrl.searchParams.get("cadence"), "1440");
+  assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 12, "monthly mode respects the Worker beat cap");
+  assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
+  assert.match(container.querySelector("[data-ch-plan]").textContent, /25 Alpha Vantage requests/);
+  assert.match(container.querySelector("[data-ch-plan]").textContent, /Not used in 1mo mode/);
+  assert.match(container.querySelector("[data-ch-plan-note]").textContent, /independent of requested bar interval/i);
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /Alpha Vantage.*monthly stock OHLC without volume/);
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /volume unavailable/);
+  assert.match(container.querySelector("[data-ch-log]").textContent, /Alpha 1mo 12/);
+  assert.match(container.querySelector("[data-ch-durable-ledger]").textContent, /Not used for explicit.*1mo/);
+  assert.doesNotMatch(text(), /daily-bar fallback/i);
+});
+
+test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top-volume snapshot", async t => {
+  const requestedBeats = [];
+  const rankingInstruments = Array.from({ length: 52 }, (_, index) => {
+    const ticker = `C${String(index).padStart(2, "0")}`;
+    return {
+      symbol: ticker, displaySymbol: `${ticker}/USD`, name: `Coin ${String(index).padStart(2, "0")}`,
+      sector: "Cryptocurrency", assetClass: "crypto", discId: "crypto", dataShape: "ohlcv", quoteCurrency: "USD",
+      rankingProvider: "CoinGecko", providerId: `coin-${index}`, rank: index + 1, volumeUsd: 52_000 - index,
+      audit: index === 0 ? ["stablecoin-candidate"] : []
+    };
+  });
+  const { window, container } = await boot(t, {
+    handler: async url => {
+      const parsed = new URL(url, "https://os.example");
+      if (parsed.pathname === "/api/characters/v1/discs") {
+        assert.equal(parsed.searchParams.get("disc"), "crypto");
+        return Response.json({
+          success: true, disc: "crypto",
+          ranking: { provider: "CoinGecko", metric: "trailing 24-hour total_volume, USD", rankedAt: new Date(NOW).toISOString(), cached: false },
+          instruments: rankingInstruments
+        });
+      }
+      requestedBeats.push(parsed);
+      const symbols = (parsed.searchParams.get("symbols") || "").split(",").filter(Boolean);
+      return Response.json(monthlyBeatPayload(symbols, { shape: parsed.searchParams.get("disc") === "crypto" ? "ohlcv" : "ohlc" }));
+    }
+  });
+
+  const disc = container.querySelector("[data-ch-disc]");
+  disc.value = "fx";
+  disc.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(requestedBeats.at(-1).searchParams.get("disc"), "fx");
+  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1mo");
+  assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 23,
+    "the published BIS detailed tables support 23 individually listed non-USD codes, not a fabricated 52");
+  assert.match(container.querySelector("[data-ch-disc-note]").textContent, /23 non-USD currencies individually/);
+  assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /EUR\/USD · Euro/);
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /BIS FX turnover rank 2.*BIS 2025/);
+  assert.equal(container.querySelector("[data-ch-interval]").disabled, true, "FX exposes only explicit 1mo mode");
+
+  disc.value = "crypto";
+  disc.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(requestedBeats.at(-1).searchParams.get("disc"), "crypto");
+  assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1mo");
+  assert.equal(requestedBeats.at(-1).searchParams.get("symbols").split(",").length, 12);
+  assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 52);
+  assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /C00\/USD · Coin 00/);
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /Ranking audit flags: stablecoin candidate/);
+  assert.match(container.querySelector("[data-ch-disc-note]").textContent, /CoinGecko.*total_volume/);
+  assert.match(container.querySelector("[data-ch-disc-note]").textContent, /not an investment-quality screen/);
+  assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
 });
 
 test("a beat whose instruments carry no bars freezes those berths and says so", async t => {
@@ -292,7 +388,8 @@ test("a beat whose instruments carry no bars freezes those berths and says so", 
   });
   assert.match(text(), /No symbol in this beat returned bars/i);
   assert.match(text(), /nothing was fabricated/i);
-  assert.match(container.querySelector("[data-ch-detail]").textContent, /No beat has reached this berth yet|no bars/i);
+  assert.match(container.querySelector("[data-ch-detail]").textContent, /No market observations/i);
+  assert.doesNotMatch(container.querySelector("[data-ch-detail]").textContent, /undefined bars|undefined ·/);
   const ledger = JSON.parse(container.ownerDocument.defaultView.localStorage.getItem("harshalos.characters.ledger.v1"));
   assert.equal(ledger.calls, 0, "a refused read is not billed to the ledger");
 });

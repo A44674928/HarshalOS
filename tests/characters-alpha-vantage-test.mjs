@@ -1,13 +1,12 @@
-/* Alpha Vantage's daily-only Characters fallback and its independent D1 daily cap. */
+/* Explicit Alpha Vantage 1mo mode and its interval-independent UTC-day request cap. */
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  ALPHA_VANTAGE_DAILY_MAX_BARS,
-  fetchAlphaVantageDailyMarketContext,
-  isAlphaVantageDailyBarClosed,
-  toAlphaVantageDailyBar
+  ALPHA_VANTAGE_MONTHLY_MAX_BARS,
+  fetchAlphaVantageMonthlyMarketContext,
+  alphaVantageMonthlyInternals
 } from "../worker/characters-alpha-vantage.mjs";
 import {
   ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT,
@@ -15,39 +14,30 @@ import {
   claimAlphaVantageDailyCall,
   readAlphaVantageDailyCallLedger
 } from "../worker/alpha-vantage-daily-call-ledger.mjs";
-import { clearCharactersBeatCache, handleCharactersBeat } from "../worker/characters-beat.mjs";
+import { clearCharactersBeatCache, handleCharactersBeat, MAX_BEAT_SYMBOLS } from "../worker/characters-beat.mjs";
+import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
-const NOW = Date.parse("2026-10-05T17:00:00.000Z"); // Monday, 13:00 America/New_York
+const NOW = Date.parse("2026-10-05T17:00:00.000Z");
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
 const TICKERBOT_KEY = "tickerbot-test-secret";
 const ALPHA_KEY = "alpha-vantage-test-secret";
 const beat = (query, init) => new Request(`${ROUTE}?${query}`, init);
 const fixture = () => createTickerbotLedgerDb();
 
-function tickerbotPayload() {
-  return Response.json({
-    as_of: new Date(NOW).toISOString(), ticker: "ANY", interval: "1d", coverage: "covered",
-    bars: [
-      { t: NOW - 2 * 86_400_000, o: 100, h: 102, l: 99, c: 101, v: 1200 },
-      { t: NOW - 86_400_000, o: 101, h: 103, l: 100, c: 102, v: 1300 }
-    ]
-  });
-}
-
-function alphaRow({ open = 10, high = 12, low = 9, close = 11, volume = 500 } = {}) {
+function alphaRow({ open = 10, high = 12, low = 9, close = 11, volume } = {}) {
   return {
-    "1. open": String(open), "2. high": String(high), "3. low": String(low),
-    "4. close": String(close), "5. volume": String(volume)
+    "1. open": String(open), "2. high": String(high), "3. low": String(low), "4. close": String(close),
+    ...(volume === undefined ? {} : { "5. volume": String(volume) })
   };
 }
 
-const validDailyPayload = (symbol = "AAPL") => ({
-  "Meta Data": { "2. Symbol": symbol, "3. Last Refreshed": "2026-10-05" },
-  "Time Series (Daily)": {
-    "2026-10-05": alphaRow({ open: 110, high: 112, low: 109, close: 111, volume: 2500 }),
-    "2026-10-02": alphaRow({ open: 108, high: 111, low: 107, close: 110, volume: 2000 }),
-    "2026-10-01": alphaRow({ open: 107, high: 109, low: 106, close: 108, volume: 1800 })
+const validStockMonthlyPayload = (symbol = "AAPL") => ({
+  "Meta Data": { "2. Symbol": symbol },
+  "Monthly Time Series": {
+    "2026-10-01": alphaRow({ open: 12, high: 13, low: 11, close: 12.5, volume: 900 }),
+    "2026-09-30": alphaRow({ open: 11, high: 13, low: 10, close: 12, volume: 700 }),
+    "2026-08-31": alphaRow({ open: 10, high: 12, low: 9, close: 11, volume: 600 })
   }
 });
 
@@ -56,7 +46,7 @@ const workersFetch = handler => async (input, options = {}) => {
   return handler(input, options);
 };
 
-test("Alpha Vantage D1 migration is separate, aggregate-only, and records no secret or symbol history", t => {
+test("the Alpha Vantage D1 ledger is an aggregate UTC-day cap, not a daily-bar mode", t => {
   const { sql } = fixture();
   t.after(() => sql.close());
   const migration = readFileSync(new URL("../migrations/community/0006_alpha_vantage_daily_call_ledger.sql", import.meta.url), "utf8");
@@ -70,7 +60,7 @@ test("Alpha Vantage D1 migration is separate, aggregate-only, and records no sec
   assert.equal(ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT, 25);
 });
 
-test("Alpha Vantage allowance atomically stops at its own daily cap and rolls over at UTC midnight", async t => {
+test("concurrent Alpha Vantage claims stop at 25 per UTC day and roll over at UTC midnight", async t => {
   const { db, sql } = fixture();
   t.after(() => sql.close());
   const limit = 17;
@@ -93,263 +83,231 @@ test("Alpha Vantage allowance atomically stops at its own daily cap and rolls ov
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 2);
 });
 
-test("daily bar normalization rejects invalid OHLCV and keeps only closed US sessions", () => {
-  const good = toAlphaVantageDailyBar("2026-10-02", alphaRow());
-  assert.equal(good.confirmed, true);
-  assert.equal(good.volume, 500);
-  assert.equal(toAlphaVantageDailyBar("2026-02-30", alphaRow()), null);
-  assert.equal(toAlphaVantageDailyBar("2026-10-02", alphaRow({ high: 8 })), null);
-  assert.equal(toAlphaVantageDailyBar("2026-10-02", { ...alphaRow(), "5. volume": "NaN" }), null);
-  assert.equal(toAlphaVantageDailyBar("2026-10-02", { ...alphaRow(), "5. volume": "" }), null,
-    "missing volume is not fabricated as zero");
-  assert.equal(toAlphaVantageDailyBar("2026-10-02", { ...alphaRow(), "5. volume": null }), null);
-  assert.equal(toAlphaVantageDailyBar("2026-10-02", { ...alphaRow(), "5. volume": "500.5" }), null,
-    "fractional volume is not accepted as OHLCV");
-
-  assert.equal(isAlphaVantageDailyBarClosed("2026-10-05", NOW), false,
-    "an intraday daily row is not mislabeled as a closed bar");
-  assert.equal(isAlphaVantageDailyBarClosed("2026-10-02", NOW), true,
-    "the previous trading session is already closed");
-  assert.equal(isAlphaVantageDailyBarClosed("2026-10-05", Date.parse("2026-10-05T20:30:00.000Z")), true,
-    "the current date may be admitted after the normal close plus a safety buffer");
-  assert.equal(isAlphaVantageDailyBarClosed("2026-10-06", NOW), false, "future sessions are rejected");
-});
-
-test("Alpha Vantage adapter calls the fixed compact daily endpoint and returns a normalized closed-bar packet", async () => {
+test("the stock adapter makes an explicit monthly request and withholds the partial month", async () => {
   const requests = [];
-  const result = await fetchAlphaVantageDailyMarketContext({
-    symbol: "aapl", apiKey: ALPHA_KEY, now: NOW,
+  const result = await fetchAlphaVantageMonthlyMarketContext({
+    instrument: { symbol: "AAPL", assetClass: "equity", interval: "1mo" },
+    apiKey: ALPHA_KEY, now: NOW,
     fetcher: workersFetch(async (input, options) => {
       requests.push({ url: new URL(input), options });
-      return Response.json(validDailyPayload());
+      return Response.json(validStockMonthlyPayload());
     })
   });
   assert.equal(result.ok, true);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url.origin, "https://www.alphavantage.co");
   assert.equal(requests[0].url.pathname, "/query");
-  assert.equal(requests[0].url.searchParams.get("function"), "TIME_SERIES_DAILY");
+  assert.equal(requests[0].url.searchParams.get("function"), "TIME_SERIES_MONTHLY");
   assert.equal(requests[0].url.searchParams.get("symbol"), "AAPL");
-  assert.equal(requests[0].url.searchParams.get("outputsize"), "compact");
   assert.equal(requests[0].url.searchParams.get("apikey"), ALPHA_KEY);
   assert.equal(requests[0].options.redirect, "manual", "the key is never replayed to a redirect target");
   assert.equal(result.packet.schema, "gi-market-context-v1");
   assert.equal(result.packet.synthetic, false);
   assert.equal(result.packet.symbol, "AAPL");
-  assert.equal(result.packet.timeframe, "1d");
-  assert.match(result.packet.source, /Alpha Vantage.*unadjusted compact daily OHLCV.*2026-10-02/);
-  assert.deepEqual(result.packet.bars.map(bar => new Date(bar.time).toISOString().slice(0, 10)), ["2026-10-01", "2026-10-02"]);
-  assert.ok(result.packet.bars.every(bar => bar.confirmed));
-  assert.equal(ALPHA_VANTAGE_DAILY_MAX_BARS, 100);
+  assert.equal(result.packet.timeframe, "1mo");
+  assert.match(result.packet.source, /Alpha Vantage.*monthly stock.*2026-09-30/);
+  assert.deepEqual(result.packet.bars.map(bar => new Date(bar.time).toISOString().slice(0, 10)), ["2026-08-31", "2026-09-30"]);
+  assert.ok(result.packet.bars.every(bar => bar.confirmed && Number.isFinite(bar.volume)));
+  assert.equal(ALPHA_VANTAGE_MONTHLY_MAX_BARS, 500);
 
-  const mismatch = await fetchAlphaVantageDailyMarketContext({
-    symbol: "AAPL", apiKey: ALPHA_KEY, now: NOW,
-    fetcher: async () => Response.json({
-      "Meta Data": { "2. Symbol": "MSFT" },
-      "Time Series (Daily)": { "2026-10-02": alphaRow() }
+  const refusedDaily = await fetchAlphaVantageMonthlyMarketContext({
+    instrument: { symbol: "AAPL", assetClass: "equity", interval: "1d" }, apiKey: ALPHA_KEY,
+    fetcher: async () => { throw new Error("interval must be refused before fetch"); }, now: NOW
+  });
+  assert.equal(refusedDaily.ok, false);
+  assert.equal(refusedDaily.code, "alpha-vantage-interval-refused");
+});
+
+test("OHLC, OHLCV, and scalar commodity shapes are kept distinct without fabricated fields", async () => {
+  const fxRequests = [];
+  const fx = await fetchAlphaVantageMonthlyMarketContext({
+    instrument: {
+      symbol: "EURUSD", assetClass: "fx", interval: "1mo",
+      alphaVantage: { fromSymbol: "EUR", toSymbol: "USD" }
+    },
+    apiKey: ALPHA_KEY, now: NOW,
+    fetcher: workersFetch(async input => {
+      fxRequests.push(new URL(input));
+      return Response.json({
+        "Meta Data": { "2. From Symbol": "EUR", "4. To Symbol": "USD" },
+        "Time Series FX (Monthly)": { "2026-09-30": alphaRow({ open: 1.1, high: 1.2, low: 1.0, close: 1.15 }) }
+      });
     })
   });
-  assert.equal(mismatch.ok, false);
-  assert.equal(mismatch.code, "alpha-vantage-symbol-mismatch");
-});
+  assert.equal(fx.ok, true);
+  assert.equal(fxRequests[0].searchParams.get("function"), "FX_MONTHLY");
+  assert.equal(fxRequests[0].searchParams.get("from_symbol"), "EUR");
+  assert.equal(fxRequests[0].searchParams.get("to_symbol"), "USD");
+  assert.equal(fx.packet.timeframe, "1mo");
+  assert.equal(fx.packet.dataShape, "ohlc");
+  assert.equal(fx.packet.bars[0].open, 1.1);
+  assert.equal(Object.hasOwn(fx.packet.bars[0], "volume"), false, "FX volume is not invented as zero");
 
-test("successful Tickerbot remains primary even when the Alpha Vantage fallback is configured", async () => {
-  clearCharactersBeatCache();
-  const { db, sql } = fixture();
-  try {
-    const hosts = [];
-    const response = await handleCharactersBeat(beat("symbols=AAPL&interval=1d&cadence=60"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db
-    }, {
-      now: () => NOW,
-      fetch: workersFetch(async input => {
-        hosts.push(new URL(input).hostname);
-        return tickerbotPayload();
-      })
-    });
-    const payload = await response.json();
-    assert.equal(response.status, 200);
-    assert.deepEqual(hosts, ["api.tickerbot.io"]);
-    assert.equal(payload.data.instruments[0].provider, "tickerbot");
-    assert.equal(payload.data.spend.tickerbotAttempts, 1);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 0);
-    assert.equal(payload.data.spend.providerAttempts, 1);
-    assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 0);
-  } finally {
-    sql.close();
-  }
-});
-
-test("Alpha Vantage is never called for hourly beats or an off-watchlist symbol", async () => {
-  let directCalls = 0;
-  const refusedSymbol = await fetchAlphaVantageDailyMarketContext({
-    symbol: "../../admin", apiKey: ALPHA_KEY, fetcher: async () => { directCalls += 1; }, now: NOW
+  const scalar = await fetchAlphaVantageMonthlyMarketContext({
+    instrument: { symbol: "WTI", assetClass: "commodity", interval: "1mo" },
+    apiKey: ALPHA_KEY, now: NOW,
+    fetcher: workersFetch(async input => {
+      const url = new URL(input);
+      assert.equal(url.searchParams.get("function"), "WTI");
+      assert.equal(url.searchParams.get("interval"), "monthly");
+      return Response.json({ data: [
+        { date: "2026-10-01", value: "77.2" },
+        { date: "2026-09-01", value: "72.5" }
+      ] });
+    })
   });
-  assert.equal(refusedSymbol.ok, false);
-  assert.equal(refusedSymbol.code, "alpha-vantage-symbol-refused");
-  assert.equal(directCalls, 0);
+  assert.equal(scalar.ok, true);
+  assert.equal(scalar.packet.timeframe, "1mo");
+  assert.equal(scalar.packet.dataShape, "value");
+  assert.equal(scalar.packet.quoteCurrency, "USD/barrel");
+  assert.equal(scalar.packet.bars.length, 1, "the current partial month is withheld");
+  assert.deepEqual(Object.keys(scalar.packet.bars[0]).sort(), ["close", "confirmed", "dataShape", "time"].sort());
+  assert.equal(scalar.packet.bars[0].close, 72.5);
 
-  clearCharactersBeatCache();
-  const { db, sql } = fixture();
-  try {
-    let calls = 0;
-    const response = await handleCharactersBeat(beat("symbols=AAPL&interval=1h&cadence=60"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db
-    }, {
-      now: () => NOW,
-      fetch: workersFetch(async input => {
-        calls += 1;
-        return new URL(input).hostname === "api.tickerbot.io"
-          ? new Response("Tickerbot unavailable", { status: 500 })
-          : Response.json(validDailyPayload());
-      })
-    });
-    const payload = await response.json();
-    assert.equal(response.status, 502);
-    assert.equal(calls, 1, "only the Tickerbot primary was attempted; Alpha Vantage is daily-only");
-    assert.equal(payload.data.spend.tickerbotAttempts, 1);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 0);
-    assert.equal(payload.data.spend.providerAttempts, 1);
-    assert.equal(payload.data.instruments[0].provider, "tickerbot");
-    assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 0);
-  } finally {
-    sql.close();
-  }
+  assert.equal(alphaVantageMonthlyInternals.shapePriceBar("2026-09-30", { "1. open": "1", "2. high": "2", "4. close": "1.5" }, "fx"), null,
+    "partial OHLC is rejected instead of patched");
 });
 
-test("a failed daily Tickerbot read falls back once under the separate Alpha Vantage D1 cap", async () => {
+test("Tickerbot success remains the only source for 1h/1d; configured Alpha Vantage is not a daily fallback", async t => {
   clearCharactersBeatCache();
   const { db, sql } = fixture();
-  try {
-    const calls = [];
-    const response = await handleCharactersBeat(beat("symbols=AAPL&interval=1d&cadence=60"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY,
-      ALPHA_VANTAGE_API_KEY: ALPHA_KEY,
-      COMMUNITY_DB: db
-    }, {
-      now: () => NOW,
-      fetch: workersFetch(async input => {
-        const url = new URL(input);
-        calls.push(url);
-        if (url.hostname === "api.tickerbot.io") return new Response("private Tickerbot body", { status: 500 });
-        assert.equal(url.hostname, "www.alphavantage.co");
-        return Response.json(validDailyPayload());
-      })
-    });
+  t.after(() => sql.close());
+  const hosts = [];
+  const response = await handleCharactersBeat(beat("symbols=AAPL&interval=1d&cadence=60"), {
+    TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db
+  }, {
+    now: () => NOW,
+    fetch: workersFetch(async input => {
+      hosts.push(new URL(input).hostname);
+      return Response.json({
+        as_of: new Date(NOW).toISOString(), ticker: "AAPL", interval: "1d", coverage: "covered",
+        bars: [
+          { t: NOW - 2 * 86_400_000, o: 100, h: 102, l: 99, c: 101, v: 1200 },
+          { t: NOW - 86_400_000, o: 101, h: 103, l: 100, c: 102, v: 1300 }
+        ]
+      });
+    })
+  });
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(hosts, ["api.tickerbot.io"]);
+  assert.equal(payload.data.instruments[0].provider, "tickerbot");
+  assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");
+  assert.equal(payload.data.spend.tickerbotAttempts, 1);
+  assert.equal(payload.data.spend.alphaVantageAttempts, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 0);
+});
+
+test("explicit 1mo is Alpha Vantage only, separately cached, and permitted if the Tickerbot month is exhausted", async t => {
+  clearCharactersBeatCache();
+  const { db, sql } = fixture();
+  t.after(() => sql.close());
+  sql.prepare(`INSERT INTO tickerbot_call_ledger
+    (utc_month, attempted_calls, provider_budget, worker_limit, updated_at)
+    VALUES ('2026-10', 10000, 10000, 10000, ?)`).run(NOW);
+  const hosts = [];
+  const dependencies = {
+    now: () => NOW,
+    fetch: workersFetch(async input => {
+      const url = new URL(input);
+      hosts.push(url.hostname);
+      if (url.hostname === "www.alphavantage.co") return Response.json(validStockMonthlyPayload(url.searchParams.get("symbol")));
+      return Response.json({ as_of: new Date(NOW).toISOString(), ticker: "AAPL", interval: "1d", coverage: "covered", bars: [] });
+    })
+  };
+  const env = { TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db };
+  const monthly = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=1440"), env, dependencies);
+  const monthlyPayload = await monthly.json();
+  assert.equal(monthly.status, 200);
+  assert.deepEqual(hosts, ["www.alphavantage.co"], "1mo never reaches Tickerbot, even with its ledger exhausted");
+  assert.equal(monthlyPayload.data.instruments[0].marketContext.timeframe, "1mo");
+  assert.equal(monthlyPayload.data.spend.tickerbotAttempts, 0);
+  assert.equal(monthlyPayload.data.spend.alphaVantageAttempts, 1);
+  assert.equal(monthlyPayload.data.spend.providerAttempts, 1);
+  assert.equal(monthlyPayload.data.spend.alphaVantageDaily.dailyLimit, 25);
+  assert.match(monthlyPayload.data.spend.note, /interval does not change the cap/i);
+
+  const cached = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo&cadence=1440"), env, {
+    now: () => NOW + 1000,
+    fetch: async () => { throw new Error("same monthly interval is cached"); }
+  });
+  const cachedPayload = await cached.json();
+  assert.equal(cachedPayload.data.instruments[0].status, "cached");
+  assert.equal(cachedPayload.data.instruments[0].marketContext.timeframe, "1mo");
+  assert.equal(cachedPayload.data.spend.providerAttempts, 0);
+
+  /* A monthly packet can never satisfy the separate requested daily mode. */
+  assert.equal(sql.prepare("SELECT attempted_calls FROM tickerbot_call_ledger WHERE utc_month='2026-10'").get().attempted_calls, 10000,
+    "the explicit 1mo request does not spend Tickerbot's monthly allowance");
+  sql.prepare("UPDATE tickerbot_call_ledger SET attempted_calls = 0 WHERE utc_month = '2026-10'").run();
+  const daily = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1d&cadence=60"), env, {
+    now: () => NOW + 2_000,
+    fetch: workersFetch(async input => {
+      hosts.push(new URL(input).hostname);
+      return Response.json({
+        as_of: new Date(NOW).toISOString(), ticker: "AAPL", interval: "1d", coverage: "covered",
+        bars: [{ t: NOW - 86_400_000, o: 100, h: 102, l: 99, c: 101, v: 1000 }]
+      });
+    })
+  });
+  const dailyPayload = await daily.json();
+  assert.equal(daily.status, 200);
+  assert.equal(dailyPayload.data.instruments[0].marketContext.timeframe, "1d");
+  assert.deepEqual(hosts, ["www.alphavantage.co", "api.tickerbot.io"]);
+  assert.equal(sql.prepare("SELECT attempted_calls FROM tickerbot_call_ledger WHERE utc_month='2026-10'").get().attempted_calls, 1,
+    "the subsequent daily request uses Tickerbot only");
+});
+
+test("the 25-request UTC-day cap aggregates monthly calls across beats and refuses request 26", async t => {
+  clearCharactersBeatCache();
+  const { db, sql } = fixture();
+  t.after(() => sql.close());
+  const env = { ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db };
+  const dependencies = {
+    now: () => NOW,
+    fetch: workersFetch(async input => Response.json(validStockMonthlyPayload(new URL(input).searchParams.get("symbol"))))
+  };
+  const firstSymbols = TICKERBOT_WATCHLIST.slice(0, 12).map(entry => entry.symbol);
+  const secondSymbols = TICKERBOT_WATCHLIST.slice(12, 24).map(entry => entry.symbol);
+  const lastTwo = TICKERBOT_WATCHLIST.slice(24, 26).map(entry => entry.symbol);
+  assert.equal(MAX_BEAT_SYMBOLS, 12);
+  for (const symbols of [firstSymbols, secondSymbols]) {
+    const response = await handleCharactersBeat(beat(`disc=stocks&symbols=${symbols.join(",")}&interval=1mo&cadence=1440`), env, dependencies);
     const payload = await response.json();
     assert.equal(response.status, 200);
-    assert.deepEqual(calls.map(url => url.hostname), ["api.tickerbot.io", "www.alphavantage.co"]);
-    assert.equal(payload.data.instruments[0].provider, "alpha-vantage");
-    assert.equal(payload.data.instruments[0].fallbackFrom, "upstream");
-    assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");
-    assert.equal(payload.data.spend.tickerbotAttempts, 1);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 1);
-    assert.equal(payload.data.spend.providerAttempts, 2);
-    assert.equal(payload.data.spend.durable.calls, 1);
-    assert.equal(payload.data.spend.alphaVantageDaily.calls, 1);
-    assert.equal(payload.data.spend.alphaVantageDaily.dailyLimit, 25);
-    assert.equal(payload.data.spend.alphaVantageLedgerStatus, "ready");
-    assert.equal(payload.data.instruments[0].marketContext.bars.length, 2, "the unfinished current-session bar is withheld");
-    const body = JSON.stringify(payload);
-    assert.doesNotMatch(body, new RegExp(`${TICKERBOT_KEY}|${ALPHA_KEY}|private Tickerbot body`));
-    assert.doesNotMatch(body, /alphavantage\.co\/query\?|apikey=/i);
-
-    const cached = await handleCharactersBeat(beat("symbols=AAPL&interval=1d&cadence=60"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY,
-      ALPHA_VANTAGE_API_KEY: ALPHA_KEY,
-      COMMUNITY_DB: db
-    }, { now: () => NOW, fetch: async () => { throw new Error("cache should suppress outbound calls"); } });
-    const cachedPayload = await cached.json();
-    assert.equal(cachedPayload.data.instruments[0].status, "cached");
-    assert.equal(cachedPayload.data.instruments[0].provider, "alpha-vantage");
-    assert.equal(cachedPayload.data.spend.providerAttempts, 0);
-    assert.equal(cachedPayload.data.spend.cacheHits, 1);
-  } finally {
-    sql.close();
+    assert.equal(payload.data.spend.alphaVantageAttempts, 12);
   }
-});
+  const partial = await handleCharactersBeat(beat(`disc=stocks&symbols=${lastTwo.join(",")}&interval=1mo&cadence=1440`), env, dependencies);
+  const partialPayload = await partial.json();
+  assert.equal(partial.status, 200, "one final allowance remains, so the beat has one usable observation");
+  assert.equal(partialPayload.data.spend.alphaVantageAttempts, 1);
+  assert.equal(partialPayload.data.spend.unavailable, 1);
+  assert.equal(partialPayload.data.spend.alphaVantageDaily.calls, 25);
+  assert.equal(partialPayload.data.spend.alphaVantageDaily.remaining, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM alpha_vantage_daily_call_ledger").get().count, 1);
 
-test("an exhausted Tickerbot month still permits the independently capped daily fallback", async () => {
-  clearCharactersBeatCache();
-  const { db, sql } = fixture();
-  try {
-    sql.prepare(`INSERT INTO tickerbot_call_ledger
-      (utc_month, attempted_calls, provider_budget, worker_limit, updated_at)
-      VALUES ('2026-10', 10000, 10000, 10000, ?)`).run(NOW);
-    let calls = 0;
-    const response = await handleCharactersBeat(beat("symbols=MSFT&interval=1d"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY, ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db
-    }, {
-      now: () => NOW,
-      fetch: workersFetch(async input => {
-        calls += 1;
-        assert.equal(new URL(input).hostname, "www.alphavantage.co", "the exhausted primary is refused before fetch");
-        return Response.json(validDailyPayload("MSFT"));
-      })
-    });
-    const payload = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(calls, 1);
-    assert.equal(payload.data.spend.tickerbotAttempts, 0);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 1);
-    assert.equal(payload.data.spend.providerAttempts, 1);
-    assert.equal(payload.data.spend.durable.exhausted, true);
-    assert.equal(payload.data.spend.alphaVantageDaily.calls, 1);
-  } finally {
-    sql.close();
-  }
-});
-
-test("Alpha Vantage cap exhaustion and D1 failure both fail closed without a provider fetch", async () => {
-  clearCharactersBeatCache();
-  const { db, sql } = fixture();
-  try {
-    sql.prepare(`INSERT INTO alpha_vantage_daily_call_ledger
-      (utc_day, attempted_calls, daily_limit, updated_at)
-      VALUES ('2026-10-05', 25, 25, ?)`).run(NOW);
-    let calls = 0;
-    const response = await handleCharactersBeat(beat("symbols=NVDA&interval=1d"), {
-      ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: db
-    }, { now: () => NOW, fetch: async () => { calls += 1; return Response.json(validDailyPayload()); } });
-    const payload = await response.json();
-    assert.equal(response.status, 429);
-    assert.equal(calls, 0);
-    assert.equal(payload.data.instruments[0].code, "alpha-vantage-budget-exhausted");
-    assert.equal(payload.data.spend.alphaVantageDaily.calls, 25);
-    assert.equal(payload.data.spend.alphaVantageAttempts, 0);
-  } finally {
-    sql.close();
-  }
-
-  clearCharactersBeatCache();
-  let calls = 0;
-  const noLedger = { prepare() { throw new Error("migration absent"); } };
-  const refused = await handleCharactersBeat(beat("symbols=NVDA&interval=1d"), {
-    ALPHA_VANTAGE_API_KEY: ALPHA_KEY, COMMUNITY_DB: noLedger
-  }, { now: () => NOW, fetch: async () => { calls += 1; return Response.json(validDailyPayload()); } });
+  const unusedSymbol = TICKERBOT_WATCHLIST[30].symbol;
+  const refused = await handleCharactersBeat(beat(`disc=stocks&symbols=${unusedSymbol}&interval=1mo&cadence=1440`), env, {
+    now: () => NOW,
+    fetch: async () => { throw new Error("the cap must refuse before the provider request"); }
+  });
+  assert.equal(refused.status, 429);
   const refusedPayload = await refused.json();
-  assert.equal(refused.status, 503);
-  assert.equal(calls, 0);
-  assert.equal(refusedPayload.data.instruments[0].code, "alpha-vantage-ledger-unavailable");
-  assert.equal(refusedPayload.data.spend.alphaVantageLedgerStatus, "unavailable");
+  assert.equal(refusedPayload.data.spend.alphaVantageAttempts, 0);
+  assert.equal(refusedPayload.data.spend.alphaVantageDaily.calls, 25);
 });
 
-test("an unconfigured Alpha Vantage fallback reports the optional secret without echoing upstream data", async () => {
+test("missing Alpha Vantage D1 ledger fails closed before the external request", async () => {
   clearCharactersBeatCache();
-  const { db, sql } = fixture();
-  try {
-    const response = await handleCharactersBeat(beat("symbols=AAPL&interval=1d"), {
-      TICKERBOT_API_KEY: TICKERBOT_KEY, COMMUNITY_DB: db
-    }, {
-      now: () => NOW,
-      fetch: workersFetch(async () => new Response("upstream failure body", { status: 500 }))
-    });
-    const body = JSON.stringify(await response.json());
-    assert.match(body, /ALPHA_VANTAGE_API_KEY/);
-    assert.doesNotMatch(body, new RegExp(ALPHA_KEY));
-    assert.doesNotMatch(body, /upstream failure body/);
-    assert.equal(response.status, 503);
-  } finally {
-    sql.close();
-  }
+  let requests = 0;
+  const response = await handleCharactersBeat(beat("disc=stocks&symbols=AAPL&interval=1mo"), {
+    ALPHA_VANTAGE_API_KEY: ALPHA_KEY,
+    COMMUNITY_DB: { prepare() { throw new Error("unavailable D1 binding"); } }
+  }, {
+    now: () => NOW,
+    fetch: async () => { requests += 1; return Response.json(validStockMonthlyPayload()); }
+  });
+  assert.equal(response.status, 503);
+  assert.equal(requests, 0);
+  assert.match((await response.text()), /D1 daily allowance is unavailable|alpha-vantage-ledger-unavailable/i);
 });

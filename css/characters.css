@@ -93,7 +93,17 @@
   color: var(--ch-ink);
 }
 .ch-control input[type="number"] { width: 130px; }
+.ch-control select:disabled, .ch-control input:disabled { opacity: 0.55; cursor: not-allowed; }
 .ch-focus-control select { min-width: 150px; }
+.ch-disc-note {
+  margin: -3px 0 12px;
+  padding: 8px 11px;
+  border-left: 2px solid rgba(111, 211, 255, 0.45);
+  color: var(--ch-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ch-disc-note:empty { display: none; }
 .ch-buttons { display: flex; gap: 8px; margin-left: auto; }
 .ch-btn {
   padding: 7px 12px;
