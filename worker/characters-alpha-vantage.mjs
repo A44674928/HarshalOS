@@ -6,6 +6,12 @@
  * OHLCV, and commodity functions are scalar value series. Missing fields stay missing.
  * ALPHA_VANTAGE_API_KEY remains a Worker secret; observability query redaction is enabled
  * because Alpha Vantage requires that key in its query string.
+ *
+ * NOTE (2026-10): the Characters beat route now invokes this adapter for Disc1 (stocks)
+ * 1mo requests only. The FX / crypto / commodity normalization code below is retained
+ * intentionally so that re-enabling Alpha Vantage for non-equity Discs (or supporting
+ * 1mo fallbacks alongside the upcoming multi-asset Tickerbot rollout) is a small
+ * routing change, not a rebuild. Tickerbot is the default provider on every Disc.
  */
 import { isTickerbotSymbol } from "./good-intelligence-tickerbot.mjs";
 import "../js/characters-disc-catalog.js";

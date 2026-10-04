@@ -52,22 +52,26 @@
     Object.freeze({
       id: "stocks", number: 1, name: "The 52 Cards", label: "Disc1 · The 52 Cards",
       assetClass: "equity", intervalModes: Object.freeze(["1h", "1d", "1mo"]),
+      defaultProvider: "tickerbot",
       ranking: "Reviewed Tickerbot US stock watchlist; unchanged."
     }),
     Object.freeze({
       id: "fx", number: 2, name: "Fiat / FX", label: "Disc2 · Fiat / FX",
-      assetClass: "fx", intervalModes: Object.freeze(["1mo"]),
-      ranking: "BIS 2025 Triennial Survey. The released detailed tables name 23 non-USD currencies individually; the remainder are aggregated as other currencies, so a BIS-only top 52 cannot be ranked from the publication."
+      assetClass: "fx", intervalModes: Object.freeze(["1h", "1d"]),
+      defaultProvider: "tickerbot",
+      ranking: "BIS 2025 Triennial Survey. The released detailed tables name 23 non-USD currencies individually; the remainder are aggregated as other currencies, so a BIS-only top 52 cannot be ranked from the publication. Alpha Vantage monthly FX is disabled for this Disc; Tickerbot is the default provider pending upcoming asset-class support."
     }),
     Object.freeze({
       id: "crypto", number: 3, name: "Crypto", label: "Disc3 · Crypto",
-      assetClass: "crypto", intervalModes: Object.freeze(["1mo"]),
-      ranking: "CoinGecko /coins/markets, volume_desc, USD total_volume over the trailing 24 hours; top 52 unique ticker symbols. Live ranking snapshot; order can change."
+      assetClass: "crypto", intervalModes: Object.freeze(["1h", "1d"]),
+      defaultProvider: "tickerbot",
+      ranking: "CoinGecko /coins/markets, volume_desc, USD total_volume over the trailing 24 hours; top 52 unique ticker symbols. Live ranking snapshot; order can change. Alpha Vantage monthly digital-currency bars are disabled for this Disc; Tickerbot is the default provider pending upcoming asset-class support."
     }),
     Object.freeze({
       id: "commodities", number: 4, name: "Commodities", label: "Disc4 · Commodities",
-      assetClass: "commodity", intervalModes: Object.freeze(["1mo"]),
-      ranking: "Alpha Vantage monthly commodity price series; scalar observations remain value-only. Crude oil and natural gas are tagged Energy; energy company shares stay in Disc1."
+      assetClass: "commodity", intervalModes: Object.freeze(["1h", "1d"]),
+      defaultProvider: "tickerbot",
+      ranking: "Static reviewed commodity roster (crude oil, natural gas, industrial metals, agriculture). Alpha Vantage monthly scalar series is disabled for this Disc; Tickerbot is the default provider pending upcoming asset-class support. Energy company shares stay in Disc1."
     })
   ]);
 

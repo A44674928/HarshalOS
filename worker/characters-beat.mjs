@@ -1,15 +1,20 @@
 /*
  * HarshalOS — Characters: the market beat route.
  *
- * Tickerbot Live remains the sole provider for the existing stock `1h` and `1d` modes.
- * An explicit `1mo` request is a separate Alpha Vantage monthly-series mode for stocks,
- * BIS-listed FX, CoinGecko volume-ranked crypto, and scalar commodity series. Monthly data
- * can never answer a daily/hourly request, and Tickerbot is never called for `1mo`.
+ * Tickerbot Live is the default provider for every Disc. Stocks (Disc1) keep their
+ * reviewed 52-ticker allowlist at 1h/1d and retain an explicit 1mo Alpha Vantage mode.
+ * Discs 2–4 (FX, Crypto, Commodities) are routed through Tickerbot as well; when
+ * Tickerbot does not yet cover a non-equity symbol the Worker answers an honest
+ * "not yet covered" status per instrument instead of falling through to Alpha Vantage,
+ * which is intentionally disabled for those Discs in anticipation of an upcoming
+ * multi-asset Tickerbot expansion. Monthly data can never answer a daily/hourly request
+ * and Tickerbot is never called for `1mo`.
  *
  * Tickerbot retains its shared 10,000-per-UTC-month ledger. Alpha Vantage has its own
- * atomic 25-requests-per-UTC-day Worker cap; that is a request quota, not a bar interval.
- * Every provider attempt is counted conservatively before fetch. Provider keys never enter
- * browser code or response bodies; Alpha Vantage query-string redaction remains enabled.
+ * atomic 25-requests-per-UTC-day Worker cap for Disc1-only 1mo requests; that is a
+ * request quota, not a bar interval. Every provider attempt is counted conservatively
+ * before fetch. Provider keys never enter browser code or response bodies; Alpha Vantage
+ * query-string redaction remains enabled.
  */
 import {
   TICKERBOT_INTERVALS,
@@ -113,7 +118,7 @@ function parseSymbols(raw, instruments) {
 
 function statusForCode(code) {
   if (["rate-limit", "budget-exhausted", "alpha-vantage-rate-limit", "alpha-vantage-budget-exhausted", "crypto-ranking-rate-limit"].includes(code)) return 429;
-  if (["ledger-unavailable", "alpha-vantage-ledger-unavailable", "tickerbot-not-configured", "alpha-vantage-not-configured"].includes(code)) return 503;
+  if (["ledger-unavailable", "alpha-vantage-ledger-unavailable", "tickerbot-not-configured", "alpha-vantage-not-configured", "tickerbot-symbol-not-covered"].includes(code)) return 503;
   if (["empty", "alpha-vantage-empty"].includes(code)) return 404;
   if (["timeout", "alpha-vantage-timeout", "crypto-ranking-timeout"].includes(code)) return 504;
   return 502;
@@ -146,10 +151,16 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const disc = resolveDisc(discId);
   if (!disc) return failure("Choose a reviewed Characters Disc.", 400);
   const interval = (url.searchParams.get("interval") || "1h").trim();
-  if (interval !== "1mo" && (discId !== "stocks" || !TICKERBOT_INTERVALS.includes(interval))) {
+  /* Disc 1 (stocks) accepts Tickerbot 1h/1d plus an explicit 1mo Alpha Vantage mode.
+   * Discs 2–4 (FX, Crypto, Commodities) are Tickerbot-only at 1h/1d; Alpha Vantage 1mo
+   * is intentionally disabled for them until the upcoming Tickerbot multi-asset rollout. */
+  const supportedModes = discId === "stocks"
+    ? [...TICKERBOT_INTERVALS, "1mo"]
+    : [...TICKERBOT_INTERVALS];
+  if (!supportedModes.includes(interval)) {
     return failure(discId === "stocks"
       ? `Choose ${TICKERBOT_INTERVALS.join(" or ")} for Tickerbot, or explicitly choose 1mo for Alpha Vantage monthly data.`
-      : "This non-stock Disc is available only in the explicit 1mo Alpha Vantage mode.", 400);
+      : `Choose ${TICKERBOT_INTERVALS.join(" or ")} for Tickerbot. Alpha Vantage 1mo is disabled for ${disc.label} while multi-asset Tickerbot support is in progress.`, 400);
   }
 
   const rawSymbols = url.searchParams.get("symbols");
@@ -191,13 +202,15 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const cadenceMinutes = BEAT_CADENCES.includes(requestedCadence) ? requestedCadence : DEFAULT_CADENCE;
   const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
   const alphaVantageApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
-  const monthlyMode = interval === "1mo";
+  /* Alpha Vantage 1mo is intentionally restricted to Disc1 (stocks) while we bring up
+   * multi-asset Tickerbot support for Discs 2–4. */
+  const monthlyMode = interval === "1mo" && discId === "stocks";
 
   if (monthlyMode && !alphaVantageApiKey) {
     return failure("Alpha Vantage monthly data is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret; Tickerbot is not used for 1mo.", 503);
   }
   if (!monthlyMode && !tickerbotApiKey) {
-    return failure("Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret for stock 1h/1d data.", 503);
+    return failure(`Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret for ${disc.label} ${interval} data.`, 503);
   }
 
   const tickerbotHeld = !monthlyMode
@@ -267,6 +280,19 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "alpha-vantage", marketContext: result.packet };
     }
 
+    /* Discs 2–4 default to Tickerbot, but Tickerbot does not yet cover non-equity
+     * instruments (FX, crypto, commodities). Refuse those symbols cleanly without
+     * consuming a ledger claim or an upstream call — this is the intentional
+     * pre-rollout state so the upcoming multi-asset Tickerbot feature can flip this
+     * gate simply by widening isTickerbotSymbol's reviewed allowlist. */
+    if (!isTickerbotSymbol(symbol)) {
+      return {
+        symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
+        provider: "tickerbot", code: "tickerbot-symbol-not-covered",
+        message: `${symbol} is not yet on Tickerbot's reviewed multi-asset allowlist for ${disc.label}. Alpha Vantage is disabled for this Disc; the symbol will be served through Tickerbot in the upcoming multi-asset release.`
+      };
+    }
+
     if (durable && durable.exhausted) {
       return {
         symbol, displaySymbol: instrument.displaySymbol || symbol, status: "unavailable", lane,
@@ -326,15 +352,17 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       lanes: {
         hot: instruments.filter(instrument => instrument.lane === "hot").map(instrument => instrument.symbol),
         sweep: instruments.filter(instrument => instrument.lane === "sweep").map(instrument => instrument.symbol),
-        note: "Client-supplied lane labels are display hints only; this never changes how many calls are made. In 1mo mode, no Tickerbot request is made."
+        note: "Client-supplied lane labels are display hints only; this never changes how many calls are made." + (monthlyMode ? " In 1mo mode, no Tickerbot request is made." : "")
       },
       durable,
       ledgerStatus,
       alphaVantageDaily,
       alphaVantageLedgerStatus,
       note: monthlyMode
-        ? "Alpha Vantage 1mo requests use an independent 25-per-UTC-day Worker cap. Monthly interval does not change the cap; Tickerbot and its UTC-month ledger are not used. Failed requests count conservatively."
-        : "Tickerbot stock 1h/1d attempts use the shared 10,000-per-UTC-month Worker allowance. Alpha Vantage is not used for 1h or 1d; direct provider calls are outside the Worker ledger."
+        ? "Alpha Vantage 1mo requests (Disc1 stocks only) use an independent 25-per-UTC-day Worker cap. Monthly interval does not change the cap; Tickerbot and its UTC-month ledger are not used. Failed requests count conservatively."
+        : discId === "stocks"
+          ? "Tickerbot stock 1h/1d attempts use the shared 10,000-per-UTC-month Worker allowance. Alpha Vantage is not used for 1h or 1d; direct provider calls are outside the Worker ledger."
+          : `Tickerbot is the default provider for ${disc.label} ${interval}. Alpha Vantage is disabled for this Disc while multi-asset Tickerbot support is in progress; symbols not yet on Tickerbot's reviewed allowlist are reported unavailable rather than served from another provider.`
     }
   };
 
