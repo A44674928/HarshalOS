@@ -84,6 +84,9 @@
   };
   const TAU = Math.PI * 2;
   const SPHERE_RADIUS = 2.06;
+  const TICKER_ORB_FIELD_RADIUS = SPHERE_RADIUS * 0.62;
+  const TICKER_ORB_PAIR_OFFSET = 0.2;
+  const TICKER_ORB_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
   const MODEL_VIEW_SCALE = 0.215;
   const CAMERA_DISTANCE = 18;
   const HELIX_TURNS = 2.5;
@@ -177,6 +180,13 @@
     const state = value > signal ? "above" : value < signal ? "below" : "equal";
     const color = state === "above" ? DATA_COLORS.flowAbove : state === "below" ? DATA_COLORS.flowBelow : DATA_COLORS.flowEqual;
     return { state, color, value, signal };
+  }
+
+  /* Each ticker receives an individual spheroid; supplied volatility widens
+     the local orb only within a small, bounded visual range. */
+  function tickerOrbWorldRadius(berth) {
+    const volatility = berth && berth.metrics ? berth.metrics.volatility : null;
+    return 0.19 + (volatility === null ? 0 : clamp(volatility, 0, 1) * 0.045);
   }
 
   /** Double-helix placement metrics — computed only from supplied packet fields.
@@ -728,8 +738,10 @@
         ${colorKey}
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
-            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
-            <div class="gi-orb2-canvas-hud"><span>SPHERICAL SHELL · FIBONACCI DOUBLE HELIX</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM, CORE, AND OUTER SHELL</div></div>
+            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="${tickerMode
+              ? "Interactive three-dimensional Orb 2 model with nested ticker spheroids and linked Series A and B orbs. Drag to orbit, scroll to zoom, and select a ticker orb to inspect live beat data."
+              : "Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."}"></canvas>
+            <div class="gi-orb2-canvas-hud"><span>${tickerMode ? "OUTER SHELL · NESTED TICKER ORBS" : "SPHERICAL SHELL · CHARACTER NODES"}</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
@@ -744,13 +756,12 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The sphere grid and double-helix rails are visual scaffolding; ticker berths and highlighted cross-series rungs are descriptive arrangements of supplied Fibonacci-band position, band width, and midline stretch, not a rating, ranking service, signal, or recommendation.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The outer sphere and helix guides are visual scaffolding around an inner ticker spheroid: every ticker has its own nested orb, and each rank-matched A/B pair is individually linked. Pair order reflects supplied Fibonacci-band position; local band rings, spheroid width, glow, and link color reflect only supplied fields. This is not a rating, ranking service, signal, or recommendation.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
     const root = $("[data-gi-orb2-root]");
     const canvas = $("[data-gi-orb2-canvas]");
-    const flowReadout = $("[data-gi-orb2-flow-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
     const cadenceSelect = $("[data-gi-orb2-cadence]");
@@ -795,7 +806,6 @@
     const seriesModeSelect = $("[data-gi-orb2-series-mode]");
     const seriesAInput = $("[data-gi-orb2-series-a]");
     const seriesBInput = $("[data-gi-orb2-series-b]");
-    const fractalStatus = $("[data-gi-orb2-fractal-status]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
     if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
     /* The Characters app reports whether an anonymous saved-beat archive exists
@@ -1888,13 +1898,18 @@
 
     function modelPoint(node, now, directive) {
       const discRadius = 1.04 + ((node.order * 17) % 5) * 0.12;
-      /* In dual-series mode each berth follows its own supplied Fibonacci-band
-         value over the full polar latitude range; the longitude winds around a
-         shared multi-turn helical guide instead of being limited by a flat ring. */
+      /* Dual-series ticker nodes occupy separate, paired sites on an inner
+         spheroid. Their supplied Fibonacci-band position still sets their
+         local band ring and comparison rank; it no longer piles tickers into
+         one A cluster and one B cluster on the outside of the model. */
       const helixBerth = helixBerths.get(node.id);
+      const modelRadius = tickerMode ? TICKER_ORB_FIELD_RADIUS : SPHERE_RADIUS;
       let longitude = helixBerth ? helixBerth.longitude : node.longitude;
       let latitude = helixBerth ? helixBerth.latitude : node.latitude;
-      if (directive && !directive.frozen && directive.npc) {
+      /* Preserve each dual ticker's pair offset; its live motion still drives
+         local rings and pathways without collapsing A/B anchor centers. */
+      const hasNpcMotion = Boolean(!helixBerth && directive && !directive.frozen && directive.npc);
+      if (hasNpcMotion) {
         const npc = directive.npc;
         const phase = (now / 1000) * (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) + node.order * 1.71;
         const stride = clamp(Number(npc.stride) || 0, 0, 1) * (0.025 + Math.sin(phase) ** 2 * 0.06);
@@ -1908,11 +1923,9 @@
         if (npc.formation === "scatter") latitude += jitter;
       }
       latitude = clamp(latitude, -HELIX_LAT_MAX, HELIX_LAT_MAX);
-      const sphere = {
-        x: SPHERE_RADIUS * Math.cos(latitude) * Math.cos(longitude),
-        y: SPHERE_RADIUS * Math.sin(latitude),
-        z: SPHERE_RADIUS * Math.cos(latitude) * Math.sin(longitude)
-      };
+      const sphere = helixBerth && helixBerth.position && !hasNpcMotion
+        ? helixBerth.position
+        : spherePoint(latitude, longitude, modelRadius);
       const disc = { x: discRadius * Math.cos(longitude), y: 0, z: discRadius * Math.sin(longitude) };
       const t = ease(state.formation);
       return {
@@ -2022,6 +2035,28 @@
       };
     }
 
+    /* Each rank-matched A/B pair gets a nearby site on the inner ticker
+       spheroid. Successive pairs follow a Fibonacci spiral, so symbols occupy
+       distinct parts of the inner field instead of collapsing into two hubs. */
+    function tickerPairAnchor(rank, pairCount, series) {
+      const count = Math.max(1, pairCount);
+      const y = clamp(1 - 2 * ((rank + 0.5) / count), -Math.sin(HELIX_LAT_MAX), Math.sin(HELIX_LAT_MAX));
+      const latitude = Math.asin(y);
+      const longitude = HELIX_BASE_LON + rank * TICKER_ORB_GOLDEN_ANGLE;
+      const center = spherePoint(latitude, longitude, TICKER_ORB_FIELD_RADIUS);
+      const tangent = { x: -Math.sin(longitude), y: 0, z: Math.cos(longitude) };
+      const side = series === "B" ? TICKER_ORB_PAIR_OFFSET : -TICKER_ORB_PAIR_OFFSET;
+      return {
+        latitude,
+        longitude,
+        position: {
+          x: center.x + tangent.x * side,
+          y: center.y,
+          z: center.z + tangent.z * side
+        }
+      };
+    }
+
     function ring(latitude, width, height, color, alpha) {
       const points = [];
       for (let step = 0; step <= 96; step += 1) {
@@ -2078,6 +2113,80 @@
       const south = project({ x: 0, y: -SPHERE_RADIUS * 0.985, z: 0 }, width, height);
       const north = project({ x: 0, y: SPHERE_RADIUS * 0.985, z: 0 }, width, height);
       line(south, north, "#d3b46c", 0.22 * state.formation, 0.85, [4, 7]);
+    }
+
+    /* The ticker constellation sits on a second, nested spheroid inside Orb 2's
+       outer shell. Its faint wire surface keeps the individual ticker orbs
+       visibly inside a larger model rather than floating as two outer clusters. */
+    function drawTickerOrbField(width, height) {
+      if (!tickerMode || state.formation <= 0.001) return;
+      const radius = TICKER_ORB_FIELD_RADIUS;
+      [-0.78, 0, 0.78].forEach(latitude => {
+        const points = [];
+        for (let step = 0; step <= 64; step += 1) {
+          points.push(project(spherePoint(latitude, step / 64 * TAU, radius), width, height));
+        }
+        strokeDepthPath(points, "#4e7199", 0.025, 0.09, 0.58, [2, 5]);
+      });
+      for (let meridian = 0; meridian < 8; meridian += 1) {
+        const longitude = meridian / 8 * TAU;
+        const points = [];
+        for (let step = 0; step <= 48; step += 1) {
+          const latitude = -Math.PI / 2 + step / 48 * Math.PI;
+          points.push(project(spherePoint(latitude, longitude, radius), width, height));
+        }
+        strokeDepthPath(points, "#45658c", 0.018, 0.065, 0.5, [2, 6]);
+      }
+    }
+
+    function drawTickerSpheroid(point, width, height, color, berth, selected, hovered) {
+      if (!point.model || !point.orbRadius || state.formation <= 0.001) return;
+      const center = point.model;
+      const radius = point.orbRadius;
+      const squash = 0.78;
+      const yaw = (point.node.order * TICKER_ORB_GOLDEN_ANGLE) % TAU;
+      const cosYaw = Math.cos(yaw), sinYaw = Math.sin(yaw);
+      const seriesColor = berth ? berth.series === "B" ? "#ffc857" : "#6fd3ff" : color;
+      const shellColor = selected || hovered ? "#f2f7ff" : seriesColor;
+      const shellAlpha = selected || hovered ? 0.78 : 0.48;
+      const modelPoint = (latitude, longitude) => {
+        const localX = radius * Math.cos(latitude) * Math.cos(longitude);
+        const localY = radius * squash * Math.sin(latitude);
+        const localZ = radius * Math.cos(latitude) * Math.sin(longitude);
+        return {
+          x: center.x + localX * cosYaw - localZ * sinYaw,
+          y: center.y + localY,
+          z: center.z + localX * sinYaw + localZ * cosYaw
+        };
+      };
+      const drawLatitude = (latitude, stroke, alpha, widthPx, dash = []) => {
+        const points = [];
+        for (let step = 0; step <= 40; step += 1) {
+          points.push(project(modelPoint(latitude, step / 40 * TAU), width, height));
+        }
+        strokeDepthPath(points, stroke, alpha * 0.18, alpha, widthPx, dash);
+      };
+      const screenRadius = point.visualRadius;
+      context2d.save();
+      context2d.fillStyle = seriesColor;
+      context2d.globalAlpha = selected || hovered ? 0.075 : 0.045;
+      context2d.beginPath(); context2d.arc(point.x, point.y, screenRadius * 0.88, 0, TAU); context2d.fill();
+      context2d.restore();
+      [-0.68, 0, 0.68].forEach(latitude =>
+        drawLatitude(latitude, shellColor, shellAlpha, selected || hovered ? 1.05 : 0.78, latitude === 0 ? [] : [2, 4]));
+      [0, Math.PI / 2].forEach(longitude => {
+        const points = [];
+        for (let step = 0; step <= 36; step += 1) {
+          const latitude = -Math.PI / 2 + step / 36 * Math.PI;
+          points.push(project(modelPoint(latitude, longitude), width, height));
+        }
+        strokeDepthPath(points, shellColor, shellAlpha * 0.12, shellAlpha * 0.72, 0.68, [2, 4]);
+      });
+      const bandP = berth && berth.p !== null ? clamp(berth.p, 0, 1) : 0.5;
+      const bandLatitude = (bandP - 0.5) * 1.36;
+      drawLatitude(bandLatitude, berth && berth.held ? "#91a0b8" : seriesColor,
+        berth ? 0.68 : 0.36, 0.9, berth && berth.held ? [2, 3] : []);
+
     }
 
     function drawRoute(now, center) {
@@ -2143,22 +2252,6 @@
       return [];
     }
 
-    function updateFlowReadout(point) {
-      if (!flowReadout) return;
-      const observation = point && point.observation;
-      const cue = flowPathForObservation(observation, point && point.directive);
-      const subject = observation && observation.symbol || point && point.node && point.node.name || "No selected node";
-      const activity = cue.moving
-        ? `${cue.direction} · ${cue.rate.toFixed(2)} cycles/s${pathsToggle.checked ? "" : " · path hidden"}${reduceMotion && !state.autoRotate ? " · reduced-motion preview" : ""}`
-        : cue.reason || "Paused · no confirmed flow data";
-      const text = `${subject} · ${cue.label} · ${activity}`;
-      if (flowReadout.textContent !== text) flowReadout.textContent = text;
-      flowReadout.style.color = cue.color;
-      flowReadout.dataset.flowState = cue.moving ? cue.state : "paused";
-      flowReadout.title = cue.moving
-        ? `Characters item cadence: ${cue.rate.toFixed(2)} visual cycles per second. This is not a volume-per-second measurement.`
-        : `${cue.reason || "Flow is paused."} No unsupported or unconfirmed volume is animated.`;
-    }
 
     function drawFlowRunner(point, center, now, wallNow, index, cue) {
       if (!cue.moving || !pathsToggle.checked) return;
@@ -2285,11 +2378,10 @@
     }
 
     /* ── Double-helix engine ───────────────────────────────────────────
-       Both strands follow one spherical scaffold. Each ticker's own supplied
-       Fibonacci-band position maps to latitude across almost the full pole-to-
-       pole range; the same value sets its 2.5-turn winding phase. Ranking is
-       still exposed for comparison, but it no longer limits vertical movement.
-       Missing band values remain held at the basis. */
+       The large double helix remains a visual guide. Supplied Fibonacci-band
+       values rank each strand and place a local band ring on that ticker's own
+       nested spheroid. Rank-matched A/B pairs get separate Fibonacci-spaced
+       sites inside the inner ticker field; missing bands remain held at basis. */
     function bandLatitude(position) {
       const p = clamp(Number(position), 0, 1);
       /* Linearize vertical displacement across the complete spherical shell:
@@ -2388,6 +2480,7 @@
       };
       const byPosition = (x, y) => (targetP(x.id) - targetP(y.id)) || (x.symbol < y.symbol ? -1 : x.symbol > y.symbol ? 1 : 0);
       const ranked = { A: [...groups.A].sort(byPosition), B: [...groups.B].sort(byPosition) };
+      const pairCount = Math.max(ranked.A.length, ranked.B.length);
       const dt = state.helix.lastT ? Math.max(0, Math.min(120, now - state.helix.lastT)) : 16;
       const glide = 1 - Math.exp(-dt / 650);
       let held = 0;
@@ -2397,18 +2490,23 @@
           const entry = perNode.get(node.id) || { observation: null, metrics: helixMetricsForMarket(null) };
           const metrics = entry.metrics;
           if (metrics.held) held += 1;
-          const p = metrics.held ? 0.5 : metrics.p;
-          const bandP = clamp(p, 0, 1);
-          const targetLat = bandLatitude(bandP);
-          const targetLon = helixLongitude(bandP, series);
-          const previous = state.helix.glide.get(node.id) || { lat: targetLat, lon: targetLon };
-          const latitude = previous.lat + (targetLat - previous.lat) * glide;
-          const longitude = previous.lon + (targetLon - previous.lon) * glide;
-          state.helix.glide.set(node.id, { lat: latitude, lon: longitude });
+          const target = tickerPairAnchor(rank, pairCount, series);
+          const previous = state.helix.glide.get(node.id) || target.position;
+          const position = {
+            x: previous.x + (target.position.x - previous.x) * glide,
+            y: previous.y + (target.position.y - previous.y) * glide,
+            z: previous.z + (target.position.z - previous.z) * glide
+          };
+          state.helix.glide.set(node.id, position);
           const market = entry.observation && entry.observation.market;
           const changePct = market ? numeric(market.changePct) : null;
           helixBerths.set(node.id, {
-            latitude, longitude, series, rank,
+            latitude: target.latitude,
+            longitude: target.longitude,
+            position,
+            pairIndex: rank,
+            series,
+            rank,
             p: metrics.held ? null : metrics.p,
             held: metrics.held,
             metrics,
@@ -2422,8 +2520,8 @@
       helixState.counts = { a: ranked.A.length, b: ranked.B.length };
       helixState.rungs = Math.min(ranked.A.length, ranked.B.length);
       helixState.held = held;
-      /* The first frame that settles helix berths also refreshes the
-         inspector, so its strand/band/rung readouts never stay on the
+      /* The first frame that settles the inner ticker spheroids also refreshes
+         the inspector, so its strand/band/rung readouts never stay on the
          pre-render "settling" row after the geometry is live. */
       if (!hadBerths && helixBerths.size > 0) drawInspector();
       return helixState;
@@ -2458,9 +2556,31 @@
       context2d.restore();
     }
 
-    /* Cross-series rungs: the rank-matched pair on the two strands, colored by
-       directional agreement, brightened by combined potential energy and the
-       outer flame's breath. A descriptive comparison — nothing more. */
+    /* Fine intra-series links stitch neighboring ticker spheroids into two
+       readable chains across the nested field; unlike the old end-to-end
+       clusters, every chain segment terminates at an individual ticker orb. */
+    function drawHelixStrandLinks(outerMod) {
+      if (!helixState.ranked) return;
+      const pointById = new Map(state.projected.map(point => [point.node.id, point]));
+      const breath = outerMod && outerMod.active ? 0.85 + clamp(outerMod.energy, 0, 1) * 0.3 : 1;
+      [
+        { series: "A", color: "#6fd3ff" },
+        { series: "B", color: "#ffc857" }
+      ].forEach(({ series, color }) => {
+        const strand = helixState.ranked[series];
+        for (let index = 1; index < strand.length; index += 1) {
+          const previous = pointById.get(strand[index - 1].id);
+          const current = pointById.get(strand[index].id);
+          if (!previous || !current) continue;
+          const depth = clamp(0.35 + (1 - ((previous.z + current.z) / 2) / 5) * 0.32, 0.3, 1);
+          line(previous, current, color, 0.16 * breath * depth, 0.72, [2, 4]);
+        }
+      });
+    }
+
+    /* Cross-series rungs: each rank-matched pair of ticker spheroids receives
+       its own connector, colored by directional agreement, brightened by
+       combined potential energy and the outer flame's breath. */
     function drawHelixRungs(outerMod) {
       if (!helixState.ranked) return;
       const pointById = new Map(state.projected.map(point => [point.node.id, point]));
@@ -2576,7 +2696,6 @@
          through this model's own camera. The clock advances with frame time
          coupled to the inner flame's harmonic speed, exactly as The Orb drives
          it, and adjacent sub-frames cross-fade at equal energy. */
-      let filmNote = "film module absent";
       if (filmApi && film) {
         if (film.ready && typeof filmApi.drawWrapped === "function") {
           state.filmTime += (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
@@ -2599,10 +2718,7 @@
               });
             }
           }
-          filmNote = "film live";
-        } else if (film.dead) filmNote = "film unavailable";
-        else if (film.loaded > 0) filmNote = "film loading";
-        else filmNote = "film not started";
+        }
       }
 
       /* 1 · the AI inner shell — Demo.flame's 120-frame harmonics govern the
@@ -2612,36 +2728,31 @@
       state.coreTime = (state.coreTime || 0) + (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
       const innerSpeed = (fMod && fMod.speedMult) || 1;
       state.innerAngle += dt * 0.4 * innerSpeed;
-      let coreNote = "core module absent";
       let coreLive = false;
-      if (flame) {
-        if (flame.ready && Array.isArray(flame.frames) && flame.frames.length) {
-          const energy = fMod && fMod.active ? clamp(fMod.energy, 0, 1) : 0.5;
-          const coreAlpha = (0.22 + 0.78 * legitimacyGate()) * 0.9;
-          const coreSize = 44 + energy * 18;
-          /* Prefer the 3D reference-triangle placement; the shared billboard
-             drawOn remains the honest fallback for any player that does not
-             expose its bounce frames. */
-          if (!drawFlameCore3D(flame, center, coreSize, coreAlpha, width, height, energy, dpr)
-            && typeof flame.drawOn === "function") {
-            flame.drawOn(context2d, center.x, center.y, coreSize, coreAlpha);
-          }
-          const shellRadius = 0.62 + (fMod && fMod.active ? fMod.pulse * 0.03 : 0);
-          const shellAlpha = fMod && fMod.active ? 0.28 + 0.14 * energy : 0.35;
-          circle3D(shellRadius, 0, state.innerAngle, "#4a9eff", shellAlpha * state.formation, 1, width, height);
-          circle3D(shellRadius, 0.45, -state.innerAngle * 0.8, "#4a9eff", (shellAlpha - 0.1) * state.formation, 1, width, height);
-          meridian3D(shellRadius, 0, state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
-          meridian3D(shellRadius, Math.PI / 2, -state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
-          const anchor = project({ x: 0, y: shellRadius, z: 0 }, width, height);
-          context2d.save();
-          context2d.fillStyle = "#ffd479";
-          context2d.globalAlpha = 0.85 * state.formation;
-          context2d.beginPath(); context2d.arc(anchor.x, anchor.y, 2.6, 0, TAU); context2d.fill();
-          context2d.restore();
-          coreNote = "core live";
-          coreLive = true;
-        } else if (flame.baking) coreNote = "core baking";
-        else coreNote = "core unavailable";
+      if (flame && flame.ready && Array.isArray(flame.frames) && flame.frames.length) {
+        const energy = fMod && fMod.active ? clamp(fMod.energy, 0, 1) : 0.5;
+        const coreAlpha = (0.22 + 0.78 * legitimacyGate()) * 0.9;
+        const coreSize = 44 + energy * 18;
+        /* Prefer the 3D reference-triangle placement; the shared billboard
+           drawOn remains the honest fallback for any player that does not
+           expose its bounce frames. */
+        if (!drawFlameCore3D(flame, center, coreSize, coreAlpha, width, height, energy, dpr)
+          && typeof flame.drawOn === "function") {
+          flame.drawOn(context2d, center.x, center.y, coreSize, coreAlpha);
+        }
+        const shellRadius = 0.62 + (fMod && fMod.active ? fMod.pulse * 0.03 : 0);
+        const shellAlpha = fMod && fMod.active ? 0.28 + 0.14 * energy : 0.35;
+        circle3D(shellRadius, 0, state.innerAngle, "#4a9eff", shellAlpha * state.formation, 1, width, height);
+        circle3D(shellRadius, 0.45, -state.innerAngle * 0.8, "#4a9eff", (shellAlpha - 0.1) * state.formation, 1, width, height);
+        meridian3D(shellRadius, 0, state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
+        meridian3D(shellRadius, Math.PI / 2, -state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
+        const anchor = project({ x: 0, y: shellRadius, z: 0 }, width, height);
+        context2d.save();
+        context2d.fillStyle = "#ffd479";
+        context2d.globalAlpha = 0.85 * state.formation;
+        context2d.beginPath(); context2d.arc(anchor.x, anchor.y, 2.6, 0, TAU); context2d.fill();
+        context2d.restore();
+        coreLive = true;
       }
 
       /* 2 · the outer macro-flame — OuterOrb.flame (600 frames) never draws
@@ -2651,23 +2762,13 @@
       const outerSpeed = ((outerMod && outerMod.active ? outerMod.speedMult : 1) || 1) * innerSpeed;
       state.outerAngle1 += dt * 0.25 * outerSpeed;
       state.outerAngle2 -= dt * 0.18 * outerSpeed;
-      let outerNote = "outer shell module absent";
-      if (outer) {
-        if (outer.ready && Array.isArray(outer.frames) && outer.frames.length) {
-          const energy = outerMod && outerMod.active ? clamp(outerMod.energy, 0, 1) : 0.5;
-          const pulse = outerMod && outerMod.active ? outerMod.pulse * 0.06 : 0;
-          const outerAlpha = outerMod && outerMod.active ? 0.22 + 0.14 * energy : 0.22;
-          [[1.15, -0.42 * 0.9, state.outerAngle1, 1], [1.8, 0.5 * 0.9, state.outerAngle2, -0.8]].forEach(([radius, tilt, rotation, pulseSign]) => {
-            circle3D(radius + pulse * pulseSign, tilt, rotation, "#243a63", outerAlpha * state.formation, 1 + (outerMod && outerMod.active ? energy * 0.6 : 0), width, height);
-          });
-          outerNote = "outer shell live";
-        } else if (outer.baking) outerNote = "outer shell baking";
-        else outerNote = "outer shell unavailable";
-      }
-
-      if (fractalStatus) {
-        const text = `FRACTAL FRAMES · ${filmNote} · ${coreNote} · ${outerNote}`;
-        if (fractalStatus.textContent !== text) fractalStatus.textContent = text;
+      if (outer && outer.ready && Array.isArray(outer.frames) && outer.frames.length) {
+        const energy = outerMod && outerMod.active ? clamp(outerMod.energy, 0, 1) : 0.5;
+        const pulse = outerMod && outerMod.active ? outerMod.pulse * 0.06 : 0;
+        const outerAlpha = outerMod && outerMod.active ? 0.22 + 0.14 * energy : 0.22;
+        [[1.15, -0.42 * 0.9, state.outerAngle1, 1], [1.8, 0.5 * 0.9, state.outerAngle2, -0.8]].forEach(([radius, tilt, rotation, pulseSign]) => {
+          circle3D(radius + pulse * pulseSign, tilt, rotation, "#243a63", outerAlpha * state.formation, 1 + (outerMod && outerMod.active ? energy * 0.6 : 0), width, height);
+        });
       }
       return { coreLive, fMod, outerMod };
     }
@@ -2689,9 +2790,8 @@
         state.yaw += frameDelta * 0.00013;
       }
       state.lastFrame = now;
-      /* Double-helix berths are eased toward each orb's supplied Fibonacci-band
-         position before any projection, so routes, rungs, and labels all share
-         the same living geometry. */
+      /* Band rank places each dual-series pair at its own site on the inner
+         ticker spheroid; all nodes share the same eased camera geometry. */
       const helix = tickerMode && state.seriesMode === "dual" ? updateHelixBerths(now) : null;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
       drawSphericalShell(width, height, center);
@@ -2700,8 +2800,8 @@
          Origin; both degrade to wire when unavailable. */
       let fractal = { coreLive: false, fMod: null, outerMod: null };
       if (state.showFractal) fractal = drawFractalFrames(now, frameDelta, center, width, height, dpr);
-      else if (fractalStatus && fractalStatus.textContent !== "FRACTAL FRAMES · HIDDEN") fractalStatus.textContent = "FRACTAL FRAMES · HIDDEN";
       drawSphereGrid(width, height);
+      drawTickerOrbField(width, height);
       if (helix) {
         drawFibRings(width, height);
         drawHelixScaffold(width, height, fractal.outerMod);
@@ -2711,12 +2811,19 @@
       state.projected = nodes.map(node => {
         const observation = latestForNode(node);
         const directive = displayMotion(observation, now);
-        return { ...project(modelPoint(node, now, directive), width, height), node, observation, directive };
+        const model = modelPoint(node, now, directive);
+        const screen = project(model, width, height);
+        const berth = helixBerths.get(node.id);
+        const orbRadius = tickerMode ? tickerOrbWorldRadius(berth) : 0;
+        const visualRadius = tickerMode ? orbRadius * Math.min(width, height) * MODEL_VIEW_SCALE * screen.scale : 0;
+        return { ...screen, model, orbRadius, visualRadius, node, observation, directive };
       });
-      updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
       drawRoute(now, center);
-      if (helix) drawHelixRungs(fractal.outerMod);
+      if (helix) {
+        drawHelixStrandLinks(fractal.outerMod);
+        drawHelixRungs(fractal.outerMod);
+      }
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
         const node = point.node;
@@ -2730,18 +2837,20 @@
         const pulse = directive && directive.object ? directive.object.pulse : 0;
         const radius = clamp(3.2 + point.scale * 2.5 + (chosen ? 1.9 : 0) + pulse * 1.6, 3, 9);
         const berth = helixBerths.get(node.id);
+        const visualRadius = tickerMode ? Math.max(radius, point.visualRadius) : radius;
+        if (tickerMode) drawTickerSpheroid(point, width, height, color, berth, chosen, hovered);
         if (berth) {
-          /* Supplied band width widens the orb's volatility ring; potential
-             energy feeds the glow; a signaled band break flashes gold; a held
-             orb gets a dashed neutral ring. All states are drawn, never
-             invented. */
+          /* Supplied band width widens the spheroid's volatility ring; potential
+             energy feeds its core glow; a signaled band break flashes gold; a
+             held orb gets a dashed neutral ring. No missing field is inferred. */
           const volatility = berth.metrics.volatility;
           if (volatility !== null) {
             context2d.save();
             context2d.strokeStyle = "#9fb6d4";
             context2d.globalAlpha = 0.1 + 0.28 * volatility;
             context2d.lineWidth = 0.8;
-            context2d.beginPath(); context2d.arc(point.x, point.y, radius * (1.3 + volatility * 0.6), 0, TAU); context2d.stroke();
+            const ringRadius = tickerMode ? visualRadius * (1.12 + volatility * 0.3) : radius * (1.3 + volatility * 0.6);
+            context2d.beginPath(); context2d.arc(point.x, point.y, ringRadius, 0, TAU); context2d.stroke();
             context2d.restore();
           }
           if (berth.metrics.breakSide) {
@@ -2749,7 +2858,8 @@
             context2d.strokeStyle = "#ffd479";
             context2d.globalAlpha = 0.5 + 0.25 * Math.sin(now / 140);
             context2d.lineWidth = 1.2;
-            context2d.beginPath(); context2d.arc(point.x, point.y, radius * (2 + 0.22 * Math.sin(now / 140)), 0, TAU); context2d.stroke();
+            const breakRadius = tickerMode ? visualRadius + 5 + Math.sin(now / 140) : radius * (2 + 0.22 * Math.sin(now / 140));
+            context2d.beginPath(); context2d.arc(point.x, point.y, breakRadius, 0, TAU); context2d.stroke();
             context2d.restore();
           }
           if (berth.held) {
@@ -2758,11 +2868,11 @@
             context2d.globalAlpha = 0.45;
             context2d.lineWidth = 0.9;
             context2d.setLineDash([3, 4]);
-            context2d.beginPath(); context2d.arc(point.x, point.y, radius + 4, 0, TAU); context2d.stroke();
+            context2d.beginPath(); context2d.arc(point.x, point.y, tickerMode ? visualRadius + 4 : radius + 4, 0, TAU); context2d.stroke();
             context2d.restore();
           }
         }
-        drawProviderHalo(point, radius, observation, wallNow);
+        drawProviderHalo(point, visualRadius, observation, wallNow);
         context2d.save();
         context2d.globalAlpha = observation && observation.market ? clamp(0.42 + fresh * 0.5, 0.42, 0.96) : clamp(0.32 + (1 - point.z / 5) * 0.34, 0.3, 1);
         context2d.fillStyle = color;
@@ -2771,19 +2881,19 @@
         context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
         if (chosen || hovered) {
           context2d.strokeStyle = "#ffffff"; context2d.globalAlpha = 0.9; context2d.lineWidth = 1;
-          context2d.beginPath(); context2d.arc(point.x, point.y, radius + 3, 0, TAU); context2d.stroke();
+          context2d.beginPath(); context2d.arc(point.x, point.y, visualRadius + 3, 0, TAU); context2d.stroke();
         }
         context2d.restore();
-        drawDataBits(point, radius, observation);
+        drawDataBits(point, visualRadius, observation);
         if (state.labels || chosen || hovered) {
           context2d.save();
           context2d.globalAlpha = chosen || hovered ? 1 : 0.72;
           context2d.fillStyle = "#edf6ff";
           context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
           context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
-          const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
+          const offset = point.x > width * 0.52 ? visualRadius + 5 : -visualRadius - 5;
           const tag = `${node.series && (chosen || hovered) ? " · " + node.series : ""}${berth && berth.held && (chosen || hovered) ? " · HELD" : ""}`;
-          context2d.fillText(`${node.symbol || node.name}${tag}`, point.x + offset, point.y - radius - 4);
+          context2d.fillText(`${node.symbol || node.name}${tag}`, point.x + offset, point.y - visualRadius - 4);
           context2d.restore();
         }
       });
@@ -2829,7 +2939,8 @@
       let distance = Infinity;
       for (const point of state.projected) {
         const d = Math.hypot(point.x - x, point.y - y);
-        if (d < distance && d < 18) { winner = point.node.order; distance = d; }
+        const hitRadius = Math.max(18, (point.visualRadius || 0) + 5);
+        if (d < distance && d < hitRadius) { winner = point.node.order; distance = d; }
       }
       return winner;
     }
@@ -2975,7 +3086,7 @@
       state.message = {
         kind: "note",
         text: state.seriesMode === "dual"
-          ? "Double helix: Series A and Series B wind strand against strand, arranged by supplied Fibonacci-band position."
+          ? "Double helix: each reviewed ticker gets its own orb on an inner spheroid; rank-matched Series A/B pairs link individually by supplied band position."
           : "Single set: every reviewed watchlist orb returns to the sector sphere."
       };
       persistLocal();
@@ -3196,8 +3307,11 @@
             helixState.ranked[series].map((node, rank) => {
               const berth = helixBerths.get(node.id);
               return berth ? {
-                symbol: node.symbol, series, rank, p: berth.p, held: berth.held,
-                latitude: berth.latitude, longitude: berth.longitude
+                symbol: node.symbol, series, rank, pairIndex: berth.pairIndex,
+                p: berth.p, held: berth.held,
+                latitude: berth.latitude, longitude: berth.longitude,
+                x: berth.position.x, y: berth.position.y, z: berth.position.z,
+                orbRadius: tickerOrbWorldRadius(berth)
               } : null;
             }).filter(Boolean)) : []
         };
