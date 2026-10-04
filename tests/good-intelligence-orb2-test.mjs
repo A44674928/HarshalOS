@@ -551,7 +551,7 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
     });
     return payload;
   };
-  const { window, frames } = interactiveHarness(t, {
+  const { window, frames, canvasCalls, canvasStyles } = interactiveHarness(t, {
     beatHandler: () => Response.json(driftPayload(["AAPL", "MSFT", "NVDA", "AMD", "CVX", "XOM"]))
   });
   const tickers = [
@@ -605,8 +605,23 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
   assert.equal(strandA.length, 3);
   assert.ok(strandA.every(entry => entry.p !== null), "the live beat supplies bands for every Series A orb");
   assert.ok(strandA.every((entry, index) => index === 0 || strandA[index - 1].p <= entry.p),
-    "strand winding order re-ranks by Fibonacci-band position, not by list order");
+    "strand order re-ranks by Fibonacci-band position, not by list order");
   assert.ok(helix.rungs >= 1, "rank-matched rungs connect the two strands");
+
+  const helixLatitudeMax = Math.PI / 2 - 0.08;
+  for (const entry of helix.positions) {
+    const bandP = Math.max(0, Math.min(1, entry.p));
+    const expectedLatitude = Math.asin((2 * bandP - 1) * Math.sin(helixLatitudeMax));
+    const expectedLongitude = -Math.PI / 2 + bandP * Math.PI * 2 * 2.5 + (entry.series === "B" ? Math.PI : 0);
+    assert.ok(Math.abs(entry.latitude - expectedLatitude) < 1e-9,
+      `${entry.symbol} uses its own band value across the near-pole-to-pole latitude range`);
+    assert.ok(Math.abs(entry.longitude - expectedLongitude) < 1e-9,
+      `${entry.symbol} winds around its strand from the same Fibonacci-band value`);
+  }
+  assert.ok(canvasCalls.includes("ellipse"), "the canvas draws a lit spherical shell and not only flat rings");
+  assert.ok(canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#6fd3ff")
+    && canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#ffc857"),
+  "the continuous A and B guide strands are rendered as separate helical rails");
 
   /* The inspector explains the helix placement for the selected orb. */
   const detail = host.querySelector("[data-gi-orb2-detail]");
