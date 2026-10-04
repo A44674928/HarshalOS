@@ -83,6 +83,12 @@
     return 0.5;
   };
   const TAU = Math.PI * 2;
+  const SPHERE_RADIUS = 2.06;
+  const MODEL_VIEW_SCALE = 0.215;
+  const CAMERA_DISTANCE = 18;
+  const HELIX_TURNS = 2.5;
+  const HELIX_LAT_MAX = Math.PI / 2 - 0.08;
+  const HELIX_BASE_LON = -Math.PI / 2;
   const CENTER_ADDRESS = "0•000•000•0000";
   const PROVIDER_COOLDOWN_MS = 60_000;
   const MASSIVE_BEAT_MS = 60_000;
@@ -660,7 +666,7 @@
           <div>
             <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
             <h3>Orb Communicator Model</h3>
-            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. In dual-series mode, two reviewed ticker sets wind into a double helix whose height and winding order follow each orb's supplied Fibonacci-band position.</p>
+            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. For tickers, the shaded sphere carries two 2.5-turn guide strands; each ticker maps its own Fibonacci Bollinger Band position across the full vertical shell—lower at the south pole, basis at the equator, upper at the north pole.</p>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
@@ -723,7 +729,7 @@
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
             <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
-            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM, CORE, AND OUTER SHELL</div></div>
+            <div class="gi-orb2-canvas-hud"><span>SPHERICAL SHELL · FIBONACCI DOUBLE HELIX</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout" data-gi-orb2-fractal-status aria-live="off">FRACTAL FRAMES · CHECKING THE ORB'S FILM, CORE, AND OUTER SHELL</div></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
@@ -738,7 +744,7 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The double helix and its rungs are a descriptive arrangement of supplied Fibonacci-band position, band width, and midline stretch; they are not a rating, ranking service, signal, or recommendation.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The sphere grid and double-helix rails are visual scaffolding; ticker berths and highlighted cross-series rungs are descriptive arrangements of supplied Fibonacci-band position, band width, and midline stretch, not a rating, ranking service, signal, or recommendation.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -1881,11 +1887,10 @@
     }
 
     function modelPoint(node, now, directive) {
-      const sphereRadius = 2.06;
       const discRadius = 1.04 + ((node.order * 17) % 5) * 0.12;
-      /* In dual-series mode the berth comes from the eased double-helix
-         position (Fibonacci-band height × re-ranking winding order), not the
-         static sector sphere; motion directives still wobble around it. */
+      /* In dual-series mode each berth follows its own supplied Fibonacci-band
+         value over the full polar latitude range; the longitude winds around a
+         shared multi-turn helical guide instead of being limited by a flat ring. */
       const helixBerth = helixBerths.get(node.id);
       let longitude = helixBerth ? helixBerth.longitude : node.longitude;
       let latitude = helixBerth ? helixBerth.latitude : node.latitude;
@@ -1898,14 +1903,15 @@
         longitude += Math.cos(bearing + jitter) * stride;
         latitude += Math.sin(bearing + jitter) * stride * 0.65;
         if (npc.formation === "tight") latitude *= 0.96;
-        if (npc.formation === "rim") latitude = clamp(latitude * 1.04, -1.45, 1.45);
+        if (npc.formation === "rim") latitude = clamp(latitude * 1.04, -HELIX_LAT_MAX, HELIX_LAT_MAX);
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
+      latitude = clamp(latitude, -HELIX_LAT_MAX, HELIX_LAT_MAX);
       const sphere = {
-        x: sphereRadius * Math.cos(latitude) * Math.cos(longitude),
-        y: sphereRadius * Math.sin(latitude),
-        z: sphereRadius * Math.cos(latitude) * Math.sin(longitude)
+        x: SPHERE_RADIUS * Math.cos(latitude) * Math.cos(longitude),
+        y: SPHERE_RADIUS * Math.sin(latitude),
+        z: SPHERE_RADIUS * Math.cos(latitude) * Math.sin(longitude)
       };
       const disc = { x: discRadius * Math.cos(longitude), y: 0, z: discRadius * Math.sin(longitude) };
       const t = ease(state.formation);
@@ -1927,9 +1933,12 @@
     }
 
     function toScreen(point, width, height) {
-      const fov = 6.4 / state.zoom;
-      const scale = fov / (fov + point.z);
-      const radius = Math.min(width, height) * 0.315;
+      /* Keep the perspective gentle so the shell reads as a sphere instead of
+         a depth-stretched disc. Zoom scales the model itself as well as the
+         camera distance, which makes the wheel control behave intuitively. */
+      const cameraDistance = CAMERA_DISTANCE / state.zoom;
+      const scale = state.zoom * cameraDistance / (cameraDistance + point.z);
+      const radius = Math.min(width, height) * MODEL_VIEW_SCALE;
       return { x: width / 2 + point.x * scale * radius, y: height / 2 - point.y * scale * radius, z: point.z, scale };
     }
 
@@ -1962,21 +1971,113 @@
       context2d.restore();
     }
 
-    function ring(latitude, width, height, color, alpha) {
-      const points = [];
-      for (let step = 0; step <= 72; step += 1) {
-        const longitude = (step / 72) * TAU;
-        const radius = 2.06;
-        points.push(project({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
-      }
-      context2d.save();
-      context2d.strokeStyle = color;
-      context2d.globalAlpha = alpha * state.formation;
-      context2d.lineWidth = 0.8;
+    function traceProjectedPoints(points) {
+      if (points.length < 2) return;
       context2d.beginPath();
       points.forEach((point, index) => index ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
       context2d.stroke();
+    }
+
+    function traceNearSegments(points) {
+      if (points.length < 2) return;
+      context2d.beginPath();
+      let drawing = false;
+      for (let index = 1; index < points.length; index += 1) {
+        const previous = points[index - 1];
+        const point = points[index];
+        if ((previous.z + point.z) <= 0) {
+          if (!drawing) context2d.moveTo(previous.x, previous.y);
+          context2d.lineTo(point.x, point.y);
+          drawing = true;
+        } else drawing = false;
+      }
+      context2d.stroke();
+    }
+
+    function strokeDepthPath(points, color, backAlpha, frontAlpha, width = 1, dash = []) {
+      const formation = clamp(state.formation, 0, 1);
+      if (formation <= 0.001 || points.length < 2) return;
+      context2d.save();
+      context2d.strokeStyle = color;
+      context2d.lineWidth = width;
+      context2d.lineCap = "round";
+      context2d.lineJoin = "round";
+      context2d.setLineDash(dash);
+      context2d.globalAlpha = clamp(backAlpha * formation, 0, 1);
+      traceProjectedPoints(points);
+      if (frontAlpha > backAlpha) {
+        context2d.globalAlpha = clamp(frontAlpha * formation, 0, 1);
+        context2d.setLineDash(dash);
+        traceNearSegments(points);
+      }
       context2d.restore();
+    }
+
+    function spherePoint(latitude, longitude, radius = SPHERE_RADIUS) {
+      const ringRadius = radius * Math.cos(latitude);
+      return {
+        x: ringRadius * Math.cos(longitude),
+        y: radius * Math.sin(latitude),
+        z: ringRadius * Math.sin(longitude)
+      };
+    }
+
+    function ring(latitude, width, height, color, alpha) {
+      const points = [];
+      for (let step = 0; step <= 96; step += 1) {
+        points.push(project(spherePoint(latitude, (step / 96) * TAU), width, height));
+      }
+      strokeDepthPath(points, color, alpha * 0.55, alpha * 1.75, 0.8);
+    }
+
+    function drawSphericalShell(width, height, center) {
+      if (state.formation <= 0.001) return;
+      const radius = Math.min(width, height) * MODEL_VIEW_SCALE * SPHERE_RADIUS * state.zoom;
+      context2d.save();
+      context2d.beginPath();
+      context2d.ellipse(center.x, center.y, radius, radius, 0, 0, TAU);
+      context2d.clip();
+      const sheen = context2d.createRadialGradient(
+        center.x - radius * 0.34, center.y - radius * 0.38, radius * 0.025,
+        center.x, center.y, radius * 1.08
+      );
+      sheen.addColorStop(0, "rgba(48, 88, 143, .31)");
+      sheen.addColorStop(0.42, "rgba(24, 45, 78, .24)");
+      sheen.addColorStop(0.82, "rgba(8, 17, 33, .3)");
+      sheen.addColorStop(1, "rgba(3, 8, 17, .46)");
+      context2d.globalAlpha = 0.9 * state.formation;
+      context2d.fillStyle = sheen;
+      context2d.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+      context2d.restore();
+
+      context2d.save();
+      context2d.beginPath();
+      context2d.ellipse(center.x, center.y, radius, radius, 0, 0, TAU);
+      context2d.strokeStyle = "#6c9fda";
+      context2d.lineWidth = 1.1;
+      context2d.globalAlpha = 0.42 * state.formation;
+      context2d.shadowColor = "#4c8dd2";
+      context2d.shadowBlur = 18;
+      context2d.stroke();
+      context2d.restore();
+    }
+
+    function drawSphereGrid(width, height) {
+      const latitudes = [-1.24, -0.96, -0.68, -0.4, -0.2, 0, 0.2, 0.4, 0.68, 0.96, 1.24];
+      latitudes.forEach(latitude => ring(latitude, width, height, "#56759d", 0.105));
+      const meridianCount = 12;
+      for (let index = 0; index < meridianCount; index += 1) {
+        const longitude = (index / meridianCount) * TAU;
+        const points = [];
+        for (let step = 0; step <= 88; step += 1) {
+          const latitude = -Math.PI / 2 + (step / 88) * Math.PI;
+          points.push(project(spherePoint(latitude, longitude), width, height));
+        }
+        strokeDepthPath(points, "#5a789f", 0.055, 0.145, 0.72);
+      }
+      const south = project({ x: 0, y: -SPHERE_RADIUS * 0.985, z: 0 }, width, height);
+      const north = project({ x: 0, y: SPHERE_RADIUS * 0.985, z: 0 }, width, height);
+      line(south, north, "#d3b46c", 0.22 * state.formation, 0.85, [4, 7]);
     }
 
     function drawRoute(now, center) {
@@ -2106,10 +2207,15 @@
       const freshness = snapshotFreshness(observation, wallNow);
       const incomplete = pathDash(observation);
       if (pathsToggle.checked) {
+        const helixView = tickerMode && state.seriesMode === "dual";
         context2d.save();
         context2d.strokeStyle = sourceColor;
-        context2d.globalAlpha = observation.market ? clamp(0.12 + freshness * 0.48, 0.12, 0.6) : 0.24;
-        context2d.lineWidth = observation.market ? 0.8 + (directive.object?.aperture || 0) * 1.1 : 0.8;
+        context2d.globalAlpha = observation.market
+          ? clamp((helixView ? 0.07 : 0.12) + freshness * (helixView ? 0.2 : 0.48), helixView ? 0.06 : 0.12, helixView ? 0.28 : 0.6)
+          : (helixView ? 0.12 : 0.24);
+        context2d.lineWidth = observation.market
+          ? (helixView ? 0.55 : 0.8) + (directive.object?.aperture || 0) * (helixView ? 0.65 : 1.1)
+          : (helixView ? 0.6 : 0.8);
         context2d.setLineDash(incomplete);
         context2d.beginPath(); context2d.moveTo(center.x, center.y); context2d.lineTo(point.x, point.y); context2d.stroke();
         context2d.restore();
@@ -2179,14 +2285,57 @@
     }
 
     /* ── Double-helix engine ───────────────────────────────────────────
-       Two reviewed ticker sets wind strand against strand around the shared
-       axis. Height is each orb's supplied Fibonacci-band position (lower band
-       at the bottom, upper band at the top, basis at the equator); the winding
-       order re-ranks by that position, so the strands rearrange themselves as
-       performance changes. Everything is eased, and every value comes from the
-       supplied packet — held orbs rest at the basis ring, labeled held. */
-    const HELIX_LAT_MAX = 1.0;
-    const HELIX_BASE_LON = -Math.PI / 2;
+       Both strands follow one spherical scaffold. Each ticker's own supplied
+       Fibonacci-band position maps to latitude across almost the full pole-to-
+       pole range; the same value sets its 2.5-turn winding phase. Ranking is
+       still exposed for comparison, but it no longer limits vertical movement.
+       Missing band values remain held at the basis. */
+    function bandLatitude(position) {
+      const p = clamp(Number(position), 0, 1);
+      /* Linearize vertical displacement across the complete spherical shell:
+         p=0, .5, 1 become south, equator, north, while longitude still coils. */
+      return Math.asin((2 * p - 1) * Math.sin(HELIX_LAT_MAX));
+    }
+
+    function helixLongitude(position, series) {
+      return HELIX_BASE_LON + clamp(Number(position), 0, 1) * TAU * HELIX_TURNS + (series === "B" ? Math.PI : 0);
+    }
+
+    function helixPoint(position, series, radius = SPHERE_RADIUS) {
+      return spherePoint(bandLatitude(position), helixLongitude(position, series), radius);
+    }
+
+    function drawHelixScaffold(width, height, outerMod) {
+      const breath = outerMod && outerMod.active ? 0.86 + clamp(outerMod.energy, 0, 1) * 0.24 : 0.92;
+      const strands = [
+        { series: "A", color: "#6fd3ff" },
+        { series: "B", color: "#ffc857" }
+      ];
+      strands.forEach(({ series, color }) => {
+        const points = [];
+        for (let step = 0; step <= 180; step += 1) {
+          const p = 0.006 + (step / 180) * 0.988;
+          points.push(project(helixPoint(p, series), width, height));
+        }
+        strokeDepthPath(points, color, 0.075 * breath, 0.24 * breath, 5.2);
+        strokeDepthPath(points, color, 0.22 * breath, 0.78 * breath, 1.45);
+      });
+
+      /* Delicate equal-band crossbars make the two continuous guides read as a
+         ladder around a globe. The brighter, data-derived ticker pairings are
+         drawn separately by drawHelixRungs(). */
+      for (let rung = 1; rung <= 9; rung += 1) {
+        const p = rung / 10;
+        const latitude = bandLatitude(p);
+        const start = helixLongitude(p, "A");
+        const points = [];
+        for (let step = 0; step <= 24; step += 1) {
+          const longitude = start + (step / 24) * Math.PI;
+          points.push(project(spherePoint(latitude, longitude, SPHERE_RADIUS * 0.992), width, height));
+        }
+        strokeDepthPath(points, "#8aa4c8", 0.035, 0.13, 0.7, [2, 4]);
+      }
+    }
 
     function circle3D(radius, latitude, rotation, color, alpha, width, canvasW, canvasH) {
       const cosLat = Math.cos(latitude), sinLat = Math.sin(latitude);
@@ -2249,8 +2398,9 @@
           const metrics = entry.metrics;
           if (metrics.held) held += 1;
           const p = metrics.held ? 0.5 : metrics.p;
-          const targetLat = (2 * p - 1) * HELIX_LAT_MAX;
-          const targetLon = HELIX_BASE_LON + (strand.length > 1 ? rank / (strand.length - 1) : 0.5) * TAU + (series === "B" ? Math.PI : 0);
+          const bandP = clamp(p, 0, 1);
+          const targetLat = bandLatitude(bandP);
+          const targetLon = helixLongitude(bandP, series);
           const previous = state.helix.glide.get(node.id) || { lat: targetLat, lon: targetLon };
           const latitude = previous.lat + (targetLat - previous.lat) * glide;
           const longitude = previous.lon + (targetLon - previous.lon) * glide;
@@ -2293,16 +2443,16 @@
       context2d.save();
       context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
       levels.forEach(level => {
-        const latitude = (2 * level.p - 1) * HELIX_LAT_MAX;
+        const latitude = bandLatitude(level.p);
         ring(latitude, width, height, level.color, level.alpha);
-        const anchor = project({ x: 0, y: 2.06 * Math.sin(latitude), z: 0 }, width, height);
-        context2d.globalAlpha = 0.85;
+        const anchor = project({ x: 0, y: SPHERE_RADIUS * Math.sin(latitude), z: 0 }, width, height);
+        context2d.globalAlpha = 0.82 * state.formation;
         context2d.fillStyle = level.color;
         context2d.textAlign = "right";
         context2d.fillText(level.label, width - 10, anchor.y - 3);
       });
-      const caption = project({ x: 0, y: 2.06 * Math.sin(HELIX_LAT_MAX), z: 0 }, width, height);
-      context2d.globalAlpha = 0.6;
+      const caption = project({ x: 0, y: SPHERE_RADIUS * Math.sin(HELIX_LAT_MAX), z: 0 }, width, height);
+      context2d.globalAlpha = 0.6 * state.formation;
       context2d.fillStyle = "#8fa7c4";
       context2d.fillText("FIBONACCI BANDS", width - 10, caption.y - 14);
       context2d.restore();
@@ -2365,7 +2515,7 @@
       /* The requested core size is in screen pixels; the reference triangle
          lives in model units. Convert through the center's projected scale so
          the quad occupies the same on-screen footprint the billboard would. */
-      const unitPixels = Math.max(1, (center.scale || 1) * Math.min(width, height) * 0.315);
+      const unitPixels = Math.max(1, (center.scale || 1) * Math.min(width, height) * MODEL_VIEW_SCALE);
       const half = (size / 2) / unitPixels;
       const t = state.coreTime;
       /* Reference-triangle rotation: in-plane spin, a tilt that never sits the
@@ -2439,13 +2589,13 @@
             if (sample.img0 && alpha0 > 0.01) {
               filmApi.drawWrapped(context2d, {
                 img: sample.img0, project: rotate3, toScreen: point => toScreen(point, width, height),
-                cs: center, R: 2.06, fov: 6.4 / state.zoom, alpha: alpha0, dpr
+                cs: center, R: SPHERE_RADIUS, fov: CAMERA_DISTANCE / state.zoom, alpha: alpha0, dpr
               });
             }
             if (sample.img1 && alpha1 > 0.01 && frac > 0.002) {
               filmApi.drawWrapped(context2d, {
                 img: sample.img1, project: rotate3, toScreen: point => toScreen(point, width, height),
-                cs: center, R: 2.06, fov: 6.4 / state.zoom, alpha: alpha1, dpr
+                cs: center, R: SPHERE_RADIUS, fov: CAMERA_DISTANCE / state.zoom, alpha: alpha1, dpr
               });
             }
           }
@@ -2544,19 +2694,19 @@
          the same living geometry. */
       const helix = tickerMode && state.seriesMode === "dual" ? updateHelixBerths(now) : null;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
+      drawSphericalShell(width, height, center);
       /* The Orb's fractal frame processing — film surface under the model,
          dual flame system (Demo.flame core + OuterOrb.flame shells) at Center
          Origin; both degrade to wire when unavailable. */
       let fractal = { coreLive: false, fMod: null, outerMod: null };
       if (state.showFractal) fractal = drawFractalFrames(now, frameDelta, center, width, height, dpr);
       else if (fractalStatus && fractalStatus.textContent !== "FRACTAL FRAMES · HIDDEN") fractalStatus.textContent = "FRACTAL FRAMES · HIDDEN";
-      if (helix) drawFibRings(width, height);
-      else [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
-      for (let index = 0; index < 8; index += 1) {
-        const longitude = (index / 8) * TAU;
-        const a = project({ x: 2.06 * Math.cos(longitude), y: 0, z: 2.06 * Math.sin(longitude) }, width, height);
-        const b = project({ x: -2.06 * Math.cos(longitude), y: 0, z: -2.06 * Math.sin(longitude) }, width, height);
-        line(a, b, "#49627e", 0.09 + state.formation * 0.08, 0.7);
+      drawSphereGrid(width, height);
+      if (helix) {
+        drawFibRings(width, height);
+        drawHelixScaffold(width, height, fractal.outerMod);
+      } else {
+        ring(0, width, height, "#6fd3ff", 0.25);
       }
       state.projected = nodes.map(node => {
         const observation = latestForNode(node);
@@ -3045,7 +3195,10 @@
           positions: helixState.ranked ? ["A", "B"].flatMap(series =>
             helixState.ranked[series].map((node, rank) => {
               const berth = helixBerths.get(node.id);
-              return berth ? { symbol: node.symbol, series, rank, p: berth.p, held: berth.held } : null;
+              return berth ? {
+                symbol: node.symbol, series, rank, p: berth.p, held: berth.held,
+                latitude: berth.latitude, longitude: berth.longitude
+              } : null;
             }).filter(Boolean)) : []
         };
       },
