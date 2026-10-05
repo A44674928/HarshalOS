@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > **User-supplied source, transcribed below.** This is the Pine v6 code you provided in this
-> conversation, not a reconstruction. No TradingView URL or publication date was supplied.
+> conversation, not a reconstruction. No source URL or publication date was supplied.
 > The source title/comment attributes it to Harshal. No standalone `.pine` file is stored; the
 > complete source is kept in this Markdown code block.
 
@@ -41,7 +41,7 @@ option.
 | `vfiSmooth` | bool | `false` | — | `vfiSmooth` |
 | `vfiSmoothType` | string | `"SMA"` | SMA, EMA, WMA | `vfiSmoothType` |
 | `bandLen` | int | `200` | min 1, max 2000 | `bandLen` |
-| `bandSrc` | source | `"hlc3"` | TradingView source selector | `bandSrc` |
+| `bandSrc` | source | `"hlc3"` | source selector | `bandSrc` |
 | `bandMult` | float | `3` | min 0.001, max 50.0, step 0.1 | `bandMult` |
 | `bandMa` | string | `"VWMA"` | VWMA, SMA, EMA, WMA, RMA | `bandMa` |
 | `showBands` | bool | `true` | — | — |
@@ -56,12 +56,12 @@ option.
   `normalizeParameters()` clamps them to 10 and 100 respectively; values above those port
   limits therefore do not have the same accepted range.
 - The four display switches are Pine-only. The JS evaluator returns analysis data; the
-  TradingView-specific fills, plot visibility, and marker styling are not part of its
+  source-specific fills, plot visibility, and marker styling are not part of its
   parameter contract.
 - This script raises a Pine `runtime.error` when cumulative volume is not positive. The JS
-  adapter has its own OHLCV validation and does not reproduce TradingView's runtime-error UI.
+  adapter has its own OHLCV validation and does not reproduce source runtime-error UI.
 - Similar formulas are not proof of parity. Moving-average/stdev warm-up, provider candle
-  conventions, and real-time bar behavior still need comparison against TradingView.
+  conventions, and real-time bar behavior still need comparison against the source runtime.
 
 ## Calculation and events
 

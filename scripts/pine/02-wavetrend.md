@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > **User-supplied source, transcribed below.** This is the Pine v6 code you provided in this
-> conversation, not a reconstruction. No TradingView URL, publication date, or author metadata
+> conversation, not a reconstruction. No source URL, publication date, or author metadata
 > beyond the script title was supplied. No standalone `.pine` file is stored; the complete
 > source is kept in this Markdown code block.
 
@@ -25,12 +25,12 @@ input; the JS market-context port separately has a `confirmClose` parameter.
 
 | Pine input | Type | Pine default | Constraints declared by Pine | JS field |
 | :--- | :--- | :--- | :--- | :--- |
-| `src` | source | `"hlc3"` | TradingView source selector | `wtSrc` |
+| `src` | source | `"hlc3"` | source selector | `wtSrc` |
 | `channelLength` | int | `10` | min 1; no max declared | `channelLength` |
 | `averageLength` | int | `21` | min 1; no max declared | `averageLength` |
 | `signalLength` | int | `4` | min 1; no max declared | `signalLength` |
 | `useCustomTF` | bool | `false` | — | `useCustomTF` |
-| `customTF` | timeframe | `"60"` | TradingView timeframe string | `customTF` |
+| `customTF` | timeframe | `"60"` | source timeframe string | `customTF` |
 | `extremeOB` | float | `70.0` | — | `extremeOB` |
 | `obLevel1` | float | `60.0` | — | `obLevel1` |
 | `obLevel2` | float | `53.0` | — | `obLevel2` |
@@ -66,7 +66,7 @@ When `useCustomTF` is enabled, each line is requested with `request.security()` 
 `barmerge.gaps_off`. The requested expression is indexed by
 `barstate.isrealtime ? 1 : 0`: real-time bars request the previous value, while historical
 bars request the current value. This exact source behavior is not the same contract as the JS
-port's mapping of supplied, confirmed higher-timeframe candles; it needs TradingView parity
+port's mapping of supplied, confirmed higher-timeframe candles; it needs source-runtime parity
 testing before the two can be treated as interchangeable.
 
 ### Crosses and extreme events
@@ -122,7 +122,7 @@ No `confirmClose` input or explicit `barstate.isconfirmed` alert gate appears in
   JS clamps them to −500…500; the JS source selector is limited to its six supported values,
   and its `customTF` text is capped at 12 characters.
 - Identical formulas do not establish identical EMA/SMA seeding, pivot ties, gaps, or
-  historical/realtime behavior. TradingView bar-for-bar parity has not been established.
+  historical/realtime behavior. source-runtime bar-for-bar parity has not been established.
 
 ## Source (verbatim transcription)
 

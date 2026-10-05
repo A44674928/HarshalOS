@@ -1,6 +1,6 @@
 /* Guards the Markdown archive of the user-supplied Pine scripts and its crosswalk
    to the shipped JavaScript market-context port. These tests check documentation
-   consistency; they do not compile Pine or prove TradingView parity. */
+   consistency; they do not compile Pine or prove source-runtime parity. */
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -183,7 +183,7 @@ test("pine scripts: merged VFI/FBB plus WaveTrend crosswalk covers the port exac
 test("pine scripts: README inventories all four source copies and does not call them reconstructions", () => {
   assert.match(readme, /user-supplied source transcriptions/i);
   assert.match(readme, /no separate raw `\.pine` files/i);
-  assert.match(readme, /cross-validated bar-for-bar against TradingView/i);
+  assert.match(readme, /cross-validated bar-for-bar against the source runtime/i);
   for (const document of DOCUMENTS) {
     assert.match(readme, new RegExp(document.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
       `README inventory must link ${document.file}`);

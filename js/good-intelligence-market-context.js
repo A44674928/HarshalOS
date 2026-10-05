@@ -1,6 +1,6 @@
 /* Good Intelligence — optional price/volume context. The formulas overlap user-supplied
    Pine v6 VFI + Fibonacci Bands and LAZY WaveTrend sources; see scripts/pine/ for the
-   archived source blocks. TradingView parity is not established. This is not assurance,
+   archived source blocks. Source parity is not established. This is not assurance,
    a truth test, or an execution signal. */
 "use strict";
 
@@ -512,7 +512,7 @@ window.GoodIntelligenceMarketContext = (() => {
       alerts,
       note: !volumeAvailable
         ? "Price-only analysis from the supplied close or OHLC observations. VFI, relative volume, and other volume-based measures are disabled because this series has no volume; no OHLC or volume fields were fabricated. Display-only context, not investment advice or permission to act."
-        : "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact TradingView parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
+        : "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact source parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
     };
   }
 

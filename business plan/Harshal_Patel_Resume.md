@@ -6,7 +6,7 @@ Systems Safety & AI Governance Researcher | Chandler, Arizona
 
 ## Summary
 
-Independent systems researcher and software developer focused on AI governance, systems safety, and security. Creator of HarshalOS and the Accountability-Gated Systems (AGS++) framework, which aim to keep humans accountable for autonomous system behavior by making actions constrained, auditable, and traceable. Also experienced in technical financial analysis (TradingView Pine Script) and in running small-scale import/export and wholesale operations.
+Independent systems researcher and software developer focused on AI governance, systems safety, and security. Creator of HarshalOS and the Accountability-Gated Systems (AGS++) framework, which aim to keep humans accountable for autonomous system behavior by making actions constrained, auditable, and traceable. Also experienced in technical financial analysis (Pine Script) and in running small-scale import/export and wholesale operations.
 
 ## Research & Technical Projects
 
@@ -44,7 +44,7 @@ Independent systems researcher and software developer focused on AI governance, 
 ### Independent Financial Analyst
 *Self-employed*
 
-- Develop and use TradingView Pine Script for indicator-based market analysis and risk assessment.
+- Develop and use Pine Script for indicator-based market analysis and risk assessment.
 - Work with Fibonacci Bollinger Bands, Volume Flow Indicator (VFI), and Wave Trend with Crosses.
 
 ### Independent Wholesale Distributor & Import/Export Operator
@@ -69,5 +69,5 @@ Independent systems researcher and software developer focused on AI governance, 
 - **AI Governance & Safety:** Accountability architecture, bounded autonomy, human oversight, refusal logic, state transitions, failure handling, reversibility
 - **Software:** JavaScript, browser-based systems, software architecture
 - **Security:** Threat modeling, security research, authorization, provenance, audit logging
-- **Financial Analysis:** TradingView, Pine Script, technical indicators, risk modeling
+- **Financial Analysis:** Pine Script, technical indicators, risk modeling
 - **Operations:** Import/export, procurement, logistics, wholesale and direct sales

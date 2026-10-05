@@ -570,11 +570,14 @@ test("Orb 2 explains and records an Alpha Vantage D1-ledger refusal without subs
 });
 
 test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and keeps the authority boundary", () => {
-  const tvTab = appSource.indexOf('data-gi-view="tradingview"');
+  const marketTab = appSource.indexOf('data-gi-view="markets"');
   const orbTab = appSource.indexOf('data-gi-view="orb2"');
-  assert.ok(tvTab !== -1 && orbTab > tvTab, "Orb 2 follows the chart tabs");
+  assert.ok(marketTab !== -1 && orbTab > marketTab, "Orb 2 follows Market Charts");
+  assert.doesNotMatch(appSource, new RegExp(["Trading", "View"].join(""), "i"), "the removed chart integration leaves no app surface");
+  const removedChartSurface = new RegExp([["lightweight", "-charts"].join(""), ["data-gi-", "tv"].join("")].join("|"), "i");
+  assert.doesNotMatch(appSource, removedChartSurface, "the removed chart integration leaves no vendor or panel surface");
   assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the heavy canvas panel is hidden until selected");
-  assert.match(appSource, /\["news", "markets", "tradingview", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts Orb 2 and the NAB Discs sibling");
+  assert.match(appSource, /\["news", "markets", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts Orb 2 and the NAB Discs sibling");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
   assert.match(appSource, /sends no OCM message, no trade or order, and confers no authority/i);
 });
