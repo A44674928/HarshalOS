@@ -98,6 +98,13 @@
     massive: "#6fd3ff", tickerbot: "#5ce6a8", alpha: "#ffd479",
     rehearsal: "#ff9d6c", unknown: "#718096"
   });
+  /* Tritium green — the color of tritium radioluminescent signs. Reserved for
+     the beat-synced Center Point beams: a brief highlight that connects the
+     Center Point to the selected node and to the instruments confirmed by the
+     latest beat, then fades. It is never a constant flash and it carries no
+     data: a beam is a local visual trace, not an OCM message. */
+  const TRITIUM_COLOR = "#5df08c";
+  const TRITIUM_BEAT_WINDOW_MS = 1900;
   const DATA_COLORS = Object.freeze({
     unknown: "#718096",
     priceUp: "#35d0c1", priceDown: "#fb7185", priceFlat: "#cbd5e1",
@@ -628,7 +635,8 @@
       [DATA_COLORS.flowEqual, "equal · held"], [DATA_COLORS.unknown, "unavailable · held"]
     ].map(([color, label]) => swatch(color, label)).join("");
     const routeLegend = [
-      ["#6fd3ff", "inward"], ["#ffd479", "center resolve"], ["#5ce6a8", "outward"], ["#ffb45c", "lateral"]
+      ["#6fd3ff", "inward"], ["#ffd479", "center resolve"], ["#5ce6a8", "outward"], ["#ffb45c", "lateral"],
+      [TRITIUM_COLOR, "center beat beam"]
     ].map(([color, label]) => swatch(color, label)).join("");
     const dataLegend = [
       `<div><strong>PRICE Δ</strong>${swatch(DATA_COLORS.priceUp, "positive")}${swatch(DATA_COLORS.priceDown, "negative")}${swatch(DATA_COLORS.priceFlat, "flat")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`,
@@ -638,12 +646,12 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
         <summary><strong>COLOR KEY</strong><span>Characters mood · provider halo · VFI flow cue · five market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
           <section><h4>CORE ORB · CHARACTERS BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
-          <section><h4>HALO · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green marks inbound VFI flow around a free-floating orb; red marks outbound flow. The runner overlays—but does not recolor—the provider halo. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent.</p></section>
+          <section><h4>HALO · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green marks inbound VFI flow around a free-floating orb; red marks outbound flow. The runner overlays—but does not recolor—the provider halo. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent. The tritium-green beam is beat-synced: each fresh beat connects the Center Point to the selected node and to the instruments that beat confirmed, then fades — a subtle cross-ticker highlight through the Center Point, not a constant flash.</p></section>
           <section><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
           <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid halos mean a complete confirmed observation; dashed halos mark cached, synthetic, partial, or unconfirmed data; dotted halos mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
           <p class="gi-orb2-color-key-boundary">Price, volume, band, and WaveTrend colors are descriptive market context only. They do not establish claim assurance, indicate permission to act, or provide a trading instruction.</p>
@@ -814,11 +822,19 @@
             <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</div></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
-          <aside class="gi-orb2-inspector" aria-live="polite">
-            <p class="gi-eyebrow">NODE / MARKET INSPECTOR</p>
+          <aside class="gi-orb2-inspector" id="gi-orb2-inspector" aria-live="polite" data-gi-orb2-sheet-state="closed">
+            <div class="gi-orb2-sheet-bar">
+              <button class="gi-orb2-sheet-toggle" type="button" data-gi-orb2-sheet-toggle aria-expanded="false" aria-controls="gi-orb2-inspector-detail" aria-label="Expand the node inspector sheet">
+                <span class="gi-orb2-sheet-grip" aria-hidden="true"></span>
+                <span class="gi-orb2-sheet-title">NODE INSPECTOR</span>
+                <span class="gi-orb2-sheet-summary" data-gi-orb2-sheet-summary>—</span>
+                <span class="gi-orb2-sheet-caret" aria-hidden="true">▴</span>
+              </button>
+            </div>
+            <p class="gi-orb2-inspector-eyebrow gi-eyebrow">NODE / MARKET INSPECTOR</p>
             <label class="gi-orb2-node-select"><span data-gi-orb2-node-label>CHARACTER NODE</span><select data-gi-orb2-node data-gi-orb2-select aria-label="Choose a character node"></select></label>
             <button class="gi-button gi-orb2-feature-inline" type="button" data-gi-orb2-feature-inline>Feature focus</button>
-            <div data-gi-orb2-detail></div>
+            <div id="gi-orb2-inspector-detail" data-gi-orb2-detail></div>
             <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
           </aside>
         </div>
@@ -884,12 +900,28 @@
     const ignitionRestartButton = $("[data-gi-orb2-ignition-restart]");
     const gatePill = $("[data-gi-orb2-gate]");
     const utsPill = $("[data-gi-orb2-uts]");
+    const inspectorAside = $(".gi-orb2-inspector");
+    const sheetToggle = $("[data-gi-orb2-sheet-toggle]");
+    const sheetSummary = $("[data-gi-orb2-sheet-summary]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
     if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
     /* The Characters app reports whether an anonymous saved-beat archive exists
        for this browser; Restore stored beats reloads it on demand. */
     const beatStatusHandler = event => { if (restoreBeatsButton) restoreBeatsButton.hidden = !event.detail?.hasStored; };
     ownerDocument?.addEventListener("harshalos:characters-beats:status", beatStatusHandler);
+    /* Mobile: the inspector is a compact bottom sheet over the canvas so the
+       sphere keeps the stage. The toggle only changes presentation — the
+       inspector content, the node data, and the aria-live announcements are
+       identical in both states and on every screen size. */
+    function setInspectorSheet(open) {
+      if (!inspectorAside) return;
+      inspectorAside.dataset.giOrb2SheetState = open ? "open" : "closed";
+      if (sheetToggle) {
+        sheetToggle.setAttribute("aria-expanded", String(open));
+        sheetToggle.setAttribute("aria-label", open ? "Collapse the node inspector sheet" : "Expand the node inspector sheet");
+      }
+    }
+    sheetToggle?.addEventListener("click", () => setInspectorSheet(inspectorAside.dataset.giOrb2SheetState === "closed"));
     clearBeatsButton?.addEventListener("click", () => {
       state.route = null; state.lastRoutePhase = "";
       drawInspector(); scheduleRender();
@@ -1533,6 +1565,12 @@
         <p class="gi-orb2-node-caveat">${node.symbol ? "Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity." : "This character label is from the reviewed local cast. It is not a registered OCM address or identity claim."}</p>`;
       nodeSelect.value = node.id;
       routeNote.textContent = friendlyRoute(state.route);
+      /* The collapsed mobile sheet keeps the selected node's symbol visible on
+         its handle bar, so the sheet can stay out of the scene's way. */
+      if (sheetSummary) {
+        const summary = node.symbol || node.name || "—";
+        if (sheetSummary.textContent !== summary) sheetSummary.textContent = summary;
+      }
     }
 
     function drawHistory() {
@@ -2224,7 +2262,10 @@
     function toScreen(point, width, height) {
       const fov = 6.4 / state.zoom;
       const scale = fov / (fov + point.z);
-      const radius = Math.min(width, height) * 0.315;
+      /* Portrait canvases (the mobile stage) give the sphere a larger share
+         of the narrower dimension so the orb stays the focus. */
+      const portrait = height > width ? 0.36 : 0.315;
+      const radius = Math.min(width, height) * portrait;
       return { x: width / 2 + point.x * scale * radius, y: height / 2 - point.y * scale * radius, z: point.z, scale };
     }
 
@@ -2563,6 +2604,53 @@
       }
     }
 
+    /* ── Center Point beat beams ───────────────────────────────────────
+       The cross-ticker story of Orb 2, drawn in tritium green: every fresh
+       beat briefly connects the Center Point to the selected node and to
+       each instrument that beat confirmed, then fades. Between beats only a
+       faint baseline trace to the selected node remains — the beam is a
+       beat-synced highlight, never a constant flash. It obeys the Data
+       pathways toggle and carries no data: a beam is a local visual trace,
+       not an OCM message, and it never authorizes anything. */
+    function drawCenterBeams(wallNow, center) {
+      if (!context2d || !pathsToggle.checked || !state.projected.length) return;
+      const beat = state.beatAnimation;
+      const beatAge = beat ? wallNow - beat.at : Infinity;
+      const envelope = beatAge >= 0 && beatAge < TRITIUM_BEAT_WINDOW_MS
+        ? ease(1 - beatAge / TRITIUM_BEAT_WINDOW_MS) : 0;
+      const beatSymbols = new Set();
+      if (beat && envelope > 0) beat.instruments.forEach(symbol => beatSymbols.add(symbol));
+      state.projected.forEach(point => {
+        const node = point.node;
+        const chosen = node.order === state.selected;
+        const inBeat = beatSymbols.has(node.symbol || node.name);
+        if (!chosen && !inBeat) return;
+        /* Selected node: always a faint baseline, brightening with the beat.
+           Beat-confirmed tickers: visible only while the beat is fresh. */
+        const strength = chosen ? 0.11 + envelope * 0.34 : envelope * 0.15;
+        if (strength <= 0.02) return;
+        line(center, point, TRITIUM_COLOR, clamp(strength, 0, 0.5), chosen ? 1.3 : 0.8);
+      });
+      /* One quiet pulse rides the selected beam outward from the Center
+         Point while a beat is fresh; reduced motion keeps the static beam
+         without the traveler. */
+      if (envelope > 0 && !reduceMotion) {
+        const selectedPoint = state.projected.find(point => point.node.order === state.selected);
+        if (selectedPoint) {
+          const travel = 1 - envelope;
+          const x = center.x + (selectedPoint.x - center.x) * travel;
+          const y = center.y + (selectedPoint.y - center.y) * travel;
+          context2d.save();
+          context2d.fillStyle = "#d9ffe6";
+          context2d.globalAlpha = clamp(0.22 + envelope * 0.48, 0, 0.7);
+          context2d.shadowBlur = 9;
+          context2d.shadowColor = TRITIUM_COLOR;
+          context2d.beginPath(); context2d.arc(x, y, 2.4, 0, TAU); context2d.fill();
+          context2d.restore();
+        }
+      }
+    }
+
   function drawCanvas(now) {
       if (!context2d || state.destroyed || !state.visible) return;
       const wallNow = Date.now();
@@ -2599,6 +2687,7 @@
       });
       updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
+      drawCenterBeams(wallNow, center);
       drawRoute(now, center);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
@@ -2616,7 +2705,9 @@
         context2d.save();
         context2d.globalAlpha = observation && observation.market ? clamp(0.42 + fresh * 0.5, 0.42, 0.96) : clamp(0.32 + (1 - point.z / 5) * 0.34, 0.3, 1);
         context2d.fillStyle = color;
-        context2d.shadowBlur = chosen || hovered || (directive && !directive.frozen) ? 22 : 9;
+        /* Glow is reserved for selection and hover; a field of constantly
+           blazing orbs drowns the beat-synced Center Point beams. */
+        context2d.shadowBlur = chosen || hovered ? 18 : 8;
         context2d.shadowColor = color;
         context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
         if (chosen || hovered) {
@@ -2967,7 +3058,7 @@
   }
 
   window.GoodIntelligenceOrb2 = Object.freeze({
-    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
+    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR, PROVIDER_COOLDOWN_MS,
     MASSIVE_REQUESTS_PER_MINUTE, MASSIVE_BEAT_MS,
     PHASE_SHIFT_RADIANS,
     fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
