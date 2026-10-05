@@ -184,7 +184,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   );
   const omittedCadencePayload = await omittedCadence.json();
   assert.equal(omittedCadence.status, 200);
-  assert.equal(omittedCadencePayload.data.cadenceMinutes, 1, "the fixed Massive loop normalizes an omitted cadence to one minute");
+  assert.equal(omittedCadencePayload.data.cadenceMinutes, 1, "the fixed Massive loop keeps cadence=1 as the daily-bar contract");
   assert.equal(omittedCadencePayload.data.instruments.length, 1);
 
   const afterMidnight = await handleCharactersBeat(
@@ -206,11 +206,11 @@ test("the beat route isolates provider policies and caches successful Massive da
   const badMassiveCadence = await handleCharactersBeat(
     beat("disc=stocks&provider=massive&symbols=MSFT&interval=1d&cadence=15"), env(db), dependencies
   );
-  assert.equal(badMassiveCadence.status, 400, "Massive's automatic loop is exactly one minute");
+  assert.equal(badMassiveCadence.status, 400, "Massive's daily-bar cadence contract is exactly cadence=1");
   const badMassiveBatch = await handleCharactersBeat(
     beat("disc=stocks&provider=massive&symbols=MSFT,NVDA&interval=1d&cadence=1"), env(db), dependencies
   );
-  assert.equal(badMassiveBatch.status, 400, "a crafted URL cannot widen the one-instrument Massive beat");
+  assert.equal(badMassiveBatch.status, 400, "a crafted URL cannot widen the one-instrument-per-request Massive beat");
   const badTickerbotDisc = await handleCharactersBeat(
     beat("disc=fx&provider=tickerbot&symbols=EURUSD&interval=1d&cadence=15"), env(db), dependencies
   );

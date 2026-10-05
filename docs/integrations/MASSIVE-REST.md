@@ -13,7 +13,7 @@ Characters desktop
   GET /api/characters/v1/beat (reviewed Disc + provider plan)
         ↓ same-origin Worker
 worker/characters-massive.mjs
-  fixed reviewed instrument + 1d-only shape + D1 / minute guards
+  fixed reviewed instrument + 1d-only shape + five-per-minute / D1 guards
         ↓ Authorization: Bearer header only
 https://api.massive.com
 ```
@@ -29,7 +29,7 @@ The browser never receives `MASSIVE_API_KEY`. The key is read only from the Work
 
 The active Characters rule set is documented in [`CHARACTERS-MARKET-BEAT.md`](../architecture/CHARACTERS-MARKET-BEAT.md):
 
-- Massive is the reviewed automatic `1d` provider across the five Discs, with **one reviewed instrument per minute** and a separate per-UTC-day D1 allowance.
+- Massive is the reviewed automatic `1d` provider across the five Discs, with **up to five one-symbol requests per minute** through the shared envelope and a separate per-UTC-day D1 allowance. The route keeps `cadence=1` as the daily-bar contract; it is not a one-minute-only cooldown.
 - Tickerbot is manual/on-demand Disc1 stock observation for `1h` or `1d`; it does not silently substitute for a missing Massive packet.
 - Alpha Vantage is the Disc1 `1mo` spotlight: exactly one best-performing reviewed ticker per hour. It is independent of Massive.
 - Missing, unavailable, rate-limited, malformed, or empty provider responses stay visibly unavailable. No provider is silently replaced and no price, recommendation, or authorization is inferred.

@@ -132,8 +132,8 @@ const massiveBeatPayload = (symbols, disc = "stocks") => ({
   }
 });
 
-/* The app holds a cadence-length timer for auto-beat, so happy-dom's waitUntilComplete
-   would wait out an entire (simulated) hour. The tests drive the beat explicitly instead:
+/* The app keeps a live auto-beat timer (Massive is paced at 12 seconds per request);
+   happy-dom's waitUntilComplete would retain that timer. The tests drive the beat explicitly instead:
    flush the stub fetch's microtasks, then assert on the rendered result. */
 const flush = async () => { for (let turn = 0; turn < 40; turn++) await Promise.resolve(); };
 
@@ -467,8 +467,9 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
       audit: index === 0 ? ["stablecoin-candidate"] : []
     };
   });
-  /* The automatic non-stock path is a one-symbol-per-minute Massive 1d loop.
-   * The test fixture returns real-shaped daily bars so the stage can render it,
+  /* The automatic non-stock path is a one-symbol-per-request Massive 1d loop
+   * paced by the shared five-request-per-minute envelope. The test fixture
+   * returns real-shaped daily bars so the stage can render it,
    * rather than masking a wrong provider route with an unavailable response. */
   const { window, container } = await boot(t, {
     handler: async url => {
@@ -499,7 +500,7 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
   assert.equal(requestedBeats.at(-1).searchParams.get("disc"), "fx");
   assert.equal(requestedBeats.at(-1).searchParams.get("provider"), "massive");
   assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1d", "automatic FX uses Massive daily bars");
-  assert.equal(requestedBeats.at(-1).searchParams.get("cadence"), "1", "the Massive loop advances one Disc per minute");
+  assert.equal(requestedBeats.at(-1).searchParams.get("cadence"), "1", "the Massive route keeps cadence=1 for the daily-bar contract");
   assert.equal(requestedBeats.at(-1).searchParams.get("symbols").split(",").length, 1, "one reviewed instrument is due per automatic beat");
   assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 23,
     "the published BIS detailed tables support 23 individually listed non-USD codes, not a fabricated 52");
@@ -516,7 +517,7 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
   assert.equal(requestedBeats.at(-1).searchParams.get("provider"), "massive");
   assert.equal(requestedBeats.at(-1).searchParams.get("interval"), "1d", "automatic crypto uses Massive daily bars");
   const cryptoSymbolsRequested = requestedBeats.at(-1).searchParams.get("symbols").split(",").length;
-  assert.equal(cryptoSymbolsRequested, 1, "the automatic Massive loop makes exactly one request per Disc-minute");
+  assert.equal(cryptoSymbolsRequested, 1, "the automatic Massive loop makes exactly one request per automatic beat");
   assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 52);
   assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /C00\/USD · Coin 00/);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /Ranking audit flags: stablecoin candidate/);

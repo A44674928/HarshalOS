@@ -223,6 +223,31 @@ test("Orb 2 renders reviewed ticker labels as distinct hourly and daily orb mode
   assert.equal(new Set(hourly.map(node => node.id)).size, hourly.length);
 });
 
+test("Orb 2 places observed orbs from market metrics and keeps held packets explicit", () => {
+  const { orb } = harness();
+  const rising = {
+    latestBar: { time: NOW, close: 105, confirmed: true },
+    changePct: 2.5, basis: 100, bands: { lower1000: 90, upper1000: 110 },
+    vfi: { value: 18, signal: 4, available: true }, waveTrend: { wt1: 26, wt2: 8 }
+  };
+  const falling = {
+    ...rising, latestBar: { ...rising.latestBar, close: 95 }, changePct: -2.5,
+    vfi: { value: -12, signal: 4, available: true }, waveTrend: { wt1: -26, wt2: -8 }
+  };
+  const upPlacement = orb.marketDataPlacement(rising, "AAPL");
+  const downPlacement = orb.marketDataPlacement(falling, "AAPL");
+  assert.equal(upPlacement.available, true);
+  assert.equal(upPlacement.source, "market-data");
+  assert.notDeepEqual(
+    [upPlacement.longitude, upPlacement.latitude, upPlacement.radius],
+    [downPlacement.longitude, downPlacement.latitude, downPlacement.radius],
+    "market direction and pressure change the free-floating placement"
+  );
+  assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
+  assert.doesNotMatch(orbSource, /context2d\.moveTo\(center\.x, center\.y\)/,
+    "the normal activity renderer does not draw a static Center Origin tether");
+});
+
 test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbols", () => {
   const { orb } = harness();
   const nodes = orb.buildNodes([{ symbol: "AAPL", name: "Apple", sector: "Technology" }, { symbol: "bad ticker" }, null]);
@@ -461,32 +486,29 @@ test("Orb 2 keeps Massive automatic beats active across every reviewed Character
     assert.equal(request.searchParams.get("provider"), "massive");
     assert.equal(request.searchParams.get("interval"), "1d");
     assert.equal((request.searchParams.get("symbols") || "").split(",").length, 1,
-      "Massive keeps the reviewed one-instrument-per-minute rotation across all five Discs");
+      "Massive keeps the reviewed one-instrument-per-request rotation across all five Discs");
   }
   assert.equal(engine.state.discId, "indices");
 });
 
-test("Orb 2 enforces a 60-second no-request warm-up when the active provider changes", async t => {
+test("Orb 2 makes manual Tickerbot available immediately and keeps Massive pacing at five requests per minute", async t => {
   const { window, host, engine, calls } = interactiveHarness(t);
   await flush();
   const before = calls.filter(call => call.url.includes("/api/characters/v1/beat")).length;
+  assert.equal(window.GoodIntelligenceOrb2.MASSIVE_REQUESTS_PER_MINUTE, 5);
+  assert.equal(window.GoodIntelligenceOrb2.MASSIVE_BEAT_MS, 12_000);
   host.querySelector("[data-gi-orb2-auto]").click();
-  const changedAt = Date.now();
   assert.equal(engine.state.auto, false);
-  assert.ok(engine.state.cooldownUntil > changedAt && engine.state.cooldownUntil - changedAt <= 60_000,
-    "the warm-up deadline is no more than 60 seconds from the provider change");
-  assert.ok(host.textContent.includes("PROVIDER WARM-UP · 01:00"));
+  assert.equal(engine.state.cooldownUntil, 0, "manual Tickerbot does not inherit Massive's pacing hold");
+  assert.ok(host.textContent.includes("Manual Tickerbot is ready now"));
   const requested = await engine.beatNow("manual");
-  assert.equal(requested, false, "a manual click cannot bypass the warm-up");
-  assert.equal(calls.filter(call => call.url.includes("/api/characters/v1/beat")).length, before, "no second provider request is made before cooldown ends");
-  assert.match(host.textContent, /no request has been sent/i);
-  // Move only this harness's state clock; this avoids sleeping in the test.
-  engine.state.cooldownUntil = 0;
-  await engine.beatNow("manual");
+  assert.equal(requested, true, "manual Tickerbot can be requested immediately after pausing Massive");
   await flush();
   const tickerbot = calls.find(call => call.url.includes("/api/characters/v1/beat") && call.url.includes("provider=tickerbot"));
-  assert.ok(tickerbot, "after warm-up, the manual stock mode routes to Tickerbot");
-  assert.ok(new URL(tickerbot.url, "https://os.example").searchParams.get("interval") === "1d");
+  assert.ok(tickerbot, "the immediate manual stock mode routes to Tickerbot");
+  assert.equal(new URL(tickerbot.url, "https://os.example").searchParams.get("interval"), "1d");
+  assert.ok(calls.filter(call => call.url.includes("/api/characters/v1/beat")).length > before);
+  assert.match(host.textContent, /Tickerbot · ON DEMAND/);
 });
 
 test("Orb 2 keeps D1 ledger refusal explicit and does not substitute a provider", async t => {
@@ -504,7 +526,7 @@ test("Orb 2 keeps D1 ledger refusal explicit and does not substitute a provider"
   assert.equal(engine.state.routeSteps.model, "HELD · NO DATA");
   assert.match(host.textContent, /COMMUNITY_DB Worker binding/);
   assert.match(host.textContent, /migration 0007_massive_daily_call_ledger.sql/);
-  assert.match(host.textContent, /Waiting 60 seconds will not repair a missing D1 table/);
+  assert.match(host.textContent, /Waiting will not repair a missing D1 table/);
   assert.equal(calls.filter(call => call.url.includes("/api/characters/v1/beat")).length, 1, "the Worker response is rendered without provider fallback or retry");
   assert.equal(persisted.length, 1, "even a visible no-call ledger refusal is saved as a server-side beat");
   assert.equal(persisted[0].calls, 0);

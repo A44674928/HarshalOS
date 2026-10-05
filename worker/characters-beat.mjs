@@ -38,8 +38,9 @@ import "../js/characters-disc-catalog.js";
 export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
 export const CHARACTERS_DEPLOY_ROUTE = "/api/characters/v1/deploy";
 export const MAX_BEAT_SYMBOLS = 12;
-/* Tickerbot's manual planner cadences. Massive's fixed one-minute cadence is
-   enforced separately below and intentionally does not widen this list. */
+/* Tickerbot's manual planner cadences. Massive's fixed cadence=1 denotes
+   the reviewed daily-bar contract; request pacing is a separate five-per-minute
+   envelope enforced by the shared Massive budget below. */
 export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
 export const MONTHLY_CACHE_HOLD_MS = 60 * 60_000;
 export const MASSIVE_DISCS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
@@ -266,13 +267,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const cadenceParam = url.searchParams.get("cadence");
   const requestedCadence = Number(cadenceParam);
   if (provider === "massive" && requestedSymbols.length !== 1) {
-    return failure("Massive automatic daily beats request exactly one reviewed instrument per one-minute beat.", 400);
+    return failure("Massive automatic daily beats request exactly one reviewed instrument per Worker request; cadence=1 identifies the daily-bar contract.", 400);
   }
   if (provider === "alpha" && requestedSymbols.length !== 1) {
     return failure("Alpha Vantage 1mo beats request exactly one locally selected Disc1 ticker per hourly beat.", 400);
   }
   if (provider === "massive" && cadenceParam !== null && requestedCadence !== 1) {
-    return failure("Massive automatic daily beats use exactly cadence=1 minute.", 400);
+    return failure("Massive automatic daily beats use exactly cadence=1 for the daily-bar contract; request pacing is enforced separately.", 400);
   }
   if (provider === "alpha" && cadenceParam !== null && requestedCadence !== 60) {
     return failure("Alpha Vantage 1mo beats use exactly cadence=60 minutes.", 400);

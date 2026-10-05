@@ -18,7 +18,11 @@
   const REHEARSAL_BEAT_MS = 5000; // synthetic rehearsal only — never a live cadence
   const ALPHA_VANTAGE_DAILY_REQUEST_CAP = 25;
   const MASSIVE_DAILY_REQUEST_CAP = 300;
-  const MASSIVE_BEAT_MS = 60_000; // one reviewed daily instrument per minute
+  const MASSIVE_REQUESTS_PER_MINUTE = 5;
+  const MASSIVE_BEAT_MS = Math.ceil(60_000 / MASSIVE_REQUESTS_PER_MINUTE);
+  /* The route's cadence=1 is the daily-bar contract, not a one-minute
+     provider cooldown. The browser paces one-symbol requests at the shared
+     five-per-minute envelope. */
   const ALPHA_MONTHLY_BEAT_MS = 60 * 60_000;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -416,6 +420,9 @@
       }
 
       function cadenceMinutesForBeat() {
+        /* The Worker keeps cadence=1 as the reviewed daily-bar contract. It
+           is deliberately separate from beatIntervalMs(), which follows the
+           five-request-per-minute Massive envelope. */
         if (massiveMode()) return 1;
         if (alphaMode()) return 60;
         return state.cadence;
@@ -426,6 +433,10 @@
         if (massiveMode()) return MASSIVE_BEAT_MS;
         if (alphaMode()) return ALPHA_MONTHLY_BEAT_MS;
         return state.cadence * 60_000;
+      }
+
+      function pacingMinutesForBeat() {
+        return beatIntervalMs() / 60_000;
       }
 
       /* ── Data ─────────────────────────────────────────────────────── */
@@ -705,7 +716,7 @@
         const disc = DiscCatalog.disc(state.discId);
         const perBeat = perBeatOf(plan);
         const sweepBeats = Math.ceil(stage.berths.length / Math.max(1, perBeat));
-        const sweepHours = (sweepBeats * cadenceMinutesForBeat()) / 60;
+        const sweepHours = (sweepBeats * pacingMinutesForBeat()) / 60;
         const cryptoRankNote = state.discId === "crypto" && state.ranking
           ? `Live ${state.ranking.provider || "CoinGecko"} ranking · ${state.ranking.metric || "trailing 24-hour total_volume, USD"}${state.ranking.rankedAt ? ` · snapshot ${stamp(state.ranking.rankedAt)}` : ""}${state.ranking.cached ? " · cached ranking" : ""}. Audit flags: ${state.ranking.audit ? `${state.ranking.audit.stablecoinCandidateCount || 0} stablecoin candidate(s), ${state.ranking.audit.missingMarketCapCount || 0} missing market cap(s), ${(state.ranking.audit.extremeNominalPriceCandidates || []).length} extreme nominal price flag(s)` : "eligibility audit unavailable"}. Constituents can include stablecoins and other eligible market-listed assets; this is a provisional volume ranking, not an investment-quality screen.`
           : (disc && disc.ranking) || "";
@@ -714,7 +725,7 @@
         $("[data-ch-source-badge]").textContent = state.source === "rehearsal"
           ? "Synthetic rehearsal · 0 provider calls · not real market data"
           : isMassive
-            ? "Massive · automatic 1d · one instrument/minute"
+            ? `Massive · automatic 1d · up to ${MASSIVE_REQUESTS_PER_MINUTE} requests/minute`
             : isAlpha
               ? "Alpha Vantage · 1mo · best-performer hourly · 25 req/UTC day"
               : "Tickerbot Live · on-demand Disc1 stock 1h/1d · monthly ledger";
@@ -733,7 +744,7 @@
           ${state.tierMode && tierOption ? `<div><dt>Hot lane</dt><dd>${tierOption.hotSize} berth${tierOption.hotSize === 1 ? "" : "s"} <span class="ch-dim">every beat</span></dd></div>` : ""}`;
         const massiveStats = `
           <div><dt>Bar interval</dt><dd>1d · Massive · ${esc((disc && disc.label) || state.discId)}</dd></div>
-          <div><dt>Automatic cadence</dt><dd>1 reviewed instrument / minute</dd></div>
+          <div><dt>Request pacing</dt><dd>Up to ${MASSIVE_REQUESTS_PER_MINUTE} requests / minute · one reviewed instrument / request</dd></div>
           <div><dt>Daily packet hold</dt><dd>Through the next UTC midnight</dd></div>
           <div><dt>Full Disc sweep</dt><dd>${sweepBeats} beats · about ${Beat.formatHours(sweepHours)}</dd></div>
           <div><dt>Massive UTC-day guard</dt><dd>${massiveDailyText}</dd></div>`;
@@ -791,7 +802,7 @@
               ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
               : `${state.cadence}-minute plan`;
         $("[data-ch-plan-note]").textContent = isMassive
-          ? `Massive is the automatic daily provider for ${(disc && disc.label) || state.discId}. One reviewed instrument is selected per minute; successful daily packets are held through UTC midnight. The shared per-minute envelope and ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()}-attempt D1 daily guard both fail closed. Tickerbot does not substitute for a missing Massive bar.`
+          ? `Massive is the automatic daily provider for ${(disc && disc.label) || state.discId}. Up to ${MASSIVE_REQUESTS_PER_MINUTE} one-symbol requests per minute are paced through the shared envelope; cadence=1 identifies the daily-bar contract, not a one-minute cooldown. Successful daily packets are held through UTC midnight. The shared per-minute envelope and ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()}-attempt D1 daily guard both fail closed. Tickerbot does not substitute for a missing Massive bar.`
           : isAlpha
             ? `Alpha Vantage covers 1mo data for Disc1 stocks only. Each hourly beat selects the single best-performing ticker (highest gain in local analyses), capped at ${ALPHA_VANTAGE_DAILY_REQUEST_CAP} requests per UTC day — 24 at hourly cadence. Tickerbot and Massive daily ledgers are not used. ${alphaVantageDailyText}.`
             : `${perBeat} Disc1 stock symbol${perBeat === 1 ? "" : "s"} per beat on-demand through Tickerbot at ${state.cadence} minutes projects ${(perBeat * plan.beatsPerMonth).toLocaleString()} Tickerbot calls/month (${Math.round((perBeat * plan.beatsPerMonth / state.budget) * 100)}% of the planning budget). ${plan.notes.join(" ")} Automatic 1d mode uses Massive instead; Alpha Vantage is not a daily fallback.`;
@@ -1341,7 +1352,7 @@
         state.message = nextInterval === "1mo"
           ? { kind: "note", text: "Explicit 1mo mode (Disc1 stocks only): Alpha Vantage monthly observations for the single best-performing ticker per hour. These bars never answer a 1h or 1d request." }
           : nextInterval === "1d" && state.auto
-            ? { kind: "note", text: "Automatic 1d mode selected: Massive refreshes one reviewed instrument per minute and holds successful daily packets through UTC midnight. No Tickerbot or Alpha Vantage substitution occurs." }
+            ? { kind: "note", text: `Automatic 1d mode selected: Massive paces up to ${MASSIVE_REQUESTS_PER_MINUTE} one-symbol requests per minute and holds successful daily packets through UTC midnight. No Tickerbot or Alpha Vantage substitution occurs.` }
             : { kind: "note", text: `On-demand Tickerbot ${nextInterval} mode selected for Disc1 stocks. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths.` };
         drawPanels();
         /* Selecting a manual Tickerbot interval never itself spends a call. */
@@ -1381,7 +1392,7 @@
         state.message = next === "rehearsal"
           ? { kind: "note", text: "Synthetic rehearsal selected: deterministic generated bars, 0 provider calls, clearly labeled. Switch to live provider data for real observations." }
           : massiveMode()
-            ? { kind: "note", text: "Live automatic 1d mode uses Massive for one reviewed instrument per minute. Successful daily packets cache through UTC midnight; no fallback provider is used." }
+            ? { kind: "note", text: `Live automatic 1d mode uses Massive at up to ${MASSIVE_REQUESTS_PER_MINUTE} one-symbol requests per minute. Successful daily packets cache through UTC midnight; no fallback provider is used.` }
             : alphaMode()
               ? { kind: "note", text: "Live 1mo mode uses Alpha Vantage monthly observations for the best-performing ticker per hour. The Worker caps Alpha Vantage at 25 requests per UTC day (24 scheduled at hourly cadence)." }
               : { kind: "note", text: "Live on-demand 1h/1d Disc1 mode uses Tickerbot. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths." };

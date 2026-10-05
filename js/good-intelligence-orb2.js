@@ -74,8 +74,13 @@
   };
   const TAU = Math.PI * 2;
   const CENTER_ADDRESS = "0•000•000•0000";
+  /* Provider switching and provider pacing are separate concerns. Manual
+     Tickerbot must not inherit Massive's hold; Massive's shared envelope is
+     five upstream requests per sliding minute, so its shortest client-side
+     request interval is twelve seconds. */
   const PROVIDER_COOLDOWN_MS = 60_000;
-  const MASSIVE_BEAT_MS = 60_000;
+  const MASSIVE_REQUESTS_PER_MINUTE = 5;
+  const MASSIVE_BEAT_MS = Math.ceil(60_000 / MASSIVE_REQUESTS_PER_MINUTE);
   const ALPHA_BEAT_MS = 60 * 60_000;
   const MAX_HISTORY = 120;
   const MAX_LOCAL_HISTORY = 24;
@@ -192,7 +197,7 @@
       reason,
       rate: moving ? rate : null,
       lane: moving ? lane : "stationary",
-      direction: moving ? lane === "inbound" ? "Center → node" : "node → Center" : "stationary"
+      direction: moving ? lane === "inbound" ? "free orbit · inbound" : "free orbit · outbound" : "stationary"
     };
   }
 
@@ -225,6 +230,60 @@
     const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
     const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
     return { held: false, p, volatility, volatilityPct, potential, breakSide };
+  }
+
+  /* Market data is the only source of a live orb's placement. The symbol hash
+     is used only as a deterministic tie-breaker when two packets contain the
+     same values; it never supplies a price, rank, sector, or motion value.
+     Missing packets receive an explicitly held placeholder so the view does not
+     invent a market location. */
+  function marketDataPlacement(market, identity = "") {
+    const tiePhase = stableIdentityPhase(identity);
+    const held = {
+      available: false, source: "held", longitude: tiePhase, latitude: 0, radius: 2.12,
+      phase: tiePhase, speed: 0.025, amplitude: 0.018, pressure: 0
+    };
+    if (!isRecord(market)) return held;
+
+    const changePct = numeric(market.changePct);
+    const vfi = isRecord(market.vfi) ? numeric(market.vfi.value) : null;
+    const vfiSignal = isRecord(market.vfi) ? numeric(market.vfi.signal) : null;
+    const waveOne = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt1) : null;
+    const waveTwo = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt2) : null;
+    const band = fibonacciBandMetrics(market);
+    const close = numeric(market.latestBar && market.latestBar.close);
+    const priceAxis = changePct === null ? 0 : clamp(Math.tanh(changePct / 4), -1, 1);
+    const flowAxis = vfi !== null && vfiSignal !== null ? clamp(Math.tanh((vfi - vfiSignal) / 18), -1, 1) : 0;
+    const waveAxis = waveOne !== null && waveTwo !== null ? clamp(Math.tanh((waveOne - waveTwo) / 45), -1, 1) : 0;
+    const bandAxis = band.held ? priceAxis : clamp((band.p - 0.5) * 2, -1, 1);
+    const volatility = band.volatility === null ? 0 : clamp(band.volatility, 0, 1);
+    const observed = close !== null || changePct !== null || vfi !== null || waveOne !== null || !band.held;
+    if (!observed) return held;
+
+    /* Price change, VFI pressure, WaveTrend separation, and band displacement
+       establish longitude/latitude. Volatility and pressure establish distance
+       from the origin. No sector/index slot is used for an observed packet. */
+    const longitude = tiePhase * 0.035 + priceAxis * 1.8 + flowAxis * 1.15 + bandAxis * 0.8 + waveAxis * 0.45;
+    const latitude = clamp(bandAxis * 0.82 + waveAxis * 0.46 + flowAxis * 0.18, -1.25, 1.25);
+    const pressure = clamp(Math.abs(priceAxis) * 0.42 + Math.abs(flowAxis) * 0.28 + Math.abs(waveAxis) * 0.15 + volatility * 0.15, 0, 1);
+    const radius = 1.36 + pressure * 0.72;
+    const barTime = numeric(market.latestBar && market.latestBar.time);
+    const timePhase = barTime === null ? 0 : ((barTime / 86_400_000) % 1) * TAU;
+    return {
+      available: true, source: "market-data", longitude, latitude, radius, pressure,
+      phase: tiePhase + timePhase * 0.08,
+      speed: 0.055 + pressure * 0.28,
+      amplitude: 0.026 + pressure * 0.075
+    };
+  }
+
+  function stableIdentityPhase(value) {
+    let hash = 2166136261;
+    for (const character of String(value || "market")) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return ((hash >>> 0) / 4294967296) * TAU - Math.PI;
   }
 
   function dataBitsForMarket(market) {
@@ -579,14 +638,14 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos and communication paths use provider identity; volume-flow runners are green when supplied VFI is above its signal and travel from center to node, red when below and travel node to center. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
-        <summary><strong>COLOR KEY</strong><span>Characters mood · provider path · VFI flow cue · five market data bits</span></summary>
+        <summary><strong>COLOR KEY</strong><span>Characters mood · provider halo · VFI flow cue · five market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
           <section><h4>CORE ORB · CHARACTERS BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
-          <section><h4>HALO + COMMUNICATION PATH · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green flows inward for VFI above its signal; red flows outward for VFI below. The runner overlays—but does not recolor—the provider path. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent.</p></section>
+          <section><h4>HALO · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green marks inbound VFI flow around a free-floating orb; red marks outbound flow. The runner overlays—but does not recolor—the provider halo. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent.</p></section>
           <section><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
-          <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid paths mean a complete confirmed observation; dashed paths mark cached, synthetic, partial, or unconfirmed data; dotted paths mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
+          <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid halos mean a complete confirmed observation; dashed halos mark cached, synthetic, partial, or unconfirmed data; dotted halos mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
           <p class="gi-orb2-color-key-boundary">Price, volume, band, and WaveTrend colors are descriptive market context only. They do not establish claim assurance, indicate permission to act, or provide a trading instruction.</p>
         </div>
       </details>`;
@@ -631,6 +690,9 @@
             previousClose: numeric(market.previousClose),
             changePct: numeric(market.changePct),
             basis: numeric(market.basis),
+            bands: isRecord(market.bands) ? {
+              lower1000: numeric(market.bands.lower1000), upper1000: numeric(market.bands.upper1000)
+            } : null,
             vfi: isRecord(market.vfi) ? market.vfi : null,
             waveTrend: isRecord(market.waveTrend) ? market.waveTrend : null
           } : null,
@@ -708,7 +770,7 @@
           <button class="gi-button gi-orb2-feature" type="button" data-gi-orb2-feature>Feature focus</button>
         </div>
         <div class="gi-orb2-message" data-gi-orb2-message role="status" hidden></div>
-        <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive automatically rotates one reviewed <code>1d</code> instrument per minute across Discs 1–5. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. A provider change gets a visible 60-second warm-up before any new request. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
+        <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive may request up to five reviewed <code>1d</code> instruments per minute across Discs 1–5, with a 12-second client pacing interval and its separate daily D1 guard. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation and is ready immediately when selected; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. Alpha/provider warm-up holds are shown separately. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
         <div class="gi-orb2-pathways" aria-label="Live data pathway status">
           <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div>
           <i aria-hidden="true">→</i>
@@ -729,7 +791,7 @@
             <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
             <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
           </div>
-          <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 60 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
+          <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 12 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
           <details class="gi-orb2-firing-order" data-gi-orb2-firing-order open>
             <summary><strong>52-ASSET FIRING ORDER</strong><span>Open the ordered ticker-by-ticker sequence</span></summary>
             <ol data-gi-orb2-firing-list></ol>
@@ -1137,6 +1199,9 @@
         previousClose: compareClose,
         changePct,
         basis: analysis.bands && numeric(analysis.bands.basis),
+        bands: analysis.bands ? {
+          lower1000: numeric(analysis.bands.lower1000), upper1000: numeric(analysis.bands.upper1000)
+        } : null,
         vfi: analysis.vfi ? { value: numeric(analysis.vfi.value), signal: numeric(analysis.vfi.signal), available: analysis.vfi.available === true } : null,
         waveTrend: analysis.waveTrend ? { wt1: numeric(analysis.waveTrend.wt1), wt2: numeric(analysis.waveTrend.wt2), zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48) } : null
       } : null;
@@ -1348,10 +1413,10 @@
       const provider = currentProvider();
       const plan = makePlan(provider);
       const perBeatCount = perBeat(plan, provider);
-      const estimate = provider === "massive" ? "1 reviewed instrument per minute · across this Disc"
+      const estimate = provider === "massive" ? `${MASSIVE_REQUESTS_PER_MINUTE} reviewed instruments per minute maximum · across this Disc`
         : provider === "alpha" ? "1 best-performing Disc1 ticker per hour"
           : `${perBeatCount} instrument${perBeatCount === 1 ? "" : "s"} per manual beat · ${Beat.formatHours(plan.sweepHours)} full sweep`;
-      const status = provider === "massive" ? "Massive's separate UTC-day D1 guard and shared per-minute envelope are required."
+      const status = provider === "massive" ? `Massive pacing is ${MASSIVE_REQUESTS_PER_MINUTE}/minute (about ${MASSIVE_BEAT_MS / 1000}s between requests); its separate UTC-day D1 guard is also required.`
         : provider === "alpha" ? "Alpha Vantage uses a separate 25-attempt UTC-day D1 guard; 1mo never answers a 1h/1d request."
           : "Tickerbot's shared monthly D1 limit is enforced by the Worker separately from the local plan.";
       const isTickerbot = provider === "tickerbot";
@@ -1539,7 +1604,7 @@
       ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${Dxy.REQUIRED_ASSETS}`;
       if (state.ignition.blocked) ignitionNote.textContent = `SEQUENCE HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
       else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed. Auto-beat is paused; the DXY value remains a dated, fixed-center reference.";
-      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. One same-origin Massive 1d symbol per minute; shared Worker limits remain active.`;
+      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. One same-origin Massive 1d symbol every ${MASSIVE_BEAT_MS / 1000}s, up to ${MASSIVE_REQUESTS_PER_MINUTE}/minute; shared Worker limits remain active.`;
       else ignitionNote.textContent = `The first EURUSD beat checks the deployed Worker, secret, and D1 ledger before any Massive request → six one-symbol FX beats → fixed DXY benchmark → 52 one-symbol stock beats. ${target ? `Next input: ${target.symbol}.` : "Waiting for a confirmed input."} No separate browser health request is added; DXY is held until all six closes share one timestamp.`;
       if (ignitionRestartButton) ignitionRestartButton.hidden = state.ignition.active;
 
@@ -1569,7 +1634,9 @@
       providerHost.textContent = providerDescription(provider);
       providerHost.className = `gi-orb2-provider-pill ${provider}`;
       if (state.pending) countdownHost.textContent = "BEAT IN FLIGHT · WORKER REQUEST";
-      else if (state.cooldownUntil > Date.now()) countdownHost.textContent = `PROVIDER WARM-UP · ${formatCountdown(state.cooldownUntil - Date.now())}`;
+      else if (state.cooldownUntil > Date.now()) countdownHost.textContent = provider === "massive"
+        ? `MASSIVE PACING · ${formatCountdown(state.cooldownUntil - Date.now())}`
+        : `PROVIDER WARM-UP · ${formatCountdown(state.cooldownUntil - Date.now())}`;
       else if (!state.auto) countdownHost.textContent = "AUTO-BEAT PAUSED · use Beat now";
       else if (provider === "tickerbot") countdownHost.textContent = "TICKERBOT IS ON-DEMAND · use Beat now";
       else if (state.lastBeatAt) {
@@ -1639,7 +1706,7 @@
     function safeRefusalMessage(instrument) {
       const code = String(instrument.code || "");
       if (code === "massive-ledger-unavailable") {
-        return `${instrument.message || "No Massive request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0007_massive_daily_call_ledger.sql. Waiting 60 seconds will not repair a missing D1 table.`;
+        return `${instrument.message || "No Massive request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0007_massive_daily_call_ledger.sql. Waiting will not repair a missing D1 table.`;
       }
       if (code === "alpha-vantage-ledger-unavailable") {
         return `${instrument.message || "No Alpha Vantage request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0006_alpha_vantage_daily_call_ledger.sql. Waiting 60 seconds will not repair a missing D1 table.`;
@@ -1695,7 +1762,9 @@
     async function beatNow(reason = "manual") {
       if (state.pending || state.loadingCatalog || state.destroyed) return false;
       if (state.cooldownUntil > Date.now()) {
-        state.message = { kind: "note", text: `${providerTitle(currentProvider())} warm-up is active. The next request is held for ${formatCountdown(state.cooldownUntil - Date.now())}; no request has been sent.` };
+        const provider = currentProvider();
+        const holdLabel = provider === "massive" ? `Massive's ${MASSIVE_REQUESTS_PER_MINUTE}/minute pacing` : `${providerTitle(provider)} warm-up`;
+        state.message = { kind: "note", text: `${holdLabel} is active. The next request is held for ${formatCountdown(state.cooldownUntil - Date.now())}; no request has been sent.` };
         draw();
         return false;
       }
@@ -1944,11 +2013,29 @@
       }, Math.max(0, wait));
     }
 
+    function providerWarmupMs(provider) {
+      /* Tickerbot is an explicit manual path. It has its own monthly D1
+         allowance and must be usable immediately after leaving Massive; a
+         Massive cooldown is not a Tickerbot cooldown. */
+      if (provider === "tickerbot") return 0;
+      if (provider === "massive") return MASSIVE_BEAT_MS;
+      return PROVIDER_COOLDOWN_MS;
+    }
+
     function setProviderCooldown(previousProvider, nextProvider) {
       if (previousProvider === nextProvider) return false;
-      state.cooldownUntil = Date.now() + PROVIDER_COOLDOWN_MS;
-      state.message = { kind: "note", text: `${providerTitle(previousProvider)} → ${providerTitle(nextProvider)} selected. A 60-second provider warm-up is running; Beat now and Auto-beat requests are held until the countdown ends.` };
-      state.routeSteps = { provider: "WARM-UP", worker: "IDLE", ledger: "NOT QUERIED", model: "HOLD" };
+      const warmupMs = providerWarmupMs(nextProvider);
+      state.cooldownUntil = warmupMs ? Date.now() + warmupMs : 0;
+      if (nextProvider === "tickerbot") {
+        state.message = { kind: "note", text: `${providerTitle(previousProvider)} → Tickerbot · ON DEMAND selected. Manual Tickerbot is ready now; it does not inherit Massive's pacing hold.` };
+        state.routeSteps = { provider: "READY", worker: "IDLE", ledger: "NOT QUERIED", model: "READY" };
+      } else {
+        const reason = nextProvider === "massive"
+          ? `Massive pacing hold · ${MASSIVE_REQUESTS_PER_MINUTE} requests/minute maximum`
+          : "provider warm-up";
+        state.message = { kind: "note", text: `${providerTitle(previousProvider)} → ${providerTitle(nextProvider)} selected. ${reason}: Beat now and Auto-beat requests are held for ${formatCountdown(warmupMs)}.` };
+        state.routeSteps = { provider: "WARM-UP", worker: "IDLE", ledger: "NOT QUERIED", model: "HOLD" };
+      }
       draw();
       schedule();
       return true;
@@ -2018,7 +2105,7 @@
       state.message = changedProvider ? state.message : nextInterval === "1mo"
         ? { kind: "note", text: "Explicit Disc1 1mo mode: Alpha Vantage's best-performing ticker is evaluated from locally observed confirmed bars; one monthly-series request per hour." }
         : nextInterval === "1d" && state.auto
-          ? { kind: "note", text: "Automatic 1d mode: Massive refreshes one reviewed instrument per minute; successful daily packets remain provider-isolated and are not replaced by Tickerbot or Alpha Vantage." }
+          ? { kind: "note", text: `Automatic 1d mode: Massive can refresh up to ${MASSIVE_REQUESTS_PER_MINUTE} reviewed instruments per minute with a ${MASSIVE_BEAT_MS / 1000}-second pacing interval; successful daily packets remain provider-isolated and are not replaced by Tickerbot or Alpha Vantage.` }
           : { kind: "note", text: `On-demand Tickerbot ${nextInterval} mode selected. Use Beat now; no background Tickerbot poll is scheduled.` };
       persistLocal();
       draw();
@@ -2040,7 +2127,7 @@
       const changedProvider = setProviderCooldown(previousProvider, nextProvider);
       if (!changedProvider && !state.auto) {
         state.message = nextProvider === "tickerbot"
-          ? { kind: "note", text: `Auto-beat paused; Disc1 ${state.interval} now uses on-demand Tickerbot. Beat now is available after the provider warm-up.` }
+          ? { kind: "note", text: `Auto-beat paused; Disc1 ${state.interval} now uses on-demand Tickerbot. Beat now is ready immediately; it does not inherit Massive's pacing hold.` }
           : { kind: "note", text: "Auto-beat paused. Beat now remains available; no background provider calls will run." };
       } else if (!changedProvider && state.auto) {
         state.message = { kind: "note", text: "Auto-beat enabled. The next beat follows the selected provider's Characters cadence." };
@@ -2087,30 +2174,35 @@
       draw();
     }
 
-    function modelPoint(node, now, directive) {
-      const sphereRadius = 2.06;
-      const discRadius = 1.04 + ((node.order * 17) % 5) * 0.12;
-      let longitude = node.longitude;
-      let latitude = node.latitude;
+    function modelPoint(node, now, directive, observation = null) {
+      const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name);
+      const floatPhase = placement.phase + now / 1000 * placement.speed;
+      const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
+      let longitude = placement.longitude + Math.cos(floatPhase) * float;
+      let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
+      let radius = placement.radius + Math.sin(floatPhase * 0.73) * float * 0.34;
       if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
-        const phase = (now / 1000) * (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) + node.order * 1.71;
+        const phase = floatPhase + (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) * now / 1000;
         const stride = clamp(Number(npc.stride) || 0, 0, 1) * (0.025 + Math.sin(phase) ** 2 * 0.06);
         const bearing = Number(npc.bearing) || 0;
         const jitter = clamp(Number(npc.jitter) || 0, 0, 1) * Math.sin(phase * 3.7) * 0.025;
         longitude += Math.cos(bearing + jitter) * stride;
         latitude += Math.sin(bearing + jitter) * stride * 0.65;
+        radius += Math.sin(phase * 0.7) * stride * 0.18;
         if (npc.formation === "tight") latitude *= 0.96;
         if (npc.formation === "rim") latitude = clamp(latitude * 1.04, -1.45, 1.45);
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
       const sphere = {
-        x: sphereRadius * Math.cos(latitude) * Math.cos(longitude),
-        y: sphereRadius * Math.sin(latitude),
-        z: sphereRadius * Math.cos(latitude) * Math.sin(longitude)
+        x: radius * Math.cos(latitude) * Math.cos(longitude),
+        y: radius * Math.sin(latitude),
+        z: radius * Math.cos(latitude) * Math.sin(longitude)
       };
-      const disc = { x: discRadius * Math.cos(longitude), y: 0, z: discRadius * Math.sin(longitude) };
+      /* The flat form is still a free orbital field: its radius comes from the
+         packet's pressure/volatility, not from a sector slot or center tether. */
+      const disc = { x: radius * Math.cos(longitude), y: 0, z: radius * Math.sin(longitude) };
       const t = ease(state.formation);
       return {
         x: disc.x + (sphere.x - disc.x) * t,
@@ -2307,18 +2399,17 @@
         : `${cue.reason || "Flow is paused."} No unsupported or unconfirmed volume is animated.`;
     }
 
-    function drawFlowRunner(point, center, now, wallNow, index, cue) {
+    function drawFlowRunner(point, now, wallNow, cue) {
       if (!cue.moving || !pathsToggle.checked) return;
-      const dx = point.x - center.x;
-      const dy = point.y - center.y;
       const travel = cue.lane === "inbound" ? 1 : -1;
-      const cycle = ((now / 1000 * cue.rate) + index * 0.371) % 1;
-      const fraction = travel > 0 ? cycle : 1 - cycle;
-      const trailFraction = clamp(fraction - travel * 0.12, 0, 1);
-      const x = center.x + dx * fraction;
-      const y = center.y + dy * fraction;
-      const tailX = center.x + dx * trailFraction;
-      const tailY = center.y + dy * trailFraction;
+      const identityPhase = stableIdentityPhase(point.node && (point.node.symbol || point.node.name));
+      const phase = identityPhase + now / 1000 * (0.7 + cue.rate * 0.45) * travel;
+      const orbit = 7 + point.scale * 2.4 + Math.min(8, cue.rate * 1.8);
+      const tailPhase = phase - travel * 0.48;
+      const x = point.x + Math.cos(phase) * orbit;
+      const y = point.y + Math.sin(phase) * orbit * 0.56;
+      const tailX = point.x + Math.cos(tailPhase) * orbit;
+      const tailY = point.y + Math.sin(tailPhase) * orbit * 0.56;
       const freshness = snapshotFreshness(point.observation, wallNow);
       context2d.save();
       context2d.strokeStyle = cue.color;
@@ -2328,40 +2419,22 @@
       context2d.shadowBlur = 8;
       context2d.shadowColor = cue.color;
       context2d.beginPath(); context2d.moveTo(tailX, tailY); context2d.lineTo(x, y); context2d.stroke();
-      for (let trail = 1; trail <= 2; trail += 1) {
-        const beadFraction = clamp(fraction - travel * trail * 0.055, 0, 1);
-        const beadX = center.x + dx * beadFraction;
-        const beadY = center.y + dy * beadFraction;
-        context2d.globalAlpha = clamp((0.52 - trail * 0.15) * (0.65 + freshness * 0.35), 0.16, 0.5);
-        context2d.beginPath(); context2d.arc(beadX, beadY, trail === 1 ? 2.2 : 1.5, 0, TAU); context2d.fillStyle = cue.color; context2d.fill();
-      }
       context2d.globalAlpha = clamp(0.72 + freshness * 0.28, 0.72, 1);
       context2d.fillStyle = cue.color;
       context2d.shadowBlur = 11;
       context2d.beginPath(); context2d.arc(x, y, 3.1, 0, TAU); context2d.fill();
       context2d.translate(x, y);
-      context2d.rotate(Math.atan2(dy * travel, dx * travel));
+      context2d.rotate(Math.atan2((y - tailY) * travel, (x - tailX) * travel));
       context2d.beginPath(); context2d.moveTo(5.2, 0); context2d.lineTo(-3.8, -3); context2d.lineTo(-3.8, 3); context2d.closePath(); context2d.fill();
       context2d.restore();
     }
 
-    function drawActivity(point, center, now, wallNow, index) {
+    function drawActivity(point, now, wallNow, index) {
       const observation = point.observation;
       const directive = point.directive;
       if (!observation || !directive) return;
       const moodColor = MOOD_COLORS[directive.mood] || point.node.color;
-      const sourceColor = providerColor(observation);
       const freshness = snapshotFreshness(observation, wallNow);
-      const incomplete = pathDash(observation);
-      if (pathsToggle.checked) {
-        context2d.save();
-        context2d.strokeStyle = sourceColor;
-        context2d.globalAlpha = observation.market ? clamp(0.12 + freshness * 0.48, 0.12, 0.6) : 0.24;
-        context2d.lineWidth = observation.market ? 0.8 + (directive.object?.aperture || 0) * 1.1 : 0.8;
-        context2d.setLineDash(incomplete);
-        context2d.beginPath(); context2d.moveTo(center.x, center.y); context2d.lineTo(point.x, point.y); context2d.stroke();
-        context2d.restore();
-      }
       if (observation.market && directive.object && !directive.frozen) {
         const object = directive.object;
         const pulse = 1 + Math.sin(now / (1000 / Math.max(0.25, object.pulse || 0.25)) + index) * 0.12 * object.pulse;
@@ -2376,18 +2449,21 @@
         context2d.restore();
       }
       const flow = flowPathForObservation(observation, directive);
-      drawFlowRunner(point, center, now, wallNow, index, flow);
+      drawFlowRunner(point, now, wallNow, flow);
       const beat = state.beatAnimation;
       const beatAge = beat ? wallNow - beat.at : Infinity;
       if (pathsToggle.checked && observation.market && state.showDataBits && beat
         && beat.instruments.includes(observation.symbol) && beatAge >= 0 && beatAge < 1900) {
         const availableBits = dataBitsForMarket(observation.market).filter(bit => bit.state !== "unavailable" && bit.color !== DATA_COLORS.unknown);
+        const identityPhase = stableIdentityPhase(point.node && (point.node.symbol || point.node.name));
         availableBits.forEach((bit, bitIndex) => {
           const delayedAge = beatAge - bitIndex * 130;
           if (delayedAge < 0) return;
           const fraction = clamp(delayedAge / 1900, 0, 1);
-          const x = center.x + (point.x - center.x) * fraction;
-          const y = center.y + (point.y - center.y) * fraction;
+          const angle = identityPhase + bitIndex * TAU / Math.max(1, availableBits.length) + fraction * 0.9;
+          const orbit = 8 + point.scale * 2 + fraction * 9;
+          const x = point.x + Math.cos(angle) * orbit;
+          const y = point.y + Math.sin(angle) * orbit * 0.58;
           context2d.save(); context2d.fillStyle = bit.color; context2d.shadowBlur = 9; context2d.shadowColor = bit.color;
           context2d.beginPath(); context2d.arc(x, y, 1.8, 0, TAU); context2d.fill(); context2d.restore();
         });
@@ -2519,10 +2595,10 @@
       state.projected = nodes.map(node => {
         const observation = latestForNode(node);
         const directive = displayMotion(observation, now);
-        return { ...project(modelPoint(node, now, directive), width, height), node, observation, directive };
+        return { ...project(modelPoint(node, now, directive, observation), width, height), node, observation, directive };
       });
       updateFlowReadout(state.projected[state.selected] || null);
-      state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
+      state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
       drawRoute(now, center);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
@@ -2892,7 +2968,8 @@
 
   window.GoodIntelligenceOrb2 = Object.freeze({
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
+    MASSIVE_REQUESTS_PER_MINUTE, MASSIVE_BEAT_MS,
     PHASE_SHIFT_RADIANS,
-    fibonacciBandMetrics, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
   });
 })();
