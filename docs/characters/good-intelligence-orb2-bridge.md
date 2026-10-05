@@ -4,10 +4,10 @@
 
 ## Shared beat contract
 
-- `CharactersDiscCatalog` supplies the reviewed Discs. Massive is the automatic daily provider across Discs 1–5; Orb 2 respects Massive's shared five-request-per-minute envelope with a 12-second client pacing interval.
-- Tickerbot is the on-demand Disc1 provider for `1h`/`1d`, using the same monthly plan, rotation, reserve, featured/hot lane, and optional two-lane sweep as Characters.
+- `CharactersDiscCatalog` supplies the reviewed Discs. Massive is the automatic daily provider across Discs 1–5; Orb 2 no longer paces requests in the browser. The Worker's Cron Trigger owns the beat and keeps it inside Massive's shared five-request-per-minute envelope and its UTC-day allowance.
+- Tickerbot remains the Disc1 `1h`/`1d` provider, but on the server field the Worker owns the plan: the tick drains a durable queue (user priority lane first, then the deploy warm burst) under the shared monthly ledger. Orb 2's browser no longer carries cadence, monthly-budget, reserve-stretch, two-lane, or "feature focus" controls — Characters keeps them; Orb 2 shows the server's allowance, queue, and burst state read-only.
 - Alpha Vantage remains the separate Disc1 `1mo` best-performer spotlight, one instrument per hour, selected from locally observed confirmed bars.
-- `/api/characters/v1/beat` stays the only market-beat route. Orb 2 does not call provider URLs directly, read browser secrets, or fall through to another service.
+- `/api/characters/v1/beat` remains the Characters provider route. Orb 2 reads the server field instead: `GET /api/good-intelligence/v1/orb2/field` returns the stored observations, the beat-type dial state, the DXY reference, and the allowance/queue status; `POST` on the same route asks the server for one tick, a focused priority refresh, or the deploy warm burst. Orb 2 does not call provider URLs directly, read browser secrets, or fall through to another service.
 - `CharactersBeat` performs due-symbol selection, analyzes the returned `gi-market-context-v1` packet, and produces the same NPC/object/item motion directive. No packet means a frozen berth; absent OHLC or volume fields remain absent.
 - The 3D canvas maps those directives to free-floating character-node movement, market-derived placement, sector objects, and local volume-dependent particles. Center Origin is not a static tether; it appears only in an explicit local route trace. Any trace is a teaching visualization, not transmitted OCM traffic or authority.
 - The volume-flow runner follows Characters' `item.lane` and `item.rate`: VFI above its supplied signal orbits inbound in green; VFI below orbits outbound in red. It runs only for confirmed OHLCV with volume, VFI/signal, direction, and positive relative-volume cadence available; equality, transitions, missing, or unconfirmed inputs are held.
@@ -19,11 +19,23 @@
 - Each observed orb's placement is derived from supplied market fields: price change and Fibonacci displacement set its data position, VFI pressure and WaveTrend separation shape longitude/latitude, and volatility/pressure set radial distance and float speed. Exact metric ties use only a stable symbol phase; held packets remain explicitly held placeholders until data arrives.
 - Five small satellite bits expose only supplied fields: price change, VFI versus its supplied signal, close versus the supplied Fibonacci-band basis, WaveTrend zone, and actual bar/data shape plus confirmation. Unavailable fields are slate and labeled unavailable—not zero. Inspector rows display the corresponding state and value.
 - Local OCM trace colors (inward, center resolve, outward, lateral) are keyed separately from provider halos. They appear only during the selected local trace interaction, not as permanent center-to-orb tethers. A color key is available in the Orb 2 view. Market colors describe price/volume context only; they do not feed claim assurance, authorize activity, or recommend a trade.
-- The titlebar's **whole-app fullscreen** control expands the Good Intelligence window via the browser Fullscreen API, with a fixed-window fallback when the API is blocked. Orb 2's separate **Model full screen** control expands only the Orb canvas view.
+- The titlebar's **whole-app fullscreen** control expands the Good Intelligence window via the browser Fullscreen API, with a fixed-window fallback when the API is blocked. Orb 2's separate **Model full screen** control expands only the Orb canvas view. The model shell is a scroll container in its own right: the open inspector, the settings body, and the beat dial stay reachable on a short window, and below 700 px the shell drops to document flow instead of clipping its lower controls.
 
-## Provider switching and D1 errors
+## Server field: the 24/7/365 beat
 
-Manual Tickerbot is ready immediately when selected and does not inherit Massive's pacing hold. Massive uses a 12-second client pacing interval, bounded by its five-request-per-minute envelope; Alpha Vantage transitions retain a visible 60-second warm-up. These are burst-prevention/provider controls, not a repair for a missing database binding or table.
+`worker/orb2-field.mjs` is the beat. `wrangler.jsonc` declares `triggers.crons = ["*/1 * * * *"]`, and `worker/index.mjs` `scheduled()` runs one field tick per minute. The tick takes a single-writer lease in D1, then:
+
+- **Rotates the reviewed field** least-recently-observed. Massive supplies up to five `1d` one-symbol requests per minute inside `consumeMassiveBudget` and the 300-per-UTC-day `massive_daily_call_ledger`; nothing is requested past the durable allowance.
+- **Drains the Tickerbot queue** for `1h`/`1d` stock refreshes (round-robin over the 52-card deck), 24 jobs per tick, at most three attempts per job.
+- **Warms the whole field on deploy**: when the field is cold or empty, the tick queues the full sweep — `52 × 2 = 104` Tickerbot calls (`ORB2_FIELD_TICKERBOT_BURST_CALLS`) — so the entire deck refreshes at once instead of waiting for the rotation to reach it. A same-origin `POST {action:"warm"}` re-queues the burst deliberately after the 30-minute cooldown.
+- **Evaluates the shared context once per instrument.** `GoodIntelligenceMarketContext.evaluate` and `CharactersBeat.motion` run on the server; the stored observation is the exact `market`/`motion` shape the browser used to compute for itself, so every client renders the same directive.
+- **Stores one validated row per interval/symbol** in `orb2_field_observations` (migration `0009_orb2_server_field.sql`), with `orb2_field_runs` for the day's counters and `orb2_field_control` for the warm-burst and ranking cadence. Writes are validated on the way in and again on the way out.
+
+The client is render-only. It polls `GET /api/good-intelligence/v1/orb2/field` every 20 seconds, merges the stored rows into the same observation structures the canvas already drew, and never sends a provider parameter. `Beat now · server tick` becomes a deliberate `POST {action:"tick"}` (an in-isolate 20-second cooldown keeps a page from turning it into a poll), `Refresh focused` uses the priority lane for up to 12 reviewed stocks, the 52-asset firing order renders as a collapsed summary with the next stored symbol, and hiding the tab pauses nothing server-side: the cron beat runs 24/7/365, and returning to the tab only triggers an immediate re-read. The 60-second provider warm-up and the 12-second client pacing interval are removed, because provider pacing is the Worker's job now.
+
+### Beat types and the dial
+
+The field publishes five beat types. `observation` is the only live provider beat; `message`, `trade`, `authorization`, and `permission` are deterministic local scenarios choreographed from a stored beat by `js/good-intelligence-orb2-scenarios.js`. The dial selects which types a client requests and views; the ticker focus narrows the request and the rendered berths to up to 12 reviewed symbols. Each scenario states its boundary in the UI: no OCM message is transmitted, nothing is bought or settled, nothing is authorized, and no permission is granted. A berth that cannot supply what a type needs (no market summary, no supplied volume, no confirmed close, no motion directive) is refused with a reason rather than animated plausibly.
 
 The Characters Worker deliberately refuses provider work when a durable D1 allowance cannot be checked:
 
@@ -31,7 +43,7 @@ The Characters Worker deliberately refuses provider work when a durable D1 allow
 - Alpha Vantage daily guard: `COMMUNITY_DB` and migration `0006_alpha_vantage_daily_call_ledger.sql`.
 - Tickerbot monthly guard: `COMMUNITY_DB` and migration `0005_tickerbot_call_ledger.sql`.
 
-The repository's production Wrangler config declares `COMMUNITY_DB` for `community_db`, but branch previews explicitly set `previews.d1_databases` to an empty list. A preview Worker therefore has no D1 binding by design and will refuse these due provider requests (and cannot persist Orb 2 history). For production, verify that the deployed Worker still has the binding and that migrations 0005–0008 were applied to that exact database; the checked-in config and migration files alone do not prove remote deployment state. Tickerbot can work while another provider's independent ledger table is missing. Waiting alone does not resolve this configuration/migration failure; no upstream request was sent for the refused berth.
+The repository's production Wrangler config declares `COMMUNITY_DB` for `community_db`, but branch previews explicitly set `previews.d1_databases` to an empty list. A preview Worker therefore has no D1 binding by design and will refuse these due provider requests (and cannot persist Orb 2 history). For production, verify that the deployed Worker still has the binding and that migrations 0005–0009 were applied to that exact database; the checked-in config and migration files alone do not prove remote deployment state. Tickerbot can work while another provider's independent ledger table is missing. Waiting alone does not resolve this configuration/migration failure; no upstream request was sent for the refused berth.
 
 ## Server-side beat history
 
@@ -67,5 +79,6 @@ Orb 2 and Characters do not delegate to the composite field, and the composite f
 ## Validation
 
 - `npm run test:characters` covers the provider contracts and beat/motion engine.
-- `node --test tests/good-intelligence-orb2-test.mjs tests/good-intelligence-orb2-worker-test.mjs` covers the Orb 2 UI composition, warm-up, beat persistence, and storage boundary.
+- `node --test tests/good-intelligence-orb2-test.mjs tests/good-intelligence-orb2-worker-test.mjs` covers the Orb 2 render-only field, the beat-type dial and ticker focus, the manual server controls, warm-up behavior on the server field, beat persistence, and the storage boundary.
+- `node --test tests/orb2-field-scheduler-test.mjs tests/orb2-scenarios-test.mjs` covers the Cron field tick (rotation, budgets, warm burst, priority lane, snapshot, sanitizers) and the scenario choreography.
 - `npm run check:deploy` validates the Worker bundle after asset preparation.

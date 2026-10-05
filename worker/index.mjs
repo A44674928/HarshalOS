@@ -11,6 +11,7 @@ import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
+import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -125,6 +126,20 @@ export async function handleApi(request, env, dependencies = {}) {
 }
 
 export default {
+  /*
+   * The 24/7/365 Orb 2 beat lives here, not in a browser tab. A Cron Trigger
+   * (see `triggers.crons` in wrangler.jsonc) calls this every minute; one tick
+   * claims the shared provider allowances, beats the instruments that are due,
+   * and stores them in D1 for every client to render. A hidden page changes
+   * nothing, and no provider secret or schedule state exists in browser code.
+   */
+  async scheduled(event, env, context) {
+    const scheduledTime = Number(event && event.scheduledTime);
+    const now = Number.isFinite(scheduledTime) && scheduledTime > 0 ? scheduledTime : Date.now();
+    const run = runOrb2FieldTick(env, context, { now: () => now });
+    if (context && typeof context.waitUntil === 'function') context.waitUntil(run);
+    else await run;
+  },
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path === '/account' || path === '/account.html' || path === '/audits' || path === '/audits.html') {
@@ -139,6 +154,10 @@ export default {
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1/orb2/beats') return handleGoodIntelligenceOrb2Beats(request, env);
+    // The server-side Orb 2 beat field: clients read stored observations and may
+    // ask the Worker to prioritize or warm the schedule. Browsers never call a
+    // market provider, and the schedule never depends on a page being visible.
+    if (path === '/api/good-intelligence/v1/orb2/field') return handleOrb2Field(request, env);
     if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request);
     if (path === '/api/characters/v1/deploy') return handleCharactersDeploy(request, env);
     // Characters has three narrow providers: Massive automatic daily Disc beats,

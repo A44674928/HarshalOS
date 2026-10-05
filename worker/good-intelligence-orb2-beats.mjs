@@ -25,7 +25,7 @@ const DATA_SHAPES = new Set(["ohlcv", "ohlc", "value", "unknown"]);
 const MOODS = new Set(["frozen", "warming-up", "drift", "lean-up", "lean-down", "rally", "selloff", "churn", "coil", "surge", "flinch", "unknown"]);
 const FORMATIONS = new Set(["ring", "tight", "rim", "column", "scatter"]);
 const ITEM_LANES = new Set(["stationary", "inbound", "outbound"]);
-const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition"]);
+const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition", "field"]);
 
 const json = (data, status = 200) => Response.json(data, {
   status,
@@ -61,7 +61,10 @@ function safeBar(value) {
   };
 }
 
-function safeMotion(value) {
+/* Shared with the server-side Orb 2 field (worker/orb2-field.mjs). One validator
+   covers the compact market summary and the Characters motion directive, so a
+   server-written observation and a browser-written one cannot diverge. */
+export function safeMotion(value) {
   if (!isRecord(value)) return null;
   const mood = MOODS.has(value.mood) ? value.mood : "unknown";
   const gaugeValue = isRecord(value.gauge) ? value.gauge : {};
@@ -120,7 +123,7 @@ function safeMotion(value) {
   };
 }
 
-function safeMarket(value) {
+export function safeMarket(value) {
   if (!isRecord(value)) return null;
   const dataShape = DATA_SHAPES.has(value.dataShape) ? value.dataShape : "unknown";
   const status = ANALYSIS_STATUSES.has(value.status) ? value.status : "unknown";
@@ -175,6 +178,9 @@ function safeInstrument(value, provider) {
     motion: safeMotion(value.motion)
   };
 }
+
+/* Exposed so the server-side field can validate the same compact shapes. */
+export const orb2SharedSanitizers = Object.freeze({ bar: safeBar, market: safeMarket, motion: safeMotion });
 
 export function sanitizeOrb2Beat(value, now = Date.now()) {
   if (!isRecord(value) || value.schema !== ORB2_BEAT_SCHEMA) return { ok: false, message: "Send one gi-orb2-beat-v1 record." };
