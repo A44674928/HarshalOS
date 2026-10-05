@@ -713,3 +713,128 @@ test("the Worker field route is the documented contract the page renders", () =>
   assert.match(workerSource, /orb2-saved-beats|ORB2_BEATS|beats/i);
   assert.match(orbSource, /fieldStatus|routeSteps/);
 });
+
+/* ── the constellation: one orb per Disc, walked by the carousel ─────────── */
+
+test("the constellation berth is a pure function of catalog order and cannot be moved by market data", () => {
+  const { orb } = harness();
+  const five = ["stocks", "fx", "crypto", "commodities", "indices"];
+  const berths = five.map((id, index) => orb.constellationBerth(index, five.length));
+  assert.deepEqual(berths.map(berth => berth.index), [0, 1, 2, 3, 4]);
+  assert.equal(new Set(berths.map(berth => `${berth.x.toFixed(4)}:${berth.y.toFixed(4)}:${berth.z.toFixed(4)}`)).size, five.length,
+    "no two Disc orbs share a berth");
+  for (const berth of berths) {
+    const radius = Math.hypot(berth.x, berth.y, berth.z);
+    assert.ok(Math.abs(radius - orb.CONSTELLATION_ORBIT_MODEL) < 1e-9, "every orb sits on the shared display ring");
+  }
+  assert.deepEqual(berths, five.map((id, index) => orb.constellationBerth(index, five.length)),
+    "the berth is a pure function of the catalog order: nothing else can move an orb");
+  assert.notDeepEqual(orb.constellationBerth(0, five.length), orb.constellationBerth(1, five.length));
+  const layout = orb.constellationLayout(five.map((id, index) => ({ id, number: index + 1, name: id })));
+  assert.deepEqual(layout.map(entry => entry.id), five, "the layout preserves the reviewed catalog order");
+  assert.ok(layout.every(entry => entry.berth && Number.isFinite(entry.berth.x)));
+  assert.deepEqual(orb.constellationLayout([]), [], "an empty catalog draws no orbs rather than inventing any");
+});
+
+test("the strip carries one chip per Disc with its own stored status, and an empty Disc says so", async t => {
+  const { host, engine, canvasCalls, frames } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const chips = [...host.querySelectorAll("[data-gi-orb2-orb]")];
+  assert.deepEqual(chips.map(chip => chip.getAttribute("data-gi-orb2-orb")), ["stocks", "fx", "crypto", "commodities", "indices"],
+    "the strip lists every reviewed Disc in catalog order");
+  assert.ok(chips.every(chip => chip.getAttribute("role") === "tab"), "the strip is a tab list of Disc orbs");
+  assert.equal(chips.filter(chip => chip.getAttribute("aria-selected") === "true").length, 1, "exactly one Disc orb is current");
+  const [stocksChip, fxChip, cryptoChip] = chips;
+  assert.match(stocksChip.textContent, /52 of 52 stored/, "a populated Disc reports its own stored rows");
+  assert.equal(stocksChip.classList.contains("is-empty"), false);
+  assert.match(fxChip.textContent, /6 of 6 stored/, "the fx orb reports its own six stored closes");
+  assert.match(cryptoChip.textContent, /awaiting first beat/, "a Disc with nothing stored is labeled, not filled with another Disc's rows");
+  assert.equal(cryptoChip.classList.contains("is-empty"), true, "an empty Disc orb is drawn as an empty marker");
+  const note = host.querySelector("[data-gi-orb2-constellation-note]");
+  assert.match(note.textContent, /CONSTELLATION · 5 Disc orbs/);
+  assert.match(note.textContent, /awaiting first beat on 3\. Crypto, 4\. Commodities, 5\. Indices/);
+  assert.match(note.textContent, /selected Disc1 · The 52 Cards/);
+  assert.doesNotMatch(note.textContent, /every Disc orb is reporting/, "the summary never implies an empty Disc has data");
+  const frame = frames.shift();
+  if (typeof frame === "function") frame(120);
+  assert.equal(engine.state.projectedOrbs.length, 5, "five Disc orbs are projected for the pointer");
+  assert.ok(canvasCalls.includes("arc"), "the orbs are drawn as circles on the canvas");
+});
+
+test("the carousel walks to the next Disc orb with a step, a click, a slide, or an arrow key — without a provider call", async t => {
+  const harnessed = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  const { host, engine, window, fieldCalls, providerCalls, frames } = harnessed;
+  const canvas = host.querySelector("[data-gi-orb2-canvas]");
+  await flush();
+  const reads = () => fieldCalls().filter(call => call.options.method !== "POST");
+  const before = reads().length;
+  const frame = frames.shift();
+  if (typeof frame === "function") frame(120);
+
+  host.querySelector('[data-gi-orb2-carousel="next"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "fx", "the step button walks to the next Disc orb");
+  assert.equal(engine.state.focusOrb, true, "the camera follows the orb");
+  assert.ok(engine.state.camZoom > 1, "the focused orb is magnified");
+  assert.deepEqual([...host.querySelectorAll("[data-gi-orb2-orb].is-current")].map(chip => chip.getAttribute("data-gi-orb2-orb")), ["fx"]);
+  assert.equal(reads().length, before, "a carousel move re-uses the constellation already in the view instead of re-reading it");
+  assert.equal(providerCalls.length, 0, "the carousel never calls a provider");
+
+  host.querySelector('[data-gi-orb2-carousel="prev"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "stocks", "the step button walks back");
+  host.querySelector('[data-gi-orb2-carousel="prev"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "indices", "the carousel wraps at the end of the reviewed order");
+
+  /* A click on a drawn Disc orb is the same move: the orb's own projected
+     position is hit-tested, and the packet hit-test is not consulted. */
+  const orbPoint = engine.state.projectedOrbs.find(orb => orb.disc.id === "commodities");
+  assert.ok(orbPoint, "the commodity orb is projected");
+  const PointerEventCtor = window.PointerEvent || window.MouseEvent;
+  if (typeof PointerEventCtor === "function") {
+    for (const type of ["pointerdown", "pointerup"]) {
+      canvas.dispatchEvent(new PointerEventCtor(type, { clientX: orbPoint.point.x, clientY: orbPoint.point.y, bubbles: true, cancelable: true }));
+    }
+    await flush();
+    assert.equal(engine.state.discId, "commodities", "clicking an orb walks the carousel to that Disc");
+  }
+
+  const KeyboardEventCtor = window.KeyboardEvent;
+  if (typeof KeyboardEventCtor === "function") {
+    canvas.dispatchEvent(new KeyboardEventCtor("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    await flush();
+    assert.equal(engine.state.discId, "indices", "the right arrow key walks to the next orb");
+    canvas.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    await flush();
+    assert.equal(engine.state.discId, "stocks", "Home returns to the first orb");
+  }
+
+  host.querySelector("[data-gi-orb2-resetcam]").click();
+  await flush();
+  assert.equal(engine.state.focusOrb, false, "recentre steps the camera back to the whole constellation");
+  assert.ok(engine.state.camZoom <= 1, "the wide view is not magnified");
+  assert.equal(providerCalls.length, 0, "the whole carousel walk made no provider call");
+  assert.ok(reads().length <= before + 1, "the walk costs at most one stored-field re-read, never a fan-out");
+});
+
+test("the drawn field follows the Disc orb instead of re-drawing the 52-card deck on every Disc", async t => {
+  const { host, engine } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const stockSymbols = new Set(MARKET_ROSTER.map(asset => asset.symbol));
+  assert.ok(engine.nodes.length >= 40, "the Disc1 orb draws the full reviewed stock deck");
+  assert.ok(engine.nodes.every(node => node.symbol), "and every drawn orb is a reviewed ticker");
+
+  host.querySelector('[data-gi-orb2-carousel="next"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "fx");
+  assert.ok(engine.nodes.length >= 5 && engine.nodes.length <= 30, "the fx orb draws the reviewed FX roster");
+  assert.ok(engine.nodes.every(node => !stockSymbols.has(node.symbol)), "no stock-deck symbol is drawn on the fx orb");
+
+  host.querySelector('[data-gi-orb2-orb="crypto"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "crypto");
+  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTCUSD"],
+    "the crypto orb draws exactly the live ranked instruments the route returned, nothing borrowed");
+  assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
+});

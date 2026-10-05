@@ -78,6 +78,16 @@ function providerFetch(seen, { failSymbols = [] } = {}) {
     if (parsed.origin === "https://api.massive.com") {
       const ticker = decodeURIComponent(parsed.pathname.replace(/^\/v2\/aggs\/ticker\//, "").replace(/\/range\/.*$/, "").replace(/^\/futures\/v1\/aggs\//, ""));
       seen.massive.push(ticker);
+      if (parsed.pathname.startsWith("/futures/v1/aggs/")) {
+        /* The commodity Disc routes through the futures session family, whose
+           bars arrive with a nanosecond window_start instead of a t. */
+        return Response.json({
+          request_id: "test-request",
+          results: bars(50).map(bar => ({
+            window_start: bar.time * 1e6, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume
+          }))
+        });
+      }
       return Response.json({
         request_id: "test-request",
         results: bars(50).map(bar => ({ t: bar.time, o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume }))
@@ -145,25 +155,39 @@ test("a tick spends at most the shared Massive per-minute envelope and stores on
   assert.equal(row.confirmed, 1);
 });
 
-test("the rotation is least-recently-observed, so a full sweep cycles the whole field before repeating", async t => {
+test("the rotation reserves a berth for every Disc and cycles the whole reviewed field before repeating", async t => {
   const { env } = fixture(t);
   // Tickerbot is deliberately absent here: the warm queue (its own test below)
   // would otherwise also write 1d rows and the rotation assertion would be
   // measuring two writers at once.
   delete env.TICKERBOT_API_KEY;
+  const roster = orb2FieldRoster({ now: NOW });
+  const reviewed = roster.instruments.length;
+  const ticksForOnePass = Math.ceil(reviewed / ORB2_MASSIVE_PER_MINUTE);
   const seen = { urls: [], massive: [], tickerbot: [] };
-  const fetched = new Set();
-  // 52 stocks + 23 fx = 75 reviewed 1d instruments; 5 per tick means a full pass
-  // takes 15 ticks. Every symbol must appear exactly once inside that pass.
   const at = nextClock();
-  for (let tick = 0; tick < 15; tick += 1) {
+
+  const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
+  assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
+  const firstDiscs = new Set(seen.massive.map(ticker =>
+    ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "stocks"));
+  assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices", "stocks"],
+    "the very first tick already reaches every Disc with reviewed instruments");
+
+  const fetched = new Set(seen.massive);
+  for (let tick = 1; tick < ticksForOnePass; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
     for (const ticker of seen.massive) fetched.add(ticker);
   }
-  assert.equal(fetched.size, 75, "the first 15 ticks cover the reviewed 1d field exactly once");
+  assert.equal(seen.massive.length, reviewed, `a full pass issues exactly one call per reviewed instrument (${reviewed})`);
+  assert.equal(fetched.size, reviewed, "the whole reviewed field is covered once before any berth repeats");
+  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("C:")).length, roster.fx.length);
+  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("I:")).length, roster.indices.length);
   assert.ok([...fetched].includes("C:EURUSD"), "fx routes through the reviewed catalog mapping");
-  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("C:")).length, 23);
+  assert.ok([...fetched].includes("ALIU6"), "commodities route through the reviewed futures contracts");
+  assert.ok(seen.massive.every(ticker => !ticker.startsWith("X:")),
+    "Disc3 contributes no instrument without a live CoinGecko ranking; no crypto ticker is invented");
 });
 
 test("the field warm burst queues the full Tickerbot sweep and drains it across scheduled ticks", async t => {
@@ -301,10 +325,13 @@ test("a priority refresh is bounded to the reviewed roster and unknown symbols a
 });
 
 test("the snapshot serves the stored field with honest beat-type counts and the DXY reference", async t => {
-  const { env } = fixture(t);
+  const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
   const at = nextClock();
-  for (let tick = 0; tick < 15; tick += 1) {
+  /* One full pass over the five-Disc reviewed field (crypto contributes no
+     instrument without a live CoinGecko ranking in this fixture). */
+  const ticksForOnePass = Math.ceil(orb2FieldRoster({ now: NOW }).instruments.length / ORB2_MASSIVE_PER_MINUTE);
+  for (let tick = 0; tick < ticksForOnePass + 1; tick += 1) {
     await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
   }
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => at + 20 * 60_000 });
@@ -329,6 +356,34 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(data.dxy.status, "ready", "the six aligned FX closes produce the fixed benchmark on the server");
   assert.ok(data.dxy.value > 0);
   assert.equal(data.dxy.inputCount, 6);
+
+  /* The per-Disc status describes the stored field even when the response is
+     narrowed to one Disc, so the constellation view can label every orb. */
+  const discs = Object.fromEntries(data.status.discs.map(disc => [disc.id, disc]));
+  assert.deepEqual(Object.keys(discs), ["stocks", "fx", "crypto", "commodities", "indices"]);
+  assert.equal(discs.stocks.instruments, 52);
+  assert.equal(discs.stocks.stored, 52, "every reviewed stock berth is stored after the pass");
+  assert.equal(discs.stocks.observed, 52);
+  assert.equal(discs.stocks.covered, true);
+  assert.equal(discs.fx.instruments, 23);
+  assert.equal(discs.fx.stored, 23);
+  assert.equal(discs.commodities.instruments, 10);
+  assert.equal(discs.commodities.stored, 10, "the commodity Disc is populated by the automatic rotation");
+  assert.equal(discs.indices.instruments, 5);
+  assert.equal(discs.indices.stored, 5, "the index Disc is populated by the automatic rotation");
+  assert.equal(discs.crypto.instruments, 0, "Disc3 has no reviewed roster without a live CoinGecko ranking");
+  assert.equal(discs.crypto.stored, 0, "no crypto row is invented when the ranking is unavailable");
+  assert.equal(discs.crypto.covered, false);
+  assert.ok(discs.fx.newestAt > 0 && discs.crypto.newestAt === null);
+  assert.ok(discs.stocks.providers.length > 0 && discs.stocks.providers.every(provider => ["massive", "tickerbot"].includes(provider)));
+  /* Disc1 has both lanes; Discs 2-5 can only be written by Massive, and the
+     rotation must have reached every one of them. */
+  for (const [discId, expected] of [["fx", 23], ["commodities", 10], ["indices", 5]]) {
+    const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
+    assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
+  }
+  const cryptoRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE disc_id='crypto'").get().count;
+  assert.equal(cryptoRows, 0, "no crypto row exists without a live CoinGecko ranking");
 
   const narrowed = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&symbols=AAPL,MSFT&types=observation`), env, { now: () => at + 20 * 60_000 });
   const narrowedData = (await narrowed.json()).data;
