@@ -189,12 +189,9 @@
     return 0.19 + (volatility === null ? 0 : clamp(volatility, 0, 1) * 0.045);
   }
 
-  /** Double-helix placement metrics — computed only from supplied packet fields.
-      p is the close's position inside the supplied Fibonacci band range
-      [lower1000, upper1000] (0 at the lower band, 1 at the upper band, 0.5 at
-      the basis); volatility is the supplied band width over the basis; potential
-      energy is the normalized stretch from the band midline. Missing fields stay
-      missing — a held node rests at the basis ring and is labeled held. */
+  /** Normalize each side against its own distance from the supplied basis.
+      p=0.5 is neutral; excursions outside the outer bands remain outside.
+      Incomplete or invalid observations stay unknown, never neutral. */
   function helixMetricsForMarket(market) {
     if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
     const close = numeric(market.latestBar && market.latestBar.close);
@@ -202,12 +199,13 @@
     const lower = bands ? numeric(bands.lower1000) : null;
     const upper = bands ? numeric(bands.upper1000) : null;
     const basis = numeric(market.basis);
-    if (close === null || lower === null || upper === null || !finite(lower) || !finite(upper) || upper <= lower) {
+    if (close === null || basis === null || lower === null || upper === null || !finite(lower) || !finite(upper) || lower >= basis || upper <= basis) {
       return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
     }
     const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
       : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
-    const p = clamp((close - lower) / (upper - lower), -0.06, 1.06);
+    const displacement = (close - basis) / (close >= basis ? upper - basis : basis - lower);
+    const p = 0.5 + displacement / 2;
     const width = upper - lower;
     const volatilityPct = basis !== null && basis > 0 ? (width / basis) * 100 : null;
     const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
@@ -345,6 +343,7 @@
       return Object.freeze({
         id: `${slug(entry.symbol) || "ticker"}-${time}`,
         visualId: entry.symbol,
+        nabId: globalThis.NabSectors?.byTicker(entry.symbol)?.id ?? null,
         symbol: entry.symbol,
         name: entry.name,
         role: `${entry.name} · ${entry.symbol} ticker orb for ${time} bars. Market data is display-only context.`,
@@ -405,6 +404,9 @@
 
   function mount(host, options = {}) {
     if (!host || typeof host.innerHTML !== "string") return null;
+    if (globalThis.NabDiscsView && !options.legacySourceView) {
+      return globalThis.NabDiscsView.mount(host, options);
+    }
     const Beat = options.beat || globalThis.CharactersBeat;
     const Cast = options.cast || globalThis.CharactersCast;
     const DiscCatalog = options.discCatalog || globalThis.CharactersDiscCatalog;
@@ -464,7 +466,7 @@
     };
     const preferences = readJson(PREFS_KEY);
     const discIds = new Set(DiscCatalog.discs.map(disc => disc.id));
-    const initialDisc = isRecord(preferences) && discIds.has(preferences.discId) ? preferences.discId : "stocks";
+    const initialDisc = discIds.has(options.sourceDisc) ? options.sourceDisc : isRecord(preferences) && discIds.has(preferences.discId) ? preferences.discId : "stocks";
     const initialModes = DiscCatalog.disc(initialDisc)?.intervalModes || ["1d"];
     const initialInterval = isRecord(preferences) && initialModes.includes(preferences.interval) ? preferences.interval : "1d";
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -494,7 +496,7 @@
       /* Synthetic/demo mode is disabled: this view is live-only. A stale local
          preference cannot resurrect the retired rehearsal source. */
       source: "live",
-      auto: preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
+      auto: options.startPaused ? false : preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
       cadence: validCadence(preferences && preferences.cadence),
       budget: validBudget(preferences && preferences.budget),
       stretch: Boolean(preferences && preferences.stretch),
@@ -676,7 +678,7 @@
           <div>
             <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
             <h3>Orb Communicator Model</h3>
-            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. For tickers, the shaded sphere carries two 2.5-turn guide strands; each ticker maps its own Fibonacci Bollinger Band position across the full vertical shell—lower at the south pole, basis at the equator, upper at the north pole.</p>
+            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. Ticker cores occupy an open field: each ticker’s own FBB basis maps to the horizontal neutral plane, with normalized upper and lower zones above and below it. Missing observations occupy a separate unknown lane.</p>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
@@ -695,7 +697,7 @@
         </div>
         <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Compact beat snapshots save to D1 when available; Clear hides active context and Restore reloads the archive.</p>
         <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
-          <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
+          <label class="gi-orb2-control"><span>SOURCE CHANNEL</span><select data-gi-orb2-disc aria-label="Choose a legacy source adapter"></select></label>
           <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
           <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
           <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
@@ -756,7 +758,7 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. The outer sphere and helix guides are visual scaffolding around an inner ticker spheroid: every ticker has its own nested orb, and each rank-matched A/B pair is individually linked. Pair order reflects supplied Fibonacci-band position; local band rings, spheroid width, glow, and link color reflect only supplied fields. This is not a rating, ranking service, signal, or recommendation.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. Ticker cores occupy an open field without an enclosing shell or structural links. Height represents normalized distance from each ticker’s own FBB basis; horizontal spacing is a layout aid, not a market measurement. Unknown observations occupy a separate lane. Local spheroid width and glow reflect supplied fields. This is not a rating, ranking service, signal, or recommendation.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -1441,7 +1443,7 @@
        cross-series rung. Every value comes from the supplied packet; held
        states say so. */
     function helixInspectorRows(node) {
-      if (!tickerMode || state.seriesMode !== "dual" || !node || !node.symbol) return "";
+      if (!tickerMode || !node || !node.symbol) return "";
       const berth = helixBerths.get(node.id);
       if (!berth) return `\n          <div><dt>Double helix</dt><dd>Settling — waiting for the first rendered frame.</dd></div>`;
       const strandSize = helixState.counts[berth.series === "B" ? "b" : "a"];
@@ -1461,7 +1463,7 @@
       const metrics = berth.metrics;
       return `
           <div><dt>Helix strand</dt><dd>Series ${berth.series} · rank ${berth.rank + 1} of ${strandSize}</dd></div>
-          <div><dt>Fibonacci band position</dt><dd>${berth.held ? "Held — band values were not supplied; the orb rests at the basis ring." : `${Math.round(berth.p * 100)}% of the band range${metrics.breakSide ? ` · ${metrics.breakSide} band break signaled` : ""}`}</dd></div>
+          <div><dt>Fibonacci band position</dt><dd>${berth.held ? "Unknown — valid close, basis and enclosing bands are required; shown in the separate unknown lane." : `${Math.round(berth.p * 100)}% of the band range${metrics.breakSide ? ` · ${metrics.breakSide} band break signaled` : ""}`}</dd></div>
           <div><dt>Volatility · band width</dt><dd>${metrics.volatilityPct === null ? "Band width was not supplied." : `${metrics.volatilityPct.toFixed(2)}% of basis`}</dd></div>
           <div><dt>Potential energy</dt><dd>${berth.held ? "Not measurable without supplied bands." : `${Math.round(metrics.potential * 100)}% stretched from the band midline`}</dd></div>
           <div><dt>Cross-series rung</dt><dd>${escapeHtml(rung)}</dd></div>`;
@@ -1474,6 +1476,7 @@
       const nodeObservation = latestForNode(node);
       const activeObservation = focusObservation || nodeObservation;
       const provider = currentProvider();
+      const designatedNab = globalThis.NabSectors?.byId(node.nabId);
       const nodeSource = nodeObservation ? `${nodeObservation.observation || nodeObservation.symbol} · ${providerTitle(nodeObservation.providerMode)}` : "No assigned instrument has reported yet";
       const nodeActivity = nodeObservation && nodeObservation.motion ? nodeObservation.motion.caption : "No market observation — the character stands still.";
       const assignments = stage ? stage.berths.filter(berth => berth.npc && berth.npc.name === node.name).length : 0;
@@ -1484,6 +1487,10 @@
           <div><dt>${node.symbol ? "Reviewed berth" : "Characters-cast assignment"}</dt><dd>${node.symbol ? `${escapeHtml(node.symbol)} on ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}` : `${assignments} reviewed berth${assignments === 1 ? "" : "s"} · ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}`}</dd></div>
           <div><dt>Latest node pathway</dt><dd>${escapeHtml(nodeSource)}</dd></div>
           <div><dt>${node.symbol ? "Orb motion" : "NPC motion"} · ${escapeHtml(providerTitle(provider))}</dt><dd>${escapeHtml(nodeActivity)}</dd></div>
+          ${designatedNab ? `<div><dt>Designated NAB</dt><dd>${escapeHtml(`${designatedNab.id} · ${designatedNab.symbol} ${designatedNab.name} · ${designatedNab.ticker}`)}</dd></div>
+          <div><dt>Consistent NAB theme</dt><dd>${escapeHtml(designatedNab.theme)}</dd></div>
+          <div><dt>Neural risk · not stock/material risk</dt><dd>${escapeHtml(designatedNab.riskProfile)} · ${escapeHtml(designatedNab.operatingBoundary)}</dd></div>
+          <div><dt>NAB design failure mode</dt><dd>${escapeHtml(designatedNab.failureMode)}</dd></div>` : `<div><dt>Designated NAB</dt><dd>Unassigned — this ticker is not a designated NAB stock proxy.</dd></div>`}
           ${helixInspectorRows(node)}
         </dl>
         <div class="gi-orb2-focus-readout"><p class="gi-eyebrow">FOCUS · ${escapeHtml(state.focus || "—")}</p>${observationMarkup(activeObservation)}</div>
@@ -2038,12 +2045,16 @@
     /* Each rank-matched A/B pair gets a nearby site on the inner ticker
        spheroid. Successive pairs follow a Fibonacci spiral, so symbols occupy
        distinct parts of the inner field instead of collapsing into two hubs. */
-    function tickerPairAnchor(rank, pairCount, series) {
+    function tickerPairAnchor(rank, pairCount, series, metrics) {
       const count = Math.max(1, pairCount);
       const y = clamp(1 - 2 * ((rank + 0.5) / count), -Math.sin(HELIX_LAT_MAX), Math.sin(HELIX_LAT_MAX));
       const latitude = Math.asin(y);
       const longitude = HELIX_BASE_LON + rank * TICKER_ORB_GOLDEN_ANGLE;
-      const center = spherePoint(latitude, longitude, TICKER_ORB_FIELD_RADIUS);
+      const radius = TICKER_ORB_FIELD_RADIUS * Math.sqrt((rank + 0.5) / count);
+      const center = { x: radius * Math.cos(longitude), z: radius * Math.sin(longitude),
+        y: metrics.held ? 0 : (metrics.p - 0.5) * 2 * TICKER_ORB_FIELD_RADIUS };
+      // Unknown observations occupy a separate side lane, never the neutral market plane.
+      if (metrics.held) center.x += TICKER_ORB_FIELD_RADIUS * 3;
       const tangent = { x: -Math.sin(longitude), y: 0, z: Math.cos(longitude) };
       const side = series === "B" ? TICKER_ORB_PAIR_OFFSET : -TICKER_ORB_PAIR_OFFSET;
       return {
@@ -2490,11 +2501,11 @@
           const entry = perNode.get(node.id) || { observation: null, metrics: helixMetricsForMarket(null) };
           const metrics = entry.metrics;
           if (metrics.held) held += 1;
-          const target = tickerPairAnchor(rank, pairCount, series);
+          const target = tickerPairAnchor(rank, pairCount, series, metrics);
           const previous = state.helix.glide.get(node.id) || target.position;
           const position = {
             x: previous.x + (target.position.x - previous.x) * glide,
-            y: previous.y + (target.position.y - previous.y) * glide,
+            y: target.position.y, // Never animate through a false above/below classification.
             z: previous.z + (target.position.z - previous.z) * glide
           };
           state.helix.glide.set(node.id, position);
@@ -2541,9 +2552,17 @@
       context2d.save();
       context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
       levels.forEach(level => {
-        const latitude = bandLatitude(level.p);
-        ring(latitude, width, height, level.color, level.alpha);
-        const anchor = project({ x: 0, y: SPHERE_RADIUS * Math.sin(latitude), z: 0 }, width, height);
+        const y = (level.p - 0.5) * 2 * TICKER_ORB_FIELD_RADIUS;
+        const r = TICKER_ORB_FIELD_RADIUS * 1.4;
+        const corners = [[-r,-r],[r,-r],[r,r],[-r,r],[-r,-r]].map(([x,z]) => project({x,y,z}, width, height));
+        strokeDepthPath(corners, level.color, level.alpha, level.alpha, 0.8);
+        if (level.p === 0.5) {
+          context2d.beginPath();
+          corners.forEach((point, i) => i ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
+          context2d.fillStyle = "rgba(111,211,255,0.035)";
+          context2d.fill();
+        }
+        const anchor = project({ x: 0, y, z: 0 }, width, height);
         context2d.globalAlpha = 0.82 * state.formation;
         context2d.fillStyle = level.color;
         context2d.textAlign = "right";
@@ -2792,19 +2811,21 @@
       state.lastFrame = now;
       /* Band rank places each dual-series pair at its own site on the inner
          ticker spheroid; all nodes share the same eased camera geometry. */
-      const helix = tickerMode && state.seriesMode === "dual" ? updateHelixBerths(now) : null;
+      const helix = tickerMode ? updateHelixBerths(now) : null;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
-      drawSphericalShell(width, height, center);
+      if (!tickerMode) drawSphericalShell(width, height, center);
       /* The Orb's fractal frame processing — film surface under the model,
          dual flame system (Demo.flame core + OuterOrb.flame shells) at Center
          Origin; both degrade to wire when unavailable. */
       let fractal = { coreLive: false, fMod: null, outerMod: null };
       if (state.showFractal) fractal = drawFractalFrames(now, frameDelta, center, width, height, dpr);
-      drawSphereGrid(width, height);
-      drawTickerOrbField(width, height);
+      if (!tickerMode) {
+        drawSphereGrid(width, height);
+        drawTickerOrbField(width, height);
+      }
       if (helix) {
         drawFibRings(width, height);
-        drawHelixScaffold(width, height, fractal.outerMod);
+        // Open field: no enclosing helix or shell.
       } else {
         ring(0, width, height, "#6fd3ff", 0.25);
       }
@@ -2820,10 +2841,7 @@
       });
       state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
       drawRoute(now, center);
-      if (helix) {
-        drawHelixStrandLinks(fractal.outerMod);
-        drawHelixRungs(fractal.outerMod);
-      }
+      // Independent ticker cores are not structurally tethered to each other.
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
         const node = point.node;
@@ -3163,7 +3181,7 @@
         state.routeSteps = { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" };
         drawCanvasWhenReady();
         loadServerHistory();
-        if (currentProvider() === "tickerbot") {
+        if (options.startPaused || currentProvider() === "tickerbot") {
           state.message = { kind: "note", text: "Tickerbot is on-demand in Characters. Choose Beat now; no automatic Tickerbot request is scheduled." };
           draw();
         } else {
@@ -3327,6 +3345,6 @@
 
   window.GoodIntelligenceOrb2 = Object.freeze({
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
-    dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+    helixMetricsForMarket, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
   });
 })();

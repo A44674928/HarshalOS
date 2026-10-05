@@ -26,9 +26,9 @@ function marketRows(count = 70) {
   }));
 }
 
-test("the five-Disc catalog preserves the stock deck and discloses the BIS 23-code limit", () => {
+test("legacy source adapters preserve identifiers and disclose the BIS 23-code limit", () => {
   assert.deepEqual(Catalog.discs.map(disc => disc.id), ["stocks", "fx", "crypto", "commodities", "indices"]);
-  assert.equal(Catalog.disc("stocks").name, "The 52 Cards");
+  assert.equal(Catalog.disc("stocks").name, "Equity source");
   assert.deepEqual(Catalog.disc("stocks").intervalModes, ["1h", "1d", "1mo"]);
   assert.equal(Catalog.disc("fx").number, 2);
   assert.equal(Catalog.fxCurrencies.length, 23);

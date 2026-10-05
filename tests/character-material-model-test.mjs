@@ -1,6 +1,7 @@
 /* Pure rules and local storage behavior for Character Materials. */
 import assert from "node:assert/strict";
 import test from "node:test";
+import "../js/nab-sectors.js";
 import "../js/character-material-model.js";
 
 const Model = globalThis.CharacterMaterialModel;

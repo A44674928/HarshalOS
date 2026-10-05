@@ -317,7 +317,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const instruments = await mapWithConcurrency(selected, MAX_FETCH_CONCURRENCY, async instrument => {
     const symbol = String(instrument.symbol).trim().toUpperCase();
     const lane = lanes.get(symbol) || null;
-    const key = `${discId}:${provider}:${symbol}:${interval}`;
+    const key = `${discId}:${provider}:${symbol}:${interval}:${instrument.providerId || ""}`;
     const cached = cache.get(key);
     if (cached && cached.expiresAt > now) {
       cacheHits += 1;
@@ -470,6 +470,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     cadenceMinutes,
     holdMs,
     instruments,
+    // Bind dynamic crypto symbols to the reviewed identity used for THIS beat.
+    sourceIdentities: selected.map(instrument => ({ symbol: instrument.symbol,
+      channel: discId, providerId: instrument.providerId || null })),
     ...(cryptoRanking ? { ranking: { provider: cryptoRanking.provider, metric: cryptoRanking.metric, rankedAt: cryptoRanking.rankedAt, audit: cryptoRanking.audit } } : {}),
     spend: {
       requestedSymbols: selected.length,

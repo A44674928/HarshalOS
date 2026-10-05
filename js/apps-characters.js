@@ -82,13 +82,16 @@
 
   APPS.push({
     id: "characters",
-    title: "Characters",
-    short: "Characters",
+    title: "NAB Discs",
+    short: "NAB Discs",
     glyph: "⧉",
-    desc: "Objects, NPCs, and Items moved by the last closed bar — a display-only market beat",
+    desc: "119 NAB-aligned composites joining institutions, market observations, and physical designs",
     w: 1200,
     h: 800,
     render(body, api) {
+      // Keep the desktop ID for saved shortcuts; retire the old five-Disc UI.
+      if (window.NabDiscsView) return window.NabDiscsView.mount(body);
+      // Compatibility renderer for archived/isolated tooling without the NAB modules.
       const Beat = window.CharactersBeat;
       const Cast = window.CharactersCast;
       const MarketContext = window.GoodIntelligenceMarketContext;
