@@ -21,6 +21,7 @@ import {
 import { fetchAlphaVantageMonthlyMarketContext } from "./characters-alpha-vantage.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
 import { fetchYahooFinanceDailyMarketContext } from "./characters-yahoo-finance.mjs";
+import { fetchFinnhubDailyMarketContext } from "./characters-finnhub.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import {
   ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT,
@@ -321,7 +322,8 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
      in this Worker. Keep the feature flag explicit so deployments that require
      Massive-only provenance remain unchanged. */
   const yahooFallback = String(env.YAHOO_FINANCE_FALLBACK || "").toLowerCase() === "true";
-  if (provider === "massive" && !massiveApiKey && !yahooFallback) {
+  const finnhubApiKey = typeof env.FINNHUB_API_KEY === "string" ? env.FINNHUB_API_KEY.trim() : "";
+  if (provider === "massive" && !massiveApiKey && !yahooFallback && !finnhubApiKey) {
     return failure("Massive daily beats are not configured. Add the MASSIVE_API_KEY Worker secret (or enable YAHOO_FINANCE_FALLBACK for reviewed gaps).", 503);
   }
 
@@ -406,6 +408,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         if (yahoo.ok) {
           cache.set(key, { packet: yahoo.packet, provider: "yahoo-finance", expiresAt: nextUtcMidnightMs(now) });
           return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "yahoo-finance", marketContext: yahoo.packet };
+        }
+      }
+      if (!result.ok && finnhubApiKey) {
+        const finnhub = await fetchFinnhubDailyMarketContext({ instrument, symbol, apiKey: finnhubApiKey, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS });
+        if (finnhub.ok) {
+          cache.set(key, { packet: finnhub.packet, provider: "finnhub", expiresAt: nextUtcMidnightMs(now) });
+          return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "finnhub", marketContext: finnhub.packet };
         }
       }
       if (!result.ok) {
