@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > **User-supplied source, transcribed below.** This is the Pine v6 code you provided in this
-> conversation, not a reconstruction. No TradingView URL or publication date was supplied.
+> conversation, not a reconstruction. No source URL or publication date was supplied.
 > The title attributes it to Harshal. No standalone `.pine` file is stored; the complete
 > source is kept in this Markdown code block.
 
@@ -26,7 +26,7 @@ the JS market-context port. The visual fill option is not represented there.
 | Pine input | Type | Pine default | Constraints declared by Pine | JS field |
 | :--- | :--- | :--- | :--- | :--- |
 | `length` | int | `200` | min 1 | `bandLen` |
-| `src` | source | `"hlc3"` | TradingView source selector | `bandSrc` |
+| `src` | source | `"hlc3"` | source selector | `bandSrc` |
 | `mult` | float | `3.0` | min 0.001, max 50.0, step 0.1 | `bandMult` |
 | `ma_type` | string | `"VWMA"` | VWMA, SMA, EMA, WMA, RMA | `bandMa` |
 | `show_fills` | bool | `true` | — | — |
@@ -62,7 +62,7 @@ signals, but that does not make it a port of every standalone FBB output.
 
 The standalone Pine input only declares `length` min 1, while the JS `bandLen` normalizer
 caps it at 2000. The JS source selector is limited to its six supported values. Its
-moving-average helper also uses its own VWMA fallback and warm-up rules. Compare TradingView
+moving-average helper also uses its own VWMA fallback and warm-up rules. Compare the supplied source runtime
 output bar-for-bar before calling this a parity port.
 
 ## Source (verbatim transcription)

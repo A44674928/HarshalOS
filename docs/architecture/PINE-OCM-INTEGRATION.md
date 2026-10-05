@@ -6,8 +6,7 @@ payload binding into OCM is not implemented.
 
 **Source archive:** [`scripts/pine/`](../../scripts/pine/README.md) contains Markdown copies of
 the four Pine v6 scripts supplied for this work. The JavaScript market-context port is related,
-but it is not a line-for-line Pine runtime and has not been cross-validated bar-for-bar against
-TradingView. Moon/Sun context is documented separately in
+but it is not a line-for-line Pine runtime and has not been cross-validated bar-for-bar against the supplied Pine runtime. Moon/Sun context is documented separately in
 [`CELESTIAL-CONTEXT.md`](CELESTIAL-CONTEXT.md).
 
 ---
@@ -39,10 +38,10 @@ These are related calculations, **not yet proven equivalent implementations**.
 
 | Source document | Supplied indicator | Relevant JS code today | Coverage status |
 | :--- | :--- | :--- | :--- |
-| [`01-vfi-fibonacci-bands.md`](../../scripts/pine/01-vfi-fibonacci-bands.md) | VFI + Fibonacci Bands merged confluence overlay | `computeVfi()`, `computeBands()`, evaluator signals | Formula-level overlap; source-specific UI/runtime details and TradingView parity remain unverified |
+| [`01-vfi-fibonacci-bands.md`](../../scripts/pine/01-vfi-fibonacci-bands.md) | VFI + Fibonacci Bands merged confluence overlay | `computeVfi()`, `computeBands()`, evaluator signals | Formula-level overlap; source-specific UI/runtime details and source parity remain unverified |
 | [`02-wavetrend.md`](../../scripts/pine/02-wavetrend.md) | LAZY - WaveTrend Context Engine `[Pro]` | `computeWaveTrend()`, `mapHigherTimeframe()`, `divergenceEvents()` | Core formulas overlap; MTF, hidden-divergence, visual, and confirmation behavior differ |
 | [`03-fibonacci-bollinger-bands.md`](../../scripts/pine/03-fibonacci-bollinger-bands.md) | Standalone Fibonacci Bollinger Bands | Shared `computeBands()` only | Partial: 0.236/0.500 lines, fills, and standalone basis alert are not emitted |
-| [`04-moon-phases.md`](../../scripts/pine/04-moon-phases.md) | Third-party Moon Phases transcription (author/license unknown) | `js/celestial-context.js` → `moonAt()` | Approximate UTC event/phase readout; not a TradingView bar-for-bar port; provenance caveat applies |
+| [`04-moon-phases.md`](../../scripts/pine/04-moon-phases.md) | Third-party Moon Phases transcription (author/license unknown) | `js/celestial-context.js` → `moonAt()` | Approximate UTC event/phase readout; not a bar-for-bar Pine runtime port; provenance caveat applies |
 
 The JS module remains a Good Intelligence calculation layer. `js/ocm-data.js` now registers a
 read-only **Market Context** node for directory and OCM visualization. Its presence does not
@@ -136,12 +135,12 @@ explicitly handled before claiming the existing JS output reproduces it:
 | Standalone FBB levels | 0.236, 0.382, 0.500, 0.618, 0.764, and 1.000 | `computeBands()` exposes 0.382, 0.618, 0.764, and 1.000 only |
 | FBB presentation/events | Includes chart fills and alerts for outer-band and basis crosses | JS is an analysis/data layer; standalone fills and the basis-cross alert are not implemented |
 | Merged VFI/FBB range | Pine does not declare maxima for `vfiCoef` or `vfiVcoef` | JS normalization caps them at 10 and 100 |
-| Volume requirement | Merged source calls `runtime.error()` when cumulative volume is not positive | The JS packet validator/evaluator does not reproduce TradingView's runtime-error UI |
+| Volume requirement | Merged source calls `runtime.error()` when cumulative volume is not positive | The JS packet validator/evaluator does not reproduce the source runtime-error UI |
 
-TradingView's built-in indicator seeding, pivot ties, gaps, real-time vs historical execution,
+The source runtime's indicator seeding, pivot ties, gaps, real-time vs historical execution,
 provider candle conventions, and the VWMA fallback should be compared on identical bars and
 settings. The current repo test suite validates the JavaScript implementation and the Markdown
-crosswalk; it does not establish Pine/TradingView parity.
+crosswalk; it does not establish source-runtime parity.
 
 ## 6. Axiom and invariant conformance
 
@@ -166,7 +165,7 @@ crosswalk; it does not establish Pine/TradingView parity.
 1. **Choose parity scope.** Decide whether the merged VFI/FBB and LAZY WaveTrend sources are
    the intended JS behavior, and whether the standalone FBB must also be ported with its extra
    ratios, fills, and basis alert. Do not silently merge the two band specifications.
-2. **Build parity fixtures.** Use identical historical OHLCV bars and settings in TradingView
+2. **Build parity fixtures.** Use identical historical OHLCV bars and settings in a Pine runtime
    and the JS evaluator. Compare warm-up values, standard deviations, moving averages, HTF
    mapping, pivots, and events; document any accepted differences.
 3. **Reconcile the JS layer.** Update calculation/input contracts only after parity results
@@ -191,5 +190,5 @@ crosswalk; it does not establish Pine/TradingView parity.
 - Letting an indicator event satisfy `V(S, t)`, `C(t)`, or `K(t)`.
 - Volatility-triggered emergency contexts (`INV-EMERG-001`).
 - Treating synthetic demo bars as live market data.
-- Claiming the current JavaScript port is TradingView-identical before parity testing.
+- Claiming the current JavaScript port is source-runtime-identical before parity testing.
 - Live external-provider integration or forwarding market payloads into OCM; the registered Market Context node is a directory/visualization entry only.

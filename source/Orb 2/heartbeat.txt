@@ -1,8 +1,8 @@
 HEARTBEAT — Orb 2 / NPC Spheroid / 3D Disc
-Status: LOCAL DISPLAY MODEL · read-only · no automatic provider loop
+Status: LOCAL DISPLAY MODEL · read-only · automatic provider loop is Worker-guarded and rate-paced
 
 Reviewed context (not fetched by Orb 2):
-- Characters uses Massive for reviewed automatic 1d observations across five Discs, one instrument per minute.
+- Characters uses Massive for reviewed automatic 1d observations across five Discs, paced at up to five one-symbol requests per minute; cadence=1 identifies the daily-bar contract.
 - Tickerbot remains manual/on-demand for Disc1 1h/1d observation.
 - Alpha Vantage remains the Disc1 1mo best-performing-ticker spotlight, exactly one ticker per hour.
 - No provider silently substitutes for another; missing fields remain missing.

@@ -63,11 +63,10 @@
       const Client = window.GoodIntelligenceClient;
       const Assurance = window.GoodIntelligenceAssurance;
       const MarketContext = window.GoodIntelligenceMarketContext;
-      const TradingView = window.GoodIntelligenceTradingView;
       const Verifier = window.GoodIntelligenceVerifier;
       const Orb2 = window.GoodIntelligenceOrb2;
-      if (!Client || !Assurance || !MarketContext || !TradingView || !Verifier) {
-        body.innerHTML = `<div class="h1">Good Intelligence</div><div class="rule-box refusal">The read-only API, assurance, market-context, TradingView-adapter, and signature-verification modules are not loaded. Check their script order in index.html.</div>`;
+      if (!Client || !Assurance || !MarketContext || !Verifier) {
+        body.innerHTML = `<div class="h1">Good Intelligence</div><div class="rule-box refusal">The read-only API, assurance, market-context, and signature-verification modules are not loaded. Check their script order in index.html.</div>`;
         return;
       }
 
@@ -86,16 +85,14 @@
         errors: { feed: null, categories: null, rankings: null },
         selectedId: "",
         selectedMarketId: "",
-        // Tickerbot Live is the first, default data source on both chart panels.
-        // The synthetic demo stays available explicitly and is never substituted.
+        // Tickerbot Live is the first, default market-chart source. The synthetic
+        // demo stays available explicitly and is never substituted.
         marketProvider: "tickerbot",
         marketQuery: "",
         marketInterval: "1h",
         marketData: {},
         marketPending: new Set(),
         marketGeneration: 0,
-        tvChartType: TradingView.DEFAULT_CHART_TYPE,
-        tvShowVolume: true,
         orb2Engine: null,
         nabEngine: null,
         updatedAt: "",
@@ -138,7 +135,6 @@
                 <nav class="gi-tabs" aria-label="Good Intelligence views">
                   <button type="button" class="gi-tab active" data-gi-view="news" aria-pressed="true">News</button>
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
-                  <button type="button" class="gi-tab" data-gi-view="tradingview" aria-pressed="false">TradingView</button>
                   <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false">Orb 2</button>
                   <button type="button" class="gi-tab" data-gi-view="nabdiscs" aria-pressed="false">NAB Discs</button>
                 </nav>
@@ -196,37 +192,6 @@
                 </div>
                 <p class="gi-market-search-help" data-gi-market-search-help></p>
                 <div data-gi-market-chart-host aria-live="polite"></div>
-              </section>
-
-              <section class="gi-tradingview-panel" data-gi-tv-panel aria-label="TradingView charts" hidden>
-                <div class="gi-chart-toolbar">
-                  <div>
-                    <p class="gi-eyebrow">TRADINGVIEW · FREE CHARTING LIBRARY</p>
-                    <h3>TradingView charts</h3>
-                    <p>Interactive ${escapeHtml(TradingView.LIBRARY.name)} over the same OHLCV packets</p>
-                  </div>
-                  <div class="gi-chart-controls">
-                    <label class="gi-chart-control"><span>DATA SOURCE</span><select data-gi-tv-provider aria-label="Select TradingView data source"><option value="tickerbot" selected>Tickerbot Live</option><option value="demo">Synthetic demo</option></select></label>
-                    <label class="gi-chart-control"><span>SELECT TICKER</span><select data-gi-tv-select aria-label="Select TradingView ticker"></select></label>
-                    <label class="gi-chart-control"><span>BAR INTERVAL</span><select data-gi-tv-interval aria-label="Select TradingView bar interval"><option value="1h">1 hour</option><option value="1d">1 day</option></select></label>
-                    <label class="gi-chart-control"><span>CHART TYPE</span><select data-gi-tv-type aria-label="Select TradingView chart type"></select></label>
-                  </div>
-                </div>
-                <div class="gi-market-search-tools">
-                  <label class="gi-search">
-                    <span class="gi-sr-only">Search TradingView tickers by symbol or company</span>
-                    <span class="gi-search-icon" aria-hidden="true">⌕</span>
-                    <input type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Search ticker or company…" data-gi-tv-search>
-                  </label>
-                  <button class="gi-button" type="button" data-gi-tv-clear aria-label="Clear TradingView ticker search">Clear</button>
-                  <span class="gi-result-count" data-gi-tv-count role="status" aria-live="polite"></span>
-                </div>
-                <p class="gi-market-search-help" data-gi-tv-search-help></p>
-                <div data-gi-tv-host aria-live="polite"></div>
-                <p class="gi-tv-attribution">
-                  <span data-gi-tv-attribution></span>
-                  <a href="${escapeHtml(TradingView.LIBRARY.homepage)}" target="_blank" rel="noopener noreferrer">Free charting libraries at TradingView ↗</a>
-                </p>
               </section>
 
               <section class="gi-orb2-panel" data-gi-orb2-panel aria-label="Orb 2 3D OCM model" hidden>
@@ -300,30 +265,15 @@
       const marketProviderSelect = $("[data-gi-market-provider]");
       const marketIntervalSelect = $("[data-gi-market-interval]");
       const marketChartHost = $("[data-gi-market-chart-host]");
-      const tvProviderSelect = $("[data-gi-tv-provider]");
-      const tvSelect = $("[data-gi-tv-select]");
-      const tvIntervalSelect = $("[data-gi-tv-interval]");
-      const tvTypeSelect = $("[data-gi-tv-type]");
-      const tvSearch = $("[data-gi-tv-search]");
-      const tvClear = $("[data-gi-tv-clear]");
-      const tvCount = $("[data-gi-tv-count]");
-      const tvSearchHelp = $("[data-gi-tv-search-help]");
-      const tvHost = $("[data-gi-tv-host]");
-      const tvAttribution = $("[data-gi-tv-attribution]");
       const orb2Host = $("[data-gi-orb2-host]");
       const nabHost = $("[data-gi-nab-host]");
       const categorySelect = $("[data-gi-category]");
       const searchInput = $("[data-gi-search]");
       const apiInput = $("[data-gi-api-input]");
       const settingsError = $("[data-gi-settings-error]");
-      const marketSelects = [marketSelect, tvSelect];
-      const marketProviderSelects = [marketProviderSelect, tvProviderSelect];
-      const marketIntervalSelects = [marketIntervalSelect, tvIntervalSelect];
-      // The chart-type list comes from the adapter module so the menu and the
-      // vendored library's real capabilities cannot drift apart.
-      tvTypeSelect.innerHTML = TradingView.CHART_TYPES
-        .map(type => `<option value="${escapeHtml(type.id)}">${escapeHtml(type.label)}</option>`).join("");
-      tvAttribution.textContent = `${TradingView.describe()} · served from this app; the library loads no market data, keys, or prompts from TradingView.`;
+      const marketSelects = [marketSelect];
+      const marketProviderSelects = [marketProviderSelect];
+      const marketIntervalSelects = [marketIntervalSelect];
 
       function assessmentFor(item) {
         const match = Assurance.matchLocalGround0Audit(item, state.ground0Audits);
@@ -592,11 +542,9 @@
       }
 
       /* ── shared market data layer ─────────────────────────────────────
-         The native Market Charts SVGs and the TradingView library chart read
-         the same search, the same selection, and the same keyed cache, so one
-         symbol/interval pair is fetched once and neither panel can draw bars
-         the other does not have. Cache keys are provider-qualified, so
-         switching DATA SOURCE never mixes synthetic and API-supplied prices. */
+         The Market Charts renderer reads one search, one selection, and one
+         provider-qualified cache, so switching DATA SOURCE never mixes
+         synthetic and API-supplied prices. */
 
       function marketKey() {
         return `${state.marketProvider}:${state.selectedMarketId}:${state.marketInterval}`;
@@ -627,7 +575,6 @@
           select.value = state.marketInterval;
           select.disabled = state.marketProvider !== "tickerbot";
         });
-        tvTypeSelect.value = state.tvChartType;
       }
 
       /* Applies the search filter and the current selection to both native
@@ -735,167 +682,16 @@
 
       function updateMarketSearch(count, total) {
         const summary = `${count} of ${total} tracked ticker${total === 1 ? "" : "s"}`;
-        [marketSearch, tvSearch].forEach(input => { input.value = state.marketQuery; });
+        marketSearch.value = state.marketQuery;
         marketCount.textContent = summary;
-        tvCount.textContent = summary;
         marketClear.disabled = !state.marketQuery;
-        tvClear.disabled = !state.marketQuery;
-        const help = state.marketProvider === "tickerbot"
+        marketSearchHelp.textContent = state.marketProvider === "tickerbot"
           ? `Search the configured Tickerbot watchlist: ${TICKERBOT_WATCHLIST.length} tickers across ${WATCHLIST_SECTORS.length} sectors (Apple, Microsoft, Intel, AMD, Cloudflare, Chevron, Exxon Mobil, Tesla, …). Other symbols are not enabled on this Worker.`
           : "Filter the tickers supplied by the selected API. Demo symbols and prices remain synthetic.";
-        marketSearchHelp.textContent = help;
-        tvSearchHelp.textContent = help;
-      }
-
-      /* ── TradingView Lightweight Charts™ panel ───────────────────────
-         Charts are created only while their tab is visible and are disposed on
-         the way out, so a hidden container is never measured. The library is
-         the vendored Apache-2.0 build; it receives the same OHLCV rows as the
-         native charts and returns no data of its own. */
-      let tvChart = null;
-      let tvPriceSeries = null;
-      let tvVolumeSeries = null;
-
-      function disposeTradingViewChart() {
-        if (tvChart) {
-          try { tvChart.remove(); } catch { /* the chart is already detached */ }
-        }
-        tvChart = null;
-        tvPriceSeries = null;
-        tvVolumeSeries = null;
-      }
-
-      function tradingViewLegend(row, data) {
-        const bar = row || data.last;
-        if (!bar) return "No bar data.";
-        const change = bar.open ? ((bar.close - bar.open) / bar.open) * 100 : null;
-        const changeLabel = Number.isFinite(change) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
-        return `${row ? "Crosshair" : "Latest"} · O ${formatMetric(bar.open)} · H ${formatMetric(bar.high)} · L ${formatMetric(bar.low)} · C ${formatMetric(bar.close)} · ${changeLabel} · Vol ${formatMetric(bar.volume)}${bar.confirmed ? "" : " · bar still forming"}`;
-      }
-
-      function drawTradingView() {
-        if (state.view !== "tradingview") {
-          disposeTradingViewChart();
-          return;
-        }
-        syncMarketControls();
-        const availability = TradingView.availability();
-        if (!availability.available) {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock("TradingView library not loaded", availability.reason, "error");
-          return;
-        }
-        const selection = drawMarketSelection();
-        if (selection.status !== "ok") {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock(selection.message[0], selection.message[1]);
-          return;
-        }
-        const record = ensureMarketData(selection.entry);
-        if (record.pending) {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock("Loading Tickerbot bars", `Requesting ${selection.entry.symbol} ${state.marketInterval} bars through the same-origin Worker.`);
-          return;
-        }
-        if (record.error) {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock("Tickerbot bars unavailable", `${record.error}${tickerbotFailureNote(record.error)}`, "error");
-          return;
-        }
-        const data = TradingView.chartData(record.packet && record.packet.bars, { limit: TradingView.MAX_CHART_BARS });
-        if (!data.count) {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock("No candles to draw", "The packet has no valid OHLCV bars. No prices or candles are fabricated here.");
-          return;
-        }
-        renderTradingViewChart(selection.entry, record, data);
-      }
-
-      function renderTradingViewChart(entry, record, data) {
-        disposeTradingViewChart();
-        const api = window.LightweightCharts;
-        const resolved = TradingView.resolveSeries(api, state.tvChartType);
-        if (!resolved) {
-          tvHost.innerHTML = messageBlock("Chart type unavailable", `This bundled library build does not expose a ${TradingView.chartType(state.tvChartType).label} series.`, "error");
-          return;
-        }
-        const result = record.result || null;
-        const packet = record.packet || null;
-        const sourceTag = result && result.synthetic
-          ? "SYNTHETIC OHLCV · NOT REAL MARKET PRICES"
-          : "TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED";
-        const barNote = `${data.count} bar${data.count === 1 ? "" : "s"}`;
-        const alerts = result && result.alerts && result.alerts.length
-          ? `<div class="gi-chart-signals">${result.alerts.map(alert => `<span>${escapeHtml(alert)}</span>`).join("")}</div>`
-          : "";
-        const divergences = result && result.recentDivergences && result.recentDivergences.length
-          ? `<p class="gi-chart-divergences">Recent WaveTrend divergences: ${result.recentDivergences.slice(-3).map(event => `${escapeHtml(event.type)} · ${escapeHtml(formatDate(event.time))}`).join(" · ")}</p>`
-          : "";
-        tvHost.innerHTML = `
-          <div class="gi-market-chart-summary">
-            <span class="gi-market-ticker">${escapeHtml(entry.symbol)} · ${escapeHtml((packet && packet.timeframe) || state.marketInterval)}</span>
-            <span class="gi-market-synthetic-tag">${escapeHtml(sourceTag)}</span>
-            <span class="gi-market-source-line">${escapeHtml((packet && packet.source) || "Source not supplied")} · ${barNote} · latest close ${formatMetric(data.last.close)} · drawn locally by ${escapeHtml(TradingView.describe())}</span>
-          </div>
-          <section class="gi-chart-card gi-tv-card">
-            <div class="gi-chart-title">
-              <div><p class="gi-eyebrow">TRADINGVIEW LIGHTWEIGHT CHARTS™</p><h4>${escapeHtml(entry.symbol)} · ${escapeHtml(TradingView.chartType(state.tvChartType).label)}</h4></div>
-              <div class="gi-tv-actions">
-                <button class="gi-button" type="button" data-gi-tv-volume aria-pressed="${state.tvShowVolume ? "true" : "false"}">${state.tvShowVolume ? "Hide volume" : "Show volume"}</button>
-                <button class="gi-button" type="button" data-gi-tv-reset>Reset zoom</button>
-              </div>
-            </div>
-            <div class="gi-tv-chart" data-gi-tv-canvas></div>
-            <div class="gi-tv-legend" data-gi-tv-legend role="status">${escapeHtml(tradingViewLegend(null, data))}</div>
-            <p class="gi-sr-only">Interactive ${escapeHtml(TradingView.chartType(state.tvChartType).label)} chart for ${escapeHtml(entry.symbol)}, ${barNote} at ${escapeHtml((packet && packet.timeframe) || state.marketInterval)}. ${escapeHtml(result && result.note || "Price/volume context only.")}</p>
-          </section>
-          ${alerts}${divergences}
-          <p class="gi-chart-disclaimer">${escapeHtml(result && result.note || "Price/volume context only—not investment advice or permission to act.")}</p>`;
-        const container = tvHost.querySelector("[data-gi-tv-canvas]");
-        // Any library-side failure (blocked canvas support, a rejected container,
-        // an incompatible build) becomes an explicit message; the panel never
-        // substitutes invented candles for a chart that did not render.
-        try {
-          tvChart = api.createChart(container, TradingView.chartOptions());
-          const options = TradingView.seriesOptions(resolved.type.id, { basePrice: data.first.close });
-          tvPriceSeries = resolved.mode === "addSeries"
-            ? tvChart.addSeries(resolved.definition, options)
-            : tvChart[resolved.method](options);
-          tvPriceSeries.setData(TradingView.seriesData(resolved.type.id, data.candles));
-          if (api.HistogramSeries && typeof tvChart.addSeries === "function") {
-            tvVolumeSeries = tvChart.addSeries(api.HistogramSeries, TradingView.volumeOptions());
-            tvVolumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-            tvVolumeSeries.setData(data.volumes);
-            tvVolumeSeries.applyOptions({ visible: state.tvShowVolume });
-          }
-          TradingView.attachMarkers(api, tvPriceSeries, TradingView.markers(result, data.bars));
-          const rowByTime = new Map(data.bars.map(row => [row.time, row]));
-          tvChart.subscribeCrosshairMove(parameter => {
-            const legend = tvHost.querySelector("[data-gi-tv-legend]");
-            if (!legend) return;
-            const time = Number(parameter && parameter.time);
-            legend.textContent = tradingViewLegend(Number.isFinite(time) ? rowByTime.get(time) : null, data);
-          });
-          tvChart.timeScale().fitContent();
-          const volumeButton = tvHost.querySelector("[data-gi-tv-volume]");
-          if (volumeButton) volumeButton.addEventListener("click", () => {
-            if (!tvVolumeSeries) return;
-            state.tvShowVolume = !state.tvShowVolume;
-            tvVolumeSeries.applyOptions({ visible: state.tvShowVolume });
-            volumeButton.setAttribute("aria-pressed", String(state.tvShowVolume));
-            volumeButton.textContent = state.tvShowVolume ? "Hide volume" : "Show volume";
-          });
-          const resetButton = tvHost.querySelector("[data-gi-tv-reset]");
-          if (resetButton) resetButton.addEventListener("click", () => { if (tvChart) tvChart.timeScale().fitContent(); });
-        } catch (error) {
-          disposeTradingViewChart();
-          tvHost.innerHTML = messageBlock("Chart could not be created", `${(error && error.message) || "The bundled library rejected the chart container."} No candles are invented in its place.`, "error");
-        }
       }
 
       function drawMarketPanels() {
         drawMarketCharts();
-        drawTradingView();
       }
 
 
@@ -1125,14 +921,12 @@
         const feedView = newsView && state.newsSubview === "feed";
         const rankingsView = newsView && state.newsSubview === "rankings";
         const marketsView = state.view === "markets";
-        const tradingView = state.view === "tradingview";
         const orb2View = state.view === "orb2";
         const nabView = state.view === "nabdiscs";
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
         $("[data-gi-markets-panel]").hidden = !marketsView;
-        $("[data-gi-tv-panel]").hidden = !tradingView;
         $("[data-gi-orb2-panel]").hidden = !orb2View;
         $("[data-gi-nab-panel]").hidden = !nabView;
         if (state.orb2Engine) state.orb2Engine.setVisible(orb2View);
@@ -1141,14 +935,12 @@
         if (nabView) drawNabDiscs();
         $("[data-gi-view-title]").textContent = newsView ? (feedView ? "Member intel feed" : "Network rankings")
             : marketsView ? "Market Charts"
-              : tradingView ? "TradingView"
-                : nabView ? "NAB Discs · composite field" : "Orb 2 · OCM roster model";
+              : nabView ? "NAB Discs · composite field" : "Orb 2 · OCM roster model";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
-              : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
-                : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
+              : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
                   : "A live, display-only 3D OCM beat model over the reviewed watchlist. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
@@ -1213,9 +1005,8 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["news", "markets", "tradingview", "orb2", "nabdiscs"].includes(button.dataset.giView) ? button.dataset.giView : "news";
+        state.view = ["news", "markets", "orb2", "nabdiscs"].includes(button.dataset.giView) ? button.dataset.giView : "news";
         updateView();
-        // Entering the TradingView view builds its chart; leaving it disposes the canvas.
         drawMarketPanels();
       }));
       body.querySelectorAll("[data-gi-news-view]").forEach(button => button.addEventListener("click", () => {
@@ -1247,16 +1038,12 @@
         state.marketQuery = String(input.value || "").slice(0, 80);
         drawMarketPanels();
       };
-      [marketSearch, tvSearch].forEach(input => {
-        input.addEventListener("input", () => searchMarkets(input));
-        input.addEventListener("search", () => searchMarkets(input));
-        input.addEventListener("keydown", event => {
-          if (event.key === "Escape") { event.preventDefault(); clearMarketSearch(input); }
-        });
+      marketSearch.addEventListener("input", () => searchMarkets(marketSearch));
+      marketSearch.addEventListener("search", () => searchMarkets(marketSearch));
+      marketSearch.addEventListener("keydown", event => {
+        if (event.key === "Escape") { event.preventDefault(); clearMarketSearch(marketSearch); }
       });
-      [marketClear, tvClear].forEach(button => button.addEventListener("click", () => {
-        clearMarketSearch(button === tvClear ? tvSearch : marketSearch);
-      }));
+      marketClear.addEventListener("click", () => clearMarketSearch(marketSearch));
       marketSelects.forEach(select => select.addEventListener("change", () => {
         state.selectedMarketId = select.value;
         drawMarketPanels();
@@ -1271,10 +1058,6 @@
         state.marketInterval = select.value === "1d" ? "1d" : "1h";
         drawMarketPanels();
       }));
-      tvTypeSelect.addEventListener("change", () => {
-        state.tvChartType = TradingView.chartType(tvTypeSelect.value).id;
-        drawTradingView();
-      });
       $("[data-gi-refresh]").addEventListener("click", () => refresh());
       searchInput.addEventListener("input", () => {
         state.query = searchInput.value;

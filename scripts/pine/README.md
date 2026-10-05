@@ -5,12 +5,12 @@ work, plus the supplied third-party Moon Phases snippet. Each complete source is
 fenced `pine` block with its provenance and a careful description of any JavaScript adaptation.
 
 > [!IMPORTANT]
-> These are **user-supplied source transcriptions**, not reconstructions. No TradingView URLs
+> These are **user-supplied source transcriptions**, not reconstructions. No source URLs
 > or publication dates were provided. The Moon Phases snippet is identified by the user as
 > third-party; its original author and license are unknown, so this archive does not claim
 > authorship or grant a license. There are no separate raw `.pine` files; the source copies
 > are the code blocks in the Markdown documents below. The JS market-context port has not been
-> cross-validated bar-for-bar against TradingView, and it does not reproduce every visual,
+> cross-validated bar-for-bar against the source runtime, and it does not reproduce every visual,
 > alert, timeframe, or divergence behavior in these sources.
 
 ## Inventory
@@ -50,7 +50,7 @@ that block, that mapped market-parameter defaults agree with the shipped
 `GoodIntelligenceMarketContext.DEFAULTS`, and that Market/Sun/Moon OCM addresses are registered
 and valid. `tests/celestial-context-test.mjs` exercises the approximate display calculation;
 the desktop suite checks its UTS surfaces. These checks **do not** compile Pine or prove
-TradingView/ephemeris parity.
+source-runtime/ephemeris parity.
 
 ## Relationship to the Orb Communicator Model
 

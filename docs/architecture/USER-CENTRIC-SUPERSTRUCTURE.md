@@ -116,7 +116,6 @@ js/                                                 ← runtime sources
 │   celestial-context.js  good-intelligence-*.js
 │   manuscript.js  core-book-reader.js
 │   llm.js  apps-llm.js  apps-news.js  apps-cloud.js
-│   └── vendor/lightweight-charts/                  ← unmodified third-party
 worker/                                             ← Cloudflare APIs
 │   index.mjs  llm-relay.mjs  storage.mjs
 │   community-*.mjs  good-intelligence-*.mjs

@@ -137,6 +137,10 @@ function safeMarket(value) {
     previousClose: bounded(value.previousClose, 0.000000001, 1e15, null),
     changePct: bounded(value.changePct, -1_000_000, 1_000_000, null),
     basis: bounded(value.basis, -1e15, 1e15, null),
+    bands: isRecord(value.bands) ? {
+      lower1000: bounded(value.bands.lower1000, -1e15, 1e15, null),
+      upper1000: bounded(value.bands.upper1000, -1e15, 1e15, null)
+    } : null,
     vfi: isRecord(value.vfi) ? {
       value: bounded(value.vfi.value, -1e12, 1e12, null),
       signal: bounded(value.vfi.signal, -1e12, 1e12, null),

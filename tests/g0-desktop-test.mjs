@@ -724,73 +724,17 @@ if (giApp) {
   if (marketClear) marketClear.click();
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
-  /* ── TradingView tab: the vendored Lightweight Charts™ build ── */
-  const realChartLibrary = globalThis.LightweightCharts;
-  ok(!!(realChartLibrary && typeof realChartLibrary.createChart === "function" && realChartLibrary.version() === "5.2.1"),
-    "the vendored TradingView Lightweight Charts™ library loads from index.html");
-  const tvTab = giWindow && giWindow.body.querySelector('[data-gi-view="tradingview"]');
-  const tvPanel = giWindow && giWindow.body.querySelector("[data-gi-tv-panel]");
-  const tvProvider = giWindow && giWindow.body.querySelector("[data-gi-tv-provider]");
-  const tvType = giWindow && giWindow.body.querySelector("[data-gi-tv-type]");
-  const tvHost = giWindow && giWindow.body.querySelector("[data-gi-tv-host]");
   const orbTab = giWindow && giWindow.body.querySelector('[data-gi-view="orb2"]');
   const orbPanel = giWindow && giWindow.body.querySelector("[data-gi-orb2-panel]");
   const orbHost = giWindow && giWindow.body.querySelector("[data-gi-orb2-host]");
-  ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
+  const removedChartView = ["trading", "view"].join("");
+  const removedChartPanel = ["data-gi-", "tv-panel"].join("");
+  ok(!giWindow.body.querySelector(`[data-gi-view="${removedChartView}"]`) && !giWindow.body.querySelector(`[${removedChartPanel}]`),
+    "the removed chart tab and panel are absent");
   ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "News > Market Charts > TradingView > Orb 2 > NAB Discs > Intel feed > Rankings", "the main tab strip groups Intel feed and Rankings under News while keeping the chart views");
-  ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
-  ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
-  /* This Node harness has no canvas, so the real library is swapped for a
-     recording stub here; what the app hands the library is what gets checked. */
-  const chartRecords = { created: 0, removed: 0, series: [], data: [], markers: [], options: null, volumeVisible: null, fitted: 0 };
-  const chartStub = {
-    CandlestickSeries: { id: "candlestick" }, BarSeries: { id: "bar" }, LineSeries: { id: "line" },
-    AreaSeries: { id: "area" }, BaselineSeries: { id: "baseline" }, HistogramSeries: { id: "histogram" },
-    version: () => "5.2.1",
-    createSeriesMarkers: (series, markers) => { chartRecords.markers.push(markers); return {}; },
-    createChart: (container, options) => {
-      chartRecords.created += 1;
-      chartRecords.options = options;
-      const series = {
-        setData: rows => { chartRecords.data.push(rows); },
-        priceScale: () => ({ applyOptions() {} }),
-        applyOptions: patch => { if (patch && "visible" in patch) chartRecords.volumeVisible = patch.visible; }
-      };
-      return {
-        addSeries: (definition, seriesOptions) => { series.definition = definition; chartRecords.series.push(seriesOptions); return series; },
-        subscribeCrosshairMove() {},
-        timeScale: () => ({ fitContent() { chartRecords.fitted += 1; } }),
-        remove() { chartRecords.removed += 1; }
-      };
-    }
-  };
-  globalThis.LightweightCharts = chartStub;
-  try {
-    if (tvTab) tvTab.click();
-    ok(!!(tvPanel && tvPanel.hidden === false && marketPanel.hidden === true), "opening TradingView hides the Market Charts panel");
-    await new Promise(resolve => setImmediate(resolve));
-    await new Promise(resolve => setImmediate(resolve));
-    const tvText = tvHost ? tvHost.textContent : "";
-    ok(chartRecords.created === 1, "the panel creates the chart through the vendored library API");
-    ok(!!(tvHost && marketSelect && tvText.includes("TRADINGVIEW LIGHTWEIGHT CHARTS™") && tvText.includes(marketSelect.value) && tvText.includes("latest close")), "the panel mounts the interactive chart card for the selected ticker");
-    ok(tvText.includes("TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED"), "API-supplied bars stay labeled as provider data, not verified prices");
-    ok(chartRecords.data.length === 2 && chartRecords.data[0].length === 360 && chartRecords.data[1].length === 360, "the chart receives the full price series and its matching volume series");
-    ok(!!(chartRecords.options && chartRecords.options.autoSize === true && chartRecords.options.layout.attributionLogo === false), "the chart uses the desk theme and draws no TradingView logo");
-    ok(!!(chartRecords.series.length === 2 && chartRecords.series[0].upColor && chartRecords.series[1].priceFormat.type === "volume"), "candles and a volume histogram are added as separate series");
-    ok(!!(tvPanel.querySelector('a[href="https://www.tradingview.com/free-charting-libraries/"]')), "the panel links back to TradingView's free charting libraries page");
-    const volumeButton = tvHost && tvHost.querySelector("[data-gi-tv-volume]");
-    if (volumeButton) volumeButton.click();
-    ok(chartRecords.volumeVisible === false, "the volume toggle hides the histogram without touching the price series");
-    if (tvType) { tvType.value = "line"; dispatch(tvType, "change"); }
-    await new Promise(resolve => setImmediate(resolve));
-    const lineData = chartRecords.data.at(-2);
-    ok(!!(chartRecords.series.at(-2) && chartRecords.series.at(-2).color === "#6fd3ff" && lineData && lineData.every(row => "value" in row && !("open" in row))), "switching chart type re-adds a close-only line series");
-    if (marketTab) marketTab.click();
-    ok(!!(marketPanel.hidden === false && tvPanel.hidden === true), "returning to Market Charts hides the TradingView panel again");
-    ok(chartRecords.removed >= 1, "leaving the TradingView tab disposes the library chart");
-  } finally { globalThis.LightweightCharts = realChartLibrary; }
+  ok(tabLabels.join(" > ") === "News > Market Charts > Orb 2 > NAB Discs > Intel feed > Rankings", "the main tab strip keeps Market Charts, Orb 2, NAB Discs, and the News subviews");
+
   const callsBeforeOrb = giCalls.length;
   if (orbTab) orbTab.click();
   await new Promise(resolve => setImmediate(resolve));
@@ -802,7 +746,7 @@ if (giApp) {
   ok(!!orbCanvasStatus && /LOCAL \/ VISUAL PATHS ONLY|CANVAS UNAVAILABLE/.test(orbCanvasStatus.textContent),
     "the canvas line states its own state — local visual traces, or an unavailable canvas with the beat log and inspector still active");
   ok(!!modelFullscreen, "the beat model stays full-screen capable");
-  ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
+  ok(!!(orbPanel && orbPanel.hidden === false), "opening Orb 2 reveals the local OCM panel");
   ok(!!orbHost.querySelector("[data-gi-orb2-disc]"), "Orb 2 opens the carried-over model with the five reviewed Discs");
   ok(!!orbHost.querySelector("[data-gi-orb2-flow-readout]"), "the volume-flow readout is painted on the canvas");
   ok(!!orbHost.querySelector("[data-gi-orb2-origin-status]"), "Center Origin reports the gate, the phase, and UTS");

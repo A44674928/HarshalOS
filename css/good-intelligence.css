@@ -354,19 +354,6 @@
 .gi-chart-no-signals, .gi-chart-divergences { margin-top: 9px; color: var(--gi-dim); font-size: 8px; line-height: 1.45; }
 .gi-chart-disclaimer { margin-top: 9px; padding: 9px 10px; border: 1px solid rgba(255, 180, 92, .14); border-radius: 6px; color: var(--gi-faint); background: rgba(255, 180, 92, .025); font-size: 8px; line-height: 1.55; }
 .gi-chart-empty { display: grid; min-height: 130px; place-items: center; color: var(--gi-amber); font-size: 9px; text-align: center; }
-/* TradingView Lightweight Charts™ tab. The canvas is the library's own; the
-   styles here only frame it, keep it readable on the dark desk, and give the
-   credit line a fixed place under the card. */
-.gi-tradingview-panel { min-height: 330px; }
-.gi-tv-card { padding-bottom: 8px; }
-.gi-tv-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
-.gi-tv-actions .gi-button { min-height: 29px; padding: 0 10px; font-size: 9px !important; }
-.gi-tv-chart { width: 100%; height: 430px; margin-top: 4px; border: 1px solid rgba(118, 153, 202, 0.12); border-radius: 6px; background: #0b1424; overflow: hidden; }
-.gi-tv-chart > div { border-radius: 6px; }
-.gi-tv-legend { margin-top: 7px; color: var(--gi-dim); font-family: var(--mono); font-size: 8px; line-height: 1.5; overflow-wrap: anywhere; }
-.gi-tv-attribution { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--gi-border); color: var(--gi-faint); font-size: 8px; line-height: 1.55; }
-.gi-tv-attribution a { color: var(--gi-cyan); text-decoration: none; }
-.gi-tv-attribution a:hover { color: var(--gi-ink); text-decoration: underline; }
 @keyframes gi-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.84); } 50% { opacity: 1; transform: scale(1.12); } }
 @media (max-width: 1000px) {
   .gi-workspace { grid-template-columns: 1fr; gap: 13px; }
@@ -384,7 +371,6 @@
   .gi-tab { flex: 1; }
   .gi-chart-controls { flex-wrap: wrap; }
   .gi-chart-control { flex: 1 1 120px; }
-  .gi-tv-chart { height: 340px; }
 }
 @media (max-width: 520px) {
   .gi-header { align-items: flex-start; flex-direction: column; }
@@ -407,8 +393,6 @@
   .gi-oscillator-grid { grid-template-columns: 1fr; }
   .gi-chart-title { align-items: flex-start; }
   .gi-chart-title > span { max-width: 52%; }
-  .gi-tv-actions { align-items: stretch; flex-direction: column; width: 100%; }
-  .gi-tv-chart { height: 290px; }
   .gi-rail { grid-template-columns: 1fr; }
   .gi-footer { flex-direction: column; }
   .gi-settings-row { align-items: stretch; flex-direction: column; }

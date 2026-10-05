@@ -76,8 +76,6 @@ The local `node serve.js` server allowlists site paths rather than serving the c
 
 This repository does not establish a complete production HTTP security-header policy (for example, a tested Content Security Policy and HSTS configuration). Hosting/CDN configuration, HTTPS, dependency updates, and release integrity remain deployment responsibilities. There has not been a comprehensive XSS, browser, dependency-supply-chain, or deployment audit.
 
-One browser library is vendored rather than loaded from a CDN: TradingView Lightweight Charts™ (Apache-2.0) at `js/vendor/lightweight-charts/`, used by the Good Intelligence TradingView tab. Nothing is fetched from TradingView at runtime and the library receives only same-origin OHLCV rows. The copy is byte-for-byte from the published npm package; `js/vendor/lightweight-charts/PROVENANCE.md` records the tarball integrity and SHA-256, and `tests/good-intelligence-tradingview-test.mjs` fails if the vendored bytes or the retained license banner change. That hash check detects drift in this checkout; it is not a vulnerability review of the upstream library.
-
 ## Assumptions for operators
 
 - The browser, operating system, and user profile are not already compromised.

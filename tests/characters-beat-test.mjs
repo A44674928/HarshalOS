@@ -7,7 +7,7 @@
 
    What this file is allowed to prove: the budget arithmetic, rotation determinism,
    the shape and honesty of the motion directives, and the freeze-on-no-data rule.
-   What it cannot prove: provider parity, TradingView parity, or that a mood is a
+   What it cannot prove: provider parity, source parity, or that a mood is a
    market prediction. None of these are claims the app makes. */
 
 import assert from "node:assert/strict";

@@ -2,7 +2,7 @@
 
 > [!CAUTION]
 > **User-supplied source, transcribed below; third-party provenance.** You said this code is
-> not yours. No original author, TradingView URL, publication date, or license was supplied, so this archive
+> not yours. No original author, source URL, publication date, or license was supplied, so this archive
 > records the provenance as unknown and does not claim authorship or grant a license. Review
 > the original source/license before redistributing it outside this repository.
 
@@ -34,7 +34,7 @@ or an illumination percentage. It raises a runtime error on monthly chart timefr
 The JavaScript adaptation in `js/celestial-context.js` preserves the principal-event
 calculation and extends it to report eight conventional phase names, an approximate phase-age
 fraction, and an idealized illuminated fraction. The JS function takes an absolute date/time
-rather than a TradingView bar/timeframe, uses UTC for calendar calculations, and has no
+rather than a chart bar/timeframe, uses UTC for calendar calculations, and has no
 chart-specific monthly-timeframe restriction. Those additions are labeled estimates; they
 are not measurements from an ephemeris or observer location.
 
