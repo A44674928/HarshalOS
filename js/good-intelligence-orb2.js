@@ -532,7 +532,9 @@
      at comparable scale. Focus keeps the exact lens the single-orb view has
      always used. Camera value only. */
   const CONSTELLATION_WIDE_FOV = 26;
-  const CONSTELLATION_ZOOM = 1.25;
+  /* The focused single-orb magnification is unchanged from the original
+     single-orb view; only the whole-ring camera was widened. */
+  const CONSTELLATION_ZOOM = 1.35;
   const CONSTELLATION_HIT_RADIUS = 34;
   /* The OCM traffic simulation: one visual beat takes this long to cross a
      ring link or a tether to the Center Origin, and a reporting Disc keeps one
