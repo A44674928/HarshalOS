@@ -98,7 +98,7 @@
     surge: "#f2ede2", flinch: "#ff7184", unknown: "#74839a"
   });
   const PROVIDER_COLORS = Object.freeze({
-    massive: "#6fd3ff", tickerbot: "#5ce6a8", alpha: "#ffd479",
+    massive: "#6fd3ff", tickerbot: "#5ce6a8", kraken: "#a78bfa", alpha: "#ffd479",
     rehearsal: "#ff9d6c", unknown: "#718096"
   });
   /* Tritium green — the color of tritium radioluminescent signs. Reserved for
@@ -153,16 +153,18 @@
   };
   const providerTitle = provider => provider === "massive" ? "Massive"
     : provider === "tickerbot" ? "Tickerbot"
-      : provider === "alpha" ? "Alpha Vantage"
-        : "Synthetic rehearsal";
+      : provider === "kraken" ? "Kraken Spot"
+        : provider === "alpha" ? "Alpha Vantage"
+          : "Synthetic rehearsal";
   const instrumentProvider = provider => provider === "alpha" ? "alpha-vantage"
     : provider === "rehearsal" ? "synthetic" : provider;
   const providerColor = observation => {
     const provider = String(observation && (observation.providerMode || observation.provider) || "").toLowerCase();
     const key = provider.includes("tickerbot") ? "tickerbot"
-      : provider.includes("alpha") ? "alpha"
-        : provider.includes("massive") ? "massive"
-          : provider.includes("synthetic") || provider.includes("rehearsal") ? "rehearsal" : "unknown";
+      : provider.includes("kraken") ? "kraken"
+        : provider.includes("alpha") ? "alpha"
+          : provider.includes("massive") ? "massive"
+            : provider.includes("synthetic") || provider.includes("rehearsal") ? "rehearsal" : "unknown";
     return PROVIDER_COLORS[key];
   };
 
@@ -960,7 +962,8 @@
     const moodLegend = Object.entries(MOOD_COLORS).filter(([mood]) => mood !== "unknown")
       .map(([mood, color]) => swatch(color, mood)).join("");
     const providerLegend = [
-      ["massive", "Massive"], ["tickerbot", "Tickerbot"], ["alpha", "Alpha Vantage"], ["unknown", "Unspecified"]
+      ["massive", "Massive"], ["tickerbot", "Tickerbot"], ["kraken", "Kraken Spot"],
+      ["alpha", "Alpha Vantage · legacy"], ["unknown", "Unspecified"]
     ].map(([key, label]) => swatch(PROVIDER_COLORS[key], label)).join("");
     const flowLegend = [
       [DATA_COLORS.flowAbove, "VFI above · inbound"], [DATA_COLORS.flowBelow, "VFI below · outbound"],
@@ -1002,7 +1005,7 @@
     state.ledger = readLedger();
     const cleanRestoredEvent = value => {
       if (!isRecord(value) || value.schema !== BEAT_SCHEMA || !uuidPattern.test(String(value.beatId || "")) ||
-          !discIds.has(value.discId) || !["massive", "tickerbot", "alpha", "rehearsal"].includes(value.provider) ||
+          !discIds.has(value.discId) || !["massive", "tickerbot", "kraken", "alpha", "rehearsal"].includes(value.provider) ||
           !["1h", "1d", "1mo"].includes(value.interval) || !finite(Number(value.at)) || !Array.isArray(value.instruments)) return null;
       const at = Math.max(0, Number(value.at));
       const instruments = value.instruments.slice(0, 12).filter(isRecord).flatMap(item => {
@@ -1138,7 +1141,7 @@
 
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Data pathway and model status">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">04 · DATA PATHWAY</p><h5>Live-beat contract</h5></div><span>Same-origin Worker · no provider secrets in the browser</span></div>
-              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger beats the reviewed field 24/7/365: up to five Massive <code>1d</code> requests per minute establish the daily baseline, while Tickerbot supplies bounded <code>1h</code>/<code>1d</code> stock refreshes and an on-demand closed-bar <code>15m</code> residual. The first-deck calibration burst is an explicit ~156 calls across 15m + 1h + 1d; later 15m recalculation is focused by default and never silently repeats the full deck. The server combines normalized daily regime metrics with fresh 15m residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
+              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger rotates each reviewed Disc through its fixed provider: Tickerbot exclusively serves Disc1 stocks (including the bounded 15m/1h warm lanes and daily rotation); Kraken public Spot serves Disc3 via a rolling-24-hour USD-notional roster and exact-pair daily OHLC; Massive serves only FX, active commodity futures, and indices at up to five <code>1d</code> requests per minute. The initial Tickerbot stock calibration is an explicit ~156 calls across 15m + 1h + 1d; the shared monthly ledger remains capped at 10,000 Worker attempts. Kraken uses a shared one-request-per-second gate and a 160-call application ceiling, not a Kraken quota. Its ranking is venue-only—not global or equivalent to Massive's previous-UTC-day grouping—and commercial-use terms must be confirmed before deployment. The server combines normalized daily regime metrics with fresh 15m stock residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
               <div class="gi-orb2-pathways" aria-label="Live data pathway status">
                 <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div><i aria-hidden="true">→</i>
                 <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div><i aria-hidden="true">→</i>
@@ -1158,7 +1161,7 @@
                   <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
                   <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
                 </div>
-                <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Stored Massive daily bars only · the Worker's cron tick spends the whole five-per-minute allowance and the deploy warm burst fills the rest. Any unavailable or unaligned input holds its berth; no alternate or synthetic data is substituted and this page never replays the sweep.</p>
+                <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Stored Massive FX closes and Tickerbot stock bars only · Kraken exclusively serves Disc3 crypto. Each Disc remains on its reviewed provider; unavailable or unaligned input holds its berth, with no alternate or synthetic data substituted.</p>
                 <details class="gi-orb2-firing-order" data-gi-orb2-firing-order><summary><strong>52-ASSET SWEEP ORDER</strong><span data-gi-orb2-firing-summary>Open for the ordered ticker-by-ticker detail; the sweep line above is the summary</span></summary><ol data-gi-orb2-firing-list></ol></details>
               </div>
             </section>
@@ -1172,7 +1175,7 @@
 
         <div class="gi-orb2-live-strip" role="status" aria-live="polite">
           <span class="gi-orb2-canvas-status" data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span>
-          <span class="gi-orb2-provider-pill" data-gi-orb2-provider>Massive · AUTOMATIC DAILY</span>
+          <span class="gi-orb2-provider-pill" data-gi-orb2-provider>Tickerbot · EXCLUSIVE DISC1 STOCK SOURCE</span>
           <span class="gi-orb2-live-state" data-gi-orb2-countdown>Awaiting first beat</span>
           <span class="gi-orb2-persist-state" data-gi-orb2-persistence>Loading saved beat history…</span>
           <span class="gi-orb2-counts" data-gi-orb2-counts>0 calls · 0 beats</span>
@@ -1480,16 +1483,15 @@
     }
 
     function currentProvider() {
-      if (state.ignition && state.ignition.active) return "massive";
-      if (state.interval === "1mo") return "alpha";
-      if (state.interval === "1d" && (state.auto || state.discId !== "stocks")) return "massive";
-      return "tickerbot";
+      if (state.discId === "crypto") return "kraken";
+      if (state.discId === "stocks") return "tickerbot";
+      return "massive";
     }
 
     function providerDescription(provider = currentProvider()) {
-      if (provider === "massive") return "Massive · AUTOMATIC DAILY";
-      if (provider === "tickerbot") return "Tickerbot · ON DEMAND";
-      if (provider === "alpha") return "Alpha Vantage · HOURLY SPOTLIGHT";
+      if (provider === "massive") return "Massive · FX / FUTURES / INDICES · DAILY";
+      if (provider === "kraken") return "Kraken Spot · DISC3 VENUE DATA · DAILY";
+      if (provider === "tickerbot") return "Tickerbot · EXCLUSIVE DISC1 STOCK SOURCE";
       return "Unspecified provider";
     }
 
@@ -1546,9 +1548,8 @@
       discSelect.innerHTML = DiscCatalog.discs.map(entry => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.label)}</option>`).join("");
       discSelect.value = state.discId;
       intervalSelect.innerHTML = modes.map(interval => {
-        const label = interval === "1mo" ? "1 month · Alpha Vantage spotlight"
-          : interval === "1d" ? `1 day · ${state.auto || state.discId !== "stocks" ? "Massive automatic" : "Tickerbot on demand"}`
-            : "1 hour · Tickerbot on demand";
+        const label = interval === "1d" ? `1 day · ${state.discId === "stocks" ? "Tickerbot stock rotation" : state.discId === "crypto" ? "Kraken Spot" : "Massive"}`
+          : "1 hour · Tickerbot stock field";
         return `<option value="${escapeHtml(interval)}">${escapeHtml(label)}</option>`;
       }).join("");
       intervalSelect.value = state.interval;
@@ -1645,22 +1646,32 @@
        allowance, queue, and warm-burst state instead of a local planner. */
     function drawPlan() {
       const status = state.field && state.field.status ? state.field.status : null;
+      const provider = currentProvider();
       const massive = status && status.massive ? status.massive : null;
+      const kraken = status && status.kraken ? status.kraken : null;
       const tickerbot = status && status.tickerbot ? status.tickerbot : null;
       const queue = status && status.queue ? status.queue : null;
       const warm = status && status.warmBurst ? status.warmBurst : null;
-      const estimate = massive
-        ? `${MASSIVE_REQUESTS_PER_MINUTE} Massive 1d requests/minute · ${Number(massive.remainingToday).toLocaleString()} left today`
-        : `${symbols.length} reviewed berths · waiting for the server field`;
-      const detail = tickerbot
-        ? `Tickerbot ${Number(tickerbot.callsThisMonth || 0).toLocaleString()}/${Number(tickerbot.monthlyLimit || 0).toLocaleString()} this month${tickerbot.reserveCalls ? ` · ${Number(tickerbot.reserveCalls).toLocaleString()} reserved` : ""}`
-        : "The Tickerbot queue is read from the server field.";
+      const estimate = provider === "massive" && massive
+        ? `${MASSIVE_REQUESTS_PER_MINUTE} Massive requests/minute · ${massive.remainingToday === null ? "ledger unavailable" : `${Number(massive.remainingToday).toLocaleString()} left today`}`
+        : provider === "kraken" && kraken
+          ? `Kraken Spot · 1 request/second · ${kraken.remainingToday === null ? "ledger unavailable" : `${Number(kraken.remainingToday).toLocaleString()} left today`}`
+          : provider === "tickerbot" && tickerbot
+            ? `Tickerbot exclusive stocks · ${Number(tickerbot.callsThisMonth || 0).toLocaleString()}/${Number(tickerbot.monthlyLimit || 0).toLocaleString()} this month`
+            : `${symbols.length} reviewed berths · waiting for the server field`;
+      const detail = provider === "kraken" && kraken
+        ? `Kraken application ceiling ${Number(kraken.callsToday || 0).toLocaleString()}/${Number(kraken.dailyLimit || 160).toLocaleString()} today · not a provider quota`
+        : provider === "tickerbot" && tickerbot
+          ? `Tickerbot ${Number(tickerbot.callsThisMonth || 0).toLocaleString()}/${Number(tickerbot.monthlyLimit || 0).toLocaleString()} this month${tickerbot.reserveCalls ? ` · ${Number(tickerbot.reserveCalls).toLocaleString()} reserved` : ""}`
+          : provider === "massive" && massive
+            ? `Massive ${Number(massive.callsToday || 0).toLocaleString()}/${Number(massive.dailyLimit || 300).toLocaleString()} application calls today`
+            : "Provider ledger is read from the server field.";
       const queueLine = queue
-        ? `Queue ${Number(queue.pending) || 0} pending · ${Number(queue.claimed) || 0} in flight`
+        ? `Tickerbot stock queue ${Number(queue.pending) || 0} pending · ${Number(queue.claimed) || 0} in flight`
         : "No queue reading yet.";
       const burst = warm && warm.callsPerBurst
-        ? `Warm burst ${Number(warm.callsPerBurst)} calls${warm.deployWarmAt ? ` · first deploy ${shortTime(Number(warm.deployWarmAt))}` : ""}`
-        : "The deploy warm burst is described by the server field.";
+        ? `Tickerbot stock warm burst ${Number(warm.callsPerBurst)} calls${warm.deployWarmAt ? ` · first deploy ${shortTime(Number(warm.deployWarmAt))}` : ""}`
+        : "The stock warm burst is described by the server field.";
       planHost.innerHTML = `
         <span class="gi-orb2-plan-chip"><strong>${escapeHtml(estimate)}</strong><small>${escapeHtml(burst)}</small></span>
         <span class="gi-orb2-plan-chip"><strong>${escapeHtml(detail)}</strong><small>${escapeHtml(queueLine)}${status && status.lastTickAt ? ` · last tick ${escapeHtml(shortTime(Number(status.lastTickAt)))}` : ""}</small></span>`;
@@ -1733,10 +1744,11 @@
       const mood = observation.motion && observation.motion.mood || "frozen";
       const color = MOOD_COLORS[mood] || MOOD_COLORS.unknown;
       const provider = providerTitle(observation.providerMode || (observation.provider === "alpha-vantage" ? "alpha" : observation.provider === "synthetic" ? "rehearsal" : observation.provider));
+      const sourceIdentity = observation.krakenPair ? ` · exact pair ${observation.krakenPair}` : "";
       const freshness = observation.freshness && observation.freshness.status ? String(observation.freshness.status).toUpperCase() : "FRESHNESS UNKNOWN";
       if (!market) {
         return `
-          <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · UNAVAILABLE</strong><span>${escapeHtml(provider)} · ${escapeHtml(freshness)}</span></div>
+          <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · UNAVAILABLE</strong><span>${escapeHtml(provider)}${escapeHtml(sourceIdentity)} · ${escapeHtml(freshness)}</span></div>
           <p class="gi-orb2-observation-error">${escapeHtml(observation.message || observation.code || "No provider observation was returned.")}</p>
           <p class="gi-orb2-observation-time">${escapeHtml(shortTime(observation.at))} · no upstream values were inferred.</p>`;
       }
@@ -1751,7 +1763,7 @@
           <i aria-hidden="true"></i><span>${escapeHtml(bit.label)}</span><strong>${escapeHtml(bit.value)}</strong>
         </span>`).join("");
       return `
-        <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)} · ${escapeHtml(freshness)}</span></div>
+        <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)}${escapeHtml(sourceIdentity)} · ${escapeHtml(freshness)}</span></div>
         <p class="gi-orb2-observation-source">${escapeHtml(market.source || "Provider source not supplied")} · ${escapeHtml(market.timeframe || observation.interval)} · ${market.barCount} bars · field ${escapeHtml(freshness.toLowerCase())}</p>
         <dl class="gi-orb2-node-meta">${fields}<div><dt>Characters motion</dt><dd style="color:${escapeHtml(color)}">${escapeHtml(observation.motion && observation.motion.caption || mood)}</dd></div>
           <div><dt>Observed VFI</dt><dd>${escapeHtml(vfi)}</dd></div><div class="gi-orb2-flow-detail"><dt>Volume-flow path · Characters</dt><dd style="color:${escapeHtml(flow.color)}">${escapeHtml(flowText)}</dd><small>Visual cadence only—not volume per second.</small></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div></dl>
@@ -1860,8 +1872,8 @@
       ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${Dxy.REQUIRED_ASSETS}`;
       if (state.ignition.blocked) ignitionNote.textContent = `SWEEP HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
       else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed in the stored field; the DXY value remains a dated, fixed-center reference.";
-      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. The Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page renders stored observations only.`;
-      else ignitionNote.textContent = `The Worker's cron beat runs server-side 24/7/365 → six FX closes → fixed DXY benchmark → 52 stock beats, all inside the shared ${MASSIVE_REQUESTS_PER_MINUTE}/minute and UTC-day allowances, with the Tickerbot warm burst filling the field on deploy. ${target ? `Next stored input: ${target.symbol}.` : "Waiting for the server field."} Hiding or reloading this page never restarts the order; DXY is held until all six closes share one timestamp.`;
+      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. Tickerbot exclusively supplies the 52 daily stock observations; Massive is reserved for FX, futures, and indices. This page renders stored observations only.`;
+      else ignitionNote.textContent = `The Worker's cron beat runs server-side 24/7/365 → six Massive FX closes → fixed DXY benchmark → 52 Tickerbot stock beats. Kraken Spot separately serves Disc3, and Massive serves futures and indices. ${target ? `Next stored input: ${target.symbol}.` : "Waiting for the server field."} Hiding or reloading this page never restarts the order; DXY is held until all six closes share one timestamp.`;
       if (ignitionRestartButton) ignitionRestartButton.hidden = state.ignition.active;
 
       const rows = [];
@@ -2195,6 +2207,8 @@
         freshness: row.freshness || null,
         discId: row.discId, interval: row.interval, providerMode: row.provider,
         reason: row.reason || "server-sweep", beatId: row.beatId,
+        providerId: row.providerId || null, krakenPair: row.krakenPair || null,
+        rankingProvider: row.rankingProvider || null,
         beatTypes: Array.isArray(row.beatTypes) ? row.beatTypes : ["observation"]
       };
     }
@@ -2216,13 +2230,29 @@
       if (snapshot.dxy) state.dxy = snapshot.dxy;
       const status = snapshot.status || {};
       const massive = status.massive || {};
+      const kraken = status.kraken || {};
       const tickerbot = status.tickerbot || {};
+      const provider = currentProvider();
+      const providerStatus = provider === "massive"
+        ? massive.ledger === "ready" ? `SERVER · MASSIVE ${Number(massive.callsToday) || 0}/${Number(massive.dailyLimit) || 300} TODAY` : "SERVER · MASSIVE LEDGER UNAVAILABLE"
+        : provider === "kraken"
+          ? kraken.ledger === "ready" ? `SERVER · KRAKEN ${Number(kraken.callsToday) || 0}/${Number(kraken.dailyLimit) || 160} TODAY` : "SERVER · KRAKEN LEDGER UNAVAILABLE"
+          : provider === "tickerbot"
+            ? tickerbot.ledger === "ready" ? "SERVER · TICKERBOT STOCK QUEUE" : "SERVER · TICKERBOT LEDGER UNAVAILABLE"
+            : "LEGACY HISTORY · NO LIVE FIELD";
+      const ledgerStatus = provider === "massive"
+        ? massive.exhausted ? "MASSIVE DAY SPENT · OTHER LANES SEPARATE"
+          : massive.remainingToday !== null && Number.isFinite(Number(massive.remainingToday)) ? `MASSIVE ${Number(massive.remainingToday)} LEFT TODAY` : "MASSIVE LEDGER UNREAD"
+        : provider === "kraken"
+          ? kraken.exhausted ? "KRAKEN APP CEILING SPENT · OTHER LANES SEPARATE"
+            : kraken.remainingToday !== null && Number.isFinite(Number(kraken.remainingToday)) ? `KRAKEN ${Number(kraken.remainingToday)} LEFT TODAY` : "KRAKEN LEDGER UNREAD"
+          : provider === "tickerbot"
+            ? tickerbot.exhausted ? "TICKERBOT MONTHLY CAP SPENT" : tickerbot.ledger === "ready" ? "TICKERBOT MONTHLY LEDGER READY" : "TICKERBOT LEDGER UNREAD"
+            : "NO LIVE PROVIDER LEDGER";
       state.routeSteps = {
-        provider: massive.ledger === "ready" ? `SERVER · MASSIVE ${Number(massive.callsToday) || 0}/${Number(massive.dailyLimit) || 300} TODAY`
-          : tickerbot.ledger === "ready" ? "SERVER · TICKERBOT QUEUE" : "SERVER FIELD",
+        provider: providerStatus,
         worker: `CRON ${String(status.cron || "*/1 * * * *")} · TICK ${status.lastTickAt ? shortTime(Number(status.lastTickAt)) : "PENDING"}`,
-        ledger: massive.exhausted ? `MASSIVE DAY SPENT · QUEUE CONTINUES`
-          : Number.isFinite(Number(massive.remainingToday)) ? `MASSIVE ${Number(massive.remainingToday)} LEFT TODAY` : "LEDGER UNREAD",
+        ledger: ledgerStatus,
         model: snapshot.observations.length ? "RENDER-ONLY · NO PAGE REQUEST" : "WAITING FOR THE FIRST SERVER BEAT"
       };
       syncIgnitionFromField(snapshot);
@@ -2233,12 +2263,12 @@
       if (snapshot && snapshot.dxy) state.dxy = snapshot.dxy;
       const rows = Array.isArray(snapshot && snapshot.observations) ? snapshot.observations : [];
       for (const row of rows) {
-        if (row.provider !== "massive" || row.interval !== "1d" || row.confirmed !== true || !row.market) continue;
-        if (row.discId === "fx" && Dxy.COMPONENTS.some(component => component.symbol === row.symbol)) {
+        if (row.interval !== "1d" || row.confirmed !== true || !row.market) continue;
+        if (row.provider === "massive" && row.discId === "fx" && Dxy.COMPONENTS.some(component => component.symbol === row.symbol)) {
           state.ignition.fxInputs.set(row.symbol, fieldObservation(row));
           state.ignition.fxFired.add(row.symbol);
         }
-        if (row.discId === "stocks") state.ignition.tickerFired.add(row.symbol);
+        if (row.provider === "tickerbot" && row.discId === "stocks") state.ignition.tickerFired.add(row.symbol);
       }
       state.ignition.workerReady = Boolean(snapshot && snapshot.ok);
       if (state.ignition.fxFired.size >= Dxy.COMPONENTS.length && !(state.dxy && state.dxy.ok)) {
@@ -2399,8 +2429,8 @@
         const data = await postField("tick");
         const summary = data && data.summary || {};
         const notes = Array.isArray(data && data.notes) ? data.notes.filter(Boolean) : [];
-        const stored = (Number(summary.massiveCalls) || 0) + (Number(summary.tickerbotCalls) || 0);
-        state.message = { kind: "note", text: `Server tick complete · ${stored} new observation${stored === 1 ? "" : "s"} stored (Massive ${Number(summary.massiveCalls) || 0} · Tickerbot ${Number(summary.tickerbotCalls) || 0}), ${Number(summary.held) || 0} held.${notes.length ? ` ${notes[0]}` : ""}` };
+        const stored = (Number(summary.observed) || 0);
+        state.message = { kind: "note", text: `Server tick complete · ${stored} new observation${stored === 1 ? "" : "s"} stored (Massive ${Number(summary.massiveCalls) || 0} · Tickerbot ${Number(summary.tickerbotCalls) || 0} · Kraken ${Number(summary.krakenCalls) || 0} provider attempts), ${Number(summary.held) || 0} held.${notes.length ? ` ${notes[0]}` : ""}` };
         ok = true;
       } catch (error) {
         const hold = error && error.code === "field-hold";
@@ -2564,14 +2594,11 @@
       }
       if (nextInterval === state.interval) return;
       state.interval = nextInterval;
-      if (nextInterval === "1h") state.auto = false;
-      else if (nextInterval === "1mo") state.auto = true;
-            state.ledger = readLedger(state.discId, state.interval);
-      state.message = nextInterval === "1mo"
-        ? { kind: "note", text: "Alpha Vantage 1mo remains a separate Characters spotlight; the Orb 2 server field stores reviewed 1h and 1d observations, and reads 1d while this Disc shows 1mo." }
-        : nextInterval === "1d" && state.auto
-          ? { kind: "note", text: `Server field view · the Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page only re-reads the stored field every ${FIELD_POLL_MS / 1000} seconds.` }
-          : { kind: "note", text: `Server field view at ${nextInterval}. The page renders the stored Tickerbot queue results; Beat now asks the server for one more scheduled tick.` };
+      state.auto = nextInterval === "1d";
+      state.ledger = readLedger(state.discId, state.interval);
+      state.message = nextInterval === "1d" && state.auto
+        ? { kind: "note", text: `Server field view · the Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page only re-reads the stored field every ${FIELD_POLL_MS / 1000} seconds.` }
+        : { kind: "note", text: `Server field view at ${nextInterval}. The page renders the stored Tickerbot queue results; Beat now asks the server for one more scheduled tick.` };
       persistLocal();
       draw();
       await loadFieldSnapshot({ reason: "interval-change" });

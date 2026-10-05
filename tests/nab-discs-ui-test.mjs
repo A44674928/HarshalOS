@@ -38,10 +38,11 @@ test('active navigation contains 119 NAB Discs, not five asset-class discs; sour
   assert.equal(view.composite.designation.nabId,12);
 });
 
-test('refresh targets exactly one qualified legacy source; unavailable data remains unavailable',async t=>{
+test('refresh targets one explicitly selected Massive daily source; unavailable data stays missing',async t=>{
   const {host,view,requests,window}=mount(t,async url=>{
     const query=new URL(url,'https://os.test').searchParams;
     assert.equal(query.get('disc'),'fx');assert.equal(query.get('symbols'),'EURUSD');
+    assert.equal(query.get('provider'),'massive');assert.equal(query.get('interval'),'1d');assert.equal(query.get('cadence'),'1');
     return Response.json({success:false,data:{disc:'fx',provider:'massive',interval:'1d',beatAt:'2026-10-04T12:00:00Z',instruments:[{symbol:'EURUSD',status:'unavailable',message:'No provider credentials',marketContext:null}]}});
   });
   view.choose(12);host.querySelector('[data-nab-refresh="fx:EURUSD"]').click();await flush();
@@ -53,16 +54,26 @@ test('refresh targets exactly one qualified legacy source; unavailable data rema
   assert.ok(window.localStorage.getItem(window.NabDiscsView.KEY));
 });
 
-test('crypto catalog loads once; unknown identities enter review and dynamic identity mismatch is rejected',async t=>{
+test('Kraken catalog loads exact USD pairs; unknown identities enter review and mismatches fail closed',async t=>{
   const {host,view,window,requests}=mount(t,async url=>{
-    if(url.includes('/discs?'))return Response.json({success:true,instruments:[{symbol:'USDT',providerId:'X:USDTUSD',massiveTicker:'X:USDTUSD',rankingProvider:'Massive',name:'Tether'},{symbol:'NEW',providerId:'X:NEWUSD',massiveTicker:'X:NEWUSD',rankingProvider:'Massive',name:'<img src=x>'}]});
-    return Response.json({success:true,data:{disc:'crypto',provider:'massive',interval:'1d',beatAt:'2026-10-04T12:00:00Z',sourceIdentities:[{channel:'crypto',symbol:'USDT',providerId:'X:DIFFERENTUSD'}],instruments:[{symbol:'USDT',status:'bars'}]}});
+    if(url.includes('/discs?'))return Response.json({success:true,instruments:[
+      {symbol:'USDT',displaySymbol:'USDT/USD',providerId:'USDT/USD',krakenPair:'USDT/USD',providerBase:'USDT',rankingProvider:'Kraken',name:'Tether'},
+      {symbol:'NEW',displaySymbol:'NEW/USD',providerId:'NEW/USD',krakenPair:'NEW/USD',providerBase:'NEW',rankingProvider:'Kraken',name:'<img src=x>'}
+    ]});
+    return Response.json({success:true,data:{disc:'crypto',provider:'kraken',interval:'1d',beatAt:'2026-10-04T12:00:00Z',
+      sourceIdentities:[{channel:'crypto',symbol:'USDT',providerId:'OTHER/USD',krakenPair:'OTHER/USD'}],
+      instruments:[{symbol:'USDT',status:'bars'}]}});
   });
   host.querySelector('[data-nab-crypto]').click();await flush();view.choose(12);
   assert.match(host.querySelector('[data-nab-review]').textContent,/crypto:NEW/);
   assert.equal(host.querySelector('[data-nab-review] img'),null);
-  host.querySelector('[data-nab-refresh="crypto:USDT"]').click();await flush();
-  assert.match(host.querySelector('[data-nab-status]').textContent,/Crypto Massive ticker identity changed/);
+  const provider=host.querySelector('[data-nab-provider]');provider.value='kraken';provider.dispatchEvent(new window.Event('change'));
+  const refresh=host.querySelector('[data-nab-refresh="crypto:USDT"]');
+  assert.equal(refresh.disabled,false);
+  refresh.click();await flush();
+  const query=new URL(requests.at(-1),'https://os.test').searchParams;
+  assert.equal(query.get('provider'),'kraken');assert.equal(query.get('interval'),'1d');assert.equal(query.get('cadence'),'1');
+  assert.match(host.querySelector('[data-nab-status]').textContent,/Kraken Spot pair identity changed/);
   assert.equal(view.composite.members.find(row=>row.id==='crypto:USDT').observations.length,0);
   assert.equal(requests.length,2);
 });
@@ -87,21 +98,26 @@ test('Material Spheroids and the desktop ids survive the restore; NAB Discs keep
 test('a supplied beat moves the complete primary core without remounting it; provider changes do not borrow heights',async t=>{
   const now=Date.now();
   const bars=Array.from({length:260},(_,i)=>({time:now-(260-i)*86400000,open:100,high:i===259?123:101,low:99,close:i===259?120:100,volume:1000,confirmed:true}));
-  const {host,view,window}=mount(t,async()=>Response.json({success:true,data:{disc:'stocks',provider:'massive',interval:'1d',beatAt:new Date(now).toISOString(),instruments:[{symbol:'V',status:'bars',marketContext:{schema:'gi-market-context-v1',source:'test fixture only',symbol:'V',timeframe:'1d',synthetic:false,bars}}]}}));
+  const {host,view,window,requests}=mount(t,async()=>Response.json({success:true,data:{disc:'stocks',provider:'tickerbot',interval:'1d',beatAt:new Date(now).toISOString(),instruments:[{symbol:'V',status:'bars',marketContext:{schema:'gi-market-context-v1',source:'test fixture only',symbol:'V',timeframe:'1d',synthetic:false,bars}}]}}));
   view.choose(12);
+  const provider=host.querySelector('[data-nab-provider]');provider.value='tickerbot';provider.dispatchEvent(new window.Event('change'));
   const canvas=host.querySelector('[data-nab-orb-canvas]');
   host.querySelector('[data-orb-focus]').click();
   const camera=JSON.stringify(view.orbRenderer.camera);
   assert.equal(view.orbRenderer.scene.find(row=>row.nabId===12).known,false);
   host.querySelector('[data-nab-refresh="stocks:V"]').click();await flush();
+  const query=new URL(requests.at(-1),'https://os.test').searchParams;
+  assert.equal(query.get('provider'),provider.value,'the request uses the provider currently selected in the UI');
+  assert.equal(query.get('interval'),'1d');
   const node=view.orbRenderer.scene.find(row=>row.nabId===12);
   assert.equal(node.known,true);
   assert.ok(node.position.y>0);
   assert.ok(node.members.some(member=>member.id==='central-bank:fed'));
   assert.equal(host.querySelector('[data-nab-orb-canvas]'),canvas);
   assert.equal(JSON.stringify(view.orbRenderer.camera),camera);
-  const provider=host.querySelector('[data-nab-provider]');provider.value='tickerbot';provider.dispatchEvent(new window.Event('change'));
-  assert.equal(view.orbRenderer.scene.find(row=>row.nabId===12).marketY,null);
+  provider.value='massive';provider.dispatchEvent(new window.Event('change'));
+  assert.equal(provider.value,'massive','the new provider selection becomes the renderer authority');
+  assert.equal(view.orbRenderer.scene.find(row=>row.nabId===12).marketY,null,'Massive cannot borrow a Tickerbot stock height');
 });
 
 test('saved physical design changes appear in the existing primary scene without a provider request',t=>{

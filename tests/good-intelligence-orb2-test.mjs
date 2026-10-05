@@ -46,9 +46,9 @@ function harness() {
 
 /* ── the stored server field, as the Worker writes it ─────────────────────── */
 
-function marketSummary(interval = "1d") {
+function marketSummary(interval = "1d", provider = "massive") {
   return {
-    status: "ready", source: `massive · reviewed OHLCV · as of ${new Date(NOW).toISOString()}`,
+    status: "ready", source: `${provider} · reviewed OHLCV · as of ${new Date(NOW).toISOString()}`,
     timeframe: interval, dataShape: "ohlcv", synthetic: false, barCount: 80, volumeAvailable: true,
     latestBar: { time: NOW, open: 100, high: 102, low: 99.5, close: 101, volume: 1200, confirmed: true },
     previousClose: 100, changePct: 1,
@@ -58,12 +58,14 @@ function marketSummary(interval = "1d") {
   };
 }
 
-function fieldRow(window, symbol, { discId = "stocks", provider = "massive", interval = "1d", confirmed = true, market = true, name = symbol, sector = "Technology & platforms" } = {}) {
+function fieldRow(window, symbol, options = {}) {
+  const { discId = "stocks", interval = "1d", confirmed = true, market = true, name = symbol, sector = "Technology & platforms" } = options;
+  const provider = options.provider || (discId === "stocks" ? "tickerbot" : discId === "crypto" ? "kraken" : "massive");
   return {
     schema: "gi-orb2-field-observation-v1", symbol, displaySymbol: symbol, name, sector, discId, provider, interval,
     status: market ? "bars" : "unavailable", reason: "server-sweep", code: "", message: "",
     beatId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", observedAt: NOW, barTime: NOW, confirmed,
-    market: market ? marketSummary(interval) : null,
+    market: market ? marketSummary(interval, provider) : null,
     motion: window.CharactersBeat.motion(null, { bearingBase: 0 }),
     beatTypes: market ? ["observation", "message", "trade", "authorization", "permission"] : ["observation", "message"]
   };
@@ -73,8 +75,8 @@ function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", 
   const fxSymbols = Array.from(window.GoodIntelligenceDxy.COMPONENTS, component => component.symbol);
   const stocks = Array.from(window.GoodIntelligenceDxy.buildFiringOrder(MARKET_ROSTER), asset => asset.symbol);
   const observations = [
-    ...fxSymbols.slice(0, fxCount).map(symbol => fieldRow(window, symbol, { discId: "fx" })),
-    ...stocks.slice(0, stockCount).map(symbol => fieldRow(window, symbol, { discId: "stocks" }))
+    ...fxSymbols.slice(0, fxCount).map(symbol => fieldRow(window, symbol, { discId: "fx", provider: "massive" })),
+    ...stocks.slice(0, stockCount).map(symbol => fieldRow(window, symbol, { discId: "stocks", provider: "tickerbot" }))
   ];
   const counts = { observation: observations.length, message: observations.length, trade: observations.length, authorization: observations.length, permission: observations.length };
   return {
@@ -146,7 +148,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
       return Response.json({ success: true, schema: "gi-orb2-beat-history-v1", beats: historyStore.get(requestSession) || [] });
     }
     if (path.includes("/api/characters/v1/discs?disc=crypto")) {
-      return Response.json({ success: true, instruments: [{ symbol: "BTC", displaySymbol: "BTC/USD", name: "BTC", sector: "Cryptocurrency", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:BTCUSD" }], ranking: { provider: "Massive" } });
+      return Response.json({ success: true, instruments: [{ symbol: "BTC", displaySymbol: "BTC/USD", name: "BTC", sector: "Cryptocurrency", assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USD", krakenPair: "BTC/USD" }], ranking: { provider: "Kraken", venue: "Kraken Spot" } });
     }
     if (path.includes("/api/characters/v1/beat")) {
       providerCalls.push({ url: path, options });
@@ -541,7 +543,7 @@ test("the server field status is surfaced honestly: ledger allowance, queue, and
   const { host, engine } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
   await flush();
   assert.match(engine.state.routeSteps.worker, /CRON/);
-  assert.match(engine.state.routeSteps.ledger, /MASSIVE \d+ LEFT TODAY/);
+  assert.match(engine.state.routeSteps.ledger, /TICKERBOT MONTHLY LEDGER READY/);
   assert.match(engine.state.routeSteps.model, /RENDER-ONLY/);
   assert.equal(host.textContent.includes("Waiting 60 seconds"), false);
   assert.equal(engine.state.cooldownUntil, undefined, "the 60-second provider hold is gone from the client state");
@@ -557,7 +559,8 @@ test("Orb 2 mounts interactive local controls and defaults motion off for reduce
   assert.ok(canvasCalls.includes("fillRect") && canvasCalls.includes("arc"), "the scheduled frame paints the projected sphere and nodes");
   assert.equal(engine.nodes.length, 52);
   assert.equal(engine.state.autoRotate, false, "prefers-reduced-motion starts with rotation disabled");
-  assert.ok(host.textContent.includes("Massive · AUTOMATIC DAILY"), "the provider pill names the stored provider");
+  assert.equal(host.querySelector("[data-gi-orb2-provider]").textContent, "Tickerbot · EXCLUSIVE DISC1 STOCK SOURCE",
+    "the stock provider pill names Tickerbot without implying that it serves other Discs");
   assert.ok(host.textContent.includes("AAPL ·"), "the inspector shows a stored instrument");
 
   const formation = host.querySelector("[data-gi-orb2-formation]");
@@ -616,11 +619,11 @@ test("a scenario beat type renders a choreographed trace, keeps its boundaries, 
 test("Orb 2 restores the last saved beat from the server after a page refresh", async t => {
   const sessionId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
   const historyStore = new Map([[sessionId, [{
-    schema: "gi-orb2-beat-v1", beatId: sessionId, at: NOW, reason: "ignition", discId: "stocks", provider: "massive",
-    interval: "1d", cadenceMinutes: 1, calls: 1, cacheHits: 0,
+    schema: "gi-orb2-beat-v1", beatId: sessionId, at: NOW, reason: "ignition", discId: "stocks", provider: "tickerbot",
+    interval: "1d", cadenceMinutes: 15, calls: 1, cacheHits: 0,
     instruments: [{
-      symbol: "AAPL", displaySymbol: "AAPL", status: "bars", provider: "massive", code: "", message: "", lane: null,
-      market: marketSummary("1d"), motion: fieldRow({ CharactersBeat: { motion: () => ({ mood: "coil" }) } }, "AAPL").motion
+      symbol: "AAPL", displaySymbol: "AAPL", status: "bars", provider: "tickerbot", code: "", message: "", lane: null,
+      market: marketSummary("1d", "tickerbot"), motion: fieldRow({ CharactersBeat: { motion: () => ({ mood: "coil" }) } }, "AAPL").motion
     }]
   }]]]);
   const visit = interactiveHarness(t, {

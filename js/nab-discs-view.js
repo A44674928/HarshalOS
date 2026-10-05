@@ -33,8 +33,8 @@
     host.innerHTML=`<section class="nab-app">
       <header class="nab-head"><div><p class="nab-eyebrow">NEURAL ATOMIC BODIES / COMPOSITE FIELD</p><h1>Orb 2 · NAB Discs</h1><p>119 alignments. One composite per NAB. Many independently sourced constituents.</p></div><span class="nab-badge">PHYSICAL + DIGITAL CONTEXT</span></header>
       <div class="nab-toolbar"><label>NAB alignment<select data-nab-select aria-label="Choose a NAB Disc">${registry.discs.map(disc=>`<option value="${disc.nabId}">${esc(disc.label)} · ${esc(disc.designatedStock)}</option>`).join("")}</select></label>
-      <label>Evidence provider<select data-nab-provider><option value="massive">Massive · 1d</option><option value="tickerbot">Tickerbot · 1h</option><option value="alpha">Alpha Vantage · 1mo</option></select></label>
-      <button type="button" data-nab-import>Import saved observations</button><button type="button" data-nab-clear>Clear displayed beats</button><button type="button" data-nab-restore>Restore archived beats</button><button type="button" data-nab-crypto>Load crypto source catalog</button>
+      <label>Evidence provider<select data-nab-provider><option value="massive">Massive · 1d (FX, futures, indices)</option><option value="kraken">Kraken Spot · 1d (crypto)</option><option value="tickerbot">Tickerbot · 1d (stocks)</option></select></label>
+      <button type="button" data-nab-import>Import saved observations</button><button type="button" data-nab-clear>Clear displayed beats</button><button type="button" data-nab-restore>Restore archived beats</button><button type="button" data-nab-crypto>Load Kraken crypto source catalog</button>
       <label class="nab-auto"><input type="checkbox" data-nab-auto>Auto-refresh one eligible constituent / minute (Massive only)</label></div>
       <p class="nab-status" role="status" aria-live="polite" data-nab-status></p>
       <div class="nab-primary-orb" data-nab-primary-orb></div>
@@ -44,7 +44,10 @@
       <p class="nab-boundary">Alignment is editorial, not an assessed institutional classification. A central bank is context—not a tradable instrument. Price, policy rates and physical density remain separate; no blended price or material fraction is invented. NAB risk belongs to the neural model, not its institutions or stocks. Extreme NABs remain reference-only. AI context is a design brief, not a running network.</p>
     </section>`;
     const $ = selector => host.querySelector(selector);
-    const eligible = member => member.liveEligible && (state.provider === "massive" || member.channel === "stocks");
+    const eligible = member => member.liveEligible && (state.provider === "massive"
+      ? ["fx", "commodities", "indices"].includes(member.channel)
+      : state.provider === "kraken" ? member.channel === "crypto"
+        : state.provider === "tickerbot" && member.channel === "stocks");
     const orbHost = $("[data-nab-primary-orb]");
     if (globalThis.NabOrbRenderer) {
       orbRenderer = globalThis.NabOrbRenderer.mount(orbHost, {
@@ -75,7 +78,7 @@
       $("[data-nab-detail]").innerHTML=`<header class="nab-disc-head"><p class="nab-eyebrow">NAB ${row.id} / ${esc(row.symbol)} / ${esc(row.operatingBoundary)}</p><h2>${esc(row.name)} · ${esc(row.theme)}</h2><p>Designated stock: <strong>${esc(row.ticker)}</strong> · neural risk ${esc(row.riskProfile)}</p><p>${composite.coverage.constituents} constituents · ${composite.coverage.observed} with observations across available providers · ${composite.physical.length} saved physical designs</p></header>
         <p class="nab-fine">The selected composite core follows ${esc(row.ticker)} only. Click a constituent in the 3D field to inspect its independent evidence below. Banks and physical records have no market height.</p>
         <div class="nab-members">${composite.members.map(member=>{
-          const obs=member.observations.find(item=>item.provider===state.provider && item.interval===state.interval);
+          const obs=member.observations.find(item=>!item.legacy && item.provider===state.provider && item.interval===state.interval);
           const label=member.channel === "central-bank"?"INSTITUTIONAL CONTEXT":Model.channelNames[member.channel];
           return `<article class="nab-member" tabindex="-1" data-nab-member-id="${esc(member.id)}" style="--nab-color:${colors[member.channel]}"><header><b>${esc(member.symbol)} · ${esc(member.name)}</b><span>${esc(label)}</span></header><p>${esc(member.role)} · ${esc(member.rationale)}</p>
             <p>${obs ? `${esc(obs.status)} · ${esc(obs.provider)} · ${esc(obs.interval)} · ${esc(new Date(obs.at).toISOString())} · ${obs.stale?"STALE":"recent"}<br>FBB displacement: ${obs.fbbDisplacement===null?"unavailable":obs.fbbDisplacement.toFixed(4)} · close: ${esc(obs.market?.latestBar?.close ?? "unavailable")} ${esc(obs.market?.quoteCurrency || "")}` : member.channel==="central-bank"?"Reference metadata only; no policy-rate or balance-sheet observation available.":"No observation for the selected provider/interval. Missing is not zero."}</p>
@@ -109,13 +112,17 @@
       controller=new AbortController();
       const provider=state.provider, interval=state.interval;
       try {
-        const params=new URLSearchParams({disc:member.channel,symbols:member.symbol,provider,interval,cadence:provider==="massive"?"1":provider==="alpha"?"60":"15"});
+        const cadence=provider==="massive" || provider==="kraken" ? "1" : interval==="1d" ? "1440" : "15";
+        const params=new URLSearchParams({disc:member.channel,symbols:member.symbol,provider,interval,cadence});
         const response=await (options.fetch || globalThis.fetch)(`/api/characters/v1/beat?${params}`,{signal:controller.signal,credentials:"same-origin"});
         const payload=await response.json();
         if(state.destroyed)return;
         const data=payload?.data;
         if(data && (data.disc!==member.channel || data.provider!==provider || data.interval!==interval)) throw new Error("Mismatched source response refused.");
-        if(member.channel === "crypto" && !data?.sourceIdentities?.some(identity => identity.channel === "crypto" && identity.symbol === member.symbol && identity.providerId === member.providerId)) throw new Error("Crypto Massive ticker identity changed or was not supplied; reload the source catalog.");
+        if(member.channel === "crypto" && (provider !== "kraken" || !data?.sourceIdentities?.some(identity =>
+          identity.channel === "crypto" && identity.symbol === member.symbol && identity.providerId === member.providerId && identity.krakenPair === member.krakenPair))) {
+          throw new Error("Kraken Spot pair identity changed or was not supplied; reload the source catalog.");
+        }
         const instrument=data?.instruments?.find(item=>item.symbol===member.symbol);
         if(!instrument)throw new Error(payload?.message || "No matching source observation returned.");
         const packet=globalThis.GoodIntelligenceMarketContext?.normalizePacket(instrument.marketContext);
@@ -160,7 +167,7 @@
     };
     host.addEventListener("click",onClick);
     $("[data-nab-select]").addEventListener("change",event=>choose(Number(event.target.value)));
-    $("[data-nab-provider]").addEventListener("change",event=>{state.provider=event.target.value;state.interval=state.provider==="massive"?"1d":state.provider==="alpha"?"1mo":"1h";state.auto=false;$("[data-nab-auto]").checked=false;draw();});
+    $("[data-nab-provider]").addEventListener("change",event=>{state.provider=event.target.value;state.interval="1d";state.auto=false;$("[data-nab-auto]").checked=false;draw();});
     $("[data-nab-import]").addEventListener("click",()=>{importHistory();save();state.message="Saved Orb observations imported without modifying legacy history; physical records re-read. Provider and interval identities remain separate.";draw();});
     $("[data-nab-clear]").addEventListener("click",()=>{
       if(typeof options.onClearBeats === "function")options.onClearBeats();else clearEvent();

@@ -13,7 +13,7 @@
   // The newest attempt is significant: a failed refresh is not replaced with
   // a silently selected older packet or another provider/timeframe.
   function selectedObservation(member, provider, interval) {
-    return (member?.observations || []).filter(row => row.provider === provider && row.interval === interval)
+    return (member?.observations || []).filter(row => !row.legacy && row.provider === provider && row.interval === interval)
       .reduce((latest, row) => !latest || row.at > latest.at ? row : latest, null);
   }
 

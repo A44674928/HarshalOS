@@ -24,8 +24,10 @@ import {
   sanitizeOrb2FieldObservation
 } from "../worker/orb2-field.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
+import { clearCharactersCryptoRankingCache } from "../worker/characters-crypto-ranking.mjs";
+import { clearKrakenDailyBarCache } from "../worker/characters-kraken.mjs";
 
-const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]
+const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql", "0012_kraken_public_crypto.sql"]
   .map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 const ORIGIN = "https://os.example";
@@ -53,6 +55,8 @@ function seedActiveContracts(sql, at = NOW) {
 }
 
 function fixture(t, { migrated = true } = {}) {
+  clearCharactersCryptoRankingCache();
+  clearKrakenDailyBarCache();
   const sql = new DatabaseSync(":memory:");
   if (migrated) for (const migration of MIGRATIONS) sql.exec(migration);
   t.after(() => sql.close());
@@ -83,13 +87,18 @@ function bars(count, { volume = true } = {}) {
   }));
 }
 
-function cryptoGroupedRows(count = 70) {
-  return Array.from({ length: count }, (_, index) => {
+function krakenTickerRows(count = 52) {
+  const result = { last: "0" };
+  for (let index = 0; index < count; index += 1) {
     const symbol = index === 0 ? "BTC" : index === 1 ? "ETH" : `C${String(index).padStart(2, "0")}`;
-    const volume = 20_000 - index * 100;
-    const vwap = 50_000 - index * 100;
-    return { T: `X:${symbol}USD`, o: vwap * 0.98, h: vwap * 1.02, l: vwap * 0.97, c: vwap, v: volume, vw: vwap, t: NOW - 86_400_000 };
-  });
+    const volume = String(20_000 - index * 100);
+    const vwap = String(50_000 - index * 100);
+    result[`${symbol}/USD`] = {
+      a: [vwap, "1", "1.0"], b: [vwap, "1", "1.0"], c: [vwap, "1"],
+      v: [volume, volume], p: [vwap, vwap], t: [1, 1], l: [vwap, vwap], h: [vwap, vwap], o: vwap
+    };
+  }
+  return result;
 }
 
 /** Deterministic provider stand-in: Tickerbot and Massive answer the reviewed shapes. */
@@ -105,12 +114,28 @@ function providerFetch(seen, { failSymbols = [] } = {}) {
       seen.tickerbot.push(`${symbol}:${tickerbot[2]}`);
       return Response.json({ as_of: new Date(NOW).toISOString(), bars: bars(40).map(bar => ({ t: bar.time, o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume })) });
     }
-    if (parsed.origin === "https://api.massive.com") {
-      if (parsed.pathname.startsWith("/v2/aggs/grouped/locale/global/market/crypto/")) {
-        seen.cryptoRanking ||= [];
-        seen.cryptoRanking.push(parsed.pathname);
-        return Response.json({ status: "OK", results: cryptoGroupedRows() });
+    if (parsed.origin === "https://api.kraken.com") {
+      seen.krakenRanking ||= [];
+      seen.krakenBars ||= [];
+      if (parsed.pathname === "/0/public/Ticker") {
+        seen.krakenRanking.push(parsed.toString());
+        assert.equal(parsed.searchParams.get("assetVersion"), "1", "the roster requests display-format Kraken pair identities");
+        return Response.json({ error: [], result: krakenTickerRows() });
       }
+      if (parsed.pathname === "/0/public/OHLC") {
+        const requestedPair = parsed.searchParams.get("pair");
+        const base = requestedPair?.replace(/USD$/, "");
+        const pair = `${base}/USD`;
+        seen.krakenBars.push({ pair, requestedPair, interval: parsed.searchParams.get("interval"), url: parsed.toString() });
+        assert.equal(parsed.searchParams.get("assetVersion"), "1", "daily bars preserve the exact display-format pair key");
+        return Response.json({ error: [], result: {
+          [pair]: bars(50).map(bar => [Math.floor(bar.time / 1000), String(bar.open), String(bar.high), String(bar.low), String(bar.close), "0", String(bar.volume), 1]),
+          last: "0"
+        } });
+      }
+      return Response.json({ error: ["unknown Kraken route"], result: {} }, { status: 404 });
+    }
+    if (parsed.origin === "https://api.massive.com") {
       if (parsed.pathname === "/futures/v1/contracts") {
         const productCode = parsed.searchParams.get("product_code");
         seen.contracts ||= [];
@@ -184,70 +209,95 @@ test("field freshness marks daily cards stale before 24h expiry and 15m cards ex
   assert.equal(ORB2_FIELD_FRESHNESS["15m"].expireMs, 6 * 60 * 60_000);
 });
 
-test("a tick spends at most the shared Massive per-minute envelope and stores one directive per instrument", async t => {
+test("a cold tick keeps Massive inside its envelope and Kraken's roster and OHLC share the one-second gate", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
-  const summary = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
+  const at = nextClock();
+  const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true);
-  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE, "ranking, contract discovery, and bars stay inside the five-request envelope");
-  assert.equal(seen.cryptoRanking.length, 1, "Disc3's grouped Massive roster is fetched once");
+  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE, "contract discovery and Massive bars stay inside the five-request envelope");
+  assert.equal(seen.krakenRanking.length, 1, "Disc3's roster is fetched from Kraken Spot");
+  assert.equal(seen.krakenBars.length, 0, "the roster call occupies Kraken's one-per-second gate, so OHLC waits for a later tick");
   assert.equal(seen.contracts.length, 1, "one active futures product is discovered per tick");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 2, "ranking and contract discovery leave three bar slots on a cold tick");
-  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE - 2);
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 1, "contract discovery leaves four Massive bar slots");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE - 1);
   assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, ORB2_MASSIVE_PER_MINUTE);
-  const row = sql.prepare("SELECT payload, interval, confirmed FROM orb2_field_observations WHERE interval='1d' LIMIT 1").get();
+  const row = sql.prepare("SELECT payload, interval, confirmed FROM orb2_field_observations WHERE interval='1d' AND provider='massive' LIMIT 1").get();
   const payload = JSON.parse(row.payload);
   assert.equal(payload.schema, "gi-orb2-field-observation-v1");
   assert.equal(payload.provider, "massive");
   assert.equal(payload.motion.schema, "characters-market-motion-v1", "the Characters directive is computed server-side");
   assert.ok(payload.market && payload.market.latestBar && payload.market.latestBar.confirmed === true);
   assert.equal(row.confirmed, 1);
+
+  const later = await runOrb2FieldTick(env, null, { now: () => at + 1_000, fetch: providerFetch(seen) });
+  assert.equal(later.krakenCalls, 1, "the exact-pair OHLC request proceeds after the one-second cooldown");
+  assert.equal(seen.krakenRanking.length, 1, "the fresh Kraken roster is read from D1, not fetched again");
+  assert.equal(seen.krakenBars.length, 1);
+  assert.equal(seen.krakenBars[0].pair, "BTC/USD");
+  assert.equal(seen.krakenBars[0].requestedPair, "BTCUSD");
+  assert.equal(seen.krakenBars[0].interval, "1440");
+  const crypto = sql.prepare("SELECT payload FROM orb2_field_observations WHERE symbol='BTC' AND provider='kraken' AND interval='1d'").get();
+  assert.ok(crypto, "the first pair is stored from Kraken rather than an alternate venue");
+  const cryptoPayload = JSON.parse(crypto.payload);
+  assert.equal(cryptoPayload.krakenPair, "BTC/USD");
+  assert.equal(cryptoPayload.providerId, "BTC/USD");
 });
 
-test("the Massive rotation covers every ranked Disc without repeating a berth or overspending", async t => {
+test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Massive non-stock Discs", async t => {
   const { sql, env } = fixture(t);
-  // Tickerbot is deliberately absent here: the warm queue (its own test below)
-  // would otherwise also write 1d rows and the rotation assertion would be
-  // measuring two writers at once.
-  delete env.TICKERBOT_API_KEY;
-  const seen = { urls: [], massive: [], tickerbot: [], cryptoRanking: [], contracts: [] };
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
   seedActiveContracts(sql, at);
 
   const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
+  assert.equal(firstTick.krakenCalls, 1, "the cold tick spends one Kraken call on the rolling-24-hour roster");
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
   const roster = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) });
   const reviewed = roster.instruments.length;
   assert.equal(roster.crypto.length, 52);
   assert.equal(reviewed, 142);
-  assert.equal(seen.cryptoRanking.length, 1);
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 1,
-    "the first ranking call shares the five-request envelope and leaves four bar slots");
+  assert.equal(seen.krakenRanking.length, 1);
+  assert.equal(seen.krakenBars.length, 0, "the pair-bar lane waits for the next one-second Kraken slot");
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE,
+    "the five-call Massive envelope is independent of Kraken roster discovery");
   const firstDiscs = new Set(seen.massive.map(ticker =>
-    ticker.startsWith("C:") ? "fx" : ticker.startsWith("X:") ? "crypto" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "stocks"));
-  assert.deepEqual([...firstDiscs].sort(), ["commodities", "crypto", "fx", "stocks"],
-    "the cold tick reaches four data Discs after reserving one call for the Massive ranking");
+    ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "unexpected"));
+  assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices"],
+    "Massive serves only FX, active commodity futures, and indices");
 
-  const fetched = new Set(seen.massive);
+  const coverage = () => new Set([
+    ...seen.massive.map(ticker => `massive:${ticker}`),
+    ...seen.tickerbot.filter(entry => entry.endsWith(":1d")).map(entry => `stocks:${entry.slice(0, -3)}`),
+    ...seen.krakenBars.map(entry => `crypto:${entry.pair}`)
+  ]);
+  const expected = new Set([
+    ...roster.stocks.map(instrument => `stocks:${instrument.symbol}`),
+    ...roster.crypto.map(instrument => `crypto:${instrument.krakenPair}`),
+    ...roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId))
+      .map(instrument => `massive:${instrument.massiveTicker || instrument.massive?.ticker}`)
+  ]);
   let tick = 1;
-  while (fetched.size < reviewed && tick < 100) {
-    const start = seen.massive.length;
+  while (coverage().size < reviewed && tick < 100) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE);
-    for (const ticker of seen.massive.slice(start)) fetched.add(ticker);
+    assert.ok(summary.krakenCalls <= 1, "Kraken's shared pacing gate permits at most one call per tick");
     tick += 1;
   }
-  assert.equal(seen.massive.length, reviewed, `a full pass issues exactly one call per reviewed instrument (${reviewed})`);
-  assert.equal(fetched.size, reviewed, "the whole reviewed field is covered once before any berth repeats");
-  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("C:")).length, roster.fx.length);
-  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("X:")).length, roster.crypto.length);
-  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("I:")).length, roster.indices.length);
-  assert.ok([...fetched].includes("C:EURUSD"), "fx routes through the reviewed catalog mapping");
-  assert.ok([...fetched].includes("GCZ6"), "commodities route through the fixed reviewed Massive futures catalog");
-  assert.ok([...fetched].includes("X:BTCUSD"), "crypto pairs use the ticker returned by Massive's grouped ranking");
-  assert.equal(seen.cryptoRanking.length, 1, "the D1 roster cache avoids refreshing a daily ranking each Cron tick");
+  const fetched = coverage();
+  assert.equal(fetched.size, reviewed, `every reviewed instrument is covered by its exclusive provider (${reviewed})`);
+  assert.deepEqual([...fetched].sort(), [...expected].sort(), "no provider substitutes for another Disc");
+  assert.equal(seen.massive.length, roster.fx.length + roster.commodities.length + roster.indices.length);
+  assert.equal(seen.krakenBars.length, roster.crypto.length);
+  assert.equal(seen.krakenRanking.length, 1, "the D1 roster cache avoids a Kraken ranking call on every Cron tick");
+  assert.ok(seen.tickerbot.some(entry => entry.endsWith(":1d")), "Stocks are refreshed on Tickerbot daily bars");
+  assert.ok(seen.massive.includes("C:EURUSD"), "FX routes through the reviewed Massive catalog mapping");
+  assert.ok(seen.massive.includes("GCZ6"), "commodities route through the fixed active Massive futures contract");
+  assert.ok(seen.krakenBars.some(entry => entry.pair === "BTC/USD"), "Crypto daily bars retain Kraken's exact USD pair identity");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='stocks' AND provider='massive'").get().count, 0);
 });
 
 test("the field warm burst queues the full Tickerbot sweep and drains it across scheduled ticks", async t => {
@@ -266,15 +316,19 @@ test("the field warm burst queues the full Tickerbot sweep and drains it across 
   assert.equal(new Set(seen.tickerbot).size, seen.tickerbot.length, "no instrument is beaten twice while the burst drains");
 
   let tick = 1;
+  let queuedCompleted = claimedFirstTick;
   while (sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue").get().count > 0 && tick < 12) {
-    await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
+    const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
+    queuedCompleted += summary.queueCompleted;
     tick += 1;
   }
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue").get().count, 0, "the burst drains within its bounded batch size");
-  assert.equal(seen.tickerbot.length, ORB2_FIELD_TICKERBOT_BURST_CALLS);
+  assert.equal(queuedCompleted, ORB2_FIELD_TICKERBOT_BURST_CALLS, "all queued warm jobs complete");
+  assert.ok(seen.tickerbot.length >= ORB2_FIELD_TICKERBOT_BURST_CALLS,
+    "the stock daily rotation may add calls while the separate 15m/1h/1d warm queue drains");
   assert.equal(new Set(seen.tickerbot.map(entry => entry.split(":")[1])).size, 3, "15m, 1h, and 1d are covered");
   assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM tickerbot_call_ledger").get().calls,
-    ORB2_FIELD_TICKERBOT_BURST_CALLS, "every burst call is claimed in the durable monthly ledger");
+    seen.tickerbot.length, "every Tickerbot attempt, including daily rotation, is claimed in the durable monthly ledger");
   const afterFreshnessWindow = await runOrb2FieldTick(env, null, {
     now: () => at + 7 * 60 * 60_000, fetch: providerFetch(seen)
   });
@@ -316,8 +370,9 @@ test("a missing Worker secret and a missing binding fail closed with a readable 
   const noSecrets = await runOrb2FieldTick({ COMMUNITY_DB: env.COMMUNITY_DB }, null, deps(seen, { at: nextClock() }));
   assert.equal(noSecrets.massiveCalls, 0);
   assert.equal(noSecrets.tickerbotCalls, 0);
-  assert.ok(noSecrets.notes.some(note => /not configured/i.test(note)),
-    "a missing provider secret is reported instead of guessing a data source");
+  assert.ok(noSecrets.notes.some(note => /TICKERBOT_API_KEY/.test(note)) && noSecrets.notes.some(note => /MASSIVE_API_KEY/.test(note)),
+    "missing provider secrets are named instead of silently substituting another source");
+  assert.equal(seen.krakenRanking.length, 1, "public Kraken market data requires neither a Worker secret nor an account API key");
   const noDb = await runOrb2FieldTick({}, null, deps(seen, { at: nextClock() }));
   assert.equal(noDb.ok, false);
   assert.match([...noDb.notes, ...noDb.errors].join(" "), /COMMUNITY_DB/);
@@ -386,16 +441,17 @@ test("a priority refresh is bounded to the reviewed roster and unknown symbols a
 
 test("the snapshot serves the stored field with honest beat-type counts and the DXY reference", async t => {
   const { sql, env } = fixture(t);
-  const seen = { urls: [], massive: [], tickerbot: [], cryptoRanking: [], contracts: [] };
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
   seedActiveContracts(sql, at);
-  /* One complete pass over the ranked five-Disc field. The first tick spends
-     one of its five Massive slots on the D1-cached crypto roster. */
+  /* The provider lanes have separate pacing: one Kraken pair per tick, five
+     Massive calls per minute, plus the bounded Tickerbot stock warm burst. */
   await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
-  const reviewed = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) }).instruments.length;
-  const ticksForOnePass = Math.ceil((reviewed + 1) / ORB2_MASSIVE_PER_MINUTE);
+  const roster = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) });
+  const massiveCount = roster.fx.length + roster.commodities.length + roster.indices.length;
+  const ticksForOnePass = Math.max(roster.stocks.length, roster.crypto.length, Math.ceil(massiveCount / ORB2_MASSIVE_PER_MINUTE)) + 1;
   for (let tick = 1; tick < ticksForOnePass + 1; tick += 1) {
     await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
   }
@@ -446,20 +502,23 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
     "Orb 2 retains the exact active-contract identity used for the futures bars");
   assert.equal(discs.indices.instruments, 5);
   assert.equal(discs.indices.stored, 5, "the index Disc is populated by the automatic rotation");
-  assert.equal(discs.crypto.instruments, 52, "Disc3's Massive ranking cache reports the reviewed USD-pair roster");
-  assert.equal(discs.crypto.stored, 52, "the automatic rotation stores the 52 Massive-ranked crypto pairs");
+  assert.equal(discs.crypto.instruments, 52, "Kraken's ranking cache reports the reviewed USD-pair roster");
+  assert.equal(discs.crypto.stored, 52, "the automatic rotation stores the 52 Kraken-ranked crypto pairs");
   assert.equal(discs.crypto.covered, true);
   assert.ok(discs.fx.newestAt > 0 && discs.crypto.newestAt > 0);
-  assert.ok(discs.stocks.providers.length > 0 && discs.stocks.providers.every(provider => ["massive", "tickerbot"].includes(provider)));
-  /* Disc1 has both lanes; Discs 2-5 can only be written by Massive, and the
-     rotation must have reached every one of them. */
-  for (const [discId, expected] of [["fx", 23], ["crypto", 52], ["commodities", 10], ["indices", 5]]) {
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='stocks' AND provider='tickerbot'").get().count, 52);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='stocks' AND provider='massive'").get().count, 0);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
+  /* Stocks are Tickerbot-only; Crypto is Kraken-only; Massive is exclusive to
+     FX, active commodity futures, and indices. */
+  for (const [discId, expected] of [["fx", 23], ["commodities", 10], ["indices", 5]]) {
     const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
     assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
   }
-  const cryptoRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count;
-  assert.equal(cryptoRows, 52, "Disc3's selected pairs are populated through Massive daily bars");
-  assert.equal(seen.cryptoRanking.length, 1, "the D1 cache prevents a ranking call on every scheduled tick");
+  const cryptoRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='kraken'").get().count;
+  assert.equal(cryptoRows, 52, "Disc3's selected pairs are populated through exact Kraken daily pair bars");
+  assert.equal(seen.krakenRanking.length, 1, "the D1 cache prevents a ranking call on every scheduled tick");
+  assert.equal(seen.krakenBars.length, 52);
 
   const narrowed = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&symbols=AAPL,MSFT&types=observation`), env, { now: () => snapshotAt });
   const narrowedData = (await narrowed.json()).data;
@@ -472,7 +531,7 @@ test("the snapshot fails visibly when D1 or migration 0009 is missing", async t 
   const { env } = fixture(t, { migrated: false });
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
   assert.equal(response.status, 503);
-  assert.match((await response.json()).message, /migration 0009/i);
+  assert.match((await response.json()).message, /migrations through 0012/i);
   const unbound = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), {}, { now: () => NOW });
   assert.equal(unbound.status, 503);
   assert.match((await unbound.json()).message, /COMMUNITY_DB/);
@@ -481,15 +540,21 @@ test("the snapshot fails visibly when D1 or migration 0009 is missing", async t 
 test("stored observations are validated on the way out, so a hand-edited row cannot claim a provider", () => {
   const valid = {
     schema: "gi-orb2-field-observation-v1", symbol: "AAPL", displaySymbol: "AAPL", discId: "stocks",
-    provider: "massive", interval: "1d", status: "bars", reason: "server-sweep", beatId: "00000000-0000-4000-8000-000000000001",
+    provider: "tickerbot", interval: "1d", status: "bars", reason: "server-sweep", beatId: "00000000-0000-4000-8000-000000000001",
     observedAt: NOW, market: null, motion: null
   };
   assert.equal(sanitizeOrb2FieldObservation(valid, NOW).ok, false, "an observation must carry a market summary or a directive");
   const withMotion = { ...valid, motion: { schema: "characters-market-motion-v1", mood: "drift", status: "unknown", gauge: {}, npc: {}, object: {}, item: {}, frozen: true } };
   assert.equal(sanitizeOrb2FieldObservation(withMotion, NOW).ok, true);
   assert.equal(sanitizeOrb2FieldObservation({ ...withMotion, provider: "alpha" }, NOW).ok, false);
+  assert.equal(sanitizeOrb2FieldObservation({ ...withMotion, provider: "massive" }, NOW).ok, false, "Massive cannot write a stock berth");
   assert.equal(sanitizeOrb2FieldObservation({ ...withMotion, interval: "1mo" }, NOW).ok, false);
   assert.equal(sanitizeOrb2FieldObservation({ ...withMotion, provider: "tickerbot", discId: "fx" }, NOW).ok, false);
+  const crypto = { ...withMotion, symbol: "BTC", displaySymbol: "BTC/USD", discId: "crypto", provider: "kraken",
+    providerId: "BTC/USD", krakenPair: "BTC/USD", rankingProvider: "Kraken" };
+  assert.equal(sanitizeOrb2FieldObservation(crypto, NOW).ok, true);
+  assert.equal(sanitizeOrb2FieldObservation({ ...crypto, providerId: "OTHER/USD" }, NOW).ok, false);
+  assert.equal(sanitizeOrb2FieldObservation({ ...crypto, provider: "massive", krakenPair: undefined, rankingProvider: undefined }, NOW).ok, false);
   assert.equal(sanitizeOrb2FieldObservation({ ...withMotion, observedAt: NOW + 86_400_000 }, NOW).ok, false);
   const beatId = sanitizeOrb2FieldObservation(withMotion, NOW).observation;
   assert.deepEqual(orb2FieldBeatTypesFor(beatId), ["observation", "permission"],
@@ -500,10 +565,10 @@ test("stored observations are validated on the way out, so a hand-edited row can
 });
 
 test("observationFromPacket refuses a missing packet instead of inventing a berth", () => {
-  assert.equal(observationFromPacket({ packet: null, symbol: "AAPL", discId: "stocks", provider: "massive" }), null);
+  assert.equal(observationFromPacket({ packet: null, symbol: "AAPL", discId: "stocks", provider: "tickerbot" }), null);
   const observation = observationFromPacket({
     packet: { schema: "gi-market-context-v1", synthetic: false, symbol: "AAPL", timeframe: "1d", source: "test", bars: bars(60) },
-    symbol: "AAPL", displaySymbol: "AAPL", discId: "stocks", provider: "massive", now: NOW, beatId: "00000000-0000-4000-8000-000000000002"
+    symbol: "AAPL", displaySymbol: "AAPL", discId: "stocks", provider: "tickerbot", now: NOW, beatId: "00000000-0000-4000-8000-000000000002"
   });
   assert.ok(observation);
   assert.equal(observation.market.status !== "unavailable", true);

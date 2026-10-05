@@ -160,8 +160,8 @@ export default {
     if (path === '/api/good-intelligence/v1/orb2/field') return handleOrb2Field(request, env);
     if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request, env);
     if (path === '/api/characters/v1/deploy') return handleCharactersDeploy(request, env);
-    // Characters has three narrow providers: Massive automatic daily Disc beats,
-    // Tickerbot on-demand stock beats, and Alpha Vantage Disc1 monthly spotlight beats.
+    // Characters has three narrow providers: Tickerbot exclusively for Stocks,
+    // Kraken for Disc3 crypto, and Massive for reviewed FX, futures, and indices.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);
     if (path === '/api/orb2/v1/beats') return handleOrb2SavedBeats(request, env);
     if (path === '/api/materials-project/v1/search') return handleMaterialsProject(request, env);

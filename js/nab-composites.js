@@ -26,13 +26,14 @@
     IWM:54, QQQ:54, SPY:54, XLE:54
   });
   const commodityAlignment = Object.freeze({ WTI:23, NATURAL_GAS:23, COPPER:26, GOLD:70, SILVER:70, PLATINUM:70, PALLADIUM:70, WHEAT:5, CORN:5, SOYBEANS:5 });
-  // A dynamic crypto ranking is joined by Massive's exact X:{BASE}USD ticker,
-  // not by an ambiguous base-symbol collision. Unknown pairs remain for review.
+  // A dynamic crypto ranking is joined by Kraken's exact USD Spot pair ID,
+  // not by an ambiguous base-symbol collision. XBT/XDG are Kraken's own base
+  // codes for BTC/DOGE; unknown pairs remain for review.
   const cryptoAlignment = Object.freeze({
-    "X:BTCUSD":20, "X:ETHUSD":4, "X:USDTUSD":12, "X:USDCUSD":12,
-    "X:DAIUSD":12, "X:SOLUSD":4, "X:ADAUSD":4, "X:DOTUSD":4,
-    "X:XRPUSD":3, "X:LTCUSD":3, "X:DOGEUSD":3, "X:LINKUSD":37,
-    "X:BNBUSD":20
+    "XBT/USD":20, "BTC/USD":20, "ETH/USD":4, "USDT/USD":12, "USDC/USD":12,
+    "DAI/USD":12, "SOL/USD":4, "ADA/USD":4, "DOT/USD":4,
+    "XRP/USD":3, "LTC/USD":3, "XDG/USD":3, "DOGE/USD":3, "LINK/USD":37,
+    "BNB/USD":20
   });
   const bankRows = [
     ["USD","fed","Federal Reserve","https://www.federalreserve.gov/"],
@@ -96,14 +97,16 @@
       }
     }
     for (const row of crypto) {
-      if (!row || typeof row.symbol !== "string" || row.rankingProvider !== "Massive") continue;
-      const massiveTicker = typeof row.massiveTicker === "string" ? row.massiveTicker.toUpperCase() : "";
+      if (!row || typeof row.symbol !== "string" || row.rankingProvider !== "Kraken") continue;
+      const krakenPair = typeof row.krakenPair === "string" ? row.krakenPair.toUpperCase() : "";
       const providerId = typeof row.providerId === "string" ? row.providerId.toUpperCase() : "";
-      if (!/^[A-Z0-9]{2,12}$/.test(row.symbol) || massiveTicker !== `X:${row.symbol.toUpperCase()}USD` || providerId !== massiveTicker) continue;
+      const pair = /^([A-Z0-9]{2,12})\/USD$/.exec(krakenPair);
+      const canonical = pair?.[1] === "XBT" ? "BTC" : pair?.[1] === "XDG" ? "DOGE" : pair?.[1];
+      if (!/^[A-Z0-9]{2,12}$/.test(row.symbol) || !pair || providerId !== krakenPair || canonical !== row.symbol.toUpperCase()) continue;
       const nabId = cryptoAlignment[providerId] || null;
       members.push({id:key("crypto",row.symbol), channel:"crypto", symbol:row.symbol, name:row.name || row.symbol,
-        providerId, rankingProvider:"Massive", nabId, role:"supporting-market",
-        rationale:nabId ? `Editorial protocol-function alignment with ${NAB.byId(nabId).trait}; not a token risk assessment.` : "No explicit Massive-ticker alignment; review required.",
+        providerId, krakenPair, rankingProvider:"Kraken", nabId, role:"supporting-market",
+        rationale:nabId ? `Editorial protocol-function alignment with ${NAB.byId(nabId).trait}; not a token risk assessment.` : "No explicit Kraken Spot pair alignment; review required.",
         catalogContext:JSON.parse(JSON.stringify(row)), source:sources.rankingSource.crypto, classificationStatus:nabId ? "editorial" : "unassigned", liveEligible:true, dataStatus:"unobserved"});
     }
     members.push(...banks);
@@ -132,17 +135,34 @@
   }
 
   function observation(raw) {
+    const provider = typeof raw?.provider === "string" ? raw.provider.trim().toLowerCase().replaceAll("_", "-") : "";
+    const normalizedProvider = ["alpha-vantage", "alphavantage"].includes(provider) ? "alpha" : provider;
     if (!raw || !LEGACY_CHANNELS.includes(raw.channel) || typeof raw.symbol !== "string" || !/^[A-Z0-9._:-]{1,32}$/.test(raw.symbol) ||
-        !["massive","tickerbot","alpha"].includes(raw.provider) || !["1h","1d","1mo"].includes(raw.interval) || number(raw.at) === null || raw.at <= 0 || raw.market?.synthetic) return null;
+        !["massive","tickerbot","alpha","kraken"].includes(normalizedProvider) || !["1h","1d","1mo"].includes(raw.interval) ||
+        number(raw.at) === null || raw.at <= 0 || raw.market?.synthetic) return null;
+    const providerId = (text(raw.providerId) || text(raw.krakenPair) || text(raw.coingeckoId)).toUpperCase();
+    const activePath = raw.interval === "1d" && (
+      raw.channel === "stocks" && normalizedProvider === "tickerbot" ||
+      raw.channel === "crypto" && normalizedProvider === "kraken" ||
+      ["fx","commodities","indices"].includes(raw.channel) && normalizedProvider === "massive"
+    );
+    if (activePath && raw.channel === "crypto") {
+      const pair = /^([A-Z0-9]{2,12})\/USD$/.exec(providerId);
+      const canonical = pair?.[1] === "XBT" ? "BTC" : pair?.[1] === "XDG" ? "DOGE" : pair?.[1];
+      if (!pair || canonical !== raw.symbol.toUpperCase()) return null;
+    }
+    /* Legacy imports are accepted only as tagged archive rows. The live refresh
+       path calls observation() without this flag and must use the current NAB
+       provider/interval assignment: Tickerbot Stocks 1d, Kraken Crypto 1d, and
+       Massive FX/Commodities/Indices 1d. Archived rows never enter calculations. */
+    const legacy = !activePath;
+    if (legacy && raw.legacy !== true) return null;
     const market = raw.market && typeof raw.market === "object" ? raw.market : null;
     // Clone before freezing; never freeze a caller's live provider packet.
     return freeze(JSON.parse(JSON.stringify({channel:raw.channel, symbol:raw.symbol,
-      provider:raw.provider, interval:raw.interval, at:raw.at, status:text(raw.status) || "unknown",
-      market, message:text(raw.message),
-      /* Read old browser-local crypto identity keys without treating them as a
-         Massive identity. They cannot join the current catalog unless the exact
-         Massive providerId is present. */
-      providerId:text(raw.providerId) || text(raw.coingeckoId), source:text(raw.source) || "legacy-source-adapter"})));
+      provider:normalizedProvider, interval:raw.interval, at:raw.at, status:text(raw.status) || "unknown",
+      legacy, market, message:text(raw.message), providerId,
+      source:text(raw.source) || (legacy ? "legacy-source-adapter" : "Characters Worker")})));
   }
 
   function fromLegacy(events = []) {
@@ -152,7 +172,8 @@
         symbol:item.symbol, provider:event.provider, interval:event.interval,
         at:typeof event.at === "number" ? event.at : Date.parse(event.beatAt),
         status:item.status, market:item.market, message:item.message,
-        providerId:item.providerId, coingeckoId:item.coingeckoId, source:"legacy-beat-history"})).filter(Boolean);
+        providerId:item.providerId, krakenPair:item.krakenPair, coingeckoId:item.coingeckoId,
+        source:"legacy-beat-history", legacy:true})).filter(Boolean);
     });
   }
 
@@ -164,7 +185,8 @@
       return beat.payload.observations.map(item => observation({
         channel:beat.discId, symbol:item.ticker, provider:beat.provider,
         interval:beat.payload.entry?.interval, at:beat.beatAt,
-        status:item.status, source:"Characters D1 compact archive",
+        status:item.status, source:"Characters D1 compact archive", legacy:true,
+        providerId:item.providerId, krakenPair:item.krakenPair,
         market: {latestBar:number(item.close) === null ? null : {close:item.close},
           previousClose:number(item.previousClose), archiveContext:JSON.parse(JSON.stringify(item))}
       })).filter(Boolean);
@@ -190,18 +212,18 @@
       observations:clean.filter(item => item.channel === row.channel && item.symbol === row.symbol &&
         (row.channel !== "crypto" || (row.providerId && item.providerId === row.providerId))).map(item => ({...item,
           ageMs:Math.max(0,now-item.at), stale: now-(number(item.market?.latestBar?.time) ?? item.at) > (item.interval === "1h" ? 3600000 : item.interval === "1mo" ? 31*86400000 : 86400000),
-          fbbDisplacement:displacement(item.market)}))
+          fbbDisplacement:item.legacy ? null : displacement(item.market)}))
     }));
     const physical = spheroids.filter(row => row.nabId === nabId).map(row => ({
       id:row.id, name:row.name, components:(row.components || []).map(component => ({...component,
         material: JSON.parse(JSON.stringify(materials.find(material => material.materialId === component.materialId) || null))}))
     }));
     return freeze({schema:VERSION, id:`nab-${nabId}`, designation, members, physical,
-      coverage:{constituents:members.length, observed:members.filter(row => row.observations.some(item => number(item.market?.latestBar?.close) !== null)).length,
+      coverage:{constituents:members.length, observed:members.filter(row => row.observations.some(item => !item.legacy && number(item.market?.latestBar?.close) !== null)).length,
         referenceOnly:members.filter(row => row.channel === "central-bank").length, physicalDesigns:physical.length},
-      aggregation:"Aligned evidence composite; prices, policy rates and densities are not averaged or treated as material volume fractions.",
-      aiContext:{...designation.ai, constituents:members.map(row => ({id:row.id, role:row.role, rationale:row.rationale, sources:[row.source], catalogContext:row.catalogContext || null, relatedIds:row.relatedIds || [], observations:row.observations})),
-        physical, missing:members.filter(row => !row.observations.some(item => number(item.market?.latestBar?.close) !== null)).map(row => row.id),
+      aggregation:"Aligned current-provider evidence composite; archived legacy observations remain read-only and do not enter coverage or model context. Prices, policy rates and densities are not averaged or treated as material volume fractions.",
+      aiContext:{...designation.ai, constituents:members.map(row => ({id:row.id, role:row.role, rationale:row.rationale, sources:[row.source], catalogContext:row.catalogContext || null, relatedIds:row.relatedIds || [], observations:row.observations.filter(item => !item.legacy)})),
+        physical, missing:members.filter(row => !row.observations.some(item => !item.legacy && number(item.market?.latestBar?.close) !== null)).map(row => row.id),
         instructions:designation.ai.instructions + " Treat aligned constituents as one evidence composite. Keep sources, times, units, uncertainty and disagreements separate; never promote an editorial institution alignment into a verified classification."}
     });
   }

@@ -13,8 +13,12 @@ const NOW = Date.parse('2026-10-04T12:00:00Z');
 const FBB_LOG_HALF_WIDTH = Math.log(1.25);
 const closeAtDisplacement = value => 100 * Math.exp(value * FBB_LOG_HALF_WIDTH);
 const registry = Model.catalog({ watchlist: NAB.sectors.map(row => ({ symbol: row.ticker, name: row.company })) });
-const observation = (symbol, close, extras = {}) => ({ channel: 'stocks', symbol, provider: 'massive', interval: '1d', at: NOW, status: 'bars',
-  market: { latestBar: { close }, basis: 100, bands: { lower1000: 80, upper1000: 125 } }, ...extras });
+const observation = (symbol, close, extras = {}) => {
+  const channel = extras.channel || 'stocks';
+  const provider = extras.provider || (channel === 'stocks' ? 'tickerbot' : channel === 'crypto' ? 'kraken' : 'massive');
+  return { channel, symbol, provider, interval: '1d', at: NOW, status: 'bars',
+    market: { latestBar: { close }, basis: 100, bands: { lower1000: 80, upper1000: 125 } }, ...extras };
+};
 const fixture = (observations = [], physical = {}) => NAB.sectors.map(row => Model.compose(row.id, { registry, observations, now: NOW, ...physical }));
 
 test('119 complete composites become distinct stable 3D cores; bank and physical records survive', () => {
@@ -37,18 +41,22 @@ test('119 complete composites become distinct stable 3D cores; bank and physical
 });
 
 test('designated stock alone sets core height; supporting markets keep independent absolute FBB positions', () => {
-  const scene = Renderer.buildScene(fixture([
+  const values = fixture([
     observation('V', closeAtDisplacement(.5)), observation('MA', closeAtDisplacement(-.5)),
     observation('EURUSD', 80, { channel: 'fx' })
-  ]));
-  const visa = scene.find(node => node.nabId === 12), mastercard = scene.find(node => node.nabId === 20);
+  ]);
+  const stockScene = Renderer.buildScene(values, { provider: 'tickerbot' });
+  const visa = stockScene.find(node => node.nabId === 12), mastercard = stockScene.find(node => node.nabId === 20);
   assert.ok(Math.abs(visa.displacement - .5) < 1e-12);
   assert.ok(Math.abs(visa.position.y - .5 * Renderer.HEIGHT) < 1e-12);
   assert.ok(Math.abs(mastercard.position.y + .5 * Renderer.HEIGHT) < 1e-12);
-  const fx = visa.members.find(member => member.id === 'fx:EURUSD');
-  assert.equal(fx.position.y, -Renderer.HEIGHT, 'not parent height plus offset and not a blended price');
+  const fxScene = Renderer.buildScene(values, { provider: 'massive' });
+  const fxVisa = fxScene.find(node => node.nabId === 12);
+  const fx = fxVisa.members.find(member => member.id === 'fx:EURUSD');
+  assert.equal(fx.position.y, -Renderer.HEIGHT, 'the selected Massive FX source has its own absolute FBB position');
+  assert.equal(fxVisa.marketY, null, 'a Massive selection cannot borrow the Tickerbot stock height');
   assert.equal(visa.members.find(member => member.channel === 'central-bank').marketY, null);
-  const baseline = Renderer.buildScene(fixture([observation('V', 100)])).find(node => node.nabId === 12);
+  const baseline = Renderer.buildScene(fixture([observation('V', 100)]), { provider: 'tickerbot' }).find(node => node.nabId === 12);
   assert.equal(baseline.position.y, 0);
 });
 
@@ -56,14 +64,14 @@ test('no clipping, risk-based elevation, provider fallback or manufactured neutr
   const scene = Renderer.buildScene(fixture([
     observation('V', closeAtDisplacement(4)), observation('MA', 120, { provider: 'tickerbot', interval: '1h' }),
     observation('CCJ', 80), observation('AXON', 80)
-  ]));
+  ]), { provider: 'tickerbot' });
   assert.ok(Math.abs(scene.find(node => node.nabId === 12).position.y - 4 * Renderer.HEIGHT) < 1e-12);
   assert.equal(scene.find(node => node.nabId === 20).marketY, null);
   assert.equal(scene.find(node => node.nabId === 20).known, false);
   assert.ok(scene.find(node => node.nabId === 20).position.x > 13, 'unknown staging is detached from the market plane');
   assert.equal(scene.find(node => node.ticker === 'CCJ').position.y, scene.find(node => node.ticker === 'AXON').position.y,
     'extreme and safe NAB risk categories cannot alter identical price displacement');
-  const next = Renderer.buildScene(fixture([observation('V', 140)]));
+  const next = Renderer.buildScene(fixture([observation('V', 140)]), { provider: 'tickerbot' });
   const old = scene.find(node => node.nabId === 12), current = next.find(node => node.nabId === 12);
   assert.equal(old.position.x, current.position.x);
   assert.equal(old.position.z, current.position.z, 'market changes do not reorder a core by rank');
@@ -74,7 +82,7 @@ test('failed attempts remain unknown, stale packets stay marked, and missing pri
     observation('V', 120), observation('V', 120, { at: NOW + 1, status: 'unavailable', market: null }),
     observation('MA', 90, { at: NOW - 2 * 86400000 }),
     observation('EURUSD', 120, { channel: 'fx' })
-  ]));
+  ]), { provider: 'tickerbot' });
   assert.equal(scene.find(node => node.nabId === 12).known, false);
   assert.equal(scene.find(node => node.nabId === 20).stale, true);
 });
@@ -105,7 +113,7 @@ function harness(t, { reduced = false, noCanvas = false } = {}) {
 
 test('primary canvas renders every core, picks the projected NAB, and keeps drag distinct from click', t => {
   const { renderer, calls, flush, pointer, selected, host, window } = harness(t);
-  renderer.update(fixture([observation('V', 120)]), { selectedId: 12, provider: 'massive', interval: '1d' }); flush();
+  renderer.update(fixture([observation('V', 120)]), { selectedId: 12, provider: 'tickerbot', interval: '1d' }); flush();
   assert.equal(renderer.projected.filter(point => point.kind === 'nab').length, 119);
   assert.ok(calls.some(call => call[0] === 'ellipse'));
   assert.ok(calls.some(call => call[0] === 'fillText' && call[1] === 'FBB BASELINE · 0'));
@@ -124,7 +132,7 @@ test('constituent and material markers are rendered and individually inspectable
   const { renderer, flush, pointer, details, host } = harness(t);
   renderer.update(fixture([observation('V', 120)], {
     spheroids: [{ id: 'p', nabId: 12, name: 'Physical test', components: [{ materialId: 'mp-1', sharePercent: 100 }] }], materials: []
-  }), { selectedId: 12 });
+  }), { selectedId: 12, provider: 'tickerbot', interval: '1d' });
   host.querySelector('[data-orb-focus]').click(); flush();
   const physical = renderer.projected.find(point => point.kind === 'physical');
   assert.ok(physical);
@@ -136,10 +144,10 @@ test('constituent and material markers are rendered and individually inspectable
 
 test('updates keep canvas and camera, visibility pauses frames, and destruction releases listeners', t => {
   const { renderer, window, host, flush, frames, selected } = harness(t);
-  renderer.update(fixture([observation('V', 120)]), { selectedId: 12 }); flush();
+  renderer.update(fixture([observation('V', 120)]), { selectedId: 12, provider: 'tickerbot' }); flush();
   host.querySelector('[data-orb-focus]').click(); flush();
   const camera = JSON.stringify(renderer.camera), canvas = host.querySelector('canvas');
-  renderer.update(fixture([observation('V', 140)]), { selectedId: 12 }); flush();
+  renderer.update(fixture([observation('V', 140)]), { selectedId: 12, provider: 'tickerbot' }); flush();
   assert.equal(JSON.stringify(renderer.camera), camera);
   assert.equal(host.querySelector('canvas'), canvas);
   const rotate = host.querySelector('[data-orb-rotate]'); rotate.checked = true; rotate.dispatchEvent(new window.Event('change')); flush();

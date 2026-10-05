@@ -333,15 +333,15 @@ test("the cast binds to the reviewed Tickerbot allowlist with no second copy", (
   assert.deepEqual(plain(commodity.berths[0].tags), ["Energy", "Crude oil"]);
 
   const crypto = Cast.build([{
-    symbol: "PRA", displaySymbol: "PRA/USD", name: "Maya Preferred PRA", sector: "Cryptocurrency",
+    symbol: "PRA", displaySymbol: "PRA/USD", name: "Reviewed Kraken pair PRA", sector: "Cryptocurrency",
     discId: "crypto", assetClass: "crypto", dataShape: "ohlcv", quoteCurrency: "USD", rank: 52,
-    rankingProvider: "Massive", providerId: "X:MAYACOINUSD", massiveTicker: "X:MAYACOINUSD", volumeUsd: 900, currentPriceUsd: 90_000_000, marketCapUsd: null
+    rankingProvider: "Kraken", providerBase: "PRA", providerId: "PRA/USD", krakenPair: "PRA/USD", volumeUsd: 900, currentPriceUsd: 90, marketCapUsd: null
   }], { discId: "crypto" });
   assert.equal(crypto.berths[0].rank, 52);
-  assert.equal(crypto.berths[0].rankingProvider, "Massive");
-  assert.equal(crypto.berths[0].providerId, "X:MAYACOINUSD", "the exact Massive ticker provenance survives cast normalization");
+  assert.equal(crypto.berths[0].rankingProvider, "Kraken");
+  assert.equal(crypto.berths[0].providerId, "PRA/USD", "the exact Kraken pair provenance survives cast normalization");
   assert.equal(crypto.berths[0].volumeUsd, 900);
-  assert.equal(crypto.berths[0].currentPriceUsd, 90_000_000);
+  assert.equal(crypto.berths[0].currentPriceUsd, 90);
   assert.equal(crypto.berths[0].marketCapUsd, null);
 });
 

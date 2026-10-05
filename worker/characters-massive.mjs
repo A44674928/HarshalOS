@@ -5,11 +5,11 @@
  * desktop proxy). Characters may ask only for a reviewed Disc instrument and
  * only for a 1d series. The caller owns cache, D1 allowance, and the shared
  * per-minute budget; this adapter owns the upstream shape and conservative
- * packet normalization. No browser input or API key is ever interpolated into
- * an arbitrary upstream URL.
+ * packet normalization. Characters routes Massive only to reviewed FX,
+ * futures, and index instruments; Tickerbot owns stocks and Kraken owns crypto.
+ * No browser input or API key is interpolated into an arbitrary upstream URL.
  */
 
-import { isTickerbotSymbol } from "./good-intelligence-tickerbot.mjs";
 import "../js/characters-disc-catalog.js";
 
 export const MASSIVE_DAILY_ORIGIN = "https://api.massive.com";
@@ -38,13 +38,6 @@ function normalizeInstrument(value, now = Date.now()) {
   const assetClass = typeof record.assetClass === "string" ? record.assetClass : "";
   if (!symbol) return null;
 
-  if (assetClass === "equity" && isTickerbotSymbol(symbol)) {
-    return Object.freeze({
-      symbol, displaySymbol: symbol, assetClass, dataShape: "ohlcv", quoteCurrency: "USD",
-      massiveTicker: symbol, family: "aggs", sourceLabel: "stocks daily"
-    });
-  }
-
   if (assetClass === "fx") {
     const entry = catalogEntry("fxCurrencies", symbol);
     const ticker = entry && entry.massive && entry.massive.ticker;
@@ -52,20 +45,6 @@ function normalizeInstrument(value, now = Date.now()) {
     return Object.freeze({
       symbol, displaySymbol: entry.displaySymbol, assetClass, dataShape: "ohlcv", quoteCurrency: entry.quoteCurrency || "USD",
       massiveTicker: ticker, family: "aggs", sourceLabel: "forex daily"
-    });
-  }
-
-  /* Crypto constituents come from Massive's grouped daily aggregate. Keep the
-     exact reviewed X:{BASE}USD ticker from that ranking and verify it agrees
-     with the base symbol; never synthesize a pair from arbitrary browser input. */
-  if (assetClass === "crypto" && record.rankingProvider === "Massive" && /^[A-Z0-9]{2,12}$/.test(symbol)) {
-    const ticker = typeof record.massiveTicker === "string" ? record.massiveTicker.trim().toUpperCase() : "";
-    if (ticker !== `X:${symbol}USD`) return null;
-    return Object.freeze({
-      symbol,
-      displaySymbol: typeof record.displaySymbol === "string" ? record.displaySymbol.slice(0, 48) : `${symbol}/USD`,
-      assetClass, dataShape: "ohlcv", quoteCurrency: "USD",
-      massiveTicker: ticker, family: "aggs", sourceLabel: "crypto daily"
     });
   }
 
@@ -220,7 +199,7 @@ export async function fetchMassiveDailyMarketContext({
 } = {}) {
   const original = rawInstrument && typeof rawInstrument === "object" ? rawInstrument : { symbol, assetClass: "equity" };
   const instrument = normalizeInstrument(original, now);
-  if (!instrument) return failure("massive-instrument-refused", "This instrument is not on a reviewed Characters Disc or live volume-ranked crypto list.");
+  if (!instrument) return failure("massive-instrument-refused", "Massive Characters routing is limited to the reviewed FX, futures, and index instruments.");
   if (original.interval !== undefined && original.interval !== "1d") {
     return failure("massive-interval-refused", "Massive Characters beats are restricted to an explicit 1d request; Tickerbot serves stock 1h on demand.");
   }

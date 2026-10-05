@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-const migrations = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]
+const migrations = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql", "0012_kraken_public_crypto.sql"]
   .map(file => readFileSync(new URL(`../../migrations/community/${file}`, import.meta.url), "utf8"));
 
 /* Small node:sqlite-backed stand-in for the D1 prepare/bind/first surface used by

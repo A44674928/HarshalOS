@@ -100,12 +100,7 @@ Compendium's neural classifications. It preserves all 52 existing watchlist
 entries (including funds), the 23 reviewed FX pairs, 10 commodity series, and 5
 indices. Together with the 119 designated stocks and 24 monetary-authority
 reference entries, the static composite catalog contains 221 distinct records.
-Crypto entries load explicitly from Characters' dynamic Massive ranking: known
-`X:{BASE}USD` provider tickers have editorial alignments; unknown tickers remain
-in review. The exact Massive ticker is retained as the provider identity and
-must match the Worker response before observations join. Duplicate source
-identities are marked ambiguous and cannot refresh. Historical observations
-without a matching Massive ticker remain retained and appear unlinked.
+Crypto entries load explicitly from Characters' dynamic Kraken Spot ranking: known USD-pair identities (including Kraken's `XBT/USD` → display `BTC/USD` and `XDG/USD` → display `DOGE/USD` aliases) have editorial alignments; unknown tickers remain in review. The exact `krakenPair`/`providerId` is retained as the provider identity and must match the Worker response before observations join. Duplicate source identities are marked ambiguous and cannot refresh. Historical observations without a matching Kraken pair remain retained and appear unlinked.
 
 ### Example: bank + stock + currency = one aligned NAB composite
 
@@ -119,11 +114,11 @@ separate data adapters before they can contribute observations.
 
 Every member keeps a qualified `channel:symbol` identity, role, alignment
 rationale, provenance, provider, interval, time and uncertainty. Crypto also
-requires the exact Massive `X:{BASE}USD` `providerId` on the Worker response; its
-observation cache key includes that identity. The legacy local-history importer
-can read the old provider-specific key but never treats it as a Massive identity.
-Risk levels and ticker-letter similarities never infer membership. Supporting
-equities do not replace the one designated stock.
+requires the exact ranked Kraken USD pair as `krakenPair`/`providerId` on the
+Worker response; its observation cache key includes that identity. The legacy
+local-history importer can read older provider-specific keys but never treats
+them as Kraken identities. Risk levels and ticker-letter similarities never
+infer membership. Supporting equities do not replace the one designated stock.
 
 Saved physical designs join by **the same NAB ID**. The physical composer now
 accepts all five source channels (including indices); missing material records
