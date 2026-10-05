@@ -307,6 +307,219 @@
     return ((hash >>> 0) / 4294967296) * TAU - Math.PI;
   }
 
+  /* ── Berth separation ─────────────────────────────────────────────────────
+     Correlated instruments can carry near-identical packet values: the same
+     change, the same VFI separation, the same band position, sometimes the same
+     reported volume shape. Their market-derived berths then land on the same
+     coordinates, and a full 52-berth field can render as one unreadable blob.
+     The resolver below keeps every orb visible as its own berth: nodes are
+     visited in stable identity-phase order, the first node of a crowded berth
+     keeps the exact position its packet earned, and each later node takes the
+     nearest free slot on its own berth's display ladder — the separation floor
+     along its own latitude first, then the same ladder one shared latitude
+     step away — so a shared berth opens into a readable cluster instead of
+     stacking.
+
+     Boundaries, in the same spirit as the rest of this view:
+     · It is display geometry, not market arithmetic. Each berth's own radius,
+       the packet's metrics, the composed position, and the Center Origin are
+       untouched; no value is recomputed, rounded, weighted, or inferred, and a
+       missing packet stays held exactly where the model already held it.
+     · It never ranks, favours, or hides. Two berths are only ever separated
+       when their own packet placements already land within the separation floor
+       of each other, so a berth that has space keeps the placement its metrics
+       earned, and no node is dropped. Visit order is the same stable symbol
+       hash the model already uses as its only tie-breaker — it labels slots and
+       never declares a node primary.
+     · It is deterministic and idempotent. The same symbol set yields the same
+       arrangement on every client and every frame, and re-running the resolver
+       over its own output moves nothing: a placed node clears every node that
+       was already placed, so its own test passes unchanged on the next pass.
+     · It is bounded. Slots stay on the shared rings near the node's own berth
+       and within a latitude limit, and separation never reaches the market
+       radius. Spread 0 restores the exact packet placement, and a field whose
+       berths already have space is left exactly as the metrics drew it. */
+  const BERTH_MIN_GAP_MODEL = 0.4;
+  const BERTH_LATITUDE_LIMIT = 1.15;
+  const BERTH_SEPARATION_DEFAULT = 0.7;
+  const BERTH_RING_LIMIT = 12;
+  /* The latitude/longitude lattice the model draws, used as the ring reference
+     for the berth-floor readout. */
+  const LATTICE_RING_MODEL = 2.06;
+
+  const berthPoint = placement => {
+    const ring = Math.cos(placement.latitude);
+    return {
+      x: placement.radius * ring * Math.cos(placement.longitude),
+      y: placement.radius * Math.sin(placement.latitude),
+      z: placement.radius * ring * Math.sin(placement.longitude)
+    };
+  };
+  const berthChord = (left, right) => Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+  /* Angular distance that yields the requested chord on a ring of this radius
+     and latitude; the guards keep a nearly polar ring from dividing by zero. */
+  const berthGapAngle = (radius, latitude, minimum) =>
+    2 * Math.asin(clamp(minimum / (2 * Math.max(0.12, Math.abs(radius) * Math.max(0.18, Math.cos(latitude)))), 0, 1));
+  const berthLatitudeStep = (radius, minimum) =>
+    2 * Math.asin(clamp(minimum / (2 * Math.max(0.12, Math.abs(radius))), 0, 1));
+  /* 0, +1, -1, +2, -2 … so a crowded berth grows symmetrically around its own
+     mean latitude instead of drifting up or down. */
+  const berthLatitudeOffset = step => (step % 2 === 1 ? 1 : -1) * Math.ceil(step / 2);
+
+  /** Resolve every crowded berth of one draw pass. `spread` is the 0–1 berth
+      spread; the floor scales with its square, so a partial setting still opens
+      a tight clump. Returns a report for the status readout. */
+  function resolveBerthSeparation(placements, spread = 1, options = {}) {
+    const list = Array.isArray(placements) ? placements : [];
+    const flat = Boolean(options && options.flat === true);
+    const ratio = clamp(numeric(spread) === null ? 1 : Number(spread), 0, 1);
+    const minimum = BERTH_MIN_GAP_MODEL * ratio * ratio;
+    const report = { spread: ratio, minimum, crowded: 0, berths: 0, moved: 0 };
+    if (minimum <= 0 || list.length < 2) return report;
+
+    const original = list.map(placement => ({ longitude: placement.longitude, latitude: placement.latitude }));
+    const originalPoints = list.map(berthPoint);
+    /* Reporting only: which orbs were sharing a crowded berth on the packet's
+       own coordinates, and how many distinct berths that was. */
+    const crowded = new Array(list.length).fill(false);
+    for (let left = 0; left < list.length; left += 1) {
+      for (let right = left + 1; right < list.length; right += 1) {
+        if (berthChord(originalPoints[left], originalPoints[right]) >= minimum) continue;
+        crowded[left] = true;
+        crowded[right] = true;
+      }
+    }
+    report.crowded = crowded.filter(Boolean).length;
+    const seen = new Set();
+    for (let index = 0; index < list.length; index += 1) {
+      if (!crowded[index] || seen.has(index)) continue;
+      report.berths += 1;
+      const queue = [index];
+      seen.add(index);
+      while (queue.length) {
+        const current = queue.pop();
+        for (let other = 0; other < list.length; other += 1) {
+          if (seen.has(other) || !crowded[other] || berthChord(originalPoints[current], originalPoints[other]) >= minimum) continue;
+          seen.add(other);
+          queue.push(other);
+        }
+      }
+    }
+    if (!report.crowded) return report;
+
+    const order = list
+      .map((placement, index) => ({ index, phase: stableIdentityPhase(placement.identity) }))
+      .sort((left, right) => left.phase - right.phase || left.index - right.index);
+    /* A bucketed index of already-placed berths keeps each clearance test near
+       constant instead of comparing against every earlier node. */
+    const cell = Math.max(0.05, minimum);
+    const buckets = new Map();
+    const bucketKey = point => `${Math.round(point.x / cell)}:${Math.round(point.y / cell)}:${Math.round(point.z / cell)}`;
+    const remember = point => {
+      const key = bucketKey(point);
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(point);
+      else buckets.set(key, [point]);
+    };
+    const clears = (longitude, latitude, radius) => {
+      const point = berthPoint({ longitude, latitude, radius });
+      const x = Math.round(point.x / cell);
+      const y = Math.round(point.y / cell);
+      const z = Math.round(point.z / cell);
+      for (let dx = -1; dx <= 1; dx += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dz = -1; dz <= 1; dz += 1) {
+            const bucket = buckets.get(`${x + dx}:${y + dy}:${z + dz}`);
+            if (!bucket) continue;
+            for (const other of bucket) if (berthChord(point, other) < minimum) return false;
+          }
+        }
+      }
+      return true;
+    };
+    /* When the ladder is saturated, share the widest free angle on the node's
+       own ring. The choice depends only on the berths already placed, so it is
+       deterministic and stable under re-running, exactly like the ladder. */
+    const widestFreeAngle = (baseLongitude, baseLatitude, baseRadius) => {
+      const angles = [baseLongitude];
+      for (const point of buckets.values()) {
+        for (const other of point) angles.push(Math.atan2(other.z, other.x));
+      }
+      angles.sort((left, right) => left - right);
+      let best = null;
+      let bestGap = -1;
+      for (let index = 0; index < angles.length; index += 1) {
+        const current = angles[index];
+        const next = index + 1 < angles.length ? angles[index + 1] : angles[0] + TAU;
+        const gap = next - current;
+        if (gap <= bestGap) continue;
+        bestGap = gap;
+        best = current + gap / 2;
+      }
+      return best === null ? baseLongitude + Math.PI : best;
+    };
+
+    for (const entry of order) {
+      const placement = list[entry.index];
+      const radius = placement.radius;
+      const baseLongitude = placement.longitude;
+      const baseLatitude = placement.latitude;
+      if (clears(baseLongitude, baseLatitude, radius)) {
+        remember(berthPoint({ longitude: baseLongitude, latitude: baseLatitude, radius }));
+        continue;
+      }
+      const gapAngle = berthGapAngle(radius, baseLatitude, minimum);
+      const latitudeStep = berthLatitudeStep(radius, minimum);
+      let placed = false;
+      let previousLatitude = null;
+      for (let ring = 0; ring < BERTH_RING_LIMIT && !placed; ring += 1) {
+        /* The flat disc form has no latitude depth to grow into: one ring is
+           the whole ladder, and its saturated case falls through below. */
+        if (flat && ring > 0) break;
+        const latitude = clamp(baseLatitude + berthLatitudeOffset(ring) * latitudeStep, -BERTH_LATITUDE_LIMIT, BERTH_LATITUDE_LIMIT);
+        if (previousLatitude !== null && Math.abs(latitude - previousLatitude) < 1e-9) break;
+        previousLatitude = latitude;
+        for (let step = 1; step <= BERTH_RING_LIMIT * 4 && !placed; step += 1) {
+          for (const direction of [1, -1]) {
+            const offset = direction * step * gapAngle;
+            if (Math.abs(offset) > Math.PI) continue;
+            const longitude = baseLongitude + offset;
+            if (!clears(longitude, latitude, radius)) continue;
+            placement.longitude = longitude;
+            placement.latitude = latitude;
+            remember(berthPoint(placement));
+            placed = true;
+            break;
+          }
+        }
+      }
+      if (!placed) {
+        placement.longitude = widestFreeAngle(baseLongitude, baseLatitude, radius);
+        placement.latitude = baseLatitude;
+        remember(berthPoint(placement));
+      }
+    }
+    report.moved = list.reduce((sum, placement, index) =>
+      sum + (Math.abs(placement.longitude - original[index].longitude) > 1e-9
+        || Math.abs(placement.latitude - original[index].latitude) > 1e-9 ? 1 : 0), 0);
+    return report;
+  }
+
+  const berthSpreadLabel = value => value <= 0 ? "OFF" : value >= 0.995 ? "FULL" : `${Math.round(value * 100)}%`;
+
+  /** The status-row sentence for one separation pass. It states which orbs
+      shared a berth, how many moved, and the floor the slots clear; it never
+      claims an entitlement or a market fact. */
+  function berthSeparationText(report) {
+    if (!report || report.spread <= 0) return "BERTH SEPARATION · OFF · correlated packets may share one berth and stack";
+    const spreadLabel = berthSpreadLabel(report.spread);
+    if (!report.crowded) {
+      return `BERTH SEPARATION · ${spreadLabel} · no shared berth needed re-slotting · every orb keeps its packet placement`;
+    }
+    const floor = Math.round((report.minimum / LATTICE_RING_MODEL) * 100);
+    return `BERTH SEPARATION · ${spreadLabel} · ${report.crowded} orbs share ${report.berths} berth${report.berths === 1 ? "" : "s"} · ${report.moved} re-slotted by stable symbol phase · berth floor ${floor}% of the ring radius · display geometry only`;
+  }
+
   function dataBitsForMarket(market) {
     if (!isRecord(market)) return [];
     const close = numeric(market.latestBar && market.latestBar.close);
@@ -581,6 +794,13 @@
       pitch: 0.32,
       zoom: 1,
       formation: 1,
+      /* Berth separation (0 = exact packet placement, 1 = full spread). It is a
+         display control: it changes where a shared berth is drawn, never what it
+         measures, and it is re-resolved from stable symbol phases on every draw,
+         so the arrangement it produces is idempotent. */
+      separation: isRecord(preferences) && Number.isFinite(Number(preferences.separation))
+        ? clamp(Number(preferences.separation), 0, 1) : BERTH_SEPARATION_DEFAULT,
+      berthReport: null,
       autoRotate: !Boolean(globalThis.matchMedia && globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches),
       labels: false,
       showDataBits: preferences && typeof preferences.showDataBits === "boolean" ? preferences.showDataBits : true,
@@ -662,7 +882,7 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
         <summary><strong>COLOR KEY</strong><span>Characters mood · provider halo · VFI flow cue · five market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
@@ -804,7 +1024,9 @@
             <section class="gi-orb2-settings-section" aria-label="Display settings">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">02 · DISPLAY</p><h5>Presentation</h5></div></div>
               <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
-                <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
+                <label class="gi-orb2-range-row"><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
+                <label class="gi-orb2-range-row"><span>BERTH SPREAD</span><input data-gi-orb2-separation type="range" min="0" max="100" step="1" value="70" aria-describedby="gi-orb2-separation-note"><strong data-gi-orb2-separation-label>70%</strong></label>
+                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Shared berths are display-only geometry: correlated packets that land on the same coordinates are re-slotted on one shared radius by stable symbol phase, never by rank or by a recomputed metric. 0% restores the exact packet placement.</p>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
@@ -847,7 +1069,7 @@
 
             <details class="gi-orb2-model-boundary">
               <summary>Model boundary and data provenance</summary>
-              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
             </details>
           </div>
         </section>
@@ -866,9 +1088,10 @@
             <div class="gi-orb2-canvas-shell">
               <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
             </div>
-            <div class="gi-orb2-model-status" aria-label="Selected node and model status">
+            <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
               <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
               <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · FIXED DXY BENCHMARK</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
+              <div class="gi-orb2-status-item gi-orb2-berth-status-item"><span>BERTH SEPARATION · DISPLAY GEOMETRY</span><p class="gi-orb2-berth-readout" data-gi-orb2-berth-readout aria-live="off">BERTH SEPARATION · WAITING FOR THE FIRST DRAWN FIELD</p><small class="gi-orb2-berth-note">Shared berths are re-slotted by stable symbol phase; no market value is recomputed and no node is ranked or hidden.</small></div>
               <div class="gi-orb2-status-pills"><span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span><span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span></div>
               <span class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</span>
             </div>
@@ -896,6 +1119,7 @@
     const root = $("[data-gi-orb2-root]");
     const canvas = $("[data-gi-orb2-canvas]");
     const flowReadout = $("[data-gi-orb2-flow-readout]");
+    const berthReadout = $("[data-gi-orb2-berth-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
     const focusSelect = $("[data-gi-orb2-focus]");
@@ -912,6 +1136,8 @@
     const resetButton = $("[data-gi-orb2-reset]");
     const formation = $("[data-gi-orb2-formation]");
     const formationLabel = $("[data-gi-orb2-formation-label]");
+    const separation = $("[data-gi-orb2-separation]");
+    const separationLabel = $("[data-gi-orb2-separation-label]");
     const rotateToggle = $("[data-gi-orb2-rotate]");
     const labelsToggle = $("[data-gi-orb2-labels]");
     const pathsToggle = $("[data-gi-orb2-paths]");
@@ -1025,6 +1251,7 @@
         discId: state.discId, interval: state.interval,
         auto: state.auto,
         showDataBits: state.showDataBits,
+        separation: state.separation,
         beatType: state.beatType,
         focusSymbols: state.focusSymbols
       };
@@ -1224,6 +1451,8 @@
       if (refreshIntradayButton) refreshIntradayButton.disabled = state.pending || state.loadingCatalog;
       rotateToggle.checked = state.autoRotate;
       dataBitsToggle.checked = state.showDataBits;
+      separation.value = String(Math.round(state.separation * 100));
+      separationLabel.textContent = berthSpreadLabel(state.separation);
     }
 
     function syncFocusOptions() {
@@ -1646,6 +1875,11 @@
               : state.persistence === "local-storage-unavailable" ? "SESSION STORAGE BLOCKED" : state.persistence;
       persistenceHost.title = state.persistenceNote;
       countsHost.textContent = `${state.ledger.calls.toLocaleString()} local calls · ${state.ledger.beats.toLocaleString()} beats · ${symbols.length} berths`;
+      if (berthReadout) {
+        berthReadout.textContent = state.berthReport
+          ? berthSeparationText(state.berthReport)
+          : `BERTH SEPARATION · ${berthSpreadLabel(state.separation)} · waiting for the first drawn field`;
+      }
       routeStepProvider.textContent = state.routeSteps.provider;
       routeStepWorker.textContent = state.routeSteps.worker;
       routeStepLedger.textContent = state.routeSteps.ledger;
@@ -2062,7 +2296,12 @@
       return loadFieldSnapshot({ reason: "ignition" }).then(schedule);
     }
 
-    function modelPoint(node, now, directive, observation = null) {
+    /* The packet's own berth plus the Characters motion directive, as spherical
+       display coordinates (longitude, latitude, radius). This is the stage the
+       berth-separation resolver edits: it is the same radius and the same two
+       angles the model already derives from supplied market fields, so nothing
+       about a metric changes when a shared berth is re-slotted. */
+    function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
       const floatPhase = placement.phase + now / 1000 * placement.speed;
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
@@ -2083,6 +2322,14 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
+      return { longitude, latitude, radius, available: placement.available, source: placement.source, pressure: placement.pressure };
+    }
+
+    /* The spherical berth rendered through the disc↔sphere form blend. It reads
+       display coordinates only — a separated berth is projected exactly like an
+       untouched one. */
+    function modelPoint(spherical) {
+      const { longitude, latitude, radius } = spherical;
       const sphere = {
         x: radius * Math.cos(latitude) * Math.cos(longitude),
         y: radius * Math.sin(latitude),
@@ -2097,6 +2344,33 @@
         y: disc.y + (sphere.y - disc.y) * t,
         z: disc.z + (sphere.z - disc.z) * t
       };
+    }
+
+    /* One draw pass of the field: every berth keeps its own market-derived
+       radius, and berths that landed on top of one another are re-slotted on a
+       shared display ring before projection. The separation is display geometry
+       only — see resolveBerthSeparation() — and it is applied before anything is
+       drawn, so nodes, halos, satellites, flow runners, and the beat beams all
+       read from the same resolved berth. */
+    function resolveProjectedNodes(fieldNodes, width, height, now) {
+      const placements = fieldNodes.map(node => {
+        const observation = latestForNode(node);
+        const directive = displayMotion(observation, now);
+        return {
+          node, observation, directive,
+          identity: node.symbol || node.name || node.id,
+          ...sphericalPlacement(node, now, directive, observation)
+        };
+      });
+      const report = resolveBerthSeparation(placements, state.separation, { flat: ease(state.formation) < 0.04 });
+      const projected = placements.map(placement => ({
+        ...project(modelPoint(placement), width, height),
+        node: placement.node,
+        observation: placement.observation,
+        directive: placement.directive
+      }));
+      state.berthReport = report;
+      return projected;
     }
 
     /* The camera rotation is its own step so every element — lattice, nodes, paths,
@@ -2175,7 +2449,7 @@
       const points = [];
       for (let step = 0; step <= 96; step += 1) {
         const longitude = (step / 96) * TAU;
-        const radius = 2.06;
+        const radius = LATTICE_RING_MODEL;
         points.push(project({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
       }
       strokeDepthPath(points, color, alpha * state.formation, latitude === 0 ? 1.05 : 0.78);
@@ -2185,7 +2459,7 @@
       const points = [];
       for (let step = 0; step <= 64; step += 1) {
         const latitude = -Math.PI / 2 + (step / 64) * Math.PI;
-        const radius = 2.06;
+        const radius = LATTICE_RING_MODEL;
         points.push(project({
           x: radius * Math.cos(latitude) * Math.cos(longitude),
           y: radius * Math.sin(latitude),
@@ -2646,16 +2920,47 @@
       for (let index = 0; index < 12; index += 1) {
         meridian((index / 12) * TAU, width, height, index % 3 === 0 ? "#75d5fa" : "#5d7999", index % 3 === 0 ? 0.24 : 0.16);
       }
-      state.projected = nodes.map(node => {
-        const observation = latestForNode(node);
-        const directive = displayMotion(observation, now);
-        return { ...project(modelPoint(node, now, directive, observation), width, height), node, observation, directive };
-      });
+      state.projected = resolveProjectedNodes(nodes, width, height, now);
       updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
       drawCenterBeams(wallNow, center);
       drawRoute(now, center);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
+      /* Labels take the first candidate offset that does not sit on a label
+         already drawn this frame: preferred side first, then the other side,
+         then stacked above and below it. A label is never skipped — a crowded
+         frame staggers text instead of hiding a symbol. */
+      const labelBoxes = [];
+      const labelWidth = (text, size) => {
+        let measured = 0;
+        try { measured = Number(context2d.measureText(text).width) || 0; } catch { measured = 0; }
+        return measured > 0 ? measured : text.length * size * 0.62;
+      };
+      const placeLabel = (point, radius, text, size) => {
+        const preferred = point.x > width * 0.52 ? 1 : -1;
+        const textWidth = labelWidth(text, size);
+        const boxHeight = size * 1.35;
+        const collides = rect => labelBoxes.some(box =>
+          !(rect.x + rect.w <= box.x || box.x + box.w <= rect.x || rect.y + rect.h <= box.y || box.y + box.h <= rect.y));
+        for (const side of [preferred, -preferred]) {
+          for (const row of [0, 1, -1, 2, -2]) {
+            const x = point.x + side * (radius + 5);
+            const y = point.y - radius - 4 + row * (boxHeight + 1);
+            const rect = { x: side > 0 ? x : x - textWidth, y: y - size, w: textWidth, h: boxHeight };
+            if (!collides(rect)) {
+              labelBoxes.push(rect);
+              return { x, y, align: side > 0 ? "left" : "right" };
+            }
+          }
+        }
+        /* Every candidate is taken: keep the preferred spot rather than drop the
+           label, and let the selected/hovered node's stronger text win the draw
+           order (the frame is already sorted back to front). */
+        const x = point.x + preferred * (radius + 5);
+        const y = point.y - radius - 4;
+        labelBoxes.push({ x: preferred > 0 ? x : x - textWidth, y: y - size, w: textWidth, h: boxHeight });
+        return { x, y, align: preferred > 0 ? "left" : "right" };
+      };
       ordered.forEach(point => {
         const node = point.node;
         const observation = point.observation;
@@ -2673,13 +2978,15 @@
         drawOrbNode(point, radius, color, alpha, chosen || hovered);
         drawDataBits(point, radius, observation);
         if (state.labels || chosen || hovered) {
+          const text = String(node.symbol || node.name);
+          const size = chosen || hovered ? 11 : 9;
+          const label = placeLabel(point, radius, text, size);
           context2d.save();
           context2d.globalAlpha = chosen || hovered ? 1 : 0.72;
           context2d.fillStyle = "#edf6ff";
-          context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-          context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
-          const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
-          context2d.fillText(node.symbol || node.name, point.x + offset, point.y - radius - 4);
+          context2d.font = `${size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+          context2d.textAlign = label.align;
+          context2d.fillText(text, label.x, label.y);
           context2d.restore();
         }
       });
@@ -2794,6 +3101,14 @@
       formationLabel.textContent = state.formation < 0.04 ? "DISC" : state.formation > 0.96 ? "SPHERE" : `${Math.round(state.formation * 100)}%`;
       scheduleRender();
     });
+    separation.addEventListener("input", () => {
+      state.separation = clamp(Number(separation.value) / 100, 0, 1);
+      separationLabel.textContent = berthSpreadLabel(state.separation);
+      state.berthReport = null;
+      persistLocal();
+      scheduleRender();
+      drawStatus();
+    });
     rotateToggle.addEventListener("change", () => { state.autoRotate = !!rotateToggle.checked; scheduleRender(); });
     labelsToggle.addEventListener("change", () => { state.labels = !!labelsToggle.checked; scheduleRender(); });
     pathsToggle.addEventListener("change", () => scheduleRender());
@@ -2806,9 +3121,14 @@
     lateralButton.addEventListener("click", () => setRoute("lateral"));
     resetButton.addEventListener("click", () => {
       state.yaw = -0.68; state.pitch = 0.32; state.zoom = 1; state.formation = 1;
+      state.separation = BERTH_SEPARATION_DEFAULT;
       formation.value = "100"; formationLabel.textContent = "SPHERE";
+      separation.value = String(Math.round(BERTH_SEPARATION_DEFAULT * 100));
+      separationLabel.textContent = berthSpreadLabel(BERTH_SEPARATION_DEFAULT);
       state.route = null; state.lastRoutePhase = "";
-      drawInspector(); scheduleRender();
+      state.berthReport = null;
+      persistLocal();
+      drawInspector(); drawStatus(); scheduleRender();
       if (onClearBeats) onClearBeats();
     });
 
@@ -3022,6 +3342,9 @@
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
-    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+    BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
+    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation,
+    resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
+    buildNodes, mount, getSavedBeatSessionId
   });
 })();

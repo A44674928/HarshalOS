@@ -237,6 +237,161 @@ test("Orb 2 places observed orbs from market metrics and keeps held packets expl
   assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
 });
 
+/* ── shared-berth separation ─────────────────────────────────────────────── */
+
+/* Identical packets: the degenerate correlated field that used to render as one
+   blob. Every placement carries its own constant radius, and the shared berth
+   has to open without touching a single market value. */
+function crowdedPlacements(orb, count = 52, packet = null) {
+  const market = packet || {
+    latestBar: { time: NOW, close: 101, confirmed: true },
+    changePct: 1.24, basis: 99, bands: { lower1000: 92, upper1000: 108 },
+    vfi: { value: 12.5, signal: 4, available: true }, waveTrend: { wt1: 22.4, wt2: 8 }
+  };
+  return Array.from({ length: count }, (unused, index) => {
+    const identity = `SYM-${String(index).padStart(2, "0")}`;
+    return { identity, ...orb.marketDataPlacement(market, identity) };
+  });
+}
+
+const separationChords = placements => {
+  const points = placements.map(placement => {
+    const ring = Math.cos(placement.latitude);
+    return {
+      x: placement.radius * ring * Math.cos(placement.longitude),
+      y: placement.radius * Math.sin(placement.latitude),
+      z: placement.radius * ring * Math.sin(placement.longitude)
+    };
+  });
+  let closest = Infinity;
+  for (let left = 0; left < points.length; left += 1) {
+    for (let right = left + 1; right < points.length; right += 1) {
+      closest = Math.min(closest, Math.hypot(points[left].x - points[right].x, points[left].y - points[right].y, points[left].z - points[right].z));
+    }
+  }
+  return closest;
+};
+
+test("Orb 2 opens a crowded berth instead of stacking correlated orbs", () => {
+  const { orb } = harness();
+  const placements = crowdedPlacements(orb);
+  const before = placements.map(placement => ({ longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius }));
+  assert.ok(separationChords(placements) < 0.01, "identical packets start on one berth");
+  const report = orb.resolveBerthSeparation(placements, 1);
+  assert.equal(report.crowded, 52, "the readout counts the orbs that shared a berth");
+  assert.equal(report.berths, 1, "they were one shared berth");
+  assert.equal(report.moved, 51, "the first node keeps its packet placement; every later node takes a free slot");
+  assert.ok(separationChords(placements) >= report.minimum, `no pair sits below the berth floor (${separationChords(placements)})`);
+  placements.forEach((placement, index) => {
+    assert.equal(placement.radius, before[index].radius, "separation never changes the market radius");
+    assert.ok(Math.abs(placement.latitude) <= 1.2, "slots stay inside the model's latitude limit");
+    assert.ok(Math.abs(placement.longitude - before[index].longitude) < Math.PI * 2, "slots stay on the ring near the node's own berth");
+  });
+  /* The first visitor in stable order keeps its own packet berth exactly, so the
+     crowded field always has one node standing on the exact packet placement. */
+  assert.equal(placements.filter((placement, index) =>
+    placement.longitude === before[index].longitude && placement.latitude === before[index].latitude).length, 1);
+});
+
+test("berth separation is deterministic, idempotent, and leaves clear fields untouched", () => {
+  const { orb } = harness();
+  const first = crowdedPlacements(orb, 24);
+  const second = crowdedPlacements(orb, 24);
+  orb.resolveBerthSeparation(first, 1);
+  orb.resolveBerthSeparation(second, 1);
+  assert.deepEqual(
+    first.map(placement => [placement.longitude, placement.latitude]),
+    second.map(placement => [placement.longitude, placement.latitude]),
+    "the same symbol set resolves to the same arrangement on every client"
+  );
+  const settled = first.map(placement => [placement.longitude, placement.latitude]);
+  const again = orb.resolveBerthSeparation(first, 1);
+  assert.equal(again.moved, 0, "re-running the resolver over its own output moves nothing");
+  assert.equal(again.crowded, 0, "a settled field has no berth below the floor");
+  assert.deepEqual(first.map(placement => [placement.longitude, placement.latitude]), settled);
+
+  /* A field whose berths already have space keeps the placement its metrics drew. */
+  const scattered = crowdedPlacements(orb, 12).map((placement, index) => ({
+    ...placement,
+    longitude: -Math.PI + index * (Math.PI * 2 / 12),
+    latitude: (index % 3 - 1) * 0.6
+  }));
+  const snapshot = scattered.map(placement => [placement.longitude, placement.latitude]);
+  const undisturbed = orb.resolveBerthSeparation(scattered, 1);
+  assert.equal(undisturbed.crowded, 0, "nothing is reported when every berth has space");
+  assert.equal(undisturbed.moved, 0);
+  assert.deepEqual(scattered.map(placement => [placement.longitude, placement.latitude]), snapshot);
+
+  /* Spread 0 is the exact packet placement; a partial spread uses a smaller floor. */
+  const off = crowdedPlacements(orb, 8);
+  const offSnapshot = off.map(placement => [placement.longitude, placement.latitude]);
+  assert.equal(orb.resolveBerthSeparation(off, 0).moved, 0);
+  assert.deepEqual(off.map(placement => [placement.longitude, placement.latitude]), offSnapshot);
+  const partial = crowdedPlacements(orb, 8);
+  const partialReport = orb.resolveBerthSeparation(partial, 0.5);
+  assert.ok(partialReport.minimum < orb.resolveBerthSeparation(crowdedPlacements(orb, 8), 1).minimum);
+  assert.ok(separationChords(partial) >= partialReport.minimum, "a partial spread still clears its own floor");
+});
+
+test("held and market packets share the same separation rules without inventing data", () => {
+  const { orb } = harness();
+  const held = { identity: "HELD-1", ...orb.marketDataPlacement(null, "HELD-1") };
+  assert.equal(held.available, false);
+  const placements = Array.from({ length: 6 }, (unused, index) => ({ identity: `HELD-${index}`, ...orb.marketDataPlacement(null, `HELD-${index}`) }));
+  const report = orb.resolveBerthSeparation(placements, 1);
+  assert.equal(report.crowded, 6, "held berths are separated too, so an unavailable beat is still readable");
+  assert.ok(placements.every(placement => placement.available === false), "a held packet stays held");
+  assert.ok(placements.every(placement => placement.radius === 2.12), "held berths keep their documented placeholder radius");
+  assert.ok(placements.every(placement => Number.isFinite(placement.longitude) && Number.isFinite(placement.latitude)));
+
+  /* The separation report never claims market, rank, or authority. */
+  const text = orb.berthSeparationText(report);
+  assert.match(text, /BERTH SEPARATION/);
+  assert.match(text, /display geometry only/i);
+  assert.doesNotMatch(text, /rank|recommend|signal|authoriz|permission|trade/i);
+  assert.match(orb.berthSeparationText({ spread: 0, minimum: 0, crowded: 0, berths: 0, moved: 0 }), /OFF/);
+});
+
+test("the separated field renders distinct orbs and states the berth readout", async t => {
+  const { host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 12 }) })
+  });
+  await flush();
+  while (frames.length) {
+    const callback = frames.shift();
+    callback(NOW);
+    await flush(4);
+  }
+  const drawn = engine.state.projected;
+  assert.ok(drawn.length >= 12, "the field was drawn");
+  const positions = drawn.map(point => ({ x: point.x, y: point.y }));
+  let closest = Infinity;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      closest = Math.min(closest, Math.hypot(positions[left].x - positions[right].x, positions[left].y - positions[right].y));
+    }
+  }
+  assert.ok(closest > 4, `no two drawn orbs share a screen berth (closest ${closest.toFixed(1)} px)`);
+  assert.equal(engine.state.separation, 0.7, "berth spread defaults on");
+  const readout = host.querySelector("[data-gi-orb2-berth-readout]");
+  assert.match(readout.textContent, /BERTH SEPARATION · (FULL|\d+%)/);
+  const slider = host.querySelector("[data-gi-orb2-separation]");
+  assert.equal(slider.value, "70");
+  slider.value = "100";
+  slider.dispatchEvent(new host.ownerDocument.defaultView.Event("input"));
+  await flush();
+  assert.equal(engine.state.separation, 1);
+  const saved = JSON.parse(host.ownerDocument.defaultView.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1"));
+  assert.equal(saved.separation, 1, "the spread survives a reload through local preferences");
+  /* Trusted values restored to 0 keep the original packet placement. */
+  slider.value = "0";
+  slider.dispatchEvent(new host.ownerDocument.defaultView.Event("input"));
+  await flush();
+  assert.equal(engine.state.separation, 0);
+  assert.match(readout.textContent, /BERTH SEPARATION · OFF/);
+});
+
 test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbols", () => {
   const { orb } = harness();
   const nodes = orb.buildNodes([{ symbol: "AAPL", name: "Apple", sector: "Technology" }, { symbol: "bad ticker" }, null]);
