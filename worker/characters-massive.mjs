@@ -15,7 +15,7 @@ import "../js/characters-disc-catalog.js";
 export const MASSIVE_DAILY_ORIGIN = "https://api.massive.com";
 export const MASSIVE_DAILY_MAX_BARS = 60;
 const DECIMAL = /^[+-]?(?:[0-9]+(?:[.][0-9]*)?|[.][0-9]+)(?:[eE][+-]?[0-9]+)?$/;
-const FUTURES_TICKER = /^[A-Z0-9]{1,6}[FGHJKMNQUVXZ]\d$/;
+const FUTURES_TICKER = /^[A-Z0-9]{1,8}[FGHJKMNQUVXZ]\d{1,2}$/;
 
 function providerNumber(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -31,7 +31,7 @@ function catalogEntry(collection, symbol) {
 }
 
 /** Convert a reviewed catalog object into one immutable Massive request shape. */
-function normalizeInstrument(value) {
+function normalizeInstrument(value, now = Date.now()) {
   const record = typeof value === "string" ? { symbol: value, assetClass: "equity" } : value;
   if (!record || typeof record !== "object" || Array.isArray(record)) return null;
   const symbol = typeof record.symbol === "string" ? record.symbol.trim().toUpperCase() : "";
@@ -55,25 +55,45 @@ function normalizeInstrument(value) {
     });
   }
 
-  /* Crypto constituents are the live CoinGecko volume ranking. The Worker
-     only turns its reviewed uppercase ticker symbol into a USD Massive pair;
-     it never accepts an arbitrary Massive crypto ticker from the browser. */
-  if (assetClass === "crypto" && record.rankingProvider === "CoinGecko" && /^[A-Z0-9]{2,12}$/.test(symbol)) {
+  /* Crypto constituents come from Massive's grouped daily aggregate. Keep the
+     exact reviewed X:{BASE}USD ticker from that ranking and verify it agrees
+     with the base symbol; never synthesize a pair from arbitrary browser input. */
+  if (assetClass === "crypto" && record.rankingProvider === "Massive" && /^[A-Z0-9]{2,12}$/.test(symbol)) {
+    const ticker = typeof record.massiveTicker === "string" ? record.massiveTicker.trim().toUpperCase() : "";
+    if (ticker !== `X:${symbol}USD`) return null;
     return Object.freeze({
       symbol,
       displaySymbol: typeof record.displaySymbol === "string" ? record.displaySymbol.slice(0, 48) : `${symbol}/USD`,
       assetClass, dataShape: "ohlcv", quoteCurrency: "USD",
-      massiveTicker: `X:${symbol}USD`, family: "aggs", sourceLabel: "crypto daily"
+      massiveTicker: ticker, family: "aggs", sourceLabel: "crypto daily"
     });
   }
 
   if (assetClass === "commodity") {
     const entry = catalogEntry("commodities", symbol);
-    const massive = entry && entry.massive;
-    if (!entry || !massive || massive.family !== "futures" || typeof massive.ticker !== "string" || !FUTURES_TICKER.test(massive.ticker)) return null;
+    const catalogMassive = entry && entry.massive;
+    const massive = record.massive && typeof record.massive === "object" ? record.massive : null;
+    const contract = record.massiveContract && typeof record.massiveContract === "object" ? record.massiveContract : null;
+    const productCode = String(catalogMassive && catalogMassive.productCode || "").trim().toUpperCase();
+    const ticker = String(massive && massive.ticker || "").trim().toUpperCase();
+    const today = new Date(Number(now)).toISOString().slice(0, 10);
+    const lastTradeDate = String(contract && contract.lastTradeDate || "");
+    const contractDateValid = /^\d{4}-\d{2}-\d{2}$/.test(lastTradeDate) &&
+      Number.isFinite(Date.parse(`${lastTradeDate}T00:00:00.000Z`)) && lastTradeDate >= today;
+    if (!entry || !catalogMassive || !massive || massive.family !== "futures" ||
+        String(massive.productCode || "").toUpperCase() !== productCode || !/^[A-Z0-9]{1,8}$/.test(productCode) ||
+        !FUTURES_TICKER.test(ticker) || !ticker.startsWith(productCode) || !contract ||
+        contract.provider !== "Massive" || contract.productCode !== productCode ||
+        contract.ticker !== ticker || contract.asOfDate !== today || !contractDateValid) return null;
+    const massiveContract = Object.freeze({
+      provider: "Massive", productCode, ticker, asOfDate: today, lastTradeDate,
+      ...(Number.isInteger(contract.daysToMaturity) && contract.daysToMaturity >= 0
+        ? { daysToMaturity: contract.daysToMaturity } : {}),
+      ...(typeof contract.name === "string" && contract.name.trim() ? { name: contract.name.trim().slice(0, 120) } : {})
+    });
     return Object.freeze({
       symbol, displaySymbol: entry.displaySymbol, assetClass, dataShape: "ohlcv", quoteCurrency: entry.quoteCurrency,
-      massiveTicker: massive.ticker, family: "futures", sourceLabel: "futures session"
+      massiveTicker: ticker, family: "futures", sourceLabel: "futures session", massiveContract
     });
   }
 
@@ -199,7 +219,7 @@ export async function fetchMassiveDailyMarketContext({
   dependencies = {}
 } = {}) {
   const original = rawInstrument && typeof rawInstrument === "object" ? rawInstrument : { symbol, assetClass: "equity" };
-  const instrument = normalizeInstrument(original);
+  const instrument = normalizeInstrument(original, now);
   if (!instrument) return failure("massive-instrument-refused", "This instrument is not on a reviewed Characters Disc or live volume-ranked crypto list.");
   if (original.interval !== undefined && original.interval !== "1d") {
     return failure("massive-interval-refused", "Massive Characters beats are restricted to an explicit 1d request; Tickerbot serves stock 1h on demand.");
@@ -255,12 +275,13 @@ export async function fetchMassiveDailyMarketContext({
       packet: {
         schema: "gi-market-context-v1",
         synthetic: false,
-        source: `Massive · ${instrument.sourceLabel} bars · request ${requestId}`,
+        source: `Massive · ${instrument.sourceLabel}${instrument.massiveContract ? ` ${instrument.massiveContract.ticker}` : ""} bars · request ${requestId}`,
         symbol: instrument.symbol,
         timeframe: "1d",
         dataShape: instrument.dataShape,
         quoteCurrency: instrument.quoteCurrency,
         massiveTicker: instrument.massiveTicker,
+        ...(instrument.massiveContract ? { massiveContract: instrument.massiveContract } : {}),
         bars
       }
     };

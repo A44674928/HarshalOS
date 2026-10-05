@@ -158,7 +158,7 @@ export default {
     // ask the Worker to prioritize or warm the schedule. Browsers never call a
     // market provider, and the schedule never depends on a page being visible.
     if (path === '/api/good-intelligence/v1/orb2/field') return handleOrb2Field(request, env);
-    if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request);
+    if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request, env);
     if (path === '/api/characters/v1/deploy') return handleCharactersDeploy(request, env);
     // Characters has three narrow providers: Massive automatic daily Disc beats,
     // Tickerbot on-demand stock beats, and Alpha Vantage Disc1 monthly spotlight beats.

@@ -90,21 +90,34 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   assert.ok(catalog);
   const fx = massiveDailyInternals.normalizeInstrument(catalog.fxCurrencies.find(entry => entry.symbol === "EURUSD"));
   const crypto = massiveDailyInternals.normalizeInstrument({
-    symbol: "BTC", displaySymbol: "BTC/USD", assetClass: "crypto", rankingProvider: "CoinGecko"
+    symbol: "BTC", displaySymbol: "BTC/USD", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:BTCUSD"
   });
-  const commodity = massiveDailyInternals.normalizeInstrument(catalog.commodities.find(entry => entry.symbol === "WTI"));
+  const commodityEntry = catalog.commodities.find(entry => entry.symbol === "WTI");
+  const contract = {
+    provider: "Massive", productCode: "CL", ticker: "CLX6", asOfDate: "2026-10-03",
+    lastTradeDate: "2026-11-20", daysToMaturity: 48
+  };
+  const commodity = massiveDailyInternals.normalizeInstrument({
+    ...commodityEntry, massive: { ...commodityEntry.massive, ticker: contract.ticker, family: "futures" },
+    massiveContract: contract
+  }, NOW);
   const index = massiveDailyInternals.normalizeInstrument(catalog.indices.find(entry => entry.symbol === "SPX"));
   assert.deepEqual(
     [fx && fx.massiveTicker, crypto && crypto.massiveTicker, commodity && commodity.massiveTicker, index && index.massiveTicker],
-    ["C:EURUSD", "X:BTCUSD", "CLZ6", "I:SPX"]
+    ["C:EURUSD", "X:BTCUSD", "CLX6", "I:SPX"]
   );
+  assert.equal(massiveDailyInternals.normalizeInstrument(commodityEntry, NOW), null,
+    "the static catalog's product code cannot be used as a dated contract without a current Massive verification");
   assert.equal(fx.family, "aggs");
   assert.equal(commodity.family, "futures");
   assert.equal(index.dataShape, "ohlc");
   assert.equal(massiveDailyInternals.normalizeInstrument({ symbol: "NOT_REVIEWED", assetClass: "commodity" }), null);
+  assert.equal(massiveDailyInternals.normalizeInstrument({
+    symbol: "BTC", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:ETHUSD"
+  }), null, "the Massive pair must match the provider-ranked base symbol exactly");
 
   const futuresUrl = massiveDailyInternals.makeRequestUrl(commodity, NOW);
-  assert.equal(futuresUrl.pathname, "/futures/v1/aggs/CLZ6");
+  assert.equal(futuresUrl.pathname, "/futures/v1/aggs/CLX6");
   assert.equal(futuresUrl.searchParams.get("resolution"), "1session");
 
   const dayStart = Date.parse("2026-10-03T00:00:00.000Z");
@@ -134,6 +147,77 @@ test("Massive daily D1 claims are atomic, keyed to UTC day, and roll over at mid
   assert.equal(next.ok, true);
   assert.equal(next.ledger.calls, 1);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM massive_daily_call_ledger").get().count, 2);
+});
+
+test("Disc4 resolves the active Massive contract before bars and carries contract provenance", async t => {
+  clearCharactersBeatCache();
+  clearMassiveCache();
+  const { db, sql } = createTickerbotLedgerDb();
+  t.after(() => sql.close());
+  const requests = [];
+  const response = await handleCharactersBeat(
+    beat("disc=commodities&provider=massive&symbols=WTI&interval=1d&cadence=1"), env(db), {
+      now: () => NOW,
+      fetch: async (input, options) => {
+        const url = new URL(input);
+        requests.push({ url, options });
+        if (url.pathname === "/futures/v1/contracts") {
+          return Response.json({ results: [{
+            ticker: "CLX6", product_code: "CL", active: true, type: "single",
+            date: "2026-10-03", last_trade_date: "2026-11-20", days_to_maturity: 48,
+            name: "WTI crude oil"
+          }] });
+        }
+        return Response.json({ request_id: "futures_test_1", results: [
+          { window_start: (NOW - 2 * 86_400_000) * 1e6, session_end_date: "2026-10-01", open: 100, high: 104, low: 99, close: 102, volume: 1000 },
+          { window_start: (NOW - 86_400_000) * 1e6, session_end_date: "2026-10-02", open: 102, high: 105, low: 101, close: 104, volume: 1100 }
+        ] });
+      }
+    }
+  );
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(requests.map(entry => entry.url.pathname), [
+    "/futures/v1/contracts", "/futures/v1/aggs/CLX6"
+  ], "the dated ticker is discovered and validated before a futures bars URL is built");
+  assert.equal(requests[0].url.searchParams.get("product_code"), "CL");
+  assert.equal(requests[0].url.searchParams.get("date"), "2026-10-03");
+  assert.ok(requests.every(entry => entry.options.headers.Authorization === `Bearer ${MASSIVE_KEY}`));
+  assert.equal(payload.data.spend.massiveContractAttempts, 1);
+  assert.equal(payload.data.spend.massiveBarAttempts, 1);
+  assert.equal(payload.data.spend.massiveDaily.calls, 2, "contract metadata and bars share the same daily allowance");
+  assert.deepEqual(payload.data.sourceIdentities[0].massiveContract, {
+    provider: "Massive", productCode: "CL", ticker: "CLX6", asOfDate: "2026-10-03",
+    lastTradeDate: "2026-11-20", daysToMaturity: 48, name: "WTI crude oil"
+  });
+  assert.equal(payload.data.instruments[0].marketContext.massiveTicker, "CLX6");
+  assert.equal(payload.data.instruments[0].marketContext.massiveContract.productCode, "CL");
+  assert.match(payload.data.instruments[0].marketContext.source, /CLX6/);
+});
+
+test("Disc4 holds when Massive has no verifiable active contract and cooldown suppresses retries", async t => {
+  clearCharactersBeatCache();
+  const { db, sql } = createTickerbotLedgerDb();
+  t.after(() => sql.close());
+  let calls = 0;
+  const dependencies = {
+    now: () => NOW,
+    fetch: async input => {
+      calls += 1;
+      assert.equal(new URL(input).pathname, "/futures/v1/contracts", "no futures bar request follows an unverified result");
+      return Response.json({ results: [] });
+    }
+  };
+  const query = "disc=commodities&provider=massive&symbols=WTI&interval=1d&cadence=1";
+  const first = await handleCharactersBeat(beat(query), env(db), dependencies);
+  assert.equal(first.status, 404);
+  assert.match((await first.json()).message, /no verifiable active single contract/i);
+  assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, 1);
+  const cooled = await handleCharactersBeat(beat(query), env(db), {
+    ...dependencies, now: () => NOW + 60_000
+  });
+  assert.equal(cooled.status, 429);
+  assert.equal(calls, 1);
 });
 
 test("the beat route isolates provider policies and caches successful Massive daily packets through UTC midnight", async t => {

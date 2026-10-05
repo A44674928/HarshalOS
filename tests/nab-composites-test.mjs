@@ -9,9 +9,9 @@ const NOW=Date.parse('2026-10-04T12:00:00Z');
 const market={latestBar:{close:100*Math.exp(Math.log(1.25)/2)},basis:100,bands:{lower1000:80,upper1000:125}};
 const obs=(overrides={})=>({channel:'stocks',symbol:'V',provider:'massive',interval:'1d',at:NOW,status:'bars',market,...overrides});
 const registry=Model.catalog({watchlist:TICKERBOT_WATCHLIST,crypto:[
-  {symbol:'BTC',providerId:'bitcoin',name:'Bitcoin'},
-  {symbol:'USDT',providerId:'tether',name:'Tether'},
-  {symbol:'NEW',providerId:'unknown-protocol',name:'Review me'}
+  {symbol:'BTC',providerId:'X:BTCUSD',massiveTicker:'X:BTCUSD',rankingProvider:'Massive',name:'Bitcoin'},
+  {symbol:'USDT',providerId:'X:USDTUSD',massiveTicker:'X:USDTUSD',rankingProvider:'Massive',name:'Tether'},
+  {symbol:'NEW',providerId:'X:NEWUSD',massiveTicker:'X:NEWUSD',rankingProvider:'Massive',name:'Review me'}
 ]});
 
 test('NAB FBB displacement is symmetric in log space and invariant to quote-price scaling',()=>{
@@ -61,8 +61,11 @@ test('provider, interval, source channel and crypto identity never collide',()=>
   const stock=composite.members.find(row=>row.id==='stocks:V');
   assert.equal(stock.observations.length,3);
   assert.equal(stock.observations[0].status,'unavailable');
-  const crypto=Model.compose(20,{registry,observations:[obs({channel:'crypto',symbol:'BTC',coingeckoId:'wrong'})]});
+  const crypto=Model.compose(20,{registry,observations:[obs({channel:'crypto',symbol:'BTC',providerId:'X:DIFFERENTUSD'})]});
   assert.equal(crypto.members.find(row=>row.id==='crypto:BTC').observations.length,0);
+  const matchingCrypto=Model.compose(20,{registry,observations:[obs({channel:'crypto',symbol:'BTC',providerId:'X:BTCUSD'})]});
+  assert.equal(matchingCrypto.members.find(row=>row.id==='crypto:BTC').observations.length,1,
+    "Massive crypto history joins only on its exact provider ticker");
   assert.equal(Model.observation(obs({market:{synthetic:true}})),null);
   assert.equal(Model.observation(obs({at:null})),null);
 });

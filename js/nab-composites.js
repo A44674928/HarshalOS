@@ -25,10 +25,15 @@
     F:75, GM:75, RIVN:75, TSLA:75, COIN:20, HOOD:56, MSTR:20,
     IWM:54, QQQ:54, SPY:54, XLE:54
   });
-  const commodityAlignment = Object.freeze({ WTI:23, BRENT:23, NATURAL_GAS:23, COPPER:26, ALUMINUM:26, WHEAT:5, CORN:5, COTTON:5, SUGAR:5, COFFEE:5 });
-  // A dynamic crypto ranking is joined by its CoinGecko identity, not a symbol
-  // collision. Unknown coins are retained for review, not silently classified.
-  const cryptoAlignment = Object.freeze({ bitcoin:20, ethereum:4, tether:12, "usd-coin":12, dai:12, solana:4, cardano:4, polkadot:4, ripple:3, litecoin:3, dogecoin:3, chainlink:37, "binancecoin":20 });
+  const commodityAlignment = Object.freeze({ WTI:23, NATURAL_GAS:23, COPPER:26, GOLD:70, SILVER:70, PLATINUM:70, PALLADIUM:70, WHEAT:5, CORN:5, SOYBEANS:5 });
+  // A dynamic crypto ranking is joined by Massive's exact X:{BASE}USD ticker,
+  // not by an ambiguous base-symbol collision. Unknown pairs remain for review.
+  const cryptoAlignment = Object.freeze({
+    "X:BTCUSD":20, "X:ETHUSD":4, "X:USDTUSD":12, "X:USDCUSD":12,
+    "X:DAIUSD":12, "X:SOLUSD":4, "X:ADAUSD":4, "X:DOTUSD":4,
+    "X:XRPUSD":3, "X:LTCUSD":3, "X:DOGEUSD":3, "X:LINKUSD":37,
+    "X:BNBUSD":20
+  });
   const bankRows = [
     ["USD","fed","Federal Reserve","https://www.federalreserve.gov/"],
     ["EUR","ecb","European Central Bank","https://www.ecb.europa.eu/"],
@@ -91,11 +96,14 @@
       }
     }
     for (const row of crypto) {
-      if (!row || typeof row.symbol !== "string") continue;
-      const nabId = cryptoAlignment[row.providerId || row.coingeckoId] || null;
+      if (!row || typeof row.symbol !== "string" || row.rankingProvider !== "Massive") continue;
+      const massiveTicker = typeof row.massiveTicker === "string" ? row.massiveTicker.toUpperCase() : "";
+      const providerId = typeof row.providerId === "string" ? row.providerId.toUpperCase() : "";
+      if (!/^[A-Z0-9]{2,12}$/.test(row.symbol) || massiveTicker !== `X:${row.symbol.toUpperCase()}USD` || providerId !== massiveTicker) continue;
+      const nabId = cryptoAlignment[providerId] || null;
       members.push({id:key("crypto",row.symbol), channel:"crypto", symbol:row.symbol, name:row.name || row.symbol,
-        coingeckoId:row.providerId || row.coingeckoId || null, nabId, role:"supporting-market",
-        rationale:nabId ? `Editorial protocol-function alignment with ${NAB.byId(nabId).trait}; not a token risk assessment.` : "No explicit CoinGecko-identity alignment; review required.",
+        providerId, rankingProvider:"Massive", nabId, role:"supporting-market",
+        rationale:nabId ? `Editorial protocol-function alignment with ${NAB.byId(nabId).trait}; not a token risk assessment.` : "No explicit Massive-ticker alignment; review required.",
         catalogContext:JSON.parse(JSON.stringify(row)), source:sources.rankingSource.crypto, classificationStatus:nabId ? "editorial" : "unassigned", liveEligible:true, dataStatus:"unobserved"});
     }
     members.push(...banks);
@@ -130,7 +138,11 @@
     // Clone before freezing; never freeze a caller's live provider packet.
     return freeze(JSON.parse(JSON.stringify({channel:raw.channel, symbol:raw.symbol,
       provider:raw.provider, interval:raw.interval, at:raw.at, status:text(raw.status) || "unknown",
-      market, message:text(raw.message), coingeckoId:text(raw.coingeckoId), source:text(raw.source) || "legacy-source-adapter"})));
+      market, message:text(raw.message),
+      /* Read old browser-local crypto identity keys without treating them as a
+         Massive identity. They cannot join the current catalog unless the exact
+         Massive providerId is present. */
+      providerId:text(raw.providerId) || text(raw.coingeckoId), source:text(raw.source) || "legacy-source-adapter"})));
   }
 
   function fromLegacy(events = []) {
@@ -140,7 +152,7 @@
         symbol:item.symbol, provider:event.provider, interval:event.interval,
         at:typeof event.at === "number" ? event.at : Date.parse(event.beatAt),
         status:item.status, market:item.market, message:item.message,
-        coingeckoId:item.coingeckoId, source:"legacy-beat-history"})).filter(Boolean);
+        providerId:item.providerId, coingeckoId:item.coingeckoId, source:"legacy-beat-history"})).filter(Boolean);
     });
   }
 
@@ -164,7 +176,7 @@
     for (const raw of batches.flat()) {
       const row = observation(raw);
       if (!row) continue;
-      const id = `${key(row.channel,row.symbol)}:${row.coingeckoId}:${row.provider}:${row.interval}:${row.market ? "observation" : "attempt"}`;
+      const id = `${key(row.channel,row.symbol)}:${row.providerId}:${row.provider}:${row.interval}:${row.market ? "observation" : "attempt"}`;
       if (!result.has(id) || result.get(id).at < row.at) result.set(id,row);
     }
     return freeze([...result.values()]);
@@ -176,7 +188,7 @@
     const clean = [...mergeObservations(observations)].sort((a,b)=>b.at-a.at);
     const members = registry.members.filter(row => row.nabId === nabId).map(row => ({...row,
       observations:clean.filter(item => item.channel === row.channel && item.symbol === row.symbol &&
-        (row.channel !== "crypto" || (row.coingeckoId && item.coingeckoId === row.coingeckoId))).map(item => ({...item,
+        (row.channel !== "crypto" || (row.providerId && item.providerId === row.providerId))).map(item => ({...item,
           ageMs:Math.max(0,now-item.at), stale: now-(number(item.market?.latestBar?.time) ?? item.at) > (item.interval === "1h" ? 3600000 : item.interval === "1mo" ? 31*86400000 : 86400000),
           fbbDisplacement:displacement(item.market)}))
     }));

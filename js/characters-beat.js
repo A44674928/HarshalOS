@@ -235,7 +235,6 @@ window.CharactersBeat = (() => {
       sweepSize,
       sweepBeats: Number.isFinite(sweepBeats) ? sweepBeats : null,
       sweepHours: Number.isFinite(sweepHours) ? Math.round(sweepHours * 100) / 100 : null,
-      sweepSize: sweepSize,
       hotRefreshesPerDay: Math.round((MINUTES_PER_DAY / input.cadenceMinutes) * 10) / 10,
       withinWindow: Number.isFinite(sweepHours) && sweepHours <= targetSweepHours,
       callsPerBeat: base.callsPerBeat,

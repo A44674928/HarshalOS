@@ -86,10 +86,10 @@
         }).join("")}</div>
         <section class="nab-physical"><h3>Physical material constituents</h3>${composite.physical.length?composite.physical.map(design=>`<article tabindex="-1" data-nab-member-id="physical:${esc(design.id)}"><b>${esc(design.name)}</b><p>${design.components.map(component=>`${esc(component.material?.formula || component.materialId)} · ${component.material?"reported material record":"material record missing"} · ${esc(component.sharePercent)}% design weight`).join("<br>")}</p></article>`).join(""):"<p>No physical design is assigned to this NAB yet. Assign this same NAB in Material Spheroids; chemical composition is not inferred from a bank, ticker, or NAB name.</p>"}</section>
         <details class="nab-ai"><summary>Composite NAB AI context · sources, missing data and constraints</summary><pre>${esc(JSON.stringify(composite.aiContext,null,2))}</pre></details>`;
-      const unlinked=state.observations.filter(item=>!registry.members.some(member=>member.channel===item.channel && member.symbol===item.symbol && member.nabId && (member.channel!=="crypto" || member.coingeckoId===item.coingeckoId)));
+      const unlinked=state.observations.filter(item=>!registry.members.some(member=>member.channel===item.channel && member.symbol===item.symbol && member.nabId && (member.channel!=="crypto" || member.providerId===item.providerId)));
       $("[data-nab-review-summary]").textContent=`Alignment review queue · ${registry.review.length} source entries · ${unlinked.length} unlinked observations (crypto catalog ${state.crypto.length?"loaded":"not loaded"})`;
       $("[data-nab-review]").innerHTML=registry.review.map(row=>`<p>${esc(row.id)} · ${esc(row.name)} — ${esc(row.rationale)}</p>`).join("") || "No loaded source entries awaiting alignment. An unloaded catalog is not counted as complete.";
-      if(unlinked.length)$("[data-nab-review]").innerHTML+=`<h4>Retained observations awaiting a qualified alignment</h4>${unlinked.map(item=>`<p>${esc(item.channel)}:${esc(item.symbol)} · ${esc(item.coingeckoId || "identity not supplied")} · ${esc(item.provider)} / ${esc(item.interval)}</p>`).join("")}`;
+      if(unlinked.length)$("[data-nab-review]").innerHTML+=`<h4>Retained observations awaiting a qualified alignment</h4>${unlinked.map(item=>`<p>${esc(item.channel)}:${esc(item.symbol)} · ${esc(item.providerId || "provider identity not supplied")} · ${esc(item.provider)} / ${esc(item.interval)}</p>`).join("")}`;
       $("[data-nab-crypto]").disabled=state.pending;
       $("[data-nab-provider]").disabled=state.pending;
     }
@@ -115,7 +115,7 @@
         if(state.destroyed)return;
         const data=payload?.data;
         if(data && (data.disc!==member.channel || data.provider!==provider || data.interval!==interval)) throw new Error("Mismatched source response refused.");
-        if(member.channel === "crypto" && !data?.sourceIdentities?.some(identity => identity.channel === "crypto" && identity.symbol === member.symbol && identity.providerId === member.coingeckoId)) throw new Error("Crypto identity changed or was not supplied; reload the source catalog.");
+        if(member.channel === "crypto" && !data?.sourceIdentities?.some(identity => identity.channel === "crypto" && identity.symbol === member.symbol && identity.providerId === member.providerId)) throw new Error("Crypto Massive ticker identity changed or was not supplied; reload the source catalog.");
         const instrument=data?.instruments?.find(item=>item.symbol===member.symbol);
         if(!instrument)throw new Error(payload?.message || "No matching source observation returned.");
         const packet=globalThis.GoodIntelligenceMarketContext?.normalizePacket(instrument.marketContext);
@@ -124,7 +124,7 @@
         const market=packet && analysis ? {...analysis,latestBar:packet.bars.at(-1) || null,basis:analysis.bands?.basis ?? null,quoteCurrency:packet.quoteCurrency} : null;
         const observedAt=Date.parse(data.beatAt);
         const obs=Model.observation({channel:member.channel,symbol:member.symbol,provider,interval,at:observedAt,
-          market,status:instrument.status,message:instrument.message,coingeckoId:member.coingeckoId,source:packet?.source || "Characters Worker"});
+          market,status:instrument.status,message:instrument.message,providerId:member.providerId,source:packet?.source || "Characters Worker"});
         if(!obs)throw new Error("Invalid observation metadata refused.");
         state.observations=Model.mergeObservations(state.observations,[obs]);
         state.message=payload.success?`Updated ${member.id}. Source data joined only to its aligned NAB.`:instrument.message || payload.message || "Source unavailable; no fallback was requested.";

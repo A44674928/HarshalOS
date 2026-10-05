@@ -39,11 +39,20 @@ import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import {
   MASSIVE_PROVIDER_DAILY_LIMIT,
-  claimMassiveDailyCall,
   readMassiveDailyCallLedger
 } from "./massive-daily-call-ledger.mjs";
-import { consumeMassiveBudget } from "./massive.mjs";
-import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
+import { availableMassiveBudget } from "./massive.mjs";
+import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
+import {
+  getCharactersCryptoRanking,
+  readCharactersCryptoRankingCache
+} from "./characters-crypto-ranking.mjs";
+import {
+  getMassiveActiveFuturesContract,
+  readMassiveFuturesContractState,
+  MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS,
+  MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS
+} from "./characters-futures-contracts.mjs";
 import { orb2SharedSanitizers } from "./good-intelligence-orb2-beats.mjs";
 import {
   ORB2_COMPOSITION_SCHEMA,
@@ -183,13 +192,13 @@ const fieldObservationExpired = (interval, observedAt, now) =>
 /**
  * The server field's instrument set, built from the same reviewed catalogs the
  * browser renders: the 52-card roster (with its attributed sector/market-cap
- * metadata), the BIS FX catalog, the static commodity/index rosters, and the live
- * CoinGecko volume ranking for crypto when it is reachable.
+ * metadata), the BIS FX catalog, Massive-ranked USD crypto pairs, Massive-
+ * verified active futures contracts, and the reviewed Massive index roster.
  *
- * A catalog that is unavailable contributes nothing: the sweep simply does not
- * cover it, and no substitute instrument is invented.
+ * A catalog or active contract that is unavailable contributes nothing: the
+ * sweep simply does not cover it, and no substitute instrument is invented.
  */
-export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null } = {}) {
+export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commodityContracts = null } = {}) {
   const roster = globalThis.GoodIntelligenceMarketRoster;
   const catalog = globalThis.CharactersDiscCatalog;
   const dxy = globalThis.GoodIntelligenceDxy;
@@ -208,12 +217,38 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null } = {})
     .filter(entry => entry && SYMBOL_PATTERN.test(String(entry.symbol || "")))
     .map(entry => Object.freeze({ ...entry, discId, assetClass: assetClass || entry.assetClass }));
   const fx = statics(catalog && catalog.fxCurrencies, "fx", "fx");
-  const commodities = statics(catalog && catalog.commodities, "commodities", "commodity");
+  const today = new Date(Number(now)).toISOString().slice(0, 10);
+  const contracts = commodityContracts && typeof commodityContracts === "object" ? commodityContracts : {};
+  const commodities = statics(catalog && catalog.commodities, "commodities", "commodity")
+    .flatMap(entry => {
+      const productCode = String(entry.massive && entry.massive.productCode || "").toUpperCase();
+      const contract = contracts[productCode];
+      const ticker = String(contract && contract.ticker || "").toUpperCase();
+      const lastTradeDate = String(contract && contract.lastTradeDate || "");
+      if (!/^[A-Z0-9]{1,8}$/.test(productCode) || !contract || contract.provider !== "Massive" ||
+          contract.productCode !== productCode || contract.asOfDate !== today ||
+          !/^[A-Z0-9]{1,8}[FGHJKMNQUVXZ]\d{1,2}$/.test(ticker) || !ticker.startsWith(productCode) ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(lastTradeDate) || lastTradeDate < today) return [];
+      return [Object.freeze({
+        ...entry,
+        massive: Object.freeze({ ...entry.massive, ticker, family: "futures" }),
+        massiveTicker: ticker,
+        providerId: ticker,
+        massiveContract: Object.freeze({
+          ticker, productCode, provider: "Massive", asOfDate: today, lastTradeDate,
+          ...(Number.isInteger(contract.daysToMaturity) && contract.daysToMaturity >= 0
+            ? { daysToMaturity: contract.daysToMaturity } : {}),
+          ...(typeof contract.name === "string" ? { name: contract.name.slice(0, 120) } : {})
+        }),
+        discId: "commodities", assetClass: "commodity"
+      })];
+    });
   const indices = statics(catalog && catalog.indices, "indices", "index");
   const crypto = (cryptoRanking && Array.isArray(cryptoRanking.instruments) ? cryptoRanking.instruments : [])
-    .filter(entry => entry && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")))
+    .filter(entry => entry && entry.rankingProvider === "Massive" && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")) &&
+      String(entry.massiveTicker || "").toUpperCase() === `X:${String(entry.symbol).toUpperCase()}USD`)
     .map(entry => Object.freeze({ ...entry, discId: "crypto", assetClass: "crypto" }));
-  const instruments = [...stocks, ...fx, ...commodities, ...indices, ...crypto];
+  const instruments = [...stocks, ...fx, ...crypto, ...commodities, ...indices];
   const dxySymbols = dxy && Array.isArray(dxy.COMPONENTS)
     ? dxy.COMPONENTS.map(component => component.symbol).filter(symbol => fx.some(entry => entry.symbol === symbol))
     : [];
@@ -354,6 +389,7 @@ export function observationFromPacket({
   const market = analysis ? {
     status: String(analysis.status || "unknown").slice(0, 24),
     source: String(analysis.source || (normalized && normalized.source) || "").slice(0, 160),
+    ...(packet.massiveContract ? { massiveContract: packet.massiveContract } : {}),
     timeframe: String(analysis.timeframe || (normalized && normalized.timeframe) || interval).slice(0, 24),
     dataShape: String(analysis.dataShape || (normalized && normalized.dataShape) || "unknown").slice(0, 16),
     synthetic: Boolean(analysis.synthetic || (normalized && normalized.synthetic)),
@@ -625,18 +661,16 @@ function providerKeys(env) {
   };
 }
 
-async function beatMassive({ env, db, instrument, now, fetcher, keys, dependencies }) {
-  const minute = consumeMassiveBudget(CRON_REQUEST, env, now);
-  if (!minute.ok) return { ok: false, code: "massive-rate-limit", message: `The shared Massive ${ORB2_MASSIVE_PER_MINUTE}/minute envelope is spent (${minute.scope}).` };
-  if (!keys.massive) return { ok: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
-  const claim = await claimMassiveDailyCall(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-  if (!claim.ok) return { ok: false, code: claim.reason, message: claim.message };
+async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
+  if (!keys.massive) return { ok: false, attempted: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
+  const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+  if (!reservation.ok) return { ok: false, attempted: false, code: reservation.code, message: reservation.message };
   const result = await fetchMassiveDailyMarketContext({
     instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
     apiKey: keys.massive, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies
   });
-  if (!result.ok) return { ok: false, code: result.code, message: result.message, retryAfter: result.retryAfter };
-  return { ok: true, packet: result.packet, calls: 1 };
+  if (!result.ok) return { ok: false, attempted: true, code: result.code, message: result.message, retryAfter: result.retryAfter };
+  return { ok: true, attempted: true, packet: result.packet, calls: 1 };
 }
 
 async function beatTickerbot({ env, db, instrument, interval, now, fetcher, keys }) {
@@ -650,6 +684,41 @@ async function beatTickerbot({ env, db, instrument, interval, now, fetcher, keys
   });
   if (!result.ok) return { ok: false, code: result.code, message: result.message };
   return { ok: true, packet: result.packet, calls: 1 };
+}
+
+async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary }) {
+  const state = await readMassiveFuturesContractState({ db, now });
+  if (!state.ok) {
+    summary.notes.push("Disc4 contracts are held: apply D1 migration 0011_massive_futures_contract_cache.sql before active-contract discovery.");
+    return state;
+  }
+  if (!keys.massive) return state;
+  if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
+  const catalog = globalThis.CharactersDiscCatalog;
+  const commodities = catalog && Array.isArray(catalog.commodities) ? catalog.commodities : [];
+  const candidate = commodities.find(entry => {
+    const code = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
+    return /^[A-Z0-9]{1,8}$/.test(code) && !state.contracts[code] &&
+      now - (Number(state.lastAttemptAt[code]) || 0) >= MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS;
+  });
+  if (!candidate) return state;
+  const productCode = String(candidate.massive.productCode).toUpperCase();
+  let reserved = false;
+  const result = await getMassiveActiveFuturesContract({
+    productCode, apiKey: keys.massive, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+    beforeFetch: async () => {
+      const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+      if (reservation.ok) reserved = true;
+      return reservation;
+    }
+  });
+  if (reserved) summary.massiveCalls += 1;
+  if (result.ok) state.contracts[productCode] = result.contract;
+  else if (![
+    "massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
+    "massive-rate-limit", "massive-budget-exhausted"
+  ].includes(result.code)) summary.notes.push(`Disc4 ${productCode} held: ${result.message}`);
+  return state;
 }
 
 /* ── the tick ─────────────────────────────────────────────────────────── */
@@ -686,26 +755,34 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     const control = await readControl(db);
     const run = await readRun(db, now);
 
-    /* The live crypto ranking is one shared upstream read: attempt it on a
-       fifteen-minute cadence (recorded in D1, so isolates do not multiply it),
-       and cover Disc3 for that long. A failure is reported, never substituted. */
+    /* Disc3's roster and bars are both Massive data. The grouped daily ranking
+       is read from D1 on every tick and refreshed only after its cache expires;
+       the one ranking call reserves the same per-minute and UTC-day budgets as
+       every per-instrument beat. Failed refreshes leave Disc3 held, never stale. */
     let cryptoRanking = null;
-    const lastRankingAttempt = Number(control && control.ranking_attempt_at) || 0;
-    if (now - lastRankingAttempt >= ORB2_FIELD_RANKING_REFRESH_MS) {
-      await writeControl(db, { rankingAttemptAt: now }, now);
-      try {
-        const rankingResult = await getCharactersCryptoRanking({ fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies });
-        if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
-        else summary.notes.push(`Crypto ranking held: ${rankingResult.message}`);
-      } catch { summary.notes.push("Crypto ranking held: the ranking provider could not be read."); }
-    } else {
-      try {
-        const cachedRanking = await getCharactersCryptoRanking({ fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies });
-        if (cachedRanking.ok) cryptoRanking = cachedRanking.ranking;
-      } catch { /* Disc3 simply contributes no instruments this tick */ }
-    }
+    let rankingAttempted = false;
+    try {
+      const rankingResult = await getCharactersCryptoRanking({
+        apiKey: keys.massive, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+        beforeFetch: async () => {
+          if (!keys.massive) return { ok: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to load Disc3." };
+          const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+          if (reservation.ok) rankingAttempted = true;
+          return reservation;
+        }
+      });
+      if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
+      else if (rankingResult.code !== "crypto-ranking-cooldown" && rankingResult.code !== "crypto-ranking-cache-miss") {
+        summary.notes.push(`Crypto ranking held: ${rankingResult.message}`);
+      }
+    } catch { summary.notes.push("Crypto ranking held: Massive's grouped daily ranking could not be read."); }
+    if (rankingAttempted) summary.massiveCalls += 1;
 
-    const roster = orb2FieldRoster({ now, cryptoRanking });
+    const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary });
+    const roster = orb2FieldRoster({
+      now, cryptoRanking,
+      commodityContracts: futuresState.ok ? futuresState.contracts : null
+    });
     const instrumentsBySymbol = new Map(roster.instruments.map(instrument => [instrument.symbol, instrument]));
 
     /* 1 · First-deck calibration. When the field is cold (or empty) and the last
@@ -787,7 +864,8 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        evenly instead of re-confirming the same berth. */
     const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
     const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
-    const slots = Math.max(0, Math.min(ORB2_MASSIVE_PER_MINUTE, dailyRemaining));
+    const minuteRemaining = availableMassiveBudget(CRON_REQUEST, env, now).remaining;
+    const slots = Math.max(0, Math.min(ORB2_MASSIVE_PER_MINUTE, minuteRemaining, dailyRemaining));
     if (!keys.massive) {
       summary.notes.push("Massive is not configured; only the Tickerbot queue lanes can run.");
     } else if (!massiveLedger.ok) {
@@ -803,6 +881,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       }));
       for (const outcome of outcomes) {
         const instrument = outcome.entry.instrument;
+        if (outcome.attempted) summary.massiveCalls += 1;
         if (outcome.ok) {
           const observation = observationFromPacket({
             packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
@@ -811,7 +890,6 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
           });
           if (observation) {
             await writeObservation(db, observation, now);
-            summary.massiveCalls += 1;
             summary.observed += 1;
             continue;
           }
@@ -997,7 +1075,13 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
        part of this response. A Disc with no row reports zero and newestAt null:
        clients label it as awaiting its first beat and never substitute another
        Disc's data. */
-    const rosterForStatus = orb2FieldRoster({ now });
+    const cachedCryptoRanking = await readCharactersCryptoRankingCache({ db, now });
+    const cachedFutures = await readMassiveFuturesContractState({ db, now });
+    const rosterForStatus = orb2FieldRoster({
+      now,
+      cryptoRanking: cachedCryptoRanking.ok ? cachedCryptoRanking.ranking : null,
+      commodityContracts: cachedFutures.ok ? cachedFutures.contracts : null
+    });
     const catalogForStatus = globalThis.CharactersDiscCatalog;
     const storedByDisc = new Map();
     try {
@@ -1061,6 +1145,16 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         exhausted: massiveLedger.ok ? massiveLedger.ledger.exhausted : null,
         ledger: massiveLedger.ok ? "ready" : "unavailable",
         note: massiveLedger.ok ? massiveLedger.ledger.note : massiveLedger.message
+      },
+      futuresContracts: {
+        cache: cachedFutures.ok ? "ready" : "unavailable",
+        asOfDate: new Date(now).toISOString().slice(0, 10),
+        reviewedProducts: Array.isArray(catalogForStatus && catalogForStatus.commodities) ? catalogForStatus.commodities.length : 0,
+        activeContracts: cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0,
+        staleFallback: false,
+        note: cachedFutures.ok
+          ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
+          : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held."
       },
       tickerbot: {
         callsToday: Number(run && run.tickerbot_calls) || 0,

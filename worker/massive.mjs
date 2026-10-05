@@ -109,27 +109,50 @@ function envLimit(value, fallback) {
 /* Exported so other bounded Worker routes that use the same owner key can
    share this exact per-isolate envelope instead of maintaining a second,
    divergent rate bucket. */
-export function consumeMassiveBudget(request, env, now) {
+function massiveBudgetWindows(request, env, now) {
   const deploymentLimit = envLimit(env.MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE, DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE);
   const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
-
   deploymentWindow = deploymentWindow.filter(at => now - at < WINDOW_MS);
-  if (deploymentWindow.length >= deploymentLimit) {
+  const address = request && request.headers && typeof request.headers.get === "function"
+    ? request.headers.get("CF-Connecting-IP") : null;
+  const key = typeof address === "string" && address.trim() && address.trim().length <= 64 ? address.trim() : "unknown";
+  const clientWindow = (clientWindows.get(key) || []).filter(at => now - at < WINDOW_MS);
+  clientWindows.set(key, clientWindow);
+  return { deploymentLimit, clientLimit, key, clientWindow };
+}
+
+/** Read the remaining per-isolate allowance without spending a request. */
+export function availableMassiveBudget(request, env = {}, now = Date.now()) {
+  const windows = massiveBudgetWindows(request, env, now);
+  return {
+    deploymentRemaining: Math.max(0, windows.deploymentLimit - deploymentWindow.length),
+    clientRemaining: Math.max(0, windows.clientLimit - windows.clientWindow.length),
+    remaining: Math.max(0, Math.min(
+      windows.deploymentLimit - deploymentWindow.length,
+      windows.clientLimit - windows.clientWindow.length
+    ))
+  };
+}
+
+/* Sliding-window budget: one window shared by the whole deployment (the
+   Massive key belongs to the owner, so every visitor spends the same quota)
+   and one window per client IP so a single caller cannot spend it all. */
+/* Exported so other bounded Worker routes that use the same owner key can
+   share this exact per-isolate envelope instead of maintaining a second,
+   divergent rate bucket. */
+export function consumeMassiveBudget(request, env = {}, now = Date.now()) {
+  const windows = massiveBudgetWindows(request, env, now);
+  if (deploymentWindow.length >= windows.deploymentLimit) {
     return { ok: false, scope: "deployment", retryAfterSeconds: Math.max(1, Math.ceil((deploymentWindow[0] + WINDOW_MS - now) / 1000)) };
   }
-
-  const address = request.headers.get("CF-Connecting-IP");
-  const key = typeof address === "string" && address.trim() && address.trim().length <= 64 ? address.trim() : "unknown";
-  const window = (clientWindows.get(key) || []).filter(at => now - at < WINDOW_MS);
-  if (window.length >= clientLimit) {
-    clientWindows.set(key, window);
-    return { ok: false, scope: "client", retryAfterSeconds: Math.max(1, Math.ceil((window[0] + WINDOW_MS - now) / 1000)) };
+  if (windows.clientWindow.length >= windows.clientLimit) {
+    return { ok: false, scope: "client", retryAfterSeconds: Math.max(1, Math.ceil((windows.clientWindow[0] + WINDOW_MS - now) / 1000)) };
   }
 
   deploymentWindow.push(now);
-  window.push(now);
-  clientWindows.delete(key);
-  clientWindows.set(key, window);
+  windows.clientWindow.push(now);
+  clientWindows.delete(windows.key);
+  clientWindows.set(windows.key, windows.clientWindow);
   if (clientWindows.size > CLIENT_BUCKET_CAPACITY) {
     for (const [oldKey, oldWindow] of clientWindows) {
       if (!oldWindow.length || now - oldWindow[oldWindow.length - 1] >= WINDOW_MS) clientWindows.delete(oldKey);

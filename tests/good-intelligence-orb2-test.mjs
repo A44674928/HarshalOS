@@ -146,7 +146,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
       return Response.json({ success: true, schema: "gi-orb2-beat-history-v1", beats: historyStore.get(requestSession) || [] });
     }
     if (path.includes("/api/characters/v1/discs?disc=crypto")) {
-      return Response.json({ success: true, instruments: [{ symbol: "BTCUSD", name: "Bitcoin", sector: "Cryptocurrency" }], ranking: { provider: "CoinGecko" } });
+      return Response.json({ success: true, instruments: [{ symbol: "BTC", displaySymbol: "BTC/USD", name: "BTC", sector: "Cryptocurrency", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:BTCUSD" }], ranking: { provider: "Massive" } });
     }
     if (path.includes("/api/characters/v1/beat")) {
       providerCalls.push({ url: path, options });
@@ -834,7 +834,7 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
   host.querySelector('[data-gi-orb2-orb="crypto"]').click();
   await flush();
   assert.equal(engine.state.discId, "crypto");
-  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTCUSD"],
+  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTC"],
     "the crypto orb draws exactly the live ranked instruments the route returned, nothing borrowed");
   assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
 });

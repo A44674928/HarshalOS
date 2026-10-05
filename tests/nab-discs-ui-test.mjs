@@ -55,14 +55,14 @@ test('refresh targets exactly one qualified legacy source; unavailable data rema
 
 test('crypto catalog loads once; unknown identities enter review and dynamic identity mismatch is rejected',async t=>{
   const {host,view,window,requests}=mount(t,async url=>{
-    if(url.includes('/discs?'))return Response.json({success:true,instruments:[{symbol:'USDT',providerId:'tether',name:'Tether'},{symbol:'NEW',providerId:'new-token',name:'<img src=x>'}]});
-    return Response.json({success:true,data:{disc:'crypto',provider:'massive',interval:'1d',beatAt:'2026-10-04T12:00:00Z',sourceIdentities:[{channel:'crypto',symbol:'USDT',providerId:'different-token'}],instruments:[{symbol:'USDT',status:'bars'}]}});
+    if(url.includes('/discs?'))return Response.json({success:true,instruments:[{symbol:'USDT',providerId:'X:USDTUSD',massiveTicker:'X:USDTUSD',rankingProvider:'Massive',name:'Tether'},{symbol:'NEW',providerId:'X:NEWUSD',massiveTicker:'X:NEWUSD',rankingProvider:'Massive',name:'<img src=x>'}]});
+    return Response.json({success:true,data:{disc:'crypto',provider:'massive',interval:'1d',beatAt:'2026-10-04T12:00:00Z',sourceIdentities:[{channel:'crypto',symbol:'USDT',providerId:'X:DIFFERENTUSD'}],instruments:[{symbol:'USDT',status:'bars'}]}});
   });
   host.querySelector('[data-nab-crypto]').click();await flush();view.choose(12);
   assert.match(host.querySelector('[data-nab-review]').textContent,/crypto:NEW/);
   assert.equal(host.querySelector('[data-nab-review] img'),null);
   host.querySelector('[data-nab-refresh="crypto:USDT"]').click();await flush();
-  assert.match(host.querySelector('[data-nab-status]').textContent,/Crypto identity changed/);
+  assert.match(host.querySelector('[data-nab-status]').textContent,/Crypto Massive ticker identity changed/);
   assert.equal(view.composite.members.find(row=>row.id==='crypto:USDT').observations.length,0);
   assert.equal(requests.length,2);
 });

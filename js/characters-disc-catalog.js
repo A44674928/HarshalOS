@@ -6,7 +6,9 @@
   /* Every static entry is frozen because this catalog is shared by browser and
      Worker code. Massive mappings are explicit reviewed routing metadata, not
      user-provided tickers; FX mappings are mechanically derived from the six
-     ISO letters only after the roster itself has been reviewed. */
+     ISO letters only after the roster itself has been reviewed. Commodity
+     metadata contains product codes only; the Worker must verify today's active
+     dated contract with Massive before it may request futures bars. */
   const freezeEntries = entries => Object.freeze(entries.map(entry => {
     const derivedMassive = entry.massive || (entry.assetClass === "fx" && /^[A-Z]{6}$/.test(entry.symbol || "")
       ? { ticker: `C:${entry.symbol}`, family: "aggs" }
@@ -19,22 +21,21 @@
     });
   }));
 
-  /* These are reviewed contract identifiers for the October 2026 catalog.
-     They are intentionally metadata rather than free-form browser input;
-     the Worker still validates every route and does not invent a rollover.
-     A stale or unavailable contract is reported as unavailable, never
-     replaced with a different commodity series. */
+  /* Reviewed Massive Futures product codes. Dated contract tickers are
+     deliberately absent: the Worker resolves and validates today's active
+     single contract from Massive's contracts reference endpoint before bars
+     are requested. */
   const COMMODITY_MASSIVE = Object.freeze({
-    WTI: { ticker: "CLZ6", family: "futures" },
-    BRENT: { ticker: "BRNZ6", family: "futures" },
-    NATURAL_GAS: { ticker: "NGZ6", family: "futures" },
-    COPPER: { ticker: "HGZ6", family: "futures" },
-    ALUMINUM: { ticker: "ALIU6", family: "futures" },
-    WHEAT: { ticker: "ZWZ6", family: "futures" },
-    CORN: { ticker: "ZCZ6", family: "futures" },
-    COTTON: { ticker: "CTZ6", family: "futures" },
-    SUGAR: { ticker: "SBH7", family: "futures" },
-    COFFEE: { ticker: "KCZ6", family: "futures" }
+    WTI: { productCode: "CL", family: "futures" },
+    NATURAL_GAS: { productCode: "NG", family: "futures" },
+    GOLD: { productCode: "GC", family: "futures" },
+    SILVER: { productCode: "SI", family: "futures" },
+    COPPER: { productCode: "HG", family: "futures" },
+    PLATINUM: { productCode: "PL", family: "futures" },
+    PALLADIUM: { productCode: "PA", family: "futures" },
+    WHEAT: { productCode: "ZW", family: "futures" },
+    CORN: { productCode: "ZC", family: "futures" },
+    SOYBEANS: { productCode: "ZS", family: "futures" }
   });
 
   const BIS_FX_CURRENCIES = freezeEntries([
@@ -64,16 +65,16 @@
   ]);
 
   const COMMODITIES = freezeEntries([
-    { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"], alphaVantage: { function: "WTI", interval: "monthly" } },
-    { symbol: "BRENT", displaySymbol: "BRENT", name: "Brent crude oil", sector: "Energy", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"], alphaVantage: { function: "BRENT", interval: "monthly" } },
-    { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/MMBtu", tags: ["Energy"], alphaVantage: { function: "NATURAL_GAS", interval: "monthly" } },
-    { symbol: "COPPER", displaySymbol: "COPPER", name: "Copper", sector: "Industrial metals", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/metric ton", tags: ["Industrial metal"], alphaVantage: { function: "COPPER", interval: "monthly" } },
-    { symbol: "ALUMINUM", displaySymbol: "ALUMINUM", name: "Aluminum", sector: "Industrial metals", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/metric ton", tags: ["Industrial metal"], alphaVantage: { function: "ALUMINUM", interval: "monthly" } },
-    { symbol: "WHEAT", displaySymbol: "WHEAT", name: "Wheat", sector: "Agriculture", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/metric ton", tags: ["Agriculture"], alphaVantage: { function: "WHEAT", interval: "monthly" } },
-    { symbol: "CORN", displaySymbol: "CORN", name: "Corn", sector: "Agriculture", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/metric ton", tags: ["Agriculture"], alphaVantage: { function: "CORN", interval: "monthly" } },
-    { symbol: "COTTON", displaySymbol: "COTTON", name: "Cotton", sector: "Agriculture", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/lb", tags: ["Agriculture"], alphaVantage: { function: "COTTON", interval: "monthly" } },
-    { symbol: "SUGAR", displaySymbol: "SUGAR", name: "Sugar", sector: "Agriculture", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/lb", tags: ["Agriculture"], alphaVantage: { function: "SUGAR", interval: "monthly" } },
-    { symbol: "COFFEE", displaySymbol: "COFFEE", name: "Coffee", sector: "Agriculture", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/lb", tags: ["Agriculture"], alphaVantage: { function: "COFFEE", interval: "monthly" } }
+    { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"], alphaVantage: { function: "WTI", interval: "monthly" } },
+    { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/MMBtu", tags: ["Energy"] },
+    { symbol: "GOLD", displaySymbol: "GOLD", name: "Gold", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "SILVER", displaySymbol: "SILVER", name: "Silver", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "COPPER", displaySymbol: "COPPER", name: "Copper", sector: "Industrial metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/lb", tags: ["Industrial metal"] },
+    { symbol: "PLATINUM", displaySymbol: "PLATINUM", name: "Platinum", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "PALLADIUM", displaySymbol: "PALLADIUM", name: "Palladium", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "WHEAT", displaySymbol: "WHEAT", name: "Wheat", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
+    { symbol: "CORN", displaySymbol: "CORN", name: "Corn", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
+    { symbol: "SOYBEANS", displaySymbol: "SOYBEANS", name: "Soybeans", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] }
   ].map(entry => ({ ...entry, massive: COMMODITY_MASSIVE[entry.symbol] })));
 
   const INDICES = freezeEntries([
@@ -107,13 +108,13 @@
       id: "crypto", number: 3, name: "Crypto", label: "Disc3 · Crypto",
       assetClass: "crypto", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
-      ranking: "CoinGecko /coins/markets, volume_desc, USD total_volume over the trailing 24 hours; top 52 unique ticker symbols. The live ranking can change; reviewed daily USD-pair bars route through Massive without an Alpha Vantage fallback."
+      ranking: "Massive grouped daily crypto aggregates; top 52 unique USD pairs from the previous UTC day's reported base volume × VWAP. The ranking is provisional and cached for one day; each reviewed pair's daily bars also route through Massive."
     }),
     Object.freeze({
       id: "commodities", number: 4, name: "Commodities", label: "Disc4 · Commodities",
       assetClass: "commodity", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
-      ranking: "Static reviewed commodity roster (crude oil, natural gas, industrial metals, agriculture). Massive futures-session bars are daily only; a stale contract is shown unavailable rather than silently rolled. Energy company shares remain in Disc1."
+      ranking: "Reviewed Massive Futures product-code roster for U.S. energy, metal, and grain contracts. Before bars are requested, the Worker resolves today's active single contract through Massive and caches it in D1 until UTC midnight; missing, inactive, unauthorized, or unverified contracts remain held with no stale-contract fallback. Futures-session bars supply OHLC and any reported volume; missing fields remain missing. Energy company shares remain in Disc1."
     }),
     Object.freeze({
       id: "indices", number: 5, name: "Indices", label: "Disc5 · Indices",
@@ -147,7 +148,7 @@
     },
     rankingSource: Object.freeze({
       fx: "https://www.bis.org/publications/triennial-survey/rpfx25-fx-annex-2606.pdf",
-      crypto: "https://docs.coingecko.com/reference/coins-markets",
+      crypto: "https://massive.com/docs/rest/crypto/aggregates/daily-market-summary",
       indices: "https://massive.com/docs/rest/indices/overview"
     })
   });

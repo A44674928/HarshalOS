@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { handleCharactersBeat, handleCharactersDeploy, clearCharactersBeatCache, MAX_BEAT_SYMBOLS, BEAT_CADENCES } from "../worker/characters-beat.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
+import { clearCharactersCryptoRankingCache } from "../worker/characters-crypto-ranking.mjs";
+import { clearMassiveCache } from "../worker/massive.mjs";
 import worker from "../worker/index.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
@@ -67,6 +69,47 @@ test("the read-only deployment route checks Massive secret and D1 without a prov
   assert.equal(missingPayload.data.providerSecret, "missing");
   assert.equal(missingPayload.data.dailyLedger, "ready");
   assert.equal(missingPayload.data.marketRequestSent, false);
+});
+
+test("Massive crypto beats meter the grouped ranking and ranked pair, preserving exact provider identity", async () => {
+  clearCharactersBeatCache();
+  clearCharactersCryptoRankingCache();
+  clearMassiveCache();
+  const calls = [];
+  const response = await handleCharactersBeat(beat("disc=crypto&provider=massive&symbols=BTC&interval=1d&cadence=1"), env, {
+    now: () => NOW,
+    fetch: workersFetch(async (input, options) => {
+      const url = new URL(input);
+      calls.push({ url, options });
+      if (url.pathname.startsWith("/v2/aggs/grouped/locale/global/market/crypto/")) {
+        const results = Array.from({ length: 60 }, (_, index) => {
+          const symbol = index === 0 ? "BTC" : index === 1 ? "ETH" : `C${String(index).padStart(2, "0")}`;
+          const vwap = 50_000 - index * 100;
+          return { T: `X:${symbol}USD`, o: vwap * 0.98, h: vwap * 1.02, l: vwap * 0.97, c: vwap, v: 100_000 - index, vw: vwap };
+        });
+        return Response.json({ status: "OK", results });
+      }
+      assert.ok(url.pathname.includes("/v2/aggs/ticker/X%3ABTCUSD/range/1/day/"));
+      return Response.json({ status: "OK", results: [
+        { t: NOW - 2 * 86_400_000, o: 98, h: 103, l: 97, c: 101, v: 1200 },
+        { t: NOW - 86_400_000, o: 101, h: 105, l: 100, c: 103, v: 1300 }
+      ] });
+    })
+  });
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 2, "one grouped ranking call plus one selected-pair daily-bar call");
+  assert.equal(payload.data.ranking.provider, "Massive");
+  assert.equal(payload.data.ranking.sourceDate, "2026-10-02");
+  assert.deepEqual(payload.data.sourceIdentities, [{ symbol: "BTC", channel: "crypto", providerId: "X:BTCUSD" }]);
+  assert.equal(payload.data.spend.massiveRankingAttempts, 1);
+  assert.equal(payload.data.spend.massiveBarAttempts, 1);
+  assert.equal(payload.data.spend.massiveAttempts, 2);
+  assert.equal(payload.data.spend.providerAttempts, 2);
+  assert.equal(payload.data.instruments[0].status, "bars");
+  assert.match(payload.data.instruments[0].marketContext.source, /Massive/i);
+  assert.equal(ledgerFixture.sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, 2);
+  assert.doesNotMatch(JSON.stringify(payload), /massive-test-secret/);
 });
 
 test("one hourly beat buys one Tickerbot call per due symbol, then holds the window", async () => {

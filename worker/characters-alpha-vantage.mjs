@@ -7,11 +7,10 @@
  * ALPHA_VANTAGE_API_KEY remains a Worker secret; observability query redaction is enabled
  * because Alpha Vantage requires that key in its query string.
  *
- * NOTE (2026-10): the Characters beat route now invokes this adapter for Disc1 (stocks)
- * 1mo requests only. The FX / crypto / commodity normalization code below is retained
- * intentionally so that re-enabling Alpha Vantage for non-equity Discs (or supporting
- * 1mo fallbacks alongside the upcoming multi-asset Tickerbot rollout) is a small
- * routing change, not a rebuild. Tickerbot is the default provider on every Disc.
+ * NOTE (2026-10): the Characters beat route invokes this adapter for Disc1 (stocks)
+ * 1mo requests only. Non-equity normalization remains isolated for compatibility
+ * tests, but it is not an exposed Characters provider path; Massive is the shared
+ * automatic daily provider across all five Discs.
  */
 import { isTickerbotSymbol } from "./good-intelligence-tickerbot.mjs";
 import "../js/characters-disc-catalog.js";
@@ -81,8 +80,8 @@ function normalizeInstrument(value) {
     };
   }
 
-  if (value.assetClass === "crypto" && value.rankingProvider === "CoinGecko" &&
-      typeof value.providerId === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(value.providerId) &&
+  if (value.assetClass === "crypto" && value.rankingProvider === "Massive" &&
+      typeof value.massiveTicker === "string" && value.massiveTicker.trim().toUpperCase() === `X:${symbol}USD` &&
       /^[A-Z0-9]{2,12}$/.test(symbol)) {
     return {
       symbol,
