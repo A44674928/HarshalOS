@@ -525,7 +525,7 @@ test("Orb 2 can process The Orb's fractal frames through its own camera and degr
   assert.equal(host.querySelector("[data-gi-orb2-fractal-status]"), null, "hiding the frames does not restore a canvas status box");
 });
 
-test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix", async t => {
+test("Orb 2 places reviewed ticker cores above and below the horizontal FBB baseline", async t => {
   /* Massive rotates one reviewed instrument per minute, so the Worker answer
      is widened here the way a settled multi-beat session would look: every
      strand symbol observed once, each with a different drift so band ranks
@@ -594,8 +594,8 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
   drawOnce();
   const helix = engine.helixState;
   assert.equal(helix.positions.length, 6, "every dual-series orb receives a helix berth");
-  assert.ok(helix.positions.every(entry => entry.p === null || (entry.p >= -0.06 && entry.p <= 1.06)),
-    "Fibonacci-band positions stay inside the supplied band range");
+  assert.ok(helix.positions.every(entry => entry.p === null || Number.isFinite(entry.p)),
+    "Fibonacci-band positions remain finite without clipping outer-band excursions");
   const strandA = helix.positions.filter(entry => entry.series === "A").sort((x, y) => x.rank - y.rank);
   assert.equal(strandA.length, 3);
   assert.ok(strandA.every(entry => entry.p !== null), "the live beat supplies bands for every Series A orb");
@@ -609,42 +609,28 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
   assert.equal(uniqueTickerSites.size, helix.positions.length, "every ticker occupies its own position inside the nested field");
   assert.ok(helix.positions.every(entry => entry.orbRadius >= 0.19 && entry.orbRadius <= 0.235),
     "each ticker berth carries an individual spheroid radius, widened only by supplied volatility");
-  const expectedCenterRadius = Math.hypot(innerFieldRadius, 0.2);
-  assert.ok(helix.positions.every(entry => Math.abs(Math.hypot(entry.x, entry.y, entry.z) - expectedCenterRadius) < 1e-9),
-    "each individual ticker spheroid sits on the same nested inner-field shell");
+  assert.ok(helix.positions.every(entry => Math.abs(entry.y - (entry.p - 0.5) * 2 * innerFieldRadius) < 1e-9),
+    "ticker height uses its own normalized FBB displacement, never rank or shell latitude");
+  assert.ok(helix.positions.every(entry => Math.sign(entry.y) === Math.sign(entry.p - 0.5)),
+    "above/below classification agrees with world height");
   for (let rank = 0; rank < pairCount; rank += 1) {
     const pairA = helix.positions.find(entry => entry.series === "A" && entry.rank === rank);
     const pairB = helix.positions.find(entry => entry.series === "B" && entry.rank === rank);
-    assert.ok(pairA && pairB, `rank ${rank + 1} has an individually addressable A/B pair`);
-    assert.equal(pairA.pairIndex, pairB.pairIndex, "paired ticker orbs share a Fibonacci-distributed inner-field site");
-    assert.ok(Math.abs(pairA.latitude - pairB.latitude) < 1e-9 && Math.abs(pairA.longitude - pairB.longitude) < 1e-9,
-      "the paired spheroids are arranged as a local interlinked pair, not as two opposite series hubs");
-    const pairDistance = Math.hypot(pairA.x - pairB.x, pairA.y - pairB.y, pairA.z - pairB.z);
-    assert.ok(Math.abs(pairDistance - 0.4) < 1e-9, "each pair's two ticker spheroids have a short, direct connector");
-    const expectedY = Math.max(-Math.sin(Math.PI / 2 - 0.08), Math.min(Math.sin(Math.PI / 2 - 0.08), 1 - 2 * ((rank + 0.5) / pairCount)));
-    const expectedLatitude = Math.asin(expectedY);
-    const expectedLongitude = -Math.PI / 2 + rank * Math.PI * (3 - Math.sqrt(5));
-    assert.ok(Math.abs(pairA.latitude - expectedLatitude) < 1e-9,
-      "matched rank pairs occupy Fibonacci-spaced sites on the inner spheroid");
-    assert.ok(Math.abs(pairA.longitude - expectedLongitude) < 1e-9,
-      "each rank pair gets a distinct golden-angle longitude");
+    assert.ok(pairA && pairB, `rank ${rank + 1} has independent A/B ticker cores`);
+    assert.ok(Math.abs(Math.hypot(pairA.x-pairB.x,pairA.z-pairB.z)-0.4)<1e-9,
+      "horizontal layout keeps same-rank cores distinct without constraining their heights");
   }
-  assert.ok(helix.positions.every(entry => Math.hypot(entry.x, entry.y, entry.z) + entry.orbRadius < 2.06),
-    "all ticker spheroids remain inside Orb 2's larger outer shell");
   assert.ok(engine.state.projected.every(point => point.model && point.orbRadius > 0 && point.visualRadius > 0),
     "the live canvas projection retains an individual 3D center and clickable visual radius for each ticker orb");
-  for (let rank = 0; rank < pairCount; rank += 1) {
-    const pointA = engine.state.projected.find(point => point.node.series === "A" && point.node.symbol === helix.positions.find(entry => entry.series === "A" && entry.rank === rank)?.symbol);
-    const pointB = engine.state.projected.find(point => point.node.series === "B" && point.node.symbol === helix.positions.find(entry => entry.series === "B" && entry.rank === rank)?.symbol);
-    assert.ok(pointA && pointB && Math.abs(Math.hypot(pointA.model.x - pointB.model.x, pointA.model.y - pointB.model.y, pointA.model.z - pointB.model.z) - 0.4) < 1e-6,
-      "live Characters motion cannot collapse each rank-matched pair back into one shared node");
-  }
+  assert.ok(engine.state.projected.every(point => {
+    const berth = helix.positions.find(entry => entry.symbol === point.node.symbol && entry.series === point.node.series);
+    return berth && Math.abs(point.model.y - berth.y) < 1e-6;
+  }), "live projection preserves independent FBB heights");
   assert.match(canvas.getAttribute("aria-label"), /nested ticker spheroids/i,
     "the ticker-specific nested-orb structure is described to assistive technology");
   assert.ok(canvasCalls.includes("ellipse"), "the canvas draws nested, lit spheroids and not only flat rings");
-  assert.ok(canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#6fd3ff")
-    && canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#ffc857"),
-  "the continuous A and B guide strands are rendered as separate helical rails");
+  assert.ok(canvasStyles.some(([property, value]) => property === "strokeStyle" && value === "#6fd3ff"),
+    "the open field retains a visible neutral-plane reference");
 
   /* The inspector explains the helix placement for the selected orb. */
   const detail = host.querySelector("[data-gi-orb2-detail]");
@@ -673,7 +659,7 @@ test("Orb 2 compares two reviewed ticker sets as a Fibonacci-band double helix",
   assert.equal(engine.nodes.length, 6, "single-set mode draws the full reviewed watchlist");
   assert.equal(engine.helixState.rungs, 0, "no rungs are drawn outside the double helix");
   drawOnce();
-  assert.equal(engine.helixState.positions.length, 0, "helix berths are vacated in single-set mode");
+  assert.equal(engine.helixState.positions.length, 6, "single-set mode retains baseline mapping for every reviewed ticker");
 });
 
 test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and keeps the authority boundary", () => {

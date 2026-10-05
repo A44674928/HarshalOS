@@ -14,6 +14,7 @@ Archived and source-format material is kept here for provenance and reference. A
 | [`Supply Chain/`](Supply%20Chain/) | Historical supply-chain review material |
 | [`ground-0/`](ground-0/) | Historical Ground-0 ZIP packages |
 | [`manuscript-plaintext/`](manuscript-plaintext/README.md) and [`manuscript-rtf/`](manuscript-rtf/) | Preserved earlier manuscript source files |
+| [`patches/`](patches/README.md) | Preserved patch artifacts and archival provenance |
 | [`screenshots/`](screenshots/) | Dated screenshot backups |
 | [`source-bundles/`](source-bundles/README.md) | Original source ZIPs whose contents are organized elsewhere in the repository |
 

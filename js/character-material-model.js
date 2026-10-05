@@ -14,8 +14,8 @@
   });
   const MAX_MATERIALS = 200;
   const MAX_CHARACTERS = 100;
-  const MAX_SPHEROIDS = 100;
-  const DISC_IDS = Object.freeze(["stocks", "fx", "crypto", "commodities"]);
+  const MAX_SPHEROIDS = 119;
+  const DISC_IDS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
   const DECLARED_PHASES = Object.freeze(["NAB", "CWO", "GSRB"]);
   const DETECTED_PHASES = Object.freeze(["NAB", "CWO", "NAB-Constrained", "GSRB", "AMBIGUOUS", "INCOHERENT"]);
   const PDH_STATUSES = Object.freeze(["VALID", "INVALID", "MISSING"]);
@@ -344,7 +344,7 @@
 
   function normalizeSpheroid(raw) {
     if (!raw || typeof raw !== "object" || !validId(raw.id)) return null;
-    const components = Array.isArray(raw.components) ? raw.components.slice(0, 4).map(component => ({
+    const components = Array.isArray(raw.components) ? raw.components.slice(0, 5).map(component => ({
       discId: enumValue(component?.discId, DISC_IDS, null),
       characterId: validId(component?.characterId) ? component.characterId : "",
       materialId: validMaterialId(component?.materialId) ? component.materialId.toLowerCase() : "",
@@ -356,14 +356,19 @@
       schema: SCHEMA,
       id: raw.id,
       name: text(raw.name, 80) || "Multi-Disc spheroid",
+      // Legacy designs remain explicitly unassigned; never guess their historical identity.
+      nabId: globalThis.NabSectors?.byId(raw.nabId)?.id ?? null,
+      nabVersion: globalThis.NabSectors?.byId(raw.nabId) ? globalThis.NabSectors.VERSION : null,
       components: Object.freeze(components.map(component => Object.freeze(component))),
       createdAt: nowIso(raw.createdAt)
     });
   }
 
-  function composeSpheroid(rawComponents, characters, materials) {
+  function composeSpheroid(rawComponents, characters, materials, nabId = 1) {
+    const designation = globalThis.NabSectors?.designation(nabId);
+    if (!designation) return Object.freeze({ ok: false, code: "invalid-nab", reason: "Choose a designated NAB from the 119-sector registry; the registry must be loaded." });
     const selected = Array.isArray(rawComponents) ? rawComponents.filter(Boolean) : [];
-    if (selected.length < 2 || selected.length > 4) return Object.freeze({ ok: false, code: "disc-count", reason: "Select between two and four distinct Discs." });
+    if (selected.length < 2 || selected.length > 5) return Object.freeze({ ok: false, code: "disc-count", reason: "Select between two and five distinct legacy source channels." });
     const byCharacter = new Map((Array.isArray(characters) ? characters : []).map(character => [character.id, character]));
     const byMaterial = new Map((Array.isArray(materials) ? materials : [])
       .filter(material => material && validMaterialId(material.materialId))
@@ -400,6 +405,7 @@
     return Object.freeze({
       ok: true,
       code: "composed",
+      designation,
       components: Object.freeze(normalizedComponents),
       totalShare,
       densityEstimate,
@@ -409,11 +415,13 @@
     });
   }
 
-  function saveSpheroid(storage, name, rawComponents, characters, materials) {
-    const composition = composeSpheroid(rawComponents, characters, materials);
+  function saveSpheroid(storage, name, rawComponents, characters, materials, nabId = 1) {
+    const composition = composeSpheroid(rawComponents, characters, materials, nabId);
     if (!composition.ok) return composition;
     const raw = {
       id: makeId("spheroid"),
+      nabId: composition.designation.nabId,
+      nabVersion: composition.designation.version,
       name: text(name, 80) || "Multi-Disc spheroid",
       createdAt: new Date().toISOString(),
       components: composition.components.map(component => ({

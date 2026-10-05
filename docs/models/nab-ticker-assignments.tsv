@@ -1,0 +1,120 @@
+id	ticker	company	theme	rationale
+1	AXON	Axon Enterprise	Refusal-bound emergency observation	Public-safety evidence workflows are an analogy for bounded emergency analysis, not autonomous enforcement.
+2	TRI	Thomson Reuters	Archival witness	Legal and reference records support the inert-witness and archival theme.
+3	ANET	Arista Networks	Fast bounded routing	Network switching is a proxy for high-speed signal routing and localized event checking.
+4	DOCU	DocuSign	Cooperative signatures	Agreement and signature workflows match multi-party structural coordination.
+5	ADSK	Autodesk	Engineering composition	Design software matches compositional engineering modeling.
+6	SNPS	Synopsys	Compositional reasoning	Electronic design tools fit constrained scientific and engineering composition.
+7	CDNS	Cadence Design Systems	Scientific composition	Circuit and system design tools provide a compositional-modeling analogy.
+8	BSY	Bentley Systems	Infrastructure composition	Infrastructure design software matches advisory infrastructure planning.
+9	PANW	Palo Alto Networks	Boundary threat filtering	Security gateways match the filtering role; the NAB refusal-cascade label is not a company risk rating.
+10	RELX	RELX	Legal reference observation	Legal information and reference services match records and legislative research.
+11	CSCO	Cisco Systems	Localized network relay	Networking equipment fits bounded signal routing and event checking.
+12	V	Visa	Cooperative transaction coordination	Payment-network coordination is a thematic proxy for multi-party consensus, not permission to transact.
+13	PTC	PTC	Product model composition	Product design and lifecycle software match compositional engineering.
+14	NVDA	NVIDIA	Simulation composition	Computational platforms provide an analogy for sandboxed scientific modeling.
+15	DASTY	Dassault Systemes	Virtual engineering composition	Virtual design and simulation tools match compositional modeling; US OTC ticker requires provider review.
+16	APPF	AppFolio	Property workflow composition	Property workflow software provides an infrastructure-planning and composition analogy.
+17	FTNT	Fortinet	Network boundary filtering	Network security appliances fit intrusive-gateway and filtering themes.
+18	IRM	Iron Mountain	Records preservation	Records storage and archival services match non-interfering custodianship.
+19	FFIV	F5	Application signal routing	Application traffic management matches bounded high-speed routing.
+20	MA	Mastercard	Cooperative settlement coordination	Payment-network coordination illustrates structural cooperation, not autonomous financial action.
+21	ACM	AECOM	Infrastructure structure	Infrastructure planning and engineering fit structural coordination and its lock-in failure mode.
+22	J	Jacobs Solutions	Engineering governance	Infrastructure engineering matches the administrative and planning role.
+23	PWR	Quanta Services	Grid infrastructure structure	Utility infrastructure construction fits structural planning and organizational coordination.
+24	EME	EMCOR Group	Facility structure	Building-system services match infrastructure coordination.
+25	FIX	Comfort Systems USA	Mechanical infrastructure structure	Mechanical building systems illustrate structured infrastructure dependencies.
+26	NUE	Nucor	Rigid structural systems	Steel infrastructure provides a structural-rigidity analogy, not a physical-material risk inference.
+27	ETN	Eaton	Electrical infrastructure structure	Power-management infrastructure matches structured planning and compliance.
+28	ROK	Rockwell Automation	Industrial structure	Industrial automation illustrates structured coordination and institutional lock-in considerations.
+29	HUBB	Hubbell	Electrical network structure	Electrical infrastructure hardware matches durable organizational infrastructure.
+30	WCC	WESCO International	Infrastructure supply coordination	Infrastructure distribution fits administrative coordination and structured supply dependencies.
+31	AMAT	Applied Materials	Process composition	Semiconductor process engineering matches scientific and engineering composition.
+32	LRCX	Lam Research	Fabrication modeling	Fabrication systems provide a compositional engineering analogy.
+33	KLAC	KLA	Process reasoning	Process-control analysis matches scientific modeling and compositional reasoning.
+34	TER	Teradyne	Test-system composition	Automated test engineering provides a bounded modeling analogy.
+35	CRWD	CrowdStrike	Endpoint threat filtering	Endpoint security fits threat filtering; NAB risk does not describe the company.
+36	VRSK	Verisk Analytics	Observational records	Reference data and analytics fit records and monitoring themes without granting action authority.
+37	CIEN	Ciena	Optical signal relay	Optical networking matches bounded high-speed signal transmission.
+38	ACN	Accenture	Cooperative systems coordination	Multi-party systems integration provides a structural-cooperation analogy.
+39	FLR	Fluor	Project structure	Engineering and construction match infrastructure planning.
+40	KBR	KBR	Technical infrastructure governance	Engineering services fit structured technical planning and compliance.
+41	MTZ	MasTec	Network infrastructure structure	Communications and energy construction match infrastructure coordination.
+42	PRIM	Primoris Services	Construction structure	Specialty construction provides a structured-infrastructure analogy.
+43	U	Unity Software	Sandboxed virtual mediation	Real-time virtual environments match simulated mediation and reality-mismatch monitoring.
+44	DY	Dycom Industries	Telecom infrastructure structure	Telecommunications construction fits network infrastructure planning.
+45	STRL	Sterling Infrastructure	Civil infrastructure structure	Civil and site infrastructure work matches structural planning.
+46	ROAD	Construction Partners	Transport infrastructure structure	Road infrastructure provides a durable structural-coordination analogy.
+47	VMC	Vulcan Materials	Infrastructure foundations	Construction aggregates fit the structural-infrastructure theme without assigning physical safety from NAB risk.
+48	MLM	Martin Marietta Materials	Infrastructure framework	Construction materials support a structural planning analogy, not a chemistry-based classification.
+49	ON	ON Semiconductor	Device composition	Semiconductor engineering fits compositional design reasoning.
+50	NXPI	NXP Semiconductors	Embedded-system composition	Embedded engineering matches bounded system composition.
+51	MPWR	Monolithic Power Systems	Power-design composition	Power-system design fits compositional engineering.
+52	MCHP	Microchip Technology	Embedded modeling	Embedded development supports a bounded engineering-modeling theme.
+53	ZS	Zscaler	Access boundary filtering	Cloud access security matches filtering and refusal-boundary themes.
+54	SPGI	S&P Global	Reference-data observation	Reference datasets and indices fit records and non-acting observation, not endorsement of ratings.
+55	MRVL	Marvell Technology	Data-path relay	Data infrastructure semiconductors match high-speed signal routing.
+56	FIS	Fidelity National Information Services	Cooperative ledger coordination	Financial infrastructure illustrates multi-party coordination, not authorization to execute transactions.
+57	KEYS	Keysight Technologies	Signal calibration	Electronic measurement fits precise synchronization and calibration-drift monitoring.
+58	A	Agilent Technologies	Analytical calibration	Analytical instruments fit spectral precision and calibration monitoring.
+59	WAT	Waters Corporation	Measurement synchronization	Analytical measurements provide a precision and logging analogy.
+60	BRKR	Bruker	Spectral precision	Scientific instrumentation fits spectral measurement and calibration.
+61	COHR	Coherent	Optical precision	Photonics technology matches precise signal and spectral themes.
+62	IPGP	IPG Photonics	Resonant precision	Laser technology provides a spectral precision analogy, not an assignment of laser safety.
+63	MKSI	MKS Instruments	Process calibration	Measurement and process instruments match calibration and precise monitoring.
+64	TDY	Teledyne Technologies	Sensing precision	Imaging and instrumentation fit monitoring and precise observation.
+65	AME	AMETEK	Instrument calibration	Measurement instruments match logging and calibration-drift checks.
+66	FTV	Fortive	Precision workflow logging	Instrumentation and monitoring workflows fit precise logging themes.
+67	NOVT	Novanta	Optical synchronization	Photonics and precision-motion components fit synchronization themes.
+68	LITE	Lumentum	Optical signal precision	Optical components match precise signal synchronization.
+69	VIAV	Viavi Solutions	Signal verification	Network test and measurement fit precision calibration and logging.
+70	DHR	Danaher	Public-health measurement	Life-science diagnostics match public-health monitoring and reference retrieval.
+71	ITRI	Itron	Environmental measurement logging	Utility sensing and metering fit environmental monitoring and precise logs.
+72	TT	Trane Technologies	Building infrastructure structure	Building climate infrastructure matches structured facility planning.
+73	CARR	Carrier Global	Facility control structure	Building systems match structured infrastructure coordination.
+74	CAT	Caterpillar	Heavy infrastructure structure	Construction machinery fits the infrastructure-planning theme.
+75	DE	Deere & Company	Operational infrastructure structure	Equipment systems provide a structured coordination analogy.
+76	PH	Parker-Hannifin	Motion-system structure	Motion and control infrastructure fit structural coordination.
+77	DOV	Dover Corporation	Industrial systems structure	Industrial equipment provides a structured engineering and planning analogy.
+78	ITW	Illinois Tool Works	Manufacturing structure	Industrial systems match structured organizational dependencies.
+79	HON	Honeywell International	Industrial compliance structure	Industrial controls fit administrative checks and infrastructure governance.
+80	NET	Cloudflare	Dynamic boundary routing	Distributed network routing matches fluid communication and boundary-leakage monitoring.
+81	ADI	Analog Devices	Signal-model composition	Analog system design fits compositional engineering reasoning.
+82	TXN	Texas Instruments	Circuit composition	Analog and embedded design fit bounded engineering composition.
+83	STM	STMicroelectronics	Device-system composition	Semiconductor system design matches compositional modeling.
+84	QCOM	Qualcomm	Communications composition	Communication-system design fits scientific and engineering modeling.
+85	TENB	Tenable	Exposure boundary filtering	Exposure assessment matches threat filtering without granting enforcement authority.
+86	MCO	Moody's	Reference observation	Reference data and analytical records provide an observational analogy, not a company risk judgment.
+87	AKAM	Akamai Technologies	Distributed signal relay	Content-delivery routing fits transient signal relay and localized checking.
+88	G	Genpact	Cooperative process coordination	Multi-party operational workflows illustrate structural binding and coordination.
+89	CEG	Constellation Energy	Energy-cascade study	Energy-system interdependence is a reference-only cascade-analysis analogy; not a claim that the company has extreme risk.
+90	DUK	Duke Energy	Grid-cascade study	Grid dependencies provide a reference-only context for cascade containment.
+91	SO	Southern Company	Power-system cascade study	Power-network interdependence provides a reference-only cascade-modeling context.
+92	CCJ	Cameco	Critical amplification study	Nuclear-fuel context supports a reference-only amplification theme, not operational NAB deployment or stock-risk classification.
+93	BWXT	BWX Technologies	Critical-system containment study	Nuclear engineering provides a reference-only containment-analysis theme.
+94	LEU	Centrus Energy	Fuel-system cascade study	Nuclear-fuel infrastructure provides a reference-only critical-dependency analogy.
+95	PEG	Public Service Enterprise Group	Utility-dependency study	Energy-network dependencies provide a reference-only cascade-analysis theme.
+96	ETR	Entergy	Generation cascade study	Generation interdependencies provide a reference-only cascade-containment context.
+97	D	Dominion Energy	Network cascade study	Utility infrastructure provides a reference-only network-dependency analogy.
+98	AEP	American Electric Power	Transmission cascade study	Transmission networks provide a reference-only cascade-analysis context.
+99	GRMN	Garmin	Timing desynchronization study	Satellite-navigation timing provides a reference-only temporal-desynchronization analogy, not a relativity capability claim.
+100	EXC	Exelon	Distribution cascade study	Electric-distribution dependencies provide a reference-only cascade-modeling theme.
+101	XEL	Xcel Energy	Energy coordination study	Power-system coordination provides a reference-only runaway-cascade study context.
+102	WEC	WEC Energy Group	Utility coupling study	Utility-network coupling provides a reference-only interdependency theme.
+103	ED	Consolidated Edison	Urban grid cascade study	Urban energy infrastructure provides a reference-only cascade-containment analogy.
+104	INTC	Intel	Synthetic-state decay study	Engineered computation provides a reference-only synthetic-state and failure-analysis analogy.
+105	AMD	Advanced Micro Devices	Compute-state decay study	Processor-state modeling provides a reference-only structural-dissociation analogy.
+106	IBM	International Business Machines	Entropy research reference	Computing research is a reference-only entropy-study analogy; the Compendium restriction grants no execution permission.
+107	MU	Micron Technology	Memory-state decay study	Memory retention provides a reference-only state-decay analogy.
+108	WDC	Western Digital	Storage-state decay study	Storage persistence provides a reference-only structural-decay study theme.
+109	STX	Seagate Technology	Persistence failure study	Data-storage persistence provides a reference-only state-loss analogy.
+110	PSTG	Pure Storage	Synthetic persistence study	Storage architectures provide a reference-only synthetic-state continuity theme.
+111	NTAP	NetApp	Data-state dissociation study	Data infrastructure provides a reference-only state-dissociation analogy.
+112	DELL	Dell Technologies	System-state decay study	Computing infrastructure provides a reference-only structural failure-modeling context.
+113	HPE	Hewlett Packard Enterprise	Distributed-state decay study	Distributed computing provides a reference-only state-dissociation analogy.
+114	SMCI	Super Micro Computer	Compute-structure decay study	Server structures provide a reference-only system-decay modeling theme.
+115	ASML	ASML Holding	Synthetic pattern integrity study	Fabrication patterning provides a reference-only structural-integrity analogy.
+116	TSM	Taiwan Semiconductor Manufacturing	Synthetic structure study	Fabricated device structures provide a reference-only structural-decay analogy.
+117	GFS	GlobalFoundries	Fabrication-state study	Semiconductor fabrication provides a reference-only synthetic-structure analogy.
+118	UMC	United Microelectronics	Synthetic continuity study	Fabricated device continuity provides a reference-only structural-dissociation analogy.
+119	ORCL	Oracle	Origin-preserving records	Database record continuity is a proxy for origin preservation and archival reflection, not proof of immutability.

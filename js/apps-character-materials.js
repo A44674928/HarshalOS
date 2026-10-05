@@ -18,8 +18,9 @@
     render(body) {
       const Model = window.CharacterMaterialModel;
       const Catalog = window.CharactersDiscCatalog;
-      if (!Model || !Catalog) {
-        body.innerHTML = '<div class="cm-app"><h1>Material Spheroids</h1><p class="cm-warning">Required model or Disc catalog did not load. Check the script order in index.html.</p></div>';
+      const NAB = window.NabSectors;
+      if (!Model || !Catalog || !NAB) {
+        body.innerHTML = '<div class="cm-app"><h1>Material Spheroids</h1><p class="cm-warning">Required model, NAB registry or Disc catalog did not load. Check the script order in index.html.</p></div>';
         return;
       }
 
@@ -78,7 +79,7 @@
           <nav class="cm-tabs" role="tablist" aria-label="Material model workspace">
             <button class="cm-tab" type="button" role="tab" aria-selected="true" aria-controls="cm-pane-library" data-cm-tab="library">1 · Material library</button>
             <button class="cm-tab" type="button" role="tab" aria-selected="false" aria-controls="cm-pane-characters" data-cm-tab="characters">2 · Character matching</button>
-            <button class="cm-tab" type="button" role="tab" aria-selected="false" aria-controls="cm-pane-spheroid" data-cm-tab="spheroid">3 · Multi-Disc spheroid</button>
+            <button class="cm-tab" type="button" role="tab" aria-selected="false" aria-controls="cm-pane-spheroid" data-cm-tab="spheroid">3 · NAB composite material</button>
           </nav>
 
           <section id="cm-pane-library" data-cm-pane="library" role="tabpanel">
@@ -152,13 +153,16 @@
 
           <section id="cm-pane-spheroid" data-cm-pane="spheroid" role="tabpanel" hidden>
             <section class="cm-panel">
-              <div class="cm-panel-head"><h2>Compose a spheroid from bounded Discs</h2><p>Choose one assigned character per contributing Disc</p></div>
+              <div class="cm-panel-head"><h2>Compose physical constituents for a designated NAB</h2><p>Choose assigned character/material records from the legacy source channels</p></div>
               <div class="cm-composer">
                 <div>
                   <label class="cm-field"><span>Local design name</span><input maxlength="80" data-cm-spheroid-name placeholder="e.g. Four-Disc reference spheroid"></label>
+                  <label class="cm-field"><span>Designated NAB · one fixed stock proxy per sector</span><select data-cm-nab aria-describedby="cm-nab-note">${NAB.sectors.map(nab => `<option value="${nab.id}">${escape(`${nab.id} · ${nab.symbol} ${nab.name} · ${nab.ticker} · ${nab.riskProfile}`)}</option>`).join("")}</select></label>
+                  <div id="cm-nab-note" data-cm-nab-note aria-live="polite"></div>
+                  <p class="cm-help">119 editorial stock proxies, not market sectors or investment recommendations. Listing/provider availability is unverified. NAB risk belongs to the neural design, not the stock or material. Selecting a sector makes no network call and does not instantiate a neural network. Extreme NABs are reference-only.</p>
                   <div class="cm-disc-list" data-cm-disc-list></div>
                   <div class="cm-actions"><button class="cm-btn cm-btn-primary" type="button" data-cm-preview-spheroid>Preview composition</button><button class="cm-btn" type="button" data-cm-save-spheroid disabled>Save spheroid</button></div>
-                  <p class="cm-status" role="status" aria-live="polite" data-cm-spheroid-status>Choose two or more Discs and characters with saved material assignments.</p>
+                  <p class="cm-status" role="status" aria-live="polite" data-cm-spheroid-status>Choose two or more source channels with saved material assignments. They will attach to the designated NAB.</p>
                 </div>
                 <div data-cm-spheroid-output>
                   <div class="cm-sphere-card"><div class="cm-empty">A composition preview appears here after selecting at least two assigned Discs.</div></div>
@@ -167,7 +171,7 @@
             </section>
             <section class="cm-panel">
               <div class="cm-panel-head"><h2>Saved spheroid designs</h2><span class="cm-count" data-cm-spheroid-count>0 designs</span></div>
-              <p class="cm-help">Saved designs retain the selected character/material IDs and relative share weights. Fractions are normalized for the preview; no atomic formula or manufacturing process is inferred.</p>
+              <p class="cm-help">Saved designs retain their designated NAB ID and registry version, plus selected character/material IDs and relative share weights. Legacy designs remain explicitly unassigned. Fractions are normalized for the preview; no atomic formula or manufacturing process is inferred.</p>
               <div class="cm-list" data-cm-spheroids></div>
             </section>
           </section>
@@ -496,6 +500,34 @@
       }
 
       const SPHERE_COLORS = Object.freeze(["#55c6db", "#9678ff", "#f0ae57", "#70d89a"]);
+      function nabCard(nabId) {
+        const box = make("section", "cm-card");
+        const row = NAB.byId(nabId);
+        if (!row) {
+          box.appendChild(make("p", "cm-warning", "Legacy design · NAB unassigned. Create a new designated preview; no historical identity has been guessed."));
+          return box;
+        }
+        box.appendChild(make("h3", "", `NAB ${row.id} · ${row.symbol} · ${row.name}`));
+        box.appendChild(make("p", "cm-card-note", `${row.ticker} · ${row.company} · ${row.theme}`));
+        const risk = make("p", "cm-pill", `Neural risk: ${row.riskProfile} · ordinal ${row.riskLevel}/3 (not a probability)`);
+        risk.style.borderColor = ["#3ddc84", "#ffd94a", "#ff9540", "#ff3b57"][row.riskLevel];
+        box.appendChild(risk);
+        box.appendChild(make("p", "cm-card-note", row.rationale));
+        box.appendChild(make("p", "cm-card-note", `Role: ${row.roles}. Failure mode: ${row.failureMode}. Boundary: ${row.operatingBoundary}.`));
+        const details = make("details", "cm-help");
+        details.appendChild(make("summary", "", "Accompanying AI design brief · not a running network"));
+        details.appendChild(make("p", "", NAB.aiContext(nabId).instructions));
+        box.appendChild(details);
+        const source = make("a", "cm-help", "NAB Compendium · source of neural classification");
+        source.href = "/book-library/harshal-systems/14-nab-compendium.md";
+        box.appendChild(source);
+        return box;
+      }
+
+      function renderNab() {
+        $("[data-cm-nab-note]").replaceChildren(nabCard(Number($("[data-cm-nab]").value)));
+      }
+
       function renderSpheroidOutput(composition) {
         const host = $("[data-cm-spheroid-output]");
         host.replaceChildren();
@@ -585,6 +617,7 @@
         }
         table.appendChild(tbody); card.appendChild(table);
         card.appendChild(make("p", "cm-pdh-note", composition.densityAssumption));
+        card.appendChild(nabCard(composition.designation.nabId));
         host.appendChild(card);
       }
 
@@ -613,6 +646,7 @@
             return `${Catalog.disc(component.discId)?.name || component.discId}: ${character?.name || "character unavailable"} · ${material?.formula || component.materialId} · ${format(component.sharePercent)}% weight`;
           });
           card.appendChild(make("p", "cm-card-note", details.join(" | ")));
+          card.appendChild(nabCard(spheroid.nabId));
           card.appendChild(make("p", "cm-card-sub", `Saved ${spheroid.createdAt}`));
           host.appendChild(card);
         }
@@ -795,9 +829,17 @@
         event.preventDefault(); tabs[next].click(); tabs[next].focus();
       });
 
+      $("[data-cm-nab]").addEventListener("change", () => {
+        state.preview = null;
+        $("[data-cm-save-spheroid]").disabled = true;
+        renderNab();
+        renderSpheroidOutput(null);
+        status($("[data-cm-spheroid-status]"), "NAB designation changed for this new design. Preview again; saved designs are unchanged.");
+      });
+      renderNab();
       $("[data-cm-preview-spheroid]").addEventListener("click", () => {
         const components = selectedComponents();
-        const composition = Model.composeSpheroid(components, state.characters, state.materials);
+        const composition = Model.composeSpheroid(components, state.characters, state.materials, Number($("[data-cm-nab]").value));
         if (!composition.ok) {
           state.preview = null;
           $("[data-cm-save-spheroid]").disabled = true;
@@ -816,12 +858,13 @@
       $("[data-cm-save-spheroid]").addEventListener("click", () => {
         if (!state.preview?.ok) return;
         const name = $("[data-cm-spheroid-name]").value.trim() || "Multi-Disc spheroid";
-        const result = Model.saveSpheroid(storage, name, selectedComponents(), state.characters, state.materials);
+        const result = Model.saveSpheroid(storage, name, selectedComponents(), state.characters, state.materials, Number($("[data-cm-nab]").value));
         if (!result.ok) {
           status($("[data-cm-spheroid-status]"), result.reason || "Spheroid could not be saved.", "error");
           return;
         }
         refreshStorage(); renderSpheroids();
+        body.ownerDocument.dispatchEvent(new body.ownerDocument.defaultView.CustomEvent("harshalos:material-spheroids:changed"));
         status($("[data-cm-spheroid-status]"), `“${result.spheroid.name}” saved to this browser's local spheroid shelf.`, "success");
       });
 
