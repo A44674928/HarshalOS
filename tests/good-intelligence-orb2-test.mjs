@@ -838,3 +838,61 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
     "the crypto orb draws exactly the live ranked instruments the route returned, nothing borrowed");
   assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
 });
+
+/* ── OCM traffic simulation ──────────────────────────────────────────────── */
+
+test("the orbs visibly exchange simulated OCM beats and the page still reads only its own field", async t => {
+  const { window, host, engine, frames, providerCalls, fieldCalls } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 12, fxCount: 6 }) })
+  });
+  await flush();
+  const drive = now => {
+    let guard = 0;
+    while (frames.length && guard < 40) { const callback = frames.shift(); callback(now); guard += 1; }
+  };
+  drive(NOW);
+  await flush();
+  const first = engine.state.trafficPackets.slice();
+  assert.ok(first.length > 0, "the ring carries simulated beats once rows are stored");
+  assert.ok(first.some(packet => packet.from === "stocks" && packet.to === "fx"), "a beat crosses the ring one way");
+  assert.ok(first.some(packet => packet.from === "fx" && packet.to === "stocks"), "and the neighbour answers on the same link");
+  assert.ok(first.some(packet => packet.to === "origin"), "the Center Origin is part of the exchange");
+  assert.ok(first.every(packet => ["stocks", "fx", "origin"].includes(packet.from)), "a Disc with nothing stored sends no beat");
+  assert.ok(first.every(packet => ["stocks", "fx", "origin"].includes(packet.to)), "and receives none either");
+  assert.ok(first.every(packet => Number.isFinite(packet.x) && Number.isFinite(packet.y)), "every beat is drawn at a real canvas point");
+  const before = new Map(first.map(packet => [`${packet.from}->${packet.to}`, packet]));
+  /* The harness runs reduced-motion, so the loop is on demand: a fresh state
+     change requests one frame, which is drawn at the later clock. */
+  engine.selectNode(engine.state.selected);
+  await flush();
+  drive(NOW + 900);
+  await flush();
+  const moved = engine.state.trafficPackets.filter(packet => {
+    const previous = before.get(`${packet.from}->${packet.to}`);
+    return previous && Math.hypot(packet.x - previous.x, packet.y - previous.y) > 0.04;
+  });
+  assert.ok(moved.length > 0, "the beats move between frames, so the exchange is animated");
+  const note = host.querySelector("[data-gi-orb2-ocm]");
+  assert.match(note.textContent, /OCM TRAFFIC SIMULATION/);
+  assert.match(note.textContent, /sends nothing/);
+  assert.match(note.textContent, /2 orbs transmitting/);
+  assert.equal(providerCalls.length, 0, "the simulated exchange never calls a provider");
+  assert.ok(fieldCalls().length >= 1 && fieldCalls().length <= 2, "and the page still opens only its own stored-field reads");
+});
+
+test("an orb awaiting its first beat carries no simulated OCM traffic", async t => {
+  const { window, host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 0, fxCount: 0 }) })
+  });
+  await flush();
+  let guard = 0;
+  while (frames.length && guard < 40) { const callback = frames.shift(); callback(NOW); guard += 1; }
+  await flush();
+  assert.equal(engine.state.trafficPackets.length, 0, "no stored rows across the constellation means every lane is idle");
+  assert.equal(engine.state.ocmLanes, 0);
+  const note = host.querySelector("[data-gi-orb2-ocm]");
+  assert.match(note.textContent, /every lane idle, no stored rows to carry/);
+  assert.doesNotMatch(note.textContent, /orb transmitting/);
+});

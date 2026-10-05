@@ -591,6 +591,14 @@
 .gi-orb2-orb-state { color: var(--gi-faint); font-size: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gi-orb2-orb:not(.is-empty) .gi-orb2-orb-state { color: #8fd6b0; }
 .gi-orb2-orb.is-empty .gi-orb2-orb-state { color: #c9a86a; }
+.gi-orb2-ocm-note {
+  margin: 4px 0 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #d9b96a;
+}
+
 .gi-orb2-constellation-note { margin: 6px 0 0; color: var(--gi-faint); font-family: var(--mono); font-size: 7px; line-height: 1.45; }
 .gi-orb2-model-status {
   display: grid; grid-template-columns: minmax(170px, 1fr) minmax(230px, 1.4fr) minmax(160px, 1.05fr) auto auto;

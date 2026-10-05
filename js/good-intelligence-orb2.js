@@ -512,16 +512,35 @@
      positions are a function of the catalog number alone: no market value,
      packet count, or provider state can move an orb, so nothing here measures
      anything and no Disc can be ranked by where it is drawn. */
-  const CONSTELLATION_ORBIT_MODEL = 3.6;
+  /* The ring is wide enough that every Disc's field — drawn at its own full
+     display scale, never shrunk — keeps clear of its neighbours, so all five
+     orbs and their sub-orbs can be in frame at once. */
+  const CONSTELLATION_ORBIT_MODEL = 4.6;
+  /* The ring is a shallow band, not a sphere: the five fields are drawn at full
+     display scale, so the vertical spread of the berths has to leave the field
+     of the topmost orb inside the stage. The magnitudes alternate above and
+     below the plate and sum to zero, so the constellation stays vertically
+     centred on the Center Origin the camera frames. Geometry only. */
   const CONSTELLATION_LATITUDE_MODEL = 0.42;
-  /* Wide shows the whole ring of five orbs; focused magnifies one Disc until
-     its own packet field fills the stage. Both are camera values only. */
-  const CONSTELLATION_WIDE_ZOOM = 0.8;
-  /* Display scale of a Disc's field while the whole ring is in view: the field
-     stays inside its own berth, and focusing the orb draws it full size. */
-  const CONSTELLATION_FIELD_SCALE = 0.45;
-  const CONSTELLATION_ZOOM = 1.35;
+  const CONSTELLATION_LATITUDE_PATTERN = [1, -0.9, 0.5, -0.9, 0.3];
+  /* Wide frames the whole ring; focused magnifies one Disc until its own
+     packet field fills the stage. Both are camera values only. */
+  const CONSTELLATION_WIDE_ZOOM = 0.66;
+  /* The wide view looks at the ring through a long lens: with the close 7.5-unit
+     lens a Disc on the near side of the ring would draw three times the size of
+     one on the far side, and five fields can only share the stage if they read
+     at comparable scale. Focus keeps the exact lens the single-orb view has
+     always used. Camera value only. */
+  const CONSTELLATION_WIDE_FOV = 26;
+  const CONSTELLATION_ZOOM = 1.25;
   const CONSTELLATION_HIT_RADIUS = 34;
+  /* The OCM traffic simulation: one visual beat takes this long to cross a
+     ring link or a tether to the Center Origin, and a reporting Disc keeps one
+     beat in flight per this many stored rows (bounded). Display values only —
+     the lane count follows the rows the server actually stores. */
+  const OCM_TRAFFIC_PERIOD = 2600;
+  const OCM_TRAFFIC_MAX_BEATS = 3;
+  const OCM_TRAFFIC_ARC = 0.42;
 
   /** The display berth of one Disc orb, as a model-space point. Pure geometry:
       the only input is the Disc's position in the reviewed catalog order. */
@@ -529,7 +548,7 @@
     const total = Math.max(1, Math.floor(Number(count) || 1));
     const slot = clamp(Math.floor(Number(index) || 0), 0, total - 1);
     const angle = -Math.PI / 2 + (slot / total) * Math.PI * 2;
-    const latitude = ((slot % 2 === 0) ? 1 : -1) * CONSTELLATION_LATITUDE_MODEL * (0.55 + 0.45 * Math.cos(slot * 1.7));
+    const latitude = CONSTELLATION_LATITUDE_MODEL * CONSTELLATION_LATITUDE_PATTERN[slot % CONSTELLATION_LATITUDE_PATTERN.length];
     const ring = Math.cos(latitude);
     return {
       index: slot, angle,
@@ -860,6 +879,15 @@
          can say how much of its own Disc has reported. `camPan`/`camZoom` are
          the carousel camera: focusing an orb pans to it and magnifies it. */
       constellation: constellationLayout(DiscCatalog.discs),
+      /* Per-Disc rosters and their drawn orbs, so every Disc orb holds its own
+         field. Filled by successful Disc reads and the reviewed catalog. */
+      rosterByDisc: {},
+      fieldNodes: {},
+
+      /* The simulated OCM beats in flight: display packets only, rebuilt from
+         the stored rows each frame. They never leave the canvas. */
+      trafficPackets: [],
+      ocmLanes: 0,
       camPan: { x: 0, y: 0 },
       camZoom: CONSTELLATION_WIDE_ZOOM,
       focusOrb: false,
@@ -1169,6 +1197,7 @@
                 <button type="button" class="gi-orb2-carousel-step" data-gi-orb2-carousel="next" aria-label="Next Disc">›</button>
               </div>
               <p class="gi-orb2-constellation-note" data-gi-orb2-constellation-note role="status" aria-live="polite">CONSTELLATION · reading the stored field for every Disc.</p>
+              <p class="gi-orb2-ocm-note" data-gi-orb2-ocm role="status" aria-live="off">OCM TRAFFIC SIMULATION · waiting for the first stored rows; nothing is transmitted.</p>
             </div>
             <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
               <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
@@ -1222,6 +1251,7 @@
     const separationLabel = $("[data-gi-orb2-separation-label]");
     const orbTrack = $("[data-gi-orb2-orb-track]");
     const constellationNote = $("[data-gi-orb2-constellation-note]");
+    const ocmNote = $("[data-gi-orb2-ocm]");
     const constellationToggle = $("[data-gi-orb2-constellation]");
     const zoomButton = $("[data-gi-orb2-zoom]");
     const resetCamButton = $("[data-gi-orb2-resetcam]");
@@ -1588,6 +1618,7 @@
     async function entriesForDisc(discId) {
       if (discId === "stocks") {
         if (!watchlist.length) throw new Error("The reviewed Good Intelligence Tickerbot stock list was not available.");
+        state.rosterByDisc.stocks = watchlist;
         return { entries: watchlist, ranking: null };
       }
       if (discId === "crypto") {
@@ -1599,10 +1630,12 @@
         if (!response.ok || !payload || payload.success !== true || !Array.isArray(payload.instruments) || !payload.instruments.length) {
           throw new Error(payload && payload.message || `The live crypto ranking route answered HTTP ${response.status}. No stale constituent list was substituted.`);
         }
+        state.rosterByDisc.crypto = payload.instruments;
         return { entries: payload.instruments, ranking: payload.ranking || null };
       }
       const entries = DiscCatalog.staticInstruments(discId);
       if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${DiscCatalog.disc(discId)?.label || discId}.`);
+      state.rosterByDisc[discId] = entries;
       return { entries, ranking: null };
     }
 
@@ -2119,6 +2152,7 @@
         try { current.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* optional */ }
       }
       if (constellationNote) constellationNote.textContent = constellationText();
+      if (ocmNote) ocmNote.textContent = ocmTrafficText();
       if (constellationToggle) constellationToggle.checked = state.focusOrb;
       if (zoomButton) {
         const zoomed = state.camZoom > CONSTELLATION_WIDE_ZOOM + 0.05;
@@ -2588,6 +2622,13 @@
     function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
       const floatPhase = placement.phase + now / 1000 * placement.speed;
+      /* The float is the packet's own drift. It must never feed the berth
+         resolver: a drifted coordinate can cross the crowding floor and make
+         two orbs trade slots from one frame to the next (a visible teleport).
+         `anchor` is the metrics-only berth, so the separation decision is
+         stable for as long as the packets are, and the drift is applied to the
+         resolved slot afterwards. */
+      const anchor = { longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius };
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
@@ -2606,7 +2647,7 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
-      return { longitude, latitude, radius, available: placement.available, source: placement.source, pressure: placement.pressure };
+      return { longitude, latitude, radius, anchor, available: placement.available, source: placement.source, pressure: placement.pressure };
     }
 
     /* The spherical berth rendered through the disc↔sphere form blend. It reads
@@ -2636,6 +2677,31 @@
        only — see resolveBerthSeparation() — and it is applied before anything is
        drawn, so nodes, halos, satellites, flow runners, and the beat beams all
        read from the same resolved berth. */
+    /** The reviewed instruments of one Disc, cached. Stocks come from the
+        reviewed watchlist and fx/commodities/indices from the catalog; crypto
+        needs its live ranked list, which is cached from the last successful
+        read, and a Disc whose roster is not known yet contributes no orb
+        rather than a guessed one. */
+    function discEntriesCached(discId) {
+      if (Array.isArray(state.rosterByDisc[discId]) && state.rosterByDisc[discId].length) return state.rosterByDisc[discId];
+      if (discId === "stocks") return watchlist;
+      const statics = DiscCatalog.staticInstruments(discId);
+      return Array.isArray(statics) ? statics : [];
+    }
+
+    /** The drawn orbs of one Disc, built once per roster. Every Disc orb keeps
+        its own instruments, so all five fields can be on screen together. */
+    function discNodes(discId) {
+      const entries = discEntriesCached(discId);
+      if (!entries.length) return [];
+      const signature = `${discId}:${entries.length}:${String(entries[0] && (entries[0].symbol || entries[0].ticker) || "")}`;
+      const cached = state.fieldNodes[discId];
+      if (cached && cached.signature === signature) return cached.nodes;
+      const built = buildNodes(entries, "1d");
+      state.fieldNodes[discId] = { signature, nodes: built };
+      return built;
+    }
+
     /** The berth of one Disc orb in the constellation, or null when this id is
         not on the ring. Geometry only — never derived from market data. */
     function discBerth(discId) {
@@ -2735,45 +2801,145 @@
       return rotate3(fieldOrigin());
     }
 
-    function resolveProjectedNodes(fieldNodes, width, height, now) {
+    /** Project one Disc's own field. Every Disc orb draws its own reviewed
+        instruments around its own berth, so all five fields are visible at
+        once; the selected Disc is the one the inspector, the beams, and the
+        packet hit-test follow. */
+    function projectDiscField(discId, fieldNodes, width, height, now) {
       const placements = fieldNodes.map(node => {
-        const observation = latestForNode(node);
+        const observation = discId === state.discId ? latestForNode(node) : latestObservation(discId, node.symbol);
         const directive = displayMotion(observation, now);
         return {
-          node, observation, directive,
+          node, observation, directive, discId,
           identity: node.symbol || node.name || node.id,
           ...sphericalPlacement(node, now, directive, observation)
         };
       });
-      const report = resolveBerthSeparation(placements, state.separation, { flat: ease(state.formation) < 0.04 });
-      /* Display-only translation: the whole separated field is drawn around its
-         own Disc orb. Berth radii, angles, and the separation report above are
-         computed before the translation, so nothing about a metric changes. */
-      const origin = fieldOrigin();
-      const scale = state.focusOrb ? 1 : CONSTELLATION_FIELD_SCALE;
-      const projected = placements.map(placement => ({
-        ...project(addModelPoint(scaleModelPoint(modelPoint(placement), scale), origin), width, height),
-        node: placement.node,
-        observation: placement.observation,
-        directive: placement.directive
+      /* The resolver sees the stable anchors; the drift stays on the drawn
+         coordinates. Re-running it over the same packets therefore returns the
+         same slots, and a packet never jumps between frames. */
+      const decisions = placements.map(placement => ({
+        identity: placement.identity,
+        longitude: placement.anchor.longitude,
+        latitude: placement.anchor.latitude,
+        radius: placement.anchor.radius
       }));
-      state.berthReport = report;
-      return projected;
+      const report = resolveBerthSeparation(decisions, state.separation, { flat: ease(state.formation) < 0.04 });
+      decisions.forEach((decision, index) => {
+        placements[index].longitude += decision.longitude - placements[index].anchor.longitude;
+        placements[index].latitude += decision.latitude - placements[index].anchor.latitude;
+      });
+      /* Display-only translation: the whole separated field is drawn around its
+         own Disc orb. Berth radii, angles, and the separation report are
+         computed before the translation, so nothing about a metric changes. */
+      const origin = discBerth(discId) || { x: 0, y: 0, z: 0 };
+      const drawn = placements.map(placement => addModelPoint(modelPoint(placement), origin));
+      /* The slot decision is made on the stable anchors, but the packets' own
+         drift is added afterwards, and two orbs seated exactly on the floor can
+         drift toward each other. This settle pass only touches pairs the drift
+         has brought inside the floor, moving them apart along their own chord
+         by their own overlap: a continuous function of the drawn coordinates
+         (the push is exactly zero at the floor), so unlike a re-slot it can
+         never teleport an orb. The report above is untouched — it still
+         describes the model-space decision, not this display nudge. */
+      settleDrawnFloor(drawn, report.minimum);
+      const projected = drawn.map((point, index) => ({
+        ...project(point, width, height),
+        node: placements[index].node,
+        observation: placements[index].observation,
+        directive: placements[index].directive
+      }));
+      return { points: projected, report, placements };
+    }
+
+    /** Keep the drawn field clear of the berth floor the resolver decided on.
+        Pairs the packets' own drift has brought inside the floor are pushed
+        apart along their chord, half each; a pair exactly on the floor is
+        moved by exactly zero, so the pass is continuous in the drawn
+        coordinates and adds no motion of its own. Deterministic and
+        idempotent: re-running it over its own output moves nothing. */
+    function settleDrawnFloor(points, minimum) {
+      if (!(Number(minimum) > 0) || !Array.isArray(points) || points.length < 2) return points;
+      for (let pass = 0; pass < 2; pass += 1) {
+        let moved = false;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const a = points[left];
+            const b = points[right];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dz = b.z - a.z;
+            const chord = Math.hypot(dx, dy, dz);
+            if (!(chord > 1e-9) || chord >= minimum) continue;
+            const push = (minimum - chord) / 2;
+            const ux = (dx / chord) * push;
+            const uy = (dy / chord) * push;
+            const uz = (dz / chord) * push;
+            a.x -= ux; a.y -= uy; a.z -= uz;
+            b.x += ux; b.y += uy; b.z += uz;
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+      return points;
+    }
+
+    function resolveProjectedNodes(fieldNodes, width, height, now) {
+      const field = projectDiscField(state.discId, fieldNodes, width, height, now);
+      state.berthReport = field.report;
+      return field.points;
+    }
+
+    /** Every Disc's sub-orb cloud for this frame, each inside its own berth.
+        The selected Disc is projected by the caller (it drives the inspector,
+        the beams, and the hit-test); the rest are projected here so all five
+        fields are on screen at once. */
+    function projectAllDiscFields(width, height, now) {
+      const fields = {};
+      for (const disc of state.constellation) {
+        if (disc.id === state.discId) continue;
+        const nodesForDisc = discNodes(disc.id);
+        if (!nodesForDisc.length) { fields[disc.id] = { points: [], report: null }; continue; }
+        const field = projectDiscField(disc.id, nodesForDisc, width, height, now);
+        fields[disc.id] = { points: field.points, report: field.report };
+      }
+      return fields;
+    }
+
+    /** The compact sub-orb rendering used while the whole ring is in view: one
+        batched fill per provider/held state instead of a halo, a ring, a
+        particle system, and a label per orb. The orbs are the same reviewed
+        instruments at their own packet berths — only the paint is lighter, so
+        five full fields can be drawn at once. */
+    function drawFieldBatch(points, { radius = 2.4, dim = false } = {}) {
+      if (!context2d || !points.length) return;
+      const groups = new Map();
+      for (const point of points) {
+        const observation = point.observation;
+        const provider = observation && observation.market ? String(observation.providerMode || observation.provider || "massive") : "held";
+        const key = observation && observation.market ? provider : "held";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(point);
+      }
+      for (const [key, list] of groups) {
+        context2d.save();
+        context2d.fillStyle = key === "held" ? "#5d7999" : key === "tickerbot" ? "#5ce6a8" : key === "alpha-vantage" ? "#c79bff" : "#66b7e6";
+        context2d.globalAlpha = dim ? (key === "held" ? 0.34 : 0.58) : key === "held" ? 0.5 : 0.88;
+        context2d.beginPath();
+        for (const point of list) {
+          context2d.moveTo(point.x + radius, point.y);
+          context2d.arc(point.x, point.y, radius, 0, TAU);
+        }
+        context2d.fill();
+        context2d.restore();
+      }
     }
 
     /* The camera rotation is its own step so every element — lattice, nodes, paths,
        and the Center Origin assembly — shares one rotation, pitch, and zoom. */
     function addModelPoint(point, offset) {
       return { x: point.x + offset.x, y: point.y + offset.y, z: point.z + offset.z };
-    }
-
-    /* In the whole-ring view every Disc's field is drawn at a reduced display
-       scale so it stays inside its own berth instead of covering its
-       neighbours; focusing an orb draws that Disc's own field at full scale.
-       The scale is a lens on the drawing: the berth-separation report and every
-       packet metric were computed before it, and nothing is recomputed here. */
-    function scaleModelPoint(point, factor) {
-      return { x: point.x * factor, y: point.y * factor, z: point.z * factor };
     }
 
     function rotate3(point) {
@@ -2789,7 +2955,7 @@
          focused Disc orb lands exactly on the screen center; `camZoom` is the
          carousel magnification on top of the manual zoom. Both are camera
          state: they move the view, never a computed coordinate. */
-      const fov = 7.5 / state.zoom;
+      const fov = (state.focusOrb ? 7.5 : CONSTELLATION_WIDE_FOV) / state.zoom;
       const scale = fov / (fov + point.z);
       /* Scale from the shorter dimension so the sphere stays round and fully
          visible on 2622 × 1206 widescreens as well as narrow mobile stages.
@@ -2809,8 +2975,7 @@
         The lattice, the packets, and the beams all use this translation, so a
         Disc's field furniture never drifts onto another Disc's orb. */
     function fieldProject(point, width, height) {
-      const scale = state.focusOrb ? 1 : CONSTELLATION_FIELD_SCALE;
-      return project(addModelPoint(scaleModelPoint(point, scale), fieldOrigin()), width, height);
+      return project(addModelPoint(point, fieldOrigin()), width, height);
     }
 
     function canvasBounds() {
@@ -3367,15 +3532,32 @@
             ? `${orb.status.stored} of ${orb.status.instruments || orb.status.stored} stored · newest ${orb.status.newestAt ? shortTime(orb.status.newestAt) : "—"}`
             : orb.status.instruments > 0 ? `${orb.status.instruments} reviewed · awaiting first beat` : "awaiting first beat · no reviewed instrument"
           : "not read this visit";
-        const lines = [`${orb.disc.number}. ${orb.disc.name || orb.disc.id}`, statusLine];
+        /* Five full fields share the wide stage, so every orb carries its
+           name and only the Disc the inspector is following also carries its
+           stored-row line; the panel and the chips state the rest. */
+        const lines = orb.selected
+          ? [`${orb.disc.number}. ${orb.disc.name || orb.disc.id}`, statusLine]
+          : [`${orb.disc.number}. ${orb.disc.name || orb.disc.id}`];
         /* Labels are placed here — they must avoid one another — but painted in
            the front pass, after the selected Disc's packets, so a busy field
            never hides the status of a neighbouring Disc. */
+        /* The wide view stacks five Discs around the same ring, so each orb's
+           label is placed radially outward from the ring hub: the five labels
+           fan out around the constellation instead of converging on the middle
+           of the stage, and each keeps its own band of sky. */
+        const spread = Math.max(1e-6, Math.hypot(orb.point.x - hub.x, orb.point.y - hub.y));
+        const outward = { x: (orb.point.x - hub.x) / spread, y: (orb.point.y - hub.y) / spread };
+        const radialX = orb.point.x + outward.x * (radius + 8);
+        const radialY = orb.point.y + outward.y * (radius + 8);
+        const radialAlign = Math.abs(outward.x) < 0.42 ? "center" : outward.x > 0 ? "left" : "right";
         lines.forEach((text, row) => {
           const size = row === 0 ? 12 : 10;
           const w = measured(text) || text.length * size * 0.62;
           const h = size * 1.5;
+          const anchorX = radialAlign === "left" ? radialX : radialAlign === "right" ? radialX - w : radialX - w / 2;
+          const anchorY = radialY + row * h - (outward.y >= 0 ? 0 : h * (row + 1));
           const candidates = [
+            { x: anchorX, y: anchorY, align: radialAlign },
             { x: orb.point.x - w / 2, y: orb.point.y + radius + 6 + row * h, align: "center" },
             { x: orb.point.x - w / 2, y: orb.point.y - radius - 10 - (1 - row) * h, align: "center" },
             { x: orb.point.x + radius + 8, y: orb.point.y - h / 2 + row * h, align: "left" },
@@ -3396,6 +3578,103 @@
       return orbs;
     }
 
+    /** The simulated OCM links: one beat lane per reporting Disc to each ring
+        neighbour and one to the Center Origin, and the same lanes back. A Disc
+        the server holds nothing for transmits nothing: no invented traffic is
+        drawn for an orb awaiting its first beat. The beats are a picture of
+        the stored field, not a channel — nothing here sends, authorizes,
+        resolves, commits, or recommends. */
+    function ocmLanes() {
+      const map = discStatusMap();
+      const discs = state.constellation;
+      const reporting = discs.map(disc => {
+        const status = map[disc.id] || null;
+        return { disc, stored: status ? Math.max(0, Number(status.stored) || 0) : 0 };
+      }).filter(entry => entry.stored > 0);
+      const lanes = [];
+      for (let index = 0; index < reporting.length; index += 1) {
+        const entry = reporting[index];
+        const beats = clamp(1 + Math.floor(entry.stored / 16), 1, OCM_TRAFFIC_MAX_BEATS);
+        if (reporting.length > 1) {
+          const next = reporting[(index + 1) % reporting.length];
+          const previous = reporting[(index - 1 + reporting.length) % reporting.length];
+          lanes.push({ from: entry.disc, to: next.disc, beats });
+          if (previous !== next) lanes.push({ from: entry.disc, to: previous.disc, beats });
+        }
+        lanes.push({ from: entry.disc, to: null, beats });
+        lanes.push({ from: null, to: entry.disc, beats });
+      }
+      return lanes;
+    }
+
+    /** One sentence for the panel: how many simulated beats are on the ring,
+        and the standing reminder that this is a picture and not a channel. */
+    function ocmTrafficText() {
+      const lanes = ocmLanes();
+      const beats = lanes.reduce((total, lane) => total + lane.beats, 0);
+      const discs = new Set(lanes.filter(lane => lane.from).map(lane => lane.from.id)).size;
+      if (!beats) return "OCM TRAFFIC SIMULATION · every lane idle, no stored rows to carry";
+      return `OCM TRAFFIC SIMULATION · display only, sends nothing · ${discs} orb${discs === 1 ? "" : "s"} transmitting on ${lanes.length} lane${lanes.length === 1 ? "" : "s"} · each beat follows that Disc's stored rows`;
+    }
+
+    /** Draw the simulated beats crossing the ring. Each lane carries a fixed
+        number of packets whose position is a pure function of the clock and
+        the lane's own phase, so the traffic is smooth, deterministic, and
+        adds no frame-to-frame jitter. */
+    function drawOcmTraffic(now, width, height) {
+      const packets = [];
+      state.ocmLanes = 0;
+      if (!context2d) { state.trafficPackets = packets; return packets; }
+      const lanes = ocmLanes();
+      state.ocmLanes = lanes.length;
+      const hub = { x: 0, y: 0, z: 0 };
+      for (let index = 0; index < lanes.length; index += 1) {
+        const lane = lanes[index];
+        const start = lane.from ? lane.from.berth : hub;
+        const end = lane.to ? lane.to.berth : hub;
+        const spin = (stableIdentityPhase(`${lane.from ? lane.from.id : "origin"}->${lane.to ? lane.to.id : "origin"}`) + Math.PI) / TAU;
+        const at = u => project({
+          x: start.x + (end.x - start.x) * u,
+          y: start.y + (end.y - start.y) * u + OCM_TRAFFIC_ARC * Math.sin(Math.PI * u),
+          z: start.z + (end.z - start.z) * u
+        }, width, height);
+        for (let beat = 0; beat < lane.beats; beat += 1) {
+          const phase = (spin + index * 0.3719 + beat / lane.beats) % 1;
+          const u = (now / OCM_TRAFFIC_PERIOD + phase) % 1;
+          context2d.save();
+          for (let trail = 2; trail >= 0; trail -= 1) {
+            const point = at(Math.max(0, u - trail * 0.032));
+            context2d.globalAlpha = trail === 0 ? 0.95 : trail === 1 ? 0.55 : 0.3;
+            context2d.fillStyle = trail === 0 ? "#ffe6a6" : "#d9b96a";
+            context2d.beginPath();
+            context2d.arc(point.x, point.y, 2.6 - trail * 0.6, 0, TAU);
+            context2d.fill();
+          }
+          /* The receiving orb flashes as the beat lands, so the exchange reads
+             as back-and-forth rather than a one-way stream. */
+          if (u > 0.86) {
+            const age = (u - 0.86) / 0.14;
+            const landing = at(1);
+            context2d.globalAlpha = 0.55 * (1 - age);
+            context2d.strokeStyle = "#ffd479";
+            context2d.lineWidth = 1.4;
+            context2d.beginPath();
+            context2d.arc(landing.x, landing.y, 6 + 16 * age, 0, TAU);
+            context2d.stroke();
+          }
+          context2d.restore();
+          const head = at(u);
+          packets.push({
+            from: lane.from ? lane.from.id : "origin",
+            to: lane.to ? lane.to.id : "origin",
+            u, x: head.x, y: head.y
+          });
+        }
+      }
+      state.trafficPackets = packets;
+      return packets;
+    }
+
     /** The front pass for the constellation: the orb outlines stay visible over
         the selected Disc's own packets, and every status label gets a dark
         backing plate so it is readable wherever it landed. */
@@ -3403,7 +3682,12 @@
       if (!context2d) return;
       for (const marker of state.orbMarkers) {
         context2d.save();
-        context2d.globalAlpha = 0.85;
+        /* The orb keeps a dark backing disc so its own number stays readable
+           over its own sub-orb cloud. */
+        context2d.globalAlpha = 0.72;
+        context2d.fillStyle = "#060d16";
+        context2d.beginPath(); context2d.arc(marker.x, marker.y, marker.radius, 0, TAU); context2d.fill();
+        context2d.globalAlpha = 0.9;
         context2d.strokeStyle = marker.selected ? "#9be6ff" : marker.covered ? "#6fa8cf" : "#55748c";
         context2d.lineWidth = marker.selected ? 1.6 : 1;
         context2d.setLineDash([]);
@@ -3412,7 +3696,7 @@
       }
       for (const label of state.orbLabels) {
         context2d.save();
-        context2d.globalAlpha = 0.72;
+        context2d.globalAlpha = 0.58;
         context2d.fillStyle = "#060d16";
         const x = label.align === "center" ? label.x - 3 : label.align === "right" ? label.x - 3 : label.x - 3;
         context2d.fillRect(x, label.y - 2, label.w + 6, label.h);
@@ -3455,8 +3739,17 @@
          drawn under the lattice, plus the origin strip (gate · phase · UTS). */
       const originAssembly = drawOriginAssembly(now, center, width, height);
       updateOriginStatus(wallNow, originAssembly);
-      /* The five Disc orbs, under the lattice and the selected Disc's packets. */
+      /* The five Disc orbs, under the fields. */
       state.projectedOrbs = drawConstellation(now, width, height);
+      /* Every unselected Disc's own sub-orb field, drawn inside its orb, so the
+         whole constellation is populated at a glance instead of only the orb
+         that was clicked. Compact while the ring is framed; hidden once a Disc
+         is focused, where its own field takes the stage. */
+      const wideView = !state.focusOrb;
+      if (wideView) {
+        const otherFields = projectAllDiscFields(width, height, now);
+        for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true });
+      }
       orbitalRing(2.32, 0.34, now * 0.000025, width, height, "#3678a8", 0.22);
       orbitalRing(2.4, 1.04, -now * 0.000018, width, height, "#6554a4", 0.14);
       orbitalRing(2.5, 0.78, now * 0.000012, width, height, "#2c8d91", 0.12);
@@ -3467,7 +3760,19 @@
       }
       state.projected = resolveProjectedNodes(nodes, width, height, now);
       updateFlowReadout(state.projected[state.selected] || null);
-      state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
+      if (wideView) {
+        /* The selected Disc's own field is the one the inspector, the beams,
+           and the hit-test follow, so it is drawn a step brighter than its
+           neighbours — never in place of them. */
+        drawFieldBatch(state.projected);
+      } else {
+        state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
+      }
+      /* OCM traffic: the simulated stored-field beats crossing the ring and the
+         tethers. Drawn while the whole constellation is framed; the focused
+         single-orb view is left exactly as it has always been. */
+      if (wideView) drawOcmTraffic(now, width, height);
+      else state.trafficPackets = [];
       const fieldCenter = project(fieldOrigin(), width, height);
       drawCenterBeams(wallNow, fieldCenter);
       drawRoute(now, fieldCenter);
@@ -3512,6 +3817,7 @@
         const node = point.node;
         const observation = point.observation;
         const directive = point.directive;
+        if (wideView) return; /* compact field paint already drew every sub-orb */
         const chosen = node.order === state.selected;
         const hovered = node.order === state.hover;
         const fresh = observation ? snapshotFreshness(observation, wallNow) : 0;
