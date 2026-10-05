@@ -307,6 +307,289 @@
     return ((hash >>> 0) / 4294967296) * TAU - Math.PI;
   }
 
+  /* ── Berth separation ─────────────────────────────────────────────────────
+     Correlated instruments can carry near-identical packet values: the same
+     change, the same VFI separation, the same band position, sometimes the same
+     reported volume shape. Their market-derived berths then land on the same
+     coordinates, and a full 52-berth field can render as one unreadable blob.
+     The resolver below keeps every orb visible as its own berth: nodes are
+     visited in stable identity-phase order, the first node of a crowded berth
+     keeps the exact position its packet earned, and each later node takes the
+     nearest free slot on its own berth's display ladder — the separation floor
+     along its own latitude first, then the same ladder one shared latitude
+     step away — so a shared berth opens into a readable cluster instead of
+     stacking.
+
+     Boundaries, in the same spirit as the rest of this view:
+     · It is display geometry, not market arithmetic. Each berth's own radius,
+       the packet's metrics, the composed position, and the Center Origin are
+       untouched; no value is recomputed, rounded, weighted, or inferred, and a
+       missing packet stays held exactly where the model already held it.
+     · It never ranks, favours, or hides. Two berths are only ever separated
+       when their own packet placements already land within the separation floor
+       of each other, so a berth that has space keeps the placement its metrics
+       earned, and no node is dropped. Visit order is the same stable symbol
+       hash the model already uses as its only tie-breaker — it labels slots and
+       never declares a node primary.
+     · It is deterministic and idempotent. The same symbol set yields the same
+       arrangement on every client and every frame, and re-running the resolver
+       over its own output moves nothing: a placed node clears every node that
+       was already placed, so its own test passes unchanged on the next pass.
+     · It is bounded. Slots stay on the shared rings near the node's own berth
+       and within a latitude limit, and separation never reaches the market
+       radius. Spread 0 restores the exact packet placement, and a field whose
+       berths already have space is left exactly as the metrics drew it. */
+  const BERTH_MIN_GAP_MODEL = 0.4;
+  const BERTH_LATITUDE_LIMIT = 1.15;
+  const BERTH_SEPARATION_DEFAULT = 0.7;
+  const BERTH_RING_LIMIT = 12;
+  /* The latitude/longitude lattice the model draws, used as the ring reference
+     for the berth-floor readout. */
+  const LATTICE_RING_MODEL = 2.06;
+
+  const berthPoint = placement => {
+    const ring = Math.cos(placement.latitude);
+    return {
+      x: placement.radius * ring * Math.cos(placement.longitude),
+      y: placement.radius * Math.sin(placement.latitude),
+      z: placement.radius * ring * Math.sin(placement.longitude)
+    };
+  };
+  const berthChord = (left, right) => Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+  /* Angular distance that yields the requested chord on a ring of this radius
+     and latitude; the guards keep a nearly polar ring from dividing by zero. */
+  const berthGapAngle = (radius, latitude, minimum) =>
+    2 * Math.asin(clamp(minimum / (2 * Math.max(0.12, Math.abs(radius) * Math.max(0.18, Math.cos(latitude)))), 0, 1));
+  const berthLatitudeStep = (radius, minimum) =>
+    2 * Math.asin(clamp(minimum / (2 * Math.max(0.12, Math.abs(radius))), 0, 1));
+  /* 0, +1, -1, +2, -2 … so a crowded berth grows symmetrically around its own
+     mean latitude instead of drifting up or down. */
+  const berthLatitudeOffset = step => (step % 2 === 1 ? 1 : -1) * Math.ceil(step / 2);
+
+  /** Resolve every crowded berth of one draw pass. `spread` is the 0–1 berth
+      spread; the floor scales with its square, so a partial setting still opens
+      a tight clump. Returns a report for the status readout. */
+  function resolveBerthSeparation(placements, spread = 1, options = {}) {
+    const list = Array.isArray(placements) ? placements : [];
+    const flat = Boolean(options && options.flat === true);
+    const ratio = clamp(numeric(spread) === null ? 1 : Number(spread), 0, 1);
+    const minimum = BERTH_MIN_GAP_MODEL * ratio * ratio;
+    const report = { spread: ratio, minimum, crowded: 0, berths: 0, moved: 0 };
+    if (minimum <= 0 || list.length < 2) return report;
+
+    const original = list.map(placement => ({ longitude: placement.longitude, latitude: placement.latitude }));
+    const originalPoints = list.map(berthPoint);
+    /* Reporting only: which orbs were sharing a crowded berth on the packet's
+       own coordinates, and how many distinct berths that was. */
+    const crowded = new Array(list.length).fill(false);
+    for (let left = 0; left < list.length; left += 1) {
+      for (let right = left + 1; right < list.length; right += 1) {
+        if (berthChord(originalPoints[left], originalPoints[right]) >= minimum) continue;
+        crowded[left] = true;
+        crowded[right] = true;
+      }
+    }
+    report.crowded = crowded.filter(Boolean).length;
+    const seen = new Set();
+    for (let index = 0; index < list.length; index += 1) {
+      if (!crowded[index] || seen.has(index)) continue;
+      report.berths += 1;
+      const queue = [index];
+      seen.add(index);
+      while (queue.length) {
+        const current = queue.pop();
+        for (let other = 0; other < list.length; other += 1) {
+          if (seen.has(other) || !crowded[other] || berthChord(originalPoints[current], originalPoints[other]) >= minimum) continue;
+          seen.add(other);
+          queue.push(other);
+        }
+      }
+    }
+    if (!report.crowded) return report;
+
+    const order = list
+      .map((placement, index) => ({ index, phase: stableIdentityPhase(placement.identity) }))
+      .sort((left, right) => left.phase - right.phase || left.index - right.index);
+    /* A bucketed index of already-placed berths keeps each clearance test near
+       constant instead of comparing against every earlier node. */
+    const cell = Math.max(0.05, minimum);
+    const buckets = new Map();
+    const bucketKey = point => `${Math.round(point.x / cell)}:${Math.round(point.y / cell)}:${Math.round(point.z / cell)}`;
+    const remember = point => {
+      const key = bucketKey(point);
+      const bucket = buckets.get(key);
+      if (bucket) bucket.push(point);
+      else buckets.set(key, [point]);
+    };
+    const clears = (longitude, latitude, radius) => {
+      const point = berthPoint({ longitude, latitude, radius });
+      const x = Math.round(point.x / cell);
+      const y = Math.round(point.y / cell);
+      const z = Math.round(point.z / cell);
+      for (let dx = -1; dx <= 1; dx += 1) {
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dz = -1; dz <= 1; dz += 1) {
+            const bucket = buckets.get(`${x + dx}:${y + dy}:${z + dz}`);
+            if (!bucket) continue;
+            for (const other of bucket) if (berthChord(point, other) < minimum) return false;
+          }
+        }
+      }
+      return true;
+    };
+    /* When the ladder is saturated, share the widest free angle on the node's
+       own ring. The choice depends only on the berths already placed, so it is
+       deterministic and stable under re-running, exactly like the ladder. */
+    const widestFreeAngle = (baseLongitude, baseLatitude, baseRadius) => {
+      const angles = [baseLongitude];
+      for (const point of buckets.values()) {
+        for (const other of point) angles.push(Math.atan2(other.z, other.x));
+      }
+      angles.sort((left, right) => left - right);
+      let best = null;
+      let bestGap = -1;
+      for (let index = 0; index < angles.length; index += 1) {
+        const current = angles[index];
+        const next = index + 1 < angles.length ? angles[index + 1] : angles[0] + TAU;
+        const gap = next - current;
+        if (gap <= bestGap) continue;
+        bestGap = gap;
+        best = current + gap / 2;
+      }
+      return best === null ? baseLongitude + Math.PI : best;
+    };
+
+    for (const entry of order) {
+      const placement = list[entry.index];
+      const radius = placement.radius;
+      const baseLongitude = placement.longitude;
+      const baseLatitude = placement.latitude;
+      if (clears(baseLongitude, baseLatitude, radius)) {
+        remember(berthPoint({ longitude: baseLongitude, latitude: baseLatitude, radius }));
+        continue;
+      }
+      const gapAngle = berthGapAngle(radius, baseLatitude, minimum);
+      const latitudeStep = berthLatitudeStep(radius, minimum);
+      let placed = false;
+      let previousLatitude = null;
+      for (let ring = 0; ring < BERTH_RING_LIMIT && !placed; ring += 1) {
+        /* The flat disc form has no latitude depth to grow into: one ring is
+           the whole ladder, and its saturated case falls through below. */
+        if (flat && ring > 0) break;
+        const latitude = clamp(baseLatitude + berthLatitudeOffset(ring) * latitudeStep, -BERTH_LATITUDE_LIMIT, BERTH_LATITUDE_LIMIT);
+        if (previousLatitude !== null && Math.abs(latitude - previousLatitude) < 1e-9) break;
+        previousLatitude = latitude;
+        for (let step = 1; step <= BERTH_RING_LIMIT * 4 && !placed; step += 1) {
+          for (const direction of [1, -1]) {
+            const offset = direction * step * gapAngle;
+            if (Math.abs(offset) > Math.PI) continue;
+            const longitude = baseLongitude + offset;
+            if (!clears(longitude, latitude, radius)) continue;
+            placement.longitude = longitude;
+            placement.latitude = latitude;
+            remember(berthPoint(placement));
+            placed = true;
+            break;
+          }
+        }
+      }
+      if (!placed) {
+        placement.longitude = widestFreeAngle(baseLongitude, baseLatitude, radius);
+        placement.latitude = baseLatitude;
+        remember(berthPoint(placement));
+      }
+    }
+    report.moved = list.reduce((sum, placement, index) =>
+      sum + (Math.abs(placement.longitude - original[index].longitude) > 1e-9
+        || Math.abs(placement.latitude - original[index].latitude) > 1e-9 ? 1 : 0), 0);
+    return report;
+  }
+
+  const berthSpreadLabel = value => value <= 0 ? "OFF" : value >= 0.995 ? "FULL" : `${Math.round(value * 100)}%`;
+
+  /* CONSTELLATION · five Disc orbs around the Center Origin. The ring carries
+     one orb per reviewed Disc, in catalog order, at a display-only radius. The
+     positions are a function of the catalog number alone: no market value,
+     packet count, or provider state can move an orb, so nothing here measures
+     anything and no Disc can be ranked by where it is drawn. */
+  /* The ring is wide enough that every Disc's field — drawn at its own full
+     display scale, never shrunk — keeps clear of its neighbours, so all five
+     orbs and their sub-orbs can be in frame at once. */
+  const CONSTELLATION_ORBIT_MODEL = 4.6;
+  /* The ring is a shallow band, not a sphere: the five fields are drawn at full
+     display scale, so the vertical spread of the berths has to leave the field
+     of the topmost orb inside the stage. The magnitudes alternate above and
+     below the plate and sum to zero, so the constellation stays vertically
+     centred on the Center Origin the camera frames. Geometry only. */
+  const CONSTELLATION_LATITUDE_MODEL = 0.42;
+  const CONSTELLATION_LATITUDE_PATTERN = [1, -0.9, 0.5, -0.9, 0.3];
+  /* Wide frames the whole ring; focused magnifies one Disc until its own
+     packet field fills the stage. Both are camera values only. */
+  const CONSTELLATION_WIDE_ZOOM = 0.66;
+  /* The wide view looks at the ring through a long lens: with the close 7.5-unit
+     lens a Disc on the near side of the ring would draw three times the size of
+     one on the far side, and five fields can only share the stage if they read
+     at comparable scale. Focus keeps the exact lens the single-orb view has
+     always used. Camera value only. */
+  const CONSTELLATION_WIDE_FOV = 26;
+  /* The focused single-orb magnification is unchanged from the original
+     single-orb view; only the whole-ring camera was widened. */
+  const CONSTELLATION_ZOOM = 1.35;
+  const CONSTELLATION_HIT_RADIUS = 34;
+  /* The OCM traffic simulation: one visual beat takes this long to cross a
+     ring link or a tether to the Center Origin, and a reporting Disc keeps one
+     beat in flight per this many stored rows (bounded). Display values only —
+     the lane count follows the rows the server actually stores. */
+  const OCM_TRAFFIC_PERIOD = 2600;
+  const OCM_TRAFFIC_MAX_BEATS = 3;
+  const OCM_TRAFFIC_ARC = 0.42;
+
+  /** The display berth of one Disc orb, as a model-space point. Pure geometry:
+      the only input is the Disc's position in the reviewed catalog order. */
+  function constellationBerth(index, count) {
+    const total = Math.max(1, Math.floor(Number(count) || 1));
+    const slot = clamp(Math.floor(Number(index) || 0), 0, total - 1);
+    const angle = -Math.PI / 2 + (slot / total) * Math.PI * 2;
+    const latitude = CONSTELLATION_LATITUDE_MODEL * CONSTELLATION_LATITUDE_PATTERN[slot % CONSTELLATION_LATITUDE_PATTERN.length];
+    const ring = Math.cos(latitude);
+    return {
+      index: slot, angle,
+      x: Math.cos(angle) * ring * CONSTELLATION_ORBIT_MODEL,
+      y: Math.sin(latitude) * CONSTELLATION_ORBIT_MODEL,
+      z: Math.sin(angle) * ring * CONSTELLATION_ORBIT_MODEL
+    };
+  }
+
+  /** One entry per Disc: the reviewed id, its catalog order, and its berth.
+      `discs` may be the catalog list or plain ids; order is preserved. */
+  function constellationLayout(discs) {
+    const list = (Array.isArray(discs) ? discs : []).map((disc, index) => {
+      const id = typeof disc === "string" ? disc : String(disc && disc.id || "");
+      if (!id) return null;
+      return {
+        id,
+        number: Number(disc && disc.number) || index + 1,
+        label: String(disc && disc.label || `Disc ${index + 1} · ${id}`),
+        name: String(disc && disc.name || id),
+        assetClass: String(disc && disc.assetClass || "")
+      };
+    }).filter(Boolean);
+    return list.map((disc, index) => ({ ...disc, berth: constellationBerth(index, list.length) }));
+  }
+
+  /** The status-row sentence for one separation pass. It states which orbs
+      shared a berth, how many moved, and the floor the slots clear; it never
+      claims an entitlement or a market fact. */
+  function berthSeparationText(report) {
+    if (!report || report.spread <= 0) return "BERTH SEPARATION · OFF · correlated packets may share one berth and stack";
+    const spreadLabel = berthSpreadLabel(report.spread);
+    if (!report.crowded) {
+      return `BERTH SEPARATION · ${spreadLabel} · no shared berth needed re-slotting · every orb keeps its packet placement`;
+    }
+    const floor = Math.round((report.minimum / LATTICE_RING_MODEL) * 100);
+    return `BERTH SEPARATION · ${spreadLabel} · ${report.crowded} orbs share ${report.berths} berth${report.berths === 1 ? "" : "s"} · ${report.moved} re-slotted by stable symbol phase · berth floor ${floor}% of the ring radius · display geometry only`;
+  }
+
   function dataBitsForMarket(market) {
     if (!isRecord(market)) return [];
     const close = numeric(market.latestBar && market.latestBar.close);
@@ -489,6 +772,10 @@
     const onClearBeats = typeof options.onClearBeats === "function" ? options.onClearBeats : null;
     const onRestoreBeats = typeof options.onRestoreBeats === "function" ? options.onRestoreBeats : null;
     let nodes = buildNodes(tickerMode ? options.tickers : options.roster, timeframe);
+    /* The reviewed instruments currently drawn in ticker mode. A Disc switch
+       replaces this with that Disc's own roster, so each Disc orb holds its own
+       field rather than every Disc re-drawing the 52-card deck. */
+    let drawnEntries = tickerMode ? options.tickers : null;
     if (!nodes.length) {
       host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 roster unavailable</strong><p>${tickerMode
         ? "The reviewed ticker watchlist did not provide a valid symbol."
@@ -581,6 +868,32 @@
       pitch: 0.32,
       zoom: 1,
       formation: 1,
+      /* Berth separation (0 = exact packet placement, 1 = full spread). It is a
+         display control: it changes where a shared berth is drawn, never what it
+         measures, and it is re-resolved from stable symbol phases on every draw,
+         so the arrangement it produces is idempotent. */
+      separation: isRecord(preferences) && Number.isFinite(Number(preferences.separation))
+        ? clamp(Number(preferences.separation), 0, 1) : BERTH_SEPARATION_DEFAULT,
+      berthReport: null,
+      /* CONSTELLATION · one orb per reviewed Disc around the Center Origin.
+         `constellation` is display geometry from the catalog order; `discStatus`
+         is the Worker's per-Disc report of what is actually stored, so each orb
+         can say how much of its own Disc has reported. `camPan`/`camZoom` are
+         the carousel camera: focusing an orb pans to it and magnifies it. */
+      constellation: constellationLayout(DiscCatalog.discs),
+      /* Per-Disc rosters and their drawn orbs, so every Disc orb holds its own
+         field. Filled by successful Disc reads and the reviewed catalog. */
+      rosterByDisc: {},
+      fieldNodes: {},
+
+      /* The simulated OCM beats in flight: display packets only, rebuilt from
+         the stored rows each frame. They never leave the canvas. */
+      trafficPackets: [],
+      ocmLanes: 0,
+      camPan: { x: 0, y: 0 },
+      camZoom: CONSTELLATION_WIDE_ZOOM,
+      focusOrb: false,
+      orbSignature: "",
       autoRotate: !Boolean(globalThis.matchMedia && globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches),
       labels: false,
       showDataBits: preferences && typeof preferences.showDataBits === "boolean" ? preferences.showDataBits : true,
@@ -600,6 +913,9 @@
       route: null,
       lastRoutePhase: "",
       projected: [],
+      projectedOrbs: [],
+      orbMarkers: [],
+      orbLabels: [],
       error: null,
       message: null,
       spend: null,
@@ -662,7 +978,7 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
         <summary><strong>COLOR KEY</strong><span>Characters mood · provider halo · VFI flow cue · five market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
@@ -804,7 +1120,9 @@
             <section class="gi-orb2-settings-section" aria-label="Display settings">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">02 · DISPLAY</p><h5>Presentation</h5></div></div>
               <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
-                <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
+                <label class="gi-orb2-range-row"><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
+                <label class="gi-orb2-range-row"><span>BERTH SPREAD</span><input data-gi-orb2-separation type="range" min="0" max="100" step="1" value="70" aria-describedby="gi-orb2-separation-note"><strong data-gi-orb2-separation-label>70%</strong></label>
+                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Shared berths are display-only geometry: correlated packets that land on the same coordinates are re-slotted on one shared radius by stable symbol phase, never by rank or by a recomputed metric. 0% restores the exact packet placement.</p>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
@@ -847,7 +1165,7 @@
 
             <details class="gi-orb2-model-boundary">
               <summary>Model boundary and data provenance</summary>
-              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · The five reviewed Discs are drawn as a constellation of Disc orbs around the Center Origin, one orb per Disc, at berths derived from the reviewed catalog order alone: no market value, packet count, or provider state can move, size, or rank an orb. The selected Disc's packet field is drawn inside its own orb; each orb reports the Worker's own per-Disc status (rows stored, newest beat, or an explicit empty state), and a Disc with nothing stored is drawn as an empty dashed orb labelled "awaiting first beat" rather than filled with another Disc's rows. The carousel strip, its step buttons, a click on a drawn orb, a slide, and the arrow keys walk the ring; focus, zoom, and recentre are camera controls that change the view and recompute no coordinate. Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
             </details>
           </div>
         </section>
@@ -864,11 +1182,29 @@
         <div class="gi-orb2-layout">
           <div class="gi-orb2-stage">
             <div class="gi-orb2-canvas-shell">
-              <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
+              <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, click a Disc orb to walk the carousel, click a packet to inspect it, and use the left and right arrows to move between Discs and up and down to walk the nodes."></canvas>
             </div>
-            <div class="gi-orb2-model-status" aria-label="Selected node and model status">
+            <div class="gi-orb2-constellation-bar" role="group" aria-label="Disc carousel — one orb per reviewed Disc">
+              <div class="gi-orb2-constellation-head">
+                <span>CONSTELLATION · FIVE DISCS AROUND CENTER ORIGIN</span>
+                <div class="gi-orb2-view-modes" role="group" aria-label="Constellation view mode">
+                  <label class="gi-orb2-focus-toggle"><input type="checkbox" data-gi-orb2-constellation aria-label="Focus the selected Disc orb" />focus orb</label>
+                  <button type="button" data-gi-orb2-zoom aria-label="Toggle the Disc ring zoom">zoom disc</button>
+                  <button type="button" data-gi-orb2-resetcam aria-label="Reset the constellation camera">recentre</button>
+                </div>
+              </div>
+              <div class="gi-orb2-carousel">
+                <button type="button" class="gi-orb2-carousel-step" data-gi-orb2-carousel="prev" aria-label="Previous Disc">‹</button>
+                <div class="gi-orb2-orb-track" data-gi-orb2-orb-track role="tablist" aria-label="Choose a Disc orb"></div>
+                <button type="button" class="gi-orb2-carousel-step" data-gi-orb2-carousel="next" aria-label="Next Disc">›</button>
+              </div>
+              <p class="gi-orb2-constellation-note" data-gi-orb2-constellation-note role="status" aria-live="polite">CONSTELLATION · reading the stored field for every Disc.</p>
+              <p class="gi-orb2-ocm-note" data-gi-orb2-ocm role="status" aria-live="off">OCM TRAFFIC SIMULATION · waiting for the first stored rows; nothing is transmitted.</p>
+            </div>
+            <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
               <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
               <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · FIXED DXY BENCHMARK</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
+              <div class="gi-orb2-status-item gi-orb2-berth-status-item"><span>BERTH SEPARATION · DISPLAY GEOMETRY</span><p class="gi-orb2-berth-readout" data-gi-orb2-berth-readout aria-live="off">BERTH SEPARATION · WAITING FOR THE FIRST DRAWN FIELD</p><small class="gi-orb2-berth-note">Shared berths are re-slotted by stable symbol phase; no market value is recomputed and no node is ranked or hidden.</small></div>
               <div class="gi-orb2-status-pills"><span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span><span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span></div>
               <span class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</span>
             </div>
@@ -896,6 +1232,7 @@
     const root = $("[data-gi-orb2-root]");
     const canvas = $("[data-gi-orb2-canvas]");
     const flowReadout = $("[data-gi-orb2-flow-readout]");
+    const berthReadout = $("[data-gi-orb2-berth-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
     const focusSelect = $("[data-gi-orb2-focus]");
@@ -912,6 +1249,14 @@
     const resetButton = $("[data-gi-orb2-reset]");
     const formation = $("[data-gi-orb2-formation]");
     const formationLabel = $("[data-gi-orb2-formation-label]");
+    const separation = $("[data-gi-orb2-separation]");
+    const separationLabel = $("[data-gi-orb2-separation-label]");
+    const orbTrack = $("[data-gi-orb2-orb-track]");
+    const constellationNote = $("[data-gi-orb2-constellation-note]");
+    const ocmNote = $("[data-gi-orb2-ocm]");
+    const constellationToggle = $("[data-gi-orb2-constellation]");
+    const zoomButton = $("[data-gi-orb2-zoom]");
+    const resetCamButton = $("[data-gi-orb2-resetcam]");
     const rotateToggle = $("[data-gi-orb2-rotate]");
     const labelsToggle = $("[data-gi-orb2-labels]");
     const pathsToggle = $("[data-gi-orb2-paths]");
@@ -1025,6 +1370,7 @@
         discId: state.discId, interval: state.interval,
         auto: state.auto,
         showDataBits: state.showDataBits,
+        separation: state.separation,
         beatType: state.beatType,
         focusSymbols: state.focusSymbols
       };
@@ -1224,6 +1570,8 @@
       if (refreshIntradayButton) refreshIntradayButton.disabled = state.pending || state.loadingCatalog;
       rotateToggle.checked = state.autoRotate;
       dataBitsToggle.checked = state.showDataBits;
+      separation.value = String(Math.round(state.separation * 100));
+      separationLabel.textContent = berthSpreadLabel(state.separation);
     }
 
     function syncFocusOptions() {
@@ -1259,6 +1607,10 @@
       state.stage = stage;
       symbols = stage.berths.map(berth => berth.symbol);
       state.entries = entries;
+      /* The canvas follows the Disc: a Disc switch rebuilds the drawn orbs from
+         that Disc's own reviewed instruments, so the constellation shows one
+         orb per Disc with its own packets instead of one deck everywhere. */
+      if (tickerMode) rebuildTickerNodes(timeframe === "1h" ? "1h" : "1d", visible.length ? visible : entries);
       if (!symbols.includes(state.focus)) state.focus = symbols[0] || "";
       state.ledger = readLedger(discId, state.interval);
       syncFormControls();
@@ -1268,6 +1620,7 @@
     async function entriesForDisc(discId) {
       if (discId === "stocks") {
         if (!watchlist.length) throw new Error("The reviewed Good Intelligence Tickerbot stock list was not available.");
+        state.rosterByDisc.stocks = watchlist;
         return { entries: watchlist, ranking: null };
       }
       if (discId === "crypto") {
@@ -1279,10 +1632,12 @@
         if (!response.ok || !payload || payload.success !== true || !Array.isArray(payload.instruments) || !payload.instruments.length) {
           throw new Error(payload && payload.message || `The live crypto ranking route answered HTTP ${response.status}. No stale constituent list was substituted.`);
         }
+        state.rosterByDisc.crypto = payload.instruments;
         return { entries: payload.instruments, ranking: payload.ranking || null };
       }
       const entries = DiscCatalog.staticInstruments(discId);
       if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${DiscCatalog.disc(discId)?.label || discId}.`);
+      state.rosterByDisc[discId] = entries;
       return { entries, ranking: null };
     }
 
@@ -1646,6 +2001,11 @@
               : state.persistence === "local-storage-unavailable" ? "SESSION STORAGE BLOCKED" : state.persistence;
       persistenceHost.title = state.persistenceNote;
       countsHost.textContent = `${state.ledger.calls.toLocaleString()} local calls · ${state.ledger.beats.toLocaleString()} beats · ${symbols.length} berths`;
+      if (berthReadout) {
+        berthReadout.textContent = state.berthReport
+          ? berthSeparationText(state.berthReport)
+          : `BERTH SEPARATION · ${berthSpreadLabel(state.separation)} · waiting for the first drawn field`;
+      }
       routeStepProvider.textContent = state.routeSteps.provider;
       routeStepWorker.textContent = state.routeSteps.worker;
       routeStepLedger.textContent = state.routeSteps.ledger;
@@ -1680,6 +2040,7 @@
 
     function draw() {
       syncFormControls();
+      renderOrbBar();
       drawInspector();
       drawHistory();
       /* drawStatus() runs last so the beat-type scenario narration and the
@@ -1694,13 +2055,113 @@
         : state.interval === "1h" ? "1h" : "1d";
     }
 
-    function fieldUrl() {
+    /** The interval a Disc's own field is stored at. Massive writes the daily
+        field for Discs 2-5 while Tickerbot writes Disc1's intraday lanes, so
+        Disc1 follows the intraday dial and the rest stay at 1d rather than
+        being asked for an interval they cannot store. */
+    function discFieldInterval(discId) {
+      return discId === "stocks" ? fieldInterval() : "1d";
+    }
+
+    /** One same-origin read of the stored field. The route serves every Disc at
+        once, so the constellation needs one read, not one per Disc; the page
+        still never calls a provider route itself. */
+    function fieldUrl(interval = fieldInterval()) {
       const params = new URLSearchParams();
-      params.set("interval", fieldInterval());
+      params.set("interval", interval);
       if (state.beatType) params.set("types", state.beatType);
       const focused = state.focusSymbols.filter(Boolean);
       if (focused.length) params.set("symbols", focused.join(","));
       return `${FIELD_ROUTE}?${params.toString()}`;
+    }
+
+    /** The carousel camera: center and magnify one Disc orb, or step back to
+        the whole ring. A camera choice only — it selects nothing and grants
+        nothing. */
+    function focusDiscOrb(discId, { zoom = true, reason = "carousel" } = {}) {
+      const disc = state.constellation.find(entry => entry.id === discId);
+      if (!disc) return;
+      state.focusOrb = true;
+      state.camZoom = zoom ? CONSTELLATION_ZOOM : CONSTELLATION_WIDE_ZOOM;
+      if (constellationToggle) constellationToggle.checked = true;
+      state.message = {
+        kind: "note",
+        text: `${disc.label} orb in focus${zoom ? " and magnified" : ""} · ${discOrbStatusText(discId)}. Camera ${reason} only: the Disc's own stored field is what is drawn, and no market value changed.${state.ignition.active ? " The 52-asset Disc1 sweep keeps running server-side and its progress is untouched by this view." : ""}`
+      };
+      draw();
+    }
+
+    /** Walk to one Disc orb and put the camera on it. Used by the strip, the
+        step buttons, the canvas orb click, and the arrow keys. */
+    async function goToDisc(discId, reason) {
+      if (!discId || state.pending || state.loadingCatalog) return;
+      if (discId !== state.discId) await switchDisc(discId, { force: true });
+      focusDiscOrb(discId, { reason });
+    }
+
+    async function stepDisc(delta) {
+      if (state.pending || state.loadingCatalog) return;
+      const order = state.constellation.map(entry => entry.id);
+      if (order.length < 2) return;
+      const index = order.indexOf(state.discId);
+      const next = order[((index < 0 ? 0 : index) + delta % order.length + order.length) % order.length];
+      await goToDisc(next, delta < 0 ? "slide left" : "slide right");
+    }
+
+    /** Which Disc orb, if any, sits under a pointer event. Orb hit-testing is
+        geometric and independent of the packet hit-testing. */
+    function pickDiscOrb(event) {
+      const rect = typeof canvas.getBoundingClientRect === "function" ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+      const x = Number(event.clientX) - (rect.left || 0);
+      const y = Number(event.clientY) - (rect.top || 0);
+      let winner = null;
+      let distance = Infinity;
+      for (const orb of state.projectedOrbs) {
+        const d = Math.hypot(orb.point.x - x, orb.point.y - y);
+        if (d < distance && d < CONSTELLATION_HIT_RADIUS) { winner = orb.disc.id; distance = d; }
+      }
+      return winner;
+    }
+
+    /** The carousel strip: one button per Disc orb, in catalog order, each
+        carrying that Disc's own stored-field status. It is rebuilt only when
+        the text it shows changes, so a live view never steals focus. */
+    function renderOrbBar() {
+      if (!orbTrack) return;
+      const map = discStatusMap();
+      const signature = state.constellation.map(disc => {
+        const status = map[disc.id] || null;
+        return `${disc.id}:${disc.id === state.discId ? 1 : 0}:${status ? `${status.stored}/${status.instruments}/${status.newestAt || 0}/${status.covered ? 1 : 0}` : "none"}`;
+      }).join("|");
+      if (signature !== state.orbSignature) {
+        state.orbSignature = signature;
+        orbTrack.innerHTML = state.constellation.map(disc => {
+          const status = map[disc.id] || null;
+          const covered = Boolean(status && status.covered);
+          const stateText = status
+            ? covered ? `${status.stored} of ${status.instruments || status.stored} stored` : "awaiting first beat"
+            : "not read yet";
+          return `<button type="button" role="tab" class="gi-orb2-orb${disc.id === state.discId ? " is-current" : ""}${covered ? "" : " is-empty"}"
+            data-gi-orb2-orb="${escapeHtml(disc.id)}" aria-selected="${disc.id === state.discId}" aria-label="${escapeHtml(`${disc.label} · ${stateText}`)}">
+            <span class="gi-orb2-orb-number">${escapeHtml(String(disc.number))}</span>
+            <span class="gi-orb2-orb-name">${escapeHtml(disc.name || disc.id)}</span>
+            <small class="gi-orb2-orb-state" title="${escapeHtml(covered && status.newestAt ? `newest ${shortTime(status.newestAt)}` : stateText)}">${escapeHtml(stateText)}</small>
+          </button>`;
+        }).join("");
+      }
+      const current = orbTrack.querySelector(".gi-orb2-orb.is-current");
+      if (current && typeof current.scrollIntoView === "function") {
+        try { current.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* optional */ }
+      }
+      if (constellationNote) constellationNote.textContent = constellationText();
+      if (ocmNote) ocmNote.textContent = ocmTrafficText();
+      if (constellationToggle) constellationToggle.checked = state.focusOrb;
+      if (zoomButton) {
+        const zoomed = state.camZoom > CONSTELLATION_WIDE_ZOOM + 0.05;
+        zoomButton.textContent = zoomed ? "wide view" : "zoom orb";
+        zoomButton.setAttribute("aria-pressed", String(zoomed));
+      }
+      if (resetCamButton) resetCamButton.disabled = !state.focusOrb && state.camZoom <= CONSTELLATION_WIDE_ZOOM + 0.05;
     }
 
     async function postField(action, body = {}) {
@@ -1796,7 +2257,80 @@
       else if (state.ignition.workerReady) state.ignition.phase = "dxy";
     }
 
-    async function loadFieldSnapshot({ reason = "poll" } = {}) {
+    /** One same-origin read of the stored field at one interval. */
+    async function readFieldInterval(interval) {
+      const response = await globalThis.fetch(fieldUrl(interval), {
+        method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
+        headers: { Accept: "application/json" }
+      });
+      const payload = await response.json().catch(() => null);
+      const data = payload && isRecord(payload.data) ? payload.data : null;
+      if (!response.ok || !data || data.ok !== true) {
+        return { ok: false, interval, message: (payload && payload.message) || `The server field answered HTTP ${response.status}.` };
+      }
+      return { ok: true, interval, data };
+    }
+
+    /** The reads merged into one constellation snapshot. Rows keep their own
+        `discId` and `interval`, so a Disc's packets are never re-labelled onto
+        another Disc; the per-Disc status is taken from the read whose interval
+        is that Disc's own, so an orb never reports another interval's emptiness
+        as its own stored field. */
+    function mergeFieldSnapshots(served) {
+      const first = served[0].data;
+      const rows = new Map();
+      for (const read of served) {
+        for (const row of Array.isArray(read.data.observations) ? read.data.observations : []) {
+          const observation = fieldObservation(row);
+          if (!observation.symbol || !observation.at) continue;
+          rows.set(`${observation.discId}:${observation.provider}:${observation.interval}:${observation.symbol}`, row);
+        }
+      }
+      const merged = { ...first };
+      merged.observations = [...rows.values()].sort((left, right) => (Number(right.observedAt) || 0) - (Number(left.observedAt) || 0));
+      merged.status = { ...(first.status || {}) };
+      merged.intervalsRead = served.map(read => read.interval);
+      const discsById = new Map();
+      for (const read of served) {
+        const list = read.data.status && read.data.status.discs;
+        for (const entry of Array.isArray(list) ? list : []) {
+          const id = String(entry && entry.id || "").toLowerCase();
+          if (!id) continue;
+          const current = discsById.get(id);
+          const own = read.interval === discFieldInterval(id);
+          /* The Disc's own interval wins; otherwise keep the first description
+             that actually covers the Disc rather than an empty read of another
+             interval. */
+          if (!current || (own && !current.own) || (!current.covered && entry.covered === true && !current.own)) {
+            discsById.set(id, { ...entry, own });
+          }
+        }
+      }
+      if (discsById.size) merged.status.discs = [...discsById.values()].map(({ own, ...entry }) => entry);
+      const types = new Map();
+      for (const read of served) {
+        for (const type of Array.isArray(read.data.beatTypes) ? read.data.beatTypes : []) {
+          const id = String(type && type.id || "");
+          if (!id) continue;
+          const current = types.get(id) || { ...type, available: false, count: 0 };
+          types.set(id, {
+            ...current,
+            available: current.available || type.available === true,
+            count: (Number(current.count) || 0) + (Number(type.count) || 0),
+            summary: current.summary || type.summary
+          });
+        }
+      }
+      if (types.size) merged.beatTypes = [...types.values()];
+      /* The DXY reference is fixed and derives from the six aligned FX closes,
+         so a ready reading wins over one that could not compose it. */
+      const dxy = served.map(read => read.data.dxy).filter(Boolean)
+        .sort((left, right) => (right.status === "ready" ? 1 : 0) - (left.status === "ready" ? 1 : 0))[0];
+      if (dxy) merged.dxy = dxy;
+      return merged;
+    }
+
+    async function loadFieldSnapshot({ reason = "poll", reuse = false } = {}) {
       if (state.destroyed) return false;
       const fetcher = globalThis.fetch;
       if (typeof fetcher !== "function") {
@@ -1805,25 +2339,38 @@
         draw();
         return false;
       }
+      /* A carousel move does not need a new read: the constellation already
+         holds every Disc's stored rows, so it re-uses them and lets the next
+         scheduled poll refresh the field. */
+      if (reuse && state.field && Date.now() - state.fieldAt < FIELD_POLL_MS) {
+        state.message = { kind: "note", text: `${DiscCatalog.disc(state.discId)?.label || state.discId} selected from the constellation already in this view. The stored field was not re-requested; the next read refreshes every Disc together.` };
+        draw();
+        return true;
+      }
       state.fieldPending = true;
       drawStatus();
+      /* One read serves every Disc at once. When the Disc1 dial is intraday a
+         second read at 1d keeps Discs 2-5's stored daily field in the same
+         snapshot, so no orb goes dark just because another lane was chosen. */
+      const intervals = [...new Set([fieldInterval(), "1d"])];
       try {
-        const response = await fetcher(fieldUrl(), {
-          method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
-          headers: { Accept: "application/json" }
-        });
-        const payload = await response.json().catch(() => null);
-        const data = payload && isRecord(payload.data) ? payload.data : null;
+        const reads = await Promise.all(intervals.map(interval => readFieldInterval(interval)
+          .catch(error => ({ ok: false, interval, message: (error && error.message) || "The server field could not be read." }))));
+        const served = reads.filter(read => read.ok);
         state.fieldPending = false;
-        if (!response.ok || !data || data.ok !== true) {
+        if (!served.length) {
           state.fieldFailed = true;
-          state.message = { kind: "refusal", text: `${payload && payload.message || `The server field answered HTTP ${response.status}.`} This page made no provider request; the 24/7 schedule is unaffected.` };
+          state.message = { kind: "refusal", text: `${reads[0] && reads[0].message || "The server field could not be read."} This page made no provider request; the 24/7 schedule is unaffected.` };
           draw();
           return false;
         }
-        applyFieldSnapshot(data);
+        const merged = mergeFieldSnapshots(served);
+        applyFieldSnapshot(merged);
+        const unread = reads.filter(read => !read.ok);
         if (reason !== "poll") {
-          state.message = { kind: "note", text: `Server field read · ${data.observations.length} stored observation${data.observations.length === 1 ? "" : "s"} · newest ${data.observations.length ? shortTime(Number(data.observations[0].observedAt)) : "—"}. The page renders what the Worker stored; it requests nothing itself.` };
+          const rows = merged.observations.length;
+          const scope = merged.intervalsRead.join(" + ");
+          state.message = { kind: "note", text: `Server field read · ${scope} across all five Discs · ${rows} stored observation${rows === 1 ? "" : "s"} · newest ${rows ? shortTime(Number(merged.observations[0].observedAt)) : "—"}${unread.length ? ` · the ${unread.map(read => read.interval).join(", ")} read failed and its Discs stay on what is already stored` : ""}. The page renders what the Worker stored; it requests nothing itself.` };
         }
         draw();
         return true;
@@ -1967,9 +2514,13 @@
       }, FIELD_POLL_MS);
     }
 
-    async function switchDisc(discId) {
+    /* `force` is the carousel's own door: the 52-asset ignition sweep is a Disc1
+       server-side count that keeps running wherever the view is pointed, so a
+       deliberate orb choice may look at another Disc while it runs. The Disc
+       dropdown stays locked, and nothing about the sweep is restarted. */
+    async function switchDisc(discId, { force = false } = {}) {
       const disc = DiscCatalog.disc(discId);
-      if (state.ignition.active || !disc || state.pending || state.loadingCatalog) {
+      if ((state.ignition.active && !force) || !disc || state.pending || state.loadingCatalog) {
         discSelect.value = state.discId;
         return;
       }
@@ -1993,7 +2544,7 @@
         state.message = { kind: "note", text: disc.ranking };
         persistLocal();
         draw();
-        await loadFieldSnapshot({ reason: "disc-change" });
+        await loadFieldSnapshot({ reason: "disc-change", reuse: true });
         schedule();
       } catch (error) {
         state.discId = previousDisc;
@@ -2044,6 +2595,9 @@
       if (!state.ignition.enabled || state.pending || state.loadingCatalog) return;
       state.discId = "stocks";
       state.interval = "1d";
+      /* Restarting the sequence returns the canvas to the Disc1 deck as well
+         as the counters: the drawn orbs follow the Disc. */
+      if (tickerMode) rebuildTickerNodes("1d", options.tickers);
       state.ledger = readLedger("stocks", "1d");
       state.ignition.active = true;
       state.ignition.phase = "server-deploy";
@@ -2062,9 +2616,21 @@
       return loadFieldSnapshot({ reason: "ignition" }).then(schedule);
     }
 
-    function modelPoint(node, now, directive, observation = null) {
+    /* The packet's own berth plus the Characters motion directive, as spherical
+       display coordinates (longitude, latitude, radius). This is the stage the
+       berth-separation resolver edits: it is the same radius and the same two
+       angles the model already derives from supplied market fields, so nothing
+       about a metric changes when a shared berth is re-slotted. */
+    function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
       const floatPhase = placement.phase + now / 1000 * placement.speed;
+      /* The float is the packet's own drift. It must never feed the berth
+         resolver: a drifted coordinate can cross the crowding floor and make
+         two orbs trade slots from one frame to the next (a visible teleport).
+         `anchor` is the metrics-only berth, so the separation decision is
+         stable for as long as the packets are, and the drift is applied to the
+         resolved slot afterwards. */
+      const anchor = { longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius };
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
@@ -2083,6 +2649,14 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
+      return { longitude, latitude, radius, anchor, available: placement.available, source: placement.source, pressure: placement.pressure };
+    }
+
+    /* The spherical berth rendered through the disc↔sphere form blend. It reads
+       display coordinates only — a separated berth is projected exactly like an
+       untouched one. */
+    function modelPoint(spherical) {
+      const { longitude, latitude, radius } = spherical;
       const sphere = {
         x: radius * Math.cos(latitude) * Math.cos(longitude),
         y: radius * Math.sin(latitude),
@@ -2099,8 +2673,277 @@
       };
     }
 
+    /* One draw pass of the field: every berth keeps its own market-derived
+       radius, and berths that landed on top of one another are re-slotted on a
+       shared display ring before projection. The separation is display geometry
+       only — see resolveBerthSeparation() — and it is applied before anything is
+       drawn, so nodes, halos, satellites, flow runners, and the beat beams all
+       read from the same resolved berth. */
+    /** The reviewed instruments of one Disc, cached. Stocks come from the
+        reviewed watchlist and fx/commodities/indices from the catalog; crypto
+        needs its live ranked list, which is cached from the last successful
+        read, and a Disc whose roster is not known yet contributes no orb
+        rather than a guessed one. */
+    function discEntriesCached(discId) {
+      if (Array.isArray(state.rosterByDisc[discId]) && state.rosterByDisc[discId].length) return state.rosterByDisc[discId];
+      if (discId === "stocks") return watchlist;
+      const statics = DiscCatalog.staticInstruments(discId);
+      return Array.isArray(statics) ? statics : [];
+    }
+
+    /** The drawn orbs of one Disc, built once per roster. Every Disc orb keeps
+        its own instruments, so all five fields can be on screen together. */
+    function discNodes(discId) {
+      const entries = discEntriesCached(discId);
+      if (!entries.length) return [];
+      const signature = `${discId}:${entries.length}:${String(entries[0] && (entries[0].symbol || entries[0].ticker) || "")}`;
+      const cached = state.fieldNodes[discId];
+      if (cached && cached.signature === signature) return cached.nodes;
+      const built = buildNodes(entries, "1d");
+      state.fieldNodes[discId] = { signature, nodes: built };
+      return built;
+    }
+
+    /** The berth of one Disc orb in the constellation, or null when this id is
+        not on the ring. Geometry only — never derived from market data. */
+    function discBerth(discId) {
+      const entry = state.constellation.find(disc => disc.id === discId);
+      return entry ? entry.berth : null;
+    }
+
+    /** The selected Disc's orb center in model space. The packet field of the
+        selected Disc is drawn around this point, so a Disc's data stays with its
+        own orb instead of being re-centred on the constellation. */
+    function fieldOrigin() {
+      return discBerth(state.discId) || { x: 0, y: 0, z: 0 };
+    }
+
+    /** The Worker's per-Disc report, keyed by id, with an explicit empty entry
+        for a Disc the server did not report. A Disc with nothing stored stays
+        empty here: the orb reads "awaiting first beat" and no other Disc's
+        packets are shown in its place. */
+    function discStatusMap() {
+      const map = {};
+      /* The served rows for this visit, grouped by Disc. Used for any Disc the
+         server did not describe (and for the Disc-status schema's absence), so
+         an orb reports what this client actually received rather than nothing. */
+      const served = {};
+      for (const observation of state.observations.values()) {
+        const id = String(observation.discId || "").toLowerCase();
+        if (!id) continue;
+        const entry = served[id] || (served[id] = { stored: 0, confirmed: 0, observed: 0, held: 0, newestAt: null, providers: new Set() });
+        entry.stored += 1;
+        if (observation.confirmed) entry.confirmed += 1;
+        if (observation.market) entry.observed += 1; else entry.held += 1;
+        const at = Number(observation.at) || 0;
+        if (at > (entry.newestAt || 0)) entry.newestAt = at;
+        if (observation.provider) entry.providers.add(observation.provider);
+      }
+      const status = state.field && state.field.status;
+      for (const disc of Array.isArray(status && status.discs) ? status.discs : []) {
+        const id = String(disc && disc.id || "").toLowerCase();
+        if (!id) continue;
+        map[id] = {
+          stored: Math.max(0, Number(disc.stored) || 0),
+          confirmed: Math.max(0, Number(disc.confirmed) || 0),
+          instruments: Math.max(0, Number(disc.instruments) || 0),
+          newestAt: Number(disc.newestAt) > 0 ? Number(disc.newestAt) : null,
+          covered: disc.covered === true,
+          observed: Number.isFinite(Number(disc.observed)) ? Number(disc.observed) : null,
+          held: Number.isFinite(Number(disc.held)) ? Number(disc.held) : null,
+          providers: Array.isArray(disc.providers) ? disc.providers.slice() : []
+        };
+      }
+      for (const disc of state.constellation) {
+        if (map[disc.id]) continue;
+        const rows = served[disc.id];
+        map[disc.id] = rows
+          ? {
+            stored: rows.stored, confirmed: rows.confirmed, instruments: rows.stored, newestAt: rows.newestAt,
+            covered: rows.stored > 0, observed: rows.observed, held: rows.held, providers: [...rows.providers].sort()
+          }
+          : { stored: 0, confirmed: 0, instruments: 0, newestAt: null, covered: false, observed: null, held: null, providers: [] };
+      }
+      return map;
+    }
+
+    /** One line per orb: how much of that Disc is actually stored server-side. */
+    function discOrbStatusText(discId) {
+      const disc = state.constellation.find(entry => entry.id === discId);
+      const status = discStatusMap()[discId];
+      if (!disc || !status) return "not reviewed";
+      if (!status.covered) {
+        return status.instruments > 0
+          ? `${status.instruments} reviewed · awaiting first beat`
+          : "awaiting first beat · no reviewed instrument";
+      }
+      const newest = status.newestAt ? shortTime(status.newestAt) : "—";
+      return `${status.stored} of ${status.instruments || status.stored} stored · newest ${newest}`;
+    }
+
+    /** Panel/readout sentence for the whole constellation. It names the Discs
+        that have reported and the Discs still waiting, and never implies a
+        Disc has data because another Disc does. */
+    function constellationText() {
+      const map = discStatusMap();
+      const covered = state.constellation.filter(disc => map[disc.id] && map[disc.id].covered);
+      const waiting = state.constellation.filter(disc => !map[disc.id] || !map[disc.id].covered);
+      const stored = covered.reduce((total, disc) => total + map[disc.id].stored, 0);
+      const readings = state.constellation.map(disc => `${disc.number}·${discFieldInterval(disc.id)}`).join(" ");
+      const head = `CONSTELLATION · ${state.constellation.length} Disc orb${state.constellation.length === 1 ? "" : "s"} · selected ${DiscCatalog.disc(state.discId)?.label || state.discId} · ${covered.length} reporting, ${stored} stored row${stored === 1 ? "" : "s"} read at ${readings}`;
+      if (!covered.length) return `${head} · every orb is awaiting its first beat; the field is empty, not substituted`;
+      if (!waiting.length) return `${head} · every Disc orb is reporting its own field`;
+      return `${head} · awaiting first beat on ${waiting.map(disc => `${disc.number}. ${disc.name}`).join(", ")}`;
+    }
+
+    /** The view-frame point the camera centers on: the focused orb when focus
+        is on, otherwise the Center Origin. Focus is a camera choice only. */
+    function constellationPan() {
+      if (!state.focusOrb) return { x: 0, y: 0, z: 0 };
+      return rotate3(fieldOrigin());
+    }
+
+    /** Project one Disc's own field. Every Disc orb draws its own reviewed
+        instruments around its own berth, so all five fields are visible at
+        once; the selected Disc is the one the inspector, the beams, and the
+        packet hit-test follow. */
+    function projectDiscField(discId, fieldNodes, width, height, now) {
+      const placements = fieldNodes.map(node => {
+        const observation = discId === state.discId ? latestForNode(node) : latestObservation(discId, node.symbol);
+        const directive = displayMotion(observation, now);
+        return {
+          node, observation, directive, discId,
+          identity: node.symbol || node.name || node.id,
+          ...sphericalPlacement(node, now, directive, observation)
+        };
+      });
+      /* The resolver sees the stable anchors; the drift stays on the drawn
+         coordinates. Re-running it over the same packets therefore returns the
+         same slots, and a packet never jumps between frames. */
+      const decisions = placements.map(placement => ({
+        identity: placement.identity,
+        longitude: placement.anchor.longitude,
+        latitude: placement.anchor.latitude,
+        radius: placement.anchor.radius
+      }));
+      const report = resolveBerthSeparation(decisions, state.separation, { flat: ease(state.formation) < 0.04 });
+      decisions.forEach((decision, index) => {
+        placements[index].longitude += decision.longitude - placements[index].anchor.longitude;
+        placements[index].latitude += decision.latitude - placements[index].anchor.latitude;
+      });
+      /* Display-only translation: the whole separated field is drawn around its
+         own Disc orb. Berth radii, angles, and the separation report are
+         computed before the translation, so nothing about a metric changes. */
+      const origin = discBerth(discId) || { x: 0, y: 0, z: 0 };
+      const drawn = placements.map(placement => addModelPoint(modelPoint(placement), origin));
+      /* The slot decision is made on the stable anchors, but the packets' own
+         drift is added afterwards, and two orbs seated exactly on the floor can
+         drift toward each other. This settle pass only touches pairs the drift
+         has brought inside the floor, moving them apart along their own chord
+         by their own overlap: a continuous function of the drawn coordinates
+         (the push is exactly zero at the floor), so unlike a re-slot it can
+         never teleport an orb. The report above is untouched — it still
+         describes the model-space decision, not this display nudge. */
+      settleDrawnFloor(drawn, report.minimum);
+      const projected = drawn.map((point, index) => ({
+        ...project(point, width, height),
+        node: placements[index].node,
+        observation: placements[index].observation,
+        directive: placements[index].directive
+      }));
+      return { points: projected, report, placements };
+    }
+
+    /** Keep the drawn field clear of the berth floor the resolver decided on.
+        Pairs the packets' own drift has brought inside the floor are pushed
+        apart along their chord, half each; a pair exactly on the floor is
+        moved by exactly zero, so the pass is continuous in the drawn
+        coordinates and adds no motion of its own. Deterministic and
+        idempotent: re-running it over its own output moves nothing. */
+    function settleDrawnFloor(points, minimum) {
+      if (!(Number(minimum) > 0) || !Array.isArray(points) || points.length < 2) return points;
+      for (let pass = 0; pass < 2; pass += 1) {
+        let moved = false;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const a = points[left];
+            const b = points[right];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dz = b.z - a.z;
+            const chord = Math.hypot(dx, dy, dz);
+            if (!(chord > 1e-9) || chord >= minimum) continue;
+            const push = (minimum - chord) / 2;
+            const ux = (dx / chord) * push;
+            const uy = (dy / chord) * push;
+            const uz = (dz / chord) * push;
+            a.x -= ux; a.y -= uy; a.z -= uz;
+            b.x += ux; b.y += uy; b.z += uz;
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+      return points;
+    }
+
+    function resolveProjectedNodes(fieldNodes, width, height, now) {
+      const field = projectDiscField(state.discId, fieldNodes, width, height, now);
+      state.berthReport = field.report;
+      return field.points;
+    }
+
+    /** Every Disc's sub-orb cloud for this frame, each inside its own berth.
+        The selected Disc is projected by the caller (it drives the inspector,
+        the beams, and the hit-test); the rest are projected here so all five
+        fields are on screen at once. */
+    function projectAllDiscFields(width, height, now) {
+      const fields = {};
+      for (const disc of state.constellation) {
+        if (disc.id === state.discId) continue;
+        const nodesForDisc = discNodes(disc.id);
+        if (!nodesForDisc.length) { fields[disc.id] = { points: [], report: null }; continue; }
+        const field = projectDiscField(disc.id, nodesForDisc, width, height, now);
+        fields[disc.id] = { points: field.points, report: field.report };
+      }
+      return fields;
+    }
+
+    /** The compact sub-orb rendering used while the whole ring is in view: one
+        batched fill per provider/held state instead of a halo, a ring, a
+        particle system, and a label per orb. The orbs are the same reviewed
+        instruments at their own packet berths — only the paint is lighter, so
+        five full fields can be drawn at once. */
+    function drawFieldBatch(points, { radius = 2.4, dim = false } = {}) {
+      if (!context2d || !points.length) return;
+      const groups = new Map();
+      for (const point of points) {
+        const observation = point.observation;
+        const provider = observation && observation.market ? String(observation.providerMode || observation.provider || "massive") : "held";
+        const key = observation && observation.market ? provider : "held";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(point);
+      }
+      for (const [key, list] of groups) {
+        context2d.save();
+        context2d.fillStyle = key === "held" ? "#5d7999" : key === "tickerbot" ? "#5ce6a8" : key === "alpha-vantage" ? "#c79bff" : "#66b7e6";
+        context2d.globalAlpha = dim ? (key === "held" ? 0.34 : 0.58) : key === "held" ? 0.5 : 0.88;
+        context2d.beginPath();
+        for (const point of list) {
+          context2d.moveTo(point.x + radius, point.y);
+          context2d.arc(point.x, point.y, radius, 0, TAU);
+        }
+        context2d.fill();
+        context2d.restore();
+      }
+    }
+
     /* The camera rotation is its own step so every element — lattice, nodes, paths,
        and the Center Origin assembly — shares one rotation, pitch, and zoom. */
+    function addModelPoint(point, offset) {
+      return { x: point.x + offset.x, y: point.y + offset.y, z: point.z + offset.z };
+    }
+
     function rotate3(point) {
       const cy = Math.cos(state.yaw), sy = Math.sin(state.yaw);
       const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
@@ -2110,16 +2953,31 @@
     }
 
     function toScreen(point, width, height) {
-      const fov = 7.5 / state.zoom;
+      /* `camPan` is the view-frame point the carousel has focused, so the
+         focused Disc orb lands exactly on the screen center; `camZoom` is the
+         carousel magnification on top of the manual zoom. Both are camera
+         state: they move the view, never a computed coordinate. */
+      const fov = (state.focusOrb ? 7.5 : CONSTELLATION_WIDE_FOV) / state.zoom;
       const scale = fov / (fov + point.z);
       /* Scale from the shorter dimension so the sphere stays round and fully
-         visible on 2622 × 1206 widescreens as well as narrow mobile stages. */
-      const modelUnit = Math.min(width, height) * (height > width ? 0.15 : 0.155);
-      return { x: width / 2 + point.x * scale * modelUnit, y: height / 2 - point.y * scale * modelUnit, z: point.z, scale };
+         visible on 2622 × 1206 widescreens as well as narrow mobile stages.
+         `camZoom` magnifies around the focused orb, which is what the carousel
+         panned to the screen center. */
+      const modelUnit = Math.min(width, height) * (height > width ? 0.15 : 0.155) * state.camZoom;
+      const x = point.x - state.camPan.x;
+      const y = point.y - state.camPan.y;
+      return { x: width / 2 + x * scale * modelUnit, y: height / 2 - y * scale * modelUnit, z: point.z, scale };
     }
 
     function project(point, width, height) {
       return toScreen(rotate3(point), width, height);
+    }
+
+    /** A point of the selected Disc's own field, drawn around that Disc's orb.
+        The lattice, the packets, and the beams all use this translation, so a
+        Disc's field furniture never drifts onto another Disc's orb. */
+    function fieldProject(point, width, height) {
+      return project(addModelPoint(point, fieldOrigin()), width, height);
     }
 
     function canvasBounds() {
@@ -2175,8 +3033,8 @@
       const points = [];
       for (let step = 0; step <= 96; step += 1) {
         const longitude = (step / 96) * TAU;
-        const radius = 2.06;
-        points.push(project({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
+        const radius = LATTICE_RING_MODEL;
+        points.push(fieldProject({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
       }
       strokeDepthPath(points, color, alpha * state.formation, latitude === 0 ? 1.05 : 0.78);
     }
@@ -2185,8 +3043,8 @@
       const points = [];
       for (let step = 0; step <= 64; step += 1) {
         const latitude = -Math.PI / 2 + (step / 64) * Math.PI;
-        const radius = 2.06;
-        points.push(project({
+        const radius = LATTICE_RING_MODEL;
+        points.push(fieldProject({
           x: radius * Math.cos(latitude) * Math.cos(longitude),
           y: radius * Math.sin(latitude),
           z: radius * Math.cos(latitude) * Math.sin(longitude)
@@ -2201,7 +3059,7 @@
         const angle = (step / 112) * TAU + phase;
         const x = radius * Math.cos(angle);
         const z = radius * Math.sin(angle);
-        points.push(project({ x, y: z * Math.sin(tilt), z: z * Math.cos(tilt) }, width, height));
+        points.push(fieldProject({ x, y: z * Math.sin(tilt), z: z * Math.cos(tilt) }, width, height));
       }
       strokeDepthPath(points, color, alpha, 0.8, [4, 8]);
     }
@@ -2614,6 +3472,247 @@
       }
     }
 
+    /** The five Disc orbs and the ring they share around the Center Origin.
+        Every orb is drawn from the reviewed catalog plus the Worker's per-Disc
+        status: an orb with nothing stored is drawn as an empty, dashed marker
+        that says so. Returns the projected orbs for pointer hit-testing. */
+    function drawConstellation(now, width, height) {
+      const orbs = [];
+      if (!context2d || !state.constellation.length) return orbs;
+      const map = discStatusMap();
+      const hub = project({ x: 0, y: 0, z: 0 }, width, height);
+      const measured = text => {
+        try { return Math.max(0, Number(context2d.measureText(text).width) || 0); } catch { return 0; }
+      };
+      const boxes = [];
+      const lettering = [];
+      const fits = rect => !boxes.some(box =>
+        !(rect.x + rect.w <= box.x || box.x + box.w <= rect.x || rect.y + rect.h <= box.y || box.y + box.h <= rect.y));
+      for (const disc of state.constellation) {
+        const point = project(disc.berth, width, height);
+        orbs.push({ disc, point, status: map[disc.id] || null, selected: disc.id === state.discId });
+      }
+      /* The shared ring: one segment between neighbours, one tether per orb back
+         to the Center Origin. Both are drawn from display berths only. */
+      const back = [...orbs].sort((left, right) => right.point.z - left.point.z);
+      back.forEach(orb => {
+        const index = orbs.indexOf(orb);
+        const next = orbs[(index + 1) % orbs.length];
+        line(orb.point, next.point, "#3c6c93", 0.28, 1, [5, 6]);
+      });
+      back.forEach(orb => {
+        line(hub, orb.point, orb.selected ? "#70d8ff" : "#2b4c69", orb.selected ? 0.46 : 0.16,
+          orb.selected ? 1.4 : 1, orb.selected ? [] : [2, 6]);
+      });
+      /* Orb markers, then the two-line label: which Disc it is, and how much of
+         that Disc's field the server actually holds. */
+      for (const orb of back) {
+        const covered = Boolean(orb.status && orb.status.covered);
+        const radius = orb.selected ? 15 : 11;
+        context2d.save();
+        const halo = context2d.createRadialGradient(orb.point.x, orb.point.y, 1, orb.point.x, orb.point.y, radius * 2.7);
+        halo.addColorStop(0, orb.selected ? "rgba(112,216,255,0.30)" : covered ? "rgba(90,150,200,0.17)" : "rgba(90,110,130,0.10)");
+        halo.addColorStop(1, "rgba(8,16,28,0)");
+        context2d.fillStyle = halo;
+        context2d.beginPath(); context2d.arc(orb.point.x, orb.point.y, radius * 2.7, 0, TAU); context2d.fill();
+        context2d.globalAlpha = covered ? 0.92 : 0.6;
+        context2d.strokeStyle = orb.selected ? "#9be6ff" : covered ? "#6fa8cf" : "#55748c";
+        context2d.lineWidth = orb.selected ? 2 : 1.2;
+        /* A Disc with nothing stored is drawn dashed and kept unfilled: the orb
+           is a berth waiting for its own beats, never another Disc's packets. */
+        context2d.setLineDash(covered ? [] : [3, 4]);
+        context2d.beginPath(); context2d.arc(orb.point.x, orb.point.y, radius, 0, TAU); context2d.stroke();
+        context2d.setLineDash([]);
+        context2d.font = `600 ${orb.selected ? 13 : 11}px "IBM Plex Mono", ui-monospace, monospace`;
+        context2d.textAlign = "center";
+        context2d.textBaseline = "middle";
+        context2d.fillStyle = orb.selected ? "#d9f6ff" : covered ? "#cfe4f2" : "#8fa8bb";
+        context2d.fillText(String(orb.disc.number), orb.point.x, orb.point.y);
+        context2d.restore();
+        const statusLine = orb.status
+          ? orb.status.covered
+            ? `${orb.status.stored} of ${orb.status.instruments || orb.status.stored} stored · newest ${orb.status.newestAt ? shortTime(orb.status.newestAt) : "—"}`
+            : orb.status.instruments > 0 ? `${orb.status.instruments} reviewed · awaiting first beat` : "awaiting first beat · no reviewed instrument"
+          : "not read this visit";
+        /* Five full fields share the wide stage, so every orb carries its
+           name and only the Disc the inspector is following also carries its
+           stored-row line; the panel and the chips state the rest. */
+        const lines = orb.selected
+          ? [`${orb.disc.number}. ${orb.disc.name || orb.disc.id}`, statusLine]
+          : [`${orb.disc.number}. ${orb.disc.name || orb.disc.id}`];
+        /* Labels are placed here — they must avoid one another — but painted in
+           the front pass, after the selected Disc's packets, so a busy field
+           never hides the status of a neighbouring Disc. */
+        /* The wide view stacks five Discs around the same ring, so each orb's
+           label is placed radially outward from the ring hub: the five labels
+           fan out around the constellation instead of converging on the middle
+           of the stage, and each keeps its own band of sky. */
+        const spread = Math.max(1e-6, Math.hypot(orb.point.x - hub.x, orb.point.y - hub.y));
+        const outward = { x: (orb.point.x - hub.x) / spread, y: (orb.point.y - hub.y) / spread };
+        const radialX = orb.point.x + outward.x * (radius + 8);
+        const radialY = orb.point.y + outward.y * (radius + 8);
+        const radialAlign = Math.abs(outward.x) < 0.42 ? "center" : outward.x > 0 ? "left" : "right";
+        lines.forEach((text, row) => {
+          const size = row === 0 ? 12 : 10;
+          const w = measured(text) || text.length * size * 0.62;
+          const h = size * 1.5;
+          const anchorX = radialAlign === "left" ? radialX : radialAlign === "right" ? radialX - w : radialX - w / 2;
+          const anchorY = radialY + row * h - (outward.y >= 0 ? 0 : h * (row + 1));
+          const candidates = [
+            { x: anchorX, y: anchorY, align: radialAlign },
+            { x: orb.point.x - w / 2, y: orb.point.y + radius + 6 + row * h, align: "center" },
+            { x: orb.point.x - w / 2, y: orb.point.y - radius - 10 - (1 - row) * h, align: "center" },
+            { x: orb.point.x + radius + 8, y: orb.point.y - h / 2 + row * h, align: "left" },
+            { x: orb.point.x - radius - 8 - w, y: orb.point.y - h / 2 + row * h, align: "right" }
+          ];
+          const chosen = candidates.find(candidate => fits({ x: candidate.x, y: candidate.y, w, h })) || candidates[0];
+          boxes.push({ x: chosen.x, y: chosen.y, w, h });
+          lettering.push({
+            text, x: chosen.x, y: chosen.y, w, h, size, align: chosen.align,
+            color: row === 0
+              ? orb.selected ? "#e6f8ff" : "#bcd6e8"
+              : orb.status && orb.status.covered ? "#8fd6b0" : "#c9a86a"
+          });
+        });
+      }
+      state.orbMarkers = back.map(orb => ({ disc: orb.disc.id, x: orb.point.x, y: orb.point.y, radius: orb.selected ? 15 : 11, selected: orb.selected, covered: Boolean(orb.status && orb.status.covered) }));
+      state.orbLabels = lettering;
+      return orbs;
+    }
+
+    /** The simulated OCM links: one beat lane per reporting Disc to each ring
+        neighbour and one to the Center Origin, and the same lanes back. A Disc
+        the server holds nothing for transmits nothing: no invented traffic is
+        drawn for an orb awaiting its first beat. The beats are a picture of
+        the stored field, not a channel — nothing here sends, authorizes,
+        resolves, commits, or recommends. */
+    function ocmLanes() {
+      const map = discStatusMap();
+      const discs = state.constellation;
+      const reporting = discs.map(disc => {
+        const status = map[disc.id] || null;
+        return { disc, stored: status ? Math.max(0, Number(status.stored) || 0) : 0 };
+      }).filter(entry => entry.stored > 0);
+      const lanes = [];
+      for (let index = 0; index < reporting.length; index += 1) {
+        const entry = reporting[index];
+        const beats = clamp(1 + Math.floor(entry.stored / 16), 1, OCM_TRAFFIC_MAX_BEATS);
+        if (reporting.length > 1) {
+          const next = reporting[(index + 1) % reporting.length];
+          const previous = reporting[(index - 1 + reporting.length) % reporting.length];
+          lanes.push({ from: entry.disc, to: next.disc, beats });
+          if (previous !== next) lanes.push({ from: entry.disc, to: previous.disc, beats });
+        }
+        lanes.push({ from: entry.disc, to: null, beats });
+        lanes.push({ from: null, to: entry.disc, beats });
+      }
+      return lanes;
+    }
+
+    /** One sentence for the panel: how many simulated beats are on the ring,
+        and the standing reminder that this is a picture and not a channel. */
+    function ocmTrafficText() {
+      const lanes = ocmLanes();
+      const beats = lanes.reduce((total, lane) => total + lane.beats, 0);
+      const discs = new Set(lanes.filter(lane => lane.from).map(lane => lane.from.id)).size;
+      if (!beats) return "OCM TRAFFIC SIMULATION · every lane idle, no stored rows to carry";
+      return `OCM TRAFFIC SIMULATION · display only, sends nothing · ${discs} orb${discs === 1 ? "" : "s"} transmitting on ${lanes.length} lane${lanes.length === 1 ? "" : "s"} · each beat follows that Disc's stored rows`;
+    }
+
+    /** Draw the simulated beats crossing the ring. Each lane carries a fixed
+        number of packets whose position is a pure function of the clock and
+        the lane's own phase, so the traffic is smooth, deterministic, and
+        adds no frame-to-frame jitter. */
+    function drawOcmTraffic(now, width, height) {
+      const packets = [];
+      state.ocmLanes = 0;
+      if (!context2d) { state.trafficPackets = packets; return packets; }
+      const lanes = ocmLanes();
+      state.ocmLanes = lanes.length;
+      const hub = { x: 0, y: 0, z: 0 };
+      for (let index = 0; index < lanes.length; index += 1) {
+        const lane = lanes[index];
+        const start = lane.from ? lane.from.berth : hub;
+        const end = lane.to ? lane.to.berth : hub;
+        const spin = (stableIdentityPhase(`${lane.from ? lane.from.id : "origin"}->${lane.to ? lane.to.id : "origin"}`) + Math.PI) / TAU;
+        const at = u => project({
+          x: start.x + (end.x - start.x) * u,
+          y: start.y + (end.y - start.y) * u + OCM_TRAFFIC_ARC * Math.sin(Math.PI * u),
+          z: start.z + (end.z - start.z) * u
+        }, width, height);
+        for (let beat = 0; beat < lane.beats; beat += 1) {
+          const phase = (spin + index * 0.3719 + beat / lane.beats) % 1;
+          const u = (now / OCM_TRAFFIC_PERIOD + phase) % 1;
+          context2d.save();
+          for (let trail = 2; trail >= 0; trail -= 1) {
+            const point = at(Math.max(0, u - trail * 0.032));
+            context2d.globalAlpha = trail === 0 ? 0.95 : trail === 1 ? 0.55 : 0.3;
+            context2d.fillStyle = trail === 0 ? "#ffe6a6" : "#d9b96a";
+            context2d.beginPath();
+            context2d.arc(point.x, point.y, 2.6 - trail * 0.6, 0, TAU);
+            context2d.fill();
+          }
+          /* The receiving orb flashes as the beat lands, so the exchange reads
+             as back-and-forth rather than a one-way stream. */
+          if (u > 0.86) {
+            const age = (u - 0.86) / 0.14;
+            const landing = at(1);
+            context2d.globalAlpha = 0.55 * (1 - age);
+            context2d.strokeStyle = "#ffd479";
+            context2d.lineWidth = 1.4;
+            context2d.beginPath();
+            context2d.arc(landing.x, landing.y, 6 + 16 * age, 0, TAU);
+            context2d.stroke();
+          }
+          context2d.restore();
+          const head = at(u);
+          packets.push({
+            from: lane.from ? lane.from.id : "origin",
+            to: lane.to ? lane.to.id : "origin",
+            u, x: head.x, y: head.y
+          });
+        }
+      }
+      state.trafficPackets = packets;
+      return packets;
+    }
+
+    /** The front pass for the constellation: the orb outlines stay visible over
+        the selected Disc's own packets, and every status label gets a dark
+        backing plate so it is readable wherever it landed. */
+    function paintConstellationFront() {
+      if (!context2d) return;
+      for (const marker of state.orbMarkers) {
+        context2d.save();
+        /* The orb keeps a dark backing disc so its own number stays readable
+           over its own sub-orb cloud. */
+        context2d.globalAlpha = 0.72;
+        context2d.fillStyle = "#060d16";
+        context2d.beginPath(); context2d.arc(marker.x, marker.y, marker.radius, 0, TAU); context2d.fill();
+        context2d.globalAlpha = 0.9;
+        context2d.strokeStyle = marker.selected ? "#9be6ff" : marker.covered ? "#6fa8cf" : "#55748c";
+        context2d.lineWidth = marker.selected ? 1.6 : 1;
+        context2d.setLineDash([]);
+        context2d.beginPath(); context2d.arc(marker.x, marker.y, marker.radius, 0, TAU); context2d.stroke();
+        context2d.restore();
+      }
+      for (const label of state.orbLabels) {
+        context2d.save();
+        context2d.globalAlpha = 0.58;
+        context2d.fillStyle = "#060d16";
+        const x = label.align === "center" ? label.x - 3 : label.align === "right" ? label.x - 3 : label.x - 3;
+        context2d.fillRect(x, label.y - 2, label.w + 6, label.h);
+        context2d.restore();
+        context2d.save();
+        context2d.font = `${label.size === 12 ? 600 : 400} ${label.size}px "IBM Plex Mono", ui-monospace, monospace`;
+        context2d.textAlign = label.align;
+        context2d.textBaseline = "top";
+        context2d.fillStyle = label.color;
+        context2d.fillText(label.text, label.align === "center" ? label.x + label.w / 2 : label.x, label.y);
+        context2d.restore();
+      }
+    }
+
   function drawCanvas(now) {
       if (!context2d || state.destroyed || !state.visible) return;
       const wallNow = Date.now();
@@ -2633,11 +3732,26 @@
         state.yaw += dt * 0.00013;
       }
       state.lastFrame = now;
+      /* The carousel camera: when focus is on, the selected Disc orb is panned
+         to the screen center and magnified; otherwise the whole constellation
+         is in frame. Camera state only — no computed coordinate changes. */
+      state.camPan = constellationPan();
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
       /* Center Origin assembly — the inner shell and the declared phase's rotation,
          drawn under the lattice, plus the origin strip (gate · phase · UTS). */
       const originAssembly = drawOriginAssembly(now, center, width, height);
       updateOriginStatus(wallNow, originAssembly);
+      /* The five Disc orbs, under the fields. */
+      state.projectedOrbs = drawConstellation(now, width, height);
+      /* Every unselected Disc's own sub-orb field, drawn inside its orb, so the
+         whole constellation is populated at a glance instead of only the orb
+         that was clicked. Compact while the ring is framed; hidden once a Disc
+         is focused, where its own field takes the stage. */
+      const wideView = !state.focusOrb;
+      if (wideView) {
+        const otherFields = projectAllDiscFields(width, height, now);
+        for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true });
+      }
       orbitalRing(2.32, 0.34, now * 0.000025, width, height, "#3678a8", 0.22);
       orbitalRing(2.4, 1.04, -now * 0.000018, width, height, "#6554a4", 0.14);
       orbitalRing(2.5, 0.78, now * 0.000012, width, height, "#2c8d91", 0.12);
@@ -2646,20 +3760,66 @@
       for (let index = 0; index < 12; index += 1) {
         meridian((index / 12) * TAU, width, height, index % 3 === 0 ? "#75d5fa" : "#5d7999", index % 3 === 0 ? 0.24 : 0.16);
       }
-      state.projected = nodes.map(node => {
-        const observation = latestForNode(node);
-        const directive = displayMotion(observation, now);
-        return { ...project(modelPoint(node, now, directive, observation), width, height), node, observation, directive };
-      });
+      state.projected = resolveProjectedNodes(nodes, width, height, now);
       updateFlowReadout(state.projected[state.selected] || null);
-      state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
-      drawCenterBeams(wallNow, center);
-      drawRoute(now, center);
+      if (wideView) {
+        /* The selected Disc's own field is the one the inspector, the beams,
+           and the hit-test follow, so it is drawn a step brighter than its
+           neighbours — never in place of them. */
+        drawFieldBatch(state.projected);
+      } else {
+        state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
+      }
+      /* OCM traffic: the simulated stored-field beats crossing the ring and the
+         tethers. Drawn while the whole constellation is framed; the focused
+         single-orb view is left exactly as it has always been. */
+      if (wideView) drawOcmTraffic(now, width, height);
+      else state.trafficPackets = [];
+      const fieldCenter = project(fieldOrigin(), width, height);
+      drawCenterBeams(wallNow, fieldCenter);
+      drawRoute(now, fieldCenter);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
+      /* Labels take the first candidate offset that does not sit on a label
+         already drawn this frame: preferred side first, then the other side,
+         then stacked above and below it. A label is never skipped — a crowded
+         frame staggers text instead of hiding a symbol. */
+      const constellationFront = state.orbLabels.length > 0;
+      const labelBoxes = [];
+      const labelWidth = (text, size) => {
+        let measured = 0;
+        try { measured = Number(context2d.measureText(text).width) || 0; } catch { measured = 0; }
+        return measured > 0 ? measured : text.length * size * 0.62;
+      };
+      const placeLabel = (point, radius, text, size) => {
+        const preferred = point.x > width * 0.52 ? 1 : -1;
+        const textWidth = labelWidth(text, size);
+        const boxHeight = size * 1.35;
+        const collides = rect => labelBoxes.some(box =>
+          !(rect.x + rect.w <= box.x || box.x + box.w <= rect.x || rect.y + rect.h <= box.y || box.y + box.h <= rect.y));
+        for (const side of [preferred, -preferred]) {
+          for (const row of [0, 1, -1, 2, -2]) {
+            const x = point.x + side * (radius + 5);
+            const y = point.y - radius - 4 + row * (boxHeight + 1);
+            const rect = { x: side > 0 ? x : x - textWidth, y: y - size, w: textWidth, h: boxHeight };
+            if (!collides(rect)) {
+              labelBoxes.push(rect);
+              return { x, y, align: side > 0 ? "left" : "right" };
+            }
+          }
+        }
+        /* Every candidate is taken: keep the preferred spot rather than drop the
+           label, and let the selected/hovered node's stronger text win the draw
+           order (the frame is already sorted back to front). */
+        const x = point.x + preferred * (radius + 5);
+        const y = point.y - radius - 4;
+        labelBoxes.push({ x: preferred > 0 ? x : x - textWidth, y: y - size, w: textWidth, h: boxHeight });
+        return { x, y, align: preferred > 0 ? "left" : "right" };
+      };
       ordered.forEach(point => {
         const node = point.node;
         const observation = point.observation;
         const directive = point.directive;
+        if (wideView) return; /* compact field paint already drew every sub-orb */
         const chosen = node.order === state.selected;
         const hovered = node.order === state.hover;
         const fresh = observation ? snapshotFreshness(observation, wallNow) : 0;
@@ -2673,13 +3833,15 @@
         drawOrbNode(point, radius, color, alpha, chosen || hovered);
         drawDataBits(point, radius, observation);
         if (state.labels || chosen || hovered) {
+          const text = String(node.symbol || node.name);
+          const size = chosen || hovered ? 11 : 9;
+          const label = placeLabel(point, radius, text, size);
           context2d.save();
           context2d.globalAlpha = chosen || hovered ? 1 : 0.72;
           context2d.fillStyle = "#edf6ff";
-          context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-          context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
-          const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
-          context2d.fillText(node.symbol || node.name, point.x + offset, point.y - radius - 4);
+          context2d.font = `${size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+          context2d.textAlign = label.align;
+          context2d.fillText(text, label.x, label.y);
           context2d.restore();
         }
       });
@@ -2702,6 +3864,9 @@
       context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.fillText(originAssembly.phase ? `LOCAL CPU · ${originAssembly.phase}` : "LOCAL CPU · CENTER ORIGIN", center.x, center.y + 41);
       context2d.restore();
+      /* The constellation's front pass: orb outlines and Disc status labels,
+         painted last so the selected Disc's own packet field never hides them. */
+      if (state.orbLabels.length) paintConstellationFront();
     }
 
     function scheduleRender() {
@@ -2768,8 +3933,15 @@
     const onPointerUp = event => {
       const moved = Math.hypot((Number(event.clientX) || 0) - state.downX, (Number(event.clientY) || 0) - state.downY);
       if (moved < 6) {
-        const index = pick(event);
-        if (index >= 0) selectNode(index);
+        /* A Disc orb is checked first: clicking an orb walks the carousel to
+           that Disc, while a packet click still selects a node. */
+        const discId = pickDiscOrb(event);
+        if (discId) {
+          goToDisc(discId, "orb click");
+        } else {
+          const index = pick(event);
+          if (index >= 0) selectNode(index);
+        }
       }
       state.dragging = false;
     };
@@ -2779,8 +3951,14 @@
     };
     const onKeyDown = event => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setRoute("resolution"); }
-      if (event.key === "ArrowRight") { event.preventDefault(); selectNode((state.selected + 1) % nodes.length); }
-      if (event.key === "ArrowLeft") { event.preventDefault(); selectNode((state.selected - 1 + nodes.length) % nodes.length); }
+      /* Left/right walk the Disc orb carousel; up/down walk the nodes of the
+         Disc currently in focus. */
+      if (event.key === "ArrowRight") { event.preventDefault(); stepDisc(1); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); stepDisc(-1); }
+      if (event.key === "ArrowDown") { event.preventDefault(); selectNode((state.selected + 1) % nodes.length); }
+      if (event.key === "ArrowUp") { event.preventDefault(); selectNode((state.selected - 1 + nodes.length) % nodes.length); }
+      if (event.key === "Home") { event.preventDefault(); goToDisc(state.constellation[0] && state.constellation[0].id, "keyboard"); }
+      if (event.key === "End") { event.preventDefault(); goToDisc(state.constellation[state.constellation.length - 1] && state.constellation[state.constellation.length - 1].id, "keyboard"); }
     };
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
@@ -2794,6 +3972,14 @@
       formationLabel.textContent = state.formation < 0.04 ? "DISC" : state.formation > 0.96 ? "SPHERE" : `${Math.round(state.formation * 100)}%`;
       scheduleRender();
     });
+    separation.addEventListener("input", () => {
+      state.separation = clamp(Number(separation.value) / 100, 0, 1);
+      separationLabel.textContent = berthSpreadLabel(state.separation);
+      state.berthReport = null;
+      persistLocal();
+      scheduleRender();
+      drawStatus();
+    });
     rotateToggle.addEventListener("change", () => { state.autoRotate = !!rotateToggle.checked; scheduleRender(); });
     labelsToggle.addEventListener("change", () => { state.labels = !!labelsToggle.checked; scheduleRender(); });
     pathsToggle.addEventListener("change", () => scheduleRender());
@@ -2806,18 +3992,25 @@
     lateralButton.addEventListener("click", () => setRoute("lateral"));
     resetButton.addEventListener("click", () => {
       state.yaw = -0.68; state.pitch = 0.32; state.zoom = 1; state.formation = 1;
+      state.separation = BERTH_SEPARATION_DEFAULT;
       formation.value = "100"; formationLabel.textContent = "SPHERE";
+      separation.value = String(Math.round(BERTH_SEPARATION_DEFAULT * 100));
+      separationLabel.textContent = berthSpreadLabel(BERTH_SEPARATION_DEFAULT);
       state.route = null; state.lastRoutePhase = "";
-      drawInspector(); scheduleRender();
+      state.berthReport = null;
+      persistLocal();
+      drawInspector(); drawStatus(); scheduleRender();
       if (onClearBeats) onClearBeats();
     });
 
     /* Rebuild ticker-orb geometry in place when no app-level remount is requested. */
-    function rebuildTickerNodes(nextTimeframe) {
+    function rebuildTickerNodes(nextTimeframe, entries = null) {
       if (!tickerMode) return;
-      const rebuilt = buildNodes(options.tickers, nextTimeframe === "1d" ? "1d" : "1h");
+      const reviewed = Array.isArray(entries) && entries.length ? entries : drawnEntries;
+      const rebuilt = buildNodes(reviewed, nextTimeframe === "1d" ? "1d" : "1h");
       if (!rebuilt.length) return;
       timeframe = nextTimeframe === "1d" ? "1d" : "1h";
+      drawnEntries = reviewed;
       nodes = rebuilt;
       nodeIndexByName = new Map(nodes.map((node, index) => [node.name, index]));
       state.selected = 0;
@@ -2887,6 +4080,71 @@
       if (berth && berth.npc) state.selected = nodeIndexByName.get(berth.npc.name) ?? state.selected;
       draw();
     });
+    /* ── constellation carousel ─────────────────────────────────────────────
+       Click an orb, step with the arrows, or slide the strip: each move reads
+       the Disc's own stored field, and the camera follows. None of it is a
+       provider call and none of it changes an OCM state. */
+    let orbSwipeAt = 0;
+    const onOrbClick = event => {
+      const button = event.target && event.target.closest ? event.target.closest("[data-gi-orb2-orb]") : null;
+      if (!button || Date.now() - orbSwipeAt < 350) return;
+      const discId = button.getAttribute("data-gi-orb2-orb");
+      if (!discId) return;
+      if (discId === state.discId) { focusDiscOrb(discId, { reason: "carousel" }); return; }
+      goToDisc(discId, "carousel");
+    };
+    if (orbTrack) orbTrack.addEventListener("click", onOrbClick);
+    let slideFrom = null;
+    let slideFromY = 0;
+    const onOrbSlideStart = event => {
+      slideFrom = Number(event.clientX) || 0;
+      slideFromY = Number(event.clientY) || 0;
+    };
+    const onOrbSlideEnd = event => {
+      if (slideFrom === null) return;
+      const dx = (Number(event.clientX) || 0) - slideFrom;
+      const dy = (Number(event.clientY) || 0) - slideFromY;
+      slideFrom = null;
+      if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        orbSwipeAt = Date.now();
+        stepDisc(dx > 0 ? -1 : 1);
+      }
+    };
+    if (orbTrack) {
+      orbTrack.addEventListener("pointerdown", onOrbSlideStart);
+      orbTrack.addEventListener("pointerup", onOrbSlideEnd);
+      orbTrack.addEventListener("pointercancel", () => { slideFrom = null; });
+    }
+    const carouselSteps = [...host.querySelectorAll("[data-gi-orb2-carousel]")];
+    const carouselHandlers = carouselSteps.map(button => {
+      const handler = () => stepDisc(button.getAttribute("data-gi-orb2-carousel") === "prev" ? -1 : 1);
+      button.addEventListener("click", handler);
+      return handler;
+    });
+    const onConstellationToggle = () => {
+      state.focusOrb = Boolean(constellationToggle.checked);
+      state.camZoom = state.focusOrb ? CONSTELLATION_ZOOM : CONSTELLATION_WIDE_ZOOM;
+      draw();
+    };
+    if (constellationToggle) constellationToggle.addEventListener("change", onConstellationToggle);
+    const onZoomOrb = () => {
+      const zoomed = state.camZoom > CONSTELLATION_WIDE_ZOOM + 0.05;
+      state.camZoom = zoomed ? CONSTELLATION_WIDE_ZOOM : CONSTELLATION_ZOOM;
+      state.focusOrb = !zoomed;
+      if (constellationToggle) constellationToggle.checked = state.focusOrb;
+      draw();
+    };
+    if (zoomButton) zoomButton.addEventListener("click", onZoomOrb);
+    const onRecentreCam = () => {
+      state.focusOrb = false;
+      state.camZoom = CONSTELLATION_WIDE_ZOOM;
+      state.camPan = { x: 0, y: 0 };
+      state.zoom = 1;
+      if (constellationToggle) constellationToggle.checked = false;
+      state.message = { kind: "note", text: "Camera back on the whole constellation: five Disc orbs around the Center Origin, each drawn with its own stored field. Recentring the camera changes no stored row and no Disc state." };
+      draw();
+    };
+    if (resetCamButton) resetCamButton.addEventListener("click", onRecentreCam);
     autoButton.addEventListener("click", toggleAuto);
     beatButton.addEventListener("click", () => beatNow("manual"));
     fieldDial?.addEventListener("click", event => {
@@ -2996,6 +4254,15 @@
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("wheel", onWheel);
       canvas.removeEventListener("keydown", onKeyDown);
+      if (orbTrack) {
+        orbTrack.removeEventListener("click", onOrbClick);
+        orbTrack.removeEventListener("pointerdown", onOrbSlideStart);
+        orbTrack.removeEventListener("pointerup", onOrbSlideEnd);
+      }
+      carouselSteps.forEach((button, index) => button.removeEventListener("click", carouselHandlers[index]));
+      if (constellationToggle) constellationToggle.removeEventListener("change", onConstellationToggle);
+      if (zoomButton) zoomButton.removeEventListener("click", onZoomOrb);
+      if (resetCamButton) resetCamButton.removeEventListener("click", onRecentreCam);
       if (fallbackFullscreen) root.classList.remove("gi-orb2-fullscreen");
     }
 
@@ -3022,6 +4289,11 @@
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
-    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+    BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
+    CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
+    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation,
+    resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
+    constellationBerth, constellationLayout,
+    buildNodes, mount, getSavedBeatSessionId
   });
 })();

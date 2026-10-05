@@ -793,7 +793,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     } else if (!massiveLedger.ok) {
       summary.errors.push(massiveLedger.message);
     } else if (slots > 0) {
-      const rotation = await dueRotation(db, roster.instruments.filter(instrument => instrument.discId === "stocks" || instrument.discId === "fx"), slots, now);
+      /* All five Discs rotate: Discs 3-5 (crypto, commodities, indices) were
+         previously outside this lane and only Disc1/Disc2 were populated. The
+         selection reserves one berth per Disc with expired work, so a cold
+         five-Disc field warms evenly instead of filling from one Disc's deck. */
+      const rotation = await dueRotation(db, roster.instruments, slots, now);
       const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
         entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
       }));
@@ -839,6 +843,56 @@ const instrumentName = instrument => instrument ? (instrument.name || "") : "";
 const instrumentSector = instrument => instrument ? (instrument.sector || "") : "";
 
 /** Least-recently-observed rotation over the interval '1d' field. */
+/**
+ * Fair rotation order across the five reviewed Discs. Every Disc that has
+ * expired work keeps one reserved slot in the tick, so a cold field warms all
+ * five Discs at once and a Disc with few instruments is never starved by a
+ * Disc with many; the remaining slots go to the globally oldest berths, so a
+ * large Disc still cycles evenly inside the Massive allowance. Pure and
+ * deterministic: the same entries and limit always yield the same order.
+ */
+export function orb2FieldRotationSelection(entries, limit) {
+  const list = Array.isArray(entries) ? entries.filter(entry => entry && entry.instrument) : [];
+  const slots = Math.max(0, Math.floor(Number(limit) || 0));
+  if (!list.length || slots <= 0) return [];
+  const byDisc = new Map(ORB2_FIELD_DISCS.map(discId => [discId, []]));
+  const others = [];
+  for (const entry of list) {
+    const bucket = byDisc.get(entry.instrument.discId);
+    if (bucket) bucket.push(entry);
+    else others.push(entry);
+  }
+  const oldestFirst = (left, right) =>
+    (Number(left.observedAt) || 0) - (Number(right.observedAt) || 0) ||
+    String(left.instrument.symbol).localeCompare(String(right.instrument.symbol));
+  for (const bucket of byDisc.values()) bucket.sort(oldestFirst);
+  others.sort(oldestFirst);
+  const picked = [];
+  const cursors = new Map();
+  /* One reserved berth per Disc that has expired work. */
+  for (const discId of ORB2_FIELD_DISCS) {
+    if (picked.length >= slots) break;
+    const bucket = byDisc.get(discId);
+    if (!bucket || !bucket.length) continue;
+    picked.push(bucket[0]);
+    cursors.set(discId, 1);
+  }
+  /* Then the globally oldest berths, so coverage stays even inside each Disc. */
+  const remaining = [];
+  for (const discId of ORB2_FIELD_DISCS) {
+    const bucket = byDisc.get(discId);
+    const cursor = cursors.get(discId) || 0;
+    for (let index = cursor; index < bucket.length; index += 1) remaining.push(bucket[index]);
+  }
+  remaining.push(...others);
+  remaining.sort(oldestFirst);
+  for (const entry of remaining) {
+    if (picked.length >= slots) break;
+    picked.push(entry);
+  }
+  return picked;
+}
+
 async function dueRotation(db, instruments, limit, now = Date.now()) {
   if (!instruments.length || limit <= 0) return [];
   const placeholders = instruments.map(() => "?").join(",");
@@ -846,11 +900,10 @@ async function dueRotation(db, instruments, limit, now = Date.now()) {
     WHERE interval = '1d' AND symbol IN (${placeholders})`).bind(...instruments.map(instrument => instrument.symbol)).all();
   const observed = new Map((Array.isArray(rows && rows.results) ? rows.results : [])
     .map(row => [String(row.symbol), Number(row.observed_at) || 0]));
-  return [...instruments]
+  const expired = [...instruments]
     .map(instrument => ({ instrument, observedAt: observed.get(instrument.symbol) || 0 }))
-    .filter(entry => !entry.observedAt || fieldObservationExpired("1d", entry.observedAt, now))
-    .sort((left, right) => (left.observedAt - right.observedAt) || left.instrument.symbol.localeCompare(right.instrument.symbol))
-    .slice(0, limit);
+    .filter(entry => !entry.observedAt || fieldObservationExpired("1d", entry.observedAt, now));
+  return orb2FieldRotationSelection(expired, limit);
 }
 
 async function mapWithConcurrency(items, limit, worker) {
@@ -936,6 +989,52 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       };
     });
     const run = await readRun(db, now);
+    /* Per-Disc status for the constellation view: one row per reviewed Disc.
+       `stored`/`confirmed`/`newestAt` come from an aggregate over the stored
+       rows for this interval, so they describe the stored field even when the
+       response itself is narrowed to one Disc or a symbol list. `observed` and
+       `held` are read from the served rows and stay null when a Disc was not
+       part of this response. A Disc with no row reports zero and newestAt null:
+       clients label it as awaiting its first beat and never substitute another
+       Disc's data. */
+    const rosterForStatus = orb2FieldRoster({ now });
+    const catalogForStatus = globalThis.CharactersDiscCatalog;
+    const storedByDisc = new Map();
+    try {
+      const aggregate = await db.prepare(`SELECT disc_id, COUNT(*) AS stored, MAX(observed_at) AS newest, SUM(confirmed) AS confirmed
+        FROM orb2_field_observations WHERE interval = ? GROUP BY disc_id`).bind(interval).all();
+      for (const row of Array.isArray(aggregate && aggregate.results) ? aggregate.results : []) {
+        const discId = text(row.disc_id, 24).toLowerCase();
+        if (!ORB2_FIELD_DISCS.includes(discId)) continue;
+        storedByDisc.set(discId, {
+          stored: Math.max(0, Number(row.stored) || 0),
+          confirmed: Math.max(0, Number(row.confirmed) || 0),
+          newestAt: Number(row.newest) > 0 ? Number(row.newest) : null
+        });
+      }
+    } catch { /* the served rows below still report what this response carries */ }
+    const discs = ORB2_FIELD_DISCS.map((discId, index) => {
+      const instruments = rosterForStatus.instruments.filter(instrument => instrument.discId === discId);
+      const rows = observations.filter(observation => observation.discId === discId);
+      const aggregate = storedByDisc.get(discId) || null;
+      const discDef = catalogForStatus && typeof catalogForStatus.disc === "function" ? catalogForStatus.disc(discId) : null;
+      return {
+        id: discId,
+        number: Number(discDef && discDef.number) || index + 1,
+        label: text(discDef && discDef.label, 64) || `Disc ${index + 1} · ${discId}`,
+        name: text(discDef && discDef.name, 48) || discId,
+        assetClass: text(discDef && discDef.assetClass, 24) || "",
+        instruments: instruments.length,
+        stored: aggregate ? aggregate.stored : rows.length,
+        confirmed: aggregate ? aggregate.confirmed : rows.filter(observation => observation.confirmed).length,
+        newestAt: aggregate ? aggregate.newestAt : (rows.reduce((latest, observation) => Math.max(latest, Number(observation.observedAt) || 0), 0) || null),
+        observed: rows.length ? rows.filter(observation => observation.market).length : null,
+        held: rows.length ? rows.filter(observation => !observation.market).length : null,
+        providers: [...new Set(rows.map(observation => observation.provider))].sort(),
+        intervals: [...new Set(rows.map(observation => observation.interval))].sort(),
+        covered: (aggregate ? aggregate.stored : rows.length) > 0
+      };
+    });
     const control = await readControl(db);
     const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
     const tickerbotLedger = await readTickerbotCallLedger(db, now);
@@ -986,8 +1085,9 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         observed: marketCount,
         confirmed: observations.filter(observation => observation.confirmed).length,
         held: observations.filter(observation => !observation.market).length,
-        reviewedInstruments: orb2FieldRoster({ now }).instruments.length
-      }
+        reviewedInstruments: rosterForStatus.instruments.length
+      },
+      discs
     };
     return {
       ok: true,

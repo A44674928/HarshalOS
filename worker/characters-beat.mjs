@@ -20,6 +20,7 @@ import {
 } from "./good-intelligence-tickerbot.mjs";
 import { fetchAlphaVantageMonthlyMarketContext } from "./characters-alpha-vantage.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+import { fetchYahooFinanceDailyMarketContext } from "./characters-yahoo-finance.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import {
   ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT,
@@ -315,8 +316,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   if (provider === "alpha" && !alphaApiKey) {
     return failure("Alpha Vantage is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret for Disc1 1mo data.", 503);
   }
-  if (provider === "massive" && !massiveApiKey) {
-    return failure("Massive daily beats are not configured. Add the MASSIVE_API_KEY Worker secret.", 503);
+  /* Yahoo's chart endpoint is an opt-in gap-filler for reviewed non-stock
+     instruments. It is not yfinance itself: yfinance is Python and cannot run
+     in this Worker. Keep the feature flag explicit so deployments that require
+     Massive-only provenance remain unchanged. */
+  const yahooFallback = String(env.YAHOO_FINANCE_FALLBACK || "").toLowerCase() === "true";
+  if (provider === "massive" && !massiveApiKey && !yahooFallback) {
+    return failure("Massive daily beats are not configured. Add the MASSIVE_API_KEY Worker secret (or enable YAHOO_FINANCE_FALLBACK for reviewed gaps).", 503);
   }
 
   const tickerbotHeld = provider === "tickerbot"
@@ -395,6 +401,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         timeoutMs: UPSTREAM_TIMEOUT_MS,
         dependencies
       });
+      if (!result.ok && yahooFallback && instrument.assetClass !== "equity") {
+        const yahoo = await fetchYahooFinanceDailyMarketContext({ instrument, symbol, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS });
+        if (yahoo.ok) {
+          cache.set(key, { packet: yahoo.packet, provider: "yahoo-finance", expiresAt: nextUtcMidnightMs(now) });
+          return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "yahoo-finance", marketContext: yahoo.packet };
+        }
+      }
       if (!result.ok) {
         const { retryAfterSeconds, retryAfter, ...rest } = result;
         return unavailableInstrument({

@@ -237,6 +237,161 @@ test("Orb 2 places observed orbs from market metrics and keeps held packets expl
   assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
 });
 
+/* ── shared-berth separation ─────────────────────────────────────────────── */
+
+/* Identical packets: the degenerate correlated field that used to render as one
+   blob. Every placement carries its own constant radius, and the shared berth
+   has to open without touching a single market value. */
+function crowdedPlacements(orb, count = 52, packet = null) {
+  const market = packet || {
+    latestBar: { time: NOW, close: 101, confirmed: true },
+    changePct: 1.24, basis: 99, bands: { lower1000: 92, upper1000: 108 },
+    vfi: { value: 12.5, signal: 4, available: true }, waveTrend: { wt1: 22.4, wt2: 8 }
+  };
+  return Array.from({ length: count }, (unused, index) => {
+    const identity = `SYM-${String(index).padStart(2, "0")}`;
+    return { identity, ...orb.marketDataPlacement(market, identity) };
+  });
+}
+
+const separationChords = placements => {
+  const points = placements.map(placement => {
+    const ring = Math.cos(placement.latitude);
+    return {
+      x: placement.radius * ring * Math.cos(placement.longitude),
+      y: placement.radius * Math.sin(placement.latitude),
+      z: placement.radius * ring * Math.sin(placement.longitude)
+    };
+  });
+  let closest = Infinity;
+  for (let left = 0; left < points.length; left += 1) {
+    for (let right = left + 1; right < points.length; right += 1) {
+      closest = Math.min(closest, Math.hypot(points[left].x - points[right].x, points[left].y - points[right].y, points[left].z - points[right].z));
+    }
+  }
+  return closest;
+};
+
+test("Orb 2 opens a crowded berth instead of stacking correlated orbs", () => {
+  const { orb } = harness();
+  const placements = crowdedPlacements(orb);
+  const before = placements.map(placement => ({ longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius }));
+  assert.ok(separationChords(placements) < 0.01, "identical packets start on one berth");
+  const report = orb.resolveBerthSeparation(placements, 1);
+  assert.equal(report.crowded, 52, "the readout counts the orbs that shared a berth");
+  assert.equal(report.berths, 1, "they were one shared berth");
+  assert.equal(report.moved, 51, "the first node keeps its packet placement; every later node takes a free slot");
+  assert.ok(separationChords(placements) >= report.minimum, `no pair sits below the berth floor (${separationChords(placements)})`);
+  placements.forEach((placement, index) => {
+    assert.equal(placement.radius, before[index].radius, "separation never changes the market radius");
+    assert.ok(Math.abs(placement.latitude) <= 1.2, "slots stay inside the model's latitude limit");
+    assert.ok(Math.abs(placement.longitude - before[index].longitude) < Math.PI * 2, "slots stay on the ring near the node's own berth");
+  });
+  /* The first visitor in stable order keeps its own packet berth exactly, so the
+     crowded field always has one node standing on the exact packet placement. */
+  assert.equal(placements.filter((placement, index) =>
+    placement.longitude === before[index].longitude && placement.latitude === before[index].latitude).length, 1);
+});
+
+test("berth separation is deterministic, idempotent, and leaves clear fields untouched", () => {
+  const { orb } = harness();
+  const first = crowdedPlacements(orb, 24);
+  const second = crowdedPlacements(orb, 24);
+  orb.resolveBerthSeparation(first, 1);
+  orb.resolveBerthSeparation(second, 1);
+  assert.deepEqual(
+    first.map(placement => [placement.longitude, placement.latitude]),
+    second.map(placement => [placement.longitude, placement.latitude]),
+    "the same symbol set resolves to the same arrangement on every client"
+  );
+  const settled = first.map(placement => [placement.longitude, placement.latitude]);
+  const again = orb.resolveBerthSeparation(first, 1);
+  assert.equal(again.moved, 0, "re-running the resolver over its own output moves nothing");
+  assert.equal(again.crowded, 0, "a settled field has no berth below the floor");
+  assert.deepEqual(first.map(placement => [placement.longitude, placement.latitude]), settled);
+
+  /* A field whose berths already have space keeps the placement its metrics drew. */
+  const scattered = crowdedPlacements(orb, 12).map((placement, index) => ({
+    ...placement,
+    longitude: -Math.PI + index * (Math.PI * 2 / 12),
+    latitude: (index % 3 - 1) * 0.6
+  }));
+  const snapshot = scattered.map(placement => [placement.longitude, placement.latitude]);
+  const undisturbed = orb.resolveBerthSeparation(scattered, 1);
+  assert.equal(undisturbed.crowded, 0, "nothing is reported when every berth has space");
+  assert.equal(undisturbed.moved, 0);
+  assert.deepEqual(scattered.map(placement => [placement.longitude, placement.latitude]), snapshot);
+
+  /* Spread 0 is the exact packet placement; a partial spread uses a smaller floor. */
+  const off = crowdedPlacements(orb, 8);
+  const offSnapshot = off.map(placement => [placement.longitude, placement.latitude]);
+  assert.equal(orb.resolveBerthSeparation(off, 0).moved, 0);
+  assert.deepEqual(off.map(placement => [placement.longitude, placement.latitude]), offSnapshot);
+  const partial = crowdedPlacements(orb, 8);
+  const partialReport = orb.resolveBerthSeparation(partial, 0.5);
+  assert.ok(partialReport.minimum < orb.resolveBerthSeparation(crowdedPlacements(orb, 8), 1).minimum);
+  assert.ok(separationChords(partial) >= partialReport.minimum, "a partial spread still clears its own floor");
+});
+
+test("held and market packets share the same separation rules without inventing data", () => {
+  const { orb } = harness();
+  const held = { identity: "HELD-1", ...orb.marketDataPlacement(null, "HELD-1") };
+  assert.equal(held.available, false);
+  const placements = Array.from({ length: 6 }, (unused, index) => ({ identity: `HELD-${index}`, ...orb.marketDataPlacement(null, `HELD-${index}`) }));
+  const report = orb.resolveBerthSeparation(placements, 1);
+  assert.equal(report.crowded, 6, "held berths are separated too, so an unavailable beat is still readable");
+  assert.ok(placements.every(placement => placement.available === false), "a held packet stays held");
+  assert.ok(placements.every(placement => placement.radius === 2.12), "held berths keep their documented placeholder radius");
+  assert.ok(placements.every(placement => Number.isFinite(placement.longitude) && Number.isFinite(placement.latitude)));
+
+  /* The separation report never claims market, rank, or authority. */
+  const text = orb.berthSeparationText(report);
+  assert.match(text, /BERTH SEPARATION/);
+  assert.match(text, /display geometry only/i);
+  assert.doesNotMatch(text, /rank|recommend|signal|authoriz|permission|trade/i);
+  assert.match(orb.berthSeparationText({ spread: 0, minimum: 0, crowded: 0, berths: 0, moved: 0 }), /OFF/);
+});
+
+test("the separated field renders distinct orbs and states the berth readout", async t => {
+  const { host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 12 }) })
+  });
+  await flush();
+  while (frames.length) {
+    const callback = frames.shift();
+    callback(NOW);
+    await flush(4);
+  }
+  const drawn = engine.state.projected;
+  assert.ok(drawn.length >= 12, "the field was drawn");
+  const positions = drawn.map(point => ({ x: point.x, y: point.y }));
+  let closest = Infinity;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      closest = Math.min(closest, Math.hypot(positions[left].x - positions[right].x, positions[left].y - positions[right].y));
+    }
+  }
+  assert.ok(closest > 4, `no two drawn orbs share a screen berth (closest ${closest.toFixed(1)} px)`);
+  assert.equal(engine.state.separation, 0.7, "berth spread defaults on");
+  const readout = host.querySelector("[data-gi-orb2-berth-readout]");
+  assert.match(readout.textContent, /BERTH SEPARATION · (FULL|\d+%)/);
+  const slider = host.querySelector("[data-gi-orb2-separation]");
+  assert.equal(slider.value, "70");
+  slider.value = "100";
+  slider.dispatchEvent(new host.ownerDocument.defaultView.Event("input"));
+  await flush();
+  assert.equal(engine.state.separation, 1);
+  const saved = JSON.parse(host.ownerDocument.defaultView.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1"));
+  assert.equal(saved.separation, 1, "the spread survives a reload through local preferences");
+  /* Trusted values restored to 0 keep the original packet placement. */
+  slider.value = "0";
+  slider.dispatchEvent(new host.ownerDocument.defaultView.Event("input"));
+  await flush();
+  assert.equal(engine.state.separation, 0);
+  assert.match(readout.textContent, /BERTH SEPARATION · OFF/);
+});
+
 test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbols", () => {
   const { orb } = harness();
   const nodes = orb.buildNodes([{ symbol: "AAPL", name: "Apple", sector: "Technology" }, { symbol: "bad ticker" }, null]);
@@ -557,4 +712,187 @@ test("the standalone Massive Markets desktop window remains retired and the load
 test("the Worker field route is the documented contract the page renders", () => {
   assert.match(workerSource, /orb2-saved-beats|ORB2_BEATS|beats/i);
   assert.match(orbSource, /fieldStatus|routeSteps/);
+});
+
+/* ── the constellation: one orb per Disc, walked by the carousel ─────────── */
+
+test("the constellation berth is a pure function of catalog order and cannot be moved by market data", () => {
+  const { orb } = harness();
+  const five = ["stocks", "fx", "crypto", "commodities", "indices"];
+  const berths = five.map((id, index) => orb.constellationBerth(index, five.length));
+  assert.deepEqual(berths.map(berth => berth.index), [0, 1, 2, 3, 4]);
+  assert.equal(new Set(berths.map(berth => `${berth.x.toFixed(4)}:${berth.y.toFixed(4)}:${berth.z.toFixed(4)}`)).size, five.length,
+    "no two Disc orbs share a berth");
+  for (const berth of berths) {
+    const radius = Math.hypot(berth.x, berth.y, berth.z);
+    assert.ok(Math.abs(radius - orb.CONSTELLATION_ORBIT_MODEL) < 1e-9, "every orb sits on the shared display ring");
+  }
+  assert.deepEqual(berths, five.map((id, index) => orb.constellationBerth(index, five.length)),
+    "the berth is a pure function of the catalog order: nothing else can move an orb");
+  assert.notDeepEqual(orb.constellationBerth(0, five.length), orb.constellationBerth(1, five.length));
+  const layout = orb.constellationLayout(five.map((id, index) => ({ id, number: index + 1, name: id })));
+  assert.deepEqual(layout.map(entry => entry.id), five, "the layout preserves the reviewed catalog order");
+  assert.ok(layout.every(entry => entry.berth && Number.isFinite(entry.berth.x)));
+  assert.deepEqual(orb.constellationLayout([]), [], "an empty catalog draws no orbs rather than inventing any");
+});
+
+test("the strip carries one chip per Disc with its own stored status, and an empty Disc says so", async t => {
+  const { host, engine, canvasCalls, frames } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const chips = [...host.querySelectorAll("[data-gi-orb2-orb]")];
+  assert.deepEqual(chips.map(chip => chip.getAttribute("data-gi-orb2-orb")), ["stocks", "fx", "crypto", "commodities", "indices"],
+    "the strip lists every reviewed Disc in catalog order");
+  assert.ok(chips.every(chip => chip.getAttribute("role") === "tab"), "the strip is a tab list of Disc orbs");
+  assert.equal(chips.filter(chip => chip.getAttribute("aria-selected") === "true").length, 1, "exactly one Disc orb is current");
+  const [stocksChip, fxChip, cryptoChip] = chips;
+  assert.match(stocksChip.textContent, /52 of 52 stored/, "a populated Disc reports its own stored rows");
+  assert.equal(stocksChip.classList.contains("is-empty"), false);
+  assert.match(fxChip.textContent, /6 of 6 stored/, "the fx orb reports its own six stored closes");
+  assert.match(cryptoChip.textContent, /awaiting first beat/, "a Disc with nothing stored is labeled, not filled with another Disc's rows");
+  assert.equal(cryptoChip.classList.contains("is-empty"), true, "an empty Disc orb is drawn as an empty marker");
+  const note = host.querySelector("[data-gi-orb2-constellation-note]");
+  assert.match(note.textContent, /CONSTELLATION · 5 Disc orbs/);
+  assert.match(note.textContent, /awaiting first beat on 3\. Crypto, 4\. Commodities, 5\. Indices/);
+  assert.match(note.textContent, /selected Disc1 · The 52 Cards/);
+  assert.doesNotMatch(note.textContent, /every Disc orb is reporting/, "the summary never implies an empty Disc has data");
+  const frame = frames.shift();
+  if (typeof frame === "function") frame(120);
+  assert.equal(engine.state.projectedOrbs.length, 5, "five Disc orbs are projected for the pointer");
+  assert.ok(canvasCalls.includes("arc"), "the orbs are drawn as circles on the canvas");
+});
+
+test("the carousel walks to the next Disc orb with a step, a click, a slide, or an arrow key — without a provider call", async t => {
+  const harnessed = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  const { host, engine, window, fieldCalls, providerCalls, frames } = harnessed;
+  const canvas = host.querySelector("[data-gi-orb2-canvas]");
+  await flush();
+  const reads = () => fieldCalls().filter(call => call.options.method !== "POST");
+  const before = reads().length;
+  const frame = frames.shift();
+  if (typeof frame === "function") frame(120);
+
+  host.querySelector('[data-gi-orb2-carousel="next"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "fx", "the step button walks to the next Disc orb");
+  assert.equal(engine.state.focusOrb, true, "the camera follows the orb");
+  assert.ok(engine.state.camZoom > 1, "the focused orb is magnified");
+  assert.deepEqual([...host.querySelectorAll("[data-gi-orb2-orb].is-current")].map(chip => chip.getAttribute("data-gi-orb2-orb")), ["fx"]);
+  assert.equal(reads().length, before, "a carousel move re-uses the constellation already in the view instead of re-reading it");
+  assert.equal(providerCalls.length, 0, "the carousel never calls a provider");
+
+  host.querySelector('[data-gi-orb2-carousel="prev"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "stocks", "the step button walks back");
+  host.querySelector('[data-gi-orb2-carousel="prev"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "indices", "the carousel wraps at the end of the reviewed order");
+
+  /* A click on a drawn Disc orb is the same move: the orb's own projected
+     position is hit-tested, and the packet hit-test is not consulted. */
+  const orbPoint = engine.state.projectedOrbs.find(orb => orb.disc.id === "commodities");
+  assert.ok(orbPoint, "the commodity orb is projected");
+  const PointerEventCtor = window.PointerEvent || window.MouseEvent;
+  if (typeof PointerEventCtor === "function") {
+    for (const type of ["pointerdown", "pointerup"]) {
+      canvas.dispatchEvent(new PointerEventCtor(type, { clientX: orbPoint.point.x, clientY: orbPoint.point.y, bubbles: true, cancelable: true }));
+    }
+    await flush();
+    assert.equal(engine.state.discId, "commodities", "clicking an orb walks the carousel to that Disc");
+  }
+
+  const KeyboardEventCtor = window.KeyboardEvent;
+  if (typeof KeyboardEventCtor === "function") {
+    canvas.dispatchEvent(new KeyboardEventCtor("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    await flush();
+    assert.equal(engine.state.discId, "indices", "the right arrow key walks to the next orb");
+    canvas.dispatchEvent(new KeyboardEventCtor("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    await flush();
+    assert.equal(engine.state.discId, "stocks", "Home returns to the first orb");
+  }
+
+  host.querySelector("[data-gi-orb2-resetcam]").click();
+  await flush();
+  assert.equal(engine.state.focusOrb, false, "recentre steps the camera back to the whole constellation");
+  assert.ok(engine.state.camZoom <= 1, "the wide view is not magnified");
+  assert.equal(providerCalls.length, 0, "the whole carousel walk made no provider call");
+  assert.ok(reads().length <= before + 1, "the walk costs at most one stored-field re-read, never a fan-out");
+});
+
+test("the drawn field follows the Disc orb instead of re-drawing the 52-card deck on every Disc", async t => {
+  const { host, engine } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const stockSymbols = new Set(MARKET_ROSTER.map(asset => asset.symbol));
+  assert.ok(engine.nodes.length >= 40, "the Disc1 orb draws the full reviewed stock deck");
+  assert.ok(engine.nodes.every(node => node.symbol), "and every drawn orb is a reviewed ticker");
+
+  host.querySelector('[data-gi-orb2-carousel="next"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "fx");
+  assert.ok(engine.nodes.length >= 5 && engine.nodes.length <= 30, "the fx orb draws the reviewed FX roster");
+  assert.ok(engine.nodes.every(node => !stockSymbols.has(node.symbol)), "no stock-deck symbol is drawn on the fx orb");
+
+  host.querySelector('[data-gi-orb2-orb="crypto"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "crypto");
+  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTCUSD"],
+    "the crypto orb draws exactly the live ranked instruments the route returned, nothing borrowed");
+  assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
+});
+
+/* ── OCM traffic simulation ──────────────────────────────────────────────── */
+
+test("the orbs visibly exchange simulated OCM beats and the page still reads only its own field", async t => {
+  const { window, host, engine, frames, providerCalls, fieldCalls } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 12, fxCount: 6 }) })
+  });
+  await flush();
+  const drive = now => {
+    let guard = 0;
+    while (frames.length && guard < 40) { const callback = frames.shift(); callback(now); guard += 1; }
+  };
+  drive(NOW);
+  await flush();
+  const first = engine.state.trafficPackets.slice();
+  assert.ok(first.length > 0, "the ring carries simulated beats once rows are stored");
+  assert.ok(first.some(packet => packet.from === "stocks" && packet.to === "fx"), "a beat crosses the ring one way");
+  assert.ok(first.some(packet => packet.from === "fx" && packet.to === "stocks"), "and the neighbour answers on the same link");
+  assert.ok(first.some(packet => packet.to === "origin"), "the Center Origin is part of the exchange");
+  assert.ok(first.every(packet => ["stocks", "fx", "origin"].includes(packet.from)), "a Disc with nothing stored sends no beat");
+  assert.ok(first.every(packet => ["stocks", "fx", "origin"].includes(packet.to)), "and receives none either");
+  assert.ok(first.every(packet => Number.isFinite(packet.x) && Number.isFinite(packet.y)), "every beat is drawn at a real canvas point");
+  const before = new Map(first.map(packet => [`${packet.from}->${packet.to}`, packet]));
+  /* The harness runs reduced-motion, so the loop is on demand: a fresh state
+     change requests one frame, which is drawn at the later clock. */
+  engine.selectNode(engine.state.selected);
+  await flush();
+  drive(NOW + 900);
+  await flush();
+  const moved = engine.state.trafficPackets.filter(packet => {
+    const previous = before.get(`${packet.from}->${packet.to}`);
+    return previous && Math.hypot(packet.x - previous.x, packet.y - previous.y) > 0.04;
+  });
+  assert.ok(moved.length > 0, "the beats move between frames, so the exchange is animated");
+  const note = host.querySelector("[data-gi-orb2-ocm]");
+  assert.match(note.textContent, /OCM TRAFFIC SIMULATION/);
+  assert.match(note.textContent, /sends nothing/);
+  assert.match(note.textContent, /2 orbs transmitting/);
+  assert.equal(providerCalls.length, 0, "the simulated exchange never calls a provider");
+  assert.ok(fieldCalls().length >= 1 && fieldCalls().length <= 2, "and the page still opens only its own stored-field reads");
+});
+
+test("an orb awaiting its first beat carries no simulated OCM traffic", async t => {
+  const { window, host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 0, fxCount: 0 }) })
+  });
+  await flush();
+  let guard = 0;
+  while (frames.length && guard < 40) { const callback = frames.shift(); callback(NOW); guard += 1; }
+  await flush();
+  assert.equal(engine.state.trafficPackets.length, 0, "no stored rows across the constellation means every lane is idle");
+  assert.equal(engine.state.ocmLanes, 0);
+  const note = host.querySelector("[data-gi-orb2-ocm]");
+  assert.match(note.textContent, /every lane idle, no stored rows to carry/);
+  assert.doesNotMatch(note.textContent, /orb transmitting/);
 });
