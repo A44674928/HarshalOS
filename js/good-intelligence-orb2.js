@@ -74,14 +74,17 @@
   };
   const TAU = Math.PI * 2;
   const CENTER_ADDRESS = "0•000•000•0000";
-  /* Provider switching and provider pacing are separate concerns. Manual
-     Tickerbot must not inherit Massive's hold; Massive's shared envelope is
-     five upstream requests per sliding minute, so its shortest client-side
-     request interval is twelve seconds. */
-  const PROVIDER_COOLDOWN_MS = 60_000;
+  /* The beat belongs to the Worker. A Cron Trigger wakes the server-side field
+     every minute; this page reads the stored observations and renders them, so
+     hiding the tab, closing it, or switching providers costs no provider call
+     and never replays the firing order from the top. `PROVIDER_COOLDOWN_MS` and
+     the client-side pacing interval are gone with the browser beat engine. */
+  const FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
+  const FIELD_REQUEST_SCHEMA = "gi-orb2-field-request-v1";
+  const FIELD_POLL_MS = 20_000;
+  const FIELD_BEAT_TYPES = Object.freeze(["observation", "message", "trade", "authorization", "permission"]);
+  /* The server tick's own allowance; the page never paces a request itself. */
   const MASSIVE_REQUESTS_PER_MINUTE = 5;
-  const MASSIVE_BEAT_MS = Math.ceil(60_000 / MASSIVE_REQUESTS_PER_MINUTE);
-  const ALPHA_BEAT_MS = 60 * 60_000;
   const MAX_HISTORY = 120;
   const MAX_LOCAL_HISTORY = 24;
   const PALETTE = Object.freeze([
@@ -249,7 +252,7 @@
      same values; it never supplies a price, rank, sector, or motion value.
      Missing packets receive an explicitly held placeholder so the view does not
      invent a market location. */
-  function marketDataPlacement(market, identity = "") {
+  function marketDataPlacement(market, identity = "", composition = null) {
     const tiePhase = stableIdentityPhase(identity);
     const held = {
       available: false, source: "held", longitude: tiePhase, latitude: 0, radius: 2.12,
@@ -267,8 +270,14 @@
     const priceAxis = changePct === null ? 0 : clamp(Math.tanh(changePct / 4), -1, 1);
     const flowAxis = vfi !== null && vfiSignal !== null ? clamp(Math.tanh((vfi - vfiSignal) / 18), -1, 1) : 0;
     const waveAxis = waveOne !== null && waveTwo !== null ? clamp(Math.tanh((waveOne - waveTwo) / 45), -1, 1) : 0;
-    const bandAxis = band.held ? priceAxis : clamp((band.p - 0.5) * 2, -1, 1);
+    const composedPosition = composition && Number.isFinite(Number(composition.composedPosition))
+      ? Number(composition.composedPosition) : null;
+    const compositionAxis = composedPosition === null ? null : clamp((composedPosition - 0.5) * 2, -1, 1);
+    const bandAxis = compositionAxis === null
+      ? (band.held ? priceAxis : clamp((band.p - 0.5) * 2, -1, 1)) : compositionAxis;
     const volatility = band.volatility === null ? 0 : clamp(band.volatility, 0, 1);
+    const forceMultiplier = composition && Number.isFinite(Number(composition.forceMultiplier))
+      ? clamp(Number(composition.forceMultiplier), 0.65, 1.35) : 1;
     const observed = close !== null || changePct !== null || vfi !== null || waveOne !== null || !band.held;
     if (!observed) return held;
 
@@ -277,7 +286,7 @@
        from the origin. No sector/index slot is used for an observed packet. */
     const longitude = tiePhase * 0.035 + priceAxis * 1.8 + flowAxis * 1.15 + bandAxis * 0.8 + waveAxis * 0.45;
     const latitude = clamp(bandAxis * 0.82 + waveAxis * 0.46 + flowAxis * 0.18, -1.25, 1.25);
-    const pressure = clamp(Math.abs(priceAxis) * 0.42 + Math.abs(flowAxis) * 0.28 + Math.abs(waveAxis) * 0.15 + volatility * 0.15, 0, 1);
+    const pressure = clamp((Math.abs(priceAxis) * 0.42 + Math.abs(flowAxis) * 0.28 + Math.abs(waveAxis) * 0.15 + volatility * 0.15) * forceMultiplier, 0, 1);
     const radius = 1.36 + pressure * 0.72;
     const barTime = numeric(market.latestBar && market.latestBar.time);
     const timePhase = barTime === null ? 0 : ((barTime / 86_400_000) % 1) * TAU;
@@ -543,8 +552,6 @@
       }
     }
     const intervalAllowed = (discId, interval) => (DiscCatalog.disc(discId)?.intervalModes || []).includes(interval);
-    const validCadence = value => Beat.CADENCES.includes(Number(value)) ? Number(value) : Beat.DEFAULTS.cadenceMinutes;
-    const validBudget = value => Math.max(100, Math.min(Beat.DEFAULTS.monthlyBudget, Math.round(Number(value) || Beat.DEFAULTS.monthlyBudget)));
 
     const state = {
       discId: initialDisc,
@@ -553,19 +560,23 @@
          preference cannot resurrect the retired rehearsal source. */
       source: "live",
       auto: preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
-      cadence: validCadence(preferences && preferences.cadence),
-      budget: validBudget(preferences && preferences.budget),
-      stretch: Boolean(preferences && preferences.stretch),
-      tierMode: Boolean(preferences && preferences.tierMode),
-      tierSweepHours: Beat.TIER_SWEEP_HOURS.includes(Number(preferences && preferences.tierSweepHours))
-        ? Number(preferences.tierSweepHours) : 24,
       selected: 0,
       focus: "",
       visible: true,
       pending: false,
       destroyed: false,
       loadingCatalog: false,
-      cooldownUntil: 0,
+      /* Server-field view state. `beatType` is the dial (null = every stored
+         observation); `focusSymbols` narrows the field to reviewed tickers. */
+      beatType: FIELD_BEAT_TYPES.includes(preferences && preferences.beatType) ? preferences.beatType : null,
+      focusSymbols: Array.isArray(preferences && preferences.focusSymbols)
+        ? [...new Set(preferences.focusSymbols.map(symbol => String(symbol || "").toUpperCase())
+          .filter(symbol => /^[A-Z0-9][A-Z0-9._:-]{0,31}$/.test(symbol)))].slice(0, 12)
+        : [],
+      field: null,
+      fieldAt: 0,
+      fieldPending: false,
+      fieldFailed: false,
       yaw: -0.68,
       pitch: 0.32,
       zoom: 1,
@@ -766,16 +777,19 @@
               <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
                 <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
                 <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
-                <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
-                <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
                 <label class="gi-orb2-control gi-orb2-focus-control"><span>FOCUS INSTRUMENT</span><select data-gi-orb2-focus aria-label="Choose an instrument to inspect"></select></label>
-                <div class="gi-orb2-beat-flags">
-                  <label class="gi-orb2-toggle"><input data-gi-orb2-stretch type="checkbox"><span>Use reserve stretch</span></label>
-                  <label class="gi-orb2-toggle"><input data-gi-orb2-tier type="checkbox"><span>Two-lane hot/sweep rotation</span></label>
-                </div>
+              </div>
+              <div class="gi-orb2-field-controls" aria-label="Server field beat-type dial and ticker focus">
+                <div class="gi-orb2-field-dial" data-gi-orb2-field-dial role="group" aria-label="Beat-type dial"></div>
+                <div class="gi-orb2-field-focus" data-gi-orb2-field-focus role="group" aria-label="Ticker focus"></div>
+                <p class="gi-orb2-field-note" data-gi-orb2-field-note role="status">The server field is read every 20 seconds. Dial a beat type or focus tickers; nothing here calls a provider from this page.</p>
               </div>
               <div class="gi-orb2-settings-actions" aria-label="Beat and model actions">
-                <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
+                <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto view: on</button>
+                <button class="gi-button" type="button" data-gi-orb2-warm>Calibrate first deck (~156 calls)</button>
+                <button class="gi-button" type="button" data-gi-orb2-random-ticker>Add random US ticker</button>
+                <button class="gi-button" type="button" data-gi-orb2-refresh-focus>Refresh focused · baseline</button>
+                <button class="gi-button" type="button" data-gi-orb2-refresh-intraday>Recalculate focused · 15m</button>
                 <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
                 <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
                 <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
@@ -784,7 +798,7 @@
                 <button class="gi-button" type="button" data-gi-orb2-reset>Reset view</button>
               </div>
               <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Beat archive is available on demand. Saved snapshots remain separate from the live model.</p>
-              <div class="gi-orb2-plan-row"><div data-gi-orb2-plan></div><button class="gi-button gi-orb2-feature" type="button" data-gi-orb2-feature>Feature focus</button></div>
+              <div class="gi-orb2-plan-row"><div data-gi-orb2-plan></div></div>
             </section>
 
             <section class="gi-orb2-settings-section" aria-label="Display settings">
@@ -806,7 +820,7 @@
 
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Data pathway and model status">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">04 · DATA PATHWAY</p><h5>Live-beat contract</h5></div><span>Same-origin Worker · no provider secrets in the browser</span></div>
-              <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive may request up to five reviewed <code>1d</code> instruments per minute across Discs 1–5, with a 12-second client pacing interval and its separate daily D1 guard. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation and is ready immediately when selected; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. Alpha/provider warm-up holds are shown separately. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
+              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger beats the reviewed field 24/7/365: up to five Massive <code>1d</code> requests per minute establish the daily baseline, while Tickerbot supplies bounded <code>1h</code>/<code>1d</code> stock refreshes and an on-demand closed-bar <code>15m</code> residual. The first-deck calibration burst is an explicit ~156 calls across 15m + 1h + 1d; later 15m recalculation is focused by default and never silently repeats the full deck. The server combines normalized daily regime metrics with fresh 15m residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
               <div class="gi-orb2-pathways" aria-label="Live data pathway status">
                 <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div><i aria-hidden="true">→</i>
                 <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div><i aria-hidden="true">→</i>
@@ -818,7 +832,7 @@
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide gi-orb2-settings-ignition" aria-label="Live heartbeat firing sequence">
               <div class="gi-orb2-ignition" data-gi-orb2-ignition>
                 <div class="gi-orb2-ignition-head">
-                  <div><p class="gi-eyebrow">LIVE HEARTBEAT · FIXED DXY BENCHMARK</p><h3>Deploy → DXY → 52 ticker orbs</h3><p>Worker route first; six sequential FX inputs; then one daily ticker beat per asset, grouped by sourced sector and descending market cap.</p></div>
+                  <div><p class="gi-eyebrow">SERVER SWEEP · FIXED DXY BENCHMARK</p><h3>Field → DXY → 52 ticker orbs</h3><p>The Worker's cron beat fills the sweep; six FX closes fix the DXY reference; then one stored daily beat per asset, grouped by sourced sector and descending market cap. This page renders stored progress and never replays the order.</p></div>
                   <button class="gi-button" type="button" data-gi-orb2-ignition-restart hidden>Restart sequence</button>
                 </div>
                 <div class="gi-orb2-ignition-steps">
@@ -826,8 +840,8 @@
                   <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
                   <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
                 </div>
-                <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 12 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
-                <details class="gi-orb2-firing-order" data-gi-orb2-firing-order open><summary><strong>52-ASSET FIRING ORDER</strong><span>Open the ordered ticker-by-ticker sequence</span></summary><ol data-gi-orb2-firing-list></ol></details>
+                <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Stored Massive daily bars only · the Worker's cron tick spends the whole five-per-minute allowance and the deploy warm burst fills the rest. Any unavailable or unaligned input holds its berth; no alternate or synthetic data is substituted and this page never replays the sweep.</p>
+                <details class="gi-orb2-firing-order" data-gi-orb2-firing-order><summary><strong>52-ASSET SWEEP ORDER</strong><span data-gi-orb2-firing-summary>Open for the ordered ticker-by-ticker detail; the sweep line above is the summary</span></summary><ol data-gi-orb2-firing-list></ol></details>
               </div>
             </section>
 
@@ -864,7 +878,7 @@
             <div class="gi-orb2-inspector-content">
               <p class="gi-orb2-inspector-eyebrow gi-eyebrow">NODE / MARKET INSPECTOR</p>
               <label class="gi-orb2-node-select"><span data-gi-orb2-node-label>CHARACTER NODE</span><select data-gi-orb2-node data-gi-orb2-select aria-label="Choose a character node"></select></label>
-              <button class="gi-button gi-orb2-feature-inline" type="button" data-gi-orb2-feature-inline>Feature focus</button>
+
               <div id="gi-orb2-inspector-detail" data-gi-orb2-detail></div>
               <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
             </div>
@@ -873,7 +887,7 @@
 
         <details class="gi-orb2-history" aria-label="Orb 2 beat history">
           <summary class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span><span class="gi-orb2-inspector-hint">Open history <i aria-hidden="true">＋</i></span></summary>
-          <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
+          <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or turn Auto view on.</li></ol>
         </details>
         <p class="gi-orb2-safety-note"><strong>VISUAL MODEL</strong> · Local display traces only. No OCM message, trade, authorization, or permission to act.</p>
       </section>`;
@@ -884,8 +898,6 @@
     const flowReadout = $("[data-gi-orb2-flow-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
-    const cadenceSelect = $("[data-gi-orb2-cadence]");
-    const budgetInput = $("[data-gi-orb2-budget]");
     const focusSelect = $("[data-gi-orb2-focus]");
     const nodeSelect = $("[data-gi-orb2-node]");
     const beatButton = $("[data-gi-orb2-beat]");
@@ -898,7 +910,6 @@
     const routeButton = $("[data-gi-orb2-route]");
     const lateralButton = $("[data-gi-orb2-lateral]");
     const resetButton = $("[data-gi-orb2-reset]");
-    const featureButtons = [$("[data-gi-orb2-feature]"), $("[data-gi-orb2-feature-inline]")];
     const formation = $("[data-gi-orb2-formation]");
     const formationLabel = $("[data-gi-orb2-formation-label]");
     const rotateToggle = $("[data-gi-orb2-rotate]");
@@ -920,8 +931,13 @@
     const routeStepWorker = $("[data-gi-orb2-path-worker]");
     const routeStepLedger = $("[data-gi-orb2-path-ledger]");
     const routeStepModel = $("[data-gi-orb2-path-model]");
-    const stretchBox = $("[data-gi-orb2-stretch]");
-    const tierBox = $("[data-gi-orb2-tier]");
+    const fieldDial = $("[data-gi-orb2-field-dial]");
+    const fieldFocus = $("[data-gi-orb2-field-focus]");
+    const fieldNote = $("[data-gi-orb2-field-note]");
+    const warmButton = $("[data-gi-orb2-warm]");
+    const randomTickerButton = $("[data-gi-orb2-random-ticker]");
+    const refreshFocusButton = $("[data-gi-orb2-refresh-focus]");
+    const refreshIntradayButton = $("[data-gi-orb2-refresh-intraday]");
     const timeframeSelect = $("[data-gi-orb2-timeframe]");
     const clearBeatsButton = $("[data-gi-orb2-clear-beats]");
     const restoreBeatsButton = $("[data-gi-orb2-restore-beats]");
@@ -935,6 +951,7 @@
     const ignitionNote = $("[data-gi-orb2-ignition-note]");
     const firingList = $("[data-gi-orb2-firing-list]");
     const ignitionRestartButton = $("[data-gi-orb2-ignition-restart]");
+    const firingSummary = $("[data-gi-orb2-firing-summary]");
     const gatePill = $("[data-gi-orb2-gate]");
     const utsPill = $("[data-gi-orb2-uts]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
@@ -1006,9 +1023,10 @@
       if (!storage) return;
       const savedPrefs = {
         discId: state.discId, interval: state.interval,
-        auto: state.auto, cadence: state.cadence, budget: state.budget,
-        stretch: state.stretch, tierMode: state.tierMode, tierSweepHours: state.tierSweepHours,
-        showDataBits: state.showDataBits
+        auto: state.auto,
+        showDataBits: state.showDataBits,
+        beatType: state.beatType,
+        focusSymbols: state.focusSymbols
       };
       try {
         storage.setItem(PREFS_KEY, JSON.stringify(savedPrefs));
@@ -1129,86 +1147,6 @@
       return "Unspecified provider";
     }
 
-    function cadenceMinutesForBeat(provider = currentProvider()) {
-      if (provider === "massive") return 1;
-      if (provider === "alpha") return 60;
-      return state.cadence;
-    }
-
-    function intervalForBeat() { return state.interval; }
-
-    function makePlan(provider = currentProvider()) {
-      return Beat.plan({
-        monthlyBudget: state.budget,
-        cadenceMinutes: provider === "alpha" ? 60 : state.cadence,
-        castSize: symbols.length,
-        perRequestCap: provider === "tickerbot" ? Beat.MAX_SYMBOLS_PER_BEAT : 1
-      });
-    }
-
-    function perBeat(plan, provider = currentProvider()) {
-      if (provider === "massive" || provider === "alpha") return 1;
-      return state.stretch && plan.stretchWithinBudget ? plan.stretchCallsPerBeat : plan.callsPerBeat;
-    }
-
-    function tierPlan() {
-      if (currentProvider() !== "tickerbot") return { options: [], recommended: null, notes: ["Two-lane rotation applies only to on-demand Tickerbot beats."] };
-      return Beat.planTiers({
-        monthlyBudget: state.budget,
-        cadenceMinutes: state.cadence,
-        castSize: symbols.length,
-        perRequestCap: Beat.MAX_SYMBOLS_PER_BEAT
-      });
-    }
-
-    function tierOption(tiers = tierPlan()) {
-      return tiers.options.find(option => option.feasible && option.targetSweepHours === state.tierSweepHours)
-        || tiers.recommended || null;
-    }
-
-    function dueForBeat() {
-      const provider = currentProvider();
-      const plan = makePlan(provider);
-      const count = perBeat(plan, provider);
-      const base = {
-        symbols,
-        lastRefreshedAt: state.ledger.lastRefreshedAt,
-        now: Date.now(),
-        featured: state.ledger.featured
-      };
-      if (provider === "alpha") {
-        let bestSymbol = null;
-        let bestGain = -Infinity;
-        for (const symbol of symbols) {
-          const record = latestObservation(state.discId, symbol, "alpha", "1mo");
-          const close = record && record.market && record.market.latestBar && numeric(record.market.latestBar.close);
-          const previousClose = record && record.market && numeric(record.market.previousClose);
-          const confirmed = record && record.market && record.market.latestBar && record.market.latestBar.confirmed === true;
-          if (!confirmed || close === null || previousClose === null || previousClose <= 0) continue;
-          const gain = (close - previousClose) / previousClose;
-          if (gain > bestGain || (gain === bestGain && symbol < bestSymbol)) {
-            bestGain = gain;
-            bestSymbol = symbol;
-          }
-        }
-        return { symbols: bestSymbol ? [bestSymbol] : Beat.selectDueSymbols({ ...base, perBeat: 1 }), lanes: {}, tier: null, perBeat: 1 };
-      }
-      if (provider === "massive") {
-        return { symbols: Beat.selectDueSymbols({ ...base, perBeat: 1 }), lanes: {}, tier: null, perBeat: 1 };
-      }
-      if (!state.tierMode) return { symbols: Beat.selectDueSymbols({ ...base, perBeat: count }), lanes: {}, tier: null, perBeat: count };
-      const tiers = tierPlan();
-      const selectedTier = tierOption(tiers);
-      if (!selectedTier) return { symbols: Beat.selectDueSymbols({ ...base, perBeat: count }), lanes: {}, tier: null, perBeat: count };
-      const selection = Beat.selectTieredDue({
-        ...base,
-        hotSet: state.ledger.featured,
-        hotSize: selectedTier.hotSize,
-        sweepPerBeat: selectedTier.sweepPerBeat
-      });
-      return { symbols: selection.all, lanes: selection.lanes, tier: selectedTier, perBeat: count };
-    }
-
     function nodeBearing(symbol) {
       const berth = stage && stage.berths.find(entry => entry.symbol === symbol);
       return berth ? berth.angle + Math.PI / 2 : 0;
@@ -1218,137 +1156,6 @@
       const confirmed = packet && Array.isArray(packet.bars)
         ? packet.bars.filter(bar => bar && bar.confirmed === true && finite(Number(bar.close))) : [];
       return { latest: confirmed.at(-1) || null, previous: confirmed.length > 1 ? confirmed.at(-2) : null };
-    }
-
-    function observationFromInstrument(instrument, provider, at) {
-      const symbol = String(instrument.symbol || "").toUpperCase();
-      const displaySymbol = String(instrument.displaySymbol || symbol).slice(0, 48);
-      const mode = provider || currentProvider();
-      const providerId = String(instrument.provider || instrumentProvider(mode)).slice(0, 24);
-      const bearingBase = nodeBearing(symbol);
-      if (!instrument.marketContext) {
-        return {
-          symbol, displaySymbol, status: instrument.status || "unavailable", provider: providerId,
-          code: String(instrument.code || "").slice(0, 48), message: String(instrument.message || "No market observation was supplied.").slice(0, 240),
-          lane: instrument.lane === "hot" || instrument.lane === "sweep" ? instrument.lane : null,
-          market: null,
-          motion: Beat.motion(null, { bearingBase })
-        };
-      }
-      const packet = MarketContext.normalizePacket(instrument.marketContext);
-      const analysis = packet && MarketContext.evaluate(packet);
-      const motion = Beat.motion(analysis, { bearingBase });
-      const confirmed = latestConfirmedBars(packet);
-      const latestBar = packet && packet.bars.at(-1) || null;
-      const latestClose = latestBar ? numeric(latestBar.close) : null;
-      const previousClose = confirmed.previous ? numeric(confirmed.latest.close) : null;
-      const compareClose = confirmed.previous ? numeric(confirmed.previous.close) : null;
-      const changePct = previousClose !== null && compareClose !== null && compareClose > 0
-        ? ((previousClose - compareClose) / compareClose) * 100 : null;
-      const market = analysis ? {
-        status: analysis.status,
-        source: String(analysis.source || packet.source || "").slice(0, 160),
-        timeframe: String(analysis.timeframe || packet.timeframe || state.interval).slice(0, 24),
-        dataShape: String(analysis.dataShape || packet.dataShape || "unknown").slice(0, 16),
-        synthetic: Boolean(analysis.synthetic || packet.synthetic),
-        barCount: Math.max(0, Number(analysis.barCount) || 0),
-        volumeAvailable: analysis.volumeAvailable === true,
-        latestBar: latestBar ? {
-          time: Number(latestBar.time),
-          ...(finite(Number(latestBar.open)) ? { open: Number(latestBar.open) } : {}),
-          ...(finite(Number(latestBar.high)) ? { high: Number(latestBar.high) } : {}),
-          ...(finite(Number(latestBar.low)) ? { low: Number(latestBar.low) } : {}),
-          ...(latestClose !== null ? { close: latestClose } : {}),
-          ...(finite(Number(latestBar.volume)) ? { volume: Number(latestBar.volume) } : {}),
-          confirmed: latestBar.confirmed === true
-        } : null,
-        previousClose: compareClose,
-        changePct,
-        basis: analysis.bands && numeric(analysis.bands.basis),
-        bands: analysis.bands ? {
-          lower1000: numeric(analysis.bands.lower1000), upper1000: numeric(analysis.bands.upper1000)
-        } : null,
-        vfi: analysis.vfi ? { value: numeric(analysis.vfi.value), signal: numeric(analysis.vfi.signal), available: analysis.vfi.available === true } : null,
-        waveTrend: analysis.waveTrend ? { wt1: numeric(analysis.waveTrend.wt1), wt2: numeric(analysis.waveTrend.wt2), zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48) } : null
-      } : null;
-      return {
-        symbol, displaySymbol,
-        status: instrument.status || "bars",
-        provider: providerId,
-        code: String(instrument.code || "").slice(0, 48),
-        message: String(instrument.message || "").slice(0, 240),
-        lane: instrument.lane === "hot" || instrument.lane === "sweep" ? instrument.lane : null,
-        market,
-        motion
-      };
-    }
-
-    function makeEvent(result, selection, reason, provider) {
-      const at = Date.now();
-      const instruments = (result.instruments || []).map(instrument => observationFromInstrument(instrument, provider, at));
-      const calls = result.spend
-        ? Math.max(0, Number(result.spend.providerAttempts ?? result.spend.upstreamCalls) || 0) : 0;
-      const event = {
-        schema: BEAT_SCHEMA,
-        beatId: uuid(),
-        at,
-        reason: ["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition"].includes(reason) ? reason : "manual",
-        discId: selection.discId || state.discId,
-        provider,
-        interval: selection.interval || intervalForBeat(),
-        cadenceMinutes: cadenceMinutesForBeat(provider),
-        calls,
-        cacheHits: result.spend ? Math.max(0, Number(result.spend.cacheHits) || 0) : 0,
-        instruments
-      };
-      return { event, calls, instruments };
-    }
-
-    function addEvent(event) {
-      state.events = [...state.events.filter(item => item.beatId !== event.beatId), event]
-        .sort((left, right) => left.at - right.at).slice(-MAX_HISTORY);
-      state.lastEvent = event;
-      state.lastBeatAt = event.at;
-      state.beatAnimation = { beatId: event.beatId, at: event.at, instruments: event.instruments.map(item => item.symbol) };
-      rebuildObservations();
-      syncLastBeat();
-      rebuildLedgers();
-      persistLocal();
-      if (event.provider !== "rehearsal" && event.instruments.some(item => item.market || item.status === "unavailable")) {
-        saveServerEvent(event);
-      }
-    }
-
-    async function saveServerEvent(event) {
-      if (!storage) {
-        state.persistence = "local-only";
-        state.persistenceNote = "This browser cannot keep the session id; live beats remain visible until this view closes.";
-        draw();
-        return;
-      }
-      state.persistence = "saving";
-      state.persistenceNote = "Saving beat snapshot to the server…";
-      drawStatus();
-      try {
-        const fetcher = globalThis.fetch;
-        if (typeof fetcher !== "function") throw new Error("Same-origin fetch is unavailable.");
-        const response = await fetcher(`${STORE_ROUTE}?sessionId=${encodeURIComponent(state.serverSessionId)}`, {
-          method: "POST", credentials: "same-origin", cache: "no-store", keepalive: true, redirect: "error",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify(event)
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload || payload.success !== true) {
-          throw new Error(payload && payload.message || `Beat history save answered HTTP ${response.status}.`);
-        }
-        state.persistence = "saved";
-        state.persistenceNote = "Saved on the server · last 120 beats · 90-day expiry.";
-      } catch (error) {
-        state.persistence = "local-only";
-        state.persistenceNote = `${(error && error.message) || "Server history is unavailable."} Local recovery copy kept when browser storage allows.`;
-      }
-      drawStatus();
-      drawHistory();
     }
 
     async function loadServerHistory() {
@@ -1370,6 +1177,10 @@
           throw new Error(payload && payload.message || `Beat history load answered HTTP ${response.status}.`);
         }
         mergeEvents(payload.beats);
+        /* History is a recovery copy, not the live source: re-apply the newest
+           server-field snapshot so a slow history response cannot replace the
+           stored field with older observations. */
+        if (state.field) applyFieldSnapshot(state.field);
         state.persistence = "saved";
         state.persistenceNote = payload.beats.length
           ? `Restored ${payload.beats.length} server beat${payload.beats.length === 1 ? "" : "s"} · up to 120 retained for 90 days.`
@@ -1395,30 +1206,22 @@
         return `<option value="${escapeHtml(interval)}">${escapeHtml(label)}</option>`;
       }).join("");
       intervalSelect.value = state.interval;
-      cadenceSelect.innerHTML = Beat.CADENCES.filter(minutes => minutes > 1)
-        .map(minutes => `<option value="${minutes}">${escapeHtml(Beat.formatHours(minutes / 60))}</option>`).join("");
-      cadenceSelect.value = String(state.cadence);
-      budgetInput.value = String(state.budget);
-      stretchBox.checked = state.stretch;
-      tierBox.checked = state.tierMode;
       const ignitionLocked = state.ignition.active;
-      cadenceSelect.disabled = ignitionLocked || ["massive", "alpha"].includes(currentProvider()) || state.pending;
-      budgetInput.disabled = currentProvider() !== "tickerbot" || state.pending;
-      stretchBox.disabled = currentProvider() !== "tickerbot" || state.pending;
-      tierBox.disabled = currentProvider() !== "tickerbot" || state.pending;
       intervalSelect.disabled = ignitionLocked || modes.length <= 1 || state.pending || state.loadingCatalog;
       discSelect.disabled = ignitionLocked || state.pending || state.loadingCatalog;
       if (timeframeSelect) {
         timeframeSelect.value = timeframe || "1d";
         timeframeSelect.disabled = ignitionLocked || state.pending;
       }
-      budgetInput.value = String(state.budget);
       syncFocusOptions();
       syncNodeOptions();
-      autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
+      autoButton.textContent = `Auto view: ${state.auto ? "on" : "off"}`;
       autoButton.setAttribute("aria-pressed", String(state.auto));
-      beatButton.textContent = state.ignition.active ? "Fire next sequence beat" : "Beat now";
+      beatButton.textContent = "Beat now · server tick";
       beatButton.disabled = state.pending || state.loadingCatalog;
+      if (randomTickerButton) randomTickerButton.disabled = state.pending || state.loadingCatalog || state.discId !== "stocks";
+      if (refreshFocusButton) refreshFocusButton.disabled = state.pending || state.loadingCatalog;
+      if (refreshIntradayButton) refreshIntradayButton.disabled = state.pending || state.loadingCatalog;
       rotateToggle.checked = state.autoRotate;
       dataBitsToggle.checked = state.showDataBits;
     }
@@ -1445,7 +1248,15 @@
     }
 
     function buildStage(entries, discId) {
-      stage = Cast.build(entries, { discId });
+      /* The ticker dial narrows the visible field; an empty dial shows the
+         whole reviewed deck. A focused symbol that is not on this Disc simply
+         contributes nothing rather than being substituted. */
+      const focused = state.focusSymbols.filter(Boolean);
+      const visible = focused.length
+        ? entries.filter(entry => focused.includes(String(entry.symbol || entry.ticker || "").toUpperCase()))
+        : entries;
+      stage = Cast.build(visible.length ? visible : entries, { discId });
+      state.stage = stage;
       symbols = stage.berths.map(berth => berth.symbol);
       state.entries = entries;
       if (!symbols.includes(state.focus)) state.focus = symbols[0] || "";
@@ -1475,32 +1286,29 @@
       return { entries, ranking: null };
     }
 
+    /* The plan is the Worker's, so this panel reports the server field's actual
+       allowance, queue, and warm-burst state instead of a local planner. */
     function drawPlan() {
-      const provider = currentProvider();
-      const plan = makePlan(provider);
-      const perBeatCount = perBeat(plan, provider);
-      const estimate = provider === "massive" ? `${MASSIVE_REQUESTS_PER_MINUTE} reviewed instruments per minute maximum · across this Disc`
-        : provider === "alpha" ? "1 best-performing Disc1 ticker per hour"
-          : `${perBeatCount} instrument${perBeatCount === 1 ? "" : "s"} per manual beat · ${Beat.formatHours(plan.sweepHours)} full sweep`;
-      const status = provider === "massive" ? `Massive pacing is ${MASSIVE_REQUESTS_PER_MINUTE}/minute (about ${MASSIVE_BEAT_MS / 1000}s between requests); its separate UTC-day D1 guard is also required.`
-        : provider === "alpha" ? "Alpha Vantage uses a separate 25-attempt UTC-day D1 guard; 1mo never answers a 1h/1d request."
-          : "Tickerbot's shared monthly D1 limit is enforced by the Worker separately from the local plan.";
-      const isTickerbot = provider === "tickerbot";
-      const tiers = tierPlan();
-      const chosenTier = tierOption(tiers);
-      const tierOptions = isTickerbot && chosenTier
-        ? `<span class="gi-orb2-tier-summary">HOT ${chosenTier.hotSize} · SWEEP ${chosenTier.sweepPerBeat}/beat · ${chosenTier.targetSweepHours}h target</span>` : "";
+      const status = state.field && state.field.status ? state.field.status : null;
+      const massive = status && status.massive ? status.massive : null;
+      const tickerbot = status && status.tickerbot ? status.tickerbot : null;
+      const queue = status && status.queue ? status.queue : null;
+      const warm = status && status.warmBurst ? status.warmBurst : null;
+      const estimate = massive
+        ? `${MASSIVE_REQUESTS_PER_MINUTE} Massive 1d requests/minute · ${Number(massive.remainingToday).toLocaleString()} left today`
+        : `${symbols.length} reviewed berths · waiting for the server field`;
+      const detail = tickerbot
+        ? `Tickerbot ${Number(tickerbot.callsThisMonth || 0).toLocaleString()}/${Number(tickerbot.monthlyLimit || 0).toLocaleString()} this month${tickerbot.reserveCalls ? ` · ${Number(tickerbot.reserveCalls).toLocaleString()} reserved` : ""}`
+        : "The Tickerbot queue is read from the server field.";
+      const queueLine = queue
+        ? `Queue ${Number(queue.pending) || 0} pending · ${Number(queue.claimed) || 0} in flight`
+        : "No queue reading yet.";
+      const burst = warm && warm.callsPerBurst
+        ? `Warm burst ${Number(warm.callsPerBurst)} calls${warm.deployWarmAt ? ` · first deploy ${shortTime(Number(warm.deployWarmAt))}` : ""}`
+        : "The deploy warm burst is described by the server field.";
       planHost.innerHTML = `
-        <span class="gi-orb2-plan-chip"><strong>${escapeHtml(estimate)}</strong><small>${escapeHtml(status)}</small></span>
-        <span class="gi-orb2-plan-chip"><strong>${plan.reserveCalls.toLocaleString()} reserved</strong><small>${Math.round(plan.budgetUseRatio * 100)}% planned Tickerbot use · ${symbols.length} reviewed berths</small></span>
-        ${tierOptions}`;
-      featureButtons.forEach(button => {
-        if (!button) return;
-        const featured = Boolean(state.ledger.featured.includes(state.focus));
-        button.textContent = featured ? "Featured ★" : "Feature focus";
-        button.setAttribute("aria-pressed", String(featured));
-        button.disabled = !state.focus || currentProvider() !== "tickerbot" || state.pending;
-      });
+        <span class="gi-orb2-plan-chip"><strong>${escapeHtml(estimate)}</strong><small>${escapeHtml(burst)}</small></span>
+        <span class="gi-orb2-plan-chip"><strong>${escapeHtml(detail)}</strong><small>${escapeHtml(queueLine)}${status && status.lastTickAt ? ` · last tick ${escapeHtml(shortTime(Number(status.lastTickAt)))}` : ""}</small></span>`;
     }
 
     function latestObservationForFocus() {
@@ -1542,15 +1350,38 @@
         <div><dt>Change vs prior confirmed bar</dt><dd>${escapeHtml(formatPercent(market.changePct))}</dd></div>`;
     }
 
+    function compositionMarkup(composition) {
+      if (!composition || typeof composition !== "object") return "";
+      const position = Number(composition.composedPosition);
+      const baseline = Number(composition.baselinePosition);
+      const intraday = Number(composition.intradayPosition);
+      const freshness = Number(composition.freshness);
+      const multiplier = Number(composition.forceMultiplier);
+      const has = value => Number.isFinite(value);
+      const status = String(composition.status || "hold").toUpperCase();
+      const reason = String(composition.reason || "scale composition held").replace(/-/g, " ");
+      return `<section class="gi-orb2-scale-composition" aria-label="Daily and fifteen minute composition">
+        <h5>DAILY BASELINE × 15M RESIDUAL <span>${escapeHtml(status)}</span></h5>
+        <dl class="gi-orb2-node-meta">
+          <div><dt>Composed display position</dt><dd>${has(position) ? `${(position * 100).toFixed(1)}%` : "HELD · daily baseline unavailable"}</dd></div>
+          <div><dt>Daily baseline / 15m</dt><dd>${has(baseline) ? `${(baseline * 100).toFixed(1)}%` : "—"} / ${has(intraday) ? `${(intraday * 100).toFixed(1)}%` : "—"}</dd></div>
+          <div><dt>15m freshness / force multiplier</dt><dd>${has(freshness) ? `${(freshness * 100).toFixed(0)}%` : "0%"} / ${has(multiplier) ? `${multiplier.toFixed(2)}×` : "1.00×"}</dd></div>
+          <div><dt>Scientific treatment</dt><dd>Log-band position; 15m volatility scaled by √26 RTH bars</dd></div>
+        </dl>
+        <p class="gi-orb2-observation-time">${escapeHtml(reason)} · ${escapeHtml(composition.note || "display only; not a signal")}</p>
+      </section>`;
+    }
+
     function observationMarkup(observation) {
-      if (!observation) return `<div class="gi-orb2-observation-empty">No live observation for this focus yet. Use Beat now, or enable Auto-beat in a Massive/Alpha mode.</div>`;
+      if (!observation) return `<div class="gi-orb2-observation-empty">No stored observation for this focus yet. Beat now asks the server for one tick, or turn Auto view on to re-read the field.</div>`;
       const market = observation.market;
       const mood = observation.motion && observation.motion.mood || "frozen";
       const color = MOOD_COLORS[mood] || MOOD_COLORS.unknown;
       const provider = providerTitle(observation.providerMode || (observation.provider === "alpha-vantage" ? "alpha" : observation.provider === "synthetic" ? "rehearsal" : observation.provider));
+      const freshness = observation.freshness && observation.freshness.status ? String(observation.freshness.status).toUpperCase() : "FRESHNESS UNKNOWN";
       if (!market) {
         return `
-          <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · UNAVAILABLE</strong><span>${escapeHtml(provider)}</span></div>
+          <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · UNAVAILABLE</strong><span>${escapeHtml(provider)} · ${escapeHtml(freshness)}</span></div>
           <p class="gi-orb2-observation-error">${escapeHtml(observation.message || observation.code || "No provider observation was returned.")}</p>
           <p class="gi-orb2-observation-time">${escapeHtml(shortTime(observation.at))} · no upstream values were inferred.</p>`;
       }
@@ -1565,13 +1396,14 @@
           <i aria-hidden="true"></i><span>${escapeHtml(bit.label)}</span><strong>${escapeHtml(bit.value)}</strong>
         </span>`).join("");
       return `
-        <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)}</span></div>
-        <p class="gi-orb2-observation-source">${escapeHtml(market.source || "Provider source not supplied")} · ${escapeHtml(market.timeframe || observation.interval)} · ${market.barCount} bars</p>
+        <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)} · ${escapeHtml(freshness)}</span></div>
+        <p class="gi-orb2-observation-source">${escapeHtml(market.source || "Provider source not supplied")} · ${escapeHtml(market.timeframe || observation.interval)} · ${market.barCount} bars · field ${escapeHtml(freshness.toLowerCase())}</p>
         <dl class="gi-orb2-node-meta">${fields}<div><dt>Characters motion</dt><dd style="color:${escapeHtml(color)}">${escapeHtml(observation.motion && observation.motion.caption || mood)}</dd></div>
           <div><dt>Observed VFI</dt><dd>${escapeHtml(vfi)}</dd></div><div class="gi-orb2-flow-detail"><dt>Volume-flow path · Characters</dt><dd style="color:${escapeHtml(flow.color)}">${escapeHtml(flowText)}</dd><small>Visual cadence only—not volume per second.</small></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div></dl>
         <section class="gi-orb2-market-bits" aria-label="Observed market data channels">
           <h5>FIVE MARKET DATA BITS <span>NOT ASSURANCE</span></h5><div>${bits}</div>
         </section>
+        ${compositionMarkup(observation.composition)}
         <p class="gi-orb2-observation-time">Observed ${escapeHtml(shortTime(observation.at))} · ${market.synthetic ? "synthetic rehearsal · not live" : "API-supplied · verify provider"}${market.latestBar && market.latestBar.confirmed ? " · confirmed bar" : " · latest bar not confirmed"}</p>`;
     }
 
@@ -1623,11 +1455,10 @@
       }).join("");
     }
 
+    /* One cadence only: how often this page re-reads the server field. The
+       provider cadences themselves live in the Worker's cron schedule. */
     function currentDelay() {
-      const provider = currentProvider();
-      if (provider === "massive") return MASSIVE_BEAT_MS;
-      if (provider === "alpha") return ALPHA_BEAT_MS;
-      return state.cadence * 60_000;
+      return FIELD_POLL_MS;
     }
 
     function ignitionTarget() {
@@ -1656,10 +1487,10 @@
       state.ignition.renderKey = renderKey;
       const ready = state.ignition.workerReady;
       const workerFailed = /ROUTE ERROR|UNAVAILABLE|NOT CONFIGURED|CHECK FAILED|MISSING/i.test(String(state.routeSteps.worker || ""));
-      ignitionServer.textContent = ready ? "WORKER ROUTE REACHED · DEPLOY CHECKED"
-        : workerFailed ? "DEPLOY CHECK HELD · WORKER NOT READY"
-          : state.pending ? "CHECKING DEPLOYMENT · FIRST FX BEAT"
-            : "WAITING · DEPLOY / WORKER ROUTE";
+      ignitionServer.textContent = ready ? "SERVER FIELD REACHED · CRON BEAT"
+        : workerFailed ? "SERVER FIELD UNREACHABLE · RENDER HELD"
+          : state.fieldPending ? "READING THE SERVER FIELD"
+            : "WAITING · SERVER FIELD";
       if (state.dxy && state.dxy.ok) {
         const date = new Date(state.dxy.asOf).toISOString().slice(0, 10);
         ignitionDxy.textContent = `DXY ${state.dxy.value.toFixed(3)} · AS OF ${date} · FIXED BENCHMARK`;
@@ -1672,10 +1503,10 @@
         `${input.symbol} ${state.ignition.fxFired.has(input.symbol) ? "✓" : "·"}`
       ).join(" · ");
       ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${Dxy.REQUIRED_ASSETS}`;
-      if (state.ignition.blocked) ignitionNote.textContent = `SEQUENCE HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
-      else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed. Auto-beat is paused; the DXY value remains a dated, fixed-center reference.";
-      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. One same-origin Massive 1d symbol every ${MASSIVE_BEAT_MS / 1000}s, up to ${MASSIVE_REQUESTS_PER_MINUTE}/minute; shared Worker limits remain active.`;
-      else ignitionNote.textContent = `The first EURUSD beat checks the deployed Worker, secret, and D1 ledger before any Massive request → six one-symbol FX beats → fixed DXY benchmark → 52 one-symbol stock beats. ${target ? `Next input: ${target.symbol}.` : "Waiting for a confirmed input."} No separate browser health request is added; DXY is held until all six closes share one timestamp.`;
+      if (state.ignition.blocked) ignitionNote.textContent = `SWEEP HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
+      else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed in the stored field; the DXY value remains a dated, fixed-center reference.";
+      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. The Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page renders stored observations only.`;
+      else ignitionNote.textContent = `The Worker's cron beat runs server-side 24/7/365 → six FX closes → fixed DXY benchmark → 52 stock beats, all inside the shared ${MASSIVE_REQUESTS_PER_MINUTE}/minute and UTC-day allowances, with the Tickerbot warm burst filling the field on deploy. ${target ? `Next stored input: ${target.symbol}.` : "Waiting for the server field."} Hiding or reloading this page never restarts the order; DXY is held until all six closes share one timestamp.`;
       if (ignitionRestartButton) ignitionRestartButton.hidden = state.ignition.active;
 
       const rows = [];
@@ -1697,23 +1528,117 @@
         </li>`);
       }
       firingList.innerHTML = rows.join("");
+      if (firingSummary) {
+        const next = marketFiringOrder.find(asset => !state.ignition.tickerFired.has(asset.symbol));
+        firingSummary.textContent = state.ignition.tickerFired.size >= Dxy.REQUIRED_ASSETS
+          ? "All 52 stored · open for the ordered detail"
+          : `${state.ignition.tickerFired.size}/52 stored · next ${next ? `${next.firingOrder}/52 ${next.symbol}` : "waiting for the field"}`;
+      }
+    }
+
+    /**
+     * The beat-type dial. The server publishes which types each stored
+     * observation can support; the dial reads those descriptors, falls back to
+     * the shared client catalog, and never offers a type the server did not
+     * report as available for the current field.
+     */
+    function beatTypeEntries() {
+      const Scenarios = globalThis.GoodIntelligenceOrb2Scenarios;
+      const published = state.field && Array.isArray(state.field.beatTypes) ? state.field.beatTypes : [];
+      if (published.length) return published;
+      const catalog = Scenarios && Array.isArray(Scenarios.TYPES) ? Scenarios.TYPES : [];
+      if (catalog.length) return catalog.map(type => ({ id: type.id, label: type.label, live: type.live, summary: type.summary, available: true, count: null }));
+      return FIELD_BEAT_TYPES.map(id => ({ id, label: id, live: id === "observation", available: true, count: null }));
+    }
+
+    function activeScenarioObservation() {
+      const symbol = state.focus || (nodes[state.selected] && nodes[state.selected].symbol) || null;
+      if (!symbol) return null;
+      return latestObservation(state.discId, symbol);
+    }
+
+    function activeScenario() {
+      if (!state.beatType || state.beatType === "observation") return null;
+      const Scenarios = globalThis.GoodIntelligenceOrb2Scenarios;
+      if (!Scenarios || typeof Scenarios.scenarioFor !== "function") return null;
+      const observation = activeScenarioObservation();
+      return { observation, scenario: Scenarios.scenarioFor(state.beatType, observation, { now: Date.now() }) };
+    }
+
+    /* A scenario is a local choreography over a stored beat. Its active phase
+       drives the existing trace renderer: inward/resolve/outward legs pass
+       through Center Origin, lateral legs hop between berths. No phase sends,
+       grants, or settles anything. */
+    function advanceScenario(now) {
+      const active = activeScenario();
+      if (!active) return null;
+      const { observation, scenario } = active;
+      if (!scenario.available) {
+        routeNote.textContent = scenario.reason || "This beat type is not available for the selected berth.";
+        return scenario;
+      }
+      const phase = scenario.phases.find(entry => entry.id === scenario.activePhase) || scenario.phases[0];
+      if (fieldNote) {
+        const berth = stage && stage.berths.find(entry => entry.symbol === scenario.symbol);
+        const character = berth && berth.npc && berth.npc.name ? berth.npc.name : null;
+        fieldNote.textContent = `${scenario.label}${character ? ` · ${character}` : ""} · ${phase ? phase.label : "phase unavailable"} · ${scenario.boundary || ""}`;
+      }
+      if (phase && !state.route) {
+        const lateral = phase.channel === "lateral";
+        setRoute(lateral ? "lateral" : "resolution");
+        state.lastRoutePhase = "";
+      }
+      /* setRoute() refreshes the inspector and rewrites the route note, so the
+         scenario description is applied after the trace is installed. */
+      routeNote.textContent = globalThis.GoodIntelligenceOrb2Scenarios.describe(scenario);
+      return scenario;
+    }
+
+    function drawFieldDial() {
+      if (!fieldDial) return;
+      const entries = beatTypeEntries();
+      const buttons = entries.map(entry => {
+        const selected = state.beatType === entry.id;
+        const count = Number.isFinite(Number(entry.count)) ? ` · ${Number(entry.count)}` : "";
+        const unavailable = entry.available === false;
+        return `<button class="gi-button gi-orb2-dial-pill${selected ? " selected" : ""}" type="button" role="radio"
+          aria-checked="${selected}" data-field-type="${escapeHtml(entry.id)}"${unavailable ? " disabled" : ""}
+          title="${escapeHtml(entry.summary || "")}">${escapeHtml(entry.label || entry.id)}${count}${entry.live ? " · live" : ""}</button>`;
+      }).join("");
+      const all = `<button class="gi-button gi-orb2-dial-pill${state.beatType ? "" : " selected"}" type="button" role="radio"
+        aria-checked="${!state.beatType}" data-field-type="">All stored beats</button>`;
+      const key = `${state.beatType || ""}|${entries.map(entry => `${entry.id}:${entry.available}:${entry.count}`).join(",")}`;
+      if (fieldDial.dataset.renderKey !== key) {
+        fieldDial.dataset.renderKey = key;
+        fieldDial.innerHTML = all + buttons;
+      }
+      if (fieldFocus) {
+        const symbolsHere = (stage && stage.berths ? stage.berths.map(berth => berth.symbol) : []).slice(0, 24);
+        const focused = new Set(state.focusSymbols);
+        const chips = symbolsHere.map(symbol => `<button class="gi-button gi-orb2-focus-chip${focused.has(symbol) ? " selected" : ""}"
+          type="button" aria-pressed="${focused.has(symbol)}" data-focus-symbol="${escapeHtml(symbol)}">${escapeHtml(symbol)}</button>`).join("");
+        const clear = state.focusSymbols.length ? `<button class="gi-button gi-orb2-focus-chip" type="button" data-focus-clear>Clear focus (${state.focusSymbols.length})</button>` : "";
+        const focusKey = `${state.discId}|${symbolsHere.length}|${state.focusSymbols.join(",")}`;
+        if (fieldFocus.dataset.renderKey !== focusKey) {
+          fieldFocus.dataset.renderKey = focusKey;
+          fieldFocus.innerHTML = clear + chips;
+        }
+      }
     }
 
     function drawStatus() {
       const provider = currentProvider();
       providerHost.textContent = providerDescription(provider);
       providerHost.className = `gi-orb2-provider-pill ${provider}`;
-      if (state.pending) countdownHost.textContent = "BEAT IN FLIGHT · WORKER REQUEST";
-      else if (state.cooldownUntil > Date.now()) countdownHost.textContent = provider === "massive"
-        ? `MASSIVE PACING · ${formatCountdown(state.cooldownUntil - Date.now())}`
-        : `PROVIDER WARM-UP · ${formatCountdown(state.cooldownUntil - Date.now())}`;
-      else if (!state.auto) countdownHost.textContent = "AUTO-BEAT PAUSED · use Beat now";
-      else if (provider === "tickerbot") countdownHost.textContent = "TICKERBOT IS ON-DEMAND · use Beat now";
+      if (state.pending) countdownHost.textContent = "SERVER TICK REQUESTED · WAITING";
+      else if (!state.auto) countdownHost.textContent = "AUTO VIEW PAUSED · SERVER KEEPS BEATING 24/7";
+      else if (state.fieldFailed) countdownHost.textContent = "SERVER FIELD UNREACHABLE · NO PAGE REQUESTS";
+      else if (state.fieldPending) countdownHost.textContent = "READING SERVER FIELD…";
       else if (state.lastBeatAt) {
         const remaining = state.nextBeatAt > Date.now() ? state.nextBeatAt - Date.now() : currentDelay();
-        countdownHost.textContent = `LAST BEAT ${shortTime(state.lastBeatAt)} · NEXT IN ${formatCountdown(remaining)}`;
+        countdownHost.textContent = `NEWEST STORED BEAT ${shortTime(state.lastBeatAt)} · NEXT READ IN ${formatCountdown(remaining)}`;
       }
-      else countdownHost.textContent = "READY · first live beat is starting";
+      else countdownHost.textContent = "WAITING FOR THE SERVER FIELD'S FIRST STORED BEAT";
       persistenceHost.textContent = state.persistence === "saved" ? "SERVER HISTORY · SAVED"
         : state.persistence === "saving" ? "SERVER HISTORY · SAVING"
           : state.persistence === "loading" ? "SERVER HISTORY · LOADING"
@@ -1726,6 +1651,8 @@
       routeStepLedger.textContent = state.routeSteps.ledger;
       routeStepModel.textContent = state.routeSteps.model;
       drawIgnition();
+      drawFieldDial();
+      advanceScenario(Date.now());
       [routeStepProvider, routeStepWorker, routeStepLedger, routeStepModel].forEach(element => {
         element.classList.toggle("blocked", /UNAVAILABLE|BLOCKED|REFUSED/i.test(element.textContent));
         element.classList.toggle("active", /REQUESTING|FETCHING/i.test(element.textContent));
@@ -1738,7 +1665,7 @@
         messageHost.hidden = true;
         messageHost.textContent = "";
       }
-      autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
+      autoButton.textContent = `Auto view: ${state.auto ? "on" : "off"}`;
       autoButton.setAttribute("aria-pressed", String(state.auto));
       beatButton.disabled = state.pending || state.loadingCatalog;
       canvasStatus.textContent = !context2d ? "CANVAS UNAVAILABLE · BEAT LOG / INSPECTOR STILL ACTIVE"
@@ -1753,294 +1680,272 @@
 
     function draw() {
       syncFormControls();
-      drawStatus();
       drawInspector();
       drawHistory();
+      /* drawStatus() runs last so the beat-type scenario narration and the
+         server-field readouts win over the default trace text that
+         drawInspector() writes. */
+      drawStatus();
       scheduleRender();
     }
 
-    function updateProviderSteps(provider, spend = state.spend, error = null) {
-      const ledgerStatus = provider === "massive" ? spend && spend.massiveLedgerStatus
-        : provider === "alpha" ? spend && spend.alphaVantageLedgerStatus
-          : spend && spend.ledgerStatus;
-      state.routeSteps = {
-        provider: error ? "UNAVAILABLE" : state.pending ? "FETCHING" : "READY",
-        worker: error ? "ROUTE ERROR" : state.pending ? "REQUESTING" : "READY",
-        ledger: ledgerStatus === "ready" || ledgerStatus === "not-applicable" ? "READY"
-          : ledgerStatus === "unavailable" ? "UNAVAILABLE"
-            : ledgerStatus === "not-configured" ? "NOT CONFIGURED" : state.pending ? "CHECKING" : "WAITING",
-        model: error ? "HELD" : "READY"
-      };
+    function fieldInterval() {
+      return state.ignition.enabled && state.discId === "stocks" ? "1d"
+        : state.interval === "1h" ? "1h" : "1d";
     }
 
-    function safeRefusalMessage(instrument) {
-      const code = String(instrument.code || "");
-      if (code === "massive-ledger-unavailable") {
-        return `${instrument.message || "No Massive request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0007_massive_daily_call_ledger.sql. Waiting will not repair a missing D1 table.`;
-      }
-      if (code === "alpha-vantage-ledger-unavailable") {
-        return `${instrument.message || "No Alpha Vantage request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0006_alpha_vantage_daily_call_ledger.sql. Waiting 60 seconds will not repair a missing D1 table.`;
-      }
-      if (code === "ledger-unavailable") {
-        return `${instrument.message || "No Tickerbot request was sent."} Check the COMMUNITY_DB Worker binding and apply migration 0005_tickerbot_call_ledger.sql.`;
-      }
-      if (code === "massive-rate-limit") return `${instrument.message || "Massive is pacing this request."} No other provider was substituted.`;
-      if (code === "massive-budget-exhausted") return `${instrument.message || "The Massive daily cap is reached."} No request was sent.`;
-      if (code === "alpha-vantage-budget-exhausted") return `${instrument.message || "Alpha Vantage's daily cap is reached."} No request was sent.`;
-      if (code === "budget-exhausted") return `${instrument.message || "Tickerbot's monthly cap is reached."} No request was sent.`;
-      return instrument.message || "No provider observation was returned; the berth remains still.";
+    function fieldUrl() {
+      const params = new URLSearchParams();
+      params.set("interval", fieldInterval());
+      if (state.beatType) params.set("types", state.beatType);
+      const focused = state.focusSymbols.filter(Boolean);
+      if (focused.length) params.set("symbols", focused.join(","));
+      return `${FIELD_ROUTE}?${params.toString()}`;
     }
 
-    function updateUnavailableMessage(instruments) {
-      const refused = (instruments || []).filter(instrument => !instrument.marketContext);
-      if (!refused.length) {
-        state.message = null;
-        return;
-      }
-      const first = refused[0];
-      const text = safeRefusalMessage(first);
-      const kind = /ledger-unavailable|not configured|rate-limit|budget-exhausted/i.test(String(first.code || "")) ? "refusal" : "note";
-      state.message = { kind, text: refused.length > 1 ? `${refused.length} due berth${refused.length === 1 ? "" : "s"} held. ${text}` : text };
-    }
-
-    async function fetchLiveBeat(due, cadenceMinutes, lanes = {}, provider = currentProvider(), discId = state.discId, interval = state.interval) {
-      const laneParam = Object.entries(lanes).length
-        ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(","))}` : "";
-      const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(discId)}` +
-        `&provider=${encodeURIComponent(provider)}` +
-        `&symbols=${encodeURIComponent(due.join(","))}` +
-        `&interval=${encodeURIComponent(interval)}&cadence=${cadenceMinutes}${laneParam}`;
+    async function postField(action, body = {}) {
       const fetcher = globalThis.fetch;
       if (typeof fetcher !== "function") throw new Error("The same-origin Worker route cannot be reached because fetch is unavailable.");
-      const response = await fetcher(endpoint, {
-        method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
-        headers: { Accept: "application/json" }
+      const response = await fetcher(FIELD_ROUTE, {
+        method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ schema: FIELD_REQUEST_SCHEMA, action, interval: fieldInterval(), ...body })
       });
       const payload = await response.json().catch(() => null);
       const data = payload && isRecord(payload.data) ? payload.data : null;
-      const spend = data && data.spend || null;
-      state.spend = spend;
-      const instruments = data && Array.isArray(data.instruments) ? data.instruments : [];
-      if (!response.ok && !instruments.length) {
-        const error = new Error(payload && payload.message || `The Characters beat route answered HTTP ${response.status}.`);
-        error.kind = response.status === 404 || response.status === 503 ? "unconfigured" : "upstream";
+      if (!response.ok || !payload || payload.success !== true) {
+        const error = new Error(payload && payload.message || `The server field answered HTTP ${response.status}.`);
+        error.code = response.status === 429 ? "field-hold" : response.status === 503 ? "field-unconfigured" : "field-error";
         throw error;
       }
-      updateProviderSteps(provider, spend);
-      return { instruments, spend };
+      return data;
     }
+
+    function fieldObservation(row) {
+      return {
+        symbol: String(row.symbol || "").toUpperCase(),
+        displaySymbol: String(row.displaySymbol || row.symbol || ""),
+        name: String(row.name || ""), sector: String(row.sector || ""),
+        status: row.status, provider: row.provider, code: String(row.code || ""),
+        message: String(row.message || ""), lane: null,
+        market: row.market || null, motion: row.motion || null, composition: row.composition || null,
+        confirmed: row.confirmed === true, barTime: row.barTime === undefined ? null : row.barTime,
+        at: Number(row.observedAt) || 0,
+        freshness: row.freshness || null,
+        discId: row.discId, interval: row.interval, providerMode: row.provider,
+        reason: row.reason || "server-sweep", beatId: row.beatId,
+        beatTypes: Array.isArray(row.beatTypes) ? row.beatTypes : ["observation"]
+      };
+    }
+
+    function applyFieldSnapshot(snapshot) {
+      const observations = new Map();
+      let newest = 0;
+      for (const row of Array.isArray(snapshot.observations) ? snapshot.observations : []) {
+        const observation = fieldObservation(row);
+        if (!observation.symbol || !observation.at) continue;
+        observations.set(`${observation.discId}:${observation.provider}:${observation.interval}:${observation.symbol}`, observation);
+        if (observation.at > newest) newest = observation.at;
+      }
+      state.observations = observations;
+      state.field = snapshot;
+      state.fieldAt = Date.now();
+      state.fieldFailed = false;
+      if (newest) state.lastBeatAt = newest;
+      if (snapshot.dxy) state.dxy = snapshot.dxy;
+      const status = snapshot.status || {};
+      const massive = status.massive || {};
+      const tickerbot = status.tickerbot || {};
+      state.routeSteps = {
+        provider: massive.ledger === "ready" ? `SERVER · MASSIVE ${Number(massive.callsToday) || 0}/${Number(massive.dailyLimit) || 300} TODAY`
+          : tickerbot.ledger === "ready" ? "SERVER · TICKERBOT QUEUE" : "SERVER FIELD",
+        worker: `CRON ${String(status.cron || "*/1 * * * *")} · TICK ${status.lastTickAt ? shortTime(Number(status.lastTickAt)) : "PENDING"}`,
+        ledger: massive.exhausted ? `MASSIVE DAY SPENT · QUEUE CONTINUES`
+          : Number.isFinite(Number(massive.remainingToday)) ? `MASSIVE ${Number(massive.remainingToday)} LEFT TODAY` : "LEDGER UNREAD",
+        model: snapshot.observations.length ? "RENDER-ONLY · NO PAGE REQUEST" : "WAITING FOR THE FIRST SERVER BEAT"
+      };
+      syncIgnitionFromField(snapshot);
+    }
+
+    function syncIgnitionFromField(snapshot) {
+      if (!state.ignition.enabled) return;
+      if (snapshot && snapshot.dxy) state.dxy = snapshot.dxy;
+      const rows = Array.isArray(snapshot && snapshot.observations) ? snapshot.observations : [];
+      for (const row of rows) {
+        if (row.provider !== "massive" || row.interval !== "1d" || row.confirmed !== true || !row.market) continue;
+        if (row.discId === "fx" && Dxy.COMPONENTS.some(component => component.symbol === row.symbol)) {
+          state.ignition.fxInputs.set(row.symbol, fieldObservation(row));
+          state.ignition.fxFired.add(row.symbol);
+        }
+        if (row.discId === "stocks") state.ignition.tickerFired.add(row.symbol);
+      }
+      state.ignition.workerReady = Boolean(snapshot && snapshot.ok);
+      if (state.ignition.fxFired.size >= Dxy.COMPONENTS.length && !(state.dxy && state.dxy.ok)) {
+        state.dxy = Dxy.evaluate([...state.ignition.fxInputs.values()], Date.now());
+      }
+      if (state.ignition.tickerFired.size >= Dxy.REQUIRED_ASSETS) {
+        state.ignition.phase = "complete";
+        if (state.ignition.active) {
+          state.ignition.active = false;
+          state.message = { kind: "note", text: `Server field complete · all ${Dxy.REQUIRED_ASSETS} ticker beats and the six DXY closes are stored. The cron schedule keeps running; this view never replays the order.` };
+        }
+        return;
+      }
+      if (!state.ignition.active) return;
+      if (state.ignition.fxFired.size >= Dxy.COMPONENTS.length) state.ignition.phase = "tickers";
+      else if (state.ignition.workerReady) state.ignition.phase = "dxy";
+    }
+
+    async function loadFieldSnapshot({ reason = "poll" } = {}) {
+      if (state.destroyed) return false;
+      const fetcher = globalThis.fetch;
+      if (typeof fetcher !== "function") {
+        state.fieldFailed = true;
+        state.message = { kind: "refusal", text: "The same-origin Worker route cannot be reached because fetch is unavailable. No provider request was made by this page." };
+        draw();
+        return false;
+      }
+      state.fieldPending = true;
+      drawStatus();
+      try {
+        const response = await fetcher(fieldUrl(), {
+          method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
+          headers: { Accept: "application/json" }
+        });
+        const payload = await response.json().catch(() => null);
+        const data = payload && isRecord(payload.data) ? payload.data : null;
+        state.fieldPending = false;
+        if (!response.ok || !data || data.ok !== true) {
+          state.fieldFailed = true;
+          state.message = { kind: "refusal", text: `${payload && payload.message || `The server field answered HTTP ${response.status}.`} This page made no provider request; the 24/7 schedule is unaffected.` };
+          draw();
+          return false;
+        }
+        applyFieldSnapshot(data);
+        if (reason !== "poll") {
+          state.message = { kind: "note", text: `Server field read · ${data.observations.length} stored observation${data.observations.length === 1 ? "" : "s"} · newest ${data.observations.length ? shortTime(Number(data.observations[0].observedAt)) : "—"}. The page renders what the Worker stored; it requests nothing itself.` };
+        }
+        draw();
+        return true;
+      } catch (error) {
+        state.fieldPending = false;
+        state.fieldFailed = true;
+        state.message = { kind: "refusal", text: `${error && error.message || "The server field could not be read."} The schedule runs server-side; nothing was substituted.` };
+        draw();
+        return false;
+      }
+    }
+
+    /**
+     * Manual is a deliberate choice: ask the server to run one scheduled tick,
+     * or to prioritize the focused tickers through the Tickerbot queue. Either
+     * way the provider call belongs to the Worker, never to this page.
+     */
     async function beatNow(reason = "manual") {
       if (state.pending || state.loadingCatalog || state.destroyed) return false;
-      if (state.cooldownUntil > Date.now()) {
-        const provider = currentProvider();
-        const holdLabel = provider === "massive" ? `Massive's ${MASSIVE_REQUESTS_PER_MINUTE}/minute pacing` : `${providerTitle(provider)} warm-up`;
-        state.message = { kind: "note", text: `${holdLabel} is active. The next request is held for ${formatCountdown(state.cooldownUntil - Date.now())}; no request has been sent.` };
-        draw();
-        return false;
+      state.pending = true;
+      state.error = null;
+      state.message = { kind: "note", text: "Asking the server field for one scheduled tick now. The cron schedule keeps its own cadence; this page sends no provider request." };
+      drawStatus();
+      let ok = false;
+      try {
+        const data = await postField("tick");
+        const summary = data && data.summary || {};
+        const notes = Array.isArray(data && data.notes) ? data.notes.filter(Boolean) : [];
+        const stored = (Number(summary.massiveCalls) || 0) + (Number(summary.tickerbotCalls) || 0);
+        state.message = { kind: "note", text: `Server tick complete · ${stored} new observation${stored === 1 ? "" : "s"} stored (Massive ${Number(summary.massiveCalls) || 0} · Tickerbot ${Number(summary.tickerbotCalls) || 0}), ${Number(summary.held) || 0} held.${notes.length ? ` ${notes[0]}` : ""}` };
+        ok = true;
+      } catch (error) {
+        const hold = error && error.code === "field-hold";
+        state.message = { kind: hold ? "note" : "refusal", text: `${error && error.message || "The server tick was refused."} ${hold ? "The continuous schedule is unchanged." : "No provider call was made from this page."}` };
       }
-      const isIgnition = state.ignition.active;
-      const provider = isIgnition ? "massive" : currentProvider();
-      if (isIgnition && state.massiveHoldUntil > Date.now()) {
-        const wait = state.massiveHoldUntil - Date.now();
-        state.nextBeatAt = state.massiveHoldUntil;
-        state.message = { kind: "note", text: `Ignition pacing hold · next Massive request in ${formatCountdown(wait)}. The same-origin Worker still enforces its shared five-per-minute envelope and 300-request UTC-day ledger.` };
-        draw();
-        return false;
-      }
-      const durable = state.spend && state.spend.durable;
-      const currentMonth = Beat.monthKey(Date.now());
-      if (provider === "tickerbot" && durable && durable.month === currentMonth && durable.exhausted) {
-        state.message = { kind: "refusal", text: `The shared D1 ledger records ${Number(durable.calls).toLocaleString()} of ${Number(durable.workerLimit).toLocaleString()} Tickerbot attempts for ${durable.month}. No on-demand request was sent. Massive automatic 1d and Alpha Vantage 1mo are separate provider paths.` };
-        draw();
-        return false;
-      }
+      state.pending = false;
+      const outcome = state.message;
+      await loadFieldSnapshot({ reason });
+      if (ok) state.message = outcome;
+      draw();
+      schedule();
+      return ok;
+    }
+
+    async function refreshFocused(interval = fieldInterval(), kind = "baseline") {
+      const symbols = state.focusSymbols.filter(Boolean);
       if (!symbols.length) {
-        state.message = { kind: "note", text: "No reviewed instruments are available on this Disc. No market request was sent." };
+        state.message = { kind: "note", text: "Focus at least one reviewed stock first. The priority lane runs through Tickerbot, which covers the reviewed Disc1 deck." };
         draw();
-        return false;
-      }
-      const target = isIgnition ? ignitionTarget() : null;
-      const selection = isIgnition
-        ? target ? {
-          symbols: [target.symbol], lanes: {}, tier: null, perBeat: 1,
-          discId: target.kind === "dxy-component" ? "fx" : "stocks", interval: "1d"
-        } : { symbols: [], lanes: {}, tier: null, perBeat: 0, discId: "stocks", interval: "1d" }
-        : dueForBeat();
-      const due = selection.symbols;
-      if (!due.length) {
-        if (isIgnition && state.ignition.phase === "tickers" && state.ignition.tickerFired.size === Dxy.REQUIRED_ASSETS) {
-          state.ignition.phase = "complete";
-          state.ignition.active = false;
-          state.auto = false;
-          state.message = { kind: "note", text: "Heartbeat sequence complete · DXY reference fixed at center and all 52 ticker beats confirmed. Auto-beat is paused." };
-          persistLocal();
-          draw();
-        }
         return false;
       }
       state.pending = true;
-      state.error = null;
-      if (isIgnition) {
-        state.ignition.blocked = "";
-        state.massiveHoldUntil = Date.now() + MASSIVE_BEAT_MS;
-      }
-      state.message = { kind: "note", text: `Sending ${due.join(", ")} through ${providerTitle(provider)} → the same-origin Characters Worker. No substitute provider is permitted.` };
-      state.routeSteps = { provider: "REQUESTING", worker: "REQUESTING", ledger: "CHECKING", model: "WAITING" };
-      syncFormControls();
       drawStatus();
-      let result = null;
-      let error = null;
       try {
-        result = await fetchLiveBeat(
-          due, cadenceMinutesForBeat(provider), selection.lanes, provider,
-          selection.discId || state.discId, selection.interval || state.interval
-        );
-        if (!result.instruments.length) throw new Error("The same-origin Worker returned no instrument record. The current sequence step remains held.");
-      } catch (caught) {
-        error = caught;
+        const data = await postField("priority", { symbols, interval });
+        state.message = { kind: "note", text: data && data.message || `${symbols.length} ${kind} priority job${symbols.length === 1 ? "" : "s"} queued for the next scheduled tick.` };
+      } catch (error) {
+        state.message = { kind: "refusal", text: error && error.message || `The focused ${kind} refresh was refused.` };
       }
       state.pending = false;
-      if (error) {
-        /* Synthetic/demo mode is disabled: a failed live beat stays failed.
-           The berths keep their last reviewed observation, the refusal is
-           stated plainly, and nothing synthetic is substituted. */
-        state.error = error;
-        if (isIgnition) {
-          state.ignition.blocked = error.message || "The Worker route is unavailable.";
-          state.auto = false;
-          persistLocal();
-        }
-        state.message = { kind: "refusal", text: `${error.message || "The beat request failed. No alternate provider was used."} The model stays on its last reviewed observation — synthetic or demo data is not substituted.` };
-        updateProviderSteps(provider, state.spend, error);
-        draw();
-        schedule();
-        return false;
-      }
-      updateProviderSteps(provider, result && result.spend || state.spend);
-      if (isIgnition && state.ignition.phase === "server-deploy") {
-        if (result && result.spend && result.spend.massiveLedgerStatus === "ready") {
-          state.ignition.workerReady = true;
-          state.ignition.phase = "dxy";
-          state.routeSteps.worker = "DEPLOY CHECK READY";
-        } else {
-          state.ignition.workerReady = false;
-          state.routeSteps.worker = "DEPLOY CHECK HELD · MASSIVE D1 UNAVAILABLE";
-          state.routeSteps.model = "HELD · NO PROVIDER CALL";
-          state.ignition.blocked = "The same-origin Worker did not confirm its Massive daily D1 ledger; deployment readiness remains held.";
-          state.auto = false;
-        }
-      }
-      const at = Date.now();
-      const eventReason = isIgnition ? "ignition" : reason;
-      const { event, calls, instruments } = makeEvent(result, selection, eventReason, provider);
-      const refreshed = instruments.filter(item => item.market).map(item => item.symbol);
-      const moodBySymbol = Object.fromEntries(instruments.map(item => [item.symbol, item.motion && item.motion.mood || "unknown"]));
-      const eventLedger = event.discId === state.discId && event.interval === state.interval
-        ? state.ledger : readLedger(event.discId, event.interval);
-      const nextLedger = Beat.recordBeat(eventLedger, {
-        at,
-        symbols: refreshed,
-        calls,
-        moodBySymbol,
-        synthetic: false,
-        cadenceMinutes: cadenceMinutesForBeat(provider)
-      });
-      writeLedger(nextLedger, event.discId, event.interval);
-      if (event.discId === state.discId && event.interval === state.interval) state.ledger = nextLedger;
-      if (instruments.some(item => item.market)) {
-        const preferred = instruments.find(item => item.market);
-        const mappedBerth = stage && stage.berths.find(berth => berth.symbol === preferred.symbol);
-        if (mappedBerth && mappedBerth.npc) state.selected = nodeIndexByName.get(mappedBerth.npc.name) ?? state.selected;
-      }
-      addEvent(event);
-      updateUnavailableMessage(result.instruments);
-
-      if (isIgnition) {
-        const observed = latestObservation(event.discId, due[0], "massive", "1d");
-        const confirmed = Dxy.confirmedDailyClose(observed, {
-          symbol: due[0], discId: event.discId, now: Date.now()
-        });
-        if (target.kind === "dxy-component") {
-          const deployReadinessHeld = state.ignition.phase === "server-deploy" && !state.ignition.workerReady;
-          if (confirmed.ok && !deployReadinessHeld) {
-            state.ignition.fxInputs.set(target.symbol, observed);
-            state.ignition.fxFired.add(target.symbol);
-            state.dxy = Dxy.evaluate([...state.ignition.fxInputs.values()], Date.now());
-            if (state.ignition.fxFired.size === Dxy.COMPONENTS.length) {
-              if (state.dxy.ok) {
-                state.ignition.phase = "tickers";
-                state.message = { kind: "note", text: `DXY fixed benchmark ready · ${state.dxy.value.toFixed(3)} as of ${new Date(state.dxy.asOf).toISOString().slice(0, 10)}. The first market-cap-ordered ticker beat is next.` };
-              } else if (state.dxy.status === "unaligned" && state.dxy.refreshSymbol) {
-                state.ignition.fxFired.delete(state.dxy.refreshSymbol);
-                state.ignition.fxInputs.delete(state.dxy.refreshSymbol);
-                state.ignition.blocked = state.dxy.reason;
-                state.auto = false;
-                state.message = { kind: "refusal", text: `${state.dxy.reason} No DXY reading or ticker beat is emitted until the six closes align.` };
-              } else {
-                const retrySymbol = state.dxy.refreshSymbol || state.dxy.invalid && state.dxy.invalid[0] && state.dxy.invalid[0].symbol || target.symbol;
-                state.ignition.fxFired.delete(retrySymbol);
-                state.ignition.fxInputs.delete(retrySymbol);
-                state.ignition.blocked = state.dxy.reason || "DXY inputs are not valid.";
-                state.auto = false;
-                state.message = { kind: "refusal", text: `${state.ignition.blocked} The DXY origin and ticker sequence remain held; retry ${retrySymbol} after correcting the provider data.` };
-              }
-            } else {
-              state.message = { kind: "note", text: `DXY component ${state.ignition.fxFired.size}/6 · ${target.symbol} confirmed. One FX symbol per request; the DXY origin stays held until all six timestamps align.` };
-            }
-          } else {
-            const readinessHeld = state.ignition.phase === "server-deploy" && !state.ignition.workerReady;
-            const readinessReason = state.routeSteps.ledger === "UNAVAILABLE" || state.routeSteps.ledger === "NOT CONFIGURED"
-              ? `the Massive D1 ledger is ${String(state.routeSteps.ledger).toLowerCase()}`
-              : confirmed.message || "the Worker secret/D1 readiness response was not confirmed";
-            state.ignition.blocked = readinessHeld
-              ? `Worker deploy readiness is held: ${readinessReason}.` : `${target.symbol}: ${confirmed.message}`;
-            state.auto = false;
-            state.message = { kind: "refusal", text: readinessHeld
-              ? `${state.ignition.blocked} No FX or ticker observation was accepted.`
-              : `${target.symbol} is held · ${confirmed.message} No DXY reading or ticker beat is substituted.` };
-          }
-        } else if (target.kind === "ticker") {
-          if (confirmed.ok) {
-            state.ignition.tickerFired.add(target.symbol);
-            state.ignition.blocked = "";
-            if (state.ignition.tickerFired.size === Dxy.REQUIRED_ASSETS) {
-              state.ignition.phase = "complete";
-              state.ignition.active = false;
-              state.auto = false;
-              state.message = { kind: "note", text: `Heartbeat sequence complete · DXY ${state.dxy.value.toFixed(3)} remains at the fixed center; all 52 market-cap-ordered ticker beats are confirmed. Auto-beat is paused.` };
-              persistLocal();
-            } else {
-              const nextTarget = marketFiringOrder.find(entry => !state.ignition.tickerFired.has(entry.symbol));
-              state.message = { kind: "note", text: `Ticker beat ${target.asset.firingOrder}/52 · ${target.symbol} confirmed at the dated market-cap rank. ${nextTarget ? `${nextTarget.symbol} is next.` : "Sequence complete."}` };
-            }
-          } else {
-            state.ignition.blocked = `${target.symbol}: ${confirmed.message}`;
-            state.auto = false;
-            state.message = { kind: "refusal", text: `${target.symbol} is held · ${confirmed.message} No ticker beat is substituted; the same firing-order slot remains next.` };
-          }
-        }
-        if (state.ignition.blocked) persistLocal();
-      } else if (refreshed.length) {
-        const spend = result.spend || {};
-        const attempts = calls;
-        const unavailableCount = instruments.filter(item => !item.market).length;
-        state.message = unavailableCount
-          ? { kind: "note", text: `${refreshed.length} reviewed berth${refreshed.length === 1 ? "" : "s"} updated from ${providerTitle(provider)} (${attempts} Worker-routed provider attempt${attempts === 1 ? "" : "s"}); ${unavailableCount} berth${unavailableCount === 1 ? " remains" : "s remain"} held without invented data.` }
-          : null;
-      }
-      if (refreshed.length) {
-        const spend = result.spend || {};
-        if (provider === "massive" && spend.massiveLedgerStatus === "ready") state.routeSteps.ledger = "READY · MASSIVE D1";
-        else if (provider === "alpha" && spend.alphaVantageLedgerStatus === "ready") state.routeSteps.ledger = "READY · ALPHA D1";
-        else if (provider === "tickerbot" && spend.ledgerStatus === "ready") state.routeSteps.ledger = "READY · TICKERBOT D1";
-      } else if (!refreshed.length) {
-        updateUnavailableMessage(result.instruments);
-        state.routeSteps.model = "HELD · NO DATA";
-      }
+      const outcome = state.message;
+      await loadFieldSnapshot({ reason: kind === "intraday" ? "intraday-priority" : "priority" });
+      state.message = outcome;
       draw();
       schedule();
       return true;
     }
+
+    function randomIndex(length) {
+      if (!length) return -1;
+      try {
+        const cryptoApi = globalThis.crypto;
+        if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+          const values = new Uint32Array(1);
+          cryptoApi.getRandomValues(values);
+          return values[0] % length;
+        }
+      } catch { /* display-only selection can use the local fallback */ }
+      return Math.floor(Math.random() * length);
+    }
+
+    function addRandomUsTicker() {
+      const candidates = state.discId === "stocks" ? (Array.isArray(state.entries) ? state.entries : [])
+        .filter(entry => entry && entry.assetClass !== "crypto") : []
+        .map(entry => String(entry.symbol || entry.ticker || "").toUpperCase())
+        .filter(symbol => /^[A-Z][A-Z0-9._:-]{0,11}$/.test(symbol));
+      const available = candidates.filter(symbol => !state.focusSymbols.includes(symbol));
+      if (!available.length) {
+        state.message = { kind: "note", text: "All reviewed U.S. tickers are already focused, or the current Disc has no additional U.S. ticker to add. No data was requested." };
+        draw();
+        return false;
+      }
+      const symbol = available[randomIndex(available.length)];
+      state.focusSymbols = [...state.focusSymbols, symbol].slice(-12);
+      state.focus = symbol;
+      persistLocal();
+      if (state.entries.length) buildStage(state.entries, state.discId);
+      state.message = { kind: "note", text: `${symbol} added from the reviewed U.S. ticker deck. It is focused locally; use Recalculate focused · 15m when you want a bounded intraday refresh.` };
+      draw();
+      loadFieldSnapshot({ reason: "random-ticker" });
+      return true;
+    }
+
+    async function warmField() {
+      if (state.pending) return false;
+      state.pending = true;
+      drawStatus();
+      try {
+        const data = await postField("warm", { intervals: ["15m", "1h", "1d"], reason: "deploy" });
+        state.message = { kind: "note", text: data && data.message || `First-deck calibration queued: ${data && data.enqueued || 0} Tickerbot jobs (~${data && data.callsPerBurst || 156} calls) drain across the next scheduled ticks.` };
+      } catch (error) {
+        state.message = { kind: "refusal", text: error && error.message || "The warm burst was refused; nothing was queued." };
+      }
+      state.pending = false;
+      const outcome = state.message;
+      await loadFieldSnapshot({ reason: "warm" });
+      state.message = outcome;
+      draw();
+      schedule();
+      return true;
+    }
+
     function clearBeatTimer() {
       if (beatTimer) clearTimeout(beatTimer);
       beatTimer = null;
@@ -2049,66 +1954,17 @@
 
     function schedule() {
       clearBeatTimer();
-      if (state.destroyed || !state.visible || !state.auto) {
-        drawStatus();
-        return;
-      }
-      const provider = currentProvider();
-      if (provider === "tickerbot") {
-        drawStatus();
-        return;
-      }
-      const wait = state.cooldownUntil > Date.now() ? state.cooldownUntil - Date.now() : currentDelay();
-      state.nextBeatAt = Date.now() + Math.max(0, wait);
+      if (state.destroyed || !state.visible) { drawStatus(); return; }
+      if (!state.auto) { drawStatus(); return; }
+      state.nextBeatAt = Date.now() + FIELD_POLL_MS;
       drawStatus();
       beatTimer = setTimeout(async () => {
         beatTimer = null;
         state.nextBeatAt = 0;
         if (state.destroyed || !state.visible) return;
-        drawStatus();
-        const doc = host.ownerDocument || globalThis.document;
-        if (doc && doc.hidden) {
-          state.message = { kind: "note", text: "Auto-beat paused while this page is hidden — no provider calls are spent. It resumes when visible." };
-          drawStatus();
-          schedule();
-          return;
-        }
-        if (state.cooldownUntil > Date.now()) {
-          drawStatus();
-          schedule();
-          return;
-        }
-        await beatNow("auto");
+        await loadFieldSnapshot({ reason: "poll" });
         schedule();
-      }, Math.max(0, wait));
-    }
-
-    function providerWarmupMs(provider) {
-      /* Tickerbot is an explicit manual path. It has its own monthly D1
-         allowance and must be usable immediately after leaving Massive; a
-         Massive cooldown is not a Tickerbot cooldown. */
-      if (provider === "tickerbot") return 0;
-      if (provider === "massive") return MASSIVE_BEAT_MS;
-      return PROVIDER_COOLDOWN_MS;
-    }
-
-    function setProviderCooldown(previousProvider, nextProvider) {
-      if (previousProvider === nextProvider) return false;
-      const warmupMs = providerWarmupMs(nextProvider);
-      state.cooldownUntil = warmupMs ? Date.now() + warmupMs : 0;
-      if (nextProvider === "tickerbot") {
-        state.message = { kind: "note", text: `${providerTitle(previousProvider)} → Tickerbot · ON DEMAND selected. Manual Tickerbot is ready now; it does not inherit Massive's pacing hold.` };
-        state.routeSteps = { provider: "READY", worker: "IDLE", ledger: "NOT QUERIED", model: "READY" };
-      } else {
-        const reason = nextProvider === "massive"
-          ? `Massive pacing hold · ${MASSIVE_REQUESTS_PER_MINUTE} requests/minute maximum`
-          : "provider warm-up";
-        state.message = { kind: "note", text: `${providerTitle(previousProvider)} → ${providerTitle(nextProvider)} selected. ${reason}: Beat now and Auto-beat requests are held for ${formatCountdown(warmupMs)}.` };
-        state.routeSteps = { provider: "WARM-UP", worker: "IDLE", ledger: "NOT QUERIED", model: "HOLD" };
-      }
-      draw();
-      schedule();
-      return true;
+      }, FIELD_POLL_MS);
     }
 
     async function switchDisc(discId) {
@@ -2118,7 +1974,6 @@
         return;
       }
       const previousDisc = state.discId;
-      const previousProvider = currentProvider();
       state.loadingCatalog = true;
       state.message = { kind: "note", text: `Loading ${disc.label} reviewed catalog…` };
       syncFormControls();
@@ -2133,18 +1988,12 @@
         if (discId !== "stocks") state.interval = "1d";
         state.focus = "";
         state.selected = 0;
-        state.tierMode = false;
-        state.stretch = false;
-        stretchBox.checked = false;
-        tierBox.checked = false;
         buildStage(result.entries, discId);
         state.loadingCatalog = false;
-        const nextProvider = currentProvider();
-        const changedProvider = setProviderCooldown(previousProvider, nextProvider);
-        state.message = changedProvider ? state.message : { kind: "note", text: disc.ranking };
+        state.message = { kind: "note", text: disc.ranking };
         persistLocal();
         draw();
-        if (!changedProvider && nextProvider !== "tickerbot") await beatNow("disc-change");
+        await loadFieldSnapshot({ reason: "disc-change" });
         schedule();
       } catch (error) {
         state.discId = previousDisc;
@@ -2157,54 +2006,38 @@
       }
     }
 
-    function switchInterval(nextInterval) {
+    async function switchInterval(nextInterval) {
       if (state.ignition.active || !intervalAllowed(state.discId, nextInterval) || state.pending) {
         intervalSelect.value = state.interval;
         return;
       }
       if (nextInterval === state.interval) return;
-      const previousProvider = currentProvider();
       state.interval = nextInterval;
       if (nextInterval === "1h") state.auto = false;
       else if (nextInterval === "1mo") state.auto = true;
-      state.tierMode = false;
-      state.stretch = false;
-      state.ledger = readLedger(state.discId, state.interval);
-      const nextProvider = currentProvider();
-      const changedProvider = setProviderCooldown(previousProvider, nextProvider);
-      state.message = changedProvider ? state.message : nextInterval === "1mo"
-        ? { kind: "note", text: "Explicit Disc1 1mo mode: Alpha Vantage's best-performing ticker is evaluated from locally observed confirmed bars; one monthly-series request per hour." }
+            state.ledger = readLedger(state.discId, state.interval);
+      state.message = nextInterval === "1mo"
+        ? { kind: "note", text: "Alpha Vantage 1mo remains a separate Characters spotlight; the Orb 2 server field stores reviewed 1h and 1d observations, and reads 1d while this Disc shows 1mo." }
         : nextInterval === "1d" && state.auto
-          ? { kind: "note", text: `Automatic 1d mode: Massive can refresh up to ${MASSIVE_REQUESTS_PER_MINUTE} reviewed instruments per minute with a ${MASSIVE_BEAT_MS / 1000}-second pacing interval; successful daily packets remain provider-isolated and are not replaced by Tickerbot or Alpha Vantage.` }
-          : { kind: "note", text: `On-demand Tickerbot ${nextInterval} mode selected. Use Beat now; no background Tickerbot poll is scheduled.` };
+          ? { kind: "note", text: `Server field view · the Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page only re-reads the stored field every ${FIELD_POLL_MS / 1000} seconds.` }
+          : { kind: "note", text: `Server field view at ${nextInterval}. The page renders the stored Tickerbot queue results; Beat now asks the server for one more scheduled tick.` };
       persistLocal();
       draw();
-      if (!changedProvider && nextProvider !== "tickerbot") beatNow("interval-change");
+      await loadFieldSnapshot({ reason: "interval-change" });
       schedule();
     }
 
 
 
     function toggleAuto() {
-      const previousProvider = currentProvider();
-      if (state.interval === "1h") {
-        state.auto = false;
-        state.message = { kind: "note", text: "Tickerbot 1h is on demand only. Use Beat now for reviewed Disc1 stock data; no background polling is scheduled." };
-      } else {
-        state.auto = !state.auto;
-      }
-      const nextProvider = currentProvider();
-      const changedProvider = setProviderCooldown(previousProvider, nextProvider);
-      if (!changedProvider && !state.auto) {
-        state.message = nextProvider === "tickerbot"
-          ? { kind: "note", text: `Auto-beat paused; Disc1 ${state.interval} now uses on-demand Tickerbot. Beat now is ready immediately; it does not inherit Massive's pacing hold.` }
-          : { kind: "note", text: "Auto-beat paused. Beat now remains available; no background provider calls will run." };
-      } else if (!changedProvider && state.auto) {
-        state.message = { kind: "note", text: "Auto-beat enabled. The next beat follows the selected provider's Characters cadence." };
-      }
+      state.auto = !state.auto;
+      state.message = state.auto
+        ? { kind: "note", text: `Auto view on. This page re-reads the server field every ${FIELD_POLL_MS / 1000} seconds; the Worker's cron beat ran while the tab was hidden, closed, or on another Disc.` }
+        : { kind: "note", text: "Auto view paused in this tab only. The server keeps beating 24/7/365; Beat now asks it for one tick on request." };
       persistLocal();
       draw();
       schedule();
+      if (state.auto) loadFieldSnapshot({ reason: "auto-on" });
     }
 
     function restartIgnition() {
@@ -2222,30 +2055,15 @@
       state.ignition.renderKey = "";
       state.dxy = null;
       state.auto = true;
-      state.massiveHoldUntil = Math.max(state.massiveHoldUntil, Date.now());
-      state.routeSteps = { provider: "READY", worker: "DEPLOY CHECK PENDING", ledger: "WAITING", model: "READY" };
-      state.message = { kind: "note", text: "Restarting at the existing EURUSD Worker beat. The Worker checks its secret and D1 ledger before any Massive upstream request; no separate browser health call is added." };
+      state.routeSteps = { provider: "READY", worker: "SERVER FIELD", ledger: "READING", model: "RENDER-ONLY" };
+      state.message = { kind: "note", text: "Re-reading the server field from the top of the firing order. Nothing is re-requested: progress is whatever the Worker already stored, so a hidden or reloaded page never restarts the order." };
       persistLocal();
       draw();
-      return beatNow("ignition").finally(schedule);
-    }
-
-    function toggleFeatured() {
-      if (!state.focus || currentProvider() !== "tickerbot") return;
-      const featured = new Set(state.ledger.featured);
-      if (featured.has(state.focus)) featured.delete(state.focus);
-      else featured.add(state.focus);
-      state.ledger = { ...state.ledger, featured: [...featured] };
-      writeLedger(state.ledger);
-      const selected = featured.has(state.focus);
-      state.message = { kind: "note", text: selected
-        ? `${state.focus} joins the Tickerbot hot lane. It changes rotation priority only; no extra provider calls.`
-        : `${state.focus} leaves the hot lane and returns to the least-recently-refreshed sweep. No extra provider calls.` };
-      draw();
+      return loadFieldSnapshot({ reason: "ignition" }).then(schedule);
     }
 
     function modelPoint(node, now, directive, observation = null) {
-      const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name);
+      const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
       const floatPhase = placement.phase + now / 1000 * placement.speed;
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
@@ -3051,12 +2869,7 @@
         state.routeSteps = { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" };
         drawCanvasWhenReady();
         loadServerHistory();
-        if (currentProvider() === "tickerbot") {
-          state.message = { kind: "note", text: "Tickerbot is on-demand in Characters. Choose Beat now; no automatic Tickerbot request is scheduled." };
-          draw();
-        } else {
-          await beatNow("open");
-        }
+        await loadFieldSnapshot({ reason: "open" });
         schedule();
       } catch (error) {
         state.loadingCatalog = false;
@@ -3068,15 +2881,6 @@
 
     discSelect.addEventListener("change", () => switchDisc(discSelect.value));
     intervalSelect.addEventListener("change", () => switchInterval(intervalSelect.value));
-    cadenceSelect.addEventListener("change", () => {
-      state.cadence = validCadence(cadenceSelect.value);
-      persistLocal(); draw(); schedule();
-    });
-    budgetInput.addEventListener("change", () => {
-      state.budget = validBudget(budgetInput.value);
-      budgetInput.value = String(state.budget);
-      persistLocal(); draw();
-    });
     focusSelect.addEventListener("change", () => {
       state.focus = focusSelect.value;
       const berth = stage && stage.berths.find(entry => entry.symbol === state.focus);
@@ -3085,16 +2889,37 @@
     });
     autoButton.addEventListener("click", toggleAuto);
     beatButton.addEventListener("click", () => beatNow("manual"));
-    ignitionRestartButton?.addEventListener("click", restartIgnition);
-    featureButtons.forEach(button => button && button.addEventListener("click", toggleFeatured));
-    stretchBox.addEventListener("change", () => { state.stretch = stretchBox.checked; draw(); });
-    tierBox.addEventListener("change", () => {
-      state.tierMode = tierBox.checked;
-      state.message = { kind: "note", text: state.tierMode
-        ? "Characters two-lane mode enabled: featured Tickerbot berths take the hot lane; the rest rotate through the sweep within the same call budget."
-        : "Characters two-lane mode disabled: the least-recently-refreshed rotation is active." };
-      persistLocal(); draw();
+    fieldDial?.addEventListener("click", event => {
+      const button = event.target && event.target.closest ? event.target.closest("[data-field-type]") : null;
+      if (!button) return;
+      const next = button.getAttribute("data-field-type") || null;
+      state.beatType = next && FIELD_BEAT_TYPES.includes(next) ? next : null;
+      state.route = null; state.lastRoutePhase = "";
+      persistLocal();
+      draw();
+      loadFieldSnapshot({ reason: "dial" });
     });
+    fieldFocus?.addEventListener("click", event => {
+      const clear = event.target && event.target.closest ? event.target.closest("[data-focus-clear]") : null;
+      const chip = event.target && event.target.closest ? event.target.closest("[data-focus-symbol]") : null;
+      if (!clear && !chip) return;
+      if (clear) state.focusSymbols = [];
+      else {
+        const symbol = chip.getAttribute("data-focus-symbol").toUpperCase();
+        const set = new Set(state.focusSymbols);
+        if (set.has(symbol)) set.delete(symbol); else set.add(symbol);
+        state.focusSymbols = [...set].slice(0, 12);
+      }
+      persistLocal();
+      if (state.entries.length) buildStage(state.entries, state.discId);
+      draw();
+      loadFieldSnapshot({ reason: "focus" });
+    });
+    warmButton?.addEventListener("click", () => warmField());
+    randomTickerButton?.addEventListener("click", () => addRandomUsTicker());
+    refreshFocusButton?.addEventListener("click", () => refreshFocused(fieldInterval(), "baseline"));
+    refreshIntradayButton?.addEventListener("click", () => refreshFocused("15m", "intraday"));
+    ignitionRestartButton?.addEventListener("click", restartIgnition);
 
     const documentRef = host.ownerDocument || globalThis.document;
     const onFullscreenChange = () => {
@@ -3102,14 +2927,14 @@
       drawStatus();
       scheduleRender();
     };
+    /* The page never pauses a beat: it has none to pause. Hiding the tab only
+       stops this view from re-reading; the Worker's cron schedule continues. */
     const onVisibilityChange = () => {
-      if (documentRef && documentRef.hidden) {
-        clearBeatTimer();
-        state.message = { kind: "note", text: "Auto-beat paused while this page is hidden — no provider calls are spent." };
-        drawStatus();
-      } else if (state.visible) {
+      if (!documentRef) return;
+      if (!documentRef.hidden && state.visible) {
         schedule();
         scheduleRender();
+        loadFieldSnapshot({ reason: "visibility" });
       }
     };
     async function toggleFullscreen() {
@@ -3134,7 +2959,7 @@
       documentRef.addEventListener("visibilitychange", onVisibilityChange);
     }
 
-    // A one-second text-only clock makes provider warm-up and the next due beat visible.
+    // A one-second text-only clock keeps the read cadence and the newest stored beat visible.
     countdownTimer = setInterval(() => {
       if (!state.destroyed && state.visible) drawStatus();
     }, 1000);
@@ -3194,8 +3019,8 @@
   }
 
   window.GoodIntelligenceOrb2 = Object.freeze({
-    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR, PROVIDER_COOLDOWN_MS,
-    MASSIVE_REQUESTS_PER_MINUTE, MASSIVE_BEAT_MS,
+    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
+    FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
     fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
   });

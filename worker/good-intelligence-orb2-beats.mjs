@@ -18,14 +18,14 @@ const MAX_BEAT_BYTES = 40 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DISC_IDS = new Set(["stocks", "fx", "crypto", "commodities", "indices"]);
 const PROVIDERS = new Set(["massive", "tickerbot", "alpha", "rehearsal"]);
-const INTERVALS = new Set(["1h", "1d", "1mo"]);
+const INTERVALS = new Set(["15m", "1h", "1d", "1mo"]);
 const STATUSES = new Set(["bars", "cached", "rehearsal", "unavailable"]);
 const ANALYSIS_STATUSES = new Set(["ready", "partial", "warming-up", "no-data", "unavailable", "missing", "unknown"]);
 const DATA_SHAPES = new Set(["ohlcv", "ohlc", "value", "unknown"]);
 const MOODS = new Set(["frozen", "warming-up", "drift", "lean-up", "lean-down", "rally", "selloff", "churn", "coil", "surge", "flinch", "unknown"]);
 const FORMATIONS = new Set(["ring", "tight", "rim", "column", "scatter"]);
 const ITEM_LANES = new Set(["stationary", "inbound", "outbound"]);
-const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition"]);
+const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition", "field"]);
 
 const json = (data, status = 200) => Response.json(data, {
   status,
@@ -61,7 +61,10 @@ function safeBar(value) {
   };
 }
 
-function safeMotion(value) {
+/* Shared with the server-side Orb 2 field (worker/orb2-field.mjs). One validator
+   covers the compact market summary and the Characters motion directive, so a
+   server-written observation and a browser-written one cannot diverge. */
+export function safeMotion(value) {
   if (!isRecord(value)) return null;
   const mood = MOODS.has(value.mood) ? value.mood : "unknown";
   const gaugeValue = isRecord(value.gauge) ? value.gauge : {};
@@ -120,7 +123,7 @@ function safeMotion(value) {
   };
 }
 
-function safeMarket(value) {
+export function safeMarket(value) {
   if (!isRecord(value)) return null;
   const dataShape = DATA_SHAPES.has(value.dataShape) ? value.dataShape : "unknown";
   const status = ANALYSIS_STATUSES.has(value.status) ? value.status : "unknown";
@@ -176,6 +179,9 @@ function safeInstrument(value, provider) {
   };
 }
 
+/* Exposed so the server-side field can validate the same compact shapes. */
+export const orb2SharedSanitizers = Object.freeze({ bar: safeBar, market: safeMarket, motion: safeMotion });
+
 export function sanitizeOrb2Beat(value, now = Date.now()) {
   if (!isRecord(value) || value.schema !== ORB2_BEAT_SCHEMA) return { ok: false, message: "Send one gi-orb2-beat-v1 record." };
   if (!UUID.test(String(value.beatId || ""))) return { ok: false, message: "A UUID beat id is required." };
@@ -186,7 +192,7 @@ export function sanitizeOrb2Beat(value, now = Date.now()) {
     return { ok: false, message: "Choose a reviewed Disc, provider, and interval." };
   }
   if ((provider === "massive" && interval !== "1d") ||
-      (provider === "tickerbot" && (discId !== "stocks" || !["1h", "1d"].includes(interval))) ||
+      (provider === "tickerbot" && (discId !== "stocks" || !["15m", "1h", "1d"].includes(interval))) ||
       (provider === "alpha" && (discId !== "stocks" || interval !== "1mo"))) {
     return { ok: false, message: "The provider, Disc, and interval combination is not supported." };
   }

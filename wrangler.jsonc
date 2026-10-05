@@ -7,6 +7,14 @@
   "preview_urls": false,
   // Preserve dashboard-only text variables; explicit vars below still win.
   "keep_vars": true,
+  // The Orb 2 server field: one beat tick each minute. The tick itself enforces
+  // Massive's shared five-requests-per-minute envelope, its durable UTC-day D1
+  // guard, and Tickerbot's durable UTC-month ledger, so the schedule cannot
+  // outspend the provider plan. Migration 0009 must be applied before deploy.
+  "triggers": {
+    "crons": ["*/1 * * * *"]
+  },
+
   "assets": {
     "directory": ".site-assets",
     "not_found_handling": "none",
