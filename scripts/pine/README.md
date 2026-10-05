@@ -11,7 +11,9 @@ fenced `pine` block with its provenance and a careful description of any JavaScr
 > authorship or grant a license. There are no separate raw `.pine` files; the source copies
 > are the code blocks in the Markdown documents below. The JS market-context port has not been
 > cross-validated bar-for-bar against the source runtime, and it does not reproduce every visual,
-> alert, timeframe, or divergence behavior in these sources.
+> alert, timeframe, or divergence behavior in these sources. The JS FBB intentionally calculates
+> its basis/deviation from natural-log prices and exponentiates the levels back to price; these
+> verbatim Pine archives calculate in linear price space, so they are not formula parity.
 
 ## Inventory
 

@@ -6,13 +6,23 @@ import '../js/nab-composites.js';
 import {TICKERBOT_WATCHLIST} from '../worker/good-intelligence-tickerbot.mjs';
 const Model=globalThis.NabComposites;
 const NOW=Date.parse('2026-10-04T12:00:00Z');
-const market={latestBar:{close:120},basis:100,bands:{lower1000:80,upper1000:140}};
+const market={latestBar:{close:100*Math.exp(Math.log(1.25)/2)},basis:100,bands:{lower1000:80,upper1000:125}};
 const obs=(overrides={})=>({channel:'stocks',symbol:'V',provider:'massive',interval:'1d',at:NOW,status:'bars',market,...overrides});
 const registry=Model.catalog({watchlist:TICKERBOT_WATCHLIST,crypto:[
   {symbol:'BTC',providerId:'bitcoin',name:'Bitcoin'},
   {symbol:'USDT',providerId:'tether',name:'Tether'},
   {symbol:'NEW',providerId:'unknown-protocol',name:'Review me'}
 ]});
+
+test('NAB FBB displacement is symmetric in log space and invariant to quote-price scaling',()=>{
+  const halfWidth=Math.log(1.25);
+  const marketAt=value=>({latestBar:{close:100*Math.exp(value*halfWidth)},basis:100,bands:{lower1000:80,upper1000:125}});
+  assert.ok(Math.abs(Model.displacement(marketAt(.5))-.5)<1e-12);
+  assert.ok(Math.abs(Model.displacement(marketAt(-.5))+.5)<1e-12);
+  const scaled={latestBar:{close:marketAt(.5).latestBar.close*1e6},basis:100e6,bands:{lower1000:80e6,upper1000:125e6}};
+  assert.ok(Math.abs(Model.displacement(scaled)-.5)<1e-12);
+  assert.equal(Model.displacement({...marketAt(0),latestBar:{close:0}}),null);
+});
 
 test('119 NAB Discs preserve membership and surface unmapped market assets for editorial review',()=>{
   assert.equal(registry.discs.length,119);
@@ -34,7 +44,7 @@ test('same alignment joins a bank, stock, FX and crypto into a composite, not an
   const ids=composite.members.map(row=>row.id);
   for(const id of ['central-bank:fed','central-bank:ecb','stocks:V','fx:EURUSD','crypto:USDT'])assert.ok(ids.includes(id),id);
   assert.ok(!ids.includes('stocks:MA'));
-  assert.equal(composite.members.find(row=>row.id==='stocks:V').observations[0].fbbDisplacement,.5);
+  assert.ok(Math.abs(composite.members.find(row=>row.id==='stocks:V').observations[0].fbbDisplacement-.5)<1e-12);
   assert.equal(composite.members.find(row=>row.id==='fx:EURUSD').observations[0].fbbDisplacement,null);
   assert.equal(composite.members.find(row=>row.id==='central-bank:fed').observations.length,0);
   assert.equal(composite.coverage.observed,2);

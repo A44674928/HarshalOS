@@ -337,11 +337,11 @@ window.CharactersBeat = (() => {
     const basis = analysis.bands && finite(Number(analysis.bands.basis)) ? Number(analysis.bands.basis) : null;
     const ready = analysis.status === "ready" || analysis.status === "partial";
 
-    /* Bias: how far the last close sits from the Fibonacci-band basis,
-       squashed to ±1. Falls back to the 20-bar slope when the basis is not
-       warmed up yet, so a young series still moves — gently. */
+    /* Bias: the close-to-basis displacement uses the same natural-log scale as
+       Fibonacci bands, then is squashed to ±1. Falls back to the 20-bar slope
+       when the basis is not warmed up yet, so a young series still moves — gently. */
     let bias = 0;
-    if (finite(close) && finite(basis) && basis > 0) bias = squash((close - basis) / basis, 40);
+    if (finite(close) && close > 0 && finite(basis) && basis > 0) bias = squash(Math.log(close) - Math.log(basis), 40);
     else if (closes.length >= 6) {
       const window = closes.slice(-20);
       const slope = (window[window.length - 1] - window[0]) / Math.max(1, window.length - 1);

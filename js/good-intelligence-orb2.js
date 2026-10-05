@@ -209,32 +209,37 @@
   }
 
   /* Fibonacci-band placement metrics — computed only from supplied packet fields.
-     `p` is the close's position relative to each ticker's OWN band basis, measured
-     against the nearer half-width so an upper-band and a lower-band excursion of the
-     same size read the same distance from neutral:
-     p = 0.5 + ((close - basis) / (close >= basis ? upper - basis : basis - lower)) / 2.
+     Bands arrive in price units after the shared log-space FBB calculation, so position
+     is measured in their natural-log coordinates:
+     p = 0.5 + ((ln(close) - ln(basis)) / (ln(upper) - ln(basis) if above basis,
+          else ln(basis) - ln(lower))) / 2.
      p = 1 is the upper band, p = 0 the lower band, p = 0.5 neutral; excursions beyond
-     an outer band stay beyond it and are never clamped back. Incomplete or invalid
-     observations stay unknown (`held`), never neutral. This is a pure metric carried
-     over from the helix pass so the NAB field, the spheroid shelf, and any future
-     surface share one definition — it draws nothing by itself and is not a signal. */
+     an outer band stay beyond it and are never clamped back. Log band width is the
+     volatility measure. Incomplete or invalid observations stay unknown (`held`), never
+     neutral. This pure metric contributes to Orb 2's free-floating placement; NAB
+     composite markers use the equivalent log-distance rule in NabComposites. It draws
+     nothing by itself and is not a signal. */
   function fibonacciBandMetrics(market) {
-    if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    const held = { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    if (!isRecord(market)) return held;
     const close = numeric(market.latestBar && market.latestBar.close);
     const bands = isRecord(market.bands) ? market.bands : null;
     const lower = bands ? numeric(bands.lower1000) : null;
     const upper = bands ? numeric(bands.upper1000) : null;
     const basis = numeric(market.basis);
-    if (close === null || basis === null || lower === null || upper === null || !finite(lower) || !finite(upper) || lower >= basis || upper <= basis) {
-      return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
-    }
+    if (close === null || basis === null || lower === null || upper === null ||
+        close <= 0 || basis <= 0 || lower <= 0 || upper <= 0 || lower >= basis || upper <= basis) return held;
+    const logClose = Math.log(close), logBasis = Math.log(basis);
+    const logLower = Math.log(lower), logUpper = Math.log(upper);
+    const halfWidth = logClose >= logBasis ? logUpper - logBasis : logBasis - logLower;
+    const logWidth = logUpper - logLower;
+    if (![logClose, logBasis, logLower, logUpper, halfWidth, logWidth].every(finite) || halfWidth <= 0 || logWidth <= 0) return held;
     const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
       : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
-    const displacement = (close - basis) / (close >= basis ? upper - basis : basis - lower);
+    const displacement = (logClose - logBasis) / halfWidth;
     const p = 0.5 + displacement / 2;
-    const width = upper - lower;
-    const volatilityPct = basis > 0 ? (width / basis) * 100 : null;
-    const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
+    const volatilityPct = logWidth * 100;
+    const volatility = clamp(volatilityPct / 12, 0, 1);
     const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
     return { held: false, p, volatility, volatilityPct, potential, breakSide };
   }
@@ -738,111 +743,139 @@
     host.innerHTML = `
       <section class="gi-orb2" data-gi-orb2-root aria-label="Orb 2 live 3D OCM market-beat model">
         <div class="gi-orb2-toolbar">
-          <div>
-            <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
+          <div class="gi-orb2-title">
+            <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE</p>
             <h3>Orb Communicator Model</h3>
-            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion, with an inner shell at Center Origin, the declared PDH phase, and the Human Key gate on the origin. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces.</p>
+            <p>Live, interactive 3D field. Drag to orbit, scroll to zoom, or select a node for details.</p>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
-            <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
+            <button class="gi-button" type="button" data-gi-orb2-settings-toggle aria-expanded="false" aria-controls="gi-orb2-settings"><span aria-hidden="true">⚙</span> Settings</button>
             <button class="gi-button" type="button" data-gi-orb2-fullscreen aria-pressed="false">⛶ Model full screen</button>
-            <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
-            <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
-            <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
-            <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
-            <button class="gi-button" type="button" data-gi-orb2-restore-beats hidden>Restore stored beats</button>
-            <button class="gi-button" type="button" data-gi-orb2-reset>Reset view</button>
           </div>
         </div>
-        <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Compact beat snapshots save to D1 when available; Clear hides active context and Restore reloads the archive.</p>
-        <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
-          <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
-          <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
-          <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
-          <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
-          <label class="gi-orb2-control gi-orb2-focus-control"><span>FOCUS INSTRUMENT</span><select data-gi-orb2-focus aria-label="Choose an instrument to inspect"></select></label>
-          <div class="gi-orb2-beat-flags">
-            <label class="gi-orb2-toggle"><input data-gi-orb2-stretch type="checkbox"><span>Use reserve stretch</span></label>
-            <label class="gi-orb2-toggle"><input data-gi-orb2-tier type="checkbox"><span>Two-lane hot/sweep rotation</span></label>
+
+        <section class="gi-orb2-settings" id="gi-orb2-settings" data-gi-orb2-settings aria-label="Orb 2 settings" hidden>
+          <div class="gi-orb2-settings-head">
+            <div><p class="gi-eyebrow">ORBITAL CONFIGURATION</p><h4>Model settings</h4><p>Live-beat, model, and display controls live here so the 3D field stays clear.</p></div>
+            <button class="gi-button" type="button" data-gi-orb2-settings-close>Done</button>
           </div>
-        </div>
+          <div class="gi-orb2-settings-body">
+            <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Live beat settings">
+              <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">01 · LIVE BEAT</p><h5>Data and cadence</h5></div><span>Live provider data only</span></div>
+              <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
+                <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
+                <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
+                <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
+                <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
+                <label class="gi-orb2-control gi-orb2-focus-control"><span>FOCUS INSTRUMENT</span><select data-gi-orb2-focus aria-label="Choose an instrument to inspect"></select></label>
+                <div class="gi-orb2-beat-flags">
+                  <label class="gi-orb2-toggle"><input data-gi-orb2-stretch type="checkbox"><span>Use reserve stretch</span></label>
+                  <label class="gi-orb2-toggle"><input data-gi-orb2-tier type="checkbox"><span>Two-lane hot/sweep rotation</span></label>
+                </div>
+              </div>
+              <div class="gi-orb2-settings-actions" aria-label="Beat and model actions">
+                <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
+                <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
+                <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
+                <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
+                <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
+                <button class="gi-button" type="button" data-gi-orb2-restore-beats hidden>Restore stored beats</button>
+                <button class="gi-button" type="button" data-gi-orb2-reset>Reset view</button>
+              </div>
+              <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Beat archive is available on demand. Saved snapshots remain separate from the live model.</p>
+              <div class="gi-orb2-plan-row"><div data-gi-orb2-plan></div><button class="gi-button gi-orb2-feature" type="button" data-gi-orb2-feature>Feature focus</button></div>
+            </section>
+
+            <section class="gi-orb2-settings-section" aria-label="Display settings">
+              <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">02 · DISPLAY</p><h5>Presentation</h5></div></div>
+              <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
+                <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
+                <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
+                <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
+                <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
+                <label class="gi-orb2-toggle"><input data-gi-orb2-data-bits type="checkbox" checked><span>Market data bits</span></label>
+                <span class="gi-orb2-center">CENTER ORIGIN · DXY FIXED BENCHMARK · LOCAL CPU ${CENTER_ADDRESS}</span>
+              </div>
+            </section>
+
+            <section class="gi-orb2-settings-section" aria-label="Color key">
+              <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">03 · VISUAL LEGEND</p><h5>Color and data marks</h5></div></div>
+              ${colorKey}
+            </section>
+
+            <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Data pathway and model status">
+              <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">04 · DATA PATHWAY</p><h5>Live-beat contract</h5></div><span>Same-origin Worker · no provider secrets in the browser</span></div>
+              <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive may request up to five reviewed <code>1d</code> instruments per minute across Discs 1–5, with a 12-second client pacing interval and its separate daily D1 guard. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation and is ready immediately when selected; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. Alpha/provider warm-up holds are shown separately. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
+              <div class="gi-orb2-pathways" aria-label="Live data pathway status">
+                <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div><i aria-hidden="true">→</i>
+                <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div><i aria-hidden="true">→</i>
+                <div class="gi-orb2-path-step"><span>03 · D1 ALLOWANCE</span><strong data-gi-orb2-path-ledger>WAITING</strong></div><i aria-hidden="true">→</i>
+                <div class="gi-orb2-path-step"><span>04 · 3D BEAT</span><strong data-gi-orb2-path-model>READY</strong></div>
+              </div>
+            </section>
+
+            <section class="gi-orb2-settings-section gi-orb2-settings-section-wide gi-orb2-settings-ignition" aria-label="Live heartbeat firing sequence">
+              <div class="gi-orb2-ignition" data-gi-orb2-ignition>
+                <div class="gi-orb2-ignition-head">
+                  <div><p class="gi-eyebrow">LIVE HEARTBEAT · FIXED DXY BENCHMARK</p><h3>Deploy → DXY → 52 ticker orbs</h3><p>Worker route first; six sequential FX inputs; then one daily ticker beat per asset, grouped by sourced sector and descending market cap.</p></div>
+                  <button class="gi-button" type="button" data-gi-orb2-ignition-restart hidden>Restart sequence</button>
+                </div>
+                <div class="gi-orb2-ignition-steps">
+                  <div><span>00 · SERVER DEPLOY</span><strong data-gi-orb2-ignition-server>ROUTE CHECK PENDING</strong><small>Readiness is confirmed only by a same-origin Worker response.</small></div>
+                  <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
+                  <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
+                </div>
+                <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 12 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
+                <details class="gi-orb2-firing-order" data-gi-orb2-firing-order open><summary><strong>52-ASSET FIRING ORDER</strong><span>Open the ordered ticker-by-ticker sequence</span></summary><ol data-gi-orb2-firing-list></ol></details>
+              </div>
+            </section>
+
+            <details class="gi-orb2-model-boundary">
+              <summary>Model boundary and data provenance</summary>
+              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+            </details>
+          </div>
+        </section>
+
         <div class="gi-orb2-live-strip" role="status" aria-live="polite">
+          <span class="gi-orb2-canvas-status" data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span>
           <span class="gi-orb2-provider-pill" data-gi-orb2-provider>Massive · AUTOMATIC DAILY</span>
           <span class="gi-orb2-live-state" data-gi-orb2-countdown>Awaiting first beat</span>
           <span class="gi-orb2-persist-state" data-gi-orb2-persistence>Loading saved beat history…</span>
           <span class="gi-orb2-counts" data-gi-orb2-counts>0 calls · 0 beats</span>
         </div>
-        <div class="gi-orb2-plan-row">
-          <div data-gi-orb2-plan></div>
-          <button class="gi-button gi-orb2-feature" type="button" data-gi-orb2-feature>Feature focus</button>
-        </div>
         <div class="gi-orb2-message" data-gi-orb2-message role="status" hidden></div>
-        <p class="gi-orb2-context"><strong>BEAT CONTRACT</strong> · Massive may request up to five reviewed <code>1d</code> instruments per minute across Discs 1–5, with a 12-second client pacing interval and its separate daily D1 guard. Disc1 Tickerbot <code>1h</code>/<code>1d</code> stays on-demand with Characters' budget-aware rotation and is ready immediately when selected; Alpha Vantage's separate Disc1 <code>1mo</code> spotlight stays hourly. Alpha/provider warm-up holds are shown separately. A missing D1 ledger is a Worker configuration/migration issue—not a timer problem—and is refused before any upstream request.</p>
-        <div class="gi-orb2-pathways" aria-label="Live data pathway status">
-          <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div>
-          <i aria-hidden="true">→</i>
-          <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div>
-          <i aria-hidden="true">→</i>
-          <div class="gi-orb2-path-step"><span>03 · D1 ALLOWANCE</span><strong data-gi-orb2-path-ledger>WAITING</strong></div>
-          <i aria-hidden="true">→</i>
-          <div class="gi-orb2-path-step"><span>04 · 3D BEAT</span><strong data-gi-orb2-path-model>READY</strong></div>
-        </div>
-        <section class="gi-orb2-ignition" data-gi-orb2-ignition aria-label="Live heartbeat firing sequence">
-          <div class="gi-orb2-ignition-head">
-            <div><p class="gi-eyebrow">LIVE HEARTBEAT · FIXED DXY BENCHMARK</p><h3>Deploy → DXY → 52 ticker orbs</h3>
-              <p>Worker route first; six sequential FX inputs; then one daily ticker beat per asset, grouped by sourced sector and descending market cap.</p></div>
-            <button class="gi-button" type="button" data-gi-orb2-ignition-restart hidden>Restart sequence</button>
-          </div>
-          <div class="gi-orb2-ignition-steps">
-            <div><span>00 · SERVER DEPLOY</span><strong data-gi-orb2-ignition-server>ROUTE CHECK PENDING</strong><small>Readiness is confirmed only by a same-origin Worker response.</small></div>
-            <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
-            <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
-          </div>
-          <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 12 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
-          <details class="gi-orb2-firing-order" data-gi-orb2-firing-order open>
-            <summary><strong>52-ASSET FIRING ORDER</strong><span>Open the ordered ticker-by-ticker sequence</span></summary>
-            <ol data-gi-orb2-firing-list></ol>
-          </details>
-        </section>
-        <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
-          <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
-          <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
-          <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
-          <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
-          <label class="gi-orb2-toggle"><input data-gi-orb2-data-bits type="checkbox" checked><span>Market data bits</span></label>
-          <span class="gi-orb2-center">CENTER ORIGIN · DXY FIXED BENCHMARK · LOCAL CPU ${CENTER_ADDRESS}</span>
-          <span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span>
-          <span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span>
-        </div>
-        ${colorKey}
+
         <div class="gi-orb2-layout">
-          <div class="gi-orb2-canvas-shell">
-            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
-            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</div></div>
-            <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
-          </div>
-          <aside class="gi-orb2-inspector" id="gi-orb2-inspector" aria-live="polite" data-gi-orb2-sheet-state="closed">
-            <div class="gi-orb2-sheet-bar">
-              <button class="gi-orb2-sheet-toggle" type="button" data-gi-orb2-sheet-toggle aria-expanded="false" aria-controls="gi-orb2-inspector-detail" aria-label="Expand the node inspector sheet">
-                <span class="gi-orb2-sheet-grip" aria-hidden="true"></span>
-                <span class="gi-orb2-sheet-title">NODE INSPECTOR</span>
-                <span class="gi-orb2-sheet-summary" data-gi-orb2-sheet-summary>—</span>
-                <span class="gi-orb2-sheet-caret" aria-hidden="true">▴</span>
-              </button>
+          <div class="gi-orb2-stage">
+            <div class="gi-orb2-canvas-shell">
+              <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
             </div>
-            <p class="gi-orb2-inspector-eyebrow gi-eyebrow">NODE / MARKET INSPECTOR</p>
-            <label class="gi-orb2-node-select"><span data-gi-orb2-node-label>CHARACTER NODE</span><select data-gi-orb2-node data-gi-orb2-select aria-label="Choose a character node"></select></label>
-            <button class="gi-button gi-orb2-feature-inline" type="button" data-gi-orb2-feature-inline>Feature focus</button>
-            <div id="gi-orb2-inspector-detail" data-gi-orb2-detail></div>
-            <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
-          </aside>
+            <div class="gi-orb2-model-status" aria-label="Selected node and model status">
+              <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
+              <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · FIXED DXY BENCHMARK</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
+              <div class="gi-orb2-status-pills"><span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span><span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span></div>
+              <span class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</span>
+            </div>
+          </div>
+          <details class="gi-orb2-inspector" id="gi-orb2-inspector" aria-live="polite" data-gi-orb2-inspector>
+            <summary class="gi-orb2-inspector-summary"><span>SELECTED NODE</span><strong data-gi-orb2-inspector-summary>—</strong><span class="gi-orb2-inspector-hint">View details <i aria-hidden="true">＋</i></span></summary>
+            <div class="gi-orb2-inspector-content">
+              <p class="gi-orb2-inspector-eyebrow gi-eyebrow">NODE / MARKET INSPECTOR</p>
+              <label class="gi-orb2-node-select"><span data-gi-orb2-node-label>CHARACTER NODE</span><select data-gi-orb2-node data-gi-orb2-select aria-label="Choose a character node"></select></label>
+              <button class="gi-button gi-orb2-feature-inline" type="button" data-gi-orb2-feature-inline>Feature focus</button>
+              <div id="gi-orb2-inspector-detail" data-gi-orb2-detail></div>
+              <div class="gi-orb2-route-note" data-gi-orb2-route-note role="status"></div>
+            </div>
+          </details>
         </div>
-        <section class="gi-orb2-history" aria-label="Orb 2 beat history">
-          <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
+
+        <details class="gi-orb2-history" aria-label="Orb 2 beat history">
+          <summary class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span><span class="gi-orb2-inspector-hint">Open history <i aria-hidden="true">＋</i></span></summary>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
-        </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+        </details>
+        <p class="gi-orb2-safety-note"><strong>VISUAL MODEL</strong> · Local display traces only. No OCM message, trade, authorization, or permission to act.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
@@ -858,6 +891,10 @@
     const beatButton = $("[data-gi-orb2-beat]");
     const autoButton = $("[data-gi-orb2-auto]");
     const fullscreenButton = $("[data-gi-orb2-fullscreen]");
+    const settingsPanel = $("[data-gi-orb2-settings]");
+    const settingsToggle = $("[data-gi-orb2-settings-toggle]");
+    const settingsClose = $("[data-gi-orb2-settings-close]");
+    const inspectorSummary = $("[data-gi-orb2-inspector-summary]");
     const routeButton = $("[data-gi-orb2-route]");
     const lateralButton = $("[data-gi-orb2-lateral]");
     const resetButton = $("[data-gi-orb2-reset]");
@@ -900,28 +937,25 @@
     const ignitionRestartButton = $("[data-gi-orb2-ignition-restart]");
     const gatePill = $("[data-gi-orb2-gate]");
     const utsPill = $("[data-gi-orb2-uts]");
-    const inspectorAside = $(".gi-orb2-inspector");
-    const sheetToggle = $("[data-gi-orb2-sheet-toggle]");
-    const sheetSummary = $("[data-gi-orb2-sheet-summary]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
     if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
     /* The Characters app reports whether an anonymous saved-beat archive exists
        for this browser; Restore stored beats reloads it on demand. */
     const beatStatusHandler = event => { if (restoreBeatsButton) restoreBeatsButton.hidden = !event.detail?.hasStored; };
     ownerDocument?.addEventListener("harshalos:characters-beats:status", beatStatusHandler);
-    /* Mobile: the inspector is a compact bottom sheet over the canvas so the
-       sphere keeps the stage. The toggle only changes presentation — the
-       inspector content, the node data, and the aria-live announcements are
-       identical in both states and on every screen size. */
-    function setInspectorSheet(open) {
-      if (!inspectorAside) return;
-      inspectorAside.dataset.giOrb2SheetState = open ? "open" : "closed";
-      if (sheetToggle) {
-        sheetToggle.setAttribute("aria-expanded", String(open));
-        sheetToggle.setAttribute("aria-label", open ? "Collapse the node inspector sheet" : "Expand the node inspector sheet");
-      }
+    /* Settings stay in normal document flow; opening them never floats over
+       or obscures the live 3D field. */
+    function setSettingsOpen(open) {
+      if (!settingsPanel) return;
+      settingsPanel.hidden = !open;
+      settingsToggle?.setAttribute("aria-expanded", String(open));
+      if (open) scheduleRender();
     }
-    sheetToggle?.addEventListener("click", () => setInspectorSheet(inspectorAside.dataset.giOrb2SheetState === "closed"));
+    settingsToggle?.addEventListener("click", () => setSettingsOpen(settingsPanel.hidden));
+    settingsClose?.addEventListener("click", () => {
+      setSettingsOpen(false);
+      settingsToggle?.focus();
+    });
     clearBeatsButton?.addEventListener("click", () => {
       state.route = null; state.lastRoutePhase = "";
       drawInspector(); scheduleRender();
@@ -1565,11 +1599,9 @@
         <p class="gi-orb2-node-caveat">${node.symbol ? "Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity." : "This character label is from the reviewed local cast. It is not a registered OCM address or identity claim."}</p>`;
       nodeSelect.value = node.id;
       routeNote.textContent = friendlyRoute(state.route);
-      /* The collapsed mobile sheet keeps the selected node's symbol visible on
-         its handle bar, so the sheet can stay out of the scene's way. */
-      if (sheetSummary) {
-        const summary = node.symbol || node.name || "—";
-        if (sheetSummary.textContent !== summary) sheetSummary.textContent = summary;
+      if (inspectorSummary) {
+        const summary = node.symbol ? `${node.symbol} · ${node.name}` : node.name || "—";
+        if (inspectorSummary.textContent !== summary) inspectorSummary.textContent = summary;
       }
     }
 
@@ -2260,13 +2292,12 @@
     }
 
     function toScreen(point, width, height) {
-      const fov = 6.4 / state.zoom;
+      const fov = 7.5 / state.zoom;
       const scale = fov / (fov + point.z);
-      /* Portrait canvases (the mobile stage) give the sphere a larger share
-         of the narrower dimension so the orb stays the focus. */
-      const portrait = height > width ? 0.36 : 0.315;
-      const radius = Math.min(width, height) * portrait;
-      return { x: width / 2 + point.x * scale * radius, y: height / 2 - point.y * scale * radius, z: point.z, scale };
+      /* Scale from the shorter dimension so the sphere stays round and fully
+         visible on 2622 × 1206 widescreens as well as narrow mobile stages. */
+      const modelUnit = Math.min(width, height) * (height > width ? 0.15 : 0.155);
+      return { x: width / 2 + point.x * scale * modelUnit, y: height / 2 - point.y * scale * modelUnit, z: point.z, scale };
     }
 
     function project(point, width, height) {
@@ -2298,20 +2329,103 @@
       context2d.restore();
     }
 
+    function strokeDepthPath(points, color, alpha, lineWidth, dash = []) {
+      if (!context2d || points.length < 2) return;
+      /* Back-facing geometry is dimmed and dotted, giving the wireframe real
+         depth without a WebGL dependency. */
+      for (const frontFace of [false, true]) {
+        context2d.save();
+        context2d.strokeStyle = color;
+        context2d.globalAlpha = clamp(alpha * (frontFace ? 0.92 : 0.2), 0, 1);
+        context2d.lineWidth = frontFace ? lineWidth : Math.max(0.55, lineWidth * 0.8);
+        context2d.setLineDash(frontFace ? dash : (dash.length ? dash : [3, 5]));
+        context2d.beginPath();
+        for (let index = 1; index < points.length; index += 1) {
+          const previous = points[index - 1];
+          const current = points[index];
+          const segmentFront = ((previous.z + current.z) / 2) <= 0;
+          if (segmentFront !== frontFace) continue;
+          context2d.moveTo(previous.x, previous.y);
+          context2d.lineTo(current.x, current.y);
+        }
+        context2d.stroke();
+        context2d.restore();
+      }
+    }
+
     function ring(latitude, width, height, color, alpha) {
       const points = [];
-      for (let step = 0; step <= 72; step += 1) {
-        const longitude = (step / 72) * TAU;
+      for (let step = 0; step <= 96; step += 1) {
+        const longitude = (step / 96) * TAU;
         const radius = 2.06;
         points.push(project({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
       }
+      strokeDepthPath(points, color, alpha * state.formation, latitude === 0 ? 1.05 : 0.78);
+    }
+
+    function meridian(longitude, width, height, color, alpha) {
+      const points = [];
+      for (let step = 0; step <= 64; step += 1) {
+        const latitude = -Math.PI / 2 + (step / 64) * Math.PI;
+        const radius = 2.06;
+        points.push(project({
+          x: radius * Math.cos(latitude) * Math.cos(longitude),
+          y: radius * Math.sin(latitude),
+          z: radius * Math.cos(latitude) * Math.sin(longitude)
+        }, width, height));
+      }
+      strokeDepthPath(points, color, alpha * state.formation, 0.78);
+    }
+
+    function orbitalRing(radius, tilt, phase, width, height, color, alpha) {
+      const points = [];
+      for (let step = 0; step <= 112; step += 1) {
+        const angle = (step / 112) * TAU + phase;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        points.push(project({ x, y: z * Math.sin(tilt), z: z * Math.cos(tilt) }, width, height));
+      }
+      strokeDepthPath(points, color, alpha, 0.8, [4, 8]);
+    }
+
+    function drawStarfield(width, height, now) {
+      if (!context2d) return;
+      for (let index = 0; index < 76; index += 1) {
+        let seed = Math.imul(index + 1, 0x45d9f3b);
+        seed ^= seed >>> 16;
+        seed = Math.imul(seed, 0x45d9f3b);
+        seed ^= seed >>> 16;
+        const first = (seed >>> 0) / 4294967296;
+        const second = (Math.imul(index + 7, 0x27d4eb2d) >>> 0) / 4294967296;
+        const twinkle = reduceMotion ? 0.72 : 0.48 + (Math.sin(now * 0.0007 + index * 1.73) + 1) * 0.18;
+        const radius = index % 13 === 0 ? 1.35 : index % 4 === 0 ? 0.95 : 0.62;
+        context2d.save();
+        context2d.fillStyle = index % 9 === 0 ? "#9bdcff" : "#d7eaff";
+        context2d.globalAlpha = twinkle * (index % 13 === 0 ? 0.62 : 0.32);
+        context2d.beginPath(); context2d.arc(first * width, second * height, radius, 0, TAU); context2d.fill();
+        context2d.restore();
+      }
+    }
+
+    function drawOrbAtmosphere(width, height) {
+      if (!context2d) return;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) * 0.42;
+      const gradient = context2d.createRadialGradient(centerX - radius * 0.24, centerY - radius * 0.28, radius * 0.05, centerX, centerY, radius);
+      gradient.addColorStop(0, "rgba(60, 142, 206, .18)");
+      gradient.addColorStop(0.46, "rgba(20, 75, 123, .15)");
+      gradient.addColorStop(0.82, "rgba(12, 39, 69, .12)");
+      gradient.addColorStop(1, "rgba(7, 18, 34, .015)");
       context2d.save();
-      context2d.strokeStyle = color;
-      context2d.globalAlpha = alpha * state.formation;
-      context2d.lineWidth = 0.8;
-      context2d.beginPath();
-      points.forEach((point, index) => index ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
-      context2d.stroke();
+      context2d.fillStyle = gradient;
+      context2d.shadowBlur = 34;
+      context2d.shadowColor = "rgba(60, 164, 255, .18)";
+      context2d.beginPath(); context2d.arc(centerX, centerY, radius, 0, TAU); context2d.fill();
+      context2d.shadowBlur = 0;
+      context2d.strokeStyle = "rgba(109, 195, 255, .13)";
+      context2d.lineWidth = 1;
+      context2d.beginPath(); context2d.arc(centerX, centerY, radius * 0.99, 0, TAU); context2d.stroke();
       context2d.restore();
     }
 
@@ -2348,16 +2462,7 @@
     }
 
     function strokePath(points, color, alpha, lineWidth, dash = []) {
-      if (!context2d) return;
-      context2d.save();
-      context2d.strokeStyle = color;
-      context2d.globalAlpha = clamp(alpha, 0, 1);
-      context2d.lineWidth = lineWidth;
-      if (dash.length) context2d.setLineDash(dash);
-      context2d.beginPath();
-      points.forEach((point, index) => index ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
-      context2d.stroke();
-      context2d.restore();
+      strokeDepthPath(points, color, alpha, lineWidth, dash);
     }
 
     function drawRoute(now, center) {
@@ -2514,12 +2619,52 @@
     function drawProviderHalo(point, radius, observation, wallNow) {
       if (!observation) return;
       const freshness = snapshotFreshness(observation, wallNow);
+      const color = providerColor(observation);
       context2d.save();
-      context2d.strokeStyle = providerColor(observation);
-      context2d.globalAlpha = observation.market ? clamp(0.3 + freshness * 0.58, 0.3, 0.88) : 0.68;
-      context2d.lineWidth = 1.3;
+      context2d.strokeStyle = color;
+      context2d.globalAlpha = observation.market ? clamp(0.28 + freshness * 0.58, 0.28, 0.86) : 0.64;
+      context2d.lineWidth = clamp(radius * 0.16, 1.15, 2.2);
       context2d.setLineDash(pathDash(observation));
-      context2d.beginPath(); context2d.arc(point.x, point.y, radius + 3.1, 0, TAU); context2d.stroke();
+      context2d.shadowBlur = 7;
+      context2d.shadowColor = color;
+      context2d.beginPath(); context2d.arc(point.x, point.y, radius + 4.2, 0, TAU); context2d.stroke();
+      context2d.shadowBlur = 0;
+      context2d.setLineDash([]);
+      context2d.globalAlpha *= 0.28;
+      context2d.lineWidth = 0.75;
+      context2d.beginPath(); context2d.arc(point.x, point.y, radius + 7, 0, TAU); context2d.stroke();
+      context2d.restore();
+    }
+
+    function drawOrbNode(point, radius, color, alpha, selected = false) {
+      if (!context2d) return;
+      const lightX = point.x - radius * 0.34;
+      const lightY = point.y - radius * 0.38;
+      const surface = context2d.createRadialGradient(lightX, lightY, Math.max(0.5, radius * 0.04), point.x, point.y, radius * 1.12);
+      surface.addColorStop(0, "#ffffff");
+      surface.addColorStop(0.12, color);
+      surface.addColorStop(0.56, color);
+      surface.addColorStop(1, "#07101c");
+      context2d.save();
+      context2d.globalAlpha = alpha;
+      context2d.fillStyle = surface;
+      context2d.shadowBlur = selected ? radius * 1.8 : radius * 0.78;
+      context2d.shadowColor = color;
+      context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
+      context2d.shadowBlur = 0;
+      context2d.strokeStyle = selected ? "rgba(255,255,255,.94)" : "rgba(210,239,255,.52)";
+      context2d.globalAlpha = alpha * (selected ? 0.86 : 0.46);
+      context2d.lineWidth = selected ? 1.15 : 0.7;
+      context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.stroke();
+      context2d.fillStyle = "#ffffff";
+      context2d.globalAlpha = alpha * (selected ? 0.78 : 0.42);
+      context2d.beginPath(); context2d.ellipse(lightX, lightY, radius * 0.18, radius * 0.12, -0.55, 0, TAU); context2d.fill();
+      if (selected) {
+        context2d.strokeStyle = color;
+        context2d.globalAlpha = alpha * 0.65;
+        context2d.lineWidth = 1;
+        context2d.beginPath(); context2d.arc(point.x, point.y, radius + 4.5, 0, TAU); context2d.stroke();
+      }
       context2d.restore();
     }
 
@@ -2657,12 +2802,14 @@
       const { width, height, dpr } = canvasBounds();
       context2d.setTransform(dpr, 0, 0, dpr, 0, 0);
       context2d.clearRect(0, 0, width, height);
-      const background = context2d.createRadialGradient(width * 0.48, height * 0.42, 2, width * 0.5, height * 0.5, Math.max(width, height) * 0.7);
-      background.addColorStop(0, "#101d35");
-      background.addColorStop(0.54, "#0a1222");
-      background.addColorStop(1, "#060b14");
+      const background = context2d.createRadialGradient(width * 0.48, height * 0.42, 2, width * 0.5, height * 0.5, Math.max(width, height) * 0.74);
+      background.addColorStop(0, "#10213a");
+      background.addColorStop(0.5, "#0a1424");
+      background.addColorStop(1, "#050a12");
       context2d.fillStyle = background;
       context2d.fillRect(0, 0, width, height);
+      drawStarfield(width, height, now);
+      drawOrbAtmosphere(width, height);
       if (state.autoRotate && !state.dragging) {
         const dt = state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
         state.yaw += dt * 0.00013;
@@ -2673,12 +2820,13 @@
          drawn under the lattice, plus the origin strip (gate · phase · UTS). */
       const originAssembly = drawOriginAssembly(now, center, width, height);
       updateOriginStatus(wallNow, originAssembly);
-      [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
-      for (let index = 0; index < 8; index += 1) {
-        const longitude = (index / 8) * TAU;
-        const a = project({ x: 2.06 * Math.cos(longitude), y: 0, z: 2.06 * Math.sin(longitude) }, width, height);
-        const b = project({ x: -2.06 * Math.cos(longitude), y: 0, z: -2.06 * Math.sin(longitude) }, width, height);
-        line(a, b, "#49627e", 0.09 + state.formation * 0.08, 0.7);
+      orbitalRing(2.32, 0.34, now * 0.000025, width, height, "#3678a8", 0.22);
+      orbitalRing(2.4, 1.04, -now * 0.000018, width, height, "#6554a4", 0.14);
+      orbitalRing(2.5, 0.78, now * 0.000012, width, height, "#2c8d91", 0.12);
+      [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72].forEach(latitude =>
+        ring(latitude, width, height, latitude === 0 ? "#70d8ff" : "#6d8eae", latitude === 0 ? 0.44 : 0.24));
+      for (let index = 0; index < 12; index += 1) {
+        meridian((index / 12) * TAU, width, height, index % 3 === 0 ? "#75d5fa" : "#5d7999", index % 3 === 0 ? 0.24 : 0.16);
       }
       state.projected = nodes.map(node => {
         const observation = latestForNode(node);
@@ -2700,21 +2848,11 @@
         const color = observation && observation.market && directive
           ? MOOD_COLORS[directive.mood] || node.color : node.color;
         const pulse = directive && directive.object ? directive.object.pulse : 0;
-        const radius = clamp(3.2 + point.scale * 2.5 + (chosen ? 1.9 : 0) + pulse * 1.6, 3, 9);
+        const density = clamp(Math.min(width, height) / 620, 0.82, 1.52);
+        const radius = clamp((4.15 + point.scale * 2.35 + (chosen ? 2.1 : 0) + pulse * 1.5) * density, 4, 14);
+        const alpha = observation && observation.market ? clamp(0.48 + fresh * 0.46, 0.48, 0.96) : clamp(0.4 + (1 - point.z / 5) * 0.38, 0.36, 1);
         drawProviderHalo(point, radius, observation, wallNow);
-        context2d.save();
-        context2d.globalAlpha = observation && observation.market ? clamp(0.42 + fresh * 0.5, 0.42, 0.96) : clamp(0.32 + (1 - point.z / 5) * 0.34, 0.3, 1);
-        context2d.fillStyle = color;
-        /* Glow is reserved for selection and hover; a field of constantly
-           blazing orbs drowns the beat-synced Center Point beams. */
-        context2d.shadowBlur = chosen || hovered ? 18 : 8;
-        context2d.shadowColor = color;
-        context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
-        if (chosen || hovered) {
-          context2d.strokeStyle = "#ffffff"; context2d.globalAlpha = 0.9; context2d.lineWidth = 1;
-          context2d.beginPath(); context2d.arc(point.x, point.y, radius + 3, 0, TAU); context2d.stroke();
-        }
-        context2d.restore();
+        drawOrbNode(point, radius, color, alpha, chosen || hovered);
         drawDataBits(point, radius, observation);
         if (state.labels || chosen || hovered) {
           context2d.save();
@@ -2731,14 +2869,12 @@
       /* Center Origin is the CPU: the gate decides whether it burns gold or waits in
          cyan, and the declared phase is named under it. A pending beat pulses the
          same dot — there is no rendered frame to swap in, by design. */
-      context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
-      context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
-      context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
-      context2d.beginPath(); context2d.arc(center.x, center.y, state.pending ? 9 : 7, 0, TAU); context2d.fill();
+      const originColor = state.pending ? "#6fd3ff" : "#ffd479";
+      drawOrbNode(center, state.pending ? 10 : 8, originColor, 1, true);
       context2d.shadowBlur = 0;
-      context2d.strokeStyle = "rgba(255,212,121,.8)";
+      context2d.strokeStyle = "rgba(255,212,121,.78)";
       context2d.lineWidth = 1;
-      context2d.beginPath(); context2d.arc(center.x, center.y, 13, 0, TAU); context2d.stroke();
+      context2d.beginPath(); context2d.arc(center.x, center.y, 16, 0, TAU); context2d.stroke();
       context2d.fillStyle = "#fff2c6";
       context2d.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.textAlign = "center";

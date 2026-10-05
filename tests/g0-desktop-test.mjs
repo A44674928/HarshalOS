@@ -748,7 +748,11 @@ if (giApp) {
   ok(!!modelFullscreen, "the beat model stays full-screen capable");
   ok(!!(orbPanel && orbPanel.hidden === false), "opening Orb 2 reveals the local OCM panel");
   ok(!!orbHost.querySelector("[data-gi-orb2-disc]"), "Orb 2 opens the carried-over model with the five reviewed Discs");
-  ok(!!orbHost.querySelector("[data-gi-orb2-flow-readout]"), "the volume-flow readout is painted on the canvas");
+  const orbCanvasShell = orbHost.querySelector(".gi-orb2-canvas-shell");
+  const orbFlowReadout = orbHost.querySelector("[data-gi-orb2-flow-readout]");
+  ok(!!orbFlowReadout && orbCanvasShell && !orbCanvasShell.contains(orbFlowReadout), "the volume-flow readout stays in the status row, clear of the canvas");
+  const orbSettings = orbHost.querySelector("[data-gi-orb2-settings]");
+  ok(!!orbHost.querySelector("[data-gi-orb2-settings-toggle]") && orbSettings && Object.hasOwn(orbSettings.attrs, "hidden"), "Orb 2 settings start in a dedicated closed panel");
   ok(!!orbHost.querySelector("[data-gi-orb2-origin-status]"), "Center Origin reports the gate, the phase, and UTS");
   ok(orbText.includes("ORIGIN · CPU"), "the origin is labeled as the CPU the Human Key secures");
   ok(!orbHost.querySelector("[data-gi-orb2-fractal-status]") && !orbHost.querySelector("[data-gi-orb2-fractal]"),

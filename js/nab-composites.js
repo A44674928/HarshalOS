@@ -114,8 +114,13 @@
   function displacement(market) {
     const close = number(market?.latestBar?.close), basis = number(market?.basis ?? market?.bands?.basis);
     const lower = number(market?.bands?.lower1000), upper = number(market?.bands?.upper1000);
-    if (close === null || basis === null || lower === null || upper === null || lower >= basis || upper <= basis) return null;
-    return (close-basis)/(close >= basis ? upper-basis : basis-lower);
+    if (close === null || basis === null || lower === null || upper === null ||
+        close <= 0 || basis <= 0 || lower <= 0 || upper <= 0 || lower >= basis || upper <= basis) return null;
+    const logClose = Math.log(close), logBasis = Math.log(basis);
+    const logLower = Math.log(lower), logUpper = Math.log(upper);
+    const halfWidth = logClose >= logBasis ? logUpper - logBasis : logBasis - logLower;
+    if (![logClose, logBasis, logLower, logUpper, halfWidth].every(Number.isFinite) || halfWidth <= 0) return null;
+    return (logClose - logBasis) / halfWidth;
   }
 
   function observation(raw) {

@@ -35,6 +35,23 @@ function packet(overrides = {}) {
   };
 }
 
+function barsFromCloses(closes) {
+  return closes.map((close, index) => {
+    const open = index ? closes[index - 1] : close * 0.99;
+    return {
+      time: new Date(NOW + index * 60_000).toISOString(),
+      open, high: Math.max(open, close) * 1.01, low: Math.min(open, close) * 0.99,
+      close, volume: 1000 + index * 73, confirmed: true
+    };
+  });
+}
+
+function closeTo(actual, expected, message, tolerance = 1e-10) {
+  assert.ok(Number.isFinite(actual), `${message}: expected a finite result, got ${actual}`);
+  assert.ok(Math.abs(actual - expected) <= tolerance * Math.max(1, Math.abs(expected)),
+    `${message}: expected ${expected}, got ${actual}`);
+}
+
 test("market context accepts only the versioned packet and bounds normalized OHLCV", () => {
   assert.equal(Model.normalizePacket({ schema: "unknown", bars: bars(2) }), null);
   const unsafe = packet({ bars: [
@@ -113,6 +130,71 @@ test("VFI, Fibonacci bands, and WaveTrend calculate separate price-volume contex
   assert.ok(Number.isFinite(result.chartSeries.at(-1).wt1));
   assert.equal(Object.hasOwn(result, "score"), false);
   assert.match(result.note, /not source credibility, claim truth/);
+});
+
+test("Fibonacci Bollinger bands use only natural-log inputs, offsets, and exponentiated price levels", () => {
+  const closes = [100, 200, 400];
+  const result = Model.evaluate(packet({
+    bars: barsFromCloses(closes),
+    parameters: { ...packet().parameters, bandLen: 3, bandMult: 1, bandSrc: "close", bandMa: "SMA" }
+  }));
+  const logValues = closes.map(Math.log);
+  const logBasis = logValues.reduce((sum, value) => sum + value, 0) / logValues.length;
+  const logDeviation = Math.sqrt(logValues.reduce((sum, value) => sum + (value - logBasis) ** 2, 0) / logValues.length);
+  assert.equal(result.bands.method, "log-space");
+  assert.equal(result.bands.basis, Number(Math.exp(logBasis).toFixed(4)), "basis is the exponentiated logarithmic SMA, rounded for the public packet");
+  assert.equal(result.bands.logDeviation, Number(logDeviation.toFixed(4)), "public log deviation is the population stdev of ln(close), rounded to four decimals");
+  for (const [suffix, ratio] of [["382", .382], ["618", .618], ["764", .764], ["1000", 1]]) {
+    const upper = Math.exp(logBasis + ratio * logDeviation);
+    const lower = Math.exp(logBasis - ratio * logDeviation);
+    assert.equal(result.bands[`upper${suffix}`], Number(upper.toFixed(4)), `upper ${suffix} exp(log basis + Fib × log deviation)`);
+    assert.equal(result.bands[`lower${suffix}`], Number(lower.toFixed(4)), `lower ${suffix} exp(log basis − Fib × log deviation)`);
+    closeTo(Math.log(result.bands[`upper${suffix}`]) - Math.log(result.bands.basis), ratio * logDeviation,
+      `upper/lower ${suffix} symmetry in log space`, 1e-5);
+    closeTo(Math.log(result.bands.basis) - Math.log(result.bands[`lower${suffix}`]), ratio * logDeviation,
+      `lower ${suffix} symmetry in log space`, 1e-5);
+  }
+  assert.equal(result.chartSeries.at(-1).basis, result.bands.basis, "charts receive the exponentiated log basis");
+  assert.match(result.note, /population standard deviation of ln\(source\).*exponentiate/i);
+});
+
+test("all FBB moving-average choices are scale-equivariant because their input is ln(price)", () => {
+  const closes = Array.from({ length: 24 }, (_, index) => 120 * Math.exp(index * .015 + Math.sin(index / 2) * .08));
+  const originalBars = barsFromCloses(closes);
+  const scale = 1e6;
+  const scaledBars = originalBars.map(bar => ({
+    ...bar, open: bar.open * scale, high: bar.high * scale, low: bar.low * scale, close: bar.close * scale
+  }));
+  const fields = ["basis", "upper382", "upper618", "upper764", "upper1000", "lower382", "lower618", "lower764", "lower1000"];
+  for (const bandMa of ["VWMA", "SMA", "EMA", "WMA", "RMA"]) {
+    const parameters = { ...packet().parameters, bandLen: 8, bandMult: 2.25, bandSrc: "hlc3", bandMa };
+    const original = Model.evaluate(packet({ bars: originalBars, parameters }));
+    const scaled = Model.evaluate(packet({ bars: scaledBars, parameters }));
+    assert.equal(original.bands.method, "log-space");
+    for (let index = 0; index < original.chartSeries.length; index += 1) {
+      for (const field of fields) {
+        const value = original.chartSeries[index][field];
+        const scaledValue = scaled.chartSeries[index][field];
+        if (value === null) assert.equal(scaledValue, null, `${bandMa} ${field} preserves warm-up at ${index}`);
+        else closeTo(scaledValue, value * scale, `${bandMa} ${field} scales with price at ${index}`, 1e-6);
+      }
+    }
+  }
+});
+
+test("nonpositive or unrepresentable log-price windows never publish fabricated FBB levels", () => {
+  const parameters = { ...packet().parameters, bandLen: 3, bandMult: 50, bandSrc: "close", bandMa: "SMA" };
+  const nonpositiveBars = [-2, 0, -1].map((close, index) => ({
+    time: new Date(NOW + index * 60_000).toISOString(), close, confirmed: true
+  }));
+  const nonpositive = Model.evaluate(packet({ bars: nonpositiveBars, parameters }));
+  assert.equal(nonpositive.bands, null, "ln is never applied to zero or negative prices");
+  assert.equal(nonpositive.chartSeries.at(-1).upper1000, null);
+  assert.equal(nonpositive.chartSeries.at(-1).lower1000, null);
+
+  const extreme = Model.evaluate(packet({ bars: barsFromCloses([1e-250, 1, 1e250]), parameters }));
+  assert.equal(extreme.bands, null, "overflowing exp(log-band) results are held, not emitted as Infinity or zero");
+  assert.equal(extreme.chartSeries.at(-1).upper1000, null);
 });
 
 test("confirmed-close setting suppresses current-bar events until the bar is confirmed", () => {

@@ -33,10 +33,11 @@ the JS market-context port. The visual fill option is not represented there.
 
 ## Calculation and events
 
-The basis is selected by `calc_ma()`. For VWMA, this script uses `volume > 0` on the current
-bar to decide whether to use `ta.vwma()` or fall back to `ta.sma()`; the other choices are
-SMA, EMA, WMA, and RMA, with SMA as the fallback branch. Deviation is
-`mult * ta.stdev(src, length)`.
+The verbatim Pine source uses linear price-space math. Its basis is selected by `calc_ma()`.
+For VWMA, this script uses `volume > 0` on the current bar to decide whether to use
+`ta.vwma()` or fall back to `ta.sma()`; the other choices are SMA, EMA, WMA, and RMA, with
+SMA as the fallback branch. Deviation is `mult * ta.stdev(src, length)`. The JavaScript port
+intentionally differs; see **Port differences to keep in view** below.
 
 The source defines six upper and six lower offsets from the basis:
 
@@ -56,7 +57,12 @@ crossing the basis.
 ## Port differences to keep in view
 
 The shared JS `computeBands()` calculates the basis and the 0.382, 0.618, 0.764, and 1.000
-levels. It does **not** expose the 0.236 or 0.500 lines, Pine's visual styling/fills, or this
+levels. Unlike this archived Pine source, it transforms the selected source to natural-log
+prices, calculates the selected moving-average basis and population standard deviation in
+log space, applies the Fibonacci ratios there, then exponentiates each level back to price.
+Nonpositive source values and unrepresentable exponentiated levels are withheld. This is
+intentional log-space behavior, not formula parity with the linear-price Pine transcription.
+The JS port does **not** expose the 0.236 or 0.500 lines, Pine's visual styling/fills, or this
 standalone script's basis-cross alert. The merged VFI+Fibonacci port has outer-band break
 signals, but that does not make it a port of every standalone FBB output.
 

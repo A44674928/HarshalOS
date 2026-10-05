@@ -56,8 +56,10 @@
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
-    w: 1160,
-    h: 760,
+    // Start with a substantial model workspace on high-resolution displays while
+    // letting the window manager clamp this to smaller screens and touch devices.
+    w: Math.min(2360, Math.max(1160, window.innerWidth - 80)),
+    h: Math.min(1000, Math.max(760, window.innerHeight - 180)),
     fullscreen: true,
     render(body, api) {
       const Client = window.GoodIntelligenceClient;
@@ -354,7 +356,7 @@
         const readiness = result.signals && result.signals.barClosePending ? "WAITING FOR BAR CLOSE"
           : result.status === "ready" ? "INDICATORS READY" : result.status === "no-data" ? "NO OHLCV DATA" : "INDICATORS WARMING UP";
         const bands = result.bands ? `
-          <div class="gi-market-band-table" role="table" aria-label="Fibonacci band levels">
+          <div class="gi-market-band-table" role="table" aria-label="Log-space Fibonacci band levels">
             <div role="row"><span role="columnheader">LEVEL</span><span role="columnheader">UPPER</span><span role="columnheader">LOWER</span></div>
             <div role="row"><span>0.382</span><span>${formatMetric(result.bands.upper382)}</span><span>${formatMetric(result.bands.lower382)}</span></div>
             <div role="row"><span>0.618</span><span>${formatMetric(result.bands.upper618)}</span><span>${formatMetric(result.bands.lower618)}</span></div>
@@ -373,7 +375,7 @@
             <div class="gi-market-source"><strong>${escapeHtml(badge)}</strong><span>${escapeHtml(result.symbol || "Unlabeled symbol")} · ${escapeHtml(result.timeframe || "Unlabeled interval")} · ${formatMetric(result.barCount)} bars</span><small>${escapeHtml(result.source || "Data source not supplied")}</small></div>
             <div class="gi-market-metrics">
               <div><span>VFI / SIGNAL</span><strong>${formatMetric(result.vfi.value)} / ${formatMetric(result.vfi.signal)}</strong><small>${result.vfi.ready ? result.vfi.value >= result.vfi.signal ? "Flow above signal" : "Flow below signal" : "VFI history is warming up"}</small></div>
-              <div><span>FBB BASIS / OUTER BANDS</span><strong>${formatMetric(result.bands && result.bands.basis)}</strong><small>Close ${formatMetric(result.close)} · Upper ${formatMetric(result.bands && result.bands.upper1000)} · Lower ${formatMetric(result.bands && result.bands.lower1000)}</small></div>
+              <div><span>FBB BASIS / OUTER BANDS · LOG</span><strong>${formatMetric(result.bands && result.bands.basis)}</strong><small>Close ${formatMetric(result.close)} · Upper ${formatMetric(result.bands && result.bands.upper1000)} · Lower ${formatMetric(result.bands && result.bands.lower1000)}</small></div>
               <div><span>WAVETREND WT1 / WT2</span><strong>${formatMetric(result.waveTrend.wt1)} / ${formatMetric(result.waveTrend.wt2)}</strong><small>${escapeHtml(result.waveTrend.zone)} · ${escapeHtml(result.waveTrend.timeframeStatus)}</small></div>
             </div>
             ${bands}
@@ -459,7 +461,7 @@
         const bearish = result.signals.bearishConfluence;
         const priceMarker = bullish ? { field: "close", color: "#54d6b4", label: "Bullish VFI and Fibonacci confluence" }
           : bearish ? { field: "close", color: "#e87487", label: "Bearish VFI and Fibonacci confluence" } : null;
-        const priceSvg = lineChartSvg("Price with Fibonacci bands", series, {
+        const priceSvg = lineChartSvg("Price with log-space Fibonacci bands", series, {
           height: 330,
           areas: [
             { topField: "upper618", bottomField: "upper382", color: "rgba(239,83,80,.13)" },
@@ -529,7 +531,7 @@
             <span class="gi-market-synthetic-tag">${escapeHtml(realOrSynthetic)}</span>
             <span class="gi-market-source-line">${escapeHtml(result.source || "Source not supplied")} · ${result.barCount} bars · latest close ${formatMetric(result.close)}</span>
           </div>
-          <section class="gi-chart-card gi-price-chart"><div class="gi-chart-title"><div><p class="gi-eyebrow">PRICE OVERLAY</p><h4>${escapeHtml(result.symbol || "Ticker")} · Fibonacci bands</h4></div><span>${escapeHtml(result.combined)}</span></div>${priceSvg}${chartLegend([
+          <section class="gi-chart-card gi-price-chart"><div class="gi-chart-title"><div><p class="gi-eyebrow">PRICE OVERLAY</p><h4>${escapeHtml(result.symbol || "Ticker")} · log-space Fibonacci bands</h4></div><span>${escapeHtml(result.combined)}</span></div>${priceSvg}${chartLegend([
             { label: "Close", color: "#6fd3ff" }, { label: "Basis", color: result.vfi.value >= result.vfi.signal ? "#54d6b4" : "#e87487" },
             { label: "0.382 / 0.618", color: "#ef5350" }, { label: "0.764 / 1.000", color: "#1b5e20" }
           ])}</section>
@@ -923,6 +925,7 @@
         const marketsView = state.view === "markets";
         const orb2View = state.view === "orb2";
         const nabView = state.view === "nabdiscs";
+        body.querySelector(".gi-app")?.classList.toggle("gi-orb2-active", orb2View);
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;

@@ -10,9 +10,11 @@ const Renderer = globalThis.NabOrbRenderer;
 const Model = globalThis.NabComposites;
 const NAB = globalThis.NabSectors;
 const NOW = Date.parse('2026-10-04T12:00:00Z');
+const FBB_LOG_HALF_WIDTH = Math.log(1.25);
+const closeAtDisplacement = value => 100 * Math.exp(value * FBB_LOG_HALF_WIDTH);
 const registry = Model.catalog({ watchlist: NAB.sectors.map(row => ({ symbol: row.ticker, name: row.company })) });
 const observation = (symbol, close, extras = {}) => ({ channel: 'stocks', symbol, provider: 'massive', interval: '1d', at: NOW, status: 'bars',
-  market: { latestBar: { close }, basis: 100, bands: { lower1000: 80, upper1000: 140 } }, ...extras });
+  market: { latestBar: { close }, basis: 100, bands: { lower1000: 80, upper1000: 125 } }, ...extras });
 const fixture = (observations = [], physical = {}) => NAB.sectors.map(row => Model.compose(row.id, { registry, observations, now: NOW, ...physical }));
 
 test('119 complete composites become distinct stable 3D cores; bank and physical records survive', () => {
@@ -36,13 +38,13 @@ test('119 complete composites become distinct stable 3D cores; bank and physical
 
 test('designated stock alone sets core height; supporting markets keep independent absolute FBB positions', () => {
   const scene = Renderer.buildScene(fixture([
-    observation('V', 120), observation('MA', 90),
+    observation('V', closeAtDisplacement(.5)), observation('MA', closeAtDisplacement(-.5)),
     observation('EURUSD', 80, { channel: 'fx' })
   ]));
   const visa = scene.find(node => node.nabId === 12), mastercard = scene.find(node => node.nabId === 20);
-  assert.equal(visa.displacement, .5);
-  assert.equal(visa.position.y, .5 * Renderer.HEIGHT);
-  assert.equal(mastercard.position.y, -.5 * Renderer.HEIGHT);
+  assert.ok(Math.abs(visa.displacement - .5) < 1e-12);
+  assert.ok(Math.abs(visa.position.y - .5 * Renderer.HEIGHT) < 1e-12);
+  assert.ok(Math.abs(mastercard.position.y + .5 * Renderer.HEIGHT) < 1e-12);
   const fx = visa.members.find(member => member.id === 'fx:EURUSD');
   assert.equal(fx.position.y, -Renderer.HEIGHT, 'not parent height plus offset and not a blended price');
   assert.equal(visa.members.find(member => member.channel === 'central-bank').marketY, null);
@@ -52,10 +54,10 @@ test('designated stock alone sets core height; supporting markets keep independe
 
 test('no clipping, risk-based elevation, provider fallback or manufactured neutral position', () => {
   const scene = Renderer.buildScene(fixture([
-    observation('V', 260), observation('MA', 120, { provider: 'tickerbot', interval: '1h' }),
+    observation('V', closeAtDisplacement(4)), observation('MA', 120, { provider: 'tickerbot', interval: '1h' }),
     observation('CCJ', 80), observation('AXON', 80)
   ]));
-  assert.equal(scene.find(node => node.nabId === 12).position.y, 4 * Renderer.HEIGHT);
+  assert.ok(Math.abs(scene.find(node => node.nabId === 12).position.y - 4 * Renderer.HEIGHT) < 1e-12);
   assert.equal(scene.find(node => node.nabId === 20).marketY, null);
   assert.equal(scene.find(node => node.nabId === 20).known, false);
   assert.ok(scene.find(node => node.nabId === 20).position.x > 13, 'unknown staging is detached from the market plane');
