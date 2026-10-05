@@ -4,7 +4,7 @@ const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_PAYLOAD_BYTES = 40_960;
 const MAX_ROWS_PER_SESSION = 120;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROVIDERS = new Set(["massive", "tickerbot", "alpha", "rehearsal"]);
+const PROVIDERS = new Set(["massive", "tickerbot", "kraken", "rehearsal"]);
 const DISCS = new Set(["stocks", "fx", "crypto", "commodities", "indices"]);
 const json = (data, status = 200) => Response.json(data, {
   status,
@@ -39,7 +39,18 @@ function validateRecord(record, now = Date.now()) {
   if (!validUuid(sessionId) || !validUuid(beatId)) throw new Error("id");
   if (!Number.isSafeInteger(beatAt) || beatAt < 0 || beatAt > now + 5 * 60_000) throw new Error("time");
   if (!PROVIDERS.has(provider) || !DISCS.has(discId)) throw new Error("scope");
-  if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.schema !== "orb2-beat-v1" || !Array.isArray(payload.observations)) throw new Error("payload");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.schema !== "orb2-beat-v1" ||
+      !Array.isArray(payload.observations) || !payload.entry || typeof payload.entry !== "object" || Array.isArray(payload.entry)) throw new Error("payload");
+  const entryDisc = String(payload.entry.disc || "").trim().toLowerCase();
+  const entryProvider = String(payload.entry.provider || "").trim().toLowerCase();
+  const interval = String(payload.entry.interval || "").trim();
+  if (entryDisc !== discId || !interval || interval === "1mo") throw new Error("scope");
+  const activePath = provider === "tickerbot" && discId === "stocks" && ["1h", "1d"].includes(interval) && entryProvider === "tickerbot"
+    || provider === "kraken" && discId === "crypto" && interval === "1d" && entryProvider === "kraken"
+    || provider === "massive" && ["fx", "commodities", "indices"].includes(discId) && interval === "1d" && entryProvider === "massive"
+    || provider === "rehearsal" && ["stocks", "fx", "crypto", "commodities", "indices"].includes(discId) &&
+      ["1h", "1d"].includes(interval) && entryProvider === "synthetic" && payload.entry.source === "rehearsal";
+  if (!activePath) throw new Error("scope");
   const serialized = JSON.stringify(payload);
   if (new TextEncoder().encode(serialized).byteLength > MAX_PAYLOAD_BYTES) throw new Error("size");
   if (payload.observations.length > 200) throw new Error("count");

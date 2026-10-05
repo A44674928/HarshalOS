@@ -1,32 +1,29 @@
 /*
  * HarshalOS — Characters market beat route.
  *
- * Triple-provider boundary:
- *   • Massive: automatic 1d daily bars for all five reviewed Discs.
- *   • Tickerbot: on-demand 15m / 1h / 1d bars for the reviewed Disc1 stock deck; Orb 2 uses 15m as a bounded residual lane.
- *   • Alpha Vantage: Disc1-only explicit 1mo best-performer spotlight.
+ * Three-provider boundary:
+ *   • Tickerbot: the exclusive Disc1 stock provider for daily and on-demand bars;
+ *     Orb 2 also uses its bounded 15m / 1h residual queue.
+ *   • Kraken public Spot: Disc3 rolling-24-hour USD-notional ranking and exact-pair daily OHLC.
+ *   • Massive: reviewed FX, active commodity futures, and index daily bars only.
  *
  * Providers are selected explicitly with ?provider=. The browser includes that
  * parameter on every live beat; legacy URLs get a safe deterministic mapping.
- * No provider key reaches browser code or a response body. Failed outbound
+ * Alpha Vantage/1mo is retired from new reads and writes; archive history is
+ * handled separately and read-only. No provider key reaches browser code or a
+ * response body. Failed outbound
  * requests consume the provider's durable ledger after an atomic claim.
  */
 
 import {
-  TICKERBOT_INTERVALS,
   TICKERBOT_WATCHLIST,
   fetchTickerbotMarketContext,
   isTickerbotSymbol
 } from "./good-intelligence-tickerbot.mjs";
-import { fetchAlphaVantageMonthlyMarketContext } from "./characters-alpha-vantage.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
-import { fetchYahooFinanceDailyMarketContext } from "./characters-yahoo-finance.mjs";
+import { getKrakenDailyMarketContext } from "./characters-kraken.mjs";
+import { claimKrakenCall, readKrakenCallLedger, KRAKEN_PROVIDER_DAILY_LIMIT } from "./kraken-call-ledger.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
-import {
-  ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT,
-  claimAlphaVantageDailyCall,
-  readAlphaVantageDailyCallLedger
-} from "./alpha-vantage-daily-call-ledger.mjs";
 import {
   MASSIVE_PROVIDER_DAILY_LIMIT,
   readMassiveDailyCallLedger
@@ -39,12 +36,11 @@ import "../js/characters-disc-catalog.js";
 export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
 export const CHARACTERS_DEPLOY_ROUTE = "/api/characters/v1/deploy";
 export const MAX_BEAT_SYMBOLS = 12;
-/* Tickerbot's manual planner cadences. Massive's fixed cadence=1 denotes
-   the reviewed daily-bar contract; request pacing is a separate five-per-minute
-   envelope enforced by the shared Massive budget below. */
+/* Tickerbot planner cadences. Massive and Kraken use cadence=1 as a daily-bar
+   contract; their provider pacing is enforced separately by shared Worker gates. */
 export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
-export const MONTHLY_CACHE_HOLD_MS = 60 * 60_000;
-export const MASSIVE_DISCS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
+export const CHARACTERS_TICKERBOT_INTERVALS = Object.freeze(["1h", "1d"]);
+export const MASSIVE_DISCS = Object.freeze(["fx", "commodities", "indices"]);
 const DEFAULT_CADENCE = 15;
 const LANES = Object.freeze(["hot", "sweep"]);
 const MAX_FETCH_CONCURRENCY = 4;
@@ -126,8 +122,7 @@ function stockInstruments() {
     discId: "stocks",
     assetClass: "equity",
     dataShape: "ohlcv",
-    quoteCurrency: "USD",
-    alphaVantage: { function: "TIME_SERIES_MONTHLY", symbol: entry.symbol }
+    quoteCurrency: "USD"
   }));
 }
 
@@ -158,17 +153,19 @@ function parseSymbols(raw, instruments, provider) {
 
 function statusForCode(code) {
   if ([
-    "rate-limit", "budget-exhausted", "alpha-vantage-rate-limit", "alpha-vantage-budget-exhausted",
+    "rate-limit", "budget-exhausted",
     "massive-rate-limit", "massive-budget-exhausted", "crypto-ranking-cooldown",
+    "kraken-rate-limit", "kraken-budget-exhausted", "kraken-bar-cooldown",
     "massive-futures-contract-cooldown", "massive-futures-contract-rate-limited", "massive-futures-contract-circuit-open"
   ].includes(code)) return 429;
   if ([
-    "ledger-unavailable", "alpha-vantage-ledger-unavailable", "massive-ledger-unavailable",
-    "tickerbot-not-configured", "alpha-vantage-not-configured", "massive-not-configured",
+    "ledger-unavailable", "massive-ledger-unavailable",
+    "kraken-ledger-unavailable", "kraken-cache-unavailable", "kraken-cache-write", "kraken-bar-cache-unavailable", "kraken-bar-cache-write", "kraken-bar-cache-unreadable",
+    "tickerbot-not-configured", "massive-not-configured",
     "tickerbot-symbol-not-covered"
   ].includes(code)) return 503;
-  if (["empty", "alpha-vantage-empty", "massive-empty", "massive-futures-contract-unavailable"].includes(code)) return 404;
-  if (["timeout", "alpha-vantage-timeout", "massive-timeout"].includes(code)) return 504;
+  if (["empty", "massive-empty", "massive-futures-contract-unavailable"].includes(code)) return 404;
+  if (["timeout", "massive-timeout", "kraken-timeout"].includes(code)) return 504;
   if (["massive-futures-contract-cache-unavailable", "massive-futures-contract-cache-write", "massive-futures-contract-unauthorized", "massive-futures-product-invalid"].includes(code)) return 503;
   return 502;
 }
@@ -196,17 +193,17 @@ function nextUtcMidnightMs(now) {
   return Date.parse(`${day}T00:00:00.000Z`) + 86_400_000;
 }
 
-function providerFor(url, interval) {
+function providerFor(url, discId) {
   const raw = url.searchParams.get("provider");
   if (raw !== null && raw.trim()) {
     const provider = raw.trim().toLowerCase();
-    return ["massive", "tickerbot", "alpha"].includes(provider) ? provider : null;
+    return ["massive", "tickerbot", "kraken"].includes(provider) ? provider : null;
   }
-  /* Compatibility default. The browser always supplies provider=, while old
-     stock URLs retain their former Tickerbot 1h/1d behavior. `1mo` already
-     meant the explicit Alpha Vantage monthly path before the Massive loop. */
-  if (interval === "1mo") return "alpha";
-  return "tickerbot";
+  /* Compatibility defaults follow provider identity by Disc: Tickerbot owns
+     stocks, Kraken owns crypto, and Massive owns FX/futures/indices. */
+  if (discId === "crypto") return "kraken";
+  if (discId === "stocks") return "tickerbot";
+  return "massive";
 }
 
 function unavailableInstrument({ symbol, instrument, lane, provider, code, message, extra = {} }) {
@@ -232,29 +229,25 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   if (!disc) return failure("Choose a reviewed Characters Disc.", 400);
 
   const interval = (url.searchParams.get("interval") || "1h").trim();
-  const provider = providerFor(url, interval);
+  if (interval === "1mo") {
+    return failure("Characters does not accept new 1mo beats. Alpha Vantage records are legacy history only; Tickerbot is the exclusive Stocks provider.", 400);
+  }
+  const provider = providerFor(url, discId);
   if (!provider) {
-    return failure("Choose provider=massive (automatic daily beats), provider=tickerbot (on-demand stock beats), or provider=alpha (Disc1 monthly beats).", 400);
+    return failure("Choose provider=tickerbot (Disc1 stocks), provider=kraken (Disc3 crypto), or provider=massive (FX/commodities/indices).", 400);
   }
   if (provider === "massive" && interval !== "1d") {
     return failure("Massive Characters beats are restricted to interval=1d.", 400);
   }
-  if (provider === "alpha" && interval !== "1mo") {
-    return failure("Alpha Vantage Characters beats are restricted to interval=1mo.", 400);
+  if (provider === "kraken" && (discId !== "crypto" || interval !== "1d")) {
+    return failure("Kraken public Spot Characters beats are restricted to Disc3 crypto interval=1d.", 400);
   }
-  if (provider === "tickerbot" && !TICKERBOT_INTERVALS.includes(interval)) {
-    return failure(`Choose ${TICKERBOT_INTERVALS.join(" or ")} for Tickerbot, or choose a provider-specific interval.`, 400);
+  if (provider === "tickerbot" && (!CHARACTERS_TICKERBOT_INTERVALS.includes(interval) || discId !== "stocks")) {
+    return failure("Tickerbot serves reviewed Disc1 stocks only at interval=1h or interval=1d in Characters.", 400);
   }
   if (provider === "massive" && !MASSIVE_DISCS.includes(discId)) {
-    return failure("Massive automatic beats cover the stocks, FX, crypto, commodities, and indices Discs.", 400);
+    return failure("Massive serves reviewed FX, commodity-futures, and index daily bars only; stocks and crypto have separate providers.", 400);
   }
-  if (provider === "tickerbot" && discId !== "stocks") {
-    return failure(`Tickerbot on-demand beats cover Disc1 stocks only. Massive serves ${disc.label} automatically at 1d.`, 400);
-  }
-  if (provider === "alpha" && discId !== "stocks") {
-    return failure("Alpha Vantage 1mo is configured only for Disc1 stocks.", 400);
-  }
-
   const rawSymbols = url.searchParams.get("symbols");
   if (typeof rawSymbols !== "string" || !rawSymbols.trim()) return failure("Choose at least one instrument from this Disc.", 400);
   const requestedSymbols = [...new Set(rawSymbols.split(",").map(entry => entry.trim().toUpperCase()).filter(Boolean))];
@@ -263,35 +256,31 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     return failure(`One beat may request at most ${MAX_BEAT_SYMBOLS} instruments; ${requestedSymbols.length} were requested.`, 400);
   }
 
-  /* Fixed automatic loops are deliberately narrower than the manual
-     Tickerbot planner. The browser chooses Massive's LRU berth and Alpha's
-     local best performer; the route enforces that neither provider can be
-     widened into a multi-symbol batch or a different cadence by a crafted URL. */
+  /* Fixed daily provider modes request one reviewed symbol per Worker call.
+     Tickerbot's stock planner remains bounded. The route enforces these
+     provider/cadence contracts against crafted URLs. */
   const cadenceParam = url.searchParams.get("cadence");
   const requestedCadence = Number(cadenceParam);
-  if (provider === "massive" && requestedSymbols.length !== 1) {
-    return failure("Massive automatic daily beats request exactly one reviewed instrument per Worker request; cadence=1 identifies the daily-bar contract.", 400);
+  if (["massive", "kraken"].includes(provider) && requestedSymbols.length !== 1) {
+    return failure(`${provider === "kraken" ? "Kraken" : "Massive"} daily beats request exactly one reviewed instrument per Worker request; cadence=1 identifies the daily-bar contract.`, 400);
   }
-  if (provider === "alpha" && requestedSymbols.length !== 1) {
-    return failure("Alpha Vantage 1mo beats request exactly one locally selected Disc1 ticker per hourly beat.", 400);
-  }
-  if (provider === "massive" && cadenceParam !== null && requestedCadence !== 1) {
-    return failure("Massive automatic daily beats use exactly cadence=1 for the daily-bar contract; request pacing is enforced separately.", 400);
-  }
-  if (provider === "alpha" && cadenceParam !== null && requestedCadence !== 60) {
-    return failure("Alpha Vantage 1mo beats use exactly cadence=60 minutes.", 400);
+  if (["massive", "kraken"].includes(provider) && cadenceParam !== null && requestedCadence !== 1) {
+    return failure(`${provider === "kraken" ? "Kraken" : "Massive"} daily beats use exactly cadence=1 for the daily-bar contract; request pacing is enforced separately.`, 400);
   }
 
   const now = typeof dependencies.now === "function" ? dependencies.now() : Date.now();
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== "function") return failure("No market-data provider is available in this Worker runtime.", 503);
   const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
-  const alphaApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
   const massiveApiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
 
   let allowedInstruments = discId === "stocks" ? stockInstruments() : staticDiscInstruments(discId);
   let cryptoRanking = null;
   let massiveRankingAttempts = 0;
+  let krakenRankingAttempts = 0;
+  let krakenBarAttempts = 0;
+  let krakenDaily = null;
+  let krakenLedgerStatus = "not-applicable";
   let massiveContractAttempts = 0;
   if (provider === "massive" && discId === "commodities") {
     const requestedCommodity = allowedInstruments.find(instrument =>
@@ -319,21 +308,53 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       } : instrument);
     }
   }
-  if (discId === "crypto") {
+  if (provider === "kraken") {
     const rankingResult = await getCharactersCryptoRanking({
-      apiKey: massiveApiKey,
       db: env.COMMUNITY_DB,
       fetcher,
       now,
       timeoutMs: UPSTREAM_TIMEOUT_MS,
       forceRefresh: dependencies.forceCryptoRankingRefresh === true,
       beforeFetch: async () => {
-        const reservation = await reserveMassiveProviderCall({ request, env, now });
-        if (reservation.ok) massiveRankingAttempts = 1;
+        const reserve = dependencies.beforeKrakenFetch || dependencies.beforeFetch;
+        const reservation = typeof reserve === "function"
+          ? await reserve()
+          : await claimKrakenCall(env.COMMUNITY_DB, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+        if (reservation.ok) krakenRankingAttempts = 1;
+        if (reservation.ledger) krakenDaily = reservation.ledger;
+        krakenLedgerStatus = reservation.ok || reservation.ledger ? "ready" : "unavailable";
         return reservation;
       }
     });
-    if (!rankingResult.ok) return failure(rankingResult.message, statusForCode(rankingResult.code));
+    if (!rankingResult.ok) {
+      const ledgerResult = await readKrakenCallLedger(env.COMMUNITY_DB, now);
+      if (ledgerResult.ok && (!krakenDaily || ledgerResult.ledger.calls >= krakenDaily.calls)) krakenDaily = ledgerResult.ledger;
+      krakenLedgerStatus = ledgerResult.ok || krakenDaily ? "ready" : "unavailable";
+      const failureInstruments = requestedSymbols.map(symbol => unavailableInstrument({
+        symbol, instrument: { symbol, displaySymbol: symbol }, lane: null, provider: "kraken",
+        code: rankingResult.code, message: rankingResult.message
+      }));
+      const attemptCount = krakenRankingAttempts;
+      const headers = rankingResult.retryAfterMs > 0
+        ? { "Retry-After": String(Math.max(1, Math.ceil(rankingResult.retryAfterMs / 1000))) }
+        : rankingResult.code === "crypto-ranking-cooldown" ? { "Retry-After": "900" }
+          : {};
+      return json({
+        success: false, message: rankingResult.message, environment: "characters-beat",
+        data: {
+          schema: "characters-beat-v1", disc: discId, provider, beatAt: new Date(now).toISOString(),
+          interval, cadenceMinutes: 1, holdMs: nextUtcMidnightMs(now) - now,
+          instruments: failureInstruments, sourceIdentities: [],
+          spend: {
+            requestedSymbols: requestedSymbols.length, providerAttempts: attemptCount,
+            tickerbotAttempts: 0, massiveAttempts: 0,
+            krakenAttempts: attemptCount, krakenRankingAttempts: attemptCount, krakenBarAttempts: 0,
+            cacheHits: 0, unavailable: failureInstruments.length, krakenDaily, krakenLedgerStatus,
+            note: "Disc3 requires a fresh, validated Kraken Spot rolling-24-hour roster. No stale roster, other venue, or inferred pair identity was substituted."
+          }
+        }
+      }, statusForCode(rankingResult.code), headers);
+    }
     cryptoRanking = rankingResult.ranking;
     allowedInstruments = cryptoRanking.instruments;
   }
@@ -343,23 +364,15 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   if (rejected.length) return failure(`These instruments are not available through ${provider} on ${disc.label}: ${rejected.join(", ")}.`, 400);
 
   const lanes = parseLanes(url.searchParams.get("lanes"));
-  const cadenceMinutes = provider === "massive" ? 1
-    : provider === "alpha" ? 60
+  const cadenceMinutes = provider === "massive" || provider === "kraken" ? 1
+    : interval === "1d" ? 1440
       : (BEAT_CADENCES.includes(requestedCadence) ? requestedCadence : DEFAULT_CADENCE);
 
   if (provider === "tickerbot" && !tickerbotApiKey) {
     return failure("Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret for on-demand stock data.", 503);
   }
-  if (provider === "alpha" && !alphaApiKey) {
-    return failure("Alpha Vantage is not configured. Add the ALPHA_VANTAGE_API_KEY Worker secret for Disc1 1mo data.", 503);
-  }
-  /* Yahoo's chart endpoint is an opt-in gap-filler for reviewed non-stock
-     instruments. It is not yfinance itself: yfinance is Python and cannot run
-     in this Worker. Keep the feature flag explicit so deployments that require
-     Massive-only provenance remain unchanged. */
-  const yahooFallback = String(env.YAHOO_FINANCE_FALLBACK || "").toLowerCase() === "true";
-  if (provider === "massive" && !massiveApiKey && !yahooFallback) {
-    return failure("Massive daily beats are not configured. Add the MASSIVE_API_KEY Worker secret (or enable YAHOO_FINANCE_FALLBACK for reviewed gaps).", 503);
+  if (provider === "massive" && !massiveApiKey) {
+    return failure("Massive daily bars are not configured. Add the MASSIVE_API_KEY Worker secret for reviewed FX, futures, or index data.", 503);
   }
 
   const tickerbotHeld = provider === "tickerbot"
@@ -374,18 +387,21 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   let massiveDaily = massiveHeld.ok ? massiveHeld.ledger : null;
   let massiveLedgerStatus = provider === "massive" ? (massiveHeld.ok ? "ready" : "unavailable") : "not-applicable";
 
-  const alphaHeld = provider === "alpha"
-    ? await readAlphaVantageDailyCallLedger(env.COMMUNITY_DB, now, ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT)
+  const krakenHeld = provider === "kraken"
+    ? await readKrakenCallLedger(env.COMMUNITY_DB, now)
     : { ok: false, reason: "not-applicable" };
-  let alphaVantageDaily = alphaHeld.ok ? alphaHeld.ledger : null;
-  let alphaVantageLedgerStatus = provider === "alpha" ? (alphaHeld.ok ? "ready" : "unavailable") : "not-applicable";
+  if (provider === "kraken" && krakenHeld.ok) {
+    if (!krakenDaily || krakenHeld.ledger.calls >= krakenDaily.calls) krakenDaily = krakenHeld.ledger;
+    krakenLedgerStatus = "ready";
+  } else if (provider === "kraken" && !krakenHeld.ok) {
+    krakenLedgerStatus = "unavailable";
+  }
 
-  const holdMs = provider === "massive"
+  const holdMs = provider === "massive" || provider === "kraken" || (provider === "tickerbot" && interval === "1d")
     ? nextUtcMidnightMs(now) - now
-    : provider === "alpha" ? MONTHLY_CACHE_HOLD_MS : cadenceMinutes * 60_000;
+    : cadenceMinutes * 60_000;
   let tickerbotAttempts = 0;
   let massiveAttempts = 0;
-  let alphaVantageAttempts = 0;
   let cacheHits = 0;
 
   const instruments = await mapWithConcurrency(selected, MAX_FETCH_CONCURRENCY, async instrument => {
@@ -399,6 +415,34 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     }
     if (cached) cache.delete(key);
 
+    if (provider === "kraken") {
+      const result = await getKrakenDailyMarketContext({
+        instrument, db: env.COMMUNITY_DB, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+        beforeFetch: async () => {
+          const reserve = dependencies.beforeKrakenFetch || dependencies.beforeFetch;
+          const reservation = typeof reserve === "function"
+            ? await reserve()
+            : await claimKrakenCall(env.COMMUNITY_DB, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+          if (reservation.ok) krakenBarAttempts += 1;
+          if (reservation.ledger) krakenDaily = reservation.ledger;
+          if (reservation.ok || reservation.ledger) krakenLedgerStatus = "ready";
+          else krakenLedgerStatus = "unavailable";
+          return reservation;
+        }
+      });
+      if (!result.ok) {
+        return unavailableInstrument({
+          symbol, instrument, lane, provider: "kraken", code: result.code, message: result.message,
+          extra: {
+            ...(result.retryAfterMs ? { retryAfterMs: result.retryAfterMs } : {}),
+            ...(result.ledger ? { krakenDaily: result.ledger } : {})
+          }
+        });
+      }
+      cache.set(key, { packet: result.packet, provider: "kraken", expiresAt: nextUtcMidnightMs(now) });
+      return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: result.cached ? "cached" : "bars", lane, provider: "kraken", marketContext: result.packet };
+    }
+
     if (provider === "massive") {
       if (massiveDaily && massiveDaily.exhausted) {
         return unavailableInstrument({
@@ -406,9 +450,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
           message: `The Characters Massive allowance is exhausted for ${massiveDaily.day}: ${massiveDaily.calls.toLocaleString()} of ${massiveDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Massive request was sent.`
         });
       }
-      /* Reserve both shared Massive allowances before provider work. Crypto's
-         grouped ranking used the same helper above, so ranking plus the selected
-         pair's bar request cannot bypass either budget. */
+      /* Reserve both shared Massive allowances before provider work. Only
+         FX, active commodity futures, and indices reach this branch; Kraken's
+         Crypto ranking and pair bars use their separate public-call ledger. */
       const reservation = await reserveMassiveProviderCall({ request, env, now });
       if (!reservation.ok) {
         if (reservation.ledger) massiveDaily = newerDailyLedger(massiveDaily, reservation.ledger);
@@ -434,13 +478,6 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         timeoutMs: UPSTREAM_TIMEOUT_MS,
         dependencies
       });
-      if (!result.ok && yahooFallback && instrument.assetClass !== "equity" && instrument.assetClass !== "commodity") {
-        const yahoo = await fetchYahooFinanceDailyMarketContext({ instrument, symbol, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS });
-        if (yahoo.ok) {
-          cache.set(key, { packet: yahoo.packet, provider: "yahoo-finance", expiresAt: nextUtcMidnightMs(now) });
-          return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "yahoo-finance", marketContext: yahoo.packet };
-        }
-      }
       if (!result.ok) {
         const { retryAfterSeconds, retryAfter, ...rest } = result;
         return unavailableInstrument({
@@ -452,52 +489,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "massive", marketContext: result.packet };
     }
 
-    if (provider === "alpha") {
-      if (alphaVantageDaily && alphaVantageDaily.exhausted) {
-        return unavailableInstrument({
-          symbol, instrument, lane, provider: "alpha-vantage", code: "alpha-vantage-budget-exhausted",
-          message: `The Characters Alpha Vantage allowance is exhausted for ${alphaVantageDaily.day}: ${alphaVantageDaily.calls.toLocaleString()} of ${alphaVantageDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Alpha Vantage request was sent.`
-        });
-      }
-      const claim = await claimAlphaVantageDailyCall(env.COMMUNITY_DB, now, ALPHA_VANTAGE_PROVIDER_DAILY_LIMIT);
-      if (!claim.ok) {
-        if (claim.ledger) alphaVantageDaily = newerDailyLedger(alphaVantageDaily, claim.ledger);
-        alphaVantageLedgerStatus = claim.reason === "alpha-vantage-budget-exhausted" ? "ready" : "unavailable";
-        return unavailableInstrument({
-          symbol, instrument, lane, provider: "alpha-vantage", code: claim.reason, message: claim.message,
-          extra: claim.ledger ? { alphaVantageDaily: claim.ledger } : {}
-        });
-      }
-      alphaVantageDaily = newerDailyLedger(alphaVantageDaily, claim.ledger);
-      alphaVantageLedgerStatus = "ready";
-      alphaVantageAttempts += 1;
-      const result = await fetchAlphaVantageMonthlyMarketContext({
-        instrument: { ...instrument, interval: "1mo" },
-        symbol,
-        apiKey: alphaApiKey,
-        fetcher,
-        now,
-        timeoutMs: UPSTREAM_TIMEOUT_MS,
-        dependencies
-      });
-      if (!result.ok) {
-        const { retryAfterSeconds, retryAfter, ...rest } = result;
-        return unavailableInstrument({
-          symbol, instrument, lane, provider: "alpha-vantage", code: rest.code, message: rest.message,
-          extra: { ...rest, ...(Number(retryAfterSeconds) > 0 ? { retryAfter: String(retryAfterSeconds) } : {}), ...(retryAfter ? { retryAfter: String(retryAfter) } : {}) }
-        });
-      }
-      cache.set(key, { packet: result.packet, provider: "alpha-vantage", expiresAt: now + holdMs });
-      return { symbol, displaySymbol: instrument.displaySymbol || symbol, status: "bars", lane, provider: "alpha-vantage", marketContext: result.packet };
-    }
-
     /* Provider=tickerbot has already been narrowed to Disc1. Keep this local
        allowlist check anyway so an accidental future catalog widening does not
        spend a Tickerbot D1 slot or hit upstream. */
     if (!isTickerbotSymbol(symbol)) {
       return unavailableInstrument({
         symbol, instrument, lane, provider: "tickerbot", code: "tickerbot-symbol-not-covered",
-        message: `${symbol} is not on Tickerbot's reviewed stock allowlist. Massive covers reviewed non-stock Discs automatically at 1d.`
+        message: `${symbol} is not on Tickerbot's reviewed stock allowlist. Massive covers reviewed FX, commodity-futures, and index Discs at 1d; Kraken exclusively serves Crypto.`
       });
     }
     if (durable && durable.exhausted) {
@@ -538,7 +536,8 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const failures = instruments.filter(instrument => instrument.status === "unavailable");
   const succeeded = instruments.length - failures.length;
   const massiveProviderAttempts = massiveAttempts + massiveRankingAttempts + massiveContractAttempts;
-  const providerAttempts = tickerbotAttempts + massiveProviderAttempts + alphaVantageAttempts;
+  const krakenAttempts = krakenRankingAttempts + krakenBarAttempts;
+  const providerAttempts = tickerbotAttempts + massiveProviderAttempts + krakenAttempts;
   const data = {
     schema: "characters-beat-v1",
     disc: discId,
@@ -548,11 +547,15 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     cadenceMinutes,
     holdMs,
     instruments,
-    // Bind dynamic crypto symbols to the reviewed identity used for THIS beat.
+    // Bind dynamic crypto symbols to the exact Kraken pair used for THIS beat.
     sourceIdentities: selected.map(instrument => ({ symbol: instrument.symbol,
       channel: discId, providerId: instrument.providerId || instrument.massiveTicker || null,
+      ...(instrument.rankingProvider ? { rankingProvider: instrument.rankingProvider } : {}),
+      ...(instrument.krakenPair ? { krakenPair: instrument.krakenPair } : {}),
       ...(instrument.massiveContract ? { massiveContract: instrument.massiveContract } : {}) })),
-    ...(cryptoRanking ? { ranking: { provider: cryptoRanking.provider, metric: cryptoRanking.metric, sourceDate: cryptoRanking.sourceDate, rankedAt: cryptoRanking.rankedAt, audit: cryptoRanking.audit } } : {}),
+    ...(cryptoRanking ? { ranking: { provider: cryptoRanking.provider, venue: cryptoRanking.venue,
+      metric: cryptoRanking.metric, sourceWindow: cryptoRanking.sourceWindow, sourceDate: cryptoRanking.sourceDate,
+      rankedAt: cryptoRanking.rankedAt, audit: cryptoRanking.audit } } : {}),
     spend: {
       requestedSymbols: selected.length,
       providerAttempts,
@@ -561,7 +564,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       massiveBarAttempts: massiveAttempts,
       massiveRankingAttempts,
       massiveContractAttempts,
-      alphaVantageAttempts,
+      krakenAttempts,
+      krakenRankingAttempts,
+      krakenBarAttempts,
       cacheHits,
       unavailable: failures.length,
       lanes: {
@@ -573,13 +578,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       ledgerStatus,
       massiveDaily,
       massiveLedgerStatus,
-      alphaVantageDaily,
-      alphaVantageLedgerStatus,
+      krakenDaily,
+      krakenLedgerStatus,
       note: provider === "massive"
-        ? "Massive automatic 1d beats, active futures-contract discovery, and the Massive crypto roster refresh claim the durable per-UTC-day Characters ledger and shared per-minute envelope before upstream work. Daily packets and verified contract identities are cached only through UTC midnight; the grouped crypto roster is D1-cached for one day; failed upstream attempts count conservatively."
-        : provider === "alpha"
-          ? "Alpha Vantage explicit 1mo Disc1 beats claim a separate strict 25-per-UTC-day allowance. Monthly data never substitutes for a daily series."
-          : "Tickerbot on-demand Disc1 stock attempts use the shared 10,000-per-UTC-month Worker allowance. Massive is not used for an on-demand Tickerbot beat."
+        ? "Massive daily bars cover reviewed FX, active futures, and indices only. The shared Massive per-minute envelope and D1 UTC-day ledger are claimed before upstream work; there is no fallback provider."
+        : provider === "kraken"
+          ? "Kraken public Spot supplies Disc3 only. Ranking uses its rolling-24-hour USD notional; exact-pair interval=1440 OHLC packets and the roster are D1-cached. A shared one-request-per-second guard and 160-attempt application ceiling fail closed; no other venue is substituted."
+          : "Tickerbot is the exclusive Disc1 stock provider under the shared 10,000-per-UTC-month Worker allowance. Daily packets are held through UTC midnight; Massive does not serve stocks and Alpha Vantage is not substituted."
     }
   };
 
@@ -587,8 +592,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     const codes = new Set(failures.map(instrument => instrument.code));
     if (codes.size === 1) {
       const [code] = [...codes];
-      const headers = ["rate-limit", "alpha-vantage-rate-limit", "massive-rate-limit"].includes(code)
-        ? { "Retry-After": failures[0].retryAfter || "60" }
+      const retryAfterMs = Number(failures[0].retryAfterMs) || 0;
+      const headers = ["rate-limit", "massive-rate-limit", "kraken-rate-limit", "kraken-budget-exhausted", "kraken-bar-cooldown", "crypto-ranking-cooldown"].includes(code)
+        ? { "Retry-After": failures[0].retryAfter || (retryAfterMs > 0 ? String(Math.max(1, Math.ceil(retryAfterMs / 1000))) : code.startsWith("kraken") ? "1" : "60") }
         : {};
       return json({ success: false, message: failures[0].message, environment: "characters-beat", data }, statusForCode(code), headers);
     }

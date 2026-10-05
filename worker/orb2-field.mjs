@@ -2,10 +2,11 @@
  * HarshalOS — Orb 2 server-side beat field.
  *
  * The beat is a server responsibility. A Cloudflare Cron Trigger calls
- * `runOrb2FieldTick()` every minute; the tick claims the shared provider
- * allowances (Massive's five-per-minute envelope and its durable UTC-day guard,
- * Tickerbot's durable UTC-month ledger), fetches the reviewed instruments that
- * are due, runs the same `js/good-intelligence-market-context.js` evaluation and
+ * `runOrb2FieldTick()` every minute; the tick claims shared provider allowances
+ * (Massive's five-per-minute envelope and UTC-day guard, Kraken's one-per-second
+ * gate and UTC-day safety ceiling, Tickerbot's UTC-month ledger), fetches the
+ * reviewed instruments due for their exclusive provider, runs the same
+ * `js/good-intelligence-market-context.js` evaluation and
  * `js/characters-beat.js` motion directive the browser would have run, and stores
  * one compact observation per instrument in D1.
  *
@@ -44,9 +45,12 @@ import {
 import { availableMassiveBudget } from "./massive.mjs";
 import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
 import {
+  CHARACTERS_CRYPTO_RANKING_SIZE,
   getCharactersCryptoRanking,
   readCharactersCryptoRankingCache
 } from "./characters-crypto-ranking.mjs";
+import { getKrakenDailyMarketContext } from "./characters-kraken.mjs";
+import { claimKrakenCall, readKrakenCallLedger, KRAKEN_PROVIDER_DAILY_LIMIT } from "./kraken-call-ledger.mjs";
 import {
   getMassiveActiveFuturesContract,
   readMassiveFuturesContractState,
@@ -137,7 +141,7 @@ export const ORB2_FIELD_BEAT_TYPES = Object.freeze([
 ]);
 
 const BEAT_TYPE_IDS = new Set(ORB2_FIELD_BEAT_TYPES.map(type => type.id));
-const PROVIDER_IDS = new Set(["massive", "tickerbot"]);
+const PROVIDER_IDS = new Set(["massive", "tickerbot", "kraken"]);
 const STATUSES = new Set(["bars", "cached", "unavailable"]);
 
 const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
@@ -191,9 +195,9 @@ const fieldObservationExpired = (interval, observedAt, now) =>
 
 /**
  * The server field's instrument set, built from the same reviewed catalogs the
- * browser renders: the 52-card roster (with its attributed sector/market-cap
- * metadata), the BIS FX catalog, Massive-ranked USD crypto pairs, Massive-
- * verified active futures contracts, and the reviewed Massive index roster.
+ * browser renders: the 52-card Tickerbot stock roster (with attributed
+ * metadata), the BIS FX catalog, Kraken Spot-ranked USD pairs, Massive-verified
+ * active futures contracts, and the reviewed Massive index roster.
  *
  * A catalog or active contract that is unavailable contributes nothing: the
  * sweep simply does not cover it, and no substitute instrument is invented.
@@ -245,8 +249,8 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
     });
   const indices = statics(catalog && catalog.indices, "indices", "index");
   const crypto = (cryptoRanking && Array.isArray(cryptoRanking.instruments) ? cryptoRanking.instruments : [])
-    .filter(entry => entry && entry.rankingProvider === "Massive" && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")) &&
-      String(entry.massiveTicker || "").toUpperCase() === `X:${String(entry.symbol).toUpperCase()}USD`)
+    .filter(entry => entry && entry.rankingProvider === "Kraken" && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")) &&
+      /^[A-Z0-9]{2,12}\/USD$/.test(String(entry.krakenPair || "")) && entry.providerId === entry.krakenPair)
     .map(entry => Object.freeze({ ...entry, discId: "crypto", assetClass: "crypto" }));
   const instruments = [...stocks, ...fx, ...crypto, ...commodities, ...indices];
   const dxySymbols = dxy && Array.isArray(dxy.COMPONENTS)
@@ -280,12 +284,29 @@ export function sanitizeOrb2FieldObservation(value, now = Date.now()) {
   const discId = text(value.discId, 24).toLowerCase();
   if (!ORB2_FIELD_DISCS.includes(discId)) return { ok: false, message: "Choose a reviewed Disc." };
   const provider = text(value.provider, 24).toLowerCase();
-  if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only Massive and Tickerbot may write the server field." };
+  if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only the reviewed Massive, Tickerbot, and Kraken providers may write the server field." };
   const interval = text(value.interval, 8);
   if (!TICKERBOT_INTERVALS.includes(interval)) return { ok: false, message: "The field stores 15m, 1h, and 1d observations only." };
-  if (provider === "massive" && interval !== "1d") return { ok: false, message: "Massive writes daily field observations only." };
+  if (provider === "massive" && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) {
+    return { ok: false, message: "Massive writes daily FX, commodity-futures, and index observations only." };
+  }
   if (provider === "tickerbot" && (discId !== "stocks" || !TICKERBOT_INTERVALS.includes(interval))) {
     return { ok: false, message: "Tickerbot writes Disc1 stock observations only." };
+  }
+  if (provider === "kraken" && (discId !== "crypto" || interval !== "1d")) {
+    return { ok: false, message: "Kraken writes Disc3 Spot pair daily observations only." };
+  }
+  const krakenPair = text(value.krakenPair, 32).toUpperCase();
+  const providerId = text(value.providerId, 48).toUpperCase();
+  const rankingProvider = text(value.rankingProvider, 24);
+  if (provider === "kraken") {
+    const pairMatch = /^([A-Z0-9]{2,12})\/USD$/.exec(krakenPair);
+    const canonicalSymbol = pairMatch?.[1] === "XBT" ? "BTC" : pairMatch?.[1] === "XDG" ? "DOGE" : pairMatch?.[1];
+    if (!pairMatch || providerId !== krakenPair || rankingProvider !== "Kraken" || canonicalSymbol !== symbol) {
+      return { ok: false, message: "A Kraken observation must retain its exact ranked USD pair identity." };
+    }
+  } else if (krakenPair || rankingProvider) {
+    return { ok: false, message: "A Kraken pair identity cannot be attached to another provider." };
   }
   /* Range-checked, not clamped: a future or pre-2000 timestamp is refused outright
      rather than silently rewritten into the accepted window. */
@@ -326,6 +347,8 @@ export function sanitizeOrb2FieldObservation(value, now = Date.now()) {
       sector: text(value.sector, 64),
       discId,
       provider,
+      ...(providerId ? { providerId } : {}),
+      ...(provider === "kraken" ? { krakenPair, rankingProvider } : {}),
       interval,
       status: STATUSES.has(value.status) ? value.status : "unavailable",
       reason: text(value.reason, 48) || "server-sweep",
@@ -365,8 +388,8 @@ export function orb2FieldBeatTypesFor(observation) {
  * server so every client renders the same directive.
  */
 export function observationFromPacket({
-  packet, symbol, displaySymbol, name, sector, discId, provider, interval = "1d", now = Date.now(),
-  reason = "server-sweep", beatId = uuid(), composition = null
+  packet, symbol, displaySymbol, name, sector, discId, provider, providerId = null, krakenPair = null,
+  rankingProvider = null, interval = "1d", now = Date.now(), reason = "server-sweep", beatId = uuid(), composition = null
 }) {
   const marketContext = globalThis.GoodIntelligenceMarketContext;
   const beat = globalThis.CharactersBeat;
@@ -424,8 +447,10 @@ export function observationFromPacket({
   } : null;
   const candidate = {
     schema: ORB2_FIELD_OBSERVATION_SCHEMA,
-    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider, interval,
-    status: "bars", reason, code: "", message: "", beatId,
+    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider,
+    ...(providerId || packet.providerId ? { providerId: providerId || packet.providerId } : {}),
+    ...(krakenPair ? { krakenPair, rankingProvider: rankingProvider || "Kraken" } : {}),
+    interval, status: "bars", reason, code: "", message: "", beatId,
     observedAt: now,
     barTime: latestBar && Number.isFinite(Number(latestBar.time)) ? Number(latestBar.time) : null,
     confirmed: Boolean(latestBar && latestBar.confirmed === true),
@@ -437,15 +462,17 @@ export function observationFromPacket({
 
 /** A held berth: an explicit, validated refusal with the same shape. */
 export function heldFieldObservation({
-  symbol, displaySymbol, name, sector, discId, provider, interval = "1d", now = Date.now(),
-  reason = "server-sweep", code = "", message = ""
+  symbol, displaySymbol, name, sector, discId, provider, providerId = null, krakenPair = null,
+  rankingProvider = null, interval = "1d", now = Date.now(), reason = "server-sweep", code = "", message = ""
 }) {
   const beat = globalThis.CharactersBeat;
   const motion = beat ? beat.motion(null, { bearingBase: 0 }) : null;
   const candidate = {
     schema: ORB2_FIELD_OBSERVATION_SCHEMA,
-    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider, interval,
-    status: "unavailable", reason, code, message, beatId: uuid(),
+    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider,
+    ...(providerId ? { providerId } : {}),
+    ...(krakenPair ? { krakenPair, rankingProvider: rankingProvider || "Kraken" } : {}),
+    interval, status: "unavailable", reason, code, message, beatId: uuid(),
     observedAt: now, barTime: null, confirmed: false, market: null, motion
   };
   const parsed = sanitizeOrb2FieldObservation(candidate, now);
@@ -460,7 +487,7 @@ async function ensureRunRow(db, now) {
 }
 
 async function readRun(db, now) {
-  return (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, sweeps_completed, last_tick_at,
+  return (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, kraken_calls, sweeps_completed, last_tick_at,
       last_observation_at, last_sweep_completed_at, last_error, lock_owner, lock_at, updated_at
     FROM orb2_field_runs WHERE utc_day = ?`).bind(utcDay(now)).first()) ?? null;
 }
@@ -541,13 +568,13 @@ async function releaseTickLease(db, now, owner) {
     .bind(now, utcDay(now), owner).run();
 }
 
-async function recordTickResult(db, { now, massiveCalls = 0, tickerbotCalls = 0, observed = 0, error = "" }) {
+async function recordTickResult(db, { now, massiveCalls = 0, tickerbotCalls = 0, krakenCalls = 0, observed = 0, error = "" }) {
   await db.prepare(`UPDATE orb2_field_runs SET
-      massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?,
+      massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?, kraken_calls = kraken_calls + ?,
       last_tick_at = ?, last_observation_at = COALESCE(CASE WHEN ? > 0 THEN ? ELSE NULL END, last_observation_at),
       last_error = ?, updated_at = ?
     WHERE utc_day = ?`)
-    .bind(massiveCalls, tickerbotCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
+    .bind(massiveCalls, tickerbotCalls, krakenCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
 }
 
 /** Evidence that one full stock sweep has finished since the last one. */
@@ -674,16 +701,33 @@ async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }
 }
 
 async function beatTickerbot({ env, db, instrument, interval, now, fetcher, keys }) {
-  if (!keys.tickerbot) return { ok: false, code: "tickerbot-not-configured", message: "Add the TICKERBOT_API_KEY Worker secret to enable the warm burst." };
-  if (!isTickerbotSymbol(instrument.symbol)) return { ok: false, code: "tickerbot-symbol-not-covered", message: "This symbol is not on the reviewed Tickerbot stock list." };
+  if (!keys.tickerbot) return { ok: false, attempted: false, code: "tickerbot-not-configured", message: "Add the TICKERBOT_API_KEY Worker secret to enable the stock field." };
+  if (!isTickerbotSymbol(instrument.symbol)) return { ok: false, attempted: false, code: "tickerbot-symbol-not-covered", message: "This symbol is not on the reviewed Tickerbot stock list." };
   const claim = await claimTickerbotCall(db, now);
-  if (!claim.ok) return { ok: false, code: claim.reason, message: claim.message };
+  if (!claim.ok) return { ok: false, attempted: false, code: claim.reason, message: claim.message };
   const result = await fetchTickerbotMarketContext({
     symbol: instrument.symbol, interval, apiKey: keys.tickerbot, fetcher, now,
     timeoutMs: UPSTREAM_TIMEOUT_MS, logFailure: true
   });
-  if (!result.ok) return { ok: false, code: result.code, message: result.message };
-  return { ok: true, packet: result.packet, calls: 1 };
+  if (!result.ok) return { ok: false, attempted: true, code: result.code, message: result.message };
+  return { ok: true, attempted: true, packet: result.packet, calls: 1 };
+}
+
+async function beatKraken({ db, instrument, now, fetcher, summary }) {
+  let attempted = false;
+  const result = await getKrakenDailyMarketContext({
+    instrument, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+    beforeFetch: async () => {
+      const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+      if (reservation.ok) {
+        attempted = true;
+        summary.krakenCalls += 1;
+      }
+      return reservation;
+    }
+  });
+  if (!result.ok) return { ok: false, attempted, code: result.code, message: result.message, retryAfterMs: result.retryAfterMs };
+  return { ok: true, attempted, packet: result.packet, cached: result.cached === true, calls: attempted ? 1 : 0 };
 }
 
 async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary }) {
@@ -732,12 +776,12 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
   const now = nowOf(dependencies);
   const db = env.COMMUNITY_DB;
   const summary = {
-    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, tickerbotCalls: 0,
+    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     observed: 0, held: 0, queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, sweepsCompleted: 0,
     notes: [], errors: []
   };
   if (!db || typeof db.prepare !== "function") {
-    summary.errors.push("Bind COMMUNITY_DB and apply D1 migration 0009 before the server field can run.");
+    summary.errors.push("Bind COMMUNITY_DB and apply community migrations through 0012 before the server field can run.");
     return summary;
   }
   const fetcher = dependencies.fetch || globalThis.fetch;
@@ -755,28 +799,26 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     const control = await readControl(db);
     const run = await readRun(db, now);
 
-    /* Disc3's roster and bars are both Massive data. The grouped daily ranking
-       is read from D1 on every tick and refreshed only after its cache expires;
-       the one ranking call reserves the same per-minute and UTC-day budgets as
-       every per-instrument beat. Failed refreshes leave Disc3 held, never stale. */
+    /* Disc3 is Kraken Spot only. The rolling-24-hour venue roster is read from
+       the shared D1 cache and refreshed only after expiry; the Ticker call and
+       each exact-pair OHLC call share Kraken's one-request-per-second gate and
+       conservative UTC-day application ceiling. An unavailable ranking holds
+       Disc3 rather than borrowing a Massive roster. */
     let cryptoRanking = null;
-    let rankingAttempted = false;
     try {
       const rankingResult = await getCharactersCryptoRanking({
-        apiKey: keys.massive, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+        db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
         beforeFetch: async () => {
-          if (!keys.massive) return { ok: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to load Disc3." };
-          const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
-          if (reservation.ok) rankingAttempted = true;
+          const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+          if (reservation.ok) summary.krakenCalls += 1;
           return reservation;
         }
       });
       if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
-      else if (rankingResult.code !== "crypto-ranking-cooldown" && rankingResult.code !== "crypto-ranking-cache-miss") {
-        summary.notes.push(`Crypto ranking held: ${rankingResult.message}`);
+      else if (!new Set(["crypto-ranking-cooldown", "crypto-ranking-cache-miss", "kraken-rate-limit", "kraken-budget-exhausted"]).has(rankingResult.code)) {
+        summary.notes.push(`Kraken crypto ranking held: ${rankingResult.message}`);
       }
-    } catch { summary.notes.push("Crypto ranking held: Massive's grouped daily ranking could not be read."); }
-    if (rankingAttempted) summary.massiveCalls += 1;
+    } catch { summary.notes.push("Kraken crypto ranking held: the D1 roster could not be read."); }
 
     const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary });
     const roster = orb2FieldRoster({
@@ -805,7 +847,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
           ...(firstDeployWarm ? { deployWarmAt: now } : { manualWarmAt: now }),
           warmBursts: (Number(control && control.warm_bursts) || 0) + 1
         }, now);
-        summary.notes.push(`Field warm burst queued: ${summary.warmEnqueued} Tickerbot jobs.`);
+        summary.notes.push(`Tickerbot stock warm burst queued: ${summary.warmEnqueued} jobs across 15m, 1h, and 1d.`);
       }
     }
 
@@ -816,7 +858,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     if (!keys.tickerbot) {
       const waiting = await queueDepth(db, now);
       if (waiting.pending > 0) {
-        summary.notes.push(`${waiting.pending} queued Tickerbot job${waiting.pending === 1 ? "" : "s"} waiting: add the TICKERBOT_API_KEY Worker secret to drain them. The Massive rotation is unaffected.`);
+        summary.notes.push(`${waiting.pending} queued Tickerbot stock job${waiting.pending === 1 ? "" : "s"} waiting: add the TICKERBOT_API_KEY Worker secret to drain them. Kraken and Massive non-stock lanes are unaffected.`);
       }
     }
     const queued = keys.tickerbot ? await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK) : [];
@@ -834,6 +876,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       });
       for (const outcome of outcomes) {
         const { job } = outcome;
+        if (outcome.attempted) summary.tickerbotCalls += 1;
         if (outcome.ok) {
           const observation = observationFromPacket({
             packet: outcome.packet, symbol: job.symbol, displaySymbol: instrumentDisplay(instrumentsBySymbol.get(job.symbol)),
@@ -844,8 +887,6 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
           if (observation) {
             await writeObservation(db, observation, now);
             summary.observed += 1;
-            if (observation.provider === "massive") summary.massiveCalls += 1;
-            else summary.tickerbotCalls += 1;
             summary.queueCompleted += 1;
             await resolveQueueRow(db, job.id, { keep: false });
             continue;
@@ -858,24 +899,80 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       }
     }
 
-    /* 3 · The continuous Massive rotation. Five requests per minute is the
-       provider envelope; the durable UTC-day guard decides how long that can
-       continue. Ordering is least-recently-observed, so the whole field cycles
-       evenly instead of re-confirming the same berth. */
+    /* 3 · Tickerbot exclusively owns Stocks. Refresh one expired daily stock
+       packet per cron tick after queued 15m/1h work; the 24-hour freshness gate
+       means a complete 52-symbol rotation costs about 52 calls per day, rather
+       than repeatedly sweeping the deck. The shared monthly ledger is the cap. */
+    if (!keys.tickerbot) {
+      if (roster.stocks.length) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
+    } else {
+      const stockRotation = await dueRotation(db, roster.stocks, 1, now, "tickerbot");
+      for (const entry of stockRotation) {
+        const instrument = entry.instrument;
+        const outcome = await beatTickerbot({ env, db, instrument, interval: "1d", now, fetcher, keys });
+        if (outcome.attempted) summary.tickerbotCalls += 1;
+        if (outcome.ok) {
+          const observation = observationFromPacket({
+            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
+            provider: "tickerbot", providerId: instrument.providerId || instrument.symbol,
+            interval: "1d", now, reason: "server-sweep"
+          });
+          if (observation) {
+            await writeObservation(db, observation, now);
+            summary.observed += 1;
+            continue;
+          }
+        }
+        summary.held += 1;
+        summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Tickerbot did not answer"}`);
+      }
+    }
+
+    /* 4 · Kraken owns Disc3. One expired pair is refreshed per tick; the
+       rolling-24-hour roster refresh and exact-pair daily OHLC are separately
+       paced calls, so a roster fetch can postpone pair bars until the next tick. */
+    if (!cryptoRanking || !roster.crypto.length) {
+      summary.notes.push("Disc3 is held: the Kraken Spot rolling-24-hour roster is not available; no other venue is used.");
+    } else {
+      const cryptoRotation = await dueRotation(db, roster.crypto.slice(0, CHARACTERS_CRYPTO_RANKING_SIZE), 1, now, "kraken");
+      for (const entry of cryptoRotation) {
+        const instrument = entry.instrument;
+        const outcome = await beatKraken({ db, instrument, now, fetcher, summary });
+        if (outcome.ok) {
+          const observation = observationFromPacket({
+            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "crypto",
+            provider: "kraken", providerId: instrument.providerId, krakenPair: instrument.krakenPair,
+            rankingProvider: instrument.rankingProvider, interval: "1d", now, reason: "server-sweep"
+          });
+          if (observation) {
+            await writeObservation(db, observation, now);
+            summary.observed += 1;
+            continue;
+          }
+        }
+        summary.held += 1;
+        summary.errors.push(`${instrument.krakenPair || instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Kraken did not answer"}`);
+      }
+    }
+
+    /* 5 · Massive is limited to reviewed FX, active commodity futures, and
+       indices. Five requests per minute and the durable UTC-day guard apply. */
+    const massiveInstruments = roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId));
     const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
     const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
     const minuteRemaining = availableMassiveBudget(CRON_REQUEST, env, now).remaining;
     const slots = Math.max(0, Math.min(ORB2_MASSIVE_PER_MINUTE, minuteRemaining, dailyRemaining));
     if (!keys.massive) {
-      summary.notes.push("Massive is not configured; only the Tickerbot queue lanes can run.");
+      summary.notes.push("Massive FX/futures/index lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
     } else if (!massiveLedger.ok) {
       summary.errors.push(massiveLedger.message);
     } else if (slots > 0) {
-      /* All five Discs rotate: Discs 3-5 (crypto, commodities, indices) were
-         previously outside this lane and only Disc1/Disc2 were populated. The
-         selection reserves one berth per Disc with expired work, so a cold
-         five-Disc field warms evenly instead of filling from one Disc's deck. */
-      const rotation = await dueRotation(db, roster.instruments, slots, now);
+      /* The rotation reserves one expired berth per Massive-reviewed Disc
+         before filling remaining slots oldest-first. Stocks and crypto never
+         enter this provider lane. */
+      const rotation = await dueRotation(db, massiveInstruments, slots, now, "massive");
       const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
         entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
       }));
@@ -898,12 +995,12 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
       }
     } else if (massiveLedger.ok && massiveLedger.ledger.exhausted) {
-      summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); the queue continues on Tickerbot.`);
+      summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); Tickerbot stock and Kraken crypto lanes are separately accounted.`);
     }
 
     summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
     await recordTickResult(db, {
-      now, massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls,
+      now, massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
       observed: summary.observed, error: summary.errors.length ? summary.errors[0] : ""
     });
     summary.ok = true;
@@ -971,12 +1068,17 @@ export function orb2FieldRotationSelection(entries, limit) {
   return picked;
 }
 
-async function dueRotation(db, instruments, limit, now = Date.now()) {
+async function dueRotation(db, instruments, limit, now = Date.now(), provider = null) {
   if (!instruments.length || limit <= 0) return [];
   const placeholders = instruments.map(() => "?").join(",");
-  const rows = await db.prepare(`SELECT symbol, observed_at FROM orb2_field_observations
+  const rows = await db.prepare(`SELECT symbol, disc_id, provider, observed_at FROM orb2_field_observations
     WHERE interval = '1d' AND symbol IN (${placeholders})`).bind(...instruments.map(instrument => instrument.symbol)).all();
+  const instrumentBySymbol = new Map(instruments.map(instrument => [instrument.symbol, instrument]));
   const observed = new Map((Array.isArray(rows && rows.results) ? rows.results : [])
+    .filter(row => {
+      const instrument = instrumentBySymbol.get(String(row.symbol));
+      return instrument && String(row.disc_id) === instrument.discId && (!provider || String(row.provider) === provider);
+    })
     .map(row => [String(row.symbol), Number(row.observed_at) || 0]));
   const expired = [...instruments]
     .map(instrument => ({ instrument, observedAt: observed.get(instrument.symbol) || 0 }))
@@ -1014,7 +1116,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
   const now = finite(Number(options.now)) ? Number(options.now) : Date.now();
   const db = env.COMMUNITY_DB;
   if (!db || typeof db.prepare !== "function") {
-    return { ok: false, code: "field-db-unavailable", message: "The Orb 2 server field needs the COMMUNITY_DB binding and D1 migration 0009. No fallback source is used." };
+    return { ok: false, code: "field-db-unavailable", message: "The Orb 2 server field needs the COMMUNITY_DB binding and community migrations through 0012. No fallback source is used." };
   }
   const interval = ORB2_FIELD_INTERVALS.includes(options.interval) ? options.interval : ORB2_FIELD_DEFAULT_INTERVAL;
   const disc = ORB2_FIELD_DISCS.includes(options.disc) ? options.disc : null;
@@ -1122,6 +1224,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     const control = await readControl(db);
     const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
     const tickerbotLedger = await readTickerbotCallLedger(db, now);
+    const krakenLedger = await readKrakenCallLedger(db, now);
     const queue = await queueDepth(db, now);
     const dxy = await evaluateDxy(db, now);
     const status = {
@@ -1145,6 +1248,20 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         exhausted: massiveLedger.ok ? massiveLedger.ledger.exhausted : null,
         ledger: massiveLedger.ok ? "ready" : "unavailable",
         note: massiveLedger.ok ? massiveLedger.ledger.note : massiveLedger.message
+      },
+      kraken: {
+        callsToday: Number(run && run.kraken_calls) || 0,
+        dailyLimit: krakenLedger.ok ? krakenLedger.ledger.dailyLimit : KRAKEN_PROVIDER_DAILY_LIMIT,
+        perSecond: 1,
+        remainingToday: krakenLedger.ok ? krakenLedger.ledger.remaining : null,
+        exhausted: krakenLedger.ok ? krakenLedger.ledger.exhausted : null,
+        ledger: krakenLedger.ok ? "ready" : "unavailable",
+        ranking: cachedCryptoRanking.ok ? {
+          provider: "Kraken", venue: "Kraken Spot", metric: cachedCryptoRanking.ranking.metric,
+          sourceWindow: cachedCryptoRanking.ranking.sourceWindow, rankedAt: cachedCryptoRanking.ranking.rankedAt,
+          cached: true
+        } : null,
+        note: krakenLedger.ok ? krakenLedger.ledger.note : krakenLedger.message
       },
       futuresContracts: {
         cache: cachedFutures.ok ? "ready" : "unavailable",
@@ -1198,7 +1315,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
   } catch (error) {
     return {
       ok: false, code: "field-read-failed",
-      message: "The Orb 2 server field could not be read. Confirm D1 migration 0009 is applied; the live field is unchanged.",
+      message: "The Orb 2 server field could not be read. Confirm community migrations through 0012 are applied; the live field is unchanged.",
       detail: text(error && error.message, 120)
     };
   }
@@ -1273,9 +1390,13 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
   }
   const now = nowOf(dependencies);
   if (request.method === "GET") {
+    const requestedInterval = url.searchParams.get("interval");
+    if (requestedInterval !== null && !ORB2_FIELD_INTERVALS.includes(requestedInterval.trim())) {
+      return failure("Choose one of the stored Orb 2 intervals: 15m, 1h, or 1d.", 400);
+    }
     const snapshot = await readOrb2FieldSnapshot(env, {
       now,
-      interval: (url.searchParams.get("interval") || ORB2_FIELD_DEFAULT_INTERVAL).trim(),
+      interval: (requestedInterval || ORB2_FIELD_DEFAULT_INTERVAL).trim(),
       disc: (url.searchParams.get("disc") || "").trim().toLowerCase() || null,
       symbols: (url.searchParams.get("symbols") || "").split(",").map(symbol => symbol.trim()).filter(Boolean),
       types: (url.searchParams.get("types") || "").split(",").map(type => type.trim().toLowerCase()).filter(Boolean)
@@ -1287,7 +1408,7 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
   if (request.headers.get("Origin") !== url.origin) return failure("Same-origin request required.", 403);
   const db = env.COMMUNITY_DB;
   if (!db || typeof db.prepare !== "function") {
-    return failure("The Orb 2 server field needs the COMMUNITY_DB binding and D1 migration 0009. No fallback source is used.", 503);
+    return failure("The Orb 2 server field needs the COMMUNITY_DB binding and community migrations through 0012. No fallback source is used.", 503);
   }
   const body = await readBody(request);
   if (!body.ok) return failure(body.message, body.status);
@@ -1296,7 +1417,11 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
     return failure(`Send one ${ORB2_FIELD_REQUEST_SCHEMA} record.`, 400);
   }
   const action = text(value.action, 24).toLowerCase();
-  const interval = TICKERBOT_INTERVALS.includes(text(value.interval, 8)) ? text(value.interval, 8) : ORB2_FIELD_DEFAULT_INTERVAL;
+  const requestedInterval = text(value.interval, 8);
+  const interval = requestedInterval || ORB2_FIELD_DEFAULT_INTERVAL;
+  if (!ORB2_FIELD_INTERVALS.includes(interval)) {
+    return failure("Choose one of the stored Orb 2 intervals: 15m, 1h, or 1d.", 400);
+  }
 
   if (action === "tick") {
     /* Manual is a choice, not a repair. A same-origin client may ask the server to
@@ -1315,12 +1440,12 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
       data: {
         schema: ORB2_FIELD_REQUEST_SCHEMA, action: "tick", interval, queue,
         summary: {
-          massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls,
+          massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
           observed: summary.observed, held: summary.held, queueClaimed: summary.queueClaimed,
           queueCompleted: summary.queueCompleted, warmEnqueued: summary.warmEnqueued,
           sweepsCompleted: summary.sweepsCompleted
         },
-        notes: summary.notes, marketRequestSent: summary.massiveCalls + summary.tickerbotCalls > 0
+        notes: summary.notes, marketRequestSent: summary.massiveCalls + summary.tickerbotCalls + summary.krakenCalls > 0
       }
     }, summary.ok ? 200 : 503);
   }
@@ -1362,8 +1487,12 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
     const newestRow = await db.prepare("SELECT MAX(observed_at) AS newest FROM orb2_field_observations").first();
     const newest = Number(newestRow && newestRow.newest) || 0;
     const cold = newest === 0 || now - newest > ORB2_FIELD_COLD_MS;
-    const intervals = (Array.isArray(value.intervals) ? value.intervals : ORB2_FIELD_WARM_INTERVALS)
-      .filter(item => ORB2_FIELD_WARM_INTERVALS.includes(item));
+    const requestedIntervals = (Array.isArray(value.intervals) ? value.intervals : ORB2_FIELD_WARM_INTERVALS)
+      .map(item => text(item, 8));
+    if (!requestedIntervals.length || requestedIntervals.some(item => !ORB2_FIELD_INTERVALS.includes(item))) {
+      return failure("Warm intervals must be selected from 15m, 1h, and 1d.", 400);
+    }
+    const intervals = [...new Set(requestedIntervals)];
     if (!cold && now - lastWarm < ORB2_FIELD_WARM_COOLDOWN_MS) {
       return failure(`A warm burst already ran within the last ${Math.round(ORB2_FIELD_WARM_COOLDOWN_MS / 60_000)} minutes. The continuous rotation is still running; no Tickerbot calls were queued.`, 429);
     }

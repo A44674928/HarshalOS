@@ -17,8 +17,8 @@ const MAX_BODY_BYTES = 48 * 1024;
 const MAX_BEAT_BYTES = 40 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DISC_IDS = new Set(["stocks", "fx", "crypto", "commodities", "indices"]);
-const PROVIDERS = new Set(["massive", "tickerbot", "alpha", "rehearsal"]);
-const INTERVALS = new Set(["15m", "1h", "1d", "1mo"]);
+const PROVIDERS = new Set(["massive", "tickerbot", "kraken", "rehearsal"]);
+const INTERVALS = new Set(["15m", "1h", "1d"]);
 const STATUSES = new Set(["bars", "cached", "rehearsal", "unavailable"]);
 const ANALYSIS_STATUSES = new Set(["ready", "partial", "warming-up", "no-data", "unavailable", "missing", "unknown"]);
 const DATA_SHAPES = new Set(["ohlcv", "ohlc", "value", "unknown"]);
@@ -186,13 +186,23 @@ function safeInstrument(value, provider) {
   const symbol = text(value.symbol, 32).toUpperCase();
   if (!/^[A-Z0-9][A-Z0-9._:-]{0,31}$/.test(symbol)) return null;
   const status = STATUSES.has(value.status) ? value.status : "unavailable";
-  const allowedProvider = provider === "alpha" ? "alpha-vantage" : provider === "rehearsal" ? "synthetic" : provider;
+  const allowedProvider = provider === "rehearsal" ? "synthetic" : provider;
   const instrumentProvider = text(value.provider, 24) || allowedProvider;
   if (instrumentProvider !== allowedProvider) return null;
+  const providerId = text(value.providerId, 48).toUpperCase();
+  const krakenPair = text(value.krakenPair, 32).toUpperCase();
+  const rankingProvider = text(value.rankingProvider, 24);
+  if (provider === "kraken") {
+    const pairMatch = /^([A-Z0-9]{2,12})\/USD$/.exec(krakenPair);
+    const canonicalSymbol = pairMatch?.[1] === "XBT" ? "BTC" : pairMatch?.[1] === "XDG" ? "DOGE" : pairMatch?.[1];
+    if (!pairMatch || providerId !== krakenPair || rankingProvider !== "Kraken" || canonicalSymbol !== symbol) return null;
+  } else if (krakenPair || rankingProvider) return null;
   const lane = value.lane === "hot" || value.lane === "sweep" ? value.lane : null;
   return {
     symbol,
     displaySymbol: text(value.displaySymbol, 48) || symbol,
+    ...(providerId ? { providerId } : {}),
+    ...(provider === "kraken" ? { krakenPair, rankingProvider } : {}),
     status,
     provider: allowedProvider,
     code: /^[a-z0-9-]{1,48}$/i.test(String(value.code || "")) ? String(value.code) : "",
@@ -215,13 +225,10 @@ export function sanitizeOrb2Beat(value, now = Date.now()) {
   if (!DISC_IDS.has(discId) || !PROVIDERS.has(provider) || !INTERVALS.has(interval)) {
     return { ok: false, message: "Choose a reviewed Disc, provider, and interval." };
   }
-  if ((provider === "massive" && interval !== "1d") ||
+  if ((provider === "massive" && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) ||
       (provider === "tickerbot" && (discId !== "stocks" || !["15m", "1h", "1d"].includes(interval))) ||
-      (provider === "alpha" && (discId !== "stocks" || interval !== "1mo"))) {
+      (provider === "kraken" && (discId !== "crypto" || interval !== "1d"))) {
     return { ok: false, message: "The provider, Disc, and interval combination is not supported." };
-  }
-  if (provider === "massive" && !["stocks", "fx", "crypto", "commodities", "indices"].includes(discId)) {
-    return { ok: false, message: "Massive is limited to the five reviewed Characters Discs." };
   }
   const minTimestamp = Date.parse("2000-01-01T00:00:00.000Z");
   const maxTimestamp = Math.floor(now + 300_000);

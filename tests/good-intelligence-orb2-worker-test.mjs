@@ -24,9 +24,8 @@ function id(number) {
 
 function beat(number, overrides = {}) {
   const at = NOW + number * 1000;
-  const provider = overrides.provider || "massive";
-  const instrumentProvider = provider === "alpha" ? "alpha-vantage"
-    : provider === "rehearsal" ? "synthetic" : provider;
+  const provider = overrides.provider || "tickerbot";
+  const instrumentProvider = provider === "rehearsal" ? "synthetic" : provider;
   const symbol = overrides.symbol || "AAPL";
   return {
     schema: "gi-orb2-beat-v1",
@@ -35,8 +34,8 @@ function beat(number, overrides = {}) {
     reason: "manual",
     discId: "stocks",
     provider,
-    interval: provider === "alpha" ? "1mo" : provider === "tickerbot" ? "1d" : "1d",
-    cadenceMinutes: provider === "massive" ? 1 : provider === "alpha" ? 60 : 15,
+    interval: "1d",
+    cadenceMinutes: provider === "massive" || provider === "kraken" ? 1 : 15,
     calls: 1,
     cacheHits: 0,
     instruments: [{
@@ -50,7 +49,7 @@ function beat(number, overrides = {}) {
       market: {
         status: "ready",
         source: "fixture provider OHLCV",
-        timeframe: provider === "alpha" ? "1mo" : "1d",
+        timeframe: "1d",
         dataShape: "ohlcv",
         synthetic: provider === "rehearsal",
         barCount: 80,
@@ -156,24 +155,24 @@ test("Orb 2 sanitizer accepts the shared Characters snapshot and refuses unsuppo
   assert.equal(clean.beat.instruments[0].market.latestBar.close, 101);
   assert.equal(clean.beat.instruments[0].motion.npc.formation, "ring");
   const fxCandidate = beat(1, {
-    reason: "ignition", discId: "fx",
-    instruments: [{ ...candidate.instruments[0], symbol: "EURUSD", displaySymbol: "EUR/USD" }]
+    reason: "ignition", discId: "fx", provider: "massive", cadenceMinutes: 1,
+    instruments: [{ ...candidate.instruments[0], symbol: "EURUSD", displaySymbol: "EUR/USD", provider: "massive" }]
   });
   const cleanIgnition = sanitizeOrb2Beat(fxCandidate, NOW + 300_000);
   assert.equal(cleanIgnition.ok, true);
   assert.equal(cleanIgnition.beat.reason, "ignition");
   assert.equal(cleanIgnition.beat.discId, "fx");
 
-  assert.equal(sanitizeOrb2Beat({ ...candidate, interval: "1h" }, NOW + 300_000).ok, false,
+  assert.equal(sanitizeOrb2Beat({ ...fxCandidate, interval: "1h" }, NOW + 300_000).ok, false,
     "Massive cannot be stored under a non-daily interval");
   assert.equal(sanitizeOrb2Beat({ ...candidate, provider: "tickerbot", discId: "fx" }, NOW + 300_000).ok, false,
     "Tickerbot history remains Disc1-only");
   assert.equal(sanitizeOrb2Beat({ ...candidate, provider: "alpha", interval: "1mo" }, NOW + 300_000).ok, false,
-    "Alpha Vantage must use the separate monthly Disc1 path and matching instrument provider");
+    "Alpha Vantage is not an active Orb 2 provider");
   const mismatched = beat(1);
-  mismatched.instruments[0].provider = "tickerbot";
+  mismatched.instruments[0].provider = "massive";
   assert.equal(sanitizeOrb2Beat(mismatched, NOW + 300_000).ok, false,
-    "a client cannot label another provider's observation as Massive");
+    "a client cannot label a Tickerbot observation as Massive");
   assert.equal(sanitizeOrb2Beat({ ...candidate, at: NOW + 600_000 }, NOW).ok, false,
     "future timestamps are bounded");
   assert.equal(sanitizeOrb2Beat({ ...candidate, instruments: Array(13).fill(candidate.instruments[0]) }, NOW + 300_000).ok, false,

@@ -55,7 +55,7 @@ function env(db, extra = {}) {
 test("the Massive daily adapter uses fixed reviewed paths, a bearer header, and actual daily-bar shape", async () => {
   const requests = [];
   const result = await fetchMassiveDailyMarketContext({
-    instrument: { symbol: "AAPL", assetClass: "equity", interval: "1d" },
+    instrument: { symbol: "EURUSD", assetClass: "fx", interval: "1d" },
     apiKey: MASSIVE_KEY,
     now: NOW,
     fetcher: async (input, options) => {
@@ -68,7 +68,7 @@ test("the Massive daily adapter uses fixed reviewed paths, a bearer header, and 
   assert.equal(requests.length, 1);
   const { url, options } = requests[0];
   assert.equal(url.origin, "https://api.massive.com");
-  assert.match(url.pathname, /^\/v2\/aggs\/ticker\/AAPL\/range\/1\/day\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/);
+  assert.match(url.pathname, /^\/v2\/aggs\/ticker\/C%3AEURUSD\/range\/1\/day\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/);
   assert.equal(url.searchParams.get("adjusted"), "true");
   assert.equal(url.searchParams.get("sort"), "asc");
   assert.equal(url.searchParams.get("limit"), "60");
@@ -76,7 +76,7 @@ test("the Massive daily adapter uses fixed reviewed paths, a bearer header, and 
   assert.equal(options.redirect, "manual");
   assert.doesNotMatch(url.toString(), new RegExp(MASSIVE_KEY));
 
-  assert.equal(result.packet.symbol, "AAPL");
+  assert.equal(result.packet.symbol, "EURUSD");
   assert.equal(result.packet.timeframe, "1d");
   assert.equal(result.packet.dataShape, "ohlcv");
   assert.equal(result.packet.synthetic, false);
@@ -90,7 +90,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   assert.ok(catalog);
   const fx = massiveDailyInternals.normalizeInstrument(catalog.fxCurrencies.find(entry => entry.symbol === "EURUSD"));
   const crypto = massiveDailyInternals.normalizeInstrument({
-    symbol: "BTC", displaySymbol: "BTC/USD", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:BTCUSD"
+    symbol: "BTC", displaySymbol: "BTC/USD", assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USD", krakenPair: "BTC/USD"
   });
   const commodityEntry = catalog.commodities.find(entry => entry.symbol === "WTI");
   const contract = {
@@ -104,7 +104,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   const index = massiveDailyInternals.normalizeInstrument(catalog.indices.find(entry => entry.symbol === "SPX"));
   assert.deepEqual(
     [fx && fx.massiveTicker, crypto && crypto.massiveTicker, commodity && commodity.massiveTicker, index && index.massiveTicker],
-    ["C:EURUSD", "X:BTCUSD", "CLX6", "I:SPX"]
+    ["C:EURUSD", null, "CLX6", "I:SPX"]
   );
   assert.equal(massiveDailyInternals.normalizeInstrument(commodityEntry, NOW), null,
     "the static catalog's product code cannot be used as a dated contract without a current Massive verification");
@@ -114,7 +114,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   assert.equal(massiveDailyInternals.normalizeInstrument({ symbol: "NOT_REVIEWED", assetClass: "commodity" }), null);
   assert.equal(massiveDailyInternals.normalizeInstrument({
     symbol: "BTC", assetClass: "crypto", rankingProvider: "Massive", massiveTicker: "X:ETHUSD"
-  }), null, "the Massive pair must match the provider-ranked base symbol exactly");
+  }), null, "Massive cannot normalize a crypto identity");
 
   const futuresUrl = massiveDailyInternals.makeRequestUrl(commodity, NOW);
   assert.equal(futuresUrl.pathname, "/futures/v1/aggs/CLX6");
@@ -235,7 +235,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   };
 
   const first = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1d&cadence=1"),
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
     env(db),
     dependencies
   );
@@ -248,12 +248,11 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(firstPayload.data.instruments[0].provider, "massive");
   assert.equal(firstPayload.data.spend.massiveAttempts, 1);
   assert.equal(firstPayload.data.spend.tickerbotAttempts, 0);
-  assert.equal(firstPayload.data.spend.alphaVantageAttempts, 0);
   assert.equal(firstPayload.data.spend.massiveDaily.calls, 1);
   assert.equal(firstPayload.data.spend.massiveDaily.dailyLimit, MASSIVE_PROVIDER_DAILY_LIMIT);
 
   const cached = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1d&cadence=1"),
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
     env(db),
     { now: () => NOW + 30_000, fetch: async () => { throw new Error("a daily cache hit must not call Massive"); } }
   );
@@ -264,7 +263,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(cachedPayload.data.spend.massiveDaily.calls, 1, "a cache hit does not claim another daily slot");
 
   const omittedCadence = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=MSFT&interval=1d"), env(db), dependencies
+    beat("disc=fx&provider=massive&symbols=GBPUSD&interval=1d"), env(db), dependencies
   );
   const omittedCadencePayload = await omittedCadence.json();
   assert.equal(omittedCadence.status, 200);
@@ -272,7 +271,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(omittedCadencePayload.data.instruments.length, 1);
 
   const afterMidnight = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1d&cadence=1"),
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
     env(db),
     { now: () => NEXT_DAY, fetch: async input => { hosts.push(new URL(input).hostname); return dailyAggs(); } }
   );
@@ -284,15 +283,15 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(afterMidnightPayload.data.spend.massiveDaily.calls, 1, "the daily ledger rolls with the cache window");
 
   const badMassiveInterval = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1h&cadence=1"), env(db), dependencies
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1h&cadence=1"), env(db), dependencies
   );
   assert.equal(badMassiveInterval.status, 400);
   const badMassiveCadence = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=MSFT&interval=1d&cadence=15"), env(db), dependencies
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=15"), env(db), dependencies
   );
   assert.equal(badMassiveCadence.status, 400, "Massive's daily-bar cadence contract is exactly cadence=1");
   const badMassiveBatch = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=MSFT,NVDA&interval=1d&cadence=1"), env(db), dependencies
+    beat("disc=fx&provider=massive&symbols=EURUSD,GBPUSD&interval=1d&cadence=1"), env(db), dependencies
   );
   assert.equal(badMassiveBatch.status, 400, "a crafted URL cannot widen the one-instrument-per-request Massive beat");
   const badTickerbotDisc = await handleCharactersBeat(
@@ -317,11 +316,11 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
     fetch: async () => { fetches += 1; return dailyAggs(); }
   };
   const admitted = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1d&cadence=1"), restricted, dependencies
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"), restricted, dependencies
   );
   assert.equal(admitted.status, 200);
   const rateLimited = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=MSFT&interval=1d&cadence=1"), restricted, dependencies
+    beat("disc=fx&provider=massive&symbols=GBPUSD&interval=1d&cadence=1"), restricted, dependencies
   );
   const payload = await rateLimited.json();
   assert.equal(rateLimited.status, 429);
@@ -336,7 +335,7 @@ test("Massive failures do not leak an upstream body or a Worker secret, and miss
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
   const failureResponse = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=AAPL&interval=1d&cadence=1"),
+    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
     env(db),
     { now: () => NOW, fetch: async () => Response.json({ message: `private upstream body ${MASSIVE_KEY}` }, { status: 500 }) }
   );
@@ -348,7 +347,7 @@ test("Massive failures do not leak an upstream body or a Worker secret, and miss
   clearMassiveCache();
   let fetches = 0;
   const missingLedger = await handleCharactersBeat(
-    beat("disc=stocks&provider=massive&symbols=MSFT&interval=1d&cadence=1"),
+    beat("disc=fx&provider=massive&symbols=GBPUSD&interval=1d&cadence=1"),
     { MASSIVE_API_KEY: MASSIVE_KEY },
     { now: () => NOW, fetch: async () => { fetches += 1; return dailyAggs(); } }
   );
@@ -384,32 +383,26 @@ test("the six DXY component quotes retain their USD-per-foreign orientation thro
   assert.equal(upstream.length, 6);
 });
 
-test("all 52 reviewed ticker symbols are individually accepted by the Massive Worker allowlist", async t => {
+test("Massive cannot be used as a Stocks or Crypto fallback", async t => {
   clearCharactersBeatCache();
   clearMassiveCache();
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
   assert.equal(TICKERBOT_WATCHLIST.length, 52);
-  assert.equal(new Set(TICKERBOT_WATCHLIST.map(entry => entry.symbol)).size, 52);
-  const upstream = [];
-  let now = NOW + 5 * 86_400_000 + 6 * 60_001;
+  let calls = 0;
   for (const entry of TICKERBOT_WATCHLIST) {
     const response = await handleCharactersBeat(
       beat(`disc=stocks&provider=massive&symbols=${entry.symbol}&interval=1d&cadence=1`), env(db), {
-        now: () => now,
-        fetch: async input => { upstream.push(new URL(input)); return dailyAggs(); }
+        now: () => NOW, fetch: async () => { calls += 1; return dailyAggs(); }
       }
     );
-    const payload = await response.json();
-    assert.equal(response.status, 200, `${entry.symbol} is in the Worker routing allowlist`);
-    assert.equal(payload.data.instruments[0].symbol, entry.symbol);
-    assert.equal(decodeURIComponent(upstream.at(-1).pathname.split("/")[4]), entry.symbol);
-    now += 60_001;
+    assert.equal(response.status, 400, `${entry.symbol} remains Tickerbot-only for Stocks`);
   }
-  assert.equal(upstream.length, 52);
-  assert.equal(payloadSafe(upstream), true);
+  const crypto = await handleCharactersBeat(
+    beat("disc=crypto&provider=massive&symbols=BTC&interval=1d&cadence=1"), env(db), {
+      now: () => NOW, fetch: async () => { calls += 1; return dailyAggs(); }
+    }
+  );
+  assert.equal(crypto.status, 400, "Kraken is the only Characters Crypto provider");
+  assert.equal(calls, 0, "a mismatched provider never reaches Massive");
 });
-
-function payloadSafe(urls) {
-  return urls.every(url => url.origin === "https://api.massive.com" && /\/v2\/aggs\/ticker\//.test(url.pathname));
-}

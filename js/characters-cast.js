@@ -149,6 +149,7 @@ window.CharactersCast = (() => {
         currentPriceUsd: Number.isFinite(Number(entry.currentPriceUsd)) && Number(entry.currentPriceUsd) > 0 ? Number(entry.currentPriceUsd) : null,
         marketCapUsd: Number.isFinite(Number(entry.marketCapUsd)) && Number(entry.marketCapUsd) > 0 ? Number(entry.marketCapUsd) : null,
         providerId: typeof entry.providerId === "string" ? entry.providerId.slice(0, 80) : "",
+        krakenPair: typeof entry.krakenPair === "string" ? entry.krakenPair.slice(0, 32) : "",
         rankingProvider: typeof entry.rankingProvider === "string" ? entry.rankingProvider.slice(0, 32)
           : Number.isSafeInteger(Number(entry.turnoverRank)) && Number(entry.turnoverRank) > 0 ? "BIS 2025" : ""
       }));
@@ -194,6 +195,7 @@ window.CharactersCast = (() => {
       currentPriceUsd: seed.currentPriceUsd,
       marketCapUsd: seed.marketCapUsd,
       providerId: seed.providerId,
+      krakenPair: seed.krakenPair,
       rankingProvider: seed.rankingProvider,
       sectorName: seed.sectorName,
       sectorId: seed.sectorId,
