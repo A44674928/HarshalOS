@@ -39,6 +39,13 @@ test('production branch-preview overrides contain no production D1 or R2 and kee
   assert.equal(production.previews.vars.MONGODB_DATABASE, 'harshalos_preview');
 });
 
+test('production owns the Orb 2 server field schedule and staging does not', () => {
+  // The 24/7/365 beat is a Cron Trigger, so it has to live in the production
+  // Worker: without it the field only advances when a browser asks for a tick.
+  assert.deepEqual(production.triggers, { crons: ['*/1 * * * *'] });
+  assert.equal(staging.triggers, undefined, 'staging must not beat the shared provider budgets');
+});
+
 test('production observability redacts query strings before persisting Alpha Vantage requests', () => {
   assert.equal(production.observability.enabled, true);
   assert.equal(production.observability.redact_query_string, true,

@@ -1,0 +1,1195 @@
+/*
+ * HarshalOS — Orb 2 server-side beat field.
+ *
+ * The beat is a server responsibility. A Cloudflare Cron Trigger calls
+ * `runOrb2FieldTick()` every minute; the tick claims the shared provider
+ * allowances (Massive's five-per-minute envelope and its durable UTC-day guard,
+ * Tickerbot's durable UTC-month ledger), fetches the reviewed instruments that
+ * are due, runs the same `js/good-intelligence-market-context.js` evaluation and
+ * `js/characters-beat.js` motion directive the browser would have run, and stores
+ * one compact observation per instrument in D1.
+ *
+ * Browsers never call a provider and never own the schedule:
+ *
+ *   GET  {ORB2_FIELD_ROUTE}   → the newest stored observations + server status
+ *   POST {ORB2_FIELD_ROUTE}   → enqueue a bounded priority refresh ('hot' lane) or
+ *                               the deploy warm burst ('sweep' lane, Tickerbot)
+ *
+ * Consequences that are deliberate:
+ *   · A hidden tab, a closed laptop, or a sleeping owner changes nothing. The
+ *     24/7/365 loop lives in the Worker and is bounded by the provider budget,
+ *     not by a page-visibility event.
+ *   · There is no client-side pacing timer, no provider warm-up hold, and no
+ *     "restart the firing order" state to lose: the sweep cursor is a row in D1.
+ *   · Manual refresh is a choice, not a repair: it prioritizes work that is
+ *     already queued. Nothing here invents data; an unavailable berth stays held.
+ *
+ * The stored record is one instrument, not a bar series: symbol, disc, provider,
+ * interval, a bounded market summary, and the Characters motion directive.
+ */
+
+import "./browser-globals.mjs";
+import {
+  TICKERBOT_INTERVALS,
+  TICKERBOT_WATCHLIST,
+  fetchTickerbotMarketContext,
+  isTickerbotSymbol
+} from "./good-intelligence-tickerbot.mjs";
+import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
+import {
+  MASSIVE_PROVIDER_DAILY_LIMIT,
+  claimMassiveDailyCall,
+  readMassiveDailyCallLedger
+} from "./massive-daily-call-ledger.mjs";
+import { consumeMassiveBudget } from "./massive.mjs";
+import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
+import { orb2SharedSanitizers } from "./good-intelligence-orb2-beats.mjs";
+import {
+  ORB2_COMPOSITION_SCHEMA,
+  ORB2_INTRADAY_INTERVAL,
+  composePair,
+  sanitizeOrb2Composition
+} from "./orb2-composition.mjs";
+import "../js/characters-disc-catalog.js";
+import "../js/good-intelligence-market-context.js";
+import "../js/characters-beat.js";
+import "../js/good-intelligence-dxy.js";
+import "../js/good-intelligence-market-roster.js";
+
+export const ORB2_FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
+export const ORB2_FIELD_SCHEMA = "gi-orb2-field-v1";
+export const ORB2_FIELD_STATUS_SCHEMA = "gi-orb2-field-status-v1";
+export const ORB2_FIELD_OBSERVATION_SCHEMA = "gi-orb2-field-observation-v1";
+export const ORB2_FIELD_REQUEST_SCHEMA = "gi-orb2-field-request-v1";
+export const ORB2_FIELD_CRON = "*/1 * * * *";
+export const ORB2_FIELD_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
+/* The one-button first-deck calibration intentionally covers every supported
+ * scale: 52 symbols × (15m + 1h + 1d) = 156 queued calls. Later 15m refreshes
+ * remain focused by default; a full pass is always explicit. */
+export const ORB2_FIELD_WARM_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
+export const ORB2_FIELD_DEFAULT_INTERVAL = "1d";
+export const ORB2_FIELD_DISCS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
+export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
+export const ORB2_FIELD_POLL_MS = 20_000;
+export const ORB2_MASSIVE_PER_MINUTE = 5;
+export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
+export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 24;
+export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
+export const ORB2_FIELD_COLD_MS = 6 * 60 * 60_000;
+export const ORB2_FIELD_WARM_COOLDOWN_MS = 30 * 60_000;
+export const ORB2_FIELD_TICK_LEASE_MS = 75_000;
+export const ORB2_FIELD_MAX_QUEUE_ATTEMPTS = 3;
+export const ORB2_FIELD_MANUAL_TICK_COOLDOWN_MS = 20_000;
+export const ORB2_FIELD_RANKING_REFRESH_MS = 15 * 60_000;
+export const ORB2_FIELD_FRESHNESS = Object.freeze({
+  "15m": Object.freeze({ staleMs: 6 * 60 * 60_000, expireMs: 6 * 60 * 60_000 }),
+  "1h": Object.freeze({ staleMs: 3 * 60 * 60_000, expireMs: 6 * 60 * 60_000 }),
+  "1d": Object.freeze({ staleMs: 18 * 60 * 60_000, expireMs: 24 * 60 * 60_000 })
+});
+
+/* Per-isolate cooldown for the same-origin "run a tick now" action. It is an
+   abuse guard, not a correctness boundary: the tick's own ledger claims are. */
+let lastManualTickAt = 0;
+const MAX_BODY_BYTES = 8 * 1024;
+const UPSTREAM_TIMEOUT_MS = 8_000;
+const FETCH_CONCURRENCY = 4;
+const SYMBOL_PATTERN = /^[A-Z0-9][A-Z0-9._:/-]{0,31}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/*
+ * The beat-type dial. `observation` is the only provider-data type; the other
+ * four are deterministic local scenarios choreographed from a stored beat (see
+ * js/good-intelligence-orb2-scenarios.js). Each type declares what a berth must
+ * supply before the type is offered at all, so the dial can never label an
+ * incomplete observation as a trade, an authorization, or a permission.
+ */
+export const ORB2_FIELD_BEAT_TYPES = Object.freeze([
+  Object.freeze({
+    id: "observation", label: "Market observation", live: true, gate: "stored",
+    summary: "One reviewed instrument's newest provider observation. The only beat type that carries provider data."
+  }),
+  Object.freeze({
+    id: "message", label: "OCM message", live: false, gate: "market",
+    summary: "Local scenario: an envelope travels origin → berth → origin. No OCM message is sent."
+  }),
+  Object.freeze({
+    id: "trade", label: "Trade", live: false, gate: "volume",
+    summary: "Local scenario: two berths exchange an item while supplied volume is available. Nothing is bought or settled."
+  }),
+  Object.freeze({
+    id: "authorization", label: "Authorization", live: false, gate: "confirmed",
+    summary: "Local scenario: the Human Key is presented at the Center Origin gate. It grants nothing and authorizes nothing."
+  }),
+  Object.freeze({
+    id: "permission", label: "Permission to act", live: false, gate: "motion",
+    summary: "Local scenario: a bounded permission envelope is presented, scoped, and withdrawn. Nothing becomes permitted."
+  })
+]);
+
+const BEAT_TYPE_IDS = new Set(ORB2_FIELD_BEAT_TYPES.map(type => type.id));
+const PROVIDER_IDS = new Set(["massive", "tickerbot"]);
+const STATUSES = new Set(["bars", "cached", "unavailable"]);
+
+const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
+  status,
+  headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", Vary: "Origin", ...extraHeaders }
+});
+const failure = (message, status = 400, extraHeaders = {}) => json({ success: false, message }, status, extraHeaders);
+const isRecord = value => value && typeof value === "object" && !Array.isArray(value);
+const text = (value, max) => typeof value === "string" ? value.trim().slice(0, max) : "";
+const finite = value => typeof value === "number" && Number.isFinite(value);
+const integer = (value, low, high, fallback = null) => finite(value) && Number.isSafeInteger(value)
+  ? Math.max(low, Math.min(high, value)) : fallback;
+const nowOf = dependencies => {
+  const raw = typeof dependencies.now === "function" ? dependencies.now() : Date.now();
+  return finite(Number(raw)) && Number(raw) >= 0 ? Math.floor(Number(raw)) : Date.now();
+};
+const uuid = () => {
+  try {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID().toLowerCase();
+  } catch { /* deterministic-looking fallback below; it is an opaque storage id, not identity */ }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
+    const random = Math.floor(Math.random() * 16);
+    return (character === "x" ? random : (random & 3) | 8).toString(16);
+  });
+};
+const changedRows = result => {
+  const meta = result && result.meta;
+  if (meta && Number.isFinite(Number(meta.changes))) return Number(meta.changes);
+  if (result && Number.isFinite(Number(result.changes))) return Number(result.changes);
+  return 0;
+};
+const utcDay = at => new Date(at).toISOString().slice(0, 10);
+
+export function orb2FieldFreshness(interval, observedAt, now = Date.now()) {
+  const policy = ORB2_FIELD_FRESHNESS[interval] || ORB2_FIELD_FRESHNESS["1d"];
+  const at = Number(observedAt);
+  const current = Number(now);
+  const ageMs = Number.isFinite(at) && Number.isFinite(current) ? Math.max(0, current - at) : Infinity;
+  const status = ageMs >= policy.expireMs ? "expired" : ageMs >= policy.staleMs ? "stale" : "fresh";
+  return {
+    status, ageMs: Number.isFinite(ageMs) ? ageMs : null,
+    staleMs: policy.staleMs, expireMs: policy.expireMs,
+    expiresAt: Number.isFinite(at) ? at + policy.expireMs : null
+  };
+}
+
+const fieldObservationExpired = (interval, observedAt, now) =>
+  orb2FieldFreshness(interval, observedAt, now).status === "expired";
+
+/* ── reviewed roster ──────────────────────────────────────────────────── */
+
+/**
+ * The server field's instrument set, built from the same reviewed catalogs the
+ * browser renders: the 52-card roster (with its attributed sector/market-cap
+ * metadata), the BIS FX catalog, the static commodity/index rosters, and the live
+ * CoinGecko volume ranking for crypto when it is reachable.
+ *
+ * A catalog that is unavailable contributes nothing: the sweep simply does not
+ * cover it, and no substitute instrument is invented.
+ */
+export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null } = {}) {
+  const roster = globalThis.GoodIntelligenceMarketRoster;
+  const catalog = globalThis.CharactersDiscCatalog;
+  const dxy = globalThis.GoodIntelligenceDxy;
+  const stocks = [];
+  if (roster && Array.isArray(roster.assets) && dxy && typeof dxy.buildFiringOrder === "function") {
+    for (const asset of dxy.buildFiringOrder(roster.assets)) {
+      if (!asset || !SYMBOL_PATTERN.test(String(asset.symbol || ""))) continue;
+      stocks.push(Object.freeze({
+        symbol: asset.symbol, displaySymbol: asset.symbol, name: text(asset.name, 64),
+        sector: text(asset.sector, 64), discId: "stocks", assetClass: "equity",
+        firingOrder: asset.firingOrder, marketCapUsd: asset.marketCapUsd
+      }));
+    }
+  }
+  const statics = (list, discId, assetClass) => (Array.isArray(list) ? list : [])
+    .filter(entry => entry && SYMBOL_PATTERN.test(String(entry.symbol || "")))
+    .map(entry => Object.freeze({ ...entry, discId, assetClass: assetClass || entry.assetClass }));
+  const fx = statics(catalog && catalog.fxCurrencies, "fx", "fx");
+  const commodities = statics(catalog && catalog.commodities, "commodities", "commodity");
+  const indices = statics(catalog && catalog.indices, "indices", "index");
+  const crypto = (cryptoRanking && Array.isArray(cryptoRanking.instruments) ? cryptoRanking.instruments : [])
+    .filter(entry => entry && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")))
+    .map(entry => Object.freeze({ ...entry, discId: "crypto", assetClass: "crypto" }));
+  const instruments = [...stocks, ...fx, ...commodities, ...indices, ...crypto];
+  const dxySymbols = dxy && Array.isArray(dxy.COMPONENTS)
+    ? dxy.COMPONENTS.map(component => component.symbol).filter(symbol => fx.some(entry => entry.symbol === symbol))
+    : [];
+  return Object.freeze({
+    instruments: Object.freeze(instruments),
+    stocks: Object.freeze(stocks),
+    fx: Object.freeze(fx),
+    commodities: Object.freeze(commodities),
+    indices: Object.freeze(indices),
+    crypto: Object.freeze(crypto),
+    dxySymbols: Object.freeze(dxySymbols),
+    discs: Object.freeze([...new Set(instruments.map(instrument => instrument.discId))])
+  });
+}
+
+/* ── stored observation validation ────────────────────────────────────── */
+
+/**
+ * Validate one stored field observation. The payload is validated on the way in
+ * (from an upstream packet) and again on the way out (from D1), so a hand-edited
+ * row cannot be rendered as provider data.
+ */
+export function sanitizeOrb2FieldObservation(value, now = Date.now()) {
+  if (!isRecord(value) || value.schema !== ORB2_FIELD_OBSERVATION_SCHEMA) {
+    return { ok: false, message: "Send one gi-orb2-field-observation-v1 record." };
+  }
+  const symbol = text(value.symbol, 32).toUpperCase();
+  if (!SYMBOL_PATTERN.test(symbol)) return { ok: false, message: "A reviewed uppercase symbol is required." };
+  const discId = text(value.discId, 24).toLowerCase();
+  if (!ORB2_FIELD_DISCS.includes(discId)) return { ok: false, message: "Choose a reviewed Disc." };
+  const provider = text(value.provider, 24).toLowerCase();
+  if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only Massive and Tickerbot may write the server field." };
+  const interval = text(value.interval, 8);
+  if (!TICKERBOT_INTERVALS.includes(interval)) return { ok: false, message: "The field stores 15m, 1h, and 1d observations only." };
+  if (provider === "massive" && interval !== "1d") return { ok: false, message: "Massive writes daily field observations only." };
+  if (provider === "tickerbot" && (discId !== "stocks" || !TICKERBOT_INTERVALS.includes(interval))) {
+    return { ok: false, message: "Tickerbot writes Disc1 stock observations only." };
+  }
+  /* Range-checked, not clamped: a future or pre-2000 timestamp is refused outright
+     rather than silently rewritten into the accepted window. */
+  const at = Number.isSafeInteger(value.observedAt)
+    && value.observedAt >= Date.parse("2000-01-01T00:00:00.000Z")
+    && value.observedAt <= Math.floor(now + 300_000) ? value.observedAt : null;
+  if (at === null) return { ok: false, message: "The observation timestamp is invalid." };
+  if (!UUID.test(String(value.beatId || ""))) return { ok: false, message: "A UUID beat id is required." };
+  const market = value.market === null || value.market === undefined ? null : orb2SharedSanitizers.market(value.market);
+  if (value.market !== null && value.market !== undefined && market === null) {
+    return { ok: false, message: "The stored market summary is malformed." };
+  }
+  const motion = value.motion === null || value.motion === undefined ? null : orb2SharedSanitizers.motion(value.motion);
+  if (value.motion !== null && value.motion !== undefined && motion === null) {
+    return { ok: false, message: "The stored motion directive is malformed." };
+  }
+  const composition = value.composition === null || value.composition === undefined
+    ? null : sanitizeOrb2Composition(value.composition);
+  if (value.composition !== null && value.composition !== undefined && composition === null) {
+    return { ok: false, message: "The stored daily/15m composition is malformed." };
+  }
+  if (!market && !motion) return { ok: false, message: "A field observation must carry a market summary or a motion directive." };
+  const barTime = Number.isSafeInteger(value.barTime) && value.barTime >= 0 && value.barTime <= 8_640_000_000_000
+    ? value.barTime : null;
+  const confirmed = value.confirmed === true
+    || Boolean(market && market.latestBar && market.latestBar.confirmed === true);
+  /* Beat-type support is computed once, on the way out, so every client renders
+     the same dial state for the same stored row. */
+  const beatTypes = orb2FieldBeatTypesFor({ market, motion, confirmed });
+  return {
+    ok: true,
+    observation: Object.freeze({
+      schema: ORB2_FIELD_OBSERVATION_SCHEMA,
+      beatTypes,
+      symbol,
+      displaySymbol: text(value.displaySymbol, 48) || symbol,
+      name: text(value.name, 64),
+      sector: text(value.sector, 64),
+      discId,
+      provider,
+      interval,
+      status: STATUSES.has(value.status) ? value.status : "unavailable",
+      reason: text(value.reason, 48) || "server-sweep",
+      code: /^[a-z0-9-]{0,48}$/i.test(String(value.code || "")) ? String(value.code) : "",
+      message: text(value.message, 240),
+      beatId: String(value.beatId).toLowerCase(),
+      observedAt: at,
+      barTime,
+      confirmed,
+      market,
+      motion,
+      composition
+    })
+  };
+}
+
+/** Which beat types this stored observation can honestly support. */
+export function orb2FieldBeatTypesFor(observation) {
+  const market = observation && observation.market;
+  const hasMarket = Boolean(market);
+  const gates = {
+    stored: true,
+    market: hasMarket,
+    volume: Boolean(market && market.volumeAvailable === true && market.latestBar && Number.isFinite(Number(market.latestBar.volume))),
+    confirmed: Boolean(observation && observation.confirmed === true && hasMarket),
+    motion: Boolean(observation && observation.motion)
+  };
+  return ORB2_FIELD_BEAT_TYPES.filter(type => gates[type.gate] === true).map(type => type.id);
+}
+
+/* ── packet → stored observation (the server beat itself) ─────────────── */
+
+/**
+ * Turn one validated provider packet into a stored field observation using the
+ * shared Good Intelligence evaluator and Characters motion engine. This is the
+ * exact step the browser used to perform; it now runs once per instrument on the
+ * server so every client renders the same directive.
+ */
+export function observationFromPacket({
+  packet, symbol, displaySymbol, name, sector, discId, provider, interval = "1d", now = Date.now(),
+  reason = "server-sweep", beatId = uuid(), composition = null
+}) {
+  const marketContext = globalThis.GoodIntelligenceMarketContext;
+  const beat = globalThis.CharactersBeat;
+  if (!marketContext || !beat || !packet) return null;
+  const normalized = marketContext.normalizePacket(packet);
+  const analysis = normalized ? marketContext.evaluate(normalized) : null;
+  const motion = beat.motion(analysis, { bearingBase: 0 });
+  const confirmedBars = normalized && Array.isArray(normalized.bars)
+    ? normalized.bars.filter(bar => bar && bar.confirmed === true && Number.isFinite(Number(bar.close)))
+    : [];
+  const latestBar = normalized && normalized.bars.length ? normalized.bars[normalized.bars.length - 1] : null;
+  const latestClose = latestBar ? Number(latestBar.close) : null;
+  const closeOf = bar => bar ? Number(bar.close) : null;
+  const previousConfirmed = confirmedBars.length > 1 ? confirmedBars[confirmedBars.length - 1] : null;
+  const compareClose = confirmedBars.length > 1 ? closeOf(confirmedBars[confirmedBars.length - 2]) : null;
+  const previousClose = previousConfirmed ? closeOf(previousConfirmed) : null;
+  const changePct = previousClose !== null && compareClose !== null && compareClose > 0
+    ? ((previousClose - compareClose) / compareClose) * 100 : null;
+  const numberOrNull = value => Number.isFinite(Number(value)) ? Number(value) : null;
+  const market = analysis ? {
+    status: String(analysis.status || "unknown").slice(0, 24),
+    source: String(analysis.source || (normalized && normalized.source) || "").slice(0, 160),
+    timeframe: String(analysis.timeframe || (normalized && normalized.timeframe) || interval).slice(0, 24),
+    dataShape: String(analysis.dataShape || (normalized && normalized.dataShape) || "unknown").slice(0, 16),
+    synthetic: Boolean(analysis.synthetic || (normalized && normalized.synthetic)),
+    barCount: Math.max(0, Number(analysis.barCount) || 0),
+    volumeAvailable: analysis.volumeAvailable === true,
+    latestBar: latestBar ? {
+      time: Number(latestBar.time),
+      ...(Number.isFinite(Number(latestBar.open)) ? { open: Number(latestBar.open) } : {}),
+      ...(Number.isFinite(Number(latestBar.high)) ? { high: Number(latestBar.high) } : {}),
+      ...(Number.isFinite(Number(latestBar.low)) ? { low: Number(latestBar.low) } : {}),
+      ...(latestClose !== null && Number.isFinite(latestClose) ? { close: latestClose } : {}),
+      ...(Number.isFinite(Number(latestBar.volume)) ? { volume: Number(latestBar.volume) } : {}),
+      confirmed: latestBar.confirmed === true
+    } : null,
+    previousClose: numberOrNull(previousClose),
+    changePct: numberOrNull(changePct),
+    basis: analysis.bands ? numberOrNull(analysis.bands.basis) : null,
+    bands: analysis.bands ? {
+      lower1000: numberOrNull(analysis.bands.lower1000),
+      upper1000: numberOrNull(analysis.bands.upper1000)
+    } : null,
+    vfi: analysis.vfi ? {
+      value: numberOrNull(analysis.vfi.value),
+      signal: numberOrNull(analysis.vfi.signal),
+      available: analysis.vfi.available === true
+    } : null,
+    waveTrend: analysis.waveTrend ? {
+      wt1: numberOrNull(analysis.waveTrend.wt1),
+      wt2: numberOrNull(analysis.waveTrend.wt2),
+      zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48)
+    } : null
+  } : null;
+  const candidate = {
+    schema: ORB2_FIELD_OBSERVATION_SCHEMA,
+    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider, interval,
+    status: "bars", reason, code: "", message: "", beatId,
+    observedAt: now,
+    barTime: latestBar && Number.isFinite(Number(latestBar.time)) ? Number(latestBar.time) : null,
+    confirmed: Boolean(latestBar && latestBar.confirmed === true),
+    market, motion, composition
+  };
+  const parsed = sanitizeOrb2FieldObservation(candidate, now);
+  return parsed.ok ? parsed.observation : null;
+}
+
+/** A held berth: an explicit, validated refusal with the same shape. */
+export function heldFieldObservation({
+  symbol, displaySymbol, name, sector, discId, provider, interval = "1d", now = Date.now(),
+  reason = "server-sweep", code = "", message = ""
+}) {
+  const beat = globalThis.CharactersBeat;
+  const motion = beat ? beat.motion(null, { bearingBase: 0 }) : null;
+  const candidate = {
+    schema: ORB2_FIELD_OBSERVATION_SCHEMA,
+    symbol, displaySymbol: displaySymbol || symbol, name, sector, discId, provider, interval,
+    status: "unavailable", reason, code, message, beatId: uuid(),
+    observedAt: now, barTime: null, confirmed: false, market: null, motion
+  };
+  const parsed = sanitizeOrb2FieldObservation(candidate, now);
+  return parsed.ok ? parsed.observation : null;
+}
+
+/* ── D1 access ───────────────────────────────────────────────────────── */
+
+async function ensureRunRow(db, now) {
+  await db.prepare("INSERT INTO orb2_field_runs (utc_day, updated_at) VALUES (?, ?) ON CONFLICT(utc_day) DO NOTHING")
+    .bind(utcDay(now), now).run();
+}
+
+async function readRun(db, now) {
+  return (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, sweeps_completed, last_tick_at,
+      last_observation_at, last_sweep_completed_at, last_error, lock_owner, lock_at, updated_at
+    FROM orb2_field_runs WHERE utc_day = ?`).bind(utcDay(now)).first()) ?? null;
+}
+
+async function readControl(db) {
+  return (await db.prepare("SELECT deploy_warm_at, manual_warm_at, warm_bursts, ranking_attempt_at, updated_at FROM orb2_field_control WHERE id = 1").first()) ?? null;
+}
+
+async function writeControl(db, patch, now) {
+  /* Read-modify-write of one advisory row (cooldowns and the warm-burst counter).
+     It is not an allowance: the durable provider ledgers are the authorities, and
+     the scheduled tick already holds the single-writer lease when it writes here. */
+  const current = (await readControl(db)) || {};
+  const deploy = patch.deployWarmAt !== undefined ? patch.deployWarmAt : (current.deploy_warm_at ?? null);
+  const manual = patch.manualWarmAt !== undefined ? patch.manualWarmAt : (current.manual_warm_at ?? null);
+  const bursts = patch.warmBursts !== undefined
+    ? Math.max(0, Math.floor(Number(patch.warmBursts) || 0)) : Math.max(0, Math.floor(Number(current.warm_bursts) || 0));
+  const ranking = patch.rankingAttemptAt !== undefined ? patch.rankingAttemptAt : (current.ranking_attempt_at ?? null);
+  await db.prepare(`INSERT INTO orb2_field_control (id, deploy_warm_at, manual_warm_at, warm_bursts, ranking_attempt_at, updated_at)
+      VALUES (1, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      deploy_warm_at = excluded.deploy_warm_at, manual_warm_at = excluded.manual_warm_at,
+      warm_bursts = excluded.warm_bursts, ranking_attempt_at = excluded.ranking_attempt_at,
+      updated_at = excluded.updated_at`)
+    .bind(deploy, manual, bursts, ranking, now).run();
+}
+
+/** Persist one observation. An older write never overwrites a newer row. */
+async function writeObservation(db, observation, now) {
+  const payload = JSON.stringify(observation);
+  await db.prepare(`INSERT INTO orb2_field_observations
+      (interval, symbol, disc_id, provider, status, reason, beat_id, payload, observed_at, bar_time, confirmed, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(interval, symbol) DO UPDATE SET
+      disc_id = excluded.disc_id, provider = excluded.provider, status = excluded.status,
+      reason = excluded.reason, beat_id = excluded.beat_id, payload = excluded.payload,
+      observed_at = excluded.observed_at, bar_time = excluded.bar_time,
+      confirmed = excluded.confirmed, updated_at = excluded.updated_at
+    WHERE excluded.observed_at >= orb2_field_observations.observed_at`)
+    .bind(
+      observation.interval, observation.symbol, observation.discId, observation.provider,
+      observation.status, observation.reason, observation.beatId, payload,
+      observation.observedAt, observation.barTime, observation.confirmed ? 1 : 0, now
+    ).run();
+  await refreshStoredComposition(db, observation.symbol, now);
+}
+
+/* Recalculate the daily row after either scale changes. The full 15-minute series
+ * is intentionally not stored; this joins the two compact, validated summaries and
+ * persists only the deterministic composition packet. */
+async function refreshStoredComposition(db, symbol, now) {
+  const rows = await db.prepare(`SELECT interval, payload FROM orb2_field_observations
+    WHERE symbol = ? AND interval IN ('1d', '15m')`).bind(symbol).all();
+  const parsed = (Array.isArray(rows && rows.results) ? rows.results : []).map(row => ({
+    interval: String(row.interval), observation: parsePacketRow(row, now)
+  })).filter(row => row.observation);
+  const daily = parsed.find(row => row.interval === "1d")?.observation || null;
+  const intraday = parsed.find(row => row.interval === ORB2_INTRADAY_INTERVAL)?.observation || null;
+  if (!daily) return;
+  const composition = composePair(daily, intraday, now);
+  for (const row of parsed) {
+    const payload = { ...row.observation, composition };
+    await db.prepare("UPDATE orb2_field_observations SET payload = ?, updated_at = ? WHERE interval = ? AND symbol = ?")
+      .bind(JSON.stringify(payload), now, row.interval, symbol).run();
+  }
+}
+
+async function acquireTickLease(db, now, owner) {
+  await ensureRunRow(db, now);
+  const result = await db.prepare(`UPDATE orb2_field_runs SET lock_owner = ?, lock_at = ?, updated_at = ?
+    WHERE utc_day = ? AND (lock_at IS NULL OR lock_at < ?)`)
+    .bind(owner, now, now, utcDay(now), now - ORB2_FIELD_TICK_LEASE_MS).run();
+  return changedRows(result) > 0;
+}
+
+async function releaseTickLease(db, now, owner) {
+  await db.prepare("UPDATE orb2_field_runs SET lock_owner = NULL, lock_at = NULL, updated_at = ? WHERE utc_day = ? AND lock_owner = ?")
+    .bind(now, utcDay(now), owner).run();
+}
+
+async function recordTickResult(db, { now, massiveCalls = 0, tickerbotCalls = 0, observed = 0, error = "" }) {
+  await db.prepare(`UPDATE orb2_field_runs SET
+      massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?,
+      last_tick_at = ?, last_observation_at = COALESCE(CASE WHEN ? > 0 THEN ? ELSE NULL END, last_observation_at),
+      last_error = ?, updated_at = ?
+    WHERE utc_day = ?`)
+    .bind(massiveCalls, tickerbotCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
+}
+
+/** Evidence that one full stock sweep has finished since the last one. */
+async function completeSweepIfDue(db, now, stocks) {
+  if (!stocks.length) return false;
+  const placeholders = stocks.map(() => "?").join(",");
+  const row = await db.prepare(`SELECT MIN(observed_at) AS oldest, COUNT(*) AS count FROM orb2_field_observations
+    WHERE interval = '1d' AND symbol IN (${placeholders})`).bind(...stocks.map(stock => stock.symbol)).first();
+  const oldest = Number(row && row.oldest);
+  const count = Number(row && row.count) || 0;
+  if (!Number.isFinite(oldest) || count < stocks.length) return false;
+  const run = await readRun(db, now);
+  const last = Number(run && run.last_sweep_completed_at) || 0;
+  if (oldest <= last) return false;
+  await db.prepare("UPDATE orb2_field_runs SET sweeps_completed = sweeps_completed + 1, last_sweep_completed_at = ?, updated_at = ? WHERE utc_day = ?")
+    .bind(now, now, utcDay(now)).run();
+  return true;
+}
+
+/* ── queue ────────────────────────────────────────────────────────────── */
+
+async function enqueueJobs(db, jobs, now) {
+  if (!jobs.length) return 0;
+  let enqueued = 0;
+  const chunkSize = 26;
+  const insert = "INSERT INTO orb2_field_queue (created_at, interval, symbol, reason, lane) VALUES (?, ?, ?, ?, ?) ON CONFLICT(interval, symbol, reason) DO NOTHING";
+  for (let index = 0; index < jobs.length; index += chunkSize) {
+    /* One prepared statement per job: D1 returns a new bound statement per bind,
+       and a shared object would silently re-send the last set of values. */
+    const batch = jobs.slice(index, index + chunkSize).map(job =>
+      db.prepare(insert).bind(now, job.interval, job.symbol, job.reason, job.lane));
+    if (typeof db.batch === "function") {
+      const results = await db.batch(batch);
+      for (const result of results) enqueued += changedRows(result);
+    } else {
+      for (const item of batch) enqueued += changedRows(await item.run());
+    }
+  }
+  return enqueued;
+}
+
+/**
+ * Claim queued work for one tick. 'hot' (user priority) is always claimed before
+ * 'sweep' (the deploy warm burst). The UPDATE's WHERE clause is the race guard:
+ * two isolates that select the same row cannot both claim it.
+ */
+async function claimQueue(db, now, limit) {
+  const candidates = await db.prepare(`SELECT id, interval, symbol, reason, lane, attempts FROM orb2_field_queue
+    WHERE claimed_at IS NULL OR claimed_at < ?
+    ORDER BY CASE lane WHEN 'hot' THEN 0 ELSE 1 END, id
+    LIMIT ?`)
+    .bind(now - ORB2_FIELD_TICK_LEASE_MS, limit).all();
+  const rows = Array.isArray(candidates && candidates.results) ? candidates.results : [];
+  const claimed = [];
+  for (const row of rows) {
+    const result = await db.prepare("UPDATE orb2_field_queue SET claimed_at = ?, attempts = attempts + 1 WHERE id = ? AND (claimed_at IS NULL OR claimed_at < ?)")
+      .bind(now, row.id, now - ORB2_FIELD_TICK_LEASE_MS).run();
+    if (changedRows(result) > 0) claimed.push({ ...row, attempts: Number(row.attempts) + 1 });
+  }
+  return claimed;
+}
+
+async function resolveQueueRow(db, id, { keep }) {
+  if (keep) {
+    await db.prepare("UPDATE orb2_field_queue SET claimed_at = NULL WHERE id = ?").bind(id).run();
+    return;
+  }
+  await db.prepare("DELETE FROM orb2_field_queue WHERE id = ?").bind(id).run();
+}
+
+async function queueDepth(db, at = Date.now()) {
+  const row = await db.prepare(`SELECT
+      SUM(CASE WHEN claimed_at IS NULL OR claimed_at < ? THEN 1 ELSE 0 END) AS pending,
+      SUM(CASE WHEN lane = 'hot' AND (claimed_at IS NULL OR claimed_at < ?) THEN 1 ELSE 0 END) AS hot,
+      COUNT(*) AS total FROM orb2_field_queue`)
+    .bind(at - ORB2_FIELD_TICK_LEASE_MS, at - ORB2_FIELD_TICK_LEASE_MS).first();
+  const pending = Number(row && row.pending) || 0;
+  const hot = Number(row && row.hot) || 0;
+  return { pending, hot, sweep: Math.max(0, pending - hot), total: Number(row && row.total) || 0 };
+}
+
+/** Queue a priority refresh for up to ORB2_FIELD_MAX_PRIORITY_SYMBOLS symbols. */
+export async function enqueuePriorityRefresh(db, entries, { now = Date.now(), reason = "focus" } = {}) {
+  return enqueueJobs(db, entries.map(entry => ({
+    symbol: entry.symbol, interval: entry.interval || ORB2_FIELD_DEFAULT_INTERVAL, reason, lane: "hot"
+  })), now);
+}
+
+/** Queue the full Tickerbot warm burst: every stock symbol on both intervals. */
+export async function enqueueWarmBurst(db, { now = Date.now(), reason = "deploy-warm", intervals = ORB2_FIELD_WARM_INTERVALS } = {}) {
+  const jobs = [];
+  for (const interval of intervals) {
+    if (!TICKERBOT_INTERVALS.includes(interval)) continue;
+    for (const entry of TICKERBOT_WATCHLIST) {
+      jobs.push({ symbol: entry.symbol, interval, reason, lane: "sweep" });
+    }
+  }
+  return enqueueJobs(db, jobs, now);
+}
+
+/* ── provider work ────────────────────────────────────────────────────── */
+
+const CRON_REQUEST = Object.freeze({
+  headers: Object.freeze({ get: name => String(name).toLowerCase() === "cf-connecting-ip" ? "orb2-server-field" : null })
+});
+
+function providerKeys(env) {
+  return {
+    massive: typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "",
+    tickerbot: typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : ""
+  };
+}
+
+async function beatMassive({ env, db, instrument, now, fetcher, keys, dependencies }) {
+  const minute = consumeMassiveBudget(CRON_REQUEST, env, now);
+  if (!minute.ok) return { ok: false, code: "massive-rate-limit", message: `The shared Massive ${ORB2_MASSIVE_PER_MINUTE}/minute envelope is spent (${minute.scope}).` };
+  if (!keys.massive) return { ok: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
+  const claim = await claimMassiveDailyCall(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+  if (!claim.ok) return { ok: false, code: claim.reason, message: claim.message };
+  const result = await fetchMassiveDailyMarketContext({
+    instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
+    apiKey: keys.massive, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies
+  });
+  if (!result.ok) return { ok: false, code: result.code, message: result.message, retryAfter: result.retryAfter };
+  return { ok: true, packet: result.packet, calls: 1 };
+}
+
+async function beatTickerbot({ env, db, instrument, interval, now, fetcher, keys }) {
+  if (!keys.tickerbot) return { ok: false, code: "tickerbot-not-configured", message: "Add the TICKERBOT_API_KEY Worker secret to enable the warm burst." };
+  if (!isTickerbotSymbol(instrument.symbol)) return { ok: false, code: "tickerbot-symbol-not-covered", message: "This symbol is not on the reviewed Tickerbot stock list." };
+  const claim = await claimTickerbotCall(db, now);
+  if (!claim.ok) return { ok: false, code: claim.reason, message: claim.message };
+  const result = await fetchTickerbotMarketContext({
+    symbol: instrument.symbol, interval, apiKey: keys.tickerbot, fetcher, now,
+    timeoutMs: UPSTREAM_TIMEOUT_MS, logFailure: true
+  });
+  if (!result.ok) return { ok: false, code: result.code, message: result.message };
+  return { ok: true, packet: result.packet, calls: 1 };
+}
+
+/* ── the tick ─────────────────────────────────────────────────────────── */
+
+/**
+ * One scheduled beat. Called by the Worker's `scheduled()` handler every minute.
+ * Returns a small summary object; it never throws, so a provider outage cannot
+ * take the scheduler down with it.
+ */
+export async function runOrb2FieldTick(env = {}, context = null, dependencies = {}) {
+  const now = nowOf(dependencies);
+  const db = env.COMMUNITY_DB;
+  const summary = {
+    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, tickerbotCalls: 0,
+    observed: 0, held: 0, queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, sweepsCompleted: 0,
+    notes: [], errors: []
+  };
+  if (!db || typeof db.prepare !== "function") {
+    summary.errors.push("Bind COMMUNITY_DB and apply D1 migration 0009 before the server field can run.");
+    return summary;
+  }
+  const fetcher = dependencies.fetch || globalThis.fetch;
+  if (typeof fetcher !== "function") {
+    summary.errors.push("No fetch implementation is available in this Worker runtime.");
+    return summary;
+  }
+  const owner = `orb2-tick-${now}-${Math.random().toString(36).slice(2, 8)}`;
+  let leased = false;
+  try {
+    leased = await acquireTickLease(db, now, owner);
+    if (!leased) { summary.notes.push("Another tick holds the field lease; this invocation skipped."); return summary; }
+    const keys = providerKeys(env);
+
+    const control = await readControl(db);
+    const run = await readRun(db, now);
+
+    /* The live crypto ranking is one shared upstream read: attempt it on a
+       fifteen-minute cadence (recorded in D1, so isolates do not multiply it),
+       and cover Disc3 for that long. A failure is reported, never substituted. */
+    let cryptoRanking = null;
+    const lastRankingAttempt = Number(control && control.ranking_attempt_at) || 0;
+    if (now - lastRankingAttempt >= ORB2_FIELD_RANKING_REFRESH_MS) {
+      await writeControl(db, { rankingAttemptAt: now }, now);
+      try {
+        const rankingResult = await getCharactersCryptoRanking({ fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies });
+        if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
+        else summary.notes.push(`Crypto ranking held: ${rankingResult.message}`);
+      } catch { summary.notes.push("Crypto ranking held: the ranking provider could not be read."); }
+    } else {
+      try {
+        const cachedRanking = await getCharactersCryptoRanking({ fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies });
+        if (cachedRanking.ok) cryptoRanking = cachedRanking.ranking;
+      } catch { /* Disc3 simply contributes no instruments this tick */ }
+    }
+
+    const roster = orb2FieldRoster({ now, cryptoRanking });
+    const instrumentsBySymbol = new Map(roster.instruments.map(instrument => [instrument.symbol, instrument]));
+
+    /* 1 · First-deck calibration. When the field is cold (or empty) and the last
+       warm burst is outside the cooldown, queue the full Tickerbot sweep of the
+       52-card field on 15m, 1h, and 1d: ORB2_FIELD_TICKERBOT_BURST_CALLS upstream
+       calls, visible as queue progress, so the deck is calibrated across scales. */
+    const newestRow = await db.prepare("SELECT MAX(observed_at) AS newest FROM orb2_field_observations").first();
+    const newest = Number(newestRow && newestRow.newest) || 0;
+    const lastWarm = Number(control && (control.deploy_warm_at || control.manual_warm_at)) || 0;
+    /* A six-hour-old 15m packet is stale, not a reason to repeat a 156-call
+       calibration burst. Automatic warm is one-time for an empty field; later
+       refreshes are expiration-driven or explicitly requested. */
+    const cold = newest === 0 && !lastWarm;
+    if (cold && now - lastWarm > ORB2_FIELD_WARM_COOLDOWN_MS) {
+      const reason = control && control.deploy_warm_at ? "cold-warm" : "deploy-warm";
+      summary.warmEnqueued = await enqueueWarmBurst(db, { now, reason });
+      if (summary.warmEnqueued > 0) {
+        const firstDeployWarm = !(control && control.deploy_warm_at);
+        await writeControl(db, {
+          ...(firstDeployWarm ? { deployWarmAt: now } : { manualWarmAt: now }),
+          warmBursts: (Number(control && control.warm_bursts) || 0) + 1
+        }, now);
+        summary.notes.push(`Field warm burst queued: ${summary.warmEnqueued} Tickerbot jobs.`);
+      }
+    }
+
+    /* 2 · Queued work (user priority first, then the warm burst). If Tickerbot is
+       not configured the queue is left exactly as it is: claiming it would burn
+       each job's attempts against a provider that cannot answer, and the burst
+       must survive until the secret exists. */
+    if (!keys.tickerbot) {
+      const waiting = await queueDepth(db, now);
+      if (waiting.pending > 0) {
+        summary.notes.push(`${waiting.pending} queued Tickerbot job${waiting.pending === 1 ? "" : "s"} waiting: add the TICKERBOT_API_KEY Worker secret to drain them. The Massive rotation is unaffected.`);
+      }
+    }
+    const queued = keys.tickerbot ? await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK) : [];
+    summary.queueClaimed = queued.length;
+    if (queued.length) {
+      const outcomes = await mapWithConcurrency(queued, FETCH_CONCURRENCY, async job => {
+        const instrument = instrumentsBySymbol.get(job.symbol);
+        if (!instrument) return { job, ok: false, code: "not-on-field-roster", message: `${job.symbol} is not on the reviewed field roster.` };
+        /* Queued work is the Tickerbot lane: the deploy warm burst and the
+           user-requested priority refresh both ask the on-demand provider for the
+           reviewed stock deck, so a cold field is covered in minutes instead of
+           waiting for the Massive rotation to reach every berth. */
+        const beat = await beatTickerbot({ env, db, instrument, interval: job.interval, now, fetcher, keys });
+        return { job, ...beat };
+      });
+      for (const outcome of outcomes) {
+        const { job } = outcome;
+        if (outcome.ok) {
+          const observation = observationFromPacket({
+            packet: outcome.packet, symbol: job.symbol, displaySymbol: instrumentDisplay(instrumentsBySymbol.get(job.symbol)),
+            name: instrumentName(instrumentsBySymbol.get(job.symbol)), sector: instrumentSector(instrumentsBySymbol.get(job.symbol)),
+            discId: "stocks", provider: "tickerbot",
+            interval: job.interval, now, reason: job.reason
+          });
+          if (observation) {
+            await writeObservation(db, observation, now);
+            summary.observed += 1;
+            if (observation.provider === "massive") summary.massiveCalls += 1;
+            else summary.tickerbotCalls += 1;
+            summary.queueCompleted += 1;
+            await resolveQueueRow(db, job.id, { keep: false });
+            continue;
+          }
+        }
+        summary.held += 1;
+        const retryable = Number(job.attempts) < ORB2_FIELD_MAX_QUEUE_ATTEMPTS;
+        summary.errors.push(`${job.interval} ${job.symbol}: ${text(outcome.message, 140) || outcome.code || "the provider did not answer"}`);
+        await resolveQueueRow(db, job.id, { keep: retryable });
+      }
+    }
+
+    /* 3 · The continuous Massive rotation. Five requests per minute is the
+       provider envelope; the durable UTC-day guard decides how long that can
+       continue. Ordering is least-recently-observed, so the whole field cycles
+       evenly instead of re-confirming the same berth. */
+    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+    const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
+    const slots = Math.max(0, Math.min(ORB2_MASSIVE_PER_MINUTE, dailyRemaining));
+    if (!keys.massive) {
+      summary.notes.push("Massive is not configured; only the Tickerbot queue lanes can run.");
+    } else if (!massiveLedger.ok) {
+      summary.errors.push(massiveLedger.message);
+    } else if (slots > 0) {
+      const rotation = await dueRotation(db, roster.instruments.filter(instrument => instrument.discId === "stocks" || instrument.discId === "fx"), slots, now);
+      const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
+        entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
+      }));
+      for (const outcome of outcomes) {
+        const instrument = outcome.entry.instrument;
+        if (outcome.ok) {
+          const observation = observationFromPacket({
+            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
+            provider: "massive", interval: "1d", now, reason: "server-sweep"
+          });
+          if (observation) {
+            await writeObservation(db, observation, now);
+            summary.massiveCalls += 1;
+            summary.observed += 1;
+            continue;
+          }
+        }
+        summary.held += 1;
+        summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
+      }
+    } else if (massiveLedger.ok && massiveLedger.ledger.exhausted) {
+      summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); the queue continues on Tickerbot.`);
+    }
+
+    summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
+    await recordTickResult(db, {
+      now, massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls,
+      observed: summary.observed, error: summary.errors.length ? summary.errors[0] : ""
+    });
+    summary.ok = true;
+  } catch (error) {
+    summary.errors.push(`The field tick failed: ${text(error && error.message, 160) || "unknown error"}`);
+    try { await recordTickResult(db, { now, error: summary.errors[0] }); } catch { /* bookkeeping must never mask the tick result */ }
+  } finally {
+    if (leased) await releaseTickLease(db, now, owner).catch(() => {});
+  }
+  return summary;
+}
+
+const instrumentDisplay = instrument => instrument ? (instrument.displaySymbol || instrument.symbol) : "";
+const instrumentName = instrument => instrument ? (instrument.name || "") : "";
+const instrumentSector = instrument => instrument ? (instrument.sector || "") : "";
+
+/** Least-recently-observed rotation over the interval '1d' field. */
+async function dueRotation(db, instruments, limit, now = Date.now()) {
+  if (!instruments.length || limit <= 0) return [];
+  const placeholders = instruments.map(() => "?").join(",");
+  const rows = await db.prepare(`SELECT symbol, observed_at FROM orb2_field_observations
+    WHERE interval = '1d' AND symbol IN (${placeholders})`).bind(...instruments.map(instrument => instrument.symbol)).all();
+  const observed = new Map((Array.isArray(rows && rows.results) ? rows.results : [])
+    .map(row => [String(row.symbol), Number(row.observed_at) || 0]));
+  return [...instruments]
+    .map(instrument => ({ instrument, observedAt: observed.get(instrument.symbol) || 0 }))
+    .filter(entry => !entry.observedAt || fieldObservationExpired("1d", entry.observedAt, now))
+    .sort((left, right) => (left.observedAt - right.observedAt) || left.instrument.symbol.localeCompare(right.instrument.symbol))
+    .slice(0, limit);
+}
+
+async function mapWithConcurrency(items, limit, worker) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
+/* ── the snapshot clients render ──────────────────────────────────────── */
+
+function parsePacketRow(row, now) {
+  try {
+    const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);
+    return parsed.ok ? parsed.observation : null;
+  } catch { return null; }
+}
+
+/**
+ * Read the stored field. `symbols` narrows the response to what a client is
+ * actually rendering; the whole field is never forced on a focused view.
+ */
+export async function readOrb2FieldSnapshot(env = {}, options = {}) {
+  const now = finite(Number(options.now)) ? Number(options.now) : Date.now();
+  const db = env.COMMUNITY_DB;
+  if (!db || typeof db.prepare !== "function") {
+    return { ok: false, code: "field-db-unavailable", message: "The Orb 2 server field needs the COMMUNITY_DB binding and D1 migration 0009. No fallback source is used." };
+  }
+  const interval = ORB2_FIELD_INTERVALS.includes(options.interval) ? options.interval : ORB2_FIELD_DEFAULT_INTERVAL;
+  const disc = ORB2_FIELD_DISCS.includes(options.disc) ? options.disc : null;
+  const requestedSymbols = Array.isArray(options.symbols)
+    ? [...new Set(options.symbols.map(symbol => String(symbol || "").trim().toUpperCase()).filter(symbol => SYMBOL_PATTERN.test(symbol)))].slice(0, ORB2_FIELD_MAX_OBSERVATIONS)
+    : [];
+  const requestedTypes = Array.isArray(options.types) && options.types.length
+    ? new Set(options.types.filter(type => BEAT_TYPE_IDS.has(type))) : new Set(BEAT_TYPE_IDS);
+  try {
+    const clauses = ["interval = ?"];
+    const bindings = [interval];
+    if (disc) { clauses.push("disc_id = ?"); bindings.push(disc); }
+    if (requestedSymbols.length) {
+      clauses.push(`symbol IN (${requestedSymbols.map(() => "?").join(",")})`);
+      bindings.push(...requestedSymbols);
+    }
+    const result = await db.prepare(`SELECT payload FROM orb2_field_observations
+      WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC LIMIT ?`).bind(...bindings, ORB2_FIELD_MAX_OBSERVATIONS).all();
+    let observations = (Array.isArray(result && result.results) ? result.results : [])
+      .map(row => parsePacketRow(row, now)).filter(Boolean)
+      .map(observation => ({ ...observation, freshness: orb2FieldFreshness(observation.interval, observation.observedAt, now) }));
+    /* Re-compose at read time so a 15m packet cannot remain visually force-multiplied
+       after its freshness window has elapsed. The persisted composition is a compact
+       audit/recovery value; the current snapshot is the time-aware authority. */
+    const companionInterval = interval === "1d" ? ORB2_INTRADAY_INTERVAL : interval === ORB2_INTRADAY_INTERVAL ? "1d" : null;
+    if (companionInterval && observations.length) {
+      const companionSymbols = [...new Set(observations.map(observation => observation.symbol))];
+      const companionRows = await db.prepare(`SELECT payload FROM orb2_field_observations
+        WHERE interval = ? AND symbol IN (${companionSymbols.map(() => "?").join(",")})`)
+        .bind(companionInterval, ...companionSymbols).all();
+      const companions = (Array.isArray(companionRows && companionRows.results) ? companionRows.results : [])
+        .map(row => parsePacketRow(row, now)).filter(Boolean);
+      const bySymbol = new Map(companions.map(observation => [observation.symbol, observation]));
+      observations = observations.map(observation => {
+        const daily = interval === "1d" ? observation : bySymbol.get(observation.symbol);
+        const intraday = interval === ORB2_INTRADAY_INTERVAL ? observation : bySymbol.get(observation.symbol);
+        return daily && daily.discId === "stocks"
+          ? { ...observation, composition: composePair(daily, intraday, now) }
+          : observation;
+      });
+    }
+    const marketCount = observations.filter(observation => observation.market).length;
+    const types = ORB2_FIELD_BEAT_TYPES.map(type => {
+      const offered = observations.filter(observation => orb2FieldBeatTypesFor(observation).includes(type.id));
+      return {
+        id: type.id, label: type.label, live: type.live, summary: type.summary,
+        available: requestedTypes.has(type.id) && offered.length > 0,
+        count: offered.length,
+        source: type.live ? "server-provider-beat" : "deterministic-local-scenario"
+      };
+    });
+    const run = await readRun(db, now);
+    const control = await readControl(db);
+    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+    const tickerbotLedger = await readTickerbotCallLedger(db, now);
+    const queue = await queueDepth(db, now);
+    const dxy = await evaluateDxy(db, now);
+    const status = {
+      schema: ORB2_FIELD_STATUS_SCHEMA,
+      source: "server-field",
+      continuous: true,
+      cron: ORB2_FIELD_CRON,
+      pollAfterMs: ORB2_FIELD_POLL_MS,
+      interval,
+      freshness: ORB2_FIELD_FRESHNESS[interval],
+      lastTickAt: Number(run && run.last_tick_at) || null,
+      lastObservationAt: Number(run && run.last_observation_at) || null,
+      lastSweepCompletedAt: Number(run && run.last_sweep_completed_at) || null,
+      sweepsCompleted: Number(run && run.sweeps_completed) || 0,
+      lastError: text(run && run.last_error, 200),
+      massive: {
+        callsToday: Number(run && run.massive_calls) || 0,
+        perMinute: ORB2_MASSIVE_PER_MINUTE,
+        dailyLimit: MASSIVE_PROVIDER_DAILY_LIMIT,
+        remainingToday: massiveLedger.ok ? massiveLedger.ledger.remaining : null,
+        exhausted: massiveLedger.ok ? massiveLedger.ledger.exhausted : null,
+        ledger: massiveLedger.ok ? "ready" : "unavailable",
+        note: massiveLedger.ok ? massiveLedger.ledger.note : massiveLedger.message
+      },
+      tickerbot: {
+        callsToday: Number(run && run.tickerbot_calls) || 0,
+        callsThisMonth: tickerbotLedger.ok ? tickerbotLedger.ledger.calls : null,
+        monthlyLimit: tickerbotLedger.ok ? tickerbotLedger.ledger.workerLimit : null,
+        reserveCalls: tickerbotLedger.ok ? tickerbotLedger.ledger.reserveCalls : null,
+        exhausted: tickerbotLedger.ok ? tickerbotLedger.ledger.exhausted : null,
+        ledger: tickerbotLedger.ok ? "ready" : "unavailable",
+        note: tickerbotLedger.ok ? tickerbotLedger.ledger.note : tickerbotLedger.message
+      },
+      queue,
+      warmBurst: {
+        callsPerBurst: ORB2_FIELD_TICKERBOT_BURST_CALLS,
+        perTick: ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
+        bursts: Number(control && control.warm_bursts) || 0,
+        deployWarmAt: Number(control && control.deploy_warm_at) || null,
+        manualWarmAt: Number(control && control.manual_warm_at) || null,
+        coldAfterMs: ORB2_FIELD_COLD_MS
+      },
+      counts: {
+        stored: observations.length,
+        observed: marketCount,
+        confirmed: observations.filter(observation => observation.confirmed).length,
+        held: observations.filter(observation => !observation.market).length,
+        reviewedInstruments: orb2FieldRoster({ now }).instruments.length
+      }
+    };
+    return {
+      ok: true,
+      schema: ORB2_FIELD_SCHEMA,
+      generatedAt: new Date(now).toISOString(),
+      interval,
+      disc: disc || "all",
+      requestedTypes: [...requestedTypes],
+      beatTypes: types,
+      status,
+      dxy,
+      observations
+    };
+  } catch (error) {
+    return {
+      ok: false, code: "field-read-failed",
+      message: "The Orb 2 server field could not be read. Confirm D1 migration 0009 is applied; the live field is unchanged.",
+      detail: text(error && error.message, 120)
+    };
+  }
+}
+
+/**
+ * The fixed DXY benchmark is derived from the stored FX field, not from whatever
+ * Disc the client is currently looking at, so switching Discs never blanks the
+ * Center Origin reference.
+ */
+async function evaluateDxy(db, now) {
+  const dxy = globalThis.GoodIntelligenceDxy;
+  if (!dxy || typeof dxy.evaluate !== "function") return null;
+  const symbols = dxy.COMPONENTS.map(component => component.symbol);
+  const rows = await db.prepare(`SELECT payload FROM orb2_field_observations
+    WHERE interval = '1d' AND symbol IN (${symbols.map(() => "?").join(",")})`)
+    .bind(...symbols).all();
+  const stored = (Array.isArray(rows && rows.results) ? rows.results : [])
+    .map(row => parsePacketRow(row, now)).filter(Boolean);
+  const inputs = stored
+    .filter(observation => observation.discId === "fx")
+    .map(observation => ({
+      symbol: observation.symbol, discId: "fx", providerMode: "massive", interval: "1d",
+      status: observation.status, market: observation.market
+    }));
+  if (!inputs.length) return null;
+  const result = dxy.evaluate(inputs, now);
+  return {
+    ok: result.ok === true, status: String(result.status || "held"),
+    missing: Array.isArray(result.missing) ? result.missing : [],
+    refreshSymbol: result.refreshSymbol || null,
+    value: Number.isFinite(Number(result.value)) ? Number(result.value) : null,
+    asOf: Number.isFinite(Number(result.asOf)) ? Number(result.asOf) : null,
+    inputCount: Number(result.inputCount) || 0,
+    reason: text(result.reason, 200),
+    note: "Daily component-derived reference from the server field, not the licensed real-time ICE-distributed DXY value."
+  };
+}
+
+/* ── HTTP surface ─────────────────────────────────────────────────────── */
+
+async function readBody(request) {
+  if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) {
+    return { ok: false, status: 415, message: "Send application/json." };
+  }
+  const reader = request.body?.getReader();
+  if (!reader) return { ok: false, status: 400, message: "Missing JSON request body." };
+  let size = 0;
+  const parts = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return { ok: false, status: 413, message: "An Orb 2 field request is limited to 8 KiB." };
+    }
+    parts.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) { bytes.set(part, offset); offset += part.length; }
+  try { return { ok: true, value: JSON.parse(new TextDecoder().decode(bytes)) }; }
+  catch { return { ok: false, status: 400, message: "The request body is not valid JSON." }; }
+}
+
+export async function handleOrb2Field(request, env = {}, dependencies = {}) {
+  const url = new URL(request.url);
+  if (url.pathname !== ORB2_FIELD_ROUTE) return failure("Orb 2 server field route not found.", 404);
+  if (!new Set(["GET", "POST"]).has(request.method)) {
+    return failure("The Orb 2 server field supports GET and same-origin POST only.", 405, { Allow: "GET, POST" });
+  }
+  const now = nowOf(dependencies);
+  if (request.method === "GET") {
+    const snapshot = await readOrb2FieldSnapshot(env, {
+      now,
+      interval: (url.searchParams.get("interval") || ORB2_FIELD_DEFAULT_INTERVAL).trim(),
+      disc: (url.searchParams.get("disc") || "").trim().toLowerCase() || null,
+      symbols: (url.searchParams.get("symbols") || "").split(",").map(symbol => symbol.trim()).filter(Boolean),
+      types: (url.searchParams.get("types") || "").split(",").map(type => type.trim().toLowerCase()).filter(Boolean)
+    });
+    if (!snapshot.ok) return failure(snapshot.message, 503);
+    return json({ success: true, environment: "orb2-server-field", data: snapshot });
+  }
+
+  if (request.headers.get("Origin") !== url.origin) return failure("Same-origin request required.", 403);
+  const db = env.COMMUNITY_DB;
+  if (!db || typeof db.prepare !== "function") {
+    return failure("The Orb 2 server field needs the COMMUNITY_DB binding and D1 migration 0009. No fallback source is used.", 503);
+  }
+  const body = await readBody(request);
+  if (!body.ok) return failure(body.message, body.status);
+  const value = body.value;
+  if (!isRecord(value) || value.schema !== ORB2_FIELD_REQUEST_SCHEMA) {
+    return failure(`Send one ${ORB2_FIELD_REQUEST_SCHEMA} record.`, 400);
+  }
+  const action = text(value.action, 24).toLowerCase();
+  const interval = TICKERBOT_INTERVALS.includes(text(value.interval, 8)) ? text(value.interval, 8) : ORB2_FIELD_DEFAULT_INTERVAL;
+
+  if (action === "tick") {
+    /* Manual is a choice, not a repair. A same-origin client may ask the server to
+       run one scheduled tick now instead of waiting for the next cron minute; the
+       tick still claims the same provider allowances, and the in-isolate cooldown
+       keeps a page from turning this into a polling loop. */
+    if (now - lastManualTickAt < ORB2_FIELD_MANUAL_TICK_COOLDOWN_MS) {
+      return failure(`A manual tick ran ${Math.max(0, Math.round((now - lastManualTickAt) / 1000))}s ago. The continuous schedule is unchanged; nothing was sent.`, 429);
+    }
+    lastManualTickAt = now;
+    const summary = await runOrb2FieldTick(env, null, { now: () => now, fetch: dependencies.fetch });
+    const queue = await queueDepth(db, now);
+    return json({
+      success: summary.ok,
+      environment: "orb2-server-field",
+      data: {
+        schema: ORB2_FIELD_REQUEST_SCHEMA, action: "tick", interval, queue,
+        summary: {
+          massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls,
+          observed: summary.observed, held: summary.held, queueClaimed: summary.queueClaimed,
+          queueCompleted: summary.queueCompleted, warmEnqueued: summary.warmEnqueued,
+          sweepsCompleted: summary.sweepsCompleted
+        },
+        notes: summary.notes, marketRequestSent: summary.massiveCalls + summary.tickerbotCalls > 0
+      }
+    }, summary.ok ? 200 : 503);
+  }
+
+  if (action === "priority") {
+    const roster = orb2FieldRoster({ now });
+    const bySymbol = new Map(roster.instruments.map(instrument => [instrument.symbol, instrument]));
+    const symbols = Array.isArray(value.symbols) ? value.symbols : [];
+    const requested = [...new Set(symbols.map(symbol => text(symbol, 32).toUpperCase()).filter(symbol => SYMBOL_PATTERN.test(symbol)))]
+      .slice(0, ORB2_FIELD_MAX_PRIORITY_SYMBOLS);
+    const entries = requested
+      .filter(symbol => bySymbol.has(symbol) && bySymbol.get(symbol).assetClass === "equity")
+      .map(symbol => ({ symbol, interval }));
+    if (!entries.length) {
+      return failure("Choose at least one reviewed stock from the Disc1 field roster; the priority lane runs on Tickerbot, which covers that reviewed deck.", 400);
+    }
+    const enqueued = await enqueuePriorityRefresh(db, entries, { now, reason: "focus" });
+    const queue = await queueDepth(db, now);
+    return json({
+      success: true,
+      environment: "orb2-server-field",
+      data: {
+        schema: ORB2_FIELD_REQUEST_SCHEMA, action: "priority", interval,
+        accepted: entries.map(entry => entry.symbol),
+        refused: requested.filter(symbol => !entries.some(entry => entry.symbol === symbol)),
+        enqueued, queue, marketRequestSent: false,
+        message: enqueued
+          ? `${enqueued} priority job${enqueued === 1 ? "" : "s"} queued. The next scheduled tick claims them first; the client does not call a provider.`
+          : "Those instruments are already queued; the running sweep is unchanged."
+      }
+    });
+  }
+
+  if (action === "warm") {
+    const keys = providerKeys(env);
+    if (!keys.tickerbot) return failure("Add the TICKERBOT_API_KEY Worker secret before warming the field.", 503);
+    const control = await readControl(db);
+    const lastWarm = Number(control && (control.manual_warm_at || control.deploy_warm_at)) || 0;
+    const newestRow = await db.prepare("SELECT MAX(observed_at) AS newest FROM orb2_field_observations").first();
+    const newest = Number(newestRow && newestRow.newest) || 0;
+    const cold = newest === 0 || now - newest > ORB2_FIELD_COLD_MS;
+    const intervals = (Array.isArray(value.intervals) ? value.intervals : ORB2_FIELD_WARM_INTERVALS)
+      .filter(item => ORB2_FIELD_WARM_INTERVALS.includes(item));
+    if (!cold && now - lastWarm < ORB2_FIELD_WARM_COOLDOWN_MS) {
+      return failure(`A warm burst already ran within the last ${Math.round(ORB2_FIELD_WARM_COOLDOWN_MS / 60_000)} minutes. The continuous rotation is still running; no Tickerbot calls were queued.`, 429);
+    }
+    const expected = TICKERBOT_WATCHLIST.length * (intervals.length || 1);
+    const enqueued = await enqueueWarmBurst(db, { now, reason: value.reason === "deploy" ? "deploy-warm" : "manual-warm", intervals });
+    await writeControl(db, {
+      manualWarmAt: now, warmBursts: (Number(control && control.warm_bursts) || 0) + 1
+    }, now);
+    const queue = await queueDepth(db, now);
+    return json({
+      success: true,
+      environment: "orb2-server-field",
+      data: {
+        schema: ORB2_FIELD_REQUEST_SCHEMA, action: "warm", intervals, enqueued, expected,
+        callsPerBurst: ORB2_FIELD_TICKERBOT_BURST_CALLS, perTick: ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
+        queue, marketRequestSent: false,
+        message: `${enqueued} of ${expected} Tickerbot warm jobs queued across ${intervals.join(" + ")}. The scheduled tick claims up to ${ORB2_FIELD_TICKERBOT_BURST_PER_TICK} jobs per minute and stops at the durable Tickerbot monthly ledger.`
+      }
+    });
+  }
+
+  return failure("Choose action=priority (bounded focus refresh), action=warm (the Tickerbot field burst), or action=tick (run one scheduled tick now).", 400);
+}

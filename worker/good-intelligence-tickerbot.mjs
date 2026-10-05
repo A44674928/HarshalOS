@@ -76,7 +76,11 @@ const WATCHLIST = [
 // The allowlist is immutable at runtime: nothing in this Worker can widen it per request.
 export const TICKERBOT_WATCHLIST = Object.freeze(WATCHLIST.map(entry => Object.freeze(entry)));
 const SYMBOLS = new Set(TICKERBOT_WATCHLIST.map(entry => entry.symbol));
-export const TICKERBOT_INTERVALS = Object.freeze(["1h", "1d"]);
+/* 15m is Orb 2's bounded intraday residual lane. Focused refresh is the normal
+ * path; the explicit first-deck calibration action may queue one full 52-symbol
+ * 15m pass. If the configured Tickerbot account refuses this interval, the refusal
+ * stays visible and no other provider is substituted. */
+export const TICKERBOT_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
 const INTERVALS = new Set(TICKERBOT_INTERVALS);
 const BAR_LIMIT = 360;
 const CACHE_TTL_MS = 60_000;
@@ -231,7 +235,7 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
   const symbol = (url.searchParams.get("symbol") || "AAPL").trim().toUpperCase();
   const interval = (url.searchParams.get("interval") || "1h").trim();
   if (!SYMBOLS.has(symbol)) return failure(`Choose a ticker from the configured ${SYMBOLS.size}-symbol Tickerbot watchlist.`, 400);
-  if (!INTERVALS.has(interval)) return failure("Choose a supported bar interval: 1h or 1d.", 400);
+  if (!INTERVALS.has(interval)) return failure("Choose a supported bar interval: 15m, 1h, or 1d.", 400);
   const apiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
   if (!apiKey) return failure("Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret.", 503);
 

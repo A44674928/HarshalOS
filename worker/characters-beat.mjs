@@ -3,7 +3,7 @@
  *
  * Triple-provider boundary:
  *   • Massive: automatic 1d daily bars for all five reviewed Discs.
- *   • Tickerbot: on-demand 1h / 1d bars for the reviewed Disc1 stock deck.
+ *   • Tickerbot: on-demand 15m / 1h / 1d bars for the reviewed Disc1 stock deck; Orb 2 uses 15m as a bounded residual lane.
  *   • Alpha Vantage: Disc1-only explicit 1mo best-performer spotlight.
  *
  * Providers are selected explicitly with ?provider=. The browser includes that

@@ -188,9 +188,10 @@ test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", asy
   const dependencies = { now: () => NOW, fetch: async () => { calls++; return okResponse(); } };
   const env = testEnv("test");
   assert.equal((await handleGoodIntelligenceTickerbot(route("AAPL,MSFT"), env, dependencies)).status, 400);
+  assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL&interval=15m"), env, dependencies)).status, 200, "the exact 15m route is accepted when the provider answers");
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL&interval=5m"), env, dependencies)).status, 400);
   assert.equal((await handleGoodIntelligenceTickerbot(new Request("https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=AAPL", { method: "POST" }), env, dependencies)).status, 405);
-  assert.equal(calls, 0);
+  assert.equal(calls, 1, "only the supported 15m request reaches the provider");
 });
 
 test("the expanded watchlist enables the requested tickers and every entry is a unique, well-formed symbol", () => {
