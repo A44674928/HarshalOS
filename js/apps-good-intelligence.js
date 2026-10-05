@@ -56,8 +56,10 @@
     // The reviewed Tickerbot allowlist this app searches over, exposed as read-only
     // metadata so tests can prove it matches the Worker's copy.
     tickerbotWatchlist: TICKERBOT_WATCHLIST,
-    w: 1160,
-    h: 760,
+    // Start with a substantial model workspace on high-resolution displays while
+    // letting the window manager clamp this to smaller screens and touch devices.
+    w: Math.min(2360, Math.max(1160, window.innerWidth - 80)),
+    h: Math.min(1000, Math.max(760, window.innerHeight - 180)),
     fullscreen: true,
     render(body, api) {
       const Client = window.GoodIntelligenceClient;
@@ -923,6 +925,7 @@
         const marketsView = state.view === "markets";
         const orb2View = state.view === "orb2";
         const nabView = state.view === "nabdiscs";
+        body.querySelector(".gi-app")?.classList.toggle("gi-orb2-active", orb2View);
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;

@@ -573,6 +573,9 @@ test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and kee
   const marketTab = appSource.indexOf('data-gi-view="markets"');
   const orbTab = appSource.indexOf('data-gi-view="orb2"');
   assert.ok(marketTab !== -1 && orbTab > marketTab, "Orb 2 follows Market Charts");
+  assert.match(appSource, /w: Math\.min\(2360, Math\.max\(1160, window\.innerWidth - 80\)\)/, "the desktop window uses the supplied 2622-pixel average width as model workspace");
+  assert.match(appSource, /h: Math\.min\(1000, Math\.max\(760, window\.innerHeight - 180\)\)/, "the app height leaves room for desktop chrome on the supplied 1206-pixel display");
+  assert.match(appSource, /gi-orb2-active", orb2View/, "the whole-app fullscreen style allocates its viewport to Orb 2");
   assert.doesNotMatch(appSource, new RegExp(["Trading", "View"].join(""), "i"), "the removed chart integration leaves no app surface");
   const removedChartSurface = new RegExp([["lightweight", "-charts"].join(""), ["data-gi-", "tv"].join("")].join("|"), "i");
   assert.doesNotMatch(appSource, removedChartSurface, "the removed chart integration leaves no vendor or panel surface");
@@ -585,8 +588,8 @@ test("Good Intelligence lazily mounts Orb 2 with Characters beat modules and kee
 /* ── The 2026-10-05 restore: Characters and Orb 2 keep their own surfaces ─────
    NAB Discs arrived after the Orb 2 carry-over and took over both #app=characters
    and the Orb 2 tab by delegation. These assertions pin the restore: Orb 2 renders
-   the carried-over model itself, the flow and Center Origin readouts are on the canvas,
-   Center Origin carries the whiteboard parts, and NAB Discs keeps its own id. */
+   the carried-over model itself, its readouts stay clear of the canvas, Center Origin
+   carries the whiteboard parts, and NAB Discs keeps its own id. */
 test("Orb 2 renders the carried-over model itself instead of delegating to NAB Discs", () => {
   assert.doesNotMatch(orbSource, /NabDiscsView/, "the Orb 2 module no longer hands its host to the NAB view");
   assert.doesNotMatch(orbSource, /legacySourceView/, "no escape hatch is needed once the classic view is the view");
@@ -598,25 +601,48 @@ test("Orb 2 renders the carried-over model itself instead of delegating to NAB D
   assert.match(indexHtml, /js\/nab-discs-view\.js\?v=/, "the NAB composite field still ships");
 });
 
-test("the volume-flow readout and the Center Origin strip are mounted over the canvas", async t => {
+test("Orb 2 keeps settings and status outside the clear, full-width model stage", async t => {
   const { host, canvasCalls, frames } = interactiveHarness(t);
   await flush();
-  const [flow] = host.querySelectorAll("[data-gi-orb2-flow-readout]");
-  assert.ok(flow, "the volume-flow readout is visible");
+  const canvasShell = host.querySelector(".gi-orb2-canvas-shell");
+  const flow = host.querySelector("[data-gi-orb2-flow-readout]");
+  const origin = host.querySelector("[data-gi-orb2-origin-status]");
+  assert.ok(flow, "the volume-flow readout remains available");
   assert.match(flow.textContent, /VOLUME FLOW/, "the readout states what it is waiting for");
+  assert.ok(origin, "the Center Origin strip remains available");
+  assert.match(origin.textContent, /ORIGIN · CPU/, "the local origin remains labeled as the CPU");
+  assert.match(origin.textContent, /DXY BENCHMARK/, "the fixed DXY reference stays explicit");
+  assert.equal(canvasShell.contains(flow), false, "flow text sits below the canvas rather than on top of the model");
+  assert.equal(canvasShell.contains(origin), false, "origin text sits below the canvas rather than on top of the model");
+  assert.equal(host.querySelector(".gi-orb2-canvas-hud"), null, "the overlay HUD is removed");
+  assert.equal(host.querySelector("[data-gi-orb2-sheet-toggle]"), null, "the floating mobile inspector sheet is removed");
   assert.equal(host.querySelector("[data-gi-orb2-fractal-status]"), null, "the FRACTAL FRAMES line is gone with the fractal engine");
   assert.equal(host.querySelector("[data-gi-orb2-fractal]"), null, "and no fractal toggle remains to hide it");
-  const origin = host.querySelector("[data-gi-orb2-origin-status]");
-  assert.ok(origin, "the Center Origin strip replaces it on the canvas");
-  assert.match(origin.textContent, /ORIGIN · CPU/, "the local origin remains labeled as the CPU");
-  assert.match(origin.textContent, /DXY BENCHMARK/, "the fixed DXY reference is displayed separately at center");
   assert.match(host.querySelector(".gi-orb2-center").textContent, /DXY FIXED BENCHMARK/);
-  assert.match(appCss, /\.gi-orb2-flow-readout\s*\{/, "the readout's CSS survives so the boxes actually render");
-  assert.match(appCss, /\.gi-orb2-flow-rate-note\s*\{/, "the cycles-per-second caveat is styled");
+  assert.match(appCss, /\.gi-orb2-flow-readout\s*\{/, "the plain status readout remains styled");
+  assert.match(appCss, /\.gi-orb2-flow-rate-note\s*\{/, "the visual cadence caveat is styled below the canvas");
+  assert.doesNotMatch(appCss, /\.gi-orb2-inspector\s*\{[^}]*position:\s*absolute/s, "node details are not an overlay");
   assert.equal(host.querySelector("[data-gi-orb2-disc]").options.length, 5, "the five reviewed Discs are selectable");
+
+  const settingsPanel = host.querySelector("[data-gi-orb2-settings]");
+  const settingsToggle = host.querySelector("[data-gi-orb2-settings-toggle]");
+  assert.ok(settingsPanel && settingsPanel.hidden, "settings are closed by default to expose the model");
+  assert.ok(settingsPanel.contains(host.querySelector("[data-gi-orb2-disc]")), "beat settings live in the dedicated panel");
+  assert.ok(settingsPanel.contains(host.querySelector("[data-gi-orb2-formation]")), "display settings live in the dedicated panel");
+  settingsToggle.click();
+  assert.equal(settingsPanel.hidden, false, "the settings button reveals the panel in document flow");
+  assert.equal(settingsToggle.getAttribute("aria-expanded"), "true");
+  host.querySelector("[data-gi-orb2-settings-close]").click();
+  assert.equal(settingsPanel.hidden, true, "Done closes the settings panel");
+  assert.equal(settingsToggle.getAttribute("aria-expanded"), "false");
+
   const frame = frames.shift();
   if (typeof frame === "function") frame(120);
-  assert.ok(canvasCalls.includes("stroke"), "the shells, lattice, and nodes are painted");
+  assert.ok(canvasCalls.includes("stroke"), "the shells, depth-aware lattice, and nodes are painted");
+  assert.ok(canvasCalls.includes("ellipse"), "spherical highlights give nodes visible volume");
+  assert.match(orbSource, /function drawStarfield/, "the scene has a restrained star field");
+  assert.match(orbSource, /function drawOrbAtmosphere/, "the globe has an atmospheric shell");
+  assert.match(orbSource, /function strokeDepthPath/, "front and rear geometry use separate depth treatment");
   await flush();
 });
 
@@ -630,12 +656,12 @@ test("Center Origin carries the inner shell, the PDH phase, and the Human Key ga
   const { host, window, frames } = interactiveHarness(t);
   await flush();
   const origin = host.querySelector("[data-gi-orb2-origin-status]");
-  assert.ok(origin, "the origin strip is mounted over the canvas");
+  assert.ok(origin, "the origin strip is available below the canvas");
   assert.match(origin.textContent, /ORIGIN · CPU/, "Center Origin is labeled as the CPU");
   assert.match(origin.textContent, /GATE UNREAD/, "an unread kernel is stated as unread, never defaulted");
   assert.match(origin.textContent, /PDH UNDECLARED/, "an undeclared phase is stated, not invented");
-  assert.ok(host.querySelector("[data-gi-orb2-gate]"), "the gate pill sits in the display controls");
-  assert.ok(host.querySelector("[data-gi-orb2-uts]"), "the UTS watch is readable from the model");
+  assert.ok(host.querySelector("[data-gi-orb2-gate]"), "the gate state sits in the non-overlay status row");
+  assert.ok(host.querySelector("[data-gi-orb2-uts]"), "the UTS watch stays in the non-overlay status row");
   assert.match(orbSource, /shellRing\(/, "the inner shell is drawn through the model camera");
   assert.match(orbSource, /phaseLoop\(/, "the declared phase shifts a phase loop at Center Origin");
   assert.match(orbSource, /PHASE_SHIFT_RADIANS/, "phase shifts come from a fixed display table, not a data channel");
