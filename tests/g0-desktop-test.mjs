@@ -670,9 +670,12 @@ if (giApp) {
   ok(!!(marketHost && marketHost.querySelectorAll("svg.gi-market-svg").length === 3 && marketHost.textContent.includes("TICKERBOT-SUPPLIED OHLCV · NOT INDEPENDENTLY VERIFIED")), "Tickerbot Live renders real-provider OHLCV through the existing Pine indicator charts");
   ok(!!(marketSelect && marketSelect.innerHTML.includes("AAPL · TICKERBOT") && marketInterval && marketInterval.disabled === false), "Tickerbot mode switches to the live watchlist and enables bar intervals");
   const liveWatchlist = giApp && Array.isArray(giApp.tickerbotWatchlist) ? giApp.tickerbotWatchlist : [];
-  ok(!!(liveWatchlist.length >= 40 && ["INTC", "AMD", "MSFT", "NET", "CVX", "XOM"].every(symbol => liveWatchlist.some(entry => entry.symbol === symbol))), "the configured Tickerbot watchlist enables the requested semiconductor, cloud, and energy tickers");
+  ok(!!(liveWatchlist.length === 52 && ["INTC", "AMD", "MSFT", "MU", "CVX", "XOM"].every(symbol => liveWatchlist.some(entry => entry.symbol === symbol))), "the configured Tickerbot watchlist enables the 52-asset roster's semiconductor and energy leaders");
   ok(!!(liveWatchlist.every(entry => /^[A-Z]{1,5}$/.test(entry.symbol) && entry.name && entry.sector) && new Set(liveWatchlist.map(entry => entry.symbol)).size === liveWatchlist.length), "every live watchlist entry is a unique, named, sector-labeled symbol");
   ok(!!(marketSelect && marketSelect.querySelectorAll("option").length === liveWatchlist.length && marketSelect.innerHTML.includes('<optgroup label="Energy">')), "the live ticker selector lists the whole watchlist, grouped by sector");
+  if (marketSelect) { marketSelect.value = "AAPL"; dispatch(marketSelect, "change"); }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
   const tickerbotCall = giCalls.find(call => call.url.includes("/market/tickerbot/bars?"));
   ok(!!(tickerbotCall && tickerbotCall.options.method === "GET" && tickerbotCall.options.credentials === "same-origin" && !tickerbotCall.options.headers.Authorization), "the browser calls only the same-origin Worker and never receives the Tickerbot key");
   if (marketInterval) {
@@ -736,7 +739,7 @@ if (giApp) {
   ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
   ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "News > Market Charts > TradingView > Orb 2 > Intel feed > Rankings", "the main tab strip groups Intel feed and Rankings under News while keeping the chart views");
+  ok(tabLabels.join(" > ") === "News > Market Charts > TradingView > Orb 2 > NAB Discs > Intel feed > Rankings", "the main tab strip groups Intel feed and Rankings under News while keeping the chart views");
   ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
   ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
   /* This Node harness has no canvas, so the real library is swapped for a
@@ -796,17 +799,44 @@ if (giApp) {
   const orbRequests = giCalls.slice(callsBeforeOrb);
   const orbCanvasStatus = orbHost && orbHost.querySelector("[data-gi-orb2-canvas-status]");
   const modelFullscreen = orbHost && orbHost.querySelector("[data-gi-orb2-fullscreen]");
+  ok(!!orbCanvasStatus && /LOCAL \/ VISUAL PATHS ONLY|CANVAS UNAVAILABLE/.test(orbCanvasStatus.textContent),
+    "the canvas line states its own state — local visual traces, or an unavailable canvas with the beat log and inspector still active");
+  ok(!!modelFullscreen, "the beat model stays full-screen capable");
   ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
-  ok(orbText.includes("NAB Discs") && orbText.includes("119 alignments"), "Orb 2 opens the NAB composite surface");
-  ok(orbHost.querySelectorAll("[data-nab-id]").length === 119, "all 119 NAB Discs are navigable");
-  ok(!orbHost.querySelector("[data-gi-orb2-disc]"), "retired asset-class Discs are absent from active navigation");
-  ok(orbText.includes("Import saved observations"), "legacy observations remain importable without rewriting history");
-  ok(!!orbHost.querySelector("[data-nab-orb-canvas]") && !orbHost.querySelector("[data-nab-geometry]"), "the complete 3D composite renderer is primary, not behind an equity-only gateway");
-  ok(!!appFullscreen, "whole-app fullscreen still applies to the NAB surface");
-  ok(orbText.includes("3D canvas unavailable") && !!orbHost.querySelector("[data-nab-detail]"), "the complete inspector remains accessible when 3D canvas is unavailable");
-  ok(orbRequests.length === 0, "opening 119 NAB Discs does not fan out market or history requests");
-  ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")), "all Orb 2 data traffic stays on same-origin Worker routes");
-  ok(!orbRequests.some(call => /\/content\/me|\/categories|\/rank\?|\/market\/tickerbot\/bars|\/ocm\//.test(call.url)), "Orb 2 does not substitute demo feed, chart data, or OCM transport routes for its beat");
+  ok(!!orbHost.querySelector("[data-gi-orb2-disc]"), "Orb 2 opens the carried-over model with the five reviewed Discs");
+  ok(!!orbHost.querySelector("[data-gi-orb2-flow-readout]"), "the volume-flow readout is painted on the canvas");
+  ok(!!orbHost.querySelector("[data-gi-orb2-origin-status]"), "Center Origin reports the gate, the phase, and UTS");
+  ok(orbText.includes("ORIGIN · CPU"), "the origin is labeled as the CPU the Human Key secures");
+  ok(!orbHost.querySelector("[data-gi-orb2-fractal-status]") && !orbHost.querySelector("[data-gi-orb2-fractal]"),
+    "no fractal frame line or toggle ships with the market view");
+  ok(!orbHost.querySelector("[data-nab-select]"), "Orb 2 no longer hands its host to the NAB composite field");
+  ok(orbRequests.length <= 2, `opening Orb 2 takes at most the first beat and its saved-beat probe (${orbRequests.length} calls), never a Disc fan-out`);
+  ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")),
+    "the calls made on open are same-origin Worker routes only");
+  const nabTab = giWindow && giWindow.body.querySelector('[data-gi-view="nabdiscs"]');
+  const nabPanel = giWindow && giWindow.body.querySelector("[data-gi-nab-panel]");
+  const nabHost = giWindow && giWindow.body.querySelector("[data-gi-nab-host]");
+  ok(!!(nabTab && nabPanel && nabPanel.hidden === true && nabHost), "the NAB Discs tab and its lazy host start hidden");
+  const callsBeforeNab = giCalls.length;
+  if (nabTab) nabTab.click();
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+  const nabText = nabHost ? nabHost.textContent : "";
+  const nabRequests = giCalls.slice(callsBeforeNab);
+  ok(!!(nabPanel.hidden === false && orbPanel.hidden === true), "opening NAB Discs hides Orb 2 and reveals the composite field");
+  ok(nabText.includes("119 alignments"), "the composite field states its reviewed scope");
+  ok(nabHost.querySelectorAll("[data-nab-id]").length === 119, "all 119 NAB Discs remain navigable");
+  ok(!!nabHost.querySelector("[data-nab-import]"), "legacy observations remain importable without rewriting history");
+  ok(!!nabHost.querySelector("[data-nab-detail]"), "the complete inspector remains accessible when 3D canvas is unavailable");
+  ok(nabRequests.length === 0, "opening the 119 NAB Discs does not fan out market or history requests");
+  if (orbTab) orbTab.click();
+  await new Promise(resolve => setImmediate(resolve));
+  ok(!!(orbPanel.hidden === false && nabPanel.hidden === true), "returning to Orb 2 hides the composite field again");
+  if (orbHost) orbHost.querySelector("[data-gi-orb2-beat]")?.click();
+  await new Promise(resolve => setImmediate(resolve));
+  const beatRequests = giCalls.slice(callsBeforeOrb);
+  ok(beatRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")), "all Orb 2 data traffic stays on same-origin Worker routes");
+  ok(!beatRequests.some(call => /\/content\/me|\/categories|\/rank\?|\/market\/tickerbot\/bars|\/ocm\//.test(call.url)), "Orb 2 does not substitute demo feed, chart data, or OCM transport routes for its beat");
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");
 }
 globalThis.fetch = originalFetch;

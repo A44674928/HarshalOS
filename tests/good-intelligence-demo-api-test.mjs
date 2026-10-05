@@ -29,7 +29,7 @@ test("empty.domains demo feed is synthetic, explicitly labeled, and exercises as
   assert.ok(payload.data.slice(4).every(item => item.assurance === undefined));
   const marketFixtures = payload.data.filter(item => item.marketContext);
   assert.deepEqual(marketFixtures.map(item => item.marketContext.symbol), [
-    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "NET-DEMO", "CVX-DEMO", "XOM-DEMO"
+    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "MU-DEMO", "CVX-DEMO", "XOM-DEMO"
   ]);
   assert.equal(new Set(marketFixtures.map(item => item._id)).size, marketFixtures.length);
   for (const item of marketFixtures) {

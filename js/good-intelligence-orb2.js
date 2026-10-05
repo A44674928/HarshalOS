@@ -16,11 +16,17 @@
    Good Intelligence mounts this model over its reviewed ticker watchlist: each
    ticker becomes a display-only orb with distinct hourly and daily geometry, and
    Clear beats / Restore stored beats bridge the anonymous D1 saved-beat archive
-   (SAVED_BEAT_SESSION_KEY) shared with the Characters app.
+   (SAVED_BEAT_SESSION_KEY) shared with the Characters app. The fixed DXY benchmark
+   is separately derived only after six aligned, confirmed daily FX inputs; its
+   ignition sequence then visits each of the 52 market-cap-ranked ticker orbs once.
 
-   The Orb's fractal frame processing — the shared OrbFilm surface film and the
-   Demo.flame IFS core — is available here through this model's own camera. It is
-   display-only: it adds no request, sends no message, and encodes no market meaning.
+   Center Origin carries the parts the author specified on the whiteboard: an inner
+   shell inside the model, the declared PDH phase as a rotation shift of that
+   assembly, the origin drawn as the CPU node, and the Human Key gate as the thing
+   that secures it. Phase and gate are read from the local kernel snapshot
+   (HOS.observe()) and the local UTS math only — never from a provider, never from
+   a claim, and never used to authorize. An unread kernel is a dimmer ring and an
+   "UNREAD" readout, not a defaulted phase.
    ═══════════════════════════════════════════════════════════════ */
 "use strict";
 
@@ -45,35 +51,19 @@
       return id;
     } catch { return ""; }
   }
-  /* The Orb's fractal frame sources, resolved lazily so load order or their
-     absence can never break this model — absent ⇒ wire core only. */
-  const orbFilmApi = () => globalThis.OrbFilm || null;
-  let sharedFlamePlayer = null;
-  const flameCore = () => {
+  /* The declared PDH phase shifts the Center Origin assembly's rotation. These are
+     display offsets for the three operational phases only — a phase never changes a
+     price, a cadence, or an entitlement, and an undeclared phase shifts nothing. */
+  const PHASE_SHIFT_RADIANS = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
+  const kernelSnapshot = () => {
     try {
-      const api = globalThis.FractalFlame;
-      if (!api || typeof api.shared !== "function") return null;
-      if (!sharedFlamePlayer) sharedFlamePlayer = api.shared("assets/Demo.flame", { w: 160, h: 160 });
-      return sharedFlamePlayer;
-    } catch { return null; }
-  };
-  /* The Orb's outer macro-flame (OuterOrb.flame, 600 frames). It never draws
-     pixels: its harmonics govern the counter-rotating depth shells and the
-     helix rungs' breath, exactly as The Orb's outer system does. Resolving it
-     lazily starts the shared bake once, so The Orb, the Fractal Flame app,
-     and Orb 2 all reuse one player. */
-  let sharedOuterFlamePlayer = null;
-  const outerFlamePlayer = () => {
-    try {
-      const api = globalThis.FractalFlame;
-      if (!api || typeof api.shared !== "function") return null;
-      if (!sharedOuterFlamePlayer) {
-        sharedOuterFlamePlayer = api.shared("assets/OuterOrb.flame", { w: 160, h: 160 });
-        if (sharedOuterFlamePlayer && !sharedOuterFlamePlayer.ready && !sharedOuterFlamePlayer.baking
-          && typeof sharedOuterFlamePlayer.start === "function") sharedOuterFlamePlayer.start();
+      const hos = globalThis.HOS;
+      if (hos && typeof hos.observe === "function") {
+        const snapshot = hos.observe();
+        return snapshot && typeof snapshot === "object" ? snapshot : null;
       }
-      return sharedOuterFlamePlayer;
-    } catch { return null; }
+    } catch { /* display-only: an unread kernel is an unavailable readout, not a default */ }
+    return null;
   };
   const legitimacyGate = () => {
     try {
@@ -83,15 +73,6 @@
     return 0.5;
   };
   const TAU = Math.PI * 2;
-  const SPHERE_RADIUS = 2.06;
-  const TICKER_ORB_FIELD_RADIUS = SPHERE_RADIUS * 0.62;
-  const TICKER_ORB_PAIR_OFFSET = 0.2;
-  const TICKER_ORB_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-  const MODEL_VIEW_SCALE = 0.215;
-  const CAMERA_DISTANCE = 18;
-  const HELIX_TURNS = 2.5;
-  const HELIX_LAT_MAX = Math.PI / 2 - 0.08;
-  const HELIX_BASE_LON = -Math.PI / 2;
   const CENTER_ADDRESS = "0•000•000•0000";
   const PROVIDER_COOLDOWN_MS = 60_000;
   const MASSIVE_BEAT_MS = 60_000;
@@ -182,37 +163,6 @@
     return { state, color, value, signal };
   }
 
-  /* Each ticker receives an individual spheroid; supplied volatility widens
-     the local orb only within a small, bounded visual range. */
-  function tickerOrbWorldRadius(berth) {
-    const volatility = berth && berth.metrics ? berth.metrics.volatility : null;
-    return 0.19 + (volatility === null ? 0 : clamp(volatility, 0, 1) * 0.045);
-  }
-
-  /** Normalize each side against its own distance from the supplied basis.
-      p=0.5 is neutral; excursions outside the outer bands remain outside.
-      Incomplete or invalid observations stay unknown, never neutral. */
-  function helixMetricsForMarket(market) {
-    if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
-    const close = numeric(market.latestBar && market.latestBar.close);
-    const bands = isRecord(market.bands) ? market.bands : null;
-    const lower = bands ? numeric(bands.lower1000) : null;
-    const upper = bands ? numeric(bands.upper1000) : null;
-    const basis = numeric(market.basis);
-    if (close === null || basis === null || lower === null || upper === null || !finite(lower) || !finite(upper) || lower >= basis || upper <= basis) {
-      return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
-    }
-    const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
-      : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
-    const displacement = (close - basis) / (close >= basis ? upper - basis : basis - lower);
-    const p = 0.5 + displacement / 2;
-    const width = upper - lower;
-    const volatilityPct = basis !== null && basis > 0 ? (width / basis) * 100 : null;
-    const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
-    const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
-    return { held: false, p, volatility, volatilityPct, potential, breakSide };
-  }
-
   function flowPathForObservation(observation, motionOverride = null) {
     const market = isRecord(observation && observation.market) ? observation.market : null;
     const motion = isRecord(motionOverride) ? motionOverride : isRecord(observation && observation.motion) ? observation.motion : null;
@@ -244,6 +194,37 @@
       lane: moving ? lane : "stationary",
       direction: moving ? lane === "inbound" ? "Center → node" : "node → Center" : "stationary"
     };
+  }
+
+  /* Fibonacci-band placement metrics — computed only from supplied packet fields.
+     `p` is the close's position relative to each ticker's OWN band basis, measured
+     against the nearer half-width so an upper-band and a lower-band excursion of the
+     same size read the same distance from neutral:
+     p = 0.5 + ((close - basis) / (close >= basis ? upper - basis : basis - lower)) / 2.
+     p = 1 is the upper band, p = 0 the lower band, p = 0.5 neutral; excursions beyond
+     an outer band stay beyond it and are never clamped back. Incomplete or invalid
+     observations stay unknown (`held`), never neutral. This is a pure metric carried
+     over from the helix pass so the NAB field, the spheroid shelf, and any future
+     surface share one definition — it draws nothing by itself and is not a signal. */
+  function fibonacciBandMetrics(market) {
+    if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    const close = numeric(market.latestBar && market.latestBar.close);
+    const bands = isRecord(market.bands) ? market.bands : null;
+    const lower = bands ? numeric(bands.lower1000) : null;
+    const upper = bands ? numeric(bands.upper1000) : null;
+    const basis = numeric(market.basis);
+    if (close === null || basis === null || lower === null || upper === null || !finite(lower) || !finite(upper) || lower >= basis || upper <= basis) {
+      return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    }
+    const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
+      : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
+    const displacement = (close - basis) / (close >= basis ? upper - basis : basis - lower);
+    const p = 0.5 + displacement / 2;
+    const width = upper - lower;
+    const volatilityPct = basis > 0 ? (width / basis) * 100 : null;
+    const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
+    const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
+    return { held: false, p, volatility, volatilityPct, potential, breakSide };
   }
 
   function dataBitsForMarket(market) {
@@ -321,12 +302,24 @@
       ticker orbs with distinct hourly and daily geometry. */
   function normalizedTickers(tickers, timeframe = "1h") {
     const time = timeframe === "1d" ? "1d" : "1h";
-    const entries = (Array.isArray(tickers) ? tickers : [])
+    const rawEntries = Array.isArray(tickers) ? tickers : [];
+    const ranked = rawEntries.length > 0 && rawEntries.every(item => item && Number.isFinite(Number(item.marketCapUsd)) && Number(item.marketCapUsd) > 0);
+    const ordered = ranked && globalThis.GoodIntelligenceDxy && typeof globalThis.GoodIntelligenceDxy.buildFiringOrder === "function"
+      ? globalThis.GoodIntelligenceDxy.buildFiringOrder(rawEntries) : rawEntries;
+    const entries = ordered
       .filter(item => item && /^[A-Z0-9.-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
       .map(item => ({
         symbol: String(item.symbol).toUpperCase(),
         name: String(item.name || item.symbol).slice(0, 96),
-        sector: String(item.sector || "Market").slice(0, 64)
+        sector: String(item.sector || "Market").slice(0, 64),
+        country: String(item.country || "").slice(0, 48),
+        sectorRank: Number.isSafeInteger(Number(item.sectorRank)) && Number(item.sectorRank) > 0 ? Number(item.sectorRank) : null,
+        marketCapUsd: Number.isFinite(Number(item.marketCapUsd)) && Number(item.marketCapUsd) > 0 ? Number(item.marketCapUsd) : null,
+        marketCapLabel: String(item.marketCapLabel || "").slice(0, 24),
+        marketCapAsOf: String(item.marketCapAsOf || "").slice(0, 16),
+        marketCapSource: String(item.marketCapSource || "").slice(0, 96),
+        marketCapSourceUrl: String(item.marketCapSourceUrl || "").slice(0, 240),
+        firingOrder: Number.isSafeInteger(Number(item.firingOrder)) && Number(item.firingOrder) > 0 ? Number(item.firingOrder) : null
       }));
     const sectors = [...new Set(entries.map(entry => entry.sector))];
     const counts = new Map(sectors.map(sector => [sector, 0]));
@@ -343,7 +336,6 @@
       return Object.freeze({
         id: `${slug(entry.symbol) || "ticker"}-${time}`,
         visualId: entry.symbol,
-        nabId: globalThis.NabSectors?.byTicker(entry.symbol)?.id ?? null,
         symbol: entry.symbol,
         name: entry.name,
         role: `${entry.name} · ${entry.symbol} ticker orb for ${time} bars. Market data is display-only context.`,
@@ -404,13 +396,11 @@
 
   function mount(host, options = {}) {
     if (!host || typeof host.innerHTML !== "string") return null;
-    if (globalThis.NabDiscsView && !options.legacySourceView) {
-      return globalThis.NabDiscsView.mount(host, options);
-    }
     const Beat = options.beat || globalThis.CharactersBeat;
     const Cast = options.cast || globalThis.CharactersCast;
     const DiscCatalog = options.discCatalog || globalThis.CharactersDiscCatalog;
     const MarketContext = options.marketContext || globalThis.GoodIntelligenceMarketContext;
+    const Dxy = options.dxy || globalThis.GoodIntelligenceDxy;
     /* Good Intelligence mounts this model over its reviewed ticker watchlist:
        ticker rows become display-only orbs with hourly/daily geometry. */
     const tickerMode = Array.isArray(options.tickers) && options.tickers.length > 0;
@@ -425,8 +415,8 @@
         : "The Characters cast did not provide a reviewed roster."} No nodes or routes were invented.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
     }
-    if (!Beat || !Cast || !DiscCatalog || !MarketContext) {
-      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 beat modules unavailable</strong><p>CharactersBeat, CharactersCast, CharactersDiscCatalog, and GoodIntelligenceMarketContext must load before Orb 2.</p></div>`;
+    if (!Beat || !Cast || !DiscCatalog || !MarketContext || !Dxy) {
+      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 beat modules unavailable</strong><p>CharactersBeat, CharactersCast, CharactersDiscCatalog, GoodIntelligenceMarketContext, and GoodIntelligenceDxy must load before Orb 2.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
     }
 
@@ -434,24 +424,15 @@
     const watchlist = Array.isArray(options.watchlist) ? options.watchlist
       : tickerMode ? options.tickers
         : appEntry && Array.isArray(appEntry.tickerbotWatchlist) ? appEntry.tickerbotWatchlist : [];
-    /* Double-helix series: two reviewed ticker sets compared strand against
-       strand. Defaults split the reviewed watchlist in watchlist order; the
-       toolbar inputs let a reviewer reshape both sets, and unknown symbols are
-       refused rather than invented. */
-    const reviewedSymbolSet = new Set(nodes.map(node => node.symbol).filter(Boolean));
-    const defaultSeriesA = nodes.filter((_, index) => index % 2 === 0).map(node => node.symbol);
-    const defaultSeriesB = nodes.filter((_, index) => index % 2 === 1).map(node => node.symbol);
-    const parseSeriesInput = value => String(value || "")
-      .split(/[\s,;]+/).map(part => part.trim().toUpperCase())
-      .filter(part => part.length > 0);
-    const seriesFromValue = (value, fallback) => {
-      const raw = Array.isArray(value) ? value.map(symbol => String(symbol).toUpperCase()) : parseSeriesInput(value);
-      const valid = [...new Set(raw.filter(symbol => reviewedSymbolSet.has(symbol)))];
-      return valid.length ? valid : fallback;
-    };
-    const helixBerths = new Map();
-    const helixState = { ranked: null, counts: { a: 0, b: 0 }, rungs: 0, held: 0 };
-
+    const marketFiringOrder = tickerMode && Dxy && typeof Dxy.buildFiringOrder === "function"
+      ? Dxy.buildFiringOrder(options.tickers) : [];
+    const rosterValidation = tickerMode && Dxy && typeof Dxy.validateFiringRoster === "function"
+      ? Dxy.validateFiringRoster(options.tickers) : { ok: false, errors: ["The sourced 52-asset roster is unavailable."] };
+    const ignitionEnabled = rosterValidation.ok && marketFiringOrder.length === Dxy.REQUIRED_ASSETS;
+    if (ignitionEnabled && timeframe !== "1d") {
+      timeframe = "1d";
+      nodes = buildNodes(options.tickers, "1d");
+    }
     const storage = (() => {
       try {
         const candidate = globalThis.localStorage;
@@ -466,9 +447,13 @@
     };
     const preferences = readJson(PREFS_KEY);
     const discIds = new Set(DiscCatalog.discs.map(disc => disc.id));
-    const initialDisc = discIds.has(options.sourceDisc) ? options.sourceDisc : isRecord(preferences) && discIds.has(preferences.discId) ? preferences.discId : "stocks";
+    /* The 52-orb ignition always begins on the reviewed stock roster at 1d;
+       saved navigation choices resume normally in non-ignition Characters views. */
+    const initialDisc = ignitionEnabled ? "stocks"
+      : isRecord(preferences) && discIds.has(preferences.discId) ? preferences.discId : "stocks";
     const initialModes = DiscCatalog.disc(initialDisc)?.intervalModes || ["1d"];
-    const initialInterval = isRecord(preferences) && initialModes.includes(preferences.interval) ? preferences.interval : "1d";
+    const initialInterval = ignitionEnabled ? "1d"
+      : isRecord(preferences) && initialModes.includes(preferences.interval) ? preferences.interval : "1d";
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const uuid = () => {
       try {
@@ -496,7 +481,7 @@
       /* Synthetic/demo mode is disabled: this view is live-only. A stale local
          preference cannot resurrect the retired rehearsal source. */
       source: "live",
-      auto: options.startPaused ? false : preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
+      auto: preferences && typeof preferences.auto === "boolean" ? preferences.auto : true,
       cadence: validCadence(preferences && preferences.cadence),
       budget: validBudget(preferences && preferences.budget),
       stretch: Boolean(preferences && preferences.stretch),
@@ -517,16 +502,11 @@
       autoRotate: !Boolean(globalThis.matchMedia && globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches),
       labels: false,
       showDataBits: preferences && typeof preferences.showDataBits === "boolean" ? preferences.showDataBits : true,
-      showFractal: preferences && typeof preferences.showFractal === "boolean" ? preferences.showFractal : true,
-      seriesMode: tickerMode && preferences && preferences.seriesMode === "single" ? "single" : "dual",
-      seriesA: tickerMode ? seriesFromValue(preferences && preferences.seriesA, defaultSeriesA) : [],
-      seriesB: tickerMode ? seriesFromValue(preferences && preferences.seriesB, defaultSeriesB) : [],
-      helix: { glide: new Map(), lastT: 0 },
+      /* Center Origin assembly: the counter-rotating inner shell's angle and the
+         last wall-clock second the origin/UTS strip was refreshed. Both are local
+         animation state only; neither encodes a market value. */
       innerAngle: 0,
-      outerAngle1: 0,
-      outerAngle2: 0,
-      coreTime: 0,
-      filmTime: 0,
+      originStatusAt: -1,
       hover: -1,
       dragging: false,
       downX: 0,
@@ -541,6 +521,19 @@
       error: null,
       message: null,
       spend: null,
+      ignition: {
+        enabled: ignitionEnabled,
+        active: ignitionEnabled,
+        phase: ignitionEnabled ? "server-deploy" : "idle",
+        workerReady: false,
+        fxInputs: new Map(),
+        fxFired: new Set(),
+        tickerFired: new Set(),
+        blocked: "",
+        renderKey: ""
+      },
+      dxy: null,
+      massiveHoldUntil: 0,
       entries: [],
       stage: null,
       observations: new Map(),
@@ -552,7 +545,7 @@
       persistence: storage ? "loading" : "local-storage-unavailable",
       persistenceNote: storage ? "Loading saved Orb 2 beats…" : "Browser storage is blocked; this visit cannot retain its anonymous session key.",
       serverSessionId: sessionId,
-      routeSteps: { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" },
+      routeSteps: { provider: "READY", worker: ignitionEnabled ? "DEPLOY CHECK PENDING" : "READY", ledger: "WAITING", model: "READY" },
       ranking: null,
       lastBeatAt: 0,
       nextBeatAt: 0,
@@ -678,16 +671,13 @@
           <div>
             <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE / CHARACTERS BEAT</p>
             <h3>Orb Communicator Model</h3>
-            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces. Ticker cores occupy an open field: each ticker’s own FBB basis maps to the horizontal neutral plane, with normalized upper and lower zones above and below it. Missing observations occupy a separate unknown lane.</p>
+            <p>A live, full-screen-capable 3D view of Characters' reviewed Discs and beat motion, with an inner shell at Center Origin, the declared PDH phase, and the Human Key gate on the origin. Provider observations route through the same-origin Worker; all paths on this canvas are local visual traces.</p>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
             <button class="gi-button" type="button" data-gi-orb2-auto aria-pressed="true">Auto-beat: on</button>
             <button class="gi-button" type="button" data-gi-orb2-fullscreen aria-pressed="false">⛶ Model full screen</button>
             <label class="gi-chart-control" data-gi-orb2-timeframe-row ${tickerMode ? "" : "hidden"}><span>TIMEFRAME</span><select data-gi-orb2-timeframe aria-label="Select Orb timeframe"><option value="1h" ${timeframe === "1d" ? "" : "selected"}>1 hour</option><option value="1d" ${timeframe === "1d" ? "selected" : ""}>1 day</option></select></label>
-            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-row ${tickerMode ? "" : "hidden"}><span>SERIES</span><select data-gi-orb2-series-mode aria-label="Choose single-set or double-helix series mode"><option value="dual" ${preferences && preferences.seriesMode === "single" ? "" : "selected"}>Double helix · A × B</option><option value="single" ${preferences && preferences.seriesMode === "single" ? "selected" : ""}>Single set</option></select></label>
-            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-a-row ${tickerMode ? "" : "hidden"}><span>SERIES A</span><input data-gi-orb2-series-a type="text" spellcheck="false" autocomplete="off" aria-label="Series A reviewed ticker symbols"></label>
-            <label class="gi-chart-control gi-orb2-series-control" data-gi-orb2-series-b-row ${tickerMode ? "" : "hidden"}><span>SERIES B</span><input data-gi-orb2-series-b type="text" spellcheck="false" autocomplete="off" aria-label="Series B reviewed ticker symbols"></label>
             <button class="gi-button" type="button" data-gi-orb2-route>Trace resolution</button>
             <button class="gi-button" type="button" data-gi-orb2-lateral>Observe laterally</button>
             <button class="gi-button" type="button" data-gi-orb2-clear-beats>Clear beats</button>
@@ -697,7 +687,7 @@
         </div>
         <p class="gi-orb2-beat-status" data-gi-orb2-beat-status role="status" aria-live="polite">Compact beat snapshots save to D1 when available; Clear hides active context and Restore reloads the archive.</p>
         <div class="gi-orb2-beat-controls" aria-label="Orb 2 live beat controls">
-          <label class="gi-orb2-control"><span>SOURCE CHANNEL</span><select data-gi-orb2-disc aria-label="Choose a legacy source adapter"></select></label>
+          <label class="gi-orb2-control"><span>DISC</span><select data-gi-orb2-disc aria-label="Choose a Characters Disc"></select></label>
           <label class="gi-orb2-control"><span>BAR SIZE</span><select data-gi-orb2-interval aria-label="Choose the market interval"></select></label>
           <label class="gi-orb2-control"><span>CADENCE</span><select data-gi-orb2-cadence aria-label="Tickerbot beat cadence"></select></label>
           <label class="gi-orb2-control gi-orb2-budget-control"><span>TICKERBOT MONTHLY PLAN</span><input data-gi-orb2-budget type="number" min="100" max="10000" step="100" aria-label="Tickerbot monthly planning budget"></label>
@@ -728,22 +718,38 @@
           <i aria-hidden="true">→</i>
           <div class="gi-orb2-path-step"><span>04 · 3D BEAT</span><strong data-gi-orb2-path-model>READY</strong></div>
         </div>
+        <section class="gi-orb2-ignition" data-gi-orb2-ignition aria-label="Live heartbeat firing sequence">
+          <div class="gi-orb2-ignition-head">
+            <div><p class="gi-eyebrow">LIVE HEARTBEAT · FIXED DXY BENCHMARK</p><h3>Deploy → DXY → 52 ticker orbs</h3>
+              <p>Worker route first; six sequential FX inputs; then one daily ticker beat per asset, grouped by sourced sector and descending market cap.</p></div>
+            <button class="gi-button" type="button" data-gi-orb2-ignition-restart hidden>Restart sequence</button>
+          </div>
+          <div class="gi-orb2-ignition-steps">
+            <div><span>00 · SERVER DEPLOY</span><strong data-gi-orb2-ignition-server>ROUTE CHECK PENDING</strong><small>Readiness is confirmed only by a same-origin Worker response.</small></div>
+            <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
+            <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
+          </div>
+          <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Massive daily bars only · one symbol per Worker request · at least 60 seconds between sequence requests. Any unavailable or unaligned input holds the sequence; no alternate or synthetic data is substituted.</p>
+          <details class="gi-orb2-firing-order" data-gi-orb2-firing-order open>
+            <summary><strong>52-ASSET FIRING ORDER</strong><span>Open the ordered ticker-by-ticker sequence</span></summary>
+            <ol data-gi-orb2-firing-list></ol>
+          </details>
+        </section>
         <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
           <label><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
           <label class="gi-orb2-toggle"><input data-gi-orb2-data-bits type="checkbox" checked><span>Market data bits</span></label>
-          <label class="gi-orb2-toggle"><input data-gi-orb2-fractal type="checkbox" checked><span>Fractal core</span></label>
-          <span class="gi-orb2-center">CENTER ORIGIN · ${CENTER_ADDRESS}</span>
+          <span class="gi-orb2-center">CENTER ORIGIN · DXY FIXED BENCHMARK · LOCAL CPU ${CENTER_ADDRESS}</span>
+          <span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span>
+          <span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span>
         </div>
         ${colorKey}
         <div class="gi-orb2-layout">
           <div class="gi-orb2-canvas-shell">
-            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="${tickerMode
-              ? "Interactive three-dimensional Orb 2 model with nested ticker spheroids and linked Series A and B orbs. Drag to orbit, scroll to zoom, and select a ticker orb to inspect live beat data."
-              : "Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."}"></canvas>
-            <div class="gi-orb2-canvas-hud"><span>${tickerMode ? "OUTER SHELL · NESTED TICKER ORBS" : "SPHERICAL SHELL · CHARACTER NODES"}</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span></div>
+            <canvas data-gi-orb2-canvas tabindex="0" aria-describedby="gi-orb2-color-description" aria-label="Interactive three-dimensional Orb 2 model. Drag to orbit, scroll to zoom, and select a character node to inspect live beat data."></canvas>
+            <div class="gi-orb2-canvas-hud"><span>3D OCM MODEL</span><span data-gi-orb2-canvas-status>LOCAL / VISUAL PATHS ONLY</span><div class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</div><p class="gi-orb2-flow-rate-note">Rate is visual cycles/s—not volume per second.</p><div class="gi-orb2-flow-readout gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</div></div>
             <p class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</p>
           </div>
           <aside class="gi-orb2-inspector" aria-live="polite">
@@ -758,12 +764,13 @@
           <div class="gi-orb2-history-head"><div><p class="gi-eyebrow">PERSISTENT BEAT LOG</p><h4>Recent live observations</h4></div><span data-gi-orb2-history-count>0 saved</span></div>
           <ol data-gi-orb2-history-list><li class="gi-orb2-history-empty">No live beat has been recorded yet. Start with Beat now or enable Auto-beat.</li></ol>
         </section>
-        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic/demo mode is disabled in this view, and an unavailable beat leaves its berth held rather than substituted. The Orb's fractal frame processing — the shared OrbFilm film and the Demo.flame/OuterOrb.flame dual flame system drawn through this camera — is display-only, adds no request, and encodes no market meaning. Ticker cores occupy an open field without an enclosing shell or structural links. Height represents normalized distance from each ticker’s own FBB basis; horizontal spacing is a layout aid, not a market measurement. Unknown observations occupy a separate lane. Local spheroid width and glow reflect supplied fields. This is not a rating, ranking service, signal, or recommendation.</p>
+        <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
       </section>`;
 
     const $ = selector => host.querySelector(selector);
     const root = $("[data-gi-orb2-root]");
     const canvas = $("[data-gi-orb2-canvas]");
+    const flowReadout = $("[data-gi-orb2-flow-readout]");
     const discSelect = $("[data-gi-orb2-disc]");
     const intervalSelect = $("[data-gi-orb2-interval]");
     const cadenceSelect = $("[data-gi-orb2-cadence]");
@@ -804,10 +811,17 @@
     const clearBeatsButton = $("[data-gi-orb2-clear-beats]");
     const restoreBeatsButton = $("[data-gi-orb2-restore-beats]");
     const nodeSelectLabel = $("[data-gi-orb2-node-label]");
-    const fractalToggle = $("[data-gi-orb2-fractal]");
-    const seriesModeSelect = $("[data-gi-orb2-series-mode]");
-    const seriesAInput = $("[data-gi-orb2-series-a]");
-    const seriesBInput = $("[data-gi-orb2-series-b]");
+    const originStatus = $("[data-gi-orb2-origin-status]");
+    const ignitionHost = $("[data-gi-orb2-ignition]");
+    const ignitionServer = $("[data-gi-orb2-ignition-server]");
+    const ignitionDxy = $("[data-gi-orb2-ignition-dxy]");
+    const ignitionFx = $("[data-gi-orb2-ignition-fx]");
+    const ignitionProgress = $("[data-gi-orb2-ignition-progress]");
+    const ignitionNote = $("[data-gi-orb2-ignition-note]");
+    const firingList = $("[data-gi-orb2-firing-list]");
+    const ignitionRestartButton = $("[data-gi-orb2-ignition-restart]");
+    const gatePill = $("[data-gi-orb2-gate]");
+    const utsPill = $("[data-gi-orb2-uts]");
     const ownerDocument = host.ownerDocument || globalThis.document || null;
     if (tickerMode && nodeSelectLabel) nodeSelectLabel.textContent = "SELECT TICKER";
     /* The Characters app reports whether an anonymous saved-beat archive exists
@@ -825,6 +839,7 @@
       if (onRestoreBeats) onRestoreBeats();
     });
     timeframeSelect?.addEventListener("change", () => {
+      if (state.ignition.active) { timeframeSelect.value = "1d"; return; }
       const next = timeframeSelect.value === "1d" ? "1d" : "1h";
       if (onTimeframeChange) { onTimeframeChange(next); return; }
       rebuildTickerNodes(next);
@@ -865,8 +880,7 @@
         discId: state.discId, interval: state.interval,
         auto: state.auto, cadence: state.cadence, budget: state.budget,
         stretch: state.stretch, tierMode: state.tierMode, tierSweepHours: state.tierSweepHours,
-        showDataBits: state.showDataBits, showFractal: state.showFractal,
-        seriesMode: state.seriesMode, seriesA: state.seriesA, seriesB: state.seriesB
+        showDataBits: state.showDataBits
       };
       try {
         storage.setItem(PREFS_KEY, JSON.stringify(savedPrefs));
@@ -974,6 +988,7 @@
     }
 
     function currentProvider() {
+      if (state.ignition && state.ignition.active) return "massive";
       if (state.interval === "1mo") return "alpha";
       if (state.interval === "1d" && (state.auto || state.discId !== "stocks")) return "massive";
       return "tickerbot";
@@ -1122,17 +1137,6 @@
         previousClose: compareClose,
         changePct,
         basis: analysis.bands && numeric(analysis.bands.basis),
-        bands: analysis.bands ? {
-          deviation: numeric(analysis.bands.deviation),
-          upper382: numeric(analysis.bands.upper382), upper618: numeric(analysis.bands.upper618),
-          upper764: numeric(analysis.bands.upper764), upper1000: numeric(analysis.bands.upper1000),
-          lower382: numeric(analysis.bands.lower382), lower618: numeric(analysis.bands.lower618),
-          lower764: numeric(analysis.bands.lower764), lower1000: numeric(analysis.bands.lower1000)
-        } : null,
-        bandSignals: analysis.signals ? {
-          upperBreak: analysis.signals.upperBreak === true,
-          lowerBreak: analysis.signals.lowerBreak === true
-        } : null,
         vfi: analysis.vfi ? { value: numeric(analysis.vfi.value), signal: numeric(analysis.vfi.signal), available: analysis.vfi.available === true } : null,
         waveTrend: analysis.waveTrend ? { wt1: numeric(analysis.waveTrend.wt1), wt2: numeric(analysis.waveTrend.wt2), zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48) } : null
       } : null;
@@ -1157,10 +1161,10 @@
         schema: BEAT_SCHEMA,
         beatId: uuid(),
         at,
-        reason: ["manual", "auto", "open", "disc-change", "interval-change", "rehearsal"].includes(reason) ? reason : "manual",
-        discId: state.discId,
+        reason: ["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition"].includes(reason) ? reason : "manual",
+        discId: selection.discId || state.discId,
         provider,
-        interval: intervalForBeat(),
+        interval: selection.interval || intervalForBeat(),
         cadenceMinutes: cadenceMinutesForBeat(provider),
         calls,
         cacheHits: result.spend ? Math.max(0, Number(result.spend.cacheHits) || 0) : 0,
@@ -1266,24 +1270,26 @@
       budgetInput.value = String(state.budget);
       stretchBox.checked = state.stretch;
       tierBox.checked = state.tierMode;
-      if (seriesModeSelect) seriesModeSelect.value = state.seriesMode;
-      if (seriesAInput) seriesAInput.value = state.seriesA.join(", ");
-      if (seriesBInput) seriesBInput.value = state.seriesB.join(", ");
-      cadenceSelect.disabled = ["massive", "alpha"].includes(currentProvider()) || state.pending;
+      const ignitionLocked = state.ignition.active;
+      cadenceSelect.disabled = ignitionLocked || ["massive", "alpha"].includes(currentProvider()) || state.pending;
       budgetInput.disabled = currentProvider() !== "tickerbot" || state.pending;
       stretchBox.disabled = currentProvider() !== "tickerbot" || state.pending;
       tierBox.disabled = currentProvider() !== "tickerbot" || state.pending;
-      intervalSelect.disabled = modes.length <= 1 || state.pending || state.loadingCatalog;
-      discSelect.disabled = state.pending || state.loadingCatalog;
+      intervalSelect.disabled = ignitionLocked || modes.length <= 1 || state.pending || state.loadingCatalog;
+      discSelect.disabled = ignitionLocked || state.pending || state.loadingCatalog;
+      if (timeframeSelect) {
+        timeframeSelect.value = timeframe || "1d";
+        timeframeSelect.disabled = ignitionLocked || state.pending;
+      }
       budgetInput.value = String(state.budget);
       syncFocusOptions();
       syncNodeOptions();
       autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
       autoButton.setAttribute("aria-pressed", String(state.auto));
+      beatButton.textContent = state.ignition.active ? "Fire next sequence beat" : "Beat now";
       beatButton.disabled = state.pending || state.loadingCatalog;
       rotateToggle.checked = state.autoRotate;
       dataBitsToggle.checked = state.showDataBits;
-      if (fractalToggle) fractalToggle.checked = state.showFractal;
     }
 
     function syncFocusOptions() {
@@ -1303,7 +1309,7 @@
 
     function syncNodeOptions() {
       const previous = nodes[state.selected] && nodes[state.selected].id;
-      nodeSelect.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.visualId)}${node.series ? " · " + node.series : ""} · ${escapeHtml(node.name)}</option>`).join("");
+      nodeSelect.innerHTML = nodes.map(node => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.visualId)} · ${escapeHtml(node.name)}</option>`).join("");
       nodeSelect.value = previous || nodes[0].id;
     }
 
@@ -1438,37 +1444,6 @@
         <p class="gi-orb2-observation-time">Observed ${escapeHtml(shortTime(observation.at))} · ${market.synthetic ? "synthetic rehearsal · not live" : "API-supplied · verify provider"}${market.latestBar && market.latestBar.confirmed ? " · confirmed bar" : " · latest bar not confirmed"}</p>`;
     }
 
-    /* Double-helix readouts for the inspected orb: strand, rank, Fibonacci-band
-       position, supplied band width, potential energy, and the rank-matched
-       cross-series rung. Every value comes from the supplied packet; held
-       states say so. */
-    function helixInspectorRows(node) {
-      if (!tickerMode || !node || !node.symbol) return "";
-      const berth = helixBerths.get(node.id);
-      if (!berth) return `\n          <div><dt>Double helix</dt><dd>Settling — waiting for the first rendered frame.</dd></div>`;
-      const strandSize = helixState.counts[berth.series === "B" ? "b" : "a"];
-      const partnerList = helixState.ranked ? helixState.ranked[berth.series === "A" ? "B" : "A"] : [];
-      const partner = partnerList[berth.rank];
-      let rung = "No rank-matched partner on the other strand.";
-      if (partner) {
-        const partnerBerth = helixBerths.get(partner.id);
-        const other = partnerBerth ? partnerBerth.direction : null;
-        const agreement = berth.direction === null || other === null ? "not comparable — an observation is held"
-          : berth.direction > 0 && other > 0 ? "both rising"
-          : berth.direction < 0 && other < 0 ? "both falling"
-          : berth.direction === other ? "both flat"
-          : "diverging";
-        rung = `Pairs with ${partner.symbol} (Series ${berth.series === "A" ? "B" : "A"}) · ${agreement}`;
-      }
-      const metrics = berth.metrics;
-      return `
-          <div><dt>Helix strand</dt><dd>Series ${berth.series} · rank ${berth.rank + 1} of ${strandSize}</dd></div>
-          <div><dt>Fibonacci band position</dt><dd>${berth.held ? "Unknown — valid close, basis and enclosing bands are required; shown in the separate unknown lane." : `${Math.round(berth.p * 100)}% of the band range${metrics.breakSide ? ` · ${metrics.breakSide} band break signaled` : ""}`}</dd></div>
-          <div><dt>Volatility · band width</dt><dd>${metrics.volatilityPct === null ? "Band width was not supplied." : `${metrics.volatilityPct.toFixed(2)}% of basis`}</dd></div>
-          <div><dt>Potential energy</dt><dd>${berth.held ? "Not measurable without supplied bands." : `${Math.round(metrics.potential * 100)}% stretched from the band midline`}</dd></div>
-          <div><dt>Cross-series rung</dt><dd>${escapeHtml(rung)}</dd></div>`;
-    }
-
     function drawInspector() {
       const node = nodes[state.selected] || nodes[0];
       const focusBerth = stage && stage.berths.find(berth => berth.symbol === state.focus);
@@ -1476,7 +1451,6 @@
       const nodeObservation = latestForNode(node);
       const activeObservation = focusObservation || nodeObservation;
       const provider = currentProvider();
-      const designatedNab = globalThis.NabSectors?.byId(node.nabId);
       const nodeSource = nodeObservation ? `${nodeObservation.observation || nodeObservation.symbol} · ${providerTitle(nodeObservation.providerMode)}` : "No assigned instrument has reported yet";
       const nodeActivity = nodeObservation && nodeObservation.motion ? nodeObservation.motion.caption : "No market observation — the character stands still.";
       const assignments = stage ? stage.berths.filter(berth => berth.npc && berth.npc.name === node.name).length : 0;
@@ -1485,13 +1459,9 @@
         <dl class="gi-orb2-node-meta">
           <div><dt>Affinity / sector</dt><dd>${escapeHtml(node.affinity.join(" · "))}</dd></div>
           <div><dt>${node.symbol ? "Reviewed berth" : "Characters-cast assignment"}</dt><dd>${node.symbol ? `${escapeHtml(node.symbol)} on ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}` : `${assignments} reviewed berth${assignments === 1 ? "" : "s"} · ${escapeHtml(DiscCatalog.disc(state.discId)?.label || state.discId)}`}</dd></div>
+          ${node.marketCapUsd ? `<div><dt>Market-cap snapshot</dt><dd>${escapeHtml(node.marketCapLabel || formatPrice(node.marketCapUsd))} · ${escapeHtml(node.sector)} source rank #${escapeHtml(node.sectorRank || "—")} · ${escapeHtml(node.marketCapAsOf || "date unavailable")}</dd></div>` : ""}
           <div><dt>Latest node pathway</dt><dd>${escapeHtml(nodeSource)}</dd></div>
           <div><dt>${node.symbol ? "Orb motion" : "NPC motion"} · ${escapeHtml(providerTitle(provider))}</dt><dd>${escapeHtml(nodeActivity)}</dd></div>
-          ${designatedNab ? `<div><dt>Designated NAB</dt><dd>${escapeHtml(`${designatedNab.id} · ${designatedNab.symbol} ${designatedNab.name} · ${designatedNab.ticker}`)}</dd></div>
-          <div><dt>Consistent NAB theme</dt><dd>${escapeHtml(designatedNab.theme)}</dd></div>
-          <div><dt>Neural risk · not stock/material risk</dt><dd>${escapeHtml(designatedNab.riskProfile)} · ${escapeHtml(designatedNab.operatingBoundary)}</dd></div>
-          <div><dt>NAB design failure mode</dt><dd>${escapeHtml(designatedNab.failureMode)}</dd></div>` : `<div><dt>Designated NAB</dt><dd>Unassigned — this ticker is not a designated NAB stock proxy.</dd></div>`}
-          ${helixInspectorRows(node)}
         </dl>
         <div class="gi-orb2-focus-readout"><p class="gi-eyebrow">FOCUS · ${escapeHtml(state.focus || "—")}</p>${observationMarkup(activeObservation)}</div>
         <p class="gi-orb2-node-role">${escapeHtml(node.role)}</p>
@@ -1525,6 +1495,75 @@
       return state.cadence * 60_000;
     }
 
+    function ignitionTarget() {
+      if (!state.ignition.active) return null;
+      if (state.ignition.phase === "server-deploy" || state.ignition.phase === "dxy") {
+        const component = Dxy.COMPONENTS.find(input => !state.ignition.fxFired.has(input.symbol));
+        return component ? { kind: "dxy-component", symbol: component.symbol, component } : null;
+      }
+      if (state.ignition.phase === "tickers") {
+        const asset = marketFiringOrder.find(entry => !state.ignition.tickerFired.has(entry.symbol));
+        return asset ? { kind: "ticker", symbol: asset.symbol, asset } : null;
+      }
+      return null;
+    }
+
+    function drawIgnition() {
+      if (!ignitionHost) return;
+      ignitionHost.hidden = !state.ignition.enabled;
+      if (!state.ignition.enabled) return;
+      const target = ignitionTarget();
+      const renderKey = [state.ignition.active, state.ignition.phase, state.ignition.workerReady, state.pending,
+        state.routeSteps.worker, state.ignition.fxFired.size, state.ignition.tickerFired.size,
+        state.ignition.blocked, target && target.symbol, state.dxy && state.dxy.status,
+        state.dxy && state.dxy.value, state.dxy && state.dxy.asOf].join("|");
+      if (renderKey === state.ignition.renderKey) return;
+      state.ignition.renderKey = renderKey;
+      const ready = state.ignition.workerReady;
+      const workerFailed = /ROUTE ERROR|UNAVAILABLE|NOT CONFIGURED|CHECK FAILED|MISSING/i.test(String(state.routeSteps.worker || ""));
+      ignitionServer.textContent = ready ? "WORKER ROUTE REACHED · DEPLOY CHECKED"
+        : workerFailed ? "DEPLOY CHECK HELD · WORKER NOT READY"
+          : state.pending ? "CHECKING DEPLOYMENT · FIRST FX BEAT"
+            : "WAITING · DEPLOY / WORKER ROUTE";
+      if (state.dxy && state.dxy.ok) {
+        const date = new Date(state.dxy.asOf).toISOString().slice(0, 10);
+        ignitionDxy.textContent = `DXY ${state.dxy.value.toFixed(3)} · AS OF ${date} · FIXED BENCHMARK`;
+      } else {
+        const status = state.dxy && state.dxy.status ? state.dxy.status.toUpperCase() : "WAITING";
+        const next = target && target.kind === "dxy-component" ? ` · NEXT ${target.symbol}` : "";
+        ignitionDxy.textContent = `${state.ignition.fxFired.size}/6 FX CLOSES · ${status}${next}`;
+      }
+      ignitionFx.textContent = Dxy.COMPONENTS.map(input =>
+        `${input.symbol} ${state.ignition.fxFired.has(input.symbol) ? "✓" : "·"}`
+      ).join(" · ");
+      ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${Dxy.REQUIRED_ASSETS}`;
+      if (state.ignition.blocked) ignitionNote.textContent = `SEQUENCE HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
+      else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed. Auto-beat is paused; the DXY value remains a dated, fixed-center reference.";
+      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. One same-origin Massive 1d symbol per minute; shared Worker limits remain active.`;
+      else ignitionNote.textContent = `The first EURUSD beat checks the deployed Worker, secret, and D1 ledger before any Massive request → six one-symbol FX beats → fixed DXY benchmark → 52 one-symbol stock beats. ${target ? `Next input: ${target.symbol}.` : "Waiting for a confirmed input."} No separate browser health request is added; DXY is held until all six closes share one timestamp.`;
+      if (ignitionRestartButton) ignitionRestartButton.hidden = state.ignition.active;
+
+      const rows = [];
+      let currentSector = "";
+      for (const asset of marketFiringOrder) {
+        if (asset.sector !== currentSector) {
+          currentSector = asset.sector;
+          const sectorSize = marketFiringOrder.filter(entry => entry.sector === currentSector).length;
+          rows.push(`<li class="gi-orb2-fire-sector"><span>${escapeHtml(currentSector)}</span><small>${sectorSize} ticker${sectorSize === 1 ? "" : "s"} · descending cap</small></li>`);
+        }
+        const fired = state.ignition.tickerFired.has(asset.symbol);
+        const isNext = target && target.kind === "ticker" && target.symbol === asset.symbol;
+        const status = fired ? "FIRED" : isNext ? "NEXT" : "WAITING";
+        rows.push(`<li class="gi-orb2-fire-row" data-beat-state="${status.toLowerCase()}" data-symbol="${escapeHtml(asset.symbol)}">
+          <span class="gi-orb2-fire-number">${String(asset.firingOrder).padStart(2, "0")}</span>
+          <strong>${escapeHtml(asset.symbol)}</strong><span class="gi-orb2-fire-name">${escapeHtml(asset.name)}</span>
+          <small>${escapeHtml(asset.marketCapLabel)} · sector rank #${escapeHtml(asset.sectorRank)} · ${escapeHtml(asset.marketCapAsOf)}</small>
+          <em>${status}</em>
+        </li>`);
+      }
+      firingList.innerHTML = rows.join("");
+    }
+
     function drawStatus() {
       const provider = currentProvider();
       providerHost.textContent = providerDescription(provider);
@@ -1549,6 +1588,7 @@
       routeStepWorker.textContent = state.routeSteps.worker;
       routeStepLedger.textContent = state.routeSteps.ledger;
       routeStepModel.textContent = state.routeSteps.model;
+      drawIgnition();
       [routeStepProvider, routeStepWorker, routeStepLedger, routeStepModel].forEach(element => {
         element.classList.toggle("blocked", /UNAVAILABLE|BLOCKED|REFUSED/i.test(element.textContent));
         element.classList.toggle("active", /REQUESTING|FETCHING/i.test(element.textContent));
@@ -1626,13 +1666,13 @@
       state.message = { kind, text: refused.length > 1 ? `${refused.length} due berth${refused.length === 1 ? "" : "s"} held. ${text}` : text };
     }
 
-    async function fetchLiveBeat(due, cadenceMinutes, lanes = {}, provider = currentProvider()) {
+    async function fetchLiveBeat(due, cadenceMinutes, lanes = {}, provider = currentProvider(), discId = state.discId, interval = state.interval) {
       const laneParam = Object.entries(lanes).length
         ? `&lanes=${encodeURIComponent(Object.entries(lanes).map(([symbol, lane]) => `${symbol}:${lane}`).join(","))}` : "";
-      const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(state.discId)}` +
+      const endpoint = `/api/characters/v1/beat?disc=${encodeURIComponent(discId)}` +
         `&provider=${encodeURIComponent(provider)}` +
         `&symbols=${encodeURIComponent(due.join(","))}` +
-        `&interval=${encodeURIComponent(state.interval)}&cadence=${cadenceMinutes}${laneParam}`;
+        `&interval=${encodeURIComponent(interval)}&cadence=${cadenceMinutes}${laneParam}`;
       const fetcher = globalThis.fetch;
       if (typeof fetcher !== "function") throw new Error("The same-origin Worker route cannot be reached because fetch is unavailable.");
       const response = await fetcher(endpoint, {
@@ -1652,7 +1692,6 @@
       updateProviderSteps(provider, spend);
       return { instruments, spend };
     }
-
     async function beatNow(reason = "manual") {
       if (state.pending || state.loadingCatalog || state.destroyed) return false;
       if (state.cooldownUntil > Date.now()) {
@@ -1660,7 +1699,15 @@
         draw();
         return false;
       }
-      let provider = currentProvider();
+      const isIgnition = state.ignition.active;
+      const provider = isIgnition ? "massive" : currentProvider();
+      if (isIgnition && state.massiveHoldUntil > Date.now()) {
+        const wait = state.massiveHoldUntil - Date.now();
+        state.nextBeatAt = state.massiveHoldUntil;
+        state.message = { kind: "note", text: `Ignition pacing hold · next Massive request in ${formatCountdown(wait)}. The same-origin Worker still enforces its shared five-per-minute envelope and 300-request UTC-day ledger.` };
+        draw();
+        return false;
+      }
       const durable = state.spend && state.spend.durable;
       const currentMonth = Beat.monthKey(Date.now());
       if (provider === "tickerbot" && durable && durable.month === currentMonth && durable.exhausted) {
@@ -1673,11 +1720,31 @@
         draw();
         return false;
       }
-      const selection = dueForBeat();
+      const target = isIgnition ? ignitionTarget() : null;
+      const selection = isIgnition
+        ? target ? {
+          symbols: [target.symbol], lanes: {}, tier: null, perBeat: 1,
+          discId: target.kind === "dxy-component" ? "fx" : "stocks", interval: "1d"
+        } : { symbols: [], lanes: {}, tier: null, perBeat: 0, discId: "stocks", interval: "1d" }
+        : dueForBeat();
       const due = selection.symbols;
-      if (!due.length) return false;
+      if (!due.length) {
+        if (isIgnition && state.ignition.phase === "tickers" && state.ignition.tickerFired.size === Dxy.REQUIRED_ASSETS) {
+          state.ignition.phase = "complete";
+          state.ignition.active = false;
+          state.auto = false;
+          state.message = { kind: "note", text: "Heartbeat sequence complete · DXY reference fixed at center and all 52 ticker beats confirmed. Auto-beat is paused." };
+          persistLocal();
+          draw();
+        }
+        return false;
+      }
       state.pending = true;
       state.error = null;
+      if (isIgnition) {
+        state.ignition.blocked = "";
+        state.massiveHoldUntil = Date.now() + MASSIVE_BEAT_MS;
+      }
       state.message = { kind: "note", text: `Sending ${due.join(", ")} through ${providerTitle(provider)} → the same-origin Characters Worker. No substitute provider is permitted.` };
       state.routeSteps = { provider: "REQUESTING", worker: "REQUESTING", ledger: "CHECKING", model: "WAITING" };
       syncFormControls();
@@ -1685,7 +1752,11 @@
       let result = null;
       let error = null;
       try {
-        result = await fetchLiveBeat(due, cadenceMinutesForBeat(provider), selection.lanes, provider);
+        result = await fetchLiveBeat(
+          due, cadenceMinutesForBeat(provider), selection.lanes, provider,
+          selection.discId || state.discId, selection.interval || state.interval
+        );
+        if (!result.instruments.length) throw new Error("The same-origin Worker returned no instrument record. The current sequence step remains held.");
       } catch (caught) {
         error = caught;
       }
@@ -1695,6 +1766,11 @@
            The berths keep their last reviewed observation, the refusal is
            stated plainly, and nothing synthetic is substituted. */
         state.error = error;
+        if (isIgnition) {
+          state.ignition.blocked = error.message || "The Worker route is unavailable.";
+          state.auto = false;
+          persistLocal();
+        }
         state.message = { kind: "refusal", text: `${error.message || "The beat request failed. No alternate provider was used."} The model stays on its last reviewed observation — synthetic or demo data is not substituted.` };
         updateProviderSteps(provider, state.spend, error);
         draw();
@@ -1702,11 +1778,27 @@
         return false;
       }
       updateProviderSteps(provider, result && result.spend || state.spend);
+      if (isIgnition && state.ignition.phase === "server-deploy") {
+        if (result && result.spend && result.spend.massiveLedgerStatus === "ready") {
+          state.ignition.workerReady = true;
+          state.ignition.phase = "dxy";
+          state.routeSteps.worker = "DEPLOY CHECK READY";
+        } else {
+          state.ignition.workerReady = false;
+          state.routeSteps.worker = "DEPLOY CHECK HELD · MASSIVE D1 UNAVAILABLE";
+          state.routeSteps.model = "HELD · NO PROVIDER CALL";
+          state.ignition.blocked = "The same-origin Worker did not confirm its Massive daily D1 ledger; deployment readiness remains held.";
+          state.auto = false;
+        }
+      }
       const at = Date.now();
-      const { event, calls, instruments } = makeEvent(result, selection, reason, provider);
+      const eventReason = isIgnition ? "ignition" : reason;
+      const { event, calls, instruments } = makeEvent(result, selection, eventReason, provider);
       const refreshed = instruments.filter(item => item.market).map(item => item.symbol);
       const moodBySymbol = Object.fromEntries(instruments.map(item => [item.symbol, item.motion && item.motion.mood || "unknown"]));
-      state.ledger = Beat.recordBeat(state.ledger, {
+      const eventLedger = event.discId === state.discId && event.interval === state.interval
+        ? state.ledger : readLedger(event.discId, event.interval);
+      const nextLedger = Beat.recordBeat(eventLedger, {
         at,
         symbols: refreshed,
         calls,
@@ -1714,7 +1806,8 @@
         synthetic: false,
         cadenceMinutes: cadenceMinutesForBeat(provider)
       });
-      writeLedger(state.ledger);
+      writeLedger(nextLedger, event.discId, event.interval);
+      if (event.discId === state.discId && event.interval === state.interval) state.ledger = nextLedger;
       if (instruments.some(item => item.market)) {
         const preferred = instruments.find(item => item.market);
         const mappedBerth = stage && stage.berths.find(berth => berth.symbol === preferred.symbol);
@@ -1722,13 +1815,82 @@
       }
       addEvent(event);
       updateUnavailableMessage(result.instruments);
-      if (refreshed.length) {
+
+      if (isIgnition) {
+        const observed = latestObservation(event.discId, due[0], "massive", "1d");
+        const confirmed = Dxy.confirmedDailyClose(observed, {
+          symbol: due[0], discId: event.discId, now: Date.now()
+        });
+        if (target.kind === "dxy-component") {
+          const deployReadinessHeld = state.ignition.phase === "server-deploy" && !state.ignition.workerReady;
+          if (confirmed.ok && !deployReadinessHeld) {
+            state.ignition.fxInputs.set(target.symbol, observed);
+            state.ignition.fxFired.add(target.symbol);
+            state.dxy = Dxy.evaluate([...state.ignition.fxInputs.values()], Date.now());
+            if (state.ignition.fxFired.size === Dxy.COMPONENTS.length) {
+              if (state.dxy.ok) {
+                state.ignition.phase = "tickers";
+                state.message = { kind: "note", text: `DXY fixed benchmark ready · ${state.dxy.value.toFixed(3)} as of ${new Date(state.dxy.asOf).toISOString().slice(0, 10)}. The first market-cap-ordered ticker beat is next.` };
+              } else if (state.dxy.status === "unaligned" && state.dxy.refreshSymbol) {
+                state.ignition.fxFired.delete(state.dxy.refreshSymbol);
+                state.ignition.fxInputs.delete(state.dxy.refreshSymbol);
+                state.ignition.blocked = state.dxy.reason;
+                state.auto = false;
+                state.message = { kind: "refusal", text: `${state.dxy.reason} No DXY reading or ticker beat is emitted until the six closes align.` };
+              } else {
+                const retrySymbol = state.dxy.refreshSymbol || state.dxy.invalid && state.dxy.invalid[0] && state.dxy.invalid[0].symbol || target.symbol;
+                state.ignition.fxFired.delete(retrySymbol);
+                state.ignition.fxInputs.delete(retrySymbol);
+                state.ignition.blocked = state.dxy.reason || "DXY inputs are not valid.";
+                state.auto = false;
+                state.message = { kind: "refusal", text: `${state.ignition.blocked} The DXY origin and ticker sequence remain held; retry ${retrySymbol} after correcting the provider data.` };
+              }
+            } else {
+              state.message = { kind: "note", text: `DXY component ${state.ignition.fxFired.size}/6 · ${target.symbol} confirmed. One FX symbol per request; the DXY origin stays held until all six timestamps align.` };
+            }
+          } else {
+            const readinessHeld = state.ignition.phase === "server-deploy" && !state.ignition.workerReady;
+            const readinessReason = state.routeSteps.ledger === "UNAVAILABLE" || state.routeSteps.ledger === "NOT CONFIGURED"
+              ? `the Massive D1 ledger is ${String(state.routeSteps.ledger).toLowerCase()}`
+              : confirmed.message || "the Worker secret/D1 readiness response was not confirmed";
+            state.ignition.blocked = readinessHeld
+              ? `Worker deploy readiness is held: ${readinessReason}.` : `${target.symbol}: ${confirmed.message}`;
+            state.auto = false;
+            state.message = { kind: "refusal", text: readinessHeld
+              ? `${state.ignition.blocked} No FX or ticker observation was accepted.`
+              : `${target.symbol} is held · ${confirmed.message} No DXY reading or ticker beat is substituted.` };
+          }
+        } else if (target.kind === "ticker") {
+          if (confirmed.ok) {
+            state.ignition.tickerFired.add(target.symbol);
+            state.ignition.blocked = "";
+            if (state.ignition.tickerFired.size === Dxy.REQUIRED_ASSETS) {
+              state.ignition.phase = "complete";
+              state.ignition.active = false;
+              state.auto = false;
+              state.message = { kind: "note", text: `Heartbeat sequence complete · DXY ${state.dxy.value.toFixed(3)} remains at the fixed center; all 52 market-cap-ordered ticker beats are confirmed. Auto-beat is paused.` };
+              persistLocal();
+            } else {
+              const nextTarget = marketFiringOrder.find(entry => !state.ignition.tickerFired.has(entry.symbol));
+              state.message = { kind: "note", text: `Ticker beat ${target.asset.firingOrder}/52 · ${target.symbol} confirmed at the dated market-cap rank. ${nextTarget ? `${nextTarget.symbol} is next.` : "Sequence complete."}` };
+            }
+          } else {
+            state.ignition.blocked = `${target.symbol}: ${confirmed.message}`;
+            state.auto = false;
+            state.message = { kind: "refusal", text: `${target.symbol} is held · ${confirmed.message} No ticker beat is substituted; the same firing-order slot remains next.` };
+          }
+        }
+        if (state.ignition.blocked) persistLocal();
+      } else if (refreshed.length) {
         const spend = result.spend || {};
         const attempts = calls;
         const unavailableCount = instruments.filter(item => !item.market).length;
         state.message = unavailableCount
           ? { kind: "note", text: `${refreshed.length} reviewed berth${refreshed.length === 1 ? "" : "s"} updated from ${providerTitle(provider)} (${attempts} Worker-routed provider attempt${attempts === 1 ? "" : "s"}); ${unavailableCount} berth${unavailableCount === 1 ? " remains" : "s remain"} held without invented data.` }
           : null;
+      }
+      if (refreshed.length) {
+        const spend = result.spend || {};
         if (provider === "massive" && spend.massiveLedgerStatus === "ready") state.routeSteps.ledger = "READY · MASSIVE D1";
         else if (provider === "alpha" && spend.alphaVantageLedgerStatus === "ready") state.routeSteps.ledger = "READY · ALPHA D1";
         else if (provider === "tickerbot" && spend.ledgerStatus === "ready") state.routeSteps.ledger = "READY · TICKERBOT D1";
@@ -1740,7 +1902,6 @@
       schedule();
       return true;
     }
-
     function clearBeatTimer() {
       if (beatTimer) clearTimeout(beatTimer);
       beatTimer = null;
@@ -1795,7 +1956,7 @@
 
     async function switchDisc(discId) {
       const disc = DiscCatalog.disc(discId);
-      if (!disc || state.pending || state.loadingCatalog) {
+      if (state.ignition.active || !disc || state.pending || state.loadingCatalog) {
         discSelect.value = state.discId;
         return;
       }
@@ -1840,7 +2001,7 @@
     }
 
     function switchInterval(nextInterval) {
-      if (!intervalAllowed(state.discId, nextInterval) || state.pending) {
+      if (state.ignition.active || !intervalAllowed(state.discId, nextInterval) || state.pending) {
         intervalSelect.value = state.interval;
         return;
       }
@@ -1889,6 +2050,29 @@
       schedule();
     }
 
+    function restartIgnition() {
+      if (!state.ignition.enabled || state.pending || state.loadingCatalog) return;
+      state.discId = "stocks";
+      state.interval = "1d";
+      state.ledger = readLedger("stocks", "1d");
+      state.ignition.active = true;
+      state.ignition.phase = "server-deploy";
+      state.ignition.workerReady = false;
+      state.ignition.fxInputs.clear();
+      state.ignition.fxFired.clear();
+      state.ignition.tickerFired.clear();
+      state.ignition.blocked = "";
+      state.ignition.renderKey = "";
+      state.dxy = null;
+      state.auto = true;
+      state.massiveHoldUntil = Math.max(state.massiveHoldUntil, Date.now());
+      state.routeSteps = { provider: "READY", worker: "DEPLOY CHECK PENDING", ledger: "WAITING", model: "READY" };
+      state.message = { kind: "note", text: "Restarting at the existing EURUSD Worker beat. The Worker checks its secret and D1 ledger before any Massive upstream request; no separate browser health call is added." };
+      persistLocal();
+      draw();
+      return beatNow("ignition").finally(schedule);
+    }
+
     function toggleFeatured() {
       if (!state.focus || currentProvider() !== "tickerbot") return;
       const featured = new Set(state.ledger.featured);
@@ -1904,19 +2088,11 @@
     }
 
     function modelPoint(node, now, directive) {
+      const sphereRadius = 2.06;
       const discRadius = 1.04 + ((node.order * 17) % 5) * 0.12;
-      /* Dual-series ticker nodes occupy separate, paired sites on an inner
-         spheroid. Their supplied Fibonacci-band position still sets their
-         local band ring and comparison rank; it no longer piles tickers into
-         one A cluster and one B cluster on the outside of the model. */
-      const helixBerth = helixBerths.get(node.id);
-      const modelRadius = tickerMode ? TICKER_ORB_FIELD_RADIUS : SPHERE_RADIUS;
-      let longitude = helixBerth ? helixBerth.longitude : node.longitude;
-      let latitude = helixBerth ? helixBerth.latitude : node.latitude;
-      /* Preserve each dual ticker's pair offset; its live motion still drives
-         local rings and pathways without collapsing A/B anchor centers. */
-      const hasNpcMotion = Boolean(!helixBerth && directive && !directive.frozen && directive.npc);
-      if (hasNpcMotion) {
+      let longitude = node.longitude;
+      let latitude = node.latitude;
+      if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
         const phase = (now / 1000) * (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) + node.order * 1.71;
         const stride = clamp(Number(npc.stride) || 0, 0, 1) * (0.025 + Math.sin(phase) ** 2 * 0.06);
@@ -1925,14 +2101,15 @@
         longitude += Math.cos(bearing + jitter) * stride;
         latitude += Math.sin(bearing + jitter) * stride * 0.65;
         if (npc.formation === "tight") latitude *= 0.96;
-        if (npc.formation === "rim") latitude = clamp(latitude * 1.04, -HELIX_LAT_MAX, HELIX_LAT_MAX);
+        if (npc.formation === "rim") latitude = clamp(latitude * 1.04, -1.45, 1.45);
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
-      latitude = clamp(latitude, -HELIX_LAT_MAX, HELIX_LAT_MAX);
-      const sphere = helixBerth && helixBerth.position && !hasNpcMotion
-        ? helixBerth.position
-        : spherePoint(latitude, longitude, modelRadius);
+      const sphere = {
+        x: sphereRadius * Math.cos(latitude) * Math.cos(longitude),
+        y: sphereRadius * Math.sin(latitude),
+        z: sphereRadius * Math.cos(latitude) * Math.sin(longitude)
+      };
       const disc = { x: discRadius * Math.cos(longitude), y: 0, z: discRadius * Math.sin(longitude) };
       const t = ease(state.formation);
       return {
@@ -1942,8 +2119,8 @@
       };
     }
 
-    /* The camera is split so The Orb's fractal frame processing (OrbFilm.drawWrapped)
-       can wrap frames through this model's exact rotation, pitch, and zoom. */
+    /* The camera rotation is its own step so every element — lattice, nodes, paths,
+       and the Center Origin assembly — shares one rotation, pitch, and zoom. */
     function rotate3(point) {
       const cy = Math.cos(state.yaw), sy = Math.sin(state.yaw);
       const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
@@ -1953,12 +2130,9 @@
     }
 
     function toScreen(point, width, height) {
-      /* Keep the perspective gentle so the shell reads as a sphere instead of
-         a depth-stretched disc. Zoom scales the model itself as well as the
-         camera distance, which makes the wheel control behave intuitively. */
-      const cameraDistance = CAMERA_DISTANCE / state.zoom;
-      const scale = state.zoom * cameraDistance / (cameraDistance + point.z);
-      const radius = Math.min(width, height) * MODEL_VIEW_SCALE;
+      const fov = 6.4 / state.zoom;
+      const scale = fov / (fov + point.z);
+      const radius = Math.min(width, height) * 0.315;
       return { x: width / 2 + point.x * scale * radius, y: height / 2 - point.y * scale * radius, z: point.z, scale };
     }
 
@@ -1991,213 +2165,66 @@
       context2d.restore();
     }
 
-    function traceProjectedPoints(points) {
-      if (points.length < 2) return;
+    function ring(latitude, width, height, color, alpha) {
+      const points = [];
+      for (let step = 0; step <= 72; step += 1) {
+        const longitude = (step / 72) * TAU;
+        const radius = 2.06;
+        points.push(project({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
+      }
+      context2d.save();
+      context2d.strokeStyle = color;
+      context2d.globalAlpha = alpha * state.formation;
+      context2d.lineWidth = 0.8;
       context2d.beginPath();
       points.forEach((point, index) => index ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
       context2d.stroke();
-    }
-
-    function traceNearSegments(points) {
-      if (points.length < 2) return;
-      context2d.beginPath();
-      let drawing = false;
-      for (let index = 1; index < points.length; index += 1) {
-        const previous = points[index - 1];
-        const point = points[index];
-        if ((previous.z + point.z) <= 0) {
-          if (!drawing) context2d.moveTo(previous.x, previous.y);
-          context2d.lineTo(point.x, point.y);
-          drawing = true;
-        } else drawing = false;
-      }
-      context2d.stroke();
-    }
-
-    function strokeDepthPath(points, color, backAlpha, frontAlpha, width = 1, dash = []) {
-      const formation = clamp(state.formation, 0, 1);
-      if (formation <= 0.001 || points.length < 2) return;
-      context2d.save();
-      context2d.strokeStyle = color;
-      context2d.lineWidth = width;
-      context2d.lineCap = "round";
-      context2d.lineJoin = "round";
-      context2d.setLineDash(dash);
-      context2d.globalAlpha = clamp(backAlpha * formation, 0, 1);
-      traceProjectedPoints(points);
-      if (frontAlpha > backAlpha) {
-        context2d.globalAlpha = clamp(frontAlpha * formation, 0, 1);
-        context2d.setLineDash(dash);
-        traceNearSegments(points);
-      }
       context2d.restore();
     }
 
-    function spherePoint(latitude, longitude, radius = SPHERE_RADIUS) {
-      const ringRadius = radius * Math.cos(latitude);
-      return {
-        x: ringRadius * Math.cos(longitude),
-        y: radius * Math.sin(latitude),
-        z: ringRadius * Math.sin(longitude)
-      };
+    /* Inner shell: a circle of radius `radius` in the model's own space, spun about
+       the vertical axis by `spin` and tipped by `tilt`, then put through the shared
+       camera. Kept separate from ring() because ring() is the model's latitude
+       lattice and this is a structural element at Center Origin. */
+    function shellRing(radius, spin, tilt, color, alpha, width, height) {
+      const points = [];
+      for (let step = 0; step <= 64; step += 1) {
+        const angle = (step / 64) * TAU + spin;
+        const x = radius * Math.cos(angle);
+        const z0 = radius * Math.sin(angle);
+        points.push(project({ x, y: -z0 * Math.sin(tilt), z: z0 * Math.cos(tilt) }, width, height));
+      }
+      strokePath(points, color, alpha, 0.9);
     }
 
-    /* Each rank-matched A/B pair gets a nearby site on the inner ticker
-       spheroid. Successive pairs follow a Fibonacci spiral, so symbols occupy
-       distinct parts of the inner field instead of collapsing into two hubs. */
-    function tickerPairAnchor(rank, pairCount, series, metrics) {
-      const count = Math.max(1, pairCount);
-      const y = clamp(1 - 2 * ((rank + 0.5) / count), -Math.sin(HELIX_LAT_MAX), Math.sin(HELIX_LAT_MAX));
-      const latitude = Math.asin(y);
-      const longitude = HELIX_BASE_LON + rank * TICKER_ORB_GOLDEN_ANGLE;
-      const radius = TICKER_ORB_FIELD_RADIUS * Math.sqrt((rank + 0.5) / count);
-      const center = { x: radius * Math.cos(longitude), z: radius * Math.sin(longitude),
-        y: metrics.held ? 0 : (metrics.p - 0.5) * 2 * TICKER_ORB_FIELD_RADIUS };
-      // Unknown observations occupy a separate side lane, never the neutral market plane.
-      if (metrics.held) center.x += TICKER_ORB_FIELD_RADIUS * 3;
-      const tangent = { x: -Math.sin(longitude), y: 0, z: Math.cos(longitude) };
-      const side = series === "B" ? TICKER_ORB_PAIR_OFFSET : -TICKER_ORB_PAIR_OFFSET;
-      return {
-        latitude,
-        longitude,
-        position: {
-          x: center.x + tangent.x * side,
-          y: center.y,
-          z: center.z + tangent.z * side
-        }
-      };
-    }
-
-    function ring(latitude, width, height, color, alpha) {
+    /* The phase loop: a figure eight wound through Center Origin, precessing with
+       the same angle as the inner shell so one declared phase visibly shifts the
+      whole origin assembly together. It carries no data. */
+    function phaseLoop(spin, color, alpha, width, height) {
       const points = [];
       for (let step = 0; step <= 96; step += 1) {
-        points.push(project(spherePoint(latitude, (step / 96) * TAU), width, height));
+        const t = (step / 96) * TAU;
+        const reach = 0.78 * Math.cos(t);
+        points.push(project({
+          x: reach * Math.cos(t + spin),
+          y: 0.34 * Math.sin(2 * t),
+          z: reach * Math.sin(t + spin)
+        }, width, height));
       }
-      strokeDepthPath(points, color, alpha * 0.55, alpha * 1.75, 0.8);
+      strokePath(points, color, alpha, 0.7, [3, 3]);
     }
 
-    function drawSphericalShell(width, height, center) {
-      if (state.formation <= 0.001) return;
-      const radius = Math.min(width, height) * MODEL_VIEW_SCALE * SPHERE_RADIUS * state.zoom;
+    function strokePath(points, color, alpha, lineWidth, dash = []) {
+      if (!context2d) return;
       context2d.save();
+      context2d.strokeStyle = color;
+      context2d.globalAlpha = clamp(alpha, 0, 1);
+      context2d.lineWidth = lineWidth;
+      if (dash.length) context2d.setLineDash(dash);
       context2d.beginPath();
-      context2d.ellipse(center.x, center.y, radius, radius, 0, 0, TAU);
-      context2d.clip();
-      const sheen = context2d.createRadialGradient(
-        center.x - radius * 0.34, center.y - radius * 0.38, radius * 0.025,
-        center.x, center.y, radius * 1.08
-      );
-      sheen.addColorStop(0, "rgba(48, 88, 143, .31)");
-      sheen.addColorStop(0.42, "rgba(24, 45, 78, .24)");
-      sheen.addColorStop(0.82, "rgba(8, 17, 33, .3)");
-      sheen.addColorStop(1, "rgba(3, 8, 17, .46)");
-      context2d.globalAlpha = 0.9 * state.formation;
-      context2d.fillStyle = sheen;
-      context2d.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
-      context2d.restore();
-
-      context2d.save();
-      context2d.beginPath();
-      context2d.ellipse(center.x, center.y, radius, radius, 0, 0, TAU);
-      context2d.strokeStyle = "#6c9fda";
-      context2d.lineWidth = 1.1;
-      context2d.globalAlpha = 0.42 * state.formation;
-      context2d.shadowColor = "#4c8dd2";
-      context2d.shadowBlur = 18;
+      points.forEach((point, index) => index ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
       context2d.stroke();
       context2d.restore();
-    }
-
-    function drawSphereGrid(width, height) {
-      const latitudes = [-1.24, -0.96, -0.68, -0.4, -0.2, 0, 0.2, 0.4, 0.68, 0.96, 1.24];
-      latitudes.forEach(latitude => ring(latitude, width, height, "#56759d", 0.105));
-      const meridianCount = 12;
-      for (let index = 0; index < meridianCount; index += 1) {
-        const longitude = (index / meridianCount) * TAU;
-        const points = [];
-        for (let step = 0; step <= 88; step += 1) {
-          const latitude = -Math.PI / 2 + (step / 88) * Math.PI;
-          points.push(project(spherePoint(latitude, longitude), width, height));
-        }
-        strokeDepthPath(points, "#5a789f", 0.055, 0.145, 0.72);
-      }
-      const south = project({ x: 0, y: -SPHERE_RADIUS * 0.985, z: 0 }, width, height);
-      const north = project({ x: 0, y: SPHERE_RADIUS * 0.985, z: 0 }, width, height);
-      line(south, north, "#d3b46c", 0.22 * state.formation, 0.85, [4, 7]);
-    }
-
-    /* The ticker constellation sits on a second, nested spheroid inside Orb 2's
-       outer shell. Its faint wire surface keeps the individual ticker orbs
-       visibly inside a larger model rather than floating as two outer clusters. */
-    function drawTickerOrbField(width, height) {
-      if (!tickerMode || state.formation <= 0.001) return;
-      const radius = TICKER_ORB_FIELD_RADIUS;
-      [-0.78, 0, 0.78].forEach(latitude => {
-        const points = [];
-        for (let step = 0; step <= 64; step += 1) {
-          points.push(project(spherePoint(latitude, step / 64 * TAU, radius), width, height));
-        }
-        strokeDepthPath(points, "#4e7199", 0.025, 0.09, 0.58, [2, 5]);
-      });
-      for (let meridian = 0; meridian < 8; meridian += 1) {
-        const longitude = meridian / 8 * TAU;
-        const points = [];
-        for (let step = 0; step <= 48; step += 1) {
-          const latitude = -Math.PI / 2 + step / 48 * Math.PI;
-          points.push(project(spherePoint(latitude, longitude, radius), width, height));
-        }
-        strokeDepthPath(points, "#45658c", 0.018, 0.065, 0.5, [2, 6]);
-      }
-    }
-
-    function drawTickerSpheroid(point, width, height, color, berth, selected, hovered) {
-      if (!point.model || !point.orbRadius || state.formation <= 0.001) return;
-      const center = point.model;
-      const radius = point.orbRadius;
-      const squash = 0.78;
-      const yaw = (point.node.order * TICKER_ORB_GOLDEN_ANGLE) % TAU;
-      const cosYaw = Math.cos(yaw), sinYaw = Math.sin(yaw);
-      const seriesColor = berth ? berth.series === "B" ? "#ffc857" : "#6fd3ff" : color;
-      const shellColor = selected || hovered ? "#f2f7ff" : seriesColor;
-      const shellAlpha = selected || hovered ? 0.78 : 0.48;
-      const modelPoint = (latitude, longitude) => {
-        const localX = radius * Math.cos(latitude) * Math.cos(longitude);
-        const localY = radius * squash * Math.sin(latitude);
-        const localZ = radius * Math.cos(latitude) * Math.sin(longitude);
-        return {
-          x: center.x + localX * cosYaw - localZ * sinYaw,
-          y: center.y + localY,
-          z: center.z + localX * sinYaw + localZ * cosYaw
-        };
-      };
-      const drawLatitude = (latitude, stroke, alpha, widthPx, dash = []) => {
-        const points = [];
-        for (let step = 0; step <= 40; step += 1) {
-          points.push(project(modelPoint(latitude, step / 40 * TAU), width, height));
-        }
-        strokeDepthPath(points, stroke, alpha * 0.18, alpha, widthPx, dash);
-      };
-      const screenRadius = point.visualRadius;
-      context2d.save();
-      context2d.fillStyle = seriesColor;
-      context2d.globalAlpha = selected || hovered ? 0.075 : 0.045;
-      context2d.beginPath(); context2d.arc(point.x, point.y, screenRadius * 0.88, 0, TAU); context2d.fill();
-      context2d.restore();
-      [-0.68, 0, 0.68].forEach(latitude =>
-        drawLatitude(latitude, shellColor, shellAlpha, selected || hovered ? 1.05 : 0.78, latitude === 0 ? [] : [2, 4]));
-      [0, Math.PI / 2].forEach(longitude => {
-        const points = [];
-        for (let step = 0; step <= 36; step += 1) {
-          const latitude = -Math.PI / 2 + step / 36 * Math.PI;
-          points.push(project(modelPoint(latitude, longitude), width, height));
-        }
-        strokeDepthPath(points, shellColor, shellAlpha * 0.12, shellAlpha * 0.72, 0.68, [2, 4]);
-      });
-      const bandP = berth && berth.p !== null ? clamp(berth.p, 0, 1) : 0.5;
-      const bandLatitude = (bandP - 0.5) * 1.36;
-      drawLatitude(bandLatitude, berth && berth.held ? "#91a0b8" : seriesColor,
-        berth ? 0.68 : 0.36, 0.9, berth && berth.held ? [2, 3] : []);
-
     }
 
     function drawRoute(now, center) {
@@ -2263,6 +2290,22 @@
       return [];
     }
 
+    function updateFlowReadout(point) {
+      if (!flowReadout) return;
+      const observation = point && point.observation;
+      const cue = flowPathForObservation(observation, point && point.directive);
+      const subject = observation && observation.symbol || point && point.node && point.node.name || "No selected node";
+      const activity = cue.moving
+        ? `${cue.direction} · ${cue.rate.toFixed(2)} cycles/s${pathsToggle.checked ? "" : " · path hidden"}${reduceMotion && !state.autoRotate ? " · reduced-motion preview" : ""}`
+        : cue.reason || "Paused · no confirmed flow data";
+      const text = `${subject} · ${cue.label} · ${activity}`;
+      if (flowReadout.textContent !== text) flowReadout.textContent = text;
+      flowReadout.style.color = cue.color;
+      flowReadout.dataset.flowState = cue.moving ? cue.state : "paused";
+      flowReadout.title = cue.moving
+        ? `Characters item cadence: ${cue.rate.toFixed(2)} visual cycles per second. This is not a volume-per-second measurement.`
+        : `${cue.reason || "Flow is paused."} No unsupported or unconfirmed volume is animated.`;
+    }
 
     function drawFlowRunner(point, center, now, wallNow, index, cue) {
       if (!cue.moving || !pathsToggle.checked) return;
@@ -2311,15 +2354,10 @@
       const freshness = snapshotFreshness(observation, wallNow);
       const incomplete = pathDash(observation);
       if (pathsToggle.checked) {
-        const helixView = tickerMode && state.seriesMode === "dual";
         context2d.save();
         context2d.strokeStyle = sourceColor;
-        context2d.globalAlpha = observation.market
-          ? clamp((helixView ? 0.07 : 0.12) + freshness * (helixView ? 0.2 : 0.48), helixView ? 0.06 : 0.12, helixView ? 0.28 : 0.6)
-          : (helixView ? 0.12 : 0.24);
-        context2d.lineWidth = observation.market
-          ? (helixView ? 0.55 : 0.8) + (directive.object?.aperture || 0) * (helixView ? 0.65 : 1.1)
-          : (helixView ? 0.6 : 0.8);
+        context2d.globalAlpha = observation.market ? clamp(0.12 + freshness * 0.48, 0.12, 0.6) : 0.24;
+        context2d.lineWidth = observation.market ? 0.8 + (directive.object?.aperture || 0) * 1.1 : 0.8;
         context2d.setLineDash(incomplete);
         context2d.beginPath(); context2d.moveTo(center.x, center.y); context2d.lineTo(point.x, point.y); context2d.stroke();
         context2d.restore();
@@ -2388,411 +2426,68 @@
       });
     }
 
-    /* ── Double-helix engine ───────────────────────────────────────────
-       The large double helix remains a visual guide. Supplied Fibonacci-band
-       values rank each strand and place a local band ring on that ticker's own
-       nested spheroid. Rank-matched A/B pairs get separate Fibonacci-spaced
-       sites inside the inner ticker field; missing bands remain held at basis. */
-    function bandLatitude(position) {
-      const p = clamp(Number(position), 0, 1);
-      /* Linearize vertical displacement across the complete spherical shell:
-         p=0, .5, 1 become south, equator, north, while longitude still coils. */
-      return Math.asin((2 * p - 1) * Math.sin(HELIX_LAT_MAX));
+    /* ── Center Origin assembly ──────────────────────────────────────────
+       The parts from the author's whiteboard, with no fractal layer: an inner
+       shell inside the model, the declared PDH phase as a rotation shift of that
+       assembly, and Center Origin drawn as the CPU the Human Key secures. Phase,
+       gate, and UTS come from the local kernel snapshot (HOS.observe()) and the
+       local UTS math only — never from a provider, never from a claim, and never
+       used to authorize anything. An unread kernel is a dimmer ring and an
+       "UNREAD" readout, not a defaulted phase. */
+    function drawOriginAssembly(now, center, width, height) {
+      const kernel = kernelSnapshot();
+      const phase = kernel && kernel.phase ? String(kernel.phase) : null;
+      const phaseShift = PHASE_SHIFT_RADIANS[phase] ?? null;
+      const gate = legitimacyGate();
+      const dt = state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
+      if (!reduceMotion) state.innerAngle += dt * 0.00021;
+      const spin = state.innerAngle + (phaseShift === null ? 0 : phaseShift);
+      /* Two counter-rotating shells and the phase loop, brightened by the same
+         α = 0.22 + 0.78·L(t) gate the rest of the system uses, so an unattested
+         browser still sees the structure without the glow. */
+      const shellFade = 0.4 + 0.6 * state.formation;
+      shellRing(0.62, spin, 0, "#4a9eff", (0.2 + 0.5 * gate) * shellFade, width, height);
+      shellRing(0.5, -spin * 0.8, Math.PI / 2, "#4a9eff", (0.14 + 0.42 * gate) * shellFade, width, height);
+      phaseLoop(spin, "#ffd479", (0.12 + 0.4 * gate) * shellFade, width, height);
+      return { phase, gate };
     }
 
-    function helixLongitude(position, series) {
-      return HELIX_BASE_LON + clamp(Number(position), 0, 1) * TAU * HELIX_TURNS + (series === "B" ? Math.PI : 0);
-    }
-
-    function helixPoint(position, series, radius = SPHERE_RADIUS) {
-      return spherePoint(bandLatitude(position), helixLongitude(position, series), radius);
-    }
-
-    function drawHelixScaffold(width, height, outerMod) {
-      const breath = outerMod && outerMod.active ? 0.86 + clamp(outerMod.energy, 0, 1) * 0.24 : 0.92;
-      const strands = [
-        { series: "A", color: "#6fd3ff" },
-        { series: "B", color: "#ffc857" }
-      ];
-      strands.forEach(({ series, color }) => {
-        const points = [];
-        for (let step = 0; step <= 180; step += 1) {
-          const p = 0.006 + (step / 180) * 0.988;
-          points.push(project(helixPoint(p, series), width, height));
-        }
-        strokeDepthPath(points, color, 0.075 * breath, 0.24 * breath, 5.2);
-        strokeDepthPath(points, color, 0.22 * breath, 0.78 * breath, 1.45);
-      });
-
-      /* Delicate equal-band crossbars make the two continuous guides read as a
-         ladder around a globe. The brighter, data-derived ticker pairings are
-         drawn separately by drawHelixRungs(). */
-      for (let rung = 1; rung <= 9; rung += 1) {
-        const p = rung / 10;
-        const latitude = bandLatitude(p);
-        const start = helixLongitude(p, "A");
-        const points = [];
-        for (let step = 0; step <= 24; step += 1) {
-          const longitude = start + (step / 24) * Math.PI;
-          points.push(project(spherePoint(latitude, longitude, SPHERE_RADIUS * 0.992), width, height));
-        }
-        strokeDepthPath(points, "#8aa4c8", 0.035, 0.13, 0.7, [2, 4]);
+    /* One refresh per wall-clock second keeps the origin strip off the hot path. */
+    function updateOriginStatus(wallNow, assembly) {
+      const second = Math.floor(wallNow / 1000);
+      if (state.originStatusAt === second) return;
+      state.originStatusAt = second;
+      const kernel = kernelSnapshot();
+      const attestation = kernel && kernel.attestation;
+      const gateState = !attestation ? "unread"
+        : attestation.status === "active" && attestation.fresh ? "attested"
+        : attestation.status === "active" ? "expired" : "unattested";
+      const gateText = { unread: "GATE UNREAD", attested: "GATE ATTESTED · FRESH",
+        expired: "GATE ATTESTED · EXPIRED", unattested: "GATE UNATTESTED" }[gateState];
+      const phaseText = assembly && assembly.phase ? `PDH ${assembly.phase}` : "PDH UNDECLARED";
+      const uts = globalThis.HOSUTS;
+      let utsText = "UTS UNAVAILABLE";
+      try { if (uts && typeof uts.formatUDate === "function") utsText = `UTS ${uts.formatUDate(new Date(wallNow))}`; } catch { utsText = "UTS UNAVAILABLE"; }
+      if (originStatus) {
+        const dxyText = state.dxy && state.dxy.ok
+          ? `${state.dxy.value.toFixed(3)} · AS OF ${new Date(state.dxy.asOf).toISOString().slice(0, 10)}`
+          : `${String(state.dxy && state.dxy.status || "awaiting six aligned FX closes").toUpperCase()}`;
+        const text = `ORIGIN · CPU — ${CENTER_ADDRESS} · DXY BENCHMARK ${dxyText} · FIXED CENTER · ${gateText} · ${phaseText} · ${utsText}`;
+        if (originStatus.textContent !== text) originStatus.textContent = text;
+      }
+      if (gatePill) {
+        const pillText = `GATE · ${gateState === "unread" ? "UNREAD" : gateState === "attested" ? "ATTESTED"
+          : gateState === "expired" ? "EXPIRED" : "UNATTESTED"}`;
+        if (gatePill.textContent !== pillText) gatePill.textContent = pillText;
+        gatePill.dataset.gateState = gateState;
+      }
+      if (utsPill) {
+        const pillText = utsText.startsWith("UTS ") ? utsText.slice(4) : "UNAVAILABLE";
+        if (utsPill.textContent !== pillText) utsPill.textContent = pillText;
       }
     }
 
-    function circle3D(radius, latitude, rotation, color, alpha, width, canvasW, canvasH) {
-      const cosLat = Math.cos(latitude), sinLat = Math.sin(latitude);
-      context2d.save();
-      context2d.strokeStyle = color;
-      context2d.globalAlpha = clamp(alpha, 0, 1);
-      context2d.lineWidth = width;
-      context2d.beginPath();
-      for (let step = 0; step <= 64; step += 1) {
-        const longitude = rotation + (step / 64) * TAU;
-        const point = project({ x: radius * cosLat * Math.cos(longitude), y: radius * sinLat, z: radius * cosLat * Math.sin(longitude) }, canvasW, canvasH);
-        if (step) context2d.lineTo(point.x, point.y); else context2d.moveTo(point.x, point.y);
-      }
-      context2d.stroke();
-      context2d.restore();
-    }
-
-    function meridian3D(radius, longitude, rotation, color, alpha, width, canvasW, canvasH) {
-      context2d.save();
-      context2d.strokeStyle = color;
-      context2d.globalAlpha = clamp(alpha, 0, 1);
-      context2d.lineWidth = width;
-      context2d.beginPath();
-      for (let step = 0; step <= 40; step += 1) {
-        const latitude = -Math.PI / 2 + (step / 40) * Math.PI;
-        const point = project({
-          x: radius * Math.cos(latitude) * Math.cos(longitude + rotation),
-          y: radius * Math.sin(latitude),
-          z: radius * Math.cos(latitude) * Math.sin(longitude + rotation)
-        }, canvasW, canvasH);
-        if (step) context2d.lineTo(point.x, point.y); else context2d.moveTo(point.x, point.y);
-      }
-      context2d.stroke();
-      context2d.restore();
-    }
-
-    function updateHelixBerths(now) {
-      const hadBerths = helixBerths.size > 0;
-      helixBerths.clear();
-      const groups = { A: [], B: [] };
-      nodes.forEach(node => { (node.series === "B" ? groups.B : groups.A).push(node); });
-      const perNode = new Map();
-      nodes.forEach(node => {
-        const observation = latestForNode(node);
-        perNode.set(node.id, { observation, metrics: helixMetricsForMarket(observation && observation.market) });
-      });
-      const targetP = id => {
-        const entry = perNode.get(id);
-        return entry && entry.metrics.held ? 0.5 : entry.metrics.p;
-      };
-      const byPosition = (x, y) => (targetP(x.id) - targetP(y.id)) || (x.symbol < y.symbol ? -1 : x.symbol > y.symbol ? 1 : 0);
-      const ranked = { A: [...groups.A].sort(byPosition), B: [...groups.B].sort(byPosition) };
-      const pairCount = Math.max(ranked.A.length, ranked.B.length);
-      const dt = state.helix.lastT ? Math.max(0, Math.min(120, now - state.helix.lastT)) : 16;
-      const glide = 1 - Math.exp(-dt / 650);
-      let held = 0;
-      ["A", "B"].forEach(series => {
-        const strand = ranked[series];
-        strand.forEach((node, rank) => {
-          const entry = perNode.get(node.id) || { observation: null, metrics: helixMetricsForMarket(null) };
-          const metrics = entry.metrics;
-          if (metrics.held) held += 1;
-          const target = tickerPairAnchor(rank, pairCount, series, metrics);
-          const previous = state.helix.glide.get(node.id) || target.position;
-          const position = {
-            x: previous.x + (target.position.x - previous.x) * glide,
-            y: target.position.y, // Never animate through a false above/below classification.
-            z: previous.z + (target.position.z - previous.z) * glide
-          };
-          state.helix.glide.set(node.id, position);
-          const market = entry.observation && entry.observation.market;
-          const changePct = market ? numeric(market.changePct) : null;
-          helixBerths.set(node.id, {
-            latitude: target.latitude,
-            longitude: target.longitude,
-            position,
-            pairIndex: rank,
-            series,
-            rank,
-            p: metrics.held ? null : metrics.p,
-            held: metrics.held,
-            metrics,
-            observation: entry.observation,
-            direction: changePct === null ? null : changePct > 0 ? 1 : changePct < 0 ? -1 : 0
-          });
-        });
-      });
-      state.helix.lastT = now;
-      helixState.ranked = ranked;
-      helixState.counts = { a: ranked.A.length, b: ranked.B.length };
-      helixState.rungs = Math.min(ranked.A.length, ranked.B.length);
-      helixState.held = held;
-      /* The first frame that settles the inner ticker spheroids also refreshes
-         the inspector, so its strand/band/rung readouts never stay on the
-         pre-render "settling" row after the geometry is live. */
-      if (!hadBerths && helixBerths.size > 0) drawInspector();
-      return helixState;
-    }
-
-    /* The latitude rings become the Fibonacci band scale: the lower band at the
-       bottom ring, the basis at the equator, the upper band at the top ring,
-       with the 0.618 levels between. */
-    function drawFibRings(width, height) {
-      const levels = [
-        { p: 0, label: "LOWER 1.000", color: "#516983", alpha: 0.22 },
-        { p: 0.191, label: "L 0.618", color: "#516983", alpha: 0.16 },
-        { p: 0.5, label: "BASIS", color: "#6fd3ff", alpha: 0.38 },
-        { p: 0.809, label: "U 0.618", color: "#516983", alpha: 0.16 },
-        { p: 1, label: "UPPER 1.000", color: "#516983", alpha: 0.22 }
-      ];
-      context2d.save();
-      context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
-      levels.forEach(level => {
-        const y = (level.p - 0.5) * 2 * TICKER_ORB_FIELD_RADIUS;
-        const r = TICKER_ORB_FIELD_RADIUS * 1.4;
-        const corners = [[-r,-r],[r,-r],[r,r],[-r,r],[-r,-r]].map(([x,z]) => project({x,y,z}, width, height));
-        strokeDepthPath(corners, level.color, level.alpha, level.alpha, 0.8);
-        if (level.p === 0.5) {
-          context2d.beginPath();
-          corners.forEach((point, i) => i ? context2d.lineTo(point.x, point.y) : context2d.moveTo(point.x, point.y));
-          context2d.fillStyle = "rgba(111,211,255,0.035)";
-          context2d.fill();
-        }
-        const anchor = project({ x: 0, y, z: 0 }, width, height);
-        context2d.globalAlpha = 0.82 * state.formation;
-        context2d.fillStyle = level.color;
-        context2d.textAlign = "right";
-        context2d.fillText(level.label, width - 10, anchor.y - 3);
-      });
-      const caption = project({ x: 0, y: SPHERE_RADIUS * Math.sin(HELIX_LAT_MAX), z: 0 }, width, height);
-      context2d.globalAlpha = 0.6 * state.formation;
-      context2d.fillStyle = "#8fa7c4";
-      context2d.fillText("FIBONACCI BANDS", width - 10, caption.y - 14);
-      context2d.restore();
-    }
-
-    /* Fine intra-series links stitch neighboring ticker spheroids into two
-       readable chains across the nested field; unlike the old end-to-end
-       clusters, every chain segment terminates at an individual ticker orb. */
-    function drawHelixStrandLinks(outerMod) {
-      if (!helixState.ranked) return;
-      const pointById = new Map(state.projected.map(point => [point.node.id, point]));
-      const breath = outerMod && outerMod.active ? 0.85 + clamp(outerMod.energy, 0, 1) * 0.3 : 1;
-      [
-        { series: "A", color: "#6fd3ff" },
-        { series: "B", color: "#ffc857" }
-      ].forEach(({ series, color }) => {
-        const strand = helixState.ranked[series];
-        for (let index = 1; index < strand.length; index += 1) {
-          const previous = pointById.get(strand[index - 1].id);
-          const current = pointById.get(strand[index].id);
-          if (!previous || !current) continue;
-          const depth = clamp(0.35 + (1 - ((previous.z + current.z) / 2) / 5) * 0.32, 0.3, 1);
-          line(previous, current, color, 0.16 * breath * depth, 0.72, [2, 4]);
-        }
-      });
-    }
-
-    /* Cross-series rungs: each rank-matched pair of ticker spheroids receives
-       its own connector, colored by directional agreement, brightened by
-       combined potential energy and the outer flame's breath. */
-    function drawHelixRungs(outerMod) {
-      if (!helixState.ranked) return;
-      const pointById = new Map(state.projected.map(point => [point.node.id, point]));
-      const count = Math.min(helixState.ranked.A.length, helixState.ranked.B.length);
-      for (let index = 0; index < count; index += 1) {
-        const nodeA = helixState.ranked.A[index];
-        const nodeB = helixState.ranked.B[index];
-        const pointA = pointById.get(nodeA.id);
-        const pointB = pointById.get(nodeB.id);
-        if (!pointA || !pointB) continue;
-        const berthA = helixBerths.get(nodeA.id);
-        const berthB = helixBerths.get(nodeB.id);
-        const directionA = berthA ? berthA.direction : null;
-        const directionB = berthB ? berthB.direction : null;
-        const dash = directionA === null || directionB === null ? [4, 4] : [];
-        const color = directionA === null || directionB === null ? DATA_COLORS.unknown
-          : directionA > 0 && directionB > 0 ? DATA_COLORS.priceUp
-          : directionA < 0 && directionB < 0 ? DATA_COLORS.priceDown
-          : directionA === directionB ? DATA_COLORS.priceFlat
-          : "#ffc857";
-        const potentialA = berthA && !berthA.held ? berthA.metrics.potential : 0;
-        const potentialB = berthB && !berthB.held ? berthB.metrics.potential : 0;
-        const potential = (potentialA + potentialB) / 2;
-        const depth = clamp(0.32 + (1 - ((pointA.z + pointB.z) / 2) / 5) * 0.34, 0.3, 1);
-        const alpha = (0.16 + 0.4 * potential) * (outerMod && outerMod.active ? 0.8 + 0.4 * clamp(outerMod.energy, 0, 1) : 1) * depth;
-        line(pointA, pointB, color, alpha, 0.9 + 0.5 * potential, dash);
-      }
-    }
-
-    /* ── The Orb's fractal frame processing, carried into Orb 2 ──────────
-       Surface: the shared OrbFilm film (200 author frames, bounce clock)
-       wrapped onto this model's node shell through rotate3()/toScreen().
-       Core: the shared Demo.flame IFS player — the same core that burns in
-       The Orb — drawn additively at Center Origin. Brightness follows the
-       same legitimacy gate as The Orb (α = 0.22 + 0.78·L(t)); the render is
-       display-only and encodes no market meaning. Both sources resolve
-       lazily and degrade to the plain wire core when unavailable. */
-    /* The .flame frames are authored 3D animations (ApophysisAV). Rather than
-       pasting each frame on as a camera-facing billboard, the flame's reference
-       triangle — the O-X-Y basis every IFS point is expressed against — is
-       rotated in 3D (a slow precession with a breathing tilt) and the frame is
-       projected through this model's own camera as an oriented quad. The
-       ApophysisAV render is untouched; only its placement in the orb gains
-       depth. Falls back to the shared billboard drawOn when the player does
-       not expose its bounce frames. */
-    function drawFlameCore3D(flame, center, size, alpha, width, height, energy, dpr = 1) {
-      if (!flame || typeof flame.playhead !== "function" || !Array.isArray(flame.frames)) return false;
-      const playhead = flame.playhead();
-      const frame0 = flame.frames[playhead && playhead.i0];
-      const frame1 = flame.frames[playhead && playhead.i1];
-      if (!frame0 || typeof frame0.width !== "number" || frame0.width < 1) return false;
-      /* The requested core size is in screen pixels; the reference triangle
-         lives in model units. Convert through the center's projected scale so
-         the quad occupies the same on-screen footprint the billboard would. */
-      const unitPixels = Math.max(1, (center.scale || 1) * Math.min(width, height) * MODEL_VIEW_SCALE);
-      const half = (size / 2) / unitPixels;
-      const t = state.coreTime;
-      /* Reference-triangle rotation: in-plane spin, a tilt that never sits the
-         plane flat (and never turns it edge-on), and a gentle yaw swing — all
-         breathing with the flame's own harmonic energy. */
-      const spin = t * 0.00012;
-      const tilt = 0.95 + Math.sin(t * 0.00021) * 0.24 + (energy - 0.5) * 0.08;
-      const yaw = Math.sin(t * 0.00017) * 0.3;
-      const cSpin = Math.cos(spin), sSpin = Math.sin(spin);
-      const cTilt = Math.cos(tilt), sTilt = Math.sin(tilt);
-      const cYaw = Math.cos(yaw), sYaw = Math.sin(yaw);
-      const referenceCorner = (u, v) => {
-        /* Rz(spin) · Rx(tilt) · Ry(yaw) applied to the basis point (u, v, 0). */
-        const x1 = u * cSpin - v * sSpin;
-        const y1 = u * sSpin + v * cSpin;
-        const y2 = y1 * cTilt;
-        const z2 = y1 * sTilt;
-        const x3 = x1 * cYaw + z2 * sYaw;
-        const z3 = -x1 * sYaw + z2 * cYaw;
-        return project({ x: x3 * half, y: y2 * half, z: z3 * half }, width, height);
-      };
-      const p00 = referenceCorner(-1, -1);
-      const p10 = referenceCorner(1, -1);
-      const p01 = referenceCorner(-1, 1);
-      const edgeX = Math.hypot(p10.x - p00.x, p10.y - p00.y);
-      const edgeY = Math.hypot(p01.x - p00.x, p01.y - p00.y);
-      if (edgeX < 8 || edgeY < 8) return true; /* nearly edge-on to the camera */
-      const frac = playhead.frac || 0;
-      const alpha0 = alpha * Math.cos(frac * (Math.PI / 2));
-      const alpha1 = alpha * Math.sin(frac * (Math.PI / 2));
-      context2d.save();
-      context2d.globalCompositeOperation = "lighter";
-      context2d.imageSmoothingEnabled = true;
-      const pixelRatio = Math.max(1, Number(dpr) || 1);
-      const quadTransform = frame => {
-        context2d.setTransform(
-          (p10.x - p00.x) / frame.width * pixelRatio, (p10.y - p00.y) / frame.width * pixelRatio,
-          (p01.x - p00.x) / frame.height * pixelRatio, (p01.y - p00.y) / frame.height * pixelRatio,
-          p00.x * pixelRatio, p00.y * pixelRatio
-        );
-        context2d.drawImage(frame, 0, 0);
-      };
-      if (alpha0 > 0.01) { context2d.globalAlpha = alpha0; quadTransform(frame0); }
-      if (frame1 && frac > 0.002 && alpha1 > 0.01) { context2d.globalAlpha = alpha1; quadTransform(frame1); }
-      context2d.restore();
-      return true;
-    }
-
-    function drawFractalFrames(now, frameDelta, center, width, height, dpr) {
-      const filmApi = orbFilmApi();
-      const film = filmApi && typeof filmApi.shared === "function" ? filmApi.shared() : null;
-      const flame = flameCore();
-      const outer = outerFlamePlayer();
-      const fMod = flame && typeof flame.flameModulation === "function" ? flame.flameModulation() : null;
-      const outerMod = outer && typeof outer.flameModulation === "function" ? outer.flameModulation() : null;
-
-      /* 0 · the shared OrbFilm surface — the author's 200-frame film wrapped
-         through this model's own camera. The clock advances with frame time
-         coupled to the inner flame's harmonic speed, exactly as The Orb drives
-         it, and adjacent sub-frames cross-fade at equal energy. */
-      if (filmApi && film) {
-        if (film.ready && typeof filmApi.drawWrapped === "function") {
-          state.filmTime += (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
-          const sample = film.sampleAt ? film.sampleAt(state.filmTime) : null;
-          const alpha = (0.22 + 0.78 * legitimacyGate()) * 0.34;
-          if (sample && (sample.img0 || sample.img1) && alpha > 0.01) {
-            const frac = sample.frac || 0;
-            const alpha0 = alpha * Math.cos(frac * (Math.PI / 2));
-            const alpha1 = alpha * Math.sin(frac * (Math.PI / 2));
-            if (sample.img0 && alpha0 > 0.01) {
-              filmApi.drawWrapped(context2d, {
-                img: sample.img0, project: rotate3, toScreen: point => toScreen(point, width, height),
-                cs: center, R: SPHERE_RADIUS, fov: CAMERA_DISTANCE / state.zoom, alpha: alpha0, dpr
-              });
-            }
-            if (sample.img1 && alpha1 > 0.01 && frac > 0.002) {
-              filmApi.drawWrapped(context2d, {
-                img: sample.img1, project: rotate3, toScreen: point => toScreen(point, width, height),
-                cs: center, R: SPHERE_RADIUS, fov: CAMERA_DISTANCE / state.zoom, alpha: alpha1, dpr
-              });
-            }
-          }
-        }
-      }
-
-      /* 1 · the AI inner shell — Demo.flame's 120-frame harmonics govern the
-         burning core at Center Origin and a small counter-rotating wireframe
-         shell around it, as in The Orb. */
-      const dt = (frameDelta || 16) / 1000;
-      state.coreTime = (state.coreTime || 0) + (frameDelta || 16) * ((fMod && fMod.speedMult) || 1);
-      const innerSpeed = (fMod && fMod.speedMult) || 1;
-      state.innerAngle += dt * 0.4 * innerSpeed;
-      let coreLive = false;
-      if (flame && flame.ready && Array.isArray(flame.frames) && flame.frames.length) {
-        const energy = fMod && fMod.active ? clamp(fMod.energy, 0, 1) : 0.5;
-        const coreAlpha = (0.22 + 0.78 * legitimacyGate()) * 0.9;
-        const coreSize = 44 + energy * 18;
-        /* Prefer the 3D reference-triangle placement; the shared billboard
-           drawOn remains the honest fallback for any player that does not
-           expose its bounce frames. */
-        if (!drawFlameCore3D(flame, center, coreSize, coreAlpha, width, height, energy, dpr)
-          && typeof flame.drawOn === "function") {
-          flame.drawOn(context2d, center.x, center.y, coreSize, coreAlpha);
-        }
-        const shellRadius = 0.62 + (fMod && fMod.active ? fMod.pulse * 0.03 : 0);
-        const shellAlpha = fMod && fMod.active ? 0.28 + 0.14 * energy : 0.35;
-        circle3D(shellRadius, 0, state.innerAngle, "#4a9eff", shellAlpha * state.formation, 1, width, height);
-        circle3D(shellRadius, 0.45, -state.innerAngle * 0.8, "#4a9eff", (shellAlpha - 0.1) * state.formation, 1, width, height);
-        meridian3D(shellRadius, 0, state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
-        meridian3D(shellRadius, Math.PI / 2, -state.innerAngle, "#4a9eff", (shellAlpha - 0.08) * state.formation, 1, width, height);
-        const anchor = project({ x: 0, y: shellRadius, z: 0 }, width, height);
-        context2d.save();
-        context2d.fillStyle = "#ffd479";
-        context2d.globalAlpha = 0.85 * state.formation;
-        context2d.beginPath(); context2d.arc(anchor.x, anchor.y, 2.6, 0, TAU); context2d.fill();
-        context2d.restore();
-        coreLive = true;
-      }
-
-      /* 2 · the outer macro-flame — OuterOrb.flame (600 frames) never draws
-         pixels here; its harmonics govern the counter-rotating depth shells
-         and (via drawHelixRungs) the rungs' breath, exactly as The Orb's
-         outer system governs its depth shells and nodes. */
-      const outerSpeed = ((outerMod && outerMod.active ? outerMod.speedMult : 1) || 1) * innerSpeed;
-      state.outerAngle1 += dt * 0.25 * outerSpeed;
-      state.outerAngle2 -= dt * 0.18 * outerSpeed;
-      if (outer && outer.ready && Array.isArray(outer.frames) && outer.frames.length) {
-        const energy = outerMod && outerMod.active ? clamp(outerMod.energy, 0, 1) : 0.5;
-        const pulse = outerMod && outerMod.active ? outerMod.pulse * 0.06 : 0;
-        const outerAlpha = outerMod && outerMod.active ? 0.22 + 0.14 * energy : 0.22;
-        [[1.15, -0.42 * 0.9, state.outerAngle1, 1], [1.8, 0.5 * 0.9, state.outerAngle2, -0.8]].forEach(([radius, tilt, rotation, pulseSign]) => {
-          circle3D(radius + pulse * pulseSign, tilt, rotation, "#243a63", outerAlpha * state.formation, 1 + (outerMod && outerMod.active ? energy * 0.6 : 0), width, height);
-        });
-      }
-      return { coreLive, fMod, outerMod };
-    }
-
-    function drawCanvas(now) {
+  function drawCanvas(now) {
       if (!context2d || state.destroyed || !state.visible) return;
       const wallNow = Date.now();
       const { width, height, dpr } = canvasBounds();
@@ -2804,44 +2499,31 @@
       background.addColorStop(1, "#060b14");
       context2d.fillStyle = background;
       context2d.fillRect(0, 0, width, height);
-      const frameDelta = state.lastFrame ? Math.max(0, Math.min(80, now - state.lastFrame)) : 16;
       if (state.autoRotate && !state.dragging) {
-        state.yaw += frameDelta * 0.00013;
+        const dt = state.lastFrame ? Math.min(80, now - state.lastFrame) : 16;
+        state.yaw += dt * 0.00013;
       }
       state.lastFrame = now;
-      /* Band rank places each dual-series pair at its own site on the inner
-         ticker spheroid; all nodes share the same eased camera geometry. */
-      const helix = tickerMode ? updateHelixBerths(now) : null;
       const center = project({ x: 0, y: 0, z: 0 }, width, height);
-      if (!tickerMode) drawSphericalShell(width, height, center);
-      /* The Orb's fractal frame processing — film surface under the model,
-         dual flame system (Demo.flame core + OuterOrb.flame shells) at Center
-         Origin; both degrade to wire when unavailable. */
-      let fractal = { coreLive: false, fMod: null, outerMod: null };
-      if (state.showFractal) fractal = drawFractalFrames(now, frameDelta, center, width, height, dpr);
-      if (!tickerMode) {
-        drawSphereGrid(width, height);
-        drawTickerOrbField(width, height);
-      }
-      if (helix) {
-        drawFibRings(width, height);
-        // Open field: no enclosing helix or shell.
-      } else {
-        ring(0, width, height, "#6fd3ff", 0.25);
+      /* Center Origin assembly — the inner shell and the declared phase's rotation,
+         drawn under the lattice, plus the origin strip (gate · phase · UTS). */
+      const originAssembly = drawOriginAssembly(now, center, width, height);
+      updateOriginStatus(wallNow, originAssembly);
+      [-0.62, -0.31, 0, 0.31, 0.62].forEach(latitude => ring(latitude, width, height, latitude === 0 ? "#6fd3ff" : "#516983", latitude === 0 ? 0.38 : 0.18));
+      for (let index = 0; index < 8; index += 1) {
+        const longitude = (index / 8) * TAU;
+        const a = project({ x: 2.06 * Math.cos(longitude), y: 0, z: 2.06 * Math.sin(longitude) }, width, height);
+        const b = project({ x: -2.06 * Math.cos(longitude), y: 0, z: -2.06 * Math.sin(longitude) }, width, height);
+        line(a, b, "#49627e", 0.09 + state.formation * 0.08, 0.7);
       }
       state.projected = nodes.map(node => {
         const observation = latestForNode(node);
         const directive = displayMotion(observation, now);
-        const model = modelPoint(node, now, directive);
-        const screen = project(model, width, height);
-        const berth = helixBerths.get(node.id);
-        const orbRadius = tickerMode ? tickerOrbWorldRadius(berth) : 0;
-        const visualRadius = tickerMode ? orbRadius * Math.min(width, height) * MODEL_VIEW_SCALE * screen.scale : 0;
-        return { ...screen, model, orbRadius, visualRadius, node, observation, directive };
+        return { ...project(modelPoint(node, now, directive), width, height), node, observation, directive };
       });
+      updateFlowReadout(state.projected[state.selected] || null);
       state.projected.forEach((point, index) => drawActivity(point, center, now, wallNow, index));
       drawRoute(now, center);
-      // Independent ticker cores are not structurally tethered to each other.
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       ordered.forEach(point => {
         const node = point.node;
@@ -2854,76 +2536,38 @@
           ? MOOD_COLORS[directive.mood] || node.color : node.color;
         const pulse = directive && directive.object ? directive.object.pulse : 0;
         const radius = clamp(3.2 + point.scale * 2.5 + (chosen ? 1.9 : 0) + pulse * 1.6, 3, 9);
-        const berth = helixBerths.get(node.id);
-        const visualRadius = tickerMode ? Math.max(radius, point.visualRadius) : radius;
-        if (tickerMode) drawTickerSpheroid(point, width, height, color, berth, chosen, hovered);
-        if (berth) {
-          /* Supplied band width widens the spheroid's volatility ring; potential
-             energy feeds its core glow; a signaled band break flashes gold; a
-             held orb gets a dashed neutral ring. No missing field is inferred. */
-          const volatility = berth.metrics.volatility;
-          if (volatility !== null) {
-            context2d.save();
-            context2d.strokeStyle = "#9fb6d4";
-            context2d.globalAlpha = 0.1 + 0.28 * volatility;
-            context2d.lineWidth = 0.8;
-            const ringRadius = tickerMode ? visualRadius * (1.12 + volatility * 0.3) : radius * (1.3 + volatility * 0.6);
-            context2d.beginPath(); context2d.arc(point.x, point.y, ringRadius, 0, TAU); context2d.stroke();
-            context2d.restore();
-          }
-          if (berth.metrics.breakSide) {
-            context2d.save();
-            context2d.strokeStyle = "#ffd479";
-            context2d.globalAlpha = 0.5 + 0.25 * Math.sin(now / 140);
-            context2d.lineWidth = 1.2;
-            const breakRadius = tickerMode ? visualRadius + 5 + Math.sin(now / 140) : radius * (2 + 0.22 * Math.sin(now / 140));
-            context2d.beginPath(); context2d.arc(point.x, point.y, breakRadius, 0, TAU); context2d.stroke();
-            context2d.restore();
-          }
-          if (berth.held) {
-            context2d.save();
-            context2d.strokeStyle = "#516983";
-            context2d.globalAlpha = 0.45;
-            context2d.lineWidth = 0.9;
-            context2d.setLineDash([3, 4]);
-            context2d.beginPath(); context2d.arc(point.x, point.y, tickerMode ? visualRadius + 4 : radius + 4, 0, TAU); context2d.stroke();
-            context2d.restore();
-          }
-        }
-        drawProviderHalo(point, visualRadius, observation, wallNow);
+        drawProviderHalo(point, radius, observation, wallNow);
         context2d.save();
         context2d.globalAlpha = observation && observation.market ? clamp(0.42 + fresh * 0.5, 0.42, 0.96) : clamp(0.32 + (1 - point.z / 5) * 0.34, 0.3, 1);
         context2d.fillStyle = color;
-        context2d.shadowBlur = (chosen || hovered || (directive && !directive.frozen) ? 22 : 9) + (berth && !berth.held ? berth.metrics.potential * 14 : 0);
+        context2d.shadowBlur = chosen || hovered || (directive && !directive.frozen) ? 22 : 9;
         context2d.shadowColor = color;
         context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
         if (chosen || hovered) {
           context2d.strokeStyle = "#ffffff"; context2d.globalAlpha = 0.9; context2d.lineWidth = 1;
-          context2d.beginPath(); context2d.arc(point.x, point.y, visualRadius + 3, 0, TAU); context2d.stroke();
+          context2d.beginPath(); context2d.arc(point.x, point.y, radius + 3, 0, TAU); context2d.stroke();
         }
         context2d.restore();
-        drawDataBits(point, visualRadius, observation);
+        drawDataBits(point, radius, observation);
         if (state.labels || chosen || hovered) {
           context2d.save();
           context2d.globalAlpha = chosen || hovered ? 1 : 0.72;
           context2d.fillStyle = "#edf6ff";
           context2d.font = `${chosen ? 11 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`;
           context2d.textAlign = point.x > width * 0.52 ? "left" : "right";
-          const offset = point.x > width * 0.52 ? visualRadius + 5 : -visualRadius - 5;
-          const tag = `${node.series && (chosen || hovered) ? " · " + node.series : ""}${berth && berth.held && (chosen || hovered) ? " · HELD" : ""}`;
-          context2d.fillText(`${node.symbol || node.name}${tag}`, point.x + offset, point.y - visualRadius - 4);
+          const offset = point.x > width * 0.52 ? radius + 5 : -radius - 5;
+          context2d.fillText(node.symbol || node.name, point.x + offset, point.y - radius - 4);
           context2d.restore();
         }
       });
       context2d.save();
-      /* When the shared fractal core is burning, it replaces the plain center dot;
-         the resolution ring and CENTER label remain so the origin stays legible. */
-      if (!fractal.coreLive) {
-        context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
-        context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
-        context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
-        context2d.beginPath(); context2d.arc(center.x, center.y, state.pending ? 9 : 7, 0, TAU); context2d.fill();
-      }
+      /* Center Origin is the CPU: the gate decides whether it burns gold or waits in
+         cyan, and the declared phase is named under it. A pending beat pulses the
+         same dot — there is no rendered frame to swap in, by design. */
+      context2d.fillStyle = state.pending ? "#6fd3ff" : "#ffd479";
+      context2d.shadowBlur = state.pending ? 30 + Math.sin(now / 65) * 9 : 24;
+      context2d.shadowColor = state.pending ? "#6fd3ff" : "#ffd479";
+      context2d.beginPath(); context2d.arc(center.x, center.y, state.pending ? 9 : 7, 0, TAU); context2d.fill();
       context2d.shadowBlur = 0;
       context2d.strokeStyle = "rgba(255,212,121,.8)";
       context2d.lineWidth = 1;
@@ -2931,7 +2575,11 @@
       context2d.fillStyle = "#fff2c6";
       context2d.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.textAlign = "center";
-      context2d.fillText("CENTER", center.x, center.y + 29);
+      const dxyLabel = state.dxy && state.dxy.ok ? `DXY · ${state.dxy.value.toFixed(3)}` : "DXY · AWAITING ALIGNED CLOSES";
+      context2d.fillText(dxyLabel, center.x, center.y + 29);
+      context2d.fillStyle = "#a9c3df";
+      context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+      context2d.fillText(originAssembly.phase ? `LOCAL CPU · ${originAssembly.phase}` : "LOCAL CPU · CENTER ORIGIN", center.x, center.y + 41);
       context2d.restore();
     }
 
@@ -2957,8 +2605,7 @@
       let distance = Infinity;
       for (const point of state.projected) {
         const d = Math.hypot(point.x - x, point.y - y);
-        const hitRadius = Math.max(18, (point.visualRadius || 0) + 5);
-        if (d < distance && d < hitRadius) { winner = point.node.order; distance = d; }
+        if (d < distance && d < 18) { winner = point.node.order; distance = d; }
       }
       return winner;
     }
@@ -3034,87 +2681,6 @@
       persistLocal();
       scheduleRender();
     });
-    if (fractalToggle) fractalToggle.addEventListener("change", () => {
-      state.showFractal = !!fractalToggle.checked;
-      persistLocal();
-      scheduleRender();
-    });
-
-    /* ── Double-helix series controls ──────────────────────────────
-       Two reviewed ticker sets, strand against strand. Series changes
-       rearrange nodes locally; they never force a provider request. */
-    function applySeriesNodes() {
-      if (!tickerMode) return;
-      const base = buildNodes(options.tickers, timeframe === "1d" ? "1d" : "1h");
-      let strandCounts = { a: 0, b: 0 };
-      if (state.seriesMode === "dual") {
-        const bySymbol = new Map(base.map(node => [node.symbol, node]));
-        const strand = (symbols, series) => symbols.map(symbol => bySymbol.get(symbol)).filter(Boolean)
-          .map(node => Object.freeze({ ...node, id: `${node.id}-${series.toLowerCase()}`, series }));
-        const a = strand(state.seriesA, "A");
-        const b = strand(state.seriesB, "B");
-        strandCounts = { a: a.length, b: b.length };
-        nodes = Object.freeze([...a, ...b].map((node, index) => Object.freeze({ ...node, order: index })));
-      } else {
-        nodes = base;
-      }
-      nodeIndexByName = new Map(nodes.map((node, index) => [state.seriesMode === "dual" ? node.id : node.name, index]));
-      state.selected = 0;
-      state.route = null;
-      state.lastRoutePhase = "";
-      state.helix.glide.clear();
-      state.helix.lastT = 0;
-      helixBerths.clear();
-      helixState.ranked = null;
-      helixState.counts = { ...strandCounts };
-      helixState.rungs = Math.min(strandCounts.a, strandCounts.b);
-      helixState.held = 0;
-    }
-    applySeriesNodes();
-
-    function applySeriesInput(input, seriesKey, label) {
-      const parsed = parseSeriesInput(input.value);
-      const unknown = [...new Set(parsed.filter(symbol => !reviewedSymbolSet.has(symbol)))];
-      const valid = [...new Set(parsed.filter(symbol => reviewedSymbolSet.has(symbol)))];
-      if (!valid.length) {
-        state.message = {
-          kind: "note",
-          text: `Series ${label} was left unchanged: no reviewed watchlist symbol was recognized${unknown.length ? ` (${unknown.join(", ")} not reviewed)` : ""}. No node was invented.`
-        };
-        input.value = state[seriesKey].join(", ");
-        draw();
-        return;
-      }
-      state[seriesKey] = valid;
-      state.message = {
-        kind: "note",
-        text: unknown.length
-          ? `Series ${label} drawn without ${unknown.length} unreviewed symbol${unknown.length === 1 ? "" : "s"} (${unknown.join(", ")}); only reviewed watchlist symbols are drawn.`
-          : `Series ${label} set to ${valid.length} reviewed ticker${valid.length === 1 ? "" : "s"}. The double helix rearranges locally; no new provider request is forced.`
-      };
-      persistLocal();
-      applySeriesNodes();
-      syncNodeOptions();
-      syncFormControls();
-      drawInspector();
-      draw();
-    }
-    if (seriesModeSelect) seriesModeSelect.addEventListener("change", () => {
-      state.seriesMode = seriesModeSelect.value === "single" ? "single" : "dual";
-      state.message = {
-        kind: "note",
-        text: state.seriesMode === "dual"
-          ? "Double helix: each reviewed ticker gets its own orb on an inner spheroid; rank-matched Series A/B pairs link individually by supplied band position."
-          : "Single set: every reviewed watchlist orb returns to the sector sphere."
-      };
-      persistLocal();
-      applySeriesNodes();
-      syncNodeOptions();
-      drawInspector();
-      draw();
-    });
-    if (seriesAInput) seriesAInput.addEventListener("change", () => applySeriesInput(seriesAInput, "seriesA", "A"));
-    if (seriesBInput) seriesBInput.addEventListener("change", () => applySeriesInput(seriesBInput, "seriesB", "B"));
     routeButton.addEventListener("click", () => setRoute("resolution"));
     lateralButton.addEventListener("click", () => setRoute("lateral"));
     resetButton.addEventListener("click", () => {
@@ -3131,11 +2697,12 @@
       const rebuilt = buildNodes(options.tickers, nextTimeframe === "1d" ? "1d" : "1h");
       if (!rebuilt.length) return;
       timeframe = nextTimeframe === "1d" ? "1d" : "1h";
+      nodes = rebuilt;
+      nodeIndexByName = new Map(nodes.map((node, index) => [node.name, index]));
       state.selected = 0;
       state.route = null;
       state.lastRoutePhase = "";
       if (timeframeSelect) timeframeSelect.value = timeframe;
-      applySeriesNodes();
       syncNodeOptions();
       drawInspector();
       scheduleRender();
@@ -3181,7 +2748,7 @@
         state.routeSteps = { provider: "READY", worker: "READY", ledger: "WAITING", model: "READY" };
         drawCanvasWhenReady();
         loadServerHistory();
-        if (options.startPaused || currentProvider() === "tickerbot") {
+        if (currentProvider() === "tickerbot") {
           state.message = { kind: "note", text: "Tickerbot is on-demand in Characters. Choose Beat now; no automatic Tickerbot request is scheduled." };
           draw();
         } else {
@@ -3215,6 +2782,7 @@
     });
     autoButton.addEventListener("click", toggleAuto);
     beatButton.addEventListener("click", () => beatNow("manual"));
+    ignitionRestartButton?.addEventListener("click", restartIgnition);
     featureButtons.forEach(button => button && button.addEventListener("click", toggleFeatured));
     stretchBox.addEventListener("change", () => { state.stretch = stretchBox.checked; draw(); });
     tierBox.addEventListener("change", () => {
@@ -3313,27 +2881,6 @@
     return Object.freeze({
       schema: SCHEMA,
       get nodes() { return nodes; },
-      get helixState() {
-        return {
-          mode: tickerMode ? state.seriesMode : "roster",
-          seriesA: [...state.seriesA],
-          seriesB: [...state.seriesB],
-          strands: { ...helixState.counts },
-          rungs: helixState.rungs,
-          held: helixState.held,
-          positions: helixState.ranked ? ["A", "B"].flatMap(series =>
-            helixState.ranked[series].map((node, rank) => {
-              const berth = helixBerths.get(node.id);
-              return berth ? {
-                symbol: node.symbol, series, rank, pairIndex: berth.pairIndex,
-                p: berth.p, held: berth.held,
-                latitude: berth.latitude, longitude: berth.longitude,
-                x: berth.position.x, y: berth.position.y, z: berth.position.z,
-                orbRadius: tickerOrbWorldRadius(berth)
-              } : null;
-            }).filter(Boolean)) : []
-        };
-      },
       state,
       selectNode,
       beatNow,
@@ -3345,6 +2892,7 @@
 
   window.GoodIntelligenceOrb2 = Object.freeze({
     SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, PROVIDER_COOLDOWN_MS,
-    helixMetricsForMarket, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
+    PHASE_SHIFT_RADIANS,
+    fibonacciBandMetrics, dataBitsForMarket, flowPathForObservation, buildNodes, mount, getSavedBeatSessionId
   });
 })();

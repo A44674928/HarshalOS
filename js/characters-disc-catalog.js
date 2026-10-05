@@ -92,31 +92,31 @@
      unsupported Tickerbot 1h path. */
   const DISCS = Object.freeze([
     Object.freeze({
-      id: "stocks", number: 1, name: "Equity source", label: "Equity source · legacy stocks",
+      id: "stocks", number: 1, name: "The 52 Cards", label: "Disc1 · The 52 Cards",
       assetClass: "equity", intervalModes: Object.freeze(["1h", "1d", "1mo"]),
       defaultProvider: "massive",
       ranking: "Reviewed 52-card U.S. stock watchlist. Massive supplies automatic 1d beats; Tickerbot remains available on demand for 1h/1d. Alpha Vantage covers a separate 1mo best-performing-ticker spotlight."
     }),
     Object.freeze({
-      id: "fx", number: 2, name: "Fiat / FX", label: "FX source · legacy fx",
+      id: "fx", number: 2, name: "Fiat / FX", label: "Disc2 · Fiat / FX",
       assetClass: "fx", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "BIS 2025 Triennial Survey. The released detailed tables name 23 non-USD currencies individually; the remainder are aggregated as other currencies, so a BIS-only top 52 cannot be ranked from the publication. Reviewed daily pairs route through Massive; no Tickerbot or Alpha Vantage fallback is implied."
     }),
     Object.freeze({
-      id: "crypto", number: 3, name: "Crypto", label: "Crypto source · legacy crypto",
+      id: "crypto", number: 3, name: "Crypto", label: "Disc3 · Crypto",
       assetClass: "crypto", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "CoinGecko /coins/markets, volume_desc, USD total_volume over the trailing 24 hours; top 52 unique ticker symbols. The live ranking can change; reviewed daily USD-pair bars route through Massive without an Alpha Vantage fallback."
     }),
     Object.freeze({
-      id: "commodities", number: 4, name: "Commodities", label: "Commodity source · legacy commodities",
+      id: "commodities", number: 4, name: "Commodities", label: "Disc4 · Commodities",
       assetClass: "commodity", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "Static reviewed commodity roster (crude oil, natural gas, industrial metals, agriculture). Massive futures-session bars are daily only; a stale contract is shown unavailable rather than silently rolled. Energy company shares remain in Disc1."
     }),
     Object.freeze({
-      id: "indices", number: 5, name: "Indices", label: "Index source · legacy indices",
+      id: "indices", number: 5, name: "Indices", label: "Disc5 · Indices",
       assetClass: "index", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "Static reviewed U.S. benchmark and volatility index roster. Massive supplies automatic daily bars; these are display-only reference series, not tradable instruments or advice."
@@ -124,7 +124,10 @@
   ]);
 
   const api = Object.freeze({
-    // Compatibility alias for provider routes and historical records, not navigation.
+    /* `discs` is what Characters and Orb 2 navigate: the five reviewed Discs.
+       `sourceChannels` is the same frozen roster under the name the NAB composite
+       field uses for its legacy evidence channels, so neither surface renames
+       the other and no Disc silently becomes something else. */
     discs: DISCS,
     sourceChannels: DISCS,
     get nabDiscs() {

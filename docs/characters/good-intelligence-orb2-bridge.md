@@ -15,7 +15,7 @@
 
 ## Visual color channels and fullscreen
 
-- Orb cores and object rings keep the Characters beat-mood palette; node halos and base communication paths identify Massive, Tickerbot, Alpha Vantage, or synthetic rehearsal. The green/red volume-flow runner overlays that provider-colored path without recoloring it. Cached/rehearsal, partial/unconfirmed, and held/unavailable responses use distinct dashed/dotted paths. Halo opacity fades with the age of the stored beat snapshot, not the age of the provider's latest bar.
+- Orb cores and object rings keep the Characters beat-mood palette; node halos and base communication paths identify Massive, Tickerbot, or Alpha Vantage. The green/red volume-flow runner overlays that provider-colored path without recoloring it. Cached/rehearsal, partial/unconfirmed, and held/unavailable responses use distinct dashed/dotted paths. Halo opacity fades with the age of the stored beat snapshot, not the age of the provider's latest bar.
 - Five small satellite bits expose only supplied fields: price change, VFI versus its supplied signal, close versus the supplied Fibonacci-band basis, WaveTrend zone, and actual bar/data shape plus confirmation. Unavailable fields are slate and labeled unavailable—not zero. Inspector rows display the corresponding state and value.
 - Local OCM trace colors (inward, center resolve, outward, lateral) are keyed separately from provider paths. A color key is available in the Orb 2 view. Market colors describe price/volume context only; they do not feed claim assurance, authorize activity, or recommend a trade.
 - The titlebar's **whole-app fullscreen** control expands the Good Intelligence window via the browser Fullscreen API, with a fixed-window fallback when the API is blocked. Orb 2's separate **Model full screen** control expands only the Orb canvas view.
@@ -40,20 +40,28 @@ The repository's production Wrangler config declares `COMMUNITY_DB` for `communi
 
 Apply migration `0008_orb2_saved_beats.sql` to the same D1 database used by the Worker before enabling server persistence. If the history table is missing or D1 is unavailable, the page labels the condition and preserves the local recovery copy when browser storage is available. This persistence route never initiates a provider request.
 
-## Ticker-orb mode and The Orb's fractal frames
+## Ticker-orb mode and Center Origin
 
-- When Good Intelligence mounts Orb 2 over its reviewed watchlist, the toolbar offers a `TIMEFRAME` selector; switching it rebuilds the ticker orbs locally without another network request, and the empty state names the reviewed watchlist it is waiting on. Every ticker is rendered as its own wire spheroid inside a second, inner ticker field, itself nested within Orb 2's outer shell. Rank-matched Series A/B spheroids sit side by side and link individually, while delicate same-series guides stitch neighboring tickers together; the pairs are spread across the inner field instead of collapsing into two outer clusters.
-- Orb 2 reuses The Orb's shared fractal frame processors: the 200-frame `OrbFilm` surface film is wrapped through Orb 2's own 3D camera and node shell with an equal-energy sub-frame crossfade, and the dual flame system from The Orb governs the core — `Demo.flame` (120 frames) burns at Center Origin inside a counter-rotating AI inner shell, while `OuterOrb.flame` (600 frames) never draws pixels and instead modulates the counter-rotating depth shells and the helix rungs' breathing, exactly as The Orb's outer system does. Both are display-only: no OCM message, market signal, recommendation, authorization, transaction, or permission to act is produced by any of them.
-- The ApophysisAV `.flame` frames are authored 3D animations. Orb 2 draws them through the flame's reference triangle — the O-X-Y basis every IFS point is expressed against — rotated in 3D (slow precession with a breathing tilt) and projected through Orb 2's own camera as an oriented quad, so the render sits inside the model's space instead of lying flat against it. The shared billboard draw remains the fallback for any player that does not expose its bounce frames.
-- The `Fractal core` toggle hides the frames without disturbing the beat view, and the choice persists with Orb 2's anonymous local preferences. When the film or flame modules are absent, not started, or still baking, the model stays on its wire core; nothing is invented. Compact flow and fractal status boxes are intentionally omitted from the canvas overlay so the nested geometry remains unobstructed.
+- When Good Intelligence mounts Orb 2 over its reviewed watchlist, the toolbar offers a `TIMEFRAME` selector; switching it rebuilds the ticker orbs locally without another network request, and the empty state names the reviewed watchlist it is waiting on.
+- Center Origin carries the parts the author specified on the whiteboard: an **inner shell** inside the model, the **declared PDH phase** as a rotation shift of that whole assembly, and the origin drawn as the **CPU node** that the **Human Key** secures. Phase, gate state, and the UTS clock are read from the local kernel snapshot (`HOS.observe()`) and the local UTS math, then shown on the canvas in one `ORIGIN · CPU — 0•000•000•0000 · GATE … · PDH … · UTS …` strip. An unread kernel is reported as `GATE UNREAD` / `PDH UNDECLARED`; nothing is defaulted, and no gate state authorizes anything.
+- **No fractal, flame, or film engine is attached to this view.** The `OrbFilm` surface film, the `Demo.flame` IFS core, the `.flame` reference-triangle billboard, and the `Fractal core` toggle were removed at the author's instruction: the fractal engines added a second, unrelated animation system on top of market geometry. The Orb app, the Fractal Flame app, and the OCM visualization keep their own flame/film rendering unchanged.
+- Two bordered status boxes are deliberately absent from the canvas overlay so the geometry stays unobstructed; what remains is the volume-flow readout, the Center Origin strip, and the gesture hint.
 
-## Double helix: two reviewed ticker sets
+## Fibonacci-band metrics
 
-- The `SERIES` control switches between the single-set sector sphere and a double helix of two reviewed ticker sets (`SERIES A` / `SERIES B` inputs, comma or space separated). Unknown symbols are refused with an honest note — never invented — and both sets persist with the anonymous local preferences. Series changes rearrange nodes locally and never force a provider request.
-- The supplied close's position inside its Fibonacci Bollinger band range orders each strand: lower-band through basis to upper-band, with 0.618 levels shown as large-shell guides. Rank-matched ticker pairs receive separate, eased anchor sites across the inner field, and each ticker's local spheroid ring marks its own band position; a held orb stays at the basis marker with a dashed neutral ring and `HELD` label.
-- Supplied band width over basis widens each orb's volatility halo; normalized stretch from the band midline drives its core glow and rung intensity; a supplied band break flashes gold. Missing band values remain missing.
-- Each rank-matched A/B pair has its own short connector, colored by directional agreement (both rising green, both falling red, diverging amber, held dashed slate); brightness follows combined potential energy and the OuterOrb macro-flame's breathing. The inspector reports strand, rank, band position, band width, potential energy, and the rank-matched partner for the selected orb.
-- The arrangement is descriptive only. It is not a rating, ranking service, relative-strength measure, signal, or recommendation, and missing fields stay missing.
+- `GoodIntelligenceOrb2.fibonacciBandMetrics(market)` is the shared, pure definition of a ticker's position inside its own Fibonacci Bollinger band: `p = 0.5 + ((close - basis) / (close >= basis ? upper - basis : basis - lower)) / 2`, so an upper-band and a lower-band excursion of the same size read the same distance from neutral. Band width over basis is volatility, normalized stretch from the midline is potential energy, and a supplied band break names its side.
+- Incomplete or invalid packets stay `held` with `p = null` — unknown, never neutral. The composite field, the spheroid shelf, and any future surface read this one function rather than restating the rule.
+- The double-helix arrangement that once consumed it in Orb 2 (Series A/B strands, rungs, eased berths) is retired along with the fractal pass. The metric survives because it is market arithmetic, not decoration; `tests/orb2-baseline-test.mjs` pins it.
+
+## Surfaces: what is whose
+
+| Surface | What it renders | Where |
+| :--- | :--- | :--- |
+| **Characters** | Objects, NPCs, and Items moved by the last closed bar over the five reviewed Discs | `#app=characters` |
+| **Orb 2** | The same beat contract in 3D: node/berth motion, provider paths, VFI volume-flow runners, the Center Origin assembly | Good Intelligence → `Orb 2` tab |
+| **NAB Discs** | The 119-sector composite field with institutions, market observations, and physical designs | `#app=nab-discs` and the Good Intelligence → `NAB Discs` tab |
+
+Orb 2 and Characters do not delegate to the composite field, and the composite field does not rename or replace them. `js/nab-sectors.js`, `js/nab-composites.js`, `js/nab-orb-renderer.js`, `js/nab-discs-view.js`, `css/nab-discs.css`, the NAB migration/ledger boundaries, and the saved-beat archive all remain in service exactly as delivered; the reviewed Discs are still what their provider routes and historical records key on.
 
 ## Validation
 

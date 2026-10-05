@@ -82,16 +82,13 @@
 
   APPS.push({
     id: "characters",
-    title: "NAB Discs",
-    short: "NAB Discs",
+    title: "Characters",
+    short: "Characters",
     glyph: "⧉",
-    desc: "119 NAB-aligned composites joining institutions, market observations, and physical designs",
+    desc: "Objects, NPCs, and Items moved by the last closed bar — a display-only market beat",
     w: 1200,
     h: 800,
     render(body, api) {
-      // Keep the desktop ID for saved shortcuts; retire the old five-Disc UI.
-      if (window.NabDiscsView) return window.NabDiscsView.mount(body);
-      // Compatibility renderer for archived/isolated tooling without the NAB modules.
       const Beat = window.CharactersBeat;
       const Cast = window.CharactersCast;
       const MarketContext = window.GoodIntelligenceMarketContext;
@@ -809,7 +806,7 @@
         const analysis = state.analyses[focused];
         $("[data-ch-detail-title]").textContent = berth ? `${berth.displaySymbol} · ${berth.npc.name}` : "Berth";
         $("[data-ch-detail]").innerHTML = berth ? `
-          <p class="ch-detail-role">${esc(berth.name)} · ${esc(berth.assetClass)} · ${esc(berth.quoteCurrency)} — ${esc(berth.npc.role)}; posted to ${esc(berth.sectorName)}.${berth.tags.length ? ` Tags: ${berth.tags.map(esc).join(", ")}.` : ""}</p>
+          <p class="ch-detail-role"><strong>${esc(berth.displaySymbol)}</strong> · ${esc(berth.name)} · ${esc(berth.assetClass)} · ${esc(berth.quoteCurrency)} — ${esc(berth.npc.role)}; posted to ${esc(berth.sectorName)}.${berth.tags.length ? ` Tags: ${berth.tags.map(esc).join(", ")}.` : ""}</p>
           ${berth.rank || berth.volumeUsd || berth.currentPriceUsd || berth.marketCapUsd ? `<p class="ch-fineprint">${berth.assetClass === "fx" ? "BIS FX turnover rank" : "Disc rank"} ${berth.rank || "—"}${berth.rankingProvider ? ` · ${esc(berth.rankingProvider)}` : ""}${berth.volumeUsd ? ` · trailing 24h volume ${compactUsd(berth.volumeUsd)}` : ""}${berth.currentPriceUsd ? ` · price ${compactUsd(berth.currentPriceUsd)}` : ""}${berth.marketCapUsd ? ` · market cap ${compactUsd(berth.marketCapUsd)}` : ""}</p>` : ""}
           ${Array.isArray(berth.audit) && berth.audit.length ? `<p class="ch-fineprint">Ranking audit flags: ${berth.audit.map(flag => esc(String(flag).replace(/-/g, " "))).join(" · ")}</p>` : ""}
           <p class="ch-detail-caption">${esc(directive ? directive.caption : "No beat has reached this berth yet.")}</p>
@@ -1484,6 +1481,32 @@
       /* First beat on open, so the stage answers immediately instead of waiting a full cadence. */
       beatNow("open");
       schedule();
+    }
+  });
+
+  /* NAB Discs — the 119-sector composite field built after the Orb 2 carry-over.
+     It gets its own desktop id so the Characters app and Orb 2 stay themselves:
+     the composite registry, the reviewed source channels, the provider budget
+     boundaries, and the saved-observation import path are exactly as NAB Discs
+     shipped. Alignment is editorial context, never a rating or a recommendation. */
+  APPS.push({
+    id: "nab-discs",
+    title: "NAB Discs",
+    short: "NAB Discs",
+    glyph: "⧉",
+    desc: "119 NAB-aligned composites joining institutions, market observations, and physical designs",
+    w: 1200,
+    h: 800,
+    render(body) {
+      if (!window.NabDiscsView) {
+        body.innerHTML = `
+          <div class="h1">NAB Discs</div>
+          <div class="rule-box">The NAB composite modules are not loaded in this context, so the
+          composite field cannot mount. Nothing was requested and nothing was substituted;
+          Characters and Orb 2 remain available on their own surfaces.</div>`;
+        return;
+      }
+      return window.NabDiscsView.mount(body);
     }
   });
 })();

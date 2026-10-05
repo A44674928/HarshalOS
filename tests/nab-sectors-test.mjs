@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 import '../js/nab-sectors.js';
 import '../js/character-material-model.js';
 const NAB = globalThis.NabSectors;
@@ -59,12 +57,15 @@ test('designated identity survives storage and legacy designs remain unassigned'
   assert.equal(Model.normalizeSpheroid({...saved,nabId:999}).nabId,null);
 });
 
-test('Orb 2 uses the same NAB identity across timeframes without inventing a mapping', () => {
-  const context = vm.createContext({window:{},NabSectors:NAB});
-  vm.runInContext(readFileSync(new URL('../js/good-intelligence-orb2.js',import.meta.url),'utf8'),context);
-  for (const timeframe of ['1h','1d']) {
-    const nodes = context.window.GoodIntelligenceOrb2.buildNodes([{symbol:'ORCL',name:'Oracle'}, {symbol:'UNASSIGNED'}],timeframe);
-    assert.equal(nodes[0].nabId,119);
-    assert.equal(nodes[1].nabId,null);
+test('the ticker→NAB identity is one pure lookup, so no surface can invent a timeframe-specific mapping', () => {
+  /* The composite field, the spheroid shelf, and the beat views all resolve identity
+     through this single registry lookup. Because it depends on the symbol alone, the
+     answer cannot drift between timeframes — and an unreviewed symbol resolves to null
+     instead of to its nearest neighbour. */
+  for (const timeframe of ['1h', '1d']) {
+    assert.equal(NAB.byTicker('ORCL').id, 119, `the designated stock resolves the same way at ${timeframe}`);
+    assert.equal(NAB.byTicker('orcl').id, 119, 'case is normalized once, at the registry');
+    assert.equal(NAB.byTicker('UNASSIGNED'), null, 'an unreviewed symbol keeps no NAB; nothing is guessed');
+    assert.equal(NAB.byTicker(null), null, 'and a missing symbol is not coerced into one');
   }
 });

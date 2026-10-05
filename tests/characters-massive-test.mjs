@@ -17,6 +17,7 @@ import {
   readMassiveDailyCallLedger
 } from "../worker/massive-daily-call-ledger.mjs";
 import { clearMassiveCache } from "../worker/massive.mjs";
+import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
 
 const NOW = Date.parse("2026-10-03T12:00:00.000Z");
@@ -271,3 +272,60 @@ test("Massive failures do not leak an upstream body or a Worker secret, and miss
   assert.equal(fetches, 0, "D1 must be available before a Massive request can leave the Worker");
   assert.match(await missingLedger.text(), /massive.*ledger.*unavailable/i);
 });
+
+test("the six DXY component quotes retain their USD-per-foreign orientation through the Worker route", async t => {
+  clearCharactersBeatCache();
+  clearMassiveCache();
+  const { db, sql } = createTickerbotLedgerDb();
+  t.after(() => sql.close());
+  const symbols = ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"];
+  const upstream = [];
+  let now = NOW + 5 * 86_400_000;
+  for (const symbol of symbols) {
+    const response = await handleCharactersBeat(
+      beat(`disc=fx&provider=massive&symbols=${symbol}&interval=1d&cadence=1`), env(db), {
+        now: () => now,
+        fetch: async input => { upstream.push({ symbol, url: new URL(input) }); return dailyAggs(); }
+      }
+    );
+    const payload = await response.json();
+    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path`);
+    assert.equal(payload.data.instruments[0].symbol, symbol);
+    assert.equal(payload.data.instruments[0].marketContext.quoteCurrency, "USD");
+    assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");
+    now += 60_001;
+  }
+  assert.deepEqual(upstream.map(({ symbol, url }) => [symbol, decodeURIComponent(url.pathname.split("/")[4])]),
+    symbols.map(symbol => [symbol, `C:${symbol}`]));
+  assert.equal(upstream.length, 6);
+});
+
+test("all 52 reviewed ticker symbols are individually accepted by the Massive Worker allowlist", async t => {
+  clearCharactersBeatCache();
+  clearMassiveCache();
+  const { db, sql } = createTickerbotLedgerDb();
+  t.after(() => sql.close());
+  assert.equal(TICKERBOT_WATCHLIST.length, 52);
+  assert.equal(new Set(TICKERBOT_WATCHLIST.map(entry => entry.symbol)).size, 52);
+  const upstream = [];
+  let now = NOW + 5 * 86_400_000 + 6 * 60_001;
+  for (const entry of TICKERBOT_WATCHLIST) {
+    const response = await handleCharactersBeat(
+      beat(`disc=stocks&provider=massive&symbols=${entry.symbol}&interval=1d&cadence=1`), env(db), {
+        now: () => now,
+        fetch: async input => { upstream.push(new URL(input)); return dailyAggs(); }
+      }
+    );
+    const payload = await response.json();
+    assert.equal(response.status, 200, `${entry.symbol} is in the Worker routing allowlist`);
+    assert.equal(payload.data.instruments[0].symbol, entry.symbol);
+    assert.equal(decodeURIComponent(upstream.at(-1).pathname.split("/")[4]), entry.symbol);
+    now += 60_001;
+  }
+  assert.equal(upstream.length, 52);
+  assert.equal(payloadSafe(upstream), true);
+});
+
+function payloadSafe(urls) {
+  return urls.every(url => url.origin === "https://api.massive.com" && /\/v2\/aggs\/ticker\//.test(url.pathname));
+}

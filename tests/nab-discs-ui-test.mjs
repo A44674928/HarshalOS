@@ -67,18 +67,21 @@ test('crypto catalog loads once; unknown identities enter review and dynamic ide
   assert.equal(requests.length,2);
 });
 
-test('Material Spheroids and legacy shortcuts remain accessible; Orb 2 mounts the NAB surface by default',t=>{
+test('Material Spheroids and the desktop ids survive the restore; NAB Discs keeps its own window',t=>{
   const {window,host,view}=mount(t);
-  window.eval(read('js/good-intelligence-orb2.js'));
-  const other=window.document.createElement('div');window.document.body.append(other);
-  const orb=window.GoodIntelligenceOrb2.mount(other,{watchlist:[]});t.after(()=>orb.destroy());
-  assert.equal(other.querySelector('[data-nab-select]').options.length,119);
+  const orbSource=read('js/good-intelligence-orb2.js');
+  assert.doesNotMatch(orbSource,/NabDiscsView/,'Orb 2 no longer hands its host to the composite field');
+  assert.doesNotMatch(orbSource,/FractalFlame|OrbFilm/,'and no fractal engine is attached to the beat view either');
+  assert.match(orbSource,/data-gi-orb2-disc/,'Orb 2 keeps the five reviewed Discs of its own');
   window.eval(read('js/apps-characters.js'));
-  const app=window.APPS.find(app=>app.id==='characters');assert.equal(app.title,'NAB Discs');
+  const app=window.APPS.find(app=>app.id==='nab-discs');assert.equal(app.title,'NAB Discs');
   const body=window.document.createElement('div');window.document.body.append(body);
   const appView=app.render(body);t.after(()=>appView.destroy());
   assert.ok(body.querySelector('[data-nab-select]'));
+  assert.ok(body.querySelector('[data-nab-primary-orb]'),'the complete 119-core field stays the composite view');
   assert.equal(body.querySelector('[data-ch-disc]'),null);
+  const characters=window.APPS.find(app=>app.id==='characters');
+  assert.equal(characters.title,'Characters','the Characters desktop id returns to the Characters app');
 });
 
 test('a supplied beat moves the complete primary core without remounting it; provider changes do not borrow heights',async t=>{

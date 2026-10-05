@@ -25,7 +25,7 @@ const DATA_SHAPES = new Set(["ohlcv", "ohlc", "value", "unknown"]);
 const MOODS = new Set(["frozen", "warming-up", "drift", "lean-up", "lean-down", "rally", "selloff", "churn", "coil", "surge", "flinch", "unknown"]);
 const FORMATIONS = new Set(["ring", "tight", "rim", "column", "scatter"]);
 const ITEM_LANES = new Set(["stationary", "inbound", "outbound"]);
-const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal"]);
+const REASONS = new Set(["manual", "auto", "open", "disc-change", "interval-change", "rehearsal", "ignition"]);
 
 const json = (data, status = 200) => Response.json(data, {
   status,

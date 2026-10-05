@@ -82,21 +82,30 @@ test("index.html loads the vendored library and adapter locally, before the app"
   assert.doesNotMatch(indexHtml, /<script[^>]+src="https?:\/\//, "every script the page loads is same-origin — no third-party CDN at runtime");
 });
 
-test("TradingView stays immediately after Market Charts while Orb 2 follows as a fifth tab", () => {
+test("TradingView stays immediately after Market Charts while Orb 2 and NAB Discs follow", () => {
   const marketsTab = appSource.indexOf('data-gi-view="markets"');
   const tvTab = appSource.indexOf('data-gi-view="tradingview"');
   const orbTab = appSource.indexOf('data-gi-view="orb2"');
-  assert.ok(marketsTab !== -1 && tvTab !== -1 && orbTab !== -1, "all three tab buttons exist");
-  assert.ok(marketsTab < tvTab && tvTab < orbTab, "TradingView follows Market Charts and Orb 2 follows TradingView");
+  const nabTab = appSource.indexOf('data-gi-view="nabdiscs"');
+  assert.ok(marketsTab !== -1 && tvTab !== -1 && orbTab !== -1 && nabTab !== -1, "all four non-news tab buttons exist");
+  assert.ok(marketsTab < tvTab && tvTab < orbTab && orbTab < nabTab,
+    "TradingView follows Market Charts, Orb 2 follows TradingView, and the composite field follows Orb 2 as a sibling tab");
   assert.equal(appSource.match(/data-gi-view="markets"/g).length, 1, "Market Charts keeps one tab button");
   assert.equal(appSource.match(/data-gi-view="tradingview"/g).length, 1, "TradingView has exactly one tab button");
   assert.equal(appSource.match(/data-gi-view="orb2"/g).length, 1, "Orb 2 has exactly one tab button");
+  assert.equal(appSource.match(/data-gi-view="nabdiscs"/g).length, 1, "NAB Discs has exactly one tab button");
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="markets"[^>]*>Market Charts<\/button>/, "the Market Charts tab keeps its title");
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="tradingview"[^>]*>TradingView<\/button>/, "the TradingView tab is titled TradingView");
   assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="orb2"[^>]*>Orb 2<\/button>/, "the local OCM tab is titled Orb 2");
+  assert.match(appSource, /<button type="button" class="gi-tab" data-gi-view="nabdiscs"[^>]*>NAB Discs<\/button>/, "the composite tab is titled NAB Discs");
   assert.match(appSource, /data-gi-tv-panel[^>]*hidden/, "the TradingView panel starts hidden until its tab is opened");
   assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the Orb 2 panel starts hidden until selected");
-  assert.match(appSource, /\["news", "markets", "tradingview", "orb2"\]\.includes/, "the view switcher accepts both newer tabs");
+  assert.match(appSource, /data-gi-nab-panel[^>]*hidden/, "the NAB Discs panel starts hidden until selected");
+  assert.match(appSource, /\["news", "markets", "tradingview", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts every tab, and no others");
+  /* Sibling, not replacement: the beat model mounts the Orb 2 module, the composite
+     field mounts NabDiscsView, and neither one hands its host to the other. */
+  assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "Orb 2 mounts through the Orb 2 module");
+  assert.match(appSource, /state\.nabEngine = Nab\.mount/, "NAB Discs mounts through its own view module");
 });
 
 test("Tickerbot Live is the first and default data source on both chart panels", () => {

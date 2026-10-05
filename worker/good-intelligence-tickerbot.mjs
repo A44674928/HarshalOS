@@ -8,70 +8,70 @@ const ROUTE = "/api/good-intelligence/v1/market/tickerbot/bars";
 const TICKERBOT_ORIGIN = "https://api.tickerbot.io";
 
 /*
- * Fixed, reviewed allowlist for the demo signal desk. It is the only place a ticker
- * path can come from: the browser asks for a symbol, and only a symbol in this list
- * is ever turned into an upstream `/v2/bars/{ticker}/{interval}` path, so typed search
- * text can never reach the provider. A sector-diverse set keeps the demo readable
- * (mega-cap platforms, semis, cloud/cyber, energy, financials, health care, consumer,
- * industrial, autos, crypto-adjacent, and a few index/sector ETFs) while every entry
- * stays a large, recognizable US listing.
+ * Fixed allowlist for the 52-asset heartbeat roster. It is the only place a ticker
+ * path can come from: browser input is matched against this list before any
+ * `/v2/bars/{ticker}/{interval}` request is formed. The names, sectors and ordering
+ * mirror js/good-intelligence-market-roster.js; the latter also carries the
+ * attributed 2026-10-02 market-cap snapshot used by the display-only firing order.
+ * Tests fail if the Worker allowlist and browser roster drift.
  *
- * js/apps-good-intelligence.js mirrors this list for its local ticker search; the two
- * must not drift, and tests/good-intelligence-tickerbot-test.mjs fails if they do.
+ * Allowlisting proves only that the Worker may ask the configured provider for a
+ * symbol. The provider can still answer unavailable; the app does not substitute a
+ * different source or manufacture a market observation.
  */
 const WATCHLIST = [
-  { symbol: "AAPL", name: "Apple", sector: "Technology & platforms" },
-  { symbol: "AMZN", name: "Amazon.com", sector: "Technology & platforms" },
-  { symbol: "GOOGL", name: "Alphabet", sector: "Technology & platforms" },
-  { symbol: "META", name: "Meta Platforms", sector: "Technology & platforms" },
-  { symbol: "MSFT", name: "Microsoft", sector: "Technology & platforms" },
-  { symbol: "NFLX", name: "Netflix", sector: "Technology & platforms" },
-  { symbol: "AMD", name: "Advanced Micro Devices", sector: "Semiconductors" },
-  { symbol: "AVGO", name: "Broadcom", sector: "Semiconductors" },
-  { symbol: "INTC", name: "Intel", sector: "Semiconductors" },
-  { symbol: "MU", name: "Micron Technology", sector: "Semiconductors" },
-  { symbol: "NVDA", name: "NVIDIA", sector: "Semiconductors" },
-  { symbol: "QCOM", name: "Qualcomm", sector: "Semiconductors" },
-  { symbol: "CRM", name: "Salesforce", sector: "Software, cloud & cyber" },
-  { symbol: "CRWD", name: "CrowdStrike", sector: "Software, cloud & cyber" },
-  { symbol: "NET", name: "Cloudflare", sector: "Software, cloud & cyber" },
-  { symbol: "NOW", name: "ServiceNow", sector: "Software, cloud & cyber" },
-  { symbol: "ORCL", name: "Oracle", sector: "Software, cloud & cyber" },
-  { symbol: "PANW", name: "Palo Alto Networks", sector: "Software, cloud & cyber" },
-  { symbol: "PLTR", name: "Palantir Technologies", sector: "Software, cloud & cyber" },
+  { symbol: "NVDA", name: "Nvidia Corp", sector: "Technology" },
+  { symbol: "AAPL", name: "Apple Inc.", sector: "Technology" },
+  { symbol: "MSFT", name: "Microsoft Corp", sector: "Technology" },
+  { symbol: "AVGO", name: "Broadcom Inc.", sector: "Technology" },
+  { symbol: "MU", name: "Micron Technology, Inc.", sector: "Technology" },
+  { symbol: "AMD", name: "Advanced Micro Devices", sector: "Technology" },
+  { symbol: "INTC", name: "Intel Corp", sector: "Technology" },
+  { symbol: "GOOGL", name: "Alphabet Inc.", sector: "Communication Services" },
+  { symbol: "META", name: "Meta Platforms, Inc.", sector: "Communication Services" },
+  { symbol: "NFLX", name: "NetFlix Inc", sector: "Communication Services" },
+  { symbol: "VZ", name: "Verizon Communications Inc.", sector: "Communication Services" },
+  { symbol: "TMUS", name: "T-Mobile US, Inc.", sector: "Communication Services" },
+  { symbol: "DIS", name: "Walt Disney Company", sector: "Communication Services" },
+  { symbol: "AMZN", name: "Amazon.com, Inc.", sector: "Consumer Cyclical" },
+  { symbol: "TSLA", name: "Tesla, Inc.", sector: "Consumer Cyclical" },
+  { symbol: "HD", name: "Home Depot, Inc.", sector: "Consumer Cyclical" },
+  { symbol: "MCD", name: "McDonald's Corporation", sector: "Consumer Cyclical" },
+  { symbol: "TJX", name: "The TJX Companies, Inc.", sector: "Consumer Cyclical" },
+  { symbol: "BKNG", name: "Booking Holdings Inc.", sector: "Consumer Cyclical" },
+  { symbol: "SPCX", name: "SpaceX", sector: "Industrials" },
+  { symbol: "CAT", name: "Caterpillar Inc.", sector: "Industrials" },
+  { symbol: "GE", name: "GE Aerospace", sector: "Industrials" },
+  { symbol: "GEV", name: "GE Vernova", sector: "Industrials" },
+  { symbol: "RTX", name: "RTX Corporation", sector: "Industrials" },
+  { symbol: "DE", name: "Deere & Company", sector: "Industrials" },
+  { symbol: "UNP", name: "Union Pacific Corp.", sector: "Industrials" },
+  { symbol: "LLY", name: "Eli Lilly and Company", sector: "Healthcare" },
+  { symbol: "JNJ", name: "Johnson & Johnson", sector: "Healthcare" },
+  { symbol: "ABBV", name: "AbbVie Inc.", sector: "Healthcare" },
+  { symbol: "MRK", name: "Merck & Co., Inc.", sector: "Healthcare" },
+  { symbol: "UNH", name: "UnitedHealth Group Incorporated", sector: "Healthcare" },
+  { symbol: "TMO", name: "Thermo Fisher Scientific Inc.", sector: "Healthcare" },
+  { symbol: "AMGN", name: "Amgen Inc", sector: "Healthcare" },
+  { symbol: "JPM", name: "JPMorgan Chase & Co.", sector: "Financial Services" },
+  { symbol: "V", name: "VISA Inc.", sector: "Financial Services" },
+  { symbol: "MA", name: "Mastercard Incorporated", sector: "Financial Services" },
+  { symbol: "BAC", name: "Bank of America Corporation", sector: "Financial Services" },
+  { symbol: "MS", name: "Morgan Stanley", sector: "Financial Services" },
+  { symbol: "GS", name: "Goldman Sachs Group Inc.", sector: "Financial Services" },
+  { symbol: "WFC", name: "Wells Fargo & Co.", sector: "Financial Services" },
+  { symbol: "WMT", name: "Walmart Inc.", sector: "Consumer Defensive" },
+  { symbol: "COST", name: "Costco Wholesale Corporation", sector: "Consumer Defensive" },
+  { symbol: "KO", name: "Coca-Cola Company", sector: "Consumer Defensive" },
+  { symbol: "PG", name: "Procter & Gamble Company", sector: "Consumer Defensive" },
+  { symbol: "PM", name: "Philip Morris International Inc.", sector: "Consumer Defensive" },
+  { symbol: "PEP", name: "PepsiCo, Inc.", sector: "Consumer Defensive" },
+  { symbol: "XOM", name: "ExxonMobil", sector: "Energy" },
+  { symbol: "CVX", name: "Chevron Corporation", sector: "Energy" },
   { symbol: "COP", name: "ConocoPhillips", sector: "Energy" },
-  { symbol: "CVX", name: "Chevron", sector: "Energy" },
-  { symbol: "OXY", name: "Occidental Petroleum", sector: "Energy" },
-  { symbol: "SLB", name: "SLB", sector: "Energy" },
-  { symbol: "XOM", name: "Exxon Mobil", sector: "Energy" },
-  { symbol: "BAC", name: "Bank of America", sector: "Financials" },
-  { symbol: "GS", name: "Goldman Sachs", sector: "Financials" },
-  { symbol: "JPM", name: "JPMorgan Chase", sector: "Financials" },
-  { symbol: "MA", name: "Mastercard", sector: "Financials" },
-  { symbol: "V", name: "Visa", sector: "Financials" },
-  { symbol: "JNJ", name: "Johnson & Johnson", sector: "Health care" },
-  { symbol: "LLY", name: "Eli Lilly", sector: "Health care" },
-  { symbol: "PFE", name: "Pfizer", sector: "Health care" },
-  { symbol: "UNH", name: "UnitedHealth Group", sector: "Health care" },
-  { symbol: "COST", name: "Costco Wholesale", sector: "Consumer & retail" },
-  { symbol: "KO", name: "Coca-Cola", sector: "Consumer & retail" },
-  { symbol: "MCD", name: "McDonald's", sector: "Consumer & retail" },
-  { symbol: "WMT", name: "Walmart", sector: "Consumer & retail" },
-  { symbol: "BA", name: "Boeing", sector: "Industrial & defense" },
-  { symbol: "CAT", name: "Caterpillar", sector: "Industrial & defense" },
-  { symbol: "GE", name: "GE Aerospace", sector: "Industrial & defense" },
-  { symbol: "LMT", name: "Lockheed Martin", sector: "Industrial & defense" },
-  { symbol: "F", name: "Ford", sector: "Autos & EV" },
-  { symbol: "GM", name: "General Motors", sector: "Autos & EV" },
-  { symbol: "RIVN", name: "Rivian", sector: "Autos & EV" },
-  { symbol: "TSLA", name: "Tesla", sector: "Autos & EV" },
-  { symbol: "COIN", name: "Coinbase", sector: "Crypto & fintech" },
-  { symbol: "HOOD", name: "Robinhood Markets", sector: "Crypto & fintech" },
-  { symbol: "MSTR", name: "Strategy (MicroStrategy)", sector: "Crypto & fintech" },
-  { symbol: "IWM", name: "Russell 2000 ETF", sector: "Index & sector ETFs" },
-  { symbol: "QQQ", name: "Nasdaq 100 ETF", sector: "Index & sector ETFs" },
-  { symbol: "SPY", name: "S&P 500 ETF", sector: "Index & sector ETFs" },
-  { symbol: "XLE", name: "Energy Select Sector ETF", sector: "Index & sector ETFs" }
+  { symbol: "MPC", name: "MARATHON PETROLEUM CORPORATION", sector: "Energy" },
+  { symbol: "VLO", name: "Valero Energy Corporation", sector: "Energy" },
+  { symbol: "PSX", name: "PHILLIPS 66", sector: "Energy" }
 ];
 // The allowlist is immutable at runtime: nothing in this Worker can widen it per request.
 export const TICKERBOT_WATCHLIST = Object.freeze(WATCHLIST.map(entry => Object.freeze(entry)));

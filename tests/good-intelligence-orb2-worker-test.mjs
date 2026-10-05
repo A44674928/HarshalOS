@@ -155,6 +155,14 @@ test("Orb 2 sanitizer accepts the shared Characters snapshot and refuses unsuppo
   assert.equal(clean.beat.schema, "gi-orb2-beat-v1");
   assert.equal(clean.beat.instruments[0].market.latestBar.close, 101);
   assert.equal(clean.beat.instruments[0].motion.npc.formation, "ring");
+  const fxCandidate = beat(1, {
+    reason: "ignition", discId: "fx",
+    instruments: [{ ...candidate.instruments[0], symbol: "EURUSD", displaySymbol: "EUR/USD" }]
+  });
+  const cleanIgnition = sanitizeOrb2Beat(fxCandidate, NOW + 300_000);
+  assert.equal(cleanIgnition.ok, true);
+  assert.equal(cleanIgnition.beat.reason, "ignition");
+  assert.equal(cleanIgnition.beat.discId, "fx");
 
   assert.equal(sanitizeOrb2Beat({ ...candidate, interval: "1h" }, NOW + 300_000).ok, false,
     "Massive cannot be stored under a non-daily interval");

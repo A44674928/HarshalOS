@@ -153,7 +153,7 @@ test("empty.domains API supplies eight clearly synthetic ticker series for line-
   const fixtures = payload.data.filter(item => item.marketContext);
   assert.equal(fixtures.length, 8);
   assert.deepEqual(fixtures.map(item => item.marketContext.symbol), [
-    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "NET-DEMO", "CVX-DEMO", "XOM-DEMO"
+    "AAPL-DEMO", "MSFT-DEMO", "NVDA-DEMO", "INTC-DEMO", "AMD-DEMO", "MU-DEMO", "CVX-DEMO", "XOM-DEMO"
   ]);
   for (const fixture of fixtures) {
     assert.match(fixture.title, /^\[DEMO\]/);

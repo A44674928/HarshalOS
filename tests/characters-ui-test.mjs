@@ -316,7 +316,7 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
         const day = new Date().toISOString().slice(0, 10);
         const monthly = Array.from({ length: 30 }, (_, index) => {
           const close = 100 + index * 0.25;
-          return { time: new Date(Date.UTC(2024, index, 1)).toISOString(), open: close - 0.5, high: close + 1, low: close - 1, close, confirmed: true };
+          return { time: new Date(Date.UTC(2024, 4 + index, 0)).toISOString(), open: close - 0.5, high: close + 1, low: close - 1, close, confirmed: true };
         });
         return Response.json({
           success: true, environment: "characters-beat",
@@ -373,6 +373,10 @@ test("monthly mode is an explicit Alpha Vantage 1mo path, never a daily substitu
   assert.equal(monthlyUrl.searchParams.get("provider"), "alpha", "1mo mode sends provider=alpha");
   assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "true", "selecting 1mo resumes Alpha's automatic hourly loop");
   assert.equal(monthlyUrl.searchParams.get("symbols").split(",").length, 1, "monthly mode selects 1 best-performing ticker per hour");
+  const monthlyFocus = container.querySelector("[data-ch-focus]");
+  monthlyFocus.value = monthlyUrl.searchParams.get("symbols");
+  monthlyFocus.dispatchEvent(new window.Event("change"));
+  await flush();
   assert.match(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/);
   assert.match(container.querySelector("[data-ch-plan]").textContent, /25 Alpha Vantage requests/);
   assert.match(container.querySelector("[data-ch-plan]").textContent, /Not used in 1mo mode/);
@@ -522,9 +526,11 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
 });
 
 test("a beat whose instruments carry no bars freezes those berths and says so", async t => {
-  const { container, text } = await boot(t, {
+  let lastRequestedSymbols = [];
+  const { window, container, text } = await boot(t, {
     handler: async url => {
       const symbols = decodeURIComponent(new URL(url, "https://os.example").searchParams.get("symbols") || "").split(",").filter(Boolean);
+      lastRequestedSymbols = symbols;
       return Response.json({
         success: true, environment: "characters-beat",
         data: {
@@ -536,7 +542,11 @@ test("a beat whose instruments carry no bars freezes those berths and says so", 
     }
   });
   await chooseManualTickerbot(container.ownerDocument.defaultView, container);
-  container.querySelector("[data-ch-beat]").dispatchEvent(new container.ownerDocument.defaultView.Event("click"));
+  container.querySelector("[data-ch-beat]").dispatchEvent(new window.Event("click"));
+  await flush();
+  const focus = container.querySelector("[data-ch-focus]");
+  focus.value = lastRequestedSymbols[0];
+  focus.dispatchEvent(new window.Event("change"));
   await flush();
   assert.match(text(), /No symbol in this beat returned bars/i);
   assert.match(text(), /nothing was fabricated/i);
