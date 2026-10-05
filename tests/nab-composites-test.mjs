@@ -14,14 +14,18 @@ const registry=Model.catalog({watchlist:TICKERBOT_WATCHLIST,crypto:[
   {symbol:'NEW',providerId:'unknown-protocol',name:'Review me'}
 ]});
 
-test('119 NAB Discs replace top-level asset partitions without dropping legacy entries',()=>{
+test('119 NAB Discs preserve membership and surface unmapped market assets for editorial review',()=>{
   assert.equal(registry.discs.length,119);
   assert.equal(globalThis.CharactersDiscCatalog.nabDiscs.length,119);
   const ids=new Set(registry.members.map(row=>row.id));
+  const reviewIds=new Set(registry.review.map(row=>row.id));
   for(const row of TICKERBOT_WATCHLIST)assert.ok(ids.has(`stocks:${row.symbol}`));
   for(const channel of ['fx','commodities','indices'])for(const row of globalThis.CharactersDiscCatalog.staticInstruments(channel))assert.ok(ids.has(`${channel}:${row.symbol}`));
-  assert.equal(registry.review.length,1);
-  assert.equal(registry.review[0].id,'crypto:NEW');
+  const stockReviews=registry.review.filter(row=>row.source==='reviewed Tickerbot watchlist');
+  assert.equal(stockReviews.length,22,'new market-roster assets without a reviewed NAB assignment remain visible for editorial review');
+  assert.ok(stockReviews.every(row=>ids.has(row.id) && TICKERBOT_WATCHLIST.some(asset=>`stocks:${asset.symbol}`===row.id)));
+  assert.equal(reviewIds.has('crypto:NEW'),true,'an unknown crypto identity stays in review');
+  assert.equal(registry.review.length,23);
   for(const disc of registry.discs)assert.equal(registry.members.filter(row=>row.nabId===disc.nabId && row.role==='designated-stock').length,1);
 });
 

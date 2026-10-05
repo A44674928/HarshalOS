@@ -27,64 +27,12 @@
     return error.message || "The API request failed.";
   };
 
-  // Search is local to the configured read-only watchlist. Typed text is
-  // never interpolated into an upstream ticker path or used as a URL.
-  // This mirrors the Worker allowlist in worker/good-intelligence-tickerbot.mjs;
-  // tests/good-intelligence-tickerbot-test.mjs fails if the two lists drift.
-  const TICKERBOT_WATCHLIST = Object.freeze([
-    { symbol: "AAPL", name: "Apple", sector: "Technology & platforms" },
-    { symbol: "AMZN", name: "Amazon.com", sector: "Technology & platforms" },
-    { symbol: "GOOGL", name: "Alphabet", sector: "Technology & platforms" },
-    { symbol: "META", name: "Meta Platforms", sector: "Technology & platforms" },
-    { symbol: "MSFT", name: "Microsoft", sector: "Technology & platforms" },
-    { symbol: "NFLX", name: "Netflix", sector: "Technology & platforms" },
-    { symbol: "AMD", name: "Advanced Micro Devices", sector: "Semiconductors" },
-    { symbol: "AVGO", name: "Broadcom", sector: "Semiconductors" },
-    { symbol: "INTC", name: "Intel", sector: "Semiconductors" },
-    { symbol: "MU", name: "Micron Technology", sector: "Semiconductors" },
-    { symbol: "NVDA", name: "NVIDIA", sector: "Semiconductors" },
-    { symbol: "QCOM", name: "Qualcomm", sector: "Semiconductors" },
-    { symbol: "CRM", name: "Salesforce", sector: "Software, cloud & cyber" },
-    { symbol: "CRWD", name: "CrowdStrike", sector: "Software, cloud & cyber" },
-    { symbol: "NET", name: "Cloudflare", sector: "Software, cloud & cyber" },
-    { symbol: "NOW", name: "ServiceNow", sector: "Software, cloud & cyber" },
-    { symbol: "ORCL", name: "Oracle", sector: "Software, cloud & cyber" },
-    { symbol: "PANW", name: "Palo Alto Networks", sector: "Software, cloud & cyber" },
-    { symbol: "PLTR", name: "Palantir Technologies", sector: "Software, cloud & cyber" },
-    { symbol: "COP", name: "ConocoPhillips", sector: "Energy" },
-    { symbol: "CVX", name: "Chevron", sector: "Energy" },
-    { symbol: "OXY", name: "Occidental Petroleum", sector: "Energy" },
-    { symbol: "SLB", name: "SLB", sector: "Energy" },
-    { symbol: "XOM", name: "Exxon Mobil", sector: "Energy" },
-    { symbol: "BAC", name: "Bank of America", sector: "Financials" },
-    { symbol: "GS", name: "Goldman Sachs", sector: "Financials" },
-    { symbol: "JPM", name: "JPMorgan Chase", sector: "Financials" },
-    { symbol: "MA", name: "Mastercard", sector: "Financials" },
-    { symbol: "V", name: "Visa", sector: "Financials" },
-    { symbol: "JNJ", name: "Johnson & Johnson", sector: "Health care" },
-    { symbol: "LLY", name: "Eli Lilly", sector: "Health care" },
-    { symbol: "PFE", name: "Pfizer", sector: "Health care" },
-    { symbol: "UNH", name: "UnitedHealth Group", sector: "Health care" },
-    { symbol: "COST", name: "Costco Wholesale", sector: "Consumer & retail" },
-    { symbol: "KO", name: "Coca-Cola", sector: "Consumer & retail" },
-    { symbol: "MCD", name: "McDonald's", sector: "Consumer & retail" },
-    { symbol: "WMT", name: "Walmart", sector: "Consumer & retail" },
-    { symbol: "BA", name: "Boeing", sector: "Industrial & defense" },
-    { symbol: "CAT", name: "Caterpillar", sector: "Industrial & defense" },
-    { symbol: "GE", name: "GE Aerospace", sector: "Industrial & defense" },
-    { symbol: "LMT", name: "Lockheed Martin", sector: "Industrial & defense" },
-    { symbol: "F", name: "Ford", sector: "Autos & EV" },
-    { symbol: "GM", name: "General Motors", sector: "Autos & EV" },
-    { symbol: "RIVN", name: "Rivian", sector: "Autos & EV" },
-    { symbol: "TSLA", name: "Tesla", sector: "Autos & EV" },
-    { symbol: "COIN", name: "Coinbase", sector: "Crypto & fintech" },
-    { symbol: "HOOD", name: "Robinhood Markets", sector: "Crypto & fintech" },
-    { symbol: "MSTR", name: "Strategy (MicroStrategy)", sector: "Crypto & fintech" },
-    { symbol: "IWM", name: "Russell 2000 ETF", sector: "Index & sector ETFs" },
-    { symbol: "QQQ", name: "Nasdaq 100 ETF", sector: "Index & sector ETFs" },
-    { symbol: "SPY", name: "S&P 500 ETF", sector: "Index & sector ETFs" },
-    { symbol: "XLE", name: "Energy Select Sector ETF", sector: "Index & sector ETFs" }
-  ]);
+  // Search remains local: typed text is never interpolated into an upstream
+  // ticker path. The static, source-attributed snapshot is mirrored by the
+  // Worker allowlist; tests fail if their symbols or source fields drift.
+  const marketRoster = globalThis.GoodIntelligenceMarketRoster;
+  const TICKERBOT_WATCHLIST = marketRoster && Array.isArray(marketRoster.assets)
+    ? marketRoster.assets : Object.freeze([]);
   const WATCHLIST_SECTORS = Object.freeze([...new Set(TICKERBOT_WATCHLIST.map(item => item.sector))]);
   const marketMatches = (query, ...fields) => fields.join(" ").toLowerCase().includes(String(query || "").trim().toLowerCase());
   const companyFor = symbol => TICKERBOT_WATCHLIST.find(item => item.symbol === String(symbol || "").replace(/-DEMO$/, ""))?.name || "";
@@ -149,6 +97,7 @@
         tvChartType: TradingView.DEFAULT_CHART_TYPE,
         tvShowVolume: true,
         orb2Engine: null,
+        nabEngine: null,
         updatedAt: "",
         settingsError: "",
         controller: null,
@@ -191,6 +140,7 @@
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
                   <button type="button" class="gi-tab" data-gi-view="tradingview" aria-pressed="false">TradingView</button>
                   <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false">Orb 2</button>
+                  <button type="button" class="gi-tab" data-gi-view="nabdiscs" aria-pressed="false">NAB Discs</button>
                 </nav>
               </div>
               <nav class="gi-tabs gi-news-tabs" aria-label="News views" data-gi-news-tabs><button type="button" class="gi-tab active" data-gi-news-view="feed" aria-pressed="true">Intel feed</button><button type="button" class="gi-tab" data-gi-news-view="rankings" aria-pressed="false">Rankings</button></nav>
@@ -283,6 +233,10 @@
                 <div data-gi-orb2-host aria-live="polite"></div>
               </section>
 
+              <section class="gi-nab-panel" data-gi-nab-panel aria-label="NAB Discs composite field" hidden>
+                <div data-gi-nab-host aria-live="polite"></div>
+              </section>
+
               <footer class="gi-footer">
                 <span>API data is shown as received; missing fields are not inferred.</span>
                 <span>Information only · independently verify time-sensitive claims.</span>
@@ -357,6 +311,7 @@
       const tvHost = $("[data-gi-tv-host]");
       const tvAttribution = $("[data-gi-tv-attribution]");
       const orb2Host = $("[data-gi-orb2-host]");
+      const nabHost = $("[data-gi-nab-host]");
       const categorySelect = $("[data-gi-category]");
       const searchInput = $("[data-gi-search]");
       const apiInput = $("[data-gi-api-input]");
@@ -1150,6 +1105,21 @@
         });
       }
 
+      /* NAB Discs keeps its own host here and its own desktop app (#app=nab-discs).
+         It is a sibling of Orb 2, not a replacement for it: the composite registry,
+         reviewed source channels, provider budget boundaries, and the
+         saved-observation import path all stay exactly as NAB Discs shipped. */
+      function drawNabDiscs() {
+        if (state.view !== "nabdiscs") return;
+        if (state.nabEngine) { state.nabEngine.setVisible(true); return; }
+        const Nab = globalThis.NabDiscsView;
+        if (!Nab || typeof Nab.mount !== "function") {
+          nabHost.innerHTML = messageBlock("NAB Discs module not loaded", "The composite field renderer was not available. No sector registry, roster, market, or network request was made.", "error");
+          return;
+        }
+        state.nabEngine = Nab.mount(nabHost, { watchlist: TICKERBOT_WATCHLIST });
+      }
+
       function updateView() {
         const newsView = state.view === "news";
         const feedView = newsView && state.newsSubview === "feed";
@@ -1157,23 +1127,29 @@
         const marketsView = state.view === "markets";
         const tradingView = state.view === "tradingview";
         const orb2View = state.view === "orb2";
+        const nabView = state.view === "nabdiscs";
         $("[data-gi-feed-panel]").hidden = !feedView;
         $("[data-gi-news-tabs]").hidden = !newsView;
         $("[data-gi-rankings-panel]").hidden = !rankingsView;
         $("[data-gi-markets-panel]").hidden = !marketsView;
         $("[data-gi-tv-panel]").hidden = !tradingView;
         $("[data-gi-orb2-panel]").hidden = !orb2View;
+        $("[data-gi-nab-panel]").hidden = !nabView;
         if (state.orb2Engine) state.orb2Engine.setVisible(orb2View);
+        if (state.nabEngine) state.nabEngine.setVisible(nabView);
         if (orb2View) drawOrb2();
+        if (nabView) drawNabDiscs();
         $("[data-gi-view-title]").textContent = newsView ? (feedView ? "Member intel feed" : "Network rankings")
             : marketsView ? "Market Charts"
-              : tradingView ? "TradingView" : "Orb 2 · OCM roster model";
+              : tradingView ? "TradingView"
+                : nabView ? "NAB Discs · composite field" : "Orb 2 · OCM roster model";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
               : tradingView ? `${TradingView.LIBRARY.name} candlestick, bar, line, area, and baseline charts over the same OHLCV packets; indicators stay display-only.`
-                : "A live, display-only 3D OCM beat model over the reviewed watchlist. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority.";
+                : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
+                  : "A live, display-only 3D OCM beat model over the reviewed watchlist. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);
@@ -1237,7 +1213,7 @@
       }
 
       body.querySelectorAll("[data-gi-view]").forEach(button => button.addEventListener("click", () => {
-        state.view = ["news", "markets", "tradingview", "orb2"].includes(button.dataset.giView) ? button.dataset.giView : "news";
+        state.view = ["news", "markets", "tradingview", "orb2", "nabdiscs"].includes(button.dataset.giView) ? button.dataset.giView : "news";
         updateView();
         // Entering the TradingView view builds its chart; leaving it disposes the canvas.
         drawMarketPanels();

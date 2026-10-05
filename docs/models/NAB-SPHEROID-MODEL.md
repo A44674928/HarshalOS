@@ -75,20 +75,25 @@ reassignment.
 
 `npm run test:nab` checks exact source reproduction, 119 unique IDs/tickers,
 all-sector composition, risk boundaries, persistence, invalid and legacy IDs,
-UI selection/preview invalidation, and Orb 2 timeframe consistency.
+UI selection/preview invalidation, and that the ticker→NAB identity stays a
+single pure registry lookup that no surface can vary by timeframe.
 
 
 ## Asset-class Disc retirement and composite membership
 
-The active desktop app is now **NAB Discs**, retaining `#app=characters` so old
-shortcuts keep working. Orb 2 opens the persistent 3D composite field directly. The inspector beneath
-the field uses the same complete composite objects; no stock-only gateway is
-required. The former stock-only renderer remains a compatibility code path,
-not active navigation. The five old Disc
-IDs (`stocks`, `fx`, `crypto`, `commodities`, `indices`) survive only as source
-adapters and historical record keys. Worker routes and budget ledgers are not
-renamed, deleted, or reset. The legacy catalog's `.discs` is a compatibility
-alias; `.sourceChannels` is explicit, while `.nabDiscs` exposes NAB navigation.
+**NAB Discs** is its own desktop app (`#app=nab-discs`) and its own Good
+Intelligence tab, alongside the Orb 2 tab. It does not occupy the Characters id
+and it does not mount inside Orb 2: the Characters app and the Orb 2 beat model
+keep their own surfaces, and neither delegates here. The persistent 3D composite
+field is primary inside this app, with the complete composite inspector beneath it
+— no stock-only gateway is required. The former stock-only renderer remains a
+compatibility code path, not active navigation. The five reviewed Disc IDs
+(`stocks`, `fx`, `crypto`, `commodities`, `indices`) remain the source adapters
+and historical record keys that Characters navigates; they are not renamed into
+obscurity. Worker routes and budget ledgers are not renamed, deleted, or reset.
+The legacy catalog's `.discs` is what Characters and Orb 2 navigate;
+`.sourceChannels` is the same frozen roster under the composite field's name, and
+`.nabDiscs` exposes NAB navigation.
 
 `js/nab-composites.js` supplies explicit editorial alignments, separate from the
 Compendium's neural classifications. It preserves all 52 existing watchlist

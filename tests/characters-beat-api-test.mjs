@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { handleCharactersBeat, clearCharactersBeatCache, MAX_BEAT_SYMBOLS, BEAT_CADENCES } from "../worker/characters-beat.mjs";
+import { handleCharactersBeat, handleCharactersDeploy, clearCharactersBeatCache, MAX_BEAT_SYMBOLS, BEAT_CADENCES } from "../worker/characters-beat.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
@@ -47,6 +47,26 @@ test("a beat without the Worker secret makes no upstream call and says what to c
   assert.equal(response.status, 503);
   assert.match((await response.json()).message, /TICKERBOT_API_KEY/);
   assert.equal(calls, 0);
+});
+test("the read-only deployment route checks Massive secret and D1 without a provider request", async () => {
+  const request = new Request("https://os.example.test/api/characters/v1/deploy");
+  const ready = await handleCharactersDeploy(request, env, { now: () => NOW });
+  const payload = await ready.json();
+  assert.equal(ready.status, 200);
+  assert.equal(payload.environment, "characters-beat-deploy");
+  assert.equal(payload.data.route, "reachable");
+  assert.equal(payload.data.providerSecret, "configured");
+  assert.equal(payload.data.dailyLedger, "ready");
+  assert.equal(payload.data.dailyUsage.calls, 0);
+  assert.equal(payload.data.marketRequestSent, false);
+  assert.doesNotMatch(JSON.stringify(payload), /massive-test-secret/);
+
+  const missingKey = await handleCharactersDeploy(request, { ...env, MASSIVE_API_KEY: " " }, { now: () => NOW });
+  const missingPayload = await missingKey.json();
+  assert.equal(missingKey.status, 503);
+  assert.equal(missingPayload.data.providerSecret, "missing");
+  assert.equal(missingPayload.data.dailyLedger, "ready");
+  assert.equal(missingPayload.data.marketRequestSent, false);
 });
 
 test("one hourly beat buys one Tickerbot call per due symbol, then holds the window", async () => {
@@ -208,16 +228,25 @@ test("lane labels are display hints: they never change the call count or widen t
   assert.deepEqual(strayPayload.data.spend.lanes.hot, []);
 });
 
-test("the Worker dispatches the beat route read-only", async () => {
+test("the Worker dispatches the live beat and operational deploy routes", async () => {
   clearCharactersBeatCache();
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = workersFetch(async () => okResponse());
+  let marketRequests = 0;
+  globalThis.fetch = workersFetch(async () => { marketRequests++; return okResponse(); });
   try {
     const response = await worker.fetch(beat("symbols=AAPL&interval=1h&cadence=60"), env);
     const payload = await response.json();
     assert.equal(response.status, 200);
     assert.equal(payload.environment, "characters-beat");
     assert.equal(payload.data.instruments[0].symbol, "AAPL");
+    assert.equal(payload.data.spend.ledgerStatus, "ready", "the existing Tickerbot request reports its D1 readiness");
+    const marketRequestsAfterBeat = marketRequests;
+    const deploy = await worker.fetch(new Request("https://os.example.test/api/characters/v1/deploy"), env);
+    const deployPayload = await deploy.json();
+    assert.equal(deploy.status, 200);
+    assert.equal(deployPayload.data.marketRequestSent, false);
+    assert.equal(deployPayload.data.dailyLedger, "ready");
+    assert.equal(marketRequests, marketRequestsAfterBeat, "the deploy endpoint is read-only");
     const refused = await worker.fetch(beat("symbols=AAPL", { method: "POST" }), env);
     assert.equal(refused.status, 405);
   } finally {

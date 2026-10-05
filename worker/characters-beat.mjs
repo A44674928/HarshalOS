@@ -36,6 +36,7 @@ import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
 import "../js/characters-disc-catalog.js";
 
 export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
+export const CHARACTERS_DEPLOY_ROUTE = "/api/characters/v1/deploy";
 export const MAX_BEAT_SYMBOLS = 12;
 /* Tickerbot's manual planner cadences. Massive's fixed one-minute cadence is
    enforced separately below and intentionally does not widen this list. */
@@ -56,6 +57,35 @@ const failure = (message, status = 502, extraHeaders = {}) => json({ success: fa
 
 export function clearCharactersBeatCache() {
   cache.clear();
+}
+
+/**
+ * Read-only operational check for deployment tooling. Orb 2 does not call this
+ * route from the browser: its first existing EURUSD beat runs the same key and
+ * D1 checks inline before the Worker can contact Massive.
+ */
+export async function handleCharactersDeploy(request, env = {}, dependencies = {}) {
+  if (request.method !== "GET") return failure("Use GET for the read-only deployment check.", 405);
+  const input = typeof dependencies.now === "function" ? dependencies.now() : Date.now();
+  const now = Number.isFinite(Number(input)) && Number(input) >= 0 ? Math.floor(Number(input)) : Date.now();
+  const apiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
+  const ledgerResult = await readMassiveDailyCallLedger(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+  const ledgerStatus = ledgerResult.ok ? "ready" : "unavailable";
+  const ready = Boolean(apiKey) && ledgerResult.ok;
+  return json({
+    success: ready,
+    environment: "characters-beat-deploy",
+    data: {
+      schema: "characters-deploy-check-v1",
+      route: "reachable",
+      provider: "massive",
+      providerSecret: apiKey ? "configured" : "missing",
+      dailyLedger: ledgerStatus,
+      dailyUsage: ledgerResult.ok ? ledgerResult.ledger : null,
+      checkedAt: new Date(now).toISOString(),
+      marketRequestSent: false
+    }
+  }, ready ? 200 : 503);
 }
 
 function newerTickerbotLedger(current, next) {

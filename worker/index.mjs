@@ -5,7 +5,7 @@ import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } f
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
 import { handleGoodIntelligenceOrb2Beats } from './good-intelligence-orb2-beats.mjs';
-import { handleCharactersBeat } from './characters-beat.mjs';
+import { handleCharactersBeat, handleCharactersDeploy } from './characters-beat.mjs';
 import { handleOrb2SavedBeats } from './orb2-saved-beats.mjs';
 import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
@@ -140,6 +140,7 @@ export default {
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1/orb2/beats') return handleGoodIntelligenceOrb2Beats(request, env);
     if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request);
+    if (path === '/api/characters/v1/deploy') return handleCharactersDeploy(request, env);
     // Characters has three narrow providers: Massive automatic daily Disc beats,
     // Tickerbot on-demand stock beats, and Alpha Vantage Disc1 monthly spotlight beats.
     if (path === '/api/characters/v1/beat') return handleCharactersBeat(request, env);

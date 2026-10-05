@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, test } from "node:test";
+import vm from "node:vm";
 import { handleGoodIntelligenceTickerbot, clearTickerbotCache, TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 import worker from "../worker/index.mjs";
 import { createTickerbotLedgerDb } from "./helpers/tickerbot-ledger-db.mjs";
@@ -194,7 +195,7 @@ test("Tickerbot proxy accepts only allowlisted symbols, intervals, and GET", asy
 
 test("the expanded watchlist enables the requested tickers and every entry is a unique, well-formed symbol", () => {
   const symbols = TICKERBOT_WATCHLIST.map(entry => entry.symbol);
-  for (const requested of ["INTC", "AMD", "MSFT", "NET", "CVX", "XOM"]) {
+  for (const requested of ["INTC", "AMD", "MSFT", "MU", "CVX", "XOM"]) {
     assert.ok(symbols.includes(requested), `${requested} is enabled`);
   }
   assert.ok(symbols.length >= 40, "the demo watchlist spans a useful breadth of tickers");
@@ -225,23 +226,24 @@ test("every enabled watchlist symbol builds one fixed upstream bars path and ans
   }
   assert.deepEqual(paths, TICKERBOT_WATCHLIST.map(entry => `/v2/bars/${entry.symbol}/1h`), "the allowlist is the only source of upstream ticker paths");
 });
-
-test("the browser search list mirrors the Worker allowlist exactly", async () => {
-  /* The browser cannot import the Worker module, so the list is duplicated for local
-     search. If the copies drift, the UI would offer a symbol the Worker refuses (or
-     hide one it allows) — this test is the guard that keeps them identical. */
-  const source = await readFile(new URL("../js/apps-good-intelligence.js", import.meta.url), "utf8");
-  const block = source.match(/const TICKERBOT_WATCHLIST = Object\.freeze\(\[([\s\S]*?)\]\);/);
-  assert.ok(block, "the browser watchlist literal is present");
-  const browserEntries = [...block[1].matchAll(/\{([^{}]*)\}/g)].map(([, body]) => {
-    const field = key => {
-      const match = body.match(new RegExp(`\\b${key}:\\s*"([^"]*)"`));
-      return match ? match[1] : null;
-    };
-    return { symbol: field("symbol"), name: field("name"), sector: field("sector") };
-  });
-  assert.ok(browserEntries.length > 0, "the browser watchlist parses");
-  assert.deepEqual(browserEntries, watchlistFields(TICKERBOT_WATCHLIST), "browser search and Worker allowlist agree on symbols, names, sectors, and order");
+test("the browser search list uses the shared 52-asset roster and mirrors the Worker allowlist", async () => {
+  /* The static roster is loaded before the browser app and is the shared source
+     for search, display ordering, and the Worker allowlist parity check. */
+  const [appSource, rosterSource] = await Promise.all([
+    readFile(new URL("../js/apps-good-intelligence.js", import.meta.url), "utf8"),
+    readFile(new URL("../js/good-intelligence-market-roster.js", import.meta.url), "utf8")
+  ]);
+  assert.match(appSource, /GoodIntelligenceMarketRoster/);
+  assert.match(appSource, /marketRoster\.assets/);
+  const sandbox = { window: {} };
+  sandbox.globalThis = sandbox.window;
+  vm.runInNewContext(rosterSource, sandbox, { filename: "js/good-intelligence-market-roster.js" });
+  const browserEntries = Array.from(sandbox.window.GoodIntelligenceMarketRoster.assets, item => ({
+    symbol: item.symbol, name: item.name, sector: item.sector
+  }));
+  assert.equal(browserEntries.length, 52);
+  assert.deepEqual(browserEntries, watchlistFields(TICKERBOT_WATCHLIST),
+    "browser search and Worker allowlist agree on symbols, names, sectors, and order");
 });
 
 test("Tickerbot adapter caches identical reads briefly and sanitizes rate-limit responses", async () => {

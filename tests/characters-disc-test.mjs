@@ -28,7 +28,9 @@ function marketRows(count = 70) {
 
 test("legacy source adapters preserve identifiers and disclose the BIS 23-code limit", () => {
   assert.deepEqual(Catalog.discs.map(disc => disc.id), ["stocks", "fx", "crypto", "commodities", "indices"]);
-  assert.equal(Catalog.disc("stocks").name, "Equity source");
+  assert.equal(Catalog.disc("stocks").name, "The 52 Cards", "the reviewed Disc1 identity is what navigation shows");
+  assert.equal(Catalog.disc("stocks").label, "Disc1 · The 52 Cards");
+  assert.equal(Catalog.sourceChannels, Catalog.discs, "the composite field's legacy channels are the same frozen roster, not a renamed copy");
   assert.deepEqual(Catalog.disc("stocks").intervalModes, ["1h", "1d", "1mo"]);
   assert.equal(Catalog.disc("fx").number, 2);
   assert.equal(Catalog.fxCurrencies.length, 23);
