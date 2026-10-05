@@ -123,14 +123,38 @@ export function safeMotion(value) {
   };
 }
 
+function safeMassiveContract(value) {
+  if (!isRecord(value) || value.provider !== "Massive") return null;
+  const productCode = text(value.productCode, 8).toUpperCase();
+  const ticker = text(value.ticker, 16).toUpperCase();
+  const asOfDate = text(value.asOfDate, 10);
+  const lastTradeDate = text(value.lastTradeDate, 10);
+  const dateValid = date => /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    Number.isFinite(Date.parse(`${date}T00:00:00.000Z`)) && new Date(Date.parse(`${date}T00:00:00.000Z`)).toISOString().slice(0, 10) === date;
+  if (!/^[A-Z0-9]{1,8}$/.test(productCode) ||
+      !/^[A-Z0-9]{1,8}[FGHJKMNQUVXZ]\d{1,2}$/.test(ticker) || !ticker.startsWith(productCode) ||
+      !dateValid(asOfDate) || !dateValid(lastTradeDate) || lastTradeDate < asOfDate) return null;
+  const daysToMaturity = value.daysToMaturity;
+  if (daysToMaturity !== undefined && (!Number.isInteger(daysToMaturity) || daysToMaturity < 0 || daysToMaturity > 1000)) return null;
+  return {
+    provider: "Massive", productCode, ticker, asOfDate, lastTradeDate,
+    ...(daysToMaturity !== undefined ? { daysToMaturity } : {}),
+    ...(typeof value.name === "string" && value.name.trim() ? { name: text(value.name, 120) } : {})
+  };
+}
+
 export function safeMarket(value) {
   if (!isRecord(value)) return null;
+  const massiveContract = value.massiveContract === null || value.massiveContract === undefined
+    ? null : safeMassiveContract(value.massiveContract);
+  if (value.massiveContract !== null && value.massiveContract !== undefined && !massiveContract) return null;
   const dataShape = DATA_SHAPES.has(value.dataShape) ? value.dataShape : "unknown";
   const status = ANALYSIS_STATUSES.has(value.status) ? value.status : "unknown";
   const latestBar = value.latestBar === null || value.latestBar === undefined ? null : safeBar(value.latestBar);
   return {
     status,
     source: text(value.source, 160),
+    ...(massiveContract ? { massiveContract } : {}),
     timeframe: text(value.timeframe, 24),
     dataShape,
     synthetic: value.synthetic === true,

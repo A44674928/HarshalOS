@@ -19,7 +19,7 @@ https://api.massive.com
 ```
 
 - Characters owns the active use: automatic Massive observations are restricted to reviewed `1d` Disc instruments. It does not accept an arbitrary Massive ticker from browser input.
-- `worker/characters-massive.mjs` is narrower than the generic adapter. It selects documented stock, FX, live-ranked crypto, commodity-futures, or index shapes from the reviewed catalog and normalizes only an honest packet for the Characters stage.
+- `worker/characters-massive.mjs` is narrower than the generic adapter. It selects reviewed stock, FX, Massive-ranked crypto, verified active commodity-futures, or index shapes and normalizes only an honest packet for the Characters stage. Crypto is ranked from Massive's previous-UTC-day grouped aggregates (unique USD pairs with positive base volume and VWAP); its source-date-aware D1 cache expires at UTC midnight and requires the previous-UTC-day ranking (migration `0010_characters_crypto_ranking_cache.sql`). `worker/characters-futures-contracts.mjs` resolves each reviewed Disc4 product code against Massive's [Futures contracts reference endpoint](https://massive.com/docs/rest/futures/contracts) for the current UTC date; only active single contracts with matching product code, valid ticker, and future last-trade date are cached through UTC midnight by migration `0011_massive_futures_contract_cache.sql`. The endpoint requires Futures-plan access. An unauthorized key, missing product/date result, expired, or malformed contract holds Disc4 without a stale-ticker fallback; product retries are cooled down, and transport/authentication failures open a shared endpoint circuit-breaker cooldown. The code and fixture tests do not prove the deployed account's entitlement.
 - The standalone `/api/massive/v1/*` adapter remains a bounded compatibility/operations surface in `worker/massive.mjs`; it is **not** registered as a desktop app and no active browser UI calls it. It may only serve its fixed GET routes and is not a general Massive relay.
 - Good Intelligence’s Orb 2 calls the same narrow `/api/characters/v1/beat` route used by Characters, which can return Massive’s reviewed daily packets. It uses those observations only with the shared Characters display-motion engine; the 3D model is not a direct Massive client, receives no provider secret, and gains no recommendation, authorization, or transaction capability. Server-side Orb 2 history stores only compact observation/motion summaries through a separate D1 endpoint.
 
@@ -29,7 +29,7 @@ The browser never receives `MASSIVE_API_KEY`. The key is read only from the Work
 
 The active Characters rule set is documented in [`CHARACTERS-MARKET-BEAT.md`](../architecture/CHARACTERS-MARKET-BEAT.md):
 
-- Massive is the reviewed automatic `1d` provider across the five Discs, with **up to five one-symbol requests per minute** through the shared envelope and a separate per-UTC-day D1 allowance. The route keeps `cadence=1` as the daily-bar contract; it is not a one-minute-only cooldown.
+- Massive is the reviewed automatic `1d` provider across the five Discs, with **up to five requests per minute** through the shared envelope and a separate per-UTC-day D1 allowance. Bar requests are one symbol each; each uncached Disc4 product needs one active-contract lookup before its bars, while a cold crypto ranking refresh is another call in the same envelope. Orb 2 resolves at most one missing product per tick; whichever metadata refreshes are due reduce that tick's bar slots. The route keeps `cadence=1` as the daily-bar contract; it is not a one-minute-only cooldown.
 - Tickerbot is manual/on-demand Disc1 stock observation for `1h` or `1d`; it does not silently substitute for a missing Massive packet.
 - Alpha Vantage is the Disc1 `1mo` spotlight: exactly one best-performing reviewed ticker per hour. It is independent of Massive.
 - Missing, unavailable, rate-limited, malformed, or empty provider responses stay visibly unavailable. No provider is silently replaced and no price, recommendation, or authorization is inferred.
@@ -86,5 +86,8 @@ npm run test:characters
 
 - [Massive REST quickstart](https://massive.com/docs/rest/quickstart)
 - [Massive REST stocks overview](https://massive.com/docs/rest/stocks/overview)
+- [Massive grouped daily crypto aggregates](https://massive.com/docs/rest/crypto/aggregates/daily-market-summary)
+- [Massive commodity coverage](https://massive.com/knowledge-base/article/does-massive-support-commodities-data)
+- [Massive futures contracts and active-date filters](https://massive.com/docs/rest/futures/contracts)
 - [Massive REST futures aggregates](https://massive.com/docs/rest/futures/aggregates)
 - [Massive dashboard API keys](https://massive.com/dashboard/keys)

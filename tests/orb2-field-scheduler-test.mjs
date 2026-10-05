@@ -25,11 +25,32 @@ import {
 } from "../worker/orb2-field.mjs";
 import { TICKERBOT_WATCHLIST } from "../worker/good-intelligence-tickerbot.mjs";
 
-const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql"]
+const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]
   .map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 const ORIGIN = "https://os.example";
 const STOCK_SYMBOLS = TICKERBOT_WATCHLIST.map(entry => entry.symbol);
+const TEST_CONTRACT_TICKERS = Object.freeze({ CL: "CLX6", NG: "NGX6", GC: "GCZ6", SI: "SIZ6", HG: "HGZ6", PL: "PLX6", PA: "PAX6", ZW: "ZWZ6", ZC: "ZCZ6", ZS: "ZSX6" });
+
+function activeContracts(at = NOW) {
+  const asOfDate = new Date(at).toISOString().slice(0, 10);
+  return Object.fromEntries(Object.entries(TEST_CONTRACT_TICKERS).map(([productCode, ticker]) => [productCode, {
+    ticker, productCode, provider: "Massive", asOfDate, lastTradeDate: "2026-11-20",
+    daysToMaturity: Math.round((Date.parse("2026-11-20T00:00:00.000Z") - Date.parse(`${asOfDate}T00:00:00.000Z`)) / 86_400_000)
+  }]));
+}
+
+function seedActiveContracts(sql, at = NOW) {
+  const date = new Date(at).toISOString().slice(0, 10);
+  const nextMidnight = Date.parse(`${date}T00:00:00.000Z`) + 86_400_000;
+  const seed = activeContracts(at);
+  for (const contract of Object.values(seed)) {
+    sql.prepare(`INSERT INTO massive_futures_contract_cache
+      (product_code, contract_json, source_date, fetched_at, expires_at, last_attempt_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(contract.productCode, JSON.stringify(contract), date, at, nextMidnight, at, at);
+  }
+}
 
 function fixture(t, { migrated = true } = {}) {
   const sql = new DatabaseSync(":memory:");
@@ -62,6 +83,15 @@ function bars(count, { volume = true } = {}) {
   }));
 }
 
+function cryptoGroupedRows(count = 70) {
+  return Array.from({ length: count }, (_, index) => {
+    const symbol = index === 0 ? "BTC" : index === 1 ? "ETH" : `C${String(index).padStart(2, "0")}`;
+    const volume = 20_000 - index * 100;
+    const vwap = 50_000 - index * 100;
+    return { T: `X:${symbol}USD`, o: vwap * 0.98, h: vwap * 1.02, l: vwap * 0.97, c: vwap, v: volume, vw: vwap, t: NOW - 86_400_000 };
+  });
+}
+
 /** Deterministic provider stand-in: Tickerbot and Massive answer the reviewed shapes. */
 function providerFetch(seen, { failSymbols = [] } = {}) {
   return async (url, options = {}) => {
@@ -76,6 +106,21 @@ function providerFetch(seen, { failSymbols = [] } = {}) {
       return Response.json({ as_of: new Date(NOW).toISOString(), bars: bars(40).map(bar => ({ t: bar.time, o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume })) });
     }
     if (parsed.origin === "https://api.massive.com") {
+      if (parsed.pathname.startsWith("/v2/aggs/grouped/locale/global/market/crypto/")) {
+        seen.cryptoRanking ||= [];
+        seen.cryptoRanking.push(parsed.pathname);
+        return Response.json({ status: "OK", results: cryptoGroupedRows() });
+      }
+      if (parsed.pathname === "/futures/v1/contracts") {
+        const productCode = parsed.searchParams.get("product_code");
+        seen.contracts ||= [];
+        seen.contracts.push(productCode);
+        return Response.json({ results: [{
+          ticker: TEST_CONTRACT_TICKERS[productCode], product_code: productCode,
+          active: true, type: "single", date: parsed.searchParams.get("date"),
+          last_trade_date: "2026-11-20", days_to_maturity: 46, name: `${productCode} futures`
+        }] });
+      }
       const ticker = decodeURIComponent(parsed.pathname.replace(/^\/v2\/aggs\/ticker\//, "").replace(/\/range\/.*$/, "").replace(/^\/futures\/v1\/aggs\//, ""));
       seen.massive.push(ticker);
       if (parsed.pathname.startsWith("/futures/v1/aggs/")) {
@@ -108,7 +153,9 @@ const deps = (seen, { at = NOW, ...options } = {}) => ({
 });
 
 test("the server field roster is the reviewed catalog, in firing order, with no invented symbols", () => {
-  const roster = orb2FieldRoster({ now: NOW });
+  const unresolved = orb2FieldRoster({ now: NOW });
+  assert.equal(unresolved.commodities.length, 0, "product codes are held until an active Massive contract is verified");
+  const roster = orb2FieldRoster({ now: NOW, commodityContracts: activeContracts() });
   assert.equal(roster.stocks.length, 52);
   assert.deepEqual(roster.stocks.map(stock => stock.symbol), STOCK_SYMBOLS,
     "the field's stock roster matches the reviewed Tickerbot watchlist exactly");
@@ -142,9 +189,11 @@ test("a tick spends at most the shared Massive per-minute envelope and stores on
   const seen = { urls: [], massive: [], tickerbot: [] };
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
   assert.equal(summary.ok, true);
-  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE, "one tick is one minute of the five-request envelope");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE);
-  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE);
+  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE, "ranking, contract discovery, and bars stay inside the five-request envelope");
+  assert.equal(seen.cryptoRanking.length, 1, "Disc3's grouped Massive roster is fetched once");
+  assert.equal(seen.contracts.length, 1, "one active futures product is discovered per tick");
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 2, "ranking and contract discovery leave three bar slots on a cold tick");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE - 2);
   assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, ORB2_MASSIVE_PER_MINUTE);
   const row = sql.prepare("SELECT payload, interval, confirmed FROM orb2_field_observations WHERE interval='1d' LIMIT 1").get();
   const payload = JSON.parse(row.payload);
@@ -155,39 +204,50 @@ test("a tick spends at most the shared Massive per-minute envelope and stores on
   assert.equal(row.confirmed, 1);
 });
 
-test("the rotation reserves a berth for every Disc and cycles the whole reviewed field before repeating", async t => {
-  const { env } = fixture(t);
+test("the Massive rotation covers every ranked Disc without repeating a berth or overspending", async t => {
+  const { sql, env } = fixture(t);
   // Tickerbot is deliberately absent here: the warm queue (its own test below)
   // would otherwise also write 1d rows and the rotation assertion would be
   // measuring two writers at once.
   delete env.TICKERBOT_API_KEY;
-  const roster = orb2FieldRoster({ now: NOW });
-  const reviewed = roster.instruments.length;
-  const ticksForOnePass = Math.ceil(reviewed / ORB2_MASSIVE_PER_MINUTE);
-  const seen = { urls: [], massive: [], tickerbot: [] };
+  const seen = { urls: [], massive: [], tickerbot: [], cryptoRanking: [], contracts: [] };
   const at = nextClock();
+  seedActiveContracts(sql, at);
 
   const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
+  const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
+  const cryptoRanking = JSON.parse(rankingRow.ranking_json);
+  const roster = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) });
+  const reviewed = roster.instruments.length;
+  assert.equal(roster.crypto.length, 52);
+  assert.equal(reviewed, 142);
+  assert.equal(seen.cryptoRanking.length, 1);
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 1,
+    "the first ranking call shares the five-request envelope and leaves four bar slots");
   const firstDiscs = new Set(seen.massive.map(ticker =>
-    ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "stocks"));
-  assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices", "stocks"],
-    "the very first tick already reaches every Disc with reviewed instruments");
+    ticker.startsWith("C:") ? "fx" : ticker.startsWith("X:") ? "crypto" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "stocks"));
+  assert.deepEqual([...firstDiscs].sort(), ["commodities", "crypto", "fx", "stocks"],
+    "the cold tick reaches four data Discs after reserving one call for the Massive ranking");
 
   const fetched = new Set(seen.massive);
-  for (let tick = 1; tick < ticksForOnePass; tick += 1) {
+  let tick = 1;
+  while (fetched.size < reviewed && tick < 100) {
+    const start = seen.massive.length;
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
-    assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
-    for (const ticker of seen.massive) fetched.add(ticker);
+    assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE);
+    for (const ticker of seen.massive.slice(start)) fetched.add(ticker);
+    tick += 1;
   }
   assert.equal(seen.massive.length, reviewed, `a full pass issues exactly one call per reviewed instrument (${reviewed})`);
   assert.equal(fetched.size, reviewed, "the whole reviewed field is covered once before any berth repeats");
   assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("C:")).length, roster.fx.length);
+  assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("X:")).length, roster.crypto.length);
   assert.equal(Array.from(fetched).filter(ticker => ticker.startsWith("I:")).length, roster.indices.length);
   assert.ok([...fetched].includes("C:EURUSD"), "fx routes through the reviewed catalog mapping");
-  assert.ok([...fetched].includes("ALIU6"), "commodities route through the reviewed futures contracts");
-  assert.ok(seen.massive.every(ticker => !ticker.startsWith("X:")),
-    "Disc3 contributes no instrument without a live CoinGecko ranking; no crypto ticker is invented");
+  assert.ok([...fetched].includes("GCZ6"), "commodities route through the fixed reviewed Massive futures catalog");
+  assert.ok([...fetched].includes("X:BTCUSD"), "crypto pairs use the ticker returned by Massive's grouped ranking");
+  assert.equal(seen.cryptoRanking.length, 1, "the D1 roster cache avoids refreshing a daily ranking each Cron tick");
 });
 
 test("the field warm burst queues the full Tickerbot sweep and drains it across scheduled ticks", async t => {
@@ -326,15 +386,21 @@ test("a priority refresh is bounded to the reviewed roster and unknown symbols a
 
 test("the snapshot serves the stored field with honest beat-type counts and the DXY reference", async t => {
   const { sql, env } = fixture(t);
-  const seen = { urls: [], massive: [], tickerbot: [] };
+  const seen = { urls: [], massive: [], tickerbot: [], cryptoRanking: [], contracts: [] };
   const at = nextClock();
-  /* One full pass over the five-Disc reviewed field (crypto contributes no
-     instrument without a live CoinGecko ranking in this fixture). */
-  const ticksForOnePass = Math.ceil(orb2FieldRoster({ now: NOW }).instruments.length / ORB2_MASSIVE_PER_MINUTE);
-  for (let tick = 0; tick < ticksForOnePass + 1; tick += 1) {
+  seedActiveContracts(sql, at);
+  /* One complete pass over the ranked five-Disc field. The first tick spends
+     one of its five Massive slots on the D1-cached crypto roster. */
+  await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
+  const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
+  const cryptoRanking = JSON.parse(rankingRow.ranking_json);
+  const reviewed = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) }).instruments.length;
+  const ticksForOnePass = Math.ceil((reviewed + 1) / ORB2_MASSIVE_PER_MINUTE);
+  for (let tick = 1; tick < ticksForOnePass + 1; tick += 1) {
     await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
   }
-  const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => at + 20 * 60_000 });
+  const snapshotAt = at + (ticksForOnePass + 1) * 60_000;
+  const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => snapshotAt });
   assert.equal(response.status, 200);
   const { data } = await response.json();
   assert.equal(data.schema, "gi-orb2-field-v1");
@@ -346,6 +412,10 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(data.status.counts.observed, 52);
   assert.equal(data.status.massive.perMinute, ORB2_MASSIVE_PER_MINUTE);
   assert.equal(data.status.massive.dailyLimit, 300);
+  assert.equal(data.status.futuresContracts.cache, "ready");
+  assert.equal(data.status.futuresContracts.reviewedProducts, 10);
+  assert.equal(data.status.futuresContracts.activeContracts, 10);
+  assert.equal(data.status.futuresContracts.staleFallback, false);
   assert.ok(data.observations.every(observation => observation.motion && observation.motion.schema === "characters-market-motion-v1"));
   const types = Object.fromEntries(data.beatTypes.map(type => [type.id, type]));
   assert.equal(types.observation.live, true);
@@ -369,23 +439,29 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(discs.fx.stored, 23);
   assert.equal(discs.commodities.instruments, 10);
   assert.equal(discs.commodities.stored, 10, "the commodity Disc is populated by the automatic rotation");
+  const commodityPayload = JSON.parse(sql.prepare("SELECT payload FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities' LIMIT 1").get().payload);
+  assert.equal(commodityPayload.provider, "massive");
+  assert.equal(commodityPayload.market.massiveContract.provider, "Massive");
+  assert.ok(commodityPayload.market.massiveContract.ticker.startsWith(commodityPayload.market.massiveContract.productCode),
+    "Orb 2 retains the exact active-contract identity used for the futures bars");
   assert.equal(discs.indices.instruments, 5);
   assert.equal(discs.indices.stored, 5, "the index Disc is populated by the automatic rotation");
-  assert.equal(discs.crypto.instruments, 0, "Disc3 has no reviewed roster without a live CoinGecko ranking");
-  assert.equal(discs.crypto.stored, 0, "no crypto row is invented when the ranking is unavailable");
-  assert.equal(discs.crypto.covered, false);
-  assert.ok(discs.fx.newestAt > 0 && discs.crypto.newestAt === null);
+  assert.equal(discs.crypto.instruments, 52, "Disc3's Massive ranking cache reports the reviewed USD-pair roster");
+  assert.equal(discs.crypto.stored, 52, "the automatic rotation stores the 52 Massive-ranked crypto pairs");
+  assert.equal(discs.crypto.covered, true);
+  assert.ok(discs.fx.newestAt > 0 && discs.crypto.newestAt > 0);
   assert.ok(discs.stocks.providers.length > 0 && discs.stocks.providers.every(provider => ["massive", "tickerbot"].includes(provider)));
   /* Disc1 has both lanes; Discs 2-5 can only be written by Massive, and the
      rotation must have reached every one of them. */
-  for (const [discId, expected] of [["fx", 23], ["commodities", 10], ["indices", 5]]) {
+  for (const [discId, expected] of [["fx", 23], ["crypto", 52], ["commodities", 10], ["indices", 5]]) {
     const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
     assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
   }
-  const cryptoRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE disc_id='crypto'").get().count;
-  assert.equal(cryptoRows, 0, "no crypto row exists without a live CoinGecko ranking");
+  const cryptoRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count;
+  assert.equal(cryptoRows, 52, "Disc3's selected pairs are populated through Massive daily bars");
+  assert.equal(seen.cryptoRanking.length, 1, "the D1 cache prevents a ranking call on every scheduled tick");
 
-  const narrowed = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&symbols=AAPL,MSFT&types=observation`), env, { now: () => at + 20 * 60_000 });
+  const narrowed = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&symbols=AAPL,MSFT&types=observation`), env, { now: () => snapshotAt });
   const narrowedData = (await narrowed.json()).data;
   assert.deepEqual(narrowedData.observations.map(observation => observation.symbol).sort(), ["AAPL", "MSFT"]);
   assert.equal(narrowedData.beatTypes.find(type => type.id === "message").available, false,

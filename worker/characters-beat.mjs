@@ -29,11 +29,11 @@ import {
 } from "./alpha-vantage-daily-call-ledger.mjs";
 import {
   MASSIVE_PROVIDER_DAILY_LIMIT,
-  claimMassiveDailyCall,
   readMassiveDailyCallLedger
 } from "./massive-daily-call-ledger.mjs";
-import { consumeMassiveBudget } from "./massive.mjs";
+import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
 import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
+import { getMassiveActiveFuturesContract } from "./characters-futures-contracts.mjs";
 import "../js/characters-disc-catalog.js";
 
 export const CHARACTERS_BEAT_ROUTE = "/api/characters/v1/beat";
@@ -159,15 +159,17 @@ function parseSymbols(raw, instruments, provider) {
 function statusForCode(code) {
   if ([
     "rate-limit", "budget-exhausted", "alpha-vantage-rate-limit", "alpha-vantage-budget-exhausted",
-    "massive-rate-limit", "massive-budget-exhausted", "crypto-ranking-rate-limit"
+    "massive-rate-limit", "massive-budget-exhausted", "crypto-ranking-cooldown",
+    "massive-futures-contract-cooldown", "massive-futures-contract-rate-limited", "massive-futures-contract-circuit-open"
   ].includes(code)) return 429;
   if ([
     "ledger-unavailable", "alpha-vantage-ledger-unavailable", "massive-ledger-unavailable",
     "tickerbot-not-configured", "alpha-vantage-not-configured", "massive-not-configured",
     "tickerbot-symbol-not-covered"
   ].includes(code)) return 503;
-  if (["empty", "alpha-vantage-empty", "massive-empty"].includes(code)) return 404;
-  if (["timeout", "alpha-vantage-timeout", "massive-timeout", "crypto-ranking-timeout"].includes(code)) return 504;
+  if (["empty", "alpha-vantage-empty", "massive-empty", "massive-futures-contract-unavailable"].includes(code)) return 404;
+  if (["timeout", "alpha-vantage-timeout", "massive-timeout"].includes(code)) return 504;
+  if (["massive-futures-contract-cache-unavailable", "massive-futures-contract-cache-write", "massive-futures-contract-unauthorized", "massive-futures-product-invalid"].includes(code)) return 503;
   return 502;
 }
 
@@ -283,15 +285,53 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const now = typeof dependencies.now === "function" ? dependencies.now() : Date.now();
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== "function") return failure("No market-data provider is available in this Worker runtime.", 503);
+  const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
+  const alphaApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
+  const massiveApiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
 
   let allowedInstruments = discId === "stocks" ? stockInstruments() : staticDiscInstruments(discId);
   let cryptoRanking = null;
+  let massiveRankingAttempts = 0;
+  let massiveContractAttempts = 0;
+  if (provider === "massive" && discId === "commodities") {
+    const requestedCommodity = allowedInstruments.find(instrument =>
+      String(instrument && instrument.symbol || "").toUpperCase() === requestedSymbols[0]);
+    const productCode = String(requestedCommodity && requestedCommodity.massive && requestedCommodity.massive.productCode || "").toUpperCase();
+    if (requestedCommodity && /^[A-Z0-9]{1,8}$/.test(productCode)) {
+      const contractResult = await getMassiveActiveFuturesContract({
+        productCode, apiKey: massiveApiKey, db: env.COMMUNITY_DB, fetcher, now,
+        timeoutMs: UPSTREAM_TIMEOUT_MS,
+        beforeFetch: async () => {
+          const reservation = await reserveMassiveProviderCall({ request, env, now });
+          if (reservation.ok) massiveContractAttempts = 1;
+          return reservation;
+        }
+      });
+      if (!contractResult.ok) return failure(contractResult.message, statusForCode(contractResult.code),
+        contractResult.retryAfter ? { "Retry-After": String(Math.ceil(contractResult.retryAfter / 1000)) } : {});
+      const contract = contractResult.contract;
+      allowedInstruments = allowedInstruments.map(instrument => instrument === requestedCommodity ? {
+        ...instrument,
+        massive: { ...instrument.massive, ticker: contract.ticker, family: "futures" },
+        massiveTicker: contract.ticker,
+        providerId: contract.ticker,
+        massiveContract: contract
+      } : instrument);
+    }
+  }
   if (discId === "crypto") {
     const rankingResult = await getCharactersCryptoRanking({
+      apiKey: massiveApiKey,
+      db: env.COMMUNITY_DB,
       fetcher,
       now,
       timeoutMs: UPSTREAM_TIMEOUT_MS,
-      forceRefresh: dependencies.forceCryptoRankingRefresh === true
+      forceRefresh: dependencies.forceCryptoRankingRefresh === true,
+      beforeFetch: async () => {
+        const reservation = await reserveMassiveProviderCall({ request, env, now });
+        if (reservation.ok) massiveRankingAttempts = 1;
+        return reservation;
+      }
     });
     if (!rankingResult.ok) return failure(rankingResult.message, statusForCode(rankingResult.code));
     cryptoRanking = rankingResult.ranking;
@@ -306,9 +346,6 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   const cadenceMinutes = provider === "massive" ? 1
     : provider === "alpha" ? 60
       : (BEAT_CADENCES.includes(requestedCadence) ? requestedCadence : DEFAULT_CADENCE);
-  const tickerbotApiKey = typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : "";
-  const alphaApiKey = typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "";
-  const massiveApiKey = typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "";
 
   if (provider === "tickerbot" && !tickerbotApiKey) {
     return failure("Tickerbot is not configured on this Worker. Add the TICKERBOT_API_KEY Worker secret for on-demand stock data.", 503);
@@ -369,27 +406,23 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
           message: `The Characters Massive allowance is exhausted for ${massiveDaily.day}: ${massiveDaily.calls.toLocaleString()} of ${massiveDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Massive request was sent.`
         });
       }
-      /* Check the short shared envelope first. A rejected minute slot sends no
-         upstream request and must not burn the longer-lived Characters D1
-         allowance; both guards still fail closed before provider work. */
-      const minuteBudget = consumeMassiveBudget(request, env, now);
-      if (!minuteBudget.ok) {
+      /* Reserve both shared Massive allowances before provider work. Crypto's
+         grouped ranking used the same helper above, so ranking plus the selected
+         pair's bar request cannot bypass either budget. */
+      const reservation = await reserveMassiveProviderCall({ request, env, now });
+      if (!reservation.ok) {
+        if (reservation.ledger) massiveDaily = newerDailyLedger(massiveDaily, reservation.ledger);
+        massiveLedgerStatus = reservation.code === "massive-budget-exhausted" ? "ready"
+          : reservation.code === "massive-ledger-unavailable" ? "unavailable" : massiveLedgerStatus;
         return unavailableInstrument({
-          symbol, instrument, lane, provider: "massive", code: "massive-rate-limit",
-          message: `The shared Massive per-minute request envelope is exhausted (${minuteBudget.scope}). Wait about ${minuteBudget.retryAfterSeconds}s before beating again.`,
-          extra: { retryAfter: String(minuteBudget.retryAfterSeconds) }
+          symbol, instrument, lane, provider: "massive", code: reservation.code, message: reservation.message,
+          extra: {
+            ...(reservation.ledger ? { massiveDaily: reservation.ledger } : {}),
+            ...(reservation.retryAfter ? { retryAfter: reservation.retryAfter } : {})
+          }
         });
       }
-      const claim = await claimMassiveDailyCall(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-      if (!claim.ok) {
-        if (claim.ledger) massiveDaily = newerDailyLedger(massiveDaily, claim.ledger);
-        massiveLedgerStatus = claim.reason === "massive-budget-exhausted" ? "ready" : "unavailable";
-        return unavailableInstrument({
-          symbol, instrument, lane, provider: "massive", code: claim.reason, message: claim.message,
-          extra: claim.ledger ? { massiveDaily: claim.ledger } : {}
-        });
-      }
-      massiveDaily = newerDailyLedger(massiveDaily, claim.ledger);
+      massiveDaily = newerDailyLedger(massiveDaily, reservation.ledger);
       massiveLedgerStatus = "ready";
       massiveAttempts += 1;
       const result = await fetchMassiveDailyMarketContext({
@@ -401,7 +434,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         timeoutMs: UPSTREAM_TIMEOUT_MS,
         dependencies
       });
-      if (!result.ok && yahooFallback && instrument.assetClass !== "equity") {
+      if (!result.ok && yahooFallback && instrument.assetClass !== "equity" && instrument.assetClass !== "commodity") {
         const yahoo = await fetchYahooFinanceDailyMarketContext({ instrument, symbol, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS });
         if (yahoo.ok) {
           cache.set(key, { packet: yahoo.packet, provider: "yahoo-finance", expiresAt: nextUtcMidnightMs(now) });
@@ -504,7 +537,8 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
 
   const failures = instruments.filter(instrument => instrument.status === "unavailable");
   const succeeded = instruments.length - failures.length;
-  const providerAttempts = tickerbotAttempts + massiveAttempts + alphaVantageAttempts;
+  const massiveProviderAttempts = massiveAttempts + massiveRankingAttempts + massiveContractAttempts;
+  const providerAttempts = tickerbotAttempts + massiveProviderAttempts + alphaVantageAttempts;
   const data = {
     schema: "characters-beat-v1",
     disc: discId,
@@ -516,13 +550,17 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     instruments,
     // Bind dynamic crypto symbols to the reviewed identity used for THIS beat.
     sourceIdentities: selected.map(instrument => ({ symbol: instrument.symbol,
-      channel: discId, providerId: instrument.providerId || null })),
-    ...(cryptoRanking ? { ranking: { provider: cryptoRanking.provider, metric: cryptoRanking.metric, rankedAt: cryptoRanking.rankedAt, audit: cryptoRanking.audit } } : {}),
+      channel: discId, providerId: instrument.providerId || instrument.massiveTicker || null,
+      ...(instrument.massiveContract ? { massiveContract: instrument.massiveContract } : {}) })),
+    ...(cryptoRanking ? { ranking: { provider: cryptoRanking.provider, metric: cryptoRanking.metric, sourceDate: cryptoRanking.sourceDate, rankedAt: cryptoRanking.rankedAt, audit: cryptoRanking.audit } } : {}),
     spend: {
       requestedSymbols: selected.length,
       providerAttempts,
       tickerbotAttempts,
-      massiveAttempts,
+      massiveAttempts: massiveProviderAttempts,
+      massiveBarAttempts: massiveAttempts,
+      massiveRankingAttempts,
+      massiveContractAttempts,
       alphaVantageAttempts,
       cacheHits,
       unavailable: failures.length,
@@ -538,7 +576,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       alphaVantageDaily,
       alphaVantageLedgerStatus,
       note: provider === "massive"
-        ? "Massive automatic 1d beats claim the durable per-UTC-day Characters ledger and shared per-minute envelope before upstream work. Daily packets are cached until UTC midnight; failed upstream attempts count conservatively."
+        ? "Massive automatic 1d beats, active futures-contract discovery, and the Massive crypto roster refresh claim the durable per-UTC-day Characters ledger and shared per-minute envelope before upstream work. Daily packets and verified contract identities are cached only through UTC midnight; the grouped crypto roster is D1-cached for one day; failed upstream attempts count conservatively."
         : provider === "alpha"
           ? "Alpha Vantage explicit 1mo Disc1 beats claim a separate strict 25-per-UTC-day allowance. Monthly data never substitutes for a daily series."
           : "Tickerbot on-demand Disc1 stock attempts use the shared 10,000-per-UTC-month Worker allowance. Massive is not used for an on-demand Tickerbot beat."

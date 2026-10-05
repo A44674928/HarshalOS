@@ -456,14 +456,14 @@ test("the Alpha spotlight selects the single highest local closed-bar performer,
   assert.deepEqual(alphaRequests, [[higherClosedGain]], "only the locally best closed-bar ticker enters the hourly Alpha beat");
 });
 
-test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top-volume snapshot", async t => {
+test("the Disc selector rebuilds the cast from BIS FX and Massive's grouped crypto-volume snapshot", async t => {
   const requestedBeats = [];
   const rankingInstruments = Array.from({ length: 52 }, (_, index) => {
     const ticker = `C${String(index).padStart(2, "0")}`;
     return {
       symbol: ticker, displaySymbol: `${ticker}/USD`, name: `Coin ${String(index).padStart(2, "0")}`,
       sector: "Cryptocurrency", assetClass: "crypto", discId: "crypto", dataShape: "ohlcv", quoteCurrency: "USD",
-      rankingProvider: "CoinGecko", providerId: `coin-${index}`, rank: index + 1, volumeUsd: 52_000 - index,
+      rankingProvider: "Massive", providerId: `X:${ticker}USD`, massiveTicker: `X:${ticker}USD`, rank: index + 1, volumeUsd: 52_000 - index,
       audit: index === 0 ? ["stablecoin-candidate"] : []
     };
   });
@@ -478,7 +478,7 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
         assert.equal(parsed.searchParams.get("disc"), "crypto");
         return Response.json({
           success: true, disc: "crypto",
-          ranking: { provider: "CoinGecko", metric: "trailing 24-hour total_volume, USD", rankedAt: new Date(NOW).toISOString(), cached: false },
+          ranking: { provider: "Massive", metric: "previous UTC day USD notional (base volume × VWAP) · 2026-10-04", rankedAt: new Date(NOW).toISOString(), cached: false },
           instruments: rankingInstruments
         });
       }
@@ -521,7 +521,7 @@ test("the Disc selector rebuilds the cast from BIS FX and the live CoinGecko top
   assert.equal(container.querySelectorAll("[data-ch-focus] option").length, 52);
   assert.match(container.querySelector("[data-ch-focus]").selectedOptions[0].textContent, /C00\/USD · Coin 00/);
   assert.match(container.querySelector("[data-ch-detail]").textContent, /Ranking audit flags: stablecoin candidate/);
-  assert.match(container.querySelector("[data-ch-disc-note]").textContent, /CoinGecko.*total_volume/);
+  assert.match(container.querySelector("[data-ch-disc-note]").textContent, /Massive ranking.*previous UTC day USD notional/);
   assert.match(container.querySelector("[data-ch-disc-note]").textContent, /not an investment-quality screen/);
   assert.doesNotMatch(container.querySelector("[data-ch-plan-title]").textContent, /1mo mode/, "Non-stock Discs do not show the 1mo Alpha Vantage plan");
 });
