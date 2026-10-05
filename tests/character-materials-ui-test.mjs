@@ -50,6 +50,7 @@ function mount(t, handler = async () => { throw new Error("unexpected network ca
   window.document.write("<!doctype html><html><body><div id=\"host\"></div></body></html>");
   window.eval("var APPS = window.APPS = [];");
   window.eval(catalogSource);
+  window.eval(readFileSync(new URL("../js/nab-sectors.js", import.meta.url), "utf8"));
   window.eval(modelSource);
   window.eval(appSource);
   const app = window.APPS.find(item => item.id === "character-materials");
@@ -189,6 +190,20 @@ test("multi-Disc spheroid normalizes shares, shows source records, and saves a l
   assert.equal(saved.length, 1);
   assert.equal(saved[0].name, "Two-disc test");
   assert.equal(saved[0].components.length, 2);
+  assert.equal(saved[0].nabId, 1);
+  const nabSelect = container.querySelector("[data-cm-nab]");
+  assert.equal(nabSelect.options.length, 119);
+  nabSelect.value = "119";
+  nabSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert.equal(container.querySelector("[data-cm-save-spheroid]").disabled, true);
+  assert.match(container.querySelector("[data-cm-nab-note]").textContent, /ORCL/);
+  container.querySelector("[data-cm-preview-spheroid]").click();
+  assert.match(container.querySelector("[data-cm-spheroid-output]").textContent, /Origin-preserving records/);
+  container.querySelector("[data-cm-save-spheroid]").click();
+  const designated = window.CharacterMaterialModel.readSpheroids(window.localStorage);
+  assert.equal(designated[0].nabId, 119);
+  assert.equal(designated[1].nabId, 1);
+
   assert.match(text(), /Saved spheroid designs/);
   assert.match(container.querySelector("[data-cm-spheroid-status]").textContent, /saved to this browser's local spheroid shelf/i);
 });

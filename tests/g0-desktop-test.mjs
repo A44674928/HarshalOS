@@ -31,6 +31,7 @@ class El {
     this.style = { setProperty() {}, removeProperty() {} };
     this.dataset = new Proxy({}, { get(t, k) { return t[k]; }, set(t, k, v) { t[k] = String(v); return true; } });
   }
+  get ownerDocument() { return globalThis.document; }
   get textContent() { return this._ownText || this.children.map(c => c.textContent).join(""); }
   set textContent(value) { this._ownText = String(value); this.children = []; }
   get className() { return [...this.classList._set].join(" "); }
@@ -197,7 +198,8 @@ globalThis.document = {
   querySelector: sel => body.querySelector(sel),
   querySelectorAll: sel => body.querySelectorAll(sel),
   getElementById: id => body.querySelector(`#${id}`),
-  addEventListener() {}
+  addEventListener() {},
+  removeEventListener() {}
 };
 
 let pass = 0, fail = 0;
@@ -734,7 +736,7 @@ if (giApp) {
   ok(!!(tvTab && tvPanel && tvPanel.hidden === true), "the TradingView tab stays hidden until it is opened");
   ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "Intel feed > Rankings > Market Charts > TradingView > Orb 2", "the tab strip keeps TradingView after Market Charts and adds Orb 2 as the local fifth view");
+  ok(tabLabels.join(" > ") === "News > Market Charts > TradingView > Orb 2 > Intel feed > Rankings", "the main tab strip groups Intel feed and Rankings under News while keeping the chart views");
   ok(!!(tvProvider && tvProvider.value === "tickerbot" && tvProvider.querySelectorAll("option")[0].attrs.value === "tickerbot"), "the TradingView panel also defaults to Tickerbot Live");
   ok(!!(tvType && tvType.querySelectorAll("option").length === 5 && tvType.innerHTML.includes("Candlesticks") && tvType.innerHTML.includes("Baseline")), "the chart-type menu offers the free library's OHLCV series types");
   /* This Node harness has no canvas, so the real library is swapped for a
@@ -795,12 +797,14 @@ if (giApp) {
   const orbCanvasStatus = orbHost && orbHost.querySelector("[data-gi-orb2-canvas-status]");
   const modelFullscreen = orbHost && orbHost.querySelector("[data-gi-orb2-fullscreen]");
   ok(!!(orbPanel && orbPanel.hidden === false && tvPanel.hidden === true), "opening Orb 2 hides TradingView and reveals the local OCM panel");
-  ok(orbText.includes("Orb Communicator Model") && orbText.includes("BEAT CONTRACT"), "Orb 2 presents its custom 3D model with the shared Characters beat contract");
-  ok(!!(modelFullscreen && modelFullscreen.textContent.includes("Model full screen") && appFullscreen),
-    "Orb 2's view-only fullscreen remains a separate button from the whole-app titlebar control");
-  ok(!!(orbCanvasStatus && orbCanvasStatus.textContent.includes("CANVAS UNAVAILABLE") && orbText.includes("BEAT LOG / INSPECTOR STILL ACTIVE")), "a runtime without 2D canvas support keeps the beat log and inspector available with an explicit status");
-  ok(orbRequests.some(call => call.url.startsWith("/api/characters/v1/beat?disc=stocks&provider=massive")), "opening the default Orb 2 mode requests its due live Massive beat through the Characters Worker");
-  ok(orbRequests.some(call => call.url.startsWith("/api/good-intelligence/v1/orb2/beats?")), "Orb 2 attempts to restore its server-side beat history");
+  ok(orbText.includes("NAB Discs") && orbText.includes("119 alignments"), "Orb 2 opens the NAB composite surface");
+  ok(orbHost.querySelectorAll("[data-nab-id]").length === 119, "all 119 NAB Discs are navigable");
+  ok(!orbHost.querySelector("[data-gi-orb2-disc]"), "retired asset-class Discs are absent from active navigation");
+  ok(orbText.includes("Import saved observations"), "legacy observations remain importable without rewriting history");
+  ok(!!orbHost.querySelector("[data-nab-orb-canvas]") && !orbHost.querySelector("[data-nab-geometry]"), "the complete 3D composite renderer is primary, not behind an equity-only gateway");
+  ok(!!appFullscreen, "whole-app fullscreen still applies to the NAB surface");
+  ok(orbText.includes("3D canvas unavailable") && !!orbHost.querySelector("[data-nab-detail]"), "the complete inspector remains accessible when 3D canvas is unavailable");
+  ok(orbRequests.length === 0, "opening 119 NAB Discs does not fan out market or history requests");
   ok(orbRequests.every(call => call.options.credentials === "same-origin" && call.url.startsWith("/api/")), "all Orb 2 data traffic stays on same-origin Worker routes");
   ok(!orbRequests.some(call => /\/content\/me|\/categories|\/rank\?|\/market\/tickerbot\/bars|\/ocm\//.test(call.url)), "Orb 2 does not substitute demo feed, chart data, or OCM transport routes for its beat");
   ok(HOS.getLedger().length === ledgerBefore, "opening, refreshing, searching, and viewing Orb 2 does not write to the HOS ledger");

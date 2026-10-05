@@ -65,6 +65,7 @@ test("one hourly beat buys one Tickerbot call per due symbol, then holds the win
   assert.equal(firstPayload.data.spend.providerAttempts, 3);
   assert.equal(firstPayload.data.spend.cacheHits, 0);
   assert.deepEqual(firstPayload.data.instruments.map(entry => entry.symbol), ["AAPL", "MSFT", "NVDA"]);
+  assert.deepEqual(firstPayload.data.sourceIdentities, ["AAPL", "MSFT", "NVDA"].map(symbol => ({ symbol, channel: "stocks", providerId: null })), "the selected source identity accompanies each response");
   for (const instrument of firstPayload.data.instruments) {
     assert.equal(instrument.status, "bars");
     assert.equal(instrument.marketContext.schema, "gi-market-context-v1");

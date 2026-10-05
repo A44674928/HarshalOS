@@ -122,7 +122,7 @@
 .gi-boundary strong { color: var(--gi-cyan); font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; }
 .gi-boundary-mark { color: var(--gi-cyan); font-size: 15px; }
 .gi-boundary-session { margin-left: auto; color: var(--gi-faint); font-family: var(--mono); font-size: 9px; text-align: right; }
-.gi-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 278px; gap: 20px; align-items: start; }
+.gi-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
 .gi-main { min-width: 0; }
 .gi-main-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 4px 0 16px; }
 .gi-main-heading h2 { margin-top: 3px; color: var(--gi-ink); font-size: clamp(19px, 2vw, 24px); font-weight: 620; letter-spacing: -0.04em; line-height: 1.2; }
@@ -322,6 +322,11 @@
 .gi-chart-control { display: flex; flex-direction: column; gap: 5px; min-width: 112px; color: var(--gi-faint); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
 .gi-chart-control select { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--gi-border-hi); border-radius: 6px; color: var(--gi-ink); background: #0a1220; font-family: var(--mono); font-size: 10px; letter-spacing: 0; cursor: pointer; }
 .gi-chart-control select:disabled { border-color: var(--gi-border); color: var(--gi-faint); cursor: not-allowed; }
+/* Orb 2 double-helix series inputs — reviewed ticker sets, comma or space separated */
+.gi-orb2-series-control input[type="text"] { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--gi-border-hi); border-radius: 6px; color: var(--gi-ink); background: #0a1220; font-family: var(--mono); font-size: 10px; letter-spacing: 0; }
+.gi-orb2-series-control input[type="text"]:focus { outline: 1px solid var(--gi-accent, #6fd3ff); outline-offset: 1px; }
+.gi-orb2-series-control[data-gi-orb2-series-a-row] input { border-left: 2px solid #6fd3ff; }
+.gi-orb2-series-control[data-gi-orb2-series-b-row] input { border-left: 2px solid #ffc857; }
 /* Sector headings in the watchlist selector; browsers style the popup natively, so
    these only keep the popup readable where the platform honors them. */
 .gi-chart-control select optgroup { color: var(--gi-dim); background: #0a1220; font-style: normal; font-weight: 650; }
@@ -364,7 +369,7 @@
 .gi-tv-attribution a:hover { color: var(--gi-ink); text-decoration: underline; }
 @keyframes gi-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.84); } 50% { opacity: 1; transform: scale(1.12); } }
 @media (max-width: 1000px) {
-  .gi-workspace { grid-template-columns: minmax(0, 1fr) 245px; gap: 13px; }
+  .gi-workspace { grid-template-columns: 1fr; gap: 13px; }
   .gi-app { padding-right: 16px; padding-left: 16px; }
   .gi-story { padding-right: 11px; padding-left: 11px; }
 }
@@ -432,13 +437,12 @@
 .gi-orb2-context strong { color: var(--gi-cyan); font-family: var(--mono); font-size: 8px; letter-spacing: .08em; }
 .gi-orb2-context code { color: var(--gi-gold); font-family: var(--mono); font-size: 8px; }
 .gi-orb2-layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; min-height: 440px; }
-.gi-orb2-canvas-shell { position: relative; min-height: 440px; border-right: 1px solid var(--gi-border); background: #070e1a; }
+.gi-orb2-canvas-shell { position: relative; min-height: 440px; border-right: 1px solid var(--gi-border); background: radial-gradient(ellipse at 50% 48%, rgba(35, 63, 101, .24), #070e1a 72%); }
 .gi-orb2-canvas-shell canvas { display: block; width: 100%; height: 440px; touch-action: none; cursor: grab; outline: none; }
 .gi-orb2-canvas-shell canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--gi-cyan); }
 .gi-orb2-canvas-hud { position: absolute; top: 11px; left: 12px; right: 12px; display: flex; max-width: 540px; flex-direction: column; gap: 3px; color: rgba(186, 211, 240, .72); font-family: var(--mono); font-size: 8px; letter-spacing: .11em; pointer-events: none; }
+.gi-orb2-canvas-hud > span:first-child { color: rgba(111, 211, 255, .9); font-weight: 700; }
 .gi-orb2-canvas-hud span:last-child { color: rgba(255, 212, 121, .72); }
-.gi-orb2-flow-readout { max-width: min(490px, 100%); margin-top: 7px; padding: 6px 8px; border: 1px solid currentColor; border-radius: 5px; color: var(--gi-faint); background: rgba(3, 8, 16, .82); font-size: 8px; font-weight: 700; letter-spacing: .025em; line-height: 1.5; overflow-wrap: anywhere; }
-.gi-orb2-flow-rate-note { max-width: 490px; color: rgba(186, 211, 240, .66); font-size: 7px; letter-spacing: .015em; line-height: 1.45; }
 .gi-orb2-gesture { position: absolute; right: 12px; bottom: 10px; margin: 0; color: rgba(154, 170, 193, .7); font-family: var(--mono); font-size: 8px; pointer-events: none; }
 .gi-orb2-inspector { padding: 14px 12px; background: linear-gradient(180deg, rgba(10, 18, 32, .98), rgba(7, 12, 23, .98)); }
 .gi-orb2-node-select { display: block; margin-top: 11px; }
@@ -478,6 +482,10 @@
   .gi-orb2-canvas-shell canvas { height: 310px; }
   .gi-orb2-gesture { left: 12px; right: auto; max-width: 210px; }
 }
+.gi-rail[hidden] { display: none !important; }
+.gi-news-tabs { margin: -5px 0 14px; }
+.gi-orb2-beat-status { margin: 0; padding: 7px 14px; border-bottom: 1px solid rgba(118, 153, 202, .12); color: var(--gi-faint); background: rgba(4, 9, 17, .28); font-size: 8px; line-height: 1.5; }
+
 /* Orb 2 live beat controls, pathway state, persistence, and full-screen view. */
 .gi-orb2 { position: relative; width: 100%; }
 .gi-orb2-toolbar { align-items: center; }

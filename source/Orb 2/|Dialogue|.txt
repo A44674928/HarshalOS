@@ -1,0 +1,2 @@
+(morning) Cast nodes are local teaching visuals, not registered OCM addresses.
+(evening) My motion traces cannot authorize, recommend, or transact.

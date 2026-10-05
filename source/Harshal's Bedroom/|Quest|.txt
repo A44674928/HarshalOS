@@ -1,0 +1,2 @@
+Preserve the Origin Record
+Keep profile data concise and operator-declared; do not infer identity or phase.

@@ -83,7 +83,7 @@ Orb 2 stores compact validated observation/motion snapshots through `/api/good-i
 | `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities\|indices&provider=massive\|tickerbot\|alpha&symbols=A,B&interval=1h\|1d\|1mo&cadence=...`; Massive is one `1d` symbol at `1`, Alpha is one Disc1 `1mo` symbol at `60`, and only manual Tickerbot accepts a bounded multi-symbol beat. |
 | `GET /api/characters/v1/discs?disc=crypto` | Read-only CoinGecko ranking snapshot/audit metadata; no provider secret or bar data. |
 | `GET /api/massive/v1/*` | Retained bounded same-origin Massive Worker adapter; the standalone desktop window is retired. Characters uses the narrower reviewed daily adapter, not an arbitrary browser ticker path; see [`docs/integrations/MASSIVE-REST.md`](../integrations/MASSIVE-REST.md). |
-| D1 migrations | `0005_tickerbot_call_ledger.sql`, `0006_alpha_vantage_daily_call_ledger.sql`, and `0007_massive_daily_call_ledger.sql`. Apply all relevant migrations before enabling live beats. |
+| D1 migrations | `0005_tickerbot_call_ledger.sql`, `0006_alpha_vantage_daily_call_ledger.sql`, `0007_massive_daily_call_ledger.sql`, and `0008_orb2_saved_beats.sql`. Apply all relevant migrations before enabling live beats or the anonymous Orb 2 archive. |
 
 ## Validation
 
