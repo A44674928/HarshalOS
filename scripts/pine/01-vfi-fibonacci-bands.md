@@ -87,7 +87,10 @@ The basis uses `bandSrc`, `bandLen`, and `bandMa`; VWMA falls back to SMA when t
 0.382, 0.618, 0.764, and 1.000 levels above and below the basis. Unlike the standalone
 Fibonacci Bollinger Bands script archived in
 [`03-fibonacci-bollinger-bands.md`](03-fibonacci-bollinger-bands.md), it does not define
-0.236 or 0.500 lines.
+0.236 or 0.500 lines. This paragraph describes the verbatim supplied Pine formula only;
+the current JS `computeBands()` intentionally computes both its moving average and population
+standard deviation from `ln(source)`, applies offsets in log space, then exponentiates levels
+back to price.
 
 ### Confirmation and confluence
 

@@ -209,32 +209,37 @@
   }
 
   /* Fibonacci-band placement metrics — computed only from supplied packet fields.
-     `p` is the close's position relative to each ticker's OWN band basis, measured
-     against the nearer half-width so an upper-band and a lower-band excursion of the
-     same size read the same distance from neutral:
-     p = 0.5 + ((close - basis) / (close >= basis ? upper - basis : basis - lower)) / 2.
+     Bands arrive in price units after the shared log-space FBB calculation, so position
+     is measured in their natural-log coordinates:
+     p = 0.5 + ((ln(close) - ln(basis)) / (ln(upper) - ln(basis) if above basis,
+          else ln(basis) - ln(lower))) / 2.
      p = 1 is the upper band, p = 0 the lower band, p = 0.5 neutral; excursions beyond
-     an outer band stay beyond it and are never clamped back. Incomplete or invalid
-     observations stay unknown (`held`), never neutral. This is a pure metric carried
-     over from the helix pass so the NAB field, the spheroid shelf, and any future
-     surface share one definition — it draws nothing by itself and is not a signal. */
+     an outer band stay beyond it and are never clamped back. Log band width is the
+     volatility measure. Incomplete or invalid observations stay unknown (`held`), never
+     neutral. This pure metric contributes to Orb 2's free-floating placement; NAB
+     composite markers use the equivalent log-distance rule in NabComposites. It draws
+     nothing by itself and is not a signal. */
   function fibonacciBandMetrics(market) {
-    if (!isRecord(market)) return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    const held = { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    if (!isRecord(market)) return held;
     const close = numeric(market.latestBar && market.latestBar.close);
     const bands = isRecord(market.bands) ? market.bands : null;
     const lower = bands ? numeric(bands.lower1000) : null;
     const upper = bands ? numeric(bands.upper1000) : null;
     const basis = numeric(market.basis);
-    if (close === null || basis === null || lower === null || upper === null || !finite(lower) || !finite(upper) || lower >= basis || upper <= basis) {
-      return { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
-    }
+    if (close === null || basis === null || lower === null || upper === null ||
+        close <= 0 || basis <= 0 || lower <= 0 || upper <= 0 || lower >= basis || upper <= basis) return held;
+    const logClose = Math.log(close), logBasis = Math.log(basis);
+    const logLower = Math.log(lower), logUpper = Math.log(upper);
+    const halfWidth = logClose >= logBasis ? logUpper - logBasis : logBasis - logLower;
+    const logWidth = logUpper - logLower;
+    if (![logClose, logBasis, logLower, logUpper, halfWidth, logWidth].every(finite) || halfWidth <= 0 || logWidth <= 0) return held;
     const breakSide = market.bandSignals && market.bandSignals.upperBreak ? "upper"
       : market.bandSignals && market.bandSignals.lowerBreak ? "lower" : null;
-    const displacement = (close - basis) / (close >= basis ? upper - basis : basis - lower);
+    const displacement = (logClose - logBasis) / halfWidth;
     const p = 0.5 + displacement / 2;
-    const width = upper - lower;
-    const volatilityPct = basis > 0 ? (width / basis) * 100 : null;
-    const volatility = volatilityPct !== null ? clamp(volatilityPct / 12, 0, 1) : null;
+    const volatilityPct = logWidth * 100;
+    const volatility = clamp(volatilityPct / 12, 0, 1);
     const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
     return { held: false, p, volatility, volatilityPct, potential, breakSide };
   }

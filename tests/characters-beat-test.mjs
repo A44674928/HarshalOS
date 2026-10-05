@@ -198,6 +198,14 @@ test("a beaten berth produces a bounded, deterministic directive for every class
   assert.ok(directive.caption.startsWith("TEST:"));
 });
 
+test("Characters FBB basis bias uses symmetric log returns instead of linear price distance", () => {
+  const up = Beat.gaugeOf({ status: "ready", close: 102, bands: { basis: 100 }, chartSeries: [] });
+  const down = Beat.gaugeOf({ status: "ready", close: 100 / 1.02, bands: { basis: 100 }, chartSeries: [] });
+  const expected = Math.round(Math.tanh(Math.log(1.02) * 40) * 1000) / 1000;
+  assert.equal(up.bias, expected);
+  assert.equal(down.bias, -expected, "equal multiplicative moves above and below the basis are symmetric");
+});
+
 test("an unconfirmed latest bar is held rather than treated as a closed move", () => {
   const rows = bars(360);
   rows[rows.length - 1] = { ...rows[rows.length - 1], confirmed: false };

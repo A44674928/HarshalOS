@@ -11,7 +11,7 @@
 - `CharactersBeat` performs due-symbol selection, analyzes the returned `gi-market-context-v1` packet, and produces the same NPC/object/item motion directive. No packet means a frozen berth; absent OHLC or volume fields remain absent.
 - The 3D canvas maps those directives to free-floating character-node movement, market-derived placement, sector objects, and local volume-dependent particles. Center Origin is not a static tether; it appears only in an explicit local route trace. Any trace is a teaching visualization, not transmitted OCM traffic or authority.
 - The volume-flow runner follows Characters' `item.lane` and `item.rate`: VFI above its supplied signal orbits inbound in green; VFI below orbits outbound in red. It runs only for confirmed OHLCV with volume, VFI/signal, direction, and positive relative-volume cadence available; equality, transitions, missing, or unconfirmed inputs are held.
-- The displayed cadence is Characters' visual animation rate in cycles per second, not a measured volume-per-second value. It is shown for the selected node in the canvas HUD and inspector; reduced-motion and hidden-path states are labeled.
+- The displayed cadence is Characters' visual animation rate in cycles per second, not a measured volume-per-second value. It is shown for the selected node in the non-overlay status row below the canvas and in the inspector; reduced-motion and hidden-path states are labeled.
 
 ## Visual color channels and fullscreen
 
@@ -50,8 +50,8 @@ Apply migration `0008_orb2_saved_beats.sql` to the same D1 database used by the 
 
 ## Fibonacci-band metrics
 
-- `GoodIntelligenceOrb2.fibonacciBandMetrics(market)` is the shared, pure definition of a ticker's position inside its own Fibonacci Bollinger band: `p = 0.5 + ((close - basis) / (close >= basis ? upper - basis : basis - lower)) / 2`, so an upper-band and a lower-band excursion of the same size read the same distance from neutral. Band width over basis is volatility, normalized stretch from the midline is potential energy, and a supplied band break names its side.
-- Incomplete or invalid packets stay `held` with `p = null` — unknown, never neutral. The composite field, the spheroid shelf, and any future surface read this one function rather than restating the rule.
+- `GoodIntelligenceOrb2.fibonacciBandMetrics(market)` is the shared, pure definition of a ticker's position inside its own log-space Fibonacci Bollinger band: `p = 0.5 + ((ln(close) - ln(basis)) / (close >= basis ? ln(upper) - ln(basis) : ln(basis) - ln(lower))) / 2`, so multiplicatively equal upper/lower excursions read the same distance from neutral. Volatility uses `(ln(upper) - ln(lower)) × 100`, normalized stretch from the midline is potential energy, and a supplied band break names its side. Nonpositive inputs remain held because they are outside the log domain.
+- Incomplete or invalid packets stay `held` with `p = null` — unknown, never neutral. `CharactersBeat.gaugeOf()` uses `ln(close) - ln(basis)` for its FBB bias, and the NAB composite's `NabComposites.displacement()` applies the same normalized log-space distance. The focused Orb 2, Characters, and NAB tests pin those consumers.
 - The double-helix arrangement that once consumed it in Orb 2 (Series A/B strands, rungs, eased berths) is retired along with the fractal pass. The metric now contributes to the free-floating market-data placement because it is market arithmetic, not decoration; `tests/orb2-baseline-test.mjs` pins it.
 
 ## Surfaces: what is whose

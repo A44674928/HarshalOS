@@ -1,7 +1,8 @@
 /* Good Intelligence — optional price/volume context. The formulas overlap user-supplied
    Pine v6 VFI + Fibonacci Bands and LAZY WaveTrend sources; see scripts/pine/ for the
-   archived source blocks. Source parity is not established. This is not assurance,
-   a truth test, or an execution signal. */
+   archived source blocks. Fibonacci bands deliberately use log-price math in this JS port;
+   the verbatim Pine archives retain their supplied formulas, so source parity is not implied.
+   This is not assurance, a truth test, or an execution signal. */
 "use strict";
 
 window.GoodIntelligenceMarketContext = (() => {
@@ -268,22 +269,39 @@ window.GoodIntelligenceMarketContext = (() => {
     return { vfi: smoothed, signal: ema(smoothed, parameters.vfiSignalLen), raw: rawVfi, available: true };
   }
 
+  function priceFromLog(logPrice) {
+    if (!finite(logPrice)) return null;
+    const price = Math.exp(logPrice);
+    return finite(price) && price > 0 ? price : null;
+  }
+
   function computeBands(bars, parameters) {
     const source = sourceValues(bars, parameters.bandSrc);
+    /* Every FBB calculation stays in natural-log price space: selected MA basis,
+       population standard deviation, Fibonacci offsets, and only then exp back
+       into price units for signals and charts. Nonpositive sources cannot be logged. */
+    const logSource = source.map(value => finite(value) && value > 0 ? Math.log(value) : null);
     const volumeAvailable = bars.length > 0 && bars.every(bar => finite(bar.volume));
     const maType = parameters.bandMa === "VWMA" && !volumeAvailable ? "SMA" : parameters.bandMa;
-    const basis = movingAverage(source, parameters.bandLen, maType, bars.map(bar => bar.volume));
-    const deviation = rollingStdev(source, parameters.bandLen).map(value => finite(value) ? value * parameters.bandMult : null);
-    const bands = source.map((_, i) => {
-      const base = basis[i], dev = deviation[i];
-      if (!finite(base) || !finite(dev)) return null;
-      return {
-        basis: base, deviation: dev,
-        upper382: base + 0.382 * dev, upper618: base + 0.618 * dev, upper764: base + 0.764 * dev, upper1000: base + dev,
-        lower382: base - 0.382 * dev, lower618: base - 0.618 * dev, lower764: base - 0.764 * dev, lower1000: base - dev
-      };
+    const basisLog = movingAverage(logSource, parameters.bandLen, maType, bars.map(bar => bar.volume));
+    const logDeviation = rollingStdev(logSource, parameters.bandLen)
+      .map(value => finite(value) ? value * parameters.bandMult : null);
+    const basis = basisLog.map(priceFromLog);
+    const ratios = [[382, 0.382], [618, 0.618], [764, 0.764], [1000, 1]];
+    const bands = logSource.map((_, i) => {
+      const centerLog = basisLog[i], devLog = logDeviation[i], base = basis[i];
+      if (!finite(centerLog) || !finite(devLog) || !finite(base)) return null;
+      const row = { basis: base, logDeviation: devLog };
+      for (const [suffix, ratio] of ratios) {
+        const upper = priceFromLog(centerLog + ratio * devLog);
+        const lower = priceFromLog(centerLog - ratio * devLog);
+        if (!finite(upper) || !finite(lower)) return null;
+        row[`upper${suffix}`] = upper;
+        row[`lower${suffix}`] = lower;
+      }
+      return row;
     });
-    return { basis, deviation, bands };
+    return { basis, logDeviation, bands };
   }
 
   function computeWaveTrend(bars, parameters) {
@@ -494,7 +512,10 @@ window.GoodIntelligenceMarketContext = (() => {
         value: safeValue(flow.vfi[last]), signal: safeValue(flow.signal[last]), ready: flowReady,
         available: flow.available, reason: flow.available ? null : "Volume and complete OHLC are required; VFI is disabled for this series."
       },
-      bands: currentBands ? Object.fromEntries(Object.entries(currentBands).map(([key, value]) => [key, safeValue(value)])) : null,
+      bands: currentBands ? {
+        method: "log-space",
+        ...Object.fromEntries(Object.entries(currentBands).map(([key, value]) => [key, safeValue(value)]))
+      } : null,
       close: safeValue(close),
       waveTrend: {
         wt1: safeValue(wave.wt1[last]), wt2: safeValue(wave.wt2[last]),
@@ -511,8 +532,8 @@ window.GoodIntelligenceMarketContext = (() => {
         .map(event => ({ type: event.type, time: event.time, detectedAt: bars[event.detectedIndex].time })),
       alerts,
       note: !volumeAvailable
-        ? "Price-only analysis from the supplied close or OHLC observations. VFI, relative volume, and other volume-based measures are disabled because this series has no volume; no OHLC or volume fields were fabricated. Display-only context, not investment advice or permission to act."
-        : "Client-side price/volume calculation using formulas that overlap user-supplied Pine v6 scripts; exact source parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
+        ? "Price-only analysis from the supplied close or OHLC observations. Fibonacci bands use natural-log price math; VFI, relative volume, and other volume-based measures are disabled because this series has no volume. No OHLC or volume fields were fabricated. Display-only context, not investment advice or permission to act."
+        : "Client-side price/volume calculation. Fibonacci bands use the selected moving average and population standard deviation of ln(source), apply Fibonacci offsets in log space, then exponentiate to price; this intentionally differs from the archived Pine's linear-price formula. Exact source parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
     };
   }
 
