@@ -1,10 +1,9 @@
 /*
- * HarshalOS — durable Massive per-UTC-day request allowance.
+ * HarshalOS — durable Massive per-UTC-day request telemetry.
  *
- * Characters' automatic daily beat claims one slot immediately before an
- * upstream Massive request. The Massive account's own limits remain binding;
- * this D1 counter is a conservative Worker-routed guard shared by all
- * Characters Discs. It deliberately says nothing about browser/direct calls.
+ * Characters records one Worker-routed Massive attempt after the provider-class
+ * reservation succeeds. The Massive account's own per-asset-class limits remain
+ * binding; this D1 counter is historical/audit telemetry, not a provider gate.
  */
 
 export const MASSIVE_DAILY_CALL_LEDGER_SCHEMA = "massive-daily-call-ledger-v1";
