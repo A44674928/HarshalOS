@@ -505,6 +505,19 @@
     return { available: true, direction: Math.sign(mean), strength: clamp(rms / 1.35, 0, 1), depth: clamp(inner - outer, -1, 1), components };
   }
 
+  function stockFbbDisplacement(fbb, radius) {
+    if (!fbb || !fbb.available) return { radius, vertical: 0, depth: 0, inward: 0 };
+    const strength = clamp(fbb.strength, 0, 1);
+    const direction = Math.sign(fbb.direction);
+    const inward = 0.86 * strength;
+    return {
+      radius: radius * (1 - inward),
+      vertical: direction * (0.18 + 0.82 * strength),
+      depth: fbb.depth * 0.28 * strength,
+      inward
+    };
+  }
+
   function stockFbbColor(fbb) {
     if (!fbb || !fbb.available || !fbb.direction) return "#35d0c1";
     const strength = clamp(Number(fbb.strength) || 0, 0, 1);
@@ -3049,12 +3062,10 @@
          displacement becomes vertical direction. The six-dimensional state
          also contributes a small depth deformation. */
       if (String(observation && observation.discId || "").toLowerCase() === "stocks" && placement.fbbState && placement.fbbState.available) {
-        const fbb = placement.fbbState;
-        const strength = clamp(fbb.strength, 0, 1);
-        const direction = Math.sign(fbb.direction);
-        radius = placement.radius * (1 - 0.86 * strength);
-        latitude += direction * (0.18 + 0.82 * strength);
-        longitude += fbb.depth * 0.28 * strength;
+        const displacement = stockFbbDisplacement(placement.fbbState, placement.radius);
+        radius = displacement.radius;
+        latitude += displacement.vertical;
+        longitude += displacement.depth;
       }
       if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
@@ -5065,7 +5076,7 @@
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
-    fibonacciBandMetrics, multidimensionalFbbState, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
+    fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
