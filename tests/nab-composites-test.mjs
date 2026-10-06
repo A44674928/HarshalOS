@@ -36,7 +36,8 @@ test('119 NAB Discs preserve membership and surface unmapped market assets for e
   assert.equal(stockReviews.length, 22, 'new market-roster assets without a reviewed NAB assignment remain visible for editorial review');
   assert.ok(stockReviews.every(row => ids.has(row.id) && TICKERBOT_WATCHLIST.some(asset => `stocks:${asset.symbol}` === row.id)));
   assert.equal(reviewIds.has('crypto:NEW'), true, 'an unknown exact Kraken pair stays in review');
-  assert.equal(registry.review.length, 23);
+  assert.equal(registry.review.length, 24);
+  assert.ok(reviewIds.has('commodities:ALUMINUM'), 'newly reviewed commodities remain unassigned until an editorial NAB alignment is reviewed');
   for (const disc of registry.discs) assert.equal(registry.members.filter(row => row.nabId === disc.nabId && row.role === 'designated-stock').length, 1);
 });
 

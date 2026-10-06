@@ -1315,13 +1315,12 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     });
     const run = await readRun(db, now);
     /* Per-Disc status for the constellation view: one row per reviewed Disc.
-       `stored`/`confirmed`/`newestAt` come from an aggregate over the stored
-       rows for this interval, so they describe the stored field even when the
-       response itself is narrowed to one Disc or a symbol list. `observed` and
-       `held` are read from the served rows and stay null when a Disc was not
-       part of this response. A Disc with no row reports zero and newestAt null:
-       clients label it as awaiting its first beat and never substitute another
-       Disc's data. */
+       Stored totals are matched against the current reviewed symbols before being
+       reported. Old/orphaned rows can remain in D1, but they cannot produce
+       impossible labels such as 11 stored of 10 reviewed instruments. The full
+       matched stored totals are available even when the response is narrowed to
+       one Disc or a symbol list; `observed` and `held` describe only rows served
+       in this response. A Disc with no matching row reports zero and newestAt null. */
     const cachedCryptoRanking = await readCharactersCryptoRankingCache({ db, now });
     const cachedFutures = await readMassiveFuturesContractState({ db, now });
     const rosterForStatus = orb2FieldRoster({
@@ -1331,23 +1330,25 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     });
     const catalogForStatus = globalThis.CharactersDiscCatalog;
     const storedByDisc = new Map();
+    let storedRowsRead = false;
     try {
-      const aggregate = await db.prepare(`SELECT disc_id, COUNT(*) AS stored, MAX(observed_at) AS newest, SUM(confirmed) AS confirmed
-        FROM orb2_field_observations WHERE interval = ? GROUP BY disc_id`).bind(interval).all();
-      for (const row of Array.isArray(aggregate && aggregate.results) ? aggregate.results : []) {
+      const storedRows = await db.prepare(`SELECT disc_id, symbol, observed_at, confirmed
+        FROM orb2_field_observations WHERE interval = ?`).bind(interval).all();
+      for (const row of Array.isArray(storedRows && storedRows.results) ? storedRows.results : []) {
         const discId = text(row.disc_id, 24).toLowerCase();
-        if (!ORB2_FIELD_DISCS.includes(discId)) continue;
-        storedByDisc.set(discId, {
-          stored: Math.max(0, Number(row.stored) || 0),
-          confirmed: Math.max(0, Number(row.confirmed) || 0),
-          newestAt: Number(row.newest) > 0 ? Number(row.newest) : null
+        const symbol = text(row.symbol, 32).toUpperCase();
+        if (!ORB2_FIELD_DISCS.includes(discId) || !SYMBOL_PATTERN.test(symbol)) continue;
+        let symbols = storedByDisc.get(discId);
+        if (!symbols) { symbols = new Map(); storedByDisc.set(discId, symbols); }
+        symbols.set(symbol, {
+          observedAt: Number(row.observed_at) > 0 ? Number(row.observed_at) : 0,
+          confirmed: Number(row.confirmed) > 0
         });
       }
+      storedRowsRead = true;
     } catch { /* the served rows below still report what this response carries */ }
     const discs = ORB2_FIELD_DISCS.map((discId, index) => {
       const instruments = rosterForStatus.instruments.filter(instrument => instrument.discId === discId);
-      const rows = observations.filter(observation => observation.discId === discId);
-      const aggregate = storedByDisc.get(discId) || null;
       const discDef = catalogForStatus && typeof catalogForStatus.disc === "function" ? catalogForStatus.disc(discId) : null;
       const reviewedInstrumentCount = discId === "commodities" && Array.isArray(catalogForStatus && catalogForStatus.commodities)
         ? catalogForStatus.commodities.length
@@ -1356,6 +1357,24 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           : discId === "crypto"
             ? (rosterForStatus.crypto.length || (cachedCryptoRanking.ok && cachedCryptoRanking.ranking?.instruments?.length) || 0)
             : instruments.length;
+      const reviewedEntries = discId === "commodities"
+        ? (catalogForStatus && Array.isArray(catalogForStatus.commodities) ? catalogForStatus.commodities : [])
+        : discId === "stocks" ? rosterForStatus.stocks
+          : discId === "crypto" ? rosterForStatus.crypto : instruments;
+      const reviewedSymbols = new Set((Array.isArray(reviewedEntries) ? reviewedEntries : [])
+        .map(instrument => String(instrument && instrument.symbol || "").trim().toUpperCase())
+        .filter(symbol => SYMBOL_PATTERN.test(symbol)));
+      const storedRecords = [...(storedByDisc.get(discId) || new Map()).entries()]
+        .filter(([symbol]) => reviewedSymbols.has(symbol));
+      const servedRows = observations.filter(observation => observation.discId === discId &&
+        reviewedSymbols.has(String(observation.symbol || "").toUpperCase()));
+      const stored = storedRowsRead ? storedRecords.length : servedRows.length;
+      const confirmed = storedRowsRead
+        ? storedRecords.filter(([, row]) => row.confirmed).length
+        : servedRows.filter(observation => observation.confirmed).length;
+      const newestAt = storedRowsRead
+        ? storedRecords.reduce((latest, [, row]) => Math.max(latest, row.observedAt), 0) || null
+        : servedRows.reduce((latest, observation) => Math.max(latest, Number(observation.observedAt) || 0), 0) || null;
       return {
         id: discId,
         number: Number(discDef && discDef.number) || index + 1,
@@ -1363,14 +1382,14 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         name: text(discDef && discDef.name, 48) || discId,
         assetClass: text(discDef && discDef.assetClass, 24) || "",
         instruments: reviewedInstrumentCount,
-        stored: aggregate ? aggregate.stored : rows.length,
-        confirmed: aggregate ? aggregate.confirmed : rows.filter(observation => observation.confirmed).length,
-        newestAt: aggregate ? aggregate.newestAt : (rows.reduce((latest, observation) => Math.max(latest, Number(observation.observedAt) || 0), 0) || null),
-        observed: rows.length ? rows.filter(observation => observation.market).length : null,
-        held: rows.length ? rows.filter(observation => !observation.market).length : null,
-        providers: [...new Set(rows.map(observation => observation.provider))].sort(),
-        intervals: [...new Set(rows.map(observation => observation.interval))].sort(),
-        covered: (aggregate ? aggregate.stored : rows.length) > 0
+        stored,
+        confirmed,
+        newestAt,
+        observed: servedRows.length ? servedRows.filter(observation => observation.market).length : null,
+        held: servedRows.length ? servedRows.filter(observation => !observation.market).length : null,
+        providers: [...new Set(servedRows.map(observation => observation.provider))].sort(),
+        intervals: [...new Set(servedRows.map(observation => observation.interval))].sort(),
+        covered: stored > 0
       };
     });
     const control = await readControl(db);

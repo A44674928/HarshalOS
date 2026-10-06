@@ -47,13 +47,17 @@ test("Disc4 keeps its reviewed Massive product roster and energy equities remain
   const commodities = Catalog.staticInstruments("commodities");
   const wti = commodities.find(entry => entry.symbol === "WTI");
   const gold = commodities.find(entry => entry.symbol === "GOLD");
-  assert.equal(commodities.length, 10);
-  assert.deepEqual(commodities.map(entry => entry.symbol), ["WTI", "NATURAL_GAS", "GOLD", "SILVER", "COPPER", "PLATINUM", "PALLADIUM", "WHEAT", "CORN", "SOYBEANS"]);
+  const aluminum = commodities.find(entry => entry.symbol === "ALUMINUM");
+  assert.equal(commodities.length, 11);
+  assert.deepEqual(commodities.map(entry => entry.symbol), ["WTI", "NATURAL_GAS", "GOLD", "SILVER", "COPPER", "ALUMINUM", "PLATINUM", "PALLADIUM", "WHEAT", "CORN", "SOYBEANS"]);
   assert.ok(commodities.every(entry => entry.massive.family === "futures" && /^[A-Z0-9]{1,4}$/.test(entry.massive.productCode) && !entry.massive.ticker),
     "the catalog carries product codes only; Massive must verify today's active dated contract");
   assert.equal(wti.dataShape, "ohlcv");
   assert.equal(wti.massive.productCode, "CL");
   assert.equal(gold.massive.productCode, "GC");
+  assert.equal(aluminum.massive.productCode, "ALI");
+  assert.equal(aluminum.quoteCurrency, "USD/metric ton");
+  assert.equal(aluminum.sector, "Industrial metals");
   assert.deepEqual(wti.tags, ["Energy", "Crude oil"]);
   assert.deepEqual(gold.tags, ["Precious metal"]);
   assert.equal(wti.quoteCurrency, "USD/barrel");

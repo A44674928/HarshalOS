@@ -396,9 +396,13 @@ test("the separated field renders distinct orbs and states the berth readout", a
 
 test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbols", () => {
   const { orb } = harness();
-  const nodes = orb.buildNodes([{ symbol: "AAPL", name: "Apple", sector: "Technology" }, { symbol: "bad ticker" }, null]);
-  assert.equal(nodes.length, 1);
-  assert.equal(nodes[0].symbol, "AAPL");
+  const nodes = orb.buildNodes([
+    { symbol: "AAPL", name: "Apple", sector: "Technology" },
+    { symbol: "NATURAL_GAS", name: "Henry Hub natural gas", sector: "Energy" },
+    { symbol: "bad ticker" }, null
+  ]);
+  assert.equal(nodes.length, 2);
+  assert.deepEqual(nodes.map(node => node.symbol), ["AAPL", "NATURAL_GAS"], "valid reviewed symbols with underscores stay visible");
 });
 
 /* ── the server field is the only beat source ─────────────────────────────── */
@@ -833,6 +837,14 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
   assert.equal(engine.state.discId, "fx");
   assert.ok(engine.nodes.length >= 5 && engine.nodes.length <= 30, "the fx orb draws the reviewed FX roster");
   assert.ok(engine.nodes.every(node => !stockSymbols.has(node.symbol)), "no stock-deck symbol is drawn on the fx orb");
+
+  host.querySelector('[data-gi-orb2-orb="commodities"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "commodities");
+  assert.equal(engine.nodes.length, 11, "Disc4 draws all eleven reviewed commodities");
+  assert.ok(engine.nodes.some(node => node.symbol === "ALUMINUM"), "the Aluminum ticker orb is part of Disc4's own field");
+  assert.ok(engine.nodes.some(node => node.symbol === "NATURAL_GAS"), "the underscore in Henry Hub's reviewed symbol does not hide that orb");
+  assert.ok(engine.nodes.every(node => !stockSymbols.has(node.symbol)), "no stock-deck symbol is drawn on Disc4");
 
   host.querySelector('[data-gi-orb2-orb="crypto"]').click();
   await flush();

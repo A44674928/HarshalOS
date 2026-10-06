@@ -97,9 +97,11 @@ The legacy catalog's `.discs` is what Characters and Orb 2 navigate;
 
 `js/nab-composites.js` supplies explicit editorial alignments, separate from the
 Compendium's neural classifications. It preserves all 52 existing watchlist
-entries (including funds), the 23 reviewed FX pairs, 10 commodity series, and 5
+entries (including funds), the 23 reviewed FX pairs, 11 commodity series, and 5
 indices. Together with the 119 designated stocks and 24 monetary-authority
-reference entries, the static composite catalog contains 221 distinct records.
+reference entries, the static composite catalog contains 222 distinct records.
+Aluminum is included in the source catalog but remains unassigned in the NAB
+editorial alignment queue until reviewed.
 Crypto entries load explicitly from Characters' dynamic Kraken Spot ranking: known USD-pair identities (including Kraken's `XBT/USD` → display `BTC/USD` and `XDG/USD` → display `DOGE/USD` aliases) have editorial alignments; unknown tickers remain in review. The exact `krakenPair`/`providerId` is retained as the provider identity and must match the Worker response before observations join. Duplicate source identities are marked ambiguous and cannot refresh. Historical observations without a matching Kraken pair remain retained and appear unlinked.
 
 ### Example: bank + stock + currency = one aligned NAB composite

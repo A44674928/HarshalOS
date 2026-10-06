@@ -672,7 +672,7 @@
     const ordered = ranked && globalThis.GoodIntelligenceDxy && typeof globalThis.GoodIntelligenceDxy.buildFiringOrder === "function"
       ? globalThis.GoodIntelligenceDxy.buildFiringOrder(rawEntries) : rawEntries;
     const entries = ordered
-      .filter(item => item && /^[A-Z0-9.-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
+      .filter(item => item && /^[A-Z0-9._-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
       .map(item => ({
         symbol: String(item.symbol).toUpperCase(),
         name: String(item.name || item.symbol).slice(0, 96),
