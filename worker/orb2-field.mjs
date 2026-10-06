@@ -823,7 +823,10 @@ function providerKeys(env) {
 
 async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
   if (!keys.massive) return { ok: false, attempted: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
-  const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+  const reservation = await reserveMassiveProviderCall({
+    request: CRON_REQUEST, env, now,
+    assetClass: instrument.discId === "commodities" ? "futures" : instrument.discId === "fx" ? "currencies" : "indices"
+  });
   if (!reservation.ok) return { ok: false, attempted: false, code: reservation.code, message: reservation.message };
   const result = await fetchMassiveDailyMarketContext({
     instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
@@ -870,11 +873,6 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
     return state;
   }
   if (!keys.massive) return state;
-  const ledger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-  if (ledger.ok && ledger.ledger.remaining <= 0) {
-    summary.notes.push("Disc4 contracts are held: Massive daily call budget is exhausted.");
-    return state;
-  }
   if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
   const catalog = globalThis.CharactersDiscCatalog;
   const commodities = catalog && Array.isArray(catalog.commodities) ? catalog.commodities : [];
@@ -905,7 +903,9 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
   const result = await getMassiveActiveFuturesContract({
     productCode, apiKey: keys.massive, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
     beforeFetch: async () => {
-      const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+      const reservation = await reserveMassiveProviderCall({
+        request: CRON_REQUEST, env, now, assetClass: "futures"
+      });
       if (reservation.ok) reserved = true;
       return reservation;
     }
@@ -1158,20 +1158,14 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     }
 
     /* 5 · Massive is limited to reviewed FX, active commodity futures, and
-       indices. Five requests per minute and the durable UTC-day guard apply. */
+       indices. Five requests per minute per Massive asset class apply; the old daily guard is telemetry only. */
     const massiveInstruments = roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId));
-    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-    const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
-    const minuteRemaining = availableMassiveBudget(CRON_REQUEST, env, now).remaining;
-    const utcDate = new Date(now);
-    const minutesRemaining = Math.max(1, 1440 - (utcDate.getUTCHours() * 60 + utcDate.getUTCMinutes()));
-    const pacedLimit = dailyRemaining <= 0
-      ? 0
-      : dailyRemaining <= 10
-        ? 1
-        : dailyRemaining <= 30 && minutesRemaining > 120
-          ? Math.min(2, ORB2_MASSIVE_PER_MINUTE)
-          : ORB2_MASSIVE_PER_MINUTE;
+    const minuteRemaining = Math.max(
+      availableMassiveBudget(CRON_REQUEST, env, now, "currencies").remaining,
+      availableMassiveBudget(CRON_REQUEST, env, now, "futures").remaining,
+      availableMassiveBudget(CRON_REQUEST, env, now, "indices").remaining
+    );
+    const pacedLimit = Math.min(ORB2_MASSIVE_PER_MINUTE, minuteRemaining);
     const maxMassiveThisTick = Math.max(0, pacedLimit - summary.massiveCalls);
     const slots = Math.max(0, Math.min(
       maxMassiveThisTick,
@@ -1656,11 +1650,11 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       massive: {
         callsToday: Number(run && run.massive_calls) || 0,
         perMinute: ORB2_MASSIVE_PER_MINUTE,
-        dailyLimit: MASSIVE_PROVIDER_DAILY_LIMIT,
-        remainingToday: massiveLedger.ok ? massiveLedger.ledger.remaining : null,
-        exhausted: massiveLedger.ok ? massiveLedger.ledger.exhausted : null,
-        ledger: massiveLedger.ok ? "ready" : "unavailable",
-        note: massiveLedger.ok ? massiveLedger.ledger.note : massiveLedger.message
+        dailyLimit: null,
+        remainingToday: null,
+        exhausted: false,
+        ledger: "provider-rate-class",
+        note: "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
       },
       kraken: {
         callsToday: Number(run && run.kraken_calls) || 0,
