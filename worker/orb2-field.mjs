@@ -1722,7 +1722,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       requestedTypes: [...requestedTypes],
       beatTypes: types,
       status,
-      dxy,
+      ds,
       observations
     };
   } catch (error) {
