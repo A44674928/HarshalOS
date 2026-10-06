@@ -333,15 +333,25 @@
     const longitude = tiePhase * 0.035 + priceAxis * 1.8 + flowAxis * 1.15 + bandAxis * 0.8 + waveAxis * 0.45;
     const latitude = clamp(bandAxis * 0.82 + waveAxis * 0.46 + flowAxis * 0.18, -1.25, 1.25);
     const pressure = clamp((Math.abs(priceAxis) * 0.42 + Math.abs(flowAxis) * 0.28 + Math.abs(waveAxis) * 0.15 + volatility * 0.15) * forceMultiplier, 0, 1);
-    const radius = 1.36 + pressure * 0.72;
+    /* The logarithmic band is now the primary radial distribution. Pressure
+       still affects local dynamics, but it no longer determines the berth radius
+       by itself. This is what makes volatility visibly expand the field. */
+    const radius = clamp(
+      band.held ? 2.12 : bandGeometry.radius * (0.92 + pressure * 0.12),
+      1.36, 8.5
+    );
     const displacementMagnitude = band.held ? 0 : Math.abs(band.displacement || 0);
-    const asymmetry = clamp(displacementMagnitude * 0.08 + volatility * 0.12, 0, 0.34);
+    const indicatorAlignment = clamp(
+      1 - (Math.abs(priceAxis) + Math.abs(flowAxis) + Math.abs(waveAxis) + Math.min(1, displacementMagnitude)) / 4,
+      0, 1
+    );
+    const asymmetry = clamp((1 - indicatorAlignment) * 0.34 + volatility * 0.08, 0, 0.34);
     const topology = {
       bandIndex: bandGeometry.index,
       bandRadius: bandGeometry.radius,
       bandFraction: bandGeometry.fraction,
       bandSource: bandGeometry.source,
-      convergence: bandGeometry.ideality,
+      convergence: indicatorAlignment,
       /* Local sub-orb axes are independently derived. No sub-orb is forced to
          remain spherical; equality of all three axes is the IDEAL condition. */
       axes: {
