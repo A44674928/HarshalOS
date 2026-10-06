@@ -914,7 +914,7 @@ test("held commodity and index rows are not labelled active and carry no simulat
         stockCount: 0, fxCount: 0, additionalRows: [...commodities, ...indices],
         discStatus: [
           { id: "commodities", instruments: commodities.length, stored: commodities.length, observed: 0, active: 0, stale: 0, held: commodities.length, pending: 0, covered: false, members: commodities.map(row => ({ symbol: row.symbol, status: "held", code: row.code, message: row.message })) },
-          { id: "indices", instruments: 5, stored: 5, observed: 0, active: 0, stale: 0, held: 5, pending: 0, covered: false, members: indices.map(row => ({ symbol: row.symbol, status: "held", code: row.code, message: row.message })) }
+          { id: "indices", instruments: indices.length, stored: indices.length, observed: 0, active: 0, stale: 0, held: indices.length, pending: 0, covered: false, members: indices.map(row => ({ symbol: row.symbol, status: "held", code: row.code, message: row.message })) }
         ]
       }) });
     }
@@ -924,7 +924,7 @@ test("held commodity and index rows are not labelled active and carry no simulat
   const commodityChip = host.querySelector('[data-gi-orb2-orb="commodities"]');
   const indexChip = host.querySelector('[data-gi-orb2-orb="indices"]');
   assert.match(commodityChip.textContent, /0\/11 active · 11 held/);
-  assert.match(indexChip.textContent, /0\/5 active · 5 held/);
+  assert.match(indexChip.textContent, /0\/52 active · 52 held/);
   assert.equal(commodityChip.classList.contains("is-empty"), true);
   assert.equal(indexChip.classList.contains("is-empty"), true);
   let guard = 0;

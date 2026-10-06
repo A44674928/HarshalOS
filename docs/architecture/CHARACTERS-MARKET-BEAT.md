@@ -10,7 +10,7 @@
 | **Disc2 — Fiat / FX** | 23 individually published non-USD BIS 2025 codes, quoted against USD | **Massive**, `1d` | **Massive**, `1d` |
 | **Disc3 — Crypto** | Up to 52 unique Kraken Spot USD pairs, ranked by Kraken rolling-24-hour base volume × VWAP | **Kraken Spot**, `1d` | **Kraken Spot**, `1d` |
 | **Disc4 — Commodities** | Ten reviewed futures product codes: WTI, Henry Hub gas, gold, silver, copper, platinum, palladium, wheat, corn, and soybeans | **Massive**, `1d` | **Massive**, `1d` |
-| **Disc5 — Indices** | Reviewed U.S. benchmark and volatility index roster, including `RUT` | **Massive**, `1d` | **Massive**, `1d` |
+| **Disc5 — Indices** | 52-card Basic Indices topology: 8 U.S. headline/structural, 12 U.S. sector, 16 U.S. industry/subindustry, 8 international/regional, and 8 thematic/factor/specialty entries | **Massive**, `1d` | **Massive**, `1d` |
 
 This is an explicit provider/channel/interval contract, not a fallback preference. Each route validates the Disc, provider, interval, symbol allowlist, and provider identity before outbound work or storage. Unknown or mismatched combinations fail closed. No provider substitutes for another and no missing market field is fabricated.
 
