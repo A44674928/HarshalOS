@@ -421,10 +421,10 @@ test("the field warm burst queues the full Tickerbot sweep and drains it across 
   assert.deepEqual(intervals, ["15m", "1d", "1h"]);
 });
 
-test("the durable allowances stop the schedule instead of overspending", async t => {
+test("the durable Massive daily ledger remains telemetry-only while provider classes enforce pacing", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
-  // Burn the tickerbot month first: the burst must refuse before any upstream call.
+  // Tickerbot remains governed by its durable monthly Worker allowance.
   sql.prepare("INSERT INTO tickerbot_call_ledger (utc_month, attempted_calls, provider_budget, worker_limit, updated_at) VALUES (?,?,?,?,?)")
     .run("2026-10", 10_000, 10_000, 10_000, NOW);
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
@@ -435,13 +435,15 @@ test("the durable allowances stop the schedule instead of overspending", async t
   assert.ok([...summary.notes, ...summary.errors].some(note => /allowance|exhausted|ledger/i.test(note)),
     "an exhausted ledger is named in the tick summary");
 
-  // A spent Massive UTC-day guard stops the rotation but leaves the field readable.
+  // Massive's legacy 300/day value is telemetry, not a provider gate.
   const second = fixture(t);
   second.sql.prepare("INSERT INTO massive_daily_call_ledger (utc_day, attempted_calls, daily_limit, updated_at) VALUES (?,?,?,?)")
     .run("2026-10-05", 300, 300, NOW);
   const exhausted = await runOrb2FieldTick(second.env, null, deps(seen, { at: nextClock() }));
-  assert.equal(exhausted.massiveCalls, 0);
-  assert.ok(exhausted.notes.some(note => /Massive UTC-day allowance is spent/i.test(note)));
+  assert.ok(exhausted.massiveCalls > 0, "Massive still rotates after the legacy daily display reaches 300");
+  const ledger = second.sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger WHERE utc_day='2026-10-05'").get();
+  assert.equal(ledger.calls, 300 + exhausted.massiveCalls,
+    "Massive D1 telemetry records admitted provider attempts without imposing the historical daily ceiling");
 });
 
 test("a missing Worker secret and a missing binding fail closed with a readable reason", async t => {
