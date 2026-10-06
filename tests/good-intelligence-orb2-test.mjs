@@ -399,7 +399,7 @@ test("Stocks project the logarithmic six-band FBB state inward and vertically th
   assert.ok(upDraw.radius < up.radius && downDraw.radius < down.radius);
   assert.ok(upDraw.vertical > 0 && downDraw.vertical < 0, "price direction maps to upward/downward motion");
   assert.ok(up.fbbState.strength > 0 && down.fbbState.strength > 0);
-  assert.match(orb.stockFbbColor(up.fbbState), /rgb\\(/);
+  assert.match(orb.stockFbbColor(up.fbbState), /rgb\(/);
   assert.match(orb.stockFbbColor(down.fbbState), /rgb\\(/);
   assert.notEqual(orb.stockFbbColor(up.fbbState), orb.stockFbbColor(down.fbbState), "rally and sink receive distinct colors");
 });
