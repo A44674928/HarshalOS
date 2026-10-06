@@ -315,7 +315,7 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
     now: () => NOW,
     fetch: async () => { fetches += 1; return dailyAggs(); }
   };
-  for (const symbol of ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "NZDUSD"]) {
+  for (const symbol of ["EURUSD", "GBPUSD", "JPYUSD", "CADUSD", "SEKUSD"]) {
     const admitted = await handleCharactersBeat(
       beat(`disc=fx&provider=massive&symbols=${symbol}&interval=1d&cadence=1`), envValue, dependencies
     );
