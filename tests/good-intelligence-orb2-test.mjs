@@ -393,14 +393,15 @@ test("Stocks project the logarithmic six-band FBB state inward and vertically th
   assert.equal(down.fbbState.available, true);
   assert.equal(up.fbbState.direction, 1);
   assert.equal(down.fbbState.direction, -1);
-  assert.ok(up.radius < 2.12 && down.radius < 2.12, "strong FBB states penetrate inward");
-  const upDraw = { ...up, longitude: up.longitude, latitude: up.latitude };
-  const downDraw = { ...down, longitude: down.longitude, latitude: down.latitude };
-  assert.ok(upDraw.fbbState.strength > 0 && downDraw.fbbState.strength > 0);
+  const upDraw = orb.stockFbbDisplacement(up.fbbState, up.radius);
+  const downDraw = orb.stockFbbDisplacement(down.fbbState, down.radius);
+  assert.ok(upDraw.inward > 0 && downDraw.inward > 0, "FBB strength creates inward penetration");
+  assert.ok(upDraw.radius < up.radius && downDraw.radius < down.radius);
+  assert.ok(upDraw.vertical > 0 && downDraw.vertical < 0, "price direction maps to upward/downward motion");
+  assert.ok(up.fbbState.strength > 0 && down.fbbState.strength > 0);
   assert.match(orb.stockFbbColor(up.fbbState), /rgb\\(/);
   assert.match(orb.stockFbbColor(down.fbbState), /rgb\\(/);
   assert.notEqual(orb.stockFbbColor(up.fbbState), orb.stockFbbColor(down.fbbState), "rally and sink receive distinct colors");
-});
 });
 
 /* ── shared-berth separation ─────────────────────────────────────────────── */
