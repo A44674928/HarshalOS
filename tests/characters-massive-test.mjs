@@ -176,7 +176,7 @@ test("Disc4 resolves the active Massive contract before bars and carries contrac
     }
   );
   const payload = await response.json();
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 200, JSON.stringify(payload));
   assert.deepEqual(requests.map(entry => entry.url.pathname), [
     "/futures/v1/contracts", "/futures/v1/aggs/CLX6"
   ], "the dated ticker is discovered and validated before a futures bars URL is built");
@@ -240,7 +240,7 @@ test("the beat route isolates provider policies and caches successful Massive da
     dependencies
   );
   const firstPayload = await first.json();
-  assert.equal(first.status, 200);
+  assert.equal(first.status, 200, JSON.stringify(firstPayload));
   assert.deepEqual(hosts, ["api.massive.com"]);
   assert.equal(firstPayload.data.provider, "massive");
   assert.equal(firstPayload.data.cadenceMinutes, 1);
@@ -325,7 +325,7 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
     beat("disc=fx&provider=massive&symbols=CADUSD&interval=1d&cadence=1"), envValue, dependencies
   );
   const payload = await rateLimited.json();
-  assert.equal(rateLimited.status, 429);
+  assert.equal(rateLimited.status, 429, JSON.stringify(payload));
   assert.equal(payload.data.spend.massiveAttempts, 0);
   assert.equal(payload.data.spend.massiveDaily.calls, 5, "the denied minute slot did not claim another daily telemetry slot");
   assert.equal(fetches, 5);
@@ -374,7 +374,7 @@ test("the six DXY component quotes retain their USD-per-foreign orientation thro
       }
     );
     const payload = await response.json();
-    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path`);
+    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path: ${JSON.stringify(payload)}`);
     assert.equal(payload.data.instruments[0].symbol, symbol);
     assert.equal(payload.data.instruments[0].marketContext.quoteCurrency, "USD");
     assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");
