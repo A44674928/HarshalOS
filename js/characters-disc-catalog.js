@@ -66,15 +66,15 @@
   const FUTURES = freezeEntries([
     { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"] },
     { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/MMBtu", tags: ["Energy"] },
-    { symbol: "GOLD", displaySymbol: "GOLD", name: "Gold", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
-    { symbol: "SILVER", displaySymbol: "SILVER", name: "Silver", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
-    { symbol: "COPPER", displaySymbol: "COPPER", name: "Copper", sector: "Industrial metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/lb", tags: ["Industrial metal"] },
-    { symbol: "ALUMINUM", displaySymbol: "ALUMINUM", name: "Aluminum", sector: "Industrial metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/metric ton", tags: ["Industrial metal"] },
-    { symbol: "PLATINUM", displaySymbol: "PLATINUM", name: "Platinum", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
-    { symbol: "PALLADIUM", displaySymbol: "PALLADIUM", name: "Palladium", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
-    { symbol: "WHEAT", displaySymbol: "WHEAT", name: "Wheat", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
-    { symbol: "CORN", displaySymbol: "CORN", name: "Corn", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
-    { symbol: "SOYBEANS", displaySymbol: "SOYBEANS", name: "Soybeans", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] }
+    { symbol: "GOLD", displaySymbol: "GOLD", name: "Gold", sector: "Precious metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "SILVER", displaySymbol: "SILVER", name: "Silver", sector: "Precious metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "COPPER", displaySymbol: "COPPER", name: "Copper", sector: "Industrial metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/lb", tags: ["Industrial metal"] },
+    { symbol: "ALUMINUM", displaySymbol: "ALUMINUM", name: "Aluminum", sector: "Industrial metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/metric ton", tags: ["Industrial metal"] },
+    { symbol: "PLATINUM", displaySymbol: "PLATINUM", name: "Platinum", sector: "Precious metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "PALLADIUM", displaySymbol: "PALLADIUM", name: "Palladium", sector: "Precious metals", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
+    { symbol: "WHEAT", displaySymbol: "WHEAT", name: "Wheat", sector: "Agriculture", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
+    { symbol: "CORN", displaySymbol: "CORN", name: "Corn", sector: "Agriculture", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
+    { symbol: "SOYBEANS", displaySymbol: "SOYBEANS", name: "Soybeans", sector: "Agriculture", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] }
   ].map(entry => ({ ...entry, massive: FUTURES_MASSIVE[entry.symbol] })));
 
   const INDICES = freezeEntries([
@@ -162,7 +162,7 @@
     }),
     Object.freeze({
       id: "commodities", number: 4, name: "Futures", label: "Disc4 · Futures",
-      assetClass: "commodity", intervalModes: Object.freeze(["1d"]),
+      assetClass: "futures", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "Reviewed Massive Futures product-code roster for U.S. energy, metal, and grain contracts. Before bars are requested, the Worker resolves today's active single contract through Massive and caches it in D1 until UTC midnight; missing, inactive, unauthorized, or unverified contracts remain held with no stale-contract fallback. Futures-session bars supply OHLC and any reported volume; missing fields remain missing. Energy company shares remain in Disc1."
     }),
@@ -191,7 +191,10 @@
     /* Legacy catalog alias: the stored/API Disc ID remains `commodities` for compatibility. */
     commodities: FUTURES,
     indices: INDICES,
-    disc(id) {\n      const normalized = String(id || "").toLowerCase() === "futures" ? "commodities" : String(id || "");\n      return DISCS.find(entry => entry.id === normalized) || null;\n    },
+    disc(id) {
+      const normalized = String(id || "").toLowerCase() === "futures" ? "commodities" : String(id || "");
+      return DISCS.find(entry => entry.id === normalized) || null;
+    },
     staticInstruments(id) {
       if (id === "fx") return BIS_FX_CURRENCIES;
       if (id === "futures" || id === "commodities") return FUTURES;
