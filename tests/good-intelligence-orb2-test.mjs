@@ -110,6 +110,20 @@ test("FBB-L60 availability marks a formation ticker ready for graduation without
   assert.equal(row.status, "graduation-ready");
 });
 
+test("the stock Disc renders the dual race board and hides it outside the stock field", async t => {
+  const { host, fieldCalls } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER,
+    watchlist: MARKET_ROSTER,
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot((host && host.ownerDocument && host.ownerDocument.defaultView) || {}, { stockCount: 52 }) })
+  });
+  await flush();
+  const board = host.querySelector("[data-gi-orb2-raceboard]");
+  assert.ok(board, "the dual race board is mounted");
+  assert.equal(board.hidden, false, "the stock Disc shows both race lanes");
+  assert.ok(host.querySelector('[data-gi-orb2-race-formation-markers] [data-race-symbol="SPCX"]'), "SPCX is isolated in the formation lane");
+  assert.equal(host.querySelectorAll('[data-gi-orb2-race-established-markers] [data-race-symbol="SPCX"]').length, 0, "SPCX never enters the established lane while classified as formation");
+  assert.ok(fieldCalls().length >= 1, "the race board uses the stored field rather than a provider call");
+});
 test("the established and formation lanes approach each other from opposite ends", () => {
   const { orb } = harness();
   const snapshot = orb.buildMarketRaceSnapshot(
