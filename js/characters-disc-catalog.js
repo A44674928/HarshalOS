@@ -24,7 +24,7 @@
      deliberately absent: the Worker resolves and validates today's active
      single contract from Massive's contracts reference endpoint before bars
      are requested. */
-  const COMMODITY_MASSIVE = Object.freeze({
+  const FUTURES_MASSIVE = Object.freeze({
     WTI: { productCode: "CL", family: "futures" },
     NATURAL_GAS: { productCode: "NG", family: "futures" },
     GOLD: { productCode: "GC", family: "futures" },
@@ -64,8 +64,8 @@
     { symbol: "RUBUSD", displaySymbol: "RUB/USD", name: "Russian ruble / US dollar", sector: "FX emerging", assetClass: "fx", quoteCurrency: "USD", bisCode: "RUB" }
   ]);
 
-  const COMMODITIES = freezeEntries([
-    { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"] },
+  const FUTURES = freezeEntries([
+    { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"] },
     { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/MMBtu", tags: ["Energy"] },
     { symbol: "GOLD", displaySymbol: "GOLD", name: "Gold", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
     { symbol: "SILVER", displaySymbol: "SILVER", name: "Silver", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
@@ -76,7 +76,7 @@
     { symbol: "WHEAT", displaySymbol: "WHEAT", name: "Wheat", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
     { symbol: "CORN", displaySymbol: "CORN", name: "Corn", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] },
     { symbol: "SOYBEANS", displaySymbol: "SOYBEANS", name: "Soybeans", sector: "Agriculture", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/bushel", tags: ["Agriculture"] }
-  ].map(entry => ({ ...entry, massive: COMMODITY_MASSIVE[entry.symbol] })));
+  ].map(entry => ({ ...entry, massive: FUTURES_MASSIVE[entry.symbol] })));
 
   const INDICES = freezeEntries([
     { symbol: "NDX", displaySymbol: "NDX", name: "NASDAQ-100 Index", sector: "U.S. headline / structural", assetClass: "index", dataShape: "ohlc", quoteCurrency: "index points", tags: ["Index", "Headline / structural"], massive: { ticker: "I:NDX", family: "aggs" } },
@@ -137,7 +137,7 @@
      - Tickerbot exclusively serves the reviewed Disc1 stock sphere (daily and
        on-demand stock intervals); Massive is not a stock substitute.
      - Kraken public Spot serves Disc3 ranking and daily pair bars.
-     - Massive serves reviewed FX, commodity-futures, and index series.
+     - Massive serves reviewed FX, futures, and index series.
      - Alpha Vantage/1mo is retired from selectable and savable routes; old
        observations may be parsed only as read-only legacy history.
      Non-stock Discs expose only the daily interval so the UI cannot imply an
@@ -162,7 +162,7 @@
       ranking: "Kraken Spot venue data. Up to 52 USD-quoted spot pairs are ranked by the public Ticker endpoint's rolling-24-hour base volume × VWAP and cached for 24 hours; each exact Kraken pair's daily bars use public OHLC interval=1440. This is venue-specific, not a global market ranking or Massive's previous-UTC-day metric."
     }),
     Object.freeze({
-      id: "commodities", number: 4, name: "Commodities", label: "Disc4 · Commodities",
+      id: "commodities", number: 4, name: "Futures", label: "Disc4 · Futures",
       assetClass: "commodity", intervalModes: Object.freeze(["1d"]),
       defaultProvider: "massive",
       ranking: "Reviewed Massive Futures product-code roster for U.S. energy, metal, and grain contracts. Before bars are requested, the Worker resolves today's active single contract through Massive and caches it in D1 until UTC midnight; missing, inactive, unauthorized, or unverified contracts remain held with no stale-contract fallback. Futures-session bars supply OHLC and any reported volume; missing fields remain missing. Energy company shares remain in Disc1."
@@ -190,10 +190,10 @@
     fxCurrencies: BIS_FX_CURRENCIES,
     commodities: COMMODITIES,
     indices: INDICES,
-    disc(id) { return DISCS.find(entry => entry.id === String(id || "")) || null; },
+    disc(id) {\n      const normalized = String(id || "").toLowerCase() === "futures" ? "commodities" : String(id || "");\n      return DISCS.find(entry => entry.id === normalized) || null;\n    },
     staticInstruments(id) {
       if (id === "fx") return BIS_FX_CURRENCIES;
-      if (id === "commodities") return COMMODITIES;
+      if (id === "futures" || id === "commodities") return FUTURES;
       if (id === "indices") return INDICES;
       return Object.freeze([]);
     },
