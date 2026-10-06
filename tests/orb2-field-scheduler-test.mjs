@@ -54,7 +54,7 @@ function seedActiveContracts(sql, at = NOW) {
   }
 }
 
-function fixture(t, { migrated = true } = {}) {
+function fixture(t, { migrated = true, maxBindParameters = Infinity } = {}) {
   clearCharactersCryptoRankingCache();
   clearKrakenDailyBarCache();
   const sql = new DatabaseSync(":memory:");
@@ -64,7 +64,11 @@ function fixture(t, { migrated = true } = {}) {
     prepare(query) {
       let values = [];
       const statement = {
-        bind(...args) { values = args; return statement; },
+        bind(...args) {
+          if (args.length > maxBindParameters) throw new Error(`too many SQL variables: ${args.length}`);
+          values = args;
+          return statement;
+        },
         async first() { return sql.prepare(query).get(...values) ?? null; },
         async all() { return { results: sql.prepare(query).all(...values) }; },
         async run() { return sql.prepare(query).run(...values); }
@@ -525,6 +529,37 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.deepEqual(narrowedData.observations.map(observation => observation.symbol).sort(), ["AAPL", "MSFT"]);
   assert.equal(narrowedData.beatTypes.find(type => type.id === "message").available, false,
     "a dialed-out beat type is reported as not requested rather than silently rendered");
+});
+
+test("large Orb 2 snapshots split symbol reads under D1's bind-variable limit", async t => {
+  const { sql, env } = fixture(t, { maxBindParameters: 100 });
+  const symbols = Array.from({ length: 130 }, (_, index) => `TEST${String(index).padStart(3, "0")}`);
+  const motionFor = symbol => ({
+    schema: "characters-market-motion-v1", symbol, mood: "drift", status: "unknown",
+    gauge: {}, npc: {}, object: {}, item: {}, frozen: true
+  });
+  for (let index = 0; index < symbols.length; index += 1) {
+    const symbol = symbols[index];
+    const beatId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
+    const payload = {
+      schema: "gi-orb2-field-observation-v1", symbol, displaySymbol: symbol, discId: "stocks",
+      provider: "tickerbot", interval: "1d", status: "bars", reason: "server-sweep", beatId,
+      observedAt: NOW, market: null, motion: motionFor(symbol)
+    };
+    sql.prepare(`INSERT INTO orb2_field_observations
+      (interval, symbol, disc_id, provider, status, reason, beat_id, payload, observed_at, bar_time, confirmed, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run("1d", symbol, "stocks", "tickerbot", "bars", "server-sweep", beatId, JSON.stringify(payload), NOW, null, 0, NOW);
+  }
+
+  /* The unfiltered 1d snapshot also looks up matching 15m companion rows.
+     Before batching, that IN clause contained all 130 symbols and D1 rejected it. */
+  const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => NOW });
+  assert.equal(response.status, 200);
+  const { data } = await response.json();
+  assert.equal(data.observations.length, 130);
+  assert.equal(data.observations[0].symbol, symbols[0]);
+  assert.equal(data.observations.at(-1).symbol, symbols.at(-1));
 });
 
 test("the snapshot fails visibly when D1 or migration 0009 is missing", async t => {
