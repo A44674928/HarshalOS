@@ -449,7 +449,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
          FX, active commodity futures, and indices reach this branch; Kraken's
          Crypto ranking and pair bars use their separate public-call ledger. */
       const reservation = await reserveMassiveProviderCall({
-        request, env, now, assetClass: MASSIVE_ASSET_CLASS_BY_DISC[disc]
+        request, env, now, assetClass: MASSIVE_ASSET_CLASS_BY_DISC[discId]
       });
       if (!reservation.ok) {
         return unavailableInstrument({
