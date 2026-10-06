@@ -447,10 +447,10 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       /* Reserve both shared Massive allowances before provider work. Only
          FX, active commodity futures, and indices reach this branch; Kraken's
          Crypto ranking and pair bars use their separate public-call ledger. */
-      const reservation = await reserveMassiveProviderCall({ request, env, now });
+      const reservation = await reserveMassiveProviderCall({
+        request, env, now, assetClass: MASSIVE_ASSET_CLASS_BY_DISC[disc]
+      });
       if (!reservation.ok) {
-        if (reservation.ledger) massiveDaily = newerDailyLedger(massiveDaily, reservation.ledger);
-        
         return unavailableInstrument({
           symbol, instrument, lane, provider: "massive", code: reservation.code, message: reservation.message,
           extra: {
