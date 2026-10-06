@@ -127,6 +127,8 @@
       ok: true,
       status: "ready",
       value,
+      baseline: DS_BASELINE,
+      percentVs100: (value / DS_BASELINE - 1) * 100,
       asOf: timestamps[0],
       inputCount: rates.length,
       inputs: Object.freeze(rates.map(rate => Object.freeze({ symbol: rate.symbol, currency: rate.currency, weight: rate.weight, close: rate.close, time: rate.time }))),
