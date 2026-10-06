@@ -155,7 +155,7 @@ test("P13: root-level files stay limited to app entry points, configuration, opt
     .sort();
   assert.deepEqual(rootFiles, [
     ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
-    "package-lock.json", "package.json", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
+    "package-lock.json", "package.json", "requirements-hf-data-library.txt", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
   const tracked = spawnSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
