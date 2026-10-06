@@ -236,7 +236,7 @@ test("the per-asset-class budget spends the owner's shared key slowly", async t 
   assert.match(refusalBody.message, /stocks/i);
   assert.ok(refusalBody.retryAfterSeconds >= 1);
 
-  const otherClass = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=indices&ticker=I0`, fetcher, {
+  const otherClass = await callWith(`${MASSIVE_API_ROUTES.previousDay}?asset=indices&ticker=I:SPX`, fetcher, {
     headers: { "CF-Connecting-IP": "10.0.0.9" },
     env: { MASSIVE_API_KEY: KEY }
   });
@@ -266,7 +266,7 @@ test("the server-side beat has no obsolete client-IP Massive quota", async t => 
   });
   assert.equal(sixth.status, 429, "the provider-class budget still protects the shared key");
   assert.match((await sixth.json()).message, /stocks/i);
-  const otherClass = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=indices&ticker=I6`, fetcher, {
+  const otherClass = await callWith(`${MASSIVE_API_ROUTES.previousDay}?asset=indices&ticker=I:SPX`, fetcher, {
     env, headers: { "CF-Connecting-IP": "20.0.0.2" }
   });
   assert.equal(otherClass.status, 200, "a different asset class has an independent budget");
