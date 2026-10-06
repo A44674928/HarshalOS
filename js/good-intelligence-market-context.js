@@ -624,6 +624,10 @@ window.GoodIntelligenceMarketContext = (() => {
         method: "log-space",
         ...Object.fromEntries(Object.entries(currentBands).map(([key, value]) => [key, safeValue(value)]))
       } : null,
+      /* Expose both reviewed Fibonacci-band variants to downstream visualizations.
+         FBB-L60 is preferred when its required history exists; FBB-200 remains the
+         reference. Both are computed in the existing logarithmic price domain. */
+      fbbVariants: Object.fromEntries(Object.keys(FBB_VARIANTS).map(id => [id, fbbVariantResult(context, id)])),
       close: safeValue(close),
       waveTrend: {
         wt1: safeValue(wave.wt1[last]), wt2: safeValue(wave.wt2[last]),
