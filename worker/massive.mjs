@@ -390,8 +390,8 @@ export async function handleMassive(request, env = {}, dependencies = {}) {
   if (!budget.ok) {
     return failure(
       "rate-limited",
-      budget.scope === "deployment"
-        ? "This deployment's Massive request budget is spent for the moment. Wait a little before asking again."
+      budget.scope === "asset-class"
+        ? `The Massive ${budget.assetClass || "provider"} request budget is spent for the moment. Wait a little before asking again.`
         : "This client has reached its Massive request budget. Wait a little before asking again.",
       429,
       { retryAfterSeconds: budget.retryAfterSeconds }
@@ -459,6 +459,6 @@ export const massiveInternals = Object.freeze({
   parseMassiveDate,
   CACHE_TTL_MS,
   WINDOW_MS,
-  DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE,
+  MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS,
   DEFAULT_CLIENT_LIMIT_PER_MINUTE
 });
