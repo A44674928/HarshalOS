@@ -228,13 +228,21 @@
      composite markers use the equivalent log-distance rule in NabComposites. It draws
      nothing by itself and is not a signal. */
   function fibonacciBandMetrics(market) {
-    const held = { held: true, p: null, volatility: null, volatilityPct: null, potential: null, breakSide: null };
+    const held = {
+      held: true, p: null, volatility: null, volatilityPct: null, potential: null,
+      breakSide: null, displacement: null, logWidth: null, bandId: null, bandSource: null
+    };
     if (!isRecord(market)) return held;
     const close = numeric(market.latestBar && market.latestBar.close);
     const bands = isRecord(market.bands) ? market.bands : null;
-    const lower = bands ? numeric(bands.lower1000) : null;
-    const upper = bands ? numeric(bands.upper1000) : null;
-    const basis = numeric(market.basis);
+    const variants = isRecord(market.fbbVariants) ? market.fbbVariants : null;
+    const preferred = variants && isRecord(variants["FBB-L60"]) && variants["FBB-L60"].status === "available"
+      ? variants["FBB-L60"] : variants && isRecord(variants["FBB-200"]) && variants["FBB-200"].status === "available"
+        ? variants["FBB-200"] : null;
+    const lower = preferred ? numeric(preferred.lower1000) : bands ? numeric(bands.lower1000) : null;
+    const upper = preferred ? numeric(preferred.upper1000) : bands ? numeric(bands.upper1000) : null;
+    const basis = preferred ? numeric(preferred.basis) : numeric(market.basis);
+    const bandId = preferred ? String(preferred.id || "") : "FBB";
     if (close === null || basis === null || lower === null || upper === null ||
         close <= 0 || basis <= 0 || lower <= 0 || upper <= 0 || lower >= basis || upper <= basis) return held;
     const logClose = Math.log(close), logBasis = Math.log(basis);
@@ -249,7 +257,39 @@
     const volatilityPct = logWidth * 100;
     const volatility = clamp(volatilityPct / 12, 0, 1);
     const potential = clamp(Math.abs(p - 0.5) * 2, 0, 1);
-    return { held: false, p, volatility, volatilityPct, potential, breakSide };
+    return {
+      held: false, p, volatility, volatilityPct, potential, breakSide,
+      displacement, logWidth, bandId, bandSource: preferred ? "variant" : "packet"
+    };
+  }
+
+  /* Convert one instrument's logarithmic FBB displacement into an explicitly
+     logarithmic spatial band. The band boundaries themselves expand by ratio;
+     this is intentionally not a linear distance interpolation. */
+  function logarithmicBandGeometry(band) {
+    if (!band || band.held || !finite(band.displacement)) {
+      return { index: 0, radius: TOPOLOGY_BAND_BASE, fraction: 0, ideality: 0, source: "held" };
+    }
+    const magnitude = Math.max(1, Math.abs(band.displacement));
+    const rawIndex = Math.log(magnitude) / Math.log(TOPOLOGY_BAND_RATIO);
+    const index = clamp(Math.floor(rawIndex), 0, TOPOLOGY_MAX_BANDS);
+    const fraction = clamp(rawIndex - index, 0, 1);
+    const radius = TOPOLOGY_BAND_BASE * Math.pow(TOPOLOGY_BAND_RATIO, index + fraction);
+    return {
+      index, radius, fraction,
+      ideality: clamp(1 - Math.abs(band.displacement), 0, 1),
+      source: band.bandId || band.bandSource || "FBB"
+    };
+  }
+
+  function topologyEnvelope(placements) {
+    const usable = placements.filter(item => item && item.topology);
+    if (!usable.length) return { x: 1, y: 1, z: 1, convergence: 0, ideal: false };
+    const mean = axis => usable.reduce((sum, item) => sum + item.topology.axes[axis], 0) / usable.length;
+    const envelope = { x: mean("x"), y: mean("y"), z: mean("z") };
+    const deviation = Math.max(Math.abs(envelope.x - 1), Math.abs(envelope.y - 1), Math.abs(envelope.z - 1));
+    const convergence = clamp(1 - deviation / 0.35, 0, 1);
+    return { ...envelope, convergence, ideal: deviation <= TOPOLOGY_SPHERE_TOLERANCE };
   }
 
   /* Market data is the only source of a live orb's placement. The symbol hash
@@ -271,6 +311,7 @@
     const waveOne = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt1) : null;
     const waveTwo = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt2) : null;
     const band = fibonacciBandMetrics(market);
+    const bandGeometry = logarithmicBandGeometry(band);
     const close = numeric(market.latestBar && market.latestBar.close);
     const priceAxis = changePct === null ? 0 : clamp(Math.tanh(changePct / 4), -1, 1);
     const flowAxis = vfi !== null && vfiSignal !== null ? clamp(Math.tanh((vfi - vfiSignal) / 18), -1, 1) : 0;
@@ -293,13 +334,31 @@
     const latitude = clamp(bandAxis * 0.82 + waveAxis * 0.46 + flowAxis * 0.18, -1.25, 1.25);
     const pressure = clamp((Math.abs(priceAxis) * 0.42 + Math.abs(flowAxis) * 0.28 + Math.abs(waveAxis) * 0.15 + volatility * 0.15) * forceMultiplier, 0, 1);
     const radius = 1.36 + pressure * 0.72;
+    const displacementMagnitude = band.held ? 0 : Math.abs(band.displacement || 0);
+    const asymmetry = clamp(displacementMagnitude * 0.08 + volatility * 0.12, 0, 0.34);
+    const topology = {
+      bandIndex: bandGeometry.index,
+      bandRadius: bandGeometry.radius,
+      bandFraction: bandGeometry.fraction,
+      bandSource: bandGeometry.source,
+      convergence: bandGeometry.ideality,
+      /* Local sub-orb axes are independently derived. No sub-orb is forced to
+         remain spherical; equality of all three axes is the IDEAL condition. */
+      axes: {
+        x: 1 + asymmetry * 0.55,
+        y: 1 + volatility * 0.22,
+        z: 1 - asymmetry * 0.42
+      },
+      rotation: tiePhase * 0.37 + bandAxis * 0.5
+    };
     const barTime = numeric(market.latestBar && market.latestBar.time);
     const timePhase = barTime === null ? 0 : ((barTime / 86_400_000) % 1) * TAU;
     return {
       available: true, source: "market-data", longitude, latitude, radius, pressure,
       phase: tiePhase + timePhase * 0.08,
       speed: 0.055 + pressure * 0.28,
-      amplitude: 0.026 + pressure * 0.075
+      amplitude: 0.026 + pressure * 0.075,
+      topology
     };
   }
 
@@ -351,6 +410,13 @@
   /* The latitude/longitude lattice the model draws, used as the ring reference
      for the berth-floor readout. */
   const LATTICE_RING_MODEL = 2.06;
+  /* Topology geometry is data-derived. A perfect sphere is retained only as the
+     mathematical IDEAL reference; live market fields are allowed to expand,
+     contract, and deform the envelope and each sub-orb independently. */
+  const TOPOLOGY_BAND_BASE = 2.12;
+  const TOPOLOGY_BAND_RATIO = 1.45;
+  const TOPOLOGY_MAX_BANDS = 6;
+  const TOPOLOGY_SPHERE_TOLERANCE = 0.035;
 
   const berthPoint = placement => {
     const ring = Math.cos(placement.latitude);
@@ -916,6 +982,7 @@
          last wall-clock second the origin/UTS strip was refreshed. Both are local
          animation state only; neither encodes a market value. */
       innerAngle: 0,
+      fieldEnvelope: { x: 1, y: 1, z: 1, convergence: 0, ideal: false },
       originStatusAt: -1,
       hover: -1,
       dragging: false,
@@ -1049,6 +1116,20 @@
             bands: isRecord(market.bands) ? {
               lower1000: numeric(market.bands.lower1000), upper1000: numeric(market.bands.upper1000)
             } : null,
+            fbbVariants: isRecord(market.fbbVariants) ? Object.fromEntries(
+              ["FBB-200", "FBB-L60"].map(id => {
+                const variant = isRecord(market.fbbVariants[id]) ? market.fbbVariants[id] : null;
+                return [id, variant ? {
+                  id: String(variant.id || id),
+                  status: String(variant.status || "unavailable"),
+                  bandLen: numeric(variant.bandLen),
+                  basis: numeric(variant.basis),
+                  upper1000: numeric(variant.upper1000),
+                  lower1000: numeric(variant.lower1000),
+                  deltas: isRecord(variant.deltas) ? variant.deltas : null
+                } : null];
+              })
+            ) : null,
             vfi: isRecord(market.vfi) ? market.vfi : null,
             waveTrend: isRecord(market.waveTrend) ? market.waveTrend : null
           } : null,
@@ -2769,19 +2850,26 @@
        untouched one. */
     function modelPoint(spherical) {
       const { longitude, latitude, radius } = spherical;
-      const sphere = {
-        x: radius * Math.cos(latitude) * Math.cos(longitude),
-        y: radius * Math.sin(latitude),
-        z: radius * Math.cos(latitude) * Math.sin(longitude)
+      const topology = spherical.topology || { axes: { x: 1, y: 1, z: 1 }, rotation: 0 };
+      const c = Math.cos(topology.rotation), s = Math.sin(topology.rotation);
+      const localX = radius * Math.cos(latitude) * Math.cos(longitude) * topology.axes.x;
+      const localY = radius * Math.sin(latitude) * topology.axes.y;
+      const localZ = radius * Math.cos(latitude) * Math.sin(longitude) * topology.axes.z;
+      const topologyPoint = {
+        x: localX * c - localZ * s,
+        y: localY,
+        z: localX * s + localZ * c
       };
-      /* The flat form is still a free orbital field: its radius comes from the
-         packet's pressure/volatility, not from a sector slot or center tether. */
+      /* The DISC form remains the legacy inspection state. LIVE is topology-first:
+         its radial envelope comes from the logarithmic FBB band rather than a fixed
+         spherical boundary. The formation slider is therefore a presentation blend,
+         not a mathematical constraint on the market-derived topology. */
       const disc = { x: radius * Math.cos(longitude), y: 0, z: radius * Math.sin(longitude) };
       const t = ease(state.formation);
       return {
-        x: disc.x + (sphere.x - disc.x) * t,
-        y: disc.y + (sphere.y - disc.y) * t,
-        z: disc.z + (sphere.z - disc.z) * t
+        x: disc.x + (topologyPoint.x - disc.x) * t,
+        y: disc.y + (topologyPoint.y - disc.y) * t,
+        z: disc.z + (topologyPoint.z - disc.z) * t
       };
     }
 
@@ -2997,6 +3085,7 @@
          own Disc orb. Berth radii, angles, and the separation report are
          computed before the translation, so nothing about a metric changes. */
       const origin = discBerth(discId) || { x: 0, y: 0, z: 0 };
+      state.fieldEnvelope = topologyEnvelope(placements);
       const drawn = placements.map(placement => addModelPoint(modelPoint(placement), origin));
       /* The slot decision is made on the stable anchors, but the packets' own
          drift is added afterwards, and two orbs seated exactly on the floor can
@@ -3011,7 +3100,8 @@
         ...project(point, width, height),
         node: placements[index].node,
         observation: placements[index].observation,
-        directive: placements[index].directive
+        directive: placements[index].directive,
+        topology: placements[index].topology
       }));
       return { points: projected, report, placements };
     }
@@ -3193,23 +3283,29 @@
 
     function ring(latitude, width, height, color, alpha) {
       const points = [];
+      const envelope = state.fieldEnvelope || { x: 1, y: 1, z: 1 };
       for (let step = 0; step <= 96; step += 1) {
         const longitude = (step / 96) * TAU;
         const radius = LATTICE_RING_MODEL;
-        points.push(fieldProject({ x: radius * Math.cos(latitude) * Math.cos(longitude), y: radius * Math.sin(latitude), z: radius * Math.cos(latitude) * Math.sin(longitude) }, width, height));
+        points.push(fieldProject({
+          x: radius * envelope.x * Math.cos(latitude) * Math.cos(longitude),
+          y: radius * envelope.y * Math.sin(latitude),
+          z: radius * envelope.z * Math.cos(latitude) * Math.sin(longitude)
+        }, width, height));
       }
       strokeDepthPath(points, color, alpha * state.formation, latitude === 0 ? 1.05 : 0.78);
     }
 
     function meridian(longitude, width, height, color, alpha) {
       const points = [];
+      const envelope = state.fieldEnvelope || { x: 1, y: 1, z: 1 };
       for (let step = 0; step <= 64; step += 1) {
         const latitude = -Math.PI / 2 + (step / 64) * Math.PI;
         const radius = LATTICE_RING_MODEL;
         points.push(fieldProject({
-          x: radius * Math.cos(latitude) * Math.cos(longitude),
-          y: radius * Math.sin(latitude),
-          z: radius * Math.cos(latitude) * Math.sin(longitude)
+          x: radius * envelope.x * Math.cos(latitude) * Math.cos(longitude),
+          y: radius * envelope.y * Math.sin(latitude),
+          z: radius * envelope.z * Math.cos(latitude) * Math.sin(longitude)
         }, width, height));
       }
       strokeDepthPath(points, color, alpha * state.formation, 0.78);
@@ -3476,6 +3572,11 @@
 
     function drawOrbNode(point, radius, color, alpha, selected = false) {
       if (!context2d) return;
+      const topology = point && point.topology;
+      const axes = topology && topology.axes ? topology.axes : { x: 1, y: 1, z: 1 };
+      const sx = clamp((axes.x + axes.z) * 0.5, 0.72, 1.35);
+      const sy = clamp(axes.y, 0.72, 1.35);
+      const rotation = topology && finite(topology.rotation) ? topology.rotation : 0;
       const lightX = point.x - radius * 0.34;
       const lightY = point.y - radius * 0.38;
       const surface = context2d.createRadialGradient(lightX, lightY, Math.max(0.5, radius * 0.04), point.x, point.y, radius * 1.12);
@@ -3488,20 +3589,20 @@
       context2d.fillStyle = surface;
       context2d.shadowBlur = selected ? radius * 1.8 : radius * 0.78;
       context2d.shadowColor = color;
-      context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.fill();
+      context2d.beginPath(); context2d.ellipse(point.x, point.y, radius * sx, radius * sy, rotation, 0, TAU); context2d.fill();
       context2d.shadowBlur = 0;
       context2d.strokeStyle = selected ? "rgba(255,255,255,.94)" : "rgba(210,239,255,.52)";
       context2d.globalAlpha = alpha * (selected ? 0.86 : 0.46);
       context2d.lineWidth = selected ? 1.15 : 0.7;
-      context2d.beginPath(); context2d.arc(point.x, point.y, radius, 0, TAU); context2d.stroke();
+      context2d.beginPath(); context2d.ellipse(point.x, point.y, radius * sx, radius * sy, rotation, 0, TAU); context2d.stroke();
       context2d.fillStyle = "#ffffff";
       context2d.globalAlpha = alpha * (selected ? 0.78 : 0.42);
-      context2d.beginPath(); context2d.ellipse(lightX, lightY, radius * 0.18, radius * 0.12, -0.55, 0, TAU); context2d.fill();
+      context2d.beginPath(); context2d.ellipse(lightX, lightY, radius * sx * 0.18, radius * sy * 0.12, rotation - 0.55, 0, TAU); context2d.fill();
       if (selected) {
         context2d.strokeStyle = color;
         context2d.globalAlpha = alpha * 0.65;
         context2d.lineWidth = 1;
-        context2d.beginPath(); context2d.arc(point.x, point.y, radius + 4.5, 0, TAU); context2d.stroke();
+        context2d.beginPath(); context2d.ellipse(point.x, point.y, radius * sx + 4.5, radius * sy + 4.5, rotation, 0, TAU); context2d.stroke();
       }
       context2d.restore();
     }
