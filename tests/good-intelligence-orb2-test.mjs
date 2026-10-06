@@ -740,7 +740,7 @@ test("the standalone Massive Markets desktop window remains retired and the load
   const beatAt = indexHtml.indexOf("js/characters-beat.js");
   const catalogAt = indexHtml.indexOf("js/characters-disc-catalog.js");
   const rosterAt = indexHtml.indexOf("js/good-intelligence-market-roster.js");
-  const dsAt = indexHtml.indexOf("js/good-intelligence-ds.js");
+  const dsAt = indexHtml.indexOf("js/good-intelligence-dxy.js");
   const scenarioAt = indexHtml.indexOf("js/good-intelligence-orb2-scenarios.js");
   const orbAt = indexHtml.indexOf("js/good-intelligence-orb2.js");
   const appAt = indexHtml.indexOf("js/apps-good-intelligence.js");
