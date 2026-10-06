@@ -48,7 +48,7 @@ function normalizeInstrument(value, now = Date.now()) {
     });
   }
 
-  if (assetClass === "commodity") {
+  if (assetClass === "futures" || assetClass === "commodity") {
     const entry = catalogEntry("commodities", symbol);
     const catalogMassive = entry && entry.massive;
     const massive = record.massive && typeof record.massive === "object" ? record.massive : null;
@@ -71,7 +71,7 @@ function normalizeInstrument(value, now = Date.now()) {
       ...(typeof contract.name === "string" && contract.name.trim() ? { name: contract.name.trim().slice(0, 120) } : {})
     });
     return Object.freeze({
-      symbol, displaySymbol: entry.displaySymbol, assetClass, dataShape: "ohlcv", quoteCurrency: entry.quoteCurrency,
+      symbol, displaySymbol: entry.displaySymbol, assetClass: "futures", dataShape: "ohlcv", quoteCurrency: entry.quoteCurrency,
       massiveTicker: ticker, family: "futures", sourceLabel: "futures session", massiveContract
     });
   }
