@@ -284,6 +284,19 @@
     };
   }
 
+  function topologyDistribution(identity, topology, indicatorAlignment = 0.5, volatility = 0) {
+    const phase = stableIdentityPhase(identity);
+    const normalized = phase / TAU;
+    const targetLongitude = phase;
+    const targetLatitude = Math.asin(clamp(1 - 2 * normalized, -1, 1));
+    const weight = clamp(0.28 + (1 - clamp(indicatorAlignment, 0, 1)) * 0.34 + clamp(volatility, 0, 1) * 0.12, 0.28, 0.68);
+    return {
+      longitude: targetLongitude * weight,
+      latitude: targetLatitude * weight,
+      weight
+    };
+  }
+
   function topologyEnvelope(placements) {
     const usable = placements.filter(item => item && item.topology);
     if (!usable.length) return { x: 1, y: 1, z: 1, convergence: 0, ideal: false };
@@ -354,6 +367,7 @@
       bandFraction: bandGeometry.fraction,
       bandSource: bandGeometry.source,
       convergence: indicatorAlignment,
+      volatility,
       /* Local sub-orb axes are independently derived. No sub-orb is forced to
          remain spherical; equality of all three axes is the IDEAL condition. */
       axes: {
@@ -2828,6 +2842,12 @@
        about a metric changes when a shared berth is re-slotted. */
     function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
+      const spread = topologyDistribution(
+        observation && observation.symbol || node.symbol || node.name,
+        placement.topology,
+        placement.topology && placement.topology.convergence,
+        placement.topology && placement.topology.volatility
+      );
       const floatPhase = placement.phase + now / 1000 * placement.speed;
       /* The float is the packet's own drift. It must never feed the berth
          resolver: a drifted coordinate can cross the crowding floor and make
@@ -2835,7 +2855,11 @@
          `anchor` is the metrics-only berth, so the separation decision is
          stable for as long as the packets are, and the drift is applied to the
          resolved slot afterwards. */
-      const anchor = { longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius };
+      const anchor = {
+        longitude: placement.longitude + spread.longitude,
+        latitude: clamp(placement.latitude + spread.latitude, -1.45, 1.45),
+        radius: placement.radius
+      };
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
@@ -2854,7 +2878,11 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
-      return { longitude, latitude, radius, anchor, available: placement.available, source: placement.source, pressure: placement.pressure };
+      return {
+        longitude, latitude, radius, anchor,
+        available: placement.available, source: placement.source, pressure: placement.pressure,
+        topology: placement.topology
+      };
     }
 
     /* The spherical berth rendered through the disc↔sphere form blend. It reads
@@ -3115,6 +3143,12 @@
         directive: placements[index].directive,
         topology: placements[index].topology
       }));
+      /* A 3D berth can still collapse to the same pixel column when two points
+         differ mostly along camera depth. Keep the semantic 3D placement intact,
+         then apply a tiny screen-space legibility pass. This is presentation
+         geometry only; it never feeds back into FBB, topology, or the model-space
+         berth report. */
+      settleProjectedFloor(projected, 4);
       return { points: projected, report, placements };
     }
 
@@ -3124,6 +3158,32 @@
         moved by exactly zero, so the pass is continuous in the drawn
         coordinates and adds no motion of its own. Deterministic and
         idempotent: re-running it over its own output moves nothing. */
+    function settleProjectedFloor(points, minimumPx) {
+      if (!(Number(minimumPx) > 0) || !Array.isArray(points) || points.length < 2) return points;
+      const target = minimumPx + 0.2;
+      for (let pass = 0; pass < 12; pass += 1) {
+        let moved = false;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const a = points[left];
+            const b = points[right];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = Math.hypot(dx, dy);
+            if (!(distance > 1e-9) || distance >= target) continue;
+            const push = (target - distance) / 2;
+            const ux = (dx / distance) * push;
+            const uy = (dy / distance) * push;
+            a.x -= ux; a.y -= uy;
+            b.x += ux; b.y += uy;
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+      return points;
+    }
+
     function settleDrawnFloor(points, minimum) {
       if (!(Number(minimum) > 0) || !Array.isArray(points) || points.length < 2) return points;
       for (let pass = 0; pass < 2; pass += 1) {
@@ -4810,7 +4870,7 @@
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
-    fibonacciBandMetrics, logarithmicBandGeometry, topologyEnvelope, marketDataPlacement,
+    fibonacciBandMetrics, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
