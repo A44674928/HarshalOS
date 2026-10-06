@@ -13,7 +13,7 @@ const castSource = await readText("js/characters-cast.js");
 const beatSource = await readText("js/characters-beat.js");
 const catalogSource = await readText("js/characters-disc-catalog.js");
 const marketSource = await readText("js/good-intelligence-market-context.js");
-const dsSource = await readText("js/good-intelligence-ds.js");
+const dsSource = await readText("js/good-intelligence-dxy.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const scenariosSource = await readText("js/good-intelligence-orb2-scenarios.js");
 const orbSource = await readText("js/good-intelligence-orb2.js");
@@ -37,7 +37,7 @@ function harness() {
   vm.runInContext(castSource, context, { filename: "js/characters-cast.js" });
   vm.runInContext(beatSource, context, { filename: "js/characters-beat.js" });
   vm.runInContext(catalogSource, context, { filename: "js/characters-disc-catalog.js" });
-  vm.runInContext(dsSource, context, { filename: "js/good-intelligence-ds.js" });
+  vm.runInContext(dsSource, context, { filename: "js/good-intelligence-dxy.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   vm.runInContext(scenariosSource, context, { filename: "js/good-intelligence-orb2-scenarios.js" });
   vm.runInContext(orbSource, context, { filename: "js/good-intelligence-orb2.js" });
