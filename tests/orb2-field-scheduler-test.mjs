@@ -255,6 +255,47 @@ test("the server field roster is the reviewed catalog, in firing order, with no 
   assert.equal(new Set(roster.stocks.map(stock => stock.symbol)).size, 52);
 });
 
+test("Orb field observations carry the explicit FBB-200/FBB-L60 comparison without changing the reference calculation", () => {
+  const packet = {
+    schema: "gi-market-context-v1", synthetic: false, source: "Orb integration fixture",
+    symbol: "TEST", timeframe: "1d", dataShape: "ohlcv", quoteCurrency: "USD",
+    bars: bars(200)
+  };
+  const observation = observationFromPacket({
+    packet, symbol: "TEST", displaySymbol: "TEST", name: "TEST", sector: "Test",
+    discId: "stocks", provider: "tickerbot", providerId: "TEST", interval: "1d", now: NOW
+  });
+  assert.ok(observation);
+  const comparison = observation.market?.fbbComparison;
+  assert.equal(comparison?.schema, "gi-fbb-comparison-v1");
+  assert.equal(comparison?.provider, "tickerbot");
+  assert.equal(comparison?.providerId, "TEST");
+  assert.equal(comparison?.variants?.["FBB-200"]?.status, "available");
+  assert.equal(comparison?.variants?.["FBB-200"]?.experimental, false);
+  assert.equal(comparison?.variants?.["FBB-L60"]?.status, "available");
+  assert.equal(comparison?.variants?.["FBB-L60"]?.experimental, true);
+  assert.equal(comparison?.variants?.["FBB-200"]?.bandLen, 200);
+  assert.equal(comparison?.variants?.["FBB-L60"]?.bandLen, 60);
+  assert.match(comparison.comparison.authority, /does not supersede FBB-200/);
+});
+
+test("Orb field does not manufacture FBB-L60 capacity when the packet has fewer than 60 bars", () => {
+  const packet = {
+    schema: "gi-market-context-v1", synthetic: false, source: "Orb integration fixture",
+    symbol: "TEST", timeframe: "1d", dataShape: "ohlcv", quoteCurrency: "USD",
+    bars: bars(59)
+  };
+  const observation = observationFromPacket({
+    packet, symbol: "TEST", displaySymbol: "TEST", name: "TEST", sector: "Test",
+    discId: "stocks", provider: "tickerbot", providerId: "TEST", interval: "1d", now: NOW
+  });
+  assert.ok(observation);
+  const variants = observation.market?.fbbComparison?.variants;
+  assert.equal(variants?.["FBB-200"]?.status, "insufficient-history");
+  assert.equal(variants?.["FBB-L60"]?.status, "insufficient-history");
+  assert.equal(variants?.["FBB-L60"]?.availableBars, 59);
+});
+
 test("field freshness marks daily cards stale before 24h expiry and 15m cards expired at six hours", () => {
   const dailyFresh = orb2FieldFreshness("1d", NOW - 12 * 60 * 60_000, NOW);
   const dailyStale = orb2FieldFreshness("1d", NOW - 20 * 60 * 60_000, NOW);
