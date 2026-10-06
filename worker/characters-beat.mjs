@@ -25,6 +25,7 @@ import { getKrakenDailyMarketContext } from "./characters-kraken.mjs";
 import { claimKrakenCall, readKrakenCallLedger, KRAKEN_PROVIDER_DAILY_LIMIT } from "./kraken-call-ledger.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
+import { MASSIVE_PROVIDER_DAILY_LIMIT, readMassiveDailyCallLedger } from "./massive-daily-call-ledger.mjs";
 import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
 import { getMassiveActiveFuturesContract } from "./characters-futures-contracts.mjs";
 import "../js/characters-disc-catalog.js";
@@ -574,7 +575,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
       krakenDaily,
       krakenLedgerStatus,
       note: provider === "massive"
-        ? "Massive daily bars cover reviewed FX, active futures, and indices only. The shared Massive per-minute envelope and D1 UTC-day ledger are claimed before upstream work; there is no fallback provider."
+        ? "Massive daily bars cover reviewed FX, active futures, and indices only. The shared Massive per-asset-class per-minute envelope is the provider gate; the D1 UTC-day ledger records Worker-routed usage for telemetry only. There is no fallback provider."
         : provider === "kraken"
           ? "Kraken public Spot supplies Disc3 only. Ranking uses its rolling-24-hour USD notional; exact-pair interval=1440 OHLC packets and the roster are D1-cached. A shared one-request-per-second guard and 160-attempt application ceiling fail closed; no other venue is substituted."
           : "Tickerbot is the exclusive Disc1 stock provider under the shared 10,000-per-UTC-month Worker allowance. Daily packets are held through UTC midnight; Massive does not serve stocks and Alpha Vantage is not substituted."
