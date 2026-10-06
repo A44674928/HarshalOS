@@ -151,6 +151,8 @@ export function safeMarket(value) {
   const dataShape = DATA_SHAPES.has(value.dataShape) ? value.dataShape : "unknown";
   const status = ANALYSIS_STATUSES.has(value.status) ? value.status : "unknown";
   const latestBar = value.latestBar === null || value.latestBar === undefined ? null : safeBar(value.latestBar);
+  const activityBar = value.activityBar === null || value.activityBar === undefined ? null : safeBar(value.activityBar);
+  if (value.activityBar !== null && value.activityBar !== undefined && (!activityBar || activityBar.confirmed !== true)) return null;
   return {
     status,
     source: text(value.source, 160),
@@ -161,6 +163,7 @@ export function safeMarket(value) {
     barCount: integer(value.barCount, 0, 5000, 0),
     volumeAvailable: value.volumeAvailable === true,
     latestBar,
+    ...(activityBar ? { activityBar } : {}),
     previousClose: bounded(value.previousClose, 0.000000001, 1e15, null),
     changePct: bounded(value.changePct, -1_000_000, 1_000_000, null),
     basis: bounded(value.basis, -1e15, 1e15, null),

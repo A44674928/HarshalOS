@@ -684,7 +684,8 @@
         marketCapAsOf: String(item.marketCapAsOf || "").slice(0, 16),
         marketCapSource: String(item.marketCapSource || "").slice(0, 96),
         marketCapSourceUrl: String(item.marketCapSourceUrl || "").slice(0, 240),
-        firingOrder: Number.isSafeInteger(Number(item.firingOrder)) && Number(item.firingOrder) > 0 ? Number(item.firingOrder) : null
+        firingOrder: Number.isSafeInteger(Number(item.firingOrder)) && Number(item.firingOrder) > 0 ? Number(item.firingOrder) : null,
+        cryptoCounterparty: item.cryptoCounterparty === true
       }));
     const sectors = [...new Set(entries.map(entry => entry.sector))];
     const counts = new Map(sectors.map(sector => [sector, 0]));
@@ -703,11 +704,14 @@
         visualId: entry.symbol,
         symbol: entry.symbol,
         name: entry.name,
-        role: `${entry.name} · ${entry.symbol} ticker orb for ${time} bars. Market data is display-only context.`,
+        role: entry.cryptoCounterparty
+          ? `${entry.name} · cross-crypto pair counterparty orb. Pair bars are display-only context.`
+          : `${entry.name} · ${entry.symbol} ticker orb for ${time} bars. Market data is display-only context.`,
         glyph: "◉",
         affinity: Object.freeze([entry.sector]),
         sector,
         sectorIndex,
+        cryptoCounterparty: entry.cryptoCounterparty,
         color: PALETTE[(sectorIndex + (time === "1d" ? 3 : 0)) % PALETTE.length],
         longitude: longitude + (time === "1d" ? 0.21 : 0),
         latitude: latitude + (time === "1d" ? 0.13 : 0),
@@ -887,6 +891,10 @@
          field. Filled by successful Disc reads and the reviewed catalog. */
       rosterByDisc: {},
       fieldNodes: {},
+      cryptoPairs: [],
+      cryptoExpected: 0,
+      cryptoTrafficEdges: [],
+      cryptoTrafficPackets: [],
 
       /* The simulated OCM beats in flight: display packets only, rebuilt from
          the stored rows each frame. They never leave the canvas. */
@@ -1168,7 +1176,7 @@
 
             <details class="gi-orb2-model-boundary">
               <summary>Model boundary and data provenance</summary>
-              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · The five reviewed Discs are drawn as a constellation of Disc orbs around the Center Origin, one orb per Disc, at berths derived from the reviewed catalog order alone: no market value, packet count, or provider state can move, size, or rank an orb. The selected Disc's packet field is drawn inside its own orb; each orb reports the Worker's own per-Disc status (rows stored, newest beat, or an explicit empty state), and a Disc with nothing stored is drawn as an empty dashed orb labelled "awaiting first beat" rather than filled with another Disc's rows. The carousel strip, its step buttons, a click on a drawn orb, a slide, and the arrow keys walk the ring; focus, zoom, and recentre are camera controls that change the view and recompute no coordinate. Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · The five reviewed Discs are drawn as a constellation of Disc orbs around the Center Origin, one orb per Disc, at berths derived from the reviewed catalog order alone: no market value, packet count, or provider state can move, size, or rank an orb. The selected Disc's packet field is drawn inside its own orb; each orb reports fresh active instruments separately from stale, held, and pending rows; a stored refusal never counts as activation or OCM traffic. The reviewed Disc denominator is shown beside the active count. A Disc with no fresh market data is drawn as an empty dashed orb labelled "awaiting first beat" rather than filled with another Disc's rows. Disc 3 retains Kraken's exact listed cross-crypto base/quote pairs and draws mirrored display pulses through an inner pair OCM orb and the outer crypto orb only when a confirmed positive-volume bar is available; the listed pair orientation is retained, no reciprocal market is invented, and these are not individual trades, transfers, or OCM messages. The carousel strip, its step buttons, a click on a drawn orb, a slide, and the arrow keys walk the ring; focus, zoom, and recentre are camera controls that change the view and recompute no coordinate. Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
             </details>
           </div>
         </section>
@@ -1618,6 +1626,25 @@
       draw();
     }
 
+    function normalizeCryptoCrossPair(entry) {
+      if (!isRecord(entry) || entry.rankingProvider !== "Kraken" || entry.pairType !== "cross") return null;
+      const krakenPair = String(entry.krakenPair || "").trim().toUpperCase();
+      const match = /^([A-Z0-9]{2,12})\/([A-Z0-9]{2,12})$/.exec(krakenPair);
+      if (!match || String(entry.providerId || "").trim().toUpperCase() !== krakenPair) return null;
+      const canonical = symbol => symbol === "XBT" ? "BTC" : symbol === "XDG" ? "DOGE" : symbol;
+      const baseAsset = canonical(match[1]);
+      const quoteAsset = canonical(match[2]);
+      const symbol = `${baseAsset}-${quoteAsset}`;
+      if (!/^[A-Z0-9]{2,12}-[A-Z0-9]{2,12}$/.test(symbol) || baseAsset === quoteAsset ||
+          String(entry.symbol || "").toUpperCase() !== symbol ||
+          String(entry.baseAsset || "").toUpperCase() !== baseAsset ||
+          String(entry.quoteAsset || "").toUpperCase() !== quoteAsset || quoteAsset === "USD") return null;
+      return {
+        ...entry, symbol, baseAsset, quoteAsset, krakenPair,
+        providerId: krakenPair, displaySymbol: `${baseAsset}/${quoteAsset}`
+      };
+    }
+
     async function entriesForDisc(discId) {
       if (discId === "stocks") {
         if (!watchlist.length) throw new Error("The reviewed Good Intelligence Tickerbot stock list was not available.");
@@ -1633,8 +1660,25 @@
         if (!response.ok || !payload || payload.success !== true || !Array.isArray(payload.instruments) || !payload.instruments.length) {
           throw new Error(payload && payload.message || `The live crypto ranking route answered HTTP ${response.status}. No stale constituent list was substituted.`);
         }
-        state.rosterByDisc.crypto = payload.instruments;
-        return { entries: payload.instruments, ranking: payload.ranking || null };
+        const pairs = (Array.isArray(payload.crossPairs) ? payload.crossPairs : []).map(normalizeCryptoCrossPair).filter(Boolean);
+        const entries = payload.instruments.slice();
+        const assetSymbols = new Set(entries.map(entry => String(entry && entry.symbol || "").toUpperCase()));
+        const counterparties = new Set();
+        for (const pair of pairs) {
+          for (const symbol of [pair.baseAsset, pair.quoteAsset]) {
+            if (!assetSymbols.has(symbol)) counterparties.add(symbol);
+          }
+        }
+        for (const symbol of counterparties) {
+          entries.push({
+            symbol, displaySymbol: symbol, name: symbol, sector: "Cross-crypto counterparty",
+            assetClass: "crypto", discId: "crypto", cryptoCounterparty: true
+          });
+        }
+        state.cryptoPairs = pairs;
+        state.cryptoExpected = payload.instruments.length + pairs.length;
+        state.rosterByDisc.crypto = entries;
+        return { entries, ranking: payload.ranking || null };
       }
       const entries = DiscCatalog.staticInstruments(discId);
       if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${DiscCatalog.disc(discId)?.label || discId}.`);
@@ -2048,6 +2092,7 @@
       fullscreenButton.setAttribute("aria-label", modelFullscreenActive ? "Exit Orb 2 model fullscreen" : "Fullscreen Orb 2 model only");
       fullscreenButton.setAttribute("aria-pressed", String(modelFullscreenActive));
       drawPlan();
+      syncOcmTrafficNote();
     }
 
     function draw() {
@@ -2149,15 +2194,13 @@
         state.orbSignature = signature;
         orbTrack.innerHTML = state.constellation.map(disc => {
           const status = map[disc.id] || null;
-          const covered = Boolean(status && status.covered);
-          const stateText = status
-            ? covered ? `${status.stored} of ${status.instruments || status.stored} stored` : "awaiting first beat"
-            : "not read yet";
+          const covered = Boolean(status && status.active > 0);
+          const stateText = status ? discOrbStatusText(disc.id) : "not read yet";
           return `<button type="button" role="tab" class="gi-orb2-orb${disc.id === state.discId ? " is-current" : ""}${covered ? "" : " is-empty"}"
             data-gi-orb2-orb="${escapeHtml(disc.id)}" aria-selected="${disc.id === state.discId}" aria-label="${escapeHtml(`${disc.label} · ${stateText}`)}">
             <span class="gi-orb2-orb-number">${escapeHtml(String(disc.number))}</span>
             <span class="gi-orb2-orb-name">${escapeHtml(disc.name || disc.id)}</span>
-            <small class="gi-orb2-orb-state" title="${escapeHtml(covered && status.newestAt ? `newest ${shortTime(status.newestAt)}` : stateText)}">${escapeHtml(stateText)}</small>
+            <small class="gi-orb2-orb-state" title="${escapeHtml(discCoverageTitle(disc.id))}">${escapeHtml(stateText)}</small>
           </button>`;
         }).join("");
       }
@@ -2166,7 +2209,7 @@
         try { current.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* optional */ }
       }
       if (constellationNote) constellationNote.textContent = constellationText();
-      if (ocmNote) ocmNote.textContent = ocmTrafficText();
+      syncOcmTrafficNote();
       if (constellationToggle) constellationToggle.checked = state.focusOrb;
       if (zoomButton) {
         const zoomed = state.camZoom > CONSTELLATION_WIDE_ZOOM + 0.05;
@@ -2209,6 +2252,7 @@
         reason: row.reason || "server-sweep", beatId: row.beatId,
         providerId: row.providerId || null, krakenPair: row.krakenPair || null,
         rankingProvider: row.rankingProvider || null,
+        baseAsset: row.baseAsset || null, quoteAsset: row.quoteAsset || null,
         beatTypes: Array.isArray(row.beatTypes) ? row.beatTypes : ["observation"]
       };
     }
@@ -2751,17 +2795,24 @@
         packets are shown in its place. */
     function discStatusMap() {
       const map = {};
-      /* The served rows for this visit, grouped by Disc. Used for any Disc the
-         server did not describe (and for the Disc-status schema's absence), so
-         an orb reports what this client actually received rather than nothing. */
+      /* Server aggregates are the authority. The served rows are a fallback for
+         older Workers and test fixtures, but only market-bearing fresh rows count
+         as active; a stored refusal is not provider coverage. */
       const served = {};
       for (const observation of state.observations.values()) {
         const id = String(observation.discId || "").toLowerCase();
         if (!id) continue;
-        const entry = served[id] || (served[id] = { stored: 0, confirmed: 0, observed: 0, held: 0, newestAt: null, providers: new Set() });
+        const entry = served[id] || (served[id] = {
+          stored: 0, confirmed: 0, observed: 0, active: 0, stale: 0, held: 0,
+          newestAt: null, providers: new Set()
+        });
         entry.stored += 1;
         if (observation.confirmed) entry.confirmed += 1;
-        if (observation.market) entry.observed += 1; else entry.held += 1;
+        if (observation.market) {
+          entry.observed += 1;
+          if (!observation.freshness || observation.freshness.status === "fresh") entry.active += 1;
+          else entry.stale += 1;
+        } else entry.held += 1;
         const at = Number(observation.at) || 0;
         if (at > (entry.newestAt || 0)) entry.newestAt = at;
         if (observation.provider) entry.providers.add(observation.provider);
@@ -2770,57 +2821,100 @@
       for (const disc of Array.isArray(status && status.discs) ? status.discs : []) {
         const id = String(disc && disc.id || "").toLowerCase();
         if (!id) continue;
+        const instruments = Math.max(0, Number(disc.instruments) || 0);
+        const observed = Number.isFinite(Number(disc.observed)) ? Math.max(0, Number(disc.observed)) : 0;
+        const active = Number.isFinite(Number(disc.active)) ? Math.max(0, Number(disc.active)) : observed;
+        const held = Number.isFinite(Number(disc.held)) ? Math.max(0, Number(disc.held)) : 0;
+        const stale = Number.isFinite(Number(disc.stale)) ? Math.max(0, Number(disc.stale)) : Math.max(0, observed - active);
         map[id] = {
           stored: Math.max(0, Number(disc.stored) || 0),
           confirmed: Math.max(0, Number(disc.confirmed) || 0),
-          instruments: Math.max(0, Number(disc.instruments) || 0),
+          instruments,
           newestAt: Number(disc.newestAt) > 0 ? Number(disc.newestAt) : null,
-          covered: disc.covered === true,
-          observed: Number.isFinite(Number(disc.observed)) ? Number(disc.observed) : null,
-          held: Number.isFinite(Number(disc.held)) ? Number(disc.held) : null,
+          covered: disc.covered === true || active > 0,
+          complete: disc.complete === true || (instruments > 0 && active >= instruments),
+          observed, active, stale, held,
+          pending: Number.isFinite(Number(disc.pending)) ? Math.max(0, Number(disc.pending)) : Math.max(0, instruments - observed - held),
+          members: Array.isArray(disc.members) ? disc.members.slice() : [],
           providers: Array.isArray(disc.providers) ? disc.providers.slice() : []
         };
       }
+      const reviewedCount = discId => {
+        if (discId === "crypto" && state.cryptoExpected > 0) return state.cryptoExpected;
+        const roster = state.rosterByDisc[discId];
+        if (Array.isArray(roster) && roster.length) return roster.length;
+        if (discId === "stocks") return watchlist.length;
+        const statics = DiscCatalog.staticInstruments(discId);
+        return Array.isArray(statics) && statics.length ? statics.length : 0;
+      };
       for (const disc of state.constellation) {
         if (map[disc.id]) continue;
         const rows = served[disc.id];
-        map[disc.id] = rows
-          ? {
-            stored: rows.stored, confirmed: rows.confirmed, instruments: rows.stored, newestAt: rows.newestAt,
-            covered: rows.stored > 0, observed: rows.observed, held: rows.held, providers: [...rows.providers].sort()
-          }
-          : { stored: 0, confirmed: 0, instruments: 0, newestAt: null, covered: false, observed: null, held: null, providers: [] };
+        const instruments = reviewedCount(disc.id) || (rows ? rows.stored : 0);
+        const stored = rows ? rows.stored : 0;
+        const active = rows ? rows.active : 0;
+        const observed = rows ? rows.observed : 0;
+        const held = rows ? rows.held : 0;
+        const stale = rows ? rows.stale : 0;
+        map[disc.id] = {
+          stored,
+          confirmed: rows ? rows.confirmed : 0,
+          instruments,
+          newestAt: rows ? rows.newestAt : null,
+          covered: active > 0,
+          complete: instruments > 0 && active >= instruments,
+          observed, active, stale, held,
+          pending: Math.max(0, instruments - observed - held),
+          members: [],
+          providers: rows ? [...rows.providers].sort() : []
+        };
       }
       return map;
     }
 
-    /** One line per orb: how much of that Disc is actually stored server-side. */
+    /** One line per orb: distinguish fresh activation from stored or held rows. */
     function discOrbStatusText(discId) {
       const disc = state.constellation.find(entry => entry.id === discId);
       const status = discStatusMap()[discId];
       if (!disc || !status) return "not reviewed";
-      if (!status.covered) {
-        return status.instruments > 0
-          ? `${status.instruments} reviewed · awaiting first beat`
-          : "awaiting first beat · no reviewed instrument";
-      }
-      const newest = status.newestAt ? shortTime(status.newestAt) : "—";
-      return `${status.stored} of ${status.instruments || status.stored} stored · newest ${newest}`;
+      if (status.instruments <= 0) return "awaiting first beat · no reviewed instrument";
+      if (status.active === 0 && status.stored === 0) return `${status.instruments} reviewed · awaiting first beat`;
+      const details = [];
+      if (status.stale > 0) details.push(`${status.stale} stale`);
+      if (status.held > 0) details.push(`${status.held} held`);
+      if (status.pending > 0) details.push(`${status.pending} pending`);
+      return `${status.active}/${status.instruments} active${details.length ? ` · ${details.join(" · ")}` : ""}`;
     }
 
-    /** Panel/readout sentence for the whole constellation. It names the Discs
-        that have reported and the Discs still waiting, and never implies a
-        Disc has data because another Disc does. */
+    function discCoverageTitle(discId) {
+      const status = discStatusMap()[discId];
+      if (!status) return "Disc coverage has not been read.";
+      const issues = status.members.filter(member => member && member.status !== "active").slice(0, 6)
+        .map(member => `${member.symbol}: ${member.status}${member.code ? ` (${member.code})` : ""}${member.message ? ` — ${member.message}` : ""}`);
+      const more = Math.max(0, status.members.filter(member => member && member.status !== "active").length - issues.length);
+      return `${discOrbStatusText(discId)}${issues.length ? ` · ${issues.join("; ")}` : ""}${more ? `; and ${more} more` : ""}`;
+    }
+
+    /** The summary reports fresh activation separately from rows merely stored. */
     function constellationText() {
       const map = discStatusMap();
-      const covered = state.constellation.filter(disc => map[disc.id] && map[disc.id].covered);
-      const waiting = state.constellation.filter(disc => !map[disc.id] || !map[disc.id].covered);
-      const stored = covered.reduce((total, disc) => total + map[disc.id].stored, 0);
+      const reporting = state.constellation.filter(disc => map[disc.id] && map[disc.id].active > 0);
+      const waiting = state.constellation.filter(disc => !map[disc.id] || map[disc.id].active === 0);
+      const active = state.constellation.reduce((total, disc) => total + (map[disc.id]?.active || 0), 0);
+      const reviewed = state.constellation.reduce((total, disc) => total + (map[disc.id]?.instruments || 0), 0);
+      const partial = state.constellation.filter(disc => map[disc.id] && map[disc.id].active > 0 &&
+        map[disc.id].instruments > map[disc.id].active);
       const readings = state.constellation.map(disc => `${disc.number}·${discFieldInterval(disc.id)}`).join(" ");
-      const head = `CONSTELLATION · ${state.constellation.length} Disc orb${state.constellation.length === 1 ? "" : "s"} · selected ${DiscCatalog.disc(state.discId)?.label || state.discId} · ${covered.length} reporting, ${stored} stored row${stored === 1 ? "" : "s"} read at ${readings}`;
-      if (!covered.length) return `${head} · every orb is awaiting its first beat; the field is empty, not substituted`;
-      if (!waiting.length) return `${head} · every Disc orb is reporting its own field`;
-      return `${head} · awaiting first beat on ${waiting.map(disc => `${disc.number}. ${disc.name}`).join(", ")}`;
+      const head = `CONSTELLATION · ${state.constellation.length} Disc orbs · selected ${DiscCatalog.disc(state.discId)?.label || state.discId} · ${reporting.length} reporting · ${active}/${reviewed} active instruments at ${readings}`;
+      if (!reporting.length) return `${head} · every orb awaits fresh market data; stored refusals are not activation`;
+      if (!waiting.length && !partial.length) return `${head} · every reviewed instrument is active`;
+      const partialText = partial.length
+        ? ` · partial coverage: ${partial.map(disc => `${disc.number}. ${disc.name} ${map[disc.id].active}/${map[disc.id].instruments}`).join(", ")}`
+        : "";
+      const waitingText = waiting.length
+        ? ` · awaiting first active beat on ${waiting.map(disc => `${disc.number}. ${disc.name}`).join(", ")}`
+        : "";
+      return `${head}${partialText}${waitingText}`;
     }
 
     /** The view-frame point the camera centers on: the focused orb when focus
@@ -3557,9 +3651,7 @@
         context2d.fillText(String(orb.disc.number), orb.point.x, orb.point.y);
         context2d.restore();
         const statusLine = orb.status
-          ? orb.status.covered
-            ? `${orb.status.stored} of ${orb.status.instruments || orb.status.stored} stored · newest ${orb.status.newestAt ? shortTime(orb.status.newestAt) : "—"}`
-            : orb.status.instruments > 0 ? `${orb.status.instruments} reviewed · awaiting first beat` : "awaiting first beat · no reviewed instrument"
+          ? discOrbStatusText(orb.disc.id)
           : "not read this visit";
         /* Five full fields share the wide stage, so every orb carries its
            name and only the Disc the inspector is following also carries its
@@ -3607,23 +3699,20 @@
       return orbs;
     }
 
-    /** The simulated OCM links: one beat lane per reporting Disc to each ring
-        neighbour and one to the Center Origin, and the same lanes back. A Disc
-        the server holds nothing for transmits nothing: no invented traffic is
-        drawn for an orb awaiting its first beat. The beats are a picture of
-        the stored field, not a channel — nothing here sends, authorizes,
-        resolves, commits, or recommends. */
+    /** The simulated OCM links: one beat lane per Disc with fresh market data.
+        Stored refusals, stale rows, and missing contracts carry no traffic. The
+        packets are a local display-only picture, not a channel or transaction. */
     function ocmLanes() {
       const map = discStatusMap();
       const discs = state.constellation;
       const reporting = discs.map(disc => {
         const status = map[disc.id] || null;
-        return { disc, stored: status ? Math.max(0, Number(status.stored) || 0) : 0 };
-      }).filter(entry => entry.stored > 0);
+        return { disc, active: status ? Math.max(0, Number(status.active) || 0) : 0 };
+      }).filter(entry => entry.active > 0);
       const lanes = [];
       for (let index = 0; index < reporting.length; index += 1) {
         const entry = reporting[index];
-        const beats = clamp(1 + Math.floor(entry.stored / 16), 1, OCM_TRAFFIC_MAX_BEATS);
+        const beats = clamp(1 + Math.floor(entry.active / 16), 1, OCM_TRAFFIC_MAX_BEATS);
         if (reporting.length > 1) {
           const next = reporting[(index + 1) % reporting.length];
           const previous = reporting[(index - 1 + reporting.length) % reporting.length];
@@ -3636,14 +3725,169 @@
       return lanes;
     }
 
+    const CRYPTO_PAIR_PULSE_MS = 8_000;
+
+    function cryptoPairPort(symbol, center, radius) {
+      const angle = stableIdentityPhase(`crypto-inner-port:${symbol}`);
+      return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
+    }
+
+    function cryptoPairCurvePoint(start, end, u, bend) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const normal = { x: -dy / length, y: dx / length };
+      const control = {
+        x: (start.x + end.x) / 2 + normal.x * bend,
+        y: (start.y + end.y) / 2 + normal.y * bend
+      };
+      const inverse = 1 - u;
+      return {
+        x: inverse * inverse * start.x + 2 * inverse * u * control.x + u * u * end.x,
+        y: inverse * inverse * start.y + 2 * inverse * u * control.y + u * u * end.y
+      };
+    }
+
+    function cryptoInnerArc(fromPort, toPort, center, radius) {
+      const fromAngle = Math.atan2(fromPort.y - center.y, fromPort.x - center.x);
+      const toAngle = Math.atan2(toPort.y - center.y, toPort.x - center.x);
+      const delta = ((toAngle - fromAngle + 3 * Math.PI) % TAU) - Math.PI;
+      const steps = Math.max(3, Math.ceil(Math.abs(delta) * 6));
+      return Array.from({ length: steps + 1 }, (_, index) => {
+        const angle = fromAngle + delta * (index / steps);
+        return { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
+      });
+    }
+
+    function cryptoPolylinePoint(points, u) {
+      const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+      const total = lengths.reduce((sum, length) => sum + length, 0);
+      if (!total) return points[0];
+      let remaining = clamp(u, 0, 1) * total;
+      for (let index = 0; index < lengths.length; index += 1) {
+        if (remaining <= lengths[index] || index === lengths.length - 1) {
+          const fraction = lengths[index] > 0 ? clamp(remaining / lengths[index], 0, 1) : 0;
+          return {
+            x: points[index].x + (points[index + 1].x - points[index].x) * fraction,
+            y: points[index].y + (points[index + 1].y - points[index].y) * fraction
+          };
+        }
+        remaining -= lengths[index];
+      }
+      return points.at(-1);
+    }
+
+    /** Kraken's directly listed cross-quote OHLCV pairs are drawn twice: a
+        curved outer-Disc chord and a mirrored route through the inner pair orb.
+        Kraken's aggregate OHLCV bar has no trade-side direction, so the arrows
+        mirror pair orientation for display only; they are not measured flow,
+        individual trades, transfers, or OCM messages. */
+    function drawCryptoPairTraffic(now, width, height, innerCenter) {
+      const points = new Map(state.projected.map(point => [String(point.node && point.node.symbol || "").toUpperCase(), point]));
+      const observations = new Map();
+      for (const observation of state.observations.values()) {
+        if (observation.discId !== "crypto" || observation.provider !== "kraken") continue;
+        if (!observations.has(observation.symbol) || observation.at > observations.get(observation.symbol).at) {
+          observations.set(observation.symbol, observation);
+        }
+      }
+      const radius = clamp(Math.min(width, height) * 0.095, 20, 52);
+      const pairs = [];
+      for (const pair of state.cryptoPairs) {
+        const observation = observations.get(pair.symbol);
+        const from = points.get(pair.baseAsset);
+        const to = points.get(pair.quoteAsset);
+        if (!observation || !from || !to || !observation.market) continue;
+        const bar = observation.market.activityBar ||
+          (observation.market.latestBar && observation.market.latestBar.confirmed ? observation.market.latestBar : null);
+        const volume = bar && Number(bar.volume);
+        if (!bar || bar.confirmed !== true || !Number.isFinite(volume) || volume <= 0 || observation.market.volumeAvailable !== true) continue;
+        const freshness = observation.freshness && observation.freshness.status || "fresh";
+        const fresh = freshness === "fresh";
+        const fromPort = cryptoPairPort(pair.baseAsset, innerCenter, radius);
+        const toPort = cryptoPairPort(pair.quoteAsset, innerCenter, radius);
+        const arc = cryptoInnerArc(fromPort, toPort, innerCenter, radius);
+        const innerPath = [from, ...arc, to].map(point => ({ x: point.x, y: point.y }));
+        const outerBend = Math.min(42, Math.max(10, Math.hypot(to.x - from.x, to.y - from.y) * 0.14));
+        const phase = (now / CRYPTO_PAIR_PULSE_MS + stableIdentityPhase(pair.symbol) / TAU) % 1;
+        const outerForward = cryptoPairCurvePoint(from, to, phase, outerBend);
+        const outerReverse = cryptoPairCurvePoint(to, from, (phase + 0.5) % 1, -outerBend);
+        const innerForward = cryptoPolylinePoint(innerPath, phase);
+        const innerReverse = cryptoPolylinePoint([...innerPath].reverse(), (phase + 0.5) % 1);
+        pairs.push({
+          pair: pair.symbol, krakenPair: pair.krakenPair, baseAsset: pair.baseAsset, quoteAsset: pair.quoteAsset,
+          status: freshness, volume, active: fresh,
+          outer: { from, to, bend: outerBend },
+          innerPath,
+          packets: fresh ? [
+            { pair: pair.symbol, from: pair.baseAsset, to: pair.quoteAsset, direction: "base-to-quote", layer: "outer", u: phase, x: outerForward.x, y: outerForward.y },
+            { pair: pair.symbol, from: pair.quoteAsset, to: pair.baseAsset, direction: "quote-to-base", layer: "outer", u: (phase + 0.5) % 1, x: outerReverse.x, y: outerReverse.y },
+            { pair: pair.symbol, from: pair.baseAsset, to: pair.quoteAsset, direction: "base-to-quote", layer: "inner", u: phase, x: innerForward.x, y: innerForward.y },
+            { pair: pair.symbol, from: pair.quoteAsset, to: pair.baseAsset, direction: "quote-to-base", layer: "inner", u: (phase + 0.5) % 1, x: innerReverse.x, y: innerReverse.y }
+          ] : []
+        });
+      }
+      state.cryptoTrafficEdges = pairs.map(({ packets, ...edge }) => edge);
+      state.cryptoTrafficPackets = pairs.flatMap(edge => edge.packets);
+      if (!context2d || !pairs.length) return state.cryptoTrafficPackets;
+      context2d.save();
+      context2d.globalAlpha = 0.32;
+      context2d.strokeStyle = "#42c7e8";
+      context2d.lineWidth = 1;
+      context2d.setLineDash([3, 4]);
+      context2d.beginPath(); context2d.arc(innerCenter.x, innerCenter.y, radius, 0, TAU); context2d.stroke();
+      context2d.setLineDash([]);
+      context2d.fillStyle = "#64def1";
+      context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
+      context2d.textAlign = "center";
+      context2d.fillText("INNER OCM · PAIR ROUTES", innerCenter.x, innerCenter.y + radius + 12);
+      context2d.restore();
+      for (const edge of pairs) {
+        const alpha = edge.active ? 0.28 : 0.1;
+        context2d.save();
+        context2d.globalAlpha = alpha;
+        context2d.strokeStyle = edge.active ? "#38d3d4" : "#91a4b7";
+        context2d.lineWidth = edge.active ? 1.2 : 0.7;
+        if (!edge.active) context2d.setLineDash([2, 4]);
+        context2d.beginPath(); context2d.moveTo(edge.outer.from.x, edge.outer.from.y);
+        const midpoint = cryptoPairCurvePoint(edge.outer.from, edge.outer.to, 0.5, edge.outer.bend);
+        context2d.quadraticCurveTo(midpoint.x, midpoint.y, edge.outer.to.x, edge.outer.to.y);
+        context2d.stroke();
+        context2d.beginPath();
+        context2d.moveTo(edge.innerPath[0].x, edge.innerPath[0].y);
+        for (const point of edge.innerPath.slice(1)) context2d.lineTo(point.x, point.y);
+        context2d.stroke();
+        context2d.restore();
+      }
+      for (const packet of state.cryptoTrafficPackets) {
+        context2d.save();
+        context2d.globalAlpha = packet.direction === "base-to-quote" ? 0.95 : 0.72;
+        context2d.fillStyle = packet.layer === "inner" ? "#92f4ee" : "#ffe0a3";
+        context2d.beginPath(); context2d.arc(packet.x, packet.y, packet.layer === "inner" ? 2.6 : 2.2, 0, TAU); context2d.fill();
+        context2d.restore();
+      }
+      return state.cryptoTrafficPackets;
+    }
+
     /** One sentence for the panel: how many simulated beats are on the ring,
         and the standing reminder that this is a picture and not a channel. */
     function ocmTrafficText() {
+      if (state.discId === "crypto" && state.focusOrb) {
+        const activePairs = state.cryptoTrafficEdges.filter(edge => edge.active).length;
+        const storedPairs = state.cryptoTrafficEdges.length;
+        return `CRYPTO PAIR VISUALIZATION · ${activePairs} fresh / ${storedPairs} confirmed-volume cross-quote pairs · mirrored base↔quote pulses cross the inner OCM orb and outer Disc orb · aggregate OHLCV has no trade-side direction; pulses show pair orientation only, not observed flow, trades, or transfers; no OCM message is sent`;
+      }
       const lanes = ocmLanes();
       const beats = lanes.reduce((total, lane) => total + lane.beats, 0);
       const discs = new Set(lanes.filter(lane => lane.from).map(lane => lane.from.id)).size;
-      if (!beats) return "OCM TRAFFIC SIMULATION · every lane idle, no stored rows to carry";
-      return `OCM TRAFFIC SIMULATION · display only, sends nothing · ${discs} orb${discs === 1 ? "" : "s"} transmitting on ${lanes.length} lane${lanes.length === 1 ? "" : "s"} · each beat follows that Disc's stored rows`;
+      if (!beats) return "OCM TRAFFIC SIMULATION · every lane idle · no fresh market observations to carry";
+      return `OCM TRAFFIC SIMULATION · display only, sends nothing · ${discs} orb${discs === 1 ? "" : "s"} transmitting on ${lanes.length} lane${lanes.length === 1 ? "" : "s"} · lanes require fresh market observations, not held rows`;
+    }
+
+    function syncOcmTrafficNote() {
+      if (!ocmNote) return;
+      const text = ocmTrafficText();
+      if (ocmNote.textContent !== text) ocmNote.textContent = text;
     }
 
     /** Draw the simulated beats crossing the ring. Each lane carries a fixed
@@ -3788,7 +4032,11 @@
         meridian((index / 12) * TAU, width, height, index % 3 === 0 ? "#75d5fa" : "#5d7999", index % 3 === 0 ? 0.24 : 0.16);
       }
       state.projected = resolveProjectedNodes(nodes, width, height, now);
+      const fieldCenter = project(fieldOrigin(), width, height);
       updateFlowReadout(state.projected[state.selected] || null);
+      if (state.discId === "crypto" && state.focusOrb) drawCryptoPairTraffic(now, width, height, fieldCenter);
+      else { state.cryptoTrafficEdges = []; state.cryptoTrafficPackets = []; }
+      syncOcmTrafficNote();
       if (wideView) {
         /* The selected Disc's own field is the one the inspector, the beams,
            and the hit-test follow, so it is drawn a step brighter than its
@@ -3802,7 +4050,6 @@
          single-orb view is left exactly as it has always been. */
       if (wideView) drawOcmTraffic(now, width, height);
       else state.trafficPackets = [];
-      const fieldCenter = project(fieldOrigin(), width, height);
       drawCenterBeams(wallNow, fieldCenter);
       drawRoute(now, fieldCenter);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
