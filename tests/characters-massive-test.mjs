@@ -322,7 +322,7 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
     assert.equal(admitted.status, 200);
   }
   const rateLimited = await handleCharactersBeat(
-    beat("disc=fx&provider=massive&symbols=CADUSD&interval=1d&cadence=1"), envValue, dependencies
+    beat("disc=fx&provider=massive&symbols=CHFUSD&interval=1d&cadence=1"), envValue, dependencies
   );
   const payload = await rateLimited.json();
   assert.equal(rateLimited.status, 429, JSON.stringify(payload));
