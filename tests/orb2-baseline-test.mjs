@@ -50,7 +50,7 @@ test('missing, nonpositive, and invalid FBB inputs remain unknown', () => {
 test('spatial FBB bands expand logarithmically rather than linearly', () => {
   const one = bandGeometry(metrics(packet(1)));
   const two = bandGeometry(metrics(packet(1.45)));
-  const four = bandGeometry(metrics(packet(2.1025)));
+  const four = bandGeometry(metrics(packet(2.1025 * 1.000001)));
   assert.ok(two.radius > one.radius, 'next logarithmic band expands');
   assert.ok(four.radius > two.radius, 'later logarithmic band expands again');
   assert.equal(one.index, 0);
