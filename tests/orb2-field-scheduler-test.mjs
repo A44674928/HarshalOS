@@ -564,7 +564,12 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.ok(data.observations.every(observation => observation.discId === "stocks"));
   assert.equal(data.status.counts.observed, 52);
   assert.equal(data.status.massive.perMinute, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
-  assert.equal(data.status.massive.dailyLimit, 300);
+  assert.equal(data.status.massive.perMinutePerAssetClass, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(data.status.massive.perMinuteScope, "per-asset-class");
+  assert.equal(data.status.massive.dailyLimit, null);
+  assert.equal(data.status.massive.remainingToday, null);
+  assert.equal(data.status.massive.exhausted, false);
+  assert.equal(data.status.massive.ledger, "provider-rate-class");
   assert.equal(data.status.futuresContracts.cache, "ready");
   assert.equal(data.status.futuresContracts.reviewedProducts, 11);
   assert.equal(data.status.futuresContracts.activeContracts, 11);
