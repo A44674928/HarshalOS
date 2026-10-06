@@ -140,7 +140,7 @@
            provider-specific daily route (Kraken for crypto, Massive otherwise). */
         interval: "1d",
         source: "live",
-        auto: true,
+        auto: false,
         stretch: false,
         tierMode: false,
         tierSweepHours: 24,
@@ -206,7 +206,7 @@
             </label>
             <div class="ch-buttons">
               <button class="ch-btn ch-btn-primary" data-ch-beat>Beat now</button>
-              <button class="ch-btn" data-ch-auto aria-pressed="true">Auto-beat: on</button>
+              <button class="ch-btn" data-ch-auto aria-pressed="false">Auto-beat: off</button>
             </div>
           </section>
           <p class="ch-disc-note" data-ch-disc-note></p>
@@ -1296,10 +1296,9 @@
           if (!Array.isArray(entries) || !entries.length) throw new Error(`No reviewed instruments are available for ${disc.label}.`);
 
           state.discId = discId;
-          /* Discs2–5 expose only Massive's automatic daily path. Entering one
-             returns the live loop to its automatic setting; Disc1 can still be
-             deliberately paused into an on-demand Tickerbot 1d request. */
-          if (discId !== "stocks") state.auto = true;
+          /* Auto-beat is an operator opt-in. Switching Discs changes provider
+             identity, roster, and cadence constraints, but never silently enables
+             a background loop. */
           activeDisc.current = discId;
           state.ranking = ranking;
           activeDisc.ranking = ranking;
@@ -1330,7 +1329,6 @@
         }
         if (nextInterval === state.interval) return;
         state.interval = nextInterval;
-        state.auto = nextInterval === "1d";
         state.tierMode = false;
         state.stretch = false;
         state.motions = {};
