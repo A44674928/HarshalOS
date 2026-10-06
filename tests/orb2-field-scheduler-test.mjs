@@ -288,13 +288,13 @@ test("a cold tick keeps Massive inside its envelope and Kraken's roster and OHLC
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true);
-  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS, "contract discovery and Massive bars stay inside the five-request envelope");
+  assert.equal(summary.massiveCalls, 12, "cold-field availability is bounded by the three independent Massive classes and the one verified futures contract");
   assert.equal(seen.krakenRanking.length, 1, "Disc3's roster is fetched from Kraken Spot");
   assert.equal(seen.krakenBars.length, 0, "the roster call occupies Kraken's one-per-second gate, so OHLC waits for a later tick");
   assert.equal(seen.contracts.length, 1, "one active futures product is discovered per tick");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS - 1, "contract discovery leaves four Massive bar slots");
-  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS - 1);
-  assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(seen.massive.length, 11, "the cold field discovers one futures contract and then uses the remaining eligible class capacity");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, 11);
+  assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, 12);
   const row = sql.prepare("SELECT payload, interval, confirmed FROM orb2_field_observations WHERE interval='1d' AND provider='massive' LIMIT 1").get();
   const payload = JSON.parse(row.payload);
   assert.equal(payload.schema, "gi-orb2-field-observation-v1");
