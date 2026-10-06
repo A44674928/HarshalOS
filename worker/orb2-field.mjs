@@ -89,7 +89,12 @@ export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
    and LIMIT bindings so symbol-scoped field reads remain below that ceiling. */
 const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
-export const ORB2_MASSIVE_PER_MINUTE = 5;
+export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
+const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
+  currencies: Object.freeze(["fx"]),
+  futures: Object.freeze(["commodities"]),
+  indices: Object.freeze(["indices"])
+});
 export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 24;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
@@ -1158,68 +1163,57 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     }
 
     /* 5 · Massive is limited to reviewed FX, active commodity futures, and
-       indices. Five requests per minute per Massive asset class apply; the old daily guard is telemetry only. */
-    const massiveInstruments = roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId));
-    const minuteRemaining = Math.max(
-      availableMassiveBudget(CRON_REQUEST, env, now, "currencies").remaining,
-      availableMassiveBudget(CRON_REQUEST, env, now, "futures").remaining,
-      availableMassiveBudget(CRON_REQUEST, env, now, "indices").remaining
-    );
-    const pacedLimit = Math.min(ORB2_MASSIVE_PER_MINUTE, minuteRemaining);
-    const maxMassiveThisTick = Math.max(0, pacedLimit - summary.massiveCalls);
-    const slots = Math.max(0, Math.min(
-      maxMassiveThisTick,
-      minuteRemaining,
-      dailyRemaining - summary.massiveCalls
-    ));
+       indices. Each Massive subscription class receives its own five-request
+       server-side budget. The D1 UTC-day counter is telemetry only. */
     if (!keys.massive) {
       summary.notes.push("Massive FX/futures/index lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
-    } else if (!massiveLedger.ok) {
-      summary.errors.push(massiveLedger.message);
-    } else if (slots > 0) {
-      /* The rotation reserves one expired berth per Massive-reviewed Disc
-         before filling remaining slots oldest-first. Stocks and crypto never
-         enter this provider lane. */
-      const rotation = await dueRotation(db, massiveInstruments, slots, now, "massive");
-      const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
-        entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
-      }));
-      for (const outcome of outcomes) {
-        const instrument = outcome.entry.instrument;
-        if (outcome.attempted) summary.massiveCalls += 1;
-        if (outcome.ok) {
-          const observation = observationFromPacket({
-            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
-            provider: "massive", interval: "1d", now, reason: "server-sweep"
-          });
-          if (observation) {
-            await writeObservation(db, observation, now);
-            summary.observed += 1;
-            continue;
+    } else {
+      for (const [assetClass, discs] of Object.entries(ORB2_MASSIVE_DISCS_BY_ASSET_CLASS)) {
+        const instruments = roster.instruments.filter(instrument => discs.includes(instrument.discId));
+        const slots = Math.max(0, Math.min(
+          ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+          availableMassiveBudget(CRON_REQUEST, env, now, assetClass).remaining
+        ));
+        if (!instruments.length || slots <= 0) continue;
+        const rotation = await dueRotation(db, instruments, slots, now, "massive");
+        const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
+          entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
+        }));
+        for (const outcome of outcomes) {
+          const instrument = outcome.entry.instrument;
+          if (outcome.attempted) summary.massiveCalls += 1;
+          if (outcome.ok) {
+            const observation = observationFromPacket({
+              packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+              name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
+              provider: "massive", interval: "1d", now, reason: "server-sweep"
+            });
+            if (observation) {
+              await writeObservation(db, observation, now);
+              summary.observed += 1;
+              continue;
+            }
+          }
+          summary.held += 1;
+          summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
+          if (outcome.attempted) {
+            const heldObs = heldFieldObservation({
+              symbol: instrument.symbol,
+              displaySymbol: instrumentDisplay(instrument),
+              name: instrumentName(instrument),
+              sector: instrumentSector(instrument),
+              discId: instrument.discId,
+              provider: "massive",
+              interval: "1d",
+              now,
+              reason: "server-sweep",
+              code: outcome.code || "massive-refusal",
+              message: text(outcome.message, 140) || "Massive did not answer"
+            });
+            if (heldObs) await writeObservation(db, heldObs, now);
           }
         }
-        summary.held += 1;
-        summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
-        if (outcome.attempted) {
-          const heldObs = heldFieldObservation({
-            symbol: instrument.symbol,
-            displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument),
-            sector: instrumentSector(instrument),
-            discId: instrument.discId,
-            provider: "massive",
-            interval: "1d",
-            now,
-            reason: "server-sweep",
-            code: outcome.code || "massive-refusal",
-            message: text(outcome.message, 140) || "Massive did not answer"
-          });
-          if (heldObs) await writeObservation(db, heldObs, now);
-        }
       }
-    } else if (massiveLedger.ok && massiveLedger.ledger.exhausted) {
-      summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); Tickerbot stock and Kraken crypto lanes are separately accounted.`);
     }
 
     summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
