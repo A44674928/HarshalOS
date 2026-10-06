@@ -54,6 +54,81 @@ function harness() {
 
 /* ── the stored server field, as the Worker writes it ─────────────────────── */
 
+
+function raceObservation({ symbol = "TMO", interval = "1d", barCount = 240, compositionPosition = null, marketOverrides = {} } = {}) {
+  const market = { ...marketSummary(interval, "tickerbot"), barCount, ...marketOverrides };
+  return {
+    symbol, discId: "stocks", interval, market,
+    ...(compositionPosition === null ? {} : { composition: { composedPosition: compositionPosition } })
+  };
+}
+
+test("dual market races keep FBB-dependent established tickers separate from formation tickers", () => {
+  const { orb } = harness();
+  const tmo = orb.marketRacePosition(
+    { symbol: "TMO", marketStage: "established" },
+    raceObservation({ symbol: "TMO", compositionPosition: 0.94 })
+  );
+  const spcx = orb.marketRacePosition(
+    { symbol: "SPCX", marketStage: "formation" },
+    raceObservation({ symbol: "SPCX", barCount: 8, marketOverrides: { changePct: 4 } })
+  );
+  assert.equal(tmo.eligible, true);
+  assert.equal(tmo.progress, 0.94);
+  assert.equal(spcx.eligible, true);
+  assert.ok(spcx.progress > 0 && spcx.progress < 0.5);
+  assert.equal(spcx.trackPosition, 1 - spcx.progress);
+  assert.equal(spcx.fbbId, null);
+});
+
+test("missing FBB holds an established ticker instead of reclassifying it as an IPO", () => {
+  const { orb } = harness();
+  const held = orb.marketRacePosition(
+    { symbol: "ABC", marketStage: "established" },
+    { symbol: "ABC", discId: "stocks", interval: "1d", market: { barCount: 12, latestBar: { close: 101 }, changePct: 2 } }
+  );
+  assert.equal(held.eligible, false);
+  assert.equal(held.status, "held");
+  assert.equal(held.reason, "fbb-history-unavailable");
+});
+
+test("FBB-L60 availability marks a formation ticker ready for graduation without fabricating FBB-200", () => {
+  const { orb } = harness();
+  const observation = raceObservation({
+    symbol: "SPCX",
+    barCount: 60,
+    marketOverrides: {
+      fbbVariants: {
+        "FBB-L60": { id: "FBB-L60", status: "available" },
+        "FBB-200": { id: "FBB-200", status: "insufficient-history" }
+      }
+    }
+  });
+  const row = orb.marketRacePosition({ symbol: "SPCX", marketStage: "formation" }, observation);
+  assert.equal(row.graduationReady, true);
+  assert.equal(row.fbbId, "FBB-L60");
+  assert.equal(row.status, "graduation-ready");
+});
+
+test("the established and formation lanes approach each other from opposite ends", () => {
+  const { orb } = harness();
+  const snapshot = orb.buildMarketRaceSnapshot(
+    [
+      { symbol: "TMO", marketStage: "established" },
+      { symbol: "SPCX", marketStage: "formation" }
+    ],
+    new Map([
+      ["tmo", raceObservation({ symbol: "TMO", compositionPosition: 0.96 })],
+      ["spcx", raceObservation({ symbol: "SPCX", barCount: 30 })]
+    ])
+  );
+  assert.equal(snapshot.established[0].entry.symbol, "TMO");
+  assert.equal(snapshot.established[0].race.trackPosition, 0.96);
+  assert.ok(snapshot.formation[0].race.trackPosition < 1);
+  assert.ok(snapshot.formation[0].race.trackPosition > 0);
+  assert.equal(snapshot.formation[0].race.trackPosition, 1 - snapshot.formation[0].race.progress);
+});
+
 function marketSummary(interval = "1d", provider = "massive") {
   return {
     status: "ready", source: `${provider} · reviewed OHLCV · as of ${new Date(NOW).toISOString()}`,
