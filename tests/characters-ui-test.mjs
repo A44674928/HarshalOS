@@ -158,10 +158,8 @@ async function boot(t, { handler, seed } = {}) {
   const container = window.document.getElementById("host");
   const toasts = [];
   APPS.find(app => app.id === "characters").render(container, { toast: (...args) => toasts.push(args) });
-  /* Let the opening automatic beat settle before pausing its timer. This
-     prevents a later manual test action from racing its in-flight request. */
-  await flush();
-  container.querySelector("[data-ch-auto]").dispatchEvent(new window.Event("click"));
+  /* The opening beat is a one-shot initial observation. Auto-beat itself is
+     opt-in and must remain off until the operator enables it explicitly. */
   await flush();
   return { window, container, calls, toasts, text: () => container.textContent };
 }
@@ -188,6 +186,9 @@ test("the app opens on Tickerbot daily stocks and offers only reviewed Character
   assert.match(body, /direct provider calls are outside those ledgers/i);
   assert.equal(container.querySelector("[data-ch-source-badge]").textContent.includes("Tickerbot"), true);
   assert.equal(container.querySelector("[data-ch-interval]").value, "1d");
+  assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false",
+    "Auto-beat is opt-in and starts off");
+  assert.match(container.querySelector("[data-ch-auto]").textContent, /Auto-beat: off/);
   assert.equal(container.querySelector("[data-ch-interval] option[value=\"1mo\"]"), null,
     "Alpha Vantage/1mo is not selectable for a new beat");
   assert.ok(calls.length >= 1, "the app tried the opening live beat");
@@ -202,6 +203,46 @@ test("the app opens on Tickerbot daily stocks and offers only reviewed Character
   assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false");
   assert.equal(container.querySelectorAll("[data-ch-cadence-chip]").length, 5,
     "the on-demand 1h plan retains its reviewed cadence choices");
+});
+
+test("auto-beat stays off when the operator changes Disc or bar size", async t => {
+  const requested = [];
+  const { window, container } = await boot(t, {
+    handler: async url => {
+      const parsed = new URL(url, "https://os.example");
+      requested.push(parsed);
+      const symbols = (parsed.searchParams.get("symbols") || "").split(",").filter(Boolean);
+      const provider = parsed.searchParams.get("provider") || "tickerbot";
+      return Response.json(provider === "massive"
+        ? massiveBeatPayload(symbols, "fx")
+        : liveBeatPayload(symbols, {
+            disc: parsed.searchParams.get("disc") || "stocks",
+            interval: parsed.searchParams.get("interval") || "1d",
+            provider
+          }));
+    }
+  });
+
+  assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false");
+
+  const disc = container.querySelector("[data-ch-disc]");
+  disc.value = "fx";
+  disc.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false",
+    "switching to a fixed daily Disc does not silently enable Auto-beat");
+
+  disc.value = "stocks";
+  disc.dispatchEvent(new window.Event("change"));
+  await flush();
+
+  const interval = container.querySelector("[data-ch-interval]");
+  interval.value = "1h";
+  interval.dispatchEvent(new window.Event("change"));
+  await flush();
+  assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false",
+    "changing bar size does not silently enable Auto-beat");
+  assert.ok(requested.length >= 2, "Disc selection may perform its one-shot load without enabling the scheduler");
 });
 
 test("an unconfigured Worker falls back to labeled rehearsal and spends nothing", async t => {
