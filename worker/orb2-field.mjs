@@ -1328,7 +1328,7 @@ async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limi
       clauses.push(`symbol IN (${symbolBatch.map(() => "?").join(",")})`);
       bindings.push(...symbolBatch);
     }
-    let query = `SELECT payload, observed_at, symbol FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;
+    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;
     if (Number.isFinite(limit)) {
       query += " LIMIT ?";
       bindings.push(limit);
@@ -1359,21 +1359,48 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
   const requestedTypes = Array.isArray(options.types) && options.types.length
     ? new Set(options.types.filter(type => BEAT_TYPE_IDS.has(type))) : new Set(BEAT_TYPE_IDS);
   try {
+    const hasResponseFilter = Boolean(disc || requestedSymbols.length);
     const rows = await readOrb2FieldRows(db, {
       interval, disc, symbols: requestedSymbols, limit: ORB2_FIELD_MAX_OBSERVATIONS
     });
-    let observations = rows
-      .map(row => parsePacketRow(row, now)).filter(Boolean)
-      .map(observation => ({ ...observation, freshness: orb2FieldFreshness(observation.interval, observation.observedAt, now) }));
+    /* The ordinary full-field poll already has every reviewed berth (well below
+       the 240-row response bound). Reuse that result for Disc status instead of
+       reading and validating the same JSON payloads a second time. A focused
+       response still gets a full-field read so its constellation status remains
+       complete; if that diagnostic read fails, the focused observations remain
+       the bounded fallback as before. */
+    let fieldRows = rows;
+    let storedRowsRead = !hasResponseFilter;
+    if (hasResponseFilter) {
+      try {
+        fieldRows = await readOrb2FieldRows(db, { interval });
+        storedRowsRead = true;
+      } catch { /* focused observations remain a bounded status fallback */ }
+    }
+    const parsedFieldRows = new Map();
+    const parseFieldRow = row => {
+      const key = `${String(row.disc_id || "")}:${String(row.symbol || "")}`;
+      if (parsedFieldRows.has(key)) return parsedFieldRows.get(key);
+      const parsed = parsePacketRow(row, now);
+      const observation = parsed
+        ? { ...parsed, freshness: orb2FieldFreshness(parsed.interval, parsed.observedAt, now) }
+        : null;
+      parsedFieldRows.set(key, observation);
+      return observation;
+    };
+    let observations = rows.map(parseFieldRow).filter(Boolean);
+    const fieldObservations = fieldRows === rows ? observations : fieldRows.map(parseFieldRow).filter(Boolean);
     /* Re-compose at read time so a 15m packet cannot remain visually force-multiplied
        after its freshness window has elapsed. The persisted composition is a compact
        audit/recovery value; the current snapshot is the time-aware authority. */
     const companionInterval = interval === "1d" ? ORB2_INTRADAY_INTERVAL : interval === ORB2_INTRADAY_INTERVAL ? "1d" : null;
     if (companionInterval && observations.length) {
-      const companionSymbols = [...new Set(observations.map(observation => observation.symbol))];
-      const companionRows = await readOrb2FieldRows(db, {
+      const companionSymbols = [...new Set(observations
+        .filter(observation => observation.discId === "stocks")
+        .map(observation => observation.symbol))];
+      const companionRows = companionSymbols.length ? await readOrb2FieldRows(db, {
         interval: companionInterval, symbols: companionSymbols
-      });
+      }) : [];
       const companions = companionRows.map(row => parsePacketRow(row, now)).filter(Boolean);
       const bySymbol = new Map(companions.map(observation => [observation.symbol, observation]));
       observations = observations.map(observation => {
@@ -1384,17 +1411,42 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           : observation;
       });
     }
-    const marketCount = observations.filter(observation => observation.market).length;
+    let marketCount = 0;
+    let confirmedCount = 0;
+    let heldCount = 0;
+    const beatTypeCounts = new Map(ORB2_FIELD_BEAT_TYPES.map(type => [type.id, 0]));
+    for (const observation of observations) {
+      if (observation.market) marketCount += 1;
+      if (observation.confirmed) confirmedCount += 1;
+      if (!observation.market) heldCount += 1;
+      for (const typeId of observation.beatTypes || []) {
+        if (beatTypeCounts.has(typeId)) beatTypeCounts.set(typeId, beatTypeCounts.get(typeId) + 1);
+      }
+    }
     const types = ORB2_FIELD_BEAT_TYPES.map(type => {
-      const offered = observations.filter(observation => orb2FieldBeatTypesFor(observation).includes(type.id));
+      const count = beatTypeCounts.get(type.id) || 0;
       return {
         id: type.id, label: type.label, live: type.live, summary: type.summary,
-        available: requestedTypes.has(type.id) && offered.length > 0,
-        count: offered.length,
+        available: requestedTypes.has(type.id) && count > 0,
+        count,
         source: type.live ? "server-provider-beat" : "deterministic-local-scenario"
       };
     });
-    const run = await readRun(db, now);
+    /* These D1 reads are independent. Run them together so the response does not
+       serialize a dozen avoidable round trips after its payload work. The normal
+       daily snapshot also already contains the DXY inputs, so no second JSON read
+       is needed for that benchmark. */
+    const [run, cachedCryptoRanking, cachedFutures, control, massiveLedger, tickerbotLedger, krakenLedger, queue, dxy] = await Promise.all([
+      readRun(db, now),
+      readCharactersCryptoRankingCache({ db, now }),
+      readMassiveFuturesContractState({ db, now }),
+      readControl(db),
+      readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT),
+      readTickerbotCallLedger(db, now),
+      readKrakenCallLedger(db, now),
+      queueDepth(db, now),
+      evaluateDxy(db, now, interval === "1d" && storedRowsRead ? fieldObservations : null)
+    ]);
     /* Per-Disc status for the constellation view: one row per reviewed Disc.
        Stored totals are matched against the current reviewed symbols before being
        reported. Old/orphaned rows can remain in D1, but they cannot produce
@@ -1403,8 +1455,6 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
        the response is narrowed to one Disc or a symbol list. Only fresh market
        observations count as active; held, stale, and contract-pending rows remain
        distinguishable. A Disc with no matching row reports zero and newestAt null. */
-    const cachedCryptoRanking = await readCharactersCryptoRankingCache({ db, now });
-    const cachedFutures = await readMassiveFuturesContractState({ db, now });
     const rosterForStatus = orb2FieldRoster({
       now,
       cryptoRanking: cachedCryptoRanking.ok ? cachedCryptoRanking.ranking : null,
@@ -1413,11 +1463,8 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     const catalogForStatus = globalThis.CharactersDiscCatalog;
     const storedByDisc = new Map();
     const observationByDiscAndSymbol = new Map();
-    let storedRowsRead = false;
-    try {
-      const storedRows = await db.prepare(`SELECT payload, disc_id, symbol, provider, observed_at, confirmed
-        FROM orb2_field_observations WHERE interval = ?`).bind(interval).all();
-      for (const row of (Array.isArray(storedRows && storedRows.results) ? storedRows.results : [])) {
+    if (storedRowsRead) {
+      for (const row of fieldRows) {
         const discId = text(row.disc_id, 24).toLowerCase();
         const symbol = text(row.symbol, 32).toUpperCase();
         if (!ORB2_FIELD_DISCS.includes(discId) || !SYMBOL_PATTERN.test(symbol)) continue;
@@ -1428,7 +1475,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           confirmed: Number(row.confirmed) > 0,
           provider: text(row.provider, 24)
         });
-        const parsed = parsePacketRow(row, now);
+        const parsed = parseFieldRow(row);
         if (parsed) {
           observationByDiscAndSymbol.set(`${discId}:${symbol}`, {
             ...parsed,
@@ -1437,8 +1484,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           });
         }
       }
-      storedRowsRead = true;
-    } catch { /* served observations remain a bounded fallback for status diagnostics */ }
+    }
     for (const observation of observations) {
       const key = `${observation.discId}:${observation.symbol}`;
       if (!observationByDiscAndSymbol.has(key)) {
@@ -1448,8 +1494,14 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         });
       }
     }
+    const instrumentsByDisc = new Map(ORB2_FIELD_DISCS.map(discId => [discId, []]));
+    for (const instrument of rosterForStatus.instruments) {
+      const bucket = instrumentsByDisc.get(instrument.discId);
+      if (bucket) bucket.push(instrument);
+    }
+    const activeCommoditySymbols = new Set(rosterForStatus.commodities.map(instrument => instrument.symbol));
     const discs = ORB2_FIELD_DISCS.map((discId, index) => {
-      const instruments = rosterForStatus.instruments.filter(instrument => instrument.discId === discId);
+      const instruments = instrumentsByDisc.get(discId) || [];
       const discDef = catalogForStatus && typeof catalogForStatus.disc === "function" ? catalogForStatus.disc(discId) : null;
       const reviewedRoster = discId === "commodities"
         ? (Array.isArray(catalogForStatus && catalogForStatus.commodities) ? catalogForStatus.commodities : [])
@@ -1466,21 +1518,35 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
                 ? (cachedCryptoRanking.ranking?.instruments?.length || 0) + (cachedCryptoRanking.ranking?.crossPairs?.length || 0)
                 : 0))
             : instruments.length;
-      const reviewedSymbols = new Set(reviewedRoster
-        .map(instrument => text(instrument && instrument.symbol, 32).toUpperCase())
-        .filter(symbol => SYMBOL_PATTERN.test(symbol)));
-      const storedRecords = [...(storedByDisc.get(discId) || new Map()).entries()]
-        .filter(([symbol]) => reviewedSymbols.has(symbol));
-      const servedRows = observations.filter(observation => observation.discId === discId &&
-        reviewedSymbols.has(String(observation.symbol || "").toUpperCase()));
-      const stored = storedRowsRead ? storedRecords.length : servedRows.length;
-      const confirmed = storedRowsRead
-        ? storedRecords.filter(([, row]) => row.confirmed).length
-        : servedRows.filter(observation => observation.confirmed).length;
-      const newestAt = storedRowsRead
-        ? storedRecords.reduce((latest, [, row]) => Math.max(latest, row.observedAt), 0) || null
-        : servedRows.reduce((latest, observation) => Math.max(latest, Number(observation.observedAt) || 0), 0) || null;
-      const activeCommoditySymbols = new Set(rosterForStatus.commodities.map(instrument => instrument.symbol));
+      const reviewedSymbols = new Set();
+      for (const instrument of reviewedRoster) {
+        const symbol = text(instrument && instrument.symbol, 32).toUpperCase();
+        if (SYMBOL_PATTERN.test(symbol)) reviewedSymbols.add(symbol);
+      }
+      let stored = 0;
+      let confirmed = 0;
+      let newestAt = 0;
+      const providerSet = new Set();
+      if (storedRowsRead) {
+        for (const [symbol, row] of storedByDisc.get(discId) || []) {
+          if (!reviewedSymbols.has(symbol)) continue;
+          stored += 1;
+          if (row.confirmed) confirmed += 1;
+          newestAt = Math.max(newestAt, row.observedAt);
+          if (row.provider) providerSet.add(row.provider);
+        }
+      } else {
+        for (const observation of observations) {
+          if (observation.discId !== discId || !reviewedSymbols.has(observation.symbol)) continue;
+          stored += 1;
+          if (observation.confirmed) confirmed += 1;
+          newestAt = Math.max(newestAt, Number(observation.observedAt) || 0);
+        }
+      }
+      let active = 0;
+      let stale = 0;
+      let held = 0;
+      let pending = 0;
       const members = reviewedRoster.map(instrument => {
         const symbol = text(instrument.symbol, 32).toUpperCase();
         const observation = observationByDiscAndSymbol.get(`${discId}:${symbol}`) || null;
@@ -1492,6 +1558,10 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           ? freshness && freshness.status === "fresh" ? "active" : "stale"
           : observation ? "held"
             : discId === "commodities" && !activeCommoditySymbols.has(symbol) ? "contract-pending" : "pending";
+        if (memberStatus === "active") active += 1;
+        else if (memberStatus === "stale") stale += 1;
+        else if (memberStatus === "held") held += 1;
+        else pending += 1;
         const contractPending = memberStatus === "contract-pending";
         return {
           symbol,
@@ -1506,11 +1576,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
             : memberStatus === "pending" ? "No stored observation yet." : ""
         };
       });
-      const active = members.filter(member => member.status === "active").length;
-      const stale = members.filter(member => member.status === "stale").length;
-      const held = members.filter(member => member.status === "held").length;
-      const pending = members.filter(member => member.status === "pending" || member.status === "contract-pending").length;
-      const providers = [...new Set(storedRecords.map(([, row]) => row.provider).filter(Boolean))].sort();
+      const providers = [...providerSet].sort();
       return {
         id: discId,
         number: Number(discDef && discDef.number) || index + 1,
@@ -1521,7 +1587,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         ...(discId === "crypto" ? { assets: rosterForStatus.crypto.length, pairs: reviewedInstrumentCount } : {}),
         stored,
         confirmed,
-        newestAt,
+        newestAt: newestAt || null,
         observed: active + stale,
         active,
         stale,
@@ -1534,12 +1600,6 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         complete: reviewedInstrumentCount > 0 && active >= reviewedInstrumentCount
       };
     });
-    const control = await readControl(db);
-    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-    const tickerbotLedger = await readTickerbotCallLedger(db, now);
-    const krakenLedger = await readKrakenCallLedger(db, now);
-    const queue = await queueDepth(db, now);
-    const dxy = await evaluateDxy(db, now);
     const status = {
       schema: ORB2_FIELD_STATUS_SCHEMA,
       source: "server-field",
@@ -1607,8 +1667,8 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       counts: {
         stored: observations.length,
         observed: marketCount,
-        confirmed: observations.filter(observation => observation.confirmed).length,
-        held: observations.filter(observation => !observation.market).length,
+        confirmed: confirmedCount,
+        held: heldCount,
         reviewedInstruments: discs.reduce((sum, d) => sum + (Number(d.instruments) || 0), 0)
       },
       discs
@@ -1639,17 +1699,21 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
  * Disc the client is currently looking at, so switching Discs never blanks the
  * Center Origin reference.
  */
-async function evaluateDxy(db, now) {
+async function evaluateDxy(db, now, existingObservations = null) {
   const dxy = globalThis.GoodIntelligenceDxy;
   if (!dxy || typeof dxy.evaluate !== "function") return null;
-  const symbols = dxy.COMPONENTS.map(component => component.symbol);
-  const rows = await db.prepare(`SELECT payload FROM orb2_field_observations
-    WHERE interval = '1d' AND symbol IN (${symbols.map(() => "?").join(",")})`)
-    .bind(...symbols).all();
-  const stored = (Array.isArray(rows && rows.results) ? rows.results : [])
-    .map(row => parsePacketRow(row, now)).filter(Boolean);
+  let stored = existingObservations;
+  if (!Array.isArray(stored)) {
+    const symbols = dxy.COMPONENTS.map(component => component.symbol);
+    const rows = await db.prepare(`SELECT payload FROM orb2_field_observations
+      WHERE interval = '1d' AND symbol IN (${symbols.map(() => "?").join(",")})`)
+      .bind(...symbols).all();
+    stored = (Array.isArray(rows && rows.results) ? rows.results : [])
+      .map(row => parsePacketRow(row, now)).filter(Boolean);
+  }
+  const componentSymbols = new Set(dxy.COMPONENTS.map(component => component.symbol));
   const inputs = stored
-    .filter(observation => observation.discId === "fx")
+    .filter(observation => observation.discId === "fx" && componentSymbols.has(observation.symbol))
     .map(observation => ({
       symbol: observation.symbol, discId: "fx", providerMode: "massive", interval: "1d",
       status: observation.status, market: observation.market

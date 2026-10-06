@@ -687,6 +687,25 @@ test("large Orb 2 snapshots split symbol reads under D1's bind-variable limit", 
   assert.equal(data.observations.at(-1).symbol, symbols.at(-1));
 });
 
+test("a full daily snapshot reuses its field rows for Disc status and DXY", async t => {
+  const { sql, env } = fixture(t);
+  seedHeldObservation(sql, { symbol: "EURUSD", discId: "fx" });
+  const fieldQueries = [];
+  const prepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
+  env.COMMUNITY_DB.prepare = query => {
+    if (/FROM\s+orb2_field_observations/i.test(query)) fieldQueries.push(String(query).replace(/\s+/g, " "));
+    return prepare(query);
+  };
+
+  const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
+  assert.equal(response.status, 200);
+  const { data } = await response.json();
+  const fx = data.status.discs.find(disc => disc.id === "fx");
+  assert.equal(fx.stored, 1);
+  assert.equal(fx.held, 1);
+  assert.equal(fieldQueries.length, 1, "the daily payload scan is shared by rendering, Disc status, and DXY");
+});
+
 test("the snapshot fails visibly when D1 or migration 0009 is missing", async t => {
   const { env } = fixture(t, { migrated: false });
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
