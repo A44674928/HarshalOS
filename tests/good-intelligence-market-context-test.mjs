@@ -155,7 +155,7 @@ test("Fibonacci Bollinger bands use only natural-log inputs, offsets, and expone
       `lower ${suffix} symmetry in log space`, 1e-5);
   }
   assert.equal(result.chartSeries.at(-1).basis, result.bands.basis, "charts receive the exponentiated log basis");
-  assert.match(result.note, /population standard deviation of ln\(source\).*exponentiate/i);
+  assert.match(result.note, /population standard deviation.*ln\(source\).*exponentiate/i);
 });
 
 test("all FBB moving-average choices are scale-equivariant because their input is ln(price)", () => {
