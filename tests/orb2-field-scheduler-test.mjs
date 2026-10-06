@@ -552,8 +552,10 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
     existingCommodity.confirmed, snapshotAt
   );
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => snapshotAt });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   assert.equal(data.schema, "gi-orb2-field-v1");
   assert.equal(data.status.source, "server-field");
   assert.equal(data.status.continuous, true);
@@ -644,8 +646,10 @@ test("Disc activation status separates fresh commodity/index data from held rows
   }
 
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   const discs = Object.fromEntries(data.status.discs.map(disc => [disc.id, disc]));
   assert.deepEqual({ instruments: discs.commodities.instruments, stored: discs.commodities.stored, active: discs.commodities.active,
     observed: discs.commodities.observed, held: discs.commodities.held, pending: discs.commodities.pending },
@@ -687,8 +691,10 @@ test("large Orb 2 snapshots split symbol reads under D1's bind-variable limit", 
   /* The unfiltered 1d snapshot also looks up matching 15m companion rows.
      Before batching, that IN clause contained all 130 symbols and D1 rejected it. */
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   assert.equal(data.observations.length, 130);
   assert.equal(data.observations[0].symbol, symbols[0]);
   assert.equal(data.observations.at(-1).symbol, symbols.at(-1));
@@ -705,8 +711,10 @@ test("a full daily snapshot reuses its field rows for Disc status and Dollar Str
   };
 
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   const fx = data.status.discs.find(disc => disc.id === "fx");
   assert.equal(fx.stored, 1);
   assert.equal(fx.held, 1);
