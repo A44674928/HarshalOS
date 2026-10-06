@@ -255,7 +255,7 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
   const fx = statics(catalog && catalog.fxCurrencies, "fx", "fx");
   const today = new Date(Number(now)).toISOString().slice(0, 10);
   const contracts = commodityContracts && typeof commodityContracts === "object" ? commodityContracts : {};
-  const commodities = statics(catalog && catalog.commodities, "commodities", "commodity")
+  const commodities = statics(catalog && (catalog.futures || catalog.commodities), "commodities", "futures")
     .flatMap(entry => {
       const productCode = String(entry.massive && entry.massive.productCode || "").toUpperCase();
       const contract = contracts[productCode];
@@ -276,7 +276,7 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
             ? { daysToMaturity: contract.daysToMaturity } : {}),
           ...(typeof contract.name === "string" ? { name: contract.name.slice(0, 120) } : {})
         }),
-        discId: "commodities", assetClass: "commodity"
+        discId: "commodities", assetClass: "futures"
       })];
     });
   const indices = statics(catalog && catalog.indices, "indices", "index");
