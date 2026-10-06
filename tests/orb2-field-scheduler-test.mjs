@@ -797,10 +797,10 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
 
 test("a migrated field never issues ALTER TABLE, so no duplicate-column error reaches observability", async t => {
   const { env } = fixture(t);
-  const alters = [];
+  const steadyStateAlters = [];
   const innerPrepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
   env.COMMUNITY_DB.prepare = query => {
-    if (/ALTER\s+TABLE/i.test(String(query))) alters.push(String(query));
+    if (/ALTER\s+TABLE/i.test(String(query))) steadyStateAlters.push(String(query));
     return innerPrepare(query);
   };
   const seen = { urls: [], massive: [], tickerbot: [] };
@@ -809,7 +809,7 @@ test("a migrated field never issues ALTER TABLE, so no duplicate-column error re
   assert.equal(first.ok, true);
   const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
   assert.equal(second.ok, true);
-  assert.deepEqual(alters, [], "steady-state ticks must not attempt ALTER TABLE at all");
+  assert.deepEqual(steadyStateAlters, [], "steady-state ticks must not attempt ALTER TABLE at all");
 });
 
 test("failed provider beats and missing commodity contracts write heldFieldObservation and are not immediately retried", async t => {
