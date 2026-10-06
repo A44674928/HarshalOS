@@ -99,10 +99,10 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
     ...commodityEntry, massive: { ...commodityEntry.massive, ticker: contract.ticker, family: "futures" },
     massiveContract: contract
   }, NOW);
-  const index = massiveDailyInternals.normalizeInstrument(catalog.indices.find(entry => entry.symbol === "SPX"));
+  const index = massiveDailyInternals.normalizeInstrument(catalog.indices.find(entry => entry.symbol === "NDX"));
   assert.deepEqual(
     [fx && fx.massiveTicker, crypto && crypto.massiveTicker, commodity && commodity.massiveTicker, index && index.massiveTicker],
-    ["C:EURUSD", null, "CLX6", "I:SPX"]
+    ["C:EURUSD", null, "CLX6", "I:NDX"]
   );
   assert.equal(massiveDailyInternals.normalizeInstrument(commodityEntry, NOW), null,
     "the static catalog's product code cannot be used as a dated contract without a current Massive verification");
