@@ -3143,6 +3143,12 @@
         directive: placements[index].directive,
         topology: placements[index].topology
       }));
+      /* A 3D berth can still collapse to the same pixel column when two points
+         differ mostly along camera depth. Keep the semantic 3D placement intact,
+         then apply a tiny screen-space legibility pass. This is presentation
+         geometry only; it never feeds back into FBB, topology, or the model-space
+         berth report. */
+      settleProjectedFloor(projected, 4);
       return { points: projected, report, placements };
     }
 
@@ -3152,6 +3158,31 @@
         moved by exactly zero, so the pass is continuous in the drawn
         coordinates and adds no motion of its own. Deterministic and
         idempotent: re-running it over its own output moves nothing. */
+    function settleProjectedFloor(points, minimumPx) {
+      if (!(Number(minimumPx) > 0) || !Array.isArray(points) || points.length < 2) return points;
+      for (let pass = 0; pass < 2; pass += 1) {
+        let moved = false;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const a = points[left];
+            const b = points[right];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = Math.hypot(dx, dy);
+            if (!(distance > 1e-9) || distance >= minimumPx) continue;
+            const push = (minimumPx - distance) / 2;
+            const ux = (dx / distance) * push;
+            const uy = (dy / distance) * push;
+            a.x -= ux; a.y -= uy;
+            b.x += ux; b.y += uy;
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+      return points;
+    }
+
     function settleDrawnFloor(points, minimum) {
       if (!(Number(minimum) > 0) || !Array.isArray(points) || points.length < 2) return points;
       for (let pass = 0; pass < 2; pass += 1) {
