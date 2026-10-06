@@ -385,8 +385,11 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   let durable = tickerbotHeld.ok ? tickerbotHeld.ledger : null;
   let ledgerStatus = provider === "tickerbot" ? (tickerbotHeld.ok ? "ready" : "unavailable") : "not-applicable";
 
-  let massiveDaily = null;
-  let massiveLedgerStatus = provider === "massive" ? "telemetry-only" : "not-applicable";
+  const massiveHeld = provider === "massive"
+    ? await readMassiveDailyCallLedger(env.COMMUNITY_DB, now)
+    : { ok: false, reason: "not-applicable" };
+  let massiveDaily = massiveHeld.ok ? massiveHeld.ledger : null;
+  let massiveLedgerStatus = provider === "massive" ? (massiveHeld.ok ? "ready" : "unavailable") : "not-applicable";
 
   const krakenHeld = provider === "kraken"
     ? await readKrakenCallLedger(env.COMMUNITY_DB, now)
