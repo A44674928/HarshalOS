@@ -3160,7 +3160,8 @@
         idempotent: re-running it over its own output moves nothing. */
     function settleProjectedFloor(points, minimumPx) {
       if (!(Number(minimumPx) > 0) || !Array.isArray(points) || points.length < 2) return points;
-      for (let pass = 0; pass < 2; pass += 1) {
+      const target = minimumPx + 0.2;
+      for (let pass = 0; pass < 12; pass += 1) {
         let moved = false;
         for (let left = 0; left < points.length; left += 1) {
           for (let right = left + 1; right < points.length; right += 1) {
@@ -3169,8 +3170,8 @@
             const dx = b.x - a.x;
             const dy = b.y - a.y;
             const distance = Math.hypot(dx, dy);
-            if (!(distance > 1e-9) || distance >= minimumPx) continue;
-            const push = (minimumPx - distance) / 2;
+            if (!(distance > 1e-9) || distance >= target) continue;
+            const push = (target - distance) / 2;
             const ux = (dx / distance) * push;
             const uy = (dy / distance) * push;
             a.x -= ux; a.y -= uy;
