@@ -3048,7 +3048,7 @@
       /* Stocks: FBB strength becomes inward penetration and signed FBB
          displacement becomes vertical direction. The six-dimensional state
          also contributes a small depth deformation. */
-      if (String(placement.source || "") === "market-data" && placement.fbbState && placement.fbbState.available) {
+      if (String(observation && observation.discId || "").toLowerCase() === "stocks" && placement.fbbState && placement.fbbState.available) {
         const fbb = placement.fbbState;
         const strength = clamp(fbb.strength, 0, 1);
         const direction = Math.sign(fbb.direction);
