@@ -6,7 +6,7 @@ import {
 } from "../worker/hf-data-library.mjs";
 
 const bars = Array.from({ length: 3 }, (_, i) => ({
-  time: \`2026-10-01T13:3\${i}:00.000Z\`,
+  time: `2026-10-01T13:3${i}:00.000Z`,
   open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i,
   volume: 1000 + i, confirmed: true
 }));
