@@ -83,6 +83,63 @@ test("the Massive daily adapter uses fixed reviewed paths, a bearer header, and 
   assert.equal(result.packet.bars[0].volume, 1_000);
 });
 
+test("403 NOT_AUTHORIZED is catalogued as a plan entitlement failure, not a bad API key", async () => {
+  const result = await fetchMassiveDailyMarketContext({
+    instrument: { symbol: "NDX", assetClass: "index", interval: "1d" },
+    apiKey: MASSIVE_KEY,
+    now: NOW,
+    fetcher: async () => Response.json({
+      status: "NOT_AUTHORIZED",
+      message: "Your plan doesn't include this data."
+    }, { status: 403 })
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "massive-plan-limited");
+  assert.equal(result.httpStatus, 403);
+  assert.equal(result.authorization, "plan");
+  assert.equal(result.providerStatus, "NOT_AUTHORIZED");
+  assert.equal(result.entitlement, "index-ticker");
+});
+
+test("401 remains an API-key authorization failure", async () => {
+  const result = await fetchMassiveDailyMarketContext({
+    instrument: { symbol: "NDX", assetClass: "index", interval: "1d" },
+    apiKey: MASSIVE_KEY,
+    now: NOW,
+    fetcher: async () => Response.json({ status: "NOT_AUTHORIZED" }, { status: 401 })
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "massive-key-unauthorized");
+  assert.equal(result.httpStatus, 401);
+  assert.equal(result.authorization, "api-key");
+});
+
+test("a non-NOT_AUTHORIZED 403 remains a generic forbidden response", async () => {
+  const result = await fetchMassiveDailyMarketContext({
+    instrument: { symbol: "NDX", assetClass: "index", interval: "1d" },
+    apiKey: MASSIVE_KEY,
+    now: NOW,
+    fetcher: async () => Response.json({ status: "FORBIDDEN", message: "Forbidden" }, { status: 403 })
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "massive-forbidden");
+  assert.equal(result.httpStatus, 403);
+  assert.equal(result.authorization, "forbidden");
+});
+
+test("429 remains rate-limited and carries retry information", async () => {
+  const result = await fetchMassiveDailyMarketContext({
+    instrument: { symbol: "NDX", assetClass: "index", interval: "1d" },
+    apiKey: MASSIVE_KEY,
+    now: NOW,
+    fetcher: async () => new Response(null, { status: 429, headers: { "retry-after": "60" } })
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "massive-rate-limit");
+  assert.equal(result.httpStatus, 429);
+  assert.equal(result.retryAfter, "60");
+});
+
 test("the adapter only derives documented Massive shapes for reviewed Disc families", () => {
   const catalog = globalThis.CharactersDiscCatalog;
   assert.ok(catalog);

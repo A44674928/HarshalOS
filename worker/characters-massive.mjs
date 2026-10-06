@@ -221,15 +221,47 @@ export async function fetchMassiveDailyMarketContext({
     });
     if (!response || !response.ok) {
       const status = Number(response && response.status) || 0;
+      let payload = null;
+      try { payload = await response.json(); } catch { /* explicit safe refusal below */ }
+
       if (status === 429) {
         const retry = response.headers && typeof response.headers.get === "function" ? response.headers.get("retry-after") : "";
         return failure("massive-rate-limit", "Massive's per-minute request envelope was reached. Wait before beating again.", {
-          retryAfter: /^\d{1,5}$/.test(retry || "") ? retry : "60"
+          retryAfter: /^\d{1,5}$/.test(retry || "") ? retry : "60",
+          httpStatus: 429
         });
       }
-      if (status === 401 || status === 403) return failure("massive-unauthorized", "Massive rejected the Worker key. Check the MASSIVE_API_KEY Worker secret.");
-      let payload = null;
-      try { payload = await response.json(); } catch { /* explicit safe refusal below */ }
+
+      /*
+       * Massive uses HTTP 403 for entitlement failures. A valid reference
+       * ticker can therefore exist while the value request is forbidden by
+       * the current plan. Do not label that as a bad API key: 401 is the key
+       * failure, while NOT_AUTHORIZED on a value request is plan-limited.
+       */
+      const providerStatus = typeof payload?.status === "string" ? payload.status.trim().toUpperCase() : "";
+      const providerMessage = typeof payload?.message === "string" ? payload.message : "";
+      if (status === 401) {
+        return failure("massive-key-unauthorized", "Massive rejected the Worker key. Check the MASSIVE_API_KEY Worker secret.", {
+          httpStatus: 401,
+          authorization: "api-key"
+        });
+      }
+      if (status === 403 && providerStatus === "NOT_AUTHORIZED") {
+        return failure("massive-plan-limited", "Massive does not authorize this data under the current subscription tier.", {
+          httpStatus: 403,
+          authorization: "plan",
+          providerStatus: "NOT_AUTHORIZED",
+          ...(instrument.assetClass === "index" ? { entitlement: "index-ticker" } : {}),
+          ...(providerMessage && /timeframe|tier|plan|subscription|data/i.test(providerMessage) ? { authorizationDetail: "subscription" } : {})
+        });
+      }
+      if (status === 403) {
+        return failure("massive-forbidden", "Massive forbidden the requested market-data operation.", {
+          httpStatus: 403,
+          authorization: "forbidden",
+          ...(providerStatus ? { providerStatus } : {})
+        });
+      }
       return providerFailure(payload);
     }
 
