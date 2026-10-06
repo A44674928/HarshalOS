@@ -575,3 +575,82 @@ test("observationFromPacket refuses a missing packet instead of inventing a bert
   assert.equal(observation.market.synthetic, false);
   assert.equal(observation.confirmed, true);
 });
+
+test("the scheduler handles missing kraken_calls column gracefully without migration 0012", async t => {
+  clearCharactersCryptoRankingCache();
+  clearKrakenDailyBarCache();
+  const sql = new DatabaseSync(":memory:");
+  /* Apply migrations 0005 through 0011 only — omitting 0012 so orb2_field_runs lacks kraken_calls */
+  for (const file of ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]) {
+    sql.exec(readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
+  }
+  t.after(() => sql.close());
+  const db = {
+    prepare(query) {
+      let values = [];
+      const statement = {
+        bind(...args) { values = args; return statement; },
+        async first() { return sql.prepare(query).get(...values) ?? null; },
+        async all() { return { results: sql.prepare(query).all(...values) }; },
+        async run() { return sql.prepare(query).run(...values); }
+      };
+      return statement;
+    },
+    async batch(statements) { return Promise.all(statements.map(statement => statement.run())); }
+  };
+  const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" };
+  const seen = { urls: [], massive: [], tickerbot: [] };
+  const at = nextClock();
+  const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");
+});
+
+test("failed provider beats and missing commodity contracts write heldFieldObservation and are not immediately retried", async t => {
+  const { sql, env } = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], contracts: [] };
+  const at = nextClock();
+
+  /* Custom provider fetch where contract discovery returns no active contract for CL,
+     and Massive bars fail for EURUSD */
+  const customFetch = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/futures/v1/contracts") {
+      seen.contracts.push(parsed.searchParams.get("product_code"));
+      return Response.json({ results: [] }); /* No active contract found */
+    }
+    if (decodeURIComponent(parsed.pathname).startsWith("/v2/aggs/ticker/C:AUDUSD/")) {
+      return Response.json({ status: "ERROR", message: "Upstream rate limit" }, { status: 429 });
+    }
+    return providerFetch(seen)(url, options);
+  };
+
+  const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: customFetch });
+  assert.equal(firstTick.ok, true);
+
+  /* Verify held observation was written for CL in commodities */
+  const clRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='commodities' AND symbol='WTI'").get();
+  assert.ok(clRow, "held observation was written for commodity whose contract was unavailable");
+  const clPayload = JSON.parse(clRow.payload);
+  assert.equal(clPayload.status, "unavailable");
+  assert.equal(clPayload.discId, "commodities");
+
+  /* Verify held observation was written for AUDUSD in FX */
+  const fxRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='fx' AND symbol='AUDUSD'").get();
+  assert.ok(fxRow, "held observation was written for failed Massive FX beat");
+  const fxPayload = JSON.parse(fxRow.payload);
+  assert.equal(fxPayload.status, "unavailable");
+
+  /* Second tick 60 seconds later: CL and AUDUSD should NOT be queried again */
+  seen.contracts = [];
+  seen.massive = [];
+  const secondTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
+  assert.equal(secondTick.ok, true);
+  assert.ok(!seen.contracts.includes("CL"), "contract discovery for CL did not retry on the next tick");
+  assert.ok(!seen.massive.includes("C:AUDUSD"), "AUDUSD did not retry on the next tick");
+
+  /* Verify snapshot reports 10 instruments for commodities even with no active contracts */
+  const snapshotRes = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => at + 120_000 });
+  const { data } = await snapshotRes.json();
+  const discMap = Object.fromEntries(data.status.discs.map(d => [d.id, d]));
+  assert.equal(discMap.commodities.instruments, 10, "commodities Disc reports all 10 reviewed instruments, never 3 of 3");
+});

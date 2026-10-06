@@ -482,14 +482,29 @@ export function heldFieldObservation({
 /* ── D1 access ───────────────────────────────────────────────────────── */
 
 async function ensureRunRow(db, now) {
+  try {
+    await db.prepare("ALTER TABLE orb2_field_runs ADD COLUMN kraken_calls INTEGER NOT NULL DEFAULT 0").run();
+  } catch (_) {
+    /* Ignored if column already exists or table cannot be altered */
+  }
   await db.prepare("INSERT INTO orb2_field_runs (utc_day, updated_at) VALUES (?, ?) ON CONFLICT(utc_day) DO NOTHING")
     .bind(utcDay(now), now).run();
 }
 
 async function readRun(db, now) {
-  return (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, kraken_calls, sweeps_completed, last_tick_at,
-      last_observation_at, last_sweep_completed_at, last_error, lock_owner, lock_at, updated_at
-    FROM orb2_field_runs WHERE utc_day = ?`).bind(utcDay(now)).first()) ?? null;
+  try {
+    return (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, kraken_calls, sweeps_completed, last_tick_at,
+        last_observation_at, last_sweep_completed_at, last_error, lock_owner, lock_at, updated_at
+      FROM orb2_field_runs WHERE utc_day = ?`).bind(utcDay(now)).first()) ?? null;
+  } catch (err) {
+    if (String(err && err.message).includes("kraken_calls")) {
+      const fallback = (await db.prepare(`SELECT utc_day, massive_calls, tickerbot_calls, sweeps_completed, last_tick_at,
+          last_observation_at, last_sweep_completed_at, last_error, lock_owner, lock_at, updated_at
+        FROM orb2_field_runs WHERE utc_day = ?`).bind(utcDay(now)).first()) ?? null;
+      return fallback ? { ...fallback, kraken_calls: 0 } : null;
+    }
+    throw err;
+  }
 }
 
 async function readControl(db) {
@@ -569,12 +584,25 @@ async function releaseTickLease(db, now, owner) {
 }
 
 async function recordTickResult(db, { now, massiveCalls = 0, tickerbotCalls = 0, krakenCalls = 0, observed = 0, error = "" }) {
-  await db.prepare(`UPDATE orb2_field_runs SET
-      massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?, kraken_calls = kraken_calls + ?,
-      last_tick_at = ?, last_observation_at = COALESCE(CASE WHEN ? > 0 THEN ? ELSE NULL END, last_observation_at),
-      last_error = ?, updated_at = ?
-    WHERE utc_day = ?`)
-    .bind(massiveCalls, tickerbotCalls, krakenCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
+  try {
+    await db.prepare(`UPDATE orb2_field_runs SET
+        massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?, kraken_calls = kraken_calls + ?,
+        last_tick_at = ?, last_observation_at = COALESCE(CASE WHEN ? > 0 THEN ? ELSE NULL END, last_observation_at),
+        last_error = ?, updated_at = ?
+      WHERE utc_day = ?`)
+      .bind(massiveCalls, tickerbotCalls, krakenCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
+  } catch (err) {
+    if (String(err && err.message).includes("kraken_calls")) {
+      await db.prepare(`UPDATE orb2_field_runs SET
+          massive_calls = massive_calls + ?, tickerbot_calls = tickerbot_calls + ?,
+          last_tick_at = ?, last_observation_at = COALESCE(CASE WHEN ? > 0 THEN ? ELSE NULL END, last_observation_at),
+          last_error = ?, updated_at = ?
+        WHERE utc_day = ?`)
+        .bind(massiveCalls, tickerbotCalls, now, observed, now, text(error, 200), now, utcDay(now)).run();
+      return;
+    }
+    throw err;
+  }
 }
 
 /** Evidence that one full stock sweep has finished since the last one. */
@@ -737,12 +765,31 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
     return state;
   }
   if (!keys.massive) return state;
+  const ledger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+  if (ledger.ok && ledger.ledger.remaining <= 0) {
+    summary.notes.push("Disc4 contracts are held: Massive daily call budget is exhausted.");
+    return state;
+  }
   if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
   const catalog = globalThis.CharactersDiscCatalog;
   const commodities = catalog && Array.isArray(catalog.commodities) ? catalog.commodities : [];
+
+  let observedCommodities = new Set();
+  try {
+    const rows = await db.prepare(
+      "SELECT symbol, observed_at FROM orb2_field_observations WHERE interval = '1d' AND disc_id = 'commodities'"
+    ).all();
+    for (const row of (Array.isArray(rows && rows.results) ? rows.results : [])) {
+      if (row.observed_at && !fieldObservationExpired("1d", Number(row.observed_at), now)) {
+        observedCommodities.add(String(row.symbol));
+      }
+    }
+  } catch { /* if observation query fails, fallback to lastAttemptAt */ }
+
   const candidate = commodities.find(entry => {
     const code = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
     return /^[A-Z0-9]{1,8}$/.test(code) && !state.contracts[code] &&
+      !observedCommodities.has(entry.symbol) &&
       now - (Number(state.lastAttemptAt[code]) || 0) >= MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS;
   });
   if (!candidate) return state;
@@ -757,11 +804,33 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
     }
   });
   if (reserved) summary.massiveCalls += 1;
-  if (result.ok) state.contracts[productCode] = result.contract;
-  else if (![
-    "massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
-    "massive-rate-limit", "massive-budget-exhausted"
-  ].includes(result.code)) summary.notes.push(`Disc4 ${productCode} held: ${result.message}`);
+  if (result.ok) {
+    state.contracts[productCode] = result.contract;
+  } else {
+    if (![
+      "massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
+      "massive-rate-limit", "massive-budget-exhausted"
+    ].includes(result.code)) {
+      summary.notes.push(`Disc4 ${productCode} held: ${result.message}`);
+    }
+    if (reserved) {
+      const heldObs = heldFieldObservation({
+        symbol: candidate.symbol,
+        displaySymbol: candidate.displaySymbol || candidate.symbol,
+        name: candidate.name || candidate.symbol,
+        sector: candidate.sector || "Commodities",
+        discId: "commodities",
+        provider: "massive",
+        interval: "1d",
+        now,
+        reason: "server-sweep",
+        code: result.code || "contract-unavailable",
+        message: text(result.message, 140) || `No active contract for ${productCode}`
+      });
+      if (heldObs) await writeObservation(db, heldObs, now);
+      summary.held += 1;
+    }
+  }
   return state;
 }
 
@@ -926,6 +995,15 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         }
         summary.held += 1;
         summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Tickerbot did not answer"}`);
+        if (outcome.attempted) {
+          const heldObs = heldFieldObservation({
+            symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
+            provider: "tickerbot", interval: "1d", now, reason: "server-sweep",
+            code: outcome.code || "tickerbot-refusal", message: text(outcome.message, 140) || "Tickerbot did not answer"
+          });
+          if (heldObs) await writeObservation(db, heldObs, now);
+        }
       }
     }
 
@@ -954,6 +1032,16 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         }
         summary.held += 1;
         summary.errors.push(`${instrument.krakenPair || instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Kraken did not answer"}`);
+        if (outcome.attempted) {
+          const heldObs = heldFieldObservation({
+            symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "crypto",
+            provider: "kraken", providerId: instrument.providerId, krakenPair: instrument.krakenPair,
+            rankingProvider: instrument.rankingProvider, interval: "1d", now, reason: "server-sweep",
+            code: outcome.code || "kraken-refusal", message: text(outcome.message, 140) || "Kraken did not answer"
+          });
+          if (heldObs) await writeObservation(db, heldObs, now);
+        }
       }
     }
 
@@ -963,7 +1051,21 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
     const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
     const minuteRemaining = availableMassiveBudget(CRON_REQUEST, env, now).remaining;
-    const slots = Math.max(0, Math.min(ORB2_MASSIVE_PER_MINUTE, minuteRemaining, dailyRemaining));
+    const utcDate = new Date(now);
+    const minutesRemaining = Math.max(1, 1440 - (utcDate.getUTCHours() * 60 + utcDate.getUTCMinutes()));
+    const pacedLimit = dailyRemaining <= 0
+      ? 0
+      : dailyRemaining <= 10
+        ? 1
+        : dailyRemaining <= 30 && minutesRemaining > 120
+          ? Math.min(2, ORB2_MASSIVE_PER_MINUTE)
+          : ORB2_MASSIVE_PER_MINUTE;
+    const maxMassiveThisTick = Math.max(0, pacedLimit - summary.massiveCalls);
+    const slots = Math.max(0, Math.min(
+      maxMassiveThisTick,
+      minuteRemaining,
+      dailyRemaining - summary.massiveCalls
+    ));
     if (!keys.massive) {
       summary.notes.push("Massive FX/futures/index lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
     } else if (!massiveLedger.ok) {
@@ -993,6 +1095,22 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         }
         summary.held += 1;
         summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
+        if (outcome.attempted) {
+          const heldObs = heldFieldObservation({
+            symbol: instrument.symbol,
+            displaySymbol: instrumentDisplay(instrument),
+            name: instrumentName(instrument),
+            sector: instrumentSector(instrument),
+            discId: instrument.discId,
+            provider: "massive",
+            interval: "1d",
+            now,
+            reason: "server-sweep",
+            code: outcome.code || "massive-refusal",
+            message: text(outcome.message, 140) || "Massive did not answer"
+          });
+          if (heldObs) await writeObservation(db, heldObs, now);
+        }
       }
     } else if (massiveLedger.ok && massiveLedger.ledger.exhausted) {
       summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); Tickerbot stock and Kraken crypto lanes are separately accounted.`);
@@ -1204,13 +1322,20 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       const rows = observations.filter(observation => observation.discId === discId);
       const aggregate = storedByDisc.get(discId) || null;
       const discDef = catalogForStatus && typeof catalogForStatus.disc === "function" ? catalogForStatus.disc(discId) : null;
+      const reviewedInstrumentCount = discId === "commodities" && Array.isArray(catalogForStatus && catalogForStatus.commodities)
+        ? catalogForStatus.commodities.length
+        : discId === "stocks"
+          ? (rosterForStatus.stocks.length || 52)
+          : discId === "crypto"
+            ? (rosterForStatus.crypto.length || (cachedCryptoRanking.ok && cachedCryptoRanking.ranking?.instruments?.length) || 0)
+            : instruments.length;
       return {
         id: discId,
         number: Number(discDef && discDef.number) || index + 1,
         label: text(discDef && discDef.label, 64) || `Disc ${index + 1} · ${discId}`,
         name: text(discDef && discDef.name, 48) || discId,
         assetClass: text(discDef && discDef.assetClass, 24) || "",
-        instruments: instruments.length,
+        instruments: reviewedInstrumentCount,
         stored: aggregate ? aggregate.stored : rows.length,
         confirmed: aggregate ? aggregate.confirmed : rows.filter(observation => observation.confirmed).length,
         newestAt: aggregate ? aggregate.newestAt : (rows.reduce((latest, observation) => Math.max(latest, Number(observation.observedAt) || 0), 0) || null),
@@ -1296,7 +1421,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         observed: marketCount,
         confirmed: observations.filter(observation => observation.confirmed).length,
         held: observations.filter(observation => !observation.market).length,
-        reviewedInstruments: rosterForStatus.instruments.length
+        reviewedInstruments: discs.reduce((sum, d) => sum + (Number(d.instruments) || 0), 0)
       },
       discs
     };
