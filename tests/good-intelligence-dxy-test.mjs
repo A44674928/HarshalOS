@@ -1,19 +1,19 @@
-/* ICE-weighted DXY display bridge and dated 52-asset firing roster tests. */
+/* ICE-weighted Dollar Strength (DS) display bridge and dated 52-asset firing roster tests. */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import test from "node:test";
 
 const ROOT = new URL("../", import.meta.url);
-const [dxySource, rosterSource] = await Promise.all([
+const [dsSource, rosterSource] = await Promise.all([
   readFile(new URL("js/good-intelligence-dxy.js", ROOT), "utf8"),
   readFile(new URL("js/good-intelligence-market-roster.js", ROOT), "utf8")
 ]);
 const browser = { window: {} };
 browser.globalThis = browser.window;
 vm.runInNewContext(rosterSource, browser, { filename: "js/good-intelligence-market-roster.js" });
-vm.runInNewContext(dxySource, browser, { filename: "js/good-intelligence-dxy.js" });
-const Dxy = browser.window.GoodIntelligenceDxy;
+vm.runInNewContext(dsSource, browser, { filename: "js/good-intelligence-dxy.js" });
+const DollarStrength = browser.window.GoodIntelligenceDollarStrength;
 const roster = browser.window.GoodIntelligenceMarketRoster;
 const NOW = Date.parse("2026-10-04T12:00:00.000Z");
 const CLOSES = Object.freeze({ EURUSD: 1.17, JPYUSD: 1 / 151, GBPUSD: 1.34, CADUSD: 1 / 1.37, SEKUSD: 1 / 9.4, CHFUSD: 1 / 0.8 });
@@ -35,27 +35,29 @@ function fxObservation(symbol, close = CLOSES[symbol], time = NOW - 86_400_000, 
 }
 
 function sixCloses(overrides = {}) {
-  return Dxy.COMPONENTS.map(component => fxObservation(component.symbol, CLOSES[component.symbol], NOW - 86_400_000, overrides[component.symbol] || {}));
+  return DollarStrength.COMPONENTS.map(component => fxObservation(component.symbol, CLOSES[component.symbol], NOW - 86_400_000, overrides[component.symbol] || {}));
 }
 
-test("DXY uses the current six ICE weights with the reviewed USD-per-foreign quote orientation", () => {
-  assert.deepEqual(Array.from(Dxy.COMPONENTS, ({ symbol, weight }) => [symbol, weight]), [
+test("Dollar Strength (DS) uses the current six ICE weights with the reviewed USD-per-foreign quote orientation", () => {
+  assert.deepEqual(Array.from(DollarStrength.COMPONENTS, ({ symbol, weight }) => [symbol, weight]), [
     ["EURUSD", 0.576], ["JPYUSD", 0.136], ["GBPUSD", 0.119],
     ["CADUSD", 0.091], ["SEKUSD", 0.042], ["CHFUSD", 0.036]
   ]);
-  const result = Dxy.evaluate(sixCloses(), NOW);
-  const expected = Dxy.ICE_USDX_CONSTANT * Dxy.COMPONENTS.reduce((value, component) =>
+  const result = DollarStrength.evaluate(sixCloses(), NOW);
+  const expected = DollarStrength.DS_CONSTANT * DollarStrength.COMPONENTS.reduce((value, component) =>
     value * CLOSES[component.symbol] ** -component.weight, 1);
   assert.equal(result.ok, true);
   assert.equal(result.status, "ready");
   assert.ok(Math.abs(result.value - expected) < 1e-10);
+  assert.equal(result.baseline, 100);
+  assert.equal(result.percentVs100, (result.value / 100 - 1) * 100);
   assert.equal(result.asOf, NOW - 86_400_000);
   assert.equal(result.inputCount, 6);
   assert.match(result.note, /not the licensed real-time/i);
 });
 
-test("DXY holds missing, synthetic, stale, unconfirmed, provider-mismatched and unaligned inputs", () => {
-  const missing = Dxy.evaluate(sixCloses().slice(0, 5), NOW);
+test("Dollar Strength (DS) holds missing, synthetic, stale, unconfirmed, provider-mismatched and unaligned inputs", () => {
+  const missing = DollarStrength.evaluate(sixCloses().slice(0, 5), NOW);
   assert.equal(missing.ok, false);
   assert.equal(missing.status, "waiting");
   assert.deepEqual([...missing.missing], ["CHFUSD"]);
@@ -64,28 +66,28 @@ test("DXY holds missing, synthetic, stale, unconfirmed, provider-mismatched and 
   syntheticInputs[0] = fxObservation("EURUSD", CLOSES.EURUSD, NOW - 86_400_000, { market: {
     synthetic: true, timeframe: "1d", latestBar: { time: NOW - 86_400_000, close: CLOSES.EURUSD, confirmed: true }
   } });
-  const synthetic = Dxy.evaluate(syntheticInputs, NOW);
+  const synthetic = DollarStrength.evaluate(syntheticInputs, NOW);
   assert.equal(synthetic.ok, false);
   assert.equal(synthetic.status, "held");
   assert.equal(synthetic.invalid[0].code, "synthetic");
 
   const staleInputs = sixCloses();
   staleInputs[0] = fxObservation("EURUSD", CLOSES.EURUSD, NOW - 5 * 86_400_000);
-  assert.equal(Dxy.evaluate(staleInputs, NOW).status, "stale");
+  assert.equal(DollarStrength.evaluate(staleInputs, NOW).status, "stale");
 
   const unconfirmedInputs = sixCloses();
   unconfirmedInputs[0] = fxObservation("EURUSD", CLOSES.EURUSD, NOW - 86_400_000, { market: {
     synthetic: false, timeframe: "1d", latestBar: { time: NOW - 86_400_000, close: CLOSES.EURUSD, confirmed: false }
   } });
-  assert.equal(Dxy.evaluate(unconfirmedInputs, NOW).invalid[0].code, "unconfirmed");
+  assert.equal(DollarStrength.evaluate(unconfirmedInputs, NOW).invalid[0].code, "unconfirmed");
 
   const wrongProviderInputs = sixCloses();
   wrongProviderInputs[0] = { ...wrongProviderInputs[0], providerMode: "tickerbot" };
-  assert.equal(Dxy.evaluate(wrongProviderInputs, NOW).invalid[0].code, "provider-mismatch");
+  assert.equal(DollarStrength.evaluate(wrongProviderInputs, NOW).invalid[0].code, "provider-mismatch");
 
   const unalignedInputs = sixCloses();
   unalignedInputs[0] = fxObservation("EURUSD", CLOSES.EURUSD, NOW - 2 * 86_400_000);
-  const unaligned = Dxy.evaluate(unalignedInputs, NOW);
+  const unaligned = DollarStrength.evaluate(unalignedInputs, NOW);
   assert.equal(unaligned.status, "unaligned");
   assert.equal(unaligned.refreshSymbol, "EURUSD");
   assert.equal(unaligned.ok, false);
@@ -93,7 +95,7 @@ test("DXY holds missing, synthetic, stale, unconfirmed, provider-mismatched and 
 
 test("the static market roster has exactly 52 sourced assets and 4–7 descending-cap tickers per sector", () => {
   assert.equal(roster.SCHEMA, "good-intelligence-market-roster-v1");
-  const validation = Dxy.validateFiringRoster(roster.assets);
+  const validation = DollarStrength.validateFiringRoster(roster.assets);
   assert.equal(validation.ok, true, validation.errors.join("\n"));
   assert.equal(validation.count, 52);
   assert.equal(validation.firingOrder.length, 52);
@@ -110,8 +112,8 @@ test("the static market roster has exactly 52 sourced assets and 4–7 descendin
   assert.ok(validation.firingOrder.every(asset => asset.marketCapAsOf === "2026-10-02" && asset.marketCapSourceUrl));
 });
 
-test("the DXY browser helper has no network path or synthetic fixture", () => {
-  assert.doesNotMatch(dxySource, /\bfetch\s*\(/);
-  assert.doesNotMatch(dxySource, /synthetic\s*:\s*true/i);
-  assert.match(dxySource, /Rule 15\.01/);
+test("the Dollar Strength (DS) browser helper has no network path or synthetic fixture", () => {
+  assert.doesNotMatch(dsSource, /\bfetch\s*\(/);
+  assert.doesNotMatch(dsSource, /synthetic\s*:\s*true/i);
+  assert.match(dsSource, /Rule 15\.01/);
 });

@@ -249,7 +249,7 @@ test("the server field roster is the reviewed catalog, in firing order, with no 
   assert.ok(roster.commodities.some(entry => entry.symbol === "ALUMINUM" && entry.massive.productCode === "ALI" && entry.massiveTicker === "ALIZ6"),
     "Aluminum is on Disc4 only after the current ALI contract is verified");
   assert.equal(roster.indices.length, 5);
-  assert.deepEqual(roster.dxySymbols, ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"]);
+  assert.deepEqual(roster.dsSymbols, ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"]);
   assert.deepEqual(roster.discs, ["stocks", "fx", "commodities", "indices"]);
   assert.ok(roster.instruments.every(instrument => typeof instrument.discId === "string"));
   assert.equal(new Set(roster.stocks.map(stock => stock.symbol)).size, 52);
@@ -516,7 +516,7 @@ test("a priority refresh is bounded to the reviewed roster and unknown symbols a
   assert.equal(wrongSchema.status, 400);
 });
 
-test("the snapshot serves the stored field with honest beat-type counts and the DXY reference", async t => {
+test("the snapshot serves the stored field with honest beat-type counts and the Dollar Strength (DS) reference", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
@@ -569,9 +569,9 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(types.trade.live, false);
   assert.equal(types.trade.count, 52, "every stored OHLCV observation can carry the trade scenario");
   assert.match(types.permission.summary, /Nothing becomes permitted/);
-  assert.equal(data.dxy.status, "ready", "the six aligned FX closes produce the fixed benchmark on the server");
-  assert.ok(data.dxy.value > 0);
-  assert.equal(data.dxy.inputCount, 6);
+  assert.equal(data.ds.status, "ready", "the six aligned FX closes produce the fixed benchmark on the server");
+  assert.ok(data.ds.value > 0);
+  assert.equal(data.ds.inputCount, 6);
 
   /* The per-Disc status describes the stored field even when the response is
      narrowed to one Disc, so the constellation view can label every orb. */
@@ -689,7 +689,7 @@ test("large Orb 2 snapshots split symbol reads under D1's bind-variable limit", 
   assert.equal(data.observations.at(-1).symbol, symbols.at(-1));
 });
 
-test("a full daily snapshot reuses its field rows for Disc status and DXY", async t => {
+test("a full daily snapshot reuses its field rows for Disc status and Dollar Strength (DS)", async t => {
   const { sql, env } = fixture(t);
   seedHeldObservation(sql, { symbol: "EURUSD", discId: "fx" });
   const fieldQueries = [];
@@ -705,7 +705,7 @@ test("a full daily snapshot reuses its field rows for Disc status and DXY", asyn
   const fx = data.status.discs.find(disc => disc.id === "fx");
   assert.equal(fx.stored, 1);
   assert.equal(fx.held, 1);
-  assert.equal(fieldQueries.length, 1, "the daily payload scan is shared by rendering, Disc status, and DXY");
+  assert.equal(fieldQueries.length, 1, "the daily payload scan is shared by rendering, Disc status, and Dollar Strength (DS)");
 });
 
 test("the snapshot fails visibly when D1 or migration 0009 is missing", async t => {
@@ -784,6 +784,12 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
   };
   const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" };
   const seen = { urls: [], massive: [], tickerbot: [] };
+  const alters = [];
+  const originalPrepare = db.prepare;
+  db.prepare = query => {
+    if (/ALTER\s+TABLE\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
+    return originalPrepare(query);
+  };
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");

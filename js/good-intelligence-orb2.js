@@ -16,7 +16,7 @@
    Good Intelligence mounts this model over its reviewed ticker watchlist: each
    ticker becomes a display-only orb with distinct hourly and daily geometry, and
    Clear beats / Restore stored beats bridge the anonymous D1 saved-beat archive
-   (SAVED_BEAT_SESSION_KEY) shared with the Characters app. The fixed DXY benchmark
+   (SAVED_BEAT_SESSION_KEY) shared with the Characters app. The fixed Dollar Strength (DS) benchmark
    is separately derived only after six aligned, confirmed daily FX inputs; its
    ignition sequence then visits each of the 52 market-cap-ranked ticker orbs once.
 
@@ -672,8 +672,8 @@
     const time = timeframe === "1d" ? "1d" : "1h";
     const rawEntries = Array.isArray(tickers) ? tickers : [];
     const ranked = rawEntries.length > 0 && rawEntries.every(item => item && Number.isFinite(Number(item.marketCapUsd)) && Number(item.marketCapUsd) > 0);
-    const ordered = ranked && globalThis.GoodIntelligenceDxy && typeof globalThis.GoodIntelligenceDxy.buildFiringOrder === "function"
-      ? globalThis.GoodIntelligenceDxy.buildFiringOrder(rawEntries) : rawEntries;
+    const ordered = ranked && globalThis.GoodIntelligenceDollarStrength && typeof globalThis.GoodIntelligenceDollarStrength.buildFiringOrder === "function"
+      ? globalThis.GoodIntelligenceDollarStrength.buildFiringOrder(rawEntries) : rawEntries;
     const entries = ordered
       .filter(item => item && /^[A-Z0-9._-]{1,16}$/.test(String(item.symbol || "").toUpperCase()))
       .map(item => ({
@@ -772,7 +772,7 @@
     const Cast = options.cast || globalThis.CharactersCast;
     const DiscCatalog = options.discCatalog || globalThis.CharactersDiscCatalog;
     const MarketContext = options.marketContext || globalThis.GoodIntelligenceMarketContext;
-    const Dxy = options.dxy || globalThis.GoodIntelligenceDxy;
+    const DollarStrength = options.ds || globalThis.GoodIntelligenceDollarStrength;
     /* Good Intelligence mounts this model over its reviewed ticker watchlist:
        ticker rows become display-only orbs with hourly/daily geometry. */
     const tickerMode = Array.isArray(options.tickers) && options.tickers.length > 0;
@@ -791,8 +791,8 @@
         : "The Characters cast did not provide a reviewed roster."} No nodes or routes were invented.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
     }
-    if (!Beat || !Cast || !DiscCatalog || !MarketContext || !Dxy) {
-      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 beat modules unavailable</strong><p>CharactersBeat, CharactersCast, CharactersDiscCatalog, GoodIntelligenceMarketContext, and GoodIntelligenceDxy must load before Orb 2.</p></div>`;
+    if (!Beat || !Cast || !DiscCatalog || !MarketContext || !DollarStrength) {
+      host.innerHTML = `<div class="gi-empty error"><span class="gi-empty-mark">!</span><strong>Orb 2 beat modules unavailable</strong><p>CharactersBeat, CharactersCast, CharactersDiscCatalog, GoodIntelligenceMarketContext, and GoodIntelligenceDollarStrength must load before Orb 2.</p></div>`;
       return Object.freeze({ schema: SCHEMA, nodes, destroy() {}, setVisible() {} });
     }
 
@@ -800,11 +800,11 @@
     const watchlist = Array.isArray(options.watchlist) ? options.watchlist
       : tickerMode ? options.tickers
         : appEntry && Array.isArray(appEntry.tickerbotWatchlist) ? appEntry.tickerbotWatchlist : [];
-    const marketFiringOrder = tickerMode && Dxy && typeof Dxy.buildFiringOrder === "function"
-      ? Dxy.buildFiringOrder(options.tickers) : [];
-    const rosterValidation = tickerMode && Dxy && typeof Dxy.validateFiringRoster === "function"
-      ? Dxy.validateFiringRoster(options.tickers) : { ok: false, errors: ["The sourced 52-asset roster is unavailable."] };
-    const ignitionEnabled = rosterValidation.ok && marketFiringOrder.length === Dxy.REQUIRED_ASSETS;
+    const marketFiringOrder = tickerMode && DollarStrength && typeof DollarStrength.buildFiringOrder === "function"
+      ? DollarStrength.buildFiringOrder(options.tickers) : [];
+    const rosterValidation = tickerMode && DollarStrength && typeof DollarStrength.validateFiringRoster === "function"
+      ? DollarStrength.validateFiringRoster(options.tickers) : { ok: false, errors: ["The sourced 52-asset roster is unavailable."] };
+    const ignitionEnabled = rosterValidation.ok && marketFiringOrder.length === DollarStrength.REQUIRED_ASSETS;
     if (ignitionEnabled && timeframe !== "1d") {
       timeframe = "1d";
       nodes = buildNodes(options.tickers, "1d");
@@ -945,7 +945,7 @@
         blocked: "",
         renderKey: ""
       },
-      dxy: null,
+      ds: null,
       massiveHoldUntil: 0,
       entries: [],
       stage: null,
@@ -1143,7 +1143,7 @@
                 <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-data-bits type="checkbox" checked><span>Market data bits</span></label>
-                <span class="gi-orb2-center">CENTER ORIGIN · DXY FIXED BENCHMARK · LOCAL CPU ${CENTER_ADDRESS}</span>
+                <span class="gi-orb2-center">CENTER ORIGIN · Dollar Strength (DS) FIXED BENCHMARK · LOCAL CPU ${CENTER_ADDRESS}</span>
               </div>
             </section>
 
@@ -1166,12 +1166,12 @@
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide gi-orb2-settings-ignition" aria-label="Live heartbeat firing sequence">
               <div class="gi-orb2-ignition" data-gi-orb2-ignition>
                 <div class="gi-orb2-ignition-head">
-                  <div><p class="gi-eyebrow">SERVER SWEEP · FIXED DXY BENCHMARK</p><h3>Field → DXY → 52 ticker orbs</h3><p>The Worker's cron beat fills the sweep; six FX closes fix the DXY reference; then one stored daily beat per asset, grouped by sourced sector and descending market cap. This page renders stored progress and never replays the order.</p></div>
+                  <div><p class="gi-eyebrow">SERVER SWEEP · FIXED Dollar Strength (DS) BENCHMARK</p><h3>Field → Dollar Strength (DS) → 52 ticker orbs</h3><p>The Worker's cron beat fills the sweep; six FX closes fix the Dollar Strength (DS) reference; then one stored daily beat per asset, grouped by sourced sector and descending market cap. This page renders stored progress and never replays the order.</p></div>
                   <button class="gi-button" type="button" data-gi-orb2-ignition-restart hidden>Restart sequence</button>
                 </div>
                 <div class="gi-orb2-ignition-steps">
                   <div><span>00 · SERVER DEPLOY</span><strong data-gi-orb2-ignition-server>ROUTE CHECK PENDING</strong><small>Readiness is confirmed only by a same-origin Worker response.</small></div>
-                  <div><span>01 · DXY ORIGIN BEAT</span><strong data-gi-orb2-ignition-dxy>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
+                  <div><span>01 · Dollar Strength (DS) ORIGIN BEAT</span><strong data-gi-orb2-ignition-ds>AWAITING SIX FX CLOSES</strong><small data-gi-orb2-ignition-fx>EURUSD · JPYUSD · GBPUSD · CADUSD · SEKUSD · CHFUSD</small></div>
                   <div><span>02–53 · TICKER BEATS</span><strong data-gi-orb2-ignition-progress>0 / 52</strong><small>One orb per ticker · sector members descend by the dated cap snapshot.</small></div>
                 </div>
                 <p class="gi-orb2-ignition-note" data-gi-orb2-ignition-note>Stored Massive FX closes and Tickerbot stock bars only · Kraken exclusively serves Disc3 crypto. Each Disc remains on its reviewed provider; unavailable or unaligned input holds its berth, with no alternate or synthetic data substituted.</p>
@@ -1181,7 +1181,7 @@
 
             <details class="gi-orb2-model-boundary">
               <summary>Model boundary and data provenance</summary>
-              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · The five reviewed Discs are drawn as a constellation of Disc orbs around the Center Origin, one orb per Disc, at berths derived from the reviewed catalog order alone: no market value, packet count, or provider state can move, size, or rank an orb. The selected Disc's packet field is drawn inside its own orb; each orb reports fresh active instruments separately from stale, held, and pending rows; a stored refusal never counts as activation or OCM traffic. The reviewed Disc denominator is shown beside the active count. A Disc with no fresh market data is drawn as an empty dashed orb labelled "awaiting first beat" rather than filled with another Disc's rows. Disc 3 retains Kraken's exact listed cross-crypto base/quote pairs and draws mirrored display pulses through an inner pair OCM orb and the outer crypto orb only when a confirmed positive-volume bar is available; the listed pair orientation is retained, no reciprocal market is invented, and these are not individual trades, transfers, or OCM messages. The carousel strip, its step buttons, a click on a drawn orb, a slide, and the arrow keys walk the ring; focus, zoom, and recentre are camera controls that change the view and recompute no coordinate. Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The DXY readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
+              <p class="gi-orb2-boundary"><strong>MODEL BOUNDARY</strong> · The five reviewed Discs are drawn as a constellation of Disc orbs around the Center Origin, one orb per Disc, at berths derived from the reviewed catalog order alone: no market value, packet count, or provider state can move, size, or rank an orb. The selected Disc's packet field is drawn inside its own orb; each orb reports fresh active instruments separately from stale, held, and pending rows; a stored refusal never counts as activation or OCM traffic. The reviewed Disc denominator is shown beside the active count. A Disc with no fresh market data is drawn as an empty dashed orb labelled "awaiting first beat" rather than filled with another Disc's rows. Disc 3 retains Kraken's exact listed cross-crypto base/quote pairs and draws mirrored display pulses through an inner pair OCM orb and the outer crypto orb only when a confirmed positive-volume bar is available; the listed pair orientation is retained, no reciprocal market is invented, and these are not individual trades, transfers, or OCM messages. The carousel strip, its step buttons, a click on a drawn orb, a slide, and the arrow keys walk the ring; focus, zoom, and recentre are camera controls that change the view and recompute no coordinate. Live price/volume observations drive the same display-only NPC, object, and item motion as Characters. A line or particle is a local visualization, not an OCM message, market signal, recommendation, authorization, transaction, or permission to act. Missing fields remain missing: synthetic or demo data is not substituted for a live beat, and an unavailable beat leaves its berth held rather than re-rendered. No fractal, flame, or film engine is attached to this view: every mark on the canvas is market geometry or the Center Origin assembly. Berth separation is display geometry in that same sense — correlated packets that land on one berth are re-slotted on a shared display radius by stable symbol phase, and the readout states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius; it recomputes no metric, ranks no node, hides no node, and 0% restores the exact packet placement. The Dollar Strength (DS) readout is a fixed central benchmark, not a moving coordinate origin; this demo derives a daily reference from six confirmed, time-aligned Massive FX closes and does not reproduce ICE's licensed real-time value. The local CPU gate/PDH readout remains separate and only affects rotation and brightness; it grants nothing, authorizes nothing, and sends nothing.</p>
             </details>
           </div>
         </section>
@@ -1226,7 +1226,7 @@
             </div>
             <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
               <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
-              <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · FIXED DXY BENCHMARK</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">DXY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
+              <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · FIXED Dollar Strength (DS) BENCHMARK</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">Dollar Strength (DS) BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
               <div class="gi-orb2-status-item gi-orb2-berth-status-item"><span>BERTH SEPARATION · DISPLAY GEOMETRY</span><p class="gi-orb2-berth-readout" data-gi-orb2-berth-readout aria-live="off">BERTH SEPARATION · WAITING FOR THE FIRST DRAWN FIELD</p><small class="gi-orb2-berth-note">Shared berths are re-slotted by stable symbol phase; no market value is recomputed and no node is ranked or hidden.</small></div>
               <div class="gi-orb2-status-pills"><span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span><span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span></div>
               <span class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</span>
@@ -1317,7 +1317,7 @@
     const originStatus = $("[data-gi-orb2-origin-status]");
     const ignitionHost = $("[data-gi-orb2-ignition]");
     const ignitionServer = $("[data-gi-orb2-ignition-server]");
-    const ignitionDxy = $("[data-gi-orb2-ignition-dxy]");
+    const ignitionDollarStrength = $("[data-gi-orb2-ignition-ds]");
     const ignitionFx = $("[data-gi-orb2-ignition-fx]");
     const ignitionProgress = $("[data-gi-orb2-ignition-progress]");
     const ignitionNote = $("[data-gi-orb2-ignition-note]");
@@ -1915,9 +1915,9 @@
 
     function ignitionTarget() {
       if (!state.ignition.active) return null;
-      if (state.ignition.phase === "server-deploy" || state.ignition.phase === "dxy") {
-        const component = Dxy.COMPONENTS.find(input => !state.ignition.fxFired.has(input.symbol));
-        return component ? { kind: "dxy-component", symbol: component.symbol, component } : null;
+      if (state.ignition.phase === "server-deploy" || state.ignition.phase === "ds") {
+        const component = DollarStrength.COMPONENTS.find(input => !state.ignition.fxFired.has(input.symbol));
+        return component ? { kind: "ds-component", symbol: component.symbol, component } : null;
       }
       if (state.ignition.phase === "tickers") {
         const asset = marketFiringOrder.find(entry => !state.ignition.tickerFired.has(entry.symbol));
@@ -1933,8 +1933,8 @@
       const target = ignitionTarget();
       const renderKey = [state.ignition.active, state.ignition.phase, state.ignition.workerReady, state.pending,
         state.routeSteps.worker, state.ignition.fxFired.size, state.ignition.tickerFired.size,
-        state.ignition.blocked, target && target.symbol, state.dxy && state.dxy.status,
-        state.dxy && state.dxy.value, state.dxy && state.dxy.asOf].join("|");
+        state.ignition.blocked, target && target.symbol, state.ds && state.ds.status,
+        state.ds && state.ds.value, state.ds && state.ds.asOf].join("|");
       if (renderKey === state.ignition.renderKey) return;
       state.ignition.renderKey = renderKey;
       const ready = state.ignition.workerReady;
@@ -1943,22 +1943,22 @@
         : workerFailed ? "SERVER FIELD UNREACHABLE · RENDER HELD"
           : state.fieldPending ? "READING THE SERVER FIELD"
             : "WAITING · SERVER FIELD";
-      if (state.dxy && state.dxy.ok) {
-        const date = new Date(state.dxy.asOf).toISOString().slice(0, 10);
-        ignitionDxy.textContent = `DXY ${state.dxy.value.toFixed(3)} · AS OF ${date} · FIXED BENCHMARK`;
+      if (state.ds && state.ds.ok) {
+        const date = new Date(state.ds.asOf).toISOString().slice(0, 10);
+        ignitionDollarStrength.textContent = `Dollar Strength (DS) ${state.ds.value.toFixed(3)} · ${Number(state.ds.percentVs100 || 0).toFixed(2)}% vs 100 · AS OF ${date} · FIXED BENCHMARK`;
       } else {
-        const status = state.dxy && state.dxy.status ? state.dxy.status.toUpperCase() : "WAITING";
-        const next = target && target.kind === "dxy-component" ? ` · NEXT ${target.symbol}` : "";
-        ignitionDxy.textContent = `${state.ignition.fxFired.size}/6 FX CLOSES · ${status}${next}`;
+        const status = state.ds && state.ds.status ? state.ds.status.toUpperCase() : "WAITING";
+        const next = target && target.kind === "ds-component" ? ` · NEXT ${target.symbol}` : "";
+        ignitionDollarStrength.textContent = `${state.ignition.fxFired.size}/6 FX CLOSES · ${status}${next}`;
       }
-      ignitionFx.textContent = Dxy.COMPONENTS.map(input =>
+      ignitionFx.textContent = DollarStrength.COMPONENTS.map(input =>
         `${input.symbol} ${state.ignition.fxFired.has(input.symbol) ? "✓" : "·"}`
       ).join(" · ");
-      ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${Dxy.REQUIRED_ASSETS}`;
+      ignitionProgress.textContent = `${state.ignition.tickerFired.size} / ${DollarStrength.REQUIRED_ASSETS}`;
       if (state.ignition.blocked) ignitionNote.textContent = `SWEEP HELD · ${state.ignition.blocked} No alternate provider or synthetic value is substituted.`;
-      else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed in the stored field; the DXY value remains a dated, fixed-center reference.";
-      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `DXY inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. Tickerbot exclusively supplies the 52 daily stock observations; Massive is reserved for FX, futures, and indices. This page renders stored observations only.`;
-      else ignitionNote.textContent = `The Worker's cron beat runs server-side 24/7/365 → six Massive FX closes → fixed DXY benchmark → 52 Tickerbot stock beats. Kraken Spot separately serves Disc3, and Massive serves futures and indices. ${target ? `Next stored input: ${target.symbol}.` : "Waiting for the server field."} Hiding or reloading this page never restarts the order; DXY is held until all six closes share one timestamp.`;
+      else if (!state.ignition.active) ignitionNote.textContent = "Sequence complete · 52 of 52 ticker beats confirmed in the stored field; the Dollar Strength (DS) value remains a dated, fixed-center reference.";
+      else if (state.ignition.phase === "tickers") ignitionNote.textContent = `Dollar Strength (DS) inputs aligned · ${target ? `next ${target.asset.firingOrder}/52 ${target.symbol}` : "all ticker beats complete"}. Tickerbot exclusively supplies the 52 daily stock observations; Massive is reserved for FX, futures, and indices. This page renders stored observations only.`;
+      else ignitionNote.textContent = `The Worker's cron beat runs server-side 24/7/365 → six Massive FX closes → fixed Dollar Strength (DS) benchmark → 52 Tickerbot stock beats. Kraken Spot separately serves Disc3, and Massive serves futures and indices. ${target ? `Next stored input: ${target.symbol}.` : "Waiting for the server field."} Hiding or reloading this page never restarts the order; Dollar Strength (DS) is held until all six closes share one timestamp.`;
       if (ignitionRestartButton) ignitionRestartButton.hidden = state.ignition.active;
 
       const rows = [];
@@ -1982,7 +1982,7 @@
       firingList.innerHTML = rows.join("");
       if (firingSummary) {
         const next = marketFiringOrder.find(asset => !state.ignition.tickerFired.has(asset.symbol));
-        firingSummary.textContent = state.ignition.tickerFired.size >= Dxy.REQUIRED_ASSETS
+        firingSummary.textContent = state.ignition.tickerFired.size >= DollarStrength.REQUIRED_ASSETS
           ? "All 52 stored · open for the ordered detail"
           : `${state.ignition.tickerFired.size}/52 stored · next ${next ? `${next.firingOrder}/52 ${next.symbol}` : "waiting for the field"}`;
       }
@@ -2312,7 +2312,7 @@
       state.fieldAt = Date.now();
       state.fieldFailed = false;
       if (newest) state.lastBeatAt = newest;
-      if (snapshot.dxy) state.dxy = snapshot.dxy;
+      if (snapshot.ds) state.ds = snapshot.ds;
       const status = snapshot.status || {};
       const massive = status.massive || {};
       const kraken = status.kraken || {};
@@ -2345,31 +2345,31 @@
 
     function syncIgnitionFromField(snapshot) {
       if (!state.ignition.enabled) return;
-      if (snapshot && snapshot.dxy) state.dxy = snapshot.dxy;
+      if (snapshot && snapshot.ds) state.ds = snapshot.ds;
       const rows = Array.isArray(snapshot && snapshot.observations) ? snapshot.observations : [];
       for (const row of rows) {
         if (row.interval !== "1d" || row.confirmed !== true || !row.market) continue;
-        if (row.provider === "massive" && row.discId === "fx" && Dxy.COMPONENTS.some(component => component.symbol === row.symbol)) {
+        if (row.provider === "massive" && row.discId === "fx" && DollarStrength.COMPONENTS.some(component => component.symbol === row.symbol)) {
           state.ignition.fxInputs.set(row.symbol, fieldObservation(row));
           state.ignition.fxFired.add(row.symbol);
         }
         if (row.provider === "tickerbot" && row.discId === "stocks") state.ignition.tickerFired.add(row.symbol);
       }
       state.ignition.workerReady = Boolean(snapshot && snapshot.ok);
-      if (state.ignition.fxFired.size >= Dxy.COMPONENTS.length && !(state.dxy && state.dxy.ok)) {
-        state.dxy = Dxy.evaluate([...state.ignition.fxInputs.values()], Date.now());
+      if (state.ignition.fxFired.size >= DollarStrength.COMPONENTS.length && !(state.ds && state.ds.ok)) {
+        state.ds = DollarStrength.evaluate([...state.ignition.fxInputs.values()], Date.now());
       }
-      if (state.ignition.tickerFired.size >= Dxy.REQUIRED_ASSETS) {
+      if (state.ignition.tickerFired.size >= DollarStrength.REQUIRED_ASSETS) {
         state.ignition.phase = "complete";
         if (state.ignition.active) {
           state.ignition.active = false;
-          state.message = { kind: "note", text: `Server field complete · all ${Dxy.REQUIRED_ASSETS} ticker beats and the six DXY closes are stored. The cron schedule keeps running; this view never replays the order.` };
+          state.message = { kind: "note", text: `Server field complete · all ${DollarStrength.REQUIRED_ASSETS} ticker beats and the six Dollar Strength (DS) closes are stored. The cron schedule keeps running; this view never replays the order.` };
         }
         return;
       }
       if (!state.ignition.active) return;
-      if (state.ignition.fxFired.size >= Dxy.COMPONENTS.length) state.ignition.phase = "tickers";
-      else if (state.ignition.workerReady) state.ignition.phase = "dxy";
+      if (state.ignition.fxFired.size >= DollarStrength.COMPONENTS.length) state.ignition.phase = "tickers";
+      else if (state.ignition.workerReady) state.ignition.phase = "ds";
     }
 
     /** One same-origin read of the stored field at one interval. */
@@ -2437,11 +2437,11 @@
         }
       }
       if (types.size) merged.beatTypes = [...types.values()];
-      /* The DXY reference is fixed and derives from the six aligned FX closes,
+      /* The Dollar Strength (DS) reference is fixed and derives from the six aligned FX closes,
          so a ready reading wins over one that could not compose it. */
-      const dxy = served.map(read => read.data.dxy).filter(Boolean)
+      const ds = served.map(read => read.data.ds).filter(Boolean)
         .sort((left, right) => (right.status === "ready" ? 1 : 0) - (left.status === "ready" ? 1 : 0))[0];
-      if (dxy) merged.dxy = dxy;
+      if (ds) merged.ds = ds;
       return merged;
     }
 
@@ -2719,7 +2719,7 @@
       state.ignition.tickerFired.clear();
       state.ignition.blocked = "";
       state.ignition.renderKey = "";
-      state.dxy = null;
+      state.ds = null;
       state.auto = true;
       state.routeSteps = { provider: "READY", worker: "SERVER FIELD", ledger: "READING", model: "RENDER-ONLY" };
       state.message = { kind: "note", text: "Re-reading the server field from the top of the firing order. Nothing is re-requested: progress is whatever the Worker already stored, so a hidden or reloaded page never restarts the order." };
@@ -3569,10 +3569,10 @@
       let utsText = "UTS UNAVAILABLE";
       try { if (uts && typeof uts.formatUDate === "function") utsText = `UTS ${uts.formatUDate(new Date(wallNow))}`; } catch { utsText = "UTS UNAVAILABLE"; }
       if (originStatus) {
-        const dxyText = state.dxy && state.dxy.ok
-          ? `${state.dxy.value.toFixed(3)} · AS OF ${new Date(state.dxy.asOf).toISOString().slice(0, 10)}`
-          : `${String(state.dxy && state.dxy.status || "awaiting six aligned FX closes").toUpperCase()}`;
-        const text = `ORIGIN · CPU — ${CENTER_ADDRESS} · DXY BENCHMARK ${dxyText} · FIXED CENTER · ${gateText} · ${phaseText} · ${utsText}`;
+        const dsText = state.ds && state.ds.ok
+          ? `${state.ds.value.toFixed(3)} · AS OF ${new Date(state.ds.asOf).toISOString().slice(0, 10)}`
+          : `${String(state.ds && state.ds.status || "awaiting six aligned FX closes").toUpperCase()}`;
+        const text = `ORIGIN · CPU — ${CENTER_ADDRESS} · Dollar Strength (DS) BENCHMARK ${dsText} · FIXED CENTER · ${gateText} · ${phaseText} · ${utsText}`;
         if (originStatus.textContent !== text) originStatus.textContent = text;
       }
       if (gatePill) {
@@ -4258,8 +4258,8 @@
       context2d.fillStyle = "#fff2c6";
       context2d.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.textAlign = "center";
-      const dxyLabel = state.dxy && state.dxy.ok ? `DXY · ${state.dxy.value.toFixed(3)}` : "DXY · AWAITING ALIGNED CLOSES";
-      context2d.fillText(dxyLabel, center.x, center.y + 29);
+      const dsLabel = state.ds && state.ds.ok ? `Dollar Strength (DS) · ${state.ds.value.toFixed(3)} · ${Number(state.ds.percentVs100 || 0).toFixed(2)}% vs 100` : "Dollar Strength (DS) · AWAITING ALIGNED CLOSES";
+      context2d.fillText(dsLabel, center.x, center.y + 29);
       context2d.fillStyle = "#a9c3df";
       context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.fillText(originAssembly.phase ? `LOCAL CPU · ${originAssembly.phase}` : "LOCAL CPU · CENTER ORIGIN", center.x, center.y + 41);

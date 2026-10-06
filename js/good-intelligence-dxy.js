@@ -1,5 +1,5 @@
 /*
- * Good Intelligence — ICE USDX/DXY demo bridge.
+ * Good Intelligence — Dollar Strength (DS) bridge.
  *
  * This browser module contains no fetches and no synthetic fixtures. It only
  * derives a display-only daily reference from six confirmed, timestamp-aligned
@@ -8,8 +8,9 @@
 "use strict";
 
 (() => {
-  const SCHEMA = "good-intelligence-dxy-v1";
-  const ICE_USDX_CONSTANT = 50.14348112;
+  const SCHEMA = "good-intelligence-dollar-strength-v1";
+  const DS_CONSTANT = 50.14348112;
+  const DS_BASELINE = 100;
   const MAX_INPUT_AGE_MS = 4 * 24 * 60 * 60_000;
   /* Catalog symbols are all quoted USD per one foreign-currency unit. ICE Rule
      15.01 expresses each rate in European terms (foreign units per USD), so
@@ -93,7 +94,7 @@
         invalid: Object.freeze(invalid),
         rates: Object.freeze(rates),
         reason: missing.length
-          ? `Awaiting ${missing.length} confirmed DXY component close${missing.length === 1 ? "" : "s"}.`
+          ? `Awaiting ${missing.length} confirmed Dollar Strength (DS) component close${missing.length === 1 ? "" : "s"}.`
           : invalid[0].message
       });
     }
@@ -109,28 +110,30 @@
         invalid: Object.freeze([]),
         rates: Object.freeze(rates),
         refreshSymbol,
-        reason: "The six confirmed FX closes have different bar timestamps; DXY remains held until they align."
+        reason: "The six confirmed FX closes have different bar timestamps; Dollar Strength (DS) remains held until they align."
       });
     }
 
     /* Log space avoids intermediate overflow and mirrors ICE's geometric form. */
-    const logValue = Math.log(ICE_USDX_CONSTANT) + rates.reduce((total, rate) => total - rate.weight * Math.log(rate.close), 0);
+    const logValue = Math.log(DS_CONSTANT) + rates.reduce((total, rate) => total - rate.weight * Math.log(rate.close), 0);
     const value = Math.exp(logValue);
     if (!finite(value) || value <= 0) {
       return Object.freeze({
         ok: false, status: "held", missing: Object.freeze([]), invalid: Object.freeze([]),
-        rates: Object.freeze(rates), reason: "The aligned FX closes did not produce a finite DXY reference."
+        rates: Object.freeze(rates), reason: "The aligned FX closes did not produce a finite Dollar Strength (DS) reference."
       });
     }
     return Object.freeze({
       ok: true,
       status: "ready",
       value,
+      baseline: DS_BASELINE,
+      percentVs100: (value / DS_BASELINE - 1) * 100,
       asOf: timestamps[0],
       inputCount: rates.length,
       inputs: Object.freeze(rates.map(rate => Object.freeze({ symbol: rate.symbol, currency: rate.currency, weight: rate.weight, close: rate.close, time: rate.time }))),
       source: "Massive confirmed 1d FX closes · ICE USDX Rule 15.01 weights",
-      note: "Daily component-derived reference, not the licensed real-time ICE-distributed DXY value."
+      note: "Daily component-derived reference, not the licensed real-time ICE-distributed Dollar Strength (DS) value."
     });
   }
 
@@ -200,9 +203,10 @@
     });
   }
 
-  window.GoodIntelligenceDxy = Object.freeze({
+  window.GoodIntelligenceDollarStrength = Object.freeze({
     SCHEMA,
-    ICE_USDX_CONSTANT,
+    DS_CONSTANT,
+    DS_BASELINE,
     MAX_INPUT_AGE_MS,
     COMPONENTS,
     REQUIRED_ASSETS,

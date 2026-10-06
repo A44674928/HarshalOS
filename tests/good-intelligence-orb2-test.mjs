@@ -13,7 +13,7 @@ const castSource = await readText("js/characters-cast.js");
 const beatSource = await readText("js/characters-beat.js");
 const catalogSource = await readText("js/characters-disc-catalog.js");
 const marketSource = await readText("js/good-intelligence-market-context.js");
-const dxySource = await readText("js/good-intelligence-dxy.js");
+const dsSource = await readText("js/good-intelligence-dxy.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const scenariosSource = await readText("js/good-intelligence-orb2-scenarios.js");
 const orbSource = await readText("js/good-intelligence-orb2.js");
@@ -37,7 +37,7 @@ function harness() {
   vm.runInContext(castSource, context, { filename: "js/characters-cast.js" });
   vm.runInContext(beatSource, context, { filename: "js/characters-beat.js" });
   vm.runInContext(catalogSource, context, { filename: "js/characters-disc-catalog.js" });
-  vm.runInContext(dxySource, context, { filename: "js/good-intelligence-dxy.js" });
+  vm.runInContext(dsSource, context, { filename: "js/good-intelligence-dxy.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   vm.runInContext(scenariosSource, context, { filename: "js/good-intelligence-orb2-scenarios.js" });
   vm.runInContext(orbSource, context, { filename: "js/good-intelligence-orb2.js" });
@@ -79,8 +79,8 @@ function fieldRow(window, symbol, options = {}) {
 }
 
 function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", types = ["observation"], additionalRows = [], discStatus = null } = {}) {
-  const fxSymbols = Array.from(window.GoodIntelligenceDxy.COMPONENTS, component => component.symbol);
-  const stocks = Array.from(window.GoodIntelligenceDxy.buildFiringOrder(MARKET_ROSTER), asset => asset.symbol);
+  const fxSymbols = Array.from(window.GoodIntelligenceDollarStrength.COMPONENTS, component => component.symbol);
+  const stocks = Array.from(window.GoodIntelligenceDollarStrength.buildFiringOrder(MARKET_ROSTER), asset => asset.symbol);
   const observations = [
     ...fxSymbols.slice(0, fxCount).map(symbol => fieldRow(window, symbol, { discId: "fx", provider: "massive" })),
     ...stocks.slice(0, stockCount).map(symbol => fieldRow(window, symbol, { discId: "stocks", provider: "tickerbot" })),
@@ -104,7 +104,7 @@ function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", 
       counts: { stored: observations.length, observed: observations.length, confirmed: observations.length, held: 0, reviewedInstruments: 90 },
       ...(Array.isArray(discStatus) ? { discs: discStatus } : {})
     },
-    dxy: { ok: true, status: "ready", value: 99.123, asOf: NOW, missing: [], refreshSymbol: null },
+    ds: { ok: true, status: "ready", value: 99.123, asOf: NOW, missing: [], refreshSymbol: null },
     observations
   };
 }
@@ -206,7 +206,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   window.eval(beatSource);
   window.eval(castSource);
   window.eval(catalogSource);
-  window.eval(dxySource);
+  window.eval(dsSource);
   window.eval(rosterSource);
   window.eval(scenariosSource);
   window.eval(orbSource);
@@ -216,7 +216,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
     roster: window.CharactersCast.NPC_ROSTER, watchlist,
     ...(tickers ? { tickers, timeframe } : {}),
     beat: window.CharactersBeat, cast: window.CharactersCast, discCatalog: window.CharactersDiscCatalog,
-    marketContext: window.GoodIntelligenceMarketContext, dxy: window.GoodIntelligenceDxy
+    marketContext: window.GoodIntelligenceMarketContext, ds: window.GoodIntelligenceDollarStrength
   });
   const canvas = host.querySelector("[data-gi-orb2-canvas]");
   Object.defineProperties(canvas, {
@@ -450,7 +450,7 @@ test("Orb 2 renders the stored server field and never calls a provider route", a
   assert.equal(providerCalls.length, 0, "no browser code calls /api/characters/v1/beat");
   assert.equal(engine.state.observations.size, 58, "six FX and 52 stock observations came from the stored field");
   assert.equal(engine.state.field.ok, true);
-  assert.equal(engine.state.dxy.value, 99.123, "the snapshot's fixed DXY benchmark is rendered at center");
+  assert.equal(engine.state.ds.value, 99.123, "the snapshot's fixed Dollar Strength (DS) benchmark is rendered at center");
   assert.equal(engine.state.ignition.phase, "complete");
   assert.equal(engine.state.ignition.tickerFired.size, 52);
   assert.equal(host.querySelectorAll('[data-gi-orb2-firing-list] [data-beat-state="fired"]').length, 52);
@@ -471,7 +471,7 @@ test("the firing order is derived from stored progress, so hiding or reloading n
   await flush();
   assert.equal(engine.state.ignition.active, true);
   assert.equal(engine.state.ignition.fxFired.size, 2, "the Worker stores two FX closes; the page reports exactly two");
-  assert.equal(engine.state.ignition.phase, "dxy");
+  assert.equal(engine.state.ignition.phase, "ds");
   engine.setVisible(false);
   engine.setVisible(true);
   await flush();
@@ -690,7 +690,7 @@ test("Orb 2 keeps settings and status outside the clear, full-width model stage"
   assert.equal(canvasShell.contains(flow), false, "flow text sits below the canvas rather than on top of the model");
   assert.equal(canvasShell.contains(origin), false, "origin text sits below the canvas rather than on top of the model");
   assert.equal(host.querySelector(".gi-orb2-canvas-hud"), null, "the overlay HUD is removed");
-  assert.match(host.querySelector(".gi-orb2-center").textContent, /DXY FIXED BENCHMARK/);
+  assert.match(host.querySelector(".gi-orb2-center").textContent, /Dollar Strength \(DS\) FIXED BENCHMARK/);
   assert.equal(host.querySelector("[data-gi-orb2-disc]").options.length, 5, "the five reviewed Discs are selectable");
   const settingsPanel = host.querySelector("[data-gi-orb2-settings]");
   const settingsToggle = host.querySelector("[data-gi-orb2-settings-toggle]");
@@ -740,12 +740,12 @@ test("the standalone Massive Markets desktop window remains retired and the load
   const beatAt = indexHtml.indexOf("js/characters-beat.js");
   const catalogAt = indexHtml.indexOf("js/characters-disc-catalog.js");
   const rosterAt = indexHtml.indexOf("js/good-intelligence-market-roster.js");
-  const dxyAt = indexHtml.indexOf("js/good-intelligence-dxy.js");
+  const dsAt = indexHtml.indexOf("js/good-intelligence-dxy.js");
   const scenarioAt = indexHtml.indexOf("js/good-intelligence-orb2-scenarios.js");
   const orbAt = indexHtml.indexOf("js/good-intelligence-orb2.js");
   const appAt = indexHtml.indexOf("js/apps-good-intelligence.js");
-  assert.ok(castAt < beatAt && beatAt < catalogAt && catalogAt < rosterAt && rosterAt < dxyAt && dxyAt < scenarioAt && scenarioAt < orbAt && orbAt < appAt,
-    "the cast, beat engine, Disc catalog, roster, DXY helper, and scenarios load before Orb 2 and its tab");
+  assert.ok(castAt < beatAt && beatAt < catalogAt && catalogAt < rosterAt && rosterAt < dsAt && dsAt < scenarioAt && scenarioAt < orbAt && orbAt < appAt,
+    "the cast, beat engine, Disc catalog, roster, Dollar Strength (DS) helper, and scenarios load before Orb 2 and its tab");
 });
 
 test("the Worker field route is the documented contract the page renders", () => {
