@@ -309,24 +309,26 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
   clearMassiveCache();
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
-  const restricted = env(db, { MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE: "1", MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1" });
+  const envValue = env(db);
   let fetches = 0;
   const dependencies = {
     now: () => NOW,
     fetch: async () => { fetches += 1; return dailyAggs(); }
   };
-  const admitted = await handleCharactersBeat(
-    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"), restricted, dependencies
-  );
-  assert.equal(admitted.status, 200);
+  for (const symbol of ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "NZDUSD"]) {
+    const admitted = await handleCharactersBeat(
+      beat(`disc=fx&provider=massive&symbols=${symbol}&interval=1d&cadence=1`), envValue, dependencies
+    );
+    assert.equal(admitted.status, 200);
+  }
   const rateLimited = await handleCharactersBeat(
-    beat("disc=fx&provider=massive&symbols=GBPUSD&interval=1d&cadence=1"), restricted, dependencies
+    beat("disc=fx&provider=massive&symbols=CADUSD&interval=1d&cadence=1"), envValue, dependencies
   );
   const payload = await rateLimited.json();
   assert.equal(rateLimited.status, 429);
   assert.equal(payload.data.spend.massiveAttempts, 0);
-  assert.equal(payload.data.spend.massiveDaily.calls, 1, "the denied minute slot did not claim the daily allowance");
-  assert.equal(fetches, 1);
+  assert.equal(payload.data.spend.massiveDaily.calls, 5, "the denied minute slot did not claim another daily telemetry slot");
+  assert.equal(fetches, 5);
 });
 
 test("Massive failures do not leak an upstream body or a Worker secret, and missing D1 fails closed", async t => {
