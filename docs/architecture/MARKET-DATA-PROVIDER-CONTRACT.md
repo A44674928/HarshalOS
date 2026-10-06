@@ -106,4 +106,4 @@ The contract is deliberately additive. Existing provider-specific controls remai
 
 ## Scope of PR #81
 
-PR #81 establishes this contract and its regression tests. It does **not** add a new upstream provider, change indicator mathematics, alter Orb visuals, or introduce the experimental FBB-L60 calculation. Those changes remain separate implementation units.
+PR #81 establishes this contract and its regression tests. It does **not** add a new upstream provider, change indicator mathematics, or alter Orb visuals. The experimental FBB-L60 calculation is implemented separately and consumes this contract's explicit history-capacity semantics without weakening the existing FBB-200 requirement.
