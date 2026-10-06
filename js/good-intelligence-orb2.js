@@ -272,8 +272,10 @@
     }
     const magnitude = Math.max(1, Math.abs(band.displacement));
     const rawIndex = Math.log(magnitude) / Math.log(TOPOLOGY_BAND_RATIO);
-    const index = clamp(Math.floor(rawIndex), 0, TOPOLOGY_MAX_BANDS);
-    const fraction = clamp(rawIndex - index, 0, 1);
+    const nearestInteger = Math.round(rawIndex);
+    const normalizedIndex = Math.abs(rawIndex - nearestInteger) <= 1e-10 ? nearestInteger : rawIndex;
+    const index = clamp(Math.floor(normalizedIndex), 0, TOPOLOGY_MAX_BANDS);
+    const fraction = clamp(normalizedIndex - index, 0, 1);
     const radius = TOPOLOGY_BAND_BASE * Math.pow(TOPOLOGY_BAND_RATIO, index + fraction);
     return {
       index, radius, fraction,
