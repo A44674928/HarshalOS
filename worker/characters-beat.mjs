@@ -236,7 +236,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   }
   const provider = providerFor(url, discId);
   if (!provider) {
-    return failure("Choose provider=tickerbot (Disc1 stocks), provider=kraken (Disc3 crypto), or provider=massive (FX/commodities/indices).", 400);
+    return failure("Choose provider=tickerbot (Disc1 stocks), provider=kraken (Disc3 crypto), or provider=massive (FX/futures/indices).", 400);
   }
   if (provider === "massive" && interval !== "1d") {
     return failure("Massive Characters beats are restricted to interval=1d.", 400);
@@ -248,7 +248,7 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     return failure("Tickerbot serves reviewed Disc1 stocks only at interval=1h or interval=1d in Characters.", 400);
   }
   if (provider === "massive" && !MASSIVE_DISCS.includes(discId)) {
-    return failure("Massive serves reviewed FX, commodity-futures, and index daily bars only; stocks and crypto have separate providers.", 400);
+    return failure("Massive serves reviewed FX, futures, and index daily bars only; stocks and crypto have separate providers.", 400);
   }
   const rawSymbols = url.searchParams.get("symbols");
   if (typeof rawSymbols !== "string" || !rawSymbols.trim()) return failure("Choose at least one instrument from this Disc.", 400);
