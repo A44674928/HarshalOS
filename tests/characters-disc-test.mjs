@@ -40,7 +40,18 @@ test("the five reviewed Discs expose only their assigned providers and intervals
   assert.equal(Catalog.disc("indices").number, 5);
   assert.equal(Catalog.disc("indices").defaultProvider, "massive");
   assert.deepEqual(Catalog.disc("indices").intervalModes, ["1d"]);
-  assert.ok(Catalog.staticInstruments("indices").some(entry => entry.symbol === "SPX"));
+  const indices = Catalog.staticInstruments("indices");
+  const expectedIndices = ["NDX","COMP","DJT","DJU","BKX","SOX","REIT","BANK","DJUSEN","DJUSFI","DJUSHC","DJUSIN","DJUSTC","DJUSUT","DJUSCN","DJUSCS","DJUSRE","DJUSRT","DJUSFN","DJUSFV","DJUSAP","DJUSBK","DJUSBS","DJUSCH","DJUSIG","DJUSIR","DJUSME","DJUSNG","DJUSFB","DJUSCG","DJUSAE","DJUSTL","DJUSCR","DJUSCA","DJUSAI","DJUSNS","DJAUS","CADOW","CHDOW","DEDOW","FRDOW","GBDOW","HKDOW","JPDOW","DWAEM","DWAMLVEM","GRNENEF","GRNWINDX","GRNEUROPE","NDXESG","NDXDIV","DEFENSE"];
+  assert.equal(indices.length, 52);
+  assert.deepEqual(indices.map(entry => entry.symbol), expectedIndices);
+  assert.equal(new Set(indices.map(entry => entry.symbol)).size, 52);
+  assert.ok(indices.every(entry => entry.assetClass === "index" && entry.dataShape === "ohlc"));
+  assert.ok(indices.every(entry => entry.massive.family === "aggs" && entry.massive.ticker === `I:${entry.symbol}`));
+  assert.deepEqual(indices.slice(0, 8).map(entry => entry.sector), Array(8).fill("U.S. headline / structural"));
+  assert.deepEqual(indices.slice(8, 20).map(entry => entry.sector), Array(12).fill("U.S. sector architecture"));
+  assert.deepEqual(indices.slice(20, 36).map(entry => entry.sector), Array(16).fill("U.S. industry / subindustry"));
+  assert.deepEqual(indices.slice(36, 44).map(entry => entry.sector), Array(8).fill("International / regional"));
+  assert.deepEqual(indices.slice(44, 52).map(entry => entry.sector), Array(8).fill("Thematic / factor / specialty"));
 });
 
 test("Disc4 keeps its reviewed Massive product roster and energy equities remain Disc1 stocks", () => {
