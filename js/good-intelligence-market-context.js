@@ -287,7 +287,7 @@ window.GoodIntelligenceMarketContext = (() => {
     const logDeviation = rollingStdev(logSource, parameters.bandLen)
       .map(value => finite(value) ? value * parameters.bandMult : null);
     const basis = basisLog.map(priceFromLog);
-    const ratios = [[382, 0.382], [618, 0.618], [764, 0.764], [1000, 1]];
+    /* Log-space adaptation of the supplied standalone FBB: 0.236, 0.382, 0.500,\n       0.618, 0.764, and 1.000. The ratio structure is Pine-equivalent; only the\n       mathematical domain is changed so multiplicative price distances remain symmetric. */\n    const ratios = [[236, 0.236], [382, 0.382], [500, 0.500], [618, 0.618], [764, 0.764], [1000, 1]];
     const bands = logSource.map((_, i) => {
       const centerLog = basisLog[i], devLog = logDeviation[i], base = basis[i];
       if (!finite(centerLog) || !finite(devLog) || !finite(base)) return null;
@@ -533,7 +533,7 @@ window.GoodIntelligenceMarketContext = (() => {
       alerts,
       note: !volumeAvailable
         ? "Price-only analysis from the supplied close or OHLC observations. Fibonacci bands use natural-log price math; VFI, relative volume, and other volume-based measures are disabled because this series has no volume. No OHLC or volume fields were fabricated. Display-only context, not investment advice or permission to act."
-        : "Client-side price/volume calculation. Fibonacci bands use the selected moving average and population standard deviation of ln(source), apply Fibonacci offsets in log space, then exponentiate to price; this intentionally differs from the archived Pine's linear-price formula. Exact source parity has not been cross-validated. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
+        : "Client-side price/volume calculation. Fibonacci Bollinger Bands use the standalone Pine structure and all six Pine levels, with the selected moving average and population standard deviation evaluated on ln(source), Fibonacci offsets applied in log space, and levels exponentiated only at the final price-unit boundary. This is the declared logarithmic-domain adaptation of the supplied Pine formula. Verify OHLCV and settings against the provider. Price/volume context only—not source credibility, claim truth, investment advice, or permission to act. Alerts are display-only; nothing is sent or executed."
     };
   }
 
