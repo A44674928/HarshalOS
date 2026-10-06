@@ -14,7 +14,7 @@ import {
   ORB2_FIELD_FRESHNESS,
   ORB2_FIELD_TICKERBOT_BURST_CALLS,
   ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
-  ORB2_MASSIVE_PER_MINUTE,
+  ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
   clearOrb2FieldSchemaCache,
   handleOrb2Field,
   heldFieldObservation,
@@ -324,7 +324,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   seedActiveContracts(sql, at);
 
   const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
-  assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
+  assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3);
   assert.equal(firstTick.krakenCalls, 1, "the cold tick spends one Kraken call on the rolling-24-hour roster");
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
@@ -335,8 +335,11 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   assert.equal(reviewed, 144);
   assert.equal(seen.krakenRanking.length, 1);
   assert.equal(seen.krakenBars.length, 0, "the pair-bar lane waits for the next one-second Kraken slot");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE,
-    "the five-call Massive envelope is independent of Kraken roster discovery");
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3,
+    "each Massive subscription class gets its own five-call server-side envelope");
+  assert.equal(seen.massive.filter(ticker => ticker.startsWith("C:")).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(seen.massive.filter(ticker => ticker.startsWith("I:")).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(seen.massive.filter(ticker => /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker)).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
   const firstDiscs = new Set(seen.massive.map(ticker =>
     ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "unexpected"));
   assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices"],
@@ -357,7 +360,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   let tick = 1;
   while (coverage().size < reviewed && tick < 100) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
-    assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE);
+    assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3);
     assert.ok(summary.krakenCalls <= 1, "Kraken's shared pacing gate permits at most one call per tick");
     tick += 1;
   }
