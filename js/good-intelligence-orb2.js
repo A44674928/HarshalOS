@@ -1391,6 +1391,26 @@
         </div>
         <div class="gi-orb2-message" data-gi-orb2-message role="status" hidden></div>
 
+        <section class="gi-orb2-raceboard" data-gi-orb2-raceboard aria-label="Orb 2 dual market race">
+          <div class="gi-orb2-raceboard-head">
+            <div><p class="gi-eyebrow">MARKET FIELD · DUAL RACE</p><strong>Established ↔ Formation</strong></div>
+            <span data-gi-orb2-race-note>Waiting for the live stock field…</span>
+          </div>
+          <div class="gi-orb2-race-lane" data-gi-orb2-race-established>
+            <span class="gi-orb2-race-label">ESTABLISHED</span>
+            <span class="gi-orb2-race-cap">START</span>
+            <div class="gi-orb2-race-track"><i aria-hidden="true"></i><div data-gi-orb2-race-established-markers></div></div>
+            <span class="gi-orb2-race-cap">FINISH</span>
+          </div>
+          <div class="gi-orb2-race-lane" data-gi-orb2-race-formation>
+            <span class="gi-orb2-race-label">IPO / FORMATION</span>
+            <span class="gi-orb2-race-cap">QUALIFIED</span>
+            <div class="gi-orb2-race-track"><i aria-hidden="true"></i><div data-gi-orb2-race-formation-markers></div></div>
+            <span class="gi-orb2-race-cap">NEW IPO</span>
+          </div>
+          <p class="gi-orb2-race-explanation">Established instruments move toward <strong>FINISH</strong>. Formation instruments move toward <strong>QUALIFIED</strong> from the opposite side. The lanes never share FBB requirements: missing history is held, never fabricated.</p>
+        </section>
+
         <div class="gi-orb2-layout">
           <div class="gi-orb2-stage">
             <div class="gi-orb2-canvas-shell">
@@ -1488,6 +1508,12 @@
     const routeNote = $("[data-gi-orb2-route-note]");
     const planHost = $("[data-gi-orb2-plan]");
     const messageHost = $("[data-gi-orb2-message]");
+    const raceBoard = $("[data-gi-orb2-raceboard]");
+    const raceEstablishedLane = $("[data-gi-orb2-race-established]");
+    const raceFormationLane = $("[data-gi-orb2-race-formation]");
+    const raceEstablishedMarkers = $("[data-gi-orb2-race-established-markers]");
+    const raceFormationMarkers = $("[data-gi-orb2-race-formation-markers]");
+    const raceNote = $("[data-gi-orb2-race-note]");
     const providerHost = $("[data-gi-orb2-provider]");
     const countdownHost = $("[data-gi-orb2-countdown]");
     const persistenceHost = $("[data-gi-orb2-persistence]");
@@ -2332,9 +2358,37 @@
       syncOcmTrafficNote();
     }
 
+    function renderMarketRaceBoard() {
+      if (!raceBoard) return;
+      const stockMode = tickerMode && state.discId === "stocks";
+      raceBoard.hidden = !stockMode;
+      if (!stockMode) return;
+      const snapshot = buildMarketRaceSnapshot(state.entries, state.observations);
+      const marker = (row, direction) => {
+        const symbol = String(row.entry.symbol || row.race.symbol).toUpperCase();
+        const position = clamp(Number(row.race.trackPosition) || 0, 0, 1) * 100;
+        const progress = (Number(row.race.progress) || 0) * 100;
+        const status = row.race.status === "graduation-ready" ? " · FBB-L60 ready to graduate" : "";
+        return '<button type="button" class="gi-orb2-race-marker ' + direction +
+          (row.rank === 1 ? ' is-leader' : '') + '" style="left:' + position.toFixed(3) + '%" ' +
+          'data-race-symbol="' + escapeHtml(symbol) + '" title="' + escapeHtml(symbol + ' · ' + progress.toFixed(1) + '% lane progress' + status) + '">' +
+          '<span>#' + row.rank + '</span><strong>' + escapeHtml(symbol) + '</strong></button>';
+      };
+      raceEstablishedMarkers.innerHTML = snapshot.established.map(row => marker(row, "established")).join("");
+      raceFormationMarkers.innerHTML = snapshot.formation.map(row => marker(row, "formation")).join("");
+      raceEstablishedLane.dataset.count = String(snapshot.established.length);
+      raceFormationLane.dataset.count = String(snapshot.formation.length);
+      const lead = snapshot.established[0];
+      const finish = lead ? 'Established leader: ' + lead.entry.symbol + ' · #1' : 'Established race: waiting for FBB-qualified observations';
+      const formationReady = snapshot.graduationReady ? ' · ' + snapshot.graduationReady + ' ready to graduate' : '';
+      raceNote.textContent = finish + ' · Formation field: ' + snapshot.formation.length + formationReady + '.';
+      raceBoard.dataset.schema = MARKET_RACE_SCHEMA;
+    }
+
     function draw() {
       syncFormControls();
       renderOrbBar();
+      renderMarketRaceBoard();
       drawInspector();
       drawHistory();
       /* drawStatus() runs last so the beat-type scenario narration and the
@@ -4963,6 +5017,6 @@
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
-    buildNodes, mount, getSavedBeatSessionId
+    buildNodes, marketStageFor, marketRacePosition, buildMarketRaceSnapshot, mount, getSavedBeatSessionId
   });
 })();
