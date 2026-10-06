@@ -15,6 +15,7 @@ import {
   ORB2_FIELD_TICKERBOT_BURST_CALLS,
   ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
   ORB2_MASSIVE_PER_MINUTE,
+  clearOrb2FieldSchemaCache,
   handleOrb2Field,
   heldFieldObservation,
   observationFromPacket,
@@ -60,6 +61,7 @@ function seedActiveContracts(sql, at = NOW) {
 function fixture(t, { migrated = true, maxBindParameters = Infinity } = {}) {
   clearCharactersCryptoRankingCache();
   clearKrakenDailyBarCache();
+  clearOrb2FieldSchemaCache();
   const sql = new DatabaseSync(":memory:");
   if (migrated) for (const migration of MIGRATIONS) sql.exec(migration);
   t.after(() => sql.close());
@@ -758,14 +760,17 @@ test("observationFromPacket refuses a missing packet instead of inventing a bert
 test("the scheduler handles missing kraken_calls column gracefully without migration 0012", async t => {
   clearCharactersCryptoRankingCache();
   clearKrakenDailyBarCache();
+  clearOrb2FieldSchemaCache();
   const sql = new DatabaseSync(":memory:");
   /* Apply migrations 0005 through 0011 only — omitting 0012 so orb2_field_runs lacks kraken_calls */
   for (const file of ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]) {
     sql.exec(readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
   }
   t.after(() => sql.close());
+  const alters = [];
   const db = {
     prepare(query) {
+      if (/ALTER\s+TABLE\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
       let values = [];
       const statement = {
         bind(...args) { values = args; return statement; },
@@ -782,6 +787,29 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");
+  const healed = sql.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'orb2_field_runs'").get();
+  assert.match(String(healed.sql), /\bkraken_calls\b/, "the first tick self-heals the missing 0012 column");
+  assert.equal(alters.length, 1, "self-heal issues exactly one ALTER TABLE");
+  const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
+  assert.equal(second.ok, true);
+  assert.equal(alters.length, 1, "no further ALTER is issued once the column exists");
+});
+
+test("a migrated field never issues ALTER TABLE, so no duplicate-column error reaches observability", async t => {
+  const { env } = fixture(t);
+  const alters = [];
+  const innerPrepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
+  env.COMMUNITY_DB.prepare = query => {
+    if (/ALTER\s+TABLE/i.test(String(query))) alters.push(String(query));
+    return innerPrepare(query);
+  };
+  const seen = { urls: [], massive: [], tickerbot: [] };
+  const at = nextClock();
+  const first = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(first.ok, true);
+  const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
+  assert.equal(second.ok, true);
+  assert.deepEqual(alters, [], "steady-state ticks must not attempt ALTER TABLE at all");
 });
 
 test("failed provider beats and missing commodity contracts write heldFieldObservation and are not immediately retried", async t => {
