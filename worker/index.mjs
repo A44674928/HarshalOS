@@ -4,6 +4,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ApiError, MAX_BYTES, validateSnapshot, validateLedger, assertPrefix } from './storage.mjs';
 import { handleGoodIntelligenceDemo } from './good-intelligence-demo.mjs';
 import { handleGoodIntelligenceTickerbot } from './good-intelligence-tickerbot.mjs';
+import { readHfHistory } from './hf-data-library.mjs';
 import { handleGoodIntelligenceOrb2Beats } from './good-intelligence-orb2-beats.mjs';
 import { handleCharactersBeat, handleCharactersDeploy } from './characters-beat.mjs';
 import { handleOrb2SavedBeats } from './orb2-saved-beats.mjs';
@@ -153,6 +154,7 @@ export default {
     }
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
+    if (path === '/api/good-intelligence/v1/market/hf-history') return readHfHistory(request, env);
     if (path === '/api/good-intelligence/v1/orb2/beats') return handleGoodIntelligenceOrb2Beats(request, env);
     // The server-side Orb 2 beat field: clients read stored observations and may
     // ask the Worker to prioritize or warm the schedule. Browsers never call a
