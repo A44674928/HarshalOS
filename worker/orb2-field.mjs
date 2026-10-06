@@ -84,6 +84,9 @@ export const ORB2_FIELD_WARM_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
 export const ORB2_FIELD_DEFAULT_INTERVAL = "1d";
 export const ORB2_FIELD_DISCS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
 export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
+/* Cloudflare D1 caps bound SQL variables at 100. Keep room for fixed predicates
+   and LIMIT bindings so symbol-scoped field reads remain below that ceiling. */
+const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
 export const ORB2_MASSIVE_PER_MINUTE = 5;
 export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
@@ -1226,6 +1229,37 @@ function parsePacketRow(row, now) {
   } catch { return null; }
 }
 
+/** D1 queries are limited to 100 bound variables. Split large symbol filters
+ * into conservative batches, then restore the global newest-first limit after
+ * merging. This is still a read of the unchanged stored field. */
+async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limit = null }) {
+  const uniqueSymbols = Array.isArray(symbols) ? [...new Set(symbols)] : [];
+  const symbolBatches = uniqueSymbols.length
+    ? Array.from({ length: Math.ceil(uniqueSymbols.length / ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE) }, (_, index) =>
+      uniqueSymbols.slice(index * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE, (index + 1) * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE))
+    : [null];
+  const rows = [];
+  for (const symbolBatch of symbolBatches) {
+    const clauses = ["interval = ?"];
+    const bindings = [interval];
+    if (disc) { clauses.push("disc_id = ?"); bindings.push(disc); }
+    if (symbolBatch) {
+      clauses.push(`symbol IN (${symbolBatch.map(() => "?").join(",")})`);
+      bindings.push(...symbolBatch);
+    }
+    let query = `SELECT payload, observed_at, symbol FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;
+    if (Number.isFinite(limit)) {
+      query += " LIMIT ?";
+      bindings.push(limit);
+    }
+    const result = await db.prepare(query).bind(...bindings).all();
+    rows.push(...(Array.isArray(result && result.results) ? result.results : []));
+  }
+  rows.sort((left, right) => (Number(right.observed_at) || 0) - (Number(left.observed_at) || 0) ||
+    String(left.symbol || "").localeCompare(String(right.symbol || "")));
+  return Number.isFinite(limit) ? rows.slice(0, limit) : rows;
+}
+
 /**
  * Read the stored field. `symbols` narrows the response to what a client is
  * actually rendering; the whole field is never forced on a focused view.
@@ -1244,16 +1278,10 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
   const requestedTypes = Array.isArray(options.types) && options.types.length
     ? new Set(options.types.filter(type => BEAT_TYPE_IDS.has(type))) : new Set(BEAT_TYPE_IDS);
   try {
-    const clauses = ["interval = ?"];
-    const bindings = [interval];
-    if (disc) { clauses.push("disc_id = ?"); bindings.push(disc); }
-    if (requestedSymbols.length) {
-      clauses.push(`symbol IN (${requestedSymbols.map(() => "?").join(",")})`);
-      bindings.push(...requestedSymbols);
-    }
-    const result = await db.prepare(`SELECT payload FROM orb2_field_observations
-      WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC LIMIT ?`).bind(...bindings, ORB2_FIELD_MAX_OBSERVATIONS).all();
-    let observations = (Array.isArray(result && result.results) ? result.results : [])
+    const rows = await readOrb2FieldRows(db, {
+      interval, disc, symbols: requestedSymbols, limit: ORB2_FIELD_MAX_OBSERVATIONS
+    });
+    let observations = rows
       .map(row => parsePacketRow(row, now)).filter(Boolean)
       .map(observation => ({ ...observation, freshness: orb2FieldFreshness(observation.interval, observation.observedAt, now) }));
     /* Re-compose at read time so a 15m packet cannot remain visually force-multiplied
@@ -1262,11 +1290,10 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     const companionInterval = interval === "1d" ? ORB2_INTRADAY_INTERVAL : interval === ORB2_INTRADAY_INTERVAL ? "1d" : null;
     if (companionInterval && observations.length) {
       const companionSymbols = [...new Set(observations.map(observation => observation.symbol))];
-      const companionRows = await db.prepare(`SELECT payload FROM orb2_field_observations
-        WHERE interval = ? AND symbol IN (${companionSymbols.map(() => "?").join(",")})`)
-        .bind(companionInterval, ...companionSymbols).all();
-      const companions = (Array.isArray(companionRows && companionRows.results) ? companionRows.results : [])
-        .map(row => parsePacketRow(row, now)).filter(Boolean);
+      const companionRows = await readOrb2FieldRows(db, {
+        interval: companionInterval, symbols: companionSymbols
+      });
+      const companions = companionRows.map(row => parsePacketRow(row, now)).filter(Boolean);
       const bySymbol = new Map(companions.map(observation => [observation.symbol, observation]));
       observations = observations.map(observation => {
         const daily = interval === "1d" ? observation : bySymbol.get(observation.symbol);
