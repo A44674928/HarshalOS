@@ -48,7 +48,9 @@ test("Dollar Strength (DS) uses the current six ICE weights with the reviewed US
     value * CLOSES[component.symbol] ** -component.weight, 1);
   assert.equal(result.ok, true);
   assert.equal(result.status, "ready");
-  assert.ok(Math.abs(result.value - expected) < 1e-10);\n  assert.equal(result.baseline, 100);\n  assert.equal(result.percentVs100, (result.value / 100 - 1) * 100);
+  assert.ok(Math.abs(result.value - expected) < 1e-10);
+  assert.equal(result.baseline, 100);
+  assert.equal(result.percentVs100, (result.value / 100 - 1) * 100);
   assert.equal(result.asOf, NOW - 86_400_000);
   assert.equal(result.inputCount, 6);
   assert.match(result.note, /not the licensed real-time/i);
