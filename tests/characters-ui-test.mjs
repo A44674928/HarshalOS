@@ -212,43 +212,19 @@ test("auto-beat stays off when the operator changes Disc or bar size", async t =
       const parsed = new URL(url, "https://os.example");
       requested.push(parsed);
       const symbols = (parsed.searchParams.get("symbols") || "").split(",").filter(Boolean);
-      if (parsed.pathname === "/api/characters/v1/discs") {
-        return Response.json({
-          success: true,
-          disc: "crypto",
-          ranking: { provider: "Kraken", venue: "Kraken Spot", sourceWindow: "rolling-24h", metric: "rolling 24-hour USD notional", rankedAt: new Date(NOW).toISOString(), cached: false, audit: {} },
-          instruments: symbols.map((symbol, index) => ({
-            symbol: symbol || ["USDT","BTC"][index] || `C${index}`,
-            displaySymbol: `${symbol || ["USDT","BTC"][index] || `C${index}`}/USD`,
-            name: `Coin ${index}`,
-            sector: "Cryptocurrency",
-            assetClass: "crypto",
-            discId: "crypto",
-            dataShape: "ohlcv",
-            quoteCurrency: "USD",
-            rankingProvider: "Kraken",
-            providerId: `${symbol || ["USDT","BTC"][index] || `C${index}`}/USD`,
-            krakenPair: `${symbol || ["USDT","BTC"][index] || `C${index}`}/USD`,
-            providerBase: symbol || ["USDT","BTC"][index] || `C${index}`,
-            rank: index + 1,
-            providerRank: index + 1,
-            baseVolume24h: 1000 - index,
-            vwap24hUsd: 100 - index,
-            volumeUsd: (1000 - index) * (100 - index),
-            currentPriceUsd: 100 - index,
-            marketCapUsd: null,
-            audit: []
-          }))
-        });
-      }
-      return Response.json(liveBeatPayload(symbols, {
-        disc: parsed.searchParams.get("disc") || "stocks",
-        interval: parsed.searchParams.get("interval") || "1d",
-        provider: parsed.searchParams.get("provider") || "tickerbot"
-      }));
+      const provider = parsed.searchParams.get("provider") || "tickerbot";
+      return Response.json(provider === "massive"
+        ? massiveBeatPayload(symbols, "fx")
+        : liveBeatPayload(symbols, {
+            disc: parsed.searchParams.get("disc") || "stocks",
+            interval: parsed.searchParams.get("interval") || "1d",
+            provider
+          }));
     }
   });
+
   assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false");
+
   const disc = container.querySelector("[data-ch-disc]");
   disc.value = "fx";
   disc.dispatchEvent(new window.Event("change"));
@@ -256,13 +232,17 @@ test("auto-beat stays off when the operator changes Disc or bar size", async t =
   assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false",
     "switching to a fixed daily Disc does not silently enable Auto-beat");
 
+  disc.value = "stocks";
+  disc.dispatchEvent(new window.Event("change"));
+  await flush();
+
   const interval = container.querySelector("[data-ch-interval]");
   interval.value = "1h";
   interval.dispatchEvent(new window.Event("change"));
   await flush();
   assert.equal(container.querySelector("[data-ch-auto]").getAttribute("aria-pressed"), "false",
     "changing bar size does not silently enable Auto-beat");
-  assert.ok(requested.length >= 1, "the selected Disc may perform its one-shot selection load without enabling the scheduler");
+  assert.ok(requested.length >= 2, "Disc selection may perform its one-shot load without enabling the scheduler");
 });
 
 test("an unconfigured Worker falls back to labeled rehearsal and spends nothing", async t => {
