@@ -26,9 +26,7 @@ const MASSIVE_KEY = "massive-test-only-worker-secret";
 const TICKERBOT_KEY = "tickerbot-test-only-worker-secret";
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
 
-const beat = query => new Request(`${ROUTE}?${query}`, {
-  headers: { "CF-Connecting-IP": "198.51.100.42" }
-});
+const beat = query => new Request(`${ROUTE}?${query}`);
 
 function dailyAggs({ requestId = "safe_request_42" } = {}) {
   return Response.json({
@@ -128,7 +126,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   assert.equal(currentFuturesSession.confirmed, false, "a session opened last evening but settling today is still a forming daily candle");
 });
 
-test("Massive daily D1 claims are atomic, keyed to UTC day, and roll over at midnight", async t => {
+test("The legacy Massive daily helper remains atomic and UTC-day keyed for telemetry compatibility", async t => {
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
   const claims = await Promise.all(Array.from({ length: 8 }, () => claimMassiveDailyCall(db, NOW, 3)));
@@ -250,6 +248,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(firstPayload.data.spend.tickerbotAttempts, 0);
   assert.equal(firstPayload.data.spend.massiveDaily.calls, 1);
   assert.equal(firstPayload.data.spend.massiveDaily.dailyLimit, MASSIVE_PROVIDER_DAILY_LIMIT);
+  assert.match(firstPayload.data.spend.massiveDaily.note, /not a provider gate/i);
 
   const cached = await handleCharactersBeat(
     beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
