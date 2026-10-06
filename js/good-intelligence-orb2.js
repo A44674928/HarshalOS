@@ -284,6 +284,19 @@
     };
   }
 
+  function topologyDistribution(identity, topology, indicatorAlignment = 0.5, volatility = 0) {
+    const phase = stableIdentityPhase(identity);
+    const normalized = phase / TAU;
+    const targetLongitude = phase;
+    const targetLatitude = Math.asin(clamp(1 - 2 * normalized, -1, 1));
+    const weight = clamp(0.28 + (1 - clamp(indicatorAlignment, 0, 1)) * 0.34 + clamp(volatility, 0, 1) * 0.12, 0.28, 0.68);
+    return {
+      longitude: targetLongitude * weight,
+      latitude: targetLatitude * weight,
+      weight
+    };
+  }
+
   function topologyEnvelope(placements) {
     const usable = placements.filter(item => item && item.topology);
     if (!usable.length) return { x: 1, y: 1, z: 1, convergence: 0, ideal: false };
@@ -2827,23 +2840,6 @@
        berth-separation resolver edits: it is the same radius and the same two
        angles the model already derives from supplied market fields, so nothing
        about a metric changes when a shared berth is re-slotted. */
-    /* Deterministic angular distribution prevents a 52-card field from collapsing
-       into a visually planar cluster when market values are correlated. The seed is
-       identity-stable, not random and not a market signal; FBB radius and the
-       indicator-derived topology remain authoritative. */
-    function topologyDistribution(identity, topology, indicatorAlignment = 0.5, volatility = 0) {
-      const phase = stableIdentityPhase(identity);
-      const normalized = phase / TAU;
-      const targetLongitude = phase;
-      const targetLatitude = Math.asin(clamp(1 - 2 * normalized, -1, 1));
-      const weight = clamp(0.28 + (1 - clamp(indicatorAlignment, 0, 1)) * 0.34 + clamp(volatility, 0, 1) * 0.12, 0.28, 0.68);
-      return {
-        longitude: targetLongitude * weight,
-        latitude: targetLatitude * weight,
-        weight
-      };
-    }
-
     function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
       const spread = topologyDistribution(
