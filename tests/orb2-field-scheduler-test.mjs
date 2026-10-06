@@ -760,6 +760,7 @@ test("observationFromPacket refuses a missing packet instead of inventing a bert
 test("the scheduler handles missing kraken_calls column gracefully without migration 0012", async t => {
   clearCharactersCryptoRankingCache();
   clearKrakenDailyBarCache();
+  clearOrb2FieldSchemaCache();
   const sql = new DatabaseSync(":memory:");
   /* Apply migrations 0005 through 0011 only — omitting 0012 so orb2_field_runs lacks kraken_calls */
   for (const file of ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql"]) {
@@ -784,14 +785,14 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
   const alters = [];
   const originalPrepare = db.prepare;
   db.prepare = query => {
-    if (/ALTER\\s+TABLE\\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
+    if (/ALTER\s+TABLE\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
     return originalPrepare(query);
   };
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");
   const healed = sql.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'orb2_field_runs'").get();
-  assert.match(String(healed.sql), /\\bkraken_calls\\b/, "the first tick self-heals the missing 0012 column");
+  assert.match(String(healed.sql), /\bkraken_calls\b/, "the first tick self-heals the missing 0012 column");
   assert.equal(alters.length, 1, "self-heal issues exactly one ALTER TABLE");
   const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
   assert.equal(second.ok, true);
@@ -803,7 +804,7 @@ test("a migrated field never issues ALTER TABLE, so no duplicate-column error re
   const alters = [];
   const innerPrepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
   env.COMMUNITY_DB.prepare = query => {
-    if (/ALTER\\s+TABLE/i.test(String(query))) alters.push(String(query));
+    if (/ALTER\s+TABLE/i.test(String(query))) alters.push(String(query));
     return innerPrepare(query);
   };
   const seen = { urls: [], massive: [], tickerbot: [] };
