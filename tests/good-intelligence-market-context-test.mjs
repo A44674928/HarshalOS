@@ -144,7 +144,7 @@ test("Fibonacci Bollinger bands use only natural-log inputs, offsets, and expone
   assert.equal(result.bands.method, "log-space");
   assert.equal(result.bands.basis, Number(Math.exp(logBasis).toFixed(4)), "basis is the exponentiated logarithmic SMA, rounded for the public packet");
   assert.equal(result.bands.logDeviation, Number(logDeviation.toFixed(4)), "public log deviation is the population stdev of ln(close), rounded to four decimals");
-  for (const [suffix, ratio] of [["382", .382], ["618", .618], ["764", .764], ["1000", 1]]) {
+  for (const [suffix, ratio] of [["236", .236], ["382", .382], ["500", .500], ["618", .618], ["764", .764], ["1000", 1]]) {
     const upper = Math.exp(logBasis + ratio * logDeviation);
     const lower = Math.exp(logBasis - ratio * logDeviation);
     assert.equal(result.bands[`upper${suffix}`], Number(upper.toFixed(4)), `upper ${suffix} exp(log basis + Fib × log deviation)`);
@@ -165,7 +165,7 @@ test("all FBB moving-average choices are scale-equivariant because their input i
   const scaledBars = originalBars.map(bar => ({
     ...bar, open: bar.open * scale, high: bar.high * scale, low: bar.low * scale, close: bar.close * scale
   }));
-  const fields = ["basis", "upper382", "upper618", "upper764", "upper1000", "lower382", "lower618", "lower764", "lower1000"];
+  const fields = ["basis", "upper236", "upper382", "upper500", "upper618", "upper764", "upper1000", "lower236", "lower382", "lower500", "lower618", "lower764", "lower1000"];
   for (const bandMa of ["VWMA", "SMA", "EMA", "WMA", "RMA"]) {
     const parameters = { ...packet().parameters, bandLen: 8, bandMult: 2.25, bandSrc: "hlc3", bandMa };
     const original = Model.evaluate(packet({ bars: originalBars, parameters }));
