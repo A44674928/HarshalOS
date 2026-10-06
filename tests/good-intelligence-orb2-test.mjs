@@ -690,7 +690,7 @@ test("Orb 2 keeps settings and status outside the clear, full-width model stage"
   assert.equal(canvasShell.contains(flow), false, "flow text sits below the canvas rather than on top of the model");
   assert.equal(canvasShell.contains(origin), false, "origin text sits below the canvas rather than on top of the model");
   assert.equal(host.querySelector(".gi-orb2-canvas-hud"), null, "the overlay HUD is removed");
-  assert.match(host.querySelector(".gi-orb2-center").textContent, /Dollar Strength (DS) FIXED BENCHMARK/);
+  assert.match(host.querySelector(".gi-orb2-center").textContent, /Dollar Strength \(DS\) FIXED BENCHMARK/);
   assert.equal(host.querySelector("[data-gi-orb2-disc]").options.length, 5, "the five reviewed Discs are selectable");
   const settingsPanel = host.querySelector("[data-gi-orb2-settings]");
   const settingsToggle = host.querySelector("[data-gi-orb2-settings-toggle]");
