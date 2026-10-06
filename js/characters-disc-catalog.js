@@ -6,8 +6,7 @@
   /* Every static entry is frozen because this catalog is shared by browser and
      Worker code. Massive mappings are explicit reviewed routing metadata, not
      user-provided tickers; FX mappings are mechanically derived from the six
-     ISO letters only after the roster itself has been reviewed. Commodity
-     metadata contains product codes only; the Worker must verify today's active
+     ISO letters only after the roster itself has been reviewed. Futures metadata contains product codes only; the Worker must verify today's active
      dated contract with Massive before it may request futures bars. */
   const freezeEntries = entries => Object.freeze(entries.map(entry => {
     const derivedMassive = entry.massive || (entry.assetClass === "fx" && /^[A-Z]{6}$/.test(entry.symbol || "")
@@ -66,7 +65,7 @@
 
   const FUTURES = freezeEntries([
     { symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"] },
-    { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/MMBtu", tags: ["Energy"] },
+    { symbol: "NATURAL_GAS", displaySymbol: "NATURAL GAS", name: "Henry Hub natural gas", sector: "Energy", assetClass: "futures", dataShape: "ohlcv", quoteCurrency: "USD/MMBtu", tags: ["Energy"] },
     { symbol: "GOLD", displaySymbol: "GOLD", name: "Gold", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
     { symbol: "SILVER", displaySymbol: "SILVER", name: "Silver", sector: "Precious metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/troy ounce", tags: ["Precious metal"] },
     { symbol: "COPPER", displaySymbol: "COPPER", name: "Copper", sector: "Industrial metals", assetClass: "commodity", dataShape: "ohlcv", quoteCurrency: "USD/lb", tags: ["Industrial metal"] },
@@ -188,7 +187,9 @@
       })));
     },
     fxCurrencies: BIS_FX_CURRENCIES,
-    commodities: COMMODITIES,
+    futures: FUTURES,
+    /* Legacy catalog alias: the stored/API Disc ID remains `commodities` for compatibility. */
+    commodities: FUTURES,
     indices: INDICES,
     disc(id) {\n      const normalized = String(id || "").toLowerCase() === "futures" ? "commodities" : String(id || "");\n      return DISCS.find(entry => entry.id === normalized) || null;\n    },
     staticInstruments(id) {
