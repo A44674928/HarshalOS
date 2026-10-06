@@ -1945,7 +1945,7 @@
             : "WAITING · SERVER FIELD";
       if (state.ds && state.ds.ok) {
         const date = new Date(state.ds.asOf).toISOString().slice(0, 10);
-        ignitionDollarStrength.textContent = `Dollar Strength (DS) ${state.ds.value.toFixed(3)} · AS OF ${date} · FIXED BENCHMARK`;
+        ignitionDollarStrength.textContent = `Dollar Strength (DS) ${state.ds.value.toFixed(3)} · ${Number(state.ds.percentVs100 || 0).toFixed(2)}% vs 100 · AS OF ${date} · FIXED BENCHMARK`;
       } else {
         const status = state.ds && state.ds.status ? state.ds.status.toUpperCase() : "WAITING";
         const next = target && target.kind === "ds-component" ? ` · NEXT ${target.symbol}` : "";
@@ -4258,7 +4258,7 @@
       context2d.fillStyle = "#fff2c6";
       context2d.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
       context2d.textAlign = "center";
-      const dsLabel = state.ds && state.ds.ok ? `Dollar Strength (DS) · ${state.ds.value.toFixed(3)}` : "Dollar Strength (DS) · AWAITING ALIGNED CLOSES";
+      const dsLabel = state.ds && state.ds.ok ? `Dollar Strength (DS) · ${state.ds.value.toFixed(3)} · ${Number(state.ds.percentVs100 || 0).toFixed(2)}% vs 100` : "Dollar Strength (DS) · AWAITING ALIGNED CLOSES";
       context2d.fillText(dsLabel, center.x, center.y + 29);
       context2d.fillStyle = "#a9c3df";
       context2d.font = "8px ui-monospace, SFMono-Regular, Menlo, monospace";
