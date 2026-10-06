@@ -153,6 +153,7 @@ export function safeMarket(value) {
   const latestBar = value.latestBar === null || value.latestBar === undefined ? null : safeBar(value.latestBar);
   const activityBar = value.activityBar === null || value.activityBar === undefined ? null : safeBar(value.activityBar);
   if (value.activityBar !== null && value.activityBar !== undefined && (!activityBar || activityBar.confirmed !== true)) return null;
+  if (value.fbbComparison !== null && value.fbbComparison !== undefined && !safeFbbComparison(value.fbbComparison)) return null;
   return {
     status,
     source: text(value.source, 160),
@@ -176,7 +177,8 @@ export function safeMarket(value) {
       signal: bounded(value.vfi.signal, -1e12, 1e12, null),
       available: value.vfi.available === true
     } : null,
-    fbbComparison: value.fbbComparison === null || value.fbbComparison === undefined ? null : safeFbbComparison(value.fbbComparison),\n    waveTrend: isRecord(value.waveTrend) ? {
+    ...(value.fbbComparison === null || value.fbbComparison === undefined ? {} : (() => { const fbbComparison = safeFbbComparison(value.fbbComparison); return fbbComparison ? { fbbComparison } : { __invalidFbbComparison: true }; })()),
+    waveTrend: isRecord(value.waveTrend) ? {
       wt1: bounded(value.waveTrend.wt1, -1e12, 1e12, null),
       wt2: bounded(value.waveTrend.wt2, -1e12, 1e12, null),
       zone: text(value.waveTrend.zone, 48)
