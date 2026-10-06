@@ -6,7 +6,7 @@ export const YAHOO_CHART_ORIGIN = "https://query1.finance.yahoo.com";
 const TICKERS = Object.freeze({
   SPX: "^GSPC", NDX: "^NDX", DJI: "^DJI", VIX: "^VIX", RUT: "^RUT",
   WTI: "CL=F", NATURAL_GAS: "NG=F", GOLD: "GC=F", SILVER: "SI=F",
-  COPPER: "HG=F", PLATINUM: "PL=F", PALLADIUM: "PA=F",
+  COPPER: "HG=F", ALUMINUM: "ALI=F", PLATINUM: "PL=F", PALLADIUM: "PA=F",
   WHEAT: "ZW=F", CORN: "ZC=F", SOYBEANS: "ZS=F",
   EURUSD: "EURUSD=X", JPYUSD: "JPY=X", GBPUSD: "GBPUSD=X", CNYUSD: "CNY=X",
   CHFUSD: "CHFUSD=X", AUDUSD: "AUDUSD=X", CADUSD: "CADUSD=X", HKDUSD: "HKD=X",
