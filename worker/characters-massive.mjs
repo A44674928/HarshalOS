@@ -49,7 +49,7 @@ function normalizeInstrument(value, now = Date.now()) {
   }
 
   if (assetClass === "futures" || assetClass === "commodity") {
-    const entry = catalogEntry("commodities", symbol);
+    const entry = catalogEntry("futures", symbol) || catalogEntry("commodities", symbol);
     const catalogMassive = entry && entry.massive;
     const massive = record.massive && typeof record.massive === "object" ? record.massive : null;
     const contract = record.massiveContract && typeof record.massiveContract === "object" ? record.massiveContract : null;
