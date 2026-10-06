@@ -105,7 +105,6 @@ test("structured unavailability preserves provider and history facts", () => {
     provider: "kraken",
     instrument: "BTC",
     timeframe: "1d",
-    state: "insufficient-history",
     availableBars: 60,
     requiredBars: 200
   });
