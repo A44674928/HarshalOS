@@ -15,6 +15,7 @@ import {
   ORB2_FIELD_TICKERBOT_BURST_CALLS,
   ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
   ORB2_MASSIVE_PER_MINUTE,
+  clearOrb2FieldSchemaCache,
   handleOrb2Field,
   heldFieldObservation,
   observationFromPacket,
@@ -60,6 +61,7 @@ function seedActiveContracts(sql, at = NOW) {
 function fixture(t, { migrated = true, maxBindParameters = Infinity } = {}) {
   clearCharactersCryptoRankingCache();
   clearKrakenDailyBarCache();
+  clearOrb2FieldSchemaCache();
   const sql = new DatabaseSync(":memory:");
   if (migrated) for (const migration of MIGRATIONS) sql.exec(migration);
   t.after(() => sql.close());
@@ -779,9 +781,38 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
   };
   const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" };
   const seen = { urls: [], massive: [], tickerbot: [] };
+  const alters = [];
+  const originalPrepare = db.prepare;
+  db.prepare = query => {
+    if (/ALTER\\s+TABLE\\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
+    return originalPrepare(query);
+  };
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");
+  const healed = sql.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'orb2_field_runs'").get();
+  assert.match(String(healed.sql), /\\bkraken_calls\\b/, "the first tick self-heals the missing 0012 column");
+  assert.equal(alters.length, 1, "self-heal issues exactly one ALTER TABLE");
+  const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
+  assert.equal(second.ok, true);
+  assert.equal(alters.length, 1, "no further ALTER is issued once the column exists");
+});
+
+test("a migrated field never issues ALTER TABLE, so no duplicate-column error reaches observability", async t => {
+  const { env } = fixture(t);
+  const alters = [];
+  const innerPrepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
+  env.COMMUNITY_DB.prepare = query => {
+    if (/ALTER\\s+TABLE/i.test(String(query))) alters.push(String(query));
+    return innerPrepare(query);
+  };
+  const seen = { urls: [], massive: [], tickerbot: [] };
+  const at = nextClock();
+  const first = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(first.ok, true);
+  const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
+  assert.equal(second.ok, true);
+  assert.deepEqual(alters, [], "steady-state ticks must not attempt ALTER TABLE at all");
 });
 
 test("failed provider beats and missing commodity contracts write heldFieldObservation and are not immediately retried", async t => {
