@@ -110,12 +110,14 @@ test("FBB-L60 availability marks a formation ticker ready for graduation without
   assert.equal(row.status, "graduation-ready");
 });
 
-test("the stock Disc renders the dual race board and hides it outside the stock field", async t => {
+test("the stock Disc renders the dual race board and isolates SPCX in the formation field", async t => {
+  let fixtureWindow;
   const { host, fieldCalls } = interactiveHarness(t, {
     tickers: MARKET_ROSTER,
     watchlist: MARKET_ROSTER,
-    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot((host && host.ownerDocument && host.ownerDocument.defaultView) || {}, { stockCount: 52 }) })
+    fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(fixtureWindow, { stockCount: 52 }) })
   });
+  fixtureWindow = host.ownerDocument.defaultView;
   await flush();
   const board = host.querySelector("[data-gi-orb2-raceboard]");
   assert.ok(board, "the dual race board is mounted");
