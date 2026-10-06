@@ -24,10 +24,6 @@ import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
 import { getKrakenDailyMarketContext } from "./characters-kraken.mjs";
 import { claimKrakenCall, readKrakenCallLedger, KRAKEN_PROVIDER_DAILY_LIMIT } from "./kraken-call-ledger.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
-import {
-  MASSIVE_PROVIDER_DAILY_LIMIT,
-  readMassiveDailyCallLedger
-} from "./massive-daily-call-ledger.mjs";
 import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
 import { getCharactersCryptoRanking } from "./characters-crypto-ranking.mjs";
 import { getMassiveActiveFuturesContract } from "./characters-futures-contracts.mjs";
@@ -41,6 +37,11 @@ export const MAX_BEAT_SYMBOLS = 12;
 export const BEAT_CADENCES = Object.freeze([15, 30, 60, 240, 1440]);
 export const CHARACTERS_TICKERBOT_INTERVALS = Object.freeze(["1h", "1d"]);
 export const MASSIVE_DISCS = Object.freeze(["fx", "commodities", "indices"]);
+const MASSIVE_ASSET_CLASS_BY_DISC = Object.freeze({
+  fx: "currencies",
+  commodities: "futures",
+  indices: "indices"
+});
 const DEFAULT_CADENCE = 15;
 const LANES = Object.freeze(["hot", "sweep"]);
 const MAX_FETCH_CONCURRENCY = 4;
@@ -291,7 +292,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
         productCode, apiKey: massiveApiKey, db: env.COMMUNITY_DB, fetcher, now,
         timeoutMs: UPSTREAM_TIMEOUT_MS,
         beforeFetch: async () => {
-          const reservation = await reserveMassiveProviderCall({ request, env, now });
+          const reservation = await reserveMassiveProviderCall({
+        request, env, now, assetClass: MASSIVE_ASSET_CLASS_BY_DISC[disc]
+      });
           if (reservation.ok) massiveContractAttempts = 1;
           return reservation;
         }
@@ -381,11 +384,8 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   let durable = tickerbotHeld.ok ? tickerbotHeld.ledger : null;
   let ledgerStatus = provider === "tickerbot" ? (tickerbotHeld.ok ? "ready" : "unavailable") : "not-applicable";
 
-  const massiveHeld = provider === "massive"
-    ? await readMassiveDailyCallLedger(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT)
-    : { ok: false, reason: "not-applicable" };
-  let massiveDaily = massiveHeld.ok ? massiveHeld.ledger : null;
-  let massiveLedgerStatus = provider === "massive" ? (massiveHeld.ok ? "ready" : "unavailable") : "not-applicable";
+  let massiveDaily = null;
+  let massiveLedgerStatus = provider === "massive" ? "telemetry-only" : "not-applicable";
 
   const krakenHeld = provider === "kraken"
     ? await readKrakenCallLedger(env.COMMUNITY_DB, now)
@@ -444,20 +444,13 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
     }
 
     if (provider === "massive") {
-      if (massiveDaily && massiveDaily.exhausted) {
-        return unavailableInstrument({
-          symbol, instrument, lane, provider: "massive", code: "massive-budget-exhausted",
-          message: `The Characters Massive allowance is exhausted for ${massiveDaily.day}: ${massiveDaily.calls.toLocaleString()} of ${massiveDaily.dailyLimit.toLocaleString()} Worker-routed requests. No Massive request was sent.`
-        });
-      }
       /* Reserve both shared Massive allowances before provider work. Only
          FX, active commodity futures, and indices reach this branch; Kraken's
          Crypto ranking and pair bars use their separate public-call ledger. */
       const reservation = await reserveMassiveProviderCall({ request, env, now });
       if (!reservation.ok) {
         if (reservation.ledger) massiveDaily = newerDailyLedger(massiveDaily, reservation.ledger);
-        massiveLedgerStatus = reservation.code === "massive-budget-exhausted" ? "ready"
-          : reservation.code === "massive-ledger-unavailable" ? "unavailable" : massiveLedgerStatus;
+        
         return unavailableInstrument({
           symbol, instrument, lane, provider: "massive", code: reservation.code, message: reservation.message,
           extra: {
