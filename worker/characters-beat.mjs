@@ -226,8 +226,9 @@ export async function handleCharactersBeat(request, env = {}, dependencies = {})
   if (url.pathname !== CHARACTERS_BEAT_ROUTE) return failure("Characters beat route not found.", 404);
   if (request.method !== "GET") return failure("The Characters beat is read-only.", 405, { Allow: "GET" });
 
-  const discId = (url.searchParams.get("disc") || "stocks").trim().toLowerCase();
-  const disc = resolveDisc(discId);
+  const requestedDiscId = (url.searchParams.get("disc") || "stocks").trim().toLowerCase();
+  const disc = resolveDisc(requestedDiscId);
+  const discId = disc ? disc.id : requestedDiscId;
   if (!disc) return failure("Choose a reviewed Characters Disc.", 400);
 
   const interval = (url.searchParams.get("interval") || "1h").trim();
