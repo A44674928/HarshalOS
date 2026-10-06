@@ -373,7 +373,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   const reviewed = roster.instruments.length;
   assert.equal(roster.crypto.length, 52);
   assert.equal(roster.cryptoPairs.length, 1, "the exact ADA/USDT pair joins the Kraken daily rotation");
-  assert.equal(reviewed, 144);
+  assert.equal(reviewed, 191);
   assert.equal(seen.krakenRanking.length, 1);
   assert.equal(seen.krakenBars.length, 0, "the pair-bar lane waits for the next one-second Kraken slot");
   assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3,
@@ -645,8 +645,8 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(commodityPayload.market.massiveContract.provider, "Massive");
   assert.ok(commodityPayload.market.massiveContract.ticker.startsWith(commodityPayload.market.massiveContract.productCode),
     "Orb 2 retains the exact active-contract identity used for the futures bars");
-  assert.equal(discs.indices.instruments, 5);
-  assert.equal(discs.indices.stored, 5, "the index Disc is populated by the automatic rotation");
+  assert.equal(discs.indices.instruments, 52);
+  assert.equal(discs.indices.stored, 52, "the 52-card index Disc is populated by the automatic rotation");
   assert.equal(discs.crypto.assets, 52, "Kraken's ranking cache reports the reviewed primary USD-quoted asset roster");
   assert.equal(discs.crypto.instruments, 53, "the field denominator includes the 52 primary pair feeds and one direct cross-quote feed");
   assert.equal(discs.crypto.stored, 53, "the automatic rotation stores each exact Kraken pair once");
@@ -658,7 +658,7 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
   /* Stocks are Tickerbot-only; Crypto is Kraken-only; Massive is exclusive to
      FX, active commodity futures, and indices. */
-  for (const [discId, expected] of [["fx", 23], ["commodities", 11], ["indices", 5]]) {
+  for (const [discId, expected] of [["fx", 23], ["commodities", 11], ["indices", 52]]) {
     const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
     assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
   }
@@ -705,9 +705,9 @@ test("Disc activation status separates fresh commodity/index data from held rows
   assert.equal(discs.commodities.members.find(member => member.symbol === commodities[3].symbol).status, "held");
   assert.deepEqual({ instruments: discs.indices.instruments, stored: discs.indices.stored, active: discs.indices.active,
     observed: discs.indices.observed, held: discs.indices.held, pending: discs.indices.pending },
-  { instruments: 5, stored: 5, active: 1, observed: 1, held: 4, pending: 0 });
+  { instruments: 52, stored: 52, active: 1, observed: 1, held: 51, pending: 0 });
   assert.equal(discs.indices.complete, false);
-  assert.equal(discs.indices.members.length, 5);
+  assert.equal(discs.indices.members.length, 52);
   const heldIndex = discs.indices.members.find(member => member.status === "held");
   assert.equal(heldIndex.code, "massive-upstream");
   assert.match(heldIndex.message, /did not return/);
