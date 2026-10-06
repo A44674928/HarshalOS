@@ -6,13 +6,13 @@ import test from "node:test";
 
 const ROOT = new URL("../", import.meta.url);
 const [dsSource, rosterSource] = await Promise.all([
-  readFile(new URL("js/good-intelligence-ds.js", ROOT), "utf8"),
+  readFile(new URL("js/good-intelligence-dxy.js", ROOT), "utf8"),
   readFile(new URL("js/good-intelligence-market-roster.js", ROOT), "utf8")
 ]);
 const browser = { window: {} };
 browser.globalThis = browser.window;
 vm.runInNewContext(rosterSource, browser, { filename: "js/good-intelligence-market-roster.js" });
-vm.runInNewContext(dsSource, browser, { filename: "js/good-intelligence-ds.js" });
+vm.runInNewContext(dsSource, browser, { filename: "js/good-intelligence-dxy.js" });
 const DollarStrength = browser.window.GoodIntelligenceDollarStrength;
 const roster = browser.window.GoodIntelligenceMarketRoster;
 const NOW = Date.parse("2026-10-04T12:00:00.000Z");
