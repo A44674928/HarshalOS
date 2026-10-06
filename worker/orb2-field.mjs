@@ -113,6 +113,13 @@ export const ORB2_FIELD_FAILURE_RETRY_MS = Object.freeze({
 /* Per-isolate cooldown for the same-origin "run a tick now" action. It is an
    abuse guard, not a correctness boundary: the tick's own ledger claims are. */
 let lastManualTickAt = 0;
+/* Per-isolate memory that the 0012 `kraken_calls` column is present. Columns are
+   never dropped, so "present" is safe to cache forever; "missing" is never
+   cached, so a database migrated out-of-band is picked up on the very next tick. */
+let orb2FieldRunsKrakenColumnPresent = false;
+export function clearOrb2FieldSchemaCache() {
+  orb2FieldRunsKrakenColumnPresent = false;
+}
 const MAX_BODY_BYTES = 8 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8_000;
 const FETCH_CONCURRENCY = 4;
@@ -547,10 +554,28 @@ export function heldFieldObservation({
 /* ── D1 access ───────────────────────────────────────────────────────── */
 
 async function ensureRunRow(db, now) {
-  try {
-    await db.prepare("ALTER TABLE orb2_field_runs ADD COLUMN kraken_calls INTEGER NOT NULL DEFAULT 0").run();
-  } catch (_) {
-    /* Ignored if column already exists or table cannot be altered */
+  /* Self-heal databases that predate migration 0012, but never issue a steady-state
+     ALTER TABLE against a column that already exists. */
+  if (!orb2FieldRunsKrakenColumnPresent) {
+    try {
+      const table = await db.prepare(
+        "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'orb2_field_runs'"
+      ).first();
+      if (table && /\bkraken_calls\b/.test(String(table.sql || ""))) {
+        orb2FieldRunsKrakenColumnPresent = true;
+      } else if (table) {
+        try {
+          await db.prepare("ALTER TABLE orb2_field_runs ADD COLUMN kraken_calls INTEGER NOT NULL DEFAULT 0").run();
+          orb2FieldRunsKrakenColumnPresent = true;
+        } catch (alterError) {
+          if (String(alterError && alterError.message || "").includes("duplicate column")) {
+            orb2FieldRunsKrakenColumnPresent = true;
+          }
+        }
+      }
+    } catch (_) {
+      /* Let the INSERT below expose the actual migration/database state. */
+    }
   }
   await db.prepare("INSERT INTO orb2_field_runs (utc_day, updated_at) VALUES (?, ?) ON CONFLICT(utc_day) DO NOTHING")
     .bind(utcDay(now), now).run();
