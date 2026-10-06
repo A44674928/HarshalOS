@@ -14,7 +14,7 @@ import {
   ORB2_FIELD_FRESHNESS,
   ORB2_FIELD_TICKERBOT_BURST_CALLS,
   ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
-  ORB2_MASSIVE_PER_MINUTE,
+  ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
   clearOrb2FieldSchemaCache,
   handleOrb2Field,
   heldFieldObservation,
@@ -288,13 +288,13 @@ test("a cold tick keeps Massive inside its envelope and Kraken's roster and OHLC
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true);
-  assert.equal(summary.massiveCalls, ORB2_MASSIVE_PER_MINUTE, "contract discovery and Massive bars stay inside the five-request envelope");
+  assert.equal(summary.massiveCalls, 12, "cold-field availability is bounded by the three independent Massive classes and the one verified futures contract");
   assert.equal(seen.krakenRanking.length, 1, "Disc3's roster is fetched from Kraken Spot");
   assert.equal(seen.krakenBars.length, 0, "the roster call occupies Kraken's one-per-second gate, so OHLC waits for a later tick");
   assert.equal(seen.contracts.length, 1, "one active futures product is discovered per tick");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE - 1, "contract discovery leaves four Massive bar slots");
-  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, ORB2_MASSIVE_PER_MINUTE - 1);
-  assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, ORB2_MASSIVE_PER_MINUTE);
+  assert.equal(seen.massive.length, 11, "the cold field discovers one futures contract and then uses the remaining eligible class capacity");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='massive'").get().count, 11);
+  assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, 12);
   const row = sql.prepare("SELECT payload, interval, confirmed FROM orb2_field_observations WHERE interval='1d' AND provider='massive' LIMIT 1").get();
   const payload = JSON.parse(row.payload);
   assert.equal(payload.schema, "gi-orb2-field-observation-v1");
@@ -324,7 +324,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   seedActiveContracts(sql, at);
 
   const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
-  assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE);
+  assert.equal(firstTick.massiveCalls, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3);
   assert.equal(firstTick.krakenCalls, 1, "the cold tick spends one Kraken call on the rolling-24-hour roster");
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
@@ -335,8 +335,11 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   assert.equal(reviewed, 144);
   assert.equal(seen.krakenRanking.length, 1);
   assert.equal(seen.krakenBars.length, 0, "the pair-bar lane waits for the next one-second Kraken slot");
-  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE,
-    "the five-call Massive envelope is independent of Kraken roster discovery");
+  assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3,
+    "each Massive subscription class gets its own five-call server-side envelope");
+  assert.equal(seen.massive.filter(ticker => ticker.startsWith("C:")).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(seen.massive.filter(ticker => ticker.startsWith("I:")).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(seen.massive.filter(ticker => /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker)).length, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
   const firstDiscs = new Set(seen.massive.map(ticker =>
     ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "unexpected"));
   assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices"],
@@ -357,7 +360,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   let tick = 1;
   while (coverage().size < reviewed && tick < 100) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
-    assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE);
+    assert.ok(summary.massiveCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS * 3);
     assert.ok(summary.krakenCalls <= 1, "Kraken's shared pacing gate permits at most one call per tick");
     tick += 1;
   }
@@ -418,10 +421,10 @@ test("the field warm burst queues the full Tickerbot sweep and drains it across 
   assert.deepEqual(intervals, ["15m", "1d", "1h"]);
 });
 
-test("the durable allowances stop the schedule instead of overspending", async t => {
+test("the durable Massive daily ledger remains telemetry-only while provider classes enforce pacing", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
-  // Burn the tickerbot month first: the burst must refuse before any upstream call.
+  // Tickerbot remains governed by its durable monthly Worker allowance.
   sql.prepare("INSERT INTO tickerbot_call_ledger (utc_month, attempted_calls, provider_budget, worker_limit, updated_at) VALUES (?,?,?,?,?)")
     .run("2026-10", 10_000, 10_000, 10_000, NOW);
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
@@ -432,13 +435,15 @@ test("the durable allowances stop the schedule instead of overspending", async t
   assert.ok([...summary.notes, ...summary.errors].some(note => /allowance|exhausted|ledger/i.test(note)),
     "an exhausted ledger is named in the tick summary");
 
-  // A spent Massive UTC-day guard stops the rotation but leaves the field readable.
+  // Massive's legacy 300/day value is telemetry, not a provider gate.
   const second = fixture(t);
   second.sql.prepare("INSERT INTO massive_daily_call_ledger (utc_day, attempted_calls, daily_limit, updated_at) VALUES (?,?,?,?)")
     .run("2026-10-05", 300, 300, NOW);
   const exhausted = await runOrb2FieldTick(second.env, null, deps(seen, { at: nextClock() }));
-  assert.equal(exhausted.massiveCalls, 0);
-  assert.ok(exhausted.notes.some(note => /Massive UTC-day allowance is spent/i.test(note)));
+  assert.ok(exhausted.massiveCalls > 0, "Massive still rotates after the legacy daily display reaches 300");
+  const ledger = second.sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger WHERE utc_day='2026-10-05'").get();
+  assert.equal(ledger.calls, 300 + exhausted.massiveCalls,
+    "Massive D1 telemetry records admitted provider attempts without imposing the historical daily ceiling");
 });
 
 test("a missing Worker secret and a missing binding fail closed with a readable reason", async t => {
@@ -528,7 +533,7 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
   const roster = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) });
   const massiveCount = roster.fx.length + roster.commodities.length + roster.indices.length;
-  const ticksForOnePass = Math.max(roster.stocks.length, roster.crypto.length + roster.cryptoPairs.length, Math.ceil(massiveCount / ORB2_MASSIVE_PER_MINUTE)) + 1;
+  const ticksForOnePass = Math.max(roster.stocks.length, roster.crypto.length + roster.cryptoPairs.length, Math.ceil(massiveCount / ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS)) + 1;
   for (let tick = 1; tick < ticksForOnePass + 1; tick += 1) {
     await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
   }
@@ -547,8 +552,10 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
     existingCommodity.confirmed, snapshotAt
   );
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => snapshotAt });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   assert.equal(data.schema, "gi-orb2-field-v1");
   assert.equal(data.status.source, "server-field");
   assert.equal(data.status.continuous, true);
@@ -556,8 +563,13 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(data.observations.length, 52);
   assert.ok(data.observations.every(observation => observation.discId === "stocks"));
   assert.equal(data.status.counts.observed, 52);
-  assert.equal(data.status.massive.perMinute, ORB2_MASSIVE_PER_MINUTE);
-  assert.equal(data.status.massive.dailyLimit, 300);
+  assert.equal(data.status.massive.perMinute, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(data.status.massive.perMinutePerAssetClass, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+  assert.equal(data.status.massive.perMinuteScope, "per-asset-class");
+  assert.equal(data.status.massive.dailyLimit, null);
+  assert.equal(data.status.massive.remainingToday, null);
+  assert.equal(data.status.massive.exhausted, false);
+  assert.equal(data.status.massive.ledger, "provider-rate-class");
   assert.equal(data.status.futuresContracts.cache, "ready");
   assert.equal(data.status.futuresContracts.reviewedProducts, 11);
   assert.equal(data.status.futuresContracts.activeContracts, 11);
@@ -639,8 +651,10 @@ test("Disc activation status separates fresh commodity/index data from held rows
   }
 
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   const discs = Object.fromEntries(data.status.discs.map(disc => [disc.id, disc]));
   assert.deepEqual({ instruments: discs.commodities.instruments, stored: discs.commodities.stored, active: discs.commodities.active,
     observed: discs.commodities.observed, held: discs.commodities.held, pending: discs.commodities.pending },
@@ -682,8 +696,10 @@ test("large Orb 2 snapshots split symbol reads under D1's bind-variable limit", 
   /* The unfiltered 1d snapshot also looks up matching 15m companion rows.
      Before batching, that IN clause contained all 130 symbols and D1 rejected it. */
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   assert.equal(data.observations.length, 130);
   assert.equal(data.observations[0].symbol, symbols[0]);
   assert.equal(data.observations.at(-1).symbol, symbols.at(-1));
@@ -700,8 +716,10 @@ test("a full daily snapshot reuses its field rows for Disc status and Dollar Str
   };
 
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
-  assert.equal(response.status, 200);
-  const { data } = await response.json();
+  const responseBody = await response.text();
+  assert.equal(response.status, 200, responseBody);
+  const parsedResponse = JSON.parse(responseBody);
+  const { data } = parsedResponse;
   const fx = data.status.discs.find(disc => disc.id === "fx");
   assert.equal(fx.stored, 1);
   assert.equal(fx.held, 1);

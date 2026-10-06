@@ -26,9 +26,7 @@ const MASSIVE_KEY = "massive-test-only-worker-secret";
 const TICKERBOT_KEY = "tickerbot-test-only-worker-secret";
 const ROUTE = "https://os.example.test/api/characters/v1/beat";
 
-const beat = query => new Request(`${ROUTE}?${query}`, {
-  headers: { "CF-Connecting-IP": "198.51.100.42" }
-});
+const beat = query => new Request(`${ROUTE}?${query}`);
 
 function dailyAggs({ requestId = "safe_request_42" } = {}) {
   return Response.json({
@@ -128,7 +126,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   assert.equal(currentFuturesSession.confirmed, false, "a session opened last evening but settling today is still a forming daily candle");
 });
 
-test("Massive daily D1 claims are atomic, keyed to UTC day, and roll over at midnight", async t => {
+test("The legacy Massive daily helper remains atomic and UTC-day keyed for telemetry compatibility", async t => {
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
   const claims = await Promise.all(Array.from({ length: 8 }, () => claimMassiveDailyCall(db, NOW, 3)));
@@ -176,7 +174,7 @@ test("Disc4 resolves the active Massive contract before bars and carries contrac
     }
   );
   const payload = await response.json();
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 200, JSON.stringify(payload));
   assert.deepEqual(requests.map(entry => entry.url.pathname), [
     "/futures/v1/contracts", "/futures/v1/aggs/CLX6"
   ], "the dated ticker is discovered and validated before a futures bars URL is built");
@@ -240,7 +238,7 @@ test("the beat route isolates provider policies and caches successful Massive da
     dependencies
   );
   const firstPayload = await first.json();
-  assert.equal(first.status, 200);
+  assert.equal(first.status, 200, JSON.stringify(firstPayload));
   assert.deepEqual(hosts, ["api.massive.com"]);
   assert.equal(firstPayload.data.provider, "massive");
   assert.equal(firstPayload.data.cadenceMinutes, 1);
@@ -250,6 +248,7 @@ test("the beat route isolates provider policies and caches successful Massive da
   assert.equal(firstPayload.data.spend.tickerbotAttempts, 0);
   assert.equal(firstPayload.data.spend.massiveDaily.calls, 1);
   assert.equal(firstPayload.data.spend.massiveDaily.dailyLimit, MASSIVE_PROVIDER_DAILY_LIMIT);
+  assert.match(firstPayload.data.spend.massiveDaily.note, /not a provider gate/i);
 
   const cached = await handleCharactersBeat(
     beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"),
@@ -309,24 +308,26 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
   clearMassiveCache();
   const { db, sql } = createTickerbotLedgerDb();
   t.after(() => sql.close());
-  const restricted = env(db, { MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE: "1", MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1" });
+  const envValue = env(db);
   let fetches = 0;
   const dependencies = {
     now: () => NOW,
     fetch: async () => { fetches += 1; return dailyAggs(); }
   };
-  const admitted = await handleCharactersBeat(
-    beat("disc=fx&provider=massive&symbols=EURUSD&interval=1d&cadence=1"), restricted, dependencies
-  );
-  assert.equal(admitted.status, 200);
+  for (const symbol of ["EURUSD", "GBPUSD", "JPYUSD", "CADUSD", "SEKUSD"]) {
+    const admitted = await handleCharactersBeat(
+      beat(`disc=fx&provider=massive&symbols=${symbol}&interval=1d&cadence=1`), envValue, dependencies
+    );
+    assert.equal(admitted.status, 200);
+  }
   const rateLimited = await handleCharactersBeat(
-    beat("disc=fx&provider=massive&symbols=GBPUSD&interval=1d&cadence=1"), restricted, dependencies
+    beat("disc=fx&provider=massive&symbols=CHFUSD&interval=1d&cadence=1"), envValue, dependencies
   );
   const payload = await rateLimited.json();
-  assert.equal(rateLimited.status, 429);
+  assert.equal(rateLimited.status, 429, JSON.stringify(payload));
   assert.equal(payload.data.spend.massiveAttempts, 0);
-  assert.equal(payload.data.spend.massiveDaily.calls, 1, "the denied minute slot did not claim the daily allowance");
-  assert.equal(fetches, 1);
+  assert.equal(payload.data.spend.massiveDaily.calls, 5, "the denied minute slot did not claim another daily telemetry slot");
+  assert.equal(fetches, 5);
 });
 
 test("Massive failures do not leak an upstream body or a Worker secret, and missing D1 fails closed", async t => {
@@ -372,7 +373,7 @@ test("the six DXY component quotes retain their USD-per-foreign orientation thro
       }
     );
     const payload = await response.json();
-    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path`);
+    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path: ${JSON.stringify(payload)}`);
     assert.equal(payload.data.instruments[0].symbol, symbol);
     assert.equal(payload.data.instruments[0].marketContext.quoteCurrency, "USD");
     assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");

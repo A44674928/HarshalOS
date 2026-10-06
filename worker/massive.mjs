@@ -10,10 +10,11 @@
    Massive's documented field names (status, results, request_id, …). The former
    standalone desktop window has been retired.
 
-   Pacing is best-effort and in-memory: one deployment-wide sliding window
-   plus one per-client sliding window, both per Worker isolate. Cloudflare
-   isolate distribution/restarts mean this is a safeguard for the owner's
-   shared key, not a durable or global quota. */
+   Pacing is best-effort and in-memory. Massive Basic documents five requests
+   per minute per asset class; the Worker therefore keeps one sliding window
+   per Massive subscription class rather than one deployment-wide bucket.
+   Cloudflare isolate distribution/restarts mean this is a safeguard for the
+   owner's shared key, not a durable or global quota. */
 
 export const MASSIVE_ORIGIN = "https://api.massive.com";
 export const MASSIVE_ROUTE_PREFIX = "/api/massive/v1";
@@ -52,15 +53,13 @@ export const MASSIVE_MAX_DIVIDEND_LIMIT = 100;
 const CACHE_TTL_MS = 60_000;
 const CACHE_CAPACITY = 128;
 const WINDOW_MS = 60_000;
-const DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE = 5;
-const DEFAULT_CLIENT_LIMIT_PER_MINUTE = 5;
-const CLIENT_BUCKET_CAPACITY = 512;
+export const MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS = 5;
+const MASSIVE_ASSET_CLASSES = Object.freeze(["stocks", "options", "indices", "currencies", "futures"]);
 const FETCH_TIMEOUT_MS = 12_000;
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 
 let cache = new Map();
-let deploymentWindow = [];
-let clientWindows = new Map();
+let assetClassWindows = new Map();
 
 const json = (value, status = 200) => Response.json(value, {
   status,
@@ -76,8 +75,7 @@ const failure = (code, message, status = 502, extra = {}) =>
 
 export function clearMassiveCache() {
   cache = new Map();
-  deploymentWindow = [];
-  clientWindows = new Map();
+  assetClassWindows = new Map();
 }
 
 function cacheGet(key, now) {
@@ -98,68 +96,62 @@ function cacheSet(key, data, now) {
   while (cache.size > CACHE_CAPACITY) cache.delete(cache.keys().next().value);
 }
 
-function envLimit(value, fallback) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : fallback;
+/* The server-side beat owns scheduling. One sliding window is kept per
+   Massive subscription class; there is no client-IP bucket competing with
+   the provider's documented per-class allowance. */
+function normalizeMassiveAssetClass(value) {
+  const asset = String(value || "").trim().toLowerCase();
+  if (asset === "crypto" || asset === "forex" || asset === "currencies") return "currencies";
+  if (asset === "stocks" || asset === "options" || asset === "indices" || asset === "futures") return asset;
+  return "unknown";
 }
 
-/* Sliding-window budget: one window shared by the whole deployment (the
-   Massive key belongs to the owner, so every visitor spends the same quota)
-   and one window per client IP so a single caller cannot spend it all. */
-/* Exported so other bounded Worker routes that use the same owner key can
-   share this exact per-isolate envelope instead of maintaining a second,
-   divergent rate bucket. */
-function massiveBudgetWindows(request, env, now) {
-  const deploymentLimit = envLimit(env.MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE, DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE);
-  const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
-  deploymentWindow = deploymentWindow.filter(at => now - at < WINDOW_MS);
-  const address = request && request.headers && typeof request.headers.get === "function"
-    ? request.headers.get("CF-Connecting-IP") : null;
-  const key = typeof address === "string" && address.trim() && address.trim().length <= 64 ? address.trim() : "unknown";
-  const clientWindow = (clientWindows.get(key) || []).filter(at => now - at < WINDOW_MS);
-  clientWindows.set(key, clientWindow);
-  return { deploymentLimit, clientLimit, key, clientWindow };
+function requestMassiveAssetClass(request) {
+  try {
+    const url = request && request.url ? new URL(request.url) : null;
+    return normalizeMassiveAssetClass(url && url.searchParams.get("asset"));
+  } catch {
+    return "unknown";
+  }
+}
+
+function massiveBudgetWindows(request, env, now, assetClass = null) {
+  const explicit = normalizeMassiveAssetClass(assetClass);
+  const resolvedAssetClass = explicit !== "unknown" ? explicit : requestMassiveAssetClass(request);
+  const classKey = resolvedAssetClass;
+  const classWindow = (assetClassWindows.get(classKey) || []).filter(at => now - at < WINDOW_MS);
+  assetClassWindows.set(classKey, classWindow);
+  return { assetClass: classKey, assetClassLimit: MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS, classWindow };
 }
 
 /** Read the remaining per-isolate allowance without spending a request. */
-export function availableMassiveBudget(request, env = {}, now = Date.now()) {
-  const windows = massiveBudgetWindows(request, env, now);
+export function availableMassiveBudget(request, env = {}, now = Date.now(), assetClass = null) {
+  const windows = massiveBudgetWindows(request, env, now, assetClass);
   return {
-    deploymentRemaining: Math.max(0, windows.deploymentLimit - deploymentWindow.length),
-    clientRemaining: Math.max(0, windows.clientLimit - windows.clientWindow.length),
-    remaining: Math.max(0, Math.min(
-      windows.deploymentLimit - deploymentWindow.length,
-      windows.clientLimit - windows.clientWindow.length
-    ))
+    assetClass: windows.assetClass,
+    assetClassRemaining: Math.max(0, windows.assetClassLimit - windows.classWindow.length),
+    remaining: Math.max(0, windows.assetClassLimit - windows.classWindow.length)
   };
 }
 
-/* Sliding-window budget: one window shared by the whole deployment (the
-   Massive key belongs to the owner, so every visitor spends the same quota)
-   and one window per client IP so a single caller cannot spend it all. */
 /* Exported so other bounded Worker routes that use the same owner key can
    share this exact per-isolate envelope instead of maintaining a second,
    divergent rate bucket. */
-export function consumeMassiveBudget(request, env = {}, now = Date.now()) {
-  const windows = massiveBudgetWindows(request, env, now);
-  if (deploymentWindow.length >= windows.deploymentLimit) {
-    return { ok: false, scope: "deployment", retryAfterSeconds: Math.max(1, Math.ceil((deploymentWindow[0] + WINDOW_MS - now) / 1000)) };
+export function consumeMassiveBudget(request, env = {}, now = Date.now(), assetClass = null) {
+  const windows = massiveBudgetWindows(request, env, now, assetClass);
+  if (windows.assetClass === "unknown") {
+    return { ok: false, scope: "asset-class", code: "massive-asset-class-required", retryAfterSeconds: 0 };
   }
-  if (windows.clientWindow.length >= windows.clientLimit) {
-    return { ok: false, scope: "client", retryAfterSeconds: Math.max(1, Math.ceil((windows.clientWindow[0] + WINDOW_MS - now) / 1000)) };
+  if (windows.classWindow.length >= windows.assetClassLimit) {
+    return {
+      ok: false,
+      scope: "asset-class",
+      assetClass: windows.assetClass,
+      retryAfterSeconds: Math.max(1, Math.ceil((windows.classWindow[0] + WINDOW_MS - now) / 1000))
+    };
   }
-
-  deploymentWindow.push(now);
-  windows.clientWindow.push(now);
-  clientWindows.delete(windows.key);
-  clientWindows.set(windows.key, windows.clientWindow);
-  if (clientWindows.size > CLIENT_BUCKET_CAPACITY) {
-    for (const [oldKey, oldWindow] of clientWindows) {
-      if (!oldWindow.length || now - oldWindow[oldWindow.length - 1] >= WINDOW_MS) clientWindows.delete(oldKey);
-    }
-    while (clientWindows.size > CLIENT_BUCKET_CAPACITY) clientWindows.delete(clientWindows.keys().next().value);
-  }
-  return { ok: true };
+  windows.classWindow.push(now);
+  return { ok: true, assetClass: windows.assetClass };
 }
 
 /* ── request-shape validation ─────────────────────────────────────────── */
@@ -224,6 +216,7 @@ function buildBars(params) {
   return {
     ok: true,
     cacheKey: `bars|${ticker}|${multiplier}|${timespan}|${fromIso}|${toIso}|${sort}|${limit}`,
+    assetClass: entry.asset === "crypto" || entry.asset === "forex" ? "currencies" : entry.asset,
     upstream: {
       path: `/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${multiplier}/${timespan}/${fromIso}/${toIso}`,
       query: { adjusted: "true", sort, limit: String(limit) }
@@ -241,6 +234,7 @@ function buildSingleTicker(pathTemplate, { stocksOnly = false } = {}) {
     return {
       ok: true,
       cacheKey: `${pathTemplate}|${ticker}`,
+      assetClass: entry.asset === "crypto" || entry.asset === "forex" ? "currencies" : entry.asset,
       upstream: { path: pathTemplate.replace("{ticker}", encodeURIComponent(ticker)), query: {} }
     };
   };
@@ -259,6 +253,7 @@ function buildDividends(params) {
   return {
     ok: true,
     cacheKey: `dividends|${ticker}|${limit}`,
+    assetClass: "stocks",
     upstream: {
       path: "/stocks/v1/dividends",
       query: { ticker, limit: String(limit), sort: "ex_dividend_date.desc" }
@@ -284,6 +279,7 @@ function buildConversion(params) {
   return {
     ok: true,
     cacheKey: `conversion|${from}|${to}|${amount}|${precision}`,
+    assetClass: "currencies",
     upstream: {
       path: `/v1/conversion/${from}/${to}`,
       query: { amount, precision: String(precision) }
@@ -348,13 +344,15 @@ export async function handleMassive(request, env = {}, dependencies = {}) {
   const cached = cacheGet(built.cacheKey, now);
   if (cached) return json({ success: true, cached: true, data: cached });
 
-  const budget = consumeMassiveBudget(request, env, now);
+  const budget = consumeMassiveBudget(request, env, now, built.assetClass);
   if (!budget.ok) {
     return failure(
       "rate-limited",
-      budget.scope === "deployment"
-        ? "This deployment's Massive request budget is spent for the moment. Wait a little before asking again."
-        : "This client has reached its Massive request budget. Wait a little before asking again.",
+      budget.scope === "asset-class"
+        ? `The Massive ${budget.assetClass || "provider"} request budget is spent for the moment. Wait a little before asking again.`
+        : budget.scope === "client"
+          ? "This client has reached its Massive request budget. Wait a little before asking again."
+          : "The Massive request cannot be sent until its asset class is known.",
       429,
       { retryAfterSeconds: budget.retryAfterSeconds }
     );
@@ -421,6 +419,5 @@ export const massiveInternals = Object.freeze({
   parseMassiveDate,
   CACHE_TTL_MS,
   WINDOW_MS,
-  DEFAULT_DEPLOYMENT_LIMIT_PER_MINUTE,
-  DEFAULT_CLIENT_LIMIT_PER_MINUTE
+  MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS
 });

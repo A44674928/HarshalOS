@@ -89,7 +89,12 @@ export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
    and LIMIT bindings so symbol-scoped field reads remain below that ceiling. */
 const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
-export const ORB2_MASSIVE_PER_MINUTE = 5;
+export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
+const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
+  currencies: Object.freeze(["fx"]),
+  futures: Object.freeze(["commodities"]),
+  indices: Object.freeze(["indices"])
+});
 export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 24;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
@@ -823,7 +828,10 @@ function providerKeys(env) {
 
 async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
   if (!keys.massive) return { ok: false, attempted: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
-  const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+  const reservation = await reserveMassiveProviderCall({
+    request: CRON_REQUEST, env, now,
+    assetClass: instrument.discId === "commodities" ? "futures" : instrument.discId === "fx" ? "currencies" : "indices"
+  });
   if (!reservation.ok) return { ok: false, attempted: false, code: reservation.code, message: reservation.message };
   const result = await fetchMassiveDailyMarketContext({
     instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
@@ -870,11 +878,6 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
     return state;
   }
   if (!keys.massive) return state;
-  const ledger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-  if (ledger.ok && ledger.ledger.remaining <= 0) {
-    summary.notes.push("Disc4 contracts are held: Massive daily call budget is exhausted.");
-    return state;
-  }
   if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
   const catalog = globalThis.CharactersDiscCatalog;
   const commodities = catalog && Array.isArray(catalog.commodities) ? catalog.commodities : [];
@@ -905,7 +908,9 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
   const result = await getMassiveActiveFuturesContract({
     productCode, apiKey: keys.massive, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
     beforeFetch: async () => {
-      const reservation = await reserveMassiveProviderCall({ request: CRON_REQUEST, env, now });
+      const reservation = await reserveMassiveProviderCall({
+        request: CRON_REQUEST, env, now, assetClass: "futures"
+      });
       if (reservation.ok) reserved = true;
       return reservation;
     }
@@ -1158,74 +1163,57 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     }
 
     /* 5 · Massive is limited to reviewed FX, active commodity futures, and
-       indices. Five requests per minute and the durable UTC-day guard apply. */
-    const massiveInstruments = roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId));
-    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-    const dailyRemaining = massiveLedger.ok ? massiveLedger.ledger.remaining : 0;
-    const minuteRemaining = availableMassiveBudget(CRON_REQUEST, env, now).remaining;
-    const utcDate = new Date(now);
-    const minutesRemaining = Math.max(1, 1440 - (utcDate.getUTCHours() * 60 + utcDate.getUTCMinutes()));
-    const pacedLimit = dailyRemaining <= 0
-      ? 0
-      : dailyRemaining <= 10
-        ? 1
-        : dailyRemaining <= 30 && minutesRemaining > 120
-          ? Math.min(2, ORB2_MASSIVE_PER_MINUTE)
-          : ORB2_MASSIVE_PER_MINUTE;
-    const maxMassiveThisTick = Math.max(0, pacedLimit - summary.massiveCalls);
-    const slots = Math.max(0, Math.min(
-      maxMassiveThisTick,
-      minuteRemaining,
-      dailyRemaining - summary.massiveCalls
-    ));
+       indices. Each Massive subscription class receives its own five-request
+       server-side budget. The D1 UTC-day counter is telemetry only. */
     if (!keys.massive) {
       summary.notes.push("Massive FX/futures/index lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
-    } else if (!massiveLedger.ok) {
-      summary.errors.push(massiveLedger.message);
-    } else if (slots > 0) {
-      /* The rotation reserves one expired berth per Massive-reviewed Disc
-         before filling remaining slots oldest-first. Stocks and crypto never
-         enter this provider lane. */
-      const rotation = await dueRotation(db, massiveInstruments, slots, now, "massive");
-      const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
-        entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
-      }));
-      for (const outcome of outcomes) {
-        const instrument = outcome.entry.instrument;
-        if (outcome.attempted) summary.massiveCalls += 1;
-        if (outcome.ok) {
-          const observation = observationFromPacket({
-            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
-            provider: "massive", interval: "1d", now, reason: "server-sweep"
-          });
-          if (observation) {
-            await writeObservation(db, observation, now);
-            summary.observed += 1;
-            continue;
+    } else {
+      for (const [assetClass, discs] of Object.entries(ORB2_MASSIVE_DISCS_BY_ASSET_CLASS)) {
+        const instruments = roster.instruments.filter(instrument => discs.includes(instrument.discId));
+        const slots = Math.max(0, Math.min(
+          ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+          availableMassiveBudget(CRON_REQUEST, env, now, assetClass).remaining
+        ));
+        if (!instruments.length || slots <= 0) continue;
+        const rotation = await dueRotation(db, instruments, slots, now, "massive");
+        const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
+          entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
+        }));
+        for (const outcome of outcomes) {
+          const instrument = outcome.entry.instrument;
+          if (outcome.attempted) summary.massiveCalls += 1;
+          if (outcome.ok) {
+            const observation = observationFromPacket({
+              packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+              name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
+              provider: "massive", interval: "1d", now, reason: "server-sweep"
+            });
+            if (observation) {
+              await writeObservation(db, observation, now);
+              summary.observed += 1;
+              continue;
+            }
+          }
+          summary.held += 1;
+          summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
+          if (outcome.attempted) {
+            const heldObs = heldFieldObservation({
+              symbol: instrument.symbol,
+              displaySymbol: instrumentDisplay(instrument),
+              name: instrumentName(instrument),
+              sector: instrumentSector(instrument),
+              discId: instrument.discId,
+              provider: "massive",
+              interval: "1d",
+              now,
+              reason: "server-sweep",
+              code: outcome.code || "massive-refusal",
+              message: text(outcome.message, 140) || "Massive did not answer"
+            });
+            if (heldObs) await writeObservation(db, heldObs, now);
           }
         }
-        summary.held += 1;
-        summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
-        if (outcome.attempted) {
-          const heldObs = heldFieldObservation({
-            symbol: instrument.symbol,
-            displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument),
-            sector: instrumentSector(instrument),
-            discId: instrument.discId,
-            provider: "massive",
-            interval: "1d",
-            now,
-            reason: "server-sweep",
-            code: outcome.code || "massive-refusal",
-            message: text(outcome.message, 140) || "Massive did not answer"
-          });
-          if (heldObs) await writeObservation(db, heldObs, now);
-        }
       }
-    } else if (massiveLedger.ok && massiveLedger.ledger.exhausted) {
-      summary.notes.push(`The Massive UTC-day allowance is spent (${massiveLedger.ledger.calls}/${massiveLedger.ledger.dailyLimit}); Tickerbot stock and Kraken crypto lanes are separately accounted.`);
     }
 
     summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
@@ -1655,12 +1643,14 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       lastError: text(run && run.last_error, 200),
       massive: {
         callsToday: Number(run && run.massive_calls) || 0,
-        perMinute: ORB2_MASSIVE_PER_MINUTE,
-        dailyLimit: MASSIVE_PROVIDER_DAILY_LIMIT,
-        remainingToday: massiveLedger.ok ? massiveLedger.ledger.remaining : null,
-        exhausted: massiveLedger.ok ? massiveLedger.ledger.exhausted : null,
-        ledger: massiveLedger.ok ? "ready" : "unavailable",
-        note: massiveLedger.ok ? massiveLedger.ledger.note : massiveLedger.message
+        perMinute: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+        perMinutePerAssetClass: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+        perMinuteScope: "per-asset-class",
+        dailyLimit: null,
+        remainingToday: null,
+        exhausted: false,
+        ledger: "provider-rate-class",
+        note: "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
       },
       kraken: {
         callsToday: Number(run && run.kraken_calls) || 0,

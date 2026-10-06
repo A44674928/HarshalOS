@@ -1,10 +1,9 @@
 /*
- * HarshalOS — durable Massive per-UTC-day request allowance.
+ * HarshalOS — durable Massive per-UTC-day request telemetry.
  *
- * Characters' automatic daily beat claims one slot immediately before an
- * upstream Massive request. The Massive account's own limits remain binding;
- * this D1 counter is a conservative Worker-routed guard shared by all
- * Characters Discs. It deliberately says nothing about browser/direct calls.
+ * Characters records one Worker-routed Massive attempt after the provider-class
+ * reservation succeeds. The Massive account's own per-asset-class limits remain
+ * binding; this D1 counter is historical/audit telemetry, not a provider gate.
  */
 
 export const MASSIVE_DAILY_CALL_LEDGER_SCHEMA = "massive-daily-call-ledger-v1";
@@ -13,7 +12,7 @@ export const MASSIVE_DAILY_CALL_LEDGER_SCHEMA = "massive-daily-call-ledger-v1";
    accidental all-day loop from becoming unbounded. */
 export const MASSIVE_PROVIDER_DAILY_LIMIT = 300;
 export const MASSIVE_DAILY_CALL_LEDGER_NOTE =
-  "Aggregate count of Worker-routed Massive daily Characters requests, reset by UTC day. Failed upstream attempts count conservatively; direct Massive usage remains authoritative outside this ledger.";
+  "Aggregate telemetry count of Worker-routed Massive Characters requests, reset by UTC day. The legacy dailyLimit field is retained for historical observability only and is not a provider gate; Massive provider pacing is enforced per asset class per minute.";
 
 const UPSERT_ATTEMPT = `INSERT INTO massive_daily_call_ledger
   (utc_day, attempted_calls, daily_limit, updated_at)
@@ -71,6 +70,32 @@ export async function readMassiveDailyCallLedger(db, at = Date.now(), requestedL
   try {
     const row = await db.prepare(READ_DAY).bind(day).first();
     return { ok: true, ledger: usageFromRow(row, day, dailyLimit) };
+  } catch {
+    return unavailable();
+  }
+}
+
+/**
+ * Record one Worker-routed attempt without imposing a daily provider limit.
+ * The legacy daily_limit column remains for historical observability.
+ */
+export async function recordMassiveDailyCall(db, at = Date.now(), requestedLimit = MASSIVE_PROVIDER_DAILY_LIMIT) {
+  const dailyLimit = safeDailyLimit(requestedLimit);
+  if (!dailyLimit || !db || typeof db.prepare !== "function") return unavailable();
+  const input = Number(at);
+  const now = Number.isFinite(input) && input >= 0 ? Math.floor(input) : Date.now();
+  const day = massiveUtcDay(now);
+  const upsert = `INSERT INTO massive_daily_call_ledger
+    (utc_day, attempted_calls, daily_limit, updated_at)
+    VALUES (?, 1, ?, ?)
+    ON CONFLICT(utc_day) DO UPDATE SET
+      attempted_calls = massive_daily_call_ledger.attempted_calls + 1,
+      daily_limit = excluded.daily_limit,
+      updated_at = excluded.updated_at
+    RETURNING utc_day, attempted_calls, daily_limit, updated_at`;
+  try {
+    const row = await db.prepare(upsert).bind(day, dailyLimit, now).first();
+    return row ? { ok: true, ledger: usageFromRow(row, day, dailyLimit) } : unavailable();
   } catch {
     return unavailable();
   }
