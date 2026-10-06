@@ -2826,8 +2826,31 @@
        berth-separation resolver edits: it is the same radius and the same two
        angles the model already derives from supplied market fields, so nothing
        about a metric changes when a shared berth is re-slotted. */
+    /* Deterministic angular distribution prevents a 52-card field from collapsing
+       into a visually planar cluster when market values are correlated. The seed is
+       identity-stable, not random and not a market signal; FBB radius and the
+       indicator-derived topology remain authoritative. */
+    function topologyDistribution(identity, topology, indicatorAlignment = 0.5, volatility = 0) {
+      const phase = stableIdentityPhase(identity);
+      const normalized = phase / TAU;
+      const targetLongitude = phase;
+      const targetLatitude = Math.asin(clamp(1 - 2 * normalized, -1, 1));
+      const weight = clamp(0.28 + (1 - clamp(indicatorAlignment, 0, 1)) * 0.34 + clamp(volatility, 0, 1) * 0.12, 0.28, 0.68);
+      return {
+        longitude: targetLongitude * weight,
+        latitude: targetLatitude * weight,
+        weight
+      };
+    }
+
     function sphericalPlacement(node, now, directive, observation = null) {
       const placement = marketDataPlacement(observation && observation.market, observation && observation.symbol || node.symbol || node.name, observation && observation.composition);
+      const spread = topologyDistribution(
+        observation && observation.symbol || node.symbol || node.name,
+        placement.topology,
+        placement.topology && placement.topology.convergence,
+        placement.topology && placement.topology.volatility
+      );
       const floatPhase = placement.phase + now / 1000 * placement.speed;
       /* The float is the packet's own drift. It must never feed the berth
          resolver: a drifted coordinate can cross the crowding floor and make
@@ -2835,7 +2858,11 @@
          `anchor` is the metrics-only berth, so the separation decision is
          stable for as long as the packets are, and the drift is applied to the
          resolved slot afterwards. */
-      const anchor = { longitude: placement.longitude, latitude: placement.latitude, radius: placement.radius };
+      const anchor = {
+        longitude: placement.longitude + spread.longitude,
+        latitude: clamp(placement.latitude + spread.latitude, -1.45, 1.45),
+        radius: placement.radius
+      };
       const float = placement.amplitude * (0.72 + 0.28 * Math.sin(floatPhase * 0.61) ** 2);
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
@@ -2854,7 +2881,11 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
-      return { longitude, latitude, radius, anchor, available: placement.available, source: placement.source, pressure: placement.pressure };
+      return {
+        longitude, latitude, radius, anchor,
+        available: placement.available, source: placement.source, pressure: placement.pressure,
+        topology: placement.topology
+      };
     }
 
     /* The spherical berth rendered through the disc↔sphere form blend. It reads
