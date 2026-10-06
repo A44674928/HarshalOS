@@ -248,7 +248,7 @@ test("the server field roster is the reviewed catalog, in firing order, with no 
   assert.equal(roster.commodities.length, 11);
   assert.ok(roster.commodities.some(entry => entry.symbol === "ALUMINUM" && entry.massive.productCode === "ALI" && entry.massiveTicker === "ALIZ6"),
     "Aluminum is on Disc4 only after the current ALI contract is verified");
-  assert.equal(roster.indices.length, 5);
+  assert.equal(roster.indices.length, 52);
   assert.deepEqual(roster.dsSymbols, ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"]);
   assert.deepEqual(roster.discs, ["stocks", "fx", "commodities", "indices"]);
   assert.ok(roster.instruments.every(instrument => typeof instrument.discId === "string"));
