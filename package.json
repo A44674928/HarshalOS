@@ -14,6 +14,7 @@
     "test:ocm": "node --test tests/ocm-directory-test.mjs tests/ocm-engine-test.mjs",
     "test:pine": "node --test tests/pine-scripts-docs-test.mjs",
     "test:market-data-provider": "node --test tests/market-data-provider-test.mjs",
+    "test:hf-data-library": "node --test tests/hf-data-library-test.mjs",
     "test:llm": "node --test tests/llm-test.mjs tests/llm-authority-test.mjs tests/g0-llm-diagnostics-test.mjs",
     "test:relay": "node --test tests/llm-relay-test.mjs",
     "test:cloud": "node --test tests/cloud-test.mjs",
