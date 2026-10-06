@@ -392,7 +392,9 @@ export async function handleMassive(request, env = {}, dependencies = {}) {
       "rate-limited",
       budget.scope === "asset-class"
         ? `The Massive ${budget.assetClass || "provider"} request budget is spent for the moment. Wait a little before asking again.`
-        : "This client has reached its Massive request budget. Wait a little before asking again.",
+        : budget.scope === "client"
+          ? "This client has reached its Massive request budget. Wait a little before asking again."
+          : "The Massive request cannot be sent until its asset class is known.",
       429,
       { retryAfterSeconds: budget.retryAfterSeconds }
     );
