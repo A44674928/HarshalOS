@@ -381,6 +381,109 @@ window.GoodIntelligenceMarketContext = (() => {
     return finite(value) ? Number(value.toFixed(digits)) : null;
   }
 
+  const FBB_VARIANTS = Object.freeze({
+    "FBB-200": Object.freeze({ id: "FBB-200", bandLen: 200, status: "reference", experimental: false }),
+    "FBB-L60": Object.freeze({ id: "FBB-L60", bandLen: 60, status: "experimental", experimental: true })
+  });
+
+  function normalizeFbbProvenance(value) {
+    const provenance = value && typeof value === "object" && value.provenance && typeof value.provenance === "object"
+      ? value.provenance : {};
+    const bounded = (input, max) => typeof input === "string" ? input.trim().slice(0, max) : "";
+    return {
+      provider: bounded(provenance.provider, 80) || null,
+      providerId: bounded(provenance.providerId, 120) || null,
+      instrument: bounded(provenance.instrument, 120) || null,
+      assetClass: bounded(provenance.assetClass, 40) || null,
+      timeframe: bounded(provenance.timeframe, 24) || null,
+      source: bounded(provenance.source, 160) || null
+    };
+  }
+
+  function fbbVariantResult(context, variant) {
+    const definition = FBB_VARIANTS[variant];
+    if (!definition) return null;
+    const availableBars = context.bars.length;
+    const base = {
+      id: definition.id,
+      bandLen: definition.bandLen,
+      requiredBars: definition.bandLen,
+      availableBars,
+      status: availableBars >= definition.bandLen ? "available" : "insufficient-history",
+      domain: "log-space",
+      experimental: definition.experimental,
+      basis: null,
+      upper618: null,
+      lower618: null,
+      upper1000: null,
+      lower1000: null,
+      deltas: null
+    };
+    if (availableBars < definition.bandLen) return base;
+    const parameters = { ...context.parameters, bandLen: definition.bandLen };
+    const computed = computeBands(context.bars, parameters);
+    const band = computed.bands.at(-1);
+    if (!band) {
+      return { ...base, status: "unavailable" };
+    }
+    const basis = safeValue(band.basis);
+    const upper618 = safeValue(band.upper618);
+    const lower618 = safeValue(band.lower618);
+    const upper1000 = safeValue(band.upper1000);
+    const lower1000 = safeValue(band.lower1000);
+    const close = context.bars.at(-1)?.close;
+    return {
+      ...base,
+      status: "available",
+      basis,
+      upper618,
+      lower618,
+      upper1000,
+      lower1000,
+      deltas: {
+        closeFromBasis: safeValue(finite(close) && finite(band.basis) ? close - band.basis : null),
+        upper618FromBasis: safeValue(finite(upper618) && finite(basis) ? upper618 - basis : null),
+        lower618FromBasis: safeValue(finite(lower618) && finite(basis) ? lower618 - basis : null),
+        upper1000FromBasis: safeValue(finite(upper1000) && finite(basis) ? upper1000 - basis : null),
+        lower1000FromBasis: safeValue(finite(lower1000) && finite(basis) ? lower1000 - basis : null),
+        logUpper618FromBasis: safeValue(finite(upper618) && finite(basis) && upper618 > 0 && basis > 0 ? Math.log(upper618 / basis) : null),
+        logLower618FromBasis: safeValue(finite(lower618) && finite(basis) && lower618 > 0 && basis > 0 ? Math.log(lower618 / basis) : null),
+        logUpper1000FromBasis: safeValue(finite(upper1000) && finite(basis) && upper1000 > 0 && basis > 0 ? Math.log(upper1000 / basis) : null),
+        logLower1000FromBasis: safeValue(finite(lower1000) && finite(basis) && lower1000 > 0 && basis > 0 ? Math.log(lower1000 / basis) : null)
+      }
+    };
+  }
+
+  function compareFbbVariants(value) {
+    const context = normalizePacket(value);
+    if (!context) return null;
+    const provenance = normalizeFbbProvenance(value);
+    const variants = Object.fromEntries(Object.keys(FBB_VARIANTS).map(id => [id, fbbVariantResult(context, id)]));
+    const reference = variants["FBB-200"];
+    const experimental = variants["FBB-L60"];
+    return {
+      schema: "gi-fbb-comparison-v1",
+      instrument: provenance.instrument || context.symbol || null,
+      symbol: context.symbol,
+      timeframe: provenance.timeframe || context.timeframe || null,
+      provider: provenance.provider,
+      providerId: provenance.providerId,
+      assetClass: provenance.assetClass,
+      source: provenance.source || context.source || null,
+      availableBars: context.bars.length,
+      variants,
+      comparison: {
+        basisDelta: safeValue(finite(reference.basis) && finite(experimental.basis) ? experimental.basis - reference.basis : null),
+        upper618Delta: safeValue(finite(reference.upper618) && finite(experimental.upper618) ? experimental.upper618 - reference.upper618 : null),
+        lower618Delta: safeValue(finite(reference.lower618) && finite(experimental.lower618) ? experimental.lower618 - reference.lower618 : null),
+        upper1000Delta: safeValue(finite(reference.upper1000) && finite(experimental.upper1000) ? experimental.upper1000 - reference.upper1000 : null),
+        lower1000Delta: safeValue(finite(reference.lower1000) && finite(experimental.lower1000) ? experimental.lower1000 - reference.lower1000 : null),
+        authority: "FBB-L60 is experimental analytical context and does not supersede FBB-200."
+      },
+      note: "Comparison data is analytical instrumentation only. Provider identity, interval, and actual history capacity remain explicit; insufficient history is not replaced by another provider."
+    };
+  }
+
   function evaluate(value) {
     const context = normalizePacket(value);
     if (!context) return null;
@@ -542,5 +645,5 @@ window.GoodIntelligenceMarketContext = (() => {
     };
   }
 
-  return Object.freeze({ SCHEMA, MAX_BARS, DEFAULTS, normalizeBars, normalizeParameters, normalizePacket, evaluate });
+  return Object.freeze({ SCHEMA, MAX_BARS, DEFAULTS, FBB_VARIANTS, normalizeBars, normalizeParameters, normalizePacket, evaluate, compareFbbVariants });
 })();
