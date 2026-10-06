@@ -250,3 +250,88 @@ test("empty.domains API supplies eight clearly synthetic ticker series for line-
     assert.equal(result.chartSeries.at(-1).close, result.close);
   }
 });
+
+test("FBB-L60 is an explicit experimental variant while FBB-200 remains the 200-bar reference", () => {
+  assert.equal(Model.FBB_VARIANTS["FBB-200"].bandLen, 200);
+  assert.equal(Model.FBB_VARIANTS["FBB-200"].experimental, false);
+  assert.equal(Model.FBB_VARIANTS["FBB-L60"].bandLen, 60);
+  assert.equal(Model.FBB_VARIANTS["FBB-L60"].experimental, true);
+  assert.equal(Model.FBB_VARIANTS["FBB-L60"].status, "experimental");
+
+  const comparison = Model.compareFbbVariants(packet({
+    bars: bars(60),
+    provenance: {
+      provider: "kraken",
+      providerId: "BTC/USD",
+      instrument: "BTC/USD",
+      assetClass: "crypto",
+      timeframe: "1d",
+      source: "Kraken Spot Crypto"
+    }
+  }));
+  assert.equal(comparison.schema, "gi-fbb-comparison-v1");
+  assert.equal(comparison.availableBars, 60);
+  assert.equal(comparison.provider, "kraken");
+  assert.equal(comparison.providerId, "BTC/USD");
+  assert.equal(comparison.instrument, "BTC/USD");
+  assert.equal(comparison.variants["FBB-200"].status, "insufficient-history");
+  assert.equal(comparison.variants["FBB-200"].basis, null);
+  assert.equal(comparison.variants["FBB-L60"].status, "available");
+  assert.ok(Number.isFinite(comparison.variants["FBB-L60"].basis));
+  assert.ok(Number.isFinite(comparison.variants["FBB-L60"].upper618));
+  assert.ok(Number.isFinite(comparison.variants["FBB-L60"].lower618));
+  assert.ok(Number.isFinite(comparison.variants["FBB-L60"].upper1000));
+  assert.ok(Number.isFinite(comparison.variants["FBB-L60"].lower1000));
+  assert.equal(comparison.comparison.basisDelta, null);
+  assert.match(comparison.comparison.authority, /experimental.*does not supersede FBB-200/i);
+});
+
+test("FBB-L60 uses the same log-domain mathematics and exposes 0.618/1.000 deltas", () => {
+  const closes = Array.from({ length: 60 }, (_, index) => 100 * Math.exp(index * 0.01));
+  const result = Model.compareFbbVariants(packet({
+    bars: barsFromCloses(closes),
+    parameters: { ...packet().parameters, bandLen: 200, bandMult: 3, bandSrc: "close", bandMa: "SMA" }
+  }));
+  const variant = result.variants["FBB-L60"];
+  const logValues = closes.map(Math.log);
+  const lastWindow = logValues.slice(-60);
+  const logBasis = lastWindow.reduce((sum, value) => sum + value, 0) / 60;
+  const logDeviation = Math.sqrt(lastWindow.reduce((sum, value) => sum + (value - logBasis) ** 2, 0) / 60) * 3;
+  const expectedBasis = Math.exp(logBasis);
+  const expectedUpper618 = Math.exp(logBasis + 0.618 * logDeviation);
+  const expectedLower618 = Math.exp(logBasis - 0.618 * logDeviation);
+  const expectedUpper1000 = Math.exp(logBasis + logDeviation);
+  const expectedLower1000 = Math.exp(logBasis - logDeviation);
+  closeTo(variant.basis, Number(expectedBasis.toFixed(4)), "FBB-L60 basis");
+  closeTo(variant.upper618, Number(expectedUpper618.toFixed(4)), "FBB-L60 upper 0.618");
+  closeTo(variant.lower618, Number(expectedLower618.toFixed(4)), "FBB-L60 lower 0.618");
+  closeTo(variant.upper1000, Number(expectedUpper1000.toFixed(4)), "FBB-L60 upper 1.000");
+  closeTo(variant.lower1000, Number(expectedLower1000.toFixed(4)), "FBB-L60 lower 1.000");
+  closeTo(variant.deltas.logUpper618FromBasis, 0.618 * logDeviation, "FBB-L60 upper 0.618 log delta", 1e-4);
+  closeTo(variant.deltas.logLower618FromBasis, -0.618 * logDeviation, "FBB-L60 lower 0.618 log delta", 1e-4);
+  closeTo(variant.deltas.logUpper1000FromBasis, logDeviation, "FBB-L60 upper 1.000 log delta", 1e-4);
+  closeTo(variant.deltas.logLower1000FromBasis, -logDeviation, "FBB-L60 lower 1.000 log delta", 1e-4);
+});
+
+test("FBB-L60 and FBB-200 are directly comparable when 200 observations exist without changing evaluate defaults", () => {
+  const bars200 = bars(200);
+  const packet200 = packet({ bars: bars200, parameters: { ...packet().parameters, bandLen: 200 } });
+  const baseline = Model.evaluate(packet200);
+  const comparison = Model.compareFbbVariants(packet200);
+  assert.equal(baseline.parameters.bandLen, 200);
+  assert.equal(comparison.variants["FBB-200"].status, "available");
+  assert.equal(comparison.variants["FBB-L60"].status, "available");
+  assert.ok(Number.isFinite(comparison.comparison.basisDelta));
+  assert.ok(Number.isFinite(comparison.comparison.upper618Delta));
+  assert.ok(Number.isFinite(comparison.comparison.lower618Delta));
+  assert.ok(Number.isFinite(comparison.comparison.upper1000Delta));
+  assert.ok(Number.isFinite(comparison.comparison.lower1000Delta));
+});
+
+test("FBB-L60 refuses to manufacture history below its 60-bar requirement", () => {
+  const comparison = Model.compareFbbVariants(packet({ bars: bars(59) }));
+  assert.equal(comparison.variants["FBB-L60"].status, "insufficient-history");
+  assert.equal(comparison.variants["FBB-L60"].basis, null);
+  assert.equal(comparison.variants["FBB-200"].status, "insufficient-history");
+});
+\n
