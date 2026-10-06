@@ -784,12 +784,6 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
   };
   const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" };
   const seen = { urls: [], massive: [], tickerbot: [] };
-  const alters = [];
-  const originalPrepare = db.prepare;
-  db.prepare = query => {
-    if (/ALTER\s+TABLE\s+orb2_field_runs/i.test(String(query))) alters.push(String(query));
-    return originalPrepare(query);
-  };
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, "tick succeeds even if kraken_calls was missing from schema");
@@ -803,10 +797,10 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
 
 test("a migrated field never issues ALTER TABLE, so no duplicate-column error reaches observability", async t => {
   const { env } = fixture(t);
-  const alters = [];
+  const steadyStateAlters = [];
   const innerPrepare = env.COMMUNITY_DB.prepare.bind(env.COMMUNITY_DB);
   env.COMMUNITY_DB.prepare = query => {
-    if (/ALTER\s+TABLE/i.test(String(query))) alters.push(String(query));
+    if (/ALTER\s+TABLE/i.test(String(query))) steadyStateAlters.push(String(query));
     return innerPrepare(query);
   };
   const seen = { urls: [], massive: [], tickerbot: [] };
@@ -815,7 +809,7 @@ test("a migrated field never issues ALTER TABLE, so no duplicate-column error re
   assert.equal(first.ok, true);
   const second = await runOrb2FieldTick(env, null, deps(seen, { at: nextClock() }));
   assert.equal(second.ok, true);
-  assert.deepEqual(alters, [], "steady-state ticks must not attempt ALTER TABLE at all");
+  assert.deepEqual(steadyStateAlters, [], "steady-state ticks must not attempt ALTER TABLE at all");
 });
 
 test("failed provider beats and missing commodity contracts write heldFieldObservation and are not immediately retried", async t => {
