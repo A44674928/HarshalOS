@@ -45,6 +45,8 @@ test("the five reviewed Discs expose only their assigned providers and intervals
   assert.equal(indices.length, 52);
   assert.deepEqual(indices.map(entry => entry.symbol), expectedIndices);
   assert.equal(new Set(indices.map(entry => entry.symbol)).size, 52);
+  assert.ok(!indices.some(entry => ["SPX", "DJI", "RUT", "VIX"].includes(entry.symbol)),
+    "Disc5 does not reintroduce non-Basic familiar indices outside the reviewed 52-card roster");
   assert.ok(indices.every(entry => entry.assetClass === "index" && entry.dataShape === "ohlc"));
   assert.ok(indices.every(entry => entry.massive.family === "aggs" && entry.massive.ticker === `I:${entry.symbol}`));
   assert.deepEqual(indices.slice(0, 8).map(entry => entry.sector), Array(8).fill("U.S. headline / structural"));
