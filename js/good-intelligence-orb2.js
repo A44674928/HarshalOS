@@ -4798,7 +4798,8 @@
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
-    fibonacciBandMetrics, marketDataPlacement, dataBitsForMarket, flowPathForObservation,
+    fibonacciBandMetrics, logarithmicBandGeometry, topologyEnvelope, marketDataPlacement,
+    dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
     buildNodes, mount, getSavedBeatSessionId
