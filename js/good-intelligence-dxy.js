@@ -9,7 +9,7 @@
 
 (() => {
   const SCHEMA = "good-intelligence-dollar-strength-v1";
-  const DS_CONSTANT = 50.14348112;
+  const DS_CONSTANT = 50.14348112;\n  const DS_BASELINE = 100;
   const MAX_INPUT_AGE_MS = 4 * 24 * 60 * 60_000;
   /* Catalog symbols are all quoted USD per one foreign-currency unit. ICE Rule
      15.01 expresses each rate in European terms (foreign units per USD), so
@@ -202,7 +202,7 @@
 
   window.GoodIntelligenceDollarStrength = Object.freeze({
     SCHEMA,
-    DS_CONSTANT,
+    DS_CONSTANT,\n    DS_BASELINE,
     MAX_INPUT_AGE_MS,
     COMPONENTS,
     REQUIRED_ASSETS,
