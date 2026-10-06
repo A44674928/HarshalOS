@@ -895,7 +895,7 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
   if (!keys.massive) return state;
   if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
   const catalog = globalThis.CharactersDiscCatalog;
-  const commodities = catalog && Array.isArray(catalog.commodities) ? catalog.commodities : [];
+  const commodities = catalog && Array.isArray(catalog.futures || catalog.commodities) ? (catalog.futures || catalog.commodities) : [];
 
   let observedCommodities = new Set();
   try {
