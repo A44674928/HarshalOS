@@ -35,7 +35,7 @@ const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0007_massive_daily_call_l
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 const ORIGIN = "https://os.example";
 const STOCK_SYMBOLS = TICKERBOT_WATCHLIST.map(entry => entry.symbol);
-const TEST_CONTRACT_TICKERS = Object.freeze({ CL: "CLX6", NG: "NGX6", GC: "GCZ6", SI: "SIZ6", HG: "HGZ6", PL: "PLX6", PA: "PAX6", ZW: "ZWZ6", ZC: "ZCZ6", ZS: "ZSX6" });
+const TEST_CONTRACT_TICKERS = Object.freeze({ CL: "CLX6", NG: "NGX6", GC: "GCZ6", SI: "SIZ6", HG: "HGZ6", ALI: "ALIZ6", PL: "PLX6", PA: "PAX6", ZW: "ZWZ6", ZC: "ZCZ6", ZS: "ZSX6" });
 
 function activeContracts(at = NOW) {
   const asOfDate = new Date(at).toISOString().slice(0, 10);
@@ -243,7 +243,9 @@ test("the server field roster is the reviewed catalog, in firing order, with no 
     "the field's stock roster matches the reviewed Tickerbot watchlist exactly");
   assert.equal(roster.stocks[0].symbol, "NVDA", "the rotation is published in the reviewed firing order");
   assert.equal(roster.fx.length, 23);
-  assert.equal(roster.commodities.length, 10);
+  assert.equal(roster.commodities.length, 11);
+  assert.ok(roster.commodities.some(entry => entry.symbol === "ALUMINUM" && entry.massive.productCode === "ALI" && entry.massiveTicker === "ALIZ6"),
+    "Aluminum is on Disc4 only after the current ALI contract is verified");
   assert.equal(roster.indices.length, 5);
   assert.deepEqual(roster.dxySymbols, ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"]);
   assert.deepEqual(roster.discs, ["stocks", "fx", "commodities", "indices"]);
@@ -328,7 +330,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   const reviewed = roster.instruments.length;
   assert.equal(roster.crypto.length, 52);
   assert.equal(roster.cryptoPairs.length, 1, "the exact ADA/USDT pair joins the Kraken daily rotation");
-  assert.equal(reviewed, 143);
+  assert.equal(reviewed, 144);
   assert.equal(seen.krakenRanking.length, 1);
   assert.equal(seen.krakenBars.length, 0, "the pair-bar lane waits for the next one-second Kraken slot");
   assert.equal(seen.massive.length, ORB2_MASSIVE_PER_MINUTE,
@@ -366,6 +368,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   assert.ok(seen.tickerbot.some(entry => entry.endsWith(":1d")), "Stocks are refreshed on Tickerbot daily bars");
   assert.ok(seen.massive.includes("C:EURUSD"), "FX routes through the reviewed Massive catalog mapping");
   assert.ok(seen.massive.includes("GCZ6"), "commodities route through the fixed active Massive futures contract");
+  assert.ok(seen.massive.includes("ALIZ6"), "Aluminum routes through its verified active Massive futures contract");
   assert.ok(seen.krakenBars.some(entry => entry.pair === "BTC/USD"), "Crypto daily bars retain Kraken's exact USD pair identity");
   assert.ok(seen.krakenBars.some(entry => entry.pair === "ADA/USDT"), "the cross-quote OHLC request retains ADA/USDT instead of inventing USDT/ADA");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
@@ -528,6 +531,19 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
     await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
   }
   const snapshotAt = at + (ticksForOnePass + 1) * 60_000;
+  /* A symbol retired from the reviewed catalog can remain in D1. It must not
+     inflate the current Disc's `stored of reviewed` count. */
+  const existingCommodity = sql.prepare("SELECT * FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities' LIMIT 1").get();
+  const orphanSymbol = "RETIRED_METAL";
+  const orphanPayload = JSON.parse(existingCommodity.payload);
+  Object.assign(orphanPayload, { symbol: orphanSymbol, displaySymbol: orphanSymbol, name: "Retired metal", observedAt: snapshotAt });
+  sql.prepare(`INSERT INTO orb2_field_observations
+    (interval, symbol, disc_id, provider, status, reason, beat_id, payload, observed_at, bar_time, confirmed, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    "1d", orphanSymbol, "commodities", "legacy", existingCommodity.status, existingCommodity.reason,
+    existingCommodity.beat_id, JSON.stringify(orphanPayload), snapshotAt, existingCommodity.bar_time,
+    existingCommodity.confirmed, snapshotAt
+  );
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d&disc=stocks`), env, { now: () => snapshotAt });
   assert.equal(response.status, 200);
   const { data } = await response.json();
@@ -541,8 +557,8 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(data.status.massive.perMinute, ORB2_MASSIVE_PER_MINUTE);
   assert.equal(data.status.massive.dailyLimit, 300);
   assert.equal(data.status.futuresContracts.cache, "ready");
-  assert.equal(data.status.futuresContracts.reviewedProducts, 10);
-  assert.equal(data.status.futuresContracts.activeContracts, 10);
+  assert.equal(data.status.futuresContracts.reviewedProducts, 11);
+  assert.equal(data.status.futuresContracts.activeContracts, 11);
   assert.equal(data.status.futuresContracts.staleFallback, false);
   assert.ok(data.observations.every(observation => observation.motion && observation.motion.schema === "characters-market-motion-v1"));
   const types = Object.fromEntries(data.beatTypes.map(type => [type.id, type]));
@@ -565,8 +581,10 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(discs.stocks.covered, true);
   assert.equal(discs.fx.instruments, 23);
   assert.equal(discs.fx.stored, 23);
-  assert.equal(discs.commodities.instruments, 10);
-  assert.equal(discs.commodities.stored, 10, "the commodity Disc is populated by the automatic rotation");
+  assert.equal(discs.commodities.instruments, 11);
+  assert.equal(discs.commodities.stored, 11, "all eleven reviewed commodity berths are stored by the automatic rotation; an unreviewed D1 row is excluded");
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities'").get().count, 12,
+    "the unmatched legacy row stays preserved without inflating the reviewed count");
   const commodityPayload = JSON.parse(sql.prepare("SELECT payload FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities' LIMIT 1").get().payload);
   assert.equal(commodityPayload.provider, "massive");
   assert.equal(commodityPayload.market.massiveContract.provider, "Massive");
@@ -585,7 +603,7 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
   /* Stocks are Tickerbot-only; Crypto is Kraken-only; Massive is exclusive to
      FX, active commodity futures, and indices. */
-  for (const [discId, expected] of [["fx", 23], ["commodities", 10], ["indices", 5]]) {
+  for (const [discId, expected] of [["fx", 23], ["commodities", 11], ["indices", 5]]) {
     const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
     assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
   }
@@ -608,7 +626,7 @@ test("Disc activation status separates fresh commodity/index data from held rows
   const catalog = globalThis.CharactersDiscCatalog;
   const commodities = catalog.commodities;
   const indices = catalog.indices;
-  assert.equal(commodities.length, 10, "this checked-in reviewed catalog has ten commodity products, not eleven");
+  assert.equal(commodities.length, 11, "Aluminum is now the eleventh reviewed commodity product");
   for (const [index, entry] of commodities.entries()) {
     if (index < 3) seedValidMarketObservation(sql, { symbol: entry.symbol, discId: "commodities" });
     else seedHeldObservation(sql, { symbol: entry.symbol, discId: "commodities" });
@@ -624,9 +642,9 @@ test("Disc activation status separates fresh commodity/index data from held rows
   const discs = Object.fromEntries(data.status.discs.map(disc => [disc.id, disc]));
   assert.deepEqual({ instruments: discs.commodities.instruments, stored: discs.commodities.stored, active: discs.commodities.active,
     observed: discs.commodities.observed, held: discs.commodities.held, pending: discs.commodities.pending },
-  { instruments: 10, stored: 10, active: 3, observed: 3, held: 7, pending: 0 });
+  { instruments: 11, stored: 11, active: 3, observed: 3, held: 8, pending: 0 });
   assert.equal(discs.commodities.complete, false);
-  assert.equal(discs.commodities.members.length, 10);
+  assert.equal(discs.commodities.members.length, 11);
   assert.equal(discs.commodities.members.find(member => member.symbol === commodities[3].symbol).status, "held");
   assert.deepEqual({ instruments: discs.indices.instruments, stored: discs.indices.stored, active: discs.indices.active,
     observed: discs.indices.observed, held: discs.indices.held, pending: discs.indices.pending },
@@ -798,9 +816,9 @@ test("failed provider beats and missing commodity contracts write heldFieldObser
   assert.equal(retryTick.ok, true);
   assert.ok(seen.contracts.includes("CL"), "the held commodity contract is retried when its provider cooldown expires");
 
-  /* Verify snapshot reports the catalog's 10 commodity instruments even with no active contracts */
+  /* Verify snapshot reports all eleven reviewed commodities even with no active contracts */
   const snapshotRes = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => retryAt });
   const { data } = await snapshotRes.json();
   const discMap = Object.fromEntries(data.status.discs.map(d => [d.id, d]));
-  assert.equal(discMap.commodities.instruments, 10, "commodities Disc reports all 10 reviewed instruments, never 3 of 3");
+  assert.equal(discMap.commodities.instruments, 11, "commodities Disc reports all 11 reviewed instruments, never only the contracts active in cache");
 });
