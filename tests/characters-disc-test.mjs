@@ -35,6 +35,8 @@ test("the five reviewed Discs expose only their assigned providers and intervals
   assert.equal(Catalog.rankingSource.cryptoBars, "https://docs.kraken.com/api-reference/market-data/get-ohlc-data");
 
   assert.equal(Catalog.disc("commodities").number, 4);
+  assert.equal(Catalog.disc("commodities").name, "Futures");
+  assert.equal(Catalog.disc("futures").name, "Futures");
   assert.equal(Catalog.disc("commodities").defaultProvider, "massive");
   assert.deepEqual(Catalog.disc("commodities").intervalModes, ["1d"]);
   assert.equal(Catalog.disc("indices").number, 5);
@@ -57,13 +59,13 @@ test("the five reviewed Discs expose only their assigned providers and intervals
 });
 
 test("Disc4 keeps its reviewed Massive product roster and energy equities remain Disc1 stocks", () => {
-  const commodities = Catalog.staticInstruments("commodities");
+  const commodities = Catalog.staticInstruments("futures");
   const wti = commodities.find(entry => entry.symbol === "WTI");
   const gold = commodities.find(entry => entry.symbol === "GOLD");
   const aluminum = commodities.find(entry => entry.symbol === "ALUMINUM");
   assert.equal(commodities.length, 11);
   assert.deepEqual(commodities.map(entry => entry.symbol), ["WTI", "NATURAL_GAS", "GOLD", "SILVER", "COPPER", "ALUMINUM", "PLATINUM", "PALLADIUM", "WHEAT", "CORN", "SOYBEANS"]);
-  assert.ok(commodities.every(entry => entry.massive.family === "futures" && /^[A-Z0-9]{1,4}$/.test(entry.massive.productCode) && !entry.massive.ticker),
+  assert.ok(commodities.every(entry => entry.assetClass === "futures" && entry.massive.family === "futures" && /^[A-Z0-9]{1,4}$/.test(entry.massive.productCode) && !entry.massive.ticker),
     "the catalog carries product codes only; Massive must verify today's active dated contract");
   assert.equal(wti.dataShape, "ohlcv");
   assert.equal(wti.massive.productCode, "CL");

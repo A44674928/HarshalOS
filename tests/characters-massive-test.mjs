@@ -90,7 +90,7 @@ test("the adapter only derives documented Massive shapes for reviewed Disc famil
   const crypto = massiveDailyInternals.normalizeInstrument({
     symbol: "BTC", displaySymbol: "BTC/USD", assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USD", krakenPair: "BTC/USD"
   });
-  const commodityEntry = catalog.commodities.find(entry => entry.symbol === "WTI");
+  const commodityEntry = catalog.futures.find(entry => entry.symbol === "WTI");
   const contract = {
     provider: "Massive", productCode: "CL", ticker: "CLX6", asOfDate: "2026-10-03",
     lastTradeDate: "2026-11-20", daysToMaturity: 48
@@ -154,7 +154,7 @@ test("Disc4 resolves the active Massive contract before bars and carries contrac
   t.after(() => sql.close());
   const requests = [];
   const response = await handleCharactersBeat(
-    beat("disc=commodities&provider=massive&symbols=WTI&interval=1d&cadence=1"), env(db), {
+    beat("disc=futures&provider=massive&symbols=WTI&interval=1d&cadence=1"), env(db), {
       now: () => NOW,
       fetch: async (input, options) => {
         const url = new URL(input);
@@ -206,7 +206,7 @@ test("Disc4 holds when Massive has no verifiable active contract and cooldown su
       return Response.json({ results: [] });
     }
   };
-  const query = "disc=commodities&provider=massive&symbols=WTI&interval=1d&cadence=1";
+  const query = "disc=futures&provider=massive&symbols=WTI&interval=1d&cadence=1";
   const first = await handleCharactersBeat(beat(query), env(db), dependencies);
   assert.equal(first.status, 404);
   assert.match((await first.json()).message, /no verifiable active single contract/i);
