@@ -287,7 +287,10 @@ window.GoodIntelligenceMarketContext = (() => {
     const logDeviation = rollingStdev(logSource, parameters.bandLen)
       .map(value => finite(value) ? value * parameters.bandMult : null);
     const basis = basisLog.map(priceFromLog);
-    /* Log-space adaptation of the supplied standalone FBB: 0.236, 0.382, 0.500,\n       0.618, 0.764, and 1.000. The ratio structure is Pine-equivalent; only the\n       mathematical domain is changed so multiplicative price distances remain symmetric. */\n    const ratios = [[236, 0.236], [382, 0.382], [500, 0.500], [618, 0.618], [764, 0.764], [1000, 1]];
+    /* Log-space adaptation of the supplied standalone FBB: 0.236, 0.382, 0.500,
+       0.618, 0.764, and 1.000. The ratio structure is Pine-equivalent; only the
+       mathematical domain is changed so multiplicative price distances remain symmetric. */
+    const ratios = [[236, 0.236], [382, 0.382], [500, 0.500], [618, 0.618], [764, 0.764], [1000, 1]];
     const bands = logSource.map((_, i) => {
       const centerLog = basisLog[i], devLog = logDeviation[i], base = basis[i];
       if (!finite(centerLog) || !finite(devLog) || !finite(base)) return null;
