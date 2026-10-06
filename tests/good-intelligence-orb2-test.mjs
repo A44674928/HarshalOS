@@ -899,7 +899,7 @@ test("the strip carries one chip per Disc with its own stored status, and an emp
   assert.ok(canvasCalls.includes("arc"), "the orbs are drawn as circles on the canvas");
 });
 
-test("held commodity and index rows are not labelled active and carry no simulated OCM traffic", async t => {
+test("held futures and index rows are not labelled active and carry no simulated OCM traffic", async t => {
   let fixtureWindow;
   const { window, host, engine, frames } = interactiveHarness(t, {
     tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
@@ -964,7 +964,7 @@ test("the carousel walks to the next Disc orb with a step, a click, a slide, or 
   /* A click on a drawn Disc orb is the same move: the orb's own projected
      position is hit-tested, and the packet hit-test is not consulted. */
   const orbPoint = engine.state.projectedOrbs.find(orb => orb.disc.id === "commodities");
-  assert.ok(orbPoint, "the commodity orb is projected");
+  assert.ok(orbPoint, "the futures orb is projected");
   const PointerEventCtor = window.PointerEvent || window.MouseEvent;
   if (typeof PointerEventCtor === "function") {
     for (const type of ["pointerdown", "pointerup"]) {
@@ -1008,7 +1008,7 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
   host.querySelector('[data-gi-orb2-orb="commodities"]').click();
   await flush();
   assert.equal(engine.state.discId, "commodities");
-  assert.equal(engine.nodes.length, 11, "Disc4 draws all eleven reviewed commodities");
+  assert.equal(engine.nodes.length, 11, "Disc4 draws all eleven reviewed futures");
   assert.ok(engine.nodes.some(node => node.symbol === "ALUMINUM"), "the Aluminum ticker orb is part of Disc4's own field");
   assert.ok(engine.nodes.some(node => node.symbol === "NATURAL_GAS"), "the underscore in Henry Hub's reviewed symbol does not hide that orb");
   assert.ok(engine.nodes.every(node => !stockSymbols.has(node.symbol)), "no stock-deck symbol is drawn on Disc4");
