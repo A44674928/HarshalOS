@@ -31,6 +31,14 @@ rosterSandbox.globalThis = rosterSandbox.window;
 vm.runInNewContext(rosterSource, rosterSandbox, { filename: "js/good-intelligence-market-roster.js" });
 const MARKET_ROSTER = rosterSandbox.window.GoodIntelligenceMarketRoster.assets;
 
+
+test("the reviewed stock roster explicitly places SPCX in the formation race", () => {
+  const spcx = MARKET_ROSTER.find(asset => asset.symbol === "SPCX");
+  const tmo = MARKET_ROSTER.find(asset => asset.symbol === "TMO");
+  assert.equal(spcx?.marketStage, "formation");
+  assert.equal(tmo?.marketStage, "established");
+});
+
 function harness() {
   const window = {};
   const context = vm.createContext({ window, globalThis: window, Object, Array, String, Number, Math, Set, Map });
