@@ -23,14 +23,14 @@ export function hfRawKey(symbol, version = "clean") {
   const ticker = String(symbol || "").trim().toUpperCase();
   if (!TICKER.test(ticker)) throw new TypeError("Invalid HF Data Library ticker.");
   if (!["clean", "raw"].includes(version)) throw new TypeError("HF Data Library version must be clean or raw.");
-  return \`\${HF_DATA_LIBRARY_PREFIX}/raw/\${version}/\${ticker}.parquet\`;
+  return `${HF_DATA_LIBRARY_PREFIX}/raw/${version}/${ticker}.parquet`;
 }
 
 export function hfNormalizedKey(symbol, version = "clean") {
   const ticker = String(symbol || "").trim().toUpperCase();
   if (!TICKER.test(ticker)) throw new TypeError("Invalid HF Data Library ticker.");
   if (!["clean", "raw"].includes(version)) throw new TypeError("HF Data Library version must be clean or raw.");
-  return \`\${HF_DATA_LIBRARY_PREFIX}/normalized/\${version}/\${ticker}/1m-tail.json.gz\`;
+  return `${HF_DATA_LIBRARY_PREFIX}/normalized/${version}/${ticker}/1m-tail.json.gz`;
 }
 
 function normalizeBar(value) {
@@ -91,7 +91,7 @@ export function buildHfMarketContext(artifact, now = Date.now()) {
     assetClass: "equity", timeframe: HF_DATA_LIBRARY_TIMEFRAME,
     retrievedAt: value.retrievedAt, availableBars: value.availableBars,
     historyLimit: HF_DATA_LIBRARY_TAIL_LIMIT,
-    source: \`HF Data Library \${value.version} 1-minute OHLCV normalized tail\`
+    source: `HF Data Library ${value.version} 1-minute OHLCV normalized tail`
   });
   return {
     ok: true,
@@ -120,7 +120,7 @@ export async function readHfHistory(request, env) {
     const object = await bucket.get(hfNormalizedKey(symbol, version));
     if (!object?.body) return Response.json(marketDataUnavailable({
       provider: HF_DATA_LIBRARY_PROVIDER, code: "hf-history-not-ingested",
-      message: \`\${symbol} has no normalized HF Data Library history in R2.\`,
+      message: `${symbol} has no normalized HF Data Library history in R2.`,
       instrument: symbol, timeframe: HF_DATA_LIBRARY_TIMEFRAME
     }), { status: 503 });
     const bytes = await new Response(object.body).arrayBuffer();
