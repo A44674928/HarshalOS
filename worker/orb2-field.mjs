@@ -68,7 +68,7 @@ import {
 import "../js/characters-disc-catalog.js";
 import "../js/good-intelligence-market-context.js";
 import "../js/characters-beat.js";
-import "../js/good-intelligence-dxy.js";
+import "../js/good-intelligence-ds.js";
 import "../js/good-intelligence-market-roster.js";
 
 export const ORB2_FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
@@ -224,10 +224,10 @@ export function orb2FieldNeedsRefresh(observation, now = Date.now(), provider = 
 export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commodityContracts = null } = {}) {
   const roster = globalThis.GoodIntelligenceMarketRoster;
   const catalog = globalThis.CharactersDiscCatalog;
-  const dxy = globalThis.GoodIntelligenceDxy;
+  const ds = globalThis.GoodIntelligenceDollarStrength;
   const stocks = [];
-  if (roster && Array.isArray(roster.assets) && dxy && typeof dxy.buildFiringOrder === "function") {
-    for (const asset of dxy.buildFiringOrder(roster.assets)) {
+  if (roster && Array.isArray(roster.assets) && ds && typeof ds.buildFiringOrder === "function") {
+    for (const asset of ds.buildFiringOrder(roster.assets)) {
       if (!asset || !SYMBOL_PATTERN.test(String(asset.symbol || ""))) continue;
       stocks.push(Object.freeze({
         symbol: asset.symbol, displaySymbol: asset.symbol, name: text(asset.name, 64),
@@ -289,8 +289,8 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
     })
     .map(entry => Object.freeze({ ...entry, discId: "crypto", assetClass: "crypto" }));
   const instruments = [...stocks, ...fx, ...crypto, ...cryptoPairs, ...commodities, ...indices];
-  const dxySymbols = dxy && Array.isArray(dxy.COMPONENTS)
-    ? dxy.COMPONENTS.map(component => component.symbol).filter(symbol => fx.some(entry => entry.symbol === symbol))
+  const dsSymbols = ds && Array.isArray(ds.COMPONENTS)
+    ? ds.COMPONENTS.map(component => component.symbol).filter(symbol => fx.some(entry => entry.symbol === symbol))
     : [];
   return Object.freeze({
     instruments: Object.freeze(instruments),
@@ -300,7 +300,7 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
     indices: Object.freeze(indices),
     crypto: Object.freeze(crypto),
     cryptoPairs: Object.freeze(cryptoPairs),
-    dxySymbols: Object.freeze(dxySymbols),
+    dsSymbols: Object.freeze(dsSymbols),
     discs: Object.freeze([...new Set(instruments.map(instrument => instrument.discId))])
   });
 }
@@ -1434,9 +1434,9 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     });
     /* These D1 reads are independent. Run them together so the response does not
        serialize a dozen avoidable round trips after its payload work. The normal
-       daily snapshot also already contains the DXY inputs, so no second JSON read
+       daily snapshot also already contains the Dollar Strength (DS) inputs, so no second JSON read
        is needed for that benchmark. */
-    const [run, cachedCryptoRanking, cachedFutures, control, massiveLedger, tickerbotLedger, krakenLedger, queue, dxy] = await Promise.all([
+    const [run, cachedCryptoRanking, cachedFutures, control, massiveLedger, tickerbotLedger, krakenLedger, queue, ds] = await Promise.all([
       readRun(db, now),
       readCharactersCryptoRankingCache({ db, now }),
       readMassiveFuturesContractState({ db, now }),
@@ -1445,7 +1445,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       readTickerbotCallLedger(db, now),
       readKrakenCallLedger(db, now),
       queueDepth(db, now),
-      evaluateDxy(db, now, interval === "1d" && storedRowsRead ? fieldObservations : null)
+      evaluateDollarStrength(db, now, interval === "1d" && storedRowsRead ? fieldObservations : null)
     ]);
     /* Per-Disc status for the constellation view: one row per reviewed Disc.
        Stored totals are matched against the current reviewed symbols before being
@@ -1682,7 +1682,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       requestedTypes: [...requestedTypes],
       beatTypes: types,
       status,
-      dxy,
+      ds,
       observations
     };
   } catch (error) {
@@ -1695,23 +1695,23 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
 }
 
 /**
- * The fixed DXY benchmark is derived from the stored FX field, not from whatever
+ * The fixed Dollar Strength (DS) benchmark is derived from the stored FX field, not from whatever
  * Disc the client is currently looking at, so switching Discs never blanks the
  * Center Origin reference.
  */
-async function evaluateDxy(db, now, existingObservations = null) {
-  const dxy = globalThis.GoodIntelligenceDxy;
-  if (!dxy || typeof dxy.evaluate !== "function") return null;
+async function evaluateDollarStrength(db, now, existingObservations = null) {
+  const ds = globalThis.GoodIntelligenceDollarStrength;
+  if (!ds || typeof ds.evaluate !== "function") return null;
   let stored = existingObservations;
   if (!Array.isArray(stored)) {
-    const symbols = dxy.COMPONENTS.map(component => component.symbol);
+    const symbols = ds.COMPONENTS.map(component => component.symbol);
     const rows = await db.prepare(`SELECT payload FROM orb2_field_observations
       WHERE interval = '1d' AND symbol IN (${symbols.map(() => "?").join(",")})`)
       .bind(...symbols).all();
     stored = (Array.isArray(rows && rows.results) ? rows.results : [])
       .map(row => parsePacketRow(row, now)).filter(Boolean);
   }
-  const componentSymbols = new Set(dxy.COMPONENTS.map(component => component.symbol));
+  const componentSymbols = new Set(ds.COMPONENTS.map(component => component.symbol));
   const inputs = stored
     .filter(observation => observation.discId === "fx" && componentSymbols.has(observation.symbol))
     .map(observation => ({
@@ -1719,7 +1719,7 @@ async function evaluateDxy(db, now, existingObservations = null) {
       status: observation.status, market: observation.market
     }));
   if (!inputs.length) return null;
-  const result = dxy.evaluate(inputs, now);
+  const result = ds.evaluate(inputs, now);
   return {
     ok: result.ok === true, status: String(result.status || "held"),
     missing: Array.isArray(result.missing) ? result.missing : [],
@@ -1728,7 +1728,7 @@ async function evaluateDxy(db, now, existingObservations = null) {
     asOf: Number.isFinite(Number(result.asOf)) ? Number(result.asOf) : null,
     inputCount: Number(result.inputCount) || 0,
     reason: text(result.reason, 200),
-    note: "Daily component-derived reference from the server field, not the licensed real-time ICE-distributed DXY value."
+    note: "Daily component-derived reference from the server field, not the licensed real-time ICE-distributed Dollar Strength (DS) value."
   };
 }
 
