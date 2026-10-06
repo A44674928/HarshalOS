@@ -890,7 +890,7 @@ test("the strip carries one chip per Disc with its own stored status, and an emp
   assert.equal(cryptoChip.classList.contains("is-empty"), true, "an empty Disc orb is drawn as an empty marker");
   const note = host.querySelector("[data-gi-orb2-constellation-note]");
   assert.match(note.textContent, /CONSTELLATION · 5 Disc orbs/);
-  assert.match(note.textContent, /awaiting first active beat on 3\. Crypto, 4\. Commodities, 5\. Indices/);
+  assert.match(note.textContent, /awaiting first active beat on 3\. Crypto, 4\. Futures, 5\. Indices/);
   assert.match(note.textContent, /selected Disc1 · The 52 Cards/);
   assert.doesNotMatch(note.textContent, /every Disc orb is reporting/, "the summary never implies an empty Disc has data");
   const frame = frames.shift();
