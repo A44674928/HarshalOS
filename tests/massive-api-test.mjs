@@ -212,43 +212,49 @@ test("a missing MASSIVE_API_KEY secret fails closed without a provider request",
   assert.equal(calls.length, 0);
 });
 
-test("the deployment-wide budget spends the owner's shared key slowly", async t => {
+test("the per-asset-class budget spends the owner's shared key slowly", async t => {
   clearMassiveCache();
   t.after(clearMassiveCache);
   const { calls, fetcher } = harness(barsPayload());
   const allowed = [];
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 5; index += 1) {
     const response = await callWith(
       `${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T${index}`,
       fetcher,
-      { headers: { "CF-Connecting-IP": `10.0.0.${index}` }, env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" } }
+      { headers: { "CF-Connecting-IP": `10.0.0.${index}` }, env: { MASSIVE_API_KEY: KEY } }
     );
     allowed.push(response.status);
   }
-  assert.deepEqual(allowed, [200, 200, 200, 200, 200, 429]);
-  assert.equal(calls.length, 5);
+  assert.deepEqual(allowed, [200, 200, 200, 200, 200]);
   const refusal = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T9`, fetcher, {
     headers: { "CF-Connecting-IP": "10.0.0.9" },
-    env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" }
+    env: { MASSIVE_API_KEY: KEY }
   });
   const refusalBody = await refusal.json();
+  assert.equal(refusal.status, 429);
   assert.equal(refusalBody.code, "rate-limited");
+  assert.match(refusalBody.message, /stocks/i);
   assert.ok(refusalBody.retryAfterSeconds >= 1);
 
-  // After the sliding window passes, the budget is available again.
+  const otherClass = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=indices&ticker=I0`, fetcher, {
+    headers: { "CF-Connecting-IP": "10.0.0.9" },
+    env: { MASSIVE_API_KEY: KEY }
+  });
+  assert.equal(otherClass.status, 200, "spending the Stocks allowance does not spend the Indices allowance");
+
   const later = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=T9`, fetcher, {
     now: NOW + 61_000,
     headers: { "CF-Connecting-IP": "10.0.0.9" },
-    env: { MASSIVE_API_KEY: KEY, MASSIVE_CLIENT_LIMIT_PER_MINUTE: "1000" }
+    env: { MASSIVE_API_KEY: KEY }
   });
   assert.equal(later.status, 200);
 });
 
-test("the per-client budget stops one visitor from spending the whole quota", async t => {
+test("the server-side beat has no obsolete client-IP Massive quota", async t => {
   clearMassiveCache();
   t.after(clearMassiveCache);
   const { calls, fetcher } = harness(barsPayload());
-  const env = { MASSIVE_API_KEY: KEY, MASSIVE_DEPLOYMENT_LIMIT_PER_MINUTE: "1000" };
+  const env = { MASSIVE_API_KEY: KEY };
   for (let index = 0; index < 5; index += 1) {
     const response = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S${index}`, fetcher, {
       env, headers: { "CF-Connecting-IP": "20.0.0.1" }
@@ -256,15 +262,15 @@ test("the per-client budget stops one visitor from spending the whole quota", as
     assert.equal(response.status, 200);
   }
   const sixth = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S5`, fetcher, {
-    env, headers: { "CF-Connecting-IP": "20.0.0.1" }
-  });
-  assert.equal(sixth.status, 429);
-  assert.match((await sixth.json()).message, /client/i);
-  const otherVisitor = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=stocks&ticker=S6`, fetcher, {
     env, headers: { "CF-Connecting-IP": "20.0.0.2" }
   });
-  assert.equal(otherVisitor.status, 200);
-  assert.equal(calls.length, 6, "the refused request never reached the provider");
+  assert.equal(sixth.status, 429, "the provider-class budget still protects the shared key");
+  assert.match((await sixth.json()).message, /stocks/i);
+  const otherClass = await callWith(`${MASSIVE_API_ROUTES.tickerDetails}?asset=indices&ticker=I6`, fetcher, {
+    env, headers: { "CF-Connecting-IP": "20.0.0.2" }
+  });
+  assert.equal(otherClass.status, 200, "a different asset class has an independent budget");
+  assert.equal(calls.length, 6, "only admitted requests reached the provider");
 });
 
 test("Massive's own refusals are mapped without leaking the key", async t => {
