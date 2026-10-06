@@ -54,15 +54,12 @@ const CACHE_TTL_MS = 60_000;
 const CACHE_CAPACITY = 128;
 const WINDOW_MS = 60_000;
 export const MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS = 5;
-const DEFAULT_CLIENT_LIMIT_PER_MINUTE = 5;
 const MASSIVE_ASSET_CLASSES = Object.freeze(["stocks", "options", "indices", "currencies", "futures"]);
-const CLIENT_BUCKET_CAPACITY = 512;
 const FETCH_TIMEOUT_MS = 12_000;
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 
 let cache = new Map();
 let assetClassWindows = new Map();
-let clientWindows = new Map();
 
 const json = (value, status = 200) => Response.json(value, {
   status,
@@ -79,7 +76,6 @@ const failure = (code, message, status = 502, extra = {}) =>
 export function clearMassiveCache() {
   cache = new Map();
   assetClassWindows = new Map();
-  clientWindows = new Map();
 }
 
 function cacheGet(key, now) {
@@ -105,12 +101,9 @@ function envLimit(value, fallback) {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : fallback;
 }
 
-/* Sliding-window budget: one window shared by the whole deployment (the
-   Massive key belongs to the owner, so every visitor spends the same quota)
-   and one window per client IP so a single caller cannot spend it all. */
-/* Exported so other bounded Worker routes that use the same owner key can
-   share this exact per-isolate envelope instead of maintaining a second,
-   divergent rate bucket. */
+/* The server-side beat owns scheduling. One sliding window is kept per
+   Massive subscription class; there is no client-IP bucket competing with
+   the provider's documented per-class allowance. */
 function normalizeMassiveAssetClass(value) {
   const asset = String(value || "").trim().toLowerCase();
   if (asset === "crypto" || asset === "forex" || asset === "currencies") return "currencies";
@@ -128,18 +121,12 @@ function requestMassiveAssetClass(request) {
 }
 
 function massiveBudgetWindows(request, env, now, assetClass = null) {
-  const clientLimit = envLimit(env.MASSIVE_CLIENT_LIMIT_PER_MINUTE, DEFAULT_CLIENT_LIMIT_PER_MINUTE);
   const explicit = normalizeMassiveAssetClass(assetClass);
   const resolvedAssetClass = explicit !== "unknown" ? explicit : requestMassiveAssetClass(request);
   const classKey = resolvedAssetClass;
   const classWindow = (assetClassWindows.get(classKey) || []).filter(at => now - at < WINDOW_MS);
   assetClassWindows.set(classKey, classWindow);
-  const address = request && request.headers && typeof request.headers.get === "function"
-    ? request.headers.get("CF-Connecting-IP") : null;
-  const key = typeof address === "string" && address.trim() && address.trim().length <= 64 ? address.trim() : "unknown";
-  const clientWindow = (clientWindows.get(key) || []).filter(at => now - at < WINDOW_MS);
-  clientWindows.set(key, clientWindow);
-  return { assetClass: classKey, assetClassLimit: MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS, classWindow, clientLimit, key, clientWindow };
+  return { assetClass: classKey, assetClassLimit: MASSIVE_REQUESTS_PER_MINUTE_PER_ASSET_CLASS, classWindow };
 }
 
 /** Read the remaining per-isolate allowance without spending a request. */
@@ -148,11 +135,7 @@ export function availableMassiveBudget(request, env = {}, now = Date.now(), asse
   return {
     assetClass: windows.assetClass,
     assetClassRemaining: Math.max(0, windows.assetClassLimit - windows.classWindow.length),
-    clientRemaining: Math.max(0, windows.clientLimit - windows.clientWindow.length),
-    remaining: Math.max(0, Math.min(
-      windows.assetClassLimit - windows.classWindow.length,
-      windows.clientLimit - windows.clientWindow.length
-    ))
+    remaining: Math.max(0, windows.assetClassLimit - windows.classWindow.length)
   };
 }
 
@@ -175,24 +158,7 @@ export function consumeMassiveBudget(request, env = {}, now = Date.now(), assetC
       retryAfterSeconds: Math.max(1, Math.ceil((windows.classWindow[0] + WINDOW_MS - now) / 1000))
     };
   }
-  if (windows.clientWindow.length >= windows.clientLimit) {
-    return {
-      ok: false,
-      scope: "client",
-      assetClass: windows.assetClass,
-      retryAfterSeconds: Math.max(1, Math.ceil((windows.clientWindow[0] + WINDOW_MS - now) / 1000))
-    };
-  }
   windows.classWindow.push(now);
-  windows.clientWindow.push(now);
-  clientWindows.delete(windows.key);
-  clientWindows.set(windows.key, windows.clientWindow);
-  if (clientWindows.size > CLIENT_BUCKET_CAPACITY) {
-    for (const [oldKey, oldWindow] of clientWindows) {
-      if (!oldWindow.length || now - oldWindow[oldWindow.length - 1] >= WINDOW_MS) clientWindows.delete(oldKey);
-    }
-    while (clientWindows.size > CLIENT_BUCKET_CAPACITY) clientWindows.delete(clientWindows.keys().next().value);
-  }
   return { ok: true, assetClass: windows.assetClass };
 }
 
