@@ -524,7 +524,8 @@ export function observationFromPacket({
       signal: numberOrNull(analysis.vfi.signal),
       available: analysis.vfi.available === true
     } : null,
-    ...(fbbComparison ? { fbbComparison } : {}),\n    waveTrend: analysis.waveTrend ? {
+    ...(fbbComparison ? { fbbComparison } : {}),
+    waveTrend: analysis.waveTrend ? {
       wt1: numberOrNull(analysis.waveTrend.wt1),
       wt2: numberOrNull(analysis.waveTrend.wt2),
       zone: String(analysis.waveTrend.zone || "unknown").slice(0, 48)
