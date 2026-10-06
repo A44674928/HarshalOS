@@ -487,9 +487,11 @@ window.GoodIntelligenceMarketContext = (() => {
       return {
         time: bar.time, close: safeValue(bar.close), volume: safeValue(bar.volume),
         basis: safeValue(band && band.basis),
-        upper382: safeValue(band && band.upper382), upper618: safeValue(band && band.upper618),
+        upper236: safeValue(band && band.upper236), upper382: safeValue(band && band.upper382),
+        upper500: safeValue(band && band.upper500), upper618: safeValue(band && band.upper618),
         upper764: safeValue(band && band.upper764), upper1000: safeValue(band && band.upper1000),
-        lower382: safeValue(band && band.lower382), lower618: safeValue(band && band.lower618),
+        lower236: safeValue(band && band.lower236), lower382: safeValue(band && band.lower382),
+        lower500: safeValue(band && band.lower500), lower618: safeValue(band && band.lower618),
         lower764: safeValue(band && band.lower764), lower1000: safeValue(band && band.lower1000),
         vfi: safeValue(flow.vfi[i]), vfiSignal: safeValue(flow.signal[i]),
         wt1: safeValue(wave.wt1[i]), wt2: safeValue(wave.wt2[i])
