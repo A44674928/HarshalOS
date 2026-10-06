@@ -334,4 +334,3 @@ test("FBB-L60 refuses to manufacture history below its 60-bar requirement", () =
   assert.equal(comparison.variants["FBB-L60"].basis, null);
   assert.equal(comparison.variants["FBB-200"].status, "insufficient-history");
 });
-\n
