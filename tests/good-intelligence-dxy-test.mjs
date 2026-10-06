@@ -44,7 +44,7 @@ test("Dollar Strength (DS) uses the current six ICE weights with the reviewed US
     ["CADUSD", 0.091], ["SEKUSD", 0.042], ["CHFUSD", 0.036]
   ]);
   const result = DollarStrength.evaluate(sixCloses(), NOW);
-  const expected = DollarStrength.ICE_USDX_CONSTANT * DollarStrength.COMPONENTS.reduce((value, component) =>
+  const expected = DollarStrength.DS_CONSTANT * DollarStrength.COMPONENTS.reduce((value, component) =>
     value * CLOSES[component.symbol] ** -component.weight, 1);
   assert.equal(result.ok, true);
   assert.equal(result.status, "ready");
