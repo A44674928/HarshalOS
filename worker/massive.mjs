@@ -96,11 +96,6 @@ function cacheSet(key, data, now) {
   while (cache.size > CACHE_CAPACITY) cache.delete(cache.keys().next().value);
 }
 
-function envLimit(value, fallback) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 1000 ? parsed : fallback;
-}
-
 /* The server-side beat owns scheduling. One sliding window is kept per
    Massive subscription class; there is no client-IP bucket competing with
    the provider's documented per-class allowance. */
