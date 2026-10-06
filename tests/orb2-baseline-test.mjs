@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 const context = vm.createContext({ window: {}, Math, Number, Object });
 vm.runInContext(readFileSync(new URL('../js/good-intelligence-orb2.js', import.meta.url), 'utf8'), context);
 const metrics = context.window.GoodIntelligenceOrb2.fibonacciBandMetrics;
+const bandGeometry = context.window.GoodIntelligenceOrb2.logarithmicBandGeometry;
+const topologyEnvelope = context.window.GoodIntelligenceOrb2.topologyEnvelope;
 const logBasis = Math.log(100), halfLogWidth = 0.04;
 const packet = logPosition => ({
   latestBar: { close: Math.exp(logBasis + logPosition * halfLogWidth) },
@@ -42,4 +44,32 @@ test('missing, nonpositive, and invalid FBB inputs remain unknown', () => {
     assert.equal(metrics(value).held, true);
     assert.equal(metrics(value).p, null);
   }
+});
+
+
+test('spatial FBB bands expand logarithmically rather than linearly', () => {
+  const one = bandGeometry(metrics(packet(1)));
+  const two = bandGeometry(metrics(packet(1.45)));
+  const four = bandGeometry(metrics(packet(2.1025)));
+  assert.ok(two.radius > one.radius, 'next logarithmic band expands');
+  assert.ok(four.radius > two.radius, 'later logarithmic band expands again');
+  assert.equal(one.index, 0);
+  assert.equal(two.index, 1);
+  assert.equal(four.index, 2);
+});
+
+test('topology envelope converges toward the ideal sphere only when axes align', () => {
+  const ideal = topologyEnvelope([
+    { topology: { axes: { x: 1, y: 1, z: 1 } } },
+    { topology: { axes: { x: 1, y: 1, z: 1 } } }
+  ]);
+  assert.equal(ideal.ideal, true);
+  assert.equal(ideal.convergence, 1);
+
+  const live = topologyEnvelope([
+    { topology: { axes: { x: 1.25, y: 1.02, z: 0.84 } } },
+    { topology: { axes: { x: 1.18, y: 1.06, z: 0.9 } } }
+  ]);
+  assert.equal(live.ideal, false);
+  assert.ok(live.convergence < 1);
 });
