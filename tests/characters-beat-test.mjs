@@ -324,10 +324,10 @@ test("the cast binds to the reviewed Tickerbot allowlist with no second copy", (
 
   const commodity = Cast.build([{
     symbol: "WTI", displaySymbol: "WTI", name: "West Texas Intermediate crude", sector: "Energy",
-    discId: "commodities", assetClass: "commodity", dataShape: "value", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"]
+    discId: "commodities", assetClass: "futures", dataShape: "value", quoteCurrency: "USD/barrel", tags: ["Energy", "Crude oil"]
   }], { discId: "commodities" });
   assert.equal(commodity.discId, "commodities");
-  assert.equal(commodity.berths[0].assetClass, "commodity");
+  assert.equal(commodity.berths[0].assetClass, "futures");
   assert.equal(commodity.berths[0].dataShape, "value");
   assert.equal(commodity.berths[0].quoteCurrency, "USD/barrel");
   assert.deepEqual(plain(commodity.berths[0].tags), ["Energy", "Crude oil"]);

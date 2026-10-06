@@ -16,7 +16,7 @@ export const ORB2_BEAT_HISTORY_LIMIT = 120;
 const MAX_BODY_BYTES = 48 * 1024;
 const MAX_BEAT_BYTES = 40 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DISC_IDS = new Set(["stocks", "fx", "crypto", "commodities", "indices"]);
+const DISC_IDS = new Set(["stocks", "fx", "crypto", "commodities", "futures", "indices"]);
 const PROVIDERS = new Set(["massive", "tickerbot", "kraken", "rehearsal"]);
 const INTERVALS = new Set(["15m", "1h", "1d"]);
 const STATUSES = new Set(["bars", "cached", "rehearsal", "unavailable"]);
@@ -296,7 +296,7 @@ export function sanitizeOrb2Beat(value, now = Date.now()) {
   if (!DISC_IDS.has(discId) || !PROVIDERS.has(provider) || !INTERVALS.has(interval)) {
     return { ok: false, message: "Choose a reviewed Disc, provider, and interval." };
   }
-  if ((provider === "massive" && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) ||
+  if ((provider === "massive" && (interval !== "1d" || !["fx", "commodities", "futures", "indices"].includes(discId))) ||
       (provider === "tickerbot" && (discId !== "stocks" || !["15m", "1h", "1d"].includes(interval))) ||
       (provider === "kraken" && (discId !== "crypto" || interval !== "1d"))) {
     return { ok: false, message: "The provider, Disc, and interval combination is not supported." };

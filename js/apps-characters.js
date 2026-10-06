@@ -177,7 +177,7 @@
             <div>
               <p class="ch-eyebrow">HARSHAALOS · MARKET BEAT</p>
               <h1>Characters</h1>
-              <p class="ch-lede">Select a Disc to cast the reviewed stock deck, BIS FX instruments, Kraken Spot-ranked crypto, commodities, or indices. Tickerbot exclusively serves Disc1 stocks at 1h/1d; Kraken public Spot serves Disc3 at 1d; Massive serves FX, futures, and indices at 1d. Alpha Vantage/1mo is not selectable or savable; archived records remain history only. Missing fields stay missing; re-drawing the stage spends no provider calls.</p>
+              <p class="ch-lede">Select a Disc to cast the reviewed stock deck, BIS FX instruments, Kraken Spot-ranked crypto, futures, or indices. Tickerbot exclusively serves Disc1 stocks at 1h/1d; Kraken public Spot serves Disc3 at 1d; Massive serves FX, futures, and indices at 1d. Alpha Vantage/1mo is not selectable or savable; archived records remain history only. Missing fields stay missing; re-drawing the stage spends no provider calls.</p>
             </div>
             <div class="ch-source-badge" data-ch-source-badge>Synthetic rehearsal · 0 calls</div>
           </header>
@@ -794,7 +794,7 @@
                   ? `two-lane · ${tierOption.hotSize} hot / ${tierOption.sweepPerBeat} sweep`
                   : `${state.cadence}-minute plan`;
         $("[data-ch-plan-note]").textContent = isMassive
-          ? `Massive serves only reviewed FX, active commodity futures, and indices at 1d. Up to ${MASSIVE_REQUESTS_PER_MINUTE} one-symbol requests per minute use the shared Massive envelope; the ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()}-attempt D1 UTC-day guard fails closed. Stocks and crypto do not fall back to Massive.`
+          ? `Massive serves only reviewed FX, active futures, and indices at 1d. Up to ${MASSIVE_REQUESTS_PER_MINUTE} one-symbol requests per minute use the shared Massive envelope; the ${MASSIVE_DAILY_REQUEST_CAP.toLocaleString()}-attempt D1 UTC-day guard fails closed. Stocks and crypto do not fall back to Massive.`
           : isKraken
             ? `Kraken Spot public Ticker ranks at most 52 USD-quoted pairs by rolling-24-hour base volume × VWAP. This is Kraken venue data, not a global ranking or the previous-UTC-day Massive metric. Exact ranked pairs use Kraken public OHLC interval=1440; the shared one-request-per-second gate and D1 caches fail closed. Terms for non-personal commercial use must be confirmed before deployment.`
             : state.interval === "1d"
@@ -874,7 +874,7 @@
                 ? "Tickerbot is on demand. Use Beat now to request reviewed Disc1 stock bars; no background provider loop is scheduled."
                 : `Next ${isMassive ? "Massive" : "Kraken Spot"} beat in ${since(Date.now(), state.nextBeatAt)}. Positions hold between beats; no calls are spent meanwhile.`)
             : "No beat yet. Characters stand at their berths; nothing has been invented.";
-        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Massive serves reviewed FX, commodity futures, and indices through a shared per-minute envelope and a conservative UTC-day Characters guard. Tickerbot is the exclusive Disc1 Stocks provider under its 10,000-per-UTC-month Worker cap. Kraken public Spot serves Disc3 crypto with venue-specific rolling-24-hour ranking and exact-pair daily bars. Alpha Vantage/1mo is disabled for new beats; any existing Alpha records are archived history only. Providers never silently substitute for one another; direct provider calls are outside those ledgers.`;
+        $("[data-ch-disclaimer]").innerHTML = `Motion, formations, and item flow are a display metaphor for available market observations. They are not investment advice, a trade signal, a recommendation, or permission to act; indicator event labels are display-only. Missing OHLC or volume fields are not fabricated, and volume-based measures are unavailable when volume is absent. Massive serves reviewed FX, futures, and indices through a shared per-minute envelope and a conservative UTC-day Characters guard. Tickerbot is the exclusive Disc1 Stocks provider under its 10,000-per-UTC-month Worker cap. Kraken public Spot serves Disc3 crypto with venue-specific rolling-24-hour ranking and exact-pair daily bars. Alpha Vantage/1mo is disabled for new beats; any existing Alpha records are archived history only. Providers never silently substitute for one another; direct provider calls are outside those ledgers.`;
         featureButton.textContent = state.ledger.featured.includes(focused) ? "Featured ★" : "Feature";
         autoButton.textContent = `Auto-beat: ${state.auto ? "on" : "off"}`;
         autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -956,10 +956,10 @@
           : ["tickerbot", "kraken", "massive"].includes(providerText) ? providerText : null;
         const discId = String(entry.disc || "").trim().toLowerCase();
         const interval = String(entry.interval || "").trim();
-        const validDisc = ["stocks", "fx", "crypto", "commodities", "indices"].includes(discId);
+        const validDisc = ["stocks", "fx", "crypto", "futures", "commodities", "indices"].includes(discId);
         const validPath = provider === "tickerbot" && discId === "stocks" && ["1h", "1d"].includes(interval)
           || provider === "kraken" && discId === "crypto" && interval === "1d"
-          || provider === "massive" && ["fx", "commodities", "indices"].includes(discId) && interval === "1d"
+          || provider === "massive" && ["fx", "futures", "commodities", "indices"].includes(discId) && interval === "1d"
           || provider === "rehearsal" && validDisc && ["1h", "1d"].includes(interval);
         if (!provider || !validPath) {
           setArchiveStatus("Beat kept locally only: provider, Disc, or interval is not an active save route. Legacy Alpha/1mo history is read-only.");

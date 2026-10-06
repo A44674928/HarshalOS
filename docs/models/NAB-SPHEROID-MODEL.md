@@ -97,7 +97,7 @@ The legacy catalog's `.discs` is what Characters and Orb 2 navigate;
 
 `js/nab-composites.js` supplies explicit editorial alignments, separate from the
 Compendium's neural classifications. It preserves all 52 existing watchlist
-entries (including funds), the 23 reviewed FX pairs, 11 commodity series, and 5
+entries (including funds), the 23 reviewed FX pairs, 11 reviewed futures series, and 5
 indices. Together with the 119 designated stocks and 24 monetary-authority
 reference entries, the static composite catalog contains 222 distinct records.
 Aluminum is included in the source catalog but remains unassigned in the NAB

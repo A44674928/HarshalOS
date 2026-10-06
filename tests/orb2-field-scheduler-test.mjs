@@ -192,7 +192,7 @@ const deps = (seen, { at = NOW, ...options } = {}) => ({
 function seedValidMarketObservation(sql, { symbol, discId, observedAt = NOW }) {
   const candidate = {
     schema: "gi-orb2-field-observation-v1", symbol, displaySymbol: symbol, name: symbol,
-    sector: discId === "indices" ? "Index" : "Commodity", discId, provider: "massive", interval: "1d",
+    sector: discId === "indices" ? "Index" : "Futures", discId, provider: "massive", interval: "1d",
     status: "bars", reason: "server-sweep", code: "", message: "",
     beatId: "00000000-0000-4000-8000-000000000099", observedAt, barTime: observedAt, confirmed: true,
     market: {
@@ -384,7 +384,7 @@ test("the provider-split rotation covers Tickerbot stocks, Kraken Crypto, and Ma
   const firstDiscs = new Set(seen.massive.map(ticker =>
     ticker.startsWith("C:") ? "fx" : ticker.startsWith("I:") ? "indices" : /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d$/.test(ticker) ? "commodities" : "unexpected"));
   assert.deepEqual([...firstDiscs].sort(), ["commodities", "fx", "indices"],
-    "Massive serves only FX, active commodity futures, and indices");
+    "Massive serves only FX, active futures, and indices");
 
   const coverage = () => new Set([
     ...seen.massive.map(ticker => `massive:${ticker}`),
@@ -637,7 +637,7 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(discs.fx.instruments, 23);
   assert.equal(discs.fx.stored, 23);
   assert.equal(discs.commodities.instruments, 11);
-  assert.equal(discs.commodities.stored, 11, "all eleven reviewed commodity berths are stored by the automatic rotation; an unreviewed D1 row is excluded");
+  assert.equal(discs.commodities.stored, 11, "all eleven reviewed futures berths are stored by the automatic rotation; an unreviewed D1 row is excluded");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities'").get().count, 12,
     "the unmatched legacy row stays preserved without inflating the reviewed count");
   const commodityPayload = JSON.parse(sql.prepare("SELECT payload FROM orb2_field_observations WHERE interval='1d' AND disc_id='commodities' LIMIT 1").get().payload);

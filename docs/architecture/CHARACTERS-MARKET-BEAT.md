@@ -9,7 +9,7 @@
 | **Disc1 — Stocks** | Reviewed 52-stock deck | **Tickerbot**, `1h` or `1d` | **Tickerbot**, `1d` |
 | **Disc2 — Fiat / FX** | 23 individually published non-USD BIS 2025 codes, quoted against USD | **Massive**, `1d` | **Massive**, `1d` |
 | **Disc3 — Crypto** | Up to 52 unique Kraken Spot USD pairs, ranked by Kraken rolling-24-hour base volume × VWAP | **Kraken Spot**, `1d` | **Kraken Spot**, `1d` |
-| **Disc4 — Commodities** | Ten reviewed futures product codes: WTI, Henry Hub gas, gold, silver, copper, platinum, palladium, wheat, corn, and soybeans | **Massive**, `1d` | **Massive**, `1d` |
+| **Disc4 — Futures** | Eleven reviewed futures product codes: WTI, Henry Hub gas, gold, silver, copper, aluminum, platinum, palladium, wheat, corn, and soybeans | **Massive**, `1d` | **Massive**, `1d` |
 | **Disc5 — Indices** | 52-card Basic Indices topology: 8 U.S. headline/structural, 12 U.S. sector, 16 U.S. industry/subindustry, 8 international/regional, and 8 thematic/factor/specialty entries | **Massive**, `1d` | **Massive**, `1d` |
 
 This is an explicit provider/channel/interval contract, not a fallback preference. Each route validates the Disc, provider, interval, symbol allowlist, and provider identity before outbound work or storage. Unknown or mismatched combinations fail closed. No provider substitutes for another and no missing market field is fabricated.
@@ -20,7 +20,7 @@ Energy-company equities remain Disc1 stocks. Disc4 futures retain their commodit
 
 ### Stocks — Tickerbot
 
-Characters exposes Tickerbot stock bars at `1h` and `1d`; NAB uses the Tickerbot stock route at `1d`. The reviewed stock deck is the only accepted universe. Tickerbot is not a provider for FX, Crypto, Commodities, or Indices.
+Characters exposes Tickerbot stock bars at `1h` and `1d`; NAB uses the Tickerbot stock route at `1d`. The reviewed stock deck is the only accepted universe. Tickerbot is not a provider for FX, Crypto, Futures, or Indices.
 
 Orb 2 has a **separate internal Tickerbot `15m` warm/intraday lane** for bounded stock-field calibration and residual work. That internal lane does not add `15m` to the Characters selector or to the Characters/NAB route contract. Orb 2's other stock scales remain explicit provider-tagged Tickerbot observations; they do not authorize a different Characters interval.
 
@@ -32,9 +32,9 @@ The roster holds unless 52 eligible unique pairs have valid positive volume and 
 
 **No Kraken account or API key is required** for these public market-data endpoints. The shared Worker ledger is an application guard, not a Kraken entitlement: one outbound public request per second and a conservative ceiling of 160 attempts per UTC day across Characters and Orb 2. See [`docs/integrations/CRYPTO-PROVIDER-EVALUATION.md`](../integrations/CRYPTO-PROVIDER-EVALUATION.md).
 
-### FX, Commodities, and Indices — Massive
+### FX, Futures, and Indices — Massive
 
-Massive supplies daily bars and the current-date active futures contract discovery for reviewed Commodities. The live `MASSIVE_API_KEY` is held as a Worker secret and sent only as a bearer header. The shared request envelope allows up to five upstream requests per minute; the Characters D1 ledger has a conservative ceiling of 300 attempts per UTC day. These are application guards, not vendor entitlements.
+Massive supplies daily bars and the current-date active futures contract discovery for reviewed Futures. The live `MASSIVE_API_KEY` is held as a Worker secret and sent only as a bearer header. The shared request envelope allows up to five upstream requests per minute; the Characters D1 ledger has a conservative ceiling of 300 attempts per UTC day. These are application guards, not vendor entitlements.
 
 ### Alpha Vantage / `1mo` — read-only legacy history
 
@@ -58,7 +58,7 @@ Characters / NAB — Crypto
   → shared Kraken one-request-per-second gate and 160/day application ceiling
   → ranking cached in D1; per-pair bars cached through next UTC midnight (migration 0012)
 
-Characters / NAB — FX, Commodities, Indices
+Characters / NAB — FX, Futures, Indices
   → Massive, one reviewed symbol at a time, interval 1d
   → shared Massive per-minute envelope and Characters UTC-day D1 guard
   → active futures discovery only for today's validated contract
@@ -78,7 +78,7 @@ Alpha / 1mo legacy archive
 
 - **Tickerbot:** `TICKERBOT_API_KEY` is a Worker secret. `tickerbot_call_ledger` is shared with Good Intelligence and atomically caps Worker-routed attempts at 10,000 per UTC month.
 - **Kraken:** public requests need no key. `kraken_public_call_ledger` atomically enforces one outbound request per second and 160 attempts per UTC day across Characters and Orb 2. Ranking cache lifetime is 24 hours; successful per-pair daily bars cache to the next UTC midnight; failed attempts use a bounded retry hold.
-- **Massive:** `MASSIVE_API_KEY` is a Worker secret. `worker/massive.mjs` and the Characters shared envelope pace upstream calls at up to five per minute. `massive_daily_call_ledger` guards daily bars, roster/contracts work at 300 attempts per UTC day. FX/Commodity/Index bars use provider/Disc/symbol/interval-qualified cache identities; daily packets expire at UTC midnight. Active commodity contracts are cached in `massive_futures_contract_cache` only until UTC midnight, with bounded retries and a shared endpoint circuit breaker.
+- **Massive:** `MASSIVE_API_KEY` is a Worker secret. `worker/massive.mjs` and the Characters shared envelope pace upstream calls at up to five per minute. `massive_daily_call_ledger` guards daily bars, roster/contracts work at 300 attempts per UTC day. FX/Futures/Index bars use provider/Disc/symbol/interval-qualified cache identities; daily packets expire at UTC midnight. Active futures contracts are cached in `massive_futures_contract_cache` only until UTC midnight, with bounded retries and a shared endpoint circuit breaker.
 - **Legacy Alpha:** migration `0006_alpha_vantage_daily_call_ledger.sql` may remain for installed database history. There are no new Alpha calls, so its former 25/day allowance is not active behavior.
 - **All providers:** a ledger/cache failure fails closed before provider work. Claimed attempts that subsequently fail or time out count conservatively. Provider dashboards remain the billing/entitlement authority; direct calls outside this Worker are not represented by local ledgers.
 
@@ -94,7 +94,7 @@ Packets normalize to `gi-market-context-v1` without manufacturing fields:
 
 Incomplete OHLC tuples are rejected. VFI and other volume-based measures require real complete OHLCV. Price-based motion may use valid OHLC or close-only observations. A current forming daily candle is marked unconfirmed and is not represented as a completed move.
 
-The Characters UI rebuilds its cast, focus menu, local rotation, and provider controls when the Disc changes. Stocks expose `1h`/`1d` Tickerbot; Crypto exposes Kraken `1d`; FX, Commodities, and Indices expose Massive `1d`. Fixed-provider routes do not expose a provider selector. An unavailable beat remains held rather than switching provider or synthesizing data. Re-drawing the stage spends no provider calls. Local deterministic rehearsal, where enabled, is a separately labeled synthetic mode and never replaces a live observation silently.
+The Characters UI rebuilds its cast, focus menu, local rotation, and provider controls when the Disc changes. Stocks expose `1h`/`1d` Tickerbot; Crypto exposes Kraken `1d`; FX, Futures, and Indices expose Massive `1d`. Fixed-provider routes do not expose a provider selector. An unavailable beat remains held rather than switching provider or synthesizing data. Re-drawing the stage spends no provider calls. Local deterministic rehearsal, where enabled, is a separately labeled synthetic mode and never replaces a live observation silently.
 
 The stage and NAB composite are representations only—not investment advice, a signal, recommendation, permission to act, assurance result, or an input to Permit/Refuse decisions.
 
@@ -112,9 +112,9 @@ Saved beat snapshots are stored through the Orb 2 beats endpoint in `orb2_saved_
 
 | Surface | Active contract |
 | :--- | :--- |
-| `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities\|indices&provider=tickerbot\|kraken\|massive&symbols=A,B&interval=1h\|1d&cadence=...`. Tickerbot is Stocks only (`1h`/`1d`); Kraken is Crypto only (`1d`); Massive is FX/Commodities/Indices only (`1d`). Alpha and `1mo`, unknown providers, mismatched channels, and mismatched intervals fail before outbound work. |
+| `GET /api/characters/v1/beat` | `?disc=stocks\|fx\|crypto\|commodities\|futures\|indices&provider=tickerbot\|kraken\|massive&symbols=A,B&interval=1h\|1d&cadence=...`. Tickerbot is Stocks only (`1h`/`1d`); Kraken is Crypto only (`1d`); Massive is FX/Futures/Indices only (`1d`). Alpha and `1mo`, unknown providers, mismatched channels, and mismatched intervals fail before outbound work. |
 | `GET /api/characters/v1/discs?disc=crypto` | Kraken Spot rolling-24-hour ranking and audit metadata. The roster is cached in D1 and fails closed if stale, malformed, or undersized. |
-| NAB Discs market-data request | The UI sends its explicitly selected provider and the fixed `1d` interval. The accepted Disc/provider matrix is Tickerbot Stocks, Kraken Crypto, and Massive FX/Commodities/Indices. The Worker rejects a selected-but-mismatched provider; the renderer filters exact provider/channel/interval and does not borrow stock height or substitute another packet. Alpha is not offered. |
+| NAB Discs market-data request | The UI sends its explicitly selected provider and the fixed `1d` interval. The accepted Disc/provider matrix is Tickerbot Stocks, Kraken Crypto, and Massive FX/Futures/Indices. The Worker rejects a selected-but-mismatched provider; the renderer filters exact provider/channel/interval and does not borrow stock height or substitute another packet. Alpha is not offered. |
 | `GET /api/characters/v1/deploy` | Read-only operational readiness check. It sends no market request, claims no quota slot, and returns no secret. |
 | `GET /api/massive/v1/*` | Retained bounded same-origin Massive Worker adapter. Characters/NAB use their narrower reviewed channel routes, not an arbitrary browser ticker path; the standalone desktop window is retired. See [`docs/integrations/MASSIVE-REST.md`](../integrations/MASSIVE-REST.md). |
 | `GET /api/good-intelligence/v1/orb2/field` | Reads the current server-managed Orb 2 field and status; it does not make a provider request. |
