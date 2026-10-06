@@ -11,10 +11,11 @@
   const asOf = "2026-10-02";
   const source = "StockTitan · U.S.-listed companies by sector market capitalization";
   const url = sector => `https://www.stocktitan.net/rankings/companies-market-cap/sector/${sector}`;
-  const asset = (symbol, name, sector, sectorRank, marketCapLabel, marketCapUsd, sectorSlug) => Object.freeze({
+  const asset = (symbol, name, sector, sectorRank, marketCapLabel, marketCapUsd, sectorSlug, marketStage = "established") => Object.freeze({
     symbol, name, sector, country: "United States", sectorRank,
     marketCapLabel, marketCapUsd, marketCapAsOf: asOf,
-    marketCapSource: source, marketCapSourceUrl: url(sectorSlug)
+    marketCapSource: source, marketCapSourceUrl: url(sectorSlug),
+    marketStage: marketStage === "formation" ? "formation" : "established"
   });
 
   const roster = Object.freeze([
@@ -44,7 +45,7 @@
     asset("BKNG", "Booking Holdings Inc.", "Consumer Cyclical", 8, "$119.48B", 119_480_000_000, "consumer-cyclical"),
 
     // Industrials · U.S. issuers at source ranks 1–6 and 8
-    asset("SPCX", "SpaceX", "Industrials", 1, "$2.10T", 2_100_000_000_000, "industrials"),
+    asset("SPCX", "SpaceX", "Industrials", 1, "$2.10T", 2_100_000_000_000, "industrials", "formation"),
     asset("CAT", "Caterpillar Inc.", "Industrials", 2, "$388.62B", 388_620_000_000, "industrials"),
     asset("GE", "GE Aerospace", "Industrials", 3, "$321.19B", 321_190_000_000, "industrials"),
     asset("GEV", "GE Vernova", "Industrials", 4, "$263.32B", 263_320_000_000, "industrials"),

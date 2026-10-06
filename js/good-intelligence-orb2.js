@@ -130,6 +130,95 @@
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   };
+  const MARKET_RACE_SCHEMA = "gi-orb2-market-race-v1";
+  const MARKET_RACE_STAGES = Object.freeze(["established", "formation"]);
+  const IPO_HISTORY_TARGET_BARS = 60;
+
+  const marketStageFor = entry => MARKET_RACE_STAGES.includes(String(entry && entry.marketStage || "").toLowerCase())
+    ? String(entry.marketStage).toLowerCase() : "established";
+
+  function raceSignalPosition(market) {
+    if (!isRecord(market)) return null;
+    const values = [];
+    const change = numeric(market.changePct);
+    if (change !== null) values.push(Math.tanh(change / 4));
+    const vfi = isRecord(market.vfi) ? numeric(market.vfi.value) : null;
+    const signal = isRecord(market.vfi) ? numeric(market.vfi.signal) : null;
+    if (market.vfi && market.vfi.available === true && vfi !== null && signal !== null) values.push(Math.tanh((vfi - signal) / 18));
+    const wt1 = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt1) : null;
+    const wt2 = isRecord(market.waveTrend) ? numeric(market.waveTrend.wt2) : null;
+    if (wt1 !== null && wt2 !== null) values.push(Math.tanh((wt1 - wt2) / 45));
+    if (!values.length) return null;
+    return clamp(0.5 + (values.reduce((sum, value) => sum + value, 0) / values.length) / 2, 0, 1);
+  }
+
+  function marketRacePosition(entry, observation) {
+    const stage = marketStageFor(entry);
+    const market = isRecord(observation && observation.market) ? observation.market : null;
+    const held = {
+      schema: MARKET_RACE_SCHEMA,
+      symbol: String(entry && entry.symbol || "").toUpperCase(),
+      stage, eligible: false, graduationReady: false, progress: 0,
+      trackPosition: stage === "formation" ? 1 : 0, status: "held",
+      reason: stage === "formation" ? "market-data-unavailable" : "fbb-history-unavailable",
+      fbbId: null, barCount: market ? Math.max(0, Number(market.barCount) || 0) : 0
+    };
+    if (!market) return held;
+
+    if (stage === "formation") {
+      const historyProgress = clamp((Number(market.barCount) || 0) / IPO_HISTORY_TARGET_BARS, 0, 1);
+      const signalPosition = raceSignalPosition(market);
+      const progress = clamp(historyProgress * 0.65 + (signalPosition === null ? 0 : signalPosition) * 0.35, 0, 1);
+      const l60 = isRecord(market.fbbVariants) && isRecord(market.fbbVariants["FBB-L60"])
+        ? market.fbbVariants["FBB-L60"] : null;
+      const graduationReady = Boolean(l60 && l60.status === "available");
+      return {
+        schema: MARKET_RACE_SCHEMA, symbol: String(entry && entry.symbol || "").toUpperCase(),
+        stage, eligible: true, graduationReady, progress, trackPosition: 1 - progress,
+        status: graduationReady ? "graduation-ready" : "formation",
+        reason: graduationReady ? "fbb-l60-available" : "formation-history-plus-current-context",
+        fbbId: graduationReady ? "FBB-L60" : null, barCount: Math.max(0, Number(market.barCount) || 0),
+        historyProgress, signalPosition
+      };
+    }
+
+    const band = fibonacciBandMetrics(market);
+    if (band.held) return held;
+    const compositionPosition = observation && observation.composition && Number.isFinite(Number(observation.composition.composedPosition))
+      ? Number(observation.composition.composedPosition) : null;
+    const progress = clamp(compositionPosition === null ? band.p : compositionPosition, 0, 1);
+    return {
+      schema: MARKET_RACE_SCHEMA, symbol: String(entry && entry.symbol || "").toUpperCase(),
+      stage, eligible: true, graduationReady: false, progress, trackPosition: progress,
+      status: "established", reason: compositionPosition === null ? "fbb-position" : "daily-baseline-plus-intraday",
+      fbbId: band.bandId || "FBB", barCount: Math.max(0, Number(market.barCount) || 0)
+    };
+  }
+
+  function raceObservationFor(observations, symbol) {
+    const rows = observations instanceof Map ? [...observations.values()] : Array.isArray(observations) ? observations : [];
+    const intervalRank = value => value === "1d" ? 3 : value === "1h" ? 2 : value === "15m" ? 1 : 0;
+    return rows
+      .filter(item => item && String(item.discId || "stocks") === "stocks" && String(item.symbol || "").toUpperCase() === String(symbol || "").toUpperCase())
+      .sort((left, right) => intervalRank(right.interval) - intervalRank(left.interval) || Number(right.at || 0) - Number(left.at || 0))[0] || null;
+  }
+
+  function buildMarketRaceSnapshot(entries, observations) {
+    const rows = (Array.isArray(entries) ? entries : []).map(entry => ({
+      entry, race: marketRacePosition(entry, raceObservationFor(observations, entry.symbol))
+    }));
+    const established = rows.filter(row => row.race.stage === "established" && row.race.eligible)
+      .sort((a, b) => b.race.progress - a.race.progress || String(a.entry.symbol).localeCompare(String(b.entry.symbol)))
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+    const formation = rows.filter(row => row.race.stage === "formation")
+      .sort((a, b) => b.race.progress - a.race.progress || String(a.entry.symbol).localeCompare(String(b.entry.symbol)))
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+    return {
+      schema: MARKET_RACE_SCHEMA, established, formation,
+      heldEstablished: rows.filter(row => row.race.stage === "established" && !row.race.eligible).length,
+      graduationReady: formation.filter(row => row.race.graduationReady).length
+    };
+  }
   const ease = value => {
     const t = clamp(value, 0, 1);
     return t * t * (3 - 2 * t);
@@ -1302,6 +1391,26 @@
         </div>
         <div class="gi-orb2-message" data-gi-orb2-message role="status" hidden></div>
 
+        <section class="gi-orb2-raceboard" data-gi-orb2-raceboard aria-label="Orb 2 dual market race">
+          <div class="gi-orb2-raceboard-head">
+            <div><p class="gi-eyebrow">MARKET FIELD · DUAL RACE</p><strong>Established ↔ Formation</strong></div>
+            <span data-gi-orb2-race-note>Waiting for the live stock field…</span>
+          </div>
+          <div class="gi-orb2-race-lane" data-gi-orb2-race-established>
+            <span class="gi-orb2-race-label">ESTABLISHED</span>
+            <span class="gi-orb2-race-cap">START</span>
+            <div class="gi-orb2-race-track"><i aria-hidden="true"></i><div data-gi-orb2-race-established-markers></div></div>
+            <span class="gi-orb2-race-cap">FINISH</span>
+          </div>
+          <div class="gi-orb2-race-lane" data-gi-orb2-race-formation>
+            <span class="gi-orb2-race-label">IPO / FORMATION</span>
+            <span class="gi-orb2-race-cap">QUALIFIED</span>
+            <div class="gi-orb2-race-track"><i aria-hidden="true"></i><div data-gi-orb2-race-formation-markers></div></div>
+            <span class="gi-orb2-race-cap">NEW IPO</span>
+          </div>
+          <p class="gi-orb2-race-explanation">Established instruments move toward <strong>FINISH</strong>. Formation instruments move toward <strong>QUALIFIED</strong> from the opposite side. The lanes never share FBB requirements: missing history is held, never fabricated.</p>
+        </section>
+
         <div class="gi-orb2-layout">
           <div class="gi-orb2-stage">
             <div class="gi-orb2-canvas-shell">
@@ -1399,6 +1508,12 @@
     const routeNote = $("[data-gi-orb2-route-note]");
     const planHost = $("[data-gi-orb2-plan]");
     const messageHost = $("[data-gi-orb2-message]");
+    const raceBoard = $("[data-gi-orb2-raceboard]");
+    const raceEstablishedLane = $("[data-gi-orb2-race-established]");
+    const raceFormationLane = $("[data-gi-orb2-race-formation]");
+    const raceEstablishedMarkers = $("[data-gi-orb2-race-established-markers]");
+    const raceFormationMarkers = $("[data-gi-orb2-race-formation-markers]");
+    const raceNote = $("[data-gi-orb2-race-note]");
     const providerHost = $("[data-gi-orb2-provider]");
     const countdownHost = $("[data-gi-orb2-countdown]");
     const persistenceHost = $("[data-gi-orb2-persistence]");
@@ -2243,9 +2358,37 @@
       syncOcmTrafficNote();
     }
 
+    function renderMarketRaceBoard() {
+      if (!raceBoard) return;
+      const stockMode = tickerMode && state.discId === "stocks";
+      raceBoard.hidden = !stockMode;
+      if (!stockMode) return;
+      const snapshot = buildMarketRaceSnapshot(state.entries, state.observations);
+      const marker = (row, direction) => {
+        const symbol = String(row.entry.symbol || row.race.symbol).toUpperCase();
+        const position = clamp(Number(row.race.trackPosition) || 0, 0, 1) * 100;
+        const progress = (Number(row.race.progress) || 0) * 100;
+        const status = row.race.status === "graduation-ready" ? " · FBB-L60 ready to graduate" : "";
+        return '<button type="button" class="gi-orb2-race-marker ' + direction +
+          (row.rank === 1 ? ' is-leader' : '') + '" style="left:' + position.toFixed(3) + '%" ' +
+          'data-race-symbol="' + escapeHtml(symbol) + '" title="' + escapeHtml(symbol + ' · ' + progress.toFixed(1) + '% lane progress' + status) + '">' +
+          '<span>#' + row.rank + '</span><strong>' + escapeHtml(symbol) + '</strong></button>';
+      };
+      raceEstablishedMarkers.innerHTML = snapshot.established.map(row => marker(row, "established")).join("");
+      raceFormationMarkers.innerHTML = snapshot.formation.map(row => marker(row, "formation")).join("");
+      raceEstablishedLane.dataset.count = String(snapshot.established.length);
+      raceFormationLane.dataset.count = String(snapshot.formation.length);
+      const lead = snapshot.established[0];
+      const finish = lead ? 'Established leader: ' + lead.entry.symbol + ' · #1' : 'Established race: waiting for FBB-qualified observations';
+      const formationReady = snapshot.graduationReady ? ' · ' + snapshot.graduationReady + ' ready to graduate' : '';
+      raceNote.textContent = finish + ' · Formation field: ' + snapshot.formation.length + formationReady + '.';
+      raceBoard.dataset.schema = MARKET_RACE_SCHEMA;
+    }
+
     function draw() {
       syncFormControls();
       renderOrbBar();
+      renderMarketRaceBoard();
       drawInspector();
       drawHistory();
       /* drawStatus() runs last so the beat-type scenario narration and the
@@ -4874,6 +5017,6 @@
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
-    buildNodes, mount, getSavedBeatSessionId
+    buildNodes, marketStageFor, marketRacePosition, buildMarketRaceSnapshot, mount, getSavedBeatSessionId
   });
 })();
