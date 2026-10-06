@@ -176,7 +176,7 @@ test("Disc4 resolves the active Massive contract before bars and carries contrac
     }
   );
   const payload = await response.json();
-  assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
+  assert.equal(response.status, 200);
   assert.deepEqual(requests.map(entry => entry.url.pathname), [
     "/futures/v1/contracts", "/futures/v1/aggs/CLX6"
   ], "the dated ticker is discovered and validated before a futures bars URL is built");
@@ -210,7 +210,7 @@ test("Disc4 holds when Massive has no verifiable active contract and cooldown su
   };
   const query = "disc=commodities&provider=massive&symbols=WTI&interval=1d&cadence=1";
   const first = await handleCharactersBeat(beat(query), env(db), dependencies);
-  assert.equal(first.status, 404, JSON.stringify(await first.clone().json()));
+  assert.equal(first.status, 404);
   assert.match((await first.json()).message, /no verifiable active single contract/i);
   assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger").get().calls, 1);
   const cooled = await handleCharactersBeat(beat(query), env(db), {
@@ -240,7 +240,7 @@ test("the beat route isolates provider policies and caches successful Massive da
     dependencies
   );
   const firstPayload = await first.json();
-  assert.equal(first.status, 200, JSON.stringify(await first.clone().json()));
+  assert.equal(first.status, 200);
   assert.deepEqual(hosts, ["api.massive.com"]);
   assert.equal(firstPayload.data.provider, "massive");
   assert.equal(firstPayload.data.cadenceMinutes, 1);
@@ -319,7 +319,7 @@ test("a Massive minute-gate refusal does not consume a daily D1 slot", async t =
     const admitted = await handleCharactersBeat(
       beat(`disc=fx&provider=massive&symbols=${symbol}&interval=1d&cadence=1`), envValue, dependencies
     );
-    assert.equal(admitted.status, 200, JSON.stringify(await admitted.clone().json()));
+    assert.equal(admitted.status, 200);
   }
   const rateLimited = await handleCharactersBeat(
     beat("disc=fx&provider=massive&symbols=CADUSD&interval=1d&cadence=1"), envValue, dependencies
@@ -374,7 +374,7 @@ test("the six DXY component quotes retain their USD-per-foreign orientation thro
       }
     );
     const payload = await response.json();
-    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path: ${await response.clone().text()}`);
+    assert.equal(response.status, 200, `${symbol} reaches the reviewed FX Worker path`);
     assert.equal(payload.data.instruments[0].symbol, symbol);
     assert.equal(payload.data.instruments[0].marketContext.quoteCurrency, "USD");
     assert.equal(payload.data.instruments[0].marketContext.timeframe, "1d");
