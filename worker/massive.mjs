@@ -134,9 +134,6 @@ export function availableMassiveBudget(request, env = {}, now = Date.now(), asse
   };
 }
 
-/* Sliding-window budget: one window shared by the whole deployment (the
-   Massive key belongs to the owner, so every visitor spends the same quota)
-   and one window per client IP so a single caller cannot spend it all. */
 /* Exported so other bounded Worker routes that use the same owner key can
    share this exact per-isolate envelope instead of maintaining a second,
    divergent rate bucket. */
