@@ -3,6 +3,11 @@
    gate; Massive documents five requests/minute per asset class. */
 
 import { consumeMassiveBudget } from "./massive.mjs";
+import {
+  MASSIVE_PROVIDER_DAILY_LIMIT,
+  readMassiveDailyCallLedger,
+  recordMassiveDailyCall
+} from "./massive-daily-call-ledger.mjs";
 
 export async function reserveMassiveProviderCall({
   request,
@@ -10,6 +15,9 @@ export async function reserveMassiveProviderCall({
   now = Date.now(),
   assetClass = null
 } = {}) {
+  const daily = await readMassiveDailyCallLedger(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+  if (!daily.ok) return { ok: false, code: daily.reason || "massive-ledger-unavailable", message: daily.message };
+
   const minute = consumeMassiveBudget(request, env, now, assetClass);
   if (!minute.ok) {
     return {
@@ -21,5 +29,7 @@ export async function reserveMassiveProviderCall({
         : `The Massive ${minute.assetClass || "provider"} per-minute request envelope is exhausted. Wait about ${minute.retryAfterSeconds}s before trying again.`
     };
   }
-  return { ok: true, calls: 1, assetClass: minute.assetClass };
+  const recorded = await recordMassiveDailyCall(env.COMMUNITY_DB, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+  if (!recorded.ok) return { ok: false, code: recorded.reason || "massive-ledger-unavailable", message: recorded.message };
+  return { ok: true, calls: 1, assetClass: minute.assetClass, ledger: recorded.ledger };
 }
