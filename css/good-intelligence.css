@@ -987,3 +987,23 @@
   .gi-orb2-fire-row { grid-template-columns: 22px 45px minmax(0, 1fr) 44px; }
   .gi-orb2-fire-row small { font-size: 5px; }
 }
+
+
+/* Orb 2 · dual market race. Both lanes share a visual track but never share eligibility or math. */
+.gi-orb2-raceboard{margin:10px 0 14px;padding:10px 12px;border:1px solid var(--gi-line,#d7dee8);border-radius:10px;background:var(--gi-panel,#fff)}
+.gi-orb2-raceboard[hidden]{display:none}
+.gi-orb2-raceboard-head{display:flex;justify-content:space-between;gap:12px;align-items:end;margin-bottom:8px}
+.gi-orb2-raceboard-head strong{display:block;color:var(--gi-ink);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.gi-orb2-raceboard-head>span{color:var(--gi-dim);font-size:10px;text-align:right}
+.gi-orb2-race-lane{display:grid;grid-template-columns:92px 50px minmax(180px,1fr) 50px;gap:7px;align-items:center;margin:6px 0}
+.gi-orb2-race-label{font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--gi-ink);white-space:nowrap}
+.gi-orb2-race-cap{font-size:8px;font-weight:700;color:var(--gi-dim);text-align:center;white-space:nowrap}
+.gi-orb2-race-track{position:relative;height:30px;border:1px solid var(--gi-line,#d7dee8);border-radius:999px;background:linear-gradient(90deg,rgba(111,211,255,.08),rgba(92,230,168,.08));overflow:visible}
+.gi-orb2-race-track>i{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--gi-line,#d7dee8);transform:translateY(-50%)}
+.gi-orb2-race-marker{position:absolute;top:50%;transform:translate(-50%,-50%);min-width:36px;height:27px;padding:2px 5px;border:1px solid var(--gi-line,#c7d0dc);border-radius:999px;background:var(--gi-panel,#fff);color:var(--gi-ink);cursor:default;transition:left .7s ease,transform .7s ease;box-shadow:0 1px 4px rgba(0,0,0,.08);z-index:2}
+.gi-orb2-race-marker span{display:block;font-size:7px;line-height:8px;color:var(--gi-dim)}
+.gi-orb2-race-marker strong{display:block;font:700 8px/10px ui-monospace,SFMono-Regular,Menlo,monospace}
+.gi-orb2-race-marker.is-leader{border-color:var(--gi-ink);box-shadow:0 0 0 2px rgba(92,230,168,.18),0 2px 8px rgba(0,0,0,.12)}
+.gi-orb2-race-marker.formation{border-style:dashed}
+.gi-orb2-race-explanation{margin:8px 0 0 99px;color:var(--gi-dim);font-size:9px;line-height:1.45}
+@media (max-width:700px){.gi-orb2-race-lane{grid-template-columns:72px 42px minmax(120px,1fr) 42px}.gi-orb2-race-explanation{margin-left:0}.gi-orb2-raceboard-head{align-items:flex-start;flex-direction:column}.gi-orb2-raceboard-head>span{text-align:left}}
