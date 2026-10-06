@@ -358,7 +358,9 @@
         const bands = result.bands ? `
           <div class="gi-market-band-table" role="table" aria-label="Log-space Fibonacci band levels">
             <div role="row"><span role="columnheader">LEVEL</span><span role="columnheader">UPPER</span><span role="columnheader">LOWER</span></div>
+            <div role="row"><span>0.236</span><span>${formatMetric(result.bands.upper236)}</span><span>${formatMetric(result.bands.lower236)}</span></div>
             <div role="row"><span>0.382</span><span>${formatMetric(result.bands.upper382)}</span><span>${formatMetric(result.bands.lower382)}</span></div>
+            <div role="row"><span>0.500</span><span>${formatMetric(result.bands.upper500)}</span><span>${formatMetric(result.bands.lower500)}</span></div>
             <div role="row"><span>0.618</span><span>${formatMetric(result.bands.upper618)}</span><span>${formatMetric(result.bands.lower618)}</span></div>
             <div role="row"><span>0.764</span><span>${formatMetric(result.bands.upper764)}</span><span>${formatMetric(result.bands.lower764)}</span></div>
             <div role="row"><span>1.000</span><span>${formatMetric(result.bands.upper1000)}</span><span>${formatMetric(result.bands.lower1000)}</span></div>
@@ -470,11 +472,15 @@
             { topField: "lower764", bottomField: "lower1000", color: "rgba(102,187,106,.19)" }
           ],
           lines: [
+            { field: "upper236", color: "rgba(239,154,154,.36)", width: 1 },
             { field: "upper382", color: "rgba(239,154,154,.48)", width: 1 },
+            { field: "upper500", color: "rgba(239,120,120,.60)", width: 1 },
             { field: "upper618", color: "rgba(239,83,80,.72)", width: 1 },
             { field: "upper764", color: "rgba(244,67,54,.82)", width: 1 },
             { field: "upper1000", color: "#b71c1c", width: 1.7 },
+            { field: "lower236", color: "rgba(165,214,167,.36)", width: 1 },
             { field: "lower382", color: "rgba(165,214,167,.48)", width: 1 },
+            { field: "lower500", color: "rgba(129,199,132,.60)", width: 1 },
             { field: "lower618", color: "rgba(102,187,106,.72)", width: 1 },
             { field: "lower764", color: "rgba(76,175,80,.82)", width: 1 },
             { field: "lower1000", color: "#1b5e20", width: 1.7 },
