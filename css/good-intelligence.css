@@ -592,6 +592,21 @@
 .gi-orb2-orb-state { color: var(--gi-faint); font-size: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gi-orb2-orb:not(.is-empty) .gi-orb2-orb-state { color: #8fd6b0; }
 .gi-orb2-orb.is-empty .gi-orb2-orb-state { color: #c9a86a; }
+.gi-orb2-crypto-pair-bar[hidden] { display: none !important; }
+.gi-orb2-crypto-pair-bar {
+  display: grid; grid-template-columns: minmax(210px, .72fr) minmax(0, 1.28fr);
+  align-items: center; gap: 7px 14px; margin-top: 8px; padding: 8px 9px;
+  border: 1px solid rgba(111, 211, 255, .28); border-left: 3px solid var(--gi-cyan);
+  border-radius: 6px; background: linear-gradient(100deg, rgba(16, 34, 52, .78), rgba(8, 16, 27, .86));
+}
+.gi-orb2-crypto-pair-select { display: grid; min-width: 0; gap: 5px; color: var(--gi-cyan); font: 700 7px var(--mono); letter-spacing: .09em; }
+.gi-orb2-crypto-pair-select select {
+  width: 100%; min-width: 0; min-height: 32px; padding: 5px 8px;
+  border: 1px solid var(--gi-border-hi); border-radius: 5px; color: var(--gi-ink);
+  background: #09111d; font: 9px var(--mono); letter-spacing: 0;
+}
+.gi-orb2-crypto-pair-select select:disabled { opacity: .55; }
+.gi-orb2-crypto-pair-readout { min-width: 0; margin: 0; color: var(--gi-dim); font: 8px/1.55 var(--mono); overflow-wrap: anywhere; }
 .gi-orb2-ocm-note {
   margin: 4px 0 0;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -725,6 +740,7 @@
   .gi-orb2-live-strip { gap: 6px 12px; padding: 8px 10px; }
   .gi-orb2-counts { margin-left: 0; }
   .gi-orb2-canvas-shell { min-height: 360px; height: min(60dvh, 520px); }
+  .gi-orb2-crypto-pair-bar { grid-template-columns: minmax(0, 1fr); }
   .gi-orb2-model-status { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; padding: 9px 10px; }
   .gi-orb2-origin-status-item, .gi-orb2-berth-status-item { grid-column: 1 / -1; }
   .gi-orb2-origin-readout, .gi-orb2-berth-readout { white-space: normal; overflow-wrap: anywhere; }

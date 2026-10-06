@@ -73,6 +73,9 @@
     return 0.5;
   };
   const TAU = Math.PI * 2;
+  const CRYPTO_PAIR_CANDLE_COLORS = Object.freeze({
+    up: "#37e3a1", down: "#ff718b", flat: "#f3c86a", unknown: "#a4b3c2"
+  });
   const CENTER_ADDRESS = "0•000•000•0000";
   /* The beat belongs to the Worker. A Cron Trigger wakes the server-side field
      every minute; this page reads the stored observations and renders them, so
@@ -892,6 +895,8 @@
       rosterByDisc: {},
       fieldNodes: {},
       cryptoPairs: [],
+      cryptoPairFocus: isRecord(preferences) && /^[A-Z0-9]{2,12}-[A-Z0-9]{2,12}$/.test(String(preferences.cryptoPairFocus || "").toUpperCase())
+        ? String(preferences.cryptoPairFocus).toUpperCase() : "",
       cryptoExpected: 0,
       cryptoTrafficEdges: [],
       cryptoTrafficPackets: [],
@@ -1210,6 +1215,13 @@
                 <button type="button" class="gi-orb2-carousel-step" data-gi-orb2-carousel="next" aria-label="Next Disc">›</button>
               </div>
               <p class="gi-orb2-constellation-note" data-gi-orb2-constellation-note role="status" aria-live="polite">CONSTELLATION · reading the stored field for every Disc.</p>
+              <div class="gi-orb2-crypto-pair-bar" data-gi-orb2-crypto-pair-bar hidden>
+                <label class="gi-orb2-crypto-pair-select">
+                  <span>DISC 3 · KRAKEN PAIR TETHER</span>
+                  <select data-gi-orb2-crypto-pair aria-label="Choose a directly listed Kraken cross-crypto pair"></select>
+                </label>
+                <p class="gi-orb2-crypto-pair-readout" data-gi-orb2-crypto-pair-readout role="status" aria-live="off">Choose a directly listed Kraken pair to inspect its confirmed daily candle.</p>
+              </div>
               <p class="gi-orb2-ocm-note" data-gi-orb2-ocm role="status" aria-live="off">OCM TRAFFIC SIMULATION · waiting for the first stored rows; nothing is transmitted.</p>
             </div>
             <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
@@ -1264,6 +1276,10 @@
     const separationLabel = $("[data-gi-orb2-separation-label]");
     const orbTrack = $("[data-gi-orb2-orb-track]");
     const constellationNote = $("[data-gi-orb2-constellation-note]");
+    const cryptoPairBar = $("[data-gi-orb2-crypto-pair-bar]");
+    const cryptoPairSelect = $("[data-gi-orb2-crypto-pair]");
+    const cryptoPairReadout = $("[data-gi-orb2-crypto-pair-readout]");
+    let cryptoPairOptionsSignature = "";
     const ocmNote = $("[data-gi-orb2-ocm]");
     const constellationToggle = $("[data-gi-orb2-constellation]");
     const zoomButton = $("[data-gi-orb2-zoom]");
@@ -1383,7 +1399,8 @@
         showDataBits: state.showDataBits,
         separation: state.separation,
         beatType: state.beatType,
-        focusSymbols: state.focusSymbols
+        focusSymbols: state.focusSymbols,
+        cryptoPairFocus: state.cryptoPairFocus
       };
       try {
         storage.setItem(PREFS_KEY, JSON.stringify(savedPrefs));
@@ -1569,6 +1586,7 @@
         timeframeSelect.disabled = ignitionLocked || state.pending;
       }
       syncFocusOptions();
+      syncCryptoPairControls();
       syncNodeOptions();
       autoButton.textContent = `Auto view: ${state.auto ? "on" : "off"}`;
       autoButton.setAttribute("aria-pressed", String(state.auto));
@@ -1596,6 +1614,29 @@
       if (!symbols.includes(previous)) state.focus = symbols[0] || "";
       focusSelect.value = state.focus;
       focusSelect.disabled = !symbols.length || state.pending;
+    }
+
+    function syncCryptoPairControls() {
+      if (!cryptoPairBar || !cryptoPairSelect) return;
+      const pairs = state.cryptoPairs;
+      const active = state.discId === "crypto";
+      cryptoPairBar.hidden = !active;
+      if (pairs.length) {
+        if (!pairs.some(pair => pair.symbol === state.cryptoPairFocus)) {
+          state.cryptoPairFocus = pairs.find(pair => pair.symbol === "XMR-BTC")?.symbol || pairs[0].symbol;
+        }
+      } else if (active && state.rosterByDisc.crypto) {
+        state.cryptoPairFocus = "";
+      }
+      const signature = pairs.map(pair => `${pair.symbol}:${pair.krakenPair}`).join("|");
+      if (signature !== cryptoPairOptionsSignature) {
+        cryptoPairOptionsSignature = signature;
+        cryptoPairSelect.innerHTML = pairs.length
+          ? pairs.map(pair => `<option value="${escapeHtml(pair.symbol)}">${escapeHtml(pair.displaySymbol)} · Kraken ${escapeHtml(pair.krakenPair)}</option>`).join("")
+          : '<option value="">No directly listed cross-crypto pairs</option>';
+      }
+      cryptoPairSelect.value = state.cryptoPairFocus;
+      cryptoPairSelect.disabled = !active || !pairs.length || state.pending || state.loadingCatalog;
     }
 
     function syncNodeOptions() {
@@ -3777,11 +3818,26 @@
       return points.at(-1);
     }
 
+    function formatCryptoPairVolume(value) {
+      const volume = numeric(value);
+      return volume === null ? "—" : volume.toLocaleString("en-US", { maximumSignificantDigits: 6 });
+    }
+
+    function formatCompactCryptoPairVolume(value) {
+      const volume = numeric(value);
+      return volume === null ? "—" : volume.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 1 });
+    }
+
+    function cryptoCandleDirection(open, close) {
+      if (open === null || close === null) return "unknown";
+      return close > open ? "up" : close < open ? "down" : "flat";
+    }
+
     /** Kraken's directly listed cross-quote OHLCV pairs are drawn twice: a
         curved outer-Disc chord and a mirrored route through the inner pair orb.
-        Kraken's aggregate OHLCV bar has no trade-side direction, so the arrows
-        mirror pair orientation for display only; they are not measured flow,
-        individual trades, transfers, or OCM messages. */
+        Tether color reports the confirmed candle close versus open; its label
+        shows that bar's base-asset volume. Mirrored pulses show pair orientation
+        only, never measured flow, individual trades, transfers, or OCM messages. */
     function drawCryptoPairTraffic(now, width, height, innerCenter) {
       const points = new Map(state.projected.map(point => [String(point.node && point.node.symbol || "").toUpperCase(), point]));
       const observations = new Map();
@@ -3804,6 +3860,10 @@
         if (!bar || bar.confirmed !== true || !Number.isFinite(volume) || volume <= 0 || observation.market.volumeAvailable !== true) continue;
         const freshness = observation.freshness && observation.freshness.status || "fresh";
         const fresh = freshness === "fresh";
+        const open = numeric(bar.open);
+        const close = numeric(bar.close);
+        const candleDirection = cryptoCandleDirection(open, close);
+        const candleColor = CRYPTO_PAIR_CANDLE_COLORS[candleDirection];
         const fromPort = cryptoPairPort(pair.baseAsset, innerCenter, radius);
         const toPort = cryptoPairPort(pair.quoteAsset, innerCenter, radius);
         const arc = cryptoInnerArc(fromPort, toPort, innerCenter, radius);
@@ -3815,9 +3875,12 @@
         const innerForward = cryptoPolylinePoint(innerPath, phase);
         const innerReverse = cryptoPolylinePoint([...innerPath].reverse(), (phase + 0.5) % 1);
         pairs.push({
-          pair: pair.symbol, krakenPair: pair.krakenPair, baseAsset: pair.baseAsset, quoteAsset: pair.quoteAsset,
-          status: freshness, volume, active: fresh,
+          pair: pair.symbol, displaySymbol: pair.displaySymbol, krakenPair: pair.krakenPair,
+          baseAsset: pair.baseAsset, quoteAsset: pair.quoteAsset,
+          status: freshness, volume, volumeUnit: pair.baseAsset, open, close, barTime: numeric(bar.time),
+          candleDirection, candleColor, active: fresh, selected: pair.symbol === state.cryptoPairFocus,
           outer: { from, to, bend: outerBend },
+          labelPoint: cryptoPairCurvePoint(from, to, 0.5, outerBend),
           innerPath,
           packets: fresh ? [
             { pair: pair.symbol, from: pair.baseAsset, to: pair.quoteAsset, direction: "base-to-quote", layer: "outer", u: phase, x: outerForward.x, y: outerForward.y },
@@ -3842,17 +3905,25 @@
       context2d.textAlign = "center";
       context2d.fillText("INNER OCM · PAIR ROUTES", innerCenter.x, innerCenter.y + radius + 12);
       context2d.restore();
-      for (const edge of pairs) {
-        const alpha = edge.active ? 0.28 : 0.1;
+      const drawPairs = [...pairs].sort((left, right) => Number(left.selected) - Number(right.selected));
+      for (const edge of drawPairs) {
         context2d.save();
-        context2d.globalAlpha = alpha;
-        context2d.strokeStyle = edge.active ? "#38d3d4" : "#91a4b7";
-        context2d.lineWidth = edge.active ? 1.2 : 0.7;
-        if (!edge.active) context2d.setLineDash([2, 4]);
+        context2d.globalAlpha = edge.selected ? edge.active ? 0.96 : 0.66 : edge.active ? 0.42 : 0.16;
+        context2d.strokeStyle = edge.candleColor;
+        context2d.lineWidth = edge.selected ? 3.2 : edge.active ? 1.25 : 0.8;
+        context2d.lineCap = "round";
+        context2d.lineJoin = "round";
+        if (edge.selected) {
+          context2d.shadowColor = edge.candleColor;
+          context2d.shadowBlur = 9;
+        }
+        if (!edge.active) context2d.setLineDash(edge.selected ? [5, 4] : [2, 4]);
         context2d.beginPath(); context2d.moveTo(edge.outer.from.x, edge.outer.from.y);
         const midpoint = cryptoPairCurvePoint(edge.outer.from, edge.outer.to, 0.5, edge.outer.bend);
         context2d.quadraticCurveTo(midpoint.x, midpoint.y, edge.outer.to.x, edge.outer.to.y);
         context2d.stroke();
+        context2d.shadowBlur = 0;
+        context2d.lineWidth = edge.selected ? 2.1 : edge.active ? 0.9 : 0.65;
         context2d.beginPath();
         context2d.moveTo(edge.innerPath[0].x, edge.innerPath[0].y);
         for (const point of edge.innerPath.slice(1)) context2d.lineTo(point.x, point.y);
@@ -3869,13 +3940,66 @@
       return state.cryptoTrafficPackets;
     }
 
+    function drawCryptoPairTetherLabel(width, height) {
+      const edge = state.cryptoTrafficEdges.find(candidate => candidate.selected);
+      if (!context2d || !edge || !edge.labelPoint) return;
+      const displaySymbol = edge.displaySymbol || edge.pair.replace("-", "/");
+      const label = `${displaySymbol} · ${formatCompactCryptoPairVolume(edge.volume)} ${edge.volumeUnit}`;
+      context2d.save();
+      context2d.font = '600 9px "IBM Plex Mono", ui-monospace, monospace';
+      const measuredWidth = Number(context2d.measureText(label).width) || label.length * 5.6;
+      const boxWidth = Math.min(Math.max(96, measuredWidth + 14), Math.max(96, width - 12));
+      const centerX = clamp(edge.labelPoint.x, boxWidth / 2 + 6, width - boxWidth / 2 - 6);
+      const centerY = clamp(edge.labelPoint.y - 13, 12, height - 12);
+      const boxHeight = 20;
+      context2d.globalAlpha = edge.active ? 0.96 : 0.76;
+      context2d.fillStyle = "rgba(5, 10, 18, 0.94)";
+      context2d.fillRect(centerX - boxWidth / 2, centerY - boxHeight / 2, boxWidth, boxHeight);
+      context2d.strokeStyle = edge.candleColor;
+      context2d.lineWidth = 1;
+      context2d.strokeRect(centerX - boxWidth / 2, centerY - boxHeight / 2, boxWidth, boxHeight);
+      context2d.fillStyle = "#f4f8fc";
+      context2d.textAlign = "center";
+      context2d.textBaseline = "middle";
+      context2d.fillText(label, centerX, centerY, boxWidth - 12);
+      context2d.restore();
+    }
+
+    function syncCryptoPairReadout() {
+      if (!cryptoPairReadout || state.discId !== "crypto") return;
+      const pair = state.cryptoPairs.find(candidate => candidate.symbol === state.cryptoPairFocus);
+      if (!pair) {
+        cryptoPairReadout.textContent = state.rosterByDisc.crypto
+          ? "NO DIRECTLY LISTED KRAKEN CROSS-CRYPTO PAIRS IN THE CURRENT REVIEWED ROSTER."
+          : "Waiting for Kraken's directly listed cross-crypto pair roster.";
+        return;
+      }
+      const displaySymbol = pair.displaySymbol || pair.symbol.replace("-", "/");
+      if (!state.focusOrb) {
+        cryptoPairReadout.textContent = `${displaySymbol} · Focus the Crypto Disc orb, or select this pair, to show its tether.`;
+        return;
+      }
+      const edge = state.cryptoTrafficEdges.find(candidate => candidate.pair === pair.symbol);
+      if (!edge) {
+        cryptoPairReadout.textContent = `${displaySymbol} · Waiting for a confirmed Kraken 1d OHLCV bar with positive volume. No tether is drawn until those stored fields are available.`;
+        return;
+      }
+      const candle = edge.candleDirection === "up" ? "UP candle (close above open)"
+        : edge.candleDirection === "down" ? "DOWN candle (close below open)"
+          : edge.candleDirection === "flat" ? "FLAT candle (close equals open)" : "candle direction unavailable";
+      const barDate = edge.barTime !== null && Number.isFinite(edge.barTime)
+        ? new Date(edge.barTime).toISOString().slice(0, 10) : "date unavailable";
+      const freshness = edge.active ? "FRESH" : "STALE";
+      cryptoPairReadout.textContent = `KRAKEN ${displaySymbol} · ${freshness} · confirmed 1d bar ${barDate} · ${candle} · ${formatCryptoPairVolume(edge.volume)} ${edge.volumeUnit} base-asset volume. Tether color is close versus open; mirrored markers show pair orientation only—not trade-side flow, transfers, or OCM messages.`;
+    }
+
     /** One sentence for the panel: how many simulated beats are on the ring,
         and the standing reminder that this is a picture and not a channel. */
     function ocmTrafficText() {
       if (state.discId === "crypto" && state.focusOrb) {
         const activePairs = state.cryptoTrafficEdges.filter(edge => edge.active).length;
         const storedPairs = state.cryptoTrafficEdges.length;
-        return `CRYPTO PAIR VISUALIZATION · ${activePairs} fresh / ${storedPairs} confirmed-volume cross-quote pairs · mirrored base↔quote pulses cross the inner OCM orb and outer Disc orb · aggregate OHLCV has no trade-side direction; pulses show pair orientation only, not observed flow, trades, or transfers; no OCM message is sent`;
+        return `CRYPTO PAIR VISUALIZATION · ${activePairs} fresh / ${storedPairs} confirmed-volume cross-quote pairs · selected tether color = confirmed candle close versus open; label = bar volume in base-asset units · mirrored base↔quote pulses cross the inner OCM orb and outer Disc orb · aggregate OHLCV has no trade-side direction; pulses show pair orientation only, not observed flow, trades, or transfers; no OCM message is sent`;
       }
       const lanes = ocmLanes();
       const beats = lanes.reduce((total, lane) => total + lane.beats, 0);
@@ -4036,6 +4160,7 @@
       updateFlowReadout(state.projected[state.selected] || null);
       if (state.discId === "crypto" && state.focusOrb) drawCryptoPairTraffic(now, width, height, fieldCenter);
       else { state.cryptoTrafficEdges = []; state.cryptoTrafficPackets = []; }
+      syncCryptoPairReadout();
       syncOcmTrafficNote();
       if (wideView) {
         /* The selected Disc's own field is the one the inspector, the beams,
@@ -4052,6 +4177,7 @@
       else state.trafficPackets = [];
       drawCenterBeams(wallNow, fieldCenter);
       drawRoute(now, fieldCenter);
+      if (state.discId === "crypto" && state.focusOrb) drawCryptoPairTetherLabel(width, height);
       const ordered = [...state.projected].sort((a, b) => b.z - a.z);
       /* Labels take the first candidate offset that does not sit on a label
          already drawn this frame: preferred side first, then the other side,
@@ -4353,6 +4479,12 @@
       const berth = stage && stage.berths.find(entry => entry.symbol === state.focus);
       if (berth && berth.npc) state.selected = nodeIndexByName.get(berth.npc.name) ?? state.selected;
       draw();
+    });
+    cryptoPairSelect.addEventListener("change", () => {
+      state.cryptoPairFocus = cryptoPairSelect.value;
+      persistLocal();
+      if (state.discId === "crypto" && !state.focusOrb) focusDiscOrb("crypto", { reason: "pair selector" });
+      else draw();
     });
     /* ── constellation carousel ─────────────────────────────────────────────
        Click an orb, step with the arrows, or slide the strip: each move reads

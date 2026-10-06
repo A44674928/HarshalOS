@@ -179,13 +179,23 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
     return Response.json({ success: false, message: "Unexpected route." }, { status: 404 });
   };
   const canvasCalls = [];
+  const canvasDraws = [];
   const gradient = { addColorStop() {} };
   const canvasContext = new Proxy({}, {
     get(target, key) {
       if (key === "createRadialGradient") return () => gradient;
       if (key === "measureText") return () => ({ width: 0 });
       if (key in target) return target[key];
-      return () => { canvasCalls.push(key); };
+      return (...args) => {
+        canvasCalls.push(key);
+        if (key === "stroke") canvasDraws.push({
+          method: key, strokeStyle: target.strokeStyle, lineWidth: target.lineWidth,
+          globalAlpha: target.globalAlpha, lineDash: target.lineDash
+        });
+        if (key === "fillText") canvasDraws.push({
+          method: key, text: String(args[0]), fillStyle: target.fillStyle, font: target.font
+        });
+      };
     },
     set(target, key, value) { target[key] = value; return true; }
   });
@@ -216,7 +226,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   });
   t.after(() => engine.destroy());
   return {
-    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls,
+    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls, canvasDraws,
     sessionId: window.localStorage.getItem("harshalos.good-intelligence.orb2.session.v1"),
     fieldCalls: () => calls.filter(call => call.url.includes("/api/good-intelligence/v1/orb2/field")),
     text: () => host.textContent
@@ -912,56 +922,110 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
   assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
 });
 
-test("Disc3 cross-quote pair activity is mirrored through inner and outer OCM orbs", async t => {
+test("Disc3 cross-pair tethers select the exact Kraken pair and encode confirmed candle volume and color", async t => {
   let fixtureWindow;
   const instrument = {
     symbol: "ADA", displaySymbol: "ADA/USD", name: "ADA", sector: "Cryptocurrency",
     assetClass: "crypto", rankingProvider: "Kraken", providerId: "ADA/USD", krakenPair: "ADA/USD",
     baseAsset: "ADA", quoteAsset: "USD", pairType: "usd"
   };
-  const pair = {
+  const adaPair = {
     symbol: "ADA-USDT", displaySymbol: "ADA/USDT", name: "ADA/USDT", sector: "Cryptocurrency pairs",
     assetClass: "crypto", rankingProvider: "Kraken", providerId: "ADA/USDT", krakenPair: "ADA/USDT",
     baseAsset: "ADA", quoteAsset: "USDT", pairType: "cross"
   };
-  const cryptoPayload = { success: true, instruments: [instrument], crossPairs: [pair], ranking: { provider: "Kraken", venue: "Kraken Spot" } };
-  const { window, host, engine, frames, providerCalls } = interactiveHarness(t, {
+  const xmrPair = {
+    symbol: "XMR-BTC", displaySymbol: "XMR/BTC", name: "XMR/BTC", sector: "Cryptocurrency pairs",
+    assetClass: "crypto", rankingProvider: "Kraken", providerId: "XMR/XBT", krakenPair: "XMR/XBT",
+    baseAsset: "XMR", quoteAsset: "BTC", pairType: "cross"
+  };
+  const cryptoPayload = { success: true, instruments: [instrument], crossPairs: [adaPair, xmrPair], ranking: { provider: "Kraken", venue: "Kraken Spot" } };
+  const { window, host, engine, frames, providerCalls, canvasDraws } = interactiveHarness(t, {
     tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER, cryptoPayload,
     fieldHandler: () => {
-      const observation = fieldRow(fixtureWindow, "ADA-USDT", {
+      const adaObservation = fieldRow(fixtureWindow, "ADA-USDT", {
         discId: "crypto", provider: "kraken", displaySymbol: "ADA/USDT", market: true, confirmed: true,
         krakenPair: "ADA/USDT", providerId: "ADA/USDT", baseAsset: "ADA", quoteAsset: "USDT",
         activityBar: { time: NOW - 86_400_000, open: 0.24, high: 0.27, low: 0.23, close: 0.25, volume: 88_000, confirmed: true },
         freshness: { status: "fresh" }
       });
+      const xmrObservation = fieldRow(fixtureWindow, "XMR-BTC", {
+        discId: "crypto", provider: "kraken", displaySymbol: "XMR/BTC", market: true, confirmed: true,
+        krakenPair: "XMR/XBT", providerId: "XMR/XBT", baseAsset: "XMR", quoteAsset: "BTC",
+        activityBar: { time: NOW - 86_400_000, open: 0.0042, high: 0.0043, low: 0.0040, close: 0.0041, volume: 12.345, confirmed: true },
+        freshness: { status: "fresh" }
+      });
       return Response.json({ success: true, data: fieldSnapshot(fixtureWindow, {
-        stockCount: 0, fxCount: 0, additionalRows: [observation],
+        stockCount: 0, fxCount: 0, additionalRows: [adaObservation, xmrObservation],
         discStatus: [{
-          id: "crypto", instruments: 2, assets: 1, pairs: 2, stored: 1, observed: 1, active: 1,
+          id: "crypto", instruments: 3, assets: 1, pairs: 2, stored: 2, observed: 2, active: 2,
           stale: 0, held: 0, pending: 1, covered: true, complete: false,
-          members: [{ symbol: "ADA-USDT", status: "active", provider: "kraken", freshness: "fresh" }]
+          members: [
+            { symbol: "ADA-USDT", status: "active", provider: "kraken", freshness: "fresh" },
+            { symbol: "XMR-BTC", status: "active", provider: "kraken", freshness: "fresh" }
+          ]
         }]
       }) });
     }
   });
   fixtureWindow = window;
   await flush();
+  const pairBar = host.querySelector("[data-gi-orb2-crypto-pair-bar]");
+  assert.equal(pairBar.hidden, true, "the Kraken pair selector stays scoped to Disc3");
   host.querySelector('[data-gi-orb2-orb="crypto"]').click();
   await flush();
   assert.equal(engine.state.discId, "crypto");
-  assert.deepEqual(engine.nodes.map(node => node.symbol), ["ADA", "USDT"], "the directly listed quote counterparty is drawn, not fabricated from a reciprocal pair");
+  assert.equal(pairBar.hidden, false, "the pair selector appears when Disc3 is selected");
+  assert.ok(engine.nodes.some(node => node.symbol === "XMR") && engine.nodes.some(node => node.symbol === "BTC"),
+    "the exact pair's two assets are drawn as the tether endpoints without synthesizing a reverse market");
+  const pairSelect = host.querySelector("[data-gi-orb2-crypto-pair]");
+  assert.equal(pairSelect.options.length, 2, "the toolbar exposes both directly listed cross-crypto pairs");
+  assert.equal(pairSelect.value, "XMR-BTC", "the example XMR/BTC pair is preferred when the Kraken ranking contains it");
+
   let guard = 0;
   while (frames.length && guard < 40) { frames.shift()(NOW); guard += 1; }
   await flush();
-  assert.deepEqual(Array.from(engine.state.cryptoTrafficEdges, edge => [edge.pair, edge.baseAsset, edge.quoteAsset, edge.active]), [["ADA-USDT", "ADA", "USDT", true]]);
+  assert.deepEqual(Array.from(engine.state.cryptoTrafficEdges, edge => [edge.pair, edge.baseAsset, edge.quoteAsset, edge.active]), [
+    ["ADA-USDT", "ADA", "USDT", true], ["XMR-BTC", "XMR", "BTC", true]
+  ]);
+  const selectedEdge = Array.from(engine.state.cryptoTrafficEdges).find(edge => edge.pair === "XMR-BTC");
+  assert.equal(selectedEdge.selected, true);
+  assert.equal(selectedEdge.krakenPair, "XMR/XBT", "the canonical BTC label retains Kraken's exact XBT pair identity");
+  assert.equal(selectedEdge.volume, 12.345);
+  assert.equal(selectedEdge.volumeUnit, "XMR", "daily OHLCV volume stays denominated in the pair's base asset");
+  assert.equal(selectedEdge.candleDirection, "down");
+  assert.equal(selectedEdge.candleColor, "#ff718b");
   const packets = Array.from(engine.state.cryptoTrafficPackets);
-  assert.equal(packets.length, 4, "the confirmed volume bar creates two directions on each visual layer");
-  assert.deepEqual(packets.map(packet => `${packet.layer}:${packet.from}>${packet.to}`).sort(), [
-    "inner:ADA>USDT", "inner:USDT>ADA", "outer:ADA>USDT", "outer:USDT>ADA"
-  ].sort());
+  assert.equal(packets.length, 8, "each confirmed pair bar creates mirrored display markers on both visual layers");
   assert.ok(packets.every(packet => Number.isFinite(packet.x) && Number.isFinite(packet.y)));
+  const readout = host.querySelector("[data-gi-orb2-crypto-pair-readout]");
+  assert.match(readout.textContent, /KRAKEN XMR\/BTC/);
+  assert.match(readout.textContent, /DOWN candle \(close below open\)/);
+  assert.match(readout.textContent, /12\.345 XMR base-asset volume/);
+  assert.match(readout.textContent, /not trade-side flow, transfers, or OCM messages/);
+  assert.ok(canvasDraws.some(draw => draw.method === "stroke" && draw.strokeStyle === selectedEdge.candleColor && draw.lineWidth >= 3),
+    "the selected tether is drawn brightly in the confirmed candle's color");
+  assert.ok(canvasDraws.some(draw => draw.method === "fillText" && draw.text.startsWith("XMR/BTC · ") && draw.text.includes("XMR")),
+    "the selected tether label names the exact pair and its base-asset volume");
+
+  pairSelect.value = "ADA-USDT";
+  pairSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await flush();
+  guard = 0;
+  while (frames.length && guard < 40) { frames.shift()(NOW + 100); guard += 1; }
+  await flush();
+  assert.equal(engine.state.cryptoPairFocus, "ADA-USDT", "the focused tether can be changed from the visible pair selector");
+  const adaEdge = Array.from(engine.state.cryptoTrafficEdges).find(edge => edge.pair === "ADA-USDT");
+  assert.equal(adaEdge.selected, true);
+  assert.equal(adaEdge.candleDirection, "up");
+  assert.equal(adaEdge.candleColor, "#37e3a1");
+  assert.match(readout.textContent, /UP candle \(close above open\)/);
+  assert.ok(canvasDraws.some(draw => draw.method === "stroke" && draw.strokeStyle === adaEdge.candleColor && draw.lineWidth >= 3),
+    "changing the pair updates the bright tether color to the selected pair's candle direction");
+
   const note = host.querySelector("[data-gi-orb2-ocm]");
-  assert.match(note.textContent, /fresh \/ 1 confirmed-volume cross-quote pair/);
+  assert.match(note.textContent, /fresh \/ 2 confirmed-volume cross-quote pairs/);
+  assert.match(note.textContent, /selected tether color = confirmed candle close versus open/);
   assert.match(note.textContent, /inner OCM orb and outer Disc orb/);
   assert.match(note.textContent, /aggregate OHLCV has no trade-side direction/);
   assert.match(note.textContent, /not observed flow, trades, or transfers/);
