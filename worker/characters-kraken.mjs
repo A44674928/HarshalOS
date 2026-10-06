@@ -50,19 +50,27 @@ function readNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/* Strictly match the ranked instrument; XBT/XDG aliases remain Kraken's own
-   provider identity while the public Characters symbol is canonicalized. */
+/* Strictly match the ranked pair. Kraken aliases remain the provider identity;
+   public node symbols canonicalize each leg without inventing a reverse market. */
 function normalizeKrakenInstrument(value) {
   if (!isRecord(value) || value.rankingProvider !== "Kraken" || value.assetClass !== "crypto" || value.discId !== "crypto") return null;
   const symbol = typeof value.symbol === "string" ? value.symbol.trim().toUpperCase() : "";
   const pair = typeof value.krakenPair === "string" ? value.krakenPair.trim().toUpperCase() : "";
   const providerId = typeof value.providerId === "string" ? value.providerId.trim().toUpperCase() : "";
-  const match = /^([A-Z0-9]{2,12})\/USD$/.exec(pair);
-  if (!/^[A-Z0-9]{2,12}$/.test(symbol) || !match || providerId !== pair) return null;
+  const match = /^([A-Z0-9]{2,12})\/([A-Z0-9]{2,12})$/.exec(pair);
+  if (!/^[A-Z0-9][A-Z0-9-]{0,25}$/.test(symbol) || !match || providerId !== pair) return null;
   const providerBase = match[1];
-  const expectedSymbol = providerBase === "XBT" ? "BTC" : providerBase === "XDG" ? "DOGE" : providerBase;
-  if (symbol !== expectedSymbol) return null;
-  return Object.freeze({ symbol, providerBase, pair, queryPair: `${providerBase}USD` });
+  const providerQuote = match[2];
+  const canonicalBase = providerBase === "XBT" ? "BTC" : providerBase === "XDG" ? "DOGE" : providerBase;
+  const canonicalQuote = providerQuote === "XBT" ? "BTC" : providerQuote === "XDG" ? "DOGE" : providerQuote;
+  const baseAsset = value.baseAsset === undefined ? canonicalBase : String(value.baseAsset).trim().toUpperCase();
+  const quoteAsset = value.quoteAsset === undefined ? canonicalQuote : String(value.quoteAsset).trim().toUpperCase();
+  const expectedSymbol = canonicalQuote === "USD" ? canonicalBase : `${canonicalBase}-${canonicalQuote}`;
+  if (symbol !== expectedSymbol || baseAsset !== canonicalBase || quoteAsset !== canonicalQuote) return null;
+  return Object.freeze({
+    symbol, providerBase, providerQuote, baseAsset, quoteAsset, pair,
+    queryPair: `${providerBase}${providerQuote}`
+  });
 }
 
 function validOhlc({ time, open, high, low, close }) {
@@ -95,7 +103,7 @@ function responseRows(result, instrument) {
   const expected = new Set([
     normalizedPairKey(instrument.pair),
     normalizedPairKey(instrument.queryPair),
-    normalizedPairKey(`X${instrument.providerBase}ZUSD`)
+    normalizedPairKey(`X${instrument.providerBase}Z${instrument.providerQuote}`)
   ]);
   const matched = Object.entries(result).filter(([key, value]) =>
     key !== "last" && Array.isArray(value) && expected.has(normalizedPairKey(key)));
@@ -122,7 +130,7 @@ function normalizeKrakenOhlc(payload, instrument, { at = Date.now() } = {}) {
     capturedAt: current,
     timeframe: "1d",
     dataShape: bars.some(bar => Number.isFinite(bar.volume)) ? "ohlcv" : "ohlc",
-    quoteCurrency: "USD",
+    quoteCurrency: instrument.quoteAsset,
     synthetic: false,
     source: `Kraken Spot public OHLC · ${instrument.pair} · 1d bars`,
     providerId: instrument.pair,
@@ -153,7 +161,7 @@ function sanitizeCachedPacket(value, instrument) {
   return Object.freeze({
     schema: "gi-market-context-v1", symbol: instrument.symbol, capturedAt: value.capturedAt, timeframe: "1d",
     dataShape: bars.some(bar => Number.isFinite(bar.volume)) ? "ohlcv" : "ohlc",
-    quoteCurrency: "USD", synthetic: false,
+    quoteCurrency: instrument.quoteAsset, synthetic: false,
     source: `Kraken Spot public OHLC · ${instrument.pair} · 1d bars`,
     providerId: instrument.pair,
     bars: Object.freeze(bars)
@@ -207,7 +215,7 @@ function makeUrl(instrument) {
   return url;
 }
 
-/** Fetch (or read) one validated Kraken USD pair's daily OHLC packet. */
+/** Fetch (or read) one validated Kraken-ranked pair's daily OHLC packet. */
 export async function getKrakenDailyMarketContext({
   instrument: rawInstrument,
   db,
@@ -218,7 +226,7 @@ export async function getKrakenDailyMarketContext({
 } = {}) {
   const current = Number.isFinite(Number(now)) && Number(now) >= 0 ? Math.floor(Number(now)) : Date.now();
   const instrument = normalizeKrakenInstrument(rawInstrument);
-  if (!instrument) return failure("kraken-instrument-refused", "This pair does not match an exact Kraken-ranked USD Spot identity.");
+  if (!instrument) return failure("kraken-instrument-refused", "This pair does not match an exact Kraken-ranked Spot identity.");
   if (!db || typeof db.prepare !== "function") {
     return failure("kraken-bar-cache-unavailable", "Bind COMMUNITY_DB and apply migration 0012 before loading Kraken daily bars.");
   }

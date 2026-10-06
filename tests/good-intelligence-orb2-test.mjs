@@ -61,22 +61,30 @@ function marketSummary(interval = "1d", provider = "massive") {
 function fieldRow(window, symbol, options = {}) {
   const { discId = "stocks", interval = "1d", confirmed = true, market = true, name = symbol, sector = "Technology & platforms" } = options;
   const provider = options.provider || (discId === "stocks" ? "tickerbot" : discId === "crypto" ? "kraken" : "massive");
+  const marketData = market ? marketSummary(interval, provider) : null;
+  if (marketData && options.activityBar) marketData.activityBar = { ...options.activityBar };
   return {
-    schema: "gi-orb2-field-observation-v1", symbol, displaySymbol: symbol, name, sector, discId, provider, interval,
-    status: market ? "bars" : "unavailable", reason: "server-sweep", code: "", message: "",
-    beatId: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", observedAt: NOW, barTime: NOW, confirmed,
-    market: market ? marketSummary(interval, provider) : null,
+    schema: "gi-orb2-field-observation-v1", symbol, displaySymbol: options.displaySymbol || symbol, name, sector, discId, provider, interval,
+    ...(options.krakenPair ? {
+      krakenPair: options.krakenPair, providerId: options.providerId || options.krakenPair,
+      rankingProvider: "Kraken", baseAsset: options.baseAsset, quoteAsset: options.quoteAsset
+    } : {}),
+    status: market ? "bars" : "unavailable", reason: "server-sweep", code: options.code || "", message: options.message || "",
+    beatId: options.beatId || "3f2504e0-4f89-41d3-9a0c-0305e82c3301", observedAt: options.observedAt || NOW, barTime: NOW, confirmed,
+    market: marketData,
     motion: window.CharactersBeat.motion(null, { bearingBase: 0 }),
+    ...(options.freshness ? { freshness: options.freshness } : {}),
     beatTypes: market ? ["observation", "message", "trade", "authorization", "permission"] : ["observation", "message"]
   };
 }
 
-function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", types = ["observation"] } = {}) {
+function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", types = ["observation"], additionalRows = [], discStatus = null } = {}) {
   const fxSymbols = Array.from(window.GoodIntelligenceDxy.COMPONENTS, component => component.symbol);
   const stocks = Array.from(window.GoodIntelligenceDxy.buildFiringOrder(MARKET_ROSTER), asset => asset.symbol);
   const observations = [
     ...fxSymbols.slice(0, fxCount).map(symbol => fieldRow(window, symbol, { discId: "fx", provider: "massive" })),
-    ...stocks.slice(0, stockCount).map(symbol => fieldRow(window, symbol, { discId: "stocks", provider: "tickerbot" }))
+    ...stocks.slice(0, stockCount).map(symbol => fieldRow(window, symbol, { discId: "stocks", provider: "tickerbot" })),
+    ...additionalRows
   ];
   const counts = { observation: observations.length, message: observations.length, trade: observations.length, authorization: observations.length, permission: observations.length };
   return {
@@ -93,14 +101,15 @@ function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", 
       tickerbot: { callsToday: 40, callsThisMonth: 40, monthlyLimit: 10_000, reserveCalls: 1500, exhausted: false, ledger: "ready", note: "" },
       queue: { pending: 0, claiming: 0, exhausted: 0 },
       warmBurst: { callsPerBurst: 156, perTick: 24, bursts: 1, deployWarmAt: NOW, manualWarmAt: null, coldAfterMs: 21_600_000 },
-      counts: { stored: observations.length, observed: observations.length, confirmed: observations.length, held: 0, reviewedInstruments: 90 }
+      counts: { stored: observations.length, observed: observations.length, confirmed: observations.length, held: 0, reviewedInstruments: 90 },
+      ...(Array.isArray(discStatus) ? { discs: discStatus } : {})
     },
     dxy: { ok: true, status: "ready", value: 99.123, asOf: NOW, missing: [], refreshSymbol: null },
     observations
   };
 }
 
-function interactiveHarness(t, { historyStore = new Map(), sessionId, preferences, tickers = null, watchlist = MARKET_ROSTER, timeframe = "1d", clock = null, fieldHandler = null } = {}) {
+function interactiveHarness(t, { historyStore = new Map(), sessionId, preferences, tickers = null, watchlist = MARKET_ROSTER, timeframe = "1d", clock = null, fieldHandler = null, cryptoPayload = null } = {}) {
   const window = new Window({ url: "https://os.example/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
   if (clock) window.Date.now = () => clock.now;
   t.after(() => window.happyDOM.abort());
@@ -148,7 +157,20 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
       return Response.json({ success: true, schema: "gi-orb2-beat-history-v1", beats: historyStore.get(requestSession) || [] });
     }
     if (path.includes("/api/characters/v1/discs?disc=crypto")) {
-      return Response.json({ success: true, instruments: [{ symbol: "BTC", displaySymbol: "BTC/USD", name: "BTC", sector: "Cryptocurrency", assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USD", krakenPair: "BTC/USD" }], ranking: { provider: "Kraken", venue: "Kraken Spot" } });
+      return Response.json(cryptoPayload || {
+        success: true,
+        instruments: [{
+          symbol: "BTC", displaySymbol: "BTC/USD", name: "BTC", sector: "Cryptocurrency",
+          assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USD", krakenPair: "BTC/USD",
+          baseAsset: "BTC", quoteAsset: "USD", pairType: "usd"
+        }],
+        crossPairs: [{
+          symbol: "BTC-USDT", displaySymbol: "BTC/USDT", name: "BTC/USDT", sector: "Cryptocurrency pairs",
+          assetClass: "crypto", rankingProvider: "Kraken", providerId: "BTC/USDT", krakenPair: "BTC/USDT",
+          baseAsset: "BTC", quoteAsset: "USDT", pairType: "cross"
+        }],
+        ranking: { provider: "Kraken", venue: "Kraken Spot" }
+      });
     }
     if (path.includes("/api/characters/v1/beat")) {
       providerCalls.push({ url: path, options });
@@ -748,20 +770,56 @@ test("the strip carries one chip per Disc with its own stored status, and an emp
   assert.ok(chips.every(chip => chip.getAttribute("role") === "tab"), "the strip is a tab list of Disc orbs");
   assert.equal(chips.filter(chip => chip.getAttribute("aria-selected") === "true").length, 1, "exactly one Disc orb is current");
   const [stocksChip, fxChip, cryptoChip] = chips;
-  assert.match(stocksChip.textContent, /52 of 52 stored/, "a populated Disc reports its own stored rows");
+  assert.match(stocksChip.textContent, /52\/52 active/, "a populated Disc reports fresh active market data");
   assert.equal(stocksChip.classList.contains("is-empty"), false);
-  assert.match(fxChip.textContent, /6 of 6 stored/, "the fx orb reports its own six stored closes");
+  assert.match(fxChip.textContent, /6\/23 active/, "the FX count uses the full reviewed roster denominator");
   assert.match(cryptoChip.textContent, /awaiting first beat/, "a Disc with nothing stored is labeled, not filled with another Disc's rows");
   assert.equal(cryptoChip.classList.contains("is-empty"), true, "an empty Disc orb is drawn as an empty marker");
   const note = host.querySelector("[data-gi-orb2-constellation-note]");
   assert.match(note.textContent, /CONSTELLATION · 5 Disc orbs/);
-  assert.match(note.textContent, /awaiting first beat on 3\. Crypto, 4\. Commodities, 5\. Indices/);
+  assert.match(note.textContent, /awaiting first active beat on 3\. Crypto, 4\. Commodities, 5\. Indices/);
   assert.match(note.textContent, /selected Disc1 · The 52 Cards/);
   assert.doesNotMatch(note.textContent, /every Disc orb is reporting/, "the summary never implies an empty Disc has data");
   const frame = frames.shift();
   if (typeof frame === "function") frame(120);
   assert.equal(engine.state.projectedOrbs.length, 5, "five Disc orbs are projected for the pointer");
   assert.ok(canvasCalls.includes("arc"), "the orbs are drawn as circles on the canvas");
+});
+
+test("held commodity and index rows are not labelled active and carry no simulated OCM traffic", async t => {
+  let fixtureWindow;
+  const { window, host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
+    fieldHandler: () => {
+      const commodities = fixtureWindow.CharactersDiscCatalog.commodities.map(entry => fieldRow(fixtureWindow, entry.symbol, {
+        discId: "commodities", provider: "massive", market: false, code: "massive-upstream", message: "Provider did not return a daily bar."
+      }));
+      const indices = fixtureWindow.CharactersDiscCatalog.indices.map(entry => fieldRow(fixtureWindow, entry.symbol, {
+        discId: "indices", provider: "massive", market: false, code: "massive-upstream", message: "Provider did not return a daily bar."
+      }));
+      return Response.json({ success: true, data: fieldSnapshot(fixtureWindow, {
+        stockCount: 0, fxCount: 0, additionalRows: [...commodities, ...indices],
+        discStatus: [
+          { id: "commodities", instruments: 10, stored: 10, observed: 0, active: 0, stale: 0, held: 10, pending: 0, covered: false, members: commodities.map(row => ({ symbol: row.symbol, status: "held", code: row.code, message: row.message })) },
+          { id: "indices", instruments: 5, stored: 5, observed: 0, active: 0, stale: 0, held: 5, pending: 0, covered: false, members: indices.map(row => ({ symbol: row.symbol, status: "held", code: row.code, message: row.message })) }
+        ]
+      }) });
+    }
+  });
+  fixtureWindow = window;
+  await flush();
+  const commodityChip = host.querySelector('[data-gi-orb2-orb="commodities"]');
+  const indexChip = host.querySelector('[data-gi-orb2-orb="indices"]');
+  assert.match(commodityChip.textContent, /0\/10 active · 10 held/);
+  assert.match(indexChip.textContent, /0\/5 active · 5 held/);
+  assert.equal(commodityChip.classList.contains("is-empty"), true);
+  assert.equal(indexChip.classList.contains("is-empty"), true);
+  let guard = 0;
+  while (frames.length && guard < 40) { frames.shift()(NOW); guard += 1; }
+  await flush();
+  assert.equal(engine.state.trafficPackets.length, 0, "stored unavailable rows do not create simulated packets");
+  assert.equal(engine.state.ocmLanes, 0);
+  assert.match(host.querySelector("[data-gi-orb2-ocm]").textContent, /no fresh market observations to carry/);
 });
 
 test("the carousel walks to the next Disc orb with a step, a click, a slide, or an arrow key — without a provider call", async t => {
@@ -837,9 +895,65 @@ test("the drawn field follows the Disc orb instead of re-drawing the 52-card dec
   host.querySelector('[data-gi-orb2-orb="crypto"]').click();
   await flush();
   assert.equal(engine.state.discId, "crypto");
-  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTC"],
-    "the crypto orb draws exactly the live ranked instruments the route returned, nothing borrowed");
+  assert.deepEqual(engine.nodes.map(node => node.symbol), ["BTC", "USDT"],
+    "the crypto orb draws the ranked asset plus the exact pair's quote counterparty");
   assert.equal(engine.state.focusOrb, true, "walking to an orb focuses its camera");
+});
+
+test("Disc3 cross-quote pair activity is mirrored through inner and outer OCM orbs", async t => {
+  let fixtureWindow;
+  const instrument = {
+    symbol: "ADA", displaySymbol: "ADA/USD", name: "ADA", sector: "Cryptocurrency",
+    assetClass: "crypto", rankingProvider: "Kraken", providerId: "ADA/USD", krakenPair: "ADA/USD",
+    baseAsset: "ADA", quoteAsset: "USD", pairType: "usd"
+  };
+  const pair = {
+    symbol: "ADA-USDT", displaySymbol: "ADA/USDT", name: "ADA/USDT", sector: "Cryptocurrency pairs",
+    assetClass: "crypto", rankingProvider: "Kraken", providerId: "ADA/USDT", krakenPair: "ADA/USDT",
+    baseAsset: "ADA", quoteAsset: "USDT", pairType: "cross"
+  };
+  const cryptoPayload = { success: true, instruments: [instrument], crossPairs: [pair], ranking: { provider: "Kraken", venue: "Kraken Spot" } };
+  const { window, host, engine, frames, providerCalls } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER, cryptoPayload,
+    fieldHandler: () => {
+      const observation = fieldRow(fixtureWindow, "ADA-USDT", {
+        discId: "crypto", provider: "kraken", displaySymbol: "ADA/USDT", market: true, confirmed: true,
+        krakenPair: "ADA/USDT", providerId: "ADA/USDT", baseAsset: "ADA", quoteAsset: "USDT",
+        activityBar: { time: NOW - 86_400_000, open: 0.24, high: 0.27, low: 0.23, close: 0.25, volume: 88_000, confirmed: true },
+        freshness: { status: "fresh" }
+      });
+      return Response.json({ success: true, data: fieldSnapshot(fixtureWindow, {
+        stockCount: 0, fxCount: 0, additionalRows: [observation],
+        discStatus: [{
+          id: "crypto", instruments: 2, assets: 1, pairs: 2, stored: 1, observed: 1, active: 1,
+          stale: 0, held: 0, pending: 1, covered: true, complete: false,
+          members: [{ symbol: "ADA-USDT", status: "active", provider: "kraken", freshness: "fresh" }]
+        }]
+      }) });
+    }
+  });
+  fixtureWindow = window;
+  await flush();
+  host.querySelector('[data-gi-orb2-orb="crypto"]').click();
+  await flush();
+  assert.equal(engine.state.discId, "crypto");
+  assert.deepEqual(engine.nodes.map(node => node.symbol), ["ADA", "USDT"], "the directly listed quote counterparty is drawn, not fabricated from a reciprocal pair");
+  let guard = 0;
+  while (frames.length && guard < 40) { frames.shift()(NOW); guard += 1; }
+  await flush();
+  assert.deepEqual(Array.from(engine.state.cryptoTrafficEdges, edge => [edge.pair, edge.baseAsset, edge.quoteAsset, edge.active]), [["ADA-USDT", "ADA", "USDT", true]]);
+  const packets = Array.from(engine.state.cryptoTrafficPackets);
+  assert.equal(packets.length, 4, "the confirmed volume bar creates two directions on each visual layer");
+  assert.deepEqual(packets.map(packet => `${packet.layer}:${packet.from}>${packet.to}`).sort(), [
+    "inner:ADA>USDT", "inner:USDT>ADA", "outer:ADA>USDT", "outer:USDT>ADA"
+  ].sort());
+  assert.ok(packets.every(packet => Number.isFinite(packet.x) && Number.isFinite(packet.y)));
+  const note = host.querySelector("[data-gi-orb2-ocm]");
+  assert.match(note.textContent, /fresh \/ 1 confirmed-volume cross-quote pair/);
+  assert.match(note.textContent, /inner OCM orb and outer Disc orb/);
+  assert.match(note.textContent, /aggregate OHLCV has no trade-side direction/);
+  assert.match(note.textContent, /not observed flow, trades, or transfers/);
+  assert.equal(providerCalls.length, 0, "the pair visualization reads only stored Worker observations");
 });
 
 /* ── OCM traffic simulation ──────────────────────────────────────────────── */
@@ -896,6 +1010,6 @@ test("an orb awaiting its first beat carries no simulated OCM traffic", async t 
   assert.equal(engine.state.trafficPackets.length, 0, "no stored rows across the constellation means every lane is idle");
   assert.equal(engine.state.ocmLanes, 0);
   const note = host.querySelector("[data-gi-orb2-ocm]");
-  assert.match(note.textContent, /every lane idle, no stored rows to carry/);
+  assert.match(note.textContent, /every lane idle.*no fresh market observations to carry/);
   assert.doesNotMatch(note.textContent, /orb transmitting/);
 });

@@ -29,7 +29,7 @@ after(() => {
 });
 
 function tickerPayload() {
-  const symbols = ["BTC", "ETH", ...Array.from({ length: 50 }, (_, index) => `C${String(index).padStart(3, "0")}`)];
+  const symbols = ["BTC", "ETH", "ADA", ...Array.from({ length: 49 }, (_, index) => `C${String(index).padStart(3, "0")}`)];
   const result = Object.fromEntries(symbols.map((symbol, index) => {
     const volume = 100_000 - index;
     const vwap = 50_000 - index * 100;
@@ -39,8 +39,10 @@ function tickerPayload() {
       p: [String(vwap + 10), String(vwap)]
     }];
   }));
-  // A documented assetVersion=1 response uses display names with slash pairs;
-  // a fiat base is ignored rather than treated as crypto to pad the roster.
+  // A directly listed cross-crypto pair is retained separately from the USD
+  // asset ranking; no reciprocal market is synthesized.
+  result["ADA/USDT"] = { c: ["0.25"], v: ["90000", "80000"], p: ["0.24", "0.25"] };
+  // A fiat base is ignored rather than treated as crypto to pad the roster.
   result["USD/USD"] = { c: ["1"], v: ["100000000", "100000000"], p: ["1", "1"] };
   return { error: [], result };
 }
@@ -91,6 +93,16 @@ test("Characters Disc3 ranks the Kraken rolling-24h USD roster from assetVersion
   assert.equal(payload.instruments[0].krakenPair, "BTC/USD");
   assert.equal(payload.instruments[0].marketCapUsd, null);
   assert.match(payload.instruments[0].audit.join(" "), /missing-market-cap/);
+  assert.equal(payload.crossPairs.length, 1, "the directly listed ADA/USDT quote pair is exposed separately");
+  assert.deepEqual({
+    symbol: payload.crossPairs[0].symbol, displaySymbol: payload.crossPairs[0].displaySymbol,
+    baseAsset: payload.crossPairs[0].baseAsset, quoteAsset: payload.crossPairs[0].quoteAsset,
+    krakenPair: payload.crossPairs[0].krakenPair, providerId: payload.crossPairs[0].providerId
+  }, {
+    symbol: "ADA-USDT", displaySymbol: "ADA/USDT", baseAsset: "ADA", quoteAsset: "USDT",
+    krakenPair: "ADA/USDT", providerId: "ADA/USDT"
+  });
+  assert.doesNotMatch(JSON.stringify(payload.crossPairs), /USDT\/ADA/, "the adapter does not invent a reverse quote market");
   assert.equal(fixture.sql.prepare("SELECT attempted_calls AS calls FROM kraken_public_call_ledger").get().calls, 1);
 });
 
@@ -173,6 +185,33 @@ test("the Kraken bar adapter refuses a pair whose ranking identity does not matc
   assert.equal(result.ok, false);
   assert.equal(result.code, "kraken-instrument-refused");
   assert.equal(calls, 0, "an identity mismatch is rejected before either the ledger or network is used");
+});
+
+test("the Kraken bar adapter preserves the directly listed cross-quote identity", async () => {
+  reset();
+  resetKrakenDb();
+  let requested;
+  const result = await getKrakenDailyMarketContext({
+    instrument: {
+      symbol: "ADA-USDT", displaySymbol: "ADA/USDT", assetClass: "crypto", discId: "crypto",
+      rankingProvider: "Kraken", providerId: "ADA/USDT", krakenPair: "ADA/USDT",
+      baseAsset: "ADA", quoteAsset: "USDT", pairType: "cross"
+    },
+    db: env.COMMUNITY_DB,
+    now: NOW,
+    fetcher: async input => {
+      requested = new URL(input);
+      return Response.json(ohlcPayload("ADA/USDT"));
+    },
+    beforeFetch: async () => ({ ok: true })
+  });
+  assert.equal(result.ok, true);
+  assert.equal(requested.searchParams.get("pair"), "ADAUSDT");
+  assert.equal(result.packet.symbol, "ADA-USDT");
+  assert.equal(result.packet.providerId, "ADA/USDT");
+  assert.equal(result.packet.quoteCurrency, "USDT");
+  assert.match(result.packet.source, /ADA\/USDT/);
+  assert.equal(fixture.sql.prepare("SELECT COUNT(*) AS n FROM characters_kraken_daily_bar_cache WHERE pair='ADA/USDT'").get().n, 1);
 });
 
 test("Characters rejects Massive, Tickerbot, and unknown providers for Disc3", async () => {

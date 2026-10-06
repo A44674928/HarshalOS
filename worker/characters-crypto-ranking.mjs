@@ -1,11 +1,12 @@
-/* Kraken-only Disc3 constituent ranking.
+/* Kraken-only Disc3 constituent and cross-pair data.
  *
  * One unauthenticated public Spot Ticker request (pair omitted, assetVersion=1)
- * supplies Kraken's current ticker snapshot. We retain up to 52 USD-quoted Spot
- * pairs and rank by Kraken's rolling-24-hour base volume v[1] × VWAP p[1]. This
- * is venue-specific and is not Massive's previous-UTC-day grouped ranking.
- * Daily per-pair bars use the separate fixed-path OHLC adapter in
- * characters-kraken.mjs. Missing fields are never borrowed or inferred.
+ * supplies Kraken's current ticker snapshot. The primary roster retains up to
+ * 52 USD-quoted Spot assets ranked by Kraken's rolling-24-hour base volume v[1]
+ * × VWAP p[1]. Separately, up to 52 directly listed cross-crypto pairs touching
+ * that roster are preserved with their exact base/quote direction. No quote FX
+ * or reverse market is inferred. Daily per-pair bars use the separate fixed-path
+ * OHLC adapter in characters-kraken.mjs; missing fields are never borrowed.
  */
 
 import { claimKrakenCall } from "./kraken-call-ledger.mjs";
@@ -14,6 +15,7 @@ export const KRAKEN_TICKER_PATH = "/0/public/Ticker";
 export const CHARACTERS_CRYPTO_RANKING_TTL_MS = 24 * 60 * 60_000;
 export const CHARACTERS_CRYPTO_RANKING_RETRY_MS = 15 * 60_000;
 export const CHARACTERS_CRYPTO_RANKING_SIZE = 52;
+export const CHARACTERS_CRYPTO_CROSS_PAIR_SIZE = 52;
 export const KRAKEN_PUBLIC_ORIGIN = "https://api.kraken.com";
 const FETCH_TIMEOUT_MS = 8_000;
 const CACHE_SELECT = `SELECT ranking_json, fetched_at, expires_at, last_attempt_at
@@ -63,23 +65,49 @@ function tickerArray(value, minimumLength) {
   return result;
 }
 
-/** Parse a Kraken Ticker payload without inferring pair aliases or quote FX. */
+/** Parse Kraken's Ticker payload without inferring pair aliases or quote FX. */
 function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
   if (!isRecord(payload) || !isRecord(payload.result) || !Array.isArray(payload.error) || payload.error.length > 0) return null;
   const candidatesBySymbol = new Map();
+  const crossCandidatesBySymbol = new Map();
   let missingVolumeCount = 0;
   let missingVwapCount = 0;
+  let missingCrossVolumeCount = 0;
+  let missingCrossVwapCount = 0;
   let nonUsdPairCount = 0;
   for (const [rawPair, row] of Object.entries(payload.result)) {
     if (rawPair === "last" || !isRecord(row)) continue;
     const pair = rawPair.trim().toUpperCase();
     const match = /^([A-Z0-9]{2,12})\/([A-Z0-9]{2,12})$/.exec(pair);
     if (!match) continue;
-    const [, providerBase, quote] = match;
-    if (quote !== "USD") {
+    const [, providerBase, providerQuote] = match;
+    if (providerQuote !== "USD") {
       nonUsdPairCount += 1;
+      const baseAsset = canonicalBase(providerBase);
+      const quoteAsset = canonicalBase(providerQuote);
+      if (fiatSymbols.has(providerBase) || fiatSymbols.has(providerQuote) ||
+          !/^[A-Z0-9]{2,12}$/.test(baseAsset) || !/^[A-Z0-9]{2,12}$/.test(quoteAsset) || baseAsset === quoteAsset) continue;
+      const volumes = tickerArray(row.v, 2);
+      const vwaps = tickerArray(row.p, 2);
+      const closes = tickerArray(row.c, 1);
+      const baseVolume24h = volumes ? volumes[1] : null;
+      const vwap24hQuote = vwaps ? vwaps[1] : null;
+      if (!finitePositive(baseVolume24h)) { missingCrossVolumeCount += 1; continue; }
+      if (!finitePositive(vwap24hQuote)) { missingCrossVwapCount += 1; continue; }
+      const quoteVolume24h = baseVolume24h * vwap24hQuote;
+      if (!finitePositive(quoteVolume24h)) continue;
+      const symbol = `${baseAsset}-${quoteAsset}`;
+      const previous = crossCandidatesBySymbol.get(symbol);
+      if (!previous || quoteVolume24h > previous.quoteVolume24h) {
+        crossCandidatesBySymbol.set(symbol, {
+          symbol, baseAsset, quoteAsset, providerBase, providerQuote, krakenPair: pair,
+          baseVolume24h, vwap24hQuote, quoteVolume24h,
+          currentPriceQuote: closes && finitePositive(closes[0]) ? closes[0] : null
+        });
+      }
       continue;
     }
+
     const symbol = canonicalBase(providerBase);
     if (!/^[A-Z0-9]{2,12}$/.test(symbol) || fiatSymbols.has(providerBase) || fiatSymbols.has(symbol)) continue;
     const volumes = tickerArray(row.v, 2);
@@ -95,13 +123,7 @@ function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
     const previous = candidatesBySymbol.get(symbol);
     if (!previous || volumeUsd > previous.volumeUsd) {
       candidatesBySymbol.set(symbol, {
-        symbol,
-        providerBase,
-        krakenPair: pair,
-        baseVolume24h,
-        vwap24hUsd,
-        volumeUsd,
-        currentPriceUsd
+        symbol, providerBase, krakenPair: pair, baseVolume24h, vwap24hUsd, volumeUsd, currentPriceUsd
       });
     }
   }
@@ -124,6 +146,9 @@ function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
       discId: "crypto",
       dataShape: "ohlcv",
       quoteCurrency: "USD",
+      baseAsset: entry.symbol,
+      quoteAsset: "USD",
+      pairType: "usd",
       rankingProvider: "Kraken",
       providerId: entry.krakenPair,
       krakenPair: entry.krakenPair,
@@ -138,29 +163,74 @@ function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
       audit: Object.freeze(audit)
     });
   });
+  const rankedSymbols = new Set(instruments.map(instrument => instrument.symbol));
+  const rankedPosition = new Map(instruments.map(instrument => [instrument.symbol, instrument.rank]));
+  const quotePriority = quote => {
+    const order = ["USDT", "USDC", "USDE", "DAI", "USDS", "USDD", "FDUSD", "BTC", "ETH"];
+    const index = order.indexOf(quote);
+    return index < 0 ? order.length : index;
+  };
+  const linkedCrossPairs = [...crossCandidatesBySymbol.values()]
+    .filter(entry => rankedSymbols.has(entry.baseAsset) || rankedSymbols.has(entry.quoteAsset))
+    .sort((left, right) => quotePriority(left.quoteAsset) - quotePriority(right.quoteAsset) ||
+      Math.min(rankedPosition.get(left.baseAsset) || Infinity, rankedPosition.get(left.quoteAsset) || Infinity) -
+        Math.min(rankedPosition.get(right.baseAsset) || Infinity, rankedPosition.get(right.quoteAsset) || Infinity) ||
+      right.quoteVolume24h - left.quoteVolume24h || left.symbol.localeCompare(right.symbol))
+    .slice(0, CHARACTERS_CRYPTO_CROSS_PAIR_SIZE);
+  const crossPairs = linkedCrossPairs.map((entry, index) => Object.freeze({
+    symbol: entry.symbol,
+    displaySymbol: `${entry.baseAsset}/${entry.quoteAsset}`,
+    name: `${entry.baseAsset}/${entry.quoteAsset}`,
+    sector: "Cryptocurrency pairs",
+    assetClass: "crypto",
+    discId: "crypto",
+    dataShape: "ohlcv",
+    quoteCurrency: entry.quoteAsset,
+    baseAsset: entry.baseAsset,
+    quoteAsset: entry.quoteAsset,
+    pairType: "cross",
+    rankingProvider: "Kraken",
+    providerId: entry.krakenPair,
+    krakenPair: entry.krakenPair,
+    providerBase: entry.providerBase,
+    providerQuote: entry.providerQuote,
+    rank: index + 1,
+    providerRank: index + 1,
+    baseVolume24h: entry.baseVolume24h,
+    vwap24hQuote: entry.vwap24hQuote,
+    quoteVolume24h: entry.quoteVolume24h,
+    currentPriceQuote: entry.currentPriceQuote,
+    marketCapUsd: null,
+    audit: Object.freeze(["cross-quote-pair", "missing-market-cap"])
+  }));
   const stablecoinCandidates = instruments.filter(instrument => instrument.audit.includes("stablecoin-candidate"))
     .map(instrument => ({ rank: instrument.rank, symbol: instrument.symbol }));
   const extremeNominalPriceCandidates = instruments.filter(instrument => instrument.currentPriceUsd !== null && instrument.currentPriceUsd >= 1_000_000)
     .map(instrument => ({ rank: instrument.rank, symbol: instrument.symbol, currentPriceUsd: instrument.currentPriceUsd }));
   const asOf = new Date(Number(at)).toISOString();
   const rankingAudit = Object.freeze({
-    policy: `Kraken Spot Ticker snapshot at ${asOf}; USD-quoted pairs ranked by rolling 24-hour reported base volume v[1] × VWAP p[1]. Venue-specific roster; no investment-quality or listing-legitimacy screen.`,
+    policy: `Kraken Spot Ticker snapshot at ${asOf}; primary assets ranked by rolling 24-hour USD-quoted base volume v[1] × VWAP p[1]. Directly listed cross-crypto pairs are retained separately; no quote conversion or reverse pair is inferred.`,
     sourceDate: utcDate(at),
     rankedAt: asOf,
     candidateCount: sorted.length,
     eligibleUsdPairCount: candidatesBySymbol.size,
     nonUsdPairCount,
-    missingVolumeCount: missingVolumeCount,
+    eligibleCrossPairCount: linkedCrossPairs.length,
+    crossPairCandidateCount: crossCandidatesBySymbol.size,
+    crossPairLimit: CHARACTERS_CRYPTO_CROSS_PAIR_SIZE,
+    missingVolumeCount,
     missingVwapCount,
+    missingCrossVolumeCount,
+    missingCrossVwapCount,
     stablecoinCandidateCount: stablecoinCandidates.length,
     stablecoinCandidates: Object.freeze(stablecoinCandidates),
-    missingMarketCapCount: instruments.length,
+    missingMarketCapCount: instruments.length + crossPairs.length,
     extremeNominalPriceCandidates: Object.freeze(extremeNominalPriceCandidates),
     warnings: Object.freeze([
       "This is Kraken Spot venue data only; it is not a global or cross-exchange crypto ranking.",
-      "Ranking uses the Ticker endpoint's rolling 24-hour window as observed at rankedAt, not a previous-UTC-day aggregate.",
-      "Only USD-quoted Spot pairs are eligible; no quote-currency conversion or non-USD pair substitution is performed.",
-      "Stablecoin candidates remain eligible by venue volume and are flagged for operator review.",
+      "The primary 52-asset ranking uses the Ticker endpoint's rolling 24-hour window as observed at rankedAt, not a previous-UTC-day aggregate.",
+      "Cross-crypto pairs preserve Kraken's listed base/quote orientation. No quote-currency conversion, reciprocal pair, or reverse market is inferred.",
+      "Stablecoin candidates remain eligible in the primary USD ranking and are flagged for operator review.",
       "The Ticker response has no market-cap field; market capitalization remains missing rather than inferred."
     ])
   });
@@ -173,7 +243,8 @@ function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
     sourceDate: utcDate(at),
     rankedAt: asOf,
     audit: rankingAudit,
-    instruments: Object.freeze(instruments)
+    instruments: Object.freeze(instruments),
+    crossPairs: Object.freeze(crossPairs)
   });
 }
 
@@ -182,6 +253,7 @@ function sanitizeCachedRanking(value) {
       value.venue !== "Kraken Spot" || value.sourceWindow !== "rolling-24h" || !dateStamp(value.sourceDate) ||
       typeof value.rankedAt !== "string" || !Number.isFinite(Date.parse(value.rankedAt)) ||
       !Array.isArray(value.instruments) || value.instruments.length !== CHARACTERS_CRYPTO_RANKING_SIZE ||
+      (value.crossPairs !== undefined && !Array.isArray(value.crossPairs)) ||
       !isRecord(value.audit) || value.audit.provider === "Massive") return null;
   const seen = new Set();
   const instruments = [];
@@ -213,6 +285,9 @@ function sanitizeCachedRanking(value) {
       discId: "crypto",
       dataShape: "ohlcv",
       quoteCurrency: "USD",
+      baseAsset: symbol,
+      quoteAsset: "USD",
+      pairType: "usd",
       rankingProvider: "Kraken",
       providerId: krakenPair,
       krakenPair,
@@ -225,6 +300,57 @@ function sanitizeCachedRanking(value) {
       currentPriceUsd: finitePositive(entry.currentPriceUsd) ? entry.currentPriceUsd : null,
       marketCapUsd: null,
       audit: Object.freeze(audit)
+    }));
+  }
+  const seenPairs = new Set();
+  const crossPairs = [];
+  for (const [index, entry] of (value.crossPairs || []).entries()) {
+    if (!isRecord(entry) || crossPairs.length >= CHARACTERS_CRYPTO_CROSS_PAIR_SIZE) return null;
+    const symbol = typeof entry.symbol === "string" ? entry.symbol.toUpperCase() : "";
+    const krakenPair = typeof entry.krakenPair === "string" ? entry.krakenPair.toUpperCase() : "";
+    const providerId = typeof entry.providerId === "string" ? entry.providerId.toUpperCase() : "";
+    const pairMatch = /^([A-Z0-9]{2,12})\/([A-Z0-9]{2,12})$/.exec(krakenPair);
+    const providerBase = typeof entry.providerBase === "string" ? entry.providerBase.toUpperCase() : "";
+    const providerQuote = typeof entry.providerQuote === "string" ? entry.providerQuote.toUpperCase() : "";
+    const baseAsset = canonicalBase(providerBase);
+    const quoteAsset = canonicalBase(providerQuote);
+    const expectedSymbol = `${baseAsset}-${quoteAsset}`;
+    if (!pairMatch || pairMatch[1] !== providerBase || pairMatch[2] !== providerQuote || providerId !== krakenPair ||
+        !/^[A-Z0-9]{2,12}$/.test(baseAsset) || !/^[A-Z0-9]{2,12}$/.test(quoteAsset) ||
+        fiatSymbols.has(providerBase) || fiatSymbols.has(providerQuote) || baseAsset === quoteAsset ||
+        symbol !== expectedSymbol || entry.baseAsset !== baseAsset || entry.quoteAsset !== quoteAsset ||
+        entry.rankingProvider !== "Kraken" || entry.assetClass !== "crypto" || entry.discId !== "crypto" ||
+        entry.pairType !== "cross" || entry.rank !== index + 1 || seenPairs.has(symbol) ||
+        (!seen.has(baseAsset) && !seen.has(quoteAsset)) || !finitePositive(entry.baseVolume24h) ||
+        !finitePositive(entry.vwap24hQuote) || !finitePositive(entry.quoteVolume24h) ||
+        Math.abs(entry.quoteVolume24h - entry.baseVolume24h * entry.vwap24hQuote) > Math.max(1e-8, entry.quoteVolume24h * 1e-10) ||
+        (entry.currentPriceQuote !== null && !finitePositive(entry.currentPriceQuote))) return null;
+    seenPairs.add(symbol);
+    crossPairs.push(Object.freeze({
+      symbol,
+      displaySymbol: `${baseAsset}/${quoteAsset}`,
+      name: `${baseAsset}/${quoteAsset}`,
+      sector: "Cryptocurrency pairs",
+      assetClass: "crypto",
+      discId: "crypto",
+      dataShape: "ohlcv",
+      quoteCurrency: quoteAsset,
+      baseAsset,
+      quoteAsset,
+      pairType: "cross",
+      rankingProvider: "Kraken",
+      providerId: krakenPair,
+      krakenPair,
+      providerBase,
+      providerQuote,
+      rank: index + 1,
+      providerRank: index + 1,
+      baseVolume24h: entry.baseVolume24h,
+      vwap24hQuote: entry.vwap24hQuote,
+      quoteVolume24h: entry.quoteVolume24h,
+      currentPriceQuote: finitePositive(entry.currentPriceQuote) ? entry.currentPriceQuote : null,
+      marketCapUsd: null,
+      audit: Object.freeze(["cross-quote-pair", "missing-market-cap"])
     }));
   }
   const rankedAt = new Date(Date.parse(value.rankedAt)).toISOString();
@@ -243,17 +369,23 @@ function sanitizeCachedRanking(value) {
       candidateCount: Math.max(CHARACTERS_CRYPTO_RANKING_SIZE, Math.floor(Number(value.audit.candidateCount) || CHARACTERS_CRYPTO_RANKING_SIZE)),
       eligibleUsdPairCount: Math.max(CHARACTERS_CRYPTO_RANKING_SIZE, Math.floor(Number(value.audit.eligibleUsdPairCount) || CHARACTERS_CRYPTO_RANKING_SIZE)),
       nonUsdPairCount: Math.max(0, Math.floor(Number(value.audit.nonUsdPairCount) || 0)),
+      eligibleCrossPairCount: crossPairs.length,
+      crossPairCandidateCount: Math.max(crossPairs.length, Math.floor(Number(value.audit.crossPairCandidateCount) || crossPairs.length)),
+      crossPairLimit: CHARACTERS_CRYPTO_CROSS_PAIR_SIZE,
       stablecoinCandidateCount: instruments.filter(entry => entry.audit.includes("stablecoin-candidate")).length,
       stablecoinCandidates: Object.freeze(instruments.filter(entry => entry.audit.includes("stablecoin-candidate"))
         .map(entry => ({ rank: entry.rank, symbol: entry.symbol }))),
-      missingMarketCapCount: instruments.length,
+      missingMarketCapCount: instruments.length + crossPairs.length,
       missingVolumeCount: Math.max(0, Math.floor(Number(value.audit.missingVolumeCount) || 0)),
       missingVwapCount: Math.max(0, Math.floor(Number(value.audit.missingVwapCount) || 0)),
+      missingCrossVolumeCount: Math.max(0, Math.floor(Number(value.audit.missingCrossVolumeCount) || 0)),
+      missingCrossVwapCount: Math.max(0, Math.floor(Number(value.audit.missingCrossVwapCount) || 0)),
       extremeNominalPriceCandidates: Object.freeze(instruments.filter(entry => entry.currentPriceUsd !== null && entry.currentPriceUsd >= 1_000_000)
         .map(entry => ({ rank: entry.rank, symbol: entry.symbol, currentPriceUsd: entry.currentPriceUsd }))),
       warnings: Object.freeze(Array.isArray(value.audit.warnings) ? value.audit.warnings.filter(note => typeof note === "string").slice(0, 8).map(note => note.slice(0, 240)) : [])
     }),
-    instruments: Object.freeze(instruments)
+    instruments: Object.freeze(instruments),
+    crossPairs: Object.freeze(crossPairs)
   });
 }
 
@@ -454,7 +586,8 @@ export async function handleCharactersDiscCatalog(request, env = {}, dependencie
       cached: result.cached,
       audit: result.ranking.audit
     },
-    instruments: result.ranking.instruments
+    instruments: result.ranking.instruments,
+    crossPairs: result.ranking.crossPairs || []
   }, { headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 }
 
