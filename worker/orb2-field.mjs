@@ -457,6 +457,20 @@ export function observationFromPacket({
   const normalized = marketContext.normalizePacket(packet);
   const analysis = normalized ? marketContext.evaluate(normalized) : null;
   const motion = beat.motion(analysis, { bearingBase: 0 });
+  const fbbComparison = normalized && typeof marketContext.compareFbbVariants === "function"
+    ? marketContext.compareFbbVariants({
+        ...normalized,
+        provenance: {
+          provider,
+          providerId: providerId || packet.providerId || null,
+          instrument: symbol,
+          assetClass: discId === "stocks" ? "equity" : discId,
+          timeframe: interval,
+          source: packet.source || normalized.source || null
+        }
+      })
+    : null;
+
   const confirmedBars = normalized && Array.isArray(normalized.bars)
     ? normalized.bars.filter(bar => bar && bar.confirmed === true && Number.isFinite(Number(bar.close)))
     : [];
@@ -510,6 +524,7 @@ export function observationFromPacket({
       signal: numberOrNull(analysis.vfi.signal),
       available: analysis.vfi.available === true
     } : null,
+    ...(fbbComparison ? { fbbComparison } : {}),
     waveTrend: analysis.waveTrend ? {
       wt1: numberOrNull(analysis.waveTrend.wt1),
       wt2: numberOrNull(analysis.waveTrend.wt2),

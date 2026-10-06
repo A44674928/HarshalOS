@@ -153,6 +153,8 @@ export function safeMarket(value) {
   const latestBar = value.latestBar === null || value.latestBar === undefined ? null : safeBar(value.latestBar);
   const activityBar = value.activityBar === null || value.activityBar === undefined ? null : safeBar(value.activityBar);
   if (value.activityBar !== null && value.activityBar !== undefined && (!activityBar || activityBar.confirmed !== true)) return null;
+  const fbbComparison = value.fbbComparison === null || value.fbbComparison === undefined ? null : safeFbbComparison(value.fbbComparison);
+  if (value.fbbComparison !== null && value.fbbComparison !== undefined && !fbbComparison) return null;
   return {
     status,
     source: text(value.source, 160),
@@ -176,11 +178,77 @@ export function safeMarket(value) {
       signal: bounded(value.vfi.signal, -1e12, 1e12, null),
       available: value.vfi.available === true
     } : null,
+    ...(fbbComparison ? { fbbComparison } : {}),
     waveTrend: isRecord(value.waveTrend) ? {
       wt1: bounded(value.waveTrend.wt1, -1e12, 1e12, null),
       wt2: bounded(value.waveTrend.wt2, -1e12, 1e12, null),
       zone: text(value.waveTrend.zone, 48)
     } : null
+  };
+}
+
+function safeFbbComparison(value) {
+  if (!isRecord(value)) return null;
+  const safeVariant = variant => {
+    if (!isRecord(variant)) return null;
+    const id = text(variant.id, 16);
+    if (id !== "FBB-200" && id !== "FBB-L60") return null;
+    const status = variant.status === "available" || variant.status === "insufficient-history" || variant.status === "unavailable"
+      ? variant.status : null;
+    if (!status) return null;
+    const bandLen = integer(variant.bandLen, 1, 5000, null);
+    const requiredBars = integer(variant.requiredBars, 0, 5000, null);
+    const availableBars = integer(variant.availableBars, 0, 5000, null);
+    if (bandLen === null || requiredBars === null || availableBars === null) return null;
+    const numberOr = input => bounded(input, -1e15, 1e15, null);
+    const deltas = isRecord(variant.deltas) ? {
+      closeFromBasis: numberOr(variant.deltas.closeFromBasis),
+      upper618FromBasis: numberOr(variant.deltas.upper618FromBasis),
+      lower618FromBasis: numberOr(variant.deltas.lower618FromBasis),
+      upper1000FromBasis: numberOr(variant.deltas.upper1000FromBasis),
+      lower1000FromBasis: numberOr(variant.deltas.lower1000FromBasis),
+      logUpper618FromBasis: numberOr(variant.deltas.logUpper618FromBasis),
+      logLower618FromBasis: numberOr(variant.deltas.logLower618FromBasis),
+      logUpper1000FromBasis: numberOr(variant.deltas.logUpper1000FromBasis),
+      logLower1000FromBasis: numberOr(variant.deltas.logLower1000FromBasis)
+    } : null;
+    return {
+      id, bandLen, requiredBars, availableBars, status,
+      domain: text(variant.domain, 24),
+      experimental: variant.experimental === true,
+      basis: numberOr(variant.basis),
+      upper618: numberOr(variant.upper618), lower618: numberOr(variant.lower618),
+      upper1000: numberOr(variant.upper1000), lower1000: numberOr(variant.lower1000),
+      deltas
+    };
+  };
+  const variants = isRecord(value.variants) ? {
+    "FBB-200": safeVariant(value.variants["FBB-200"]),
+    "FBB-L60": safeVariant(value.variants["FBB-L60"])
+  } : null;
+  if (!variants || !variants["FBB-200"] || !variants["FBB-L60"]) return null;
+  const comparison = isRecord(value.comparison) ? {
+    basisDelta: bounded(value.comparison.basisDelta, -1e15, 1e15, null),
+    upper618Delta: bounded(value.comparison.upper618Delta, -1e15, 1e15, null),
+    lower618Delta: bounded(value.comparison.lower618Delta, -1e15, 1e15, null),
+    upper1000Delta: bounded(value.comparison.upper1000Delta, -1e15, 1e15, null),
+    lower1000Delta: bounded(value.comparison.lower1000Delta, -1e15, 1e15, null),
+    authority: text(value.comparison.authority, 240)
+  } : null;
+  if (!comparison) return null;
+  return {
+    schema: "gi-fbb-comparison-v1",
+    instrument: text(value.instrument, 120),
+    symbol: text(value.symbol, 32).toUpperCase(),
+    timeframe: text(value.timeframe, 24),
+    provider: text(value.provider, 48).toLowerCase(),
+    providerId: text(value.providerId, 120),
+    assetClass: text(value.assetClass, 32).toLowerCase(),
+    source: text(value.source, 160),
+    availableBars: integer(value.availableBars, 0, 5000, 0),
+    variants,
+    comparison,
+    note: text(value.note, 240)
   };
 }
 
