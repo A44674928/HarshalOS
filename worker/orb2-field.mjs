@@ -1643,7 +1643,9 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       lastError: text(run && run.last_error, 200),
       massive: {
         callsToday: Number(run && run.massive_calls) || 0,
-        perMinute: ORB2_MASSIVE_PER_MINUTE,
+        perMinute: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+        perMinutePerAssetClass: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+        perMinuteScope: "per-asset-class",
         dailyLimit: null,
         remainingToday: null,
         exhausted: false,
