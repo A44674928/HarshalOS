@@ -3,7 +3,7 @@
 **Reviewed:** 2026-10-05  
 **Decision:** Keep Massive as the current primary Indices provider. Alpha Vantage and Financial Modeling Prep (FMP) are technically plausible alternatives, but neither is approved as a code-path replacement until plan entitlement and data-use rights are confirmed for this application's display and persistence model.
 
-This note evaluates daily data for the current Indices Disc. It does not change the provider contract, remove or reroute Russell (`RUT`), or authorize a new provider.
+This note evaluates daily data for the current 52-card Basic Indices Disc. It does not authorize a provider change or broaden the roster beyond the reviewed Basic entitlement boundary.
 
 ## Current contract
 
@@ -11,7 +11,7 @@ This note evaluates daily data for the current Indices Disc. It does not change 
 - **NAB Discs:** Massive for Indices at `1d`.
 - **Orb 2:** consumes the corresponding provider-tagged, reviewed field; it does not choose a different index source.
 - **No substitutions:** provider identity, symbol, interval, OHLC shape, and source are validated. A failed or ineligible Massive result remains unavailable; the application must not switch to Alpha Vantage, FMP, or FRED silently.
-- **Russell:** `RUT` remains in the current Massive roster. It is intended to have a separate orb later, but that is not permission to remove it or change its current source.
+- **Roster:** Disc5 is a static 52-card Basic Indices topology. Its five groups are 8 U.S. headline/structural, 12 U.S. sector, 16 U.S. industry/subindustry, 8 international/regional, and 8 thematic/factor/specialty entries. No familiar index outside the reviewed Basic roster should be reintroduced merely for recognition.
 
 ## Candidate comparison
 
@@ -22,7 +22,7 @@ This note evaluates daily data for the current Indices Disc. It does not change 
 
 ### Technical fit is not authorization
 
-Either candidate could be evaluated for one daily request per reviewed index, but the actual symbol mapping and response schema still need contract tests. The active list includes `SPX`, `NDX`, `DJI`, `VIX`, and `RUT`; provider-specific identifiers are not interchangeable aliases. Any future adapter must map each requested index explicitly and reject unknown or ambiguous response identities.
+Either candidate could be evaluated for one daily request per reviewed index, but the actual symbol mapping and response schema still need contract tests. The active list contains 52 reviewed Basic symbols; provider-specific identifiers are not interchangeable aliases. Any future adapter must map each requested index explicitly and reject unknown or ambiguous response identities.
 
 The current Orb 2 workflow stores compact reviewed beats. Before bringing another vendor into that persisted path, confirm the rights for caching/retention and displayed historical values in addition to endpoint access. Do not infer those rights from an API key, a free tier, or a daily-call quota.
 
