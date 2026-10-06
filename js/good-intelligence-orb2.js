@@ -354,6 +354,7 @@
       bandFraction: bandGeometry.fraction,
       bandSource: bandGeometry.source,
       convergence: indicatorAlignment,
+      volatility,
       /* Local sub-orb axes are independently derived. No sub-orb is forced to
          remain spherical; equality of all three axes is the IDEAL condition. */
       axes: {
