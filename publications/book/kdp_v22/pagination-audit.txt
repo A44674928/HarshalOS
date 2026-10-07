@@ -1,0 +1,44 @@
+v2.2 pagination audit (HARSHAL-SYSTEMS-Book-I-KDP-print-interior-v2.2-2026-10-07.pdf)
+physical pages: 514 (limit 550)
+front matter: 25 pages; body folio 1 on physical 27
+blank versos (folio only): [26, 50, 54, 72, 90, 96, 122, 166, 170, 228, 238, 306, 320, 338, 370, 398, 452]
+
+part starts (label -> physical page / folio):
+  Part I — The Core Book -> 27 / 1
+  Part II — Formalization -> 51 / 25
+  Part III — AGS: Accountability-Gated Systems -> 55 / 29
+  Part IV — OCM: Orb Communicator Model -> 67 / 41
+  Part V — AI Inner Shell -> 73 / 47
+  Part VI — Addressing and Spherical Topology -> 77 / 51
+  Part VII — Operator Model -> 91 / 65
+  Part VIII — Disc Primitives, Routing, and Lifecycle -> 97 / 71
+  Part IX — AGS Layering and Conformance -> 111 / 85
+  Part X — AGS Accessory Pack -> 115 / 89
+  Part XI — Ground-0 and Duty Collation -> 123 / 97
+  Part XII — Whyland Standards -> 163 / 137
+  Part XIII — Neural Atomic Bodies Compendium -> 167 / 141
+  Part XIV — Keyed Human–Machine Hybrid Controls -> 171 / 145
+  Part XV — Threat Modeling and Context-Dependent Guarantees -> 179 / 153
+  Part XVI — Atomic-Body Classes and Reactor Doctrine -> 197 / 171
+  Part XVII — Institutional Application -> 221 / 195
+  Part XVIII — Accountability in Keyed Hybrid Systems -> 229 / 203
+  Part XIX — Supply-Chain and Implanted-Device Threat Research -> 239 / 213
+  Part XX — MicroConvergence and Signal Encoding -> 307 / 281
+  Part XXI — Policy and Governance Archive -> 321 / 295
+  Part XXII — Specification Series -> 339 / 313
+  Part XXIII — The Grand River Foundation (Fiction) -> 371 / 345
+  Part XXIV — Anti-Denial of Justice and NAB I/O -> 399 / 373
+  Part XXV — Whole Corpus / Complete Work -> 453 / 427
+
+end matter:
+  Appendices -> 460 / 434
+  Appendix A — Formal Constraint Equations and Term Notes -> 461 / 435
+  Appendix B — Safety Rationale for Adversarial Scenarios -> 468 / 442
+  Appendix C — Ground-0 Supplementary Exercises -> 470 / 444
+  Appendix D — Historical AI Audit Record -> 472 / 446
+  Appendix D.1 — Audit A: Claude -> 473 / 447
+  Appendix D.2 — Audit B: Anonymous AI via Arena.ai -> 478 / 452
+  Appendix E — Integration & Operations Guide -> 484 / 458
+  Appendix F — Signal Class Quick Reference -> 486 / 460
+  Appendix G — Core Book AI Companion (Machine-Readable) -> 487 / 461
+  Consolidated Glossary -> 511 / 485
