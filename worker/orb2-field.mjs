@@ -989,7 +989,7 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
     return { ok: true, attempted: false, status };
   }
   const result = await beatOptionsBar({
-    env, symbol: instrument.symbol, optionsTicker: target.item.ticker, date: today, now, fetcher, keys
+    env, symbol: instrument.symbol, optionsTicker: target.item.ticker, date: eodDate, now, fetcher, keys
   });
   if (!result.ok) {
     await writeOptionsObservation(db, {
@@ -1662,7 +1662,7 @@ function parseOptionsRow(row, now) {
 /** D1 queries are limited to 100 bound variables. Split large symbol filters
  * into conservative batches, then restore the global newest-first limit after
  * merging. This is still a read of the unchanged stored field. */
-async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limit = null }) {
+async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limit = null, includePayload = true }) {
   const uniqueSymbols = Array.isArray(symbols) ? [...new Set(symbols)] : [];
   const symbolBatches = uniqueSymbols.length
     ? Array.from({ length: Math.ceil(uniqueSymbols.length / ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE) }, (_, index) =>
@@ -1677,7 +1677,8 @@ async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limi
       clauses.push(`symbol IN (${symbolBatch.map(() => "?").join(",")})`);
       bindings.push(...symbolBatch);
     }
-    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;
+    const select = includePayload ? "payload, observed_at, symbol, disc_id, provider, confirmed" : "observed_at, symbol, disc_id, provider, confirmed, status, reason";
+    let query = `SELECT ${select} FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;
     if (Number.isFinite(limit)) {
       query += " LIMIT ?";
       bindings.push(limit);
@@ -1722,7 +1723,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     let storedRowsRead = !hasResponseFilter;
     if (hasResponseFilter) {
       try {
-        fieldRows = await readOrb2FieldRows(db, { interval });
+        fieldRows = await readOrb2FieldRows(db, { interval, includePayload: false });
         storedRowsRead = true;
       } catch { /* focused observations remain a bounded status fallback */ }
     }
@@ -1847,7 +1848,11 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           confirmed: Number(row.confirmed) > 0,
           provider: text(row.provider, 24)
         });
-        const parsed = parseFieldRow(row);
+        const parsed = row.payload ? parseFieldRow(row) : (() => {
+          const observedAt = Number(row.observed_at) || 0;
+          const hasMarket = row.status === "bars" || row.status === "cached";
+          return observedAt > 0 ? { symbol, discId, provider: text(row.provider, 24), status: hasMarket ? row.status : "unavailable", code: hasMarket ? "" : text(row.reason, 48), message: text(row.reason, 160), confirmed: Number(row.confirmed) > 0, observedAt, interval, market: hasMarket ? { latestBar: { confirmed: Number(row.confirmed) > 0 } } : null, freshness: orb2FieldFreshness(interval, observedAt, now) } : null;
+        })();
         if (parsed) {
           observationByDiscAndSymbol.set(`${discId}:${symbol}`, {
             ...parsed,
