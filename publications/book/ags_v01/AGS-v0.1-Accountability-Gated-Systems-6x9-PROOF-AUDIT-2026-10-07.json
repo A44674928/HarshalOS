@@ -44,5 +44,71 @@
     "Page count is a proof estimate; final KDP output may reflow.",
     "Contents folio references are intentionally omitted until approval.",
     "Hardcover and paperback require separate covers; no cover is included in this proof."
-  ]
+  ],
+  "final_package": {
+    "status": "final print package (approved); KDP Print Previewer outstanding",
+    "interiors": {
+      "paperback": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-interior-PAPERBACK-2026-10-07.pdf",
+        "bytes": 360940,
+        "sha256": "56a4d3c8b2556d082c312f91c64f56ff159f6e9b82570768dfaff5366a75de46",
+        "isbn": "979-8-24548-379-5"
+      },
+      "hardcover": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-interior-HARDCOVER-2026-10-07.pdf",
+        "bytes": 360938,
+        "sha256": "3cf3ca2b5a2173c7e6a4494f04b8c0b898de82ce80020d54e458f16f0ebd3fff",
+        "isbn": "979-8-16078-278-2"
+      }
+    },
+    "covers": {
+      "paperback_white": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-cover-PAPERBACK-WHITE-130pp-2026-10-07.pdf",
+        "size_in": [
+          12.5428,
+          9.25
+        ],
+        "spine_in": 0.2928,
+        "status": "final"
+      },
+      "paperback_cream": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-cover-PAPERBACK-CREAM-130pp-2026-10-07.pdf",
+        "size_in": [
+          12.575,
+          9.25
+        ],
+        "spine_in": 0.325,
+        "status": "final"
+      },
+      "hardcover_white": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-cover-HARDCOVER-DRAFT-WHITE-130pp-2026-10-07.pdf",
+        "size_in": [
+          14.8458,
+          10.418
+        ],
+        "spine_in": 0.4818,
+        "status": "draft - confirm in KDP cover calculator"
+      },
+      "hardcover_cream": {
+        "file": "AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-cover-HARDCOVER-DRAFT-CREAM-130pp-2026-10-07.pdf",
+        "size_in": [
+          14.878,
+          10.418
+        ],
+        "spine_in": 0.514,
+        "status": "draft - confirm in KDP cover calculator"
+      }
+    },
+    "contents_folios": {
+      "Part I — The Core Book": 1,
+      "Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)": 38,
+      "G.1 Stable Identifiers and Machine Use": 38,
+      "G.2 Source Provenance and Integrity": 39,
+      "G.3 Complete Machine-Readable Module (Python)": 74
+    },
+    "builders": [
+      "build_ags_v01_final.py",
+      "build_ags_v01_cover.py"
+    ]
+  }
 }

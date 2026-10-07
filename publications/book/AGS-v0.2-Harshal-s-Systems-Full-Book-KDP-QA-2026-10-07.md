@@ -113,24 +113,16 @@ an essentially uncropped 3:2 print master (tagged 300 dpi at its native 7.5 × 5
 size); the original remains in Drive. The 6 × 9 in trim is confirmed by the
 author for both bindings.
 
-A provisional 6 × 9 interior proof was prepared and **author-approved**
-(`ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.pdf`,
-130 physical pages, 11-pt body / 8-pt code / 7.8-pt tables, 0.70-in
-inside / 0.55-in outside margins; Part I opens on physical p.5 with body
-folio 1, Appendix G opens on p.42, and the G.3 module listing runs pp. 78–130,
-ending with `sys.exit(main())` on the last page).
-
-**The final AGS v0.1 KDP package is now produced from the approved proof**
-(QA note: `ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-QA-2026-10-07.md`):
-separate paperback and hardcover interiors (130 pages each, identical except
-that each copyright page prints only its own ISBN — paperback
-`979-8-24548-379-5`, hardcover `979-8-16078-278-2`), contents folios
-populated (Part I → 1, Appendix G → 38, G.1 → 38, G.2 → 39, G.3 → 74), and
-four 6 × 9 wraparound covers (paperback and hardcover case wrap, each in
-WHITE and CREAM paper variants, built from the IMG_7067 art). The hardcover
-case-wrap geometry uses KDP’s published constants and should be confirmed
-against KDP’s Cover Calculator at upload. KDP Print Previewer has not been
-run for any file in either package.
+The author approved the 6 × 9 edition, and the **final AGS v0.1 print package**
+is now built (see `ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-FINAL-QA-2026-10-07.md`):
+separate 130-page paperback and hardcover interiors (contents folios populated;
+each copyright page prints only its own ISBN — paperback `979-8-24548-379-5`,
+hardcover `979-8-16078-278-2`), plus 6 × 9 wraparound covers: final WHITE and
+CREAM paperback wraps (spines 0.2928 in / 0.3250 in) and DRAFT hardcover
+case-laminate wraps (confirm dimensions in KDP’s cover calculator before
+upload). The approved review proof remains at
+`ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.pdf`
+as the review record, superseded by the final interiors.
 
 ## KDP handoff
 

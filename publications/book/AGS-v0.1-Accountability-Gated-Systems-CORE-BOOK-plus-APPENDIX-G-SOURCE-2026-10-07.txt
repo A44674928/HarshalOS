@@ -21,12 +21,12 @@ appendices, and the consolidated glossary are not included. Cross-references
 in the reproduced text to those omitted sections refer to the Full Book edition.
 
 CONTENTS
-Part I — The Core Book
+Part I — The Core Book  1
   Chapters 1–10 and the Epilogue
-Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)
-  G.1 Stable Identifiers and Machine Use
-  G.2 Source Provenance and Integrity
-  G.3 Complete Machine-Readable Module (Python)
+Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)  38
+  G.1 Stable Identifiers and Machine Use  38
+  G.2 Source Provenance and Integrity  39
+  G.3 Complete Machine-Readable Module (Python)  74
 
 Part I — The Core Book
 
