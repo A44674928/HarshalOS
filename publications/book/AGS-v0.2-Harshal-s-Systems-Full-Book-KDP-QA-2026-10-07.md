@@ -81,11 +81,22 @@ its ZIP CRC test passed and it contains the original 120,976,474-byte BMP at
 `ags_v01/assets/AGS-v0.1-IMG_7067-artwork-300dpi.jpg`, produced by
 `prepare_ags_v01_cover_art.py` (2250 × 1500 px, 300 dpi, 684,121 bytes; SHA-256
 `1ddf30254506d711af1ac829ef0c9233e2802cd7553fa0473d970e6e22ea7cee`). It uses
-an essentially uncropped 3:2 window intended for a 7.5 × 5 in art panel; the
-original remains in Drive. The separate v0.1 manuscript is still not typeset,
-and no print cover has been generated. Confirm its trim and art placement before
-final interior/cover production; regenerate the derivative from the preserved
-original if a different image window is needed.
+an essentially uncropped 3:2 print master (tagged 300 dpi at its native 7.5 × 5 in
+size); the original remains in Drive. The 6 × 9 trim is now confirmed. A
+provisional 6 × 9 interior proof is prepared at
+`ags_v01/proofs/AGS-v0.1-Accountability-Gated-Systems-6x9-PROOF-2026-10-07.pdf`
+with editable DOCX companion. It is 78 physical pages, 10.75-pt body, 0.75-in
+inside/0.50-in outside margins; p.4 is a folio-only blank verso, Part I opens on
+physical p.5 with body folio 1, and Appendix G opens recto p.41. It clears KDP’s
+75-page hardcover floor in local pagination. Spot proofs of the
+title/copyright/contents, body, Appendix G table, and final schema sample were
+reviewed for legibility; the last page now keeps the full G.3 heading, lead-in,
+and code excerpt together. This remains a proof, not a KDP-validated interior:
+TOC folios are unpopulated and both ISBNs appear together for review. Final
+paperback and hardcover interiors must be split so each copyright page prints
+only its own ISBN. The final 6 × 9 cover layout and separate binding covers have
+not been generated; scale the preserved art master proportionally to the chosen
+front-panel placement.
 
 ## KDP handoff
 

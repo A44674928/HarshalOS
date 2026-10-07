@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Prepare the supplied AGS v0.1 art for a 7.5 x 5 in, 300-dpi cover panel.
+"""Prepare the supplied AGS v0.1 art as a high-quality 3:2 print master.
 
-The original image stays untouched. The output is a centered 3:2 crop and a
-high-quality JPEG derivative; change WIDTH/HEIGHT if the final cover design
-uses a different illustration window. Requires Pillow.
+The original image stays untouched. The output is a centered 3:2 crop at
+2250 x 1500 px, tagged 300 dpi (7.5 x 5 in at native size). Scale it
+proportionally to the final 6 x 9 cover's chosen artwork window. Requires Pillow.
 """
 from __future__ import annotations
 
