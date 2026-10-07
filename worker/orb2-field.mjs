@@ -947,6 +947,14 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
     });
     if (!discovery.ok) return discovery;
     selection = discovery.selection;
+    /* Contract discovery itself consumes the Options request. Persist the
+       newly bounded universe and defer its first aggregate to a later tick so
+       one Cron invocation can never exceed the five-request Options budget. */
+    await writeOptionsObservation(db, {
+      symbol: instrument.symbol, underlyingPrice, selection,
+      bars: parseOptionsBars(existing), status: "partial", now
+    });
+    return { ok: true, attempted: true, status: "partial", discovery: true };
   }
   const bars = parseOptionsBars(existing);
   const barByTicker = new Map(bars.map(item => [item.ticker, item]));
@@ -1345,7 +1353,15 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     if (!keys.massive) {
       summary.notes.push("Stocks Options Field is held: add MASSIVE_API_KEY.");
     } else {
-      const optionCandidates = roster.stocks.slice().sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)));
+      const optionStateRows = await db.prepare("SELECT symbol, observed_at FROM orb2_options_observations").all();
+      const optionObservedAt = new Map(
+        (Array.isArray(optionStateRows?.results) ? optionStateRows.results : [])
+          .map(row => [String(row.symbol || "").toUpperCase(), Number(row.observed_at) || 0])
+      );
+      const optionCandidates = roster.stocks.slice().sort((a, b) =>
+        (optionObservedAt.get(a.symbol) || 0) - (optionObservedAt.get(b.symbol) || 0) ||
+        String(a.symbol).localeCompare(String(b.symbol))
+      );
       const optionJobs = [];
       for (const instrument of optionCandidates) {
         if (optionJobs.length >= ORB2_OPTIONS_PER_MINUTE) break;
