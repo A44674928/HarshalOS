@@ -856,9 +856,22 @@ function providerKeys(env) {
   };
 }
 
+async function optionsFieldTableAvailable(db) {
+  try {
+    const row = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'orb2_options_observations'").first();
+    return Boolean(row?.name);
+  } catch {
+    return false;
+  }
+}
+
 async function readOptionsObservation(db, symbol) {
-  return (await db.prepare("SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at FROM orb2_options_observations WHERE symbol = ?")
-    .bind(symbol).first()) || null;
+  try {
+    return (await db.prepare("SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at FROM orb2_options_observations WHERE symbol = ?")
+      .bind(symbol).first()) || null;
+  } catch {
+    return null;
+  }
 }
 
 async function writeOptionsObservation(db, {
@@ -1361,7 +1374,10 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        observation remains authoritative for equity price; this field only stores
        a bounded derivative-market envelope. Each tick may consume up to five
        Options requests, independently of the FX/Futures/Indices allowances. */
-    if (!keys.massive) {
+    const optionsEnabled = await optionsFieldTableAvailable(db);
+    if (!optionsEnabled) {
+      summary.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
+    } else if (!keys.massive) {
       summary.notes.push("Stocks Options Field is held: add MASSIVE_API_KEY.");
     } else {
       const optionStateRows = await db.prepare("SELECT symbol, observed_at, bars_json FROM orb2_options_observations").all();
@@ -1745,21 +1761,26 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       });
     }
     const stockSymbolsForOptions = [...new Set(observations.filter(observation => observation.discId === "stocks").map(observation => observation.symbol))];
-    if (stockSymbolsForOptions.length) {
-      const optionRows = await db.prepare(`SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at
-        FROM orb2_options_observations
-        WHERE symbol IN (${stockSymbolsForOptions.map(() => "?").join(",")})`)
-        .bind(...stockSymbolsForOptions).all();
-      const optionsBySymbol = new Map(
-        (Array.isArray(optionRows?.results) ? optionRows.results : [])
-          .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
-          .filter(([, value]) => value)
-      );
-      observations = observations.map(observation =>
-        observation.discId === "stocks"
-          ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
-          : observation
-      );
+    if (stockSymbolsForOptions.length && await optionsFieldTableAvailable(db)) {
+      try {
+        const optionRows = await db.prepare(`SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at
+          FROM orb2_options_observations
+          WHERE symbol IN (${stockSymbolsForOptions.map(() => "?").join(",")})`)
+          .bind(...stockSymbolsForOptions).all();
+        const optionsBySymbol = new Map(
+          (Array.isArray(optionRows?.results) ? optionRows.results : [])
+            .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
+            .filter(([, value]) => value)
+        );
+        observations = observations.map(observation =>
+          observation.discId === "stocks"
+            ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
+            : observation
+        );
+      } catch {
+        /* Options is additive; an unapplied migration must not make the
+           authoritative Stock snapshot unreadable. */
+      }
     }
 
     let marketCount = 0;
