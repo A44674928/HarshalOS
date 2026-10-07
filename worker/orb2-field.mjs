@@ -37,6 +37,8 @@ import {
   isTickerbotSymbol
 } from "./good-intelligence-tickerbot.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+import { fxProviderMode, fetchFxMarketContext } from "./fx-provider.mjs";
+import { fetchAlphaVantageFxDaily } from "./characters-alpha-vantage.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import {
   MASSIVE_PROVIDER_DAILY_LIMIT,
@@ -837,6 +839,7 @@ const CRON_REQUEST = Object.freeze({
 function providerKeys(env) {
   return {
     massive: typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "",
+    alphaVantage: typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "",
     tickerbot: typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : ""
   };
 }
@@ -854,6 +857,23 @@ async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }
   });
   if (!result.ok) return { ok: false, attempted: true, code: result.code, message: result.message, retryAfter: result.retryAfter };
   return { ok: true, attempted: true, packet: result.packet, calls: 1 };
+}
+
+async function beatAlphaVantage({ env, db, instrument, now, fetcher, keys }) {
+  if (!keys.alphaVantage) return { ok: false, attempted: false, code: "alpha-vantage-not-configured", message: "Add the ALPHA_VANTAGE_API_KEY Worker secret to enable Alpha Vantage FX validation." };
+  return fetchAlphaVantageFxDaily({
+    instrument, apiKey: keys.alphaVantage, db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS
+  });
+}
+
+async function beatFx({ env, db, instrument, now, fetcher, keys }) {
+  const mode = fxProviderMode(env);
+  const result = await fetchFxMarketContext({
+    mode,
+    massive: () => beatMassive({ env, db, instrument, now, fetcher, keys }),
+    alphaVantage: () => beatAlphaVantage({ env, db, instrument, now, fetcher, keys })
+  });
+  return { ...result, providerMode: mode };
 }
 
 async function beatTickerbot({ env, db, instrument, interval, now, fetcher, keys }) {
@@ -972,7 +992,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
   const now = nowOf(dependencies);
   const db = env.COMMUNITY_DB;
   const summary = {
-    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
+    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     observed: 0, held: 0, queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, sweepsCompleted: 0,
     notes: [], errors: []
   };
@@ -1191,18 +1211,27 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         ));
         if (!instruments.length || slots <= 0) continue;
         const rotation = await dueRotation(db, instruments, slots, now, "massive");
-        const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
-          entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
-        }));
+        const outcomes = await mapWithConcurrency(rotation, 2, async entry => {
+          const instrument = entry.instrument;
+          if (instrument.discId !== "fx") {
+            return { entry, ...(await beatMassive({ env, db, instrument, now, fetcher, keys })) };
+          }
+          return { entry, ...(await beatFx({ env, db, instrument, now, fetcher, keys })) };
+        });
         const compositionSymbols = new Set();
         for (const outcome of outcomes) {
           const instrument = outcome.entry.instrument;
-          if (outcome.attempted) summary.massiveCalls += 1;
+          if (instrument.discId === "fx") {
+            const providers = outcome.providers || {};
+            if (providers.massive?.attempted) summary.massiveCalls += 1;
+            if (providers.alphaVantage?.ok) summary.alphaVantageCalls += 1;
+            else if (outcome.selectedProvider === "alpha-vantage" && outcome.ok) summary.alphaVantageCalls += 1;
+          } else if (outcome.attempted) summary.massiveCalls += 1;
           if (outcome.ok) {
             const observation = observationFromPacket({
               packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
               name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
-              provider: "massive", interval: "1d", now, reason: "server-sweep"
+              provider: outcome.selectedProvider || "massive", interval: "1d", now, reason: "server-sweep"
             });
             if (observation) {
               await writeObservation(db, observation, now, { refresh: false });
@@ -1220,7 +1249,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
               name: instrumentName(instrument),
               sector: instrumentSector(instrument),
               discId: instrument.discId,
-              provider: "massive",
+              provider: outcome.selectedProvider || "massive",
               interval: "1d",
               now,
               reason: "server-sweep",
@@ -1244,7 +1273,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
 
     summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
     await recordTickResult(db, {
-      now, massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
+      now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
       observed: summary.observed, error: summary.errors.length ? summary.errors[0] : ""
     });
     summary.ok = true;
@@ -1875,7 +1904,7 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
       data: {
         schema: ORB2_FIELD_REQUEST_SCHEMA, action: "tick", interval, queue,
         summary: {
-          massiveCalls: summary.massiveCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
+          massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
           observed: summary.observed, held: summary.held, queueClaimed: summary.queueClaimed,
           queueCompleted: summary.queueCompleted, warmEnqueued: summary.warmEnqueued,
           sweepsCompleted: summary.sweepsCompleted
