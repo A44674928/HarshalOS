@@ -369,6 +369,40 @@ test("Orb 2 places observed orbs from market metrics and keeps held packets expl
   );
   assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
 });
+test("Stocks project the logarithmic six-band FBB state inward and vertically through the spheroid", () => {
+  const { orb } = harness();
+  const makeMarket = close => {
+    const basis = 100;
+    const dev = Math.log(110 / basis);
+    const bands = { basis, logDeviation: dev };
+    for (const [suffix, ratio] of [[236, 0.236], [382, 0.382], [500, 0.5], [618, 0.618], [764, 0.764], [1000, 1]]) {
+      bands["upper" + suffix] = Math.exp(Math.log(basis) + ratio * dev);
+      bands["lower" + suffix] = Math.exp(Math.log(basis) - ratio * dev);
+    }
+    return {
+      latestBar: { time: NOW, close, confirmed: true },
+      changePct: close > basis ? 2.5 : -2.5,
+      basis, bands,
+      vfi: { value: close > basis ? 18 : -12, signal: 4, available: true },
+      waveTrend: { wt1: close > basis ? 26 : -26, wt2: close > basis ? 8 : -8 }
+    };
+  };
+  const up = orb.marketDataPlacement(makeMarket(108), "UP");
+  const down = orb.marketDataPlacement(makeMarket(92), "DOWN");
+  assert.equal(up.fbbState.available, true);
+  assert.equal(down.fbbState.available, true);
+  assert.equal(up.fbbState.direction, 1);
+  assert.equal(down.fbbState.direction, -1);
+  const upDraw = orb.stockFbbDisplacement(up.fbbState, up.radius);
+  const downDraw = orb.stockFbbDisplacement(down.fbbState, down.radius);
+  assert.ok(upDraw.inward > 0 && downDraw.inward > 0, "FBB strength creates inward penetration");
+  assert.ok(upDraw.radius < up.radius && downDraw.radius < down.radius);
+  assert.ok(upDraw.vertical > 0 && downDraw.vertical < 0, "price direction maps to upward/downward motion");
+  assert.ok(up.fbbState.strength > 0 && down.fbbState.strength > 0);
+  assert.match(orb.stockFbbColor(up.fbbState), /rgb\(/);
+  assert.match(orb.stockFbbColor(down.fbbState), /rgb\(/);
+  assert.notEqual(orb.stockFbbColor(up.fbbState), orb.stockFbbColor(down.fbbState), "rally and sink receive distinct colors");
+});
 
 /* ── shared-berth separation ─────────────────────────────────────────────── */
 

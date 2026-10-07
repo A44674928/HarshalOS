@@ -471,10 +471,61 @@
     return {
       available: true, source: "market-data", longitude, latitude, radius, pressure,
       phase: tiePhase + timePhase * 0.08,
-      speed: 0.055 + pressure * 0.28,
-      amplitude: 0.026 + pressure * 0.075,
-      topology
+      speed: 0.055 + pressure * 0.28,      amplitude: 0.026 + pressure * 0.075,
+      topology,
+      fbbState: multidimensionalFbbState(market),
+      stockFbbColor: stockFbbColor(multidimensionalFbbState(market))
     };
+  }
+
+  /* Multidimensional FBB projection for the Stocks spheroid. The six reviewed
+     Fibonacci envelopes remain independent log-domain coordinates; this layer only
+     projects their existing indicator output into spatial displacement. */
+  function multidimensionalFbbState(market) {
+    const metrics = fibonacciBandMetrics(market);
+    if (metrics.held || !isRecord(market.bands)) return { available: false, direction: 0, strength: 0, depth: 0, components: [] };
+    const close = numeric(market.latestBar && market.latestBar.close);
+    const basis = numeric(market.basis);
+    if (close === null || basis === null || close <= 0 || basis <= 0) return { available: false, direction: 0, strength: 0, depth: 0, components: [] };
+    const components = [236, 382, 500, 618, 764, 1000].map(suffix => {
+      const upper = numeric(market.bands["upper" + suffix]);
+      const lower = numeric(market.bands["lower" + suffix]);
+      if (upper === null || lower === null || upper <= basis || lower <= 0) return null;
+      const upperLog = Math.log(upper / basis);
+      const lowerLog = Math.log(basis / lower);
+      if (!finite(upperLog) || !finite(lowerLog) || upperLog <= 0 || lowerLog <= 0) return null;
+      const distance = Math.log(close / basis);
+      return clamp(distance / (distance >= 0 ? upperLog : lowerLog), -2, 2);
+    });
+    if (components.some(value => value === null)) return { available: false, direction: 0, strength: 0, depth: 0, components };
+    const mean = components.reduce((sum, value) => sum + value, 0) / components.length;
+    const rms = Math.sqrt(components.reduce((sum, value) => sum + value * value, 0) / components.length);
+    const inner = (components[0] + components[1] + components[2]) / 3;
+    const outer = (components[3] + components[4] + components[5]) / 3;
+    return { available: true, direction: Math.sign(mean), strength: clamp(rms / 1.35, 0, 1), depth: clamp(inner - outer, -1, 1), components };
+  }
+
+  function stockFbbDisplacement(fbb, radius) {
+    if (!fbb || !fbb.available) return { radius, vertical: 0, depth: 0, inward: 0 };
+    const strength = clamp(fbb.strength, 0, 1);
+    const direction = Math.sign(fbb.direction);
+    const inward = 0.86 * strength;
+    return {
+      radius: radius * (1 - inward),
+      vertical: direction * (0.18 + 0.82 * strength),
+      depth: fbb.depth * 0.28 * strength,
+      inward
+    };
+  }
+
+  function stockFbbColor(fbb) {
+    if (!fbb || !fbb.available || !fbb.direction) return "#35d0c1";
+    const strength = clamp(Number(fbb.strength) || 0, 0, 1);
+    const base = fbb.direction > 0 ? [55, 230, 161] : [251, 113, 133];
+    const neutral = [53, 208, 193];
+    const mix = 0.2 + strength * 0.8;
+    const rgb = neutral.map((value, index) => Math.round(value + (base[index] - value) * mix));
+    return "rgb(" + rgb.join(",") + ")";
   }
 
   function stableIdentityPhase(value) {
@@ -3007,6 +3058,15 @@
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
       let radius = placement.radius + Math.sin(floatPhase * 0.73) * float * 0.34;
+      /* Stocks: FBB strength becomes inward penetration and signed FBB
+         displacement becomes vertical direction. The six-dimensional state
+         also contributes a small depth deformation. */
+      if (String(observation && observation.discId || "").toLowerCase() === "stocks" && placement.fbbState && placement.fbbState.available) {
+        const displacement = stockFbbDisplacement(placement.fbbState, placement.radius);
+        radius = displacement.radius;
+        latitude += displacement.vertical;
+        longitude += displacement.depth;
+      }
       if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
         const phase = floatPhase + (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) * now / 1000;
@@ -3024,7 +3084,8 @@
       return {
         longitude, latitude, radius, anchor,
         available: placement.available, source: placement.source, pressure: placement.pressure,
-        topology: placement.topology
+        topology: placement.topology, fbbState: placement.fbbState,
+        stockFbbColor: placement.stockFbbColor
       };
     }
 
@@ -4539,8 +4600,10 @@
         const chosen = node.order === state.selected;
         const hovered = node.order === state.hover;
         const fresh = observation ? snapshotFreshness(observation, wallNow) : 0;
-        const color = observation && observation.market && directive
-          ? MOOD_COLORS[directive.mood] || node.color : node.color;
+        const color = observation && observation.market && point.stockFbbColor
+          ? point.stockFbbColor
+          : observation && observation.market && directive
+            ? MOOD_COLORS[directive.mood] || node.color : node.color;
         const pulse = directive && directive.object ? directive.object.pulse : 0;
         const density = clamp(Math.min(width, height) / 620, 0.82, 1.52);
         const radius = clamp((4.15 + point.scale * 2.35 + (chosen ? 2.1 : 0) + pulse * 1.5) * density, 4, 14);
@@ -5013,7 +5076,7 @@
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
-    fibonacciBandMetrics, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
+    fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout,
