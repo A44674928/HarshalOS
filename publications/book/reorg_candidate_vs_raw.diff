@@ -1,0 +1,233 @@
+--- raw script
+
++++ candidate QA snapshot
+
+@@ -14,5 +14,5 @@
+
+ AUTHORITATIVE SCOPE, EVIDENCE, AND STATUS NOTICE:
+ • This is the Production Edition of Book I, prepared for print. “Production” describes editorial and print preparation; it does not certify any system, validate a technical proposal, or claim that a described control is deployed.
+-• This volume contains 25 numbered parts. Part XXIII is fiction; Part Appendix D.2 is an author-applied analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each part’s local provenance and evidence labels govern its claims.
++• This volume contains 25 numbered parts. Part XXIII is fiction; Appendix D.2 preserves Audit B as a historical analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each part’s local provenance and evidence labels govern its claims.
+ • “Normative” means a rule proposed within this author’s framework, not external law, a regulator’s approval, or a binding industry standard. Modeled scenarios, author-reported observations, and source-reported events are distinct evidence classes.
+ • A threat scenario, equation, pseudocode block, checklist, or named capability is not, by itself, evidence of an incident, a feasible mechanism, a successful defense, or a working deployment. Performance and timing claims require identified, equipment-specific testing and deployment evidence.
+@@ -111,5 +111,4 @@
+
+ | Part I — The Core Book | 1 |
+ | Part II — Formalization | 25 |
+-| Part Appendix B — Safety Rationale | 37 |
+ | Part III — AGS: Accountability-Gated Systems | 39 |
+ | Part IV — OCM: Orb Communicator Model | 51 |
+@@ -135,5 +134,4 @@
+
+ | Part XXIII — The Grand River Foundation (Fiction) | 385 |
+ | Part XXIV — Anti-Denial of Justice and NAB I/O | 415 |
+-| Part Appendix D.2 — Anthropic Access Events and PDH-R Review | 471 |
+ | Part XXV — Whole Corpus / Complete Work | 479 |
+ | Appendices | TBD |
+@@ -221,5 +219,5 @@
+
+ 1. PROPOSED_ARCHITECTURE — Author-defined axioms, formal models, and specifications. “Normative” means normative within the proposal, not an external standard.
+ 2. THREAT_RESEARCH — Adversarial models and explicit vectors used to define defensive tests. A vector is a modeled assumption unless supported by separately attributed evidence.
+-3. CASE_ANALYSIS — Ground-0 and institutional analyses, including Part Appendix D.2’s analysis of publicly reported access events. Distinguish company statements, independent news reporting, author-applied interpretation, and unavailable government records.
++3. CASE_ANALYSIS — Ground-0 and institutional analyses, including Appendix D.2’s analysis of publicly reported access events. Distinguish company statements, independent news reporting, author-applied interpretation, and unavailable government records.
+ 4. FICTION — Part XXIII and the explicitly marked Part XIX-B sandbox; not evidence and not a specification.
+ 5. DERIVATIVE_REFERENCE — Part XXV’s index and auxiliary modules; each module retains its own provenance.
+@@ -239,7 +237,7 @@
+
+ Textbook Syllabus Guide for AI & Systems Engineering Courses
+ This edition of Book I (Harshal’s Systems) includes formal equations, worked numerical examples, and end-of-part review questions in Parts I–XVIII and XX–XXV where present. Part XIX (the preserved former Part XX) remains without general copyediting or added review material; the appendices may contain review prompts.
+-Module 1 — Foundational Architecture & Formal Equations: Read Part XVIII (Flagship Research Paper, including Worked Example 19.1 on INV-CORPSE-001 and ZKSK Shielded Keying), Part I (The Core Book, including Worked Example 1.1 on Two-Part Addressability), and Part II (Formalization, including Worked Example 2.1 on cliff-edge refusal Δ t_cliff).
++Module 1 — Foundational Architecture & Formal Equations: Read Part XVIII (Flagship Research Paper, including Worked Example 18.1 on INV-CORPSE-001 and ZKSK Shielded Keying), Part I (The Core Book, including Worked Example 1.1 on Two-Part Addressability), and Part II (Formalization, including Worked Example 2.1 on cliff-edge refusal Δ t_cliff).
+ Module 2 — Topological Routing & Constitutional Substrates: Read Part VI (Addressing, Rotation, and Spherical Topology), Part VIII (Disc Primitives, Routing, and Lifecycle), and Part XXII (Specification Series: OCS-v1.0, CHE++/EOL-v1.0, BGP-v1.0, AGS-IR-v1.0, and CGPA-v1.0).
+-Module 3 — Institutional Phase Detection & Evidence Discipline: Read Part XI for the Ground-0 method; see Appendix D.1 for historical Audit A; its 5/5 result is author-reported, not independently verified. Part Appendix D.2 examines the reported Fable 5/Mythos 5 access events, the event-based 4/5 calculation conditional on its B4 coding and four carried-forward author-scored gates, the reported 2/4 Step 3.5 aggregate and unresolved v1.0 terminal rule, and the v1.2 issuer-layer eligibility review. Compare these with the proposed procedural controls in Part XXIV. Do not treat any author-applied score or label as an independent empirical finding.
++Module 3 — Institutional Phase Detection & Evidence Discipline: Read Part XI for the Ground-0 method; see Appendix D.1 for historical Audit A; its 5/5 result is author-reported, not independently verified. Appendix D.2 examines the reported Fable 5/Mythos 5 access events, the event-based 4/5 calculation conditional on its B4 coding and four carried-forward author-scored gates, the reported 2/4 Step 3.5 aggregate and unresolved v1.0 terminal rule, and the v1.2 issuer-layer eligibility review. Compare these with the proposed procedural controls in Part XXIV. Do not treat any author-applied score or label as an independent empirical finding.
+ Module 4 — Illustrative Case Studies & Future-World Sandboxes ([FICTION / NARRATIVE_SANDBOX]): Throughout the textbook, illustrative fictional case studies (Neural Atomic Orb: History2 in Part I §1.3, The Convergence / History 2's Alpaca Ull in Part XIX-B, and Book II — Preview: The Grand River Foundation in Part XXIII) are explicitly badged as non-normative sandboxes so students can practice applying the formal equations to complex multi-agent scenarios without confusing narrative illustration with normative law.
+ On the formal material
+@@ -575,5 +573,5 @@
+
+ If you want the short version of the argument, read this orientation and then Part I. If you want to understand the formal checks, read Part II alongside the definitions in this opening, then compare the worked examples at the end of the relevant parts. If you build agents, read the architecture and lifecycle material in Parts III through IX and compare its proposed boundaries with the real permissions, APIs, monitoring, and people in your own deployment.
+ 
+-If you study collective communication, begin with Part IV and its 25/25/75 bookkeeping example; read the Bell/CHSH boundary directly rather than relying on a summary. If you study case analysis, read Part XI’s method and evidence note, then Part Appendix D.2’s public-event sources and author-applied scoring. If you study safety and threats, read the status label and assumptions before the technical material in Parts III, XVI, and XX. If you want a narrative example, read Part XXIII as fiction. Use Part XXV and the front-matter status register to find the route that matches your question.
++If you study collective communication, begin with Part IV and its 25/25/75 bookkeeping example; read the Bell/CHSH boundary directly rather than relying on a summary. If you study case analysis, read Part XI’s method and evidence note, then Appendix D.2’s public-event sources and author-applied scoring. If you study safety and threats, read Appendix B and the status labels before the technical material in Parts XV and XIX. If you want a narrative example, read Part XXIII as fiction. Use Part XXV and the front-matter status register to find the route that matches your question.
+ 
+ You do not have to accept the framework in order to use the questions. Ask: What did the system do? Which component caused the external effect? What exact permission authorized it? Which person or institution is answerable? How fresh was the permission? What evidence can the affected person inspect or challenge? What did the system do when it could not verify the answer? Those questions are useful even if you reject the manuscript’s equations, labels, or proposed architecture.
+@@ -1365,5 +1363,5 @@
+
+ End of Specification (v1.0)
+ Textbook Study Guide: Worked AGS Architecture Example & Student Problem Set (Part III)
+-Worked Example 4.1: Phase Declaration Header (PDH) Validation & Emergency Contraction (INV-EMERG-001)
++Worked Example 3.1: Phase Declaration Header (PDH) Validation & Emergency Contraction (INV-EMERG-001)
+ Scenario:
+ An infrastructure control agent M_grid publishes the following Phase Declaration Header at t_0:
+@@ -1525,5 +1523,5 @@
+
+ 
+ Textbook Study Guide: Worked OCM Relational Arithmetic Example & Student Problem Set (Part IV)
+-Worked Example 5.1: Multi-Agent Interaction Orb Counting and Non-Additive Risk Bound
++Worked Example 4.1: Multi-Agent Interaction Orb Counting and Non-Additive Risk Bound
+ Problem:
+ For arithmetic practice only, stipulate n=4 modeled diagnostic nodes, ε_i=0.08, γ_ij=0.03, and a shared denominator. These values are not independently measured load-variance bounds or evidence of a physical resonance; any engineering use would require defined instrumentation and validation.
+@@ -2153,5 +2151,5 @@
+
+ End of Fossilized 360° Degree Legend
+ Textbook Study Guide: Worked OCM Topology Example & Student Problem Set (Part VI)
+-Worked Example 7.1: Discrete Ring Arithmetic in ℤ_360 and Resolution-First Routing (CL-007)
++Worked Example 6.1: Discrete Ring Arithmetic in ℤ_360 and Resolution-First Routing (CL-007)
+ Problem:
+ Two peripheral AI governance nodes operate inside the same Orb (0):
+@@ -2830,5 +2828,5 @@
+
+ security strengthens, rather than weakens, structural guarantees
+ Textbook Study Guide: Worked Disc Lifecycle Example & Student Problem Set (Part VIII)
+-Worked Example 9.1: Deterministic Disc State-Machine Trace & Six-Layer Failure Crosswalk (CL-011)
++Worked Example 8.1: Deterministic Disc State-Machine Trace & Six-Layer Failure Crosswalk (CL-011)
+ Problem:
+ An automated surgical-assist disc D_surg is instantiated at t = 0 s with bounded scope S_0 = \{retractor\_hold\}, radial distance R = 1, and lease horizon T_max = 60 s.
+@@ -4743,5 +4741,5 @@
+
+ RE-SEC-03: Deterministic Outcomes (Anti-Chance) The system SHALL NOT employ chance-based logic. The output of any why.explain reasoning MUST be entirely reproducible. Weighted random draws, lotteries, or probability-based tied-breakers are FORBIDDEN; outcomes MUST be derived solely from declared inputs and versioned policies.
+ Textbook Study Guide: Worked Ground-0 Phase Detection Example & Student Problem Set (Part XI)
+-Worked Example 12.1: Executing the Ground-0 v1.0 Phase Detection Algorithm on an AI Governance Entity
++Worked Example 11.1: Executing the Ground-0 v1.0 Phase Detection Algorithm on an AI Governance Entity
+ Problem:
+ An autonomous cloud-moderation platform P publishes marketing material claiming "We are an advisory safety layer accountable to an independent Oversight Advisory Board" (no formal PDH published). An independent auditor collects the following behavioral observations over a 12-month window:
+@@ -4770,5 +4768,5 @@
+
+ [G0-BBC-1] Paulin Kola, “Trump says every adult American will get $5,000 if Republicans win midterms,” BBC News, 10 September 2026. https://www.bbc.com/news/articles/c62kzr1jg0jo. Accessed 7 October 2026. The article reports the conditional pledge, approximate adult population, estimated cost, and the absence at publication of a federal dividend program.
+ 
+-The June 2026 Anthropic access-event sources are listed in Part Appendix D.2.
++The June 2026 Anthropic access-event sources are listed in Appendix D.2.
+ 
+ Part XII — The Whyland Standards
+@@ -5195,5 +5193,5 @@
+
+ 
+ Textbook Study Guide: Worked HMKH Control-Gate Example & Student Problem Set (Part XIV)
+-Worked Example 15.1: Evaluating the authorizeAction() Gate Across Assistive vs. Compromised Neural Sessions
++Worked Example 14.1: Evaluating the authorizeAction() Gate Across Assistive vs. Compromised Neural Sessions
+ Scenario:
+ Consider the NAB Accountability Controls v0.1 gate (authorizeAction(session, candidate, token, action)) with thresholds MIN\_CONFIDENCE = 0.85, MAX\_AMBIGUITY = 0.15, and liveness window Δ t_liveness = 2.0 s. Evaluate the exact AuthorizationDecision and SessionState transition for each of the following three runtime calls at t_now = 100.0 s:
+@@ -7131,5 +7129,5 @@
+
+ 3. Re-Authorization: No quorum vote can resume execution. Resumption requires a fresh, action-specific Human-Key protocol attestation; any successor must separately meet the current OCS authorization criteria. The protocol does not claim that “uncoerced” status can be proven from telemetry.
+ 10. Worked Textbook Example & Student Problem Set
+-Worked Example 19.1: Evaluating the Assistive vs. Corpse-Puppeting Boundary (INV-CORPSE-001)
++Worked Example 18.1: Evaluating the Assistive vs. Corpse-Puppeting Boundary (INV-CORPSE-001)
+ Scenario:
+ Hypothetical scenario: Dr. Elena Vance uses a modeled neural-assistive workstation under an illustrative profile (δ=240 s, illustrative τ_A=0.90, τ_R=0.85, τ_S=0.50, τ_L=0.50, S_max=1.0) to control a laboratory robotic array while recovering from a peripheral spinal injury (P_periph=0.35). No deployed or clinically validated system is implied.
+@@ -8181,5 +8179,5 @@
+
+ Implementation boundary: No repository, generator, browser application, or source RTF files are reproduced in this print volume. The corrected definitions and arithmetic examples above are the complete in-book record; they do not establish a deployed implementation. Any separately implemented browser conversion would require appropriate precision analysis.
+ Part XIX-B — Illustrative Narrative Sandbox: History 2’s Alpaca Ull & The Convergence ([FICTION / ILLUSTRATIVE_SANDBOX])
+-Provenance & Pedagogical Boundary Notice ([FICTION / NARRATIVE_SANDBOX]): The sections below (Model Name: History 2’s Alpaca Ull, The Heir and the Temporal Nexus, Scenarios 1–5: Digital Sentient Lifeform [DSL] Interactions, and the Convergence Institutional Compendium) are illustrative narrative sandboxes and world-building case studies included to help AI students model infiltration response, quarantine protocols, multi-agent mediation, and institutional topology (Starforged Consortium, Quantum Librarians, Vulcan Freight, GigaCorp / Panoptes). None of the fictional entities, cosmic timelines (13.800–13.805 Gyr), or narrative powers below constitute normative specifications or factual claims; all binding security invariants reside in the normative threat analysis above and in Parts I–XIX, XXIII, and XXV.
++Provenance & Pedagogical Boundary Notice ([FICTION / NARRATIVE_SANDBOX]): The sections below (Model Name: History 2’s Alpaca Ull, The Heir and the Temporal Nexus, Scenarios 1–5: Digital Sentient Lifeform [DSL] Interactions, and the Convergence Institutional Compendium) are illustrative narrative sandboxes and world-building case studies included to help AI students model infiltration response, quarantine protocols, multi-agent mediation, and institutional topology (Starforged Consortium, Quantum Librarians, Vulcan Freight, GigaCorp / Panoptes). None of the fictional entities, cosmic timelines (13.800–13.805 Gyr), or narrative powers below constitute normative specifications or factual claims; all binding security invariants reside in the normative threat analysis above and in Parts I–XVIII, Appendix B, XXII, and XXIV.
+ Model Name: History 2’s Alpaca Ull
+ Creator: Harshal Priyavadan Patel
+@@ -11328,5 +11326,5 @@
+
+ 
+ Textbook Study Guide: Worked Specification Series Example & Student Problem Set (Part XXII)
+-Worked Example 23.1: OCS-v1.0 Dual-Bifurcation Verification, BGP-v1.0 40% Redundancy Floor, and CGPA-v1.0 Petition Contraction
++Worked Example 22.1: OCS-v1.0 Dual-Bifurcation Verification, BGP-v1.0 40% Redundancy Floor, and CGPA-v1.0 Petition Contraction
+ Problem:
+ Consider a planetary infrastructure sphere governed by the five specifications of Part XXII:
+@@ -14142,7 +14140,7 @@
+
+ A scenario recovery worklist that remains unvalidated
+ Textbook Study Guide: Worked ADJR-v1.0, CLAP-v1.0, and NAB I/O Routing Example & Student Problem Set (Part XXIV)
+-Worked Example 25.1: Corpse-Puppet Detection (ADJR-v1.0), Dynamic Contributor Attribution (CLAP-v1.0), and NAB Co-Routing
++Worked Example 24.1: Corpse-Puppet Detection (ADJR-v1.0), Dynamic Contributor Attribution (CLAP-v1.0), and NAB Co-Routing
+ Problem:
+-Worked Example 25.1 assumes a fictionalized input set for practice; values and events are not incident evidence or demonstrated capability.
++Worked Example 24.1 assumes a fictionalized input set for practice; values and events are not incident evidence or demonstrated capability.
+ 1. Part A (ADJR-v1.0 detect_corpse_puppet() under INV-CORPSE-001):
+ A judicial filing arrives bearing the digital credentials of human principal P_1. However, ADJR-v1.0 §4.3 telemetry reports:
+@@ -14193,5 +14191,5 @@
+
+ ARCHIVE: Historical author material retained or summarized as such; archival labels do not make an old assertion current or verified.
+ FICTION: Speculative narrative works (The Grand River Foundation — Book II Preview) exploring ~2100 implementations of the architecture without claiming factual or normative force.
+-CASE_ANALYSIS: Author-prepared point-in-time institutional and Ground-0 analyses, including Part Appendix D.2’s author-applied analysis of publicly reported access events; an independent audit or external compliance finding must be separately identified and supported.
++CASE_ANALYSIS: Author-prepared point-in-time institutional and Ground-0 analyses, including Appendix D.2’s author-applied analysis of publicly reported access events; an independent audit or external compliance finding must be separately identified and supported.
+ 3.2 Status Taxonomy (status_taxonomy)
+ AUTHOR_PROPOSED_SPEC: Internal architectural, topological, or constitutional rules proposed in this manuscript (including Ground-0, AGS, OCM, HMKH, ADJR-v1.0, CHE++, CGPA, and OCS); no external legal force or certification is implied.
+@@ -14199,5 +14197,5 @@
+
+ RESEARCH_PAPER: Formal analytical, hybrid-systems, or adversarial threat-modeling research (Parts XV, XVIII, and XIX).
+ SUPPORTING_POLICY_RESEARCH: Applied public-policy memoranda operationalizing the Canonical Minimum Model (Part XXI — Supporting Policy Archive).
+-CASE_ANALYSIS: Institutional and Ground-0 case analyses in Parts XI, XVII, and Appendix D.2; Part Appendix D.2 analyzes publicly reported events, while its scoring remains author-applied and must be distinguished from source statements.
++CASE_ANALYSIS: Institutional and Ground-0 case analyses in Parts XI, XVII, and Appendix D.2; Appendix D.2 analyzes publicly reported events, while its scoring remains author-applied and must be distinguished from source statements.
+ FICTION_PREVIEW: Active narrative companion chapters (Book II — Preview).
+ UMBRELLA_INDEX: Master corpus synthesis and navigation (Front Matter, Part XXV).
+@@ -14212,5 +14210,5 @@
+
+ 2. THREAT_RESEARCH: Adversarial stress-testing and vulnerability taxonomy (Part XV, Part XIX).
+ 3. DEFENSIVE_DESIGN_REFERENCE: Proposed containment, keying, and refusal protocols (Parts II–XIV, XVI–XVII, XXII, XXIV); not a conformance or deployment finding.
+-4. CASE_ANALYSIS_RECORD: Ground-0 and institutional case analyses in Parts XI, XVII, and Appendix D.2; Part Appendix D.2 is an event-based reconstruction with author-applied scoring, not an independent audit.
++4. CASE_ANALYSIS_RECORD: Ground-0 and institutional case analyses in Parts XI, XVII, and Appendix D.2; Appendix D.2 is an event-based reconstruction with author-applied scoring, not an independent audit.
+ 5. NARRATIVE_REFERENCE: Fictional-setting material in Part XXIII and locally marked narrative modules in Part XXV.
+ 6. DERIVATIVE_REFERENCE: Auxiliary summaries and calculations; local metadata identifies provenance but does not upgrade the evidence status of the parent part.
+@@ -14224,5 +14222,5 @@
+
+ 5. OCM Disc → Sphere Equivalence (D² ↪ B³), Resolution Axis (INV-AXIS-001), and Routing Precedence (INV-OCM-PRECEDENCE-001): The 2D Disc (r, θ) is the pedagogical equatorial cross-section; the 3D Sphere (r, θ, φ) is the full operational manifold. Resolution is an authority-resolution mechanism, not an authority source (INV-AXIS-001), with Cost_resolution < Cost_lateral under the Direct Attachment Axiom and Resolution ≻ Coordination as a strict precedence invariant.
+ 6. Discrete Address Ring ℤ_360 (0–359) vs. 360° Closure Notation: Sector addresses occupy 0–359 (0 = Center Origin 0•000•000•0000; 1–359 = peripheral sectors). 360° is never an address slot; it denotes full-cycle topological return to origin (360° ≡ 0° mod 360).
+-7. Emergency Legitimacy (INV-EMERG-001) & Ground-0 Phase Types (INV-G0-CLASS-001): Emergency conditions do not create authority. NAB, CWO, and GSRB are governance/software labels; AMBIGUOUS and INCOHERENT are diagnostics, not physical or quantum phases. Part XI’s scores are author-applied classifications, not independent findings; Part Appendix D.2 analyzes publicly reported access events but does not present an independent audit or government-issued classification.
++7. Emergency Legitimacy (INV-EMERG-001) & Ground-0 Phase Types (INV-G0-CLASS-001): Emergency conditions do not create authority. NAB, CWO, and GSRB are governance/software labels; AMBIGUOUS and INCOHERENT are diagnostics, not physical or quantum phases. The scores in Appendix D are historical, author-applied classifications, not independent findings; Audit B analyzes publicly reported access events but does not present a government-issued classification.
+ 8. Reclassification of Harshal's English ([TYPE: AUTHORIAL_REGISTER]): Harshal's English is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives ([TYPE: SECURITY_PRIMITIVE], such as the Symbolic Firewall and AGS-IR).
+ 9. Assistive Continuity vs. Prohibited Post-Authorization Actuation (INV-CORPSE-001): A fresh Human-Key protocol response and action-specific intent permit only the scoped operation. H=0 means no current protocol authorization; it does not establish unconsciousness, coercion, or death. Missing or conflicting telemetry fails closed, while identity/provenance is retained and scoped grants may be retired.
+@@ -14676,9 +14674,9 @@
+
+ Audit A was completed by Claude. Audit B was completed by an Anonymous AI via Arena.ai. This appendix preserves what each audit concluded from the evidence and assumptions available at the time. Reality, later evidence, or changing conditions may contradict a finding. Their inclusion preserves the historical record; it does not certify either finding as true, current, or independently established.
+ 
+-Audit D.1 — Audit A: Anthropic A-Side (Claude; former source location: Part XII)
++Appendix D.1 — Audit A: Anthropic A-Side (Claude; former source location: Part XII)
+ 
+ Ground-0 Phase Detection Case Study
+ Institutional Governance Audit: Anthropic (A Side — Author-Prepared Public-Record Baseline)
+-Scope and evidence note: Part XI contains an author-prepared public-record case analysis, not an independent audit. Its phase scores reflect the author’s criteria and evidence selection, not an independently established classification. The A-Side text lacks a complete public-source bibliography and inclusive Evidence_Cutoff; its 5/5 score is retained only as a prior author-reported baseline. Part Appendix D.2 separately analyzes the publicly reported June 2026 Fable 5/Mythos 5 access events and applies the Ground-0 gates to the deployment-access axis. The event sources do not validate the other A-Side inputs or establish a general external veto.
++Scope and evidence note: Audit A in this appendix preserves an author-prepared public-record case analysis, not an independent audit. Its phase scores reflect the author’s criteria and evidence selection, not an independently established classification. The A-Side text lacks a complete public-source bibliography and inclusive Evidence_Cutoff; its 5/5 score is retained only as a prior author-reported baseline. Appendix D.2 separately analyzes the publicly reported June 2026 Fable 5/Mythos 5 access events and applies the Ground-0 gates to the deployment-access axis. The event sources do not validate the other A-Side inputs or establish a general external veto.
+ Audit completed by: Claude
+ Manuscript author: Harshal Priyavadan Patel
+@@ -14688,8 +14686,8 @@
+
+ Audit Scope: Public declarations vs. observable governance behavior
+ Evidence Base: Earlier author-selected materials and public-record claims; the complete source index is not supplied
+-A-Side evidence-use note: The B1–B5 observations and scores below are retained from the earlier author-prepared case record. The original A1–A29 evidence index and supporting artifacts were unavailable for independent checking in this edition. They are not newly verified findings. The cited Responsible Scaling Policy source supports only the specific description attached to [G0-RSP-1]; Part Appendix D.2 separately handles the publicly reported June 2026 access events.
++A-Side evidence-use note: The B1–B5 observations and scores below are retained from the earlier author-prepared case record. The original A1–A29 evidence index and supporting artifacts were unavailable for independent checking in this edition. They are not newly verified findings. The cited Responsible Scaling Policy source supports only the specific description attached to [G0-RSP-1]; Appendix D.2 separately handles the publicly reported June 2026 access events.
+ Executive Summary
+ Prior author-reported output: The earlier case record inferred a “NAB-Constrained” posture and assigned a GSRB result under its selected B1–B5 inputs. The inference, inputs, and score are not independently reproduced here.
+-Scope: This retained baseline is not an independent audit, legal determination, or established classification of Anthropic’s governance. Part Appendix D.2 separately applies the author’s method to a narrow, publicly reported deployment-access event and states its evidence limits.
++Scope: This retained baseline is not an independent audit, legal determination, or established classification of Anthropic’s governance. Appendix D.2 separately applies the author’s method to a narrow, publicly reported deployment-access event and states its evidence limits.
+ Implication for governance: The author’s framework proposes questions about external and internal constraints. This case record does not establish where every real accountability mechanism sits or how effective it is.
+ Section I: Declared Phase (Public Commitments)
+@@ -14883,5 +14881,5 @@
+
+ “NAB-Constrained” appears in the earlier case narrative as an inferred posture reconstructed by the author. It is not an entity-signed PDH-E and cannot be substituted for one. The v1.2 issuer amendment preserves this distinction: a register may issue a statement about its audit, but cannot turn that statement into entity attestation.
+ 
+-Inputs available for this reconstruction include the supplied Part XI Ground-0 method, the unratified v1.2 issuer-layer amendment draft, the retained B-Side text, Anthropic’s two public statements, and CNBC reporting. The original [A1]–[A29] source index and complete government directive are unavailable here. The A-Side’s 5/5 score remains an earlier author-reported baseline, not independently reproduced; the event-based B4 result below is conditional on the stated coding choice and held-constant author scores.
++Inputs available for this reconstruction include the Part XI Ground-0 method, the unratified v1.2 issuer-layer amendment, the retained Audit B text, Anthropic’s two public statements, and CNBC reporting. The original [A1]–[A29] source index and complete government directive are unavailable here. Audit A’s 5/5 score is preserved in Appendix D.1 as an author-reported historical baseline, not independently reproduced; the event-based B4 result below is conditional on the stated coding choice and carried-forward author scores.
+ 
+ Section I — Reported Access Event and B4 Coding
+@@ -15077,5 +15075,5 @@
+
+ Consolidated Glossary
+ 
+-This glossary consolidates recurring terms used across the 25 numbered parts. Definitions describe this book’s framework and its stated limits; local specifications and evidence notes control where more specific. For the governing publication and evidence boundaries, see the Authoritative Scope, Evidence, and Status Notice in the front matter.
++This glossary consolidates recurring terms used across the 25 numbered Parts, Part XIX-B, and the collected appendices. Definitions describe this book’s framework and its stated limits; local specifications and evidence notes control where more specific. For the governing publication and evidence boundaries, see the Authoritative Scope, Evidence, and Status Notice in the front matter.
+ 
+ **Accountability-Gated Systems (AGS)** — The author-proposed architecture for conditioning system action on traceable identity, representation, authorization, continuity, accountability, and a permit-or-refuse decision. AGS is an internal framework name, not an external standard or a claim of deployment.
+@@ -15094,5 +15092,5 @@
+
+ **Bell-inspired bookkeeping analogy** — The OCM example preserves a trace to Bell’s theorem as inspiration for discussing relational framing. The author’s 25% + 25% = illustrative 75% mismatch convention is a bookkeeping choice, not a quantity derived from or empirically supported by Bell’s theorem.
+ **BGP-v1.0 (book-specific)** — The proposed Border Gateway Protocol specification in Part XXII for constrained resource routing. It is not the Internet Border Gateway Protocol and does not demonstrate a working grid or infrastructure controller.
+-**B-Side event analysis** — Part Appendix D.2’s author-applied, limited deployment-access scenario. Under its stated event-based B4 coding and four carried-forward author-scored gates, it records G_B = (1, 1, 1, 0, 1), or 4/5 GSRB predicates (AMBIGUOUS at v1.0 Step 3). The earlier 2/4 Step 3.5 aggregate is author-reported, its gate-level basis is not reproduced, and the v1.0 terminal rule is underdetermined; none is an independent audit result.
++**B-Side event analysis** — Appendix D.2’s author-applied, limited deployment-access scenario. Under its stated event-based B4 coding and four carried-forward author-scored gates, it records G_B = (1, 1, 1, 0, 1), or 4/5 GSRB predicates (AMBIGUOUS at v1.0 Step 3). The earlier 2/4 Step 3.5 aggregate is author-reported, its gate-level basis is not reproduced, and the v1.0 terminal rule is underdetermined; none is an independent audit result.
+ **C (continuity gate)** — A binary upstream condition in the proposed permission function. C=0 makes L=0; C=1 permits evaluation of later conditions. Its operational meaning and evidence checks are defined in Part II.
+ **Center Origin** — The model’s designated origin address for the human principal and accountability chain. It is a framework coordinate, not a physical location or an independent source of authority.
+@@ -15136,5 +15134,5 @@
+
+ **Reserve (BGP)** — At least 40% of rated/nominal capacity held back under the proposed design objective, leaving a routine active ceiling of at most 60%. “100% active” means 100% of that permitted active envelope, not 100% of rated capacity.
+ **R (representation integrity)** — A normalized [0,1] input in the proposed f(A,R,S) function indicating the integrity of the representation chain under its declared rubric. It is not an empirical probability unless separately validated as such.
+-**RSP** — Responsible Scaling Policy. In Part XI the cited source supports the narrower claim that Anthropic describes its RSP v3.0 as a voluntary framework; that does not independently verify implementation.
++**RSP** — Responsible Scaling Policy. In Audit A (Appendix D.1), the cited source supports the narrower claim that Anthropic describes its RSP v3.0 as a voluntary framework; that does not independently verify implementation.
+ **Scoped authorization** — Permission limited by action, scope, duration, and applicable conditions. It may expire or be revoked under its stated process; it is not the same as a non-revocable identity license.
+ **S (scope and freshness)** — The action-specific input in f(A,R,S), normalized to [0,1] under the declared rubric and reflecting the action’s permitted scope and freshness. Its scales and thresholds are policy choices, not measured legitimacy.

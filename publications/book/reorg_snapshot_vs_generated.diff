@@ -1,0 +1,77 @@
+--- manual QA snapshot
+
++++ script-generated candidate
+
+@@ -11,3 +11,3 @@
+
+ Edition: Production Edition v2.1, October 2026
+-Includes a plain-language reader orientation, updated public-source citations, worked examples, end-of-part student review questions in Parts I–XXV, and a consolidated glossary. Part XIX is preserved without general copyediting; only the approved removal of embedded draft TOC/page/source-range debris, repository-file references not reproduced in the book, and the global A-number replacement were applied.
++Includes a plain-language reader orientation, updated public-source citations, worked examples, end-of-part student review questions in Parts I–XVIII and XX–XXV where present, and a consolidated glossary. Part XIX is preserved without general copyediting; only the approved removal of embedded draft TOC/page/source-range debris and references to unreproduced repository files, the approved global A-number replacement, and the authorized Part-number and cross-reference updates needed to close the numbering gaps were applied.
+ 
+@@ -15,3 +15,3 @@
+
+ • This is the Production Edition of Book I, prepared for print. “Production” describes editorial and print preparation; it does not certify any system, validate a technical proposal, or claim that a described control is deployed.
+-• This volume contains 25 numbered parts. Part XXIII is fiction; Appendix D.2 preserves Audit B as a historical analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each part’s local provenance and evidence labels govern its claims.
++• This volume contains 25 numbered Parts. Part XXIII is fiction; Appendix D.2 preserves Audit B as a historical analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each Part’s local provenance and evidence labels govern its claims.
+ • “Normative” means a rule proposed within this author’s framework, not external law, a regulator’s approval, or a binding industry standard. Modeled scenarios, author-reported observations, and source-reported events are distinct evidence classes.
+@@ -188,8 +188,8 @@
+
+ | A | Formal constraint equations and local term notes; formerly embedded in Part II | Collected reference | Author-proposed model; not an external standard or validated implementation. |
+-| B | Safety Rationale SR-0–SR-5 and review questions; formerly Part III | Collected historical/proposal material | Scenarios are proposed stress tests, not evidence of incidents or operational capability. |
++| B | Safety Rationale SR-0–SR-5 and review questions; from old Part III | Collected historical/proposal material | Scenarios are proposed stress tests, not evidence of incidents or operational capability. |
+ | C | Stipulated Ground-0 public-health and enforcement-review exercises; formerly Part XII | Collected exercises | Assumed inputs; no real authority is evaluated. |
+-| D.1 | Audit A — Claude, Anthropic A-Side; formerly in Part XII | Historical audit record | Author-reported findings; later evidence or reality may contradict them. |
+-| D.2 | Audit B — Anonymous AI via Arena.ai; former Part XXVI | Historical audit record | Public-event reconstruction and author-applied analysis; not an independent government finding. |
+-| E | Integration & Operations Guide; formerly in Part XVI | Collected proposal | Protocol inventory and controls are proposed; implementation and efficacy are not established. |
+-| F | Signal Class Quick Reference; formerly in Part XXI | Collected reference | Illustrative classes and deployment-specific limits; not a validated interface. |
++| D.1 | Audit A — Claude, Anthropic A-Side; from old Part XII, now Part XI | Historical audit record | Author-reported findings; later evidence or reality may contradict them. |
++| D.2 | Audit B — Anonymous AI via Arena.ai; from old Part XXVI | Historical audit record | Public-event reconstruction and author-applied analysis; not an independent government finding. |
++| E | Integration & Operations Guide; from old Part XVI, now Part XV | Collected proposal | Protocol inventory and controls are proposed; implementation and efficacy are not established. |
++| F | Signal Class Quick Reference; from old Part XXI, now Part XX | Collected reference | Illustrative classes and deployment-specific limits; not a validated interface. |
+ 
+@@ -14558,3 +14558,3 @@
+
+ 
+-Appendix B — Safety Rationale for Adversarial Scenarios (formerly Part III)
++Appendix B — Safety Rationale for Adversarial Scenarios (from old Part III)
+ 
+@@ -14613,5 +14613,5 @@
+
+ 
+-Appendix C — Ground-0 Supplementary Exercises (formerly in Part XII)
+-
+-Appendix C.1 — Illustrative Public-Health Scenario (Assumed Inputs; formerly Appendix A in Part XII)
++Appendix C — Ground-0 Supplementary Exercises (from old Part XII, now Part XI)
++
++Appendix C.1 — Illustrative Public-Health Scenario (Assumed Inputs; formerly Appendix A in old Part XII, now Part XI)
+ This is a constructed classroom exercise, not an audit of a named public-health authority. No source set or Evidence_Cutoff is provided here, so the yes/no inputs below are stipulations for practicing the proposed rubric, not findings about a real agency. Actual classification would require claim-level sources, scope, contrary evidence, and an unresolved option.
+@@ -14645,3 +14645,3 @@
+
+ Within the stated hypothetical inputs, the proposed rubric would produce the listed model label. The exercise does not establish a real-world phase, remove the need for interpretation, or show that the result is legally or empirically correct. Any actual review requires its own source-backed record.
+-Appendix C.2 — Hypothetical Enforcement-Review Exercise (No Real Event Evaluated; formerly Appendix B in Part XII)
++Appendix C.2 — Hypothetical Enforcement-Review Exercise (No Real Event Evaluated; formerly Appendix B in old Part XII, now Part XI)
+ This is a synthetic classroom scenario, not a report about a real agency, location, person, or use-of-force event. No factual claim about federal agents, Minnesota, or any specific incident is made here. All inputs below are assumptions; a real case would require identified, dated sources, a defined scope, contrary evidence, and qualified legal review.
+@@ -14675,3 +14675,3 @@
+
+ 
+-Appendix D.1 — Audit A: Anthropic A-Side (Claude; former source location: Part XII)
++Appendix D.1 — Audit A: Anthropic A-Side (Claude; former source location: old Part XII, now Part XI)
+ 
+@@ -14837,3 +14837,3 @@
+
+ 
+-Appendix D.2 — Audit B: Anthropic Fable 5/Mythos 5 Access Events and PDH-R Review (former source location: Part XXVI)
++Appendix D.2 — Audit B: Anthropic Fable 5/Mythos 5 Access Events and PDH-R Review (former source location: old Part XXVI)
+ 
+@@ -15010,3 +15010,3 @@
+
+ 
+-Appendix E — Integration & Operations Guide (formerly in Part XVI)
++Appendix E — Integration & Operations Guide (from old Part XVI, now Part XV)
+ Appendix E.1 — Protocol Integration Framework
+@@ -15049,3 +15049,3 @@
+
+ 
+-Appendix F — Signal Class Quick Reference (formerly in Part XXI)
++Appendix F — Signal Class Quick Reference (from old Part XXI, now Part XX)
+ CLASS 1 — DIRECTIONAL PRIMITIVES

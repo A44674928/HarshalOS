@@ -1,0 +1,110 @@
+--- reproducible script
+
++++ prior QA snapshot
+
+@@ -10,9 +10,9 @@
+
+ 
+ Edition: Production Edition v2.1, October 2026
+-Includes a plain-language reader orientation, updated public-source citations, worked examples, end-of-part student review questions in Parts I–XVIII and XX–XXV where present, and a consolidated glossary. Part XIX is preserved without general copyediting; only the approved removal of embedded draft TOC/page/source-range debris, repository-file references not reproduced in the book, and the global A-number replacement were applied.
++Includes a plain-language reader orientation, updated public-source citations, worked examples, end-of-part student review questions in Parts I–XXV, and a consolidated glossary. Part XIX is preserved without general copyediting; only the approved removal of embedded draft TOC/page/source-range debris, repository-file references not reproduced in the book, and the global A-number replacement were applied.
+ 
+ AUTHORITATIVE SCOPE, EVIDENCE, AND STATUS NOTICE:
+ • This is the Production Edition of Book I, prepared for print. “Production” describes editorial and print preparation; it does not certify any system, validate a technical proposal, or claim that a described control is deployed.
+-• This volume contains 25 numbered Parts. Part XXIII is fiction; Appendix D.2 preserves Audit B as a historical analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each Part’s local provenance and evidence labels govern its claims.
++• This volume contains 25 numbered parts. Part XXIII is fiction; Appendix D.2 preserves Audit B as a historical analysis of publicly reported events; Part XXV is a derivative index and embedded reference material. Each part’s local provenance and evidence labels govern its claims.
+ • “Normative” means a rule proposed within this author’s framework, not external law, a regulator’s approval, or a binding industry standard. Modeled scenarios, author-reported observations, and source-reported events are distinct evidence classes.
+ • A threat scenario, equation, pseudocode block, checklist, or named capability is not, by itself, evidence of an incident, a feasible mechanism, a successful defense, or a working deployment. Performance and timing claims require identified, equipment-specific testing and deployment evidence.
+@@ -187,10 +187,10 @@
+
+ |---|---|---|---|
+ | A | Formal constraint equations and local term notes; formerly embedded in Part II | Collected reference | Author-proposed model; not an external standard or validated implementation. |
+-| B | Safety Rationale SR-0–SR-5 and review questions; from old Part III (now Appendix B) | Collected historical/proposal material | Scenarios are proposed stress tests, not evidence of incidents or operational capability. |
++| B | Safety Rationale SR-0–SR-5 and review questions; formerly Part III | Collected historical/proposal material | Scenarios are proposed stress tests, not evidence of incidents or operational capability. |
+ | C | Stipulated Ground-0 public-health and enforcement-review exercises; formerly Part XII | Collected exercises | Assumed inputs; no real authority is evaluated. |
+-| D.1 | Audit A — Claude, Anthropic A-Side; from old Part XII (now Part XI) | Historical audit record | Author-reported findings; later evidence or reality may contradict them. |
+-| D.2 | Audit B — Anonymous AI via Arena.ai; from old Part XXVI | Historical audit record | Public-event reconstruction and author-applied analysis; not an independent government finding. |
+-| E | Integration & Operations Guide; from old Part XVI (now Part XV) | Collected proposal | Protocol inventory and controls are proposed; implementation and efficacy are not established. |
+-| F | Signal Class Quick Reference; from old Part XXI (now Part XX) | Collected reference | Illustrative classes and deployment-specific limits; not a validated interface. |
++| D.1 | Audit A — Claude, Anthropic A-Side; formerly in Part XII | Historical audit record | Author-reported findings; later evidence or reality may contradict them. |
++| D.2 | Audit B — Anonymous AI via Arena.ai; former Part XXVI | Historical audit record | Public-event reconstruction and author-applied analysis; not an independent government finding. |
++| E | Integration & Operations Guide; formerly in Part XVI | Collected proposal | Protocol inventory and controls are proposed; implementation and efficacy are not established. |
++| F | Signal Class Quick Reference; formerly in Part XXI | Collected reference | Illustrative classes and deployment-specific limits; not a validated interface. |
+ 
+ Reference Modules
+@@ -573,5 +573,5 @@
+
+ If you want the short version of the argument, read this orientation and then Part I. If you want to understand the formal checks, read Part II alongside the definitions in this opening, then compare the worked examples at the end of the relevant parts. If you build agents, read the architecture and lifecycle material in Parts III through IX and compare its proposed boundaries with the real permissions, APIs, monitoring, and people in your own deployment.
+ 
+-If you study collective communication, begin with Part IV and its 25/25/75 bookkeeping example; read the Bell/CHSH boundary directly rather than relying on a summary. If you study case analysis, read Part XI’s method and evidence note, then Appendix D.2’s public-event sources and author-applied scoring. If you study safety and threats, read the status label and assumptions before the technical material in Parts III, XVI, and XX. If you want a narrative example, read Part XXIII as fiction. Use Part XXV and the front-matter status register to find the route that matches your question.
++If you study collective communication, begin with Part IV and its 25/25/75 bookkeeping example; read the Bell/CHSH boundary directly rather than relying on a summary. If you study case analysis, read Part XI’s method and evidence note, then Appendix D.2’s public-event sources and author-applied scoring. If you study safety and threats, read Appendix B and the status labels before the technical material in Parts XV and XIX. If you want a narrative example, read Part XXIII as fiction. Use Part XXV and the front-matter status register to find the route that matches your question.
+ 
+ You do not have to accept the framework in order to use the questions. Ask: What did the system do? Which component caused the external effect? What exact permission authorized it? Which person or institution is answerable? How fresh was the permission? What evidence can the affected person inspect or challenge? What did the system do when it could not verify the answer? Those questions are useful even if you reject the manuscript’s equations, labels, or proposed architecture.
+@@ -14222,5 +14222,5 @@
+
+ 5. OCM Disc → Sphere Equivalence (D² ↪ B³), Resolution Axis (INV-AXIS-001), and Routing Precedence (INV-OCM-PRECEDENCE-001): The 2D Disc (r, θ) is the pedagogical equatorial cross-section; the 3D Sphere (r, θ, φ) is the full operational manifold. Resolution is an authority-resolution mechanism, not an authority source (INV-AXIS-001), with Cost_resolution < Cost_lateral under the Direct Attachment Axiom and Resolution ≻ Coordination as a strict precedence invariant.
+ 6. Discrete Address Ring ℤ_360 (0–359) vs. 360° Closure Notation: Sector addresses occupy 0–359 (0 = Center Origin 0•000•000•0000; 1–359 = peripheral sectors). 360° is never an address slot; it denotes full-cycle topological return to origin (360° ≡ 0° mod 360).
+-7. Emergency Legitimacy (INV-EMERG-001) & Ground-0 Phase Types (INV-G0-CLASS-001): Emergency conditions do not create authority. NAB, CWO, and GSRB are governance/software labels; AMBIGUOUS and INCOHERENT are diagnostics, not physical or quantum phases. Part XI’s scores are author-applied classifications, not independent findings; Appendix D.2 analyzes publicly reported access events but does not present an independent audit or government-issued classification.
++7. Emergency Legitimacy (INV-EMERG-001) & Ground-0 Phase Types (INV-G0-CLASS-001): Emergency conditions do not create authority. NAB, CWO, and GSRB are governance/software labels; AMBIGUOUS and INCOHERENT are diagnostics, not physical or quantum phases. The scores in Appendix D are historical, author-applied classifications, not independent findings; Audit B analyzes publicly reported access events but does not present a government-issued classification.
+ 8. Reclassification of Harshal's English ([TYPE: AUTHORIAL_REGISTER]): Harshal's English is the author's normative prose register and left-to-right reading discipline, distinct from cryptographic/mathematical security primitives ([TYPE: SECURITY_PRIMITIVE], such as the Symbolic Firewall and AGS-IR).
+ 9. Assistive Continuity vs. Prohibited Post-Authorization Actuation (INV-CORPSE-001): A fresh Human-Key protocol response and action-specific intent permit only the scoped operation. H=0 means no current protocol authorization; it does not establish unconsciousness, coercion, or death. Missing or conflicting telemetry fails closed, while identity/provenance is retained and scoped grants may be retired.
+@@ -14557,5 +14557,5 @@
+
+ Scope and status: This appendix defines the permission model and worked examples used in this edition; it is not a complete formal system or validated implementation. The unresolved questions are the choice and validation of deployment-specific evidence, score weights, thresholds, and hard-safety predicates. Ethical or legal legitimacy is not measured by the equations.
+ 
+-Appendix B — Safety Rationale for Adversarial Scenarios (from old Part III (now Appendix B))
++Appendix B — Safety Rationale for Adversarial Scenarios (formerly Part III)
+ 
+ Appendix SR-0 through SR-5: why the framework contains hypothetical and adversarial stress-tests, and the containment chamber that bounds them.
+@@ -14612,7 +14612,7 @@
+
+ 3. What makes a scenario a useful defensive test case without turning it into a claim of feasibility, deployment, or an observed incident?
+ 
+-Appendix C — Ground-0 Supplementary Exercises (from old Part XII (now Part XI))
+-
+-Appendix C.1 — Illustrative Public-Health Scenario (Assumed Inputs; formerly Appendix A in old Part XII (now Part XI))
++Appendix C — Ground-0 Supplementary Exercises (formerly in Part XII)
++
++Appendix C.1 — Illustrative Public-Health Scenario (Assumed Inputs; formerly Appendix A in Part XII)
+ This is a constructed classroom exercise, not an audit of a named public-health authority. No source set or Evidence_Cutoff is provided here, so the yes/no inputs below are stipulations for practicing the proposed rubric, not findings about a real agency. Actual classification would require claim-level sources, scope, contrary evidence, and an unresolved option.
+ Step 1 — Gather Materials:
+@@ -14644,5 +14644,5 @@
+
+ What This Example Shows
+ Within the stated hypothetical inputs, the proposed rubric would produce the listed model label. The exercise does not establish a real-world phase, remove the need for interpretation, or show that the result is legally or empirically correct. Any actual review requires its own source-backed record.
+-Appendix C.2 — Hypothetical Enforcement-Review Exercise (No Real Event Evaluated; formerly Appendix B in old Part XII (now Part XI))
++Appendix C.2 — Hypothetical Enforcement-Review Exercise (No Real Event Evaluated; formerly Appendix B in Part XII)
+ This is a synthetic classroom scenario, not a report about a real agency, location, person, or use-of-force event. No factual claim about federal agents, Minnesota, or any specific incident is made here. All inputs below are assumptions; a real case would require identified, dated sources, a defined scope, contrary evidence, and qualified legal review.
+ 
+@@ -14674,5 +14674,5 @@
+
+ Audit A was completed by Claude. Audit B was completed by an Anonymous AI via Arena.ai. This appendix preserves what each audit concluded from the evidence and assumptions available at the time. Reality, later evidence, or changing conditions may contradict a finding. Their inclusion preserves the historical record; it does not certify either finding as true, current, or independently established.
+ 
+-Appendix D.1 — Audit A: Anthropic A-Side (Claude; former source location: old Part XII (now Part XI))
++Appendix D.1 — Audit A: Anthropic A-Side (Claude; former source location: Part XII)
+ 
+ Ground-0 Phase Detection Case Study
+@@ -14836,5 +14836,5 @@
+
+ [G0-RSP-1] Anthropic, “Anthropic’s Responsible Scaling Policy: Version 3.0,” 24 February 2026. https://www.anthropic.com/news/responsible-scaling-policy-v3. Accessed 7 October 2026. Anthropic describes the RSP as a voluntary framework it uses to mitigate catastrophic risks from AI systems.
+ 
+-Appendix D.2 — Audit B: Anthropic Fable 5/Mythos 5 Access Events and PDH-R Review (former source location: old Part XXVI)
++Appendix D.2 — Audit B: Anthropic Fable 5/Mythos 5 Access Events and PDH-R Review (former source location: Part XXVI)
+ 
+ Audit B — Anthropic’s Reported Fable 5/Mythos 5 Access Events and PDH-R Issuer-Layer Review
+@@ -15009,5 +15009,5 @@
+
+ [G0-A3] CNBC, “Anthropic says Trump admin has lifted export controls on Claude Fable 5 and Mythos 5,” 30 June 2026; updated 1 July 2026. https://www.cnbc.com/2026/06/30/anthropic-says-trump-admin-has-lifted-export-controls-on-claude-fable-5-and-mythos-5.html. Accessed 7 October 2026. Secondary reporting on Commerce’s role, the lifting of controls, and CNBC’s report that it viewed Secretary Lutnick’s letter allowing limited Mythos 5 access to selected trusted partners.
+ 
+-Appendix E — Integration & Operations Guide (from old Part XVI (now Part XV))
++Appendix E — Integration & Operations Guide (formerly in Part XVI)
+ Appendix E.1 — Protocol Integration Framework
+                  ADDING NEW PROTOCOLS TO AGS
+@@ -15048,5 +15048,5 @@
+
+ Source-authored sign-off text; it is retained as provenance only. This edition presents the controls as proposals; production readiness, partitioning, and efficacy are not established.
+ 
+-Appendix F — Signal Class Quick Reference (from old Part XXI (now Part XX))
++Appendix F — Signal Class Quick Reference (formerly in Part XXI)
+ CLASS 1 — DIRECTIONAL PRIMITIVES
+   Signals:  NO, YES, X, [PASS] (illustrative labels)

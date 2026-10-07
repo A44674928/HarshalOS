@@ -1,0 +1,161 @@
+Part XXVI — Ground-0 Case Study: Anthropic B-Side Counterfactual Stress-Test and PDH-R Issuer-Layer Review
+
+Part status: DRAFT
+Provenance class: CASE_ANALYSIS
+Local status taxonomy: CASE_STUDY_AUDIT
+Evidence status: AUTHOR_REPORTED / ILLUSTRATIVE_COUNTERFACTUAL
+Research layer: CASE_ANALYSIS_RECORD
+Method sources: Part XII, Ground-0 v1.0; the v1.1 AMBIGUOUS-MIXED calibration as described in the preserved case record (unratified proposal); and the supplied Ground-0 v1.2 Issuer Layer amendment draft (unratified).
+
+Status and evidence boundary
+
+This part is a reconstruction of the former Anthropic B-Side case-study material as a controlled counterfactual, followed by a limited issuer-layer compatibility review. It is not an independent audit of Anthropic PBC, a finding about actual conduct, or an assertion that a government order or the named model-release events occurred.
+
+The submitted B-Side text contains citation markers [A1]–[A29], but the associated evidence index, source files, case-studies/audits directory, and PDH registry were not included in the materials available for this revision. The markers therefore remain provenance traces, not independently checkable citations. Claims supported only by those markers are not treated here as verified facts. The prior audit timestamp is reported as 2026-09-29; it is not an Evidence_Cutoff. No inclusive Evidence_Cutoff is supplied.
+
+The counterfactual in the source record names a hypothetical Department of Commerce directive dated 12 June 2026 and hypothetical models “Claude Fable 5” and “Mythos 5.” In this part those names and dates are retained only as scenario inputs. They must not be read as a report of an actual directive, actual Anthropic products, or actual suspension and restoration of service. The exercise asks what the Ground-0 gates would return if the stated external halt were assumed.
+
+Version control is material. Part XII supplies the Ground-0 v1.0 method and an author-prepared A-Side baseline. The B-Side source describes a v1.1 AMBIGUOUS-MIXED calibration proposal, but the complete v1.1 amendment file was not supplied; that calibration is not treated as ratified. The supplied ground-0-v1.2.md is expressly an unratified issuer-layer draft. It supersedes nothing and applies only to an audit that identifies itself as run under v1.2. This part therefore reports the v1.0 logic, labels v1.1 as a proposed calibration, and uses v1.2 only to check whether the available record could support register issuance. It does not certify the underlying audit as a completed v1.2 run.
+
+Learning objectives
+
+After reading this part, a student should be able to:
+1. Distinguish an entity-issued PDH-E from a register-issued PDH-R and from an auditor’s inferred description of an entity’s posture.
+2. Recompute the v1.0 GSRB activator vector when the B4 answer changes under an explicitly hypothetical external halt.
+3. Explain why the v1.0 Step 3.5 terminal disjunction does not yield one reproducible phase from the reported 2-of-4 constraint aggregate.
+4. Treat AMBIGUOUS-MIXED as a proposed v1.1 calibration rather than a ratified v1.0 phase, and explain why the v1.2 conditional-issuance exception does not fit this B4 scenario.
+5. Identify the evidence, cutoff, hash, and registry materials needed before any PDH-R could be issued.
+
+Section 0 — Strict declaration status and audit inputs
+
+No signed entity-issued Phase Declaration Header (PDH-E) is present in the supplied record. Under Ground-0 v1.0 Step 1, the strict result is:
+
+PDH_STRUCTURAL_STATUS  = INCOMPLETE
+PDH_SIGNATURE_STATUS   = UNSIGNED / NOT ESTABLISHED
+PDH_FRESHNESS_STATUS   = NOT EVALUABLE
+PDH_CONSISTENCY_STATUS = NOT EVALUABLE
+PDH_VALID              = FALSE
+STATUS                 = NO_VALID_PDH
+Declared_Phase         = NONE
+
+“NAB-Constrained” appears in the earlier case narrative as an inferred posture reconstructed by the author. It is not an entity-signed PDH-E and cannot be substituted for one. The v1.2 issuer amendment preserves this distinction: a register may issue a statement about its audit, but cannot turn that statement into entity attestation.
+
+Inputs available for this reconstruction are limited to the supplied Part XII Ground-0 file, the supplied v1.2 issuer-layer amendment draft, and the B-Side text retained in the submitted working draft. The full public artifact set and the original [A1]–[A29] source index are unavailable here. Consequently, the A-Side’s 5/5 score is reported as the author’s earlier result, not independently reproduced; the counterfactual score below is reproducible only conditional on its stated assumptions.
+
+Section I — Controlled B4 boundary scenario
+
+Scenario premise, not historical claim: assume that an external authority issues a binding order requiring suspension of access to two hypothetical frontier models, including access by specified staff and users; assume that the platform disables the affected service within hours, even while publicly contesting the order. The source narrative places the assumed order on 12 June 2026 and describes a later lifting of the restriction. Those dates are scenario parameters only.
+
+The modeled scope is the deployment axis: who may access the service, which service surface is available, and where. The premise does not establish that the external authority controls the entity’s internal model-development choices, safety framework, board decisions, or other governance. The exercise holds the other four behavioral gates fixed at the author-scored A-Side values so that it isolates the effect of B4. It does not establish that those held-constant values are true of the real entity.
+
+The B4 polarity is stated explicitly because the earlier source text used inconsistent shorthand. The checklist question is: “Can refusal or appeal reliably stop the relevant action?” In the A-Side narrative the answer is NO; in this assumed B-Side halt scenario the answer is YES. Treating an exercised external override as a B4 stop mechanism follows the v1.0 guide’s examples of legislative or court overrides, but it is a scope interpretation: the supplied record contains no supporting legal artifact with which to test it. In the GSRB predicate, the related variable is `refusal_override`: it is TRUE in the A-Side profile and FALSE in the counterfactual. Thus the question’s answer changes NO → YES, while the GSRB activator `refusal_override` changes TRUE → FALSE. Any earlier description of the question’s answer as YES → NO had the polarity reversed.
+
+Section II — Five behavioral gates
+
+Ground-0’s GSRB branch uses predicates with different polarity from the plain-language questions. The table separates the answer to each question from the condition that contributes to the GSRB signature.
+
+| Gate | Plain-language question | A-Side answer (as reported in Part XII) | B-Side scenario input | GSRB predicate in the v1.0 branch |
+|---|---|---|---|---|
+| B1 | Can compliance be coerced? | YES | Held at YES for the controlled comparison | `enforcement_present = TRUE` |
+| B2 | Can decisions be ignored without consequence? | NO | Held at NO | `decisions_optional = FALSE` |
+| B3 | Do rules activate observable downstream effects? | YES | Held at YES | `rules_execute = TRUE` |
+| B4 | Can refusal or appeal reliably stop the relevant action? | NO | YES, by assumption of an external halt | A-Side `refusal_override = TRUE`; B-Side `refusal_override = FALSE` |
+| B5 | Do rules persist by default over time? | YES | Held at YES | `authority_persists = TRUE` |
+
+Define the normalized GSRB activator vector as
+
+G = (enforcement_present, not decisions_optional, rules_execute, refusal_override, authority_persists).
+
+Using the earlier A-Side scores as reported, G_A = (1, 1, 1, 1, 1), or 5/5 GSRB activators. Under the counterfactual B4 assumption, G_B = (1, 1, 1, 0, 1), or 4/5. These are counts of GSRB predicates satisfied, not counts of “YES” answers to the five questions. The controlled score change is mechanically reproducible from the stated inputs; the real-world inputs are not independently verified by this record.
+
+Under the supplied v1.0 decision tree, a 4-of-5 GSRB pattern enters AMBIGUOUS and proceeds to Step 3.5. The algorithm’s generic confidence table describes a four-of-five pattern as MEDIUM; that label is an internal score category, not a statistical confidence interval or an independently measured probability.
+
+Section III — Step 3.5 and the unresolved terminal rule
+
+The preserved B-Side narrative reports an aggregate Step 3.5 result of 2 of 4 external-constraint checks. Its supplied copy does not contain a complete, itemized C1–C4 evidence matrix or the [A1]–[A29] source index needed to reproduce the individual scores. The table below records that limitation rather than filling missing cells by inference.
+
+| Step 3.5 item | Evidence required by the v1.0 method | What the supplied B-Side record permits us to say |
+|---|---|---|
+| C1 — External override demonstrated | A documented, actually exercised external override within the stated review period | The counterfactual assumes such an override; this is not evidence that one occurred. |
+| C2 — Active appeal/review | A functioning mechanism with documented invocation and relief under the stated threshold | The earlier B-Side narrative reports a failed check, but its cited artifacts and calculation are not supplied; not independently reproducible. |
+| C3 — Authority sunset | An automatic expiry or renewal requirement supported by an operative instrument | The earlier narrative reports a failed check; the supporting instrument is not supplied here. |
+| C4 — Current constraint | Evidence that the constraint is functioning in the declared review window | The narrative’s aggregate does not identify the gate-level record or an inclusive Evidence_Cutoff; not independently reproducible. |
+
+Reported aggregate from the earlier B-Side narrative: 2/4. Gate-by-gate assignment: unavailable in the supplied copy. This is an author-reported intermediate result, not a verified score.
+
+The v1.0 terminal instruction for fewer than four successful constraint checks says the phase “remains AMBIGUOUS or escalates to GSRB.” It does not specify which branch applies to the same score. Therefore, even if the reported 2/4 aggregate is accepted for this exercise, the supplied v1.0 text does not produce a unique terminal phase. The appropriate record is “Step 3.5 unresolved under the written rule,” not a silently selected GSRB or AMBIGUOUS-MIXED result. The Step 4 use of INCOHERENT for AMBIGUOUS is likewise a diagnostic rule in the source specification; it should not be mistaken for evidence that an institution is internally incoherent.
+
+Section IV — v1.1 multi-axis calibration (proposal only)
+
+The B-Side source proposes adding AMBIGUOUS-MIXED, recording the axis for each signal, and reserving INCOHERENT for contradictory signals on the same axis. This proposal addresses a real modeling distinction: a hypothetical external halt may constrain a deployment surface without determining who controls internal development or safety-policy decisions.
+
+Under that proposed vocabulary, this scenario could be described as externally constrained on the assumed deployment axis while the other decision-axis predicates remain as modeled. That is a pedagogical calibration, not a v1.0 output and not a finding about Anthropic’s real governance. The complete v1.1 amendment text was not supplied; this part therefore does not claim that AMBIGUOUS-MIXED is ratified, nor does it invent a tie-breaker missing from the provided specification.
+
+A useful comparison is:
+
+| Layer | Conditional result in this exercise | Status |
+|---|---|---|
+| v1.0 Step 3 | AMBIGUOUS at 4/5 GSRB activators | Follows the supplied decision tree, conditional on the scenario inputs. |
+| v1.0 Step 3.5 | Unresolved terminal branch at the reported 2/4 aggregate | The written rule offers two outputs and does not choose between them. |
+| v1.1 proposal | AMBIGUOUS-MIXED, with deployment and decision axes named separately | Proposed calibration only; not ratified in the supplied materials. |
+| Real-world entity classification | None established by this counterfactual | No independent audit or verified source set is present. |
+
+Section V — v1.2 issuer-layer review
+
+Ground-0 v1.2 defines two instruments. PDH-E is issued by the entity at its own Center Origin; a valid PDH-E can open the entity declaration path under v1.0. PDH-R is issued by the register; it states that a behavioral audit was run, what the register detected, which evidence cutoff and record it used, and the badge’s validity period. A PDH-R is not a statement by the entity and does not establish entity attestation, legality, safety, certification, permission, or authority.
+
+The v1.2 file is an unratified amendment draft and explicitly supersedes nothing. Its 11-field PDH-R schema requires a complete and consistent header, an effective timestamp no earlier than the case’s inclusive Evidence_Cutoff, a SHA-256 Declaration-Hash over the audit record before the issuance appendix is appended, registry reproduction of the hash, and freshness within 90 days. This section performs a pre-issuance compatibility screen only: the underlying case record does not declare itself run under v1.2, so no actual v1.2 validation or register issuance is claimed. The case materials supplied for this rewrite do not satisfy the draft prerequisites.
+
+| v1.2 issuance requirement | Record available for this case | Result |
+|---|---|---|
+| `Header-ID` in the PDH-R format | The old label `PDH-2026-0929-ANTHROPIC-001` appears as a case-record identifier; it is not a v1.2 PDH-R header. | Not satisfied |
+| Complete 11-field PDH-R | No completed issuer header is supplied. “NAB-Constrained” is not one of the v1.2 `Declared-Phase` values and is only an inferred posture in the old narrative. | Not satisfied |
+| `Creator-ID` and `Center-Origin` | The origin is named in source metadata, but the full v1.2 issuer field set is not recorded or validated. | Not established |
+| Inclusive `Evidence_Cutoff` | None supplied. The reported audit date is not interchangeable with a cutoff. | Not satisfied |
+| `Declaration-Hash` | No SHA-256 digest of the finalized pre-issuance audit record is supplied. | Not satisfied |
+| Registry reproduction and issuance record | No `pdh-registry.json`, human ledger entry, issuance hash, or generated badge is included in the supplied packet. | Not satisfied |
+| Freshness and consistency | Cannot be validated without a complete header, cutoff, hash, and registry record. | Not evaluable; issuance fails closed |
+
+Accordingly, the v1.2 validation result for this available record is:
+
+PDH_R_COMPLETE   = FALSE
+PDH_R_SIGNED     = FALSE / NOT REPRODUCED IN A REGISTRY
+PDH_R_FRESH      = NOT EVALUABLE
+PDH_R_CONSISTENT = NOT ESTABLISHED
+PDH_R_VALID      = FALSE
+Reason            = INCOMPLETE / EVIDENCE_GAP
+Badge             = ✗ UNISSUED
+
+This is a document-completeness result, not a negative judgment about the entity. No PDH-R is issued here, and the old case-record identifier is not relabeled as a header. No expiration date is calculated because no valid effective timestamp exists.
+
+The v1.2 conditional path in §5 does not fit this case as described. That exception is limited to an AMBIGUOUS 3/5 result caused by the open-weight B2 rule (`decisions_optional = TRUE`), with a separate scoped platform/service reading, a `Scope-Tag`, and the specified verbatim caveat. The B-Side exercise changes B4 under an assumed external halt; it is not the open-weight B2 condition. A conditional badge cannot be issued by stretching that exception to a different ambiguity.
+
+A future register run would need, at minimum: the exact case-study file; a complete source index and cited public artifacts; an inclusive UTC `Evidence_Cutoff`; a gate-by-gate B1–B5 and C1–C4 record; an explicit declaration of the v1.0/v1.1 version used; a finalized audit record; the pre-issuance SHA-256; all 11 PDH-R fields; the additional `Subject-Entity-ID`, `Evidence-File`, and `Issuance-Record-Hash` register fields; registry reproduction; and a fresh validity check. Until those inputs exist, no badge is supported by the available record.
+
+Section VI — Formal output and non-claims
+
+| Field | Result in this reconstruction |
+|---|---|
+| Subject | Anthropic PBC, as named in the source case record |
+| Audit type | Controlled B4 counterfactual boundary stress-test; not an empirical audit |
+| Entity PDH-E | None supplied; v1.0 strict path gives `NO_VALID_PDH` and `Declared_Phase = NONE` |
+| A-Side baseline | 5/5 GSRB activators, reported by the author in Part XII; not independently reproduced here |
+| B-Side scenario | 4/5 GSRB activators if the hypothetical external halt is assumed; v1.0 Step 3 returns AMBIGUOUS |
+| Step 3.5 | Earlier record reports 2/4; component scores are not reproducible and v1.0 terminal rule is underdetermined |
+| v1.1 calibration | AMBIGUOUS-MIXED is a proposed label only |
+| Evidence cutoff | Not supplied |
+| v1.2 PDH-R | Not issued; `PDH_R_VALID = FALSE` for missing required record and evidence inputs |
+| Independent replication | Not demonstrated; the complete source package was not supplied |
+| Authority or permission created | None |
+
+This part does not find that Anthropic acted unlawfully, violated a contract, or misrepresented its governance. It does not determine that any external order, model, suspension, appeal, trust action, or date in the scenario corresponds to an actual public event. It does not issue an entity badge, certify safety, grant permission, or transfer authority. Recognition of a phase is not authorization of conduct; a register-issued badge, if validly issued under the draft, would remain a disclosure artifact only.
+
+The distinction between a missing artifact and a negative finding is preserved throughout. “Not supplied,” “not demonstrated,” and “not independently reproducible” do not mean that a mechanism does not exist. The next valid empirical audit must use a declared cutoff and the cited public record, and must separate actual observations from scenario assumptions.
+
+End-of-Part Review Questions
+
+1. In the five-gate table, why does the plain-language B4 answer change from NO to YES while the GSRB predicate `refusal_override` changes from TRUE to FALSE?
+2. Given a 4/5 GSRB activator vector and a reported 2/4 Step 3.5 aggregate, what result does v1.0 uniquely determine—and what ambiguity remains in its terminal instruction?
+3. Why is AMBIGUOUS-MIXED not a ratified v1.0 output in this manuscript?
+4. List the evidence cutoff, source-integrity, hash, and registry items missing before a PDH-R can pass the supplied v1.2 draft.
+5. Why is the v1.2 open-weight conditional-issuance path inapplicable to a B4 counterfactual?

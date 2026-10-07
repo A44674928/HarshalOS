@@ -1,0 +1,9 @@
+output: /home/user/HARSHAL-SYSTEMS-Book-I-KDP-print-interior.docx
+source_bytes: 1344024
+docx_bytes: 601418
+trim: (8.25, 11.0)
+inside_margin: 0.9
+outside_margin: 0.65
+top_margin: 0.75
+bottom_margin: 0.75
+body_start_line: 49

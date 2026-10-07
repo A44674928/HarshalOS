@@ -1,0 +1,148 @@
+A Reader’s Orientation: What Happens When an Agent Can Act?
+
+Start with one ordinary request
+
+A customer writes: “I was charged twice for the same order. Please refund the duplicate.” A software agent reads the message, looks up the order, asks a second agent to check the billing record, and may call a payment tool. If the tool sends money back, the system has done more than produce a sentence. It has changed an external account.
+
+That small difference—between saying what should happen and causing it to happen—is the starting point for this book. A modern software agent may combine a language model, instructions, data sources, function calls, specialist agents, access credentials, and an organization’s rules. The agent may work quickly and appear confident. None of those qualities, by themselves, answer the questions that matter when it acts: Who is represented? Who permitted this particular action? Is that permission still current? Who can answer a customer, regulator, worker, or other affected person? What should happen when the answer is unclear?
+
+This book calls the proposed answer an accountability-gated system. “Gate” is a plain word for a condition that must be checked before an action proceeds. The central idea is deliberately modest: capability is not permission. A system may be able to issue a refund, route a vehicle, update a medical record, or change a power schedule without having the right to do so in a particular case. The framework asks that identity, representation, authorization, continuity, and accountability be checked before the decision to permit or refuse.
+
+This distinction applies even when the action looks routine. A recommendation may influence a person without directly changing a database; a database write may be reversible but still affect someone’s benefits; a payment may be technically reversible yet difficult for the recipient to recover from. A reviewer should therefore name the action and its consequence rather than treating “the agent replied” as one undifferentiated event. What information was read? What state was changed? Was a message sent to another person? Was a permission expanded? Did an external system accept the request? The answer changes which checks and evidence are needed.
+
+The book does not claim that every system can be reduced to one equation, that a single human can supervise every modern operation, or that adding a confirmation button solves the problem. It offers a proposal for describing and testing permission boundaries. Some sections are conceptual; others contain equations, pseudocode, modeled threats, policy arguments, or fiction. Their status matters. A design rule is not evidence of deployment. An equation is not a measurement of moral worth. A scenario is not proof that an incident happened.
+
+Who this orientation is for
+
+This opening is written for readers who work with or study AI agents, automation, cybersecurity, software architecture, public policy, organizational governance, law, safety engineering, or human-computer interaction. It is also for people affected by automated decisions who want a clearer vocabulary for asking how a system acted and who can answer for it.
+
+You do not need to be a mathematician to follow the main argument. The early explanation uses a customer-service example before the formal symbols appear. Engineers may want to compare the proposed gates with their existing identity, access-control, logging, and incident-response systems. Researchers may focus on the assumptions and testability of the models. Lawyers and policy professionals may use the distinctions as questions for further analysis, not as legal conclusions. Readers who are new to AI agents can treat the equations as a later layer rather than a prerequisite.
+
+The intended audience is not limited to developers. A system’s effective authority can be distributed among a model provider, a product team, a tool owner, an employer, a customer, and the institution that deploys the system. Looking only at the model can miss the people and procedures that control data, permissions, and consequences. Looking only at a company’s written policy can miss the runtime action that actually changed a record or sent a payment. The book therefore moves between technical structure and institutional responsibility.
+
+A worked example using a documented agent framework
+
+The software framework used for this teaching example is real: the OpenAI Agents SDK has public documentation describing agents configured with instructions and tools, handoffs to specialist agents, guardrails, and tracing. The particular refund service below is invented for explanation. It is not a report about an OpenAI production deployment, an OpenAI customer, or a tested application. The SDK documentation establishes that the named framework features are documented; it does not establish that the proposed accountability gates are built into that framework. [OPENAI-AGENTS] [OPENAI-HANDOFFS] [OPENAI-GUARDRAILS] [OPENAI-TRACING]
+
+Imagine a merchant has built a support workflow with a Triage Agent, a Refund Agent, a read-only order lookup tool, and a payment tool that can issue a refund. A customer reports a duplicate charge for $120. The Triage Agent can route the case to the Refund Agent. The Refund Agent can request order data and, if all conditions pass, submit a refund request. In a real deployment, the organization—not the fictional agent names—would need to define the permitted amounts, the eligible order states, approval requirements, retention policy, and appeal route.
+
+The SDK’s documentation describes an agent as a language model configured with instructions and tools, with optional runtime behavior such as handoffs and guardrails. Handoffs let one agent delegate a task to another; the documentation’s own examples include specialist agents for customer-support topics such as refunds. It also describes guardrails for checking inputs, outputs, and tool calls, and built-in tracing for recording workflow events such as model generations, tool calls, handoffs, and guardrails. These are useful software capabilities. They are not, simply by being present, proof that an action is authorized, fair, safe, or legally valid.
+
+Here is the proposed decision path in ordinary language:
+
+1. Receive the request. The system records what the customer asked for and what account or order the request concerns. It does not treat a plausible sentence from the model as proof that the customer owns the account or has approved a particular transfer of money.
+2. Read the order. A restricted, read-only tool returns the transaction history. The tool is allowed to reveal only the fields needed to check the duplicate-charge claim. The agent may summarize the record, but the record—not the model’s confidence—is the source for the relevant transaction facts.
+3. Route the case. The Triage Agent may hand the case to the Refund Agent. A handoff changes which component handles the conversation; it does not transfer the customer’s permission to a different human, create a new authority, or widen the refund tool’s scope. A specialist agent inherits context only to the extent the system deliberately passes it.
+4. Check the proposed action. Before a payment tool is called, the application checks whether this exact order, amount, customer, and reason meet a predeclared refund policy. If the system cannot reconstruct the relevant authorization or the records disagree, it refuses the refund request and routes the case for human review.
+5. Recheck at the side-effect boundary. The payment service checks the scoped grant immediately before sending the refund instruction. It does not rely only on what the model said several turns earlier. If the permission is expired, out of scope, or bound to a different order, the payment service rejects the call.
+6. Record what happened. The application keeps an appropriately protected event record: the request, the source data used, the policy version, the permission check, the tool result, and the human or organizational owner responsible for the process. A trace can help explain a run, but the organization must separately decide what records are authoritative, how long they are retained, who can inspect them, and how errors can be challenged.
+
+The same path can be read as a short control map:
+
+| Moment | What the agent may propose | What the application must establish before an effect |
+|---|---|---|
+| Request arrives | Identify a possible duplicate charge. | Bind the request to the correct account and preserve a contestable record. |
+| Order lookup | Summarize transaction history. | Use a limited read permission and data from the named source. |
+| Specialist handoff | Route the case to a refund role. | Recheck case-specific authority after the handoff arguments are known. |
+| Refund call | Suggest a payment instruction. | Verify the exact customer, order, amount, policy, scope, and freshness at the payment boundary. |
+| Result returned | Explain what the tool reports. | Distinguish requested, accepted, completed, and failed states; keep an appeal route. |
+
+This six-step outline is not an SDK recipe or a claim that the fictional application is secure. It is an example of where the book’s questions can be asked. The same question—“May this component cause this particular change, now?”—can be asked at a model-to-tool boundary, a service API, a human approval step, or a system that connects multiple institutions.
+
+Identity is not permission
+
+Suppose the customer successfully signs in. That can help the application identify the account, but it does not automatically prove that every action is authorized. The customer’s identity, the system’s representation of that customer, the scoped permission to issue a refund, and the freshness of that permission are different facts. A valid account credential should not silently become a blanket grant to move money.
+
+The framework uses “identity license” to mean a persistent identity card or record. It is non-revocable as an identity. Revoking or erasing someone’s identity credential as punishment is abusive and prohibited in this proposal. That does not mean every credential must remain usable forever. A compromised key can be rotated or replaced while the identity record remains. A separate operational permission can be limited to one action, one scope, and one time window; it can expire or be revoked under a stated process without erasing the person’s identity.
+
+In the refund example, the payment tool might receive a grant limited to “refund up to $120 for order 8F21 because the payment record shows a duplicate charge, during this short review window.” That is a more useful permission than “the agent can refund customers.” The exact grant and thresholds would have to be designed, tested, and reviewed for the real organization. The example’s $120 figure is only part of the fictional scenario; it is not a recommended financial limit.
+
+Representation asks who stands behind the action
+
+An agent can perform a step without becoming the person or institution responsible for it. In the example, the Refund Agent is a software role. It does not become the customer, the merchant, or a legal person. The merchant’s accountable operators and the owners of the relevant payment process remain identifiable. The system should preserve a path from the action back to the authorized principal and the organization that operates the tool.
+
+A handoff is a change of workflow control, not a migration of authority. The OpenAI Agents SDK documentation says that an agent can hand off a task to another agent, and it supports callbacks and argument schemas for handoffs. It also cautions that a dynamic `is_enabled` check is evaluated while available handoffs are prepared, before the model returns handoff arguments; if permission depends on the argument values, the check should happen in the handoff callback before application side effects. Tool input guardrails apply to function tools, not to handoffs. These are implementation details that matter to the example: deciding that a destination is available is not the same as authorizing the specific case routed to it. [OPENAI-HANDOFFS]
+
+This maps to a general rule in the manuscript: authority does not migrate. Operational structure, records, or a bounded task can be handed to a successor component. The successor still needs its own valid identity, current authorization, continuity, accountability, and permitted scope. A queue assignment, agent handoff, inherited configuration, or successful prior run does not itself create authority.
+
+Continuity asks whether this is still the same authorized process
+
+A permission may be valid when issued and invalid later. A session may expire; the software may restart; the policy may change; the action may drift from the original request. “Continuity” is the book’s proposed check that the relevant session, boot, declaration, and human-attestation records still match the expected chain. In the refund example, if the conversation is resumed after a long interruption or the order identifier changes, the payment service should not assume that the earlier approval still covers the new request.
+
+Freshness is not a medical finding. A missing signal, timeout, or stale credential does not prove that a person is unconscious, dead, or coerced. It means the proposed protocol lacks enough current information to authorize the action. The safe response is to withhold the new side effect, preserve the person’s identity record, and use the separately defined review or recovery process.
+
+Accountability and addressability ask who can answer
+
+A useful record should connect the action to its tool, policy version, data, and responsible operator. If a customer says the system refunded the wrong order—or failed to return a duplicate payment—there should be a channel to challenge the decision. If the system cannot identify a responsible process owner or cannot preserve a meaningful explanation of its decision path, a high model score or polished response cannot repair that gap.
+
+The book distinguishes “accountability” from “addressability.” Accountability concerns the duties and records that make a responsible human or institution answerable. Addressability concerns whether affected people can locate, contact, and challenge that responsible party. In the formal model, Addressability is A(t); accountability is represented separately by K(t). These symbols are proposed audit inputs, not direct measurements of virtue or legal responsibility. For example, a published support address is evidence of a contact route, but it does not prove that every complaint will be handled well.
+
+Guardrails are useful, but they are not the whole permission system
+
+In the example, an input check might detect that the request is outside the refund workflow, and an output check might prevent the agent from sending an inappropriate explanation. A tool-level check can examine a particular function call. The SDK documentation notes that input guardrails apply at the first agent in a chain, output guardrails apply to the final agent, and tool guardrails can apply to each guarded function-tool invocation. It also notes that an output guardrail runs after the agent completes; it cannot undo an external payment that has already happened. The appropriate control therefore belongs at the actual side-effect boundary as well as in the surrounding conversation. [OPENAI-GUARDRAILS]
+
+The same documentation explains that input guardrails can run in parallel by default, which means an agent may already have started before a guardrail finishes; a blocking mode can wait before the agent begins. This distinction illustrates an important engineering point: a label such as “guardrail enabled” is not enough. A reviewer needs to know where in the workflow it runs, what it checks, whether it can run after work has started, what actions it can prevent, and what remains possible after a failure.
+
+Tracing has a related limit. The SDK describes traces that can capture model generations, tool calls, handoffs, guardrails, and other events. It also documents ways to disable tracing and notes that tracing is unavailable for organizations using a Zero Data Retention policy. A trace is therefore an observability feature, not automatically a complete, immutable, independently controlled audit record. A deployment would need to state what is captured, what is omitted, what data is sensitive, how records are protected, and what evidence can be produced after an incident. [OPENAI-TRACING]
+
+For a refund to proceed in this example, the fictional merchant would want all of the following to be true at the moment the payment service accepts the call: the request is connected to the right customer and order; the accountable merchant process is identifiable; the current grant covers this exact refund; the session and relevant state are fresh; the technical and operational record can be reconstructed; the customer has a usable challenge route; and no independent safety or fraud rule blocks the action. If any non-waivable gate fails, the system refuses that side effect and explains the next step in plain language.
+
+The formal symbols in plain language
+
+Part II defines a proposed permission function. In simplified form, it is L(t,a) = H(t) × C(t) × K(t) × f(A(t), R(t), S(t,a)), where the specified reference function is f(A,R,S) = A × R × S. The letters stand for protocol checks described in the formal section: H is the current Human-Key authorization state; C is continuity; K is technical and operational accountability; A is addressability; R is representation integrity; and S combines the action’s scope with freshness.
+
+The product is a design choice. The inputs are dimensionless scores normalized to the interval from zero to one under declared rubrics. Thresholds must be chosen and recorded before evaluation. The formula is not derived from Bell’s theorem, not calibrated against a population of moral or legal judgments, and not an empirical measurement of “legitimacy.” It is a proposed decision rule. The binary gates H, C, and K cannot be offset by a high score elsewhere. If a required gate fails, the model returns Refuse under its proposed rule.
+
+That distinction matters. A numerical value can create an impression of scientific certainty even when its inputs are policy judgments. To make the rule testable, a deployment would have to publish or preserve the underlying checks, units, missing-data handling, weights, thresholds, evidence sources, and decision logs. The manuscript’s definitions in Part II attempt to make those choices explicit. Readers should examine whether a given rubric can actually be measured, whether it treats affected people fairly, and whether it is validated for the task. A formula can be deterministic and still encode a poor policy.
+
+Consider one deliberately simple numerical illustration. Suppose a profile assigns A=0.90, R=0.90, and S=0.80 under its predeclared rubrics. Then f=0.90×0.90×0.80=0.648. If H=C=K=1 and all four declared cutoffs are met, the model’s rule could return Permit for the named action. The result is not “64.8 percent legitimate,” nor is it a probability that the refund is right. It is a value produced by the chosen policy inputs. If K=0 because no accountable operational owner can be identified, the upstream hard gate makes L=0 and the action is refused, even if A, R, and S are high. If the action falls outside the approved scope, S=0 and the same refusal follows.
+
+The example also shows why thresholds and gates should not be hidden inside a model prompt. A language model can help classify a request, but it should not be allowed to quietly change the score rubric or lower a cutoff to make a transaction pass. The profile must identify who approved the policy, when it took effect, what evidence supports its inputs, how missing values are treated, and how a person can challenge an erroneous result. A measured quantity such as elapsed time can have physical units; A and R remain rubric-based normalized scores. Their numerical form does not make the underlying judgments objective by itself.
+
+Meaningful human review is not the same as adding a button
+
+A human confirmation step can be useful when the person has enough information, time, ability to refuse, and a real opportunity to change the outcome. A dialog that appears after the system has already committed the payment is not a preventive control. A reviewer who sees only the model’s conclusion, without the order record or the applicable policy, may be unable to make an informed decision. A person who is evaluated on speed or punished for refusing may not be meaningfully free to stop the action. The proposal therefore treats human authorization as a structured protocol condition, not a decorative click.
+
+This does not mean that every low-risk tool call must be manually approved by a person. An organization might define a bounded class of actions that can proceed under preauthorized rules, with a named operator, a limited scope, time limits, independent checks, and a usable review path. The design question is not simply “human or automated?” It is “who granted this scope, which actions fit it, what evidence is checked at runtime, who is answerable, and what happens when a condition fails?” The answer depends on the consequence of the action and the applicable law, contract, safety standard, and organizational policy. This manuscript proposes questions; it does not replace those external requirements.
+
+A practical way to challenge a proposed design is to change one input at a time. Keep the order record and amount fixed, then expire the authorization. Keep the authorization fixed, then alter the order number. Remove the accountable operator. Introduce a conflicting source record. Disable tracing. Route to a different specialist. A sound test plan should state which behavior is expected in each case, which logs should be produced, and which side effects must not occur. The book’s later conformance checklists aim to express some such tests, but a checklist is only a plan until a named implementation is actually tested and the result is documented.
+
+OCM, PDHs, and collective signals
+
+The Orb Communicator Model (OCM) is a proposed way to describe relationships and state information among participants. Its “interaction” language is bookkeeping and topology, not a claim that a new physical object or force has been observed. The example in Part V deliberately records two observers’ separate 25-percentage-point mismatch entries and a stipulated combined illustrative mismatch of 75 points. The additional 25 points are assigned to an interaction term by the author’s convention. That is not a result derived from or empirically supported by Bell’s theorem; the text records Bell/CHSH as an inspiration for the framing, then states the analogy’s boundary.
+
+A Phase Declaration Header (PDH) is a declaration of a participant’s proposed governance or software phase and constraints. A declaration is not proof that the participant’s behavior matches it. In the Part XXIII specification, the OCM Overall State is the combined totality of participant PDH-declared phases, their declaration records, and markers for missing, stale, invalid, or conflicting entries. It is not a single average that erases disagreements. The book uses “phase” as a software or governance label. Ice, water, and gas may be visual metaphors; no measured quantum or thermodynamic state is implied.
+
+The 500-Coin body is a conceptual PDH-based collective organism for advisory aggregation. “Coin” is a legacy metaphor for a participant record or seat, not a currency, transferable token, financial instrument, ownership share, or purchase entitlement. The proposed body’s descriptive phase may shift as the OCM Overall State changes. Its readiness or quorum signal is nonbinding: it is neither necessary nor sufficient for authority and cannot grant, transfer, revoke, or veto authority. Book ownership does not purchase a seat or an advantage. Public feedback is intended to be free and available whether a reader bought the hardcover, reads a library copy, or did not buy the book. Any real implementation would need qualified U.S. counsel to review its exact terms before publication, marketing, or use.
+
+This boundary is important for a reader who paid for the book. Buying the book buys the book, not governance power over a system. The manuscript does not promise a vote, token, profit, ownership right, privileged access, or control of the author’s project in exchange for a purchase. The proposed feedback route is separated from sales: a purchaser and a non-purchaser should be able to submit the same kind of public comment on the same terms. The advisory body, if ever implemented, would not decide outcomes; its role would be to organize feedback and report a descriptive signal under published criteria.
+
+What the book claims—and what it does not
+
+This is a working draft of a framework, not a published standard, certified product, legal opinion, clinical protocol, or independent audit. “Normative” means that a rule is proposed as a rule within the author’s framework; it does not make the rule binding law. A version number is not proof that the specification has been implemented or tested. Pseudocode describes an intended sequence, not a guarantee about hardware response, timing, availability, or safety.
+
+The book contains public-record case analysis as well as author interpretation. Part XII’s Ground-0 method and scores are author-applied. Part XXVI now treats the publicly reported June 2026 Fable 5 and Mythos 5 access events as events described by Anthropic and independently covered by news reporting, while keeping the Gate coding and Ground-0 analysis attributed to the author. The cited company statements do not substitute for the underlying government directive or a complete government record. Read each source note for the distinction between a company’s account, a news report, an author’s interpretation, and an unsupported or unavailable artifact.
+
+Part XX is defensive threat research. Its scenarios and text carry their own evidence and status limitations; the presence of a detailed threat model does not demonstrate an incident or prove a capability. Part XXIV is a fictional preview of Book II. Fiction may explore the proposed ideas, but it is not evidence that the design works. Part XXVII is a derivative index; it helps the reader navigate the corpus but does not upgrade the status of any part.
+
+A practical reading path
+
+If you want the short version of the argument, read this orientation and then Part I. If you want to understand the formal checks, read Part II alongside the definitions in this opening, then compare the worked examples at the end of the relevant parts. If you build agents, read the architecture and lifecycle material in Parts IV through X and compare its proposed boundaries with the real permissions, APIs, monitoring, and people in your own deployment.
+
+If you study collective communication, begin with Part V and its 25/25/75 bookkeeping example; read the Bell/CHSH boundary directly rather than relying on a summary. If you study case analysis, read Part XII’s method and evidence note, then Part XXVI’s public-event sources and author-applied scoring. If you study safety and threats, read the status label and assumptions before the technical material in Parts III, XVI, and XX. If you want a narrative example, read Part XXIV as fiction. Use Part XXVII and the front-matter status register to find the route that matches your question.
+
+You do not have to accept the framework in order to use the questions. Ask: What did the system do? Which component caused the external effect? What exact permission authorized it? Which person or institution is answerable? How fresh was the permission? What evidence can the affected person inspect or challenge? What did the system do when it could not verify the answer? Those questions are useful even if you reject the manuscript’s equations, labels, or proposed architecture.
+
+Sources for the documented framework features
+
+The worked example uses only publicly documented feature descriptions of the OpenAI Agents SDK, accessed 6 October 2026. The refund workflow is the author’s illustrative construction, not a production deployment claim.
+
+[OPENAI-AGENTS] OpenAI, “Agents,” OpenAI Agents SDK documentation. https://openai.github.io/openai-agents-python/agents/
+
+[OPENAI-HANDOFFS] OpenAI, “Handoffs,” OpenAI Agents SDK documentation. https://openai.github.io/openai-agents-python/handoffs/
+
+[OPENAI-GUARDRAILS] OpenAI, “Guardrails,” OpenAI Agents SDK documentation. https://openai.github.io/openai-agents-python/guardrails/
+
+[OPENAI-TRACING] OpenAI, “Tracing,” OpenAI Agents SDK documentation. https://openai.github.io/openai-agents-python/tracing/
+
+Documentation can change after the access date. The citations support descriptions of the SDK’s documented features; they do not show that the fictional merchant workflow exists, that the SDK enforces this book’s proposed rules, or that a production deployment has passed an independent audit.
