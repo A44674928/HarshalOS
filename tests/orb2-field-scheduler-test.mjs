@@ -767,6 +767,25 @@ test("a full daily snapshot reuses its field rows for Disc status and Dollar Str
   assert.equal(fieldQueries.length, 1, "the daily payload scan is shared by rendering, Disc status, and Dollar Strength (DS)");
 });
 
+test("manual tick returns 202 when the continuous scheduler already holds the field lease", async t => {
+  const { sql, env } = fixture(t);
+  sql.prepare("INSERT INTO orb2_field_runs (utc_day, updated_at, lock_owner, lock_at) VALUES (?, ?, ?, ?)")
+    .run("2026-10-05", NOW, "scheduled-tick", NOW);
+
+  const response = await handleOrb2Field(new Request(ORIGIN + ORB2_FIELD_ROUTE, {
+    method: "POST",
+    headers: { Origin: ORIGIN, "Content-Type": "application/json" },
+    body: JSON.stringify({ schema: "gi-orb2-field-request-v1", action: "tick", interval: "1d" })
+  }), env, { now: () => NOW, fetch: providerFetch({ urls: [], massive: [], tickerbot: [] }) });
+
+  const body = await response.json();
+  assert.equal(response.status, 202);
+  assert.equal(body.success, true);
+  assert.equal(body.data.status, "already-running");
+  assert.match(body.data.notes[0], /already processing the field/i);
+  assert.equal(sql.prepare("SELECT lock_owner FROM orb2_field_runs WHERE utc_day = ?").get("2026-10-05").lock_owner, "scheduled-tick");
+});
+
 test("the snapshot fails visibly when D1 or migration 0009 is missing", async t => {
   const { env } = fixture(t, { migrated: false });
   const response = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}`), env, { now: () => NOW });
