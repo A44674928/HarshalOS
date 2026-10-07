@@ -103,6 +103,7 @@ export const ORB2_FIELD_POLL_MS = 20_000;
 export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
 const ORB2_OPTIONS_PER_MINUTE = 5;
 const ORB2_OPTIONS_FRESH_MS = 24 * 60 * 60_000;
+const ORB2_OPTIONS_FAILURE_RETRY_MS = 6 * 60 * 60_000;
 const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
   currencies: Object.freeze(["fx"]),
   futures: Object.freeze(["commodities"]),
@@ -957,6 +958,10 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
     return { ok: true, attempted: true, status: "partial", discovery: true };
   }
   const bars = parseOptionsBars(existing);
+  if (existing && String(existing.status) === "unavailable" &&
+      Number(existing.observed_at) + ORB2_OPTIONS_FAILURE_RETRY_MS > now) {
+    return { ok: false, attempted: false, code: "options-retry-cooldown", message: "The selected Options EOD field is held until its bounded retry window opens." };
+  }
   const barByTicker = new Map(bars.map(item => [item.ticker, item]));
   const stale = selection
     .map(item => ({ item, bar: barByTicker.get(item.ticker) }))
@@ -973,7 +978,13 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
   const result = await beatOptionsBar({
     env, symbol: instrument.symbol, optionsTicker: target.item.ticker, date: today, now, fetcher, keys
   });
-  if (!result.ok) return result;
+  if (!result.ok) {
+    await writeOptionsObservation(db, {
+      symbol: instrument.symbol, underlyingPrice, selection, bars,
+      status: "unavailable", now
+    });
+    return result;
+  }
   const nextBars = bars.filter(item => item.ticker !== target.item.ticker);
   nextBars.push({
     ticker: target.item.ticker,
