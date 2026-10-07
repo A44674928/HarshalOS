@@ -1,0 +1,98 @@
+name: Orb 2 CPU surgery
+on:
+  push:
+    branches: [fix/orb2-field-cpu-eod]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Orb 2 read path and Options EOD date
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('worker/orb2-field.mjs')
+          text = path.read_text()
+
+          old = 'async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limit = null }) {'
+          new = 'async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limit = null, includePayload = true }) {'
+          assert old in text, 'readOrb2FieldRows signature not found'
+          text = text.replace(old, new, 1)
+
+          old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
+          new = '    const select = includePayload ? "payload, observed_at, symbol, disc_id, provider, confirmed" : "observed_at, symbol, disc_id, provider, confirmed, status, reason";\n    let query = `SELECT ${select} FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
+          assert old in text, 'field row SELECT not found'
+          text = text.replace(old, new, 1)
+
+          old = 'function parsePacketRow(row, now) {\n  try {\n    const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);\n    return parsed.ok ? parsed.observation : null;\n  } catch { return null; }\n}\n\nfunction parseOptionsRow'
+          new = '''function parsePacketRow(row, now) {
+  try {
+    const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);
+    return parsed.ok ? parsed.observation : null;
+  } catch { return null; }
+}
+
+function parseFieldMetadataRow(row, now, interval) {
+  if (!row || typeof row !== "object") return null;
+  const symbol = text(row.symbol, 32).toUpperCase();
+  const discId = text(row.disc_id, 24).toLowerCase();
+  if (!SYMBOL_PATTERN.test(symbol) || !ORB2_FIELD_DISCS.includes(discId)) return null;
+  const observedAt = Number(row.observed_at) || 0;
+  if (observedAt <= 0) return null;
+  const status = text(row.status, 16);
+  const hasMarket = status === "bars" || status === "cached";
+  return {
+    symbol,
+    discId,
+    provider: text(row.provider, 24),
+    status: hasMarket ? status : "unavailable",
+    code: hasMarket ? "" : text(row.reason, 48),
+    message: text(row.reason, 160),
+    confirmed: Number(row.confirmed) > 0,
+    observedAt,
+    interval,
+    market: hasMarket ? { latestBar: { confirmed: Number(row.confirmed) > 0 } } : null,
+    freshness: orb2FieldFreshness(interval, observedAt, now)
+  };
+}
+
+function parseOptionsRow'''
+          assert old in text, 'parsePacketRow anchor not found'
+          text = text.replace(old, new, 1)
+
+          old = '        fieldRows = await readOrb2FieldRows(db, { interval });\n        storedRowsRead = true;'
+          new = '        fieldRows = await readOrb2FieldRows(db, { interval, includePayload: false });\n        storedRowsRead = true;'
+          assert old in text, 'focused status read not found'
+          text = text.replace(old, new, 1)
+
+          old = '        const parsed = parseFieldRow(row);\n        if (parsed) {\n          observationByDiscAndSymbol.set(`${discId}:${symbol}`, {\n            ...parsed,\n            provider: text(row.provider, 24) || parsed.provider,\n            freshness: orb2FieldFreshness(interval, parsed.observedAt, now)\n          });\n        }'
+          new = '''        const parsed = storedRowsRead && row.payload
+          ? parseFieldRow(row)
+          : parseFieldMetadataRow(row, now, interval);
+        if (parsed) {
+          observationByDiscAndSymbol.set(`${discId}:${symbol}`, {
+            ...parsed,
+            provider: text(row.provider, 24) || parsed.provider,
+            freshness: orb2FieldFreshness(interval, parsed.observedAt, now)
+          });
+        }'''
+          assert old in text, 'status observation parse block not found'
+          text = text.replace(old, new, 1)
+
+          old = 'date: today, now, fetcher, keys'
+          new = 'date: eodDate, now, fetcher, keys'
+          assert old in text, 'Options EOD date call not found'
+          text = text.replace(old, new, 1)
+
+          path.write_text(text)
+
+      - name: Commit surgical patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/orb2-field.mjs
+          git commit -m "Fix Orb 2 focused read CPU path and Options EOD date"
+          git push
