@@ -1009,7 +1009,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
   let leased = false;
   try {
     leased = await acquireTickLease(db, now, owner);
-    if (!leased) { summary.notes.push("Another tick holds the field lease; this invocation skipped."); return summary; }
+    if (!leased) {
+      summary.status = "already-running";
+      summary.notes.push("Another tick holds the field lease; this invocation was skipped because the continuous scheduler is already processing the field.");
+      return summary;
+    }
     const keys = providerKeys(env);
 
     const control = await readControl(db);
