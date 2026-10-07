@@ -1,0 +1,74 @@
+[outer 1] building DOCX ...
+[outer 1] front=25 pad=True body_start=27
+[outer 1 inner 1] pages=498 blanks=[26]
+[outer 1 inner 2] pages=514 blanks=[26, 50, 54, 72, 90, 96, 122, 166, 170, 228, 238, 306, 320, 338, 370, 398, 452]
+[outer 1] patching 27 folio(s) ...
+[outer 2] building DOCX ...
+[outer 2] front=25 pad=True body_start=27
+[outer 2 inner 1] pages=498 blanks=[26]
+[outer 2 inner 2] pages=514 blanks=[26, 50, 54, 72, 90, 96, 122, 166, 170, 228, 238, 306, 320, 338, 370, 398, 452]
+[outer 2] folios match source; converged.
+{
+ "folios": {
+  "A Reader\u2019s Orientation": "xvii",
+  "Part I \u2014 The Core Book": "1",
+  "Part II \u2014 Formalization": "25",
+  "Part III \u2014 AGS: Accountability-Gated Systems": "29",
+  "Part IV \u2014 OCM: Orb Communicator Model": "41",
+  "Part V \u2014 AI Inner Shell": "47",
+  "Part VI \u2014 Addressing and Spherical Topology": "51",
+  "Part VII \u2014 Operator Model": "65",
+  "Part VIII \u2014 Disc Primitives, Routing, and Lifecycle": "71",
+  "Part IX \u2014 AGS Layering and Conformance": "85",
+  "Part X \u2014 AGS Accessory Pack": "89",
+  "Part XI \u2014 Ground-0 and Duty Collation": "97",
+  "Part XII \u2014 Whyland Standards": "137",
+  "Part XIII \u2014 Neural Atomic Bodies Compendium": "141",
+  "Part XIV \u2014 Keyed Human\u2013Machine Hybrid Controls": "145",
+  "Part XV \u2014 Threat Modeling and Context-Dependent Guarantees": "153",
+  "Part XVI \u2014 Atomic-Body Classes and Reactor Doctrine": "171",
+  "Part XVII \u2014 Institutional Application": "195",
+  "Part XVIII \u2014 Accountability in Keyed Hybrid Systems": "203",
+  "Part XIX \u2014 Supply-Chain and Implanted-Device Threat Research": "213",
+  "Part XIX-B \u2014 Illustrative Narrative Sandbox": "241",
+  "Part XX \u2014 MicroConvergence and Signal Encoding": "281",
+  "Part XXI \u2014 Policy and Governance Archive": "295",
+  "Part XXII \u2014 Specification Series": "313",
+  "Part XXIII \u2014 The Grand River Foundation (Fiction)": "345",
+  "Part XXIV \u2014 Anti-Denial of Justice and NAB I/O": "373",
+  "Part XXV \u2014 Whole Corpus / Complete Work": "427",
+  "Appendices": "434",
+  "Appendix A \u2014 Formal Constraint Equations and Term Notes": "435",
+  "Appendix B \u2014 Safety Rationale for Adversarial Scenarios": "442",
+  "Appendix C \u2014 Ground-0 Supplementary Exercises": "444",
+  "Appendix D \u2014 Historical AI Audit Record": "446",
+  "Appendix D.1 \u2014 Audit A: Claude": "447",
+  "Appendix D.2 \u2014 Audit B: Anonymous AI via Arena.ai": "452",
+  "Appendix E \u2014 Integration & Operations Guide": "458",
+  "Appendix F \u2014 Signal Class Quick Reference": "460",
+  "Appendix G \u2014 Core Book AI Companion (Machine-Readable)": "461",
+  "Consolidated Glossary": "485"
+ },
+ "pages": 514,
+ "front_pages": 25,
+ "body_start": 27,
+ "blanks": [
+  26,
+  50,
+  54,
+  72,
+  90,
+  96,
+  122,
+  166,
+  170,
+  228,
+  238,
+  306,
+  320,
+  338,
+  370,
+  398,
+  452
+ ]
+}
