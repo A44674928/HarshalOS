@@ -15,7 +15,13 @@ export async function fetchFxMarketContext({ mode = DEFAULT_FX_PROVIDER_MODE, ma
     return { ok: false, code: "fx-all-providers-failed", providers: { massive: first, alphaVantage: second } };
   }
   const [first, second] = await Promise.all([run(massive, "massive-unavailable"), run(alphaVantage, "alpha-vantage-unavailable")]);
-  if (first.ok) return { ...first, selectedProvider: "massive", providers: { massive: first, alphaVantage: second }, validation: second.ok ? "both-succeeded" : "massive-only" };
-  if (second.ok) return { ...second, selectedProvider: "alpha-vantage", providers: { massive: first, alphaVantage: second }, validation: "alpha-vantage-rescued" };
-  return { ok: false, code: "fx-all-providers-failed", providers: { massive: first, alphaVantage: second }, validation: "both-failed" };
+  if (first.ok) return { ...first, selectedProvider: "massive", attempted: Boolean(first.attempted), providers: { massive: first, alphaVantage: second }, validation: second.ok ? "both-succeeded" : "massive-only" };
+  if (second.ok) return { ...second, selectedProvider: "alpha-vantage", attempted: Boolean(first.attempted || second.attempted), providers: { massive: first, alphaVantage: second }, validation: "alpha-vantage-rescued" };
+  return {
+    ok: false,
+    attempted: Boolean(first.attempted || second.attempted),
+    code: "fx-all-providers-failed",
+    providers: { massive: first, alphaVantage: second },
+    validation: "both-failed"
+  };
 }
