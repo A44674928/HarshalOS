@@ -37,6 +37,15 @@ import {
   isTickerbotSymbol
 } from "./good-intelligence-tickerbot.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+import {
+  MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE,
+  MASSIVE_OPTIONS_PROVIDER,
+  MASSIVE_OPTIONS_SELECTION_SIZE,
+  discoverMassiveOptionContracts,
+  fetchMassiveOptionDailyBar,
+  optionStrikeWithinLogBound,
+  selectLogBoundedOptionContracts
+} from "./options-massive.mjs";
 import { fxProviderMode, fetchFxMarketContext } from "./fx-provider.mjs";
 import { fetchAlphaVantageFxDaily } from "./characters-alpha-vantage.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
@@ -92,6 +101,9 @@ export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
 const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
 export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
+const ORB2_OPTIONS_PER_MINUTE = 5;
+const ORB2_OPTIONS_FRESH_MS = 24 * 60 * 60_000;
+const ORB2_OPTIONS_FAILURE_RETRY_MS = 6 * 60 * 60_000;
 const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
   currencies: Object.freeze(["fx"]),
   futures: Object.freeze(["commodities"]),
@@ -844,6 +856,163 @@ function providerKeys(env) {
   };
 }
 
+async function optionsFieldTableAvailable(db) {
+  try {
+    const row = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'orb2_options_observations'").first();
+    return Boolean(row?.name);
+  } catch {
+    return false;
+  }
+}
+
+async function readOptionsObservation(db, symbol) {
+  try {
+    return (await db.prepare("SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at FROM orb2_options_observations WHERE symbol = ?")
+      .bind(symbol).first()) || null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeOptionsObservation(db, {
+  symbol, underlyingPrice, selection, bars, status = "partial", now
+}) {
+  await db.prepare(`INSERT INTO orb2_options_observations
+      (symbol, underlying_price, selection_json, bars_json, status, observed_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(symbol) DO UPDATE SET
+      underlying_price = excluded.underlying_price,
+      selection_json = excluded.selection_json,
+      bars_json = excluded.bars_json,
+      status = excluded.status,
+      observed_at = excluded.observed_at,
+      updated_at = excluded.updated_at
+    WHERE excluded.observed_at >= orb2_options_observations.observed_at`)
+    .bind(
+      symbol, underlyingPrice, JSON.stringify(selection), JSON.stringify(bars),
+      status, now, now
+    ).run();
+}
+
+function parseOptionsSelection(row) {
+  try {
+    const parsed = JSON.parse(row && row.selection_json);
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.ticker === "string") : [];
+  } catch { return []; }
+}
+
+function parseOptionsBars(row) {
+  try {
+    const parsed = JSON.parse(row && row.bars_json);
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.ticker === "string") : [];
+  } catch { return []; }
+}
+
+async function beatOptionsDiscovery({ env, db, symbol, underlyingPrice, now, fetcher, keys }) {
+  if (!keys.massive) return { ok: false, attempted: false, code: "massive-options-not-configured", message: "Add MASSIVE_API_KEY to enable the Stocks Options Field." };
+  const reservation = await reserveMassiveProviderCall({
+    request: CRON_REQUEST, env, now, assetClass: "options"
+  });
+  if (!reservation.ok) return { ok: false, attempted: false, code: reservation.code, message: reservation.message };
+  const today = new Date(now).toISOString().slice(0, 10);
+  const result = await discoverMassiveOptionContracts({
+    underlying: symbol, apiKey: keys.massive, fetcher, today, timeoutMs: UPSTREAM_TIMEOUT_MS
+  });
+  if (!result.ok) return { ...result, attempted: true };
+  const selection = selectLogBoundedOptionContracts(result.contracts, underlyingPrice, {
+    maxDistance: MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE,
+    selectionSize: MASSIVE_OPTIONS_SELECTION_SIZE,
+    today
+  });
+  if (!selection.length) {
+    return { ok: false, attempted: true, code: "massive-options-no-eligible-contracts", message: "Massive supplied no contracts inside the reviewed logarithmic strike envelope." };
+  }
+  return { ok: true, attempted: true, selection };
+}
+
+async function beatOptionsBar({ env, symbol, optionsTicker, date, now, fetcher, keys }) {
+  if (!keys.massive) return { ok: false, attempted: false, code: "massive-options-not-configured", message: "Add MASSIVE_API_KEY to enable the Stocks Options Field." };
+  const reservation = await reserveMassiveProviderCall({
+    request: CRON_REQUEST, env, now, assetClass: "options"
+  });
+  if (!reservation.ok) return { ok: false, attempted: false, code: reservation.code, message: reservation.message };
+  const result = await fetchMassiveOptionDailyBar({
+    optionsTicker, apiKey: keys.massive, fetcher, date, timeoutMs: UPSTREAM_TIMEOUT_MS
+  });
+  return { ...result, attempted: true, ticker: optionsTicker };
+}
+
+async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, keys }) {
+  const stockRow = await db.prepare("SELECT payload FROM orb2_field_observations WHERE interval = '1d' AND symbol = ? AND disc_id = 'stocks'")
+    .bind(instrument.symbol).first();
+  let stockObservation = null;
+  try { stockObservation = stockRow ? JSON.parse(stockRow.payload) : null; } catch {}
+  const underlyingPrice = Number(stockObservation?.market?.latestBar?.close);
+  if (!Number.isFinite(underlyingPrice) || underlyingPrice <= 0) {
+    return { attempted: false, ok: false, code: "options-underlying-unavailable", message: "The completed stock observation has no usable underlying price." };
+  }
+  const existing = await readOptionsObservation(db, instrument.symbol);
+  let selection = parseOptionsSelection(existing);
+  const selectionValid = selection.length === MASSIVE_OPTIONS_SELECTION_SIZE &&
+    selection.every(item => optionStrikeWithinLogBound(item.strikePrice, underlyingPrice, MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE));
+  if (!selectionValid) {
+    const discovery = await beatOptionsDiscovery({
+      env, db, symbol: instrument.symbol, underlyingPrice, now, fetcher, keys
+    });
+    if (!discovery.ok) return discovery;
+    selection = discovery.selection;
+    /* Contract discovery itself consumes the Options request. Persist the
+       newly bounded universe and defer its first aggregate to a later tick so
+       one Cron invocation can never exceed the five-request Options budget. */
+    await writeOptionsObservation(db, {
+      symbol: instrument.symbol, underlyingPrice, selection,
+      bars: parseOptionsBars(existing), status: "partial", now
+    });
+    return { ok: true, attempted: true, status: "partial", discovery: true };
+  }
+  const bars = parseOptionsBars(existing);
+  if (existing && String(existing.status) === "unavailable" &&
+      Number(existing.observed_at) + ORB2_OPTIONS_FAILURE_RETRY_MS > now) {
+    return { ok: false, attempted: false, code: "options-retry-cooldown", message: "The selected Options EOD field is held until its bounded retry window opens." };
+  }
+  const barByTicker = new Map(bars.map(item => [item.ticker, item]));
+  const stale = selection
+    .map(item => ({ item, bar: barByTicker.get(item.ticker) }))
+    .sort((a, b) => (Number(a.bar?.observedAt) || 0) - (Number(b.bar?.observedAt) || 0));
+  const target = stale[0];
+  if (!target) return { ok: false, attempted: false, code: "options-selection-empty", message: "No selected options contract remains in the bounded field." };
+  const eodDate = new Date(Number(stockObservation?.market?.latestBar?.time) || now).toISOString().slice(0, 10);
+  const needsBar = !target.bar || Number(target.bar.observedAt) + ORB2_OPTIONS_FRESH_MS <= now;
+  if (!needsBar) {
+    const status = selection.every(item => barByTicker.has(item.ticker)) ? "ready" : "partial";
+    await writeOptionsObservation(db, { symbol: instrument.symbol, underlyingPrice, selection, bars, status, now });
+    return { ok: true, attempted: false, status };
+  }
+  const result = await beatOptionsBar({
+    env, symbol: instrument.symbol, optionsTicker: target.item.ticker, date: today, now, fetcher, keys
+  });
+  if (!result.ok) {
+    await writeOptionsObservation(db, {
+      symbol: instrument.symbol, underlyingPrice, selection, bars,
+      status: "unavailable", now
+    });
+    return result;
+  }
+  const nextBars = bars.filter(item => item.ticker !== target.item.ticker);
+  nextBars.push({
+    ticker: target.item.ticker,
+    contractType: target.item.contractType,
+    expirationDate: target.item.expirationDate,
+    strikePrice: target.item.strikePrice,
+    logStrikeDistance: target.item.logStrikeDistance,
+    bar: result.bar,
+    observedAt: now
+  });
+  const status = selection.every(item => nextBars.some(bar => bar.ticker === item.ticker)) ? "ready" : "partial";
+  await writeOptionsObservation(db, { symbol: instrument.symbol, underlyingPrice, selection, bars: nextBars, status, now });
+  return { ok: true, attempted: true, status, ticker: target.item.ticker };
+}
+
 async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
   if (!keys.massive) return { ok: false, attempted: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
   const reservation = await reserveMassiveProviderCall({
@@ -1201,6 +1370,46 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       }
     }
 
+    /* 5 · Options is a separate Massive subscription class. The Stock
+       observation remains authoritative for equity price; this field only stores
+       a bounded derivative-market envelope. Each tick may consume up to five
+       Options requests, independently of the FX/Futures/Indices allowances. */
+    const optionsEnabled = await optionsFieldTableAvailable(db);
+    if (!optionsEnabled) {
+      summary.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
+    } else if (!keys.massive) {
+      summary.notes.push("Stocks Options Field is held: add MASSIVE_API_KEY.");
+    } else {
+      const optionStateRows = await db.prepare("SELECT symbol, observed_at, bars_json FROM orb2_options_observations").all();
+      const optionObservedAt = new Map();
+      for (const row of Array.isArray(optionStateRows?.results) ? optionStateRows.results : []) {
+        let bars = [];
+        try { bars = JSON.parse(row.bars_json); } catch {}
+        const contractTimes = Array.isArray(bars)
+          ? bars.map(item => Number(item?.observedAt) || 0).filter(value => value > 0)
+          : [];
+        optionObservedAt.set(
+          String(row.symbol || "").toUpperCase(),
+          contractTimes.length ? Math.min(...contractTimes) : Number(row.observed_at) || 0
+        );
+      }
+      const optionCandidates = roster.stocks.slice().sort((a, b) =>
+        (optionObservedAt.get(a.symbol) || 0) - (optionObservedAt.get(b.symbol) || 0) ||
+        String(a.symbol).localeCompare(String(b.symbol))
+      );
+      const optionJobs = [];
+      for (const instrument of optionCandidates) {
+        if (optionJobs.length >= ORB2_OPTIONS_PER_MINUTE) break;
+        const outcome = await refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, keys });
+        optionJobs.push({ instrument, outcome });
+      }
+      for (const { instrument, outcome } of optionJobs) {
+        if (!outcome.ok && outcome.attempted) {
+          summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive Options did not answer"}`);
+        }
+      }
+    }
+
     /* 5 · Massive is limited to reviewed FX, active commodity futures, and
        indices. Each Massive subscription class receives its own five-request
        server-side budget. The D1 UTC-day counter is telemetry only. */
@@ -1397,6 +1606,59 @@ function parsePacketRow(row, now) {
   } catch { return null; }
 }
 
+function parseOptionsRow(row, now) {
+  if (!row || typeof row !== "object") return null;
+  const symbol = text(row.symbol, 32).toUpperCase();
+  if (!SYMBOL_PATTERN.test(symbol)) return null;
+  const underlyingPrice = Number(row.underlying_price);
+  if (!Number.isFinite(underlyingPrice) || underlyingPrice <= 0) return null;
+  try {
+    const selection = JSON.parse(row.selection_json);
+    const bars = JSON.parse(row.bars_json);
+    if (!Array.isArray(selection) || !Array.isArray(bars)) return null;
+    const safeSelection = selection.slice(0, MASSIVE_OPTIONS_SELECTION_SIZE).filter(item =>
+      item && typeof item.ticker === "string" &&
+      ["call", "put"].includes(String(item.contractType || "").toLowerCase()) &&
+      Number.isFinite(Number(item.strikePrice)) &&
+      optionStrikeWithinLogBound(Number(item.strikePrice), underlyingPrice, MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE)
+    ).map(item => ({
+      ticker: text(item.ticker, 32).toUpperCase(),
+      contractType: String(item.contractType).toLowerCase(),
+      expirationDate: text(item.expirationDate, 10),
+      strikePrice: Number(item.strikePrice),
+      logStrikeDistance: Number(item.logStrikeDistance)
+    }));
+    const safeBars = bars.slice(0, MASSIVE_OPTIONS_SELECTION_SIZE).filter(item =>
+      item && typeof item.ticker === "string" && item.bar && item.bar.confirmed === true
+    ).map(item => ({
+      ticker: text(item.ticker, 32).toUpperCase(),
+      contractType: String(item.contractType || "").toLowerCase(),
+      expirationDate: text(item.expirationDate, 10),
+      strikePrice: Number(item.strikePrice),
+      logStrikeDistance: Number(item.logStrikeDistance),
+      bar: {
+        time: Number(item.bar.time),
+        open: Number(item.bar.open),
+        high: Number(item.bar.high),
+        low: Number(item.bar.low),
+        close: Number(item.bar.close),
+        ...(Number.isFinite(Number(item.bar.volume)) ? { volume: Number(item.bar.volume) } : {}),
+        confirmed: true
+      },
+      observedAt: Number(item.observedAt) || 0
+    })).filter(item => [item.strikePrice, item.logStrikeDistance, item.bar.time, item.bar.open, item.bar.high, item.bar.low, item.bar.close].every(Number.isFinite));
+    return {
+      provider: MASSIVE_OPTIONS_PROVIDER,
+      status: text(row.status, 16) || "partial",
+      underlyingPrice,
+      selection: safeSelection,
+      bars: safeBars,
+      observedAt: Number(row.observed_at) || 0,
+      freshness: orb2FieldFreshness("1d", Number(row.observed_at) || 0, now)
+    };
+  } catch { return null; }
+}
+
 /** D1 queries are limited to 100 bound variables. Split large symbol filters
  * into conservative batches, then restore the global newest-first limit after
  * merging. This is still a read of the unchanged stored field. */
@@ -1498,6 +1760,29 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           : observation;
       });
     }
+    const stockSymbolsForOptions = [...new Set(observations.filter(observation => observation.discId === "stocks").map(observation => observation.symbol))];
+    if (stockSymbolsForOptions.length && await optionsFieldTableAvailable(db)) {
+      try {
+        const optionRows = await db.prepare(`SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at
+          FROM orb2_options_observations
+          WHERE symbol IN (${stockSymbolsForOptions.map(() => "?").join(",")})`)
+          .bind(...stockSymbolsForOptions).all();
+        const optionsBySymbol = new Map(
+          (Array.isArray(optionRows?.results) ? optionRows.results : [])
+            .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
+            .filter(([, value]) => value)
+        );
+        observations = observations.map(observation =>
+          observation.discId === "stocks"
+            ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
+            : observation
+        );
+      } catch {
+        /* Options is additive; an unapplied migration must not make the
+           authoritative Stock snapshot unreadable. */
+      }
+    }
+
     let marketCount = 0;
     let confirmedCount = 0;
     let heldCount = 0;
