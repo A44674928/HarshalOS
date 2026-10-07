@@ -13,6 +13,7 @@ import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
 import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
+import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -152,6 +153,7 @@ export default {
       response.headers.set('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'" + (env.COMMUNITY_ENABLED === 'true' ? "; frame-ancestors 'none'" : ''));
       return response;
     }
+    if (path === '/api/symbolic-firewall/v1/seal') return handleSymbolicFirewall(request);
     if (path === '/api/community' || path.startsWith('/api/community/')) return handleCommunity(request, env);
     if (path === '/api/good-intelligence/v1/market/tickerbot/bars') return handleGoodIntelligenceTickerbot(request, env);
     if (path === '/api/good-intelligence/v1/market/hf-history') return readHfHistory(request, env);
