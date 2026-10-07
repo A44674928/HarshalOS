@@ -246,7 +246,8 @@ def runs_markup(paragraph, family: str, default_size: float, *, nbsp: bool = Fal
         for face, chunk in shape_run(text, primary, fallbacks):
             chunk = esc(chunk)
             if nbsp:
-                chunk = chunk.replace(" ", "&nbsp;")
+                # Preserve code indentation but let long lines wrap at spaces.
+                chunk = re.sub(r'^( +)', lambda m: '&nbsp;' * len(m.group(1)), chunk)
             parts.append(f'<font name="{face}" size="{size:g}"{color}>{chunk}</font>')
     return "".join(parts)
 
@@ -615,7 +616,10 @@ def assemble(model: DocModel, labels: list[str], *, pad_blank: bool,
                 ns = nxt[1]
                 if ns.is_pagebreak or ns.break_before or (idx + 1) in model.boundaries:
                     continue
-            sp = Spacer(1, spec.space_after or 1.0)
+            # Blank lines inside code listings keep full code leading; other
+            # empty paragraphs remain thin glue spacers.
+            height = spec.leading if spec.is_code else (spec.space_after or 1.0)
+            sp = Spacer(1, height)
             sp.no_content = True
             story.append(sp)
             continue

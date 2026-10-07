@@ -11,6 +11,7 @@ of truth for appendix content.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import re
@@ -48,9 +49,9 @@ def appendix_g_print_text() -> str:
     A = L.append
     A("Appendix G \u2014 Core Book AI Companion (Machine-Readable Companion to Part I)")
     A("")
-    A("This appendix presents the complete text of Part I, \u201cThe Core Book\u201d \u2014 Chapters 1 through 10 and the Epilogue \u2014 in a companion prepared for machine reading. The authoritative digital artifact is the Python module distributed alongside this edition (see Section G.2); the print text here is complete and self-contained, transcribed verbatim from the September 2026 source, with section heads split into number and title exactly as in the module.")
+    A("This appendix presents the complete text of Part I, \u201cThe Core Book\u201d \u2014 Chapters 1 through 10 and the Epilogue \u2014 in a companion prepared for machine reading. The print text here is complete and self-contained, transcribed verbatim from the September 2026 source, with section heads split into number and title exactly as in the module. Section G.3 prints the complete companion module in Python; the same module is also distributed alongside this edition as a standalone file (see Section G.2).")
     A("")
-    A("\u2022 What this appendix contains: the ten Core Book chapters and the epilogue (Sections G.1 and G.2 below explain identifiers, provenance, and machine use; Section G.3 shows the machine-readable schema).")
+    A("\u2022 What this appendix contains: the ten Core Book chapters and the epilogue (Sections G.1 and G.2 below explain identifiers, provenance, and machine use; Section G.3 prints the complete machine-readable Python module).")
     A("\u2022 How to cite: every chapter, section, and paragraph carries a stable identifier (see the table in Section G.1). Cite the identifier together with this edition.")
     A("\u2022 Standing: this appendix is reference data. It asserts no runtime permission and grants none. Narrative or mythic expressions remain non-executable under the source manifesto\u2019s Symbolic Firewall; the companion module only reads, searches, and exports its embedded text.")
     A("")
@@ -70,6 +71,10 @@ def appendix_g_print_text() -> str:
     A("")
     A("Source file: AGS_v0_2__Harshal_s_Systems_September_2026__UPDATED.docx (Drive file 1P0OI6YAxQbdynjNgVKGyAosfTB68Nbu3; 5,024,723 bytes; SHA-256 c2da74ca82c273c16ee1b3fbfa100bf993992d4dd27b2c6e1861914457e22867). Extracted body spans are word/document.xml paragraphs 427\u20131675, excluding the title paragraphs; front matter, the table of contents, Part II Formalization, and supporting material are not part of this appendix.")
     A("")
+    mod_bytes = APPG_MOD.stat().st_size
+    mod_sha = hashlib.sha256(APPG_MOD.read_bytes()).hexdigest()
+    A(f"Companion module: HARSHAL-SYSTEMS-Book-I-APPENDIX-G-CORE-BOOK-AI-COMPANION-2026-10-07.py ({mod_bytes:,} bytes; SHA-256 {mod_sha}; Python 3, standard library only; self-test PASS with 11 units, 94 sections, 774 paragraphs, 5,961 words). Section G.3 prints this module in full; verify a distributed copy against the recorded SHA-256.")
+    A("")
     A("The source manifesto entry carries Phase Declaration Header PDH-2026-MANIFESTO-A44674928, declaring the Neural Atomic Body (refusal-bound) phase at center origin 0\u2022000\u2022000\u20220000 with terminal refusal semantics, disabled symbolism executability, and degrading time-authority effect (declaration hash 0x98A44674928A44674928A44674928F01). Its conformance sentence reads: \u201cThis system conforms to AGS+ v1.0, incorporating AGS normative constraints, the frozen Structural Model v1.0, and OCM communication geometry, with no internal legitimacy generation or authority persistence.\u201d")
     A("")
     for ch in appg.CHAPTERS:
@@ -85,25 +90,12 @@ def appendix_g_print_text() -> str:
             for p in sec.paragraphs:
                 A(p)
             A("")
-    A("Section G.3 \u2014 Machine-Readable Schema (Excerpt)")
+    A("Section G.3 \u2014 Complete Machine-Readable Module (Python)")
     A("")
-    A("The companion module models the text above as immutable records. The schema excerpt below shows the record shapes and one exported paragraph record (abridged); the distributed Python file is the complete and authoritative form.")
+    A("The companion module models the text above as immutable records. The complete module is printed below, exactly as distributed; lines longer than the printed measure continue on the following line. The module is standard-library-only Python 3 and is reference data: it asserts no runtime permission and grants none. Verify the distributed file against the SHA-256 recorded in Section G.2.")
     A("")
-    A("    @dataclass(frozen=True)")
-    A("    class Section:")
-    A("        number: str        # e.g. \"3.5\" (epilogue: \"E\")")
-    A("        title: str")
-    A("        paragraphs: tuple[str, ...]")
-    A("")
-    A("    @dataclass(frozen=True)")
-    A("    class Chapter:")
-    A("        key: str           # \"1\"..\"10\" or \"E\"")
-    A("        toc_title: str")
-    A("        sections: tuple[Section, ...]")
-    A("")
-    A("    {\"id\": \"HS-B1-APPG-2026-10-07-P0001\", \"chapter\": \"1\",")
-    A("     \"section\": \"1.1\", \"words\": 6,")
-    A("     \"text\": \"Primary Error: Assuming ownership equals possession.\"}")
+    for module_line in APPG_MOD.read_text(encoding="utf-8").splitlines():
+        A(("    " + module_line) if module_line.strip() else "")
     A("")
     return "\n".join(L)
 

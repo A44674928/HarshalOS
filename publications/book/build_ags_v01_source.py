@@ -36,9 +36,9 @@ This concise edition is derived from AGS v0.2: Harshal’s Systems. It contains
 Part I — The Core Book and Appendix G — Core Book AI Companion. Appendix G is
 a machine-readable companion to Part I; it repeats the core argument in a
 machine-oriented representation and supplies stable identifiers, provenance,
-and a schema excerpt. Parts II–XXV, the other appendices, and the consolidated
-glossary are not included. Cross-references in the reproduced text to those
-omitted sections refer to the Full Book edition.
+and the complete machine-readable Python module. Parts II–XXV, the other
+appendices, and the consolidated glossary are not included. Cross-references
+in the reproduced text to those omitted sections refer to the Full Book edition.
 
 CONTENTS
 Part I — The Core Book
@@ -46,7 +46,7 @@ Part I — The Core Book
 Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)
   G.1 Stable Identifiers and Machine Use
   G.2 Source Provenance and Integrity
-  G.3 Machine-Readable Schema (Excerpt)
+  G.3 Complete Machine-Readable Module (Python)
 
 """
 

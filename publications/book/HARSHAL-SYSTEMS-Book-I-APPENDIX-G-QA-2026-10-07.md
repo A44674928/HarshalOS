@@ -1,8 +1,11 @@
 # Appendix G — Core Book AI Companion (Python) — handoff and QA
 
-**Date:** 7 October 2026
+**Date:** 7 October 2026 (rev. 2 — print now includes the full module listing)
 **Status:** Appendix G module built, self-test passing. No changes to existing
-Appendices A–F, the glossary, or any print interior.
+Appendices A–F or the glossary. The print Appendix G (Full Book and the derived
+AGS v0.1 short edition) now prints the complete module in Section G.3,
+“Complete Machine-Readable Module (Python)”, replacing the earlier abridged
+schema excerpt; the module file itself is unchanged.
 
 ## Handoff file
 
@@ -48,6 +51,14 @@ Appendices A–F, the glossary, or any print interior.
   JSON round-trip, Markdown titles).
 - `node --test tests/repository-layout-test.mjs` → 8 pass, 0 fail.
 - `node --test tests/manuscript-test.mjs` → 7 pass, 0 fail.
+- Print listing (rev. 2): the Section G.3 listing is generated from this file
+  at source-build time (`build_ags_v02_source.py`), so the module remains the
+  single source of truth. The Full Book interior prints the listing on
+  physical pp. 509–544 (548-page interior); the AGS v0.1 6 × 9 proof prints it
+  on pp. 78–130 (130-page proof). Section G.2 of the print text records this
+  file’s byte size and SHA-256 so a distributed copy can be verified.
+  Long lines wrap at spaces in print and module blank lines are preserved;
+  the module’s own bytes are unchanged.
 
 ## Drive copy
 

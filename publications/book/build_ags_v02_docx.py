@@ -817,6 +817,9 @@ def classify_heading(text: str, next_part: int, *, in_appendix_g: bool = False) 
         return 'Heading 2', False, next_part
     if re.match(r'^(?:Learning Objectives|Section\s+[0-9IVXLC]+\s*[—:–-]|SECTION\s+[0-9IVXLC]+|§\s*\d+\s*[—:–-])', text):
         return 'Heading 3', False, next_part
+    if re.match(r'^Section G\.\d\s+—', text):
+        # Appendix G section heads (G.1/G.2/G.3) are subheadings.
+        return 'Heading 3', False, next_part
     if re.match(r'^\d+(?:\.\d+){1,3}\s+[A-Z“"(]', text) and len(text) < 140:
         return 'Heading 3', False, next_part
     if text == 'APPENDICES':
@@ -903,11 +906,25 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
     ga_module_active = False
     reader_orientation_active = False
     appendix_g_active = False
+    prev_was_code = False
     i = body_start
     while i < len(lines):
         raw = lines[i]
         line = clean_visible_line(raw)
         if not line.strip():
+            # Preserve blank lines inside code listings: a blank line between
+            # two code lines is emitted as an empty code paragraph.
+            if prev_was_code:
+                j = i
+                while j < len(lines) and not clean_visible_line(lines[j]).strip():
+                    j += 1
+                if j < len(lines) and looks_like_code(clean_visible_line(lines[j])):
+                    spacer = doc.add_paragraph(style='KDP Code')
+                    spacer.paragraph_format.space_before = Pt(0)
+                    spacer.paragraph_format.space_after = Pt(0)
+                    i += 1
+                    continue
+            prev_was_code = False
             i += 1
             continue
 
@@ -937,6 +954,7 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
                 add_inline_runs(p, text + ' ' + continuation)
                 if reader_orientation_active:
                     apply_reader_orientation_typography(p)
+                prev_was_code = False
                 i += 2
                 continue
 
@@ -950,6 +968,7 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
             add_table_block(doc, block)
             if reader_orientation_active:
                 apply_reader_orientation_table_typography(doc.tables[-1])
+            prev_was_code = False
             continue
 
         # Only blocks with a Markdown separator are tabular; unseparated pipe
@@ -963,9 +982,19 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
                 add_table_block(doc, block)
                 if reader_orientation_active:
                     apply_reader_orientation_table_typography(doc.tables[-1])
+                prev_was_code = False
             else:
                 for diagram_line in block:
                     add_code_paragraph(doc, diagram_line)
+                prev_was_code = True
+            continue
+
+        # Indented source lines are code/preformatted content and bypass
+        # heading classification (a docstring line may start "Appendix G ...").
+        if line[:1] in (' ', '\t') and looks_like_code(line):
+            add_code_paragraph(doc, line)
+            prev_was_code = True
+            i += 1
             continue
 
         # Sequential Roman-numbered Part headings are the 25 true top-level parts.
@@ -995,6 +1024,7 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
             if heading_style == 'Heading 1':
                 p.paragraph_format.keep_with_next = True
             next_part = updated_next
+            prev_was_code = False
             i += 1
             continue
 
@@ -1002,6 +1032,7 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
             add_code_paragraph(doc, line)
             if reader_orientation_active:
                 apply_reader_orientation_typography(doc.paragraphs[-1])
+            prev_was_code = True
             i += 1
             continue
 
@@ -1010,12 +1041,14 @@ def add_document_body(doc: Document, lines: list[str], body_start: int) -> None:
             add_body_paragraph(doc, merged)
             if is_ga_invariant_item(merged) or merged.startswith('Not a construction program.'):
                 doc.paragraphs[-1].paragraph_format.keep_together = True
+            prev_was_code = False
             i = next_i
             continue
 
         add_body_paragraph(doc, line)
         if reader_orientation_active:
             apply_reader_orientation_typography(doc.paragraphs[-1])
+        prev_was_code = False
         i += 1
 
 
