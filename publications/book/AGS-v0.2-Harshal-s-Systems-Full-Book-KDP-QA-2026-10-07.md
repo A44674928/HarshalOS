@@ -113,25 +113,24 @@ an essentially uncropped 3:2 print master (tagged 300 dpi at its native 7.5 × 5
 size); the original remains in Drive. The 6 × 9 in trim is confirmed by the
 author for both bindings.
 
-A provisional 6 × 9 interior proof is prepared at
-`ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.pdf`
-(360,951 B; SHA-256
-`5fb45394145688d4d63c6661cf290a217e58a6de7b4ae1da8424a8724105e149`) with an
-editable DOCX companion (128,594 B; SHA-256
-`45fa9d3e121a02e934dd5c88df835d9ce2c76db96749f0a399e9486121679843`). It is
-**130 physical pages**, 11-pt body / 8-pt code / 7.8-pt tables, 0.70-in
-inside / 0.55-in outside margins; no blank versos, Part I opens on physical p.5
-with body folio 1, Appendix G opens on p.42, and the G.3 module listing runs
-pp. 78–130 (ending with `sys.exit(main())` on the last page). It clears KDP’s
-75-page hardcover floor by 55 pages in local pagination. Spot proofs of the
-title/copyright/scope/contents, body, Appendix G opener and G.2 provenance
-page, and the G.3 listing opening/wrapped-data/closing pages were reviewed for
-legibility. This remains a proof, not a KDP-validated interior: TOC folios are
-unpopulated and both ISBNs appear together for review. Final paperback and
-hardcover interiors must be split so each copyright page prints only its own
-ISBN. The final 6 × 9 cover layout and separate binding covers have not been
-generated; scale the preserved art master proportionally to the chosen
-front-panel placement.
+A provisional 6 × 9 interior proof was prepared and **author-approved**
+(`ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.pdf`,
+130 physical pages, 11-pt body / 8-pt code / 7.8-pt tables, 0.70-in
+inside / 0.55-in outside margins; Part I opens on physical p.5 with body
+folio 1, Appendix G opens on p.42, and the G.3 module listing runs pp. 78–130,
+ending with `sys.exit(main())` on the last page).
+
+**The final AGS v0.1 KDP package is now produced from the approved proof**
+(QA note: `ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-QA-2026-10-07.md`):
+separate paperback and hardcover interiors (130 pages each, identical except
+that each copyright page prints only its own ISBN — paperback
+`979-8-24548-379-5`, hardcover `979-8-16078-278-2`), contents folios
+populated (Part I → 1, Appendix G → 38, G.1 → 38, G.2 → 39, G.3 → 74), and
+four 6 × 9 wraparound covers (paperback and hardcover case wrap, each in
+WHITE and CREAM paper variants, built from the IMG_7067 art). The hardcover
+case-wrap geometry uses KDP’s published constants and should be confirmed
+against KDP’s Cover Calculator at upload. KDP Print Previewer has not been
+run for any file in either package.
 
 ## KDP handoff
 
