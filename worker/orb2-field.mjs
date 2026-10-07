@@ -1191,7 +1191,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         ));
         if (!instruments.length || slots <= 0) continue;
         const rotation = await dueRotation(db, instruments, slots, now, "massive");
-        const outcomes = await mapWithConcurrency(rotation, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS, async entry => ({
+        const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
           entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
         }));
         const compositionSymbols = new Set();
