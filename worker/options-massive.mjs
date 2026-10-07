@@ -11,6 +11,20 @@
 export const MASSIVE_OPTIONS_ORIGIN = "https://api.massive.com";
 export const MASSIVE_OPTIONS_CONTRACT_LIMIT = 250;
 export const MASSIVE_OPTIONS_SELECTION_SIZE = 4;
+/*
+ * Published Massive query contract for GET /v3/reference/options/contracts.
+ * `sort` is a single documented field, not a comma-joined list: Massive answers
+ * `sort=expiration_date,strike_price,ticker` with 400 ERR before any data is
+ * read. The request keeps one explicit sort field and fails closed if any
+ * parameter would fall outside the documented value sets.
+ */
+export const MASSIVE_OPTIONS_CONTRACT_SORT_FIELDS = Object.freeze([
+  "ticker", "underlying_ticker", "expiration_date", "strike_price"
+]);
+export const MASSIVE_OPTIONS_CONTRACT_ORDERS = Object.freeze(["asc", "desc"]);
+export const MASSIVE_OPTIONS_CONTRACT_LIMIT_MAX = 1000;
+export const MASSIVE_OPTIONS_CONTRACT_SORT = "expiration_date";
+export const MASSIVE_OPTIONS_CONTRACT_ORDER = "asc";
 /* Symmetric log-distance envelope: strikes may be no more than 25% above or
  * 20% below spot in multiplicative price space. This is a domain bound, not a
  * request-density curve. */
@@ -146,12 +160,20 @@ export async function discoverMassiveOptionContracts({
   const symbol = String(underlying || "").trim().toUpperCase();
   if (!TICKER.test(symbol)) return { ok: false, attempted: false, code: "options-underlying-refused", message: "The underlying is not a reviewed stock ticker." };
   if (!apiKey?.trim()) return { ok: false, attempted: false, code: "massive-options-not-configured", message: "Add MASSIVE_API_KEY to enable the Stocks Options Field." };
+  const requestDate = String(today ?? "").trim();
+  if (!dateValue(requestDate)) return { ok: false, attempted: false, code: "options-date-refused", message: "A valid request date is required for the options contract list." };
+  const limit = Number(MASSIVE_OPTIONS_CONTRACT_LIMIT);
+  if (!MASSIVE_OPTIONS_CONTRACT_SORT_FIELDS.includes(MASSIVE_OPTIONS_CONTRACT_SORT) ||
+      !MASSIVE_OPTIONS_CONTRACT_ORDERS.includes(MASSIVE_OPTIONS_CONTRACT_ORDER) ||
+      !Number.isInteger(limit) || limit < 1 || limit > MASSIVE_OPTIONS_CONTRACT_LIMIT_MAX) {
+    return { ok: false, attempted: false, code: "options-request-refused", message: "The options contract request cannot be expressed with the documented Massive query parameters." };
+  }
   const url = new URL("/v3/reference/options/contracts", MASSIVE_OPTIONS_ORIGIN);
   url.searchParams.set("underlying_ticker", symbol);
-  url.searchParams.set("expiration_date.gte", today);
-  url.searchParams.set("order", "asc");
-  url.searchParams.set("sort", "expiration_date,strike_price,ticker");
-  url.searchParams.set("limit", String(MASSIVE_OPTIONS_CONTRACT_LIMIT));
+  url.searchParams.set("expiration_date.gte", requestDate);
+  url.searchParams.set("order", MASSIVE_OPTIONS_CONTRACT_ORDER);
+  url.searchParams.set("sort", MASSIVE_OPTIONS_CONTRACT_SORT);
+  url.searchParams.set("limit", String(limit));
   const result = await requestJson(url.toString(), apiKey, fetcher, timeoutMs);
   if (!result.ok) return { ...result, attempted: true, message: result.message || "Massive did not provide the options contract list." };
   const results = Array.isArray(result.payload?.results) ? result.payload.results : [];
