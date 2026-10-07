@@ -16,3 +16,6 @@ __pycache__/
 Thumbs.db
 Desktop.ini
 ._*
+
+# Local Python environment for print-proof tooling
+.venv/
