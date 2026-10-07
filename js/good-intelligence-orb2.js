@@ -3437,33 +3437,124 @@
       return fields;
     }
 
-    /** The compact sub-orb rendering used while the whole ring is in view: one
-        batched fill per provider/held state instead of a halo, a ring, a
-        particle system, and a label per orb. The orbs are the same reviewed
-        instruments at their own packet berths — only the paint is lighter, so
-        five full fields can be drawn at once. */
+    /** Compact nested sub-orbs for the five-Disc overview. Only observations
+        with enough confirmed market history to be meaningful are replicated;
+        held, stale, and empty instruments remain absent rather than becoming
+        decorative substitutes. The nested positions are presentation geometry
+        only: they are compressed into the parent Disc's projected footprint and
+        never fed back into market placement or feature calculations. */
+    function hasSufficientDemoData(observation) {
+      const market = observation && observation.market;
+      if (!market || observation.confirmed !== true) return false;
+      const bars = Math.max(0, Number(market.barCount) || 0);
+      const latest = market.latestBar;
+      return latest && latest.confirmed === true && bars >= 2;
+    }
+
     function drawFieldBatch(points, { radius = 2.4, dim = false } = {}) {
       if (!context2d || !points.length) return;
-      const groups = new Map();
+      const grouped = new Map();
       for (const point of points) {
-        const observation = point.observation;
-        const provider = observation && observation.market ? String(observation.providerMode || observation.provider || "massive") : "held";
-        const key = observation && observation.market ? provider : "held";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(point);
+        if (!hasSufficientDemoData(point.observation)) continue;
+        const discId = String(point.discId || "");
+        if (!grouped.has(discId)) grouped.set(discId, []);
+        grouped.get(discId).push(point);
       }
-      for (const [key, list] of groups) {
-        context2d.save();
-        context2d.fillStyle = key === "held" ? "#5d7999" : key === "tickerbot" ? "#5ce6a8" : key === "alpha-vantage" ? "#c79bff" : "#66b7e6";
-        context2d.globalAlpha = dim ? (key === "held" ? 0.34 : 0.58) : key === "held" ? 0.5 : 0.88;
-        context2d.beginPath();
-        for (const point of list) {
-          context2d.moveTo(point.x + radius, point.y);
-          context2d.arc(point.x, point.y, radius, 0, TAU);
+      for (const [discId, list] of grouped) {
+        const disc = state.constellation.find(entry => entry.id === discId);
+        if (!disc) continue;
+        const center = project(disc.berth, canvasBounds().width, canvasBounds().height);
+        const maxOffset = Math.max(1, ...list.map(point => Math.hypot(point.x - center.x, point.y - center.y)));
+        const parentRadius = disc.id === state.discId ? 15 : 11;
+        const usableRadius = Math.max(3.5, parentRadius - 2.5);
+        const sorted = [...list].sort((a, b) => String(a.node?.symbol || a.node?.name || "").localeCompare(String(b.node?.symbol || b.node?.name || "")));
+        for (const point of sorted) {
+          const dx = point.x - center.x;
+          const dy = point.y - center.y;
+          const distance = Math.hypot(dx, dy);
+          const scale = distance > 0 ? Math.min(1, usableRadius / maxOffset) : 0;
+          const x = center.x + dx * scale;
+          const y = center.y + dy * scale;
+          const observation = point.observation;
+          const directive = point.directive;
+          const color = point.stockFbbColor || (directive && directive.mood ? MOOD_COLORS[directive.mood] || "#6fd3ff" : "#6fd3ff");
+          const pulse = directive && directive.object ? Number(directive.object.pulse) || 0 : 0;
+          const subRadius = clamp(radius * 0.72 + pulse * 0.35, 1.35, 2.8);
+          const alpha = dim ? 0.82 : 0.98;
+          const topology = point.topology;
+          const axes = topology && topology.axes ? topology.axes : { x: 1, y: 1, z: 1 };
+          const sx = clamp((Number(axes.x) + Number(axes.z)) * 0.5, 0.78, 1.22);
+          const sy = clamp(Number(axes.y), 0.78, 1.22);
+          context2d.save();
+          context2d.globalAlpha = alpha;
+          context2d.fillStyle = color;
+          context2d.shadowBlur = 3.5;
+          context2d.shadowColor = color;
+          context2d.beginPath();
+          context2d.ellipse(x, y, subRadius * sx, subRadius * sy, Number(topology?.rotation) || 0, 0, TAU);
+          context2d.fill();
+          context2d.shadowBlur = 0;
+          context2d.strokeStyle = "rgba(220,245,255,.78)";
+          context2d.lineWidth = 0.55;
+          context2d.globalAlpha = alpha * 0.72;
+          context2d.stroke();
+          context2d.restore();
         }
-        context2d.fill();
+        /* A thin inner boundary makes the parent/sub-orb relationship legible
+           without turning the parent into an opaque container. */
+        context2d.save();
+        context2d.strokeStyle = disc.id === state.discId ? "rgba(155,230,255,.68)" : "rgba(111,168,207,.46)";
+        context2d.lineWidth = disc.id === state.discId ? 0.9 : 0.65;
+        context2d.globalAlpha = dim ? 0.72 : 0.9;
+        context2d.setLineDash([2, 3]);
+        context2d.beginPath();
+        context2d.arc(center.x, center.y, usableRadius + 1.2, 0, TAU);
+        context2d.stroke();
         context2d.restore();
       }
+    }
+
+    /** Transparent horizontal datum at the DS center. It is a world-space x/z
+        plane (y=0), so camera pitch turns it into a perspective ellipse while yaw
+        leaves it horizontally aligned. It is a presentation reference only and
+        carries no market value or authorization semantics. */
+    function drawCentralDiscPlane(now, width, height) {
+      if (!context2d) return;
+      const radius = 1.58;
+      const points = [];
+      for (let step = 0; step <= 96; step += 1) {
+        const angle = (step / 96) * TAU;
+        points.push(project({ x: radius * Math.cos(angle), y: 0, z: radius * Math.sin(angle) }, width, height));
+      }
+      context2d.save();
+      context2d.globalAlpha = 0.14;
+      context2d.fillStyle = "#6fd3ff";
+      context2d.beginPath();
+      context2d.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length; index += 1) context2d.lineTo(points[index].x, points[index].y);
+      context2d.closePath();
+      context2d.fill();
+      context2d.globalAlpha = 0.52;
+      context2d.strokeStyle = "#75d5fa";
+      context2d.lineWidth = 0.8;
+      context2d.setLineDash([3, 5]);
+      context2d.beginPath();
+      context2d.moveTo(points[0].x, points[0].y);
+      for (let index = 1; index < points.length; index += 1) context2d.lineTo(points[index].x, points[index].y);
+      context2d.closePath();
+      context2d.stroke();
+      context2d.restore();
+      const center = project({ x: 0, y: 0, z: 0 }, width, height);
+      context2d.save();
+      context2d.globalAlpha = 0.28;
+      context2d.strokeStyle = "#75d5fa";
+      context2d.lineWidth = 0.65;
+      context2d.setLineDash([2, 6]);
+      context2d.beginPath();
+      context2d.moveTo(center.x - 1.15 * Math.min(width, height) / 10, center.y);
+      context2d.lineTo(center.x + 1.15 * Math.min(width, height) / 10, center.y);
+      context2d.stroke();
+      context2d.restore();
     }
 
     /* The camera rotation is its own step so every element — lattice, nodes, paths,
@@ -4524,6 +4615,7 @@
         const otherFields = projectAllDiscFields(width, height, now);
         for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true });
       }
+      drawCentralDiscPlane(now, width, height);
       orbitalRing(2.32, 0.34, now * 0.000025, width, height, "#3678a8", 0.22);
       orbitalRing(2.4, 1.04, -now * 0.000018, width, height, "#6554a4", 0.14);
       orbitalRing(2.5, 0.78, now * 0.000012, width, height, "#2c8d91", 0.12);
