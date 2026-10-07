@@ -8,6 +8,10 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const dest = path.join(root, '.site-assets');
 const allowedSpecDirectories = new Set(['specs', 'specs/normative', 'specs/draft']);
 const allowedSpecDocument = /^specs\/(?:normative\/[A-Za-z0-9._-]+\.(?:md|json)|draft\/[A-Za-z0-9._-]+\.md)$/;
+const excludedRuntimeAssets = new Set([
+  'assets/eye-closing-hq.gif',
+  'assets/eye-open-close-hq.gif'
+]);
 await rm(dest, { recursive: true, force: true });
 await mkdir(dest);
 for (const entry of ['index.html', 'about.html', 'account.html', 'audits.html', 'css', 'js', 'assets', 'specs']) {
@@ -18,6 +22,7 @@ for (const entry of ['index.html', 'about.html', 'account.html', 'audits.html', 
       const normalized = relative.split(path.sep).join('/');
       if (relative.split(path.sep).some(part => part.startsWith('.'))) return false;
       const stat = await lstat(source);
+      if (excludedRuntimeAssets.has(normalized)) return false;
       if (normalized === 'specs' || normalized.startsWith('specs/')) {
         if (stat.isSymbolicLink()) return false;
         if (stat.isDirectory()) return allowedSpecDirectories.has(normalized);
