@@ -1,0 +1,32 @@
+{
+  "title": "AGS v0.1: Accountability-Gated Systems",
+  "format": "hardcover",
+  "isbn": "979-8-16078-278-2",
+  "trim_inches": [
+    6.0,
+    9.0
+  ],
+  "pages_physical": 130,
+  "front_matter_pages": 4,
+  "body_starts_physical_page": 5,
+  "contents_folios": {
+    "Part I — The Core Book": 1,
+    "Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)": 38,
+    "G.1 Stable Identifiers and Machine Use": 38,
+    "G.2 Source Provenance and Integrity": 39,
+    "G.3 Complete Machine-Readable Module (Python)": 74
+  },
+  "typography": {
+    "body_pt": 11.0,
+    "code_pt": 8.0,
+    "table_pt": 7.8
+  },
+  "margins_inches": {
+    "inside": 0.7,
+    "outside": 0.55,
+    "top": 0.6,
+    "bottom": 0.6
+  },
+  "docx": "/home/user/HarshalOS/publications/book/ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-interior-HARDCOVER-2026-10-07.docx",
+  "pdf": "/home/user/HarshalOS/publications/book/ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-KDP-interior-HARDCOVER-2026-10-07.pdf"
+}

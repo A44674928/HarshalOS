@@ -1,0 +1,48 @@
+{
+  "title": "AGS v0.1: Accountability-Gated Systems",
+  "status": "proof only; not for upload",
+  "trim_inches": [
+    6.0,
+    9.0
+  ],
+  "bindings_under_review": [
+    "paperback",
+    "hardcover"
+  ],
+  "pages_physical": 130,
+  "hardcover_75_page_planning_threshold": 75,
+  "pages_above_hardcover_threshold": 55,
+  "hardcover_page_count_status": "provisional pass",
+  "kdp_print_previewer_run": false,
+  "front_matter_pages": 4,
+  "body_starts_physical_page": 5,
+  "body_folio_pages": 126,
+  "body_anchors_physical": {
+    "Part I — The Core Book": 5,
+    "Appendix G — Core Book AI Companion (Machine-Readable Companion to Part I)": 42
+  },
+  "provisional_blank_pages": [],
+  "source_bytes": 241229,
+  "source_lines": 3162,
+  "source_body_starts_line": 31,
+  "docx": "/home/user/HarshalOS/publications/book/ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.docx",
+  "docx_bytes": 128594,
+  "pdf": "/home/user/HarshalOS/publications/book/ags_v01/AGS-v0.1-Accountability-Gated-Systems-6x9-INTERIOR-PROOF-2026-10-07.pdf",
+  "pdf_bytes": 360951,
+  "margins_inches": {
+    "inside": 0.7,
+    "outside": 0.55,
+    "top": 0.6,
+    "bottom": 0.6
+  },
+  "typography": {
+    "body_pt": 11.0,
+    "code_pt": 8.0,
+    "table_pt": 7.8
+  },
+  "notes": [
+    "Page count is a proof estimate; final KDP output may reflow.",
+    "Contents folio references are intentionally omitted until approval.",
+    "Hardcover and paperback require separate covers; no cover is included in this proof."
+  ]
+}
