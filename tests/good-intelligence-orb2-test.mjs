@@ -368,7 +368,7 @@ test("Orb 2 places observed orbs from market metrics and keeps held packets expl
     "market direction and pressure change the free-floating placement"
   );
   assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
-
+});
 test("Stocks project the logarithmic six-band FBB state inward and vertically through the spheroid", () => {
   const { orb } = harness();
   const makeMarket = close => {
