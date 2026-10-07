@@ -1571,6 +1571,59 @@ function parsePacketRow(row, now) {
   } catch { return null; }
 }
 
+function parseOptionsRow(row, now) {
+  if (!row || typeof row !== "object") return null;
+  const symbol = text(row.symbol, 32).toUpperCase();
+  if (!SYMBOL_PATTERN.test(symbol)) return null;
+  const underlyingPrice = Number(row.underlying_price);
+  if (!Number.isFinite(underlyingPrice) || underlyingPrice <= 0) return null;
+  try {
+    const selection = JSON.parse(row.selection_json);
+    const bars = JSON.parse(row.bars_json);
+    if (!Array.isArray(selection) || !Array.isArray(bars)) return null;
+    const safeSelection = selection.slice(0, MASSIVE_OPTIONS_SELECTION_SIZE).filter(item =>
+      item && typeof item.ticker === "string" &&
+      ["call", "put"].includes(String(item.contractType || "").toLowerCase()) &&
+      Number.isFinite(Number(item.strikePrice)) &&
+      optionStrikeWithinLogBound(Number(item.strikePrice), underlyingPrice, MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE)
+    ).map(item => ({
+      ticker: text(item.ticker, 32).toUpperCase(),
+      contractType: String(item.contractType).toLowerCase(),
+      expirationDate: text(item.expirationDate, 10),
+      strikePrice: Number(item.strikePrice),
+      logStrikeDistance: Number(item.logStrikeDistance)
+    }));
+    const safeBars = bars.slice(0, MASSIVE_OPTIONS_SELECTION_SIZE).filter(item =>
+      item && typeof item.ticker === "string" && item.bar && item.bar.confirmed === true
+    ).map(item => ({
+      ticker: text(item.ticker, 32).toUpperCase(),
+      contractType: String(item.contractType || "").toLowerCase(),
+      expirationDate: text(item.expirationDate, 10),
+      strikePrice: Number(item.strikePrice),
+      logStrikeDistance: Number(item.logStrikeDistance),
+      bar: {
+        time: Number(item.bar.time),
+        open: Number(item.bar.open),
+        high: Number(item.bar.high),
+        low: Number(item.bar.low),
+        close: Number(item.bar.close),
+        ...(Number.isFinite(Number(item.bar.volume)) ? { volume: Number(item.bar.volume) } : {}),
+        confirmed: true
+      },
+      observedAt: Number(item.observedAt) || 0
+    })).filter(item => [item.strikePrice, item.logStrikeDistance, item.bar.time, item.bar.open, item.bar.high, item.bar.low, item.bar.close].every(Number.isFinite));
+    return {
+      provider: MASSIVE_OPTIONS_PROVIDER,
+      status: text(row.status, 16) || "partial",
+      underlyingPrice,
+      selection: safeSelection,
+      bars: safeBars,
+      observedAt: Number(row.observed_at) || 0,
+      freshness: orb2FieldFreshness("1d", Number(row.observed_at) || 0, now)
+    };
+  } catch { return null; }
+}
+
 /** D1 queries are limited to 100 bound variables. Split large symbol filters
  * into conservative batches, then restore the global newest-first limit after
  * merging. This is still a read of the unchanged stored field. */
@@ -1672,6 +1725,24 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           : observation;
       });
     }
+    const stockSymbolsForOptions = [...new Set(observations.filter(observation => observation.discId === "stocks").map(observation => observation.symbol))];
+    if (stockSymbolsForOptions.length) {
+      const optionRows = await db.prepare(`SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at
+        FROM orb2_options_observations
+        WHERE symbol IN (${stockSymbolsForOptions.map(() => "?").join(",")})`)
+        .bind(...stockSymbolsForOptions).all();
+      const optionsBySymbol = new Map(
+        (Array.isArray(optionRows?.results) ? optionRows.results : [])
+          .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
+          .filter(([, value]) => value)
+      );
+      observations = observations.map(observation =>
+        observation.discId === "stocks"
+          ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
+          : observation
+      );
+    }
+
     let marketCount = 0;
     let confirmedCount = 0;
     let heldCount = 0;
