@@ -2587,6 +2587,7 @@
         status: row.status, provider: row.provider, code: String(row.code || ""),
         message: String(row.message || ""), lane: null,
         market: row.market || null, motion: row.motion || null, composition: row.composition || null,
+        options: row.options || null,
         confirmed: row.confirmed === true, barTime: row.barTime === undefined ? null : row.barTime,
         at: Number(row.observedAt) || 0,
         freshness: row.freshness || null,
@@ -3499,6 +3500,44 @@
           context2d.globalAlpha = alpha * 0.72;
           context2d.stroke();
           context2d.restore();
+
+          /* Stocks may carry a server-derived Options Field. The four selected
+             contracts are rendered at their actual logarithmic strike distance
+             from the underlying; marker count never increases with distance.
+             This is presentation geometry only — the stock price and FBB state
+             remain authoritative. */
+          if (discId === "stocks" && observation.options && Array.isArray(observation.options.bars)) {
+            const optionBars = observation.options.bars.filter(item =>
+              item && item.bar && item.bar.confirmed === true &&
+              Number.isFinite(Number(item.logStrikeDistance))
+            ).slice(0, 4);
+            if (optionBars.length) {
+              const optionScale = 2.15;
+              const maxLog = Math.log(1.25);
+              context2d.save();
+              context2d.globalAlpha = alpha * 0.86;
+              for (const option of optionBars) {
+                const distanceRatio = clamp(Math.abs(Number(option.logStrikeDistance)) / maxLog, 0, 1);
+                const optionRadius = 1.15 + distanceRatio * optionScale;
+                const call = String(option.contractType || "").toLowerCase() === "call";
+                const ox = x + (call ? 1 : -1) * optionRadius;
+                const oy = y + (call ? -1 : 1) * optionRadius * 0.58;
+                context2d.strokeStyle = call ? "#5ce6a8" : "#fb7185";
+                context2d.lineWidth = 0.45;
+                context2d.setLineDash([1.5, 2.5]);
+                context2d.beginPath();
+                context2d.moveTo(x, y);
+                context2d.lineTo(ox, oy);
+                context2d.stroke();
+                context2d.setLineDash([]);
+                context2d.fillStyle = call ? "#5ce6a8" : "#fb7185";
+                context2d.beginPath();
+                context2d.arc(ox, oy, 0.7 + distanceRatio * 0.45, 0, TAU);
+                context2d.fill();
+              }
+              context2d.restore();
+            }
+          }
         }
         /* A thin inner boundary makes the parent/sub-orb relationship legible
            without turning the parent into an opaque container. */
