@@ -1364,11 +1364,19 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     if (!keys.massive) {
       summary.notes.push("Stocks Options Field is held: add MASSIVE_API_KEY.");
     } else {
-      const optionStateRows = await db.prepare("SELECT symbol, observed_at FROM orb2_options_observations").all();
-      const optionObservedAt = new Map(
-        (Array.isArray(optionStateRows?.results) ? optionStateRows.results : [])
-          .map(row => [String(row.symbol || "").toUpperCase(), Number(row.observed_at) || 0])
-      );
+      const optionStateRows = await db.prepare("SELECT symbol, observed_at, bars_json FROM orb2_options_observations").all();
+      const optionObservedAt = new Map();
+      for (const row of Array.isArray(optionStateRows?.results) ? optionStateRows.results : []) {
+        let bars = [];
+        try { bars = JSON.parse(row.bars_json); } catch {}
+        const contractTimes = Array.isArray(bars)
+          ? bars.map(item => Number(item?.observedAt) || 0).filter(value => value > 0)
+          : [];
+        optionObservedAt.set(
+          String(row.symbol || "").toUpperCase(),
+          contractTimes.length ? Math.min(...contractTimes) : Number(row.observed_at) || 0
+        );
+      }
       const optionCandidates = roster.stocks.slice().sort((a, b) =>
         (optionObservedAt.get(a.symbol) || 0) - (optionObservedAt.get(b.symbol) || 0) ||
         String(a.symbol).localeCompare(String(b.symbol))
