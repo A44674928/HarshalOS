@@ -22,7 +22,13 @@ const TICKER = /^[A-Z][A-Z0-9.\-]{0,11}$/;
 const OPTION_TICKER = /^O:[A-Z0-9.\-]{1,11}\d{6}[CP]\d{8}$/;
 
 const finite = value => typeof value === "number" && Number.isFinite(value);
-const dateValue = value => typeof value === "string" && DATE.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`));
+const dateValue = value => {
+  if (typeof value !== "string" || !DATE.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const at = Date.UTC(year, month - 1, day);
+  const date = new Date(at);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+};
 
 export function optionLogStrikeDistance(strike, underlyingPrice) {
   const k = Number(strike);
@@ -36,7 +42,7 @@ export function optionStrikeWithinLogBound(strike, underlyingPrice, maxDistance 
   return distance !== null && Math.abs(distance) <= Number(maxDistance);
 }
 
-function normalizeContract(value, underlying, today) {
+function normalizeContract(value, underlying, today, underlyingPrice = null) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const ticker = String(value.ticker || "").trim().toUpperCase();
   const contractType = String(value.contract_type || "").trim().toLowerCase();
@@ -46,9 +52,10 @@ function normalizeContract(value, underlying, today) {
   if (!OPTION_TICKER.test(ticker) || !["call", "put"].includes(contractType) ||
       !dateValue(expiration) || expiration < today || !finite(strike) || strike <= 0 ||
       underlyingTicker !== underlying) return null;
+  const logStrikeDistance = optionLogStrikeDistance(strike, underlyingPrice);
   return Object.freeze({
     ticker, contractType, expirationDate: expiration, strikePrice: strike,
-    logStrikeDistance: optionLogStrikeDistance(strike, null)
+    ...(logStrikeDistance === null ? {} : { logStrikeDistance })
   });
 }
 
@@ -133,7 +140,8 @@ async function requestJson(url, apiKey, fetcher, timeoutMs = 10_000) {
 }
 
 export async function discoverMassiveOptionContracts({
-  underlying, apiKey, fetcher = globalThis.fetch, today = new Date().toISOString().slice(0, 10), timeoutMs = 10_000
+  underlying, underlyingPrice = null, apiKey, fetcher = globalThis.fetch,
+  today = new Date().toISOString().slice(0, 10), timeoutMs = 10_000
 } = {}) {
   const symbol = String(underlying || "").trim().toUpperCase();
   if (!TICKER.test(symbol)) return { ok: false, attempted: false, code: "options-underlying-refused", message: "The underlying is not a reviewed stock ticker." };
@@ -147,7 +155,11 @@ export async function discoverMassiveOptionContracts({
   const result = await requestJson(url.toString(), apiKey, fetcher, timeoutMs);
   if (!result.ok) return { ...result, attempted: true, message: result.message || "Massive did not provide the options contract list." };
   const results = Array.isArray(result.payload?.results) ? result.payload.results : [];
-  return { ok: true, attempted: true, contracts: results.map(item => normalizeContract(item, symbol, today)).filter(Boolean) };
+  return {
+    ok: true,
+    attempted: true,
+    contracts: results.map(item => normalizeContract(item, symbol, today, underlyingPrice)).filter(Boolean)
+  };
 }
 
 export async function fetchMassiveOptionDailyBar({

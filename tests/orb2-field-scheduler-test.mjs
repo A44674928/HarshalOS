@@ -438,7 +438,11 @@ test("the field warm burst queues the full Tickerbot sweep and drains it across 
 
   let tick = 1;
   let queuedCompleted = claimedFirstTick;
-  while (sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue").get().count > 0 && tick < 12) {
+  /* The drain window follows the required per-tick cap. With 156 warm jobs
+     and a twelve-call burst, the first tick plus twelve follow-up ticks are
+     required; keeping this derived avoids silently testing the old 24-call cap. */
+  const drainTicks = Math.ceil(ORB2_FIELD_TICKERBOT_BURST_CALLS / ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
+  while (sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue").get().count > 0 && tick < drainTicks) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     queuedCompleted += summary.queueCompleted;
     tick += 1;
