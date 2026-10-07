@@ -51,7 +51,7 @@ const SUITES = [
   {
     area: "Market-data provider foundation",
     script: "test:market-data-provider",
-    files: ["market-data-provider-test.mjs"]
+    files: ["market-data-provider-test.mjs", "fx-provider-test.mjs", "options-massive-test.mjs"]
   },
   {
     area: "HF Data Library historical ingestion boundary",
@@ -89,9 +89,9 @@ const SUITES = [
     files: ["llm-relay-test.mjs"]
   },
   {
-    area: "Cloud storage",
+    area: "Cloud storage and server-side containment",
     script: "test:cloud",
-    files: ["cloud-test.mjs"]
+    files: ["cloud-test.mjs", "symbolic-firewall-test.mjs"]
   },
   {
     area: "Red-team hostile-caller probes",
