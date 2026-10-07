@@ -1,7 +1,8 @@
 name: Orb 2 CPU surgery
 on:
   push:
-    branches: [fix/orb2-field-cpu-eod]
+    branches:
+      - fix/orb2-field-cpu-eod
 permissions:
   contents: write
 jobs:
@@ -11,8 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch Orb 2 read path and Options EOD date
-        shell: python
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           path = Path('worker/orb2-field.mjs')
           text = path.read_text()
@@ -22,14 +23,19 @@ jobs:
           assert old in text, 'readOrb2FieldRows signature not found'
           text = text.replace(old, new, 1)
 
-          old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, status, reason, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
-          if old not in text:
-            old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
+          old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
           new = '    const select = includePayload ? "payload, observed_at, symbol, disc_id, provider, confirmed" : "observed_at, symbol, disc_id, provider, confirmed, status, reason";\n    let query = `SELECT ${select} FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
           assert old in text, 'field row SELECT not found'
           text = text.replace(old, new, 1)
 
-          old = 'function parsePacketRow(row, now) {\n  try {\n    const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);\n    return parsed.ok ? parsed.observation : null;\n  } catch { return null; }\n}\n\nfunction parseOptionsRow'
+          old = '''function parsePacketRow(row, now) {
+  try {
+    const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);
+    return parsed.ok ? parsed.observation : null;
+  } catch { return null; }
+}
+
+function parseOptionsRow'''
           new = '''function parsePacketRow(row, now) {
   try {
     const parsed = sanitizeOrb2FieldObservation(JSON.parse(row.payload), now);
@@ -70,7 +76,14 @@ function parseOptionsRow'''
           assert old in text, 'focused status read not found'
           text = text.replace(old, new, 1)
 
-          old = '        const parsed = parseFieldRow(row);\n        if (parsed) {\n          observationByDiscAndSymbol.set(`${discId}:${symbol}`, {\n            ...parsed,\n            provider: text(row.provider, 24) || parsed.provider,\n            freshness: orb2FieldFreshness(interval, parsed.observedAt, now)\n          });\n        }'
+          old = '''        const parsed = parseFieldRow(row);
+        if (parsed) {
+          observationByDiscAndSymbol.set(`${discId}:${symbol}`, {
+            ...parsed,
+            provider: text(row.provider, 24) || parsed.provider,
+            freshness: orb2FieldFreshness(interval, parsed.observedAt, now)
+          });
+        }'''
           new = '''        const parsed = storedRowsRead && row.payload
           ? parseFieldRow(row)
           : parseFieldMetadataRow(row, now, interval);
@@ -90,7 +103,7 @@ function parseOptionsRow'''
           text = text.replace(old, new, 1)
 
           path.write_text(text)
-
+          PY
       - name: Commit surgical patch and remove temporary workflow
         run: |
           git config user.name "github-actions[bot]"
