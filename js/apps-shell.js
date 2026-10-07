@@ -922,7 +922,7 @@ ${DATA.bookExample.sign}
 });
 
 /* ───────────────────────────────────────────────
-   12. SYMBOLIC FIREWALL — narrative containment
+   12. SYMBOLIC FIREWALL — server-side narrative containment
    ─────────────────────────────────────────────── */
 APPS.push({
   id: "firewall",
@@ -937,62 +937,69 @@ APPS.push({
     const draw = () => {
       body.innerHTML = `
         <div class="h1">Symbolic Firewall</div>
-        <div class="sub">The mechanism that isolates narrative and mythic expressions, rendering them
-        <strong>strictly non-executable</strong> to prevent unauthorized system changes — the structural defense against
-        neurojacking through narrative or symbolic input.</div>
+        <div class="sub">The Worker is the containment authority. Narrative, mythic, commercial, and symbolic
+        content is submitted to the server-side firewall and returned only as inert, non-executable data.</div>
 
         <div class="rule-box gas">SYMBOLISM-EXECUTABILITY: DISABLED
-Parsing or recognizing a symbol grants zero executable powers.
-Commercial metaphors, mythic framing, and narrative claims are contained — never executed.</div>
+The browser does not classify, hash, or seal the payload. The server creates the containment seal.
+Parsing or recognizing a symbol grants zero executable powers.</div>
 
         <div class="form-row">
-          <label>Deliver narrative / symbolic content to the firewall</label>
-          <textarea id="sf-in" rows="5" placeholder="Paste any narrative, mythic, commercial, or symbolic text here — the firewall will contain it…"></textarea>
+          <label>Deliver narrative / symbolic content to the server-side firewall</label>
+          <textarea id="sf-in" rows="5" placeholder="Paste any narrative, mythic, commercial, or symbolic text here — the Worker will contain it…"></textarea>
         </div>
         <div class="btn-row">
-          <button class="btn btn-gold" id="sf-seal">◆ SEAL CONTENT (NON-EXECUTABLE)</button>
+          <button class="btn btn-gold" id="sf-seal">◆ SEND TO SERVER FIREWALL</button>
         </div>
 
         <div class="h2">Containment Vault</div>
         <div id="sf-vault">
-          ${sealed.map((s, i) => `
+          ${sealed.map((item, i) => `
             <div class="term-seal">
-              SEAL #${String(i + 1).padStart(2, "0")} · nonce ${s.nonce} · classification: NON-EXECUTABLE · hash ${s.hash}
-              <div class="sealed-text">${s.text}</div>
+              SEAL #${String(i + 1).padStart(2, "0")} · nonce ${item.nonce} · classification: ${item.classification} · hash ${item.hash}
+              <div class="sealed-text">${item.text}</div>
             </div>`).join("") || `<p class="body">The vault is empty. Nothing has been contained yet.</p>`}
         </div>
 
         <div class="h2">Mythic Compression Layer</div>
         <div class="rule-box">${DATA.quotes.shell}</div>
-        <p class="body">AGS includes hypothetical, extreme, and adversarial scenarios solely to test containment logic and
-        governance resilience under stress. These scenarios demonstrate the containment architecture, not the scenarios
-        themselves. All scenario content is abstract, not descriptive · structural, not behavioral · evaluative, not
-        directive · contained, not externalized.</p>
+        <p class="body">Scenario content remains inert data. It cannot become an instruction, authorization,
+        OCM message, or system capability through symbolic framing.</p>
 
         <div class="footer-note">
-          THE SYMBOLIC FIREWALL PREVENTS UNAUTHORIZED CHANGES AND "NEUROJACKING" BY EXTERNAL ACTORS,
-          ENSURING THE SYSTEM'S LOGIC REMAINS SECURE. A SYSTEM'S LOGIC IS NOT A STAGE FOR STORIES.
+          SERVER-SIDE SYMBOLIC FIREWALL ACTIVE. THE BROWSER RECEIVES A SEALED,
+          NON-EXECUTABLE RECORD; SYMBOLISM HAS NO AUTHORITY EFFECT.
         </div>`;
 
       body.querySelector("#sf-seal").addEventListener("click", async () => {
         const text = body.querySelector("#sf-in").value.trim();
         if (!text) {
-          api.toast("info", "NOTHING TO SEAL", "The firewall contains what is delivered to it. Deliver content first.");
+          api.toast("info", "NOTHING TO SEAL", "Deliver content first.");
           return;
         }
-        const [nonceSrc, digest] = await Promise.all([
-          HOSCrypto.sha256Hex(text + "::" + Date.now()),
-          HOSCrypto.sha256Hex(text)
-        ]);
-        const nonce = nonceSrc.slice(0, 10);
-        const hash = "0x" + digest.toUpperCase();
-        sealed.unshift({ text: text.length > 400 ? text.slice(0, 400) + "…" : text, nonce, hash });
-        HOS.record("info", `Symbolic Firewall: content sealed as NON-EXECUTABLE (nonce ${nonce}, SHA-256 ${hash}).`);
-        api.toast("info", "CONTENT SEALED — NON-EXECUTABLE",
-          "The narrative is now contained. It may be preserved and witnessed — it can never execute. The Symbolic Firewall holds.");
-        draw();
+        const button = body.querySelector("#sf-seal");
+        button.disabled = true;
+        try {
+          const response = await fetch("/api/symbolic-firewall/v1/seal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload.success !== true || payload.firewall?.executable !== false) {
+            throw new Error(payload.error || "Server-side Symbolic Firewall rejected the payload.");
+          }
+          sealed.unshift(payload.firewall);
+          api.toast("info", "SERVER SEAL CREATED — NON-EXECUTABLE",
+            "The Worker sealed the narrative. The browser cannot grant it executable power.");
+          draw();
+        } catch (error) {
+          api.toast("error", "FIREWALL UNAVAILABLE", error instanceof Error ? error.message : "Retry the server request.");
+          button.disabled = false;
+        }
       });
     };
     draw();
   }
 });
+
