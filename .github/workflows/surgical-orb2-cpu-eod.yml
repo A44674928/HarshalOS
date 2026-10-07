@@ -22,7 +22,9 @@ jobs:
           assert old in text, 'readOrb2FieldRows signature not found'
           text = text.replace(old, new, 1)
 
-          old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
+          old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, status, reason, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
+          if old not in text:
+            old = '    let query = `SELECT payload, observed_at, symbol, disc_id, provider, confirmed FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
           new = '    const select = includePayload ? "payload, observed_at, symbol, disc_id, provider, confirmed" : "observed_at, symbol, disc_id, provider, confirmed, status, reason";\n    let query = `SELECT ${select} FROM orb2_field_observations WHERE ${clauses.join(" AND ")} ORDER BY observed_at DESC`;'
           assert old in text, 'field row SELECT not found'
           text = text.replace(old, new, 1)
@@ -89,10 +91,11 @@ function parseOptionsRow'''
 
           path.write_text(text)
 
-      - name: Commit surgical patch
+      - name: Commit surgical patch and remove temporary workflow
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add worker/orb2-field.mjs
+          git rm .github/workflows/surgical-orb2-cpu-eod.yml
           git commit -m "Fix Orb 2 focused read CPU path and Options EOD date"
           git push
