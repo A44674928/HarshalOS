@@ -963,7 +963,7 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
     .sort((a, b) => (Number(a.bar?.observedAt) || 0) - (Number(b.bar?.observedAt) || 0));
   const target = stale[0];
   if (!target) return { ok: false, attempted: false, code: "options-selection-empty", message: "No selected options contract remains in the bounded field." };
-  const today = new Date(now).toISOString().slice(0, 10);
+  const eodDate = new Date(Number(stockObservation?.market?.latestBar?.time) || now).toISOString().slice(0, 10);
   const needsBar = !target.bar || Number(target.bar.observedAt) + ORB2_OPTIONS_FRESH_MS <= now;
   if (!needsBar) {
     const status = selection.every(item => barByTicker.has(item.ticker)) ? "ready" : "partial";
