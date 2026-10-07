@@ -656,7 +656,7 @@ async function writeControl(db, patch, now) {
 }
 
 /** Persist one observation. An older write never overwrites a newer row. */
-async function writeObservation(db, observation, now) {
+async function writeObservation(db, observation, now, { refresh = true } = {}) {
   const payload = JSON.stringify(observation);
   await db.prepare(`INSERT INTO orb2_field_observations
       (interval, symbol, disc_id, provider, status, reason, beat_id, payload, observed_at, bar_time, confirmed, updated_at)
@@ -672,7 +672,7 @@ async function writeObservation(db, observation, now) {
       observation.status, observation.reason, observation.beatId, payload,
       observation.observedAt, observation.barTime, observation.confirmed ? 1 : 0, now
     ).run();
-  await refreshStoredComposition(db, observation.symbol, now);
+  if (refresh) await refreshStoredComposition(db, observation.symbol, now);
 }
 
 /* Recalculate the daily row after either scale changes. The full 15-minute series
@@ -1191,9 +1191,10 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         ));
         if (!instruments.length || slots <= 0) continue;
         const rotation = await dueRotation(db, instruments, slots, now, "massive");
-        const outcomes = await mapWithConcurrency(rotation, 2, async entry => ({
+        const outcomes = await mapWithConcurrency(rotation, ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS, async entry => ({
           entry, ...(await beatMassive({ env, db, instrument: entry.instrument, now, fetcher, keys, dependencies }))
         }));
+        const compositionSymbols = new Set();
         for (const outcome of outcomes) {
           const instrument = outcome.entry.instrument;
           if (outcome.attempted) summary.massiveCalls += 1;
@@ -1204,7 +1205,8 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
               provider: "massive", interval: "1d", now, reason: "server-sweep"
             });
             if (observation) {
-              await writeObservation(db, observation, now);
+              await writeObservation(db, observation, now, { refresh: false });
+              compositionSymbols.add(observation.symbol);
               summary.observed += 1;
               continue;
             }
@@ -1227,6 +1229,15 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
             });
             if (heldObs) await writeObservation(db, heldObs, now);
           }
+        }
+        /* Composition is derived from the compact 1d/15m pair. Recalculate once
+         * per changed Massive symbol after the whole five-request asset-class
+         * batch has been persisted, rather than issuing an additional D1 read +
+         * update for every individual provider response. This keeps the cron
+         * unit bounded by the provider batch and avoids D1 work multiplying with
+         * the number of calls in the batch. */
+        for (const symbol of compositionSymbols) {
+          await refreshStoredComposition(db, symbol, now);
         }
       }
     }
