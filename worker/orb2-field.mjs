@@ -1902,11 +1902,13 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
     lastManualTickAt = now;
     const summary = await runOrb2FieldTick(env, null, { now: () => now, fetch: dependencies.fetch });
     const queue = await queueDepth(db, now);
+    const alreadyRunning = summary.status === "already-running";
     return json({
-      success: summary.ok,
+      success: summary.ok || alreadyRunning,
       environment: "orb2-server-field",
       data: {
         schema: ORB2_FIELD_REQUEST_SCHEMA, action: "tick", interval, queue,
+        status: summary.status || (summary.ok ? "completed" : "failed"),
         summary: {
           massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
           observed: summary.observed, held: summary.held, queueClaimed: summary.queueClaimed,
@@ -1915,7 +1917,7 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
         },
         notes: summary.notes, marketRequestSent: summary.massiveCalls + summary.tickerbotCalls + summary.krakenCalls > 0
       }
-    }, summary.ok ? 200 : 503);
+    }, alreadyRunning ? 202 : summary.ok ? 200 : 503);
   }
 
   if (action === "priority") {
