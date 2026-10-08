@@ -241,7 +241,13 @@ const shell = (() => {
   function buildOriginMenu() {
     const list = $("#om-apps");
     list.innerHTML = "";
-    APPS.forEach(app => {
+    const orderedApps = [...APPS].sort((a, b) => {
+      const aName = a.title || a.short || a.id;
+      const bName = b.title || b.short || b.id;
+      return String(aName).localeCompare(String(bName), "en", { sensitivity: "base", numeric: true })
+        || String(a.id).localeCompare(String(b.id), "en", { sensitivity: "base", numeric: true });
+    });
+    orderedApps.forEach(app => {
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.className = "om-app";

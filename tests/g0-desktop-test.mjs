@@ -267,6 +267,7 @@ if (utsApi) {
   const widget = body.querySelector("#home-time-widget");
   const widgetToggle = body.querySelector("#home-widget-toggle");
   const widgetBody = body.querySelector("#home-time-body");
+  ok(!body.querySelector("#home-widget-summary"), "the minimized clock does not leave a live summary in the foreground header");
   ok(!!widgetToggle && !!widgetBody, "Home Screen clock exposes a minimize control and a collapsible body");
   if (widget && widgetToggle && widgetBody) {
     ok(widgetToggle.attrs["aria-expanded"] === "true", "the clock starts expanded and says so");
@@ -1315,6 +1316,9 @@ if (odmApi && odmApp) {
 /* ── origin menu also lists the apps ───────────────────────────── */
 const menuList = body.querySelector("#om-apps");
 const menuBtns = menuList ? menuList.querySelectorAll(".om-app") : [];
+const menuNames = menuBtns.map(button => button.querySelector(".om-name")?.textContent.trim() || "");
+const sortedMenuNames = [...menuNames].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }));
+ok(JSON.stringify(menuNames) === JSON.stringify(sortedMenuNames), "origin menu app titles are alphabetically sorted");
 ok(menuBtns.some(b => (b.textContent || "").includes("Ground-0 Audit")), "origin menu lists Ground-0 Audit");
 ok(menuBtns.some(b => (b.textContent || "").includes("Adversarial Mode")), "origin menu lists Adversarial Mode");
 ok(menuBtns.some(b => (b.textContent || "").includes("Guided Demonstration")), "origin menu lists Guided Demonstration");

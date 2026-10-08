@@ -180,11 +180,8 @@
     const zone = document.getElementById("home-local-zone");
     const utc = document.getElementById("home-utc-clock");
     const udate = document.getElementById("home-uts-date");
-    const summary = document.getElementById("home-widget-summary");
     if (!clock) return;
     clock.textContent = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const compact = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-    if (summary) summary.textContent = `${compact} · ${dateOnly(now)}`;
     if (zone) {
       const zoneName = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(now).find(part => part.type === "timeZoneName")?.value || "local";
       zone.textContent = `${zoneName} · device clock`;
