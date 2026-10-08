@@ -94,6 +94,17 @@
     "#6fd3ff", "#a86bff", "#5ce6a8", "#ffd479", "#ff7184", "#ffb45c",
     "#35d9e8", "#d5a8ff", "#4f8dff", "#3ddc84", "#f2ede2"
   ]);
+  /* Parent Disc spheroids encode market-family identity only. Character/ticker
+     colors and the FBB/motion palette below remain the separate instrument and
+     state layers. */
+  const DISC_ORB_PALETTE = Object.freeze({
+    stocks: "#4faeff",
+    fx: "#38d6e8",
+    crypto: "#ad86ff",
+    futures: "#ffb44f",
+    indices: "#5de0a0",
+    fallback: "#99adc1"
+  });
   const MOOD_COLORS = Object.freeze({
     frozen: "#74839a", "warming-up": "#ffb45c", drift: "#8fa1bb",
     "lean-up": "#65cce8", "lean-down": "#f0a16b", rally: "#5ce6a8",
@@ -773,6 +784,34 @@
      single-orb view; only the whole-ring camera was widened. */
   const CONSTELLATION_ZOOM = 1.35;
   const CONSTELLATION_HIT_RADIUS = 34;
+  /* One radial color ramp is shared by every parent Disc spheroid. It brightens
+     toward the offset light/core, carries the Disc hue through the body, then
+     darkens and softens toward the existing circular shell. These are canvas
+     paint parameters only: no model-space point, spheroid topology, or motion
+     is changed. */
+  const DISC_ORB_GRADIENT = Object.freeze({
+    lightOffsetX: -0.28,
+    lightOffsetY: -0.34,
+    innerRadius: 0.04,
+    outerRadius: 1.18,
+    haloInnerRadius: 0.22,
+    haloRadius: 2.7,
+    highlight: "#eaf7ff",
+    shadow: "#07111e",
+    stops: Object.freeze([
+      Object.freeze({ offset: 0, tint: "highlight", mix: 0.78, alpha: 0.96 }),
+      Object.freeze({ offset: 0.14, tint: "highlight", mix: 0.24, alpha: 0.98 }),
+      Object.freeze({ offset: 0.38, tint: "hue", mix: 0, alpha: 0.96 }),
+      Object.freeze({ offset: 0.66, tint: "shadow", mix: 0.3, alpha: 0.84 }),
+      Object.freeze({ offset: 0.9, tint: "shadow", mix: 0.72, alpha: 0.58 }),
+      Object.freeze({ offset: 1, tint: "shadow", mix: 0.94, alpha: 0.26 })
+    ]),
+    haloStops: Object.freeze([
+      Object.freeze({ offset: 0, alpha: 0.22, selectedBoost: 0.1 }),
+      Object.freeze({ offset: 0.46, alpha: 0.1, selectedBoost: 0.05 }),
+      Object.freeze({ offset: 1, alpha: 0, selectedBoost: 0 })
+    ])
+  });
   /* The OCM traffic simulation: one visual beat takes this long to cross a
      ring link or a tether to the Center Origin, and a reporting Disc keeps one
      beat in flight per this many stored rows (bounded). Display values only —
@@ -812,6 +851,71 @@
       };
     }).filter(Boolean);
     return list.map((disc, index) => ({ ...disc, berth: constellationBerth(index, list.length) }));
+  }
+
+  function discOrbColor(discOrId) {
+    const id = String(typeof discOrId === "string" ? discOrId : discOrId && discOrId.id || "")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const assetClass = String(discOrId && typeof discOrId === "object" ? discOrId.assetClass || "" : "").toLowerCase();
+    const family = id === "commodities" || id === "futures" ? "futures"
+      : id === "dxy" || id === "dollar-strength" ? "fx"
+        : DISC_ORB_PALETTE[id] ? id
+          : assetClass === "equity" ? "stocks"
+            : assetClass === "index" ? "indices" : assetClass;
+    return DISC_ORB_PALETTE[family] || DISC_ORB_PALETTE.fallback;
+  }
+
+  function parseHexColor(color) {
+    const hex = String(color || "").replace(/^#/, "");
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return [0, 0, 0];
+    return [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16));
+  }
+
+  function mixHexColor(color, tint, amount) {
+    const mix = clamp(Number(amount) || 0, 0, 1);
+    const base = parseHexColor(color);
+    const target = parseHexColor(tint);
+    const channels = base.map((channel, index) => Math.round(channel + (target[index] - channel) * mix));
+    return `#${channels.map(channel => channel.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function rgbaColor(color, alpha) {
+    const [red, green, blue] = parseHexColor(color);
+    const opacity = Number(clamp(Number(alpha) || 0, 0, 1).toFixed(2));
+    return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+  }
+
+  /** Reusable, light-offset radial ramp for the family orb's existing shell.
+      The colored core and translucent darkening edge give the 2D canvas a
+      volumetric cue without replacing or reshaping the model's spheroid. */
+  function createDiscOrbGradient(context2d, point, radius, discOrId) {
+    const orbRadius = Math.max(0.5, Number(radius) || 0.5);
+    const color = discOrbColor(discOrId);
+    const gradient = context2d.createRadialGradient(
+      point.x + orbRadius * DISC_ORB_GRADIENT.lightOffsetX,
+      point.y + orbRadius * DISC_ORB_GRADIENT.lightOffsetY,
+      orbRadius * DISC_ORB_GRADIENT.innerRadius,
+      point.x, point.y, orbRadius * DISC_ORB_GRADIENT.outerRadius
+    );
+    for (const stop of DISC_ORB_GRADIENT.stops) {
+      const tint = stop.tint === "highlight" ? DISC_ORB_GRADIENT.highlight
+        : stop.tint === "shadow" ? DISC_ORB_GRADIENT.shadow : color;
+      gradient.addColorStop(stop.offset, rgbaColor(mixHexColor(color, tint, stop.mix), stop.alpha));
+    }
+    return gradient;
+  }
+
+  function createDiscOrbHalo(context2d, point, radius, discOrId, selected = false) {
+    const orbRadius = Math.max(0.5, Number(radius) || 0.5);
+    const color = discOrbColor(discOrId);
+    const gradient = context2d.createRadialGradient(
+      point.x, point.y, orbRadius * DISC_ORB_GRADIENT.haloInnerRadius,
+      point.x, point.y, orbRadius * DISC_ORB_GRADIENT.haloRadius
+    );
+    for (const stop of DISC_ORB_GRADIENT.haloStops) {
+      gradient.addColorStop(stop.offset, rgbaColor(color, stop.alpha + (selected ? stop.selectedBoost : 0)));
+    }
+    return gradient;
   }
 
   /** The status-row sentence for one separation pass. It states which orbs
@@ -4173,30 +4277,14 @@
         line(hub, orb.point, orb.selected ? "#70d8ff" : "#2b4c69", orb.selected ? 0.46 : 0.16,
           orb.selected ? 1.4 : 1, orb.selected ? [] : [2, 6]);
       });
-      /* Orb markers, then the two-line label: which Disc it is, and how much of
-         that Disc's field the server actually holds. */
+      /* Family-tinted atmospheric glows sit behind the market sub-orbs; the
+         volume-filled parent spheroids and their rims are painted in the final
+         front pass so stored packets cannot obscure their identity. */
       for (const orb of back) {
-        const covered = Boolean(orb.status && orb.status.covered);
         const radius = orb.selected ? 15 : 11;
         context2d.save();
-        const halo = context2d.createRadialGradient(orb.point.x, orb.point.y, 1, orb.point.x, orb.point.y, radius * 2.7);
-        halo.addColorStop(0, orb.selected ? "rgba(112,216,255,0.30)" : covered ? "rgba(90,150,200,0.17)" : "rgba(90,110,130,0.10)");
-        halo.addColorStop(1, "rgba(8,16,28,0)");
-        context2d.fillStyle = halo;
-        context2d.beginPath(); context2d.arc(orb.point.x, orb.point.y, radius * 2.7, 0, TAU); context2d.fill();
-        context2d.globalAlpha = covered ? 0.92 : 0.6;
-        context2d.strokeStyle = orb.selected ? "#9be6ff" : covered ? "#6fa8cf" : "#55748c";
-        context2d.lineWidth = orb.selected ? 2 : 1.2;
-        /* A Disc with nothing stored is drawn dashed and kept unfilled: the orb
-           is a berth waiting for its own beats, never another Disc's packets. */
-        context2d.setLineDash(covered ? [] : [3, 4]);
-        context2d.beginPath(); context2d.arc(orb.point.x, orb.point.y, radius, 0, TAU); context2d.stroke();
-        context2d.setLineDash([]);
-        context2d.font = `600 ${orb.selected ? 13 : 11}px "IBM Plex Mono", ui-monospace, monospace`;
-        context2d.textAlign = "center";
-        context2d.textBaseline = "middle";
-        context2d.fillStyle = orb.selected ? "#d9f6ff" : covered ? "#cfe4f2" : "#8fa8bb";
-        context2d.fillText(String(orb.disc.number), orb.point.x, orb.point.y);
+        context2d.fillStyle = createDiscOrbHalo(context2d, orb.point, radius, orb.disc, orb.selected);
+        context2d.beginPath(); context2d.arc(orb.point.x, orb.point.y, radius * DISC_ORB_GRADIENT.haloRadius, 0, TAU); context2d.fill();
         context2d.restore();
         const statusLine = orb.status
           ? discOrbStatusText(orb.disc.id)
@@ -4242,7 +4330,11 @@
           });
         });
       }
-      state.orbMarkers = back.map(orb => ({ disc: orb.disc.id, x: orb.point.x, y: orb.point.y, radius: orb.selected ? 15 : 11, selected: orb.selected, covered: Boolean(orb.status && orb.status.covered) }));
+      state.orbMarkers = back.map(orb => ({
+        disc: orb.disc.id, number: orb.disc.number,
+        x: orb.point.x, y: orb.point.y, radius: orb.selected ? 15 : 11,
+        selected: orb.selected, covered: Boolean(orb.status && orb.status.covered)
+      }));
       state.orbLabels = lettering;
       return orbs;
     }
@@ -4579,23 +4671,32 @@
       return packets;
     }
 
-    /** The front pass for the constellation: the orb outlines stay visible over
-        the selected Disc's own packets, and every status label gets a dark
-        backing plate so it is readable wherever it landed. */
+    /** The front pass paints each family spheroid over its own market field.
+        Disc hue is stable across selection and coverage; the existing dashed
+        shell still marks an empty field, and status labels keep their backing. */
     function paintConstellationFront() {
       if (!context2d) return;
       for (const marker of state.orbMarkers) {
+        const color = discOrbColor(marker.disc);
         context2d.save();
-        /* The orb keeps a dark backing disc so its own number stays readable
-           over its own sub-orb cloud. */
-        context2d.globalAlpha = 0.72;
-        context2d.fillStyle = "#060d16";
+        context2d.globalAlpha = 0.97;
+        context2d.fillStyle = createDiscOrbGradient(context2d, marker, marker.radius, marker.disc);
         context2d.beginPath(); context2d.arc(marker.x, marker.y, marker.radius, 0, TAU); context2d.fill();
-        context2d.globalAlpha = 0.9;
-        context2d.strokeStyle = marker.selected ? "#9be6ff" : marker.covered ? "#6fa8cf" : "#55748c";
-        context2d.lineWidth = marker.selected ? 1.6 : 1;
-        context2d.setLineDash([]);
+        context2d.globalAlpha = 1;
+        context2d.strokeStyle = rgbaColor(
+          mixHexColor(color, DISC_ORB_GRADIENT.highlight, marker.selected ? 0.62 : 0.38),
+          marker.selected ? 0.96 : 0.82
+        );
+        context2d.lineWidth = marker.selected ? 1.8 : 1.15;
+        context2d.setLineDash(marker.covered ? [] : [3, 4]);
         context2d.beginPath(); context2d.arc(marker.x, marker.y, marker.radius, 0, TAU); context2d.stroke();
+        context2d.setLineDash([]);
+        context2d.globalAlpha = 0.96;
+        context2d.fillStyle = "#f4fbff";
+        context2d.font = `600 ${marker.selected ? 13 : 11}px "IBM Plex Mono", ui-monospace, monospace`;
+        context2d.textAlign = "center";
+        context2d.textBaseline = "middle";
+        context2d.fillText(String(marker.number), marker.x, marker.y);
         context2d.restore();
       }
       for (const label of state.orbLabels) {
@@ -5202,7 +5303,8 @@
   }
 
   window.GoodIntelligenceOrb2 = Object.freeze({
-    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
+    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, DISC_ORB_PALETTE, DISC_ORB_GRADIENT,
+    MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
@@ -5210,7 +5312,7 @@
     fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
-    constellationBerth, constellationLayout,
+    constellationBerth, constellationLayout, discOrbColor, createDiscOrbGradient,
     buildNodes, marketStageFor, marketRacePosition, buildMarketRaceSnapshot, mount, getSavedBeatSessionId
   });
 })();

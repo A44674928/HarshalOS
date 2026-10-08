@@ -279,10 +279,18 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   };
   const canvasCalls = [];
   const canvasDraws = [];
-  const gradient = { addColorStop() {} };
+  const canvasGradients = [];
   const canvasContext = new Proxy({}, {
     get(target, key) {
-      if (key === "createRadialGradient") return () => gradient;
+      if (key === "createRadialGradient") return (...args) => {
+        const gradient = {
+          arguments: args, stops: [],
+          addColorStop(offset, color) { this.stops.push([offset, color]); }
+        };
+        canvasCalls.push(key);
+        canvasGradients.push(gradient);
+        return gradient;
+      };
       if (key === "measureText") return () => ({ width: 0 });
       if (key in target) return target[key];
       return (...args) => {
@@ -290,6 +298,9 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
         if (key === "stroke") canvasDraws.push({
           method: key, strokeStyle: target.strokeStyle, lineWidth: target.lineWidth,
           globalAlpha: target.globalAlpha, lineDash: target.lineDash
+        });
+        if (key === "fill") canvasDraws.push({
+          method: key, fillStyle: target.fillStyle, globalAlpha: target.globalAlpha
         });
         if (key === "fillText") canvasDraws.push({
           method: key, text: String(args[0]), fillStyle: target.fillStyle, font: target.font
@@ -325,7 +336,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   });
   t.after(() => engine.destroy());
   return {
-    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls, canvasDraws,
+    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls, canvasDraws, canvasGradients,
     sessionId: window.localStorage.getItem("harshalos.good-intelligence.orb2.session.v1"),
     fieldCalls: () => calls.filter(call => call.url.includes("/api/good-intelligence/v1/orb2/field")),
     text: () => host.textContent
@@ -906,6 +917,54 @@ test("the constellation berth is a pure function of catalog order and cannot be 
   assert.deepEqual(layout.map(entry => entry.id), five, "the layout preserves the reviewed catalog order");
   assert.ok(layout.every(entry => entry.berth && Number.isFinite(entry.berth.x)));
   assert.deepEqual(orb.constellationLayout([]), [], "an empty catalog draws no orbs rather than inventing any");
+});
+
+test("Disc identity uses one semantic palette and a shared translucent radial volume ramp", () => {
+  const { orb } = harness();
+  const expected = {
+    stocks: "#4faeff", fx: "#38d6e8", crypto: "#ad86ff",
+    futures: "#ffb44f", indices: "#5de0a0", fallback: "#99adc1"
+  };
+  for (const [family, color] of Object.entries(expected)) assert.equal(orb.DISC_ORB_PALETTE[family], color);
+  assert.equal(orb.discOrbColor("commodities"), expected.futures, "the catalog's legacy commodities id resolves to Futures amber");
+  assert.equal(orb.discOrbColor("Dollar Strength"), expected.fx, "FX and its Dollar Strength alias share cyan");
+  assert.equal(orb.discOrbColor({ id: "unknown", assetClass: "index" }), expected.indices);
+
+  const stops = [];
+  const context = { createRadialGradient(...args) { return { arguments: args, addColorStop(...stop) { stops.push(stop); } }; } };
+  orb.createDiscOrbGradient(context, { x: 20, y: 30 }, 10, "stocks");
+  assert.equal(stops.length, orb.DISC_ORB_GRADIENT.stops.length);
+  assert.equal(stops[0][0], 0);
+  assert.equal(stops.find(([offset]) => offset === 0.38)[1], "rgba(79, 174, 255, 0.96)",
+    "the full blue identity hue sits in the orb's inner body");
+  assert.equal(stops.at(-1)[0], 1);
+  assert.match(stops.at(-1)[1], /, 0\.26\)$/,
+    "the outer shell darkens and becomes translucent rather than flattening into a solid fill");
+});
+
+test("the canvas paints each Disc's family ramp on the parent spheroid even when its field is empty", async t => {
+  const { host, engine, window, frames, canvasGradients, canvasDraws } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER
+  });
+  await flush();
+  const frame = frames.shift();
+  assert.equal(typeof frame, "function", "the interactive canvas scheduled a render");
+  frame(120);
+
+  const Orb2 = window.GoodIntelligenceOrb2;
+  const families = ["stocks", "fx", "crypto", "commodities", "indices"];
+  for (const discId of families) {
+    const hex = Orb2.discOrbColor(discId);
+    const [red, green, blue] = hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+    const coreStop = `rgba(${red}, ${green}, ${blue}, 0.96)`;
+    const ramp = canvasGradients.find(gradient => gradient.stops.some(([offset, color]) => offset === 0.38 && color === coreStop));
+    assert.ok(ramp, `${discId} has its distinct hue at the volumetric core stop`);
+    assert.ok(canvasDraws.some(draw => draw.method === "fill" && draw.fillStyle === ramp), `${discId}'s ramp fills the parent Disc orb layer`);
+  }
+  assert.equal(engine.state.orbMarkers.length, 5);
+  assert.equal(engine.state.orbMarkers.find(marker => marker.disc === "stocks").covered, true);
+  assert.equal(engine.state.orbMarkers.find(marker => marker.disc === "crypto").covered, false,
+    "coverage stays a separate dashed-shell/status cue; it does not remove the Disc's identity color");
 });
 
 test("the strip carries one chip per Disc with its own stored status, and an empty Disc says so", async t => {
