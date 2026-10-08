@@ -196,10 +196,10 @@ function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", 
     status: {
       schema: "gi-orb2-field-status-v1", source: "server-field", continuous: true, cron: "*/1 * * * *", pollAfterMs: 20_000,
       interval, lastTickAt: NOW, lastObservationAt: NOW, sweepsCompleted: 1, lastError: "",
-      massive: { callsToday: 12, perMinute: 5, dailyLimit: 300, remainingToday: 288, exhausted: false, ledger: "ready", note: "" },
+      massive: { callsToday: 12, perMinute: 5, perMinutePerAssetClass: 5, perMinuteScope: "per-asset-class", dailyLimit: null, remainingToday: null, exhausted: false, ledger: "provider-rate-class", note: "The historical daily count is telemetry only." },
       tickerbot: { callsToday: 40, callsThisMonth: 40, monthlyLimit: 10_000, reserveCalls: 1500, exhausted: false, ledger: "ready", note: "" },
       queue: { pending: 0, claiming: 0, exhausted: 0 },
-      warmBurst: { callsPerBurst: 156, perTick: 24, bursts: 1, deployWarmAt: NOW, manualWarmAt: null, coldAfterMs: 21_600_000 },
+      warmBurst: { callsPerBurst: 156, perTick: 1, bursts: 1, deployWarmAt: NOW, manualWarmAt: null, coldAfterMs: 21_600_000 },
       counts: { stored: observations.length, observed: observations.length, confirmed: observations.length, held: 0, reviewedInstruments: 90 },
       ...(Array.isArray(discStatus) ? { discs: discStatus } : {})
     },
@@ -236,7 +236,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
             summary: { massiveCalls: action === "tick" ? 5 : 0, tickerbotCalls: 0, observed: action === "tick" ? 5 : 0, held: 0, queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, sweepsCompleted: 0 },
             notes: action === "warm" ? [] : [], marketRequestSent: action === "tick",
             enqueued: action === "warm" ? 156 : action === "priority" ? 2 : undefined,
-            callsPerBurst: 156, message: action === "warm" ? "156 Tickerbot warm-burst jobs queued; 24 drain per scheduled tick." : undefined
+            callsPerBurst: 156, message: action === "warm" ? "156 Tickerbot warm-burst jobs queued; one job drains per scheduled tick." : undefined
           }
         });
       }
@@ -719,7 +719,7 @@ test("manual controls stay deliberate: Beat now runs a server tick, Warm queues 
   assert.equal(providerCalls.length, 0, "every manual control talks to the server field, never to a provider");
 });
 
-test("the server field status is surfaced honestly: ledger allowance, queue, and cron, never client pacing", async t => {
+test("the server field status is surfaced honestly: provider pacing, telemetry, queue, and cron, never client pacing", async t => {
   const { host, engine } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
   await flush();
   assert.match(engine.state.routeSteps.worker, /CRON/);
@@ -727,6 +727,20 @@ test("the server field status is surfaced honestly: ledger allowance, queue, and
   assert.match(engine.state.routeSteps.model, /RENDER-ONLY/);
   assert.equal(host.textContent.includes("Waiting 60 seconds"), false);
   assert.equal(engine.state.cooldownUntil, undefined, "the 60-second provider hold is gone from the client state");
+});
+
+test("Massive UI distinguishes its per-class minute gate from telemetry-only historical daily counts", async t => {
+  const { host, engine } = interactiveHarness(t, { watchlist: MARKET_ROSTER });
+  await flush();
+  host.querySelector('[data-gi-orb2-carousel="next"]').click();
+  await flush();
+
+  assert.equal(engine.state.discId, "fx");
+  assert.match(engine.state.routeSteps.provider, /SERVER · MASSIVE 5\/MIN PER ASSET CLASS/);
+  assert.match(engine.state.routeSteps.ledger, /DAILY COUNT TELEMETRY ONLY/);
+  assert.match(host.textContent, /Massive 12 requests recorded today · historical daily count is telemetry only/);
+  assert.doesNotMatch(host.textContent, /300\s*(?:APPLICATION\s*)?CALLS?\s*(?:TODAY|LEFT)|MASSIVE DAY SPENT/i,
+    "the historical 300/day value is not presented as an active refusal threshold");
 });
 
 test("Orb 2 mounts interactive local controls and defaults motion off for reduced-motion visitors", async t => {

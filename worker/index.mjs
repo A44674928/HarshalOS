@@ -18,6 +18,25 @@ import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 
+/* Public assets are staged without any hidden path component. Reject the same
+   namespace before route matching or Assets.fetch so metadata probes cannot
+   reach an application route or create an unnecessary asset-fetch span. Decode
+   repeatedly for encoded dot/slash variants; malformed or excessive encoding
+   fails closed. */
+function targetsHiddenPath(pathname) {
+  let candidate = pathname;
+  for (let pass = 0; pass < 8; pass += 1) {
+    const pathWithUnixSeparators = candidate.replace(/\\/g, '/');
+    if (pathWithUnixSeparators.split('/').some(segment => segment.startsWith('.'))) return true;
+    let decoded;
+    try { decoded = decodeURIComponent(candidate); }
+    catch { return true; }
+    if (decoded === candidate) return false;
+    candidate = decoded;
+  }
+  return true;
+}
+
 export async function authenticate(request, env, testKeys) {
   if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !env.OWNER_EMAIL) throw new ApiError(503, 'Private storage authentication is not configured.');
   if (!/^[a-z0-9-]+\.cloudflareaccess\.com$/.test(env.ACCESS_TEAM_DOMAIN)) throw new ApiError(503, 'Invalid Access team configuration.');
@@ -144,6 +163,12 @@ export default {
   },
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    if (targetsHiddenPath(path)) {
+      return new Response(null, {
+        status: 404,
+        headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+      });
+    }
     if (path === '/account' || path === '/account.html' || path === '/audits' || path === '/audits.html') {
       const asset = await env.ASSETS.fetch(request);
       const response = new Response(asset.body, asset);

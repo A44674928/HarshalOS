@@ -63,7 +63,8 @@ test('production keeps community pages worker-first and uses the allowlisted ass
   assert.equal(production.main, 'worker/index.mjs');
   assert.equal(production.assets.binding, 'ASSETS');
   assert.equal(production.assets.directory, '.site-assets');
-  assert.deepEqual(production.assets.run_worker_first, ['/api/*', '/account', '/account.html', '/audits', '/audits.html']);
+  assert.deepEqual(production.assets.run_worker_first, ['/api/*', '/account', '/account.html', '/audits', '/audits.html', '/.git', '/.git/*', '/.env*']);
+  assert.equal(production.assets.not_found_handling, 'none', 'missing assets must not fall through to an SPA index');
 });
 
 test('enabled release rejects unconfigured community routes before any D1 query', async () => {
