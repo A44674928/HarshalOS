@@ -233,6 +233,12 @@ test("mobile shells scroll the desktop and place the clock card in that flow", a
   assert.ok(mobileWidget.includes("order: -1"), "the clock card is the first item in the desktop's scroll flow");
   assert.ok(mobileWidget.includes(".home-time-widget.is-collapsed .home-time-body { display: none; }"),
     "the collapsed clock hides its body instead of shrinking over the icons");
+  assert.ok(mobileWidget.includes("opacity: .42") && mobileWidget.includes("background: transparent")
+      && mobileWidget.includes("box-shadow: none"),
+    "the collapsed clock fades its card into the desktop background");
+  assert.ok(mobileWidget.includes(".home-time-widget.is-collapsed .home-widget-label,")
+      && mobileWidget.includes(".home-time-widget.is-collapsed .home-uts-open { display: none; }"),
+    "minimizing removes the foreground header and leaves only its restore control");
 
   const narrowWidget = blocks(utsCss, "@media (max-width: 620px)");
   assert.ok(narrowWidget.includes("margin: 0 14px 14px"), "the phone card uses the same 14px gutter as the icon grid");

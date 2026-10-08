@@ -279,10 +279,18 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   };
   const canvasCalls = [];
   const canvasDraws = [];
-  const gradient = { addColorStop() {} };
+  const canvasGradients = [];
   const canvasContext = new Proxy({}, {
     get(target, key) {
-      if (key === "createRadialGradient") return () => gradient;
+      if (key === "createRadialGradient") return (...args) => {
+        const gradient = {
+          arguments: args, stops: [],
+          addColorStop(offset, color) { this.stops.push([offset, color]); }
+        };
+        canvasCalls.push(key);
+        canvasGradients.push(gradient);
+        return gradient;
+      };
       if (key === "measureText") return () => ({ width: 0 });
       if (key in target) return target[key];
       return (...args) => {
@@ -290,6 +298,9 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
         if (key === "stroke") canvasDraws.push({
           method: key, strokeStyle: target.strokeStyle, lineWidth: target.lineWidth,
           globalAlpha: target.globalAlpha, lineDash: target.lineDash
+        });
+        if (key === "fill") canvasDraws.push({
+          method: key, fillStyle: target.fillStyle, globalAlpha: target.globalAlpha
         });
         if (key === "fillText") canvasDraws.push({
           method: key, text: String(args[0]), fillStyle: target.fillStyle, font: target.font
@@ -325,7 +336,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
   });
   t.after(() => engine.destroy());
   return {
-    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls, canvasDraws,
+    window, host, engine, calls, providerCalls, historyStore, frames, clock, canvasCalls, canvasDraws, canvasGradients,
     sessionId: window.localStorage.getItem("harshalos.good-intelligence.orb2.session.v1"),
     fieldCalls: () => calls.filter(call => call.url.includes("/api/good-intelligence/v1/orb2/field")),
     text: () => host.textContent
@@ -820,6 +831,9 @@ test("Orb 2 keeps settings and status outside the clear, full-width model stage"
   const flow = host.querySelector("[data-gi-orb2-flow-readout]");
   const origin = host.querySelector("[data-gi-orb2-origin-status]");
   assert.ok(flow && origin);
+  assert.match(origin.textContent, /Dollar Strength \(DS\) · CWO-LIKE, READ-ONLY BENCHMARK/);
+  assert.match(host.querySelector(".gi-orb2-origin-status-item span").textContent, /CWO-LIKE OBSERVER/);
+  assert.match(host.querySelector(".gi-orb2-model-boundary").textContent, /CWO-like, read-only calculated benchmark—not a formal Ground-0 phase/i);
   assert.equal(canvasShell.contains(flow), false, "flow text sits below the canvas rather than on top of the model");
   assert.equal(canvasShell.contains(origin), false, "origin text sits below the canvas rather than on top of the model");
   assert.equal(host.querySelector(".gi-orb2-canvas-hud"), null, "the overlay HUD is removed");
@@ -906,6 +920,104 @@ test("the constellation berth is a pure function of catalog order and cannot be 
   assert.deepEqual(layout.map(entry => entry.id), five, "the layout preserves the reviewed catalog order");
   assert.ok(layout.every(entry => entry.berth && Number.isFinite(entry.berth.x)));
   assert.deepEqual(orb.constellationLayout([]), [], "an empty catalog draws no orbs rather than inventing any");
+});
+
+test("Disc identity uses one semantic palette and a shared translucent radial volume ramp", () => {
+  const { orb } = harness();
+  const expected = {
+    stocks: "#4faeff", fx: "#38d6e8", crypto: "#ad86ff",
+    futures: "#ffb44f", indices: "#5de0a0", fallback: "#99adc1"
+  };
+  for (const [family, color] of Object.entries(expected)) assert.equal(orb.DISC_ORB_PALETTE[family], color);
+  assert.equal(orb.discOrbColor("commodities"), expected.futures, "the catalog's legacy commodities id resolves to Futures amber");
+  assert.equal(orb.discOrbColor("Dollar Strength"), expected.fx, "FX and its Dollar Strength alias share cyan");
+  assert.equal(orb.discOrbColor({ id: "unknown", assetClass: "index" }), expected.indices);
+
+  const stops = [];
+  const context = { createRadialGradient(...args) { return { arguments: args, addColorStop(...stop) { stops.push(stop); } }; } };
+  orb.createDiscOrbGradient(context, { x: 20, y: 30 }, 10, "stocks");
+  assert.equal(stops.length, orb.DISC_ORB_GRADIENT.stops.length);
+  assert.equal(stops[0][0], 0);
+  assert.equal(stops.find(([offset]) => offset === 0.38)[1], "rgba(79, 174, 255, 0.96)",
+    "the full blue identity hue sits in the orb's inner body");
+  assert.equal(stops.at(-1)[0], 1);
+  assert.match(stops.at(-1)[1], /, 0\.26\)$/,
+    "the outer shell darkens and becomes translucent rather than flattening into a solid fill");
+});
+
+test("the canvas paints each Disc's family ramp on the parent spheroid even when its field is empty", async t => {
+  const { host, engine, window, frames, canvasGradients, canvasDraws } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER
+  });
+  await flush();
+  const frame = frames.shift();
+  assert.equal(typeof frame, "function", "the interactive canvas scheduled a render");
+  frame(120);
+
+  const Orb2 = window.GoodIntelligenceOrb2;
+  const families = ["stocks", "fx", "crypto", "commodities", "indices"];
+  for (const discId of families) {
+    const hex = Orb2.discOrbColor(discId);
+    const [red, green, blue] = hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+    const coreStop = `rgba(${red}, ${green}, ${blue}, 0.96)`;
+    const ramp = canvasGradients.find(gradient => gradient.stops.some(([offset, color]) => offset === 0.38 && color === coreStop));
+    assert.ok(ramp, `${discId} has its distinct hue at the volumetric core stop`);
+    assert.ok(canvasDraws.some(draw => draw.method === "fill" && draw.fillStyle === ramp), `${discId}'s ramp fills the parent Disc orb layer`);
+  }
+  assert.equal(engine.state.orbMarkers.length, 5);
+  assert.equal(engine.state.orbMarkers.find(marker => marker.disc === "stocks").covered, true);
+  assert.equal(engine.state.orbMarkers.find(marker => marker.disc === "crypto").covered, false,
+    "coverage stays a separate dashed-shell/status cue; it does not remove the Disc's identity color");
+});
+
+test("FBB shell shading uses distinct translucent upper/lower radial ramps while retaining the existing grid", () => {
+  const { orb } = harness();
+  assert.deepEqual([...orb.SHELL_RING_LATITUDES], [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72]);
+  assert.deepEqual([...orb.SHELL_BAND_LATITUDES.slice(1, -1)], [...orb.SHELL_RING_LATITUDES],
+    "filled shell bands share the wireframe's latitude boundaries");
+  assert.equal(orb.SHELL_SHADE_PALETTE.upper, "#d76170");
+  assert.equal(orb.SHELL_SHADE_PALETTE.lower, "#58b27c");
+
+  const stops = [];
+  const context = { createRadialGradient(...args) { return { arguments: args, addColorStop(...stop) { stops.push(stop); } }; } };
+  orb.createShellShadeGradient(context, { x: 20, y: 30 }, 10, "upper");
+  assert.equal(stops.find(([offset]) => offset === 0.42)[1], "rgba(215, 97, 112, 0.68)");
+  assert.equal(stops.at(-1)[0], 1);
+  assert.match(stops.at(-1)[1], /, 0\.24\)$/,
+    "the shell tint is shaded and translucent at the outer edge");
+});
+
+test("rendering fills both FBB shell zones on front/back grid cells beneath the wireframe", async t => {
+  const { window, host, frames, canvasGradients, canvasDraws } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER
+  });
+  await flush();
+  const colorKey = host.querySelector("[data-gi-orb2-color-key]");
+  assert.ok(colorKey, "the accessible Orb 2 color key is mounted");
+  assert.match(colorKey.textContent, /DISC PARENT ORB · FAMILY IDENTITY/);
+  assert.match(colorKey.textContent, /FX \/ Dollar Strength · Disc 2/);
+  assert.match(colorKey.textContent, /FBB SHELL · STATIC GEOMETRIC ZONES/);
+  assert.match(colorKey.textContent, /upper FBB zone[\s\S]*lower FBB zone/);
+  assert.match(host.querySelector("#gi-orb2-color-description").textContent, /static FBB geometry shading only/);
+  assert.match(host.querySelector("#gi-orb2-color-description").textContent, /Character\/ticker node fills still use Characters beat moods/);
+
+  const frame = frames.shift();
+  assert.equal(typeof frame, "function", "the interactive canvas scheduled a render");
+  frame(120);
+
+  const Orb2 = window.GoodIntelligenceOrb2;
+  const shellRamps = [];
+  for (const zone of ["upper", "lower"]) {
+    const hex = Orb2.SHELL_SHADE_PALETTE[zone];
+    const [red, green, blue] = hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+    const coreStop = `rgba(${red}, ${green}, ${blue}, 0.68)`;
+    const ramp = canvasGradients.find(gradient => gradient.stops.some(([offset, color]) => offset === 0.42 && color === coreStop));
+    assert.ok(ramp, `${zone} shell has a distinct tinted radial fill`);
+    assert.ok(canvasDraws.some(draw => draw.method === "fill" && draw.fillStyle === ramp), `${zone} fill is applied to projected shell cells`);
+    shellRamps.push(ramp);
+  }
+  const shellFills = canvasDraws.filter(draw => draw.method === "fill" && shellRamps.includes(draw.fillStyle));
+  assert.ok(shellFills.length >= 4, "the front and back portions of the upper/lower shell are separately composited");
 });
 
 test("the strip carries one chip per Disc with its own stored status, and an empty Disc says so", async t => {

@@ -160,10 +160,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
 }
 
 /* Mobile and tablet: the clock/calendar widget is the first item in the
-   desktop's scroll flow, so it can be minimized to its header row with the –
-   control and the icons are never covered in either state. Its card layout
-   lives with the rest of the widget in css/uts.css; only the touch-target size
-   belongs here. */
+   desktop's scroll flow, so the – control can fade its panel away while leaving
+   a compact restore target. Its card layout lives with the rest of the widget
+   in css/uts.css; only the touch-target size belongs here. */
 @media (max-width: 860px) {
   .home-time-widget .home-widget-toggle { min-width: 38px; min-height: 34px; }
 }
