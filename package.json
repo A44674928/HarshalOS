@@ -44,7 +44,7 @@
     "db:staging:migrations:list": "wrangler d1 migrations list COMMUNITY_DB --config wrangler.staging.jsonc --remote",
     "db:staging:migrate": "wrangler d1 migrations apply COMMUNITY_DB --config wrangler.staging.jsonc --remote",
     "test:staging": "node --test tests/staging-config-test.mjs",
-    "test:production": "node --test tests/production-config-test.mjs",
+    "test:production": "node --test tests/production-config-test.mjs tests/worker-routing-security-test.mjs",
     "nab:build": "node scripts/build-nab-sectors.mjs",
     "nab:check": "node scripts/build-nab-sectors.mjs --check",
     "test:nab": "node --test tests/nab-sectors-test.mjs tests/nab-composites-test.mjs tests/nab-discs-ui-test.mjs tests/nab-orb-renderer-test.mjs tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs"
