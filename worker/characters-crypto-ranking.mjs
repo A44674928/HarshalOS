@@ -17,9 +17,14 @@ export const CHARACTERS_CRYPTO_RANKING_RETRY_MS = 15 * 60_000;
 export const CHARACTERS_CRYPTO_RANKING_SIZE = 52;
 export const CHARACTERS_CRYPTO_CROSS_PAIR_SIZE = 52;
 export const KRAKEN_PUBLIC_ORIGIN = "https://api.kraken.com";
+/* Kraken's unfiltered Ticker endpoint is the required source for rank selection.
+   Keep that provider contract, but fail closed above a generous response envelope
+   so catalogue growth cannot turn one scheduled work item into unbounded parsing. */
+export const KRAKEN_TICKER_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+export const KRAKEN_TICKER_MAX_PAIRS = 8_192;
 const FETCH_TIMEOUT_MS = 8_000;
-const CACHE_SELECT = `SELECT ranking_json, fetched_at, expires_at, last_attempt_at
-  FROM characters_crypto_ranking_cache WHERE id = 1`;
+const CACHE_SELECT = `SELECT substr(ranking_json, 1, 131072) AS ranking_json, fetched_at, expires_at, last_attempt_at
+  FROM characters_crypto_ranking_cache WHERE id = 1 LIMIT 1`;
 const CACHE_CLAIM = `INSERT INTO characters_crypto_ranking_cache
     (id, ranking_json, fetched_at, expires_at, last_attempt_at, updated_at)
   VALUES (1, NULL, NULL, 0, ?, ?)
@@ -75,8 +80,13 @@ function normalizeKrakenTicker(payload, { at = Date.now() } = {}) {
   let missingCrossVolumeCount = 0;
   let missingCrossVwapCount = 0;
   let nonUsdPairCount = 0;
-  for (const [rawPair, row] of Object.entries(payload.result)) {
-    if (rawPair === "last" || !isRecord(row)) continue;
+  let pairCount = 0;
+  for (const rawPair in payload.result) {
+    if (!Object.prototype.hasOwnProperty.call(payload.result, rawPair) || rawPair === "last") continue;
+    pairCount += 1;
+    if (pairCount > KRAKEN_TICKER_MAX_PAIRS) return null;
+    const row = payload.result[rawPair];
+    if (!isRecord(row)) continue;
     const pair = rawPair.trim().toUpperCase();
     const match = /^([A-Z0-9]{2,12})\/([A-Z0-9]{2,12})$/.exec(pair);
     if (!match) continue;
@@ -389,6 +399,47 @@ function sanitizeCachedRanking(value) {
   });
 }
 
+async function readBoundedTickerJson(response) {
+  const contentLength = Number(response && response.headers && response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > KRAKEN_TICKER_MAX_RESPONSE_BYTES) {
+    return { ok: false, tooLarge: true };
+  }
+  const reader = response && response.body && typeof response.body.getReader === "function"
+    ? response.body.getReader() : null;
+  if (reader) {
+    const chunks = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+        size += chunk.byteLength;
+        if (size > KRAKEN_TICKER_MAX_RESPONSE_BYTES) {
+          await reader.cancel().catch(() => {});
+          return { ok: false, tooLarge: true };
+        }
+        chunks.push(chunk);
+      }
+    } catch {
+      return { ok: false, tooLarge: false };
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    try { return { ok: true, payload: JSON.parse(new TextDecoder().decode(bytes)) }; }
+    catch { return { ok: false, tooLarge: false }; }
+  }
+  if (response && typeof response.text === "function") {
+    try {
+      const body = await response.text();
+      if (new TextEncoder().encode(body).byteLength > KRAKEN_TICKER_MAX_RESPONSE_BYTES) return { ok: false, tooLarge: true };
+      return { ok: true, payload: JSON.parse(body) };
+    } catch { return { ok: false, tooLarge: false }; }
+  }
+  return { ok: false, tooLarge: false };
+}
+
 async function readCacheRow(db) {
   if (!db || typeof db.prepare !== "function") return { ok: true, row: null };
   try { return { ok: true, row: await db.prepare(CACHE_SELECT).first() }; }
@@ -505,9 +556,13 @@ export async function getCharactersCryptoRanking({
         if (status === 429) return failure("kraken-rate-limit", "Kraken refused the public Ticker request. The shared pacing guard remains in force.");
         return failure("kraken-upstream", "Kraken could not provide its public Spot Ticker snapshot right now.");
       }
-      let payload;
-      try { payload = await response.json(); }
-      catch { return failure("kraken-unreadable", "Kraken returned unreadable public Ticker data."); }
+      const body = await readBoundedTickerJson(response);
+      if (!body.ok) {
+        return body.tooLarge
+          ? failure("kraken-ticker-too-large", "Kraken's public Ticker snapshot exceeded the bounded ranking input envelope. Disc3 remains held; no partial roster was returned.")
+          : failure("kraken-unreadable", "Kraken returned unreadable public Ticker data.");
+      }
+      const payload = body.payload;
       if (Array.isArray(payload && payload.error) && payload.error.length) {
         const rateLimited = payload.error.some(error => /rate|limit|throttl/i.test(String(error)));
         return failure(rateLimited ? "kraken-rate-limit" : "kraken-upstream",
@@ -599,5 +654,8 @@ export const charactersCryptoRankingInternals = Object.freeze({
   nextUtcMidnight,
   CACHE_SELECT,
   CACHE_CLAIM,
-  CACHE_WRITE
+  CACHE_WRITE,
+  readBoundedTickerJson,
+  KRAKEN_TICKER_MAX_RESPONSE_BYTES,
+  KRAKEN_TICKER_MAX_PAIRS
 });

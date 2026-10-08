@@ -1557,7 +1557,7 @@
 
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Data pathway and model status">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">04 · DATA PATHWAY</p><h5>Live-beat contract</h5></div><span>Same-origin Worker · no provider secrets in the browser</span></div>
-              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger rotates each reviewed Disc through its fixed provider: Tickerbot exclusively serves Disc1 stocks (including the bounded 15m/1h warm lanes and daily rotation); Kraken public Spot serves Disc3 via a rolling-24-hour USD-notional roster and exact-pair daily OHLC; Massive serves only FX, active futures, and indices at up to five <code>1d</code> requests per minute. The initial Tickerbot stock calibration is an explicit ~156 calls across 15m + 1h + 1d; the shared monthly ledger remains capped at 10,000 Worker attempts. Kraken uses a shared one-request-per-second gate and a 160-call application ceiling, not a Kraken quota. Its ranking is venue-only—not global or equivalent to Massive's previous-UTC-day grouping—and commercial-use terms must be confirmed before deployment. The server combines normalized daily regime metrics with fresh 15m stock residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
+              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger rotates each reviewed Disc through its fixed provider: Tickerbot exclusively serves Disc1 stocks (including the bounded 15m/1h warm lanes and daily rotation); Kraken public Spot serves Disc3 via a rolling-24-hour USD-notional roster and exact-pair daily OHLC; Massive serves only FX, active futures, and indices at up to five <code>1d</code> requests per minute. The Cron cursor selects one reviewed work unit per minute (FX may use its existing two-provider fallback); a cold Tickerbot calibration advances through its 156 stock/interval units one per tick instead of firing a burst. The shared monthly ledger remains capped at 10,000 Worker attempts. Kraken uses a shared one-request-per-second gate and a 160-call application ceiling, not a Kraken quota. Its ranking is venue-only—not global or equivalent to Massive's previous-UTC-day grouping—and commercial-use terms must be confirmed before deployment. The server combines normalized daily regime metrics with fresh 15m stock residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
               <div class="gi-orb2-pathways" aria-label="Live data pathway status">
                 <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div><i aria-hidden="true">→</i>
                 <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div><i aria-hidden="true">→</i>
@@ -2156,8 +2156,8 @@
       return { entries, ranking: null };
     }
 
-    /* The plan is the Worker's, so this panel reports the server field's actual
-       allowance, queue, and warm-burst state instead of a local planner. */
+    /* The plan is the Worker's, so this panel reports the provider pacing,
+       usage telemetry, queue, and warm-burst state instead of a local planner. */
     function drawPlan() {
       const status = state.field && state.field.status ? state.field.status : null;
       const provider = currentProvider();
@@ -2166,8 +2166,9 @@
       const tickerbot = status && status.tickerbot ? status.tickerbot : null;
       const queue = status && status.queue ? status.queue : null;
       const warm = status && status.warmBurst ? status.warmBurst : null;
+      const massivePerMinute = Number(massive && (massive.perMinutePerAssetClass || massive.perMinute)) || MASSIVE_REQUESTS_PER_MINUTE;
       const estimate = provider === "massive" && massive
-        ? `${MASSIVE_REQUESTS_PER_MINUTE} Massive requests/minute · ${massive.remainingToday === null ? "ledger unavailable" : `${Number(massive.remainingToday).toLocaleString()} left today`}`
+        ? `${massivePerMinute} Massive requests/minute per asset class · daily count is telemetry only`
         : provider === "kraken" && kraken
           ? `Kraken Spot · 1 request/second · ${kraken.remainingToday === null ? "ledger unavailable" : `${Number(kraken.remainingToday).toLocaleString()} left today`}`
           : provider === "tickerbot" && tickerbot
@@ -2178,7 +2179,7 @@
         : provider === "tickerbot" && tickerbot
           ? `Tickerbot ${Number(tickerbot.callsThisMonth || 0).toLocaleString()}/${Number(tickerbot.monthlyLimit || 0).toLocaleString()} this month${tickerbot.reserveCalls ? ` · ${Number(tickerbot.reserveCalls).toLocaleString()} reserved` : ""}`
           : provider === "massive" && massive
-            ? `Massive ${Number(massive.callsToday || 0).toLocaleString()}/${Number(massive.dailyLimit || 300).toLocaleString()} application calls today`
+            ? `Massive ${Number(massive.callsToday || 0).toLocaleString()} requests recorded today · historical daily count is telemetry only`
             : "Provider ledger is read from the server field.";
       const queueLine = queue
         ? `Tickerbot stock queue ${Number(queue.pending) || 0} pending · ${Number(queue.claimed) || 0} in flight`
@@ -2508,6 +2509,7 @@
     }
 
     function drawStatus() {
+      if (state.field) updateRouteSteps(state.field);
       const provider = currentProvider();
       providerHost.textContent = providerDescription(provider);
       providerHost.className = `gi-orb2-provider-pill ${provider}`;
@@ -2756,6 +2758,39 @@
       };
     }
 
+    function updateRouteSteps(snapshot = state.field) {
+      if (!snapshot || typeof snapshot !== "object") return;
+      const status = snapshot.status || {};
+      const massive = status.massive || {};
+      const kraken = status.kraken || {};
+      const tickerbot = status.tickerbot || {};
+      const provider = currentProvider();
+      const massivePerMinute = Number(massive.perMinutePerAssetClass || massive.perMinute) || MASSIVE_REQUESTS_PER_MINUTE;
+      const providerStatus = provider === "massive"
+        ? massive.ledger === "provider-rate-class" ? `SERVER · MASSIVE ${massivePerMinute}/MIN PER ASSET CLASS` : "SERVER · MASSIVE RATE STATUS UNAVAILABLE"
+        : provider === "kraken"
+          ? kraken.ledger === "ready" ? `SERVER · KRAKEN ${Number(kraken.callsToday) || 0}/${Number(kraken.dailyLimit) || 160} TODAY` : "SERVER · KRAKEN LEDGER UNAVAILABLE"
+          : provider === "tickerbot"
+            ? tickerbot.ledger === "ready" ? "SERVER · TICKERBOT STOCK QUEUE" : "SERVER · TICKERBOT LEDGER UNAVAILABLE"
+            : "LEGACY HISTORY · NO LIVE FIELD";
+      const ledgerStatus = provider === "massive"
+        ? massive.ledger === "provider-rate-class"
+          ? `MASSIVE ${massivePerMinute}/MIN PER ASSET CLASS · DAILY COUNT TELEMETRY ONLY`
+          : "MASSIVE RATE STATUS UNAVAILABLE"
+        : provider === "kraken"
+          ? kraken.exhausted ? "KRAKEN APP CEILING SPENT · OTHER LANES SEPARATE"
+            : kraken.remainingToday !== null && Number.isFinite(Number(kraken.remainingToday)) ? `KRAKEN ${Number(kraken.remainingToday)} LEFT TODAY` : "KRAKEN LEDGER UNREAD"
+          : provider === "tickerbot"
+            ? tickerbot.exhausted ? "TICKERBOT MONTHLY CAP SPENT" : tickerbot.ledger === "ready" ? "TICKERBOT MONTHLY LEDGER READY" : "TICKERBOT LEDGER UNREAD"
+            : "NO LIVE PROVIDER LEDGER";
+      state.routeSteps = {
+        provider: providerStatus,
+        worker: `CRON ${String(status.cron || "*/1 * * * *")} · TICK ${status.lastTickAt ? shortTime(Number(status.lastTickAt)) : "PENDING"}`,
+        ledger: ledgerStatus,
+        model: Array.isArray(snapshot.observations) && snapshot.observations.length ? "RENDER-ONLY · NO PAGE REQUEST" : "WAITING FOR THE FIRST SERVER BEAT"
+      };
+    }
+
     function applyFieldSnapshot(snapshot) {
       const observations = new Map();
       let newest = 0;
@@ -2771,33 +2806,7 @@
       state.fieldFailed = false;
       if (newest) state.lastBeatAt = newest;
       if (snapshot.ds) state.ds = snapshot.ds;
-      const status = snapshot.status || {};
-      const massive = status.massive || {};
-      const kraken = status.kraken || {};
-      const tickerbot = status.tickerbot || {};
-      const provider = currentProvider();
-      const providerStatus = provider === "massive"
-        ? massive.ledger === "ready" ? `SERVER · MASSIVE ${Number(massive.callsToday) || 0}/${Number(massive.dailyLimit) || 300} TODAY` : "SERVER · MASSIVE LEDGER UNAVAILABLE"
-        : provider === "kraken"
-          ? kraken.ledger === "ready" ? `SERVER · KRAKEN ${Number(kraken.callsToday) || 0}/${Number(kraken.dailyLimit) || 160} TODAY` : "SERVER · KRAKEN LEDGER UNAVAILABLE"
-          : provider === "tickerbot"
-            ? tickerbot.ledger === "ready" ? "SERVER · TICKERBOT STOCK QUEUE" : "SERVER · TICKERBOT LEDGER UNAVAILABLE"
-            : "LEGACY HISTORY · NO LIVE FIELD";
-      const ledgerStatus = provider === "massive"
-        ? massive.exhausted ? "MASSIVE DAY SPENT · OTHER LANES SEPARATE"
-          : massive.remainingToday !== null && Number.isFinite(Number(massive.remainingToday)) ? `MASSIVE ${Number(massive.remainingToday)} LEFT TODAY` : "MASSIVE LEDGER UNREAD"
-        : provider === "kraken"
-          ? kraken.exhausted ? "KRAKEN APP CEILING SPENT · OTHER LANES SEPARATE"
-            : kraken.remainingToday !== null && Number.isFinite(Number(kraken.remainingToday)) ? `KRAKEN ${Number(kraken.remainingToday)} LEFT TODAY` : "KRAKEN LEDGER UNREAD"
-          : provider === "tickerbot"
-            ? tickerbot.exhausted ? "TICKERBOT MONTHLY CAP SPENT" : tickerbot.ledger === "ready" ? "TICKERBOT MONTHLY LEDGER READY" : "TICKERBOT LEDGER UNREAD"
-            : "NO LIVE PROVIDER LEDGER";
-      state.routeSteps = {
-        provider: providerStatus,
-        worker: `CRON ${String(status.cron || "*/1 * * * *")} · TICK ${status.lastTickAt ? shortTime(Number(status.lastTickAt)) : "PENDING"}`,
-        ledger: ledgerStatus,
-        model: snapshot.observations.length ? "RENDER-ONLY · NO PAGE REQUEST" : "WAITING FOR THE FIRST SERVER BEAT"
-      };
+      updateRouteSteps(snapshot);
       syncIgnitionFromField(snapshot);
     }
 
@@ -3140,7 +3149,7 @@
       state.auto = nextInterval === "1d";
       state.ledger = readLedger(state.discId, state.interval);
       state.message = nextInterval === "1d" && state.auto
-        ? { kind: "note", text: `Server field view · the Worker's cron beat spends up to ${MASSIVE_REQUESTS_PER_MINUTE} Massive requests per minute inside its UTC-day allowance; this page only re-reads the stored field every ${FIELD_POLL_MS / 1000} seconds.` }
+        ? { kind: "note", text: `Server field view · the Worker's cron cursor selects one scheduled work unit per tick and preserves Massive's ${MASSIVE_REQUESTS_PER_MINUTE}-request/minute per-asset-class gate; the historical daily count is telemetry only. This page only re-reads the stored field every ${FIELD_POLL_MS / 1000} seconds.` }
         : { kind: "note", text: `Server field view at ${nextInterval}. The page renders the stored Tickerbot queue results; Beat now asks the server for one more scheduled tick.` };
       persistLocal();
       draw();

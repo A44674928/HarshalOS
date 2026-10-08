@@ -2,10 +2,12 @@
  * HarshalOS — Orb 2 server-side beat field.
  *
  * The beat is a server responsibility. A Cloudflare Cron Trigger calls
- * `runOrb2FieldTick()` every minute; the tick claims shared provider allowances
- * (Massive's five-per-minute envelope and UTC-day guard, Kraken's one-per-second
- * gate and UTC-day safety ceiling, Tickerbot's UTC-month ledger), fetches the
- * reviewed instruments due for their exclusive provider, runs the same
+ * `runOrb2FieldTick()` every minute; a D1 stable-key cursor selects at most one
+ * scheduled work unit (with a hard two-fetch ceiling for the existing FX
+ * fallback). The tick preserves Massive's five-per-minute provider envelope,
+ * Kraken's one-per-second gate and UTC-day safety ceiling, and Tickerbot's
+ * UTC-month ledger; the historical Massive daily count remains telemetry. It
+ * fetches one reviewed instrument, runs the same
  * `js/good-intelligence-market-context.js` evaluation and
  * `js/characters-beat.js` motion directive the browser would have run, and stores
  * one compact observation per instrument in D1.
@@ -18,10 +20,10 @@
  *
  * Consequences that are deliberate:
  *   · A hidden tab, a closed laptop, or a sleeping owner changes nothing. The
- *     24/7/365 loop lives in the Worker and is bounded by the provider budget,
- *     not by a page-visibility event.
- *   · There is no client-side pacing timer, no provider warm-up hold, and no
- *     "restart the firing order" state to lose: the sweep cursor is a row in D1.
+ *     24/7/365 loop lives in the Worker and is bounded by structural work,
+ *     D1, and provider budgets, not by a page-visibility event.
+ *   · There is no client-side pacing timer or provider warm-up hold. Stable-key
+ *     rotation and automatic warm progress are rows in D1, not isolate state.
  *   · Manual refresh is a choice, not a repair: it prioritizes work that is
  *     already queued. Nothing here invents data; an unavailable berth stays held.
  *
@@ -82,6 +84,12 @@ import "../js/characters-beat.js";
 import "../js/good-intelligence-dxy.js";
 import "../js/good-intelligence-market-roster.js";
 
+const REVIEWED_SCHEDULER_CATALOG = globalThis.CharactersDiscCatalog || {};
+const SCHEDULER_FX_ROSTER_SIZE = Array.isArray(REVIEWED_SCHEDULER_CATALOG.fxCurrencies) ? REVIEWED_SCHEDULER_CATALOG.fxCurrencies.length : 23;
+const SCHEDULER_FUTURES_ROSTER_SIZE = Array.isArray(REVIEWED_SCHEDULER_CATALOG.futures || REVIEWED_SCHEDULER_CATALOG.commodities)
+  ? (REVIEWED_SCHEDULER_CATALOG.futures || REVIEWED_SCHEDULER_CATALOG.commodities).length : 11;
+const SCHEDULER_INDEX_ROSTER_SIZE = Array.isArray(REVIEWED_SCHEDULER_CATALOG.indices) ? REVIEWED_SCHEDULER_CATALOG.indices.length : 52;
+
 export const ORB2_FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
 export const ORB2_FIELD_SCHEMA = "gi-orb2-field-v1";
 export const ORB2_FIELD_STATUS_SCHEMA = "gi-orb2-field-status-v1";
@@ -90,8 +98,9 @@ export const ORB2_FIELD_REQUEST_SCHEMA = "gi-orb2-field-request-v1";
 export const ORB2_FIELD_CRON = "*/1 * * * *";
 export const ORB2_FIELD_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
 /* The one-button first-deck calibration intentionally covers every supported
- * scale: 52 symbols × (15m + 1h + 1d) = 156 queued calls. Later 15m refreshes
- * remain focused by default; a full pass is always explicit. */
+ * scale: 52 symbols × (15m + 1h + 1d) = 156 work units. User-requested warm work
+ * remains queued; the automatic cold warm is cursor-driven and materializes only
+ * the single unit selected for the current scheduled invocation. */
 export const ORB2_FIELD_WARM_INTERVALS = Object.freeze(["15m", "1h", "1d"]);
 export const ORB2_FIELD_DEFAULT_INTERVAL = "1d";
 export const ORB2_FIELD_DISCS = Object.freeze(["stocks", "fx", "crypto", "commodities", "indices"]);
@@ -110,7 +119,22 @@ const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
   indices: Object.freeze(["indices"])
 });
 export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
-export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 12;
+/* A scheduled invocation claims or generates no more than one provider work
+   unit. FX dual/fallback mode is the one reviewed unit that can make two calls. */
+export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 1;
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = 1;
+export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = 2;
+export const ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE =
+  TICKERBOT_WATCHLIST.length + SCHEDULER_FX_ROSTER_SIZE + CHARACTERS_CRYPTO_RANKING_SIZE +
+  CHARACTERS_CRYPTO_CROSS_PAIR_SIZE + SCHEDULER_FUTURES_ROSTER_SIZE + SCHEDULER_INDEX_ROSTER_SIZE +
+  TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1);
+/* Read/write quotas include provider ledgers, selected observation rows, one
+   derived composition pair, cursor/lease bookkeeping, and the bounded reviewed
+   futures catalog. Three writes are reserved for the result row and lease cleanup. */
+export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = 48;
+export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = 24;
+const ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES = 3;
+const ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
 export const ORB2_FIELD_COLD_MS = 6 * 60 * 60_000;
 export const ORB2_FIELD_WARM_COOLDOWN_MS = 30 * 60_000;
@@ -142,7 +166,6 @@ export function clearOrb2FieldSchemaCache() {
 }
 const MAX_BODY_BYTES = 8 * 1024;
 const UPSTREAM_TIMEOUT_MS = 8_000;
-const FETCH_CONCURRENCY = 4;
 const SYMBOL_PATTERN = /^[A-Z0-9][A-Z0-9._:/-]{0,31}$/;
 const canonicalKrakenAsset = value => value === "XBT" ? "BTC" : value === "XDG" ? "DOGE" : value;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -300,6 +323,7 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
       (entry.baseAsset === undefined || entry.baseAsset === entry.symbol) &&
       (entry.quoteAsset === undefined || entry.quoteAsset === "USD"))
     .map(entry => Object.freeze({ ...entry, baseAsset: entry.baseAsset || entry.symbol, quoteAsset: "USD", pairType: "usd", discId: "crypto", assetClass: "crypto" }));
+  const cryptoSymbols = new Set(crypto.map(entry => entry.symbol));
   const cryptoPairs = (cryptoRanking && Array.isArray(cryptoRanking.crossPairs) ? cryptoRanking.crossPairs : [])
     .slice(0, CHARACTERS_CRYPTO_CROSS_PAIR_SIZE)
     .filter(entry => {
@@ -312,7 +336,7 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
         entry.symbol === `${baseAsset}-${quoteAsset}` && match && entry.providerId === pair &&
         baseAsset === (match[1] === "XBT" ? "BTC" : match[1] === "XDG" ? "DOGE" : match[1]) &&
         quoteAsset === (match[2] === "XBT" ? "BTC" : match[2] === "XDG" ? "DOGE" : match[2]) &&
-        baseAsset !== quoteAsset && (crypto.some(asset => asset.symbol === baseAsset) || crypto.some(asset => asset.symbol === quoteAsset));
+        baseAsset !== quoteAsset && (cryptoSymbols.has(baseAsset) || cryptoSymbols.has(quoteAsset));
     })
     .map(entry => Object.freeze({ ...entry, discId: "crypto", assetClass: "crypto" }));
   const instruments = [...stocks, ...fx, ...crypto, ...cryptoPairs, ...commodities, ...indices];
@@ -669,6 +693,127 @@ async function writeControl(db, patch, now) {
     .bind(deploy, manual, bursts, ranking, now).run();
 }
 
+const SCHEDULER_STATE_INTERVAL = "__orb2_scheduler__";
+const SCHEDULER_FIELD_CURSOR_SYMBOL = "__field_cursor__";
+const SCHEDULER_WARM_CURSOR_SYMBOL = "__warm_cursor__";
+const SCHEDULER_FIELD_CURSOR_REASON = "field-cursor-v1";
+const SCHEDULER_WARM_CURSOR_REASON = "warm-cursor-v1";
+const SCHEDULER_CURSOR_PREFIX = "cursor:";
+
+async function readSchedulerState(db, symbol, reason) {
+  return (await db.prepare(`SELECT lane, attempts FROM orb2_field_queue
+    WHERE interval = ? AND symbol = ? AND reason = ? LIMIT 1`)
+    .bind(SCHEDULER_STATE_INTERVAL, symbol, reason).first()) || null;
+}
+
+async function writeSchedulerState(db, { symbol, reason, lane, attempts, now }) {
+  return db.prepare(`INSERT INTO orb2_field_queue
+      (created_at, interval, symbol, reason, lane, claimed_at, attempts)
+      VALUES (?, ?, ?, ?, ?, NULL, ?)
+    ON CONFLICT(interval, symbol, reason) DO UPDATE SET
+      created_at = excluded.created_at, lane = excluded.lane,
+      claimed_at = NULL, attempts = excluded.attempts`)
+    .bind(now, SCHEDULER_STATE_INTERVAL, symbol, reason, lane, attempts).run();
+}
+
+const decodeCursorLane = lane => {
+  if (typeof lane !== "string" || !lane.startsWith(SCHEDULER_CURSOR_PREFIX)) return null;
+  try { return decodeURIComponent(lane.slice(SCHEDULER_CURSOR_PREFIX.length)); }
+  catch { return null; }
+};
+
+async function advanceFieldWorkCursor(db, items, now) {
+  if (!Array.isArray(items) || !items.length) return { ok: false, empty: true };
+  const row = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, SCHEDULER_FIELD_CURSOR_REASON);
+  const attempts = row ? Number(row.attempts) : 0;
+  const lastKey = row ? decodeCursorLane(row.lane) : "start";
+  let selectedIndex = 0;
+  let cursorRecovered = false;
+  if (row) {
+    if (row.lane === `${SCHEDULER_CURSOR_PREFIX}blocked-v1`) {
+      return { ok: false, reset: true, blocked: true };
+    }
+    if (!Number.isSafeInteger(attempts) || attempts < 0 || attempts >= Number.MAX_SAFE_INTEGER || lastKey === null) {
+      await writeSchedulerState(db, {
+        symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: SCHEDULER_FIELD_CURSOR_REASON,
+        lane: `${SCHEDULER_CURSOR_PREFIX}blocked-v1`, attempts: 0, now
+      });
+      return { ok: false, reset: true, blocked: true };
+    }
+    if (lastKey !== "start") {
+      const lastIndex = items.findIndex(item => item.key === lastKey);
+      if (lastIndex < 0) {
+        /* Keep the durable ordinal as a recovery anchor. Resetting to item zero
+           here would replay the whole field after one renamed catalog key. */
+        selectedIndex = attempts % items.length;
+        cursorRecovered = true;
+      } else {
+        selectedIndex = (lastIndex + 1) % items.length;
+      }
+    }
+  }
+  const item = items[selectedIndex];
+  await writeSchedulerState(db, {
+    symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: SCHEDULER_FIELD_CURSOR_REASON,
+    lane: `${SCHEDULER_CURSOR_PREFIX}${encodeURIComponent(item.key)}`,
+    attempts: (Number.isSafeInteger(attempts) ? attempts : 0) + 1, now
+  });
+  return { ok: true, item, wrapped: Boolean(row && selectedIndex === 0), reset: cursorRecovered };
+}
+
+async function readAutoWarmProgress(db) {
+  return readSchedulerState(db, SCHEDULER_WARM_CURSOR_SYMBOL, SCHEDULER_WARM_CURSOR_REASON);
+}
+
+async function writeAutoWarmProgress(db, nextIndex, now) {
+  return writeSchedulerState(db, {
+    symbol: SCHEDULER_WARM_CURSOR_SYMBOL, reason: SCHEDULER_WARM_CURSOR_REASON,
+    lane: `${SCHEDULER_CURSOR_PREFIX}warm-v1`, attempts: nextIndex, now
+  });
+}
+
+async function observationExists(db) {
+  const row = await db.prepare("SELECT 1 AS present FROM orb2_field_observations LIMIT 1").first();
+  return Boolean(row);
+}
+
+function createSchedulerD1Budget(db) {
+  const stats = { reads: 0, writes: 0, rowsRead: 0 };
+  const classify = query => /^\s*(SELECT|PRAGMA|EXPLAIN)\b/i.test(String(query)) ? "reads" : "writes";
+  const count = (kind, amount = 1, finalizing = false) => {
+    const limit = kind === "reads" ? ORB2_FIELD_SCHEDULER_MAX_D1_READS
+      : ORB2_FIELD_SCHEDULER_MAX_D1_WRITES - (finalizing ? 0 : ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES);
+    if (stats[kind] + amount > limit) {
+      throw new Error(`Orb 2 scheduled D1 ${kind} budget exceeded (${stats[kind] + amount}/${limit}).`);
+    }
+    stats[kind] += amount;
+  };
+  const wrapStatement = (statement, kind, finalizing) => ({
+    bind(...values) { return wrapStatement(statement.bind(...values), kind, finalizing); },
+    async first(...args) { count(kind, 1, finalizing); return statement.first(...args); },
+    async all(...args) {
+      count(kind, 1, finalizing);
+      const result = await statement.all(...args);
+      const rows = Array.isArray(result?.results) ? result.results : [];
+      if (rows.length > ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ) {
+        throw new Error(`Orb 2 scheduled D1 row bound exceeded (${rows.length}/${ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ}).`);
+      }
+      stats.rowsRead += rows.length;
+      return result;
+    },
+    async run(...args) { count(kind, 1, finalizing); return statement.run(...args); }
+  });
+  const wrapDatabase = finalizing => ({
+    prepare(query) { return wrapStatement(db.prepare(query), classify(query), finalizing); },
+    async batch(statements) {
+      count("writes", Array.isArray(statements) ? statements.length : 0, finalizing);
+      if (typeof db.batch !== "function") throw new Error("D1 batch is unavailable.");
+      return db.batch(statements);
+    }
+  });
+  return { db: wrapDatabase(false), finalDb: wrapDatabase(true), stats };
+}
+
 /** Persist one observation. An older write never overwrites a newer row. */
 async function writeObservation(db, observation, now, { refresh = true } = {}) {
   const payload = JSON.stringify(observation);
@@ -693,8 +838,8 @@ async function writeObservation(db, observation, now, { refresh = true } = {}) {
  * is intentionally not stored; this joins the two compact, validated summaries and
  * persists only the deterministic composition packet. */
 async function refreshStoredComposition(db, symbol, now) {
-  const rows = await db.prepare(`SELECT interval, payload FROM orb2_field_observations
-    WHERE symbol = ? AND interval IN ('1d', '15m')`).bind(symbol).all();
+  const rows = await db.prepare(`SELECT interval, substr(payload, 1, 65536) AS payload FROM orb2_field_observations
+    WHERE symbol = ? AND interval IN ('1d', '15m') LIMIT 2`).bind(symbol).all();
   const parsed = (Array.isArray(rows && rows.results) ? rows.results : []).map(row => ({
     interval: String(row.interval), observation: parsePacketRow(row, now)
   })).filter(row => row.observation);
@@ -790,8 +935,8 @@ async function enqueueJobs(db, jobs, now) {
  */
 async function claimQueue(db, now, limit) {
   const candidates = await db.prepare(`SELECT id, interval, symbol, reason, lane, attempts FROM orb2_field_queue
-    WHERE claimed_at IS NULL OR claimed_at < ?
-    ORDER BY CASE lane WHEN 'hot' THEN 0 ELSE 1 END, id
+    WHERE lane IN ('hot', 'sweep') AND (claimed_at IS NULL OR claimed_at < ?)
+    ORDER BY CASE lane WHEN 'hot' THEN 0 ELSE 1 END, attempts, id
     LIMIT ?`)
     .bind(now - ORB2_FIELD_TICK_LEASE_MS, limit).all();
   const rows = Array.isArray(candidates && candidates.results) ? candidates.results : [];
@@ -812,11 +957,18 @@ async function resolveQueueRow(db, id, { keep }) {
   await db.prepare("DELETE FROM orb2_field_queue WHERE id = ?").bind(id).run();
 }
 
+async function hasPendingQueue(db, at = Date.now()) {
+  const row = await db.prepare(`SELECT 1 AS pending FROM orb2_field_queue
+    WHERE lane IN ('hot', 'sweep') AND (claimed_at IS NULL OR claimed_at < ?) LIMIT 1`)
+    .bind(at - ORB2_FIELD_TICK_LEASE_MS).first();
+  return Boolean(row);
+}
+
 async function queueDepth(db, at = Date.now()) {
   const row = await db.prepare(`SELECT
-      SUM(CASE WHEN claimed_at IS NULL OR claimed_at < ? THEN 1 ELSE 0 END) AS pending,
+      SUM(CASE WHEN lane IN ('hot', 'sweep') AND (claimed_at IS NULL OR claimed_at < ?) THEN 1 ELSE 0 END) AS pending,
       SUM(CASE WHEN lane = 'hot' AND (claimed_at IS NULL OR claimed_at < ?) THEN 1 ELSE 0 END) AS hot,
-      COUNT(*) AS total FROM orb2_field_queue`)
+      SUM(CASE WHEN lane IN ('hot', 'sweep') THEN 1 ELSE 0 END) AS total FROM orb2_field_queue`)
     .bind(at - ORB2_FIELD_TICK_LEASE_MS, at - ORB2_FIELD_TICK_LEASE_MS).first();
   const pending = Number(row && row.pending) || 0;
   const hot = Number(row && row.hot) || 0;
@@ -867,7 +1019,10 @@ async function optionsFieldTableAvailable(db) {
 
 async function readOptionsObservation(db, symbol) {
   try {
-    return (await db.prepare("SELECT symbol, underlying_price, selection_json, bars_json, status, observed_at FROM orb2_options_observations WHERE symbol = ?")
+    return (await db.prepare(`SELECT symbol, underlying_price,
+        substr(selection_json, 1, 8192) AS selection_json,
+        substr(bars_json, 1, 16384) AS bars_json, status, observed_at
+      FROM orb2_options_observations WHERE symbol = ? LIMIT 1`)
       .bind(symbol).first()) || null;
   } catch {
     return null;
@@ -943,7 +1098,8 @@ async function beatOptionsBar({ env, symbol, optionsTicker, date, now, fetcher, 
 }
 
 async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, keys }) {
-  const stockRow = await db.prepare("SELECT payload FROM orb2_field_observations WHERE interval = '1d' AND symbol = ? AND disc_id = 'stocks'")
+  const stockRow = await db.prepare(`SELECT substr(payload, 1, 65536) AS payload FROM orb2_field_observations
+    WHERE interval = '1d' AND symbol = ? AND disc_id = 'stocks' LIMIT 1`)
     .bind(instrument.symbol).first();
   let stockObservation = null;
   try { stockObservation = stockRow ? JSON.parse(stockRow.payload) : null; } catch {}
@@ -1076,36 +1232,35 @@ async function beatKraken({ db, instrument, now, fetcher, summary }) {
 }
 
 async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary }) {
-  const state = await readMassiveFuturesContractState({ db, now });
+  const catalog = globalThis.CharactersDiscCatalog;
+  const commodities = catalog && Array.isArray(catalog.futures || catalog.commodities)
+    ? (catalog.futures || catalog.commodities).slice(0, 11) : [];
+  const productCodes = commodities.map(entry => String(entry && entry.massive && entry.massive.productCode || "").toUpperCase());
+  const state = await readMassiveFuturesContractState({ db, now, productCodes });
   if (!state.ok) {
     summary.notes.push("Disc4 contracts are held: apply D1 migration 0011_massive_futures_contract_cache.sql before active-contract discovery.");
     return state;
   }
   if (!keys.massive) return state;
   if (state.globalLastAttemptAt && now - state.globalLastAttemptAt < MASSIVE_FUTURES_CONTRACT_GLOBAL_COOLDOWN_MS) return state;
-  const catalog = globalThis.CharactersDiscCatalog;
-  const commodities = catalog && Array.isArray(catalog.futures || catalog.commodities) ? (catalog.futures || catalog.commodities) : [];
 
-  let observedCommodities = new Set();
-  try {
-    const rows = await db.prepare(
-      "SELECT payload, symbol, provider, status, observed_at FROM orb2_field_observations WHERE interval = '1d' AND disc_id = 'commodities'"
-    ).all();
-    for (const row of (Array.isArray(rows && rows.results) ? rows.results : [])) {
-      const observation = parsePacketRow(row, now);
-      if (String(row.provider) === "massive" && observation && observation.market &&
-          !fieldObservationExpired("1d", Number(row.observed_at), now)) {
-        observedCommodities.add(String(row.symbol));
-      }
-    }
-  } catch { /* if observation query fails, fallback to lastAttemptAt */ }
-
-  const candidate = commodities.find(entry => {
-    const code = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
-    return /^[A-Z0-9]{1,8}$/.test(code) && !state.contracts[code] &&
-      !observedCommodities.has(entry.symbol) &&
-      now - (Number(state.lastAttemptAt[code]) || 0) >= MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS;
-  });
+  let candidate = null;
+  for (const entry of commodities) {
+    const productCode = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
+    if (!/^[A-Z0-9]{1,8}$/.test(productCode) || state.contracts[productCode] ||
+        now - (Number(state.lastAttemptAt[productCode]) || 0) < MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS) continue;
+    let row = null;
+    try {
+      row = await db.prepare(`SELECT substr(payload, 1, 65536) AS payload, symbol, disc_id, provider, status, observed_at
+        FROM orb2_field_observations WHERE interval = '1d' AND symbol = ? AND disc_id = 'commodities' LIMIT 1`)
+        .bind(entry.symbol).first();
+    } catch { /* a focused row-read failure does not trigger a wider scan */ }
+    const observation = row ? parsePacketRow(row, now) : null;
+    if (String(row && row.provider) === "massive" && observation && observation.market &&
+        !fieldObservationExpired("1d", Number(row.observed_at), now)) continue;
+    candidate = entry;
+    break;
+  }
   if (!candidate) return state;
   const productCode = String(candidate.massive.productCode).toUpperCase();
   let reserved = false;
@@ -1123,10 +1278,8 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
   if (result.ok) {
     state.contracts[productCode] = result.contract;
   } else {
-    if (![
-      "massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
-      "massive-rate-limit", "massive-budget-exhausted"
-    ].includes(result.code)) {
+    if (!["massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
+      "massive-rate-limit", "massive-budget-exhausted"].includes(result.code)) {
       summary.notes.push(`Disc4 ${productCode} held: ${result.message}`);
     }
     if (reserved) {
@@ -1157,24 +1310,257 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
  * Returns a small summary object; it never throws, so a provider outage cannot
  * take the scheduler down with it.
  */
+function scheduledWorkItems({ roster, optionsEnabled, keys }) {
+  const items = [];
+  const add = (key, kind, instrument, extra = {}) => items.push({ key, kind, instrument, ...extra });
+  if (keys.tickerbot) {
+    for (const instrument of roster.stocks) add(`tickerbot:1d:${instrument.symbol}`, "tickerbot-daily", instrument);
+  }
+  if (keys.massive) {
+    for (const instrument of roster.fx) add(`massive:fx:${instrument.symbol}`, "massive-fx", instrument);
+  }
+  for (const instrument of [...roster.crypto, ...roster.cryptoPairs]) {
+    add(`kraken:1d:${instrument.symbol}`, "kraken-daily", instrument);
+  }
+  if (keys.massive) {
+    for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
+    for (const instrument of roster.indices) add(`massive:index:${instrument.symbol}`, "massive-index", instrument);
+    if (optionsEnabled) {
+      /* One discovery plus four selected contract bars is exactly the existing
+         Options work for one reviewed underlying; each cursor slot can make one
+         call, within Massive's unchanged five-requests/minute Options allowance. */
+      for (const instrument of roster.stocks) {
+        for (let slot = 0; slot < MASSIVE_OPTIONS_SELECTION_SIZE + 1; slot += 1) {
+          add(`options:${instrument.symbol}:${slot}`, "options", instrument, { slot });
+        }
+      }
+    }
+  }
+  if (items.length > ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE) {
+    throw new Error(`Orb 2 reviewed worklist exceeded its fixed cycle bound (${items.length}/${ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE}).`);
+  }
+  return items;
+}
+
+function markSchedulerWorkUnit(summary, key) {
+  if (summary.workUnits >= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK) {
+    throw new Error("Orb 2 scheduled provider-work unit limit was exceeded.");
+  }
+  summary.workUnits += 1;
+  summary.workUnit = String(key || "scheduled-work").slice(0, 96);
+}
+
+function autoWarmJob(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= ORB2_FIELD_TICKERBOT_BURST_CALLS) return null;
+  const intervalIndex = Math.floor(index / TICKERBOT_WATCHLIST.length);
+  const symbolIndex = index % TICKERBOT_WATCHLIST.length;
+  const interval = ORB2_FIELD_WARM_INTERVALS[intervalIndex];
+  const instrument = TICKERBOT_WATCHLIST[symbolIndex];
+  return instrument && interval ? { instrument, interval, reason: "deploy-warm" } : null;
+}
+
+async function loadAutoWarmState(db, control, now, summary) {
+  let row = await readAutoWarmProgress(db);
+  const lastWarm = Number(control && (control.deploy_warm_at || control.manual_warm_at)) || 0;
+  if (!row && !lastWarm) {
+    let hasObservations = true;
+    try { hasObservations = await observationExists(db); }
+    catch { summary.notes.push("Automatic warm stayed idle because the bounded field-presence check failed."); }
+    if (!hasObservations) {
+      await writeAutoWarmProgress(db, 0, now);
+      row = { lane: `${SCHEDULER_CURSOR_PREFIX}warm-v1`, attempts: 0 };
+      await writeControl(db, {
+        deployWarmAt: now,
+        warmBursts: (Number(control && control.warm_bursts) || 0) + 1
+      }, now);
+      summary.notes.push(`Automatic Tickerbot calibration started as a rolling ${ORB2_FIELD_TICKERBOT_BURST_CALLS}-unit cursor.`);
+    }
+  } else if (row && !lastWarm) {
+    /* Repair the marker after a crash between cursor creation and control write;
+       the persisted progress is kept and never restarted. */
+    await writeControl(db, {
+      deployWarmAt: now,
+      warmBursts: (Number(control && control.warm_bursts) || 0) + 1
+    }, now);
+  }
+  if (!row) return { active: false, progress: 0, reset: false };
+  const progress = Number(row.attempts);
+  if (row.lane !== `${SCHEDULER_CURSOR_PREFIX}warm-v1` || !Number.isSafeInteger(progress) ||
+      progress < 0 || progress > ORB2_FIELD_TICKERBOT_BURST_CALLS) {
+    await writeAutoWarmProgress(db, ORB2_FIELD_TICKERBOT_BURST_CALLS, now);
+    summary.notes.push("The automatic warm cursor was invalid and was closed safely without replaying its batch.");
+    return { active: false, progress: ORB2_FIELD_TICKERBOT_BURST_CALLS, reset: true };
+  }
+  return { active: progress < ORB2_FIELD_TICKERBOT_BURST_CALLS, progress, reset: false };
+}
+
+async function processTickerbotUnit({ db, env, instrument, interval, reason, now, fetcher, keys, summary, queueJob = null }) {
+  const outcome = await beatTickerbot({ env, db, instrument, interval, now, fetcher, keys });
+  if (outcome.attempted) summary.tickerbotCalls += 1;
+  if (outcome.ok && outcome.packet) {
+    summary.packetAnalyses += 1;
+    const observation = observationFromPacket({
+      packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+      name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
+      provider: "tickerbot", providerId: instrument.providerId || instrument.symbol,
+      interval, now, reason
+    });
+    if (observation) {
+      await writeObservation(db, observation, now, { refresh: !queueJob });
+      summary.observed += 1;
+      if (queueJob) {
+        summary.queueCompleted += 1;
+        await resolveQueueRow(db, queueJob.id, { keep: false });
+        await refreshStoredComposition(db, instrument.symbol, now);
+      }
+      return { ok: true, attempted: outcome.attempted };
+    }
+  }
+  summary.held += 1;
+  summary.errors.push(`${interval} ${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Tickerbot did not answer"}`);
+  if (outcome.attempted) {
+    const heldObs = heldFieldObservation({
+      symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+      name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
+      provider: "tickerbot", interval, now, reason,
+      code: outcome.code || "tickerbot-refusal", message: text(outcome.message, 140) || "Tickerbot did not answer"
+    });
+    if (heldObs) await writeObservation(db, heldObs, now);
+  }
+  if (queueJob) {
+    await resolveQueueRow(db, queueJob.id, { keep: Number(queueJob.attempts) < ORB2_FIELD_MAX_QUEUE_ATTEMPTS });
+  }
+  return { ok: false, attempted: outcome.attempted, code: outcome.code };
+}
+
+async function processQueuedTickerbotJob({ db, env, job, now, fetcher, keys, summary }) {
+  const instrument = TICKERBOT_WATCHLIST.find(entry => entry.symbol === job.symbol);
+  if (!instrument || !TICKERBOT_INTERVALS.includes(job.interval)) {
+    summary.held += 1;
+    summary.errors.push(`${job.interval} ${job.symbol}: the queued item is outside the reviewed Tickerbot field.`);
+    await resolveQueueRow(db, job.id, { keep: Number(job.attempts) < ORB2_FIELD_MAX_QUEUE_ATTEMPTS });
+    return;
+  }
+  await processTickerbotUnit({
+    db, env, instrument, interval: job.interval, reason: job.reason,
+    now, fetcher, keys, summary, queueJob: job
+  });
+}
+
+async function persistMarketOutcome({ db, instrument, outcome, provider, now, summary, reason = "server-sweep" }) {
+  const providerId = instrument.providerId || instrument.massiveTicker || instrument.symbol;
+  const metadata = {
+    symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
+    name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
+    provider: outcome.selectedProvider || provider,
+    providerId: instrument.providerId || providerId,
+    ...(instrument.krakenPair ? {
+      krakenPair: instrument.krakenPair, rankingProvider: instrument.rankingProvider,
+      baseAsset: instrument.baseAsset, quoteAsset: instrument.quoteAsset
+    } : {}),
+    interval: "1d", now, reason
+  };
+  if (outcome.ok && outcome.packet) {
+    summary.packetAnalyses += 1;
+    const observation = observationFromPacket({ packet: outcome.packet, ...metadata });
+    if (observation) {
+      await writeObservation(db, observation, now);
+      summary.observed += 1;
+      return true;
+    }
+  }
+  summary.held += 1;
+  summary.errors.push(`${instrument.krakenPair || instrument.symbol}: ${text(outcome.message, 140) || outcome.code || `${provider} did not answer`}`);
+  if (outcome.attempted) {
+    const heldObs = heldFieldObservation({
+      ...metadata,
+      provider: outcome.selectedProvider || provider,
+      code: outcome.code || `${provider}-refusal`,
+      message: text(outcome.message, 140) || `${provider} did not answer`
+    });
+    if (heldObs) await writeObservation(db, heldObs, now);
+  }
+  return false;
+}
+
+async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, summary }) {
+  if (item.kind === "options") {
+    const outcome = await refreshOptionsFieldForStock({ env, db, instrument: item.instrument, now, fetcher, keys });
+    if (outcome.attempted) summary.optionsCalls += 1;
+    if (outcome.ok && outcome.status === "ready") summary.optionsObserved += 1;
+    if (!outcome.ok && outcome.attempted) {
+      summary.errors.push(`${item.instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive Options did not answer"}`);
+    }
+    return;
+  }
+  const provider = item.kind === "kraken-daily" ? "kraken" : item.kind === "tickerbot-daily" ? "tickerbot" : "massive";
+  const due = await dueRotation(db, [item.instrument], 1, now, provider);
+  if (!due.length) return;
+  const instrument = due[0].instrument;
+  if (item.kind === "tickerbot-daily") {
+    await processTickerbotUnit({
+      db, env, instrument, interval: "1d", reason: "server-sweep",
+      now, fetcher, keys, summary
+    });
+    return;
+  }
+  if (item.kind === "kraken-daily") {
+    const outcome = await beatKraken({ db, instrument, now, fetcher, summary });
+    await persistMarketOutcome({ db, instrument, outcome, provider: "kraken", now, summary });
+    return;
+  }
+  const outcome = item.kind === "massive-fx"
+    ? await beatFx({ env, db, instrument, now, fetcher, keys })
+    : await beatMassive({ env, db, instrument, now, fetcher, keys });
+  if (item.kind === "massive-fx") {
+    const providers = outcome.providers || {};
+    if (providers.massive?.attempted) summary.massiveCalls += 1;
+    if (providers.alphaVantage?.ok) summary.alphaVantageCalls += 1;
+    else if (outcome.selectedProvider === "alpha-vantage" && outcome.ok) summary.alphaVantageCalls += 1;
+  } else if (outcome.attempted) summary.massiveCalls += 1;
+  await persistMarketOutcome({ db, instrument, outcome, provider: "massive", now, summary });
+}
+
+/**
+ * One scheduled beat. A D1-persisted cursor selects exactly one field work unit;
+ * provider discovery and queue work preempt it only when they themselves consume
+ * that one-unit allowance. Failures advance the cursor before the provider call,
+ * so one failed instrument cannot replay the rest of the field on the next tick.
+ */
 export async function runOrb2FieldTick(env = {}, context = null, dependencies = {}) {
   const now = nowOf(dependencies);
-  const db = env.COMMUNITY_DB;
+  const rawDb = env.COMMUNITY_DB;
   const summary = {
-    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now, massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
+    ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now,
+    massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     optionsCalls: 0, optionsObserved: 0,
-    observed: 0, held: 0, queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, sweepsCompleted: 0,
+    observed: 0, packetAnalyses: 0, held: 0,
+    workUnits: 0, workUnit: null, providerRequests: 0,
+    d1Reads: 0, d1Writes: 0, d1RowsRead: 0,
+    queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, warmProgressed: 0,
+    cursorAdvanced: false, cursorReset: false, sweepsCompleted: 0,
     notes: [], errors: []
   };
-  if (!db || typeof db.prepare !== "function") {
+  if (!rawDb || typeof rawDb.prepare !== "function") {
     summary.errors.push("Bind COMMUNITY_DB and apply community migrations through 0012 before the server field can run.");
     return summary;
   }
-  const fetcher = dependencies.fetch || globalThis.fetch;
-  if (typeof fetcher !== "function") {
+  const providerFetcher = dependencies.fetch || globalThis.fetch;
+  if (typeof providerFetcher !== "function") {
     summary.errors.push("No fetch implementation is available in this Worker runtime.");
     return summary;
   }
+  const d1 = createSchedulerD1Budget(rawDb);
+  const db = d1.db;
+  const finalDb = d1.finalDb;
+  let providerFetchCount = 0;
+  const fetcher = async (...args) => {
+    if (providerFetchCount >= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK) {
+      throw new Error(`Orb 2 scheduled provider request budget exceeded (${providerFetchCount}/${ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK}).`);
+    }
+    providerFetchCount += 1;
+    return providerFetcher(...args);
+  };
   const owner = `orb2-tick-${now}-${Math.random().toString(36).slice(2, 8)}`;
   let leased = false;
   try {
@@ -1185,327 +1571,143 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       return summary;
     }
     const keys = providerKeys(env);
-
     const control = await readControl(db);
-    const run = await readRun(db, now);
+    if (!keys.tickerbot) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
+    if (!keys.massive) summary.notes.push("Massive FX/futures/index/Options lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
+    let workHandled = false;
 
-    /* Disc3 is Kraken Spot only. The rolling-24-hour venue roster is read from
-       the shared D1 cache and refreshed only after expiry; the Ticker call and
-       each exact-pair OHLC call share Kraken's one-request-per-second gate and
-       conservative UTC-day application ceiling. An unavailable ranking holds
-       Disc3 rather than borrowing a Massive roster. */
+    /* User-priority and legacy warm queue entries are claimed singly. Scheduler
+       cursor rows share the old table but are excluded by the lane predicate. */
+    if (keys.tickerbot) {
+      const queued = await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
+      if (queued.length) {
+        const job = queued[0];
+        markSchedulerWorkUnit(summary, `queue:${job.interval}:${job.symbol}`);
+        summary.queueClaimed = 1;
+        await processQueuedTickerbotJob({ db, env, job, now, fetcher, keys, summary });
+        workHandled = true;
+      }
+    } else if (await hasPendingQueue(db, now)) {
+      summary.notes.push("Queued Tickerbot stock work is waiting for TICKERBOT_API_KEY; it was not claimed or charged.");
+    }
+
+    /* One-time cold calibration is generated from the reviewed 52 × 3 worklist,
+       not inserted as a 156-row D1 burst. Progress is stored before the fetch. */
+    if (!workHandled) {
+      const warm = await loadAutoWarmState(db, control, now, summary);
+      if (warm.reset) summary.cursorReset = true;
+      if (warm.active && keys.tickerbot) {
+        const job = autoWarmJob(warm.progress);
+        if (job) {
+          await writeAutoWarmProgress(db, warm.progress + 1, now);
+          summary.cursorAdvanced = true;
+          summary.warmProgressed = 1;
+          markSchedulerWorkUnit(summary, `warm:${job.interval}:${job.instrument.symbol}`);
+          const outcome = await processTickerbotUnit({
+            db, env, instrument: job.instrument, interval: job.interval, reason: job.reason,
+            now, fetcher, keys, summary
+          });
+          if (!outcome.attempted) {
+            /* A provider/Worker allowance refusal is not a consumed warm unit.
+               Keep the selected cursor in place; attempted upstream failures do
+               advance and are represented by their bounded held observation. */
+            await writeAutoWarmProgress(db, warm.progress, now);
+            summary.cursorAdvanced = false;
+            summary.warmProgressed = 0;
+          }
+          workHandled = true;
+        }
+      } else if (warm.active && !keys.tickerbot) {
+        summary.notes.push(`${ORB2_FIELD_TICKERBOT_BURST_CALLS - warm.progress} automatic Tickerbot warm units remain durable until TICKERBOT_API_KEY is available.`);
+      }
+    }
+
     let cryptoRanking = null;
-    try {
-      const rankingResult = await getCharactersCryptoRanking({
-        db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
-        beforeFetch: async () => {
-          const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
-          if (reservation.ok) summary.krakenCalls += 1;
-          return reservation;
-        }
-      });
-      if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
-      else if (!new Set(["crypto-ranking-cooldown", "crypto-ranking-cache-miss", "kraken-rate-limit", "kraken-budget-exhausted"]).has(rankingResult.code)) {
-        summary.notes.push(`Kraken crypto ranking held: ${rankingResult.message}`);
-      }
-    } catch { summary.notes.push("Kraken crypto ranking held: the D1 roster could not be read."); }
-
-    const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary });
-    const roster = orb2FieldRoster({
-      now, cryptoRanking,
-      commodityContracts: futuresState.ok ? futuresState.contracts : null
-    });
-    const instrumentsBySymbol = new Map(roster.instruments.map(instrument => [instrument.symbol, instrument]));
-
-    /* 1 · First-deck calibration. When the field is cold (or empty) and the last
-       warm burst is outside the cooldown, queue the full Tickerbot sweep of the
-       52-card field on 15m, 1h, and 1d: ORB2_FIELD_TICKERBOT_BURST_CALLS upstream
-       calls, visible as queue progress, so the deck is calibrated across scales. */
-    const newestRow = await db.prepare("SELECT MAX(observed_at) AS newest FROM orb2_field_observations").first();
-    const newest = Number(newestRow && newestRow.newest) || 0;
-    const lastWarm = Number(control && (control.deploy_warm_at || control.manual_warm_at)) || 0;
-    /* A six-hour-old 15m packet is stale, not a reason to repeat a 156-call
-       calibration burst. Automatic warm is one-time for an empty field; later
-       refreshes are expiration-driven or explicitly requested. */
-    const cold = newest === 0 && !lastWarm;
-    if (cold && now - lastWarm > ORB2_FIELD_WARM_COOLDOWN_MS) {
-      const reason = control && control.deploy_warm_at ? "cold-warm" : "deploy-warm";
-      summary.warmEnqueued = await enqueueWarmBurst(db, { now, reason });
-      if (summary.warmEnqueued > 0) {
-        const firstDeployWarm = !(control && control.deploy_warm_at);
-        await writeControl(db, {
-          ...(firstDeployWarm ? { deployWarmAt: now } : { manualWarmAt: now }),
-          warmBursts: (Number(control && control.warm_bursts) || 0) + 1
-        }, now);
-        summary.notes.push(`Tickerbot stock warm burst queued: ${summary.warmEnqueued} jobs across 15m, 1h, and 1d.`);
-      }
-    }
-
-    /* 2 · Queued work (user priority first, then the warm burst). If Tickerbot is
-       not configured the queue is left exactly as it is: claiming it would burn
-       each job's attempts against a provider that cannot answer, and the burst
-       must survive until the secret exists. */
-    if (!keys.tickerbot) {
-      const waiting = await queueDepth(db, now);
-      if (waiting.pending > 0) {
-        summary.notes.push(`${waiting.pending} queued Tickerbot stock job${waiting.pending === 1 ? "" : "s"} waiting: add the TICKERBOT_API_KEY Worker secret to drain them. Kraken and Massive non-stock lanes are unaffected.`);
-      }
-    }
-    const queued = keys.tickerbot ? await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK) : [];
-    summary.queueClaimed = queued.length;
-    /* Composition is a derived D1 packet. Deduplicate symbols here and refresh
-       only after every queued Tickerbot job has been persisted, so the bounded
-       provider burst cannot multiply into one composition read/write per job. */
-    const queuedTickerbotRefreshSymbols = new Set();
-    if (queued.length) {
-      const outcomes = await mapWithConcurrency(queued, FETCH_CONCURRENCY, async job => {
-        const instrument = instrumentsBySymbol.get(job.symbol);
-        if (!instrument) return { job, ok: false, code: "not-on-field-roster", message: `${job.symbol} is not on the reviewed field roster.` };
-        /* Queued work is the Tickerbot lane: the deploy warm burst and the
-           user-requested priority refresh both ask the on-demand provider for the
-           reviewed stock deck, so a cold field is covered in minutes instead of
-           waiting for the Massive rotation to reach every berth. */
-        const beat = await beatTickerbot({ env, db, instrument, interval: job.interval, now, fetcher, keys });
-        return { job, ...beat };
-      });
-      for (const outcome of outcomes) {
-        const { job } = outcome;
-        if (outcome.attempted) summary.tickerbotCalls += 1;
-        if (outcome.ok) {
-          const observation = observationFromPacket({
-            packet: outcome.packet, symbol: job.symbol, displaySymbol: instrumentDisplay(instrumentsBySymbol.get(job.symbol)),
-            name: instrumentName(instrumentsBySymbol.get(job.symbol)), sector: instrumentSector(instrumentsBySymbol.get(job.symbol)),
-            discId: "stocks", provider: "tickerbot",
-            interval: job.interval, now, reason: job.reason
-          });
-          if (observation) {
-            await writeObservation(db, observation, now, { refresh: false });
-            summary.observed += 1;
-            summary.queueCompleted += 1;
-            queuedTickerbotRefreshSymbols.add(job.symbol);
-            await resolveQueueRow(db, job.id, { keep: false });
-            continue;
+    let futuresState = null;
+    if (!workHandled) {
+      /* Kraken's unfiltered ranking and Massive active-contract discovery each
+         occupy their own scheduled invocation. Their adapters retain the provider
+         request shapes, pacing, and failure/cooldown rules. */
+      try {
+        const rankingResult = await getCharactersCryptoRanking({
+          db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+          beforeFetch: async () => {
+            const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+            if (reservation.ok) summary.krakenCalls += 1;
+            return reservation;
           }
-        }
-        summary.held += 1;
-        const retryable = Number(job.attempts) < ORB2_FIELD_MAX_QUEUE_ATTEMPTS;
-        summary.errors.push(`${job.interval} ${job.symbol}: ${text(outcome.message, 140) || outcome.code || "the provider did not answer"}`);
-        await resolveQueueRow(db, job.id, { keep: retryable });
-      }
-      for (const symbol of queuedTickerbotRefreshSymbols) {
-        await refreshStoredComposition(db, symbol, now);
-      }
-    }
-
-    /* 3 · Tickerbot exclusively owns Stocks. Refresh one expired daily stock
-       packet per cron tick after queued 15m/1h work; the 24-hour freshness gate
-       means a complete 52-symbol rotation costs about 52 calls per day, rather
-       than repeatedly sweeping the deck. The shared monthly ledger is the cap. */
-    if (!keys.tickerbot) {
-      if (roster.stocks.length) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
-    } else {
-      const stockRotation = await dueRotation(db, roster.stocks, 1, now, "tickerbot");
-      for (const entry of stockRotation) {
-        const instrument = entry.instrument;
-        const outcome = await beatTickerbot({ env, db, instrument, interval: "1d", now, fetcher, keys });
-        if (outcome.attempted) summary.tickerbotCalls += 1;
-        if (outcome.ok) {
-          const observation = observationFromPacket({
-            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
-            provider: "tickerbot", providerId: instrument.providerId || instrument.symbol,
-            interval: "1d", now, reason: "server-sweep"
-          });
-          if (observation) {
-            await writeObservation(db, observation, now);
-            summary.observed += 1;
-            continue;
-          }
-        }
-        summary.held += 1;
-        summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Tickerbot did not answer"}`);
-        if (outcome.attempted) {
-          const heldObs = heldFieldObservation({
-            symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "stocks",
-            provider: "tickerbot", interval: "1d", now, reason: "server-sweep",
-            code: outcome.code || "tickerbot-refusal", message: text(outcome.message, 140) || "Tickerbot did not answer"
-          });
-          if (heldObs) await writeObservation(db, heldObs, now);
-        }
-      }
-    }
-
-    /* 4 · Kraken owns Disc3. One expired pair is refreshed per tick; the
-       rolling-24-hour roster refresh and exact-pair daily OHLC are separately
-       paced calls, so a roster fetch can postpone pair bars until the next tick. */
-    if (!cryptoRanking || !roster.crypto.length) {
-      summary.notes.push("Disc3 is held: the Kraken Spot rolling-24-hour roster is not available; no other venue is used.");
-    } else {
-      const cryptoRotation = await dueRotation(db, [
-        ...roster.crypto.slice(0, CHARACTERS_CRYPTO_RANKING_SIZE),
-        ...roster.cryptoPairs
-      ], 1, now, "kraken");
-      for (const entry of cryptoRotation) {
-        const instrument = entry.instrument;
-        const outcome = await beatKraken({ db, instrument, now, fetcher, summary });
-        if (outcome.ok) {
-          const observation = observationFromPacket({
-            packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "crypto",
-            provider: "kraken", providerId: instrument.providerId, krakenPair: instrument.krakenPair,
-            rankingProvider: instrument.rankingProvider, baseAsset: instrument.baseAsset, quoteAsset: instrument.quoteAsset,
-            interval: "1d", now, reason: "server-sweep"
-          });
-          if (observation) {
-            await writeObservation(db, observation, now);
-            summary.observed += 1;
-            continue;
-          }
-        }
-        summary.held += 1;
-        summary.errors.push(`${instrument.krakenPair || instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Kraken did not answer"}`);
-        if (outcome.attempted) {
-          const heldObs = heldFieldObservation({
-            symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-            name: instrumentName(instrument), sector: instrumentSector(instrument), discId: "crypto",
-            provider: "kraken", providerId: instrument.providerId, krakenPair: instrument.krakenPair,
-            rankingProvider: instrument.rankingProvider, baseAsset: instrument.baseAsset, quoteAsset: instrument.quoteAsset,
-            interval: "1d", now, reason: "server-sweep",
-            code: outcome.code || "kraken-refusal", message: text(outcome.message, 140) || "Kraken did not answer"
-          });
-          if (heldObs) await writeObservation(db, heldObs, now);
-        }
-      }
-    }
-
-    /* 5 · Options is a separate Massive subscription class. The Stock
-       observation remains authoritative for equity price; this field only stores
-       a bounded derivative-market envelope. Each tick may consume up to five
-       Options requests, independently of the FX/Futures/Indices allowances. */
-    const optionsEnabled = await optionsFieldTableAvailable(db);
-    if (!optionsEnabled) {
-      summary.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
-    } else if (!keys.massive) {
-      summary.notes.push("Stocks Options Field is held: add MASSIVE_API_KEY.");
-    } else {
-      const optionStateRows = await db.prepare("SELECT symbol, observed_at, bars_json FROM orb2_options_observations").all();
-      const optionObservedAt = new Map();
-      for (const row of Array.isArray(optionStateRows?.results) ? optionStateRows.results : []) {
-        let bars = [];
-        try { bars = JSON.parse(row.bars_json); } catch {}
-        const contractTimes = Array.isArray(bars)
-          ? bars.map(item => Number(item?.observedAt) || 0).filter(value => value > 0)
-          : [];
-        optionObservedAt.set(
-          String(row.symbol || "").toUpperCase(),
-          contractTimes.length ? Math.min(...contractTimes) : Number(row.observed_at) || 0
-        );
-      }
-      const optionCandidates = roster.stocks.slice().sort((a, b) =>
-        (optionObservedAt.get(a.symbol) || 0) - (optionObservedAt.get(b.symbol) || 0) ||
-        String(a.symbol).localeCompare(String(b.symbol))
-      );
-      const optionJobs = [];
-      for (const instrument of optionCandidates) {
-        if (optionJobs.length >= ORB2_OPTIONS_PER_MINUTE) break;
-        const outcome = await refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, keys });
-        optionJobs.push({ instrument, outcome });
-      }
-      for (const { instrument, outcome } of optionJobs) {
-        if (outcome.attempted) summary.optionsCalls += 1;
-        if (outcome.ok && outcome.status === "ready") summary.optionsObserved += 1;
-        if (!outcome.ok && outcome.attempted) {
-          summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive Options did not answer"}`);
-        }
-      }
-    }
-
-    /* 5 · Massive is limited to reviewed FX, active commodity futures, and
-       indices. Each Massive subscription class receives its own five-request
-       server-side budget. The D1 UTC-day counter is telemetry only. */
-    if (!keys.massive) {
-      summary.notes.push("Massive FX/futures/index lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
-    } else {
-      for (const [assetClass, discs] of Object.entries(ORB2_MASSIVE_DISCS_BY_ASSET_CLASS)) {
-        const instruments = roster.instruments.filter(instrument => discs.includes(instrument.discId));
-        const slots = Math.max(0, Math.min(
-          ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
-          availableMassiveBudget(CRON_REQUEST, env, now, assetClass).remaining
-        ));
-        if (!instruments.length || slots <= 0) continue;
-        const rotation = await dueRotation(db, instruments, slots, now, "massive");
-        const outcomes = await mapWithConcurrency(rotation, 2, async entry => {
-          const instrument = entry.instrument;
-          if (instrument.discId !== "fx") {
-            return { entry, ...(await beatMassive({ env, db, instrument, now, fetcher, keys })) };
-          }
-          return { entry, ...(await beatFx({ env, db, instrument, now, fetcher, keys })) };
         });
-        const compositionSymbols = new Set();
-        for (const outcome of outcomes) {
-          const instrument = outcome.entry.instrument;
-          if (instrument.discId === "fx") {
-            const providers = outcome.providers || {};
-            if (providers.massive?.attempted) summary.massiveCalls += 1;
-            if (providers.alphaVantage?.ok) summary.alphaVantageCalls += 1;
-            else if (outcome.selectedProvider === "alpha-vantage" && outcome.ok) summary.alphaVantageCalls += 1;
-          } else if (outcome.attempted) summary.massiveCalls += 1;
-          if (outcome.ok) {
-            const observation = observationFromPacket({
-              packet: outcome.packet, symbol: instrument.symbol, displaySymbol: instrumentDisplay(instrument),
-              name: instrumentName(instrument), sector: instrumentSector(instrument), discId: instrument.discId,
-              provider: outcome.selectedProvider || "massive", interval: "1d", now, reason: "server-sweep"
-            });
-            if (observation) {
-              await writeObservation(db, observation, now, { refresh: false });
-              compositionSymbols.add(observation.symbol);
-              summary.observed += 1;
-              continue;
-            }
-          }
-          summary.held += 1;
-          summary.errors.push(`${instrument.symbol}: ${text(outcome.message, 140) || outcome.code || "Massive did not answer"}`);
-          if (outcome.attempted) {
-            const heldObs = heldFieldObservation({
-              symbol: instrument.symbol,
-              displaySymbol: instrumentDisplay(instrument),
-              name: instrumentName(instrument),
-              sector: instrumentSector(instrument),
-              discId: instrument.discId,
-              provider: outcome.selectedProvider || "massive",
-              interval: "1d",
-              now,
-              reason: "server-sweep",
-              code: outcome.code || "massive-refusal",
-              message: text(outcome.message, 140) || "Massive did not answer"
-            });
-            if (heldObs) await writeObservation(db, heldObs, now);
-          }
+        if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
+        else if (!new Set(["crypto-ranking-cooldown", "crypto-ranking-cache-miss", "kraken-rate-limit", "kraken-budget-exhausted"]).has(rankingResult.code)) {
+          summary.notes.push(`Kraken crypto ranking held: ${rankingResult.message}`);
         }
-        /* Composition is derived from the compact 1d/15m pair. Recalculate once
-         * per changed Massive symbol after the whole five-request asset-class
-         * batch has been persisted, rather than issuing an additional D1 read +
-         * update for every individual provider response. This keeps the cron
-         * unit bounded by the provider batch and avoids D1 work multiplying with
-         * the number of calls in the batch. */
-        for (const symbol of compositionSymbols) {
-          await refreshStoredComposition(db, symbol, now);
+      } catch { summary.notes.push("Kraken crypto ranking held: the D1 roster could not be read."); }
+      if (summary.krakenCalls > 0) {
+        markSchedulerWorkUnit(summary, "kraken:ranking");
+        workHandled = true;
+      }
+    }
+
+    if (!workHandled) {
+      futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary });
+      if (summary.massiveCalls > 0) {
+        markSchedulerWorkUnit(summary, "massive:futures-contract-discovery");
+        workHandled = true;
+      }
+    }
+
+    if (!workHandled) {
+      const roster = orb2FieldRoster({
+        now, cryptoRanking,
+        commodityContracts: futuresState && futuresState.ok ? futuresState.contracts : null
+      });
+      const optionsEnabled = keys.massive ? await optionsFieldTableAvailable(db) : false;
+      if (!cryptoRanking || !roster.crypto.length) {
+        summary.notes.push("Disc3 is held: the Kraken Spot rolling-24-hour roster is not available; no other venue is used.");
+      }
+      if (keys.massive && !optionsEnabled) {
+        summary.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
+      }
+      const items = scheduledWorkItems({ roster, optionsEnabled, keys });
+      const next = await advanceFieldWorkCursor(db, items, now);
+      if (next.reset) {
+        summary.cursorReset = true;
+        summary.notes.push(next.blocked
+          ? "The scheduled field cursor is corrupt and was blocked without replaying the field. Operator repair is required before regular rotation resumes."
+          : "The scheduled field cursor key was stale; rotation resumed from its persisted ordinal, avoiding a whole-cycle replay.");
+      }
+      if (next.ok) {
+        const item = next.item;
+        markSchedulerWorkUnit(summary, item.key);
+        summary.cursorAdvanced = true;
+        await processScheduledWorkItem({ db, env, item, now, fetcher, keys, summary });
+        if (item.kind === "tickerbot-daily" && item.instrument.symbol === roster.stocks.at(-1)?.symbol) {
+          summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
         }
       }
     }
 
-    summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
-    await recordTickResult(db, {
-      now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls, tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
+    await recordTickResult(finalDb, {
+      now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls,
+      tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
       observed: summary.observed, error: summary.errors.length ? summary.errors[0] : ""
     });
     summary.ok = true;
   } catch (error) {
     summary.errors.push(`The field tick failed: ${text(error && error.message, 160) || "unknown error"}`);
-    try { await recordTickResult(db, { now, error: summary.errors[0] }); } catch { /* bookkeeping must never mask the tick result */ }
+    try {
+      await recordTickResult(finalDb, {
+        now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls,
+        tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
+        observed: summary.observed, error: summary.errors[0]
+      });
+    } catch { /* bookkeeping must never mask the tick result */ }
   } finally {
-    if (leased) await releaseTickLease(db, now, owner).catch(() => {});
+    if (leased) await releaseTickLease(finalDb, now, owner).catch(() => {});
+    summary.providerRequests = providerFetchCount;
+    summary.d1Reads = d1.stats.reads;
+    summary.d1Writes = d1.stats.writes;
+    summary.d1RowsRead = d1.stats.rowsRead;
   }
   return summary;
 }
@@ -1573,8 +1775,9 @@ async function dueRotation(db, instruments, limit, now = Date.now(), provider = 
   const rows = [];
   for (const batch of batches) {
     const placeholders = batch.map(() => "?").join(",");
-    const result = await db.prepare(`SELECT payload, symbol, disc_id, provider, status, observed_at FROM orb2_field_observations
-      WHERE interval = '1d' AND symbol IN (${placeholders})`).bind(...batch.map(instrument => instrument.symbol)).all();
+    const result = await db.prepare(`SELECT substr(payload, 1, 65536) AS payload, symbol, disc_id, provider, status, observed_at
+      FROM orb2_field_observations WHERE interval = '1d' AND symbol IN (${placeholders})
+      LIMIT ?`).bind(...batch.map(instrument => instrument.symbol), batch.length).all();
     rows.push(...(Array.isArray(result && result.results) ? result.results : []));
   }
   const observed = new Map();

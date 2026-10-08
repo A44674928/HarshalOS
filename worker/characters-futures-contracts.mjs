@@ -114,14 +114,22 @@ function parseCachedContract(row, productCode, today, now) {
 }
 
 /** Read active contracts and the last-attempt timestamps from the shared D1 cache. */
-export async function readMassiveFuturesContractState({ db, now = Date.now() } = {}) {
+export async function readMassiveFuturesContractState({ db, now = Date.now(), productCodes = null } = {}) {
   const today = utcDate(now);
   const result = { ok: false, contracts: Object.create(null), lastAttemptAt: Object.create(null), globalLastAttemptAt: 0 };
   if (!db || typeof db.prepare !== "function") return result;
   try {
-    const query = await db.prepare(
-      "SELECT product_code, contract_json, source_date, expires_at, last_attempt_at FROM massive_futures_contract_cache"
-    ).all();
+    const normalizedCodes = Array.isArray(productCodes)
+      ? [...new Set(productCodes.map(normalizedProductCode).filter(Boolean))].slice(0, 32)
+      : null;
+    const query = normalizedCodes
+      ? await db.prepare(`SELECT product_code, substr(contract_json, 1, 8192) AS contract_json,
+          source_date, expires_at, last_attempt_at
+          FROM massive_futures_contract_cache WHERE product_code IN (${[...normalizedCodes, GLOBAL_COOLDOWN_KEY].map(() => "?").join(",")})
+          LIMIT ?`).bind(...normalizedCodes, GLOBAL_COOLDOWN_KEY, normalizedCodes.length + 1).all()
+      : await db.prepare(
+          "SELECT product_code, contract_json, source_date, expires_at, last_attempt_at FROM massive_futures_contract_cache"
+        ).all();
     const rows = Array.isArray(query && query.results) ? query.results : [];
     for (const row of rows) {
       if (row && row.product_code === GLOBAL_COOLDOWN_KEY) {

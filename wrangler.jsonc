@@ -19,7 +19,7 @@
     "directory": ".site-assets",
     "not_found_handling": "none",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/account", "/account.html", "/audits", "/audits.html"]
+    "run_worker_first": ["/api/*", "/account", "/account.html", "/audits", "/audits.html", "/.git", "/.git/*", "/.env*"]
   },
 
   // Regenerate the public asset staging directory before Wrangler bundles.

@@ -16,7 +16,7 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
-  { area: "Production disabled-release safeguards", script: "test:production", files: ["production-config-test.mjs"] },
+  { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
   {
     area: "D1 community database and OIDC sessions (local tests)",
