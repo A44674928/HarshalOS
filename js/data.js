@@ -110,7 +110,16 @@ const DATA = (() => {
     ["God-Sovereign Religious Body (GSRB)", "[TYPE: DIAGNOSTIC_CLASSIFICATION] One of the three operational phases (Phase III). Legitimacy is internal, the center acts and decides, refusal may be overridden, symbolism executes, and time confirms authority."],
     ["Governance & Resilience Layer (GRL)", "[TYPE: PROTOCOL_SPECIFICATION] An accessory system that enforces external constraints on AI behavior, ensuring symbolic language is non-executable and actions are human-attributable."],
     ["Grand River Foundation (Book II — Preview)", "[TYPE: NARRATIVE_SANDBOX] The standalone fictional companion novel to Book I (Harshal's Systems), set in ~2100 CE around the 4,000-foot retrofitted Colorado River dam, the 500-Coin Western Colonnade, and the 119-NAB Ombudsman's Council."],
+        ["FBB (Fibonacci Bollinger Bands)", "[TYPE: MARKET_INDICATOR] Log-space adaptation of Bollinger Bands using Fibonacci ratios 0.236, 0.382, 0.500, 0.618, 0.764, 1.000 to construct volatility envelopes. In HarshalOS Good Intelligence Market Context, FBBs are derived from the shared log-space metric GoodIntelligenceOrb2.fibonacciBandMetrics. Display-only; not a signal or permission."],
     ["Ground-0", "[TYPE: DIAGNOSTIC_CLASSIFICATION] The baseline reconstruction standard and audit methodology. Claims are reduced to atomic, testable statements with narrative dependency removed; phase is determined by observed behavior, not declared intent."],
+    ["H(t) — Human Key status over time", "[TYPE: SECURITY_PRIMITIVE] Binary presence of the Human Key at Center Origin: H(t) ∈ {0,1}. In the browser demo, H(t)=1 is a local ceremony marker (public phrase + bundled HMAC), not identity proof, liveness detection, or production authentication. L(t)=0 when H(t)=0."],
+    ["A(t) — Addressability over time", "[TYPE: SECURITY_PRIMITIVE] Ability to locate, challenge, and compel a responsible human agent at time t. A(t) ∈ [0,1]. When A(t) falls below threshold τ (0.50), legitimacy L(t) collapses and the gate refuses. Models solvency and reachability, not network latency."],
+    ["R(t) — Representation over time", "[TYPE: SECURITY_PRIMITIVE] Fidelity of internal representation of intent and world-state at time t. R(t) ∈ [0,1]. Degraded representation reduces L(t) = H(t) × f(A(t), R(t), S(t))."],
+    ["L(t) — Legitimacy over time", "[TYPE: SECURITY_PRIMITIVE] Time-varying legitimacy score computed as L(t) = H(t) × f(A(t), R(t), S(t)). Must meet threshold τ = 0.50 to permit action in NAB. In this demo, L(t) is a local simulation, not production authorization."],
+    ["S(t) — Scope over time", "[TYPE: SECURITY_PRIMITIVE] Bounded operational scope at time t. S(t) contracts as legitimacy degrades and as Δt approaches δ (stale-permission threshold). Scope never expands via emergency or narrative."],
+    ["H/A/R/L/S", "[TYPE: NOTATION] Shorthand for the canonical state variables: H(t)=Human Key, A(t)=Addressability, R(t)=Representation, L(t)=Legitimacy, S(t)=Scope. Also written as H·A·R·L·S in L(t) = H(t) × f(A(t), R(t), S(t)). See individual glossary entries for each."],
+    ["OCM (Orb Communicator Model)", "[TYPE: TOPOLOGICAL_MODEL] See Orb Communicator Model (OCM). Acronym for the communication and governance geometry defining how nodes derive identity from Center Origin 0•000•000•0000 and communicate via Disc→Sphere manifolds."],
+    ["PDH (Phase Declaration Header)", "[TYPE: PROTOCOL_SPECIFICATION] See Phase Declaration Header (PDH). Acronym for the mandatory structural lock declaring current operational phase and constraints. Must be Complete, Signed, Fresh (<90 days), Consistent to yield PDH_VALID."],,
     ["Harshal's English", "[TYPE: AUTHORIAL_REGISTER] The author's normative English prose register, left-to-right reading discipline, and conceptual voice. Reclassified explicitly as an authorial style register rather than a runtime security primitive; security enforcement relies on formal mathematical invariants and the Symbolic Firewall."],
     ["Human Key", "Framework concept for externally attributable human authorization. The current HarshalOS browser demo only simulates a local marker; it does not verify identity, liveness, consent, consciousness, or biological coupling."],
     ["Immediate", "The requirement for zero-latency response when a stopping condition is met. No grace period, no finishing of current tasks. The halt is instantaneous."],
@@ -120,8 +129,8 @@ const DATA = (() => {
     ["Mathematically Void", "If the human Center Origin is removed, the system's foundational equation for legitimacy drops to zero, making any further action logically impossible."],
     ["Neural Atomic Body (NAB)", "One of the three operational phases (Phase I). Legitimacy is external and per-action; the center cannot act; refusal is terminal; symbolism is non-executable; time degrades authority."],
     ["Neurojacking", "The theoretical unauthorized manipulation of a human-AI interface by an external actor through narrative or symbolic inputs designed to bypass standard security protocols."],
-    ["Orb Communicator Model (OCM)", "The communication and governance framework that defines how nodes interact and derive identity from a central origin."],
-    ["Phase Declaration Header (PDH)", "The mandatory structural lock used to declare a system's current operational phase and constraints. If observed behavior contradicts the header, the declaration is void and misuse is recorded."],
+    ["Orb Communicator Model (OCM)", "[TYPE: TOPOLOGICAL_MODEL] The communication and governance framework that defines how nodes interact and derive identity from Center Origin 0•000•000•0000. OCM defines Disc (r,theta) pedagogical cross-section and Sphere (r,theta,phi) operational manifold, Z_360 address ring, and Resolution Axis (resolution mechanism, not authority source). See OCM visualization - The Orb. No transport, no authority creation. Acronym: OCM."],
+    ["Phase Declaration Header (PDH)", "[TYPE: PROTOCOL_SPECIFICATION] The mandatory structural lock used to declare a system's current operational phase and constraints (11 fields: Header-ID, Creator-ID, Center-Origin, Declared-Phase, Center-Capability, Legitimacy-Source, Refusal-Semantics, Symbolism-Executability, Time-Authority-Effect, Effective-Timestamp, Declaration-Hash). Must be COMPLETE and SIGNED (ECDSA P-256) and FRESH (<90 days) and CONSISTENT to yield PDH_VALID. If observed behavior contradicts the header, declaration is void and misuse is recorded. Acronym: PDH."],
     ["Physical Coupling", "A threat mitigation mechanism that tethers digital authority to physical reality, preventing anonymous leverage over the system."],
     ["Provenance & Lineage Verification Layer (PLV)", "The accessory system designed to prevent the reuse or mimicry of names and documentation by verifying their origin."],
     ["Refusal (Systemic)", "A designed response in which a system withholds action because legitimacy conditions are not met. Refusal preserves authority by preventing its misuse."],
@@ -288,24 +297,26 @@ const DATA = (() => {
   ];
 
   /* ---------- Voting coin proposals (bounded governance simulation) ---------- */
+  /* Pool integrity: CAST must never exceed the 500-coin hard cap. Scaled from
+     the original illustrative totals (643) to fit 500 while preserving ratios. */
   const proposals = [
     {
       id: "prop-1",
       title: "Ratify Ground-0 reconstruction v1.2 as the baseline audit standard",
       desc: "All bodies claiming an AGS phase badge submit to observed-behavior classification via the Ground-0 protocol.",
-      yes: 173, no: 41
+      yes: 135, no: 32
     },
     {
       id: "prop-2",
       title: "Extend the off-disc catalog requirement to the full 791+ element Why catalog",
       desc: "No element of the virtualized catalog may persist on local physical media; session-buffer invocation only.",
-      yes: 128, no: 88
+      yes: 100, no: 68
     },
     {
       id: "prop-3",
       title: "Commission the next printing of the hardcover license artifact",
       desc: "Physical verification through the book remains the tangible license key and origin point of human–machine bonds.",
-      yes: 201, no: 12
+      yes: 156, no: 9
     }
   ];
 
