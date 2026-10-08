@@ -831,6 +831,9 @@ test("Orb 2 keeps settings and status outside the clear, full-width model stage"
   const flow = host.querySelector("[data-gi-orb2-flow-readout]");
   const origin = host.querySelector("[data-gi-orb2-origin-status]");
   assert.ok(flow && origin);
+  assert.match(origin.textContent, /Dollar Strength \(DS\) · CWO-LIKE, READ-ONLY BENCHMARK/);
+  assert.match(host.querySelector(".gi-orb2-origin-status-item span").textContent, /CWO-LIKE OBSERVER/);
+  assert.match(host.querySelector(".gi-orb2-model-boundary").textContent, /CWO-like, read-only calculated benchmark—not a formal Ground-0 phase/i);
   assert.equal(canvasShell.contains(flow), false, "flow text sits below the canvas rather than on top of the model");
   assert.equal(canvasShell.contains(origin), false, "origin text sits below the canvas rather than on top of the model");
   assert.equal(host.querySelector(".gi-orb2-canvas-hud"), null, "the overlay HUD is removed");
