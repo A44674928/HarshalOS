@@ -2023,20 +2023,28 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
        serialize a dozen avoidable round trips after its payload work. The normal
        daily snapshot also already contains the Dollar Strength (DS) inputs, so no second JSON read
        is needed for that benchmark. */
-    const [run, cachedCryptoRanking, cachedFutures, control, massiveLedger, tickerbotLedger, krakenLedger, queue, ds] = await Promise.all([
-      readRun(db, now),
-      readCharactersCryptoRankingCache({ db, now }),
-      readMassiveFuturesContractState({ db, now }),
-      readControl(db),
-      readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT),
-      readTickerbotCallLedger(db, now),
-      readKrakenCallLedger(db, now),
-      queueDepth(db, now),
-      /* Focused reads intentionally fetch status columns without payloads. Re-read
-         the six stored FX components for DS rather than passing payload-less
-         diagnostics to the benchmark evaluator. */
-      evaluateDollarStrength(db, now, interval === "1d" && storedRowsRead && !hasResponseFilter ? fieldObservations : null)
-    ]);
+    /* Keep the status reads sequential. D1 calls are cheap, but issuing many
+       concurrent reads from the same Worker invocation can substantially raise
+       peak CPU/memory pressure on the GET polling path and cause the Worker to
+       hit its CPU limit before the snapshot is serialized. This endpoint is a
+       read-only status poll, so predictable resource use is preferable to
+       shaving a few milliseconds from wall-clock latency. */
+    const run = await readRun(db, now);
+    const cachedCryptoRanking = await readCharactersCryptoRankingCache({ db, now });
+    const cachedFutures = await readMassiveFuturesContractState({ db, now });
+    const control = await readControl(db);
+    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
+    const tickerbotLedger = await readTickerbotCallLedger(db, now);
+    const krakenLedger = await readKrakenCallLedger(db, now);
+    const queue = await queueDepth(db, now);
+    /* Focused reads intentionally fetch status columns without payloads. Re-read
+       the six stored FX components for DS rather than passing payload-less
+       diagnostics to the benchmark evaluator. */
+    const ds = await evaluateDollarStrength(
+      db,
+      now,
+      interval === "1d" && storedRowsRead && !hasResponseFilter ? fieldObservations : null
+    );
     /* Per-Disc status for the constellation view: one row per reviewed Disc.
        Stored totals are matched against the current reviewed symbols before being
        reported. Old/orphaned rows can remain in D1, but they cannot produce
