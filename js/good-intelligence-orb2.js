@@ -587,6 +587,29 @@
   /* The latitude/longitude lattice the model draws, used as the ring reference
      for the berth-floor readout. */
   const LATTICE_RING_MODEL = 2.06;
+  const SHELL_RING_LATITUDES = Object.freeze([-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72]);
+  const SHELL_BAND_LATITUDES = Object.freeze([-Math.PI / 2, ...SHELL_RING_LATITUDES, Math.PI / 2]);
+  /* Static positive/negative FBB shell zones, separate from the parent Disc
+     identity palette and from each Character/ticker's live state color. */
+  const SHELL_SHADE_PALETTE = Object.freeze({ upper: "#d76170", lower: "#58b27c" });
+  const SHELL_SHADE = Object.freeze({
+    longitudeSegments: 72,
+    lightOffsetX: -0.24,
+    lightOffsetY: -0.3,
+    innerRadius: 0.04,
+    outerRadius: 1.16,
+    highlight: "#edf7ff",
+    shadow: "#07111e",
+    baseOpacity: 0.075,
+    levelOpacity: 0.095,
+    backFaceOpacity: 0.24,
+    stops: Object.freeze([
+      Object.freeze({ offset: 0, tint: "highlight", mix: 0.32, alpha: 0.72 }),
+      Object.freeze({ offset: 0.42, tint: "zone", mix: 0, alpha: 0.68 }),
+      Object.freeze({ offset: 0.78, tint: "shadow", mix: 0.34, alpha: 0.48 }),
+      Object.freeze({ offset: 1, tint: "shadow", mix: 0.72, alpha: 0.24 })
+    ])
+  });
   /* Topology geometry is data-derived. A perfect sphere is retained only as the
      mathematical IDEAL reference; live market fields are allowed to expand,
      contract, and deform the envelope and each sub-orb independently. */
@@ -914,6 +937,25 @@
     );
     for (const stop of DISC_ORB_GRADIENT.haloStops) {
       gradient.addColorStop(stop.offset, rgbaColor(color, stop.alpha + (selected ? stop.selectedBoost : 0)));
+    }
+    return gradient;
+  }
+
+  /** Soft screen-space light/shadow ramp for the fixed upper/lower FBB shell
+      zones. The zone tint is structural; no live price or performance enters. */
+  function createShellShadeGradient(context2d, center, radius, zone) {
+    const shellRadius = Math.max(0.5, Number(radius) || 0.5);
+    const color = SHELL_SHADE_PALETTE[zone] || SHELL_SHADE_PALETTE.upper;
+    const gradient = context2d.createRadialGradient(
+      center.x + shellRadius * SHELL_SHADE.lightOffsetX,
+      center.y + shellRadius * SHELL_SHADE.lightOffsetY,
+      shellRadius * SHELL_SHADE.innerRadius,
+      center.x, center.y, shellRadius * SHELL_SHADE.outerRadius
+    );
+    for (const stop of SHELL_SHADE.stops) {
+      const tint = stop.tint === "highlight" ? SHELL_SHADE.highlight
+        : stop.tint === "shadow" ? SHELL_SHADE.shadow : color;
+      gradient.addColorStop(stop.offset, rgbaColor(mixHexColor(color, tint, stop.mix), stop.alpha));
     }
     return gradient;
   }
@@ -1309,6 +1351,14 @@
     if (state.interval === "1h") state.auto = false;
 
     const swatch = (color, label) => `<span class="gi-orb2-color-swatch"><i style="--gi-orb2-swatch:${escapeHtml(color)}" aria-hidden="true"></i>${escapeHtml(label)}</span>`;
+    const discFamilyLegend = [
+      [DISC_ORB_PALETTE.stocks, "Stocks · Disc 1"], [DISC_ORB_PALETTE.fx, "FX / Dollar Strength · Disc 2"],
+      [DISC_ORB_PALETTE.crypto, "Crypto · Disc 3"], [DISC_ORB_PALETTE.futures, "Futures · Disc 4"],
+      [DISC_ORB_PALETTE.indices, "Indices · Disc 5"]
+    ].map(([color, label]) => swatch(color, label)).join("");
+    const shellZoneLegend = [
+      [SHELL_SHADE_PALETTE.upper, "upper FBB zone"], [SHELL_SHADE_PALETTE.lower, "lower FBB zone"]
+    ].map(([color, label]) => swatch(color, label)).join("");
     const moodLegend = Object.entries(MOOD_COLORS).filter(([mood]) => mood !== "unknown")
       .map(([mood, color]) => swatch(color, mood)).join("");
     const providerLegend = [
@@ -1331,13 +1381,15 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: orb cores use Characters beat moods; node halos use provider identity; free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: large Disc parent orbs encode market-family identity—Stocks blue, FX / Dollar Strength cyan, Crypto violet, Futures amber, and Indices green. The translucent red upper and green lower shell bands are static FBB geometry shading only; they do not encode rally or sink, ticker performance, momentum, signal strength, or a live FBB value. Character/ticker node fills still use Characters beat moods, while node halos use provider identity. Free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
-        <summary><strong>COLOR KEY</strong><span>Characters mood · provider halo · VFI flow cue · five market data bits</span></summary>
+        <summary><strong>COLOR KEY</strong><span>Disc identity · FBB shell zones · Character mood · provider halo · market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
-          <section><h4>CORE ORB · CHARACTERS BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
+          <section><h4>DISC PARENT ORB · FAMILY IDENTITY</h4><div class="gi-orb2-color-swatches">${discFamilyLegend}</div></section>
+          <section><h4>FBB SHELL · STATIC GEOMETRIC ZONES</h4><div class="gi-orb2-color-swatches">${shellZoneLegend}</div><p class="gi-orb2-color-key-note">A soft red/green volume tint follows the upper/lower shell latitude bands, like shaded FBB envelopes. It is fixed to shell geometry—not current direction, instrument performance, or a live signal.</p></section>
+          <section><h4>CHARACTER / TICKER NODE · BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
           <section><h4>HALO · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green marks inbound VFI flow around a free-floating orb; red marks outbound flow. The runner overlays—but does not recolor—the provider halo. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent. The tritium-green beam is beat-synced: each fresh beat connects the Center Point to the selected node and to the instruments that beat confirmed, then fades — a subtle cross-ticker highlight through the Center Point, not a constant flash.</p></section>
-          <section><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
+          <section class="gi-orb2-color-key-data"><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
           <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid halos mean a complete confirmed observation; dashed halos mark cached, synthetic, partial, or unconfirmed data; dotted halos mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
           <p class="gi-orb2-color-key-boundary">Price, volume, band, and WaveTrend colors are descriptive market context only. They do not establish claim assurance, indicate permission to act, or provide a trading instruction.</p>
         </div>
@@ -3821,6 +3873,68 @@
       strokeDepthPath(points, color, alpha * state.formation, 0.78);
     }
 
+    /** Translucent FBB-zone skins between the existing latitude rings. Each
+        curved cell uses the same data-derived envelope and camera as the
+        wireframe; back-facing cells are laid down first at lower opacity, then
+        the front surface shades them without changing any market placement. */
+    function drawFbbShellShading(width, height) {
+      if (!context2d || state.formation <= 0) return;
+      const envelope = state.fieldEnvelope || { x: 1, y: 1, z: 1 };
+      const segments = SHELL_SHADE.longitudeSegments;
+      const center = fieldProject({ x: 0, y: 0, z: 0 }, width, height);
+      const rows = SHELL_BAND_LATITUDES.map(latitude => Array.from({ length: segments + 1 }, (unused, step) => {
+        const longitude = (step / segments) * TAU;
+        return fieldProject({
+          x: LATTICE_RING_MODEL * envelope.x * Math.cos(latitude) * Math.cos(longitude),
+          y: LATTICE_RING_MODEL * envelope.y * Math.sin(latitude),
+          z: LATTICE_RING_MODEL * envelope.z * Math.cos(latitude) * Math.sin(longitude)
+        }, width, height);
+      }));
+      let shellRadius = 1;
+      for (const row of rows) {
+        for (const point of row) shellRadius = Math.max(shellRadius, Math.hypot(point.x - center.x, point.y - center.y));
+      }
+      const ramps = {
+        upper: createShellShadeGradient(context2d, center, shellRadius, "upper"),
+        lower: createShellShadeGradient(context2d, center, shellRadius, "lower")
+      };
+      const bands = [];
+      for (let index = 0; index < SHELL_BAND_LATITUDES.length - 1; index += 1) {
+        const lower = SHELL_BAND_LATITUDES[index];
+        const upper = SHELL_BAND_LATITUDES[index + 1];
+        const zone = (lower + upper) / 2 < 0 ? "lower" : "upper";
+        const level = Math.max(Math.abs(lower), Math.abs(upper)) / (Math.PI / 2);
+        const faces = { back: [], front: [] };
+        for (let step = 0; step < segments; step += 1) {
+          const quad = [rows[index][step], rows[index][step + 1], rows[index + 1][step + 1], rows[index + 1][step]];
+          const depth = quad.reduce((sum, point) => sum + point.z, 0) / quad.length;
+          faces[depth <= 0 ? "front" : "back"].push(quad);
+        }
+        bands.push({
+          zone,
+          opacity: SHELL_SHADE.baseOpacity + SHELL_SHADE.levelOpacity * level,
+          faces
+        });
+      }
+      for (const face of ["back", "front"]) {
+        for (const band of bands) {
+          const cells = band.faces[face];
+          if (!cells.length) continue;
+          context2d.save();
+          context2d.globalAlpha = band.opacity * state.formation * (face === "front" ? 1 : SHELL_SHADE.backFaceOpacity);
+          context2d.fillStyle = ramps[band.zone];
+          context2d.beginPath();
+          for (const quad of cells) {
+            context2d.moveTo(quad[0].x, quad[0].y);
+            for (let corner = 1; corner < quad.length; corner += 1) context2d.lineTo(quad[corner].x, quad[corner].y);
+            context2d.closePath();
+          }
+          context2d.fill();
+          context2d.restore();
+        }
+      }
+    }
+
     function orbitalRing(radius, tilt, phase, width, height, color, alpha) {
       const points = [];
       for (let step = 0; step <= 112; step += 1) {
@@ -4756,10 +4870,13 @@
         for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true });
       }
       drawCentralDiscPlane(now, width, height);
+      /* Upper/lower translucent shell bands are a separate FBB geometry layer;
+         the family hue still belongs to each large Disc parent orb. */
+      drawFbbShellShading(width, height);
       orbitalRing(2.32, 0.34, now * 0.000025, width, height, "#3678a8", 0.22);
       orbitalRing(2.4, 1.04, -now * 0.000018, width, height, "#6554a4", 0.14);
       orbitalRing(2.5, 0.78, now * 0.000012, width, height, "#2c8d91", 0.12);
-      [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72].forEach(latitude =>
+      SHELL_RING_LATITUDES.forEach(latitude =>
         ring(latitude, width, height, latitude === 0 ? "#70d8ff" : "#6d8eae", latitude === 0 ? 0.44 : 0.24));
       for (let index = 0; index < 12; index += 1) {
         meridian((index / 12) * TAU, width, height, index % 3 === 0 ? "#75d5fa" : "#5d7999", index % 3 === 0 ? 0.24 : 0.16);
@@ -5308,6 +5425,7 @@
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
+    SHELL_RING_LATITUDES, SHELL_BAND_LATITUDES, SHELL_SHADE_PALETTE, SHELL_SHADE, createShellShadeGradient,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
     fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,

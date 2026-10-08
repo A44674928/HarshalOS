@@ -967,6 +967,56 @@ test("the canvas paints each Disc's family ramp on the parent spheroid even when
     "coverage stays a separate dashed-shell/status cue; it does not remove the Disc's identity color");
 });
 
+test("FBB shell shading uses distinct translucent upper/lower radial ramps while retaining the existing grid", () => {
+  const { orb } = harness();
+  assert.deepEqual([...orb.SHELL_RING_LATITUDES], [-0.72, -0.48, -0.24, 0, 0.24, 0.48, 0.72]);
+  assert.deepEqual([...orb.SHELL_BAND_LATITUDES.slice(1, -1)], [...orb.SHELL_RING_LATITUDES],
+    "filled shell bands share the wireframe's latitude boundaries");
+  assert.equal(orb.SHELL_SHADE_PALETTE.upper, "#d76170");
+  assert.equal(orb.SHELL_SHADE_PALETTE.lower, "#58b27c");
+
+  const stops = [];
+  const context = { createRadialGradient(...args) { return { arguments: args, addColorStop(...stop) { stops.push(stop); } }; } };
+  orb.createShellShadeGradient(context, { x: 20, y: 30 }, 10, "upper");
+  assert.equal(stops.find(([offset]) => offset === 0.42)[1], "rgba(215, 97, 112, 0.68)");
+  assert.equal(stops.at(-1)[0], 1);
+  assert.match(stops.at(-1)[1], /, 0\.24\)$/,
+    "the shell tint is shaded and translucent at the outer edge");
+});
+
+test("rendering fills both FBB shell zones on front/back grid cells beneath the wireframe", async t => {
+  const { window, host, frames, canvasGradients, canvasDraws } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER
+  });
+  await flush();
+  const colorKey = host.querySelector("[data-gi-orb2-color-key]");
+  assert.ok(colorKey, "the accessible Orb 2 color key is mounted");
+  assert.match(colorKey.textContent, /DISC PARENT ORB · FAMILY IDENTITY/);
+  assert.match(colorKey.textContent, /FX \/ Dollar Strength · Disc 2/);
+  assert.match(colorKey.textContent, /FBB SHELL · STATIC GEOMETRIC ZONES/);
+  assert.match(colorKey.textContent, /upper FBB zone[\s\S]*lower FBB zone/);
+  assert.match(host.querySelector("#gi-orb2-color-description").textContent, /static FBB geometry shading only/);
+  assert.match(host.querySelector("#gi-orb2-color-description").textContent, /Character\/ticker node fills still use Characters beat moods/);
+
+  const frame = frames.shift();
+  assert.equal(typeof frame, "function", "the interactive canvas scheduled a render");
+  frame(120);
+
+  const Orb2 = window.GoodIntelligenceOrb2;
+  const shellRamps = [];
+  for (const zone of ["upper", "lower"]) {
+    const hex = Orb2.SHELL_SHADE_PALETTE[zone];
+    const [red, green, blue] = hex.slice(1).match(/../g).map(channel => parseInt(channel, 16));
+    const coreStop = `rgba(${red}, ${green}, ${blue}, 0.68)`;
+    const ramp = canvasGradients.find(gradient => gradient.stops.some(([offset, color]) => offset === 0.42 && color === coreStop));
+    assert.ok(ramp, `${zone} shell has a distinct tinted radial fill`);
+    assert.ok(canvasDraws.some(draw => draw.method === "fill" && draw.fillStyle === ramp), `${zone} fill is applied to projected shell cells`);
+    shellRamps.push(ramp);
+  }
+  const shellFills = canvasDraws.filter(draw => draw.method === "fill" && shellRamps.includes(draw.fillStyle));
+  assert.ok(shellFills.length >= 4, "the front and back portions of the upper/lower shell are separately composited");
+});
+
 test("the strip carries one chip per Disc with its own stored status, and an empty Disc says so", async t => {
   const { host, engine, canvasCalls, frames } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
   await flush();

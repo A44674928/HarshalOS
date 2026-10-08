@@ -847,6 +847,7 @@
   border-radius: 5px;
   background: rgba(111, 211, 255, .025);
 }
+.gi-orb2-color-key-data { grid-column: span 2; }
 .gi-orb2-color-key-body h4 {
   margin-bottom: 7px;
   color: var(--gi-faint);
