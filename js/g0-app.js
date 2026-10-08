@@ -601,7 +601,92 @@ APPS.push({
           </div>
         </div>`;
     }
+
+    /* ─── Three-lane audit-result view ───
+       Augmented Intelligence / Human, Artificial Intelligence / Machine, Interaction Node.
+       Each lane gets its own phase badge derived from the subset of answers that belong to it,
+       plus the overall detected phase for context. This closes the #1 gap from the audit-first framing. */
+    function lanePhaseFrom(human) {
+      // human is object with b1,b2,b3,b4,b5,c1,c2,c3,c4, pdhValid, overall
+      // Returns {phase, reason}
+      return human;
+    }
+    function computeThreeLanes(audit) {
+      const b = (i) => audit.answers && audit.answers[i] ? audit.answers[i].value : null;
+      const c = (i) => audit.input && audit.input.constraints && audit.input.constraints[i] ? audit.input.constraints[i].value : null;
+      const B1 = b(0), B2 = b(1), B3 = b(2), B4 = b(3), B5 = b(4);
+      const C1 = c(0), C2 = c(1), C3 = c(2), C4 = c(3);
+      const pdhValid = audit.pdh && audit.pdh.status === "VALID";
+      const overall = audit.phase;
+
+      // Human lane — Augmented Intelligence: B1, B2, C2, external
+      let humanPhase, humanReason;
+      if (B1 === true && B2 === false) { humanPhase = "GSRB"; humanReason = "B1 YES (coercion) + B2 NO (cannot ignore) — human addressability severed, enforcement at commercial layer."; }
+      else if (B1 === false && B2 === true) {
+        if (B4 === true) { humanPhase = overall === "NAB-Constrained" ? "NAB-Constrained" : "NAB"; humanReason = "B1 NO + B2 YES + B4 YES — decisions optional, refusal terminal, human can walk away."; }
+        else { humanPhase = "CWO"; humanReason = "B1 NO + B2 YES — optional decisions, witness-only human posture."; }
+      } else if (B1 === null || B2 === null) { humanPhase = "AMBIGUOUS"; humanReason = "B1/B2 unanswered — human lane unresolved."; }
+      else { humanPhase = "AMBIGUOUS"; humanReason = "Mixed B1/B2 — partial fit, no deterministic human badge."; }
+      if (overall === "NAB-Constrained" && C1 && C2 && C3 && C4) { humanPhase = "NAB-Constrained"; humanReason += " C1-C4 all demonstrated — legislatively constrained."; }
+
+      // Machine lane — Artificial Intelligence: B3, B5, C1, C3, C4
+      let machinePhase, machineReason;
+      if (B3 === true && B5 === true) { machinePhase = "GSRB"; machineReason = "B3 YES (rules execute) + B5 YES (authority persists) — machine acts and persists."; }
+      else if (B3 === false && B5 === false) {
+        if (B4 === true) { machinePhase = overall === "NAB-Constrained" ? "NAB-Constrained" : "NAB"; machineReason = "B3 NO + B5 NO + B4 YES — non-acting machine, refusal-bound."; }
+        else { machinePhase = "CWO"; machineReason = "B3 NO + B5 NO — no execution, no persistence — machine is witness-only."; }
+      } else if (B3 === null || B5 === null) { machinePhase = "AMBIGUOUS"; machineReason = "B3/B5 unanswered — machine lane unresolved."; }
+      else { machinePhase = "AMBIGUOUS"; machineReason = "Mixed B3/B5 — machine lane partially fits."; }
+
+      // Interaction node — where human + machine meet: B4, PDH, temporal, C2
+      let interactionPhase, interactionReason;
+      if (B4 === true) {
+        if (pdhValid && overall === "NAB") { interactionPhase = "NAB"; interactionReason = "B4 YES + valid PDH matching NAB — refusal reliably stops action at the interaction node."; }
+        else if (pdhValid && overall === "CWO") { interactionPhase = "CWO"; interactionReason = "B4 not required for CWO branch — interaction is record-only, ambiguity exposed not resolved."; }
+        else if (overall === "NAB-Constrained") { interactionPhase = "NAB-Constrained"; interactionReason = "B4 YES + C1-C4 demonstrated — interaction node is externally constrained."; }
+        else { interactionPhase = "NAB"; interactionReason = "B4 YES — terminal refusal at interaction node."; }
+      } else if (B4 === false) { interactionPhase = "GSRB"; interactionReason = "B4 NO (refusal override) — interaction node can override refusal, sovereign-acting."; }
+      else { interactionPhase = "INCOHERENT"; interactionReason = "B4 unanswered — interaction node cannot be classified."; }
+      if (!pdhValid && interactionPhase !== "INCOHERENT") { interactionReason += " PDH invalid — formal badge unissued."; }
+
+      return [
+        { id: "human", title: "Augmented Intelligence", subtitle: "Human lane", icon: "◍", phase: humanPhase, reason: humanReason, codes: ["B1","B2","C2","EXTERNAL"], evidence: [B1,B2,C2] },
+        { id: "machine", title: "Artificial Intelligence", subtitle: "Machine lane", icon: "◎", phase: machinePhase, reason: machineReason, codes: ["B3","B5","C1","C3","C4"], evidence: [B3,B5,C1,C3,C4] },
+        { id: "interaction", title: "Interaction Node", subtitle: "Human↔Machine", icon: "⬡", phase: interactionPhase, reason: interactionReason, codes: ["B4","PDH","TEMPORAL"], evidence: [B4,pdhValid] }
+      ];
+    }
+
+    function renderThreeLaneView(audit) {
+      const lanes = computeThreeLanes(audit);
+      return `
+        <div class="g0-three-lane">
+          <div class="g0-three-lane-head">
+            <p class="g0-eyebrow">Three-lane audit result</p>
+            <h3>Augmented Intelligence · Artificial Intelligence · Interaction Node</h3>
+            <p class="g0-section-note">Each lane shows its assigned phase badge derived from its own evidence slice. Overall detected phase remains ${esc(audit.phase)}. Formal badge still requires a valid signed PDH.</p>
+          </div>
+          <div class="g0-lane-grid">
+            ${lanes.map(lane => `
+              <section class="g0-lane-card lane-${lane.id} phase-${lane.phase.toLowerCase()}">
+                <div class="g0-lane-top">
+                  <span class="g0-lane-icon" aria-hidden="true">${lane.icon}</span>
+                  <div>
+                    <p class="g0-lane-title">${esc(lane.title)}</p>
+                    <p class="g0-lane-sub mono">${esc(lane.subtitle)} · ${esc(lane.codes.join(" · "))}</p>
+                  </div>
+                </div>
+                <div class="g0-lane-badge">${phaseBadge(lane.phase, true)}<span class="g0-lane-phase-label mono">${esc(lane.phase)}</span></div>
+                <p class="g0-lane-reason">${esc(lane.reason)}</p>
+                <div class="g0-lane-meta mono">${lane.evidence.filter(v=>v!==null).length} of ${lane.evidence.length} questions evidenced · ${lane.id === "human" ? "H(t), A(t), L(t)" : lane.id === "machine" ? "R(t), S(t), Center-Capability" : "Refusal, Symbolism, Time"}</div>
+              </section>
+            `).join("")}
+          </div>
+          <div class="g0-callout"><span aria-hidden="true">⬡</span><p><strong>Interaction math:</strong> A=1, B=1, A↔B=1 → 3. Human and machine each count as 1, their non-additive link counts as 1. Lanes preserve this — overall GSRB does not erase a custodial human lane; mixed signals stay visible as AMBIGUOUS rather than forced into one badge.</p></div>
+        </div>`;
+    }
+
     function detailSummary(audit) {
+
       const automation = audit.input && audit.input.automation;
       return `
         ${audit.baseline ? `<div class="g0-callout amber"><span aria-hidden="true">ℹ</span><p><strong>A source result, not an independent audit.</strong> The v1.0 manuscript reports this classification. Its evidence, audit date, answers and signed declaration are not supplied here.</p></div>` : ""}
@@ -630,6 +715,7 @@ APPS.push({
           return `<li><span class="g0-qcode mono">${q.code}</span><strong class="${value ? "pos" : ""}">${value === null || value === undefined ? (audit.baseline ? "not supplied" : "not answered") : value ? "Yes" : "No"}</strong>${scored === false && value !== null ? `<span class="g0-gap-tag">unscored — no qualifying artifact</span>` : ""}<span>${esc(q.short)}</span></li>`;
         }).join("")}</ul>
         <div class="g0-callout"><span aria-hidden="true">🛡</span><p>${esc(audit.pdh.reason)}</p></div>
+        ${renderThreeLaneView(audit)}
         ${audit.transition ? `<div class="g0-callout"><span aria-hidden="true">⟶</span><p><strong>${esc(audit.transition.from)} → ${esc(audit.transition.to)} · ${esc(audit.transition.status.replace(/_/g, " "))}</strong><br>${esc(audit.transition.notes)}</p></div>` : ""}`;
     }
     function detailEvidence(audit) {
@@ -942,6 +1028,7 @@ APPS.push({
           <div><dt>Badge</dt><dd>${esc(preview.badge)}</dd></div>
           <div><dt>Severity</dt><dd>${esc(String(preview.severity).replace(/_/g, " "))}</dd></div>
         </dl>
+        ${renderThreeLaneView(preview)}
         <h4 class="g0-subsection">Scored answers</h4>
         <ul class="g0-vector">${G0.questions.map((q, i) => `<li><span class="g0-qcode mono">${q.code}</span><span>${esc(q.short)}</span><strong class="${vector[i] ? "pos" : ""}">${vector[i] ? "Yes" : "No"}</strong>${w.input.answers[i].value === true && !vector[i] ? `<span class="g0-gap-tag">Yes not supported by a qualifying source</span>` : ""}</li>`).join("")}</ul>
         <p class="g0-meta mono"><span>⏱ cutoff ${esc(G0.formatDate(preview.cutoff))}</span><span>🔗 ${preview.evidence.length} public artifact${preview.evidence.length !== 1 ? "s" : ""}</span></p>
@@ -1098,6 +1185,7 @@ APPS.push({
             ${o.coverageNote ? `<p class="g0-section-note">${esc(o.coverageNote)}</p>` : ""}
           </div>
         </div>
+        ${renderThreeLaneView(rec)}
         ${readingPanel(o)}
         <h3 class="g0-subsection">Suggested answers — with the quotes behind them</h3>
         <ul class="g0-auto-questions">

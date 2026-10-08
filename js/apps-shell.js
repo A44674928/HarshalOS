@@ -572,8 +572,17 @@ APPS.push({
     const myCoins = 3;
     let remaining = myCoins;
 
+    const POOL_CAP = 500;
     const draw = () => {
-      const totalVoted = DATA.proposals.reduce((s, p) => s + p.yes + p.no + (votes[p.id]?.yes || 0) + (votes[p.id]?.no || 0), 0);
+      const baseTotal = DATA.proposals.reduce((s, p) => s + p.yes + p.no, 0);
+      const extraTotal = Object.values(votes).reduce((s, v) => s + (v.yes || 0) + (v.no || 0), 0);
+      const rawTotal = baseTotal + extraTotal;
+      // Integrity invariant: CAST must never exceed POOL, UNCOMMITTED must never be negative.
+      // Defensive clamp keeps the UI honest even if future data drifts.
+      const totalVoted = Math.min(POOL_CAP, rawTotal);
+      const uncommitted = Math.max(0, POOL_CAP - totalVoted);
+      const integrityOk = baseTotal <= POOL_CAP && rawTotal <= POOL_CAP;
+      const poolRemaining = POOL_CAP - baseTotal - extraTotal;
       artifact.innerHTML = `
         <div class="h1">Intro (0) · The Physical Artifact &amp; 500-Coin Pool</div>
         <div class="sub"><strong>Book 0</strong> retains the existing physical-artifact and bounded-governance view. <strong>Book I · The Core Book</strong> is the reader for the canonical <code>01-core-book.md</code> text; <strong>Book II — Preview (The Grand River Foundation)</strong> remains the fictional companion manuscript.
@@ -603,16 +612,18 @@ ${DATA.bookExample.sign}
         <div class="coin-ring-wrap">
           <svg width="120" height="120" viewBox="0 0 120 120">
             <circle cx="60" cy="60" r="48" fill="none" stroke="var(--line)" stroke-width="12"/>
-            <circle cx="60" cy="60" r="48" fill="none" stroke="var(--gold)" stroke-width="12"
-              stroke-dasharray="${(totalVoted / 500) * 301.6} 301.6" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-            <text x="60" y="56" text-anchor="middle" fill="var(--gold)" font-family="var(--mono)" font-size="16">${totalVoted}</text>
-            <text x="60" y="74" text-anchor="middle" fill="var(--text-faint)" font-family="var(--mono)" font-size="9">/ 500</text>
+            <circle cx="60" cy="60" r="48" fill="none" stroke="${integrityOk ? "var(--gold)" : "var(--refusal)"}" stroke-width="12"
+              stroke-dasharray="${(totalVoted / POOL_CAP) * 301.6} 301.6" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+            <text x="60" y="56" text-anchor="middle" fill="${integrityOk ? "var(--gold)" : "var(--refusal)"}" font-family="var(--mono)" font-size="16">${totalVoted}</text>
+            <text x="60" y="74" text-anchor="middle" fill="var(--text-faint)" font-family="var(--mono)" font-size="9">/ ${POOL_CAP}</text>
           </svg>
           <div class="coin-legend">
-            <div>POOL: 500 coins · hard cap</div>
-            <div>CAST: ${totalVoted} · UNCOMMITTED: ${500 - totalVoted}</div>
+            <div>POOL: ${POOL_CAP} coins · hard cap${integrityOk ? "" : " · INVARIANT VIOLATED"}</div>
+            <div>CAST: ${totalVoted} · UNCOMMITTED: ${uncommitted}</div>
             <div>YOUR ATTESTED SHARE: ${myCoins} coins · remaining: ${remaining}</div>
-            <div style="color:var(--text-faint)">Influence is limited by design. Scale increases robustness, not power concentration.</div>
+            <div style="color:${integrityOk ? "var(--text-faint)" : "var(--refusal)"}">${integrityOk ? "Influence is limited by design. Scale increases robustness, not power concentration." : "INTEGRITY CHECK: CAST ≤ POOL and UNCOMMITTED ≥ 0 must always hold. This view clamps to the cap and refuses further local votes when the pool is full."}</div>
+            ${!integrityOk ? `<div style="color:var(--refusal);margin-top:4px">Raw total ${rawTotal} exceeds cap — display clamped to ${POOL_CAP}. Base ${baseTotal} + extra ${extraTotal}. Fix source data if this persists.</div>` : ""}
+            ${poolRemaining <= 0 && extraTotal === 0 ? `<div style="color:var(--text-faint);margin-top:4px">Pool is fully committed in this illustrative snapshot. Local demo votes will be refused until uncommitted coins exist — demonstrating bounded governance.</div>` : ""}
           </div>
         </div>
 
@@ -643,6 +654,13 @@ ${DATA.bookExample.sign}
         if (!api.requireDemoGate("Cast voting coin")) return;
         const res = HOS.request("cast-voting-coin");
         if (!res.permitted) { api.reportAction(res); return; }
+        const baseTotal = DATA.proposals.reduce((s, p) => s + p.yes + p.no, 0);
+        const extraTotal = Object.values(votes).reduce((s, v) => s + (v.yes || 0) + (v.no || 0), 0);
+        if (baseTotal + extraTotal >= POOL_CAP) {
+          api.toast("refusal", "REFUSAL — GLOBAL POOL AT CAP", `POOL ${POOL_CAP} hard cap reached (CAST ${baseTotal + extraTotal}). No additional local coins can be cast without violating the invariant CAST ≤ POOL.`);
+          HOS.record("warning", `DEMO ONLY — vote refused: global 500-coin cap would be exceeded (base ${baseTotal} + extra ${extraTotal}).`);
+          return;
+        }
         if (remaining <= 0) {
           api.toast("refusal", "REFUSAL — COIN POOL EXHAUSTED", "Your attested share is spent. Influence is limited by design; it cannot be borrowed, synthesized, or inflated.");
           return;

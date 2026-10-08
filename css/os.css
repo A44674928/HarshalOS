@@ -1893,3 +1893,51 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
 .ll-model-chip { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text-dim); cursor: pointer; }
 .ll-model-chip:hover { border-color: var(--ice); color: var(--text); }
 .ll-model-chip.on { border-color: var(--ice); color: var(--ice); background: rgba(111, 211, 255, 0.08); }
+
+/* ── Mobile best-on-desktop notice + truncated copy sweep Oct 3 ── */
+.mobile-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tb-h) + 12px);
+  transform: translateX(-50%);
+  z-index: 650;
+  width: min(560px, calc(100vw - 24px));
+  background: rgba(12,19,35,0.96);
+  border: 1px solid rgba(255,212,121,0.35);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 12px;
+}
+.mobile-notice[hidden] { display: none !important; }
+.mobile-notice-inner { display:flex; gap:12px; align-items:flex-start; }
+.mobile-notice-icon { font-size:18px; color:var(--gold); flex:0 0 auto; margin-top:2px; }
+.mobile-notice-inner div { flex:1; min-width:0; }
+.mobile-notice-inner strong { display:block; font-size:12.5px; color:var(--gold); margin-bottom:3px; letter-spacing:.02em; }
+.mobile-notice-inner span { display:block; color:var(--text-dim); font-size:11px; line-height:1.55; overflow-wrap:anywhere; }
+.mobile-notice-close { width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--panel-hi); color:var(--text-faint); flex:0 0 auto; }
+.mobile-notice-close:hover { border-color:var(--gold); color:var(--gold); }
+
+/* Truncated copy sweep: ensure window bodies and rule-boxes never clip text with nowrap/ellipsis */
+.win-body, .win-body .panel, .win-body .rule-box, .win-body .card, .win-body .h1, .win-body .h2, .win-body .sub, .win-body p, .win-body li {
+  min-width:0;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.win-body .rule-box, .win-body .panel, .win-body .card {
+  white-space:normal;
+  text-overflow:clip;
+  overflow:visible;
+}
+.win-body .mono, .win-body code, .win-body pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+/* Keep intentional ellipsis only on taskbar/window chrome, not content */
+.win-body .tb-app, .win-body .win-name, .win-body .om-app { text-overflow:unset; }
+
+/* Guided demo mobile survival: stacked controls, scrollable */
+@media (max-width: 860px) {
+  .win-body .btn-row { flex-wrap:wrap; }
+  .win-body .step-box { padding:12px; }
+  .win-body .step-nav { flex-wrap:wrap; gap:8px; }
+  .win-body .adv-results .rule-box { overflow-wrap:anywhere; }
+}

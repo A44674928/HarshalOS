@@ -128,16 +128,62 @@
     }
     shell.init();
     HOS.record("info", "SHELL LOADED — DEMO mode in NON-ACTING state. Open the Human Key panel to exercise the local gate; production authentication is unavailable.");
-    // Gentle first-run guidance
+    // Gentle first-run guidance + first-timer nudge to guided demo
+    const isFirstVisit = (() => {
+      try {
+        const key = "hos_first_visit_done_v1";
+        if (localStorage.getItem(key)) return false;
+        localStorage.setItem(key, String(Date.now()));
+        return true;
+      } catch { return false; }
+    })();
     setTimeout(() => {
-      shell.toast("info", "WELCOME TO HARSHALOS — DEMO MODE",
-        "Open the Human Key panel to exercise the browser-local gate. Its public phrase and bundled HMAC prove no identity or liveness and unlock no production actions.");
+      if (isFirstVisit) {
+        shell.toast("info", "NEW HERE? START WITH THE GUIDED DEMO — 60S PITCH",
+          "First time in HarshalOS: open Guided Demonstration for a paced 60-second walkthrough of refusal, ceremony, and time. Pause/Next at each checkpoint. Best on desktop, but mobile shows a compact view.");
+        const demoApp = APPS.find(a => a.id === "guided-demo");
+        if (demoApp && shell.windows.size === 0) {
+          // Slight delay so toast is seen, then open demo
+          setTimeout(() => shell.openApp(demoApp), 900);
+        }
+      } else {
+        shell.toast("info", "WELCOME TO HARSHALOS — DEMO MODE",
+          "Open the Human Key panel to exercise the browser-local gate. Its public phrase and bundled HMAC prove no identity or liveness and unlock no production actions.");
+      }
     }, 800);
     setTimeout(() => {
       const app = APPS.find(a => a.id === "origin");
       // Never cover an app the visitor has already opened during startup.
-      if (app && shell.windows.size === 0 && window.innerWidth > 860) shell.openApp(app);
+      // First-timers already got guided-demo, so don't overwrite.
+      if (!isFirstVisit && app && shell.windows.size === 0 && window.innerWidth > 860) shell.openApp(app);
     }, 1600);
+
+    // Mobile graceful notice — survives small screens, dismissible, does not block guided demo
+    setTimeout(() => {
+      try {
+        const notice = document.getElementById("mobile-notice");
+        const closeBtn = document.getElementById("mobile-notice-close");
+        if (!notice) return;
+        const dismissedKey = "hos_mobile_notice_dismissed_v1";
+        const isMobile = window.innerWidth <= 860 || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0 && window.innerWidth <= 1080);
+        const wasDismissed = (() => { try { return localStorage.getItem(dismissedKey); } catch { return null; } })();
+        if (isMobile && !wasDismissed) {
+          notice.hidden = false;
+          // Auto-hide after 12s but keep accessible
+          setTimeout(() => { if (!notice.hidden) { /* keep visible until dismissed on mobile */ } }, 12000);
+        }
+        if (closeBtn) {
+          closeBtn.addEventListener("click", () => {
+            notice.hidden = true;
+            try { localStorage.setItem(dismissedKey, String(Date.now())); } catch {}
+          });
+        }
+        // If user resizes to desktop, hide notice
+        window.addEventListener("resize", () => {
+          if (window.innerWidth > 860) notice.hidden = true;
+        });
+      } catch {}
+    }, 1200);
   }
 
   function finish() {
