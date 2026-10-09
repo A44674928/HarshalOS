@@ -154,7 +154,7 @@ test("P13: root-level files stay limited to app entry points, configuration, opt
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
-    ".assetsignore", ".gitignore", "01a11615-07d3-74bd-9552-67c44626a0d3.patch", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
     "package-lock.json", "package.json", "requirements-hf-data-library.txt", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 

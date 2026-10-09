@@ -19,3 +19,9 @@ Desktop.ini
 
 # Local Python environment for print-proof tooling
 .venv/
+
+# Exported patch drops are session artifacts, not source. They embed binary
+# blobs (PDF/PNG) as ASCII85 and balloon the tree. Scope the rule to the root:
+# archives/patches/ and publications/book/*.diff are tracked on purpose.
+/*.patch
+/*.diff
