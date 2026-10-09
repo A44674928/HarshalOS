@@ -6,6 +6,8 @@ struct DashboardView: View {
         TabView {
             OverviewView()
                 .tabItem { Label("Overview", systemImage: "square.grid.2x2") }
+            NeoOrbView()
+                .tabItem { Label("NEO ORB", systemImage: "circle.dotted") }
             GateView()
                 .tabItem { Label("Gate", systemImage: "checkmark.shield") }
             LedgerView()

@@ -66,6 +66,12 @@ A local acknowledgement is precisely named as such. It is **not** a production H
 
 The ledger protects against accidental mutation and makes local tampering visible **only when a trusted prior copy/root is available**. A compromised device, modified app, developer tools, restored backup, or attacker with local storage access can rewrite a local ledger and its receipt. The ledger must never be represented as an independent signature, immutable audit service, production identity proof, or external authorization.
 
+### `NeoOrb`
+
+`NeoOrb` is a pure Foundation Swift Package for **display-only** NEO ORB geometry. It merges The Orb’s Center Origin, Z_360 sector arrangement, disc-to-sphere formation, and direct attachments with Orb 2’s measured spheroid axes, logarithmic radial bands, convergence indicator, and deterministic collision-aware display berths.
+
+The package contains neither SwiftUI nor a persistence/network/gate/authority dependency. Its first fixture is explicitly synthetic and its coordinates are not routes, provider facts, identity claims, market values, ownership records, or operational effects. See [`NEO-ORB.md`](NEO-ORB.md) for the deterministic formulas and non-negotiable extension boundary.
+
 ### SwiftUI app target
 
 The application owns presentation and integration adapters:
@@ -73,7 +79,8 @@ The application owns presentation and integration adapters:
 - local state cache (`UserDefaults`) for convenience only;
 - active acknowledgement is reset at app launch to avoid silently carrying authority forward;
 - a phase declaration produces a receipt, then the gate and ledger views remain inspectable;
-- no network call happens when a declaration or gate evaluation is created.
+- a NEO ORB `Canvas` view reads only a local synthetic geometry fixture and ephemeral display controls;
+- no network call happens when a declaration, NEO ORB configuration, or gate evaluation is created.
 
 ## 4. Phase declaration flow
 
@@ -113,6 +120,7 @@ The app sends no data until the user explicitly taps **Mirror declaration and re
 | `js/crypto.js` SHA-256 | `SHA256LedgerDigest` (`CryptoKit`) | Use Apple platform crypto; local digests remain non-signatures. |
 | local PLV/session receipt concepts | `LocalLedger` | Preserve visible assurance boundaries and add native receipt-verification tests. |
 | `js/g0-engine.js` | future `GroundZero` package | Port only with fixtures/tests and a separately reviewed evidence model. |
+| `js/apps-ocm.js` The Orb + `js/good-intelligence-orb2.js` Orb 2 | `NeoOrb` + `NeoOrbView` | Preserve visual/topological semantics only; use synthetic local fixtures and do not infer a route, provider fact, market claim, or authority effect. |
 | `js/ocm-data.js` and directory logic | future `OCM` package | Start read-only: address validation and routing, then separately assess storage/transport. |
 | Worker integrations | `URLSession` adapters | Preserve same-origin/secret boundary as a service contract; never bundle API secrets into the app. |
 
@@ -124,15 +132,17 @@ The current package tests cover:
 - default refusal without a local acknowledgement;
 - fresh, complete `NAB` local-model permit and its `LOCAL-DEMO-ONLY` boundary;
 - CWO refusal, stale failure, below-threshold refusal, and non-executing GSRB behavior;
-- receipt verification, modified-entry detection, and root mismatch detection.
+- receipt verification, modified-entry detection, and root mismatch detection;
+- NEO ORB disc-plane formation, ideal/deformed spheroid convergence, stable display-node identity, Z_360 boundary rejection, logarithmic-band ratio/radial berth, and display-only collision re-slotting.
 
 Each future migration must first add fixtures that are traceable to the source specification or to the existing JavaScript tests, then add Swift XCTest cases for success and hostile/failure paths. Functional parity should never silently expand authority.
 
 ## 8. Next slices
 
 1. **Foundation hardening** — build the app with Xcode, add accessibility/UI tests, strict-concurrency checking, exportable receipt view, and migration fixtures from the canonical JSON registry.
-2. **Secure local storage review** — decide which minimal secrets (if any) belong in Keychain/Secure Enclave and document migration/recovery behavior. Do not call device possession human identity.
-3. **External identity/authorization design** — only after independent policy, privacy, accessibility, legal, threat-model, and review requirements are defined. This is a product/security programme, not a UI task.
-4. **Ground-0** — package the pure classifier and evidence record schemas; keep model output data-only and reviewer-gated.
-5. **OCM / UTS / library** — port read-only domain modules before considering message transport or external action paths.
-6. **Service adapters** — add bounded `URLSession` clients to the existing Worker APIs only with explicit user initiation, response validation, privacy disclosures, and no embedded provider secrets.
+2. **NEO ORB visual hardening** — validate the Canvas on iPhone, iPad, and macOS; add accessibility/UI coverage and snapshot fixtures before considering any external read-only field adapter.
+3. **Secure local storage review** — decide which minimal secrets (if any) belong in Keychain/Secure Enclave and document migration/recovery behavior. Do not call device possession human identity.
+4. **External identity/authorization design** — only after independent policy, privacy, accessibility, legal, threat-model, and review requirements are defined. This is a product/security programme, not a UI task.
+5. **Ground-0** — package the pure classifier and evidence record schemas; keep model output data-only and reviewer-gated.
+6. **OCM / UTS / library** — port read-only domain modules before considering message transport or external action paths.
+7. **Service adapters** — add bounded `URLSession` clients to the existing Worker APIs only with explicit user initiation, response validation, privacy disclosures, and no embedded provider secrets.

@@ -31,6 +31,10 @@
 		A10000000000000000000022 /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* SyncView.swift */; };
 		A10000000000000000000023 /* HarshalCore in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000003 /* HarshalCore */; };
 		A10000000000000000000024 /* HarshalLedger in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000004 /* HarshalLedger */; };
+		A10000000000000000000025 /* NeoOrb in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000005 /* NeoOrb */; };
+		A10000000000000000000026 /* NeoOrb in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000006 /* NeoOrb */; };
+		A10000000000000000000027 /* NeoOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* NeoOrbView.swift */; };
+		A10000000000000000000028 /* NeoOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* NeoOrbView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +52,7 @@
 		A20000000000000000000012 /* Packages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Packages; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000013 /* HarshalNative iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HarshalNative iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000014 /* HarshalNative macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HarshalNative macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000015 /* NeoOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/NeoOrbView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +62,7 @@
 			files = (
 				A10000000000000000000011 /* HarshalCore in Frameworks */,
 				A10000000000000000000012 /* HarshalLedger in Frameworks */,
+				A10000000000000000000025 /* NeoOrb in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +72,7 @@
 			files = (
 				A10000000000000000000023 /* HarshalCore in Frameworks */,
 				A10000000000000000000024 /* HarshalLedger in Frameworks */,
+				A10000000000000000000026 /* NeoOrb in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -103,6 +110,7 @@
 				A20000000000000000000008 /* GateView.swift */,
 				A20000000000000000000009 /* LedgerView.swift */,
 				A20000000000000000000010 /* SyncView.swift */,
+				A20000000000000000000015 /* NeoOrbView.swift */,
 			);
 			name = Features;
 			sourceTree = "<group>";
@@ -158,6 +166,7 @@
 			packageProductDependencies = (
 				A70000000000000000000001 /* HarshalCore */,
 				A70000000000000000000002 /* HarshalLedger */,
+				A70000000000000000000005 /* NeoOrb */,
 			);
 			productName = "HarshalNative iOS";
 			productReference = A20000000000000000000013 /* HarshalNative iOS.app */;
@@ -178,6 +187,7 @@
 			packageProductDependencies = (
 				A70000000000000000000003 /* HarshalCore */,
 				A70000000000000000000004 /* HarshalLedger */,
+				A70000000000000000000006 /* NeoOrb */,
 			);
 			productName = "HarshalNative macOS";
 			productReference = A20000000000000000000014 /* HarshalNative macOS.app */;
@@ -213,6 +223,7 @@
 			packageReferences = (
 				A80000000000000000000001 /* XCLocalSwiftPackageReference "HarshalCore" */,
 				A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */,
+				A80000000000000000000003 /* XCLocalSwiftPackageReference "NeoOrb" */,
 			);
 			productRefGroup = A40000000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -239,6 +250,7 @@
 				A10000000000000000000008 /* GateView.swift in Sources */,
 				A10000000000000000000009 /* LedgerView.swift in Sources */,
 				A10000000000000000000010 /* SyncView.swift in Sources */,
+				A10000000000000000000027 /* NeoOrbView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -256,6 +268,7 @@
 				A10000000000000000000020 /* GateView.swift in Sources */,
 				A10000000000000000000021 /* LedgerView.swift in Sources */,
 				A10000000000000000000022 /* SyncView.swift in Sources */,
+				A10000000000000000000028 /* NeoOrbView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -415,6 +428,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/HarshalLedger;
 		};
+		A80000000000000000000003 /* XCLocalSwiftPackageReference "NeoOrb" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NeoOrb;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -437,6 +454,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */;
 			productName = HarshalLedger;
+		};
+		A70000000000000000000005 /* NeoOrb */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000003 /* XCLocalSwiftPackageReference "NeoOrb" */;
+			productName = NeoOrb;
+		};
+		A70000000000000000000006 /* NeoOrb */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000003 /* XCLocalSwiftPackageReference "NeoOrb" */;
+			productName = NeoOrb;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
