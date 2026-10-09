@@ -19,6 +19,11 @@ import {
   ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK,
   ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE,
   ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK,
+  ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK,
+  ORB2_FIELD_PROVIDER_LANES,
+  ORB2_FIELD_LANE_COUNT,
+  ORB2_FIELD_WORK_LANE_IDS,
+  ORB2_FIELD_D1_READ_CONCURRENCY,
   ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
   clearOrb2FieldSchemaCache,
   handleOrb2Field,
@@ -29,6 +34,7 @@ import {
   orb2FieldNeedsRefresh,
   orb2FieldRoster,
   enqueuePriorityRefresh,
+  readOrb2FieldSnapshot,
   runOrb2FieldTick,
   sanitizeOrb2FieldObservation
 } from "../worker/orb2-field.mjs";
@@ -242,6 +248,24 @@ function seedFieldCursor(sql, key, { attempts = 1, at = NOW } = {}) {
     .run(at, lane, attempts);
 }
 
+/* Each provider lane owns its own durable cursor row: the state table's unique
+   key is (interval, symbol, reason), so the lane id rides in the reason. */
+const laneCursorReason = laneId => `field-cursor-v1:${laneId}`;
+
+function seedLaneCursor(sql, laneId, key, { attempts = 1, at = NOW } = {}) {
+  const lane = `cursor:${encodeURIComponent(key)}`;
+  sql.prepare(`INSERT INTO orb2_field_queue
+    (created_at, interval, symbol, reason, lane, claimed_at, attempts)
+    VALUES (?, '__orb2_scheduler__', '__field_cursor__', ?, ?, NULL, ?)
+    ON CONFLICT(interval, symbol, reason) DO UPDATE SET lane=excluded.lane, attempts=excluded.attempts, claimed_at=NULL`)
+    .run(at, laneCursorReason(laneId), lane, attempts);
+}
+
+function readLaneCursor(sql, laneId) {
+  return sql.prepare("SELECT lane, attempts FROM orb2_field_queue WHERE symbol='__field_cursor__' AND reason=?")
+    .get(laneCursorReason(laneId));
+}
+
 async function primeCryptoRanking({ db, seen, at = NOW }) {
   const result = await getCharactersCryptoRanking({
     db, now: at, fetcher: providerFetch(seen), beforeFetch: async () => ({ ok: true })
@@ -412,17 +436,25 @@ test("the cold scheduler persists a single warm cursor step before making one Ti
 
   const first = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(first.ok, true);
-  assert.equal(first.workUnits, ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
   assert.equal(first.workUnit, "warm:15m:NVDA");
   assert.equal(first.warmProgressed, 1);
   assert.equal(first.cursorAdvanced, true);
-  assert.equal(first.providerRequests, 1);
   assert.equal(first.tickerbotCalls, 1);
-  assert.equal(first.massiveCalls, 0);
-  assert.equal(first.krakenCalls, 0, "warm-up preempts roster and contract discovery rather than fanning out");
   assert.equal(seen.tickerbot.length, 1);
-  assert.equal(seen.massive.length, 0);
-  assert.equal(seen.krakenRanking?.length || 0, 0);
+  /* Cold calibration is Tickerbot work, so it spends the tickerbot-stocks lane's
+     single unit and no more. It no longer suppresses the other lanes: Kraken and
+     Massive allowances are separate envelopes that the warm-up does not touch,
+     so a cold deployment warms the crypto, FX, futures, and index Discs in the
+     same minute instead of waiting 156 minutes for the stock calibration to
+     finish first. */
+  assert.equal(first.workUnitsByLane.get("tickerbot-stocks"), 1,
+    "the warm-up spends exactly one unit of the Tickerbot lane");
+  assert.equal(first.lanes["tickerbot-stocks"].skipped, true,
+    "the Tickerbot lane does not also rotate a stock behind the warm-up");
+  assert.equal(first.krakenCalls, 1, "a cold ranking cache spends the crypto lane's own unit");
+  assert.ok(first.massiveCalls >= 1, "the Massive lanes warm their own Discs in the same minute");
+  assert.ok(first.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+  assert.ok(first.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane IN ('hot','sweep')").get().count, 0,
     "automatic warm-up does not materialize the 156-job queue");
   const warmCursor = sql.prepare("SELECT lane, attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get();
@@ -475,10 +507,20 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
     assert.equal(summary.ok, true, `scheduled tick ${tick} should finish without a scheduler error: ${summary.errors.join(" ")}`);
     assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
-    assert.ok(summary.massiveCalls <= 1);
+    /* The binding constraint is per lane, not per tick: each provider envelope
+       still sees at most one unit per scheduled minute. Massive's three
+       non-Options lanes (currencies, futures, indices) each hold their own
+       five-per-minute window, so up to three Massive calls in one tick is three
+       separate envelopes spending one request each — never one envelope
+       spending three. */
+    assert.ok(summary.massiveCalls <= 3, `Massive lanes stay inside their own per-asset-class windows: ${summary.massiveCalls}`);
     assert.ok(summary.krakenCalls <= 1);
     assert.ok(summary.tickerbotCalls <= 1);
     assert.equal(summary.optionsCalls, 0, "the Options lane remains dormant without migration 0013");
+    for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
+      assert.ok((summary.workUnitsByLane.get(laneId) || 0) <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK,
+        `the ${laneId} lane spends at most one unit per scheduled minute`);
+    }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
     assert.ok(stats.maxRowsPerRead <= 12, "scheduled D1 reads remain targeted and row-capped");
@@ -509,18 +551,52 @@ test("a full cycle wraps to the first stable key without resetting on each Cron 
   seedSchedulerControl(sql, at);
   const ranking = await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
   const roster = orb2FieldRoster({ now: at, cryptoRanking: ranking, commodityContracts: activeContracts(at) });
-  seedFieldCursor(sql, `massive:index:${roster.indices.at(-1).symbol}`, { attempts: roster.instruments.length, at });
+  /* Wrapping is now a per-lane property: each lane owns a cursor over its own
+     partition, so a lane at its last stable key wraps to its own first key. The
+     stock lane is seeded at its final instrument with a durable ordinal equal
+     to the lane length. */
+  const stockLane = "tickerbot-stocks";
+  seedLaneCursor(sql, stockLane, `tickerbot:1d:${roster.stocks.at(-1).symbol}`, { attempts: roster.stocks.length, at });
 
   const wrapped = await runOrb2FieldTick(env, null, deps(seen, { at }));
-  assert.equal(wrapped.workUnit, `tickerbot:1d:${roster.stocks[0].symbol}`);
+  assert.equal(wrapped.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[0].symbol}`);
   assert.equal(wrapped.cursorReset, false);
   assert.equal(wrapped.cursorAdvanced, true);
-  assert.equal(wrapped.workUnits, 1);
+  assert.equal(wrapped.workUnitsByLane.get(stockLane), 1, "the lane spends one unit even while wrapping");
   const following = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(following.workUnit, `tickerbot:1d:${roster.stocks[1].symbol}`,
+  assert.equal(following.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[1].symbol}`,
     "the second invocation resumes after the wrapped key instead of starting over");
-  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__field_cursor__'").get().attempts,
-    roster.instruments.length + 2);
+  assert.equal(readLaneCursor(sql, stockLane).attempts, roster.stocks.length + 2);
+});
+
+test("a legacy whole-field cursor seeds each lane ordinal instead of replaying the field from zero", async t => {
+  const { sql, env } = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [] };
+  const at = Date.parse("2026-10-06T12:00:00.000Z");
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+  const ranking = await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
+  const roster = orb2FieldRoster({ now: at, cryptoRanking: ranking, commodityContracts: activeContracts(at) });
+  /* The cursor row written by the single-cursor scheduler, from before lanes had
+     their own rows. Its ordinal must not be discarded: restarting every lane at
+     item zero is exactly the whole-field replay the durable ordinal exists to
+     prevent. */
+  seedFieldCursor(sql, `massive:index:${roster.indices.at(-1).symbol}`, { attempts: roster.instruments.length, at });
+
+  const first = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(first.ok, true);
+  const stockLane = "tickerbot-stocks";
+  const seededIndex = roster.instruments.length % roster.stocks.length;
+  assert.equal(first.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[(seededIndex + 1) % roster.stocks.length].symbol}`,
+    "the legacy ordinal seeds the lane and rotation continues from there");
+  assert.equal(first.cursorReset, false, "seeding from the legacy ordinal is a migration, not a corruption recovery");
+  const cursor = readLaneCursor(sql, stockLane);
+  assert.match(cursor.lane, /^cursor:tickerbot/, "the lane now owns its own durable cursor row");
+  assert.ok(cursor.attempts > roster.instruments.length, "the legacy ordinal is carried forward, never restarted at zero");
+
+  const second = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
+  assert.equal(second.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[(seededIndex + 2) % roster.stocks.length].symbol}`,
+    "the seeded lane advances by one on the next tick like any other cursor");
 });
 
 test("a stale cursor resumes from its durable ordinal; corrupt cursor state blocks instead of replaying the field", async t => {
@@ -530,14 +606,16 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   seedActiveContracts(recovered.sql, at);
   seedSchedulerControl(recovered.sql, at);
   await primeCryptoRanking({ db: recovered.env.COMMUNITY_DB, seen, at });
-  seedFieldCursor(recovered.sql, "removed:catalog-key", { attempts: 5, at });
+  const stockLane = "tickerbot-stocks";
+  seedLaneCursor(recovered.sql, stockLane, "removed:catalog-key", { attempts: 5, at });
 
   const resumed = await runOrb2FieldTick(recovered.env, null, deps(seen, { at }));
   assert.equal(resumed.cursorReset, true);
-  assert.equal(resumed.workUnit, `tickerbot:1d:${STOCK_SYMBOLS[5]}`,
+  assert.equal(resumed.lanes[stockLane].workUnit, `tickerbot:1d:${STOCK_SYMBOLS[5]}`,
     "the missing stable key uses the saved ordinal and does not replay from roster item zero");
-  assert.equal(resumed.providerRequests, 1);
-  const cursor = recovered.sql.prepare("SELECT lane, attempts FROM orb2_field_queue WHERE symbol='__field_cursor__'").get();
+  assert.equal(resumed.lanes[stockLane].cursorReset, true);
+  assert.equal(resumed.workUnitsByLane.get(stockLane), 1, "recovery still spends exactly one unit of that lane");
+  const cursor = readLaneCursor(recovered.sql, stockLane);
   assert.match(cursor.lane, /^cursor:tickerbot/);
   assert.equal(cursor.attempts, 6);
 
@@ -546,16 +624,26 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   seedActiveContracts(corrupted.sql, at);
   seedSchedulerControl(corrupted.sql, at);
   await primeCryptoRanking({ db: corrupted.env.COMMUNITY_DB, seen: blockedSeen, at });
-  seedFieldCursor(corrupted.sql, "untrusted-key", { attempts: -1, at });
+  seedLaneCursor(corrupted.sql, stockLane, "untrusted-key", { attempts: -1, at });
   const blocked = await runOrb2FieldTick(corrupted.env, null, deps(blockedSeen, { at }));
   assert.equal(blocked.cursorReset, true);
-  assert.equal(blocked.workUnits, 0);
-  assert.equal(blocked.providerRequests, 0);
-  assert.match(blocked.notes.join(" "), /blocked without replaying the field/i);
-  assert.equal(corrupted.sql.prepare("SELECT lane FROM orb2_field_queue WHERE symbol='__field_cursor__'").get().lane, "cursor:blocked-v1");
+  /* Fail-closed is now per lane, and deliberately so. The corrupted row is one
+     lane's durable ordinal; every other lane's cursor is independently valid.
+     Halting the whole field because one lane's ordinal is unreadable would be
+     an availability regression, so the affected lane blocks — spending no unit
+     and no Tickerbot call — while the other lanes keep rotating inside their
+     own envelopes. */
+  assert.equal(blocked.lanes[stockLane].ran, false);
+  assert.equal(blocked.lanes[stockLane].workUnit, null);
+  assert.equal(blocked.lanes[stockLane].cursorReset, true);
+  assert.equal(blocked.workUnitsByLane.get(stockLane) || 0, 0, "a blocked lane spends nothing");
+  assert.equal(blocked.tickerbotCalls, 0, "a blocked lane sends no provider request");
+  assert.match(blocked.notes.join(" "), /blocked without replaying the lane/i);
+  assert.equal(readLaneCursor(corrupted.sql, stockLane).lane, "cursor:blocked-v1");
   const stillBlocked = await runOrb2FieldTick(corrupted.env, null, { now: () => at + 60_000, fetch: providerFetch(blockedSeen) });
-  assert.equal(stillBlocked.workUnits, 0, "corrupt state stays fail-closed instead of silently starting a new whole cycle");
-  assert.equal(stillBlocked.providerRequests, 0);
+  assert.equal(stillBlocked.lanes[stockLane].ran, false, "corrupt state stays fail-closed instead of silently starting a new whole cycle");
+  assert.equal(stillBlocked.tickerbotCalls, 0);
+  assert.equal(readLaneCursor(corrupted.sql, stockLane).lane, "cursor:blocked-v1");
 });
 
 test("priority work claims one row per tick and never mistakes cursor sentinels for queue jobs", async t => {
@@ -574,10 +662,18 @@ test("priority work claims one row per tick and never mistakes cursor sentinels 
   assert.equal(first.workUnit, "queue:1d:AAPL");
   assert.equal(first.queueClaimed, 1);
   assert.equal(first.queueCompleted, 1);
-  assert.equal(first.workUnits, 1);
-  assert.equal(first.providerRequests, 1);
-  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__field_cursor__'").get().attempts, 1,
+  /* Queued work is Tickerbot work, so it spends that lane's single unit and the
+     lane does not also rotate a stock behind it. The other lanes keep their own
+     envelopes and are unaffected by the queue. */
+  assert.equal(first.workUnitsByLane.get("tickerbot-stocks"), 1);
+  assert.equal(first.lanes["tickerbot-stocks"].skipped, true);
+  assert.equal(first.tickerbotCalls, 1, "one queued row costs exactly one Tickerbot request");
+  assert.ok(first.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+  assert.ok(first.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
+  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__field_cursor__' AND reason='field-cursor-v1'").get().attempts, 1,
     "queued work preempts but does not overwrite regular rotation progress");
+  assert.equal(readLaneCursor(sql, "tickerbot-stocks"), undefined,
+    "a preempted lane never touches its own cursor row");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane='hot'").get().count, 1);
 
   const second = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
@@ -585,9 +681,15 @@ test("priority work claims one row per tick and never mistakes cursor sentinels 
   assert.equal(second.queueCompleted, 1);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane='hot'").get().count, 0);
   const rotation = await runOrb2FieldTick(env, null, { now: () => at + 120_000, fetch: providerFetch(seen) });
-  assert.equal(rotation.workUnit, `tickerbot:1d:${STOCK_SYMBOLS[1]}`,
+  assert.equal(rotation.lanes["tickerbot-stocks"].workUnit, `tickerbot:1d:${STOCK_SYMBOLS[1]}`,
     "after the one-row queue drains, scheduled rotation continues from the saved cursor");
   assert.equal(rotation.queueClaimed, 0);
+  /* The lane adopted the whole-field cursor's stored key on its first rotation,
+     so the two queued minutes did not cost the stock lane its position: it
+     resumed from the seeded key and persisted the item it then ran. The lane
+     value is URI-encoded. */
+  assert.equal(readLaneCursor(sql, "tickerbot-stocks").lane,
+    `cursor:${encodeURIComponent(`tickerbot:1d:${STOCK_SYMBOLS[1]}`)}`);
 });
 
 test("scheduled D1 reads stay targeted and row-capped when the observations table is large", async t => {
@@ -609,7 +711,11 @@ test("scheduled D1 reads stay targeted and row-capped when the observations tabl
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, summary.errors.join(" "));
   assert.equal(summary.workUnit, `tickerbot:1d:${STOCK_SYMBOLS[0]}`);
-  assert.equal(summary.workUnits, 1);
+  assert.equal(summary.workUnitsByLane.get("tickerbot-stocks"), 1);
+  /* Every lane now rotates against a 1,500-row table in the same tick, so this
+     is the strongest form of the row-cap guarantee: the derived read budget is
+     lane-count aware and still holds. */
+  assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
   assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
   assert.ok(summary.d1RowsRead <= summary.d1Reads * 12);
@@ -631,9 +737,10 @@ test("the Options field advances discovery and four EOD bars as five separate bo
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
   seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
-  const ranking = JSON.parse(sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get().ranking_json);
-  const roster = orb2FieldRoster({ now: at, cryptoRanking: ranking, commodityContracts: activeContracts(at) });
-  seedFieldCursor(sql, `massive:index:${roster.indices.at(-1).symbol}`, { attempts: roster.instruments.length, at });
+  /* No Options-lane cursor is seeded, so the lane starts at its own first slot
+     (`options:NVDA:0`) and advances one slot per scheduled minute. The other
+     lanes rotate independently in the same ticks; their work is asserted
+     through the per-lane report rather than whole-tick totals. */
 
   const contracts = [
     ["call", 160, "C00160000"], ["call", 195, "C00195000"],
@@ -646,8 +753,11 @@ test("the Options field advances discovery and four EOD bars as five separate bo
     const url = new URL(String(input));
     seen.urls.push(url.toString());
     if (url.pathname === "/v3/reference/options/contracts") {
-      assert.equal(url.searchParams.get("underlying_ticker"), "NVDA");
       assert.equal(url.searchParams.get("limit"), "250", "the existing documented Massive Options request contract stays fixed");
+      /* The lane rotates past NVDA into the next underlying, so the mock answers
+         honestly for any underlying instead of only the one under test: NVDA has
+         a selectable universe, everything else has none. */
+      if (url.searchParams.get("underlying_ticker") !== "NVDA") return Response.json({ results: [] });
       return Response.json({ results: contracts });
     }
     if (decodeURIComponent(url.pathname).startsWith("/v2/aggs/ticker/O:NVDA")) {
@@ -658,15 +768,40 @@ test("the Options field advances discovery and four EOD bars as five separate bo
     return providerFetch(seen)(input);
   };
 
+  /* The Options lane is the longest in the field (52 underlyings x 5 slots), so
+     it spends more than one unit per scheduled minute: each of its units costs
+     exactly one request in Massive's separate 'options' asset-class window, and
+     the lane documents a four-unit budget that leaves headroom inside that
+     window. Discovery plus four EOD bars is therefore still five separate
+     bounded units, but they complete in two minutes rather than five, and the
+     four units inside a minute are taken sequentially so the sliding-window
+     gate still sees one ordered request at a time. */
+  const optionsLane = ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === "massive-options");
+  const optionsUnitBudget = optionsLane.maxWorkUnitsPerTick;
+  assert.equal(optionsUnitBudget, 4);
+  assert.ok(optionsUnitBudget <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+    "the Options lane budget stays inside its own documented per-minute window");
+
   const workUnits = [];
+  let ticks = 0;
   let lastSummary = null;
-  for (let slot = 0; slot < 5; slot += 1) {
-    lastSummary = await runOrb2FieldTick(env, null, { now: () => at + slot * 60_000, fetch });
-    workUnits.push(lastSummary.workUnit);
+  /* The lane keeps rotating past NVDA into the next underlying, which is the
+     point of the larger budget, so only NVDA's five slots are collected here. */
+  while (workUnits.length < 5 && ticks < 8) {
+    lastSummary = await runOrb2FieldTick(env, null, { now: () => at + ticks * 60_000, fetch });
+    ticks += 1;
     assert.equal(lastSummary.ok, true, lastSummary.errors.join(" "));
-    assert.equal(lastSummary.workUnits, 1);
-    assert.equal(lastSummary.optionsCalls, 1);
-    assert.equal(lastSummary.providerRequests, 1);
+    const lane = lastSummary.lanes["massive-options"];
+    workUnits.push(...lane.workUnits.filter(key => key.startsWith("options:NVDA:")));
+    /* Per-minute envelope: never more units or Options requests than the lane
+       budget, and never more than the asset-class window allows. */
+    assert.equal(lastSummary.workUnitsByLane.get("massive-options"), lane.workUnits.length);
+    assert.ok(lane.workUnits.length <= optionsUnitBudget);
+    assert.equal(lastSummary.optionsCalls, lane.providerCalls,
+      "every request this lane sent is charged to the Options asset-class window");
+    assert.ok(lastSummary.optionsCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+    assert.ok(lastSummary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+    assert.ok(lastSummary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     assert.ok(lastSummary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(lastSummary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
     assert.ok(stats.maxRowsPerRead <= 12);
@@ -674,12 +809,21 @@ test("the Options field advances discovery and four EOD bars as five separate bo
   assert.deepEqual(workUnits, [
     "options:NVDA:0", "options:NVDA:1", "options:NVDA:2", "options:NVDA:3", "options:NVDA:4"
   ]);
+  assert.equal(ticks, 2, "the five slots complete in two scheduled minutes, not five");
   assert.equal(lastSummary.optionsObserved, 1, "the fifth cursor slot completes the four-contract EOD field");
   const stored = sql.prepare("SELECT selection_json, bars_json, status FROM orb2_options_observations WHERE symbol='NVDA'").get();
   assert.equal(stored.status, "ready");
   assert.equal(JSON.parse(stored.selection_json).length, 4);
   assert.equal(JSON.parse(stored.bars_json).length, 4);
-  assert.equal(seen.urls.filter(url => url.includes("/v3/reference/options/contracts")).length, 1,
+  /* Scoped to NVDA: a cached selected universe is not rediscovered while its
+     four daily bars are filled. Other underlyings the lane reached in the same
+     minutes are outside this test's subject. */
+  const discoveryUrls = seen.urls.filter(url => {
+    const parsed = new URL(url);
+    return parsed.pathname === "/v3/reference/options/contracts" &&
+      parsed.searchParams.get("underlying_ticker") === "NVDA";
+  });
+  assert.equal(discoveryUrls.length, 1,
     "a cached selected universe is not rediscovered while its four daily bars are filled");
   assert.equal(seen.urls.filter(url => decodeURIComponent(new URL(url).pathname).startsWith("/v2/aggs/ticker/O:NVDA")).length, 4);
 });
@@ -725,7 +869,9 @@ test("one FX work unit may use exactly the two-request Massive-to-Alpha fallback
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
-  seedFieldCursor(sql, `tickerbot:1d:${STOCK_SYMBOLS.at(-1)}`, { at });
+  /* No cursor is seeded: the FX lane owns its own cursor and starts at its own
+     first reviewed pair, so the unit under test is selected by the lane rather
+     than by a position in a flattened whole-field list. */
   env.ORB2_FX_PROVIDER_MODE = "fallback";
   env.ALPHA_VANTAGE_API_KEY = "test-alpha-key";
   const fallbackSeries = Object.create(null);
@@ -749,16 +895,28 @@ test("one FX work unit may use exactly the two-request Massive-to-Alpha fallback
   };
   const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch });
   assert.equal(summary.ok, true);
-  assert.equal(summary.workUnit, "massive:fx:EURUSD");
-  assert.equal(summary.workUnits, 1, "provider fallback remains inside the selected instrument's one work unit");
-  assert.equal(summary.providerRequests, 2, "the fallback is structurally capped at Massive plus one Alpha Vantage request");
+  const fx = summary.lanes["massive-fx"];
+  assert.equal(fx.workUnit, "massive:fx:EURUSD");
+  assert.equal(summary.workUnitsByLane.get("massive-fx"), 1,
+    "provider fallback remains inside the selected instrument's one work unit");
+  assert.equal(fx.providerCalls, 2, "the fallback is structurally capped at Massive plus one Alpha Vantage request");
+  assert.equal(fx.maxProviderCallsPerUnit, 2, "the FX lane is the only lane reviewed for a two-request unit");
   assert.equal(summary.alphaVantageCalls, 1);
   assert.deepEqual(seen.alphaVantage, ["EURUSD"]);
-  assert.equal(seen.massive.length, 1);
-  assert.equal(summary.held, 1);
-  assert.equal(summary.observed, 0, "the Alpha-only rescue remains outside the field's canonical Massive/Tickerbot/Kraken observation schema");
+  assert.equal(seen.massive.filter(entry => entry.includes("EURUSD")).length, 1,
+    "exactly one Massive request is attempted for the pair before the fallback");
+  assert.equal(fx.held, 1);
+  assert.equal(fx.observed, 0, "the Alpha-only rescue remains outside the field's canonical Massive/Tickerbot/Kraken observation schema");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND symbol='EURUSD'").get().count, 0,
     "fallback output is never mislabeled as a Massive field observation");
+  /* Every other lane stays inside its own single-request ceiling in the same
+     tick, which is the point of bounding per lane rather than only in total. */
+  for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
+    const entry = summary.lanes[laneId];
+    if (!entry) continue;
+    assert.ok(entry.providerCalls <= entry.maxProviderCallsPerUnit,
+      `the ${laneId} lane stayed inside its own provider ceiling (${entry.providerCalls}/${entry.maxProviderCallsPerUnit})`);
+  }
 });
 
 test("cold warm-up restores its cursor after a provider preflight refusal with no upstream attempt", async t => {
@@ -772,8 +930,11 @@ test("cold warm-up restores its cursor after a provider preflight refusal with n
   const refused = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(refused.workUnit, "warm:15m:NVDA");
   assert.equal(refused.warmProgressed, 0);
-  assert.equal(refused.providerRequests, 0);
+  /* Scoped to the Tickerbot lane: the other lanes draw from Kraken and Massive
+     envelopes the exhausted Tickerbot ledger says nothing about, so they still
+     run. What must not happen is a Tickerbot request. */
   assert.equal(refused.tickerbotCalls, 0);
+  assert.equal(refused.lanes["tickerbot-stocks"].providerCalls, 0);
   assert.deepEqual(seen.tickerbot, [], "the exhausted allowance is checked before fetch");
   let cursor = sql.prepare("SELECT lane, attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get();
   assert.equal(cursor.lane, "cursor:warm-v1");
@@ -783,7 +944,7 @@ test("cold warm-up restores its cursor after a provider preflight refusal with n
   const admitted = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
   assert.equal(admitted.workUnit, "warm:15m:NVDA", "the same work item resumes after admission is available");
   assert.equal(admitted.warmProgressed, 1);
-  assert.equal(admitted.providerRequests, 1);
+  assert.equal(admitted.tickerbotCalls, 1, "one admitted warm unit costs exactly one Tickerbot request");
   assert.deepEqual(seen.tickerbot, ["NVDA:15m"]);
   cursor = sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get();
   assert.equal(cursor.attempts, 1);
@@ -807,8 +968,8 @@ test("an attempted warm-up failure advances one unit and does not replay the col
   const failed = await runOrb2FieldTick(env, null, { now: () => at, fetch });
   assert.equal(failed.workUnit, "warm:15m:NVDA");
   assert.equal(failed.warmProgressed, 1, "an actual attempted upstream refusal is recorded and advanced");
-  assert.equal(failed.providerRequests, 1);
-  assert.equal(failed.held, 1);
+  assert.equal(failed.tickerbotCalls, 1, "the attempted refusal did reach the provider exactly once");
+  assert.ok(failed.held >= 1, "the attempted refusal is represented by a bounded held berth");
   const held = sql.prepare("SELECT status, provider FROM orb2_field_observations WHERE symbol='NVDA' AND interval='15m'").get();
   assert.equal(held.status, "unavailable");
   assert.equal(held.provider, "tickerbot");
@@ -827,22 +988,37 @@ test("automatic cold warm-up advances one durable work item per tick without a 1
   for (let tick = 0; tick < ORB2_FIELD_TICKERBOT_BURST_CALLS; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, summary.errors.join(" "));
-    assert.equal(summary.workUnits, 1);
     assert.equal(summary.warmProgressed, 1);
-    assert.equal(summary.providerRequests, 1);
     assert.equal(summary.tickerbotCalls, 1);
-    assert.equal(summary.massiveCalls, 0);
-    assert.equal(summary.krakenCalls, 0);
+    /* Cold calibration still advances exactly one durable Tickerbot unit per
+       tick and still never materializes the 156-row burst. It no longer
+       suppresses the other lanes, which spend their own Kraken and Massive
+       allowances in the same minute — so the whole-tick unit count is the sum
+       of the lanes, and the per-lane caps are what stay at one. */
+    assert.equal(summary.workUnitsByLane.get("tickerbot-stocks"), 1);
+    assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+    assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
+    for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
+      assert.ok((summary.workUnitsByLane.get(laneId) || 0) <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK,
+        `the ${laneId} lane spends at most one unit per scheduled minute`);
+    }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
   }
   assert.equal(seen.tickerbot.length, ORB2_FIELD_TICKERBOT_BURST_CALLS);
   assert.equal(new Set(seen.tickerbot).size, ORB2_FIELD_TICKERBOT_BURST_CALLS, "no interval/symbol is beaten twice during cursor progression");
-  assert.equal(seen.krakenRanking.length, 0, "the selected warm unit preempts all other providers");
+  assert.ok(seen.krakenRanking.length >= 1,
+    "the crypto lane warms its own ranking in parallel; it never spends a Tickerbot allowance");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE provider='tickerbot'").get().count, 156);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane IN ('hot','sweep')").get().count, 0);
-  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue").get().count, 1,
-    "only the persisted cursor sentinel exists; the scheduler does not enqueue the full batch");
+  /* The queue table holds cursor sentinels, not queued jobs. There is the warm
+     cursor plus one durable cursor per lane that rotated — still a handful of
+     rows, and still nowhere near the 156-job burst the old design avoided. */
+  const sentinelRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE interval='__orb2_scheduler__'").get().count;
+  assert.ok(sentinelRows <= 1 + ORB2_FIELD_LANE_COUNT,
+    `only cursor sentinels are persisted (${sentinelRows}); the scheduler does not enqueue the full batch`);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane IN ('hot','sweep')").get().count, 0,
+    "no sentinel is ever claimable as a queued job");
   assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get().attempts, 156);
   assert.equal(sql.prepare("SELECT attempted_calls AS calls FROM tickerbot_call_ledger").get().calls, 156,
     "every Tickerbot attempt remains recorded in the durable monthly ledger");
@@ -883,15 +1059,24 @@ test("durable provider budgets hold refused queue work and the legacy Massive da
   seedActiveContracts(second.sql, massiveAt);
   seedSchedulerControl(second.sql, massiveAt);
   await primeCryptoRanking({ db: second.env.COMMUNITY_DB, seen: massiveSeen, at: massiveAt });
-  seedFieldCursor(second.sql, `tickerbot:1d:${STOCK_SYMBOLS.at(-1)}`, { at: massiveAt });
+  /* The old fixture positioned a single whole-field cursor on the last stock so
+     the next flattened item would be the first FX pair. Lanes own their own
+     cursors now, so the FX lane simply starts at its own first reviewed pair;
+     which pair that is is not what this test is about. */
   const telemetry = await runOrb2FieldTick(second.env, null, deps(massiveSeen, { at: massiveAt }));
-  assert.equal(telemetry.workUnit, "massive:fx:EURUSD");
-  assert.equal(telemetry.massiveCalls, 1, "one FX unit uses the unchanged Massive pacing gate");
-  assert.equal(telemetry.providerRequests, 1);
-  assert.equal(massiveSeen.massive.length, 1);
+  assert.match(telemetry.lanes["massive-fx"].workUnit, /^massive:fx:/);
+  assert.equal(telemetry.lanes["massive-fx"].providerCalls, 1,
+    "one FX unit uses the unchanged Massive pacing gate");
+  assert.equal(massiveSeen.massive.filter(entry => entry.startsWith("C:")).length, 1,
+    "the currencies window spent exactly one request");
   const ledger = second.sql.prepare("SELECT attempted_calls AS calls FROM massive_daily_call_ledger WHERE utc_day='2026-10-05'").get();
-  assert.equal(ledger.calls, 301,
-    "Massive D1 telemetry records admitted provider attempts without imposing the historical daily ceiling");
+  /* The daily ledger was seeded already exhausted at its historical 300 ceiling.
+     Every Massive lane still got through, because that ceiling is telemetry and
+     not a provider gate — the count simply kept climbing past it. */
+  assert.ok(ledger.calls > 300,
+    `Massive D1 telemetry records admitted provider attempts without imposing the historical daily ceiling (got ${ledger.calls})`);
+  assert.equal(ledger.calls, 300 + telemetry.massiveCalls,
+    "each admitted Massive attempt is recorded exactly once");
 });
 
 test("a missing Worker secret and a missing binding fail closed with a readable reason", async t => {
@@ -984,10 +1169,11 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   for (let tick = 0; tick < ticksForOnePass; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, `snapshot fixture tick ${tick}: ${summary.errors.join(" ")}`);
-    assert.equal(summary.workUnits, 1);
+    assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
-    if (summary.workUnit?.startsWith("massive:index:") && !summary.massiveCalls) {
-      noCallIndexUnits.push({ workUnit: summary.workUnit, notes: summary.notes, errors: summary.errors });
+    const indexUnit = summary.lanes["massive-indices"]?.workUnit;
+    if (indexUnit?.startsWith("massive:index:") && !summary.massiveCalls) {
+      noCallIndexUnits.push({ workUnit: indexUnit, notes: summary.notes, errors: summary.errors });
     }
   }
   assert.equal(seen.massive.length, roster.fx.length + roster.commodities.length + roster.indices.length,
@@ -1333,16 +1519,21 @@ test("failed work advances the durable cursor, records a held berth, and retries
     return normalFetch(url, options);
   };
 
-  const rankingTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: customFetch });
-  assert.equal(rankingTick.workUnit, "kraken:ranking", "ranking refresh is a separate bounded work unit");
-  assert.equal(rankingTick.providerRequests, 1);
-  assert.equal(rankingTick.massiveCalls, 0);
-  assert.equal(rankingTick.krakenCalls, 1);
+  /* Ranking discovery, contract discovery, and the failing FX unit used to need
+     three separate Cron minutes because one work unit consumed the whole tick.
+     They are three different provider envelopes, so all three now happen in the
+     same minute — each lane spending exactly one unit, each failure recorded
+     against its own instrument, and each backoff still honoured afterwards. */
+  const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: customFetch });
+  assert.equal(firstTick.ok, true, firstTick.errors.join(" "));
 
-  const contractTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
-  assert.equal(contractTick.workUnit, "massive:futures-contract-discovery");
-  assert.equal(contractTick.providerRequests, 1);
-  assert.equal(contractTick.massiveCalls, 1);
+  assert.equal(firstTick.lanes["kraken-crypto"].workUnit, "kraken:ranking",
+    "ranking refresh is a separate bounded work unit of the crypto lane");
+  assert.equal(firstTick.lanes["kraken-crypto"].providerCalls, 1);
+  assert.equal(firstTick.krakenCalls, 1);
+
+  assert.equal(firstTick.lanes["massive-futures"].workUnit, "massive:futures-contract-discovery");
+  assert.equal(firstTick.lanes["massive-futures"].providerCalls, 1);
   assert.deepEqual(seen.contracts, ["CL"]);
   seen.contracts.length = 0;
   const clRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='commodities' AND symbol='WTI'").get();
@@ -1351,22 +1542,34 @@ test("failed work advances the durable cursor, records a held berth, and retries
   assert.equal(clPayload.status, "unavailable");
   assert.equal(clPayload.discId, "commodities");
 
-  const failedFxTick = await runOrb2FieldTick(env, null, { now: () => at + 120_000, fetch: customFetch });
-  assert.equal(failedFxTick.workUnit, "massive:fx:AUDUSD");
-  assert.equal(failedFxTick.providerRequests, 1);
-  assert.equal(failedFxTick.massiveCalls, 1);
+  assert.equal(firstTick.lanes["massive-fx"].workUnit, "massive:fx:AUDUSD",
+    "the FX lane resumed from the seeded key and selected the failing instrument");
+  assert.equal(firstTick.lanes["massive-fx"].providerCalls, 1);
+  assert.equal(firstTick.lanes["massive-fx"].held, 1);
   const fxRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='fx' AND symbol='AUDUSD'").get();
   assert.ok(fxRow, "a provider failure is stored against its selected instrument");
   assert.equal(JSON.parse(fxRow.payload).status, "unavailable");
 
-  const nextTick = await runOrb2FieldTick(env, null, { now: () => at + 180_000, fetch: customFetch });
-  assert.notEqual(nextTick.workUnit, "massive:fx:AUDUSD", "the failed instrument does not pin or rewind the rolling cursor");
+  /* Massive's three non-Options lanes each spent one request in their own
+     per-asset-class window: currencies, futures and indices. That is three
+     envelopes spending one request each, never one envelope spending three. */
+  assert.equal(firstTick.massiveCalls, 3);
+  for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
+    const entry = firstTick.lanes[laneId];
+    if (!entry) continue;
+    assert.ok(entry.providerCalls <= entry.maxProviderCallsPerUnit,
+      `the ${laneId} lane stayed inside its own provider ceiling`);
+  }
+
+  const nextTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
+  assert.notEqual(nextTick.lanes["massive-fx"].workUnit, "massive:fx:AUDUSD",
+    "the failed instrument does not pin or rewind the rolling cursor");
   assert.equal(seen.failedFx.length, 1, "the existing six-hour held-observation backoff is not retried next minute");
   assert.ok(!seen.contracts.includes("CL"), "the existing 15-minute contract retry cooldown remains in force");
 
-  const retryAt = at + 60_000 + MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS + 1_000;
+  const retryAt = at + MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS + 1_000;
   const retryTick = await runOrb2FieldTick(env, null, { now: () => retryAt, fetch: customFetch });
-  assert.equal(retryTick.workUnit, "massive:futures-contract-discovery");
+  assert.equal(retryTick.lanes["massive-futures"].workUnit, "massive:futures-contract-discovery");
   assert.deepEqual(seen.contracts, ["CL"],
     "the held commodity contract is retried only when its unchanged provider cooldown expires");
   const snapshotRes = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => retryAt });
@@ -1374,4 +1577,323 @@ test("failed work advances the durable cursor, records a held berth, and retries
   const discMap = Object.fromEntries(data.status.discs.map(d => [d.id, d]));
   assert.equal(discMap.commodities.instruments, 11, "held contract discovery never shrinks the reviewed Disc4 denominator");
   CLOCK = retryAt;
+});
+
+/* ── the parallel/sequential lane model ─────────────────────────────────
+   These lock in the invariants the lane split depends on: one unit per lane per
+   minute, each lane inside its own provider envelope, a full rotation bounded by
+   the longest lane rather than the sum of the lanes, real containment when one
+   lane throws, and a D1 budget that charges every statement exactly once. */
+
+test("every provider lane advances inside its own envelope in the same scheduled minute", async t => {
+  const { sql, env } = fixture(t, { options: true });
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
+  const at = nextClock();
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+  await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+
+  const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(summary.ok, true, summary.errors.join(" "));
+
+  /* Every reviewed lane advanced in the same scheduled minute, each spending its
+     own documented unit budget. Most lanes own a whole provider request per
+     unit, so their budget is one; a lane may document more only where its own
+     asset-class window has the headroom. */
+  const budgets = new Map();
+  for (const lane of ORB2_FIELD_PROVIDER_LANES) {
+    budgets.set(lane.id, lane.maxWorkUnitsPerTick || ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK);
+  }
+  for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
+    const entry = summary.lanes[laneId];
+    assert.ok(entry && entry.ran, `the ${laneId} lane reported its own work`);
+    assert.equal(summary.workUnitsByLane.get(laneId), entry.workUnits.length,
+      `the ${laneId} lane counted every unit it ran`);
+    assert.equal(entry.workUnits.length, budgets.get(laneId),
+      `the ${laneId} lane spent exactly its own unit budget`);
+    assert.equal(entry.unitBudget, budgets.get(laneId),
+      `the ${laneId} lane reports the budget it was given`);
+    assert.ok(entry.workUnit && entry.workUnit === entry.workUnits[0],
+      `the ${laneId} lane names the first unit it ran`);
+    /* The binding guarantee is per lane, because that is what maps to an
+       envelope: a lane's units times its per-unit ceiling. */
+    assert.ok(entry.providerCalls <= entry.callCeiling,
+      `the ${laneId} lane stayed inside its own provider ceiling (${entry.providerCalls}/${entry.callCeiling})`);
+    assert.equal(entry.callCeiling, entry.unitBudget * entry.maxProviderCallsPerUnit,
+      `the ${laneId} ceiling is derived from its own budget, not hand-tuned`);
+  }
+  assert.equal(summary.workUnits, ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK,
+    "the whole-tick unit total is the sum of the lane budgets");
+  assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
+  assert.ok(summary.providerRequests >= ORB2_FIELD_LANE_COUNT,
+    "parallel lanes really did spend more than the old single-unit tick in one minute");
+  assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
+  assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  /* Massive's allowance is documented per asset class, so the guarantee that
+     matters is the per-class total across the whole tick, not the lane count. */
+  const perClass = new Map();
+  for (const lane of ORB2_FIELD_PROVIDER_LANES.filter(l => l.provider === "massive")) {
+    const entry = summary.lanes[lane.id];
+    perClass.set(lane.assetClass, (perClass.get(lane.assetClass) || 0) + (entry ? entry.providerCalls : 0));
+  }
+  for (const [assetClass, calls] of perClass) {
+    assert.ok(calls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+      `Massive asset class "${assetClass}" stayed inside its per-minute window (${calls}/${ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS})`);
+  }
+  /* Massive's per-minute allowance is documented per asset class, so three
+     Massive lanes spending one request each is three separate windows. */
+  const massiveLanes = ORB2_FIELD_PROVIDER_LANES.filter(lane => lane.provider === "massive");
+  assert.ok(massiveLanes.length >= 3, "the reviewed Massive lanes cover distinct asset classes");
+  const byClass = new Set(massiveLanes.map(lane => lane.assetClass));
+  assert.equal(byClass.size, massiveLanes.length, "no two Massive lanes share one asset-class window");
+  CLOCK = at + 60_000;
+});
+
+test("a full field rotation is bounded by the longest lane, not the sum of all lanes", async t => {
+  const { sql, env, stats } = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
+  const at = nextClock();
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+  const ranking = await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
+  const roster = orb2FieldRoster({ now: at, cryptoRanking: ranking, commodityContracts: activeContracts(at) });
+
+  /* The former single-cursor tick needed one minute per reviewed instrument.
+     With lanes advancing together, a full pass needs one minute per instrument
+     in the longest lane only. */
+  const sequentialMinutes = roster.instruments.length;
+  const longestLane = Math.max(
+    roster.stocks.length,
+    roster.crypto.length + roster.cryptoPairs.length,
+    roster.fx.length,
+    roster.commodities.length,
+    roster.indices.length
+  );
+  assert.ok(longestLane < sequentialMinutes,
+    `the longest lane (${longestLane}) is shorter than the whole flattened field (${sequentialMinutes})`);
+
+  stats.reset();
+  const covered = new Set();
+  for (let tick = 0; tick < longestLane; tick += 1) {
+    const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
+    assert.equal(summary.ok, true, `rotation tick ${tick}: ${summary.errors.join(" ")}`);
+    assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+    assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
+    assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS, `tick ${tick} read budget`);
+    assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES, `tick ${tick} write budget`);
+    for (const entry of Object.values(summary.lanes)) if (entry.workUnit) covered.add(entry.workUnit);
+  }
+
+  /* Every reviewed berth in every Disc was reached inside the longest lane's
+     span — the throughput claim, measured rather than asserted from constants. */
+  const storedSymbols = new Set(sql.prepare(
+    "SELECT DISTINCT symbol FROM orb2_field_observations WHERE interval='1d' AND status='bars'"
+  ).all().map(row => row.symbol));
+  for (const instrument of roster.instruments) {
+    assert.ok(storedSymbols.has(instrument.symbol),
+      `${instrument.discId}:${instrument.symbol} was observed within ${longestLane} scheduled minutes`);
+  }
+  assert.ok(covered.size >= roster.instruments.length,
+    `the lanes covered the reviewed field (${covered.size} units over ${longestLane} ticks)`);
+  CLOCK = at + longestLane * 60_000;
+});
+
+test("one lane that throws is contained, and the other lanes still rotate", async t => {
+  const base = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
+  const at = nextClock();
+  seedActiveContracts(base.sql, at);
+  seedSchedulerControl(base.sql, at);
+  await primeCryptoRanking({ db: base.env.COMMUNITY_DB, seen, at });
+
+  /* Poison exactly one lane: the index lane's own durable cursor read throws,
+     the way an unexpected D1 fault would in production. Nothing else is touched,
+     so this isolates containment from ordinary provider refusals (which adapters
+     already return as values rather than raising). */
+  const poisonedReason = "field-cursor-v1:massive-indices";
+  const realDb = base.env.COMMUNITY_DB;
+  const poisonDb = {
+    prepare(query) {
+      const statement = realDb.prepare(query);
+      const isCursorRead = /FROM\s+orb2_field_queue/i.test(String(query)) && /reason\s*=\s*\?/i.test(String(query));
+      let bound = [];
+      return {
+        bind(...values) { bound = values; statement.bind(...values); return this; },
+        async first(...args) {
+          if (isCursorRead && bound.includes(poisonedReason)) throw new Error("simulated D1 fault on one lane cursor");
+          return statement.first(...args);
+        },
+        all: (...args) => statement.all(...args),
+        run: (...args) => statement.run(...args)
+      };
+    },
+    batch: statements => realDb.batch(statements)
+  };
+
+  const summary = await runOrb2FieldTick({ ...base.env, COMMUNITY_DB: poisonDb }, null, deps(seen, { at }));
+  assert.equal(summary.ok, true, "one lane's fault does not fail the tick");
+  assert.ok(summary.errors.some(error => /provider lane failed and was contained/i.test(error)),
+    "the contained failure is reported rather than swallowed silently");
+  assert.ok(summary.errors.some(error => /simulated D1 fault/i.test(error)),
+    "the underlying fault is named, not flattened into a generic lane error");
+  assert.equal(summary.lanes["massive-indices"], undefined, "the failed lane reports no work");
+  assert.equal(summary.workUnitsByLane.get("massive-indices") || 0, 0, "the failed lane spent no unit");
+
+  /* The other lanes are untouched: they rotated normally in the same minute.
+     The Options lane is excluded because this fixture has not applied migration
+     0013, so it is dormant by design rather than affected by the fault. */
+  const runnableLanes = ORB2_FIELD_WORK_LANE_IDS.filter(laneId => laneId !== "massive-options");
+  for (const laneId of runnableLanes) {
+    if (laneId === "massive-indices") continue;
+    const entry = summary.lanes[laneId];
+    assert.ok(entry, `the ${laneId} lane reported`);
+    assert.equal(entry.ran, true, `the ${laneId} lane still ran despite another lane throwing`);
+    assert.ok(entry.providerCalls <= entry.maxProviderCallsPerUnit);
+  }
+  assert.ok(summary.workUnits >= runnableLanes.length - 1,
+    "at most one lane's unit was lost to the simulated fault");
+  CLOCK = at + 60_000;
+});
+
+test("independent snapshot status reads overlap under the read-concurrency bound", async t => {
+  const { sql, env } = fixture(t);
+  const at = nextClock();
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+
+  /* The fixture's statements resolve immediately, so overlap is unobservable
+     without real latency. Add a small delay and count in-flight reads. */
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const realDb = env.COMMUNITY_DB;
+  const wrapStatement = (statement, isRead) => ({
+    bind(...values) { return wrapStatement(statement.bind(...values), isRead); },
+    async first(...args) {
+      if (!isRead) return statement.first(...args);
+      inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
+      try { await new Promise(resolve => setTimeout(resolve, 4)); return await statement.first(...args); }
+      finally { inFlight -= 1; }
+    },
+    async all(...args) {
+      if (!isRead) return statement.all(...args);
+      inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
+      try { await new Promise(resolve => setTimeout(resolve, 4)); return await statement.all(...args); }
+      finally { inFlight -= 1; }
+    },
+    async run(...args) { return statement.run(...args); }
+  });
+  const isReadQuery = query => /^\s*(?:SELECT|WITH|PRAGMA|EXPLAIN)\b/i.test(String(query));
+  const trackingDb = {
+    prepare(query) { return wrapStatement(realDb.prepare(query), isReadQuery(query)); },
+    batch: statements => realDb.batch(statements)
+  };
+
+  const started = Date.now();
+  const snapshot = await readOrb2FieldSnapshot({ ...env, COMMUNITY_DB: trackingDb }, { now: at });
+  const elapsed = Date.now() - started;
+  assert.equal(snapshot.ok, true, snapshot.message || "");
+  assert.ok(maxInFlight > 1,
+    `independent status reads really did overlap (max ${maxInFlight} in flight)`);
+  assert.ok(maxInFlight <= ORB2_FIELD_D1_READ_CONCURRENCY,
+    `the fan-out stayed inside the reviewed bound (${maxInFlight}/${ORB2_FIELD_D1_READ_CONCURRENCY})`);
+  /* Nine status reads at four milliseconds each would take ~36ms serialized;
+     overlapping them must come in materially under that. */
+  assert.ok(elapsed < 36, `bounded overlap beat the serialized baseline (${elapsed}ms)`);
+});
+
+test("the D1 budget charges every statement exactly once, including batched statements", async t => {
+  const { sql, env, stats } = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
+  const at = nextClock();
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+  await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
+  /* A stock holding both scales makes refreshStoredComposition batch two
+     independent UPDATEs into one D1 round trip. */
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+
+  stats.reset();
+  const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  assert.equal(summary.ok, true, summary.errors.join(" "));
+  /* The budget the Worker enforces must equal the statements actually executed.
+     A batch that charged twice — or charged a SELECT to the reserved write
+     allowance — would diverge here, and would eventually fail a legitimate tick
+     closed for no real reason. */
+  assert.equal(summary.d1Reads, stats.reads,
+    "the enforced read budget counts each executed read exactly once");
+  assert.equal(summary.d1Writes, stats.writes,
+    "the enforced write budget counts each executed write exactly once, batches included");
+  assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  CLOCK = at + 60_000;
+});
+
+test("a multi-unit lane spends its units sequentially, so its provider window sees ordered requests", async t => {
+  const { sql, env } = fixture(t, { options: true });
+  const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
+  const at = nextClock();
+  seedActiveContracts(sql, at);
+  seedSchedulerControl(sql, at);
+  await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+
+  /* A lane may spend several units per tick only because its own asset-class
+     window has the headroom. That reasoning depends on the units being taken
+     one after another: a sliding-window gate cannot order requests that
+     overlap. So the invariant under test is that the Options lane never has two
+     of its own requests in flight at once, even though the other lanes run
+     alongside it in the same minute. */
+  let optionsInFlight = 0;
+  let maxOptionsInFlight = 0;
+  let otherInFlight = 0;
+  let maxOtherInFlight = 0;
+  const order = [];
+  const isOptions = url => url.pathname === "/v3/reference/options/contracts" ||
+    decodeURIComponent(url.pathname).startsWith("/v2/aggs/ticker/O:");
+  const label = url => url.searchParams.get("underlying_ticker") || decodeURIComponent(url.pathname);
+  const fetch = async input => {
+    const url = new URL(String(input));
+    if (isOptions(url)) {
+      optionsInFlight += 1;
+      maxOptionsInFlight = Math.max(maxOptionsInFlight, optionsInFlight);
+      order.push(`start:${label(url)}`);
+      try {
+        const response = await providerFetch(seen)(input);
+        order.push(`end:${label(url)}`);
+        return response;
+      } finally {
+        optionsInFlight -= 1;
+      }
+    }
+    otherInFlight += 1;
+    maxOtherInFlight = Math.max(maxOtherInFlight, otherInFlight);
+    try {
+      return await providerFetch(seen)(input);
+    } finally {
+      otherInFlight -= 1;
+    }
+  };
+
+  const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch });
+  assert.equal(summary.ok, true, summary.errors.join(" "));
+  const lane = summary.lanes["massive-options"];
+  const budget = ORB2_FIELD_PROVIDER_LANES
+    .find(definition => definition.id === "massive-options").maxWorkUnitsPerTick;
+
+  assert.equal(lane.workUnits.length, budget,
+    "the lane really did spend its whole multi-unit budget in one minute");
+  assert.equal(maxOptionsInFlight, 1,
+    "the lane's own requests never overlap, so its sliding-window gate stays meaningful");
+  assert.ok(maxOtherInFlight >= 1, "the other lanes still ran alongside it");
+  /* No second start appears before the first end: that is sequentiality,
+     expressed over the recorded order rather than over wall-clock timing. */
+  let depth = 0;
+  for (const event of order) {
+    depth += event.startsWith("start:") ? 1 : -1;
+    assert.ok(depth >= 0 && depth <= 1, `the Options request stream stayed sequential at "${event}"`);
+  }
+  assert.equal(depth, 0, "every Options request the lane started also finished");
+  assert.ok(lane.providerCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+    "the whole multi-unit minute stayed inside the asset-class window");
+  CLOCK = at + 60_000;
 });

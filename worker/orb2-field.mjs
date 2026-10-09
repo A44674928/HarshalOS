@@ -2,15 +2,43 @@
  * HarshalOS — Orb 2 server-side beat field.
  *
  * The beat is a server responsibility. A Cloudflare Cron Trigger calls
- * `runOrb2FieldTick()` every minute; a D1 stable-key cursor selects at most one
- * scheduled work unit (with a hard two-fetch ceiling for the existing FX
- * fallback). The tick preserves Massive's five-per-minute provider envelope,
+ * `runOrb2FieldTick()` every minute.
+ *
+ * The tick is optimized for parallel and sequential work at the same time by
+ * splitting it into provider lanes (see ORB2_FIELD_PROVIDER_LANES). A lane is
+ * one independently rate-limited provider envelope, and each owns its own D1
+ * stable-key cursor:
+ *
+ *   · PARALLEL ACROSS LANES. Lanes advance in the same minute because spending
+ *     an allowance in one cannot spend an allowance in another. Each lane spends
+ *     its own documented unit budget: one unit per scheduled minute for every
+ *     lane whose provider costs a whole request per unit — exactly what the
+ *     former single-cursor tick did for the whole field — and more only where
+ *     the lane can point at spare headroom inside its own envelope. The FX lane
+ *     keeps its reviewed two-fetch ceiling for the Massive-to-Alpha fallback.
+ *     Because a full rotation is bounded by the longest single lane rather than
+ *     the sum of the lanes, the budget is spent where the field is deepest.
+ *   · SEQUENTIAL WITHIN A LANE. Provider calls inside a lane stay ordered, and a
+ *     lane that spends several units in one minute takes them one after another,
+ *     because that ordering is what makes a sliding-window envelope meaningful.
+ *     Statements that mutate scheduler state also stay ordered, so the
+ *     single-writer lease and the cursor-advance-before-fetch crash guarantee
+ *     keep their meaning.
+ *   · PARALLEL READS, BOUNDED. D1 reads with no ordering dependency are issued
+ *     together under ORB2_FIELD_D1_READ_CONCURRENCY. Waiting on I/O is not
+ *     Worker CPU time, so this lowers wall-clock latency at essentially
+ *     unchanged CPU cost; the bound is what keeps peak in-flight buffers small.
+ *
+ * The tick preserves Massive's five-per-minute-per-asset-class envelope,
  * Kraken's one-per-second gate and UTC-day safety ceiling, and Tickerbot's
- * UTC-month ledger; the historical Massive daily count remains telemetry. It
- * fetches one reviewed instrument, runs the same
+ * UTC-month ledger; the historical Massive daily count remains telemetry. Each
+ * unit fetches one reviewed instrument, runs the same
  * `js/good-intelligence-market-context.js` evaluation and
  * `js/characters-beat.js` motion directive the browser would have run, and stores
  * one compact observation per instrument in D1.
+ *
+ * Because the lanes advance together, one full rotation of the field is bounded
+ * by the longest single lane rather than by the sum of all of them.
  *
  * Browsers never call a provider and never own the schedule:
  *
@@ -119,20 +147,107 @@ const ORB2_MASSIVE_DISCS_BY_ASSET_CLASS = Object.freeze({
   indices: Object.freeze(["indices"])
 });
 export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
-/* A scheduled invocation claims or generates no more than one provider work
-   unit. FX dual/fallback mode is the one reviewed unit that can make two calls. */
+
+/* ── provider lanes ───────────────────────────────────────────────────────
+ *
+ * A lane is one independently rate-limited provider envelope. Lanes run in
+ * PARALLEL with each other because spending an allowance in one cannot spend an
+ * allowance in another; work inside a lane stays SEQUENTIAL because that is what
+ * keeps the envelope meaningful.
+ *
+ *   tickerbot-stocks   Tickerbot            UTC-month ledger
+ *   kraken-crypto      Kraken public Spot    one request/second + UTC-day ceiling
+ *   massive-fx         Massive 'currencies'  five requests/minute
+ *   massive-futures    Massive 'futures'     five requests/minute
+ *   massive-indices    Massive 'indices'     five requests/minute
+ *   massive-options    Massive 'options'     five requests/minute
+ *
+ * Massive's five-per-minute allowance is documented per asset class and is
+ * enforced by a synchronous, per-class sliding window in `worker/massive.mjs`,
+ * so the four Massive lanes draw from four separate windows. The Kraken and
+ * Tickerbot ledgers claim through an atomic `UPSERT … WHERE <predicate>
+ * RETURNING`, which stays race-safe even if two isolates overlap. Nothing here
+ * relaxes a provider envelope: a lane spends its own documented unit budget,
+ * which is one work unit per scheduled minute for every lane whose provider
+ * costs a whole request per unit — exactly as the single-cursor scheduler did —
+ * and more only where the lane points at spare headroom inside its own window.
+ */
+export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
+  Object.freeze({
+    id: "tickerbot-stocks", provider: "tickerbot", assetClass: null, maxProviderCallsPerUnit: 1,
+    /* Which reviewed worklist keys this lane's partition is drawn from. Scoping
+       the keys per lane keeps `scheduledWorkItems` the single source of truth
+       for the reviewed worklist while each lane materializes only its own
+       partition. */
+    worklistKeys: Object.freeze({ tickerbot: true, massive: false }), worklistOptions: false
+  }),
+  Object.freeze({
+    id: "kraken-crypto", provider: "kraken", assetClass: null, maxProviderCallsPerUnit: 1,
+    worklistKeys: Object.freeze({ tickerbot: false, massive: false }), worklistOptions: false
+  }),
+  /* FX dual/fallback mode is the one reviewed unit that can make two calls:
+     Massive first, Alpha Vantage only if Massive did not answer. */
+  Object.freeze({
+    id: "massive-fx", provider: "massive", assetClass: "currencies", maxProviderCallsPerUnit: 2,
+    worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: false
+  }),
+  Object.freeze({
+    id: "massive-futures", provider: "massive", assetClass: "futures", maxProviderCallsPerUnit: 1,
+    worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: false
+  }),
+  Object.freeze({
+    id: "massive-indices", provider: "massive", assetClass: "indices", maxProviderCallsPerUnit: 1,
+    worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: false
+  }),
+  Object.freeze({
+    id: "massive-options", provider: "massive", assetClass: "options", maxProviderCallsPerUnit: 1,
+    /* The Options lane is the longest by far (52 underlyings x 5 slots = 260
+       items), so it was the binding constraint on a full rotation. Each of its
+       units spends exactly one request in Massive's 'options' asset-class
+       window, which allows five per minute, so the lane may safely advance four
+       slots per scheduled minute and still leave one request of headroom. The
+       four units run sequentially inside the lane, which is what keeps the
+       sliding-window gate meaningful. */
+    maxWorkUnitsPerTick: 4,
+    worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: true
+  })
+]);
+/** One work unit per tick for every lane unless the lane documents otherwise. */
+const laneWorkUnits = lane => Number.isSafeInteger(lane.maxWorkUnitsPerTick) && lane.maxWorkUnitsPerTick > 0
+  ? lane.maxWorkUnitsPerTick : 1;
+/** A lane's whole-tick provider ceiling: its units times its per-unit ceiling.
+   Named apart from the per-lane counter inside `runProviderLane`, which would
+   otherwise shadow it. */
+const laneCallCeilingFor = lane => laneWorkUnits(lane) * lane.maxProviderCallsPerUnit;
+export const ORB2_FIELD_LANE_COUNT = ORB2_FIELD_PROVIDER_LANES.length;
+/** Default units per lane per scheduled minute; a lane may document more. */
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK = 1;
+/** Derived, never hand-tuned: the sum of each lane's own reviewed unit budget. */
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = ORB2_FIELD_PROVIDER_LANES
+  .reduce((total, lane) => total + laneWorkUnits(lane), 0);
+/** Derived, never hand-tuned: the sum of each lane's own reviewed call ceiling. */
+export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = ORB2_FIELD_PROVIDER_LANES
+  .reduce((total, lane) => total + laneCallCeilingFor(lane), 0);
 export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 1;
-export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = 1;
-export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = 2;
 export const ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE =
   TICKERBOT_WATCHLIST.length + SCHEDULER_FX_ROSTER_SIZE + CHARACTERS_CRYPTO_RANKING_SIZE +
   CHARACTERS_CRYPTO_CROSS_PAIR_SIZE + SCHEDULER_FUTURES_ROSTER_SIZE + SCHEDULER_INDEX_ROSTER_SIZE +
   TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1);
-/* Read/write quotas include provider ledgers, selected observation rows, one
-   derived composition pair, cursor/lease bookkeeping, and the bounded reviewed
-   futures catalog. Three writes are reserved for the result row and lease cleanup. */
-export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = 48;
-export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = 24;
+/* Read/write quotas are derived from the lane count so the bound always matches
+   the schedule that actually runs. Per lane a unit needs: its cursor row, a
+   targeted due-rotation read, its provider ledger claim, the result row, and
+   the derived composition pair. Shared per-tick overhead is the lease, the
+   control row, the queue claim, the ranking/futures caches and the Options
+   table probe. Three writes stay reserved for the result row and lease cleanup
+   so a tick that spends its whole allowance can still finalize honestly. */
+const ORB2_FIELD_SCHEDULER_LANE_D1_READS = 8;
+const ORB2_FIELD_SCHEDULER_LANE_D1_WRITES = 8;
+const ORB2_FIELD_SCHEDULER_SHARED_D1_READS = 16;
+const ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES = 8;
+export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = ORB2_FIELD_SCHEDULER_SHARED_D1_READS +
+  ORB2_FIELD_PROVIDER_LANES.reduce((total, lane) => total + ORB2_FIELD_SCHEDULER_LANE_D1_READS * laneWorkUnits(lane), 0);
+export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES +
+  ORB2_FIELD_PROVIDER_LANES.reduce((total, lane) => total + ORB2_FIELD_SCHEDULER_LANE_D1_WRITES * laneWorkUnits(lane), 0);
 const ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES = 3;
 const ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
@@ -722,9 +837,48 @@ const decodeCursorLane = lane => {
   catch { return null; }
 };
 
-async function advanceFieldWorkCursor(db, items, now) {
+/**
+ * Advance one lane's durable cursor and return the item it selected.
+ *
+ * Each lane owns its own row: the state table's unique key is
+ * (interval, symbol, reason), so the lane id rides in `reason` and every lane
+ * keeps an independent, crash-durable ordinal. The recovery rules are the ones
+ * the single-cursor scheduler already established — a stale key resumes from its
+ * persisted ordinal instead of replaying the lane, and a corrupt row blocks
+ * rather than guessing.
+ *
+ * On the first tick after this change a lane row does not exist yet, but the
+ * legacy whole-field cursor row might. Seeding the lane from that legacy ordinal
+ * keeps the deployment from restarting every lane at item zero, which is exactly
+ * the whole-field replay the ordinal anchor exists to prevent.
+ */
+async function advanceFieldWorkCursor(db, items, now, cursorReason = SCHEDULER_FIELD_CURSOR_REASON) {
   if (!Array.isArray(items) || !items.length) return { ok: false, empty: true };
-  const row = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, SCHEDULER_FIELD_CURSOR_REASON);
+  let row = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, cursorReason);
+  let seededFromLegacy = false;
+  if (!row && cursorReason !== SCHEDULER_FIELD_CURSOR_REASON) {
+    const legacy = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, SCHEDULER_FIELD_CURSOR_REASON);
+    const legacyAttempts = legacy ? Number(legacy.attempts) : 0;
+    if (legacy && legacy.lane !== `${SCHEDULER_CURSOR_PREFIX}blocked-v1` &&
+        Number.isSafeInteger(legacyAttempts) && legacyAttempts > 0) {
+      /* The legacy row stored both a stable key and an ordinal over the whole
+         flattened field. Prefer the key when this lane actually contains it —
+         that resumes the lane exactly where the whole-field cursor left off.
+         Fall back to the ordinal modulo the lane length otherwise, which is
+         still a resume and never a restart from item zero. */
+      const legacyKey = decodeCursorLane(legacy.lane);
+      const keyIndex = legacyKey && legacyKey !== "start"
+        ? items.findIndex(item => item.key === legacyKey) : -1;
+      const seededIndex = keyIndex >= 0 ? keyIndex : legacyAttempts % items.length;
+      await writeSchedulerState(db, {
+        symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: cursorReason,
+        lane: `${SCHEDULER_CURSOR_PREFIX}${encodeURIComponent(items[seededIndex].key)}`,
+        attempts: legacyAttempts, now
+      });
+      row = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, cursorReason);
+      seededFromLegacy = true;
+    }
+  }
   const attempts = row ? Number(row.attempts) : 0;
   const lastKey = row ? decodeCursorLane(row.lane) : "start";
   let selectedIndex = 0;
@@ -735,7 +889,7 @@ async function advanceFieldWorkCursor(db, items, now) {
     }
     if (!Number.isSafeInteger(attempts) || attempts < 0 || attempts >= Number.MAX_SAFE_INTEGER || lastKey === null) {
       await writeSchedulerState(db, {
-        symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: SCHEDULER_FIELD_CURSOR_REASON,
+        symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: cursorReason,
         lane: `${SCHEDULER_CURSOR_PREFIX}blocked-v1`, attempts: 0, now
       });
       return { ok: false, reset: true, blocked: true };
@@ -753,12 +907,19 @@ async function advanceFieldWorkCursor(db, items, now) {
     }
   }
   const item = items[selectedIndex];
+  /* Persist the selected position before the provider call, so a crash between
+     here and the fetch cannot replay the lane. A lane seeded from the legacy
+     ordinal above still advances and persists normally: the seed only supplies
+     the starting anchor, it does not consume this tick's write. */
   await writeSchedulerState(db, {
-    symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: SCHEDULER_FIELD_CURSOR_REASON,
+    symbol: SCHEDULER_FIELD_CURSOR_SYMBOL, reason: cursorReason,
     lane: `${SCHEDULER_CURSOR_PREFIX}${encodeURIComponent(item.key)}`,
     attempts: (Number.isSafeInteger(attempts) ? attempts : 0) + 1, now
   });
-  return { ok: true, item, wrapped: Boolean(row && selectedIndex === 0), reset: cursorRecovered };
+  return {
+    ok: true, item, wrapped: Boolean(row && selectedIndex === 0),
+    reset: cursorRecovered, seededFromLegacy
+  };
 }
 
 async function readAutoWarmProgress(db) {
@@ -779,7 +940,12 @@ async function observationExists(db) {
 
 function createSchedulerD1Budget(db) {
   const stats = { reads: 0, writes: 0, rowsRead: 0 };
-  const classify = query => /^\s*(SELECT|PRAGMA|EXPLAIN)\b/i.test(String(query)) ? "reads" : "writes";
+  /* `WITH` is a read: a CTE selects, it does not mutate. Omitting it would
+     charge any future CTE against the small reserved write allowance and could
+     fail a legitimate read closed. Kept identical to the classifier the
+     scheduler tests use, so the budget the tests measure is the budget the
+     Worker enforces. */
+  const classify = query => /^\s*(?:SELECT|WITH|PRAGMA|EXPLAIN)\b/i.test(String(query)) ? "reads" : "writes";
   const count = (kind, amount = 1, finalizing = false) => {
     const limit = kind === "reads" ? ORB2_FIELD_SCHEDULER_MAX_D1_READS
       : ORB2_FIELD_SCHEDULER_MAX_D1_WRITES - (finalizing ? 0 : ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES);
@@ -788,7 +954,16 @@ function createSchedulerD1Budget(db) {
     }
     stats[kind] += amount;
   };
+  /* Every wrapper carries the budget kind it was classified with plus an
+     `unwrap()` accessor, so `batch()` can charge each statement to its own
+     budget exactly once and still hand the underlying driver real statements.
+     Without the tag, a batched SELECT was charged as a write and drew from the
+     small reserved write allowance; without `unwrap()`, a driver whose `batch()`
+     calls `.run()` on each entry (the test fixture does) charged every
+     statement twice. */
   const wrapStatement = (statement, kind, finalizing) => ({
+    kind,
+    unwrap() { return statement; },
     bind(...values) { return wrapStatement(statement.bind(...values), kind, finalizing); },
     async first(...args) { count(kind, 1, finalizing); return statement.first(...args); },
     async all(...args) {
@@ -803,15 +978,105 @@ function createSchedulerD1Budget(db) {
     },
     async run(...args) { count(kind, 1, finalizing); return statement.run(...args); }
   });
+  const unwrapStatement = statement =>
+    statement && typeof statement.unwrap === "function" ? statement.unwrap() : statement;
   const wrapDatabase = finalizing => ({
     prepare(query) { return wrapStatement(db.prepare(query), classify(query), finalizing); },
     async batch(statements) {
-      count("writes", Array.isArray(statements) ? statements.length : 0, finalizing);
+      const list = Array.isArray(statements) ? statements : [];
+      /* Charge the whole batch before any of it is sent, so an over-budget batch
+         is refused up front instead of half-applying and then throwing. */
+      for (const statement of list) {
+        count(statement && statement.kind === "reads" ? "reads" : "writes", 1, finalizing);
+      }
       if (typeof db.batch !== "function") throw new Error("D1 batch is unavailable.");
-      return db.batch(statements);
+      return db.batch(list.map(unwrapStatement));
     }
   });
   return { db: wrapDatabase(false), finalDb: wrapDatabase(true), stats };
+}
+
+/* ── concurrency lanes ──────────────────────────────────────────────────
+ *
+ * The tick is optimized for parallel and sequential work at the same time by
+ * splitting it into two lanes with opposite rules:
+ *
+ *   READ LANE  — parallel, bounded. D1 reads that do not depend on each other
+ *                are issued together. Waiting on I/O is not Worker CPU time, so
+ *                overlapping these round trips lowers wall-clock latency at
+ *                essentially unchanged CPU cost: the same rows are parsed
+ *                either way. Concurrency is capped, never unbounded, so peak
+ *                in-flight result buffers stay small and predictable.
+ *
+ *   WRITE/PROVIDER LANE — sequential. Provider calls stay strictly ordered
+ *                because their envelopes are the actual contract (Massive five
+ *                per minute per asset class, Kraken one per second plus a
+ *                UTC-day ceiling, Tickerbot a UTC-month ledger). Statements
+ *                that mutate scheduler state stay ordered so the single-writer
+ *                lease and the cursor-advance-before-fetch crash guarantee keep
+ *                their meaning.
+ *
+ * The bound matches `MAX_FETCH_CONCURRENCY` in `worker/characters-beat.mjs`, so
+ * both Worker surfaces fan out with the same reviewed limit.
+ */
+export const ORB2_FIELD_D1_READ_CONCURRENCY = 4;
+
+/** Bounded-concurrency map. Preserves input order; rejects on the first error. */
+async function mapWithConcurrency(items, limit, worker) {
+  const list = Array.isArray(items) ? items : [];
+  const results = new Array(list.length);
+  if (!list.length) return results;
+  let cursor = 0;
+  const runners = Array.from({ length: Math.max(1, Math.min(limit, list.length)) }, async () => {
+    while (cursor < list.length) {
+      const index = cursor++;
+      results[index] = await worker(list[index], index);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
+/**
+ * Bounded-concurrency map that never rejects. Each result is
+ * `{ ok, value }` or `{ ok: false, error }`, so one failing lane cannot take a
+ * whole tick or snapshot down with it — the same property the sequential tick
+ * already guarantees for provider outages.
+ */
+async function settleWithConcurrency(items, limit, worker) {
+  return mapWithConcurrency(items, limit, async (item, index) => {
+    try {
+      return { ok: true, value: await worker(item, index) };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  });
+}
+
+/**
+ * Run independent, already-started promises under a concurrency bound.
+ * `thunks` are zero-argument functions so nothing is issued before a slot is
+ * free; results keep input order and each is settled independently.
+ */
+async function settleAllThunks(thunks, limit = ORB2_FIELD_D1_READ_CONCURRENCY) {
+  return settleWithConcurrency(thunks, limit, thunk => thunk());
+}
+
+/**
+ * Run independent reads together, but fail exactly as the sequential form did.
+ *
+ * Concurrency changes which rejection lands first, and callers (plus the
+ * snapshot's fail-visible contract) depend on a specific error. Settling every
+ * thunk and then re-throwing the first failure in *input* order keeps the
+ * surfaced error identical to the old one-at-a-time version while still
+ * overlapping the round trips that succeed.
+ */
+async function readIndependently(thunks, limit = ORB2_FIELD_D1_READ_CONCURRENCY) {
+  const settled = await settleAllThunks(thunks, limit);
+  for (const result of settled) {
+    if (!result.ok) throw result.error;
+  }
+  return settled.map(result => result.value);
 }
 
 /** Persist one observation. An older write never overwrites a newer row. */
@@ -847,11 +1112,20 @@ async function refreshStoredComposition(db, symbol, now) {
   const intraday = parsed.find(row => row.interval === ORB2_INTRADAY_INTERVAL)?.observation || null;
   if (!daily) return;
   const composition = composePair(daily, intraday, now);
-  for (const row of parsed) {
+  /* WRITE LANE, batched: these UPDATEs touch disjoint (interval, symbol) rows
+     and share no read-modify-write state, so they go out as one D1 batch — a
+     single round trip instead of one per interval. Ordering inside the batch
+     is irrelevant because the rows do not overlap. */
+  const updates = parsed.map(row => {
     const payload = { ...row.observation, composition };
-    await db.prepare("UPDATE orb2_field_observations SET payload = ?, updated_at = ? WHERE interval = ? AND symbol = ?")
-      .bind(JSON.stringify(payload), now, row.interval, symbol).run();
+    return db.prepare("UPDATE orb2_field_observations SET payload = ?, updated_at = ? WHERE interval = ? AND symbol = ?")
+      .bind(JSON.stringify(payload), now, row.interval, symbol);
+  });
+  if (updates.length > 1 && typeof db.batch === "function") {
+    await db.batch(updates);
+    return;
   }
+  for (const update of updates) await update.run();
 }
 
 async function acquireTickLease(db, now, owner) {
@@ -1310,9 +1584,36 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
  * Returns a small summary object; it never throws, so a provider outage cannot
  * take the scheduler down with it.
  */
+/* Maps a reviewed work kind onto the provider lane whose envelope it spends.
+   Derived rather than passed at each call site so a kind can never be attached
+   to the wrong allowance. */
+const ORB2_FIELD_LANE_BY_KIND = Object.freeze({
+  "tickerbot-daily": "tickerbot-stocks",
+  "kraken-daily": "kraken-crypto",
+  "massive-fx": "massive-fx",
+  "massive-futures": "massive-futures",
+  "massive-index": "massive-indices",
+  "options": "massive-options"
+});
+/** Stable lane ids that actually own reviewed work kinds. */
+export const ORB2_FIELD_WORK_LANE_IDS = Object.freeze(
+  ORB2_FIELD_PROVIDER_LANES.map(lane => lane.id)
+);
+const ORB2_FIELD_DECLARED_LANE_IDS = Object.freeze(new Set(ORB2_FIELD_WORK_LANE_IDS));
+
 function scheduledWorkItems({ roster, optionsEnabled, keys }) {
   const items = [];
-  const add = (key, kind, instrument, extra = {}) => items.push({ key, kind, instrument, ...extra });
+  const add = (key, kind, instrument, extra = {}) => {
+    const lane = ORB2_FIELD_LANE_BY_KIND[kind];
+    /* An unmapped kind is a programming error, not schedulable work. It is
+       refused loudly rather than silently dropped, so a renamed catalog kind
+       cannot quietly stop a whole Disc from rotating. */
+    if (!lane) throw new Error(`Orb 2 reviewed work kind "${kind}" has no provider lane.`);
+    if (!ORB2_FIELD_DECLARED_LANE_IDS.has(lane)) {
+      throw new Error(`Orb 2 work kind "${kind}" maps to undeclared lane "${lane}".`);
+    }
+    items.push({ key, kind, lane, instrument, ...extra });
+  };
   if (keys.tickerbot) {
     for (const instrument of roster.stocks) add(`tickerbot:1d:${instrument.symbol}`, "tickerbot-daily", instrument);
   }
@@ -1342,12 +1643,43 @@ function scheduledWorkItems({ roster, optionsEnabled, keys }) {
   return items;
 }
 
-function markSchedulerWorkUnit(summary, key) {
+/**
+ * Account one provider work unit against both the per-lane and whole-tick caps.
+ *
+ * The per-lane cap is the one that preserves the provider envelope: a lane may
+ * spend exactly ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK unit per
+ * scheduled minute, which is what the single-cursor scheduler already did. The
+ * whole-tick cap is derived from the lanes and is a backstop, never the binding
+ * constraint. Lanes run concurrently, so this is called from several pending
+ * tasks; the check and the increment are synchronous, so no two lanes can read
+ * the same count and both pass.
+ *
+ * This deliberately records only counts. Which unit ran, in a stable order, is
+ * assembled by the driver from the lane reports — deriving it here would make
+ * `summary.workUnit` depend on which lane happened to resolve first.
+ */
+const laneById = id => ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === id) || null;
+
+function markSchedulerWorkUnit(summary, key, lane = null) {
   if (summary.workUnits >= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK) {
     throw new Error("Orb 2 scheduled provider-work unit limit was exceeded.");
   }
+  if (lane) {
+    const laneId = String(lane);
+    const definition = laneById(laneId);
+    /* The cap is the lane's own reviewed budget. It is one for every lane whose
+       provider spends a whole request per unit, and higher only where the lane
+       documents that its envelope has the headroom. */
+    const cap = definition
+      ? laneWorkUnits(definition) : ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK;
+    const used = summary.workUnitsByLane.get(laneId) || 0;
+    if (used >= cap) {
+      throw new Error(`Orb 2 "${laneId}" lane exceeded its per-tick provider-work unit limit (${used}/${cap}).`);
+    }
+    summary.workUnitsByLane.set(laneId, used + 1);
+  }
   summary.workUnits += 1;
-  summary.workUnit = String(key || "scheduled-work").slice(0, 96);
+  return String(key || "scheduled-work").slice(0, 96);
 }
 
 function autoWarmJob(index) {
@@ -1521,11 +1853,206 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
   await persistMarketOutcome({ db, instrument, outcome, provider: "massive", now, summary });
 }
 
+/* ── parallel provider lanes ─────────────────────────────────────────── */
+
+/** Each lane owns one durable cursor row; the lane id rides in the reason. */
+const laneCursorReason = laneId => `${SCHEDULER_FIELD_CURSOR_REASON}:${laneId}`;
+
+/* One task per lane. The bound is the fixed, reviewed lane list — it never
+   scales with roster size, so the fan-out is structurally bounded. */
+export const ORB2_FIELD_LANE_CONCURRENCY = ORB2_FIELD_LANE_COUNT;
+
 /**
- * One scheduled beat. A D1-persisted cursor selects exactly one field work unit;
- * provider discovery and queue work preempt it only when they themselves consume
- * that one-unit allowance. Failures advance the cursor before the provider call,
- * so one failed instrument cannot replay the rest of the field on the next tick.
+ * A lane-scoped view of the tick summary.
+ *
+ * The worker functions mutate exactly the fields they already mutated on the
+ * tick summary, so they run unchanged against a recorder. The driver merges the
+ * recorder back synchronously once the lane settles, which is what makes
+ * concurrent lanes safe: `summary.massiveCalls += 1` from four Massive lanes at
+ * once would otherwise be indistinguishable from one lane overspending its own
+ * allowance, and the old `if (summary.massiveCalls > 0)` unit test would credit
+ * the wrong lane.
+ */
+function createLaneRecorder() {
+  return {
+    massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
+    optionsCalls: 0, optionsObserved: 0, observed: 0, packetAnalyses: 0, held: 0,
+    queueCompleted: 0, notes: [], errors: []
+  };
+}
+
+const LANE_RECORDER_COUNTERS = Object.freeze([
+  "massiveCalls", "alphaVantageCalls", "tickerbotCalls", "krakenCalls",
+  "optionsCalls", "optionsObserved", "observed", "packetAnalyses", "held", "queueCompleted"
+]);
+
+function mergeLaneRecorder(summary, recorder) {
+  for (const key of LANE_RECORDER_COUNTERS) summary[key] += recorder[key];
+  summary.notes.push(...recorder.notes);
+  summary.errors.push(...recorder.errors);
+}
+
+/* Ranking and contract refusals that are ordinary steady state, not news. */
+const ORB2_FIELD_QUIET_RANKING_CODES = Object.freeze(new Set([
+  "crypto-ranking-cooldown", "crypto-ranking-cache-miss", "kraken-rate-limit", "kraken-budget-exhausted"
+]));
+
+/**
+ * Spend a lane's own work-unit budget in that lane, sequentially.
+ *
+ * Discovery is part of its lane, not a separate tick: a cold Kraken ranking
+ * cache spends the crypto lane's unit on the ranking call, and a cold Massive
+ * contract cache spends the futures lane's unit on contract discovery. On a warm
+ * cache the same lane spends its unit on one instrument instead.
+ *
+ * The budget is `lane.maxWorkUnitsPerTick`, one unless the lane documents
+ * otherwise, and the whole-lane provider ceiling is that budget times
+ * `maxProviderCallsPerUnit`. A lane taking several units in one minute still
+ * takes them one after another, so its sliding-window envelope keeps its
+ * meaning, while other lanes run concurrently.
+ */
+async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, optionsEnabled, spent = false }) {
+  const recorder = createLaneRecorder();
+  /* Declared before the report so the report can quote the lane's own budgets. */
+  const laneUnitBudget = laneWorkUnits(lane);
+  const laneCallCeiling = laneCallCeilingFor(lane);
+  const report = {
+    lane: lane.id, ran: false, skipped: spent, workUnit: null, workUnits: [],
+    providerCalls: 0, unitBudget: laneUnitBudget, callCeiling: laneCallCeiling,
+    cursorAdvanced: false, cursorReset: false, sweepsCompleted: 0
+  };
+  /* A per-lane ceiling underneath the whole-tick one. The global counter cannot
+     tell which envelope a request belongs to, so it can only bound the total;
+     this bound is what actually proves a lane stayed inside its own reviewed
+     allowance — including the FX lane's two-request Massive-to-Alpha fallback,
+     which is the only unit permitted to spend twice. Check and increment are
+     synchronous, so nothing inside the lane can interleave past it. */
+  let laneProviderCalls = 0;
+  const laneFetcher = async (...args) => {
+    if (laneProviderCalls >= laneCallCeiling) {
+      throw new Error(`Orb 2 "${lane.id}" lane exceeded its provider request ceiling (${laneProviderCalls}/${laneCallCeiling}).`);
+    }
+    laneProviderCalls += 1;
+    return fetcher(...args);
+  };
+  try {
+    if (spent) return report;
+    if (lane.provider === "tickerbot" && !keys.tickerbot) return report;
+    if (lane.provider === "massive" && !keys.massive) return report;
+
+    let cryptoRanking = null;
+    let commodityContracts = null;
+
+    if (lane.id === "kraken-crypto") {
+      /* Cache-first: a warm ranking costs one D1 read and no provider call, so
+         the lane still has its unit available for a daily bar. */
+      try {
+        const rankingResult = await getCharactersCryptoRanking({
+          db, fetcher: laneFetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
+          beforeFetch: async () => {
+            const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
+            if (reservation.ok) recorder.krakenCalls += 1;
+            return reservation;
+          }
+        });
+        if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
+        else if (!ORB2_FIELD_QUIET_RANKING_CODES.has(rankingResult.code)) {
+          recorder.notes.push(`Kraken crypto ranking held: ${rankingResult.message}`);
+        }
+      } catch { recorder.notes.push("Kraken crypto ranking held: the D1 roster could not be read."); }
+      /* Lane-local, so a concurrent lane's Kraken spend can never be mistaken
+         for this lane's discovery. */
+      if (recorder.krakenCalls > 0) {
+        markSchedulerWorkUnit(summary, "kraken:ranking", lane.id);
+        report.ran = true;
+        report.workUnit = "kraken:ranking";
+        return report;
+      }
+      if (!cryptoRanking) {
+        recorder.notes.push("Disc3 is held: the Kraken Spot rolling-24-hour roster is not available; no other venue is used.");
+        return report;
+      }
+    }
+
+    if (lane.id === "massive-futures") {
+      const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
+      if (recorder.massiveCalls > 0) {
+        markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
+        report.ran = true;
+        report.workUnit = "massive:futures-contract-discovery";
+        return report;
+      }
+      commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
+    }
+
+    const roster = orb2FieldRoster({ now, cryptoRanking, commodityContracts });
+    const laneOptionsEnabled = lane.worklistOptions ? optionsEnabled : false;
+    if (lane.worklistOptions && keys.massive && !optionsEnabled) {
+      recorder.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
+      return report;
+    }
+    const items = scheduledWorkItems({
+      roster, optionsEnabled: laneOptionsEnabled, keys: lane.worklistKeys
+    }).filter(item => item.lane === lane.id);
+    if (!items.length) return report;
+
+    /* Rotate this lane's own cursor. A lane whose envelope has documented
+       headroom may spend more than one unit per tick, but always sequentially:
+       each unit advances the durable cursor and completes before the next is
+       selected, so the provider's sliding-window gate still sees one ordered
+       request at a time and the crash guarantee is unchanged. */
+    for (let unit = 0; unit < laneUnitBudget; unit += 1) {
+      const next = await advanceFieldWorkCursor(db, items, now, laneCursorReason(lane.id));
+      if (next.reset) {
+        report.cursorReset = true;
+        recorder.notes.push(next.blocked
+          ? `The ${lane.id} lane cursor is corrupt and was blocked without replaying the lane. Operator repair is required before regular rotation resumes.`
+          : `The ${lane.id} lane cursor key was stale; rotation resumed from its persisted ordinal, avoiding a whole-cycle replay.`);
+      }
+      if (!next.ok) break;
+
+      const item = next.item;
+      /* The cursor position is already durable at this point, so a crash after
+         here cannot replay the lane. */
+      markSchedulerWorkUnit(summary, item.key, lane.id);
+      report.ran = true;
+      report.workUnits.push(item.key);
+      if (report.workUnit === null) report.workUnit = item.key;
+      report.cursorAdvanced = true;
+      await processScheduledWorkItem({ db, env, item, now, fetcher: laneFetcher, keys, summary: recorder });
+      if (item.kind === "tickerbot-daily" && item.instrument.symbol === roster.stocks.at(-1)?.symbol) {
+        report.sweepsCompleted += (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
+      }
+      /* Nothing further can be sent this minute once the lane's own allowance is
+         spent, so stop instead of advancing the cursor over work that would be
+         refused. */
+      if (laneProviderCalls >= laneCallCeiling) break;
+    }
+    return report;
+  } finally {
+    report.providerCalls = laneProviderCalls;
+    report.observed = recorder.observed;
+    report.held = recorder.held;
+    mergeLaneRecorder(summary, recorder);
+  }
+}
+
+/**
+ * One scheduled beat.
+ *
+ * The tick is optimized for parallel and sequential work at the same time by
+ * splitting it into lanes. Each provider lane owns a distinct rate-limit
+ * envelope and a distinct durable cursor, so the lanes advance together in one
+ * scheduled minute; work inside a lane stays strictly sequential, which is what
+ * keeps that lane's envelope meaningful. Independent D1 reads are issued under a
+ * bounded concurrency; statements that mutate scheduler state stay ordered, so
+ * the single-writer lease and the cursor-advance-before-fetch crash guarantee
+ * keep their meaning.
+ *
+ * User-priority queue work and the one-time cold calibration still preempt the
+ * rotation, because both are Tickerbot work and share that lane's envelope.
+ * Failures advance the lane cursor before the provider call, so one failed
+ * instrument cannot replay the rest of its lane on the next tick.
  */
 export async function runOrb2FieldTick(env = {}, context = null, dependencies = {}) {
   const now = nowOf(dependencies);
@@ -1535,7 +2062,10 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     optionsCalls: 0, optionsObserved: 0,
     observed: 0, packetAnalyses: 0, held: 0,
-    workUnits: 0, workUnit: null, providerRequests: 0,
+    workUnits: 0, workUnit: null, workUnitsList: [], providerRequests: 0,
+    /* Per-lane unit accounting. The caps live in markSchedulerWorkUnit; this map
+       is what makes the per-lane cap enforceable while lanes run concurrently. */
+    workUnitsByLane: new Map(), lanes: {},
     d1Reads: 0, d1Writes: 0, d1RowsRead: 0,
     queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, warmProgressed: 0,
     cursorAdvanced: false, cursorReset: false, sweepsCompleted: 0,
@@ -1553,6 +2083,15 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
   const d1 = createSchedulerD1Budget(rawDb);
   const db = d1.db;
   const finalDb = d1.finalDb;
+  /* Adapters that reach for `env.COMMUNITY_DB` themselves — notably
+     `reserveMassiveProviderCall`, which reads and records the Massive daily
+     ledger — would otherwise bypass this tick's D1 budget entirely, because the
+     budget only counts statements issued through the wrapped handle. Handing
+     downstream work an env whose binding IS the wrapped handle makes the
+     enforced budget equal the traffic the tick actually causes. The ledger is
+     telemetry rather than a gate, so counting it cannot refuse a legitimate
+     call; it just stops hiding three reads and three writes per Massive lane. */
+  const scopedEnv = { ...env, COMMUNITY_DB: db };
   let providerFetchCount = 0;
   const fetcher = async (...args) => {
     if (providerFetchCount >= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK) {
@@ -1571,21 +2110,34 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       return summary;
     }
     const keys = providerKeys(env);
-    const control = await readControl(db);
     if (!keys.tickerbot) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
     if (!keys.massive) summary.notes.push("Massive FX/futures/index/Options lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
-    let workHandled = false;
+    /* READ LANE: the control row and the Options table probe are independent
+       single-row reads, so they are issued together rather than back to back. */
+    const [control, optionsEnabled] = await readIndependently([
+      () => readControl(db),
+      () => (keys.massive ? optionsFieldTableAvailable(db) : Promise.resolve(false))
+    ]);
 
-    /* User-priority and legacy warm queue entries are claimed singly. Scheduler
-       cursor rows share the old table but are excluded by the lane predicate. */
+    /* SEQUENTIAL, and deliberately so: user-priority queue work and the one-time
+       cold calibration are both Tickerbot work, so they contend for the same
+       provider envelope and are resolved one after the other before the lanes
+       fan out. Whichever runs spends the tickerbot-stocks lane's unit for this
+       minute; it no longer suppresses the other lanes, which draw from Kraken
+       and Massive allowances the warm-up does not touch.
+
+       Scheduler cursor rows share the queue table but are excluded by the lane
+       predicate, so per-lane cursors can never be mistaken for queued jobs. */
+    let tickerbotLaneSpent = false;
+    let tickerbotPreemptionUnit = null;
     if (keys.tickerbot) {
       const queued = await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
       if (queued.length) {
         const job = queued[0];
-        markSchedulerWorkUnit(summary, `queue:${job.interval}:${job.symbol}`);
+        tickerbotPreemptionUnit = markSchedulerWorkUnit(summary, `queue:${job.interval}:${job.symbol}`, "tickerbot-stocks");
         summary.queueClaimed = 1;
-        await processQueuedTickerbotJob({ db, env, job, now, fetcher, keys, summary });
-        workHandled = true;
+        await processQueuedTickerbotJob({ db, env: scopedEnv, job, now, fetcher, keys, summary });
+        tickerbotLaneSpent = true;
       }
     } else if (await hasPendingQueue(db, now)) {
       summary.notes.push("Queued Tickerbot stock work is waiting for TICKERBOT_API_KEY; it was not claimed or charged.");
@@ -1593,7 +2145,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
 
     /* One-time cold calibration is generated from the reviewed 52 × 3 worklist,
        not inserted as a 156-row D1 burst. Progress is stored before the fetch. */
-    if (!workHandled) {
+    if (!tickerbotLaneSpent) {
       const warm = await loadAutoWarmState(db, control, now, summary);
       if (warm.reset) summary.cursorReset = true;
       if (warm.active && keys.tickerbot) {
@@ -1602,9 +2154,10 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
           await writeAutoWarmProgress(db, warm.progress + 1, now);
           summary.cursorAdvanced = true;
           summary.warmProgressed = 1;
-          markSchedulerWorkUnit(summary, `warm:${job.interval}:${job.instrument.symbol}`);
+          markSchedulerWorkUnit(summary, `warm:${job.interval}:${job.instrument.symbol}`, "tickerbot-stocks");
+          tickerbotPreemptionUnit = `warm:${job.interval}:${job.instrument.symbol}`.slice(0, 96);
           const outcome = await processTickerbotUnit({
-            db, env, instrument: job.instrument, interval: job.interval, reason: job.reason,
+            db, env: scopedEnv, instrument: job.instrument, interval: job.interval, reason: job.reason,
             now, fetcher, keys, summary
           });
           if (!outcome.attempted) {
@@ -1615,77 +2168,67 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
             summary.cursorAdvanced = false;
             summary.warmProgressed = 0;
           }
-          workHandled = true;
+          tickerbotLaneSpent = true;
         }
       } else if (warm.active && !keys.tickerbot) {
         summary.notes.push(`${ORB2_FIELD_TICKERBOT_BURST_CALLS - warm.progress} automatic Tickerbot warm units remain durable until TICKERBOT_API_KEY is available.`);
       }
     }
 
-    let cryptoRanking = null;
-    let futuresState = null;
-    if (!workHandled) {
-      /* Kraken's unfiltered ranking and Massive active-contract discovery each
-         occupy their own scheduled invocation. Their adapters retain the provider
-         request shapes, pacing, and failure/cooldown rules. */
-      try {
-        const rankingResult = await getCharactersCryptoRanking({
-          db, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS,
-          beforeFetch: async () => {
-            const reservation = await claimKrakenCall(db, now, KRAKEN_PROVIDER_DAILY_LIMIT);
-            if (reservation.ok) summary.krakenCalls += 1;
-            return reservation;
-          }
-        });
-        if (rankingResult.ok) cryptoRanking = rankingResult.ranking;
-        else if (!new Set(["crypto-ranking-cooldown", "crypto-ranking-cache-miss", "kraken-rate-limit", "kraken-budget-exhausted"]).has(rankingResult.code)) {
-          summary.notes.push(`Kraken crypto ranking held: ${rankingResult.message}`);
-        }
-      } catch { summary.notes.push("Kraken crypto ranking held: the D1 roster could not be read."); }
-      if (summary.krakenCalls > 0) {
-        markSchedulerWorkUnit(summary, "kraken:ranking");
-        workHandled = true;
+    /* PARALLEL LANES: every lane owns a distinct provider envelope and a distinct
+       durable cursor, so they advance in the same minute. Each lane stays
+       sequential internally and spends its own unit budget. A lane that
+       fails — provider outage, exhausted allowance, or a corrupt cursor — is
+       settled on its own and reported, so it cannot take the other lanes or the
+       tick down with it. */
+    const laneReports = await settleWithConcurrency(
+      ORB2_FIELD_PROVIDER_LANES,
+      ORB2_FIELD_LANE_CONCURRENCY,
+      lane => runProviderLane({
+        lane, db, env: scopedEnv, now, fetcher, keys, summary, optionsEnabled,
+        spent: lane.id === "tickerbot-stocks" ? tickerbotLaneSpent : false
+      })
+    );
+    /* `settleWithConcurrency` preserves input order, so these reports arrive in
+       declared lane order regardless of which lane resolved first. */
+    for (const settled of laneReports) {
+      if (!settled.ok) {
+        summary.errors.push(`A provider lane failed and was contained: ${text(settled.error && settled.error.message, 140) || "unknown error"}`);
+        continue;
       }
+      const report = settled.value;
+      summary.lanes[report.lane] = {
+        ran: report.ran, skipped: report.skipped, workUnit: report.workUnit,
+        workUnits: report.workUnits,
+        observed: report.observed, held: report.held,
+        /* Per-lane provider spend against that lane's own ceiling, so the
+           envelope guarantee is observable per allowance rather than only as a
+           whole-tick total. */
+        providerCalls: report.providerCalls,
+        unitBudget: report.unitBudget, callCeiling: report.callCeiling,
+        maxProviderCallsPerUnit: laneById(report.lane)?.maxProviderCallsPerUnit ?? null,
+        cursorAdvanced: report.cursorAdvanced, cursorReset: report.cursorReset
+      };
+      if (report.ran) {
+        summary.cursorAdvanced = summary.cursorAdvanced || report.cursorAdvanced;
+        summary.sweepsCompleted += report.sweepsCompleted;
+      }
+      if (report.cursorReset) summary.cursorReset = true;
     }
-
-    if (!workHandled) {
-      futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summary });
-      if (summary.massiveCalls > 0) {
-        markSchedulerWorkUnit(summary, "massive:futures-contract-discovery");
-        workHandled = true;
+    /* Assemble the spent-unit list in declared lane order, never in resolution
+       order, so `workUnit` and `workUnitsList` are deterministic and the same
+       tick always reports the same thing. The tickerbot-stocks slot is the
+       queue/warm preemption when that ran, because preemption is what spent
+       that lane's unit. */
+    for (const lane of ORB2_FIELD_PROVIDER_LANES) {
+      const entry = summary.lanes[lane.id];
+      if (lane.id === "tickerbot-stocks" && tickerbotPreemptionUnit) {
+        summary.workUnitsList.push(tickerbotPreemptionUnit);
+        continue;
       }
+      if (entry && entry.workUnits) summary.workUnitsList.push(...entry.workUnits);
     }
-
-    if (!workHandled) {
-      const roster = orb2FieldRoster({
-        now, cryptoRanking,
-        commodityContracts: futuresState && futuresState.ok ? futuresState.contracts : null
-      });
-      const optionsEnabled = keys.massive ? await optionsFieldTableAvailable(db) : false;
-      if (!cryptoRanking || !roster.crypto.length) {
-        summary.notes.push("Disc3 is held: the Kraken Spot rolling-24-hour roster is not available; no other venue is used.");
-      }
-      if (keys.massive && !optionsEnabled) {
-        summary.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
-      }
-      const items = scheduledWorkItems({ roster, optionsEnabled, keys });
-      const next = await advanceFieldWorkCursor(db, items, now);
-      if (next.reset) {
-        summary.cursorReset = true;
-        summary.notes.push(next.blocked
-          ? "The scheduled field cursor is corrupt and was blocked without replaying the field. Operator repair is required before regular rotation resumes."
-          : "The scheduled field cursor key was stale; rotation resumed from its persisted ordinal, avoiding a whole-cycle replay.");
-      }
-      if (next.ok) {
-        const item = next.item;
-        markSchedulerWorkUnit(summary, item.key);
-        summary.cursorAdvanced = true;
-        await processScheduledWorkItem({ db, env, item, now, fetcher, keys, summary });
-        if (item.kind === "tickerbot-daily" && item.instrument.symbol === roster.stocks.at(-1)?.symbol) {
-          summary.sweepsCompleted = (await completeSweepIfDue(db, now, roster.stocks)) ? 1 : 0;
-        }
-      }
-    }
+    summary.workUnit = summary.workUnitsList.length ? summary.workUnitsList[0] : null;
 
     await recordTickResult(finalDb, {
       now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls,
@@ -1772,14 +2315,18 @@ async function dueRotation(db, instruments, limit, now = Date.now(), provider = 
   const instrumentsBySymbol = new Map(instruments.map(instrument => [instrument.symbol, instrument]));
   const batches = Array.from({ length: Math.ceil(instruments.length / ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE) }, (_, index) =>
     instruments.slice(index * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE, (index + 1) * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE));
-  const rows = [];
-  for (const batch of batches) {
+  /* READ LANE: batches cover disjoint symbols and are independent, so they are
+     issued together under the read-concurrency bound. Results are concatenated
+     in batch order, keeping the freshness filter and rotation selection below
+     identical to the sequential form. */
+  const batchResults = await readIndependently(batches.map(batch => () => {
     const placeholders = batch.map(() => "?").join(",");
-    const result = await db.prepare(`SELECT substr(payload, 1, 65536) AS payload, symbol, disc_id, provider, status, observed_at
+    return db.prepare(`SELECT substr(payload, 1, 65536) AS payload, symbol, disc_id, provider, status, observed_at
       FROM orb2_field_observations WHERE interval = '1d' AND symbol IN (${placeholders})
       LIMIT ?`).bind(...batch.map(instrument => instrument.symbol), batch.length).all();
-    rows.push(...(Array.isArray(result && result.results) ? result.results : []));
-  }
+  }));
+  const rows = [];
+  for (const result of batchResults) rows.push(...(Array.isArray(result && result.results) ? result.results : []));
   const observed = new Map();
   for (const row of rows) {
     const instrument = instrumentsBySymbol.get(String(row.symbol));
@@ -1796,19 +2343,6 @@ async function dueRotation(db, instruments, limit, now = Date.now(), provider = 
     .map(instrument => ({ instrument, observedAt: Number(observed.get(instrument.symbol)?.observedAt) || 0 }))
     .filter(entry => orb2FieldNeedsRefresh(observed.get(entry.instrument.symbol), now, provider || entry.instrument.provider));
   return orb2FieldRotationSelection(expired, limit);
-}
-
-async function mapWithConcurrency(items, limit, worker) {
-  const results = new Array(items.length);
-  let cursor = 0;
-  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await worker(items[index], index);
-    }
-  });
-  await Promise.all(runners);
-  return results;
 }
 
 /* ── the snapshot clients render ──────────────────────────────────────── */
@@ -1882,8 +2416,13 @@ async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limi
     ? Array.from({ length: Math.ceil(uniqueSymbols.length / ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE) }, (_, index) =>
       uniqueSymbols.slice(index * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE, (index + 1) * ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE))
     : [null];
-  const rows = [];
-  for (const symbolBatch of symbolBatches) {
+  /* READ LANE: each symbol batch is an independent SELECT over disjoint
+     symbols — the split exists only to stay under D1's bind-variable ceiling.
+     They are issued together under the read-concurrency bound rather than one
+     round trip at a time, and results are concatenated in batch order so the
+     merge, sort, and slice below are unchanged. Errors surface in batch order
+     too, exactly as the sequential loop did. */
+  const reads = symbolBatches.map(symbolBatch => () => {
     const clauses = ["interval = ?"];
     const bindings = [interval];
     if (disc) { clauses.push("disc_id = ?"); bindings.push(disc); }
@@ -1897,9 +2436,11 @@ async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limi
       query += " LIMIT ?";
       bindings.push(limit);
     }
-    const result = await db.prepare(query).bind(...bindings).all();
-    rows.push(...(Array.isArray(result && result.results) ? result.results : []));
-  }
+    return db.prepare(query).bind(...bindings).all();
+  });
+  const results = await readIndependently(reads);
+  const rows = [];
+  for (const result of results) rows.push(...(Array.isArray(result && result.results) ? result.results : []));
   rows.sort((left, right) => (Number(right.observed_at) || 0) - (Number(left.observed_at) || 0) ||
     String(left.symbol || "").localeCompare(String(right.symbol || "")));
   return Number.isFinite(limit) ? rows.slice(0, limit) : rows;
@@ -2019,32 +2560,40 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         source: type.live ? "server-provider-beat" : "deterministic-local-scenario"
       };
     });
-    /* These D1 reads are independent. Run them together so the response does not
-       serialize a dozen avoidable round trips after its payload work. The normal
-       daily snapshot also already contains the Dollar Strength (DS) inputs, so no second JSON read
-       is needed for that benchmark. */
-    /* Keep the status reads sequential. D1 calls are cheap, but issuing many
-       concurrent reads from the same Worker invocation can substantially raise
-       peak CPU/memory pressure on the GET polling path and cause the Worker to
-       hit its CPU limit before the snapshot is serialized. This endpoint is a
-       read-only status poll, so predictable resource use is preferable to
-       shaving a few milliseconds from wall-clock latency. */
-    const run = await readRun(db, now);
-    const cachedCryptoRanking = await readCharactersCryptoRankingCache({ db, now });
-    const cachedFutures = await readMassiveFuturesContractState({ db, now });
-    const control = await readControl(db);
-    const massiveLedger = await readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT);
-    const tickerbotLedger = await readTickerbotCallLedger(db, now);
-    const krakenLedger = await readKrakenCallLedger(db, now);
-    const queue = await queueDepth(db, now);
-    /* Focused reads intentionally fetch status columns without payloads. Re-read
-       the six stored FX components for DS rather than passing payload-less
-       diagnostics to the benchmark evaluator. */
-    const ds = await evaluateDollarStrength(
-      db,
-      now,
-      interval === "1d" && storedRowsRead && !hasResponseFilter ? fieldObservations : null
-    );
+    /* READ LANE: these nine D1 reads are mutually independent. Each touches a
+       different table (runs, ranking cache, futures cache, control, the three
+       provider ledgers, queue depth) and the Dollar Strength (DS) inputs are
+       already in hand from the payload read above, so none of them waits on
+       another's result. They are issued together under
+       ORB2_FIELD_D1_READ_CONCURRENCY instead of one at a time.
+
+       An earlier revision kept these sequential on the theory that concurrent
+       reads raise peak Worker CPU pressure. They do not: CPU time in a Worker
+       excludes I/O wait, so overlapping round trips lowers wall-clock latency
+       while parsing the same rows — and these are single-row status reads, so
+       the extra in-flight buffers are negligible. The genuine concern is an
+       unbounded fan-out, which is why the concurrency is capped rather than
+       removed. This is a read-only poll, so nothing here mutates scheduler
+       state or spends a provider allowance. */
+    const [run, cachedCryptoRanking, cachedFutures, control, massiveLedger,
+      tickerbotLedger, krakenLedger, queue, ds] = await readIndependently([
+      () => readRun(db, now),
+      () => readCharactersCryptoRankingCache({ db, now }),
+      () => readMassiveFuturesContractState({ db, now }),
+      () => readControl(db),
+      () => readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT),
+      () => readTickerbotCallLedger(db, now),
+      () => readKrakenCallLedger(db, now),
+      () => queueDepth(db, now),
+      /* Focused reads intentionally fetch status columns without payloads.
+         Re-read the six stored FX components for DS rather than passing
+         payload-less diagnostics to the benchmark evaluator. */
+      () => evaluateDollarStrength(
+        db,
+        now,
+        interval === "1d" && storedRowsRead && !hasResponseFilter ? fieldObservations : null
+      )
+    ]);
     /* Per-Disc status for the constellation view: one row per reviewed Disc.
        Stored totals are matched against the current reviewed symbols before being
        reported. Old/orphaned rows can remain in D1, but they cannot produce
