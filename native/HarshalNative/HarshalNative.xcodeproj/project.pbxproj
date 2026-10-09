@@ -1,0 +1,444 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* HarshalNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* HarshalNativeApp.swift */; };
+		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
+		A10000000000000000000003 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RootView.swift */; };
+		A10000000000000000000004 /* LocalStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* LocalStateStore.swift */; };
+		A10000000000000000000005 /* CloudKitMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* CloudKitMirror.swift */; };
+		A10000000000000000000006 /* OnboardingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* OnboardingFlowView.swift */; };
+		A10000000000000000000007 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* DashboardView.swift */; };
+		A10000000000000000000008 /* GateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* GateView.swift */; };
+		A10000000000000000000009 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* LedgerView.swift */; };
+		A10000000000000000000010 /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* SyncView.swift */; };
+		A10000000000000000000011 /* HarshalCore in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000001 /* HarshalCore */; };
+		A10000000000000000000012 /* HarshalLedger in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000002 /* HarshalLedger */; };
+		A10000000000000000000013 /* HarshalNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* HarshalNativeApp.swift */; };
+		A10000000000000000000014 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
+		A10000000000000000000015 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* RootView.swift */; };
+		A10000000000000000000016 /* LocalStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* LocalStateStore.swift */; };
+		A10000000000000000000017 /* CloudKitMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* CloudKitMirror.swift */; };
+		A10000000000000000000018 /* OnboardingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* OnboardingFlowView.swift */; };
+		A10000000000000000000019 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* DashboardView.swift */; };
+		A10000000000000000000020 /* GateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* GateView.swift */; };
+		A10000000000000000000021 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* LedgerView.swift */; };
+		A10000000000000000000022 /* SyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* SyncView.swift */; };
+		A10000000000000000000023 /* HarshalCore in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000003 /* HarshalCore */; };
+		A10000000000000000000024 /* HarshalLedger in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000004 /* HarshalLedger */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* HarshalNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/HarshalNativeApp.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/AppModel.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000003 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/RootView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000004 /* LocalStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/LocalStateStore.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000005 /* CloudKitMirror.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/CloudKitMirror.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000006 /* OnboardingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/OnboardingFlowView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000007 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/DashboardView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000008 /* GateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/GateView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000009 /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/LedgerView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000010 /* SyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/SyncView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = HarshalNative/Resources/Info.plist; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000012 /* Packages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Packages; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000013 /* HarshalNative iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HarshalNative iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000014 /* HarshalNative macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HarshalNative macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000011 /* HarshalCore in Frameworks */,
+				A10000000000000000000012 /* HarshalLedger in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000023 /* HarshalCore in Frameworks */,
+				A10000000000000000000024 /* HarshalLedger in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* HarshalNative */,
+				A40000000000000000000006 /* Packages */,
+				A40000000000000000000007 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* HarshalNative */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* HarshalNativeApp.swift */,
+				A20000000000000000000002 /* AppModel.swift */,
+				A20000000000000000000003 /* RootView.swift */,
+				A20000000000000000000004 /* LocalStateStore.swift */,
+				A40000000000000000000003 /* Features */,
+				A40000000000000000000004 /* Services */,
+				A40000000000000000000005 /* Resources */,
+			);
+			name = HarshalNative;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000006 /* OnboardingFlowView.swift */,
+				A20000000000000000000007 /* DashboardView.swift */,
+				A20000000000000000000008 /* GateView.swift */,
+				A20000000000000000000009 /* LedgerView.swift */,
+				A20000000000000000000010 /* SyncView.swift */,
+			);
+			name = Features;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* CloudKitMirror.swift */,
+			);
+			name = Services;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000005 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000011 /* Info.plist */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000006 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000012 /* Packages */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000007 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000013 /* HarshalNative iOS.app */,
+				A20000000000000000000014 /* HarshalNative macOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* HarshalNative iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000000000000000000002 /* Build configuration list for PBXNativeTarget "HarshalNative iOS" */;
+			buildPhases = (
+				A30000000000000000000001 /* Frameworks */,
+				A30000000000000000000003 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "HarshalNative iOS";
+			packageProductDependencies = (
+				A70000000000000000000001 /* HarshalCore */,
+				A70000000000000000000002 /* HarshalLedger */,
+			);
+			productName = "HarshalNative iOS";
+			productReference = A20000000000000000000013 /* HarshalNative iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A50000000000000000000002 /* HarshalNative macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000000000000000000003 /* Build configuration list for PBXNativeTarget "HarshalNative macOS" */;
+			buildPhases = (
+				A30000000000000000000002 /* Frameworks */,
+				A30000000000000000000004 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "HarshalNative macOS";
+			packageProductDependencies = (
+				A70000000000000000000003 /* HarshalCore */,
+				A70000000000000000000004 /* HarshalLedger */,
+			);
+			productName = "HarshalNative macOS";
+			productReference = A20000000000000000000014 /* HarshalNative macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A50000000000000000000003 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1530;
+				LastUpgradeCheck = 1530;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 15.3;
+					};
+					A50000000000000000000002 = {
+						CreatedOnToolsVersion = 15.3;
+					};
+				};
+			};
+			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "HarshalNative" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			packageReferences = (
+				A80000000000000000000001 /* XCLocalSwiftPackageReference "HarshalCore" */,
+				A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */,
+			);
+			productRefGroup = A40000000000000000000007 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* HarshalNative iOS */,
+				A50000000000000000000002 /* HarshalNative macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* HarshalNativeApp.swift in Sources */,
+				A10000000000000000000002 /* AppModel.swift in Sources */,
+				A10000000000000000000003 /* RootView.swift in Sources */,
+				A10000000000000000000004 /* LocalStateStore.swift in Sources */,
+				A10000000000000000000005 /* CloudKitMirror.swift in Sources */,
+				A10000000000000000000006 /* OnboardingFlowView.swift in Sources */,
+				A10000000000000000000007 /* DashboardView.swift in Sources */,
+				A10000000000000000000008 /* GateView.swift in Sources */,
+				A10000000000000000000009 /* LedgerView.swift in Sources */,
+				A10000000000000000000010 /* SyncView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000013 /* HarshalNativeApp.swift in Sources */,
+				A10000000000000000000014 /* AppModel.swift in Sources */,
+				A10000000000000000000015 /* RootView.swift in Sources */,
+				A10000000000000000000016 /* LocalStateStore.swift in Sources */,
+				A10000000000000000000017 /* CloudKitMirror.swift in Sources */,
+				A10000000000000000000018 /* OnboardingFlowView.swift in Sources */,
+				A10000000000000000000019 /* DashboardView.swift in Sources */,
+				A10000000000000000000020 /* GateView.swift in Sources */,
+				A10000000000000000000021 /* LedgerView.swift in Sources */,
+				A10000000000000000000022 /* SyncView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A90000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A90000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A90000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative;
+				PRODUCT_NAME = "HarshalNative iOS";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A90000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative;
+				PRODUCT_NAME = "HarshalNative iOS";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A90000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative;
+				PRODUCT_NAME = "HarshalNative macOS";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A90000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative;
+				PRODUCT_NAME = "HarshalNative macOS";
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A60000000000000000000001 /* Build configuration list for PBXProject "HarshalNative" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000001 /* Debug */,
+				A90000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A60000000000000000000002 /* Build configuration list for PBXNativeTarget "HarshalNative iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000003 /* Debug */,
+				A90000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A60000000000000000000003 /* Build configuration list for PBXNativeTarget "HarshalNative macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000005 /* Debug */,
+				A90000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A80000000000000000000001 /* XCLocalSwiftPackageReference "HarshalCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HarshalCore;
+		};
+		A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HarshalLedger;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A70000000000000000000001 /* HarshalCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000001 /* XCLocalSwiftPackageReference "HarshalCore" */;
+			productName = HarshalCore;
+		};
+		A70000000000000000000002 /* HarshalLedger */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */;
+			productName = HarshalLedger;
+		};
+		A70000000000000000000003 /* HarshalCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000001 /* XCLocalSwiftPackageReference "HarshalCore" */;
+			productName = HarshalCore;
+		};
+		A70000000000000000000004 /* HarshalLedger */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */;
+			productName = HarshalLedger;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A50000000000000000000003 /* Project object */;
+}

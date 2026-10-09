@@ -1,7 +1,7 @@
 # Security policy and threat model
 
-**Last reviewed:** 2026-09-30
-**Status:** Project-specific disclosure for a browser-based structural demonstration. This is not a security certification, production deployment approval, or guarantee that the implementation is vulnerability-free.
+**Last reviewed:** 2026-10-09
+**Status:** Project-specific disclosure for a browser-based structural demonstration and an early native Swift foundation. This is not a security certification, production deployment approval, or guarantee that the implementation is vulnerability-free.
 
 ## Security posture
 
@@ -9,11 +9,14 @@ HarshalOS is a client-side demonstration of governance and refusal concepts. It 
 
 The browser kernel keeps its mutable state in a closure and publishes a frozen `window.HOS` capability API rather than a global mutable state object. API transitions validate candidate state, and observations and ledger reads are detached copies. These controls reduce accidental or ordinary API-level mutation; they do not make JavaScript in a user-controlled browser tamper-proof.
 
+The native Swift foundation under [`native/HarshalNative/`](native/HarshalNative/README.md) is also **local demonstration software**. Its declaration label is self-declared; its on-device acknowledgement is not a Human Key authenticator; its SHA-256 local ledger/receipt is not a signature or independent witness; and its optional CloudKit private mirror is synchronization, not identity proof or authorization. The first native build deliberately rejects a local attempt to label itself externally attested because no independently reviewed external-attestation provider is configured. See its [architecture and trust boundary](native/HarshalNative/docs/ARCHITECTURE.md).
+
 ## Assets and security objectives
 
 The implementation handles or models:
 
 - Local HOS state and results: Human Key demo status, legitimacy factors, phase, session metadata, and the in-memory duty ledger.
+- Native Swift foundation state: self-declared phase labels, acknowledgement status, local gate inputs/results, and the `UserDefaults`-cached local ledger/receipt. This cache is not encrypted or independently tamper-proof.
 - Browser-held Ground-0 audits/evidence, preferences, and optional model API keys. Browser storage is not application-encrypted and is available to code running in the same origin and to people with access to the browser profile.
 - User-entered evidence, source documents, model prompts/responses, and any text included in a cloud snapshot or ledger archive.
 - Cloudflare Access configuration, Worker secrets, MongoDB credentials, and stored snapshots/archives when optional cloud storage is configured.
@@ -29,13 +32,21 @@ The code and tests aim to make intended local API transitions explicit, reject m
 
 **Boundary:** `window.HOS` is still available to JavaScript running in the page's origin. A malicious or compromised same-origin script, XSS, browser extension, developer-tools user, injected dependency, or person controlling the browser can inspect or replace page behavior, invoke exposed capabilities, alter the DOM, or falsify displayed results. A closure and frozen objects are not a JavaScript realm or operating-system isolation boundary. The browser-side security profile is not designed to resist an attacker who can execute code in the page.
 
-### 2. Human Key, time, and authorization
+### 2. Native Swift foundation
+
+**Expected protection:** the `HarshalCore` and `HarshalLedger` packages separate deterministic model code from SwiftUI presentation; `LocalLedger` serializes ordinary concurrent appends through an actor and verifies a SHA-256 chain prefix. The app begins without an active acknowledgement, authorization, session tuple, technical attribution, or operational-accountability model input, so the native refusal gate fails closed. Active local acknowledgement state is cleared on app launch rather than silently restored.
+
+**Boundary:** native process isolation, code signing, and the platform sandbox do not turn a self-declared label into a verified person or a local receipt into an independent record. A person controlling an unlocked device, app installation, backup/restore path, local `UserDefaults` data, or a modified/debug build can alter or replace local state and recompute a local chain. The first build does not persist a production secret in Keychain/Secure Enclave, implement a hardware-backed authenticator, or supply a trusted time/revocation service. It must not be used to screen character, intent, criminality, trustworthiness, or eligibility.
+
+CloudKit code is disabled unless an owner configures a signed app with an owned private container. If enabled, an explicitly requested mirror sends a declaration and local receipt to the user's private CloudKit database. The iCloud account, CloudKit ACL, Apple account recovery, device compromise, database operations, backups, and record schema remain outside this repository's trust guarantee; CloudKit does not independently witness event truth or establish human identity.
+
+### 3. Human Key, time, and authorization
 
 The current Human Key is **demonstration-only**. The phrase is public and the HMAC key is bundled in client source; both are available to anyone who can inspect the application. A successful local HMAC exercises an asynchronous state machine but proves no identity, liveness, consent, non-coercion, or secure-hardware possession. Browser time and timers are not trusted time or an independent freshness service. Random IDs are local correlation identifiers, not credentials.
 
 There is no production Human Key authenticator or production authorization path. `requestProductionAttestation()` fails closed. A local `DEMO-PERMITTED` result or explicit GSRB override must never be treated as external authority. Production use would require a separately designed and reviewed external trust root, authenticator, challenge verifier, freshness/revocation policy, and per-action authorization path; none is implemented here.
 
-### 3. Ledger, receipts, and Ground-0 declarations
+### 4. Ledger, receipts, and Ground-0 declarations
 
 The PLV ledger is an asynchronous, serialized SHA-256 hash chain. Session receipts bind local identifiers and ledger rows with hashes. This can help detect inconsistent edits in the particular copy being checked, but there is no independently held signing key, remote witness, independently verifiable timestamp, or append-only/WORM guarantee. A person or attacker able to replace the browser, page code, or stored archive can rewrite data and recompute hashes. Hashes do not encrypt content, prove that an event occurred, or establish that its text is true.
 
@@ -43,7 +54,7 @@ Ground-0 formal PDH validation checks an ECDSA signature using a public key supp
 
 The guided demonstration uses a fresh iframe with `sandbox="allow-scripts"` and does not pass the active HOS object into it. This is a narrow protection against accidental mutation by that walkthrough, not a general security boundary for the page or browser.
 
-### 4. LLMs, research, and other external content
+### 5. LLMs, research, and other external content
 
 `HOSLLM` is designed as a data-only interface: it has no HOS kernel capability, does not dispatch model tools, and treats provider text as untrusted and non-executable. Ground-0 model readings require explicit human selection and remain review-required drafts. Quote matching establishes that text appears in stored source text; it does not establish that the source is authentic, current, complete, or truthful.
 
@@ -60,17 +71,17 @@ Residual risk, stated plainly: the relay is **not** behind Cloudflare Access, so
 
 Treat retrieved web pages, documents, citations, and model responses as untrusted input. Do not rely on a model conclusion without reviewing the underlying evidence.
 
-### 5. Optional Cloudflare Worker and MongoDB storage
+### 6. Optional Cloudflare Worker and MongoDB storage
 
 Cloud storage is opt-in and uses explicit snapshot and ledger-archive actions; it is not automatic sync. The Worker validates Cloudflare Access JWT signature, issuer, audience, expiry, required claims, and configured owner email before accessing MongoDB. Storage writes also require a same-origin `Origin` header. Missing authentication configuration fails closed. MongoDB credentials are intended to remain in Worker secrets, not browser code.
 
 The application-level checks do not protect against a compromised Cloudflare account, Access policy, Worker secret, MongoDB account, database administrator, or authorized owner's browser. The `Origin` check is an additional browser-request check, not a substitute for authentication. The Worker validates record shape, size, ledger hashes, and archived prefixes; it cannot verify event truth or make MongoDB tamper-proof. Snapshot and ledger contents are sent as application-readable JSON, not encrypted by HarshalOS before storage. Privileged database operators can read, change, or delete stored data. Cloud archives are not independent witnessing, WORM storage, or a backup/recovery guarantee. There is no delete endpoint or retention job. The compatibility check for old ledger hashes is a migration path, not identity verification.
 
-The setup guide currently uses a MongoDB Atlas network rule permitting connections from `0.0.0.0/0` for this initial Worker configuration. This is broad network reachability: database authentication and TLS are still required, and the database user should be unique and least-privileged. Restrict network access when the hosting architecture supports a reliable narrower egress range. Protect the entire configured site hostname with Cloudflare Access when following the private-storage deployment guide; review any change to that policy before deployment. Not every Worker route requires an Access JWT: `/api/good-intelligence/v1/*` (signed synthetic demo data, and the allowlisted Tickerbot proxy that holds its own `TICKERBOT_API_KEY` secret) and `/api/llm` (the Z.AI free-tier relay described in §4) answer same-origin requests directly, each behind its own allowlist, size caps and rate limits. Protecting the whole hostname as recommended above places all of them behind sign-in.
+The setup guide currently uses a MongoDB Atlas network rule permitting connections from `0.0.0.0/0` for this initial Worker configuration. This is broad network reachability: database authentication and TLS are still required, and the database user should be unique and least-privileged. Restrict network access when the hosting architecture supports a reliable narrower egress range. Protect the entire configured site hostname with Cloudflare Access when following the private-storage deployment guide; review any change to that policy before deployment. Not every Worker route requires an Access JWT: `/api/good-intelligence/v1/*` (signed synthetic demo data, and the allowlisted Tickerbot proxy that holds its own `TICKERBOT_API_KEY` secret) and `/api/llm` (the Z.AI free-tier relay described in §5) answer same-origin requests directly, each behind its own allowlist, size caps and rate limits. Protecting the whole hostname as recommended above places all of them behind sign-in.
 
 See [MongoDB setup guide](docs/deployment/MONGODB-SETUP.md) for configuration and operational details. No live Atlas connection, Access policy, or production cloud deployment is established by the repository tests.
 
-### 6. Source delivery and deployment
+### 7. Source delivery and deployment
 
 The local `node serve.js` server allowlists site paths rather than serving the checkout, but it binds to `0.0.0.0`, has no authentication or TLS, does not provide the Worker `/api/storage/*` backend, and is for development/preview use—not a public production server. The asset-preparation and Worker configuration stage only the intended site directories; maintain that allowlist and review changes to it. Never publish `.dev.vars`, Worker secrets, database URIs, credentials, private papers, or the full repository as static assets.
 
@@ -100,6 +111,15 @@ Run the repository's current Node suites with:
 ```bash
 node --test tests/*-test.mjs
 ```
+
+On a macOS machine with Xcode 15.3+, run the initial native package tests separately:
+
+```bash
+cd native/HarshalNative/Packages/HarshalCore && swift test
+cd ../HarshalLedger && swift test
+```
+
+These native tests cover deterministic declaration/gate/ledger behavior only; they do not validate signing, an iCloud container, an external identity provider, a real device trust state, or production authorization.
 
 Targeted hostile-caller reports can be run with `node tests/red-team-test.mjs`; Worker authentication/storage tests with `npm run test:cloud`; and kernel API tests with `npm run test:kernel`.
 

@@ -44,6 +44,10 @@ Identity → Representation → Authorization → Continuity → Accountability 
 
 ---
 
+## Native Swift foundation
+
+A ground-up universal **SwiftUI** foundation for iPhone, iPad, and macOS now lives in [`native/HarshalNative/`](native/HarshalNative/README.md). It is a separate native codebase—not a web view—and begins with a phase declaration flow, refusal-first local model, SHA-256 local ledger/receipt viewer, XCTest coverage, and an explicitly disabled-by-default CloudKit private-mirror adapter. It keeps the browser project's local-demo boundary: neither the declaration flow, local receipt, Apple account, nor CloudKit establishes identity, predicts intent, prevents harmful conduct, or grants production authority. See the [native architecture and trust boundary](native/HarshalNative/docs/ARCHITECTURE.md) before enabling sign-in, sync, or any authority-bearing path.
+
 ## Run it
 
 The browser-only shell needs no build step or dependencies. Use the allowlisted preview server (do not expose the whole checkout):
