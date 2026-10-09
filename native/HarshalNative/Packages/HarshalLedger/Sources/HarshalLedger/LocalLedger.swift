@@ -115,9 +115,9 @@ public enum LocalLedgerError: Error, Equatable, Sendable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidEvent:
-            "Ledger events must be non-empty and no longer than 4,096 characters."
+            return "Ledger events must be non-empty and no longer than 4,096 characters."
         case .invalidReceiptSubject:
-            "Receipts require a non-empty subject type."
+            return "Receipts require a non-empty subject type."
         }
     }
 }

@@ -83,11 +83,11 @@ private struct OverviewView: View {
 
     private var statusText: String {
         switch appModel.localAttestation {
-        case .absent: "No local acknowledgement"
-        case .pending: "Local acknowledgement pending"
-        case .active: "Local acknowledgement active (freshness window applies)"
-        case .failed: "Local acknowledgement failed"
-        case .revoked: "Local acknowledgement revoked"
+        case .absent: return "No local acknowledgement"
+        case .pending: return "Local acknowledgement pending"
+        case .active: return "Local acknowledgement active (freshness window applies)"
+        case .failed: return "Local acknowledgement failed"
+        case .revoked: return "Local acknowledgement revoked"
         }
     }
 }

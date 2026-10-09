@@ -14,13 +14,13 @@ enum CloudKitMirrorState: Equatable {
 
     var title: String {
         switch self {
-        case .notConfigured: "CloudKit is not configured"
-        case .checking: "Checking iCloud account"
-        case .available: "Private CloudKit database available"
-        case let .unavailable(reason): "iCloud unavailable: \(reason)"
-        case .syncing: "Syncing declaration"
-        case let .synced(date): "Synced \(date.formatted(date: .abbreviated, time: .shortened))"
-        case let .failed(message): "Sync failed: \(message)"
+        case .notConfigured: return "CloudKit is not configured"
+        case .checking: return "Checking iCloud account"
+        case .available: return "Private CloudKit database available"
+        case let .unavailable(reason): return "iCloud unavailable: \(reason)"
+        case .syncing: return "Syncing declaration"
+        case let .synced(date): return "Synced \(date.formatted(date: .abbreviated, time: .shortened))"
+        case let .failed(message): return "Sync failed: \(message)"
         }
     }
 
@@ -39,13 +39,13 @@ enum CloudKitMirrorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .disabledByBuildConfiguration:
-            "CloudKit mirroring is disabled until this app is signed with a real Apple Developer team, CloudKit capability, and private container."
+            return "CloudKit mirroring is disabled until this app is signed with a real Apple Developer team, CloudKit capability, and private container."
         case .noICloudAccount:
-            "No usable iCloud account is available on this device."
+            return "No usable iCloud account is available on this device."
         case .restricted:
-            "The current iCloud account is restricted."
+            return "The current iCloud account is restricted."
         case .unavailable:
-            "The iCloud account status is temporarily unavailable."
+            return "The iCloud account status is temporarily unavailable."
         }
     }
 }

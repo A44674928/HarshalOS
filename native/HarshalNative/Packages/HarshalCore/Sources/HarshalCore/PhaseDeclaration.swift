@@ -9,9 +9,9 @@ public enum PrincipalVerification: String, Codable, Sendable, CaseIterable, Hash
 
     public var label: String {
         switch self {
-        case .selfDeclared: "Self-declared"
-        case .externalAttestationPending: "External attestation pending"
-        case .externallyAttested: "Externally attested"
+        case .selfDeclared: return "Self-declared"
+        case .externalAttestationPending: return "External attestation pending"
+        case .externallyAttested: return "Externally attested"
         }
     }
 }
@@ -31,15 +31,15 @@ public enum DeclarationAcknowledgment: String, CaseIterable, Codable, Sendable, 
     public var title: String {
         switch self {
         case .localBoundary:
-            "I understand this is a local demonstration record."
+            return "I understand this is a local demonstration record."
         case .noIdentityClaim:
-            "I understand a local alias or device state does not prove identity, intent, or legal authority."
+            return "I understand a local alias or device state does not prove identity, intent, or legal authority."
         case .externalAuthorization:
-            "I will not treat this declaration as external authorization for real-world action."
+            return "I will not treat this declaration as external authorization for real-world action."
         case .accountabilityDuty:
-            "I acknowledge that accountable human and operational ownership must be established outside this app."
+            return "I acknowledge that accountable human and operational ownership must be established outside this app."
         case .revocationDuty:
-            "I understand a declaration or local acknowledgement can be withdrawn and must fail closed when withdrawn."
+            return "I understand a declaration or local acknowledgement can be withdrawn and must fail closed when withdrawn."
         }
     }
 
@@ -69,15 +69,15 @@ public enum CollapseAcknowledgment: String, CaseIterable, Codable, Sendable, Ide
     public var title: String {
         switch self {
         case .publicDeclarationOfInternalLegitimacy:
-            "Public declaration of internal legitimacy"
+            return "Public declaration of internal legitimacy"
         case .admissionOfExecutableSymbolism:
-            "Admission of executable symbolism"
+            return "Admission of executable symbolism"
         case .acceptanceOfOverrideableRefusal:
-            "Acceptance of override-able refusal"
+            return "Acceptance of override-able refusal"
         case .acknowledgementOfLossOfMisuseResistance:
-            "Acknowledgement of loss of misuse resistance"
+            return "Acknowledgement of loss of misuse resistance"
         case .resetOfPriorPhaseGuarantees:
-            "Reset of prior phase guarantees"
+            return "Reset of prior phase guarantees"
         }
     }
 }
@@ -180,14 +180,14 @@ public enum PhaseDeclarationError: Error, Equatable, Sendable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidPrincipalLabel:
-            "Enter a declaration label of 2–80 characters. This label is not proof of identity."
+            return "Enter a declaration label of 2–80 characters. This label is not proof of identity."
         case .externalAttestationUnavailable:
-            "This build has no independently approved external-attestation provider. It will not let a local declaration self-label as externally attested."
+            return "This build has no independently approved external-attestation provider. It will not let a local declaration self-label as externally attested."
         case let .missingAcknowledgments(missing):
             let labels = missing.map(\.rawValue).sorted().joined(separator: ", ")
             return "Confirm every required declaration acknowledgement before continuing: \(labels)."
         case .incompleteGSrbCollapseProtocol:
-            "A GSRB declaration requires all five collapse acknowledgements in their canonical order; other phases require no collapse acknowledgements. This starter remains non-executing."
+            return "A GSRB declaration requires all five collapse acknowledgements in their canonical order; other phases require no collapse acknowledgements. This starter remains non-executing."
         }
     }
 }
