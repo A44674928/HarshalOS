@@ -1062,10 +1062,10 @@ const linkPriced = () => {
   eq(relay.keyOptional, true, "no browser key is needed for the relay");
   eq(relay.model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the relay defaults to the Cloudflare Workers AI model");
   eq(relay.context, 128000, "the relay states the free tier's context window");
-  ok(/Worker secret/i.test(relay.note) && /never in this browser/i.test(relay.note), "the relay note says the key lives in the Worker, not the browser");
-  ok(/glm-4\.5-flash/.test(relay.note) && /glm-4\.7-flash/.test(relay.note), "the relay note names the $0 models it serves");
-  ok(/pass through that Worker/i.test(relay.note), "the relay note discloses that prompts transit the Worker");
-  ok(/do_sample:false/i.test(relay.note), "the relay note discloses Z.AI's sampling translation");
+  ok(/AI binding/i.test(relay.note) && /no third-party API key/i.test(relay.note), "the relay note identifies the Cloudflare AI binding and keyless default");
+  ok(/Z\.A\.I/.test(relay.note) && /fallback/i.test(relay.note), "the relay note identifies Z.AI as a fallback only");
+  ok(/Prompts pass through this deployment's Worker/i.test(relay.note), "the relay note discloses that prompts transit the Worker");
+  ok(/Neuron ledger/i.test(relay.note), "the relay note discloses the daily Neuron budget guard");
   eq(relay.label.includes("Cloudflare Workers AI"), true, "the preset is named for the default provider it serves");
 
   /* A key from another provider must never be forwarded to this relay. */
