@@ -167,28 +167,13 @@ struct NeoOrbView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(shape.nodes) { placedNode in
-                        let isSelected = placedNode.id == selectedNodeID
-                        Button {
-                            selectedNodeID = placedNode.id
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(placedNode.node.label)
-                                    .font(.subheadline.weight(.semibold))
-                                Text("Band \(placedNode.node.radialBand) · \(kindLabel(placedNode.node.kind))")
-                                    .font(.caption2)
-                                    .foregroundStyle(isSelected ? .primary.opacity(0.75) : .secondary)
+                        NeoOrbNodeChip(
+                            placedNode: placedNode,
+                            isSelected: placedNode.id == selectedNodeID,
+                            onSelect: {
+                                selectedNodeID = placedNode.id
                             }
-                            .frame(minWidth: 122, alignment: .leading)
-                            .padding(10)
-                            .background(selectionBackground(isSelected: isSelected), in: RoundedRectangle(cornerRadius: 12))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(kindColor(placedNode.node.kind).opacity(isSelected ? 0.9 : 0.35), lineWidth: isSelected ? 1.5 : 1)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("\(placedNode.node.label), \(kindLabel(placedNode.node.kind)) node")
-                        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                        )
                     }
                 }
                 .padding(.vertical, 3)
@@ -204,7 +189,7 @@ struct NeoOrbView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     LabeledContent("Label", value: selectedNode.node.label)
                     LabeledContent("Sector", value: String(format: "%03d", selectedNode.node.sector))
-                    LabeledContent("Kind", value: kindLabel(selectedNode.node.kind))
+                    LabeledContent("Kind", value: selectedNode.node.kind.neoOrbDisplayLabel)
                     LabeledContent("Depth", value: selectedNode.node.depth.formatted(.number.precision(.fractionLength(2))))
                     LabeledContent("Logarithmic band", value: "\(selectedNode.node.radialBand)")
                     LabeledContent("Display berth", value: selectedNode.wasReslotted ? "Re-slotted for visibility" : "Source position retained")
@@ -262,8 +247,71 @@ struct NeoOrbView: View {
         return "no synthetic nodes currently share a display berth"
     }
 
-    private func kindLabel(_ kind: NeoOrbNodeKind) -> String {
-        switch kind {
+}
+
+private struct NeoOrbNodeChip: View {
+    let placedNode: NeoOrbPlacedNode
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    private var node: NeoOrbNode {
+        return placedNode.node
+    }
+
+    private var metadataText: String {
+        return "Band \(node.radialBand) · \(node.kind.neoOrbDisplayLabel)"
+    }
+
+    private var metadataColor: Color {
+        if isSelected {
+            return Color.primary.opacity(0.75)
+        }
+        return Color.secondary
+    }
+
+    private var borderColor: Color {
+        let opacity = isSelected ? 0.9 : 0.35
+        return node.kind.neoOrbDisplayColor.opacity(opacity)
+    }
+
+    private var borderWidth: CGFloat {
+        return isSelected ? 1.5 : 1
+    }
+
+    private var backgroundColor: Color {
+        return isSelected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.035)
+    }
+
+    private var accessibilityText: String {
+        return "\(node.label), \(node.kind.neoOrbDisplayLabel) node"
+    }
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(node.label)
+                    .font(.subheadline.weight(.semibold))
+                Text(metadataText)
+                    .font(.caption2)
+                    .foregroundStyle(metadataColor)
+            }
+            .frame(minWidth: 122, alignment: .leading)
+            .padding(10)
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(borderColor, lineWidth: borderWidth)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+}
+
+private extension NeoOrbNodeKind {
+    var neoOrbDisplayLabel: String {
+        switch self {
         case .structural:
             return "Structural"
         case .field:
@@ -273,8 +321,8 @@ struct NeoOrbView: View {
         }
     }
 
-    private func kindColor(_ kind: NeoOrbNodeKind) -> Color {
-        switch kind {
+    var neoOrbDisplayColor: Color {
+        switch self {
         case .structural:
             return .cyan
         case .field:
@@ -282,10 +330,6 @@ struct NeoOrbView: View {
         case .interaction:
             return .orange
         }
-    }
-
-    private func selectionBackground(isSelected: Bool) -> Color {
-        isSelected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.035)
     }
 }
 
