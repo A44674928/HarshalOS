@@ -2,6 +2,57 @@ const $ = id => document.getElementById(id);
 let busy = false, listCursor = null, eventCursor = null, historyCursor = null, current = null;
 const selected = new URL(location.href).searchParams.get('id');
 const notice = text => { $('public-notice').textContent = text; };
+/* Human verification (Cloudflare Turnstile) for moderator reports. Checked
+   lazily on first report: nothing is fetched and no third-party script loads
+   for readers, and deployments without a Turnstile secret never require it. */
+let turnstileState = { checked: false, required: false, siteKey: '', token: '', widgetId: null, scriptLoading: null, scriptFailed: false };
+async function turnstileConfig() {
+  if (turnstileState.checked) return turnstileState;
+  const status = await api('status');
+  turnstileState.required = status.turnstile?.required === true;
+  turnstileState.siteKey = typeof status.turnstile?.siteKey === 'string' ? status.turnstile.siteKey : '';
+  turnstileState.checked = true;
+  return turnstileState;
+}
+async function ensureTurnstile() {
+  let config;
+  try {
+    config = await turnstileConfig();
+  } catch {
+    notice('Could not confirm whether human verification is required. Retry shortly.');
+    return { ...turnstileState, unknown: true };
+  }
+  if (!config.required) return config;
+  if (config.widgetId === null && !turnstileState.scriptFailed) {
+    if (!config.siteKey) { notice('Human verification is required, but this deployment has no site key configured. Reporting is unavailable until the operator fixes it.'); return config; }
+    if (!$('turnstile-report')) return config;
+    try {
+      if (!window.turnstile) {
+        if (!turnstileState.scriptLoading) {
+          turnstileState.scriptLoading = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+            script.async = true; script.defer = true;
+            script.onload = () => resolve();
+            script.onerror = () => { turnstileState.scriptLoading = null; reject(new Error('widget failed to load')); };
+            document.head.append(script);
+          });
+        }
+        await turnstileState.scriptLoading;
+      }
+      config.widgetId = window.turnstile.render('#turnstile-report', {
+        sitekey: config.siteKey,
+        callback: token => { turnstileState.token = token; },
+        'expired-callback': () => { turnstileState.token = ''; },
+        'error-callback': () => { turnstileState.token = ''; }
+      });
+    } catch {
+      turnstileState.scriptFailed = true;
+      notice('The verification widget failed to load. Retry shortly.');
+    }
+  }
+  return config;
+}
 async function api(path, options = {}) {
   const response = await fetch('/api/community/' + path, { cache: 'no-store', credentials: 'same-origin', ...options });
   const data = await response.json();
@@ -60,8 +111,13 @@ $('events-more').addEventListener('click', () => task(() => events(true)));
 $('history-more').addEventListener('click', () => task(() => history(true)));
 $('send-report').addEventListener('click', () => task(async () => {
   const details = $('report-details').value.trim(); if (!details) throw new Error('Describe the concern before submitting.');
-  await api('publications/' + encodeURIComponent(selected) + '/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ details }) });
-  $('report-details').value = ''; notice('Report sent privately to moderators. Reporting is not a finding or certification.');
+  const verification = await ensureTurnstile();
+  if (verification.unknown) return;
+  if (verification.required && !turnstileState.token) throw new Error('Complete the human verification challenge, then send again.');
+  await api('publications/' + encodeURIComponent(selected) + '/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ details, ...(turnstileState.token ? { turnstileToken: turnstileState.token } : {}) }) });
+  $('report-details').value = ''; turnstileState.token = '';
+  try { if (turnstileState.widgetId !== null && window.turnstile) window.turnstile.reset(turnstileState.widgetId); } catch { /* a stale widget never blocks the next report */ }
+  notice('Report sent privately to moderators. Reporting is not a finding or certification.');
 }));
 $('publication-export').addEventListener('click', () => {
   if (busy || !current?.report) return;
