@@ -32,25 +32,25 @@ async function harness(handler = prompt => ({ content: unknownReply(prompt) })) 
   sandbox.window = sandbox;
   sandbox.fetch = async (url, init) => handleLlmRelay(new Request(new URL(url, sandbox.location.origin), {
     ...init, headers: { "Content-Type": "application/json", Origin: sandbox.location.origin }
-  }), { ZAI_API_KEY: "test-only-placeholder", LLM_RELAY_DISABLE_RATE_LIMITS: "true" }, {
-    fetch: async (_url, options) => {
-      const body = JSON.parse(options.body);
-      const prompt = body.messages.find(message => message.role === "user").content;
-      calls.push({ body, prompt });
-      const reply = await handler(prompt, calls.length, body);
-      return Response.json({
-        model: body.model,
-        choices: [{ message: { content: typeof reply.content === "string" ? reply.content : JSON.stringify(reply.content) }, finish_reason: reply.finishReason || "stop" }],
-        usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 }
-      });
-    }
-  });
+  }), { AI: { run: async (model, input) => {
+    const body = { ...input, model };
+    const prompt = body.messages.find(message => message.role === "user").content;
+    calls.push({ body, prompt });
+    const reply = await handler(prompt, calls.length, body);
+    return {
+      choices: [{
+        message: { content: typeof reply.content === "string" ? reply.content : JSON.stringify(reply.content) },
+        finish_reason: reply.finishReason || "stop"
+      }],
+      usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 }
+    };
+  } }, LLM_RELAY_DISABLE_RATE_LIMITS: "true" });
   vm.createContext(sandbox);
   for (const file of ["g0-engine", "g0-research", "llm", "g0-llm"]) {
     vm.runInContext(await readFile(new URL(`../js/${file}.js`, import.meta.url), "utf8"), sandbox, { filename: `${file}.js` });
   }
   const { G0, G0LLM, HOSLLM } = sandbox;
-  HOSLLM.saveSettings({ provider: "relay", model: "glm-4.5-flash" });
+  HOSLLM.saveSettings({ provider: "relay", model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" });
   const input = G0.newInput("1.1");
   input.name = "Acme Corp"; input.cutoff = CUTOFF;
   const read = (sources = [source()], options = {}) => G0LLM.readSources({ input, sources, cutoff: CUTOFF, version: "1.1", followLinks: false, ...options });

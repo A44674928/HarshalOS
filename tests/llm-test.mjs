@@ -82,8 +82,9 @@ const sources = [
   localStorage.setItem("hos-llm-settings-v1", JSON.stringify({ provider: "relay", endpoint: "/api/llm", model: "glm-4.5-flash" }));
   eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.A.I default is upgraded to the Workers AI default");
   localStorage.removeItem("hos-llm-settings-v1");
-  eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.AI default is upgraded to the Workers AI default");
+  eq(LLM.resolved().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the preset supplies the Workers AI model when no saved override exists");
   localStorage.removeItem("hos-llm-settings-v1");
+  LLM.saveSettings({ provider: "anthropic", endpoint: LLM.PROVIDERS.anthropic.endpoint, model: LLM.PROVIDERS.anthropic.model, protocol: "" });
   LLM.setKey("sk-ant-test-key-0000000000", false);
   ok(LLM.keyStorage() === "session", "the key is held for the session by default");
   ok(LLM.status().linked === true, "provider, model and key make a complete link");
@@ -1068,14 +1069,14 @@ const linkPriced = () => {
   eq(relay.model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the relay defaults to the Cloudflare Workers AI model");
   eq(relay.context, 128000, "the relay states the free tier's context window");
   ok(/AI binding/i.test(relay.note) && /no third-party API key/i.test(relay.note), "the relay note identifies the Cloudflare AI binding and keyless default");
-  ok(/Z\.A\.I/.test(relay.note) && /fallback/i.test(relay.note), "the relay note identifies Z.AI as a fallback only");
+  ok(/Z\.AI/.test(relay.note) && /fallback/i.test(relay.note), "the relay note identifies Z.AI as a fallback only");
   ok(/Prompts pass through this deployment's Worker/i.test(relay.note), "the relay note discloses that prompts transit the Worker");
   ok(/Neuron ledger/i.test(relay.note), "the relay note discloses the daily Neuron budget guard");
   eq(relay.label.includes("Cloudflare Workers AI"), true, "the preset is named for the default provider it serves");
 
   /* A key from another provider must never be forwarded to this relay. */
   LLM.setKey("sk-ant-leftover-from-another-provider", false);
-  LLM.saveSettings({ provider: "relay", protocol: "", endpoint: "/api/llm", model: "glm-4.5-flash" });
+  LLM.saveSettings({ provider: "relay", protocol: "", endpoint: "/api/llm", model: "glm-4.7-flash" });
   const relayConfig = LLM.resolved();
   eq(relayConfig.relay, true, "the resolved connection is the relay");
   eq(LLM.status().linked, true, "the relay is a complete link with no key in this browser");
@@ -1090,7 +1091,7 @@ const linkPriced = () => {
     return {
       ok: true, status: 200, headers: { get: () => "application/json" },
       json: async () => ({
-        object: "chat.completion", model: "glm-4.5-flash",
+        object: "chat.completion", model: "glm-4.7-flash",
         choices: [{ index: 0, message: { role: "assistant", content: "link established, model responding" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 40, completion_tokens: 6, total_tokens: 46 },
         relay: { provider: "zai", tier: "free", keyVariable: "Z.AI", doSample: false, temperatureSent: null }
@@ -1103,7 +1104,7 @@ const linkPriced = () => {
   eq(calls[0].url, "/api/llm", "the call goes to this deployment's own relay route");
   ok(!calls[0].init.headers.get("Authorization"), "the stored key is not sent to the relay");
   eq(calls[0].init.credentials, "omit", "the relay call carries no cookies either");
-  eq(calls[0].body.model, "glm-4.5-flash", "the free-tier model is named");
+  eq(calls[0].body.model, "glm-4.7-flash", "the explicitly selected Z.AI fallback model is preserved");
   eq(calls[0].body.max_tokens, 700, "the caller's output ceiling is passed through");
   eq(calls[0].body.temperature, 0, "a greedy reading is asked for as temperature 0; the relay translates it");
   eq(calls[0].body.messages[0].role, "system", "the prompt is exactly what the caller wrote");
