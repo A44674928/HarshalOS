@@ -188,7 +188,25 @@ test("binding failures map to sanitized relay errors; quota-like failures pace t
 
   const empty = aiBinding(() => ({ response: "  " }));
   const envEmpty = { AI: empty.AI, COMMUNITY_DB: ledgerDb(t) };
-  assert.equal((await handleLlmRelay(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), envEmpty, { now: () => NOW })).status, 502);
+  const emptyResponse = await handleLlmRelay(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), envEmpty, { now: () => NOW });
+  assert.equal(emptyResponse.status, 502);
+  const emptyPayload = await emptyResponse.json();
+  assert.match(emptyPayload.error.message, /responseType=string/);
+  assert.match(emptyPayload.error.message, /responseLength=2/);
+  assert.match(emptyPayload.error.message, /fields=response/);
+  assert.equal(emptyPayload.error.message.includes("Read this record"), false, "diagnostics never expose prompt text");
+
+  const alternate = aiBinding(() => ({
+    choices: [{ message: { role: "assistant", content: "Alternate-shape answer." }, finish_reason: "stop" }]
+  }));
+  const alternateResponse = await handleLlmRelay(
+    chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }),
+    { AI: alternate.AI, COMMUNITY_DB: ledgerDb(t) },
+    { now: () => NOW }
+  );
+  assert.equal(alternateResponse.status, 200);
+  assert.equal((await alternateResponse.json()).choices[0].message.content, "Alternate-shape answer.");
+
   const tools = aiBinding(() => ({ response: "", tool_calls: [{ id: "1" }] }));
   const envTools = { AI: tools.AI, COMMUNITY_DB: ledgerDb(t) };
   assert.match((await (await handleLlmRelay(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), envTools, { now: () => NOW })).json()).error.message, /tool call instead of text/);
