@@ -867,7 +867,8 @@ async function relayAiChat({ validated, env, pacing, skipLocalRateLimits, now })
     choices: [{
       index: 0,
       message: { role: 'assistant', content },
-      finish_reason: 'stop'
+      finish_reason: typeof choice?.finish_reason === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(choice.finish_reason)
+        ? choice.finish_reason : 'stop'
     }],
     usage,
     relay: {
