@@ -152,6 +152,11 @@ window.HOSLLM = (() => {
       const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
       const merged = { ...defaults(), ...(raw && typeof raw === "object" ? raw : {}) };
       if (!PROVIDERS[merged.provider]) merged.provider = "relay";
+      /* The previous relay preset's default was Z.AI's GLM model. Upgrade only
+         that exact old default; preserve any model the operator chose manually. */
+      if (merged.provider === "relay" && merged.model === "glm-4.5-flash") {
+        merged.model = PROVIDERS.relay.model;
+      }
       return merged;
     } catch { return defaults(); }
   }
