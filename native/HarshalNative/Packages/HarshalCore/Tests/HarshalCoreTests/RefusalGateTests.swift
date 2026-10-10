@@ -6,7 +6,7 @@ final class RefusalGateTests: XCTestCase {
 
     private func completeInput(phase: DeclaredPhase = .nab) -> GateInput {
         GateInput(
-            actionName: "read-only example",
+            actionName: "modeled external action",
             phase: phase,
             attestation: .active,
             attestedAt: now,
@@ -64,11 +64,12 @@ final class RefusalGateTests: XCTestCase {
         XCTAssertEqual(result.legitimacy, 0)
     }
 
-    func testCWOAlwaysRefusesEvenWithCompleteInput() {
+    func testCWORefusesOnlyTheExternalActionGateEvenWithCompleteInput() {
         let result = RefusalGate.evaluate(completeInput(phase: .cwo))
 
         XCTAssertEqual(result.decision, .refuse)
-        XCTAssertEqual(result.code, .cwoForbidden)
+        XCTAssertEqual(result.code, .cwoExternalExecutionUnavailable)
+        XCTAssertTrue(result.reason.contains("paper-market declarations"))
     }
 
     func testStaleAcknowledgementFailsClosed() {

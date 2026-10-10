@@ -14,7 +14,7 @@ final class AppModel {
 
     var localAttestation: LocalAttestationState = .absent
     var attestedAt: Date?
-    var actionName = "Read local reference"
+    var actionName = "Modeled external action"
     var addressability = 1.0
     var representation = 1.0
     var authorizationActive = false

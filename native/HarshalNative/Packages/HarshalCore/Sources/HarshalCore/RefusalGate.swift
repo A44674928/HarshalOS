@@ -13,12 +13,14 @@ public enum GateDecision: String, Codable, Sendable, Hashable {
     case refuse = "REFUSE"
 }
 
-/// Stable, user-presentable result identifiers. The model fails closed: any
-/// unknown or incomplete condition resolves to a refusal.
+/// Stable, user-presentable result identifiers for modeled external actions.
+/// The model fails closed: any unknown or incomplete condition resolves to a
+/// refusal. Non-executing paper-market records use `PaperTradingPolicy` rather
+/// than this execution gate.
 public enum GateCode: String, Codable, Sendable, Hashable {
     case localDemoPermitted = "LOCAL-DEMO-PERMITTED"
     case invalidAction = "INVALID-ACTION"
-    case cwoForbidden = "CWO-FORBIDDEN"
+    case cwoExternalExecutionUnavailable = "CWO-EXTERNAL-EXECUTION-UNAVAILABLE"
     case gsrbNonExecuting = "GSRB-NON-EXECUTING"
     case attestationPending = "LOCAL-ATTESTATION-PENDING"
     case noLocalAttestation = "NO-LOCAL-ATTESTATION"
@@ -106,6 +108,10 @@ public struct GateEvaluation: Equatable, Sendable {
     public var permitted: Bool { decision == .permit }
 }
 
+/// Evaluates a bounded modeled external action. It does not decide whether a
+/// declared body may create a local archival record or a simulated paper-market
+/// declaration; those non-executing records are phase-neutral under
+/// `PaperTradingPolicy`.
 public enum RefusalGate {
     public static func evaluate(_ input: GateInput) -> GateEvaluation {
         let actionName = input.actionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -150,7 +156,10 @@ public enum RefusalGate {
             return refusal(.invalidFactor, "Addressability and representation must each be finite values from 0 through 1.")
         }
         if input.phase == .cwo {
-            return refusal(.cwoForbidden, "CWO is witness-only. This native starter records no action as permitted in that phase.")
+            return refusal(
+                .cwoExternalExecutionUnavailable,
+                "CWO is a custodial witness phase, so this modeled external-execution gate is unavailable. This does not block archival records or non-executing paper-market declarations."
+            )
         }
         if input.attestation == .pending {
             return refusal(.attestationPending, "The local acknowledgement is pending. The identity gate remains false until it completes.")

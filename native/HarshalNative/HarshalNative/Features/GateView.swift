@@ -10,8 +10,8 @@ struct GateView: View {
 
         NavigationStack {
             Form {
-                Section("Local model input") {
-                    TextField("Action label", text: $model.actionName)
+                Section("Modeled external-action input") {
+                    TextField("External action label", text: $model.actionName)
                     factorRow("Addressability A(t)", value: $model.addressability)
                     factorRow("Representation R(t)", value: $model.representation)
                 }
@@ -27,10 +27,13 @@ struct GateView: View {
                 }
 
                 Section {
-                    Button("Evaluate refusal-first gate") {
+                    Button("Evaluate external-action gate") {
                         model.evaluateGate()
                     }
                     .buttonStyle(.borderedProminent)
+                    Text("This is an execution-only local model. It does not decide whether a declared body may create a non-executing paper-market declaration or paper position.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 if let result = model.gateEvaluation {
@@ -61,7 +64,7 @@ struct GateView: View {
                     }
                 }
             }
-            .navigationTitle("Refusal-first gate")
+            .navigationTitle("External-action gate")
         }
     }
 

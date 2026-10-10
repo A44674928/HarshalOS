@@ -14,8 +14,9 @@ This directory begins a **ground-up, full-Swift** build of HarshalOS for iPhone,
   2. requires a declared phase (`NAB`, `CWO`, or `GSRB` — **God-Sovereign Religious Body**);
   3. requires explicit boundary, authorization, accountability, and revocation acknowledgements; `GSRB` additionally requires all five canonical collapse statements in order;
   4. creates a local declaration receipt.
-- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
-- XCTest coverage for phase declaration/refusal cases, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
+- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, external-action gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
+- A phase-neutral paper-market policy foundation: **NAB, CWO, and GSRB** may all make future non-executing market declarations and simulated paper positions. The paper-trading UI, market-data adapter, and public feed are not yet implemented; see [`docs/PAPER-TRADING.md`](docs/PAPER-TRADING.md).
+- XCTest coverage for phase declaration/refusal cases, phase-neutral paper-market eligibility, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
 
 ## Deliberate boundary
 

@@ -21,11 +21,11 @@ public enum DeclaredPhase: String, CaseIterable, Codable, Sendable, Identifiable
     public var shortDescription: String {
         switch self {
         case .nab:
-            return "Refusal-bound local evaluation. A permit is only a local demonstration result."
+            return "Refusal-bound local evaluation. All declared phases may record simulated paper-market positions; an execution permit remains a local demonstration result."
         case .cwo:
-            return "Witness-only. The native gate never permits an action in this phase."
+            return "Custodial/archival phase. CWO may record and preserve non-executing paper-market declarations; the external-execution gate remains unavailable."
         case .gsrb:
-            return "God-Sovereign Religious Body declaration. This starter application does not expose an execution override."
+            return "God-Sovereign Religious Body declaration. It may record non-executing paper-market declarations; this starter exposes no execution override."
         }
     }
 
