@@ -15,8 +15,9 @@ This directory begins a **ground-up, full-Swift** build of HarshalOS for iPhone,
   3. requires explicit boundary, authorization, accountability, and revocation acknowledgements; `GSRB` additionally requires all five canonical collapse statements in order;
   4. creates a local declaration receipt.
 - A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, external-action gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
-- A phase-neutral paper-market policy foundation: **NAB, CWO, and GSRB** may all make future non-executing market declarations and simulated paper positions. The paper-trading UI, market-data adapter, and public feed are not yet implemented; see [`docs/PAPER-TRADING.md`](docs/PAPER-TRADING.md).
-- XCTest coverage for phase declaration/refusal cases, phase-neutral paper-market eligibility, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
+- A phase-neutral local **Paper market** tab: **NAB, CWO, and GSRB** can record simulated market declarations and open, close, or withdraw paper positions against bundled deterministic fixtures. `HarshalMarkets` also preserves amendment transitions for the next UI iteration. It creates no network request, broker instruction, payment, public post, or market effect.
+- The local `HarshalMarkets` package provides normalized instruments, fixture provenance, declarations, actor-isolated paper-ledger transitions, and deterministic valuation. Live market data, public projections, and a MarketOrb peer field remain intentionally unimplemented; see [`docs/PAPER-TRADING.md`](docs/PAPER-TRADING.md).
+- XCTest coverage for phase declaration/refusal cases, phase-neutral paper-market eligibility and paper-ledger/valuation transitions, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
 
 ## Deliberate boundary
 
@@ -45,6 +46,9 @@ swift test
 
 cd ../NeoOrb
 swift test
+
+cd ../HarshalMarkets
+swift test
 ```
 
 ## CloudKit is intentionally disabled
@@ -65,6 +69,7 @@ native/HarshalNative/
 ├── Packages/
 │   ├── HarshalCore/                      Policy-neutral core domain model and tests
 │   ├── HarshalLedger/                    Local integrity ledger and tests
+│   ├── HarshalMarkets/                   Fixture-only paper-market model, ledger, and tests
 │   └── NeoOrb/                           Display-only NEO ORB shape model and tests
 └── docs/                                 Architecture and NEO ORB contracts
 ```

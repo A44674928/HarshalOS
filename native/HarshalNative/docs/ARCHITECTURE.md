@@ -59,9 +59,15 @@ S(t) = max(0, 1 − Δt / 240)
 
 For a modeled **external action**, a permit requires active/fresh local acknowledgement, bounded local authorization, a bound local session, both technical and operational accountability model inputs, valid `A`/`R`, `L(t) ≥ τ`, and phase `NAB`. A `CWO` (**Custodial Witness Orb**) correctly refuses this external-execution gate because it is custodial rather than executing; that refusal does **not** bar CWO from archival records or paper-market participation. `GSRB` (**God-Sovereign Religious Body**) exposes no execution override in this initial native build.
 
-`PaperTradingPolicy` is deliberately separate from `RefusalGate`: **NAB, CWO, and GSRB are all eligible** to create a non-executing market declaration and simulated paper position. A paper record is not a broker instruction, payment, investment recommendation, identity proof, or authority grant. See [`PAPER-TRADING.md`](PAPER-TRADING.md) for the planned boundary.
+`PaperTradingPolicy` is deliberately separate from `RefusalGate`: **NAB, CWO, and GSRB are all eligible** to create a non-executing market declaration and simulated paper position. A paper record is not a broker instruction, payment, investment recommendation, identity proof, or authority grant. See [`PAPER-TRADING.md`](PAPER-TRADING.md) for the current boundary.
 
 A local acknowledgement is precisely named as such. It is **not** a production Human Key authenticator.
+
+### `HarshalMarkets`
+
+`HarshalMarkets` is a pure Swift package for the private, local paper-market slice. It normalizes fixture instruments, preserves supplied-observation provenance, records phase-snapshotted market declarations, serializes position transitions through `PaperLedger`, and calculates deterministic long/short simulated results only from explicit available observations.
+
+The current catalog is bundled, deterministic fixture data. It has no provider client, broker API, public feed, payment path, or network dependency. A held or unavailable observation stays unavailable rather than becoming a fabricated neutral mark. The actor and its persisted state make local transitions inspectable, but are not an independent signature or tamper-proof audit service.
 
 ### `HarshalLedger`
 
@@ -83,7 +89,8 @@ The application owns presentation and integration adapters:
 - active acknowledgement is reset at app launch to avoid silently carrying authority forward;
 - a phase declaration produces a receipt, then the gate and ledger views remain inspectable;
 - a NEO ORB `Canvas` view reads only a local synthetic geometry fixture and ephemeral display controls; it can be previewed during onboarding or opened as a dashboard tab after declaration;
-- no network call happens when a declaration, NEO ORB configuration, or gate evaluation is created.
+- a Paper market tab records local phase-snapshotted declarations and simulated positions against bundled deterministic fixture observations; its public-projection intent never publishes anything;
+- no network call happens when a declaration, NEO ORB configuration, gate evaluation, or paper-market record is created.
 
 ## 4. Phase declaration flow
 
@@ -124,7 +131,7 @@ The app sends no data until the user explicitly taps **Mirror declaration and re
 | local PLV/session receipt concepts | `LocalLedger` | Preserve visible assurance boundaries and add native receipt-verification tests. |
 | `js/g0-engine.js` | future `GroundZero` package | Port only with fixtures/tests and a separately reviewed evidence model. |
 | `js/apps-ocm.js` The Orb + `js/good-intelligence-orb2.js` Orb 2 | `NeoOrb` + `NeoOrbView` | Preserve visual/topological semantics only; use synthetic local fixtures and do not infer a route, provider fact, market claim, or authority effect. |
-| Orb 2 logarithmic FBB/race display + future paper-market records | future `HarshalMarkets` + `MarketOrb` packages | Start with local, simulated, phase-neutral paper records and deterministic fixtures. Add reviewed read-only observations before any public feed; keep market geometry display-only. |
+| Orb 2 logarithmic FBB/race display + paper-market records | `HarshalMarkets` now; future `MarketOrb` | `HarshalMarkets` starts with local, simulated, phase-neutral records and deterministic fixtures. Add reviewed read-only observations before any public feed; keep market geometry display-only. |
 | `js/ocm-data.js` and directory logic | future `OCM` package | Start read-only: address validation and routing, then separately assess storage/transport. |
 | Worker integrations | `URLSession` adapters | Preserve same-origin/secret boundary as a service contract; never bundle API secrets into the app. |
 
@@ -135,7 +142,7 @@ The current package tests cover:
 - required acknowledgements, including all five ordered `GSRB` collapse acknowledgements and rejection of malformed/out-of-order protocols;
 - default refusal without a local acknowledgement;
 - fresh, complete `NAB` local-model permit and its `LOCAL-DEMO-ONLY` boundary;
-- CWO external-execution refusal alongside phase-neutral paper-market eligibility for NAB, CWO, and GSRB; stale failure, below-threshold refusal, and non-executing GSRB behavior;
+- CWO external-execution refusal alongside phase-neutral paper-market eligibility for NAB, CWO, and GSRB; deterministic fixture provenance, paper-ledger transition validation, valuation for long/short positions, stale failure, below-threshold refusal, and non-executing GSRB behavior;
 - receipt verification, modified-entry detection, and root mismatch detection;
 - NEO ORB disc-plane formation, ideal/deformed spheroid convergence, stable display-node identity, Z_360 boundary rejection, logarithmic-band ratio/radial berth, and display-only collision re-slotting.
 
@@ -145,7 +152,7 @@ Each future migration must first add fixtures that are traceable to the source s
 
 1. **Foundation hardening** — build the app with Xcode, add accessibility/UI tests, strict-concurrency checking, exportable receipt view, and migration fixtures from the canonical JSON registry.
 2. **NEO ORB visual hardening** — validate the Canvas on iPhone, iPad, and macOS; add accessibility/UI coverage and snapshot fixtures before considering any external read-only field adapter.
-3. **Paper-market foundation** — add a pure `HarshalMarkets` package for phase-neutral, non-executing declarations and paper positions; preserve revisions and price provenance, and add deterministic fixtures before a market-data adapter or public feed.
+3. **Market / Orb 2 projection design** — retain the local `HarshalMarkets` fixture slice, then define the bounded `PublicUniverseProjection` schema and a read-only `MarketOrb` adapter before any peer field or public feed. Port documented logarithmic FBB/race calculations only with fixtures and provenance.
 4. **Secure local storage review** — decide which minimal secrets (if any) belong in Keychain/Secure Enclave and document migration/recovery behavior. Do not call device possession human identity.
 5. **External identity/authorization design** — only after independent policy, privacy, accessibility, legal, threat-model, and review requirements are defined. This is a product/security programme, not a UI task.
 6. **Ground-0** — package the pure classifier and evidence record schemas; keep model output data-only and reviewer-gated.

@@ -1,13 +1,14 @@
 import Foundation
 
-/// A non-executing activity that a declared body may record in the future
-/// native paper-market feature. These activities do not create a brokerage
+/// A non-executing activity that a declared body may record in the native
+/// paper-market feature. These activities do not create a brokerage
 /// order, transfer money, or authorize an external market action.
 public enum PaperTradingActivity: String, CaseIterable, Codable, Sendable, Identifiable, Hashable {
     case marketDeclaration = "MARKET_DECLARATION"
     case openPosition = "OPEN_PAPER_POSITION"
     case amendPosition = "AMEND_PAPER_POSITION"
     case closePosition = "CLOSE_PAPER_POSITION"
+    case withdrawPosition = "WITHDRAW_PAPER_POSITION"
 
     public var id: String { rawValue }
 
@@ -17,12 +18,13 @@ public enum PaperTradingActivity: String, CaseIterable, Codable, Sendable, Ident
         case .openPosition: return "Open paper position"
         case .amendPosition: return "Amend paper position"
         case .closePosition: return "Close paper position"
+        case .withdrawPosition: return "Withdraw paper position"
         }
     }
 }
 
 /// The phase-policy result for a paper-market record. It deliberately answers
-/// only phase eligibility; a future feature must still require a valid local
+/// only phase eligibility; the feature must still require a valid local
 /// declaration, explicit user action, and its own data/persistence checks.
 public struct PaperTradingEligibility: Equatable, Sendable {
     public let phase: DeclaredPhase

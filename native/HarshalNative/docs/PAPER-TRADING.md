@@ -1,10 +1,10 @@
 # Native paper-market boundary
 
-**Status:** policy foundation only — no paper-trading screen, market-data adapter, public feed, broker connection, or money movement is implemented.
+**Status:** local fixture slice implemented — the native Paper market tab records private simulated declarations and paper positions against bundled deterministic observations. There is no market-data adapter, public feed, broker connection, money movement, or public projection implementation.
 
 ## Product rule
 
-Every declared operational phase is eligible for the future native paper-market feature:
+Every declared operational phase is eligible for the native local paper-market feature:
 
 | Declared phase | Market declaration | Simulated paper position | Brokerage / payment execution |
 | --- | --- | --- | --- |
@@ -36,23 +36,31 @@ It is **not**:
 
 `PaperTradingPolicy` in `HarshalCore` makes the phase-neutral eligibility rule explicit. It is intentionally separate from `RefusalGate`, which evaluates modeled external actions and remains fail-closed.
 
-## Intended native package boundary
+## Implemented native package boundary
 
-The next implementation should start with a pure Swift `HarshalMarkets` package:
+`HarshalMarkets` is a pure Swift package wired into both native app targets:
 
 ```text
 HarshalMarkets
 ├── MarketInstrument          stable normalized instrument identity
-├── MarketDeclaration         versioned thesis / horizon / visibility intent
-├── PaperPosition             simulated open, amendment, and closure events
+├── MarketDeclaration         thesis / horizon / private-public intent metadata
+├── PaperPosition             simulated open, amendment, closure, and withdrawal state
 ├── MarketObservation         provider, observed-at time, availability, provenance
-├── PaperLedger               deterministic record and revision history
-└── PaperValuation            deterministic calculation over supplied observations
+├── PaperLedger               actor-isolated local record and revision history
+├── PaperValuation            deterministic long/short calculation over supplied observations
+└── HarshalMarketFixtures     bundled deterministic local observations
 ```
 
-Use `Decimal` for quantities, notional values, and price calculations. Keep provider data, user declarations, and derived display state separate. Unknown, stale, delayed, or unavailable market data must remain explicit rather than becoming a fabricated neutral price or performance result.
+The Paper market tab saves the `PaperLedgerState` with the current private app
+state, and writes a corresponding bounded event to the existing local ledger.
+It uses `Decimal` for quantities, notional values, and price calculations.
 
-A first local slice should use deterministic fixtures only. It should not contact a market-data provider, publish a declaration, or require an Apple account.
+The bundled `HOS-ALPHA` and `HOS-BETA` instruments are explicitly labeled local
+fixtures. They are not live quotes, historical assertions, provider data,
+recommendations, or market signals. Unknown, held, delayed, or unavailable data
+remains explicit rather than becoming a fabricated neutral price or performance
+result. This slice does not contact a market-data provider, publish a
+declaration, or require an Apple account.
 
 ## Personal universe cores and public peer fields
 

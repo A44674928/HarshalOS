@@ -1,11 +1,14 @@
 import Foundation
 import HarshalCore
 import HarshalLedger
+import HarshalMarkets
 
 struct PersistedNativeState: Codable {
     var declaration: PhaseDeclaration?
     var receipt: LocalLedgerReceipt?
     var ledgerEntries: [LedgerEntry]
+    /// Optional to preserve recovery of local state written before HarshalMarkets.
+    var paperLedgerState: PaperLedgerState?
 }
 
 /// Local persistence is a convenience cache, not a trust anchor. The ledger
