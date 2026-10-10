@@ -73,7 +73,7 @@ The ledger protects against accidental mutation and makes local tampering visibl
 
 `NeoOrb` is a pure Foundation Swift Package for **display-only** NEO ORB geometry. It merges The Orb’s Center Origin, Z_360 sector arrangement, disc-to-sphere formation, and direct attachments with Orb 2’s measured spheroid axes, logarithmic radial bands, convergence indicator, and deterministic collision-aware display berths.
 
-The package contains neither SwiftUI nor a persistence/network/gate/authority dependency. Its first fixture is explicitly synthetic and its coordinates are not routes, provider facts, identity claims, market values, ownership records, or operational effects. See [`NEO-ORB.md`](NEO-ORB.md) for the deterministic formulas and non-negotiable extension boundary.
+The package contains neither SwiftUI nor a persistence/network/gate/authority dependency. Its first fixture is explicitly synthetic and its coordinates are not routes, provider facts, identity claims, market values, ownership records, or operational effects. The future product planes remain distinct: **The Orb** is a private personal-universe core, while **Orb 2** is an explicit public projection of opted-in cores for peer comparison. `NeoOrb` currently implements neither data plane. See [`NEO-ORB.md`](NEO-ORB.md) for the deterministic formulas and non-negotiable extension boundary.
 
 ### SwiftUI app target
 

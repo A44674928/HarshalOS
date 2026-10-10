@@ -54,27 +54,72 @@ Use `Decimal` for quantities, notional values, and price calculations. Keep prov
 
 A first local slice should use deterministic fixtures only. It should not contact a market-data provider, publish a declaration, or require an Apple account.
 
+## Personal universe cores and public peer fields
+
+**The Orb** is a body’s personal universe core. It is private by default and
+holds that body’s local declarations, local paper records, and any selected
+private state. It is not a public comparison surface merely because it can be
+rendered.
+
+**Orb 2** is the public representation of explicitly published universe-core
+projections compared alongside peers. It must consume a dedicated envelope such
+as `PublicUniverseProjection`, not inspect a private core directly. That
+projection can contain only the deliberately public fields—for example a public
+market declaration, an opted-in simulated position size, its public status,
+timestamp, revision identity, and disclosed phase provenance.
+
+```text
+private The Orb / universe core
+    └── explicit Publish action
+            └── bounded PublicUniverseProjection
+                    └── Orb 2 public peer field
+```
+
+All declared phases, including CWO, are allocated through the same public
+projection contract. Phase may be shown as provenance or visual material; it
+must not filter a body from the peer field or change its market calculation,
+rank, return, or berth allocation. A private position remains private unless a
+separate publish action selects it for projection.
+
 ## Public declarations and sync
 
-A CloudKit private database may later mirror a user’s own records between their devices, but it is not a public market-declaration network.
+A CloudKit private database may later mirror a user’s own **The Orb** records
+between their devices, but it is not a public market-declaration network and it
+must not be treated as the source of the Orb 2 peer field.
 
-A public feed needs separate explicit design for consent, pseudonymous/profile policy, revisions and withdrawals, abuse reporting, moderation, retention/deletion, rate limits, accessibility, and data provenance. Publishing a paper record must always be a distinct user action.
+A public feed needs separate explicit design for consent, pseudonymous/profile
+policy, revisions and withdrawals, abuse reporting, moderation,
+retention/deletion, rate limits, accessibility, and data provenance. Publishing
+a paper record must always be a distinct user action.
 
 ## Market Orb direction
 
-The current native `NeoOrb` remains a synthetic, display-only geometry model. A future `MarketOrb` adapter may project reviewed market observations and paper records into Orb geometry without changing their source facts.
+The current native `NeoOrb` remains a synthetic, display-only geometry model.
+It is a shared visual prototype, not the implementation of either private
+universe cores or the public Orb 2 field. A future `MarketOrb` adapter may
+project reviewed market observations and bounded public universe projections
+into Orb 2 geometry without changing their source facts.
 
 The intended path is:
 
 ```text
-reviewed market observation + paper declaration
+private universe core + explicit published declaration
+    → bounded public universe projection
+
+reviewed market observation + public universe projection
     → documented logarithmic/FBB or race calculation
     → immutable display input
-    → MarketOrb adapter
-    → NeoOrb / The Orb visual mechanics
+    → Orb 2 / MarketOrb adapter
+    → The Orb visual mechanics where appropriate
     → SwiftUI Canvas
 ```
 
-The existing browser Orb 2 work provides a source-backed starting point for two display lanes: an established-instrument logarithmic-FBB lane and a formation/IPO lane based on verified history maturity. Those lanes are visualization context, not forecasts, recommendations, or execution signals.
+The existing browser Orb 2 work provides a source-backed starting point for two
+display lanes: an established-instrument logarithmic-FBB lane and a formation/
+IPO lane based on verified history maturity. Those lanes are visualization
+context, not forecasts, recommendations, or execution signals.
 
-A future mapping must preserve the raw position size and phase in the inspector, use stable identities, label all derived geometry, keep missing data visibly unavailable, and never use phase as a market-quality or performance score.
+A future mapping must preserve the raw published position size and phase in the
+inspector, use stable identities, label all derived geometry, keep missing data
+visibly unavailable, and never use phase as a market-quality or performance
+score.

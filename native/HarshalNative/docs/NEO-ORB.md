@@ -6,7 +6,29 @@
 
 NEO ORB is the first native visual model that deliberately combines the two
 existing browser concepts without inheriting a claim of external knowledge or
-control:
+control.
+
+## Product-plane distinction
+
+**The Orb** and **Orb 2** share visual mechanics, but they have different
+product roles:
+
+- **The Orb** is one body’s personal universe core. It is private by default
+  and is the source of that body’s local declarations, records, and selected
+  paper-market state.
+- **Orb 2** is the public comparative representation of opted-in universe-core
+  projections. It places a body alongside peers using only fields that body has
+  explicitly published for the relevant public field.
+
+A private core never becomes a public peer node by rendering it. A future Orb 2
+adapter must receive an explicit, bounded public projection rather than reading
+a personal core, local ledger, device alias, receipt, or hidden paper position
+directly. CWO, NAB, and GSRB bodies use the same projection contract; phase is
+visible provenance when published, not a peer-ranking or allocation penalty.
+
+The current native `NeoOrb` package implements neither private core storage nor
+a public peer network. It remains a local, synthetic geometry prototype that
+shares the visual vocabulary needed by both future product planes.
 
 | Source concept | NEO ORB contribution |
 | --- | --- |
