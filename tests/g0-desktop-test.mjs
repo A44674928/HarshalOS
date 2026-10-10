@@ -1066,7 +1066,7 @@ if (llmApp) {
   const llmWindow = shell.windows.get("llmlink");
   ok(!!llmWindow, "LLM Link opens as a HarshalOS desktop window");
   const providerSelect = llmWindow && llmWindow.body.querySelector("#ll-provider");
-  ok(!!(providerSelect && providerSelect.textContent.includes("Z.AI free tier")), "the provider list offers the Z.AI free-tier relay");
+  ok(!!(providerSelect && providerSelect.textContent.includes("Cloudflare Workers AI")), "the provider list offers the Cloudflare Workers AI relay");
   ok(llmWindow.body.innerHTML.includes('value="relay"'), "the relay preset is a selectable provider id");
 
   /* A key left over from another provider must not follow the reader here. */
@@ -1103,7 +1103,7 @@ if (llmApp) {
   const chatCall = llmCalls.find(call => call.method === "POST" && call.url.endsWith("/api/llm"));
   ok(!!chatCall, "Test connection called this deployment's relay route");
   ok(!!(chatCall && !chatCall.authorization), "the leftover browser key was not forwarded to the relay");
-  ok(!!(chatCall && chatCall.body.model === "glm-4.5-flash"), "the relay call names a free-tier model");
+  ok(!!(chatCall && chatCall.body.model === "@cf/meta/llama-3.1-8b-instruct-fp8-fast"), "the relay call names the default Workers AI model");
   ok(!!(chatCall && chatCall.body.stream === undefined && chatCall.body.tools === undefined), "the relay call asks for no streaming and offers no tools");
   ok(llmText.includes("LINK ESTABLISHED"), "a relayed reply is reported as an established link");
   ok(llmText.includes("link established, model responding"), "the relayed sample reply is shown");
