@@ -21,7 +21,7 @@
 
   const isObject = value => value && typeof value === "object" && !Array.isArray(value);
   const textLength = value => typeof value === "string" ? value.trim().length : 0;
-  const isLead = source => source && (source.kind === "news" || source.scoreable === false && !["court", "regulatory"].includes(source.kind));
+  const isLead = source => source && (source.kind === "news" || source.lead === true);
 
   function shouldHydrate(source) {
     if (!isObject(source) || !source.url || typeof source.url !== "string") return false;
