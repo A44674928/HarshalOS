@@ -61,6 +61,16 @@
     });
   }
 
+  async function loadEvidenceHydrator() {
+    return new Promise(resolve => {
+      const script = document.createElement("script");
+      script.src = "js/g0-evidence-hydrator.js?v=2026-10-10evidence1";
+      script.onload = resolve;
+      script.onerror = resolve;
+      document.head.appendChild(script);
+    });
+  }
+
   async function run() {
     await line("HarshalOS bootloader v1.2 · Ground-0 Reconstruction", "gold", 200);
     await line("Copyright (c) Harshal Priyavadan Patel. All rights reserved.", "dim", 120);
@@ -78,7 +88,7 @@
     await line("Refusal-Semantics   : Terminal", "", 40);
     await line("Symbolism-Executability: Disabled (Symbolic Firewall Active)", "", 40);
     await line("Time-Authority-Effect  : Degrades (Stale Permission Threshold Enforced)", "", 40);
-    await HOS.ready;                                   // genesis PDH SHA-256 digest in hand
+    await HOS.ready;
     await line(`Declaration-Hash    : ${HOS.observe().declared.declarationHash}`, "gold", 200);
     await line("======================================================================", "rule", 150);
 
@@ -105,30 +115,29 @@
     await line("This browser demonstration does not verify a human or authorize production actions.", "gold", 120);
     await line("Legitimacy precedes capability. Refusal is intelligence.", "gold", 300);
     await line("", "", 40);
+    await line("preparing evidence acquisition layer", "dim", 120);
+    await loadEvidenceHydrator();
+    await line("[ ok  ] Ground-0 primary-source hydration layer loaded", "ok", 120);
     await line("launching shell", "dim", 220);
     await line("∎", "gold", 350);
 
     finish();
   }
 
-  // Everything that wakes the desktop beneath the overlay, run exactly once.
   let shellStarted = false;
   function startShell() {
     if (shellStarted) return;
     shellStarted = true;
-    // kick the shared .flame player so the orb core + flame app are warm on first open
     if (typeof FractalFlame !== "undefined") {
       FractalFlame.shared("assets/Demo.flame", { w: 160, h: 160 }).start();
       HOS.record("info", "FRACTALFLAME — .flame IFS core loading pre-rendered slices (Demo.flame → 120 frames). Shared by The Orb and Fractal Flame.");
     }
-    // stream the author's rendered flame film — The Orb's surface skin
     if (typeof OrbFilm !== "undefined") {
       OrbFilm.shared().start();
       HOS.record("info", "ORBFILM — author flame film streaming (200 frames, hard loop). The Orb's surface is the author's own render.");
     }
     shell.init();
     HOS.record("info", "SHELL LOADED — DEMO mode in NON-ACTING state. Open the Human Key panel to exercise the local gate; production authentication is unavailable.");
-    // Gentle first-run guidance + first-timer nudge to guided demo
     const isFirstVisit = (() => {
       try {
         const key = "hos_first_visit_done_v1";
@@ -142,10 +151,7 @@
         shell.toast("info", "NEW HERE? START WITH THE GUIDED DEMO — 60S PITCH",
           "First time in HarshalOS: open Guided Demonstration for a paced 60-second walkthrough of refusal, ceremony, and time. Pause/Next at each checkpoint. Best on desktop, but mobile shows a compact view.");
         const demoApp = APPS.find(a => a.id === "guided-demo");
-        if (demoApp && shell.windows.size === 0) {
-          // Slight delay so toast is seen, then open demo
-          setTimeout(() => shell.openApp(demoApp), 900);
-        }
+        if (demoApp && shell.windows.size === 0) setTimeout(() => shell.openApp(demoApp), 900);
       } else {
         shell.toast("info", "WELCOME TO HARSHALOS — DEMO MODE",
           "Open the Human Key panel to exercise the browser-local gate. Its public phrase and bundled HMAC prove no identity or liveness and unlock no production actions.");
@@ -153,12 +159,8 @@
     }, 800);
     setTimeout(() => {
       const app = APPS.find(a => a.id === "origin");
-      // Never cover an app the visitor has already opened during startup.
-      // First-timers already got guided-demo, so don't overwrite.
       if (!isFirstVisit && app && shell.windows.size === 0 && window.innerWidth > 860) shell.openApp(app);
     }, 1600);
-
-    // Mobile graceful notice — survives small screens, dismissible, does not block guided demo
     setTimeout(() => {
       try {
         const notice = document.getElementById("mobile-notice");
@@ -167,21 +169,12 @@
         const dismissedKey = "hos_mobile_notice_dismissed_v1";
         const isMobile = window.innerWidth <= 860 || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0 && window.innerWidth <= 1080);
         const wasDismissed = (() => { try { return localStorage.getItem(dismissedKey); } catch { return null; } })();
-        if (isMobile && !wasDismissed) {
-          notice.hidden = false;
-          // Auto-hide after 12s but keep accessible
-          setTimeout(() => { if (!notice.hidden) { /* keep visible until dismissed on mobile */ } }, 12000);
-        }
-        if (closeBtn) {
-          closeBtn.addEventListener("click", () => {
-            notice.hidden = true;
-            try { localStorage.setItem(dismissedKey, String(Date.now())); } catch {}
-          });
-        }
-        // If user resizes to desktop, hide notice
-        window.addEventListener("resize", () => {
-          if (window.innerWidth > 860) notice.hidden = true;
+        if (isMobile && !wasDismissed) notice.hidden = false;
+        if (closeBtn) closeBtn.addEventListener("click", () => {
+          notice.hidden = true;
+          try { localStorage.setItem(dismissedKey, String(Date.now())); } catch {}
         });
+        window.addEventListener("resize", () => { if (window.innerWidth > 860) notice.hidden = true; });
       } catch {}
     }, 1200);
   }
@@ -191,13 +184,9 @@
     finished = true;
     cancelled = true;
     if (progressFill) progressFill.style.width = "100%";
-    // Initialize the desktop under the overlay while the eye performs its close.
     startShell();
-
     const playClose = !!(eye && eye.dataset.close && !REDUCED_MOTION);
     if (playClose) eye.src = eye.dataset.close;
-    // Hold until the close lands (its last frame is near-black), then fade the overlay
-    // so the handoff to the desktop reads as the eye shutting and the OS waking.
     setTimeout(() => {
       boot.classList.add("done");
       document.body.classList.remove("booting");
