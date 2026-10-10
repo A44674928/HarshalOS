@@ -23,7 +23,7 @@ struct GateView: View {
                     Toggle("Operational accountability recorded", isOn: $model.operationalAccountability)
                     Text("These switches are transparent model inputs. Switching one on does not create external approval, independent attribution, or legal accountability.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
 
                 Section {
@@ -33,7 +33,7 @@ struct GateView: View {
                     .buttonStyle(.borderedProminent)
                     Text("This is an execution-only local model. It does not decide whether a declared body may create a non-executing paper-market declaration or paper position.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
 
                 if let result = model.gateEvaluation {
@@ -46,10 +46,10 @@ struct GateView: View {
                             LabeledContent("Elapsed", value: String(format: "%.0f seconds", elapsed))
                         }
                         Text(result.reason)
-                            .foregroundStyle(result.permitted ? .green : .orange)
+                            .foregroundStyle(result.permitted ? HarshalTheme.verified : HarshalTheme.warning)
                         Text("\(result.assurance) · \(result.executionScope)")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                     }
 
                     Section("Canonical stages") {
@@ -60,10 +60,12 @@ struct GateView: View {
                         stageRow("Accountability", result.stages.accountability)
                         Text("Decision is terminal: Permit is a local model result only; Refuse is the default.")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(HarshalTheme.canvas)
             .navigationTitle("External-action gate")
         }
     }
@@ -83,7 +85,7 @@ struct GateView: View {
     private func stageRow(_ title: String, _ passes: Bool) -> some View {
         LabeledContent(title) {
             Label(passes ? "Pass" : "Fail", systemImage: passes ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(passes ? .green : .red)
+                .foregroundStyle(passes ? HarshalTheme.verified : HarshalTheme.destructive)
         }
     }
 }

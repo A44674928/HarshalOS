@@ -4,11 +4,15 @@ struct RootView: View {
     @Environment(AppModel.self) private var appModel
 
     var body: some View {
-        Group {
-            if appModel.declaration == nil {
-                OnboardingFlowView()
-            } else {
-                DashboardView()
+        ZStack {
+            HarshalTheme.canvas.ignoresSafeArea()
+
+            Group {
+                if appModel.declaration == nil {
+                    OnboardingFlowView()
+                } else {
+                    DashboardView()
+                }
             }
         }
         .alert(

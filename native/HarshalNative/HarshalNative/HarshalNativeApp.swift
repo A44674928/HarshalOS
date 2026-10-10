@@ -8,6 +8,7 @@ struct HarshalNativeApp: App {
         WindowGroup {
             RootView()
                 .environment(appModel)
+                .harshalAppTheme()
                 .task {
                     await appModel.bootstrap()
                 }

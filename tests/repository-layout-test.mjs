@@ -154,7 +154,7 @@ test("P13: root-level files stay limited to app entry points, configuration, opt
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
-    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html",
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html", "observations.html",
     "package-lock.json", "package.json", "requirements-hf-data-library.txt", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
@@ -296,7 +296,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "specs"]);
+    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "observations.html", "specs"]);
     for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js"]) {
       assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
     }
@@ -381,6 +381,11 @@ test("P13: local preview serves the selected Book I source and Collections libra
     assert.equal(coreBook.status, 200, "the exact selected Book I route is served");
     assert.match(coreBook.headers.get("content-type"), /text\/markdown/);
     assert.ok((await coreBook.text()).includes("Part I — The Core Book"));
+
+    const observations = await fetch(`${base}/observations`);
+    assert.equal(observations.status, 200, "the public-observation publisher route is available in local preview");
+    assert.match(observations.headers.get("content-type"), /text\/html/);
+    assert.ok((await observations.text()).includes("Public observations"));
 
     const libraryResponse = await fetch(`${base}/book-library/manifest.json`);
     assert.equal(libraryResponse.status, 200, "the generated Collections catalog is served");

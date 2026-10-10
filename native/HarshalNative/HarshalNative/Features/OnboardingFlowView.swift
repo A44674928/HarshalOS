@@ -4,6 +4,7 @@ import SwiftUI
 struct OnboardingFlowView: View {
     @Environment(AppModel.self) private var appModel
     @State private var isNeoOrbPreviewPresented = false
+    @State private var isLibraryPreviewPresented = false
 
     var body: some View {
         @Bindable var model = appModel
@@ -16,15 +17,27 @@ struct OnboardingFlowView: View {
                             .font(.largeTitle.bold())
                         Text("A Swift-native, refusal-first local demonstration")
                             .font(.title3)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                     }
 
                     GroupBox("NEO ORB — display-only shape study") {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Preview the native NEO ORB now. It is a local visual/geometry study and does not create or modify a declaration, acknowledgement, gate result, ledger entry, sync record, route, or permission.")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HarshalTheme.secondaryText)
                             Button("Preview NEO ORB") {
                                 isNeoOrbPreviewPresented = true
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    GroupBox("Library — published AGS v0.2 source") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Read the locally bundled 548-page KDP interior before creating a declaration. The native reader verifies its source checksum, preserves the book’s part-level evidence labels, and does not turn text into a permission or action.")
+                                .foregroundStyle(HarshalTheme.secondaryText)
+                            Button("Open Library") {
+                                isLibraryPreviewPresented = true
                             }
                             .buttonStyle(.bordered)
                         }
@@ -35,12 +48,12 @@ struct OnboardingFlowView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("This flow records an explicit phase declaration, required acknowledgements, and a local receipt.")
                             Text("It does not determine whether someone is honest, prevent theft or betrayal, prove identity, perform a background check, or confer legal authority. Those claims require separately designed external identity, authorization, review, privacy, and appeal processes.")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HarshalTheme.secondaryText)
                         }
                         .padding(.top, 4)
                     }
                     .padding()
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .harshalPanel()
 
                     GroupBox("1. Local principal reference") {
                         VStack(alignment: .leading, spacing: 12) {
@@ -49,7 +62,7 @@ struct OnboardingFlowView: View {
                             LabeledContent("Verification", value: "Self-declared")
                             Text("No external identity/attestation provider is configured in this build. The app will not let a local declaration self-label as externally attested.")
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HarshalTheme.secondaryText)
                         }
                         .padding(.vertical, 4)
                     }
@@ -67,7 +80,7 @@ struct OnboardingFlowView: View {
                                 model.declarationDraft.collapseAcknowledgments = []
                             }
                             Text(model.declarationDraft.phase.shortDescription)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HarshalTheme.secondaryText)
                         }
                         .padding(.vertical, 4)
                     }
@@ -76,7 +89,7 @@ struct OnboardingFlowView: View {
                         GroupBox("3. GSRB — God-Sovereign Religious Body protocol") {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("God-Sovereign Religious Body (GSRB) remains non-executing in this starter. To record this declaration, acknowledge the five canonical collapse statements once and in order.")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(HarshalTheme.secondaryText)
                                 ForEach(CollapseAcknowledgment.allCases) { step in
                                     let index = CollapseAcknowledgment.allCases.firstIndex(of: step) ?? 0
                                     let completed = index < model.declarationDraft.collapseAcknowledgments.count
@@ -84,7 +97,7 @@ struct OnboardingFlowView: View {
                                         step.title,
                                         systemImage: completed ? "checkmark.circle.fill" : "circle"
                                     )
-                                    .foregroundStyle(completed ? .green : .secondary)
+                                    .foregroundStyle(completed ? HarshalTheme.verified : HarshalTheme.secondaryText)
                                 }
                                 if let next = model.declarationDraft.nextGSrbCollapseAcknowledgment {
                                     Button("Acknowledge step \(model.declarationDraft.collapseAcknowledgments.count + 1): \(next.title)") {
@@ -93,10 +106,10 @@ struct OnboardingFlowView: View {
                                     .buttonStyle(.bordered)
                                 } else if model.declarationDraft.hasCompleteGSrbCollapseProtocol {
                                     Label("Canonical collapse protocol complete", systemImage: "checkmark.seal.fill")
-                                        .foregroundStyle(.green)
+                                        .foregroundStyle(HarshalTheme.verified)
                                 } else {
                                     Label("Collapse protocol is malformed; restart this declaration phase.", systemImage: "exclamationmark.triangle.fill")
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(HarshalTheme.warning)
                                 }
                             }
                             .padding(.vertical, 4)
@@ -133,7 +146,7 @@ struct OnboardingFlowView: View {
                         HStack {
                             Spacer()
                             if model.isSubmittingDeclaration {
-                                ProgressView().tint(.white)
+                                ProgressView().tint(HarshalTheme.canvas)
                             } else {
                                 Text("Create local phase declaration")
                             }
@@ -146,7 +159,7 @@ struct OnboardingFlowView: View {
 
                     Text("A declaration produces a device-local, SHA-256 hash-chain receipt. It is not a signature, external witness, production credential, or authority grant.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
                 .padding()
                 .frame(maxWidth: 760, alignment: .leading)
@@ -154,6 +167,9 @@ struct OnboardingFlowView: View {
             .navigationTitle("Native declaration")
             .sheet(isPresented: $isNeoOrbPreviewPresented) {
                 NeoOrbView(isPreview: true)
+            }
+            .sheet(isPresented: $isLibraryPreviewPresented) {
+                LibraryView(isPreview: true)
             }
         }
     }

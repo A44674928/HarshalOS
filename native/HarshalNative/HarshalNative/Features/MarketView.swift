@@ -26,6 +26,8 @@ struct MarketView: View {
                 positionSection
                 recordSection
             }
+            .scrollContentBackground(.hidden)
+            .background(HarshalTheme.canvas)
             .navigationTitle("Paper market")
             .onAppear(perform: synchronizeSelections)
             .onChange(of: appModel.paperLedgerState.declarations.count) { _, _ in
@@ -41,7 +43,7 @@ struct MarketView: View {
             }
             Text("All declared body types may create local paper-market records. This feature uses deterministic bundled fixtures only; it does not publish, fetch live prices, transfer value, or send a broker instruction.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
         }
     }
 
@@ -59,7 +61,7 @@ struct MarketView: View {
                 LabeledContent("Mark fixture", value: money(fixture.markObservation.price, currency: fixture.instrument.quoteCurrency))
                 Text(fixture.note)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
         }
     }
@@ -98,7 +100,7 @@ struct MarketView: View {
 
             Text("A public-projection intent is metadata only in this build. It never publishes this declaration or exposes a private universe core.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
         }
     }
 
@@ -107,7 +109,7 @@ struct MarketView: View {
         Section("Open simulated paper position") {
             if availableDeclarations.isEmpty {
                 Text("Record a local market declaration before opening a simulated position.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             } else {
                 Picker("Declaration", selection: $selectedDeclarationID) {
                     ForEach(availableDeclarations) { declaration in
@@ -142,7 +144,7 @@ struct MarketView: View {
 
                 Text("Opening records a simulation against the selected entry fixture. It does not create an order, custody arrangement, payment, or market effect.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
         }
     }
@@ -152,7 +154,7 @@ struct MarketView: View {
         Section("Local paper positions") {
             if appModel.paperLedgerState.positions.isEmpty {
                 Text("No local paper positions recorded.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             } else {
                 ForEach(appModel.paperLedgerState.positions.reversed()) { position in
                     MarketPositionRow(
@@ -175,7 +177,7 @@ struct MarketView: View {
         Section("Local paper ledger") {
             if appModel.paperLedgerState.events.isEmpty {
                 Text("No paper-market events recorded.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             } else {
                 ForEach(appModel.paperLedgerState.events.reversed()) { event in
                     VStack(alignment: .leading, spacing: 4) {
@@ -185,7 +187,7 @@ struct MarketView: View {
                             .font(.subheadline)
                         Text(event.detail)
                             .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                     }
                     .padding(.vertical, 2)
                 }
@@ -264,7 +266,7 @@ private struct MarketPositionRow: View {
             LabeledContent("P/L", value: money(valuation.profitLoss, currency: valuation.currency))
             Text(valuation.message)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
 
             if position.status == .open, let fixture {
                 HStack {
@@ -285,9 +287,9 @@ private struct MarketPositionRow: View {
 
     private var statusColor: Color {
         switch position.status {
-        case .open: return .blue
-        case .closed: return .green
-        case .withdrawn: return .orange
+        case .open: return HarshalTheme.electricBlue
+        case .closed: return HarshalTheme.verified
+        case .withdrawn: return HarshalTheme.warning
         }
     }
 

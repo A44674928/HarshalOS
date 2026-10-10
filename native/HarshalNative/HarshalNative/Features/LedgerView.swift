@@ -19,6 +19,8 @@ struct LedgerView: View {
                 observationSection
                 ledgerEntriesSection
             }
+            .scrollContentBackground(.hidden)
+            .background(HarshalTheme.canvas)
             .navigationTitle("Local ledger")
         }
         .onAppear {
@@ -65,7 +67,7 @@ struct LedgerView: View {
                 }
                 if let verification = appModel.receiptVerification {
                     Label(verification.message, systemImage: verification.verified ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(verification.verified ? .green : .orange)
+                        .foregroundStyle(verification.verified ? HarshalTheme.verified : HarshalTheme.warning)
                 }
                 Button("Verify local receipt") {
                     Task { await appModel.verifyReceipt() }
@@ -108,11 +110,11 @@ struct LedgerView: View {
 
             Text("Private notes remain in local app state. A Public note stays local until you deliberately prepare its Community handoff, manually claim it in the browser, review the exact text, and publish it. The app shows Published only after the public feed confirms a receipt.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
 
             if filteredObservations.isEmpty {
                 Text(observationFilter.emptyState)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             } else {
                 ForEach(filteredObservations) { note in
                     observationRow(note)
@@ -139,13 +141,13 @@ struct LedgerView: View {
                 if !appModel.publicProfilePseudonym.isEmpty {
                     Label("Saved locally", systemImage: "checkmark.circle")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
             }
 
             Text("This self-chosen label is separate from your declaration label. The HarshalOS site asks you to save or confirm it before a note becomes public; it is not verified identity.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
         }
         .padding(.vertical, 4)
     }
@@ -156,17 +158,17 @@ struct LedgerView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(note.visibility.label)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(note.visibility.isPublicNote ? .orange : .secondary)
+                    .foregroundStyle(note.visibility.isPublicNote ? HarshalTheme.warning : HarshalTheme.secondaryText)
                 Spacer()
                 Text(note.createdAt, format: .dateTime.year().month().day().hour().minute())
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             Text(note.text)
                 .textSelection(.enabled)
             Text("\(note.phase.rawValue) · \(note.phase.name)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
 
             if note.visibility.isPublicNote {
                 publicPublicationControls(for: note)
@@ -189,7 +191,7 @@ struct LedgerView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("One-time browser claim code")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                         Text(claimCode)
                             .font(.caption.monospaced().weight(.semibold))
                             .textSelection(.enabled)
@@ -197,13 +199,13 @@ struct LedgerView: View {
                 } else {
                     Text("The local claim capability is unavailable or expired. This note remains unpublished; prepare a new explicit handoff if needed.")
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(HarshalTheme.warning)
                 }
                 Link("Open HarshalOS publisher", destination: publication.publisherURL)
                     .font(.subheadline.weight(.semibold))
                 Text("Sign in on the HarshalOS site, enter this code, review the exact note, and explicitly publish it. A code alone does not publish.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
                 publicationRefreshButton(note.id)
 
             case .claimed:
@@ -211,7 +213,7 @@ struct LedgerView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Browser recovery code")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                         Text(claimCode)
                             .font(.caption.monospaced().weight(.semibold))
                             .textSelection(.enabled)
@@ -219,13 +221,13 @@ struct LedgerView: View {
                 } else {
                     Text("The local recovery capability is unavailable or expired. The browser may still show an account-bound review record, but this app cannot confirm its status without a stored status capability.")
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(HarshalTheme.warning)
                 }
                 Link("Open HarshalOS publisher", destination: publication.publisherURL)
                     .font(.subheadline.weight(.semibold))
                 Text("The code has been claimed on the site. Complete the explicit Publish action there, then check this receipt. If the browser review screen was reloaded, the same signed-in account can enter this short-lived code again.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
                 publicationRefreshButton(note.id)
 
             case .published:
@@ -236,7 +238,7 @@ struct LedgerView: View {
                 if let publishedAt = publication.publishedAt {
                     Text("Feed confirmation: \(publishedAt.formatted(date: .abbreviated, time: .shortened))")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
                 publicationRefreshButton(note.id, title: "Refresh public receipt")
 
@@ -247,20 +249,20 @@ struct LedgerView: View {
                 }
                 Text("The public service reports this note is no longer visible in its active feed. External copies cannot be recalled.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
                 publicationRefreshButton(note.id, title: "Refresh public receipt")
 
             case .expired:
                 Text("The unlisted handoff expired without publication. The local note remains available; preparing a new handoff sends a fresh, explicit public candidate.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
                 preparePublicationButton(note.id)
             }
         } else {
             Divider()
             Text("Local public-note draft — not yet sent to the public publisher.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
             preparePublicationButton(note.id)
         }
     }
@@ -283,11 +285,11 @@ struct LedgerView: View {
     private func publicationColor(_ state: PublicObservationPublicationState) -> Color {
         switch state {
         case .published:
-            return .green
+            return HarshalTheme.verified
         case .awaitingClaim, .claimed:
-            return .orange
+            return HarshalTheme.warning
         case .withdrawn, .hidden, .expired:
-            return .secondary
+            return HarshalTheme.secondaryText
         }
     }
 
@@ -295,7 +297,7 @@ struct LedgerView: View {
         Section("Local hash-chain entries") {
             if appModel.ledgerEntries.isEmpty {
                 Text("No entries recorded yet.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             ForEach(appModel.ledgerEntries.reversed()) { entry in
                 VStack(alignment: .leading, spacing: 4) {
@@ -305,13 +307,13 @@ struct LedgerView: View {
                         Spacer()
                         Text(entry.timestamp, format: .dateTime.year().month().day().hour().minute().second())
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HarshalTheme.secondaryText)
                     }
                     Text(entry.event)
                         .font(.subheadline)
                     Text(entry.hash)
                         .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                         .lineLimit(1)
                 }
                 .padding(.vertical, 3)

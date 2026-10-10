@@ -85,7 +85,7 @@ struct NeoOrbView: View {
             Text("Center-origin shape study")
                 .font(.title2.bold())
             Text("A native visual model that joins The Orb’s disc-to-sphere formation and direct center attachments with Orb 2’s measured spheroid axes, logarithmic bands, and convergence reading.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
         }
     }
 
@@ -109,16 +109,16 @@ struct NeoOrbView: View {
                 HStack(spacing: 12) {
                     Text("Disc")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                     Slider(value: $formation, in: 0...1, step: 0.01)
                         .accessibilityLabel("Disc to spheroid formation")
                     Text("Spheroid")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
                 Text("\(Int((formation * 100).rounded()))% formed. At zero, all nodes share the center plane; at one, their equal-area latitudes and measured axes are visible.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             .padding(.vertical, 4)
         }
@@ -132,7 +132,7 @@ struct NeoOrbView: View {
                 NeoOrbAxisControl(label: "Z axis", value: $axisZ)
                 Text("An ideal sphere is 1.00 / 1.00 / 1.00. These controls affect display geometry only; they are not a measurement claim about a person, device, market, or route.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             .padding(.vertical, 4)
         }
@@ -144,19 +144,19 @@ struct NeoOrbView: View {
                 HStack(spacing: 12) {
                     Text("Exact")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                     Slider(value: $berthSeparation, in: 0...1, step: 0.01)
                         .accessibilityLabel("Display berth separation")
                     Text("Clear")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                 }
                 Text("\(Int((berthSeparation * 100).rounded()))% separation · \(berthDetail(shape.berthSeparation))")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
                 Text("This only re-slots overlapping drawn nodes on their own local display geometry. It does not change sectors, source inputs, ranking, market data, routes, permissions, or authority.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             .padding(.vertical, 4)
         }
@@ -195,7 +195,7 @@ struct NeoOrbView: View {
                     LabeledContent("Display berth", value: selectedNode.wasReslotted ? "Re-slotted for visibility" : "Source position retained")
                     Text("This sector and its position are local, synthetic visualization inputs—not an OCM address resolution, destination, ownership record, or external assertion.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                         .padding(.top, 3)
                 }
                 .padding(.vertical, 4)
@@ -210,7 +210,7 @@ struct NeoOrbView: View {
                     .font(.subheadline)
                 Text("The shown nodes are deterministic synthetic fixtures for visual and geometry validation. Any future external field must arrive through a separately reviewed, read-only adapter with traceable provenance and tests.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HarshalTheme.secondaryText)
             }
             .padding(.vertical, 4)
         }
@@ -264,9 +264,9 @@ private struct NeoOrbNodeChip: View {
 
     private var metadataColor: Color {
         if isSelected {
-            return Color.primary.opacity(0.75)
+            return HarshalTheme.primaryText.opacity(0.90)
         }
-        return Color.secondary
+        return HarshalTheme.secondaryText
     }
 
     private var borderColor: Color {
@@ -279,7 +279,7 @@ private struct NeoOrbNodeChip: View {
     }
 
     private var backgroundColor: Color {
-        return isSelected ? Color.primary.opacity(0.10) : Color.primary.opacity(0.035)
+        return isSelected ? HarshalTheme.electricBlue.opacity(0.16) : HarshalTheme.elevatedSurface
     }
 
     private var accessibilityText: String {
@@ -324,11 +324,11 @@ private extension NeoOrbNodeKind {
     var neoOrbDisplayColor: Color {
         switch self {
         case .structural:
-            return .cyan
+            return HarshalTheme.electricBlue
         case .field:
-            return .mint
+            return HarshalTheme.primaryText
         case .interaction:
-            return .orange
+            return HarshalTheme.warning
         }
     }
 }
@@ -347,7 +347,7 @@ private struct NeoOrbCanvas: View {
             RoundedRectangle(cornerRadius: 22)
                 .fill(
                     LinearGradient(
-                        colors: [Color(red: 0.025, green: 0.055, blue: 0.11), Color(red: 0.04, green: 0.10, blue: 0.15)],
+                        colors: [HarshalTheme.surface, HarshalTheme.elevatedSurface],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -356,7 +356,7 @@ private struct NeoOrbCanvas: View {
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22)
-                .stroke(Color.cyan.opacity(0.24), lineWidth: 1)
+                .stroke(HarshalTheme.electricBlue.opacity(0.42), lineWidth: 1)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Animated NEO ORB display")
@@ -510,11 +510,11 @@ private struct NeoOrbCanvas: View {
     private func color(for kind: NeoOrbNodeKind) -> Color {
         switch kind {
         case .structural:
-            return .cyan
+            return HarshalTheme.electricBlue
         case .field:
-            return .mint
+            return HarshalTheme.primaryText
         case .interaction:
-            return .orange
+            return HarshalTheme.warning
         }
     }
 }
@@ -551,7 +551,7 @@ private struct NeoOrbMetric: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HarshalTheme.secondaryText)
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
@@ -559,6 +559,6 @@ private struct NeoOrbMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .harshalPanel(cornerRadius: 14)
     }
 }

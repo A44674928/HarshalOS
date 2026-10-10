@@ -1,19 +1,112 @@
 import Foundation
 
-/// Stable source metadata for the defensive research reference that informed
-/// this local boundary model. The source remains a corpus document; this model
-/// does not reproduce or operationalize its scenarios.
+/// Published-edition source metadata for the accountability/continuity concepts
+/// used by the native boundary. In AGS v0.2, this is Part XVIII—not Part XIX.
+/// The legacy repository source retains its earlier Part XIX path and is kept
+/// only as a companion record, never as a reason to mislabel the published book.
+public enum AccountabilityResearchReference {
+    public static let documentID = "AGS-V0.2-PART-XVIII"
+    public static let sourcePart = "Part XVIII"
+    public static let title = "Accountability in Keyed Human–Machine Hybrid Systems"
+    public static let provenanceClass = "RESEARCH"
+    public static let statusTaxonomy = "AUTHOR-PROPOSED RESEARCH"
+    public static let researchLayer = "CONCEPTUAL_RESEARCH_PROPOSAL"
+    public static let evidenceStatus = "NOT_AN_INDEPENDENT_CERTIFICATION"
+    public static let printedStartPage = "203"
+    public static let pdfStartPage = 229
+    public static let sourceArtifactPath = AGSv02PublishedCorpus.sourceArtifactPath
+    public static let sourceEdition = AGSv02PublishedCorpus.edition
+    public static let legacyCompanionDocumentID = "HS-19-RESEARCH-PAPERS"
+    public static let legacyCompanionPath = "docs/harshal-systems/19-research-papers.md"
+    public static let summary = "A published conceptual research reference for Minimum Viable Keying, accountable continuity, scoped review, non-agency of computational components, and refusal when accountable evidence is absent."
+}
+
+/// Published-edition metadata for the defensive SCAV++ context. `SCAV-PLUS-PLUS`
+/// remains a local boundary identifier, not a claimed scanner or implementation.
+/// The app catalogs Part XIX at this level only and intentionally imports none of
+/// its scenario, procedural, target, activation, device, or response material.
 public enum SupplyChainResearchReference {
     public static let identifier = "SCAV-PLUS-PLUS"
-    public static let documentID = "HS-20-SUPPLY-CHAIN"
-    public static let title = "Supply Chain Attack Vector++"
-    public static let provenanceClass = "CANONICAL_SOURCE"
-    public static let statusTaxonomy = "RESEARCH_PAPER"
+    public static let documentID = "AGS-V0.2-PART-XIX"
+    public static let sourcePart = "Part XIX"
+    public static let title = "Supply Chain and Implanted-Device Threat Research"
+    public static let provenanceClass = "THREAT_RESEARCH"
+    public static let statusTaxonomy = "DEFENSIVE_THREAT_RESEARCH_AND_CONTAINMENT_MODELING"
     public static let researchLayer = "THREAT_RESEARCH"
-    public static let evidenceStatus = "MIXED_VERIFIED_AND_REPORTED"
-    public static let sourcePath = "docs/harshal-systems/20-supply-chain.md"
+    public static let evidenceStatus = "PART-LOCAL / SOURCE-SCOPED"
+    public static let printedStartPage = "213"
+    public static let pdfStartPage = 239
+    public static let sourceArtifactPath = AGSv02PublishedCorpus.sourceArtifactPath
+    public static let sourceEdition = AGSv02PublishedCorpus.edition
+    public static let summary = "A published defensive threat-research context. The SCAV++ model uses only its source classification and refusal-first boundary; it does not derive or operationalize Part XIX material."
+}
 
-    public static let summary = "A defensive research reference for provenance, build and release integrity, update continuity, accountable review, and refusal at integration boundaries."
+/// The only published-corpus concepts represented in the native SCAV++ surface.
+/// They are bounded application constraints—not an implementation of human-key
+/// verification, liveness assessment, healthcare functionality, attack research,
+/// or operational authority from the source text.
+public enum PublishedCorpusNativeBoundaryTranslation: String, CaseIterable, Codable, Sendable, Identifiable, Hashable {
+    case accountableEvidenceBeforeAuthority = "ACCOUNTABLE_EVIDENCE_BEFORE_AUTHORITY"
+    case continuityMustBeBound = "CONTINUITY_MUST_BE_BOUND"
+    case scopeContractsOnFailure = "SCOPE_CONTRACTS_ON_FAILURE"
+    case threatResearchRemainsCatalogOnly = "THREAT_RESEARCH_REMAINS_CATALOG_ONLY"
+    case computationalComponentsRemainNonAuthoritative = "COMPUTATIONAL_COMPONENTS_REMAIN_NON_AUTHORITATIVE"
+
+    public var id: String { rawValue }
+
+    public var sourcePart: String {
+        switch self {
+        case .accountableEvidenceBeforeAuthority, .continuityMustBeBound, .scopeContractsOnFailure, .computationalComponentsRemainNonAuthoritative:
+            return AccountabilityResearchReference.sourcePart
+        case .threatResearchRemainsCatalogOnly:
+            return SupplyChainResearchReference.sourcePart
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .accountableEvidenceBeforeAuthority:
+            return "Accountability before authority"
+        case .continuityMustBeBound:
+            return "Continuity must be bound"
+        case .scopeContractsOnFailure:
+            return "Scope contracts on failure"
+        case .threatResearchRemainsCatalogOnly:
+            return "Threat research remains catalog-only"
+        case .computationalComponentsRemainNonAuthoritative:
+            return "Computational components remain non-authoritative"
+        }
+    }
+
+    public var nativeTranslation: String {
+        switch self {
+        case .accountableEvidenceBeforeAuthority:
+            return "A local declaration, alias, or receipt never grants authority. The app requires bounded evidence and accountable review before it can describe a record as continuous."
+        case .continuityMustBeBound:
+            return "The shipping baseline binds pre-registered origin/release, route, revocation, custody, and review evidence to the same record rather than inferring continuity from present possession."
+        case .scopeContractsOnFailure:
+            return "Missing, stale, altered, revoked, replayed, or untrusted evidence contracts the result to a non-acting hold or refusal."
+        case .threatResearchRemainsCatalogOnly:
+            return "The SCAV++ model records the published Part XIX classification and boundary only. It does not derive or operationalize threat-research material."
+        case .computationalComponentsRemainNonAuthoritative:
+            return "The app offers no delegated authority, external automation, medical/clinical function, or physical-world control. CWO remains a valid archival/custodial phase."
+        }
+    }
+
+    public var explicitLimit: String {
+        switch self {
+        case .accountableEvidenceBeforeAuthority:
+            return "No identity, intent, consent, coercion, or truth determination."
+        case .continuityMustBeBound:
+            return "No physical inspection, trusted-time service, or independent witness."
+        case .scopeContractsOnFailure:
+            return "No reroute, release, deployment, or external action."
+        case .threatResearchRemainsCatalogOnly:
+            return "No scenario, procedure, target material, activation logic, device guidance, or response workflow."
+        case .computationalComponentsRemainNonAuthoritative:
+            return "No body/neural-interface interpretation, distress signaling, or real-world intervention workflow."
+        }
+    }
 }
 
 /// The quality of evidence presented to the local boundary model. Selecting a
@@ -201,7 +294,7 @@ public struct SupplyChainBoundaryAssessment: Equatable, Sendable {
 /// technically stop source copying, binary modification, independent packaging,
 /// or behavior outside HarshalOS.
 public enum SupplyChainBoundary {
-    public static let limitation = "This local boundary model does not independently verify provenance, scan for compromise, enforce a license, or prevent source copying or binary modification outside interfaces HarshalOS controls. A contained result is not certification, authorization, or a downstream integration approval."
+    public static let limitation = "This local boundary model does not independently verify provenance, scan for compromise, enforce a license, reproduce threat-research material, or prevent source copying or binary modification outside interfaces HarshalOS controls. A contained result is not certification, authorization, or a downstream integration approval."
 
     public static func evaluate(_ request: SupplyChainBoundaryRequest) -> SupplyChainBoundaryAssessment {
         let subject = request.subject.trimmingCharacters(in: .whitespacesAndNewlines)

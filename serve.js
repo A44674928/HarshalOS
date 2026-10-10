@@ -14,7 +14,7 @@
    packfile and every credential-free-but-private commit), the business plan
    working documents, and private papers that .assetsignore says must never be
    published. So what is served here is exactly what the deployed site is —
-   index.html, about.html, css/, js/, assets/, the versioned specs/ the
+   index.html, about.html, Community publisher pages, css/, js/, assets/, the versioned specs/ the
    Ground-0 app fetches at runtime, the selected Book I document at
    /book/01-core-book.md, the curated Harshal's Systems Markdown library at
    /book-library/, and the plaintext chapters of manuscript/ — everything
@@ -125,6 +125,10 @@ http.createServer(async (req, res) => {
   try {
     const u = new URL(req.url, "http://localhost");
     let p = decodeURIComponent(u.pathname);
+    // Cloudflare handles Worker-first Community routes in production. Keep the
+    // public-observation handoff URL usable in this deliberately static local
+    // preview too; it exposes only the same allowlisted HTML publisher shell.
+    if (p === "/observations") p = "/observations.html";
     if (p.endsWith("/")) p += "index.html";
     if (!isServed(p)) {
       res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });

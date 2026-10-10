@@ -47,6 +47,14 @@
 		A10000000000000000000038 /* NativeKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* NativeKeychainStore.swift */; };
 		A10000000000000000000039 /* PublicObservationCapabilityVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PublicObservationCapabilityVault.swift */; };
 		A10000000000000000000040 /* PublicObservationCapabilityVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PublicObservationCapabilityVault.swift */; };
+		A10000000000000000000041 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* LibraryView.swift */; };
+		A10000000000000000000042 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* LibraryView.swift */; };
+		A10000000000000000000043 /* AGS v0.2 Full Book KDP interior.pdf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* AGS v0.2 Full Book KDP interior.pdf */; };
+		A10000000000000000000044 /* AGS v0.2 Full Book KDP interior.pdf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* AGS v0.2 Full Book KDP interior.pdf */; };
+		A10000000000000000000045 /* HarshalTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* HarshalTheme.swift */; };
+		A10000000000000000000046 /* HarshalTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* HarshalTheme.swift */; };
+		A10000000000000000000047 /* AGS v0.2 Night Reading Edition.pdf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */; };
+		A10000000000000000000048 /* AGS v0.2 Night Reading Edition.pdf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +79,10 @@
 		A20000000000000000000019 /* NativeKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/NativeKeychainStore.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000020 /* PublicObservationCapabilityVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/PublicObservationCapabilityVault.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000021 /* HarshalNative.macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HarshalNative/Resources/HarshalNative.macOS.entitlements; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000022 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/LibraryView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000023 /* AGS v0.2 Full Book KDP interior.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = "AGS v0.2 Full Book KDP interior.pdf"; path = ../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000024 /* HarshalTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/HarshalTheme.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = "AGS v0.2 Night Reading Edition.pdf"; path = ../../publications/book/AGS-v0.2-Harshal-s-Systems-Night-Reading-Edition-2026-10-10.pdf; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000001 /* HarshalNativeApp.swift */,
+				A20000000000000000000024 /* HarshalTheme.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
 				A20000000000000000000003 /* RootView.swift */,
 				A20000000000000000000004 /* LocalStateStore.swift */,
@@ -133,6 +146,7 @@
 				A20000000000000000000015 /* NeoOrbView.swift */,
 				A20000000000000000000016 /* MarketView.swift */,
 				A20000000000000000000018 /* SupplyChainView.swift */,
+				A20000000000000000000022 /* LibraryView.swift */,
 			);
 			name = Features;
 			sourceTree = "<group>";
@@ -153,6 +167,8 @@
 			children = (
 				A20000000000000000000011 /* Info.plist */,
 				A20000000000000000000021 /* HarshalNative.macOS.entitlements */,
+				A20000000000000000000023 /* AGS v0.2 Full Book KDP interior.pdf */,
+				A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -183,6 +199,7 @@
 			buildPhases = (
 				A30000000000000000000001 /* Frameworks */,
 				A30000000000000000000003 /* Sources */,
+				A30000000000000000000005 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -205,6 +222,7 @@
 			buildPhases = (
 				A30000000000000000000002 /* Frameworks */,
 				A30000000000000000000004 /* Sources */,
+				A30000000000000000000006 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -264,6 +282,27 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000043 /* AGS v0.2 Full Book KDP interior.pdf in Resources */,
+				A10000000000000000000047 /* AGS v0.2 Night Reading Edition.pdf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000044 /* AGS v0.2 Full Book KDP interior.pdf in Resources */,
+				A10000000000000000000048 /* AGS v0.2 Night Reading Edition.pdf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		A30000000000000000000003 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -285,6 +324,8 @@
 				A10000000000000000000035 /* SupplyChainView.swift in Sources */,
 				A10000000000000000000037 /* NativeKeychainStore.swift in Sources */,
 				A10000000000000000000039 /* PublicObservationCapabilityVault.swift in Sources */,
+				A10000000000000000000041 /* LibraryView.swift in Sources */,
+				A10000000000000000000045 /* HarshalTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,6 +349,8 @@
 				A10000000000000000000036 /* SupplyChainView.swift in Sources */,
 				A10000000000000000000038 /* NativeKeychainStore.swift in Sources */,
 				A10000000000000000000040 /* PublicObservationCapabilityVault.swift in Sources */,
+				A10000000000000000000042 /* LibraryView.swift in Sources */,
+				A10000000000000000000046 /* HarshalTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

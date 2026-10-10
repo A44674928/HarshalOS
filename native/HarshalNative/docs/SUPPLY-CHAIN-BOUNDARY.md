@@ -4,13 +4,31 @@
 
 **Platforms:** iOS 17+, iPadOS 17+, macOS 14+.
 
-**Research reference:** [`HS-20-SUPPLY-CHAIN`](../../../docs/harshal-systems/20-supply-chain.md) · `SCAV-PLUS-PLUS`
+**Published source corpus:** [AGS v0.2 full-book KDP interior](../../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf) · `AGS-V0.2-FULL-BOOK-2026-10-07` · 548 PDF pages
 
-**Research layer:** `THREAT_RESEARCH` · **Evidence status:** `MIXED_VERIFIED_AND_REPORTED`
+**Accountability source:** **Part XVIII**, *Accountability in Keyed Human–Machine Hybrid Systems* · printed p. 203 / PDF p. 229 · `RESEARCH` / conceptual proposal
+
+**SCAV++ source context:** **Part XIX**, *Supply Chain and Implanted-Device Threat Research* · printed p. 213 / PDF p. 239 · `THREAT_RESEARCH`
 
 ## Purpose
 
-The **SCAV++ boundary** turns a narrow, defensive part of the Supply Chain Attack Vector++ research record into a native HarshalOS control surface. Its source card preserves the corpus identifiers, `CANONICAL_SOURCE` provenance classification, `RESEARCH_PAPER` status, `THREAT_RESEARCH` layer, and mixed evidence status without importing scenario content. Its purpose is to stop the application from silently presenting itself as a reusable component, delegated decision-maker, authority service, or external-action channel.
+The **SCAV++ boundary** is a locally named, defensive application boundary. The published edition is treated as one text-based source corpus, but no section is allowed to elevate another section’s evidence or authority. Part XVIII supplies the bounded accountability, continuity, scoped-review, non-agency, and refusal principles. Part XIX supplies only an accurately labeled defensive threat-research **catalog boundary**. `SCAV-PLUS-PLUS` is a local boundary identifier; it is not a claim that the book defines a scanner, verifier, or deployed security control.
+
+Its purpose is to stop the application from silently presenting itself as a reusable component, delegated decision-maker, authority service, or external-action channel.
+
+## Source grounding and bounded translation
+
+The source of record is the checked-in [AGS v0.2 KDP interior](../../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf), SHA-256 `6c67feae3881c11bab8e2654e1f58d23aabbbb1dfdcd536464218c2bbf839823`. Its published numbering supersedes the older repository chapter mapping: the accountability paper is **Part XVIII**, while the supply-chain research is **Part XIX**. The legacy [`HS-19-RESEARCH-PAPERS`](../../../docs/harshal-systems/19-research-papers.md) path remains a companion record only.
+
+| Published source | Native translation | Explicit non-adoption |
+| --- | --- | --- |
+| Part XVIII: accountability is a precondition, not a post-hoc label. | A proposed relationship must carry bounded origin, release, continuity, accountable-owner, and review evidence before the local model can contain even a read-only reference. | No identity, human-key, liveness, consent, coercion, or truth determination. |
+| Part XVIII: authority contracts when accountable continuity is absent. | Missing, stale, altered, revoked, or untrusted provenance evidence yields a non-acting `HOLD_FOR_AUTHORIZED_REVIEW` or `REFUSE` result. | No rerouting, deployment, shipment control, medical action, or other external action. |
+| Part XVIII: continuity should be inspectable and attributable. | The generic shipping baseline binds signed origin/release, route, revocation, dual-custody, and separated accountable-review records. | No physical inspection, trusted time, independent witness, external ledger, or proof that a real-world route/custody event occurred. |
+| Part XVIII: computational components are not independent authorities; a custodial state is non-acting. | CWO remains an accepted archival/custodial phase, while this app exposes no delegated authority or automation path. | No distress signaling, clinical/medical control, body/neural-interface interpretation, or real-world intervention workflow. |
+| Part XIX: defensive threat research has a source/evidence boundary. | The read-only Library renders the owner-provided book as a classified source; the SCAV++ model exposes only Part XIX’s title, classification, source location, and refusal-first adoption boundary. | No source material becomes scenario-derived behavior, procedure, target material, activation logic, device guidance, scanner claim, attack workflow, or incident-response authority. |
+
+This is a source-informed boundary translation, not a claim that the native app implements the broader conceptual framework, validates a threat claim, or deploys a supply-chain control. For the full 548-page source map and section-level treatment, see [`AGS-V0.2-CORPUS.md`](AGS-V0.2-CORPUS.md).
 
 It evaluates a *proposed relationship to Harshal Native*, not a person, organization, device, package, or incident. The result is deliberately binary:
 
@@ -56,33 +74,20 @@ The SCAV++ screen remains a local review model; the following adjacent controls 
 4. **Encrypted native local state** — private state is written to an app-private AES-GCM file using a per-installation key held separately in Keychain. This improves ordinary at-rest confidentiality; it does not make an unlocked/compromised device, modified app, backup, or local ledger independently trustworthy.
 5. **Network containment** — the Community adapter uses an ephemeral no-cookie session, HTTPS root-origin validation, redirect refusal, exact publisher/receipt route validation, bounded response decoding, and a placeholder-origin fail-closed configuration.
 6. **macOS release posture** — the macOS target declares App Sandbox plus outbound network-client entitlement and enables Hardened Runtime. A real signed/notarized release still requires an owned team, identifier, signing configuration, and release review.
-
-## Defensive shipment admission baseline
-
-`ShipmentProvenancePolicy` is the foundation for a future shipping adapter. It rejects the premise that physical arrival, a single logistics screen, or a router-derived route observation can make a part admissible. The model requires an opaque pre-authorized manifest bound to independently verified, expiry/revocation-capable external governance, exact ordered custody references, independently verified custody evidence, receiving identity binding, physical-inspection evidence, artifact-integrity evidence, and an accountable review reference. It additionally fails closed when the known opaque governance-role and receiving-review-role references are the same; that bounded comparison models minimum separation of duties without claiming identity verification or knowing anyone’s intent.
-
-A network/routing observation has only two defensive effects:
-
-- `CONFLICTED_WITH_POLICY` forces `HOLD_FOR_AUTHORIZED_REVIEW`.
-- `CONSISTENT_WITH_POLICY` or `NOT_OBSERVED` can never substitute for custody evidence.
-- A missing, revoked, expired, or unverified external governance record also fails closed. The policy requires an explicit assessment instant instead of silently reading a local device clock; a future adapter must document and independently verify that time source.
-
-Even a complete record returns `CONTINUITY_COMPLETE_REQUIRES_AUTHORIZED_RELEASE`. It is not an acceptance, shipment, installation, deployment, or operational authorization. The current native app has no live shipping adapter, routing controller, physical scanner, carrier integration, or military/critical-infrastructure control path; any future adapter must remain generic, separately reviewed, role-bound, and non-public.
-
-This policy records a provenance/custody inconsistency, not an accusation about a country, carrier, organization, or person. A route anomaly requires independent authorized investigation before anyone attributes cause.
+7. **Fail-closed shipment provenance baseline** — `ShipmentProvenanceBaseline` cryptographically verifies only a pre-registered origin/release manifest, scoped unexpired route authorization, current signed revocation snapshot, complete ordered dual-signed custody sequence, and separate accountable review against a supplied role-scoped trust store. An unknown, missing, altered, expired, revoked, replayed, route-deviating, or one-sided record returns `HOLD_FOR_AUTHORIZED_REVIEW`; there is no post-hoc acceptance or shipment-control path. See [`SHIPPING-PROVENANCE-BASELINE.md`](SHIPPING-PROVENANCE-BASELINE.md).
 
 ## Native implementation
 
 - `Packages/HarshalCore/Sources/HarshalCore/SupplyChainBoundary.swift` contains the pure, Foundation-only policy model and source metadata.
 - `Packages/HarshalCore/Sources/HarshalCore/DataEgressPolicy.swift` defines the controlled-surface registry and the sole three-field public-observation projection.
-- `Packages/HarshalCore/Sources/HarshalCore/ShipmentProvenancePolicy.swift` implements fail-closed generic shipment admission: no physical-arrival shortcut, no router-as-trust-anchor shortcut, and no automatic release state.
-- `Features/SupplyChainView.swift` provides the **SCAV++ boundary** tab and displays the research-model limitations, actual controlled surfaces, and defensive shipment-admission baseline.
+- `Packages/HarshalCore/Sources/HarshalCore/ShipmentProvenanceBaseline.swift` defines the generic signed origin/release, route, revocation, dual-custody, and accountable-review continuity verifier. It returns an evidence-continuity result or a hold only; it does not control shipments or grant release authority.
+- `Features/SupplyChainView.swift` provides the **SCAV++ boundary** tab and displays both the research-model limitations, actual controlled surfaces, and the non-interactive shipping-provenance baseline status/limits.
 - `Services/NativeKeychainStore.swift`, `Services/PublicObservationCapabilityVault.swift`, and `LocalStateStore.swift` separate encrypted local state and Keychain-held capability/key material from ordinary observation metadata.
-- `SupplyChainBoundaryTests`, `DataEgressPolicyTests`, `ShipmentProvenancePolicyTests`, and observation persistence tests cover refusal, bounded projection shape, private-note rejection, bearer-field redaction, missing/reordered custody, governance expiry/revocation, route conflicts, and the non-authorizing review-ready state.
+- `SupplyChainBoundaryTests`, `DataEgressPolicyTests`, `ShipmentProvenanceBaselineTests`, and observation persistence tests cover refusal, bounded projection shape, private-note rejection, bearer-field redaction, and cryptographic continuity/hold cases for altered, missing, deviated, replayed, revoked, untrusted, self-reviewed, invalid-review, and one-sided-custody records.
 - The Xcode project includes the tab and native security services in both iOS and macOS targets; the macOS target declares App Sandbox/Hardened Runtime settings.
 - The view deliberately contains no scanner, device inspection, account lookup, remote reporting path, or attack workflow.
 
-The native view preserves the original research document as a corpus reference. It does not embed or expand scenario material in the app, and it does not transform threat research into operational instruction.
+The SCAV++ native view preserves the published corpus split: Part XVIII is the bounded accountability reference and Part XIX is an accurately classified threat-research catalog boundary. The separate Library renders the owner-provided book read-only; neither surface transforms source text into operational instruction or external authority.
 
 ## Relationship to other HarshalOS controls
 
@@ -104,8 +109,6 @@ A future production supply-chain program would require, at minimum:
 - platform-code-signing and notarization validation where applicable;
 - reproducible-build and artifact-hash policy;
 - incident response, revocation, key-rotation, retention, and disclosure procedures;
-- independently governed manifest/custody/inspection evidence adapters with a reviewed time source and verification method;
-- documented, scoped governance and receiving-review roles with real-world separation-of-duties procedures; and
 - independent security review and ownership of the relevant delivery systems.
 
 Until that work exists, the correct model result for an unverified or authority-seeking relationship is **REFUSE**.

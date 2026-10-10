@@ -10,7 +10,7 @@ struct SyncView: View {
                     Text(appModel.cloudKitState.title)
                     Text("CloudKit is optional private-device synchronization. It is not an identity verifier, an independent witness, a replacement for backups, or an authorization system.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(HarshalTheme.secondaryText)
                     Button("Check iCloud availability") {
                         Task { await appModel.checkCloudKit() }
                     }
@@ -25,6 +25,8 @@ struct SyncView: View {
                         .font(.footnote)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(HarshalTheme.canvas)
             .navigationTitle("Private sync")
         }
     }

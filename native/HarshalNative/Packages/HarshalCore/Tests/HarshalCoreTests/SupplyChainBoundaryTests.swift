@@ -121,15 +121,105 @@ final class SupplyChainBoundaryTests: XCTestCase {
         XCTAssertTrue(result.reason.contains("not identity proof"))
     }
 
-    func testResearchReferenceMetadataRemainsExplicitlyBounded() {
+    func testPublishedEditionSourceReferencesRemainExplicitlyBounded() {
+        XCTAssertEqual(AGSv02PublishedCorpus.identifier, "AGS-V0.2-FULL-BOOK-2026-10-07")
+        XCTAssertEqual(AGSv02PublishedCorpus.pdfPageCount, 548)
+        XCTAssertEqual(
+            AGSv02PublishedCorpus.sourceArtifactPath,
+            "publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf"
+        )
+        XCTAssertEqual(
+            AGSv02PublishedCorpus.sourceSHA256,
+            "6c67feae3881c11bab8e2654e1f58d23aabbbb1dfdcd536464218c2bbf839823"
+        )
+
+        XCTAssertEqual(AccountabilityResearchReference.sourcePart, "Part XVIII")
+        XCTAssertEqual(AccountabilityResearchReference.documentID, "AGS-V0.2-PART-XVIII")
+        XCTAssertEqual(AccountabilityResearchReference.printedStartPage, "203")
+        XCTAssertEqual(AccountabilityResearchReference.pdfStartPage, 229)
+        XCTAssertEqual(AccountabilityResearchReference.provenanceClass, "RESEARCH")
+        XCTAssertEqual(AccountabilityResearchReference.evidenceStatus, "NOT_AN_INDEPENDENT_CERTIFICATION")
+        XCTAssertEqual(AccountabilityResearchReference.legacyCompanionDocumentID, "HS-19-RESEARCH-PAPERS")
+
         XCTAssertEqual(SupplyChainResearchReference.identifier, "SCAV-PLUS-PLUS")
-        XCTAssertEqual(SupplyChainResearchReference.documentID, "HS-20-SUPPLY-CHAIN")
-        XCTAssertEqual(SupplyChainResearchReference.provenanceClass, "CANONICAL_SOURCE")
-        XCTAssertEqual(SupplyChainResearchReference.statusTaxonomy, "RESEARCH_PAPER")
-        XCTAssertEqual(SupplyChainResearchReference.researchLayer, "THREAT_RESEARCH")
-        XCTAssertEqual(SupplyChainResearchReference.evidenceStatus, "MIXED_VERIFIED_AND_REPORTED")
-        XCTAssertEqual(SupplyChainResearchReference.sourcePath, "docs/harshal-systems/20-supply-chain.md")
-        XCTAssertTrue(SupplyChainResearchReference.summary.contains("defensive"))
+        XCTAssertEqual(SupplyChainResearchReference.sourcePart, "Part XIX")
+        XCTAssertEqual(SupplyChainResearchReference.documentID, "AGS-V0.2-PART-XIX")
+        XCTAssertEqual(SupplyChainResearchReference.printedStartPage, "213")
+        XCTAssertEqual(SupplyChainResearchReference.pdfStartPage, 239)
+        XCTAssertEqual(SupplyChainResearchReference.provenanceClass, "THREAT_RESEARCH")
+        XCTAssertTrue(SupplyChainResearchReference.summary.contains("does not derive or operationalize Part XIX material"))
         XCTAssertTrue(SupplyChainBoundary.limitation.contains("does not independently verify"))
+    }
+
+    func testPublishedCorpusMapKeepsAllSectionsAndTheirLocalBoundaries() {
+        XCTAssertEqual(AGSv02PublishedCorpus.sections.count, 37)
+        XCTAssertEqual(Set(AGSv02PublishedCorpus.sections.map(\.id)).count, AGSv02PublishedCorpus.sections.count)
+        let pdfStartPages = AGSv02PublishedCorpus.sections.map(\.pdfStartPage)
+        XCTAssertTrue(zip(pdfStartPages, pdfStartPages.dropFirst()).allSatisfy { $0 < $1 })
+
+        guard let accountability = AGSv02PublishedCorpus.section("PART-XVIII"),
+              let threatResearch = AGSv02PublishedCorpus.section("PART-XIX"),
+              let narrative = AGSv02PublishedCorpus.section("PART-XIX-B"),
+              let companion = AGSv02PublishedCorpus.section("APPENDIX-G") else {
+            return XCTFail("Expected published corpus sections are missing")
+        }
+
+        XCTAssertEqual(accountability.pdfStartPage, 229)
+        XCTAssertEqual(accountability.nativeDisposition, .boundedDesignReference)
+        XCTAssertEqual(threatResearch.pdfStartPage, 239)
+        XCTAssertEqual(threatResearch.nativeDisposition, .threatResearchCatalogOnly)
+        XCTAssertTrue(threatResearch.nativeDisposition.boundary.contains("Do not derive scenarios"))
+        XCTAssertEqual(narrative.nativeDisposition, .narrativeOrFictionOnly)
+        XCTAssertEqual(companion.nativeDisposition, .machineReadableReferenceOnly)
+        XCTAssertTrue(AGSv02PublishedCorpus.runtimeBoundary.contains("does not package the PDF"))
+    }
+
+    func testRepositoryCompanionCatalogIsCuratedAndExternalOnly() {
+        XCTAssertEqual(HarshalRepositoryCompanionCatalog.entries.count, 13)
+        XCTAssertEqual(HarshalRepositoryCompanionCatalog.repositoryURL, "https://github.com/A44674928/HarshalOS")
+
+        guard let publishedCorpus = HarshalRepositoryCompanionCatalog.entries.first(where: { $0.id == "PUBLISHED-CORPUS" }),
+              let reader = HarshalRepositoryCompanionCatalog.entries.first(where: { $0.id == "LIBRARY-READER" }),
+              let security = HarshalRepositoryCompanionCatalog.entries.first(where: { $0.id == "SECURITY" }) else {
+            return XCTFail("Expected repository companion entries are missing")
+        }
+
+        XCTAssertEqual(publishedCorpus.repositoryPath, "native/HarshalNative/docs/AGS-V0.2-CORPUS.md")
+        XCTAssertEqual(reader.repositoryPath, "native/HarshalNative/docs/LIBRARY-READER.md")
+        XCTAssertEqual(security.githubURL?.host, "github.com")
+        XCTAssertTrue(reader.boundary.contains("local and read-only"))
+        XCTAssertTrue(HarshalRepositoryCompanionCatalog.summary.contains("Remote repository pages remain external"))
+    }
+
+    func testPublishedCorpusTranslationsRetainConstraintsWithoutClaimingHumanOrExternalAuthority() {
+        XCTAssertEqual(PublishedCorpusNativeBoundaryTranslation.allCases.count, 5)
+        XCTAssertEqual(
+            PublishedCorpusNativeBoundaryTranslation.accountableEvidenceBeforeAuthority.sourcePart,
+            "Part XVIII"
+        )
+        XCTAssertTrue(
+            PublishedCorpusNativeBoundaryTranslation.accountableEvidenceBeforeAuthority.explicitLimit
+                .contains("No identity")
+        )
+        XCTAssertTrue(
+            PublishedCorpusNativeBoundaryTranslation.scopeContractsOnFailure.nativeTranslation
+                .contains("non-acting hold or refusal")
+        )
+        XCTAssertEqual(
+            PublishedCorpusNativeBoundaryTranslation.threatResearchRemainsCatalogOnly.sourcePart,
+            "Part XIX"
+        )
+        XCTAssertTrue(
+            PublishedCorpusNativeBoundaryTranslation.threatResearchRemainsCatalogOnly.explicitLimit
+                .contains("No scenario")
+        )
+        XCTAssertTrue(
+            PublishedCorpusNativeBoundaryTranslation.computationalComponentsRemainNonAuthoritative.nativeTranslation
+                .contains("CWO remains a valid archival/custodial phase")
+        )
+        XCTAssertTrue(
+            PublishedCorpusNativeBoundaryTranslation.computationalComponentsRemainNonAuthoritative.explicitLimit
+                .contains("No body/neural-interface interpretation")
+        )
     }
 }

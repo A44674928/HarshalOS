@@ -1,6 +1,6 @@
 # Security policy and threat model
 
-**Last reviewed:** 2026-10-09
+**Last reviewed:** 2026-10-10
 **Status:** Project-specific disclosure for a browser-based structural demonstration and an early native Swift foundation. This is not a security certification, production deployment approval, or guarantee that the implementation is vulnerability-free.
 
 ## Security posture
@@ -9,14 +9,14 @@ HarshalOS is a client-side demonstration of governance and refusal concepts. It 
 
 The browser kernel keeps its mutable state in a closure and publishes a frozen `window.HOS` capability API rather than a global mutable state object. API transitions validate candidate state, and observations and ledger reads are detached copies. These controls reduce accidental or ordinary API-level mutation; they do not make JavaScript in a user-controlled browser tamper-proof.
 
-The native Swift foundation under [`native/HarshalNative/`](native/HarshalNative/README.md) is also **local demonstration software**. Its declaration label is self-declared; its on-device acknowledgement is not a Human Key authenticator; its SHA-256 local ledger/receipt is not a signature or independent witness; and its optional CloudKit private mirror is synchronization, not identity proof or authorization. The first native build deliberately rejects a local attempt to label itself externally attested because no independently reviewed external-attestation provider is configured. See its [architecture and trust boundary](native/HarshalNative/docs/ARCHITECTURE.md).
+The native Swift foundation under [`native/HarshalNative/`](native/HarshalNative/README.md) is also **local demonstration software**. Its declaration label is self-declared; its on-device acknowledgement is not a Human Key authenticator; its SHA-256 local ledger/receipt is not a signature or independent witness; and its optional CloudKit private mirror is synchronization, not identity proof or authorization. The public-observation feature uses a separate, explicitly user-triggered Community handoff; it never publishes a personal universe core and it does not treat a public pseudonym, one-time claim code, or returned note receipt as identity/authorization. The first native build deliberately rejects a local attempt to label itself externally attested because no independently reviewed external-attestation provider is configured. See its [architecture and trust boundary](native/HarshalNative/docs/ARCHITECTURE.md).
 
 ## Assets and security objectives
 
 The implementation handles or models:
 
 - Local HOS state and results: Human Key demo status, legitimacy factors, phase, session metadata, and the in-memory duty ledger.
-- Native Swift foundation state: self-declared phase labels, acknowledgement status, local gate inputs/results, and the `UserDefaults`-cached local ledger/receipt. This cache is not encrypted or independently tamper-proof.
+- Native Swift foundation state: self-declared phase labels, acknowledgement status, local gate inputs/results, ledger/receipt, public-note drafts, and a short-lived handoff status capability/claim code when the user explicitly stages a public note. Private persisted state is stored in an app-private AES-GCM file whose per-installation key is held separately in Keychain; short-lived Community capability material is held in a distinct Keychain record and excluded from observation serialization. These measures improve ordinary at-rest confidentiality but are not independent tamper-proofing or evidence witnessing.
 - Browser-held Ground-0 audits/evidence, preferences, and optional model API keys. Browser storage is not application-encrypted and is available to code running in the same origin and to people with access to the browser profile.
 - User-entered evidence, source documents, model prompts/responses, and any text included in a cloud snapshot or ledger archive.
 - Cloudflare Access configuration, Worker secrets, MongoDB credentials, and stored snapshots/archives when optional cloud storage is configured.
@@ -34,11 +34,13 @@ The code and tests aim to make intended local API transitions explicit, reject m
 
 ### 2. Native Swift foundation
 
-**Expected protection:** the `HarshalCore` and `HarshalLedger` packages separate deterministic model code from SwiftUI presentation; `LocalLedger` serializes ordinary concurrent appends through an actor and verifies a SHA-256 chain prefix. The app begins without an active acknowledgement, authorization, session tuple, technical attribution, or operational-accountability model input, so the native refusal gate fails closed. Active local acknowledgement state is cleared on app launch rather than silently restored.
+**Expected protection:** the `HarshalCore` and `HarshalLedger` packages separate deterministic model code from SwiftUI presentation; `LocalLedger` serializes ordinary concurrent appends through an actor and verifies a SHA-256 chain prefix. Private native state is encrypted into an app-private file with an AES-GCM key retained separately in Keychain. Short-lived Community claim/status capability material is stored in a separate Keychain vault, omitted from observation serialization, and removed after expiry or a terminal public state. `HarshalDataEgressPolicy` constructs the Community request from only phase, note text, and public pseudonym; private-core, ledger, gate, CloudKit, market, account, and capability fields have no projection field. `ShipmentProvenanceBaseline` separately verifies only pre-registered Ed25519-signed origin/release, scoped route, current revocation snapshot, dual-signed custody, and separately accountable-review records against a caller-owned role-scoped public-key trust store; it holds missing, expired, revoked, altered, replayed, route-deviating, unknown, or one-sided evidence for authorized review and has no shipment acceptance/release action. The app begins without an active acknowledgement, authorization, session tuple, technical attribution, or operational-accountability model input, so the native refusal gate fails closed. Active local acknowledgement state is cleared on app launch rather than silently restored. The macOS target declares App Sandbox, outbound-network client access, and Hardened Runtime settings.
 
-**Boundary:** native process isolation, code signing, and the platform sandbox do not turn a self-declared label into a verified person or a local receipt into an independent record. A person controlling an unlocked device, app installation, backup/restore path, local `UserDefaults` data, or a modified/debug build can alter or replace local state and recompute a local chain. The first build does not persist a production secret in Keychain/Secure Enclave, implement a hardware-backed authenticator, or supply a trusted time/revocation service. It must not be used to screen character, intent, criminality, trustworthiness, or eligibility.
+**Boundary:** native process isolation, platform code signing, sandboxing, Keychain storage, and encrypted local state do not turn a self-declared label into a verified person or a local receipt into an independent record. A person controlling an unlocked device, app installation, backup/restore path, Keychain access in that user context, encrypted-state file, or a modified/debug build can alter or replace local state and recompute a local chain. The shipment-provenance verifier checks supplied record signatures and bindings only; it cannot inspect a physical item, prove real-world custody/route/possession, establish signer identity or intent, independently trust a router, supply trusted time, detect all key compromise, halt a shipment, or authorize release/deployment. A suspected network anomaly remains an unproven incident hypothesis pending independent authorized review. The app does not yet use a Secure Enclave-backed signing checkpoint, implement a production hardware-backed authenticator, supply trusted time or an independently governed revocation-distribution service, independently verify a remote publisher, or prove device integrity. It must not be used to screen character, intent, criminality, trustworthiness, or eligibility.
 
 CloudKit code is disabled unless an owner configures a signed app with an owned private container. If enabled, an explicitly requested mirror sends a declaration and local receipt to the user's private CloudKit database. The iCloud account, CloudKit ACL, Apple account recovery, device compromise, database operations, backups, and record schema remain outside this repository's trust guarantee; CloudKit does not independently witness event truth or establish human identity.
+
+The native public-note adapter has no embedded Community session, OAuth client credential, API token, or shared publishing secret. It uses a typed egress projection with only a user-selected phase snapshot, note text, and public pseudonym; the serialization has no representation for private-core, ledger, gate, CloudKit, market, device, account, claim-code, or status-token data. Its isolated no-cookie `URLSession` rejects redirects, rejects the checked-in placeholder origin as unconfigured, and validates returned publisher/public URLs against the configured HTTPS origin and expected observation route; those controls reduce accidental capability leakage or an unexpected handoff destination, but do not make a compromised device/network/Worker trustworthy. The readable one-time claim code is intentionally low-tech bearer material: anyone who receives it can attempt to claim the staged candidate after authenticating, so it must be treated as short-lived sensitive data. The separate 256-bit status token can only query handoff state. Both values are held in the app’s Keychain capability vault—not URLs, observation serialization, logs, crash reports, screenshots, or support tickets—and are removed after terminal state/expiry. An app-controlled device, compromised local state, malicious app build, network/Worker operator, database operator, browser extension, or a person with the claim code can still observe, stage, claim, alter local display, or otherwise affect this process within their respective control. A public receipt/hash is not a signature, authorship proof, identity proof, or independent witness. The remote publisher must remain unavailable/fail closed until its D1/OIDC/moderator configuration and deployment review are complete.
 
 ### 3. Human Key, time, and authorization
 
@@ -87,6 +89,8 @@ The local `node serve.js` server allowlists site paths rather than serving the c
 
 This repository does not establish a complete production HTTP security-header policy (for example, a tested Content Security Policy and HSTS configuration). Hosting/CDN configuration, HTTPS, dependency updates, and release integrity remain deployment responsibilities. There has not been a comprehensive XSS, browser, dependency-supply-chain, or deployment audit.
 
+The native **SCAV++ supply-chain boundary** is a narrow local policy model grounded in the published AGS v0.2 corpus. Published **Part XVIII** supplies conceptual accountability/continuity/restraint principles; published **Part XIX** is accurately recorded as `THREAT_RESEARCH` and is cataloged only. The bundled Library may render the owner-provided book read-only, but no app feature derives or operationalizes Part XIX material. It refuses a proposed component-embedding, delegated-authority, external-automation, or privileged integration relationship, and it can contain only a verified local read-only research reference. It is not an SBOM, package/signature verifier, release-attestation system, incident detector, license enforcer, or a technical way to prevent source copying/binary modification outside HarshalOS-controlled interfaces. See [`native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](native/HarshalNative/docs/AGS-V0.2-CORPUS.md) and [`native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md`](native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md).
+
 ## Assumptions for operators
 
 - The browser, operating system, and user profile are not already compromised.
@@ -119,7 +123,7 @@ cd native/HarshalNative/Packages/HarshalCore && swift test
 cd ../HarshalLedger && swift test
 ```
 
-These native tests cover deterministic declaration/gate/ledger behavior only; they do not validate signing, an iCloud container, an external identity provider, a real device trust state, or production authorization.
+These native tests cover deterministic declaration/gate/ledger behavior and the local shipment-provenance verifier’s generated-key cryptographic cases; they do not validate a real organization’s signing policy, trust-store distribution, key enrollment/revocation, trusted time, physical custody, an iCloud container, an external identity provider, a real device trust state, or production authorization.
 
 Targeted hostile-caller reports can be run with `node tests/red-team-test.mjs`; Worker authentication/storage tests with `npm run test:cloud`; and kernel API tests with `npm run test:kernel`.
 
@@ -149,6 +153,22 @@ evidence. Public DTOs exclude private account/draft/run IDs and moderator/report
 details. Withdrawal/hide redacts the payload and author label but keeps a minimal
 hash/history tombstone; external copies cannot be recalled. Database operators
 and backup access remain trusted, and hashes are not tamper-proof signatures.
+
+Public observations use a separate D1 schema and never inherit private draft/run
+identifiers. An unauthenticated native staging request is rate-limited and creates only
+an unlisted, short-lived candidate; it cannot directly publish. Claim and publish need
+a signed-in Community session, exact-origin writes, a public pseudonym, explicit
+acknowledgement, an unblocked account, an unexpired handoff, and an available moderator.
+The status endpoint requires a separate high-entropy header token and returns receipt
+metadata but never a note body. Public DTOs exclude handoff secrets, owner/account IDs, native
+IDs, universe-core IDs, declaration labels, and private notes. These controls do not
+prevent a willing author from posting sensitive or false content, a claim-code recipient
+from attempting a claim, an operator from accessing D1, or copied public content from
+persisting elsewhere. A configured signed-in moderator can hide an active note only
+with a bounded internal reason; the service retains an append-only private moderation
+action and redacts the public DTO, but neither hide nor withdrawal proves content false
+or recalls external copies. Public observations are **UNREVIEWED** author submissions,
+not identity verification, authorization, peer consent, financial advice, or Orb 2 core data.
 
 Before enabling, complete the staging, moderation, privacy/retention, backup and
 abuse-control gates in `docs/deployment/COMMUNITY-D1.md`. Live-provider/remote-D1
