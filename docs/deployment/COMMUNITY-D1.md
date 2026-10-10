@@ -47,9 +47,25 @@ anonymous per-browser Orb 2 observations with a 30-day expiry and a Worker-enfor
 120-row session cap; it stores no keys, identities, or full bar histories. Migrations
 0005–0007 are aggregate request ledgers, not community/user records. Apply the market
 migrations in order before enabling their provider routes; apply 0008 before using the
-D1-backed Orb 2 archive. Migration and seed testing in this rebuild has been local only:
-no remote migration, remote seed or production deployment command has been run from the build
-environment, which has no Cloudflare credentials.
+D1-backed Orb 2 archive. Migrations `0009`–`0013` extend the server-managed Orb 2
+field/options storage. The two owner-applied migration numbers `0014` and `0015` are
+already reserved in the deployment history and are not recreated or reordered here.
+`0016_public_observations.sql` is the subsequent separate Community publication surface
+for bounded native notes: profiles, short-lived claim handoffs, public-note rows,
+append-only public-note events, and private append-only moderator-hide action records.
+It does not alter the report publication schema. `0017_paper_market.sql` is the next
+additive account-scoped **PAPER_TEST** component: short-lived native pairing rows,
+revocable scoped device credentials, immutable server quote references, paper
+declarations/positions, and a private append-only event projection. It does not add a
+broker, custody, payment, wallet, mining, provider-key, or public-market authority.
+Apply `0016` and then `0017` only after the deployment has its existing `0014` and
+`0015` history; migration filenames are immutable once applied. See
+[`PAPER-TEST-MARKET.md`](../PAPER-TEST-MARKET.md) for the native/browser pairing and
+server-authority contract. Focused Node/SQLite tests cover the public-observation and
+PAPER_TEST constraints using their minimal prerequisite schema. Migration and seed
+testing in this rebuild remains local only: no remote migration, remote seed, or
+production deployment command has been run from the build environment, which has no
+Cloudflare credentials.
 
 The intended workflow remains managed signup → private drafting → exact public
 preview → explicit publication labeled **UNREVIEWED**, not independent verification.
@@ -86,7 +102,7 @@ The account page is linked from the desktop boot links and Overview page.
 `/api/community/status` returns 503 while disabled/unconfigured or missing the
 publication migration. When enabled/configured it reports the publication stage
 and UNREVIEWED policy; it is not proof of a working live provider or production readiness.
-Both canonical and `.html` forms of `/account` and `/audits` are Worker-first and receive no-store, no-referrer,
+Both canonical and `.html` forms of `/account`, `/audits`, and `/observations` are Worker-first and receive no-store, no-referrer,
 nosniff and restrictive CSP headers. Framing is blocked when community is enabled;
 disabled previews can be embedded. The editor does not persist data in localStorage.
 Sign-out and detected session expiry clear displayed private state. Unsaved edits
@@ -291,6 +307,91 @@ cleanup. Authenticated write attempts also share the existing 60/day quota. Prev
 requests delete up to 100 expired preview rows; inactive expired rows may remain
 until subsequent cleanup. No cron or global spending ceiling is configured.
 
+## Native public observations — manual one-time handoff
+
+Migration `0016_public_observations.sql` adds a distinct public-note surface after the
+owner-applied `0014` and `0015` migrations. It does **not** reuse Ground-0 reports, public report series, a declaration label, a personal
+universe core, Orb 2 data, CloudKit, paper-market records, or a browser/API credential
+inside the native app.
+
+The native app calls only `POST /api/community/observation-handoffs` over the configured
+HTTPS Community origin, after a visible native confirmation that it is preparing an
+unlisted candidate rather than publishing. Its bounded body is exactly:
+
+```json
+{ "phase": "NAB|CWO|GSRB", "text": "1–2000 UTF-16 code units", "author": "1–80 UTF-16-unit suggested pseudonym" }
+```
+
+It deliberately has no universe-core ID, declaration ID/label, private-note record,
+receipt, market position, gate state, device identifier, or account identity. The
+Worker accepts the untrusted staging request at 12 per edge IP per 15 minutes (stored
+only as an HMAC-pseudonymized rate bucket), creates an unlisted 15-minute candidate,
+and returns:
+
+- a 16-character grouped, high-entropy **one-time claim code** for a person to type;
+- a separate 256-bit status-only token for the originating native app; and
+- the canonical `/observations` publisher URL.
+
+Neither value allows anonymous publication. The status token is accepted only in the
+`X-HOS-Observation-Status` header, returns receipt/state metadata but never a note body,
+and cannot claim, edit, publish, or withdraw. Do not place it in a URL, analytics event,
+application log, crash report, or support ticket. The claim code is a deliberately
+low-tech bearer handoff: anyone who receives it can attempt to claim the staged
+candidate after authenticating, so users must treat it as short-lived sensitive data.
+Its first successful claim permanently binds the candidate to that account; only a hash
+is retained through expiry/publication so that the same owner can re-enter the code to
+recover a browser review screen after a reload. No other account can claim it.
+
+A signed-in Community account opens `/observations`, enters the code, sees the exact
+candidate, saves/confirms a reusable server-side public pseudonym, checks a clear
+public-availability acknowledgement, and only then sends
+`PUBLISH_PUBLIC_OBSERVATION`. The publish insert rechecks unblocked authorship,
+profile ownership, handoff expiry, the staged candidate hash, and availability of an
+unblocked configured moderator. It writes one immutable public observation labeled
+**UNREVIEWED**. A public
+DTO includes only public UUID, phase snapshot, public pseudonym, exact note text,
+content hash, timestamps, and state; it never includes a handoff ID/code/token,
+Community owner/account ID, native identifier, private declaration label, or private
+core state.
+
+Publishing is an author-submitted bounded projection, not identity verification,
+authorization, peer consent, independent witnessing, truth verification, investment
+advice, broker activity, or a public Orb 2 universe-core record. A self-chosen
+pseudonym is not a verified identity. Exact public note text can contain personal or
+sensitive information; authors must review/redact it before publishing.
+
+### Public-observation routes
+
+| Access | Method / route | Purpose |
+| --- | --- | --- |
+| Native, unauthenticated staging only | POST `/api/community/observation-handoffs` | Create short-lived unlisted candidate; exact bounded public payload only |
+| Native holder of status token | GET `/api/community/observation-handoffs/UUID` | Status-only poll with `X-HOS-Observation-Status`; no unpublished body |
+| Signed-in author | GET / PUT `/api/community/observation-profile` | Read/save reusable public pseudonym |
+| Signed-in author | POST `/api/community/observation-handoffs/claim` | Enter one-time code and receive exact candidate for review |
+| Claim owner | POST `/api/community/observation-handoffs/UUID/publish` | Body only `{"acknowledgement":"PUBLISH_PUBLIC_OBSERVATION"}` |
+| Public | GET `/api/community/observations?after=SEQ` | Active public notes, newest first, 25/page |
+| Public | GET `/api/community/observations/UUID` | Active note or minimal withdrawn/hidden tombstone |
+| Signed-in author | GET `/api/community/my-observations?after=SEQ` | Owned note summaries, including tombstones |
+| Owner only | POST `/api/community/observations/UUID/withdraw` | Empty JSON object; redact public body/author/phase |
+| Configured signed-in moderator only | POST `/api/community/observations/UUID/hide` | Exact `{ "note": "1–2000 UTF-16 code units" }`; redact active public content and retain a private append-only moderation action |
+
+Handoff payloads expire on a bounded request-path cleanup. On expiry, the Worker clears
+the claimant link, claim-code hash, suggested pseudonym, phase, staged note text, note hash, and claim time,
+leaving only a minimal expired status capability for the native app. After publication it likewise clears all
+staged handoff content/capability-to-claim data and retains only the public record plus the status capability. There is no native direct publish, app credential, auto-retry of handoff writes,
+public edit, public restore, or silent correction. To correct a published observation,
+withdraw it and publish a new explicit note. Withdrawal redacts the service’s active
+body, author, and phase but cannot recall screenshots, caches, exports, or third-party
+copies. A configured moderator can instead hide an active note with a bounded internal
+reason; that creates an append-only private moderation-action row and the same public
+minimal tombstone. It does not block the author or establish that the content was false.
+Public observation rows/events are append-only at the application schema level, not
+tamper-proof against database operators.
+
+`observations.html` and its JavaScript are browser publisher/read surfaces, not a
+native-web wrapper. The native app uses `URLSession` only for the bounded handoff/status
+contract and opens the system browser for the authenticated manual confirmation.
+
 ### Required launch checks (not completed by local tests)
 
 - Separate staging resources, exact HTTPS origins/callbacks, and actual Auth0 sign-in.
@@ -298,7 +399,8 @@ until subsequent cleanup. No cron or global spending ceiling is configured.
   `_cf_KV`, existing owner storage and all other dashboard bindings.
 - Verify two-account isolation, expired/replayed sessions, preview edits/expiry,
   stale drafts, publication correction, withdrawal, reporting, hide and hide/block.
-- Verify both canonical page routes receive CSP/no-store headers on the deployed host.
+- Verify the native-observation lifecycle using synthetic text: intended-account code claim, another-account claim refusal, profile confirmation, explicit acknowledgement, public receipt/status polling, handoff expiry/redaction, withdrawal tombstone, and the absence of universe-core/declaration/account/token fields from public DTOs and application logs.
+- Verify `/account`, `/audits`, and `/observations` (plus their `.html` forms) receive CSP/no-store headers on the deployed host.
 - Configure moderator coverage, a privacy/abuse contact and escalation process, a
   retention/deletion policy that covers operator-side purge, account deletion and
   backup expiry, backups/export and restore rehearsal, resource monitoring,
@@ -455,13 +557,13 @@ npx wrangler d1 migrations apply COMMUNITY_DB --remote
 Expected application tables: `community_users`, `community_drafts`, `community_schema`,
 `community_auth_flows`, `community_sessions`, `community_auth_rates`, `community_runs`,
 `community_public_series`, `community_previews`, `community_publications`,
-`community_public_events`, `community_reports`, `community_moderation_actions`, `tickerbot_call_ledger`, and `alpha_vantage_daily_call_ledger`. Wrangler also tracks migrations in `d1_migrations`. Applying
-this migration does not enable login or publish any data. Roll back service access
-by keeping community disabled, not by dropping tables.
+`community_public_events`, `community_reports`, `community_moderation_actions`, `tickerbot_call_ledger`, `alpha_vantage_daily_call_ledger`, the Orb 2 field/cache tables from migrations `0007`–`0013`, `community_observation_profiles`, `community_observation_handoffs`, `community_public_observations`, `community_public_observation_events`, and `community_public_observation_moderation_actions`. Wrangler also tracks migrations in `d1_migrations`. Applying
+these migrations does not enable login or publish any data. Roll back service access
+by keeping Community disabled, not by dropping tables.
 
 ## Ordered enablement on main.empty.domains (owner-run)
 
-`/account` and `/audits` are already deployed by every `main` build, but they are
+`/account`, `/audits`, and `/observations` are already deployed by every `main` build, but they are
 inert until the ordered steps below are complete: before the dashboard configuration
 and migrations exist, every `/api/community/*` route fails closed with 503 and the
 register renders its unavailable notice. Enabling the D1-backed pages on production is
@@ -496,8 +598,12 @@ than retrying with shortcuts.
    npx wrangler d1 export COMMUNITY_DB --remote --output community_db-backup.sql
    ```
 
-4. **Apply migrations 0001–0008 and the register seed** to production D1. Migrations
-   never run automatically during a deploy:
+4. **Apply the owner-managed migration history through `0017` and the register seed**
+   to production D1. Migrations never run automatically during a deploy. First inspect
+   the remote history and confirm that owner-applied `0014` and `0015` are already
+   recorded; if either is absent or differs, stop and reconcile history rather than
+   renumbering or replaying migrations. Then apply the committed `0016` and `0017`
+   files in order:
 
    ```sh
    npx wrangler d1 migrations list COMMUNITY_DB --remote
@@ -508,6 +614,11 @@ than retrying with shortcuts.
    ```
 
    Expected from the committed seed: 23 publications, 23 series, one register account.
+   Confirm `community_schema` also contains `paper-market` version `1` before
+   presenting native pairing or the Account-page PAPER_TEST panel. The field must
+   already have its existing Orb 2 storage migrations; if it is unavailable, the
+   shared ledger endpoint remains explicit `UNAVAILABLE` and does not call a
+   provider on demand.
 5. **Flip the flag in the repository — done.** Explicit values in `wrangler.jsonc` win
    over dashboard text variables, so a dashboard `COMMUNITY_ENABLED=true` alone would
    not have enabled anything. `wrangler.jsonc` now says `true`, and

@@ -63,7 +63,7 @@ test('production keeps community pages worker-first and uses the allowlisted ass
   assert.equal(production.main, 'worker/index.mjs');
   assert.equal(production.assets.binding, 'ASSETS');
   assert.equal(production.assets.directory, '.site-assets');
-  assert.deepEqual(production.assets.run_worker_first, ['/api/*', '/account', '/account.html', '/audits', '/audits.html', '/.git', '/.git/*', '/.env*']);
+  assert.deepEqual(production.assets.run_worker_first, ['/api/*', '/account', '/account.html', '/audits', '/audits.html', '/observations', '/observations.html', '/.git', '/.git/*', '/.env*']);
   assert.equal(production.assets.not_found_handling, 'none', 'missing assets must not fall through to an SPA index');
 });
 
@@ -75,7 +75,12 @@ test('enabled release rejects unconfigured community routes before any D1 query'
     ['GET', `drafts/${id}/runs`], ['POST', `drafts/${id}/runs`], ['DELETE', `drafts/${id}/runs/${id}`], ['GET', 'audit-template'],
     ['GET', 'status'], ['GET', 'publications'], ['GET', 'public-log'], ['POST', 'public-preview'],
     ['POST', 'publish'], ['GET', 'my-publications'], ['GET', 'moderation'],
-    ['POST', `publications/${id}/withdraw`], ['POST', `publications/${id}/report`]
+    ['POST', `publications/${id}/withdraw`], ['POST', `publications/${id}/report`],
+    ['GET', 'observations'], ['GET', `observations/${id}`], ['POST', 'observation-handoffs'],
+    ['GET', `observation-handoffs/${id}`], ['POST', 'observation-handoffs/claim'],
+    ['POST', `observation-handoffs/${id}/publish`], ['GET', 'observation-profile'],
+    ['PUT', 'observation-profile'], ['GET', 'my-observations'], ['POST', `observations/${id}/withdraw`],
+    ['POST', `observations/${id}/hide`]
   ];
   // The origin/OIDC variables and secrets are owner-managed in the dashboard and
   // absent here, exactly as they are absent from wrangler.jsonc. An enabled Worker

@@ -193,3 +193,23 @@ export async function allowCommunityPublicRead(request, env) {
 export async function limitCommunityAction(env, userId, action, limit) {
   await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, action + ':' + userId, '', limit, 86400, Math.floor(Date.now() / 1000));
 }
+
+// Narrow unauthenticated actions, such as a native-to-browser publication
+// handoff, still need the configured exact HTTPS Community origin and a
+// durable HMAC-pseudonymized edge-IP quota. This helper never authenticates or
+// identifies a caller; routes using it must remain safe before account claim.
+export async function limitCommunityIpAction(request, env, action, limit, seconds) {
+  if (env.COMMUNITY_ENABLED !== 'true') throw new CommunityError(503, 'Community is disabled.');
+  if (!/^[a-z0-9-]{1,80}$/.test(action) || !Number.isSafeInteger(limit) || limit < 1
+    || !Number.isSafeInteger(seconds) || seconds < 1) throw new CommunityError(503, 'Invalid community rate-limit configuration.');
+  configuration(request, env);
+  await rate(
+    env.COMMUNITY_DB,
+    env.COMMUNITY_RATE_SECRET,
+    action,
+    request.headers.get('CF-Connecting-IP') || 'unknown',
+    limit,
+    seconds,
+    Math.floor(Date.now() / 1000)
+  );
+}

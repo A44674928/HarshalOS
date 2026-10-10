@@ -27,6 +27,8 @@ is refusal. Action is a temporary, highly constrained exception.
 | **Book II — Preview (Companion Novel)** | ***The Grand River Foundation*** (~2100 CE Future-World Sandbox) | `FICTION` (`NARRATIVE_SANDBOX`) | [Preview manuscript](publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md) · [`manuscript/the-grand-river-foundation/`](manuscript/README.md) (`Prologue`, `Chapters 1–5`, & `Interstitial: Cable Select`) |
 | **Book I — Architecture Module** | ***The Grand Architecture*** (Convergence-era infrastructure architecture: six layers, `0•100•000•NNNN` registry, canonical quantity anchors, seven `GA-INV` invariants) | `FICTION` (`NARRATIVE_SANDBOX`) with `DERIVATIVE_BUILD` arithmetic anchors | [`docs/harshal-systems/modules/grand-architecture.md`](docs/harshal-systems/modules/grand-architecture.md) · [`updates/2026-10-02/`](updates/2026-10-02/README.md) · [`CANONICAL-NUMBERS.md`](updates/2026-10-02/02-Frameworks/Grand-River-Flow-Model/CANONICAL-NUMBERS.md) · [`CONTINUITY-AUDIT.md`](updates/2026-10-02/CONTINUITY-AUDIT.md) |
 
+> **Production-edition mapping note:** the published AGS v0.2 full-book KDP interior has its own authoritative page map and part numbering. For the complete source-of-record translation used by Harshal Native, see [`native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](native/HarshalNative/docs/AGS-V0.2-CORPUS.md).
+
 ### The Six-Stage Canonical Minimum Model (`[TYPE: SECURITY_PRIMITIVE]`)
 
 ```text
@@ -43,6 +45,10 @@ Identity → Representation → Authorization → Continuity → Accountability 
 6. **Authorial Register vs. Security Primitive:** **Harshal's English** (`[TYPE: AUTHORIAL_REGISTER]`) is the author's normative prose register and left-to-right reading discipline; operational enforcement relies strictly on formal mathematical and cryptographic invariants (`[TYPE: SECURITY_PRIMITIVE]`).
 
 ---
+
+## Native Swift foundation
+
+A ground-up universal **SwiftUI** foundation for iPhone, iPad, and macOS now lives in [`native/HarshalNative/`](native/HarshalNative/README.md). It is a separate native codebase—not a web view—and includes a phase declaration flow, refusal-first local model, SHA-256 local ledger/receipt viewer, a checksum-verified native `PDFKit` Library with the exact published AGS v0.2 full book plus a separately checksummed [black/electric-blue Night Reading Edition](publications/book/AGS-v0.2-Harshal-s-Systems-Night-Reading-Edition-2026-10-10.pdf) presentation derivative, SCAV++ supply-chain integration boundary, XCTest coverage, and an explicitly disabled-by-default CloudKit private-mirror adapter. Its source map treats the published [AGS v0.2 full-book KDP interior](publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf) as one constrained text corpus: published **Part XVIII** supplies conceptual accountability/continuity/restraint principles, while published **Part XIX** is accurately labeled `THREAT_RESEARCH` and remains catalog-only. The bundled Library preserves the owner-provided book as read-only source material, while no app feature derives threat-research scenarios into behavior; the SCAV++ boundary refuses component embedding, delegated authority, external automation, and privileged integration requests. It is not a scanner, attestation service, or a technical means of preventing code reuse outside controlled interfaces. The app keeps the browser project's local-demo boundary: neither the declaration flow, local receipt, Apple account, CloudKit, nor the SCAV++ model establishes identity, predicts intent, prevents harmful conduct, or grants production authority. See the [native architecture and trust boundary](native/HarshalNative/docs/ARCHITECTURE.md), [published-corpus map](native/HarshalNative/docs/AGS-V0.2-CORPUS.md), and [Library reader boundary](native/HarshalNative/docs/LIBRARY-READER.md) before enabling sign-in, sync, or any authority-bearing path.
 
 ## Run it
 
@@ -585,11 +591,15 @@ exact recomputed preview and explicit consent; reports remain **UNREVIEWED**, no
 certification. Author withdrawal, private reporting and moderator hide/block controls are
 implemented. Private drafts/runs are not automatically public.
 
+The same Community service now also has a separate `/observations` public register for **explicit native public-note publication**. A native Ledger user prepares a bounded, unlisted 15-minute handoff containing only a declared phase snapshot, public note text, and self-chosen public pseudonym; the user then signs in on the site, manually enters a one-time code, reviews the exact candidate, confirms a profile pseudonym, and explicitly publishes it. Public observations are **UNREVIEWED**, author-submitted, and are not personal-universe cores, identity proof, peer authorization, market data, or investment advice. An author can withdraw a note; a configured moderator can hide an active note with an internal append-only reason. Both redact the service’s public body/author/phase but cannot recall external copies. The native app receives a status-only receipt and does not call a note published before the public feed confirms it. This requires migration `0016_public_observations.sql`, which follows the two owner-applied migrations numbered `0014` and `0015`, and the same owner-run Community launch gates; no remote migration or deployment has been run from this build environment.
+
+The Community service also implements an account-scoped **`PAPER_TEST` market ledger** for the website and explicitly paired native apps. The Worker keeps reviewed Orb 2 field/provider isolation, server-issued immutable quote references, paper valuation, append-only event history, and normalized Market Orb placement server-side. A native app creates a 15-minute pairing, an already signed-in browser account enters and explicitly approves its manual code, and the device redeems a one-time revocable, expiring `PAPER_TEST` bearer held only in Keychain. Browser writes retain the existing exact-origin Community-session protection. A server field outage remains held/unavailable—there is no fixture fallback. Passive Crypto Orb display data is allowed only through the server field; there is no device mining, wallet, custody, token, trade, or execution capability. Apply additive `0017_paper_market.sql` after `0016` and the owner-applied `0014`/`0015` history. See [`docs/PAPER-TEST-MARKET.md`](docs/PAPER-TEST-MARKET.md).
+
 `COMMUNITY_ENABLED=true` is the repository decision; branch previews keep it `false`.
 The switch takes effect only on the next production deployment, and the pages below stay
-inert until the owner-managed dashboard variables/secrets exist, migrations 0001–0008 are
-applied to production D1, and the register seed is applied. Live Auth0/D1 verification and
-the launch checklist remain pending. See
+inert until the owner-managed dashboard variables/secrets exist, the production D1 migration
+history is complete through `0017` (including owner-applied `0014` and `0015`), and the register
+seed is applied. Live Auth0/D1 verification and the launch checklist remain pending. See
 [setup, ordered enablement and launch gates](docs/deployment/COMMUNITY-D1.md).
 
 The 23 register-issued case studies are seeded into the same public register (see the News

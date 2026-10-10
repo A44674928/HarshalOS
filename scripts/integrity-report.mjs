@@ -19,9 +19,9 @@ const SUITES = [
   { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
   {
-    area: "D1 community database and OIDC sessions (local tests)",
+    area: "D1 community database, OIDC sessions, and public observations (local tests)",
     script: "test:community",
-    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs", "community-runs-test.mjs", "community-publication-test.mjs", "community-deletion-test.mjs", "case-studies-d1-test.mjs"]
+    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs", "community-observations-ui-test.mjs", "community-runs-test.mjs", "community-publication-test.mjs", "community-observations-test.mjs", "community-deletion-test.mjs", "case-studies-d1-test.mjs"]
   },
   {
     area: "Kernel, phase, temporal, PDH, ledger & session",

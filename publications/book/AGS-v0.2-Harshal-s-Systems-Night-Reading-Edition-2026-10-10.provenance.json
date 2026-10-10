@@ -1,0 +1,41 @@
+{
+  "artifact": "publications/book/AGS-v0.2-Harshal-s-Systems-Night-Reading-Edition-2026-10-10.pdf",
+  "artifactSHA256": "cd46c3c47aea1deb2e54dd32ebc324e3f1ce6106c13a6eeb9b3ccec07e348f7c",
+  "boundary": "This is an optional local reading presentation. It is not the exact KDP publication artifact, does not supersede it, and does not establish a new source, evidence, authorization, or runtime capability.",
+  "classification": "PRESENTATION_ONLY_DERIVATIVE",
+  "continuityChecks": {
+    "derivativeLinkCount": 0,
+    "derivativeTextSHA256": "82e9f7876ba8a365721440f2c61f8d04ed9cd9e095c92b710edbfadc0feb2e38",
+    "pageCount": 548,
+    "sourceLinkCount": 0,
+    "sourceTextSHA256": "82e9f7876ba8a365721440f2c61f8d04ed9cd9e095c92b710edbfadc0feb2e38",
+    "textSHA256Algorithm": "SHA-256 of UTF-8 text extracted from each page in page order, joined with a NUL separator"
+  },
+  "generator": {
+    "generatedAtUTC": "2026-10-10T19:30:15+00:00",
+    "pymupdf": "1.24.14",
+    "requiredPyMuPDF": "1.24.14",
+    "script": "native/HarshalNative/scripts/generate_night_reading_edition.py"
+  },
+  "schema": "harshalos.night-reading-edition.provenance.v1",
+  "source": {
+    "artifact": "publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf",
+    "pageCount": 548,
+    "sha256": "6c67feae3881c11bab8e2654e1f58d23aabbbb1dfdcd536464218c2bbf839823"
+  },
+  "title": "AGS v0.2: Harshal\u2019s Systems \u2014 Night Reading Edition",
+  "visualTransform": {
+    "background": "#000000",
+    "colorReplacements": {
+      ".066667 .066667 .066667 rg": 910,
+      ".333333 .333333 .333333 rg": 547,
+      ".905882 .921569 .941176 rg": 36,
+      "0 0 0 RG": 36,
+      "0 0 0 rg": 16840
+    },
+    "method": "Preserved vector PDF content streams with a black underlay and source-color remapping; no source prose, page geometry, font program, link, outline, or page order is rewritten.",
+    "primaryText": "#00B0FF",
+    "secondaryText": "#54A1D9",
+    "surface": "#030812"
+  }
+}
