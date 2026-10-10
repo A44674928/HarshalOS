@@ -235,7 +235,8 @@ public enum MarketDirection: String, CaseIterable, Codable, Sendable, Identifiab
     }
 }
 
-/// This is an intent only. The local first slice does not publish anything.
+/// Market visibility planning only. The local first slice has no market-publication
+/// service; this is distinct from the explicit public-observation note flow.
 public enum MarketVisibilityIntent: String, CaseIterable, Codable, Sendable, Identifiable, Hashable {
     case privateRecord = "PRIVATE_RECORD"
     case publicProjectionRequested = "PUBLIC_PROJECTION_REQUESTED"
@@ -245,7 +246,7 @@ public enum MarketVisibilityIntent: String, CaseIterable, Codable, Sendable, Ide
     public var label: String {
         switch self {
         case .privateRecord: return "Private record"
-        case .publicProjectionRequested: return "Public projection intent (not published)"
+        case .publicProjectionRequested: return "Future market projection (unavailable)"
         }
     }
 }

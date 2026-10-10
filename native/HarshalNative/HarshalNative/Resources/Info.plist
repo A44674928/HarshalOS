@@ -22,5 +22,7 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>HarshalCloudKitEnabled</key>
     <false/>
+    <key>HarshalCommunityOrigin</key>
+    <string>$(HARSHAL_COMMUNITY_ORIGIN)</string>
 </dict>
 </plist>

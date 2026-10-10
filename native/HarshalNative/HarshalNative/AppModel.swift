@@ -16,8 +16,11 @@ final class AppModel {
     /// universe core. They never create a broker instruction or public post.
     var paperLedgerState = PaperLedgerState.empty
     /// Owner-authored notes for the current private universe core. A public
-    /// intent remains local until a future explicit projection service exists.
+    /// note is still local until its manual Community publication is confirmed.
     var observationNotes: [ObservationNote] = []
+    /// Reusable self-chosen public author label. It deliberately remains
+    /// separate from a private declaration label and verified identity.
+    var publicProfilePseudonym = ""
 
     var localAttestation: LocalAttestationState = .absent
     var attestedAt: Date?
@@ -32,8 +35,17 @@ final class AppModel {
 
     var cloudKitState: CloudKitMirrorState = .notConfigured
     var isSubmittingDeclaration = false
+    /// Guards the explicit handoff button against duplicate concurrent staging
+    /// requests; it does not represent publication or authorization.
+    var isPreparingPublicObservation = false
     var errorMessage: String?
     private(set) var didBootstrap = false
+
+    /// Short-lived Community bearer material held only in memory after a
+    /// Keychain read. Persisted notes carry a handoff ID and receipt metadata,
+    /// never the claim code or status capability itself.
+    private var publicObservationCapabilities: [UUID: PublicObservationHandoffCapability] = [:]
+    private var didReportSecurePersistenceFailure = false
 
     // Supersedes a delayed local acknowledgement when it is revoked, replaced,
     // or a new declaration begins. This is local state-machine hygiene only,
@@ -66,9 +78,16 @@ final class AppModel {
         if let recoveredNotes = stored.observationNotes {
             do {
                 try validateRecoveredNotes(recoveredNotes, declaration: stored.declaration)
-                observationNotes = recoveredNotes
+                observationNotes = try migrateAndRestorePublicationCapabilities(from: recoveredNotes)
             } catch {
                 appendRecoveryError("Recovered observation notes failed validation and were not restored.")
+            }
+        }
+        if let recoveredPseudonym = stored.publicProfilePseudonym {
+            do {
+                publicProfilePseudonym = try PublicProfilePseudonym(recoveredPseudonym).value
+            } catch {
+                appendRecoveryError("Recovered public profile pseudonym failed validation and was not restored.")
             }
         }
 
@@ -86,6 +105,12 @@ final class AppModel {
             if !verification.verified {
                 appendRecoveryError("Recovered local ledger verification failed. The app remains fail-closed; create a new declaration after reviewing the record.")
             }
+        }
+        // Rewrites legacy persisted metadata without bearer fields after any
+        // Keychain migration attempt. Only remove the old preferences cache
+        // after the encrypted write succeeds.
+        if await refreshLedgerAndPersist() {
+            LocalStateStore.removeLegacyCache()
         }
     }
 
@@ -339,8 +364,9 @@ final class AppModel {
     }
 
     /// Records an owner-authored observation in the current private universe
-    /// core. The text remains separate from the global ledger event so a
-    /// private note is not copied into a generic event summary.
+    /// core. Public-note drafts remain local until the owner later prepares a
+    /// short-lived Community handoff and manually confirms publication. The
+    /// text remains separate from the global ledger event.
     func recordObservation(
         text: String,
         visibility: ObservationNoteVisibility
@@ -367,6 +393,175 @@ final class AppModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Stores a reusable local suggestion for the Community public profile. The
+    /// Community site remains the authority that confirms the actual profile
+    /// before a public note is published.
+    func savePublicProfilePseudonym(_ source: String) async {
+        do {
+            publicProfilePseudonym = try PublicProfilePseudonym(source).value
+            await refreshLedgerAndPersist()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Sends only the selected public note's phase snapshot, text, and public
+    /// pseudonym to a short-lived unlisted handoff. It intentionally excludes
+    /// the universe core ID, declaration label, private notes, ledger rows,
+    /// CloudKit state, market records, and gate state. A browser claim and
+    /// explicit web confirmation are still required before publication.
+    func preparePublicObservationPublication(noteID: UUID) async {
+        guard !isPreparingPublicObservation else { return }
+        isPreparingPublicObservation = true
+        defer { isPreparingPublicObservation = false }
+
+        guard let declaration else {
+            errorMessage = "Create a phase declaration before preparing a public observation."
+            return
+        }
+        guard let index = observationNotes.firstIndex(where: { $0.id == noteID }) else {
+            errorMessage = "The selected observation is no longer available."
+            return
+        }
+        let note = observationNotes[index]
+        guard note.universeCoreID == declaration.id, note.visibility.isPublicNote else {
+            errorMessage = "Only a public note from the active declaration can enter the publication flow."
+            return
+        }
+        if let existingPublication = note.publicPublication {
+            switch existingPublication.state {
+            case .awaitingClaim, .claimed:
+                if existingPublication.expiresAt <= .now {
+                    do {
+                        try await markPublicationExpired(at: index, note: note, publication: existingPublication)
+                    } catch {
+                        errorMessage = error.localizedDescription
+                        return
+                    }
+                } else {
+                    errorMessage = "This observation already has an active manual-publication handoff. Use its claim code or check its status."
+                    return
+                }
+            case .published, .withdrawn, .hidden:
+                errorMessage = "This observation already has a public publication record. Publish a new observation for a correction."
+                return
+            case .expired:
+                break
+            }
+        }
+
+        do {
+            let pseudonym = try PublicProfilePseudonym(publicProfilePseudonym)
+            let publisher = try CommunityObservationPublisher.configured()
+            let prepared = try await publisher.prepare(note: note, author: pseudonym)
+            try PublicObservationCapabilityVault.store(
+                prepared.capability,
+                for: prepared.publication.handoffID
+            )
+            publicObservationCapabilities[prepared.publication.handoffID] = prepared.capability
+            observationNotes[index] = try note.replacingPublicPublication(prepared.publication)
+            _ = try await ledger.append(
+                severity: .info,
+                event: "OBSERVATION_PUBLICATION_HANDOFF_CREATED note=\(note.id.uuidString.uppercased()) handoff=\(prepared.publication.handoffID.uuidString.uppercased()) characters=\(note.text.count) egress=\(HarshalDataEgressPolicy.version)",
+                declaredPhase: note.phase
+            )
+            _ = try await ledger.append(
+                severity: .info,
+                event: "SCAV_CAPABILITY_STORED surface=PUBLIC_OBSERVATION_HANDOFF handoff=\(prepared.publication.handoffID.uuidString.uppercased()) expires=\(prepared.capability.expiresAt.timeIntervalSince1970)",
+                declaredPhase: note.phase
+            )
+            await refreshLedgerAndPersist()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Polls the status-only Keychain capability for a prepared public
+    /// observation. The app marks the note Published only after the Community
+    /// feed returns a public observation ID and URL; it never infers success
+    /// from a browser claim code.
+    func refreshPublicObservationPublication(noteID: UUID) async {
+        guard let index = observationNotes.firstIndex(where: { $0.id == noteID }),
+              let existingPublication = observationNotes[index].publicPublication else {
+            errorMessage = "Prepare a public observation before checking its publication status."
+            return
+        }
+        let note = observationNotes[index]
+
+        do {
+            if existingPublication.expiresAt <= .now {
+                try await markPublicationExpired(at: index, note: note, publication: existingPublication)
+                errorMessage = "The local handoff has expired. The note remains unpublished; prepare a fresh explicit handoff if needed."
+                return
+            }
+            guard let capability = try activeCapability(for: existingPublication) else {
+                errorMessage = "The local status capability is unavailable. The app will not infer publication or expiry; this handoff remains unconfirmed until its server expiry or a recovered browser review."
+                return
+            }
+
+            let publisher = try CommunityObservationPublisher.configured()
+            let refreshedPublication = try await publisher.refresh(
+                existingPublication,
+                capability: capability
+            )
+
+            switch refreshedPublication.state {
+            case .awaitingClaim, .claimed:
+                let retainedCapability = try capability.replacingExpiration(refreshedPublication.expiresAt)
+                try PublicObservationCapabilityVault.store(
+                    retainedCapability,
+                    for: refreshedPublication.handoffID
+                )
+                publicObservationCapabilities[refreshedPublication.handoffID] = retainedCapability
+            case .published, .withdrawn, .hidden, .expired:
+                try PublicObservationCapabilityVault.remove(for: refreshedPublication.handoffID)
+                publicObservationCapabilities.removeValue(forKey: refreshedPublication.handoffID)
+                _ = try await ledger.append(
+                    severity: .info,
+                    event: "SCAV_CAPABILITY_REMOVED surface=PUBLIC_OBSERVATION_HANDOFF handoff=\(refreshedPublication.handoffID.uuidString.uppercased()) terminal=\(refreshedPublication.state.rawValue)",
+                    declaredPhase: note.phase
+                )
+            }
+
+            observationNotes[index] = try note.replacingPublicPublication(refreshedPublication)
+            if refreshedPublication.state != existingPublication.state {
+                let severity: LedgerSeverity
+                switch refreshedPublication.state {
+                case .published, .claimed:
+                    severity = .info
+                case .awaitingClaim, .withdrawn, .hidden, .expired:
+                    severity = .warning
+                }
+                let publicID = refreshedPublication.publicObservationID?.uuidString.uppercased() ?? "NONE"
+                _ = try await ledger.append(
+                    severity: severity,
+                    event: "OBSERVATION_PUBLICATION_STATUS note=\(note.id.uuidString.uppercased()) handoff=\(refreshedPublication.handoffID.uuidString.uppercased()) state=\(refreshedPublication.state.rawValue) publicID=\(publicID)",
+                    declaredPhase: note.phase
+                )
+            }
+            await refreshLedgerAndPersist()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// The browser claim code is only available while its Keychain-backed
+    /// capability remains active. It is never read from persisted note data.
+    func claimCode(for noteID: UUID) -> String? {
+        guard let publication = observationNotes.first(where: { $0.id == noteID })?.publicPublication,
+              publication.state == .awaitingClaim || publication.state == .claimed else {
+            return nil
+        }
+        if let capability = publicObservationCapabilities[publication.handoffID] {
+            return capability.claimCode
+        }
+        guard let capability = try? PublicObservationCapabilityVault.load(for: publication.handoffID) else {
+            return nil
+        }
+        publicObservationCapabilities[publication.handoffID] = capability
+        return capability.claimCode
     }
 
     func verifyReceipt() async {
@@ -413,22 +608,143 @@ final class AppModel {
         receiptVerification = nil
         ledgerEntries = []
         paperLedgerState = .empty
+        for publication in observationNotes.compactMap(\.publicPublication) {
+            try? PublicObservationCapabilityVault.remove(for: publication.handoffID)
+        }
+        publicObservationCapabilities = [:]
         observationNotes = []
-        LocalStateStore.removeAll()
+        // A reusable public pseudonym is not part of the private universe core.
+        // Starting a new declaration clears local notes but cannot withdraw an
+        // already-public remote note or cancel an unclaimed handoff; an
+        // unclaimed handoff expires server-side after its short lifetime.
+        persistCurrentState()
     }
 
-    private func refreshLedgerAndPersist() async {
+    @discardableResult
+    private func refreshLedgerAndPersist() async -> Bool {
         ledgerEntries = await ledger.snapshot()
         paperLedgerState = await paperLedger.snapshot()
-        LocalStateStore.save(
+        return persistCurrentState()
+    }
+
+    @discardableResult
+    private func persistCurrentState() -> Bool {
+        let persisted = LocalStateStore.save(
             PersistedNativeState(
                 declaration: declaration,
                 receipt: receipt,
                 ledgerEntries: ledgerEntries,
                 paperLedgerState: paperLedgerState,
-                observationNotes: observationNotes
+                observationNotes: observationNotes,
+                publicProfilePseudonym: publicProfilePseudonym
             )
         )
+        if persisted {
+            didReportSecurePersistenceFailure = false
+        } else if !didReportSecurePersistenceFailure {
+            didReportSecurePersistenceFailure = true
+            appendRecoveryError("Secure local state could not be saved. Do not assume current changes will survive a restart or serve as durable evidence.")
+        }
+        return persisted
+    }
+
+    /// Migrates capabilities written by pre-v2 builds into Keychain, then
+    /// returns records with capability fields stripped. Missing Keychain state
+    /// fails closed: a staged handoff can never be refreshed or claimed from a
+    /// persisted plaintext token.
+    private func migrateAndRestorePublicationCapabilities(
+        from notes: [ObservationNote]
+    ) throws -> [ObservationNote] {
+        var restored: [ObservationNote] = []
+        for originalNote in notes {
+            guard let publication = originalNote.publicPublication else {
+                restored.append(originalNote)
+                continue
+            }
+
+            switch publication.state {
+            case .awaitingClaim, .claimed:
+                if let legacyStatusToken = publication.statusToken,
+                   let legacyClaimCode = publication.claimCode {
+                    do {
+                        let legacyCapability = try PublicObservationHandoffCapability(
+                            claimCode: legacyClaimCode,
+                            statusToken: legacyStatusToken,
+                            expiresAt: publication.expiresAt
+                        )
+                        try PublicObservationCapabilityVault.store(
+                            legacyCapability,
+                            for: publication.handoffID
+                        )
+                    } catch {
+                        appendRecoveryError("A legacy public-observation capability could not be moved into secure storage. Its staged handoff remains unpublished and cannot be refreshed from this device.")
+                    }
+                }
+
+                do {
+                    if let capability = try PublicObservationCapabilityVault.load(for: publication.handoffID) {
+                        publicObservationCapabilities[publication.handoffID] = capability
+                    } else if publication.expiresAt > .now {
+                        appendRecoveryError("An active public-observation handoff has no secure local capability. It remains unpublished; prepare a fresh explicit handoff if needed.")
+                    }
+                } catch {
+                    appendRecoveryError("A public-observation capability could not be recovered from secure storage. The handoff remains unpublished on this device.")
+                }
+
+            case .published, .withdrawn, .hidden, .expired:
+                try? PublicObservationCapabilityVault.remove(for: publication.handoffID)
+                publicObservationCapabilities.removeValue(forKey: publication.handoffID)
+            }
+
+            let redactedPublication = try publication.strippingLocalCapabilities()
+            restored.append(try originalNote.replacingPublicPublication(redactedPublication))
+        }
+        return restored
+    }
+
+    private func activeCapability(
+        for publication: PublicObservationPublication
+    ) throws -> PublicObservationHandoffCapability? {
+        guard publication.state == .awaitingClaim || publication.state == .claimed,
+              publication.expiresAt > .now else {
+            try? PublicObservationCapabilityVault.remove(for: publication.handoffID)
+            publicObservationCapabilities.removeValue(forKey: publication.handoffID)
+            return nil
+        }
+        if let capability = publicObservationCapabilities[publication.handoffID] {
+            return capability
+        }
+        let capability = try PublicObservationCapabilityVault.load(for: publication.handoffID)
+        if let capability {
+            publicObservationCapabilities[publication.handoffID] = capability
+        }
+        return capability
+    }
+
+    private func markPublicationExpired(
+        at index: Int,
+        note: ObservationNote,
+        publication: PublicObservationPublication
+    ) async throws {
+        guard publication.state == .awaitingClaim || publication.state == .claimed else {
+            return
+        }
+        try PublicObservationCapabilityVault.remove(for: publication.handoffID)
+        publicObservationCapabilities.removeValue(forKey: publication.handoffID)
+        let expired = try PublicObservationPublication(
+            handoffID: publication.handoffID,
+            author: publication.author,
+            publisherURL: publication.publisherURL,
+            expiresAt: publication.expiresAt,
+            state: .expired
+        )
+        observationNotes[index] = try note.replacingPublicPublication(expired)
+        _ = try await ledger.append(
+            severity: .warning,
+            event: "SCAV_CAPABILITY_EXPIRED surface=PUBLIC_OBSERVATION_HANDOFF handoff=\(publication.handoffID.uuidString.uppercased())",
+            declaredPhase: note.phase
+        )
+        await refreshLedgerAndPersist()
     }
 
     private func validateRecoveredNotes(

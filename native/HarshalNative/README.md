@@ -14,11 +14,12 @@ This directory begins a **ground-up, full-Swift** build of HarshalOS for iPhone,
   2. requires a declared phase (`NAB`, `CWO`, or `GSRB` — **God-Sovereign Religious Body**);
   3. requires explicit boundary, authorization, accountability, and revocation acknowledgements; `GSRB` additionally requires all five canonical collapse statements in order;
   4. creates a local declaration receipt.
-- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, external-action gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
-- A local Ledger **Observations** section for owner-authored private notes and public-projection note intents. Both are viewable on the device; public intent does not publish a note, expose a personal core, or create an Orb 2 peer entry.
+- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, external-action gate inspector, **SCAV++ supply-chain boundary inspector**, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
+- A native **SCAV++ security** tab derived from the Supply Chain Attack Vector++ threat-research classification. It displays the app’s controlled-surface registry and hard refusals for component embedding, delegated authority, external automation, and privileged downstream capability. It does not let a user self-label evidence as verified or manufacture an integration approval. A generic, fail-closed shipment-admission baseline requires expected manifest identity bound to independently verified expiry/revocation-capable governance, ordered independently verified custody, separately referenced governance/receiving-review roles, receiving inspection, artifact integrity, and accountable review; physical arrival and router observations cannot admit a record, and even complete continuity is only review-ready. The Community adapter is limited to a typed phase/text/pseudonym public projection; short-lived claim/status capabilities live in Keychain rather than persisted observation metadata. The tab is not a scanner, signature verifier, supply-chain certification, license enforcer, or technical means of preventing source copying; see [`docs/SUPPLY-CHAIN-BOUNDARY.md`](docs/SUPPLY-CHAIN-BOUNDARY.md).
+- A local Ledger **Observations** section for owner-authored private notes and public notes. Private native state is stored in an encrypted app-private file whose per-installation key is retained separately in Keychain. A public note remains local until the owner explicitly prepares a short-lived Community handoff, manually enters its one-time claim code while signed in at the HarshalOS publisher, reviews the exact text, and chooses Publish. The app marks it published only after the public feed returns a receipt. The handoff sends only the phase snapshot, note text, and self-chosen public pseudonym—never the private declaration label, universe-core ID, private notes, CloudKit record, market record, or gate state. The short-lived claim code/status capability is held in Keychain rather than the persisted observation record.
 - A phase-neutral local **Paper market** tab: **NAB, CWO, and GSRB** can record simulated market declarations and open, close, or withdraw paper positions against bundled deterministic fixtures. `HarshalMarkets` also preserves amendment transitions for the next UI iteration. It creates no network request, broker instruction, payment, public post, or market effect.
 - The local `HarshalMarkets` package provides normalized instruments, fixture provenance, declarations, actor-isolated paper-ledger transitions, and deterministic valuation. Live market data, public projections, and a MarketOrb peer field remain intentionally unimplemented; see [`docs/PAPER-TRADING.md`](docs/PAPER-TRADING.md).
-- XCTest coverage for phase declaration/refusal cases, phase-neutral paper-market eligibility and paper-ledger/valuation transitions, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
+- XCTest coverage for phase declaration/refusal cases, phase-neutral paper-market eligibility and paper-ledger/valuation transitions, local ledger verification/tamper detection, defensive shipment holds (missing/reordered custody, identity mismatch, unverified evidence, router conflict, expiry/revocation, and non-authorizing review readiness), and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
 
 ## Deliberate boundary
 
@@ -58,15 +59,31 @@ swift test
 
 After a privacy/security review, an authorized Apple Developer account may configure the app as described in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The implementation mirrors only a phase declaration and its **local-only** receipt to the user’s **private** database after an explicit tap. It is synchronization, not authentication or independent witnessing.
 
+## Public observations use a separate Community publisher
+
+`HarshalCommunityOrigin` is populated from the `HARSHAL_COMMUNITY_ORIGIN` Xcode build setting, which defaults to `https://main.empty.domains` for both checked-in targets. It is a public HTTPS endpoint, not a credential. A release/staging configuration may override it only with its exact HTTPS root origin—no path, query, fragment, or userinfo—and must be reviewed alongside the corresponding Community deployment. The native app has no embedded OAuth client, Community cookie, API key, or shared publishing secret.
+
+For a **Public note**, the Ledger uses an intentionally low-tech ownership handoff:
+
+1. Save a reusable public profile pseudonym locally. It is separate from the private declaration label and is not verified identity.
+2. Tap **Prepare public publication**, review the native confirmation, and choose **Send unlisted handoff**. The app sends only the note’s declared-phase snapshot, public text, and pseudonym to an unlisted, 15-minute server handoff. It receives a manual one-time code plus a status-only token; this step is not publication.
+3. Open the HarshalOS publisher, sign in through its existing Community account flow, enter the one-time code, inspect the exact candidate, save/confirm the pseudonym, and explicitly tap Publish.
+4. Return to the native Ledger and tap **Check publication**. Only a confirmed public feed ID/URL changes the local status to **Published**.
+
+The code does not itself publish anything; the status token can only ask for handoff status. Its first successful browser claim binds the candidate to that signed-in account; the same short-lived code may be re-entered by that account to recover a browser review screen after reload. The app places the claim code and status token in a short-lived Keychain capability vault and removes them when the handoff becomes terminal or expires; neither value is serialized into the encrypted observation record. The native client uses an isolated no-cookie session, rejects redirects, validates the typed three-field public projection before encoding it, and checks returned publisher/receipt URLs against the configured HTTPS origin and expected observation route. Creating a new declaration clears local observations and removes local capabilities but cannot withdraw an already-public remote note or cancel an unclaimed handoff; an unclaimed handoff expires server-side after its short lifetime. Withdrawal happens explicitly in the Community publisher; a configured Community moderator can also hide an active note with an internal reason. Either action only redacts this service’s active payload and cannot recall external copies. A public observation is an author-submitted, **UNREVIEWED** bounded projection—not a public personal-universe core, peer authorization, identity proof, investment statement, broker instruction, or evidence that anyone has seen or agreed with it.
+
+The public service requires the Worker/D1 migration `0014_public_observations.sql`, existing Community sign-in configuration, a configured moderator, and an owner-run deployment. Until those gates are configured on the remote service, preparation fails closed and the note remains local. See the root [Community D1 deployment guide](../../docs/deployment/COMMUNITY-D1.md).
+
 ## Structure
 
 ```text
 native/HarshalNative/
 ├── HarshalNative.xcodeproj/              Shared-source iOS + macOS Xcode targets
 ├── HarshalNative/                        SwiftUI application source
-│   ├── Features/                         Onboarding, overview, gate, ledger, sync
+│   ├── Features/                         Onboarding, overview, gate, SCAV++ boundary, ledger, sync
 │   ├── Services/CloudKitMirror.swift     Optional user-triggered private sync adapter
-│   └── Resources/Info.plist              CloudKit disabled by default
+│   ├── Services/CommunityObservationPublisher.swift  Explicit public-note handoff adapter
+│   └── Resources/Info.plist              CloudKit flag + public Community origin
 ├── Packages/
 │   ├── HarshalCore/                      Policy-neutral core domain model and tests
 │   ├── HarshalLedger/                    Local integrity ledger and tests

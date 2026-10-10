@@ -12,6 +12,8 @@ struct DashboardView: View {
                 .tabItem { Label("NEO ORB", systemImage: "circle.dotted") }
             GateView()
                 .tabItem { Label("Gate", systemImage: "checkmark.shield") }
+            SupplyChainView()
+                .tabItem { Label("SCAV++", systemImage: "shield.lefthalf.filled") }
             LedgerView()
                 .tabItem { Label("Ledger", systemImage: "list.bullet.rectangle") }
             SyncView()
@@ -68,7 +70,8 @@ private struct OverviewView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Use Markets to record fixture-only paper declarations and simulated positions for any declared phase.")
                             Text("Use Gate to inspect modeled external-action inputs and see a refusal or local-only model result.")
-                            Text("Use Ledger to inspect and verify the declaration receipt, plus private and public-intent observations.")
+                            Text("Use SCAV++ to examine the defensive supply-chain boundary. It refuses component embedding, delegated authority, external automation, and privileged downstream requests.")
+                            Text("Use Ledger to inspect the declaration receipt, record private/public observations, and explicitly publish a bounded public note through the Community handoff.")
                         }
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)

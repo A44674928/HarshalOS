@@ -39,6 +39,14 @@
 		A10000000000000000000030 /* HarshalMarkets in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000008 /* HarshalMarkets */; };
 		A10000000000000000000031 /* MarketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MarketView.swift */; };
 		A10000000000000000000032 /* MarketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MarketView.swift */; };
+		A10000000000000000000033 /* CommunityObservationPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* CommunityObservationPublisher.swift */; };
+		A10000000000000000000034 /* CommunityObservationPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* CommunityObservationPublisher.swift */; };
+		A10000000000000000000035 /* SupplyChainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* SupplyChainView.swift */; };
+		A10000000000000000000036 /* SupplyChainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* SupplyChainView.swift */; };
+		A10000000000000000000037 /* NativeKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* NativeKeychainStore.swift */; };
+		A10000000000000000000038 /* NativeKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* NativeKeychainStore.swift */; };
+		A10000000000000000000039 /* PublicObservationCapabilityVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PublicObservationCapabilityVault.swift */; };
+		A10000000000000000000040 /* PublicObservationCapabilityVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* PublicObservationCapabilityVault.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +66,11 @@
 		A20000000000000000000014 /* HarshalNative macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HarshalNative macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000015 /* NeoOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/NeoOrbView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000016 /* MarketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/MarketView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000017 /* CommunityObservationPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/CommunityObservationPublisher.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000018 /* SupplyChainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/SupplyChainView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000019 /* NativeKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/NativeKeychainStore.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000020 /* PublicObservationCapabilityVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/PublicObservationCapabilityVault.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000021 /* HarshalNative.macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HarshalNative/Resources/HarshalNative.macOS.entitlements; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +132,7 @@
 				A20000000000000000000010 /* SyncView.swift */,
 				A20000000000000000000015 /* NeoOrbView.swift */,
 				A20000000000000000000016 /* MarketView.swift */,
+				A20000000000000000000018 /* SupplyChainView.swift */,
 			);
 			name = Features;
 			sourceTree = "<group>";
@@ -127,6 +141,9 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000005 /* CloudKitMirror.swift */,
+				A20000000000000000000017 /* CommunityObservationPublisher.swift */,
+				A20000000000000000000019 /* NativeKeychainStore.swift */,
+				A20000000000000000000020 /* PublicObservationCapabilityVault.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -135,6 +152,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000011 /* Info.plist */,
+				A20000000000000000000021 /* HarshalNative.macOS.entitlements */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -263,6 +281,10 @@
 				A10000000000000000000010 /* SyncView.swift in Sources */,
 				A10000000000000000000027 /* NeoOrbView.swift in Sources */,
 				A10000000000000000000031 /* MarketView.swift in Sources */,
+				A10000000000000000000033 /* CommunityObservationPublisher.swift in Sources */,
+				A10000000000000000000035 /* SupplyChainView.swift in Sources */,
+				A10000000000000000000037 /* NativeKeychainStore.swift in Sources */,
+				A10000000000000000000039 /* PublicObservationCapabilityVault.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +304,10 @@
 				A10000000000000000000022 /* SyncView.swift in Sources */,
 				A10000000000000000000028 /* NeoOrbView.swift in Sources */,
 				A10000000000000000000032 /* MarketView.swift in Sources */,
+				A10000000000000000000034 /* CommunityObservationPublisher.swift in Sources */,
+				A10000000000000000000036 /* SupplyChainView.swift in Sources */,
+				A10000000000000000000038 /* NativeKeychainStore.swift in Sources */,
+				A10000000000000000000040 /* PublicObservationCapabilityVault.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -327,6 +353,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				HARSHAL_COMMUNITY_ORIGIN = https://main.empty.domains;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 0.1.0;
@@ -348,6 +375,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				HARSHAL_COMMUNITY_ORIGIN = https://main.empty.domains;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 0.1.0;
@@ -364,12 +392,15 @@
 		A90000000000000000000005 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HarshalNative/Resources/HarshalNative.macOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				HARSHAL_COMMUNITY_ORIGIN = https://main.empty.domains;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;
@@ -385,11 +416,14 @@
 		A90000000000000000000006 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HarshalNative/Resources/HarshalNative.macOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HarshalNative/Resources/Info.plist;
+				HARSHAL_COMMUNITY_ORIGIN = https://main.empty.domains;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.0;

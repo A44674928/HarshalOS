@@ -1,6 +1,6 @@
 # Native paper-market boundary
 
-**Status:** local fixture slice implemented — the native Paper market tab records private simulated declarations and paper positions against bundled deterministic observations. There is no market-data adapter, public feed, broker connection, money movement, or public projection implementation.
+**Status:** local fixture slice implemented — the native Paper market tab records private simulated declarations and paper positions against bundled deterministic observations. There is no market-data adapter, **market** public feed, broker connection, money movement, or public market-projection implementation. The separate Community public-observation publisher can publish an explicitly chosen owner note; it does not publish market declarations, paper positions, fixtures, or market visibility-intent metadata.
 
 ## Product rule
 
