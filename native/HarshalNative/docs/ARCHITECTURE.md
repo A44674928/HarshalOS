@@ -56,7 +56,7 @@ L(t) = H(t) × C(t) × K(t) × A(t) × R(t) × S(t)
 S(t) = max(0, 1 − Δt / 240)
 ```
 
-A permit requires active/fresh local acknowledgement, bounded local authorization, a bound local session, both technical and operational accountability model inputs, valid `A`/`R`, `L(t) ≥ τ`, and phase `NAB`. `CWO` always refuses. `GSRB` is non-executing in this initial native build: no sovereign override is exposed.
+A permit requires active/fresh local acknowledgement, bounded local authorization, a bound local session, both technical and operational accountability model inputs, valid `A`/`R`, `L(t) ≥ τ`, and phase `NAB`. `CWO` always refuses. `GSRB` (**God-Sovereign Religious Body**) is non-executing in this initial native build: no sovereign override is exposed.
 
 A local acknowledgement is precisely named as such. It is **not** a production Human Key authenticator.
 
@@ -79,7 +79,7 @@ The application owns presentation and integration adapters:
 - local state cache (`UserDefaults`) for convenience only;
 - active acknowledgement is reset at app launch to avoid silently carrying authority forward;
 - a phase declaration produces a receipt, then the gate and ledger views remain inspectable;
-- a NEO ORB `Canvas` view reads only a local synthetic geometry fixture and ephemeral display controls;
+- a NEO ORB `Canvas` view reads only a local synthetic geometry fixture and ephemeral display controls; it can be previewed during onboarding or opened as a dashboard tab after declaration;
 - no network call happens when a declaration, NEO ORB configuration, or gate evaluation is created.
 
 ## 4. Phase declaration flow
@@ -87,7 +87,7 @@ The application owns presentation and integration adapters:
 The first-run sequence intentionally separates declaration from authentication:
 
 1. **Local principal reference** — a label with a transparent verification status. A label is not a legal name or identity proof.
-2. **Declared phase** — one of `NAB`, `CWO`, or `GSRB`.
+2. **Declared phase** — one of `NAB`, `CWO`, or `GSRB` (**God-Sovereign Religious Body**).
 3. **Required acknowledgements** — local-only boundary, no-identity-claim, external-authorization boundary, accountability duty, and revocation duty. `GSRB` additionally requires the five canonical collapse statements from `js/data.js`, acknowledged once and in order; this is a recorded disclosure sequence, not an execution override.
 4. **Local declaration** — the app writes a declaration event and receipt to the local ledger.
 5. **Local acknowledgement** — an explicit, fresh device-local acknowledgement that remains labelled as non-authentication.

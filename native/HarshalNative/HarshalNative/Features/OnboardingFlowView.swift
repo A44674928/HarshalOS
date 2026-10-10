@@ -3,6 +3,7 @@ import SwiftUI
 
 struct OnboardingFlowView: View {
     @Environment(AppModel.self) private var appModel
+    @State private var isNeoOrbPreviewPresented = false
 
     var body: some View {
         @Bindable var model = appModel
@@ -16,6 +17,18 @@ struct OnboardingFlowView: View {
                         Text("A Swift-native, refusal-first local demonstration")
                             .font(.title3)
                             .foregroundStyle(.secondary)
+                    }
+
+                    GroupBox("NEO ORB — display-only shape study") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Preview the native NEO ORB now. It is a local visual/geometry study and does not create or modify a declaration, acknowledgement, gate result, ledger entry, sync record, route, or permission.")
+                                .foregroundStyle(.secondary)
+                            Button("Preview NEO ORB") {
+                                isNeoOrbPreviewPresented = true
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(.vertical, 4)
                     }
 
                     DisclosureGroup("What this onboarding does—and does not do", isExpanded: .constant(true)) {
@@ -60,9 +73,9 @@ struct OnboardingFlowView: View {
                     }
 
                     if model.declarationDraft.phase == .gsrb {
-                        GroupBox("3. GSRB collapse protocol") {
+                        GroupBox("3. GSRB — God-Sovereign Religious Body protocol") {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("GSRB remains non-executing in this starter. To record this declaration, acknowledge the five canonical collapse statements once and in order.")
+                                Text("God-Sovereign Religious Body (GSRB) remains non-executing in this starter. To record this declaration, acknowledge the five canonical collapse statements once and in order.")
                                     .foregroundStyle(.secondary)
                                 ForEach(CollapseAcknowledgment.allCases) { step in
                                     let index = CollapseAcknowledgment.allCases.firstIndex(of: step) ?? 0
@@ -139,6 +152,9 @@ struct OnboardingFlowView: View {
                 .frame(maxWidth: 760, alignment: .leading)
             }
             .navigationTitle("Native declaration")
+            .sheet(isPresented: $isNeoOrbPreviewPresented) {
+                NeoOrbView(isPreview: true)
+            }
         }
     }
 }

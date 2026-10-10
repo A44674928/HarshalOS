@@ -11,10 +11,10 @@ This directory begins a **ground-up, full-Swift** build of HarshalOS for iPhone,
   - **NeoOrb** — a pure, display-only center-origin disc-to-spheroid geometry model with measured axes, logarithmic bands, collision-aware display berths, and synthetic fixture nodes.
 - A native onboarding/declaration flow:
   1. records a local principal label as **self-declared**; no external attestation provider is available or self-selectable in this build;
-  2. requires a declared phase (`NAB`, `CWO`, or `GSRB`);
+  2. requires a declared phase (`NAB`, `CWO`, or `GSRB` — **God-Sovereign Religious Body**);
   3. requires explicit boundary, authorization, accountability, and revocation acknowledgements; `GSRB` additionally requires all five canonical collapse statements in order;
   4. creates a local declaration receipt.
-- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder.
+- A SwiftUI dashboard with a local acknowledgement control, **NEO ORB** geometry study, gate inspector, ledger/receipt viewer, and explicitly user-triggered CloudKit-mirror placeholder. NEO ORB is also previewable directly from onboarding, before a declaration is created.
 - XCTest coverage for phase declaration/refusal cases, local ledger verification/tamper detection, and NEO ORB geometry, Z_360 boundaries, logarithmic bands, and display berth separation.
 
 ## Deliberate boundary
@@ -31,7 +31,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before enabling sign-in, Clo
 2. Open [`HarshalNative.xcodeproj`](HarshalNative.xcodeproj) in Xcode.
 3. Select either **HarshalNative iOS** or **HarshalNative macOS**.
 4. Set a real Development Team and replace the placeholder bundle identifier `com.example.HarshalNative` before signing.
-5. Build and run.
+5. Build and run. On the first-run declaration screen, tap **Preview NEO ORB** to open the display-only shape study immediately; after a declaration, it is also the **NEO ORB** dashboard tab.
 
 The project attaches `Packages/HarshalCore`, `Packages/HarshalLedger`, and `Packages/NeoOrb` as local Swift packages. You can also validate the packages directly:
 

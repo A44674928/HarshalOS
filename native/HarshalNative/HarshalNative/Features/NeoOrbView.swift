@@ -7,12 +7,19 @@ import SwiftUI
 /// slice; it does not create routes, requests, market facts, permissions, or
 /// authority effects.
 struct NeoOrbView: View {
+    let isPreview: Bool
+
+    @Environment(\.dismiss) private var dismiss
     @State private var formation = NeoOrbFixture.preview.formation
     @State private var axisX = NeoOrbFixture.preview.axes.x
     @State private var axisY = NeoOrbFixture.preview.axes.y
     @State private var axisZ = NeoOrbFixture.preview.axes.z
     @State private var berthSeparation = NeoOrbFixture.preview.berthSeparation
     @State private var selectedNodeID = NeoOrbFixture.previewNodes.first?.id
+
+    init(isPreview: Bool = false) {
+        self.isPreview = isPreview
+    }
 
     private var configuration: NeoOrbConfiguration {
         NeoOrbConfiguration(
@@ -59,6 +66,13 @@ struct NeoOrbView: View {
             }
             .navigationTitle("NEO ORB")
             .toolbar {
+                if isPreview {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") {
+                            dismiss()
+                        }
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Restore sample", action: restoreSample)
                 }

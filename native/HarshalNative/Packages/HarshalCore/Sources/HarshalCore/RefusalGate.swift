@@ -171,7 +171,7 @@ public enum RefusalGate {
             return refusal(.accountabilityMissing, "Technical attribution and operational accountability must both be recorded before the gate can evaluate legitimacy.")
         }
         if input.phase == .gsrb {
-            return refusal(.gsrbNonExecuting, "Ground-State Rebuild is non-executing in this native starter. No local override is exposed or implied.")
+            return refusal(.gsrbNonExecuting, "God-Sovereign Religious Body is non-executing in this native starter. No local override is exposed or implied.")
         }
         guard legitimacy >= CanonicalModel.legitimacyThreshold else {
             return refusal(.legitimacyBelowThreshold, "L(t) = \(String(format: "%.3f", legitimacy)) is below τ = \(CanonicalModel.legitimacyThreshold). The local gate refuses by default.")

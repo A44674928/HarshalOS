@@ -98,8 +98,10 @@ truth, trust, consensus, identity, authorization, performance, or correctness.
 4. kind-colored synthetic nodes, with an accessible selected-node inspector;
 5. user-controlled formation, spheroid axes, and display-only berth-separation amount.
 
-The view has no mutable effect beyond ephemeral SwiftUI control state. Restoring
-the sample only resets that local display state.
+The view has no mutable effect beyond ephemeral SwiftUI control state. It is reachable
+immediately through **Preview NEO ORB** on the first-run declaration screen and,
+after a declaration, through the **NEO ORB** dashboard tab. Restoring the sample
+only resets local display state.
 
 ## Non-negotiable boundary
 

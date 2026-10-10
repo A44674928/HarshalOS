@@ -187,7 +187,7 @@ public enum PhaseDeclarationError: Error, Equatable, Sendable, LocalizedError {
             let labels = missing.map(\.rawValue).sorted().joined(separator: ", ")
             return "Confirm every required declaration acknowledgement before continuing: \(labels)."
         case .incompleteGSrbCollapseProtocol:
-            return "A GSRB declaration requires all five collapse acknowledgements in their canonical order; other phases require no collapse acknowledgements. This starter remains non-executing."
+            return "A God-Sovereign Religious Body (GSRB) declaration requires all five collapse acknowledgements in their canonical order; other phases require no collapse acknowledgements. This starter remains non-executing."
         }
     }
 }

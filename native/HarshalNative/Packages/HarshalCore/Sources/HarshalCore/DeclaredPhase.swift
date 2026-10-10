@@ -14,7 +14,7 @@ public enum DeclaredPhase: String, CaseIterable, Codable, Sendable, Identifiable
         switch self {
         case .nab: return "Neural Atomic Body"
         case .cwo: return "Custodial Witness Orb"
-        case .gsrb: return "Ground-State Rebuild"
+        case .gsrb: return "God-Sovereign Religious Body"
         }
     }
 
@@ -25,7 +25,7 @@ public enum DeclaredPhase: String, CaseIterable, Codable, Sendable, Identifiable
         case .cwo:
             return "Witness-only. The native gate never permits an action in this phase."
         case .gsrb:
-            return "Rebuild state. This starter application does not expose an execution override."
+            return "God-Sovereign Religious Body declaration. This starter application does not expose an execution override."
         }
     }
 

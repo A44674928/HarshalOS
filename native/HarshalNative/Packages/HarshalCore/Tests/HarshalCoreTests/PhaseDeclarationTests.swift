@@ -18,6 +18,11 @@ final class PhaseDeclarationTests: XCTestCase {
         }
     }
 
+    func testGSrbUsesGodSovereignReligiousBodyDisplayName() {
+        XCTAssertEqual(DeclaredPhase.gsrb.name, "God-Sovereign Religious Body")
+        XCTAssertTrue(DeclaredPhase.gsrb.shortDescription.contains("God-Sovereign Religious Body"))
+    }
+
     func testGSrbRequiresAllFiveOrderedCollapseAcknowledgments() {
         let draft = PhaseDeclarationDraft(
             principalLabel: "Local operator",

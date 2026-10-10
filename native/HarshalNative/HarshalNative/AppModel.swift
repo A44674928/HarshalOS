@@ -63,7 +63,7 @@ final class AppModel {
 
     func acknowledgeNextGSrbCollapseStep() {
         guard let step = declarationDraft.nextGSrbCollapseAcknowledgment else {
-            errorMessage = "The GSRB collapse protocol is complete, unavailable for this phase, or malformed. Change the phase to reset it."
+            errorMessage = "The God-Sovereign Religious Body (GSRB) collapse protocol is complete, unavailable for this phase, or malformed. Change the phase to reset it."
             return
         }
         declarationDraft.collapseAcknowledgments.append(step)
