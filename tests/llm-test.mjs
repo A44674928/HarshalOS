@@ -76,7 +76,9 @@ const sources = [
   eq(googleToolOnly.text, "", "Google function-call metadata is ignored rather than dispatched");
   eq(googleToolOnly.executable, false, "Google parser output is explicitly non-executable");
   ok(LLM.executeTool === undefined && LLM.execute === undefined, "the connection exposes no model-tool dispatcher");
-  ok(LLM.status().linked === false, "a fresh browser has no model linked");
+  eq(LLM.loadSettings().provider, "relay", "a fresh browser defaults to the Cloudflare relay");
+  eq(LLM.resolved().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the default relay model matches Workers AI");
+  ok(LLM.status().linked === true, "the keyless Cloudflare relay is a complete default link");
   LLM.setKey("sk-ant-test-key-0000000000", false);
   ok(LLM.keyStorage() === "session", "the key is held for the session by default");
   ok(LLM.status().linked === true, "provider, model and key make a complete link");
@@ -1058,13 +1060,13 @@ const linkPriced = () => {
   eq(relay.protocol, "openai", "the relay answers in the OpenAI-compatible shape llm.js already parses");
   eq(relay.relay, true, "the relay preset is marked as a relay");
   eq(relay.keyOptional, true, "no browser key is needed for the relay");
-  eq(relay.model, "glm-4.5-flash", "the relay defaults to a Z.AI free-tier model");
+  eq(relay.model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the relay defaults to the Cloudflare Workers AI model");
   eq(relay.context, 128000, "the relay states the free tier's context window");
   ok(/Worker secret/i.test(relay.note) && /never in this browser/i.test(relay.note), "the relay note says the key lives in the Worker, not the browser");
   ok(/glm-4\.5-flash/.test(relay.note) && /glm-4\.7-flash/.test(relay.note), "the relay note names the $0 models it serves");
   ok(/pass through that Worker/i.test(relay.note), "the relay note discloses that prompts transit the Worker");
   ok(/do_sample:false/i.test(relay.note), "the relay note discloses Z.AI's sampling translation");
-  eq(relay.label.includes("Z.AI"), true, "the preset is named for the provider it serves");
+  eq(relay.label.includes("Cloudflare Workers AI"), true, "the preset is named for the default provider it serves");
 
   /* A key from another provider must never be forwarded to this relay. */
   LLM.setKey("sk-ant-leftover-from-another-provider", false);
@@ -1226,11 +1228,11 @@ const linkPriced = () => {
   let listedAt = "";
   globalThis.fetch = async url => {
     listedAt = String(url);
-    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ object: "list", data: [{ id: "glm-4.5-flash" }, { id: "glm-4.7-flash" }] }) };
+    return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({ object: "list", data: [{ id: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" }, { id: "@cf/meta/llama-3.2-3b-instruct" }, { id: "@cf/qwen/qwen3-30b-a3b-fp8" }, { id: "@cf/zai-org/glm-4.7-flash" }] }) };
   };
   const relayModels = await LLM.loadModels(LLM.resolved());
   eq(listedAt, "/api/llm/models", "List models asks the relay, not Z.AI directly");
-  eq(relayModels.join(","), "glm-4.5-flash,glm-4.7-flash", "the relay's free-tier list is parsed");
+  eq(relayModels.join(","), "@cf/meta/llama-3.1-8b-instruct-fp8-fast,@cf/meta/llama-3.2-3b-instruct,@cf/qwen/qwen3-30b-a3b-fp8,@cf/zai-org/glm-4.7-flash", "the relay's Workers AI model allowlist is parsed");
 
   globalThis.fetch = async () => ({
     ok: false,
