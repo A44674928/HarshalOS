@@ -118,16 +118,16 @@ window.HOSLLM = (() => {
       note: "Nothing leaves this machine. The local server must allow requests from this page's origin, and the page must be served over http on localhost or https for the browser to permit the call."
     },
     relay: {
-      label: "Z.AI free tier — this site's relay (/api/llm)",
+      label: "Cloudflare Workers AI — this site's relay (/api/llm)",
       protocol: "openai",
       endpoint: "/api/llm",
       modelsEndpoint: "/api/llm/models",
-      model: "glm-4.5-flash",
+      model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
       context: 128000,
       browser: "direct",
       keyOptional: true,
       relay: true,
-      note: "The Z.AI key lives in this deployment's Cloudflare Worker secret, never in this browser — no key to paste. Prompts pass through that Worker on their way to api.z.ai. Only Z.AI's $0 free-tier models (glm-4.5-flash, glm-4.7-flash) are accepted; calls are plain text with no tools, images or streaming. Production applies local caller and shared-key pace guards; a branch preview may have those guards disabled for an operator-requested test, but Z.AI's own free-tier limits still apply. A deployment without the secret answers 503; Check relay reports its status. Z.AI samples in [0,1], so 0 is sent as do_sample:false (greedy) and a temperature above 1 is clamped to 1."
+      note: "This site's Cloudflare Worker uses its AI binding and daily Neuron ledger by default; no third-party API key is needed in the browser or Worker. Prompts pass through this deployment's Worker to Cloudflare Workers AI. The relay prefers Workers AI whenever the AI binding is present; Z.AI is retained only as a fallback when that binding is absent and a supported Z.AI Worker secret is configured. Calls are plain text with no tools, images or streaming. The Neuron ledger refuses calls before the configured daily budget is exhausted; Check relay reports the provider and current configuration."
     },
     custom: {
       label: "Custom endpoint",
@@ -146,12 +146,17 @@ window.HOSLLM = (() => {
   /* ──────────────────────────────────────────────────────────────
      Settings + key storage
      ────────────────────────────────────────────────────────────── */
-  const defaults = () => ({ provider: "anthropic", protocol: "", endpoint: "", model: "", persist: false });
+  const defaults = () => ({ provider: "relay", protocol: "", endpoint: "", model: "", persist: false });
   function loadSettings() {
     try {
       const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
       const merged = { ...defaults(), ...(raw && typeof raw === "object" ? raw : {}) };
-      if (!PROVIDERS[merged.provider]) merged.provider = "anthropic";
+      if (!PROVIDERS[merged.provider]) merged.provider = "relay";
+      /* The previous relay preset's default was Z.AI's GLM model. Upgrade only
+         that exact old default; preserve any model the operator chose manually. */
+      if (merged.provider === "relay" && merged.model === "glm-4.5-flash") {
+        merged.model = PROVIDERS.relay.model;
+      }
       return merged;
     } catch { return defaults(); }
   }
