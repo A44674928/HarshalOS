@@ -15,6 +15,9 @@ final class AppModel {
     /// Local, fixture-driven paper-market records for the current private
     /// universe core. They never create a broker instruction or public post.
     var paperLedgerState = PaperLedgerState.empty
+    /// Owner-authored notes for the current private universe core. A public
+    /// intent remains local until a future explicit projection service exists.
+    var observationNotes: [ObservationNote] = []
 
     var localAttestation: LocalAttestationState = .absent
     var attestedAt: Date?
@@ -57,7 +60,15 @@ final class AppModel {
                 try await paperLedger.replaceRecoveredState(recoveredPaperLedger)
                 paperLedgerState = recoveredPaperLedger
             } catch {
-                errorMessage = "Recovered paper-market records failed validation and were not restored. The local paper ledger remains empty; review the prior device record before recreating it."
+                appendRecoveryError("Recovered paper-market records failed validation and were not restored. The local paper ledger remains empty; review the prior device record before recreating it.")
+            }
+        }
+        if let recoveredNotes = stored.observationNotes {
+            do {
+                try validateRecoveredNotes(recoveredNotes, declaration: stored.declaration)
+                observationNotes = recoveredNotes
+            } catch {
+                appendRecoveryError("Recovered observation notes failed validation and were not restored.")
             }
         }
 
@@ -73,7 +84,7 @@ final class AppModel {
             let verification = await ledger.verify(receipt)
             receiptVerification = verification
             if !verification.verified {
-                errorMessage = "Recovered local ledger verification failed. The app remains fail-closed; create a new declaration after reviewing the record."
+                appendRecoveryError("Recovered local ledger verification failed. The app remains fail-closed; create a new declaration after reviewing the record.")
             }
         }
     }
@@ -327,6 +338,37 @@ final class AppModel {
         }
     }
 
+    /// Records an owner-authored observation in the current private universe
+    /// core. The text remains separate from the global ledger event so a
+    /// private note is not copied into a generic event summary.
+    func recordObservation(
+        text: String,
+        visibility: ObservationNoteVisibility
+    ) async {
+        guard let declaration else {
+            errorMessage = "Create a phase declaration before recording an observation."
+            return
+        }
+
+        do {
+            let note = try ObservationNote(
+                universeCoreID: declaration.id,
+                phase: declaration.phase,
+                text: text,
+                visibility: visibility
+            )
+            _ = try await ledger.append(
+                severity: .info,
+                event: "OBSERVATION_NOTE_RECORDED id=\(note.id.uuidString.uppercased()) visibility=\(visibility.rawValue) characters=\(note.text.count)",
+                declaredPhase: declaration.phase
+            )
+            observationNotes.append(note)
+            await refreshLedgerAndPersist()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func verifyReceipt() async {
         guard let receipt else {
             errorMessage = "No local receipt has been issued."
@@ -371,6 +413,7 @@ final class AppModel {
         receiptVerification = nil
         ledgerEntries = []
         paperLedgerState = .empty
+        observationNotes = []
         LocalStateStore.removeAll()
     }
 
@@ -382,9 +425,38 @@ final class AppModel {
                 declaration: declaration,
                 receipt: receipt,
                 ledgerEntries: ledgerEntries,
-                paperLedgerState: paperLedgerState
+                paperLedgerState: paperLedgerState,
+                observationNotes: observationNotes
             )
         )
+    }
+
+    private func validateRecoveredNotes(
+        _ notes: [ObservationNote],
+        declaration: PhaseDeclaration?
+    ) throws {
+        guard let declaration else {
+            guard notes.isEmpty else {
+                throw ObservationNoteError.invalidText
+            }
+            return
+        }
+        var identifiers = Set<UUID>()
+        for note in notes {
+            try note.validate()
+            guard note.universeCoreID == declaration.id,
+                  identifiers.insert(note.id).inserted else {
+                throw ObservationNoteError.invalidText
+            }
+        }
+    }
+
+    private func appendRecoveryError(_ message: String) {
+        if let errorMessage {
+            self.errorMessage = "\(errorMessage)\n\n\(message)"
+        } else {
+            errorMessage = message
+        }
     }
 
     private func decimalString(_ value: Decimal) -> String {

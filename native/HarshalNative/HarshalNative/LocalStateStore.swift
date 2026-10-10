@@ -9,6 +9,8 @@ struct PersistedNativeState: Codable {
     var ledgerEntries: [LedgerEntry]
     /// Optional to preserve recovery of local state written before HarshalMarkets.
     var paperLedgerState: PaperLedgerState?
+    /// Optional to preserve recovery of local state written before observations.
+    var observationNotes: [ObservationNote]?
 }
 
 /// Local persistence is a convenience cache, not a trust anchor. The ledger

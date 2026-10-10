@@ -68,7 +68,7 @@ private struct OverviewView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Use Markets to record fixture-only paper declarations and simulated positions for any declared phase.")
                             Text("Use Gate to inspect modeled external-action inputs and see a refusal or local-only model result.")
-                            Text("Use Ledger to inspect and verify the declaration receipt.")
+                            Text("Use Ledger to inspect and verify the declaration receipt, plus private and public-intent observations.")
                         }
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)

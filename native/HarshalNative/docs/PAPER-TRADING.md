@@ -65,9 +65,9 @@ declaration, or require an Apple account.
 ## Personal universe cores and public peer fields
 
 **The Orb** is a body’s personal universe core. It is private by default and
-holds that body’s local declarations, local paper records, and any selected
-private state. It is not a public comparison surface merely because it can be
-rendered.
+holds that body’s local declarations, private/public-intent observations, local
+paper records, and any selected private state. It is not a public comparison
+surface merely because it can be rendered.
 
 **Orb 2** is the public representation of explicitly published universe-core
 projections compared alongside peers. It must consume a dedicated envelope such

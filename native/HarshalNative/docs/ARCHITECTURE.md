@@ -88,6 +88,7 @@ The application owns presentation and integration adapters:
 - local state cache (`UserDefaults`) for convenience only;
 - active acknowledgement is reset at app launch to avoid silently carrying authority forward;
 - a phase declaration produces a receipt, then the gate and ledger views remain inspectable;
+- the Ledger records and filters owner-authored private notes plus public-projection note intents; a public intent remains local until a separate projection/publishing service exists;
 - a NEO ORB `Canvas` view reads only a local synthetic geometry fixture and ephemeral display controls; it can be previewed during onboarding or opened as a dashboard tab after declaration;
 - a Paper market tab records local phase-snapshotted declarations and simulated positions against bundled deterministic fixture observations; its public-projection intent never publishes anything;
 - no network call happens when a declaration, NEO ORB configuration, gate evaluation, or paper-market record is created.
@@ -118,7 +119,7 @@ When—and only when—the owner approves sync, configure it in Xcode:
 5. Test with non-sensitive data; define retention/deletion and backup behavior before production schema deployment.
 6. Set `HarshalCloudKitEnabled` to `YES` only in the signed configuration that has the matching entitlement.
 
-The app sends no data until the user explicitly taps **Mirror declaration and receipt**. CloudKit mirror status must remain described as data synchronization—not a proof of identity, honesty, consent, authorization, or independent witnessing.
+The app sends no data until the user explicitly taps **Mirror declaration and receipt**. This first sync slice does not mirror observation notes or paper-market records. CloudKit mirror status must remain described as data synchronization—not a proof of identity, honesty, consent, authorization, or independent witnessing.
 
 ## 6. Migration map
 
@@ -140,6 +141,7 @@ The app sends no data until the user explicitly taps **Mirror declaration and re
 The current package tests cover:
 
 - required acknowledgements, including all five ordered `GSRB` collapse acknowledgements and rejection of malformed/out-of-order protocols;
+- private/public-projection observation-note validation and phase snapshot preservation;
 - default refusal without a local acknowledgement;
 - fresh, complete `NAB` local-model permit and its `LOCAL-DEMO-ONLY` boundary;
 - CWO external-execution refusal alongside phase-neutral paper-market eligibility for NAB, CWO, and GSRB; deterministic fixture provenance, paper-ledger transition validation, valuation for long/short positions, stale failure, below-threshold refusal, and non-executing GSRB behavior;
