@@ -33,7 +33,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before enabling sign-in, Clo
 4. Set a real Development Team and replace the placeholder bundle identifier `com.example.HarshalNative` before signing.
 5. Build and run. On the first-run declaration screen, tap **Preview NEO ORB** to open the display-only shape study immediately; after a declaration, it is also the **NEO ORB** dashboard tab.
 
-The project attaches `Packages/HarshalCore`, `Packages/HarshalLedger`, and `Packages/NeoOrb` as local Swift packages. You can also validate the packages directly:
+The project attaches `Packages/HarshalCore`, `Packages/HarshalLedger`, and `Packages/NeoOrb` as local Swift packages. Its Debug configurations build only the active architecture, preventing a local package/product architecture mismatch on current Xcode Simulator toolchains. You can also validate the packages directly:
 
 ```bash
 cd native/HarshalNative/Packages/HarshalCore
