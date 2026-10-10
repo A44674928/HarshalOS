@@ -21,7 +21,7 @@ const SUITES = [
   {
     area: "D1 community database and OIDC sessions (local tests)",
     script: "test:community",
-    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs", "community-runs-test.mjs", "community-publication-test.mjs", "community-deletion-test.mjs", "case-studies-d1-test.mjs"]
+    files: ["community-db-test.mjs", "community-auth-test.mjs", "community-drafts-test.mjs", "community-ui-test.mjs", "community-runs-test.mjs", "community-publication-test.mjs", "community-deletion-test.mjs", "case-studies-d1-test.mjs", "turnstile-test.mjs", "d1-backup-test.mjs"]
   },
   {
     area: "Kernel, phase, temporal, PDH, ledger & session",
@@ -84,9 +84,9 @@ const SUITES = [
     files: ["llm-test.mjs", "llm-authority-test.mjs", "g0-llm-diagnostics-test.mjs"]
   },
   {
-    area: "Z.AI free-tier LLM relay (Worker)",
+    area: "LLM relay providers and Neuron ledger (Worker)",
     script: "test:relay",
-    files: ["llm-relay-test.mjs"]
+    files: ["llm-relay-test.mjs", "llm-workers-ai-test.mjs", "ai-neuron-ledger-test.mjs"]
   },
   {
     area: "Cloud storage and server-side containment",
