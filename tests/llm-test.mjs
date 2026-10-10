@@ -82,8 +82,9 @@ const sources = [
   localStorage.setItem("hos-llm-settings-v1", JSON.stringify({ provider: "relay", endpoint: "/api/llm", model: "glm-4.5-flash" }));
   eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.A.I default is upgraded to the Workers AI default");
   localStorage.removeItem("hos-llm-settings-v1");
-  eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.AI default is upgraded to the Workers AI default");
+  eq(LLM.resolved().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the preset supplies the Workers AI model when no saved override exists");
   localStorage.removeItem("hos-llm-settings-v1");
+  LLM.saveSettings({ provider: "anthropic", endpoint: LLM.PROVIDERS.anthropic.endpoint, model: LLM.PROVIDERS.anthropic.model, protocol: "" });
   LLM.setKey("sk-ant-test-key-0000000000", false);
   ok(LLM.keyStorage() === "session", "the key is held for the session by default");
   ok(LLM.status().linked === true, "provider, model and key make a complete link");
