@@ -80,6 +80,8 @@ const sources = [
   eq(LLM.resolved().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the default relay model matches Workers AI");
   ok(LLM.status().linked === true, "the keyless Cloudflare relay is a complete default link");
   localStorage.setItem("hos-llm-settings-v1", JSON.stringify({ provider: "relay", endpoint: "/api/llm", model: "glm-4.5-flash" }));
+  eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.A.I default is upgraded to the Workers AI default");
+  localStorage.removeItem("hos-llm-settings-v1");
   eq(LLM.loadSettings().model, "@cf/meta/llama-3.1-8b-instruct-fp8-fast", "the previous saved Z.AI default is upgraded to the Workers AI default");
   localStorage.removeItem("hos-llm-settings-v1");
   LLM.setKey("sk-ant-test-key-0000000000", false);
