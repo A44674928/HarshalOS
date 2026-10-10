@@ -38,7 +38,10 @@ async function harness(handler = prompt => ({ content: unknownReply(prompt) })) 
     calls.push({ body, prompt });
     const reply = await handler(prompt, calls.length, body);
     return {
-      response: typeof reply.content === "string" ? reply.content : JSON.stringify(reply.content),
+      choices: [{
+        message: { content: typeof reply.content === "string" ? reply.content : JSON.stringify(reply.content) },
+        finish_reason: reply.finishReason || "stop"
+      }],
       usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 }
     };
   } }, LLM_RELAY_DISABLE_RATE_LIMITS: "true" });
