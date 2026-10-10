@@ -3,6 +3,14 @@ import { CommunityError } from './community-db.mjs';
 import { evaluateSavedInput, canonical, sha256 } from './community-audit.mjs';
 import { EVALUATOR_SHA256 } from './community-engine-version.mjs';
 import { buildPublicReportNewsML, NEWSML_CONTENT_TYPE } from './community-newsml.mjs';
+import { turnstileConfigured, turnstileStatus, verifyTurnstile } from './turnstile.mjs';
+async function requireTurnstile(request, env, data, dependencies = {}) {
+  if (!turnstileConfigured(env)) return;
+  const ip = String(request.headers.get('CF-Connecting-IP') || '').split(',')[0].trim();
+  const check = await verifyTurnstile({ env, token: data?.turnstileToken, ip, fetcher: dependencies.fetch || null });
+  if (check.ok) return;
+  throw new CommunityError(check.retryable ? 503 : 403, check.message);
+}
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const validId = value => typeof value === 'string' && new RegExp('^' + UUID + '$').test(value);
 const publicMatch = new RegExp(`^/api/community/publications/(${UUID})(?:/(history|withdraw|report|newsml))?$`);
@@ -40,7 +48,7 @@ async function moderatorAvailable(env) {
   if (!row) throw new CommunityError(503, 'A configured moderator must sign in before publication is available.');
   return subjects;
 }
-export async function handlePublication(request, env) {
+export async function handlePublication(request, env, dependencies = {}) {
   try {
     const url = new URL(request.url), path = url.pathname, method = request.method;
     const match = publicMatch.exec(path), moderation = moderationMatch.exec(path);
@@ -51,7 +59,7 @@ export async function handlePublication(request, env) {
     const db = env.COMMUNITY_DB, now = Date.now();
     const schema = await db.prepare("SELECT version FROM community_schema WHERE component='publication'").first();
     if (schema?.version !== 1) throw new CommunityError(503, 'Publication migration is required.');
-    if (path === '/api/community/status' && method === 'GET') return authJson({ enabled: true, stage: 'publication', reviewStatus: 'UNREVIEWED' });
+    if (path === '/api/community/status' && method === 'GET') return authJson({ enabled: true, stage: 'publication', reviewStatus: 'UNREVIEWED', turnstile: turnstileStatus(env) });
     if (path === '/api/community/publications' && method === 'GET') {
       const { results } = await db.prepare(`SELECT seq, ${fields} FROM community_publications WHERE state='published' AND seq<? ORDER BY seq DESC LIMIT 26`).bind(cursor(url)).all();
       return authJson({ publications: results.slice(0,25).map(dto), nextCursor: results.length > 25 ? String(results[24].seq) : null });
@@ -90,8 +98,9 @@ export async function handlePublication(request, env) {
       return authJson({ token, expiresAt, reportHash: hash, report });
     }
     if (path === '/api/community/publish' && method === 'POST') {
-      const data = await body(request, ['token','acknowledgement']);
+      const data = await body(request, ['token','acknowledgement','turnstileToken']);
       if (data.acknowledgement !== 'PUBLISH_PUBLIC_UNREVIEWED' || typeof data.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(data.token)) throw new CommunityError(400, 'Explicit publication acknowledgement and preview token are required.');
+      await requireTurnstile(request, env, data, dependencies);
       const tokenHash = await digest(data.token);
       const previous = await db.prepare('SELECT * FROM community_publications WHERE preview_hash=? AND owner_id=?').bind(tokenHash,user.id).first();
       if (previous) return authJson({ publication: dto(previous), reused: true });
@@ -157,8 +166,9 @@ export async function handlePublication(request, env) {
         return authJson({ publication: dto(await db.prepare('SELECT * FROM community_publications WHERE id=?').bind(id).first()) });
       }
       if (method === 'POST' && action === 'report') {
-        const data = await body(request, ['details'], 16384);
+        const data = await body(request, ['details','turnstileToken'], 16384);
         if (typeof data.details !== 'string' || !data.details.trim() || data.details.length > 2000) throw new CommunityError(400, 'Report details must contain 1–2000 characters.');
+        await requireTurnstile(request, env, data, dependencies);
         await limitCommunityAction(env,user.id,'report',20);
         const exists = await db.prepare("SELECT id FROM community_publications WHERE id=? AND state='published'").bind(id).first();
         if (!exists) throw new CommunityError(404, 'Active publication not found.');

@@ -1,7 +1,61 @@
 const $ = id => document.getElementById(id);
 let user = null, selected = null, dirty = false, busy = false, cursor = null, currentRun = null, runCursor = null, epoch = 0;
 let publicPreview = null, myCursor = null;
+/* Human verification (Cloudflare Turnstile) for publishing. Checked lazily:
+   nothing is fetched and no third-party script loads until a preview exists,
+   and deployments without a Turnstile secret never set `required`. */
+let turnstileState = { checked: false, required: false, siteKey: '', token: '', widgetId: null, scriptLoading: null, scriptFailed: false };
 const notice = text => { $('notice').textContent = text; };
+async function turnstileConfig() {
+  if (turnstileState.checked) return turnstileState;
+  const status = await api('status');
+  turnstileState.required = status.turnstile?.required === true;
+  turnstileState.siteKey = typeof status.turnstile?.siteKey === 'string' ? status.turnstile.siteKey : '';
+  turnstileState.checked = true;
+  return turnstileState;
+}
+function loadTurnstileScript() {
+  if (window.turnstile) return Promise.resolve();
+  if (!turnstileState.scriptLoading) {
+    turnstileState.scriptLoading = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async = true; script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => { turnstileState.scriptLoading = null; reject(new Error('widget failed to load')); };
+      document.head.append(script);
+    });
+  }
+  return turnstileState.scriptLoading;
+}
+async function ensureTurnstile(containerId, { quiet = false } = {}) {
+  let config;
+  try {
+    config = await turnstileConfig();
+  } catch {
+    if (!quiet) notice('Could not confirm whether human verification is required. Retry shortly.');
+    return { ...turnstileState, unknown: true };
+  }
+  if (!config.required || config.widgetId !== null || turnstileState.scriptFailed) return config;
+  if (!config.siteKey) {
+    if (!quiet) notice('Human verification is required, but this deployment has no site key configured. Publishing is unavailable until the operator fixes it.');
+    return { ...config, unknown: false };
+  }
+  if (!$(containerId)) return config;
+  try {
+    await loadTurnstileScript();
+    config.widgetId = window.turnstile.render('#' + containerId, {
+      sitekey: config.siteKey,
+      callback: token => { turnstileState.token = token; controls(); },
+      'expired-callback': () => { turnstileState.token = ''; controls(); },
+      'error-callback': () => { turnstileState.token = ''; controls(); }
+    });
+  } catch {
+    turnstileState.scriptFailed = true;
+    if (!quiet) notice('The verification widget failed to load. Retry shortly.');
+  }
+  return config;
+}
 function controls() {
   $('workspace').hidden = !user; $('logout').hidden = !user;
   $('fields').disabled = busy || !user;
@@ -9,7 +63,7 @@ function controls() {
   for (const button of $('drafts').querySelectorAll('button')) button.disabled = busy;
   $('reload').hidden = !selected;
   $('publication-fields').disabled = busy || !user || !currentRun || dirty || currentRun.revision !== selected?.revision;
-  $('publish-public').disabled = busy || !publicPreview || !$('public-consent').checked || publicPreview.expiresAt <= Date.now();
+  $('publish-public').disabled = busy || !publicPreview || !$('public-consent').checked || publicPreview.expiresAt <= Date.now() || (turnstileState.checked && turnstileState.required && !turnstileState.token);
   $('public-consent').disabled = busy || !publicPreview;
   $('moderation-box').hidden = !user?.moderator;
   for (const id of ['my-publications','my-publication-more','moderation-load']) $(id).disabled = busy || !user;
@@ -20,6 +74,8 @@ function controls() {
 }
 function clearPublicPreview() {
   publicPreview = null; $('public-preview').hidden = true; $('preview-json').textContent = ''; $('preview-meta').textContent = ''; $('public-consent').checked = false; $('publish-public').disabled = true;
+  turnstileState.token = '';
+  try { if (turnstileState.widgetId !== null && window.turnstile) window.turnstile.reset(turnstileState.widgetId); } catch { /* a stale widget never blocks a fresh preview */ }
 }
 function clearRun() {
   clearPublicPreview(); $('public-author').value = ''; $('public-input').value = '';
@@ -202,6 +258,7 @@ $('preview-public').addEventListener('click', () => {
     publicPreview = data; $('public-preview').hidden = false;
     $('preview-meta').textContent = `Report SHA-256: ${data.reportHash} · Preview expires ${new Date(data.expiresAt).toLocaleTimeString()}. Fingerprint, not certification.`;
     $('preview-json').textContent = JSON.stringify(data.report, null, 2);
+    await ensureTurnstile('turnstile-publish', { quiet: true });
     notice('Review the entire exact public preview. Nothing is published yet. Any edits invalidate this preview.');
   });
 });
@@ -209,7 +266,10 @@ $('publish-public').addEventListener('click', () => {
   if (busy || !publicPreview || !$('public-consent').checked) return;
   if (Date.now() >= publicPreview.expiresAt) { clearPublicPreview(); controls(); notice('Preview expired. Generate a new preview before publishing.'); return; }
   task(async () => {
-    const result = await api('publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: publicPreview.token, acknowledgement: 'PUBLISH_PUBLIC_UNREVIEWED' }) });
+    const verification = await ensureTurnstile('turnstile-publish');
+    if (verification.unknown) return;
+    if (verification.required && !turnstileState.token) { notice('Complete the human verification challenge, then publish again.'); return; }
+    const result = await api('publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: publicPreview.token, acknowledgement: 'PUBLISH_PUBLIC_UNREVIEWED', ...(turnstileState.token ? { turnstileToken: turnstileState.token } : {}) }) });
     clearPublicPreview(); notice(`Public report ${result.publication.id} is ${result.publication.state}. Use My publications to view or withdraw it. Corrections require a new saved revision and preview.`);
     try { await myPublications(); } catch { if (user) notice(`Report ${result.publication.id} was published, but the list could not refresh. Load My publications to retry.`); }
   });

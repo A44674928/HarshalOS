@@ -1,7 +1,17 @@
 /*
- * Z.AI free-tier LLM relay — the server side of LLM Link's "/api/llm" preset.
+ * LLM relay — the server side of LLM Link's "/api/llm" preset.
  *
- * Why this exists: Z.AI's GLM API is OpenAI-compatible but the key is a
+ * Two providers, one contract. When the Worker binds Workers AI (`ai:
+ * { binding: "AI" }` in wrangler.jsonc), chat completions run on Cloudflare's
+ * GPUs against the free daily Neuron allocation — no third-party key at all —
+ * and a durable D1 ledger refuses new calls before the day's allowance is
+ * spent. Without that binding, the relay falls back to the Z.AI free-tier path
+ * below, which holds the operator's key in a Worker secret instead of a
+ * browser. Callers use the same OpenAI-compatible shape either way; only the
+ * model allowlist, the status payload's provider field, and the quota
+ * authority change.
+ *
+ * Why the Z.AI path exists: Z.AI's GLM API is OpenAI-compatible but the key is a
  * spending credential, and this deployment keeps it in a Worker secret instead
  * of a browser. The relay holds the key, forwards plain-text chat completions
  * to a fixed upstream origin, and returns them in the same OpenAI-compatible
@@ -29,6 +39,14 @@
  * by holding the key here; it is stated in the operator guide and in the
  * LLM Link provider note.
  */
+
+import {
+  AI_PROVIDER_DAILY_BUDGET,
+  AI_WORKER_DAILY_LIMIT,
+  aiUtcDay,
+  claimAiNeurons,
+  secondsUntilUtcMidnight
+} from './ai-neuron-ledger.mjs';
 
 export const RELAY_ROUTES = Object.freeze({
   chat: '/api/llm',
@@ -75,6 +93,56 @@ export const KEY_VARIABLE_NAMES = Object.freeze([
   'LLM_RELAY_API_KEY',
   'LLM_API_KEY'
 ]);
+
+/* Workers AI: the relay's primary provider. Hard allowlist — a model outside
+   this list is refused even when the binding could serve it, so a public site
+   cannot be pointed at a frontier-priced model. Rates are the published
+   per-million-token Neuron costs (see docs/deployment/WORKERS-AI-PROVIDER.md);
+   they feed the pre-call ceiling estimate, never a bill. `jsonMode` marks the
+   models this relay will send `response_format: json_object` to: Ground-0
+   readings always ask for JSON, and a model that would error on the field gets
+   plain text instead while the app's own format retries verify the shape. The
+   flags are conservative on purpose — flip one only after a live call proves
+   the model accepts the field. */
+export const AI_DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+export const AI_MODELS = Object.freeze([
+  '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/zai-org/glm-4.7-flash'
+]);
+const AI_NEURON_RATES = Object.freeze({
+  '@cf/meta/llama-3.1-8b-instruct-fp8-fast': Object.freeze({ input: 4119, output: 34868, jsonMode: true }),
+  '@cf/meta/llama-3.2-3b-instruct': Object.freeze({ input: 4625, output: 30475, jsonMode: true }),
+  '@cf/qwen/qwen3-30b-a3b-fp8': Object.freeze({ input: 4625, output: 30475, jsonMode: false }),
+  '@cf/zai-org/glm-4.7-flash': Object.freeze({ input: 5500, output: 36400, jsonMode: false })
+});
+
+/* Ceiling estimate in Neurons: input characters at ~4 chars/token plus the
+   full reserved output ceiling. Always over-counts, so the ledger refuses
+   before the provider's hard stop, never after. */
+export function estimateAiNeurons(model, inputChars, maxTokens) {
+  const rates = AI_NEURON_RATES[String(model || '').trim().toLowerCase()];
+  if (!rates) return null;
+  const inputTokens = Math.max(0, Math.ceil(Number(inputChars) / 4));
+  const outputTokens = Math.max(0, Math.floor(Number(maxTokens)));
+  if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) return null;
+  return Math.max(1, Math.ceil(inputTokens * rates.input / 1_000_000 + outputTokens * rates.output / 1_000_000));
+}
+
+const aiJsonModeSupported = model =>
+  AI_NEURON_RATES[String(model || '').trim().toLowerCase()]?.jsonMode === true;
+
+/* Provider selection. The AI binding wins when present: a deployment that
+   binds Workers AI serves Workers AI even if a Z.AI key is also set, so the
+   operator picks the provider by binding, not by secret hygiene. */
+const hasAiBinding = env => !!env && !!env.AI && typeof env.AI.run === 'function';
+function relayProvider(env) {
+  if (disabled(env)) return 'off';
+  if (hasAiBinding(env)) return 'workers-ai';
+  if (resolveKey(env)) return 'zai';
+  return 'none';
+}
 
 const LIMITS = Object.freeze({
   requestBytes: 256 * 1024,   // Ground-0 stages up to ~60k characters of source text per call
@@ -144,7 +212,7 @@ const localRateLimitsDisabled = env => String(env && env.LLM_RELAY_DISABLE_RATE_
 
 function notConfiguredReason(env) {
   if (disabled(env)) return `The relay is switched off by this Worker's LLM_RELAY_ENABLED variable.`;
-  return `This deployment has no Z.AI key. Add one as a Worker secret named ${KEY_VARIABLE_NAMES[0]} or ${KEY_VARIABLE_NAMES[1]}.`;
+  return `This deployment has no Z.AI key and no Workers AI binding. Add a Worker secret named ${KEY_VARIABLE_NAMES[0]} or ${KEY_VARIABLE_NAMES[1]}, or bind Workers AI as AI in wrangler.jsonc.`;
 }
 
 /* ── best-effort rate limiting ──────────────────────────────────
@@ -380,15 +448,18 @@ function integerOr(value, fallback) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : fallback;
 }
 
-function validateChatPayload(data) {
+function validateChatPayload(data, provider = 'zai') {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new RelayError(400, 'Expected a JSON object with model and messages.', 'invalid_request_error');
   }
+  const allowlist = provider === 'workers-ai' ? AI_MODELS : FREE_TIER_MODELS;
   const model = typeof data.model === 'string' ? data.model.trim().toLowerCase() : '';
-  if (!FREE_TIER_MODELS.includes(model)) {
+  if (!allowlist.includes(model)) {
     throw new RelayError(
       404,
-      `This relay serves Z.AI's free tier only: ${FREE_TIER_MODELS.join(' or ')}.`,
+      provider === 'workers-ai'
+        ? `This relay serves Workers AI's free tier only: ${AI_MODELS.join(', ')}.`
+        : `This relay serves Z.AI's free tier only: ${FREE_TIER_MODELS.join(' or ')}.`,
       'model_not_found'
     );
   }
@@ -457,7 +528,7 @@ function validateChatPayload(data) {
   // arbitrary schema or additional nested fields to the provider.
   const jsonMode = !!data.response_format && typeof data.response_format === 'object' &&
     !Array.isArray(data.response_format) && data.response_format.type === 'json_object';
-  return { model, messages, maxTokens, ceilingClamped, requestedTemperature, thinking, jsonMode };
+  return { model, messages, maxTokens, ceilingClamped, requestedTemperature, thinking, jsonMode, totalChars };
 }
 
 /* Z.AI samples in [0, 1] and documents that a 0 temperature is not usable
@@ -550,9 +621,54 @@ function usageFrom(data) {
 
 /* ── routes ───────────────────────────────────────────────────── */
 function statusPayload(env) {
-  const found = resolveKey(env);
-  const configured = !!found && !disabled(env);
+  const provider = relayProvider(env);
   const rateLimitsDisabled = localRateLimitsDisabled(env);
+  const limits = {
+    requestKiB: Math.round(LIMITS.requestBytes / 1024),
+    messages: LIMITS.messages,
+    messageChars: LIMITS.messageChars,
+    maxOutputTokens: LIMITS.maxOutputTokens,
+    defaultOutputTokens: LIMITS.defaultOutputTokens,
+    upstreamTimeoutSeconds: Math.round(LIMITS.upstreamTimeoutMs / 1000),
+    localRateLimitsDisabled: rateLimitsDisabled,
+    requestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateChatMax,
+    sharedRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateSharedChatMax,
+    modelListRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateListMax,
+    windowSeconds: rateLimitsDisabled ? null : Math.round(LIMITS.rateWindowMs / 1000)
+  };
+  if (provider === 'workers-ai') {
+    return {
+      configured: true,
+      provider: 'workers-ai',
+      tier: 'free',
+      upstream: 'workers-ai-binding',
+      endpoint: RELAY_ROUTES.chat,
+      modelsEndpoint: RELAY_ROUTES.models,
+      defaultModel: AI_DEFAULT_MODEL,
+      models: [...AI_MODELS],
+      /* No key exists on this path: the binding carries the provider's own
+         free allocation, so there is no variable name to disclose. */
+      keyVariable: '',
+      acceptedKeyVariables: [],
+      neuronBudget: {
+        workerDailyLimit: AI_WORKER_DAILY_LIMIT,
+        providerDailyAllocation: AI_PROVIDER_DAILY_BUDGET,
+        resetsAt: '00:00 UTC',
+        ledger: 'durable per-UTC-day aggregate; a refused call sends nothing'
+      },
+      limits: {
+        ...limits,
+        rateScope: rateLimitsDisabled
+          ? 'Disabled for this preview. The daily Neuron ledger still refuses new calls once claimed.'
+          : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota. The durable Neuron ledger is the actual daily authority`
+      },
+      capabilities: { streaming: false, tools: false, responseFormat: 'json_object on supporting models, plain text otherwise', images: false, thinking: 'unsupported' },
+      sampling: 'Workers AI takes temperature 0..2 directly; an omitted temperature uses the model default.',
+      message: ''
+    };
+  }
+  const found = resolveKey(env);
+  const configured = provider === 'zai';
   return {
     configured,
     provider: 'zai',
@@ -566,17 +682,7 @@ function statusPayload(env) {
     keyVariable: configured ? found.name : '',
     acceptedKeyVariables: [...KEY_VARIABLE_NAMES],
     limits: {
-      requestKiB: Math.round(LIMITS.requestBytes / 1024),
-      messages: LIMITS.messages,
-      messageChars: LIMITS.messageChars,
-      maxOutputTokens: LIMITS.maxOutputTokens,
-      defaultOutputTokens: LIMITS.defaultOutputTokens,
-      upstreamTimeoutSeconds: Math.round(LIMITS.upstreamTimeoutMs / 1000),
-      localRateLimitsDisabled: rateLimitsDisabled,
-      requestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateChatMax,
-      sharedRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateSharedChatMax,
-      modelListRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateListMax,
-      windowSeconds: rateLimitsDisabled ? null : Math.round(LIMITS.rateWindowMs / 1000),
+      ...limits,
       rateScope: rateLimitsDisabled
         ? 'Disabled for this preview. Z.AI still applies its own account and free-tier limits.'
         : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
@@ -588,6 +694,16 @@ function statusPayload(env) {
 }
 
 async function listModels(request, env, dependencies) {
+  if (relayProvider(env) === 'workers-ai') {
+    /* The binding has no list endpoint, and none is needed: the allowlist is
+       the whole catalog this relay will serve, labelled as this deployment's
+       static list rather than a live provider answer. */
+    return json({
+      object: 'list',
+      data: AI_MODELS.map(model => ({ id: model, object: 'model', owned_by: 'cloudflare', free: true })),
+      relay: { provider: 'workers-ai', tier: 'free', keyVariable: '', verified: true, static: true }
+    });
+  }
   const found = resolveKey(env);
   if (!found || disabled(env)) throw new RelayError(503, notConfiguredReason(env), 'relay_unavailable');
   const fetcher = dependencies.fetch || globalThis.fetch;
@@ -638,9 +754,123 @@ async function listModels(request, env, dependencies) {
   }
 }
 
+/* Isolate-local Neuron fallback for deployments with an AI binding but no
+   COMMUNITY_DB at all (local development). Same daily budget, but one
+   isolate's memory: a caller can reset it by hitting another isolate, and it
+   does not survive a restart. Production binds D1 and never touches this. */
+const neuronMemory = new Map();
+export function clearRelayNeuronMemory() { neuronMemory.clear(); }
+
+function claimAiNeuronsMemory(day, estimate, now) {
+  for (const key of [...neuronMemory.keys()]) {
+    if (key !== day) neuronMemory.delete(key);
+  }
+  const entry = neuronMemory.get(day) || { neurons: 0, calls: 0 };
+  if (entry.neurons + estimate > AI_WORKER_DAILY_LIMIT) {
+    return {
+      ok: false,
+      reason: 'budget-exhausted',
+      retryAfterSeconds: secondsUntilUtcMidnight(now),
+      message: `The Worker-routed Workers AI allowance is exhausted for ${day}: ${entry.neurons.toLocaleString()} of ${AI_WORKER_DAILY_LIMIT.toLocaleString()} Neurons claimed. No provider request was sent. The allocation resets at 00:00 UTC.`
+    };
+  }
+  entry.neurons += estimate;
+  entry.calls += 1;
+  neuronMemory.set(day, entry);
+  return { ok: true, neurons: entry.neurons, calls: entry.calls, weak: true };
+}
+
+function aiFailure(error) {
+  const message = String((error && error.message) || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 220);
+  if (/429|quota|rate.?limit|daily limit|allocation/i.test(message)) {
+    return new RelayError(429, `Workers AI refused this call on quota: ${message || 'the daily Neuron allocation is spent.'} The allocation resets at 00:00 UTC.`, 'rate_limit_error');
+  }
+  return new RelayError(502, `Workers AI could not complete the call.${message ? ` The binding said: ${message}` : ' Retry shortly.'}`, 'upstream_error');
+}
+
+async function relayAiChat({ validated, env, pacing, skipLocalRateLimits, now }) {
+  const estimate = estimateAiNeurons(validated.model, validated.totalChars, validated.maxTokens);
+  if (estimate === null) throw new RelayError(502, 'The Neuron estimate for this call could not be computed. No provider request was sent.', 'relay_error');
+  const day = aiUtcDay(now);
+  const db = env.COMMUNITY_DB;
+  let ledger;
+  if (db && typeof db.prepare === 'function') {
+    const claim = await claimAiNeurons(db, estimate, now);
+    if (!claim.ok && claim.reason === 'budget-exhausted') {
+      throw new RelayError(429, claim.message, 'quota_exceeded', { 'Retry-After': String(claim.retryAfterSeconds || secondsUntilUtcMidnight(now)) });
+    }
+    if (!claim.ok) throw new RelayError(503, claim.message, 'relay_unavailable');
+    ledger = { remaining: claim.ledger.remaining, day: claim.ledger.day, weak: false };
+  } else {
+    const claim = claimAiNeuronsMemory(day, estimate, now);
+    if (!claim.ok) {
+      throw new RelayError(429, claim.message, 'quota_exceeded', { 'Retry-After': String(claim.retryAfterSeconds || secondsUntilUtcMidnight(now)) });
+    }
+    ledger = { remaining: AI_WORKER_DAILY_LIMIT - claim.neurons, day, weak: true };
+  }
+
+  const input = { messages: validated.messages, max_tokens: validated.maxTokens, stream: false };
+  if (validated.requestedTemperature !== null) input.temperature = validated.requestedTemperature;
+  const jsonSent = validated.jsonMode && aiJsonModeSupported(validated.model);
+  if (jsonSent) input.response_format = { type: 'json_object' };
+  /* `thinking` is Z.AI-only and is never sent here; temperature needs no
+     do_sample translation on this provider. */
+
+  let data;
+  try {
+    data = await env.AI.run(validated.model, input);
+  } catch (error) {
+    throw aiFailure(error);
+  }
+  const content = typeof data?.response === 'string' ? data.response : '';
+  if (Array.isArray(data?.tool_calls) && data.tool_calls.length) {
+    throw new RelayError(502, 'Workers AI answered with a tool call instead of text. This relay is data-only and dispatches no model tools.', 'upstream_error');
+  }
+  if (!content.trim()) {
+    throw new RelayError(502, 'Workers AI returned no text. The model may have refused the request or reached its output limit.', 'upstream_error');
+  }
+  const reported = data && typeof data.usage === 'object' && data.usage ? usageFrom(data) : null;
+  const usage = reported && (reported.prompt_tokens > 0 || reported.completion_tokens > 0)
+    ? reported
+    : {
+        prompt_tokens: Math.max(1, Math.ceil(validated.totalChars / 4)),
+        completion_tokens: Math.max(1, Math.ceil(content.length / 4)),
+        total_tokens: Math.max(1, Math.ceil(validated.totalChars / 4) + Math.ceil(content.length / 4))
+      };
+  return json({
+    id: '',
+    object: 'chat.completion',
+    created: Math.floor(now / 1000),
+    model: validated.model,
+    choices: [{
+      index: 0,
+      message: { role: 'assistant', content },
+      finish_reason: 'stop'
+    }],
+    usage,
+    relay: {
+      provider: 'workers-ai',
+      tier: 'free',
+      keyVariable: '',
+      thinking: 'unsupported',
+      responseFormat: jsonSent ? 'json_object' : 'text',
+      requestedTemperature: validated.requestedTemperature,
+      temperatureSent: validated.requestedTemperature,
+      clamped: validated.ceilingClamped,
+      maxTokensSent: validated.maxTokens,
+      usageEstimated: !reported,
+      estimatedNeurons: estimate,
+      neuronLedger: ledger,
+      pacing
+    }
+  }, 200, skipLocalRateLimits ? {} : rateHeaders(pacing));
+}
+
 async function relayChat(request, env, dependencies, caller, now) {
-  const found = resolveKey(env);
-  if (!found || disabled(env)) throw new RelayError(503, notConfiguredReason(env), 'relay_unavailable');
+  const provider = relayProvider(env);
+  if (provider !== 'workers-ai' && provider !== 'zai') throw new RelayError(503, notConfiguredReason(env), 'relay_unavailable');
+  const found = provider === 'zai' ? resolveKey(env) : null;
+  if (provider === 'zai' && !found) throw new RelayError(503, notConfiguredReason(env), 'relay_unavailable');
   const url = new URL(request.url);
   const origin = request.headers.get('Origin');
   if (!origin || origin !== url.origin) {
@@ -663,7 +893,9 @@ async function relayChat(request, env, dependencies, caller, now) {
       throw new RelayError(429, `This relay allows ${LIMITS.rateChatMax} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
     }
     if (shared.full) {
-      throw new RelayError(429, `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
+      throw new RelayError(429, provider === 'workers-ai'
+        ? `This relay's shared Workers AI pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers is in use right now, so other people are using it. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`
+        : `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
     }
     remember(mine, now);
     remember(shared, now);
@@ -677,7 +909,10 @@ async function relayChat(request, env, dependencies, caller, now) {
       sharedRemaining: Math.max(0, shared.max - shared.hits.length)
     };
   }
-  const validated = validateChatPayload(await readJsonBody(request));
+  const validated = validateChatPayload(await readJsonBody(request), provider);
+  if (provider === 'workers-ai') {
+    return relayAiChat({ validated, env, pacing, skipLocalRateLimits, now });
+  }
   const fetcher = dependencies.fetch || globalThis.fetch;
   if (typeof fetcher !== 'function') throw new RelayError(503, 'The relay is unavailable in this Worker runtime.', 'relay_unavailable');
   const { body, sampling } = upstreamBody(validated);

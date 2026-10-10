@@ -14,6 +14,7 @@ import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
 import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
 import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
+import { runScheduledBackup } from './d1-backup.mjs';
 
 const keySets = new Map();
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -155,11 +156,45 @@ export default {
    * nothing, and no provider secret or schedule state exists in browser code.
    */
   async scheduled(event, env, context) {
-    const scheduledTime = Number(event && event.scheduledTime);
+    // Cloudflare sends `scheduledTime` in milliseconds. Normalize a
+    // seconds-scale value defensively so a malformed clock can never silently
+    // rewind the tick (and its D1 lease/cursors) to 1970.
+    const rawScheduledTime = Number(event && event.scheduledTime);
+    const scheduledTime = rawScheduledTime > 0 && rawScheduledTime < 1_000_000_000_000
+      ? rawScheduledTime * 1000 : rawScheduledTime;
     const now = Number.isFinite(scheduledTime) && scheduledTime > 0 ? scheduledTime : Date.now();
-    const run = runOrb2FieldTick(env, context, { now: () => now });
-    if (context && typeof context.waitUntil === 'function') context.waitUntil(run);
-    else await run;
+    // A Cron Trigger has no response to return, so the tick is awaited: the
+    // invocation stays alive for it (15-minute wall limit) and a failure lands
+    // on the invocation instead of vanishing into a background promise. A
+    // failed summary is also logged so the cause is visible in Workers Logs
+    // without querying D1.
+    const run = runOrb2FieldTick(env, context, { now: () => now }).then(
+      summary => {
+        if (!summary || summary.ok !== true) {
+          console.error('[orb2-cron] tick failed:',
+            summary && Array.isArray(summary.errors) && summary.errors.length
+              ? summary.errors.slice(0, 3).join(' | ') : 'unknown scheduler error');
+        }
+        return summary;
+      },
+      error => {
+        console.error('[orb2-cron] tick threw:', error && error.message ? error.message : String(error));
+        throw error;
+      }
+    );
+    if (context && typeof context.waitUntil === 'function') context.waitUntil(run.catch(() => {}));
+    await run;
+    /* The nightly D1 backup rides the same tick: one small page per
+       invocation, so a full pass drains after midnight at negligible CPU per
+       tick. It never throws, and a failed page is logged, never fatal. */
+    if (env && env.STORAGE_BUCKET && env.COMMUNITY_DB) {
+      const backup = await runScheduledBackup(env, now);
+      /* Expected no-op states (unmigrated database, finished day) stay quiet;
+         only a genuine page fault is logged. */
+      if (!backup.ok && backup.reason === 'backup-error') {
+        console.error('[d1-backup] page failed:', backup.error || 'unknown backup error');
+      }
+    }
   },
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
@@ -175,7 +210,12 @@ export default {
       response.headers.set('Cache-Control', 'no-store');
       response.headers.set('Referrer-Policy', 'no-referrer');
       response.headers.set('X-Content-Type-Options', 'nosniff');
-      response.headers.set('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'" + (env.COMMUNITY_ENABLED === 'true' ? "; frame-ancestors 'none'" : ''));
+      /* The Turnstile widget (see worker/turnstile.mjs) needs its script and its
+         challenge iframe from challenges.cloudflare.com — but only on
+         deployments that actually configured a site key; without one this
+         header is byte-identical to the locked-down form above. */
+      const turnstileOrigin = typeof env?.TURNSTILE_SITE_KEY === 'string' && env.TURNSTILE_SITE_KEY.trim() ? ' https://challenges.cloudflare.com' : '';
+      response.headers.set('Content-Security-Policy', `default-src 'none'; script-src 'self'${turnstileOrigin}; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'` + (turnstileOrigin ? '; frame-src https://challenges.cloudflare.com' : '') + (env.COMMUNITY_ENABLED === 'true' ? "; frame-ancestors 'none'" : ''));
       return response;
     }
     if (path === '/api/symbolic-firewall/v1/seal') return handleSymbolicFirewall(request);
