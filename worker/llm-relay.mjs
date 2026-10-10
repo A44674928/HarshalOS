@@ -822,12 +822,34 @@ async function relayAiChat({ validated, env, pacing, skipLocalRateLimits, now })
   } catch (error) {
     throw aiFailure(error);
   }
-  const content = typeof data?.response === 'string' ? data.response : '';
-  if (Array.isArray(data?.tool_calls) && data.tool_calls.length) {
+  /* Workers AI's native chat models normally return { response: string }, but
+     retain compatibility with an OpenAI-style result in case a model/runtime
+     returns choices instead. Never forward refusal metadata or tool calls. */
+  const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
+  const message = choice && choice.message && typeof choice.message === 'object' ? choice.message : null;
+  const nativeContent = typeof data?.response === 'string' ? data.response : '';
+  const choiceContent = typeof message?.content === 'string' ? message.content : '';
+  const content = nativeContent.trim() ? nativeContent : choiceContent;
+  if ((Array.isArray(data?.tool_calls) && data.tool_calls.length) ||
+      (Array.isArray(message?.tool_calls) && message.tool_calls.length)) {
     throw new RelayError(502, 'Workers AI answered with a tool call instead of text. This relay is data-only and dispatches no model tools.', 'upstream_error');
   }
   if (!content.trim()) {
-    throw new RelayError(502, 'Workers AI returned no text. The model may have refused the request or reached its output limit.', 'upstream_error');
+    /* Safe metadata only: no prompt, completion, or raw provider object. This
+       makes a genuine empty result distinguishable from a response-shape
+       mismatch using the returned error alone. */
+    const keys = data && typeof data === 'object'
+      ? Object.keys(data).filter(key => /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key)).slice(0, 12).join(',') || 'none'
+      : typeof data;
+    const responseType = data && data.response !== undefined ? typeof data.response : 'missing';
+    const responseLength = typeof data?.response === 'string' ? data.response.length : null;
+    const choiceCount = Array.isArray(data?.choices) ? data.choices.length : 0;
+    const finishReason = typeof choice?.finish_reason === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(choice.finish_reason)
+      ? choice.finish_reason : 'unknown';
+    const refused = typeof message?.refusal === 'string' && !!message.refusal.trim();
+    throw new RelayError(502,
+      `Workers AI returned no text (responseType=${responseType}, responseLength=${responseLength === null ? 'n/a' : responseLength}, choices=${choiceCount}, finishReason=${finishReason}, refusal=${refused}, fields=${keys}). No prompt or generated content was logged.`,
+      'upstream_error');
   }
   const reported = data && typeof data.usage === 'object' && data.usage ? usageFrom(data) : null;
   const usage = reported && (reported.prompt_tokens > 0 || reported.completion_tokens > 0)
