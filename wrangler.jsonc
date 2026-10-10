@@ -11,6 +11,12 @@
   // Massive's shared five-requests-per-minute envelope, its durable UTC-day D1
   // guard, and Tickerbot's durable UTC-month ledger, so the schedule cannot
   // outspend the provider plan. Migration 0009 must be applied before deploy.
+  // Reliability note: a normal tick uses ~18 ms+ of CPU against the Workers
+  // Free 10 ms budget per Cron Trigger, so on Free the platform may kill ticks
+  // with outcome "exceededCpu" and the field goes stale. Cheapest fix first:
+  // dashboard → Workers → Settings → Placement → Smart, Cache → Enabled. If
+  // kills persist, the backstop is Workers Paid (30 s CPU for sub-hourly
+  // crons). See docs/deployment/ORB2-CRON-PLAN.md.
   "triggers": {
     "crons": ["*/1 * * * *"]
   },
@@ -63,6 +69,13 @@
     "bucket_name": "main-empty-domains"
   }],
 
+  // The LLM relay's primary provider. With this binding present the relay
+  // serves Workers AI's free daily Neuron allocation (see
+  // docs/deployment/WORKERS-AI-PROVIDER.md) and the durable per-day ledger in
+  // migration 0014 refuses new calls before the allowance is spent. Without
+  // it, the relay falls back to the Z.AI key path when a key is set.
+  "ai": { "binding": "AI" },
+
   // Secrets are configured in Cloudflare, not in this file.
   "vars": {
     "MONGODB_DATABASE": "harshalos",
@@ -78,12 +91,15 @@
   // LLM_RELAY_OUTBOUND_DIAGNOSTIC; see docs/deployment/ZAI-FREE-TIER.md) only for
   // as long as it is needed, never in the base "vars" above, and remove it after.
   "previews": {
-    // No production D1 or R2 access in branch previews.
+    // No production D1 or R2 access in branch previews. The relay is switched
+    // off there too: the AI binding is account-wide, so without this a public
+    // preview could spend the shared daily Neuron allocation.
     "d1_databases": [],
     "r2_buckets": [],
     "vars": {
       "COMMUNITY_ENABLED": "false",
-      "MONGODB_DATABASE": "harshalos_preview"
+      "MONGODB_DATABASE": "harshalos_preview",
+      "LLM_RELAY_ENABLED": "false"
     }
   }
 }

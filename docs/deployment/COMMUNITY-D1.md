@@ -48,9 +48,11 @@ anonymous per-browser Orb 2 observations with a 30-day expiry and a Worker-enfor
 0005–0007 are aggregate request ledgers, not community/user records. Apply the market
 migrations in order before enabling their provider routes; apply 0008 before using the
 D1-backed Orb 2 archive. Migrations `0009`–`0013` extend the server-managed Orb 2
-field/options storage. The two owner-applied migration numbers `0014` and `0015` are
-already reserved in the deployment history and are not recreated or reordered here.
-`0016_public_observations.sql` is the subsequent separate Community publication surface
+field/options storage. Owner-run `0014_ai_neuron_ledger.sql` and
+`0015_d1_backup_progress.sql` are immutable production-history steps for the Workers AI
+budget ledger and D1-backup cursor respectively; confirm their recorded history and do
+not renumber, rewrite, or replay a recorded migration. `0016_public_observations.sql` is
+the subsequent separate Community publication surface
 for bounded native notes: profiles, short-lived claim handoffs, public-note rows,
 append-only public-note events, and private append-only moderator-hide action records.
 It does not alter the report publication schema. `0017_paper_market.sql` is the next

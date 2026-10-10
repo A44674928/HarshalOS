@@ -1800,6 +1800,9 @@ test("independent snapshot status reads overlap under the read-concurrency bound
     `independent status reads really did overlap (max ${maxInFlight} in flight)`);
   assert.ok(maxInFlight <= ORB2_FIELD_D1_READ_CONCURRENCY,
     `the fan-out stayed inside the reviewed bound (${maxInFlight}/${ORB2_FIELD_D1_READ_CONCURRENCY})`);
+  /* Overlap is proven by the observed in-flight count above, not by wall-clock
+     timing: maxInFlight above one shows independent reads really ran together,
+     and the bound shows the fan-out stayed inside the reviewed limit. */
 });
 
 test("the D1 budget charges every statement exactly once, including batched statements", async t => {
