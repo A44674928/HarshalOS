@@ -100,6 +100,7 @@ test("P8: model text and tool-call payloads remain inert relative to the HOS ker
     };
   };
 
+  HOSLLM.saveSettings({ provider: "anthropic", model: "test-model", protocol: "" });
   HOSLLM.setKey("sk-ant-authority-plane-test-key", false);
   const reply = await HOSLLM.chat({ user: "Return data only.", maxTokens: 100 });
   assert.equal(reply.text, hostileText, "even instruction-like output is returned as a string, not executed");
