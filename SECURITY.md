@@ -1,7 +1,7 @@
 # Security policy and threat model
 
 **Last reviewed:** 2026-10-10
-**Status:** Project-specific disclosure for a browser-based structural demonstration and an early native Swift foundation. This is not a security certification, production deployment approval, or guarantee that the implementation is vulnerability-free.
+**Status:** Project-specific disclosure for a browser-based structural demonstration and a quarantined Apple-platform (Swift) prototype classified AVOID (caustic · compromised). This is not a security certification, production deployment approval, or guarantee that the implementation is vulnerability-free.
 
 ## Security posture
 
@@ -9,7 +9,7 @@ HarshalOS is a client-side demonstration of governance and refusal concepts. It 
 
 The browser kernel keeps its mutable state in a closure and publishes a frozen `window.HOS` capability API rather than a global mutable state object. API transitions validate candidate state, and observations and ledger reads are detached copies. These controls reduce accidental or ordinary API-level mutation; they do not make JavaScript in a user-controlled browser tamper-proof.
 
-The native Swift foundation under [`Garbage - DO NOT USE/native/HarshalNative/`](Garbage%20-%20DO%20NOT%20USE/native/HarshalNative/README.md) is also **local demonstration software**. Its declaration label is self-declared; its on-device acknowledgement is not a Human Key authenticator; its SHA-256 local ledger/receipt is not a signature or independent witness; and its optional CloudKit private mirror is synchronization, not identity proof or authorization. The public-observation feature uses a separate, explicitly user-triggered Community handoff; it never publishes a personal universe core and it does not treat a public pseudonym, one-time claim code, or returned note receipt as identity/authorization. The first native build deliberately rejects a local attempt to label itself externally attested because no independently reviewed external-attestation provider is configured. See its [architecture and trust boundary](Garbage%20-%20DO%20NOT%20USE/native/HarshalNative/docs/ARCHITECTURE.md).
+The native Swift foundation under [`AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/`](AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/README.md) is also **local demonstration software**. Its declaration label is self-declared; its on-device acknowledgement is not a Human Key authenticator; its SHA-256 local ledger/receipt is not a signature or independent witness; and its optional CloudKit private mirror is synchronization, not identity proof or authorization. The public-observation feature uses a separate, explicitly user-triggered Community handoff; it never publishes a personal universe core and it does not treat a public pseudonym, one-time claim code, or returned note receipt as identity/authorization. The first native build deliberately rejects a local attempt to label itself externally attested because no independently reviewed external-attestation provider is configured. See its [architecture and trust boundary](AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/docs/ARCHITECTURE.md).
 
 ## Assets and security objectives
 
@@ -32,7 +32,7 @@ The code and tests aim to make intended local API transitions explicit, reject m
 
 **Boundary:** `window.HOS` is still available to JavaScript running in the page's origin. A malicious or compromised same-origin script, XSS, browser extension, developer-tools user, injected dependency, or person controlling the browser can inspect or replace page behavior, invoke exposed capabilities, alter the DOM, or falsify displayed results. A closure and frozen objects are not a JavaScript realm or operating-system isolation boundary. The browser-side security profile is not designed to resist an attacker who can execute code in the page.
 
-### 2. Native Swift foundation
+### 2. Apple ecosystem — AVOID (caustic · compromised; quarantined)
 
 **Expected protection:** the `HarshalCore` and `HarshalLedger` packages separate deterministic model code from SwiftUI presentation; `LocalLedger` serializes ordinary concurrent appends through an actor and verifies a SHA-256 chain prefix. Private native state is encrypted into an app-private file with an AES-GCM key retained separately in Keychain. Short-lived Community claim/status capability material is stored in a separate Keychain vault, omitted from observation serialization, and removed after expiry or a terminal public state. `HarshalDataEgressPolicy` constructs the Community request from only phase, note text, and public pseudonym; private-core, ledger, gate, CloudKit, market, account, and capability fields have no projection field. `ShipmentProvenanceBaseline` separately verifies only pre-registered Ed25519-signed origin/release, scoped route, current revocation snapshot, dual-signed custody, and separately accountable-review records against a caller-owned role-scoped public-key trust store; it holds missing, expired, revoked, altered, replayed, route-deviating, unknown, or one-sided evidence for authorized review and has no shipment acceptance/release action. The app begins without an active acknowledgement, authorization, session tuple, technical attribution, or operational-accountability model input, so the native refusal gate fails closed. Active local acknowledgement state is cleared on app launch rather than silently restored. The macOS target declares App Sandbox, outbound-network client access, and Hardened Runtime settings.
 
@@ -91,7 +91,7 @@ The local `node serve.js` server allowlists site paths rather than serving the c
 
 This repository does not establish a complete production HTTP security-header policy (for example, a tested Content Security Policy and HSTS configuration). Hosting/CDN configuration, HTTPS, dependency updates, and release integrity remain deployment responsibilities. There has not been a comprehensive XSS, browser, dependency-supply-chain, or deployment audit.
 
-The native **SCAV++ supply-chain boundary** is a narrow local policy model grounded in the published AGS v0.2 corpus. Published **Part XVIII** supplies conceptual accountability/continuity/restraint principles; published **Part XIX** is accurately recorded as `THREAT_RESEARCH` and is cataloged only. The bundled Library may render the owner-provided book read-only, but no app feature derives or operationalizes Part XIX material. It refuses a proposed component-embedding, delegated-authority, external-automation, or privileged integration relationship, and it can contain only a verified local read-only research reference. It is not an SBOM, package/signature verifier, release-attestation system, incident detector, license enforcer, or a technical way to prevent source copying/binary modification outside HarshalOS-controlled interfaces. See [`Garbage - DO NOT USE/native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](Garbage%20-%20DO%20NOT%20USE/native/HarshalNative/docs/AGS-V0.2-CORPUS.md) and [`Garbage - DO NOT USE/native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md`](Garbage%20-%20DO%20NOT%20USE/native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md).
+The native **SCAV++ supply-chain boundary** is a narrow local policy model grounded in the published AGS v0.2 corpus. Published **Part XVIII** supplies conceptual accountability/continuity/restraint principles; published **Part XIX** is accurately recorded as `THREAT_RESEARCH` and is cataloged only. The bundled Library may render the owner-provided book read-only, but no app feature derives or operationalizes Part XIX material. It refuses a proposed component-embedding, delegated-authority, external-automation, or privileged integration relationship, and it can contain only a verified local read-only research reference. It is not an SBOM, package/signature verifier, release-attestation system, incident detector, license enforcer, or a technical way to prevent source copying/binary modification outside HarshalOS-controlled interfaces. See [`AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/docs/AGS-V0.2-CORPUS.md) and [`AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md`](AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/docs/SUPPLY-CHAIN-BOUNDARY.md).
 
 ## Assumptions for operators
 
@@ -118,10 +118,10 @@ Run the repository's current Node suites with:
 node --test tests/*-test.mjs
 ```
 
-On a macOS machine with Xcode 15.3+, run the initial native package tests separately:
+Quarantined (AVOID) and not part of the supported surface. For the record only, on a macOS machine with Xcode 15.3+:
 
 ```bash
-cd "Garbage - DO NOT USE/native/HarshalNative/Packages/HarshalCore" && swift test
+cd "AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/apple-swift-native/HarshalNative/Packages/HarshalCore" && swift test
 cd ../HarshalLedger && swift test
 ```
 

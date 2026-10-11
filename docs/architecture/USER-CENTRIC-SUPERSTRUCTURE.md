@@ -124,7 +124,7 @@ assets/                                             ← frames the eye animates
 │   orb/          (200 AVIF frames, the iris)
 │   outer_flame/  (600 PNG frames, outer flame corona)
 │   Demo.flame  OuterOrb.flame                      ← fractal source projects
-│   eye-*.{gif,apng,png}  apple-touch-icon.png
+│   eye-*.{gif,apng,png}
 │   favicon-32.png  og-card.png
 ```
 
