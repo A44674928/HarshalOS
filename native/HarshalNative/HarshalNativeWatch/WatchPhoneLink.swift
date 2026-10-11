@@ -130,9 +130,14 @@ final class DelegateBox: NSObject, WCSessionDelegate {
             guard let owner = self?.owner else { return }
             switch activationState {
             case .activated:
-                owner.activationStateText = session.isPaired ? "Linked to iPhone" : "No iPhone paired yet"
-                if !session.recentApplicationContext.isEmpty {
-                    owner.apply(context: session.recentApplicationContext)
+                // `WCSession.isPaired` and `isWatchAppInstalled` are
+                // iOS-only, so the watch asks the mirror-image question
+                // (`isCompanionAppInstalled`) and reads the last gate state
+                // the phone pushed from `receivedApplicationContext`.
+                owner.activationStateText = session.isCompanionAppInstalled ? "Linked to iPhone" : "No iPhone app installed"
+                let context = session.receivedApplicationContext
+                if !context.isEmpty {
+                    owner.apply(context: context)
                 }
             case .inactive:
                 owner.activationStateText = "Link inactive"
