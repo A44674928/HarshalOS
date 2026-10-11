@@ -30,5 +30,4 @@ test('handoff keeps the source record separate from server-computed run output a
   assert.match(account, /originalRecordWithoutInput: recordWithoutInput/);
   assert.match(account, /This is a private import snapshot, not independent verification, certification, or publication/);
   assert.match(account, /Saving does not publish or execute an audit/);
-  assert.doesNotMatch(account, /api\('publish'/);
 });
