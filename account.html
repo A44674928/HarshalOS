@@ -6,6 +6,11 @@
 <main>
 <section class="intro"><p class="eyebrow">YOUR ACCOUNT · YOUR WORK</p><h1>A private place to<br>develop your audit.</h1><p>Save your inputs, keep notes, and return to your work. Nothing on this page is published.</p></section>
 <section class="session"><div><strong id="identity">Checking account availability…</strong><p id="notice" role="status" aria-live="polite">Connecting securely.</p></div><a id="login" class="button" href="/api/community/auth/login" hidden>Sign in / Create account ↗</a><button id="logout" hidden>Sign out</button></section>
+<section id="ground0-handoff" class="session" hidden aria-live="polite">
+  <div><strong>Ground-0 local audit ready</strong><p class="muted">This audit is still stored in this browser. Load it into the editor, review the preserved source record, then click “Save private draft.” Loading does not upload or publish anything.</p></div>
+  <button id="load-ground0-handoff" type="button">Load audit into editor</button>
+  <button id="discard-ground0-handoff" type="button">Discard staged transfer</button>
+</section>
 <div id="workspace" hidden>
 <div class="workspace-grid">
 <aside><div class="section-title"><h2>Your drafts</h2><button id="new">+ New</button></div><p class="muted">Only your signed-in account can access these drafts. Deleting one also deletes its saved private runs; a draft that anchors a published report must be withdrawn instead, and public history is never deleted.</p><ul id="drafts"></ul><button id="more" hidden>Load more</button><button id="refresh">Refresh list</button></aside>

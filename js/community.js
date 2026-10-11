@@ -1,6 +1,8 @@
 const $ = id => document.getElementById(id);
 let user = null, selected = null, dirty = false, busy = false, cursor = null, currentRun = null, runCursor = null, epoch = 0;
 let publicPreview = null, myCursor = null, paperMarketSnapshot = null, paperDevices = [];
+const GROUND0_HANDOFF_KEY = 'ground0-private-account-handoff-v1';
+let pendingGround0Handoff = null;
 /* Human verification (Cloudflare Turnstile) for publishing. Checked lazily:
    nothing is fetched and no third-party script loads until a preview exists,
    and deployments without a Turnstile secret never set `required`. */
@@ -155,10 +157,62 @@ async function list(append = false) {
   }
   cursor = data.nextCursor; $('more').hidden = !cursor; highlight();
 }
+function readGround0Handoff() {
+  try {
+    const raw = localStorage.getItem(GROUND0_HANDOFF_KEY);
+    if (!raw) return null;
+    const transfer = JSON.parse(raw);
+    if (!transfer || transfer.format !== 'ground0-local-audit-handoff-v1' || typeof transfer.transferId !== 'string' ||
+        !transfer.record || typeof transfer.record !== 'object' || Array.isArray(transfer.record) ||
+        typeof transfer.record.id !== 'string' || typeof transfer.record.name !== 'string' || !transfer.record.name.trim() ||
+        !transfer.record.input || typeof transfer.record.input !== 'object' || Array.isArray(transfer.record.input)) return null;
+    if (new TextEncoder().encode(raw).length > 65536) return null;
+    return transfer;
+  } catch { return null; }
+}
+function showGround0Handoff() {
+  $('ground0-handoff').hidden = !pendingGround0Handoff;
+}
+function loadGround0Handoff() {
+  if (!pendingGround0Handoff || !user) return;
+  if (!mayDiscard()) return;
+  const record = pendingGround0Handoff.record;
+  const { input: originalInput, ...recordWithoutInput } = record;
+  const input = {
+    ...originalInput,
+    _ground0Import: {
+      schema: 'ground0-local-audit-import-v1',
+      transferId: pendingGround0Handoff.transferId,
+      transferredAt: pendingGround0Handoff.createdAt,
+      source: 'HarshalOS main Ground-0 local workspace',
+      originalRecordWithoutInput: recordWithoutInput
+    }
+  };
+  if (new TextEncoder().encode(JSON.stringify(input)).length > 65536) {
+    notice('This audit plus its full source record exceeds the private-draft limit. The staged transfer remains available; export a local JSON copy instead.');
+    return;
+  }
+  editor();
+  $('title').value = 'Ground-0 · ' + record.name.slice(0, 180);
+  $('input').value = JSON.stringify(input, null, 2);
+  $('notes').value = [
+    'Imported from the main Ground-0 browser workspace.',
+    'Original record is preserved in input._ground0Import.originalRecordWithoutInput; the original input fields remain at the top level.',
+    'This is a private import snapshot, not independent verification, certification, or publication.',
+    'Source record ID: ' + record.id,
+    'Original local status: ' + (record.status || 'unknown') + '; detected phase: ' + (record.phase || 'unknown') + '.'
+  ].join('\n').slice(0, 4000);
+  dirty = true; controls(); showGround0Handoff();
+  $('revision').textContent = 'Imported locally · not uploaded. Review the JSON, then click Save private draft.';
+  notice('Audit loaded into the editor only. Nothing has been uploaded or published; click Save private draft to send it to your private account.');
+}
 async function session() {
+  pendingGround0Handoff = readGround0Handoff();
+  showGround0Handoff();
   await task(async () => {
     const data = await api('me'); user = data.user; $('identity').textContent = user.moderator ? 'Signed in · Moderator account' : 'Signed in · Private account';
-    $('login').hidden = true; editor(); await list(); notice('Your private workspace is ready. Saving does not publish or execute an audit.');
+    $('login').hidden = true; editor(); await list(); showGround0Handoff();
+    notice(pendingGround0Handoff ? 'A staged local Ground-0 audit is available. Load and review it before saving privately.' : 'Your private workspace is ready. Saving does not publish or execute an audit.');
   });
 }
 $('form').addEventListener('input', () => { dirty = true; clearRun(); controls(); $('revision').textContent = selected ? `Unsaved edits · based on revision ${selected.revision}` : 'Unsaved new draft · not uploaded.'; });
@@ -172,7 +226,12 @@ $('form').addEventListener('submit', event => {
     const data = values(); if (selected) data.revision = selected.revision;
     try {
       const result = await api('drafts' + (selected ? '/' + selected.id : ''), { method: selected ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      editor(result.draft); notice('Saved privately. This is stored input, not an audit result.');
+      editor(result.draft);
+      if (pendingGround0Handoff && result.draft.input?._ground0Import?.transferId === pendingGround0Handoff.transferId) {
+        try { localStorage.removeItem(GROUND0_HANDOFF_KEY); } catch { /* Keep the staged copy if browser storage is unavailable. */ }
+        pendingGround0Handoff = null; showGround0Handoff();
+      }
+      notice('Saved privately. This is stored input, not an audit result.');
     } catch (error) {
       if (error.status === 409) throw new Error('The saved draft changed or is unavailable. Your edits are still here. Export them before reloading the saved version; no overwrite was made.');
       throw error;
@@ -387,5 +446,11 @@ $('paper-pair-approve').addEventListener('click', () => {
     await refreshPaperMarketSnapshot();
     notice(`Approved ${result.pairing.deviceLabel} for a revocable PAPER_TEST credential. Return to the native app to redeem it.`);
   });
+});
+$('load-ground0-handoff').addEventListener('click', () => loadGround0Handoff());
+$('discard-ground0-handoff').addEventListener('click', () => {
+  if (!window.confirm('Discard the staged browser-to-account transfer? This does not delete any saved account draft.')) return;
+  try { localStorage.removeItem(GROUND0_HANDOFF_KEY); } catch { /* best effort */ }
+  pendingGround0Handoff = null; showGround0Handoff(); notice('Staged transfer discarded. The source audit remains in the main workspace unless separately removed.');
 });
 reset(); session();

@@ -305,6 +305,22 @@ APPS.push({
         saveAuto() { commit(S.auto.outcome.record, null); S.auto = { ...S.auto, stage: "saved" }; render(); },
         exportAuto() { G0.downloadFile(`ground-0-${(S.auto.outcome.organization.name || "research").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-research.txt`, window.G0Research.plainResearchSummary(S.auto.outcome), "text/plain"); },
         exportAudit() { G0.exportAudit(S.detail); api.toast("info", "EXPORT", "Audit record exported as JSON."); },
+        saveToAccount() {
+          const audit = findAudit(el.dataset.id);
+          if (!audit || audit.baseline) { api.toast("refusal", "IMPORT UNAVAILABLE", "Only locally saved audit records can be sent to your private account."); return; }
+          const transfer = { format: "ground0-local-audit-handoff-v1", transferId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2)), createdAt: new Date().toISOString(), record: audit };
+          let serialized;
+          try { serialized = JSON.stringify(transfer); } catch { api.toast("refusal", "IMPORT FAILED", "This audit could not be serialized. Export a local JSON copy instead."); return; }
+          if (new TextEncoder().encode(serialized).byteLength > 65536) { api.toast("refusal", "IMPORT TOO LARGE", "This audit exceeds the 64 KiB private-draft limit. Export the JSON locally; no data was uploaded."); return; }
+          try {
+            if (localStorage.getItem("ground0-private-account-handoff-v1")) {
+              api.toast("warn", "TRANSFER ALREADY STAGED", "Open /account and finish or discard the existing staged transfer before starting another.");
+              return;
+            }
+            localStorage.setItem("ground0-private-account-handoff-v1", serialized);
+          } catch { api.toast("refusal", "LOCAL STAGING FAILED", "Browser storage could not stage this audit. Export the JSON locally; no data was uploaded."); return; }
+          window.location.href = "/account#ground0-import";
+        },
         copyRecord() { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(S.detail.report, null, 2)).then(() => api.toast("info", "COPIED", "Audit record copied to the clipboard."), () => api.toast("refusal", "CLIPBOARD UNAVAILABLE", "Use Export JSON instead.")); },
         deleteAudit() { if (!window.confirm("Remove this audit from this browser? This cannot be undone.")) return; const a = S.detail; S.audits = S.audits.filter(x => x.id !== a.id); saveAudits(); HOS.record("info", `GROUND-0 — audit '${a.name}' removed from the local workspace by the custodian.`); S.detail = null; render(); api.toast("info", "REMOVED", "Audit removed from this browser."); },
         wizNext() { wizardNext(); },
@@ -594,6 +610,7 @@ APPS.push({
             <div>${!audit.baseline ? `<button class="g0-textbtn danger" data-act="deleteAudit">Remove audit</button>` : ""}</div>
             <div class="g0-btn-row">
               <button class="g0-btn ghost sm" data-act="exportAudit"><span aria-hidden="true">⭳</span> Export JSON</button>
+              ${!audit.baseline ? `<button class="g0-btn primary sm" data-act="saveToAccount" data-id="${esc(audit.id)}">Save to private account ↗</button>` : ""}
               <button class="g0-btn ghost sm" data-act="copyRecord"><span aria-hidden="true">⧉</span> Copy JSON</button>
               ${listenButton(speech, `detail-${audit.id}`)}
               ${canResume ? `<button class="g0-btn primary sm" data-act="resumeAudit" data-id="${esc(audit.id)}">${audit.method === "automatic" ? "Review and edit" : "Continue audit"} <span aria-hidden="true">▸</span></button>` : ""}
