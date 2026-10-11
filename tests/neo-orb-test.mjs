@@ -10,6 +10,8 @@ const ROOT = new URL("../", import.meta.url);
 const readText = path => readFile(new URL(path, ROOT), "utf8");
 const modelSource = await readText("js/neo-orb-model.js");
 const placementSource = await readText("js/neo-orb-placement.js");
+const marketSource = await readText("js/neo-orb-market.js");
+const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const indexHtml = await readText("index.html");
@@ -162,6 +164,8 @@ function appHarness({ flames = true } = {}) {
   });
   vm.runInContext(modelSource, context, { filename: "js/neo-orb-model.js" });
   vm.runInContext(placementSource, context, { filename: "js/neo-orb-placement.js" });
+  vm.runInContext(marketSource, context, { filename: "js/neo-orb-market.js" });
+  vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
     players.inner = fakePlayer("inner");
@@ -260,6 +264,44 @@ test("the app code reads no kernel, gate, ledger, provider, or route", () => {
     assert.equal(modelSource.includes(forbidden), false, `neo-orb-model.js must not reference ${forbidden}`);
     assert.equal(placementSource.includes(forbidden), false, `neo-orb-placement.js must not reference ${forbidden}`);
   }
+});
+
+test("market colour: fill is rally/sink, the ring is basis, unknown orbs stay neutral, and the live read is labelled", async () => {
+  const h = appHarness({ flames: false });
+  const { body, engine } = mountInto(h);
+  const market = h.win.NeoOrbMarket;
+  const tone = id => engine.toneFor(id);
+  assert.equal(tone("NVDA").fill, "#8fa3c0", "no field yet: neutral");
+  assert.equal(tone("NVDA").ring, null);
+
+  /* A stubbed reader returns one stock row for NVDA: up, and above basis. */
+  h.win.NeoOrbField = {
+    readField: async () => ({ ok: true, at: 7, observations: [
+      { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100 } }
+    ] })
+  };
+  engine.refreshMarket(1000);
+  assert.equal(engine.lastMarketAt, 1000, "the first refresh starts at once");
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(engine.marketStatus, "live");
+  assert.equal(tone("NVDA").fill, market.COLORS.rallying, "NVDA rallies: green fill");
+  assert.equal(tone("NVDA").ring, market.COLORS.above, "NVDA is above basis: yellow ring");
+  assert.equal(tone("AAPL").fill, "#8fa3c0", "a symbol with no field row stays neutral");
+  engine.refreshMarket(1005);
+  assert.equal(engine.lastMarketAt, 1000, "within MARKET_EVERY_MS the field is not re-read");
+
+  engine.readouts();
+  assert.ok(body.querySelector("#neo-market").textContent.includes("1 of 52 orbs coloured"), body.querySelector("#neo-market").textContent);
+  engine.select("NVDA");
+  const inspector = body.querySelector("#neo-inspector").textContent;
+  assert.ok(inspector.includes("rallying · +2.00% · close above the FBB basis"), inspector);
+
+  /* A failed read is labelled, and the last good colours are kept. */
+  h.win.NeoOrbField = { readField: async () => ({ ok: false, message: "field offline" }) };
+  engine.refreshMarket(40000);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(engine.marketStatus, "unavailable — field offline");
+  assert.equal(tone("NVDA").fill, market.COLORS.rallying, "a failed read keeps the last colours");
 });
 
 test("the flame engines are read for guidance and never drawn on the NEO ORB canvas", () => {

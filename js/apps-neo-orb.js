@@ -33,8 +33,12 @@
   const PHASE_SHIFT = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
   const KIND_COLOR = Object.freeze({ structural: "#6fd3ff", field: "#b57cff", interaction: "#5ce6a8" });
   const KIND_NAME = Object.freeze({ structural: "Structural", field: "Field", interaction: "Interaction" });
-  const CENTER_COLOR = "#ffd479";
-  const BAND_COLOR = "#4a9eff";
+  /* Blue and yellow are reserved for market state on the orbs, so the centre marker and the
+     band rings use neutral tones. */
+  const CENTER_COLOR = "#e8f1ff";
+  const BAND_COLOR = "#7d93b8";
+  const MARKET_EVERY_MS = 20000;       // how often the Orb 2 field is re-read (the server's own cadence)
+  const NEUTRAL_FILL = "#8fa3c0";      // no data, flat, or equal to basis
   const ORIGIN_ADDRESS = "0•000•000•0000";
   const DEFAULTS = Object.freeze({
     formation: 1,
@@ -146,6 +150,11 @@
       this.guide = null;                   // combined flame density field, or null
       this.lastGuideAt = -Infinity;
       this.guideCanvas = undefined;        // lazily created 2D scratch canvas (never shown)
+      this.market = null;                  // Map(symbol → market record) from the Orb 2 field, or null
+      this.marketStatus = "waiting for the Orb 2 field";
+      this.marketAt = null;
+      this.lastMarketAt = -Infinity;
+      this.marketBusy = false;
 
       const r = roster();
       this.rosterInfo = r;
@@ -202,6 +211,52 @@
       const map = {};
       for (const p of this.placements) map[p.id] = { longitude: p.longitude, latitude: p.latitude };
       return map;
+    }
+
+    /* ── market colour (descriptive, from the Orb 2 field) ──── */
+    /* Re-read the stored field at most every MARKET_EVERY_MS, through the reader module.
+       Fill = rally/sink; ring = basis. Nothing is written, and no provider is called here. */
+    refreshMarket(now) {
+      const reader = typeof window !== "undefined" ? window.NeoOrbField : null;
+      const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
+      if (!reader || !market) { this.marketStatus = "unavailable — the market colour module did not load"; return; }
+      if (this.marketBusy || now - this.lastMarketAt < MARKET_EVERY_MS) return;
+      this.lastMarketAt = now;
+      this.marketBusy = true;
+      reader.readField({ now: Date.now() }).then(result => {
+        if (result.ok) {
+          this.market = market.indexField(result.observations);
+          this.marketAt = result.at;
+          this.marketStatus = this.market.size ? "live" : "no stock rows in the field yet";
+        } else {
+          this.marketStatus = `unavailable — ${result.message}`;
+        }
+      }).catch(() => {
+        this.marketStatus = "unavailable — the field read failed";
+      }).finally(() => {
+        this.marketBusy = false;
+      });
+    }
+
+    /* { fill, ring, rally, basis } for a roster orb. No data → neutral fill and no ring. */
+    toneFor(id) {
+      const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
+      const record = this.market ? this.market.get(id) : null;
+      if (!market || !record) return { fill: NEUTRAL_FILL, ring: null, rally: "unknown", basis: "unknown" };
+      return market.colourOf(market.marketStateOf(record));
+    }
+
+    /* One readable line for the inspector: rally/sink, the % change, and basis. */
+    marketNoteFor(id) {
+      const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
+      const record = this.market ? this.market.get(id) : null;
+      if (!market || !record) return this.marketStatus;
+      const s = market.marketStateOf(record);
+      const pct = s.changePct === null ? "change not supplied" : `${s.changePct > 0 ? "+" : ""}${s.changePct.toFixed(2)}%`;
+      const basis = s.basis === "above" ? "close above the FBB basis"
+        : s.basis === "below" ? "close below the FBB basis"
+          : s.basis === "equal" ? "close at the FBB basis" : "basis not supplied";
+      return `${s.rally} · ${pct} · ${basis}`;
     }
 
     /* ── dynamic placement ───────────────────────────────────── */
@@ -305,6 +360,7 @@
       this.lastTick = now;
       const simDt = this.state.paused ? 0 : dt * this.state.speed;
       this.clock += simDt;
+      this.refreshMarket(now);
       this.updatePlacement(simDt, now);
       this.draw(now);
       if (now - this.lastReadout > 250) { this.lastReadout = now; this.readouts(); }
@@ -442,7 +498,8 @@
     }
 
     drawOrb(ctx, node, L) {
-      const color = KIND_COLOR[node.n.node.kind] || KIND_COLOR.field;
+      const tone = this.toneFor(node.n.id);
+      const color = tone.fill;
       const alpha = node.front ? 1 : 0.32;
       const selected = node.n.id === this.selectedId;
       const hovered = node.n.id === this.hoveredId;
@@ -464,6 +521,13 @@
       ctx.beginPath();
       ctx.arc(node.x, node.y, node.r, 0, TAU);
       ctx.fill();
+      if (tone.ring) {
+        ctx.strokeStyle = tone.ring;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.r + 2.2, 0, TAU);
+        ctx.stroke();
+      }
       if (selected || hovered) {
         ctx.strokeStyle = selected ? "#ffffff" : "#9fe9ff";
         ctx.lineWidth = selected ? 1.6 : 1;
@@ -548,7 +612,7 @@
       const rosterHtml = this.nodes.length
         ? this.nodes.map(n => `
             <button type="button" class="neo-roster-item" data-id="${esc(n.id)}" aria-pressed="false">
-              <span class="neo-dot" style="background:${KIND_COLOR[n.kind]}"></span>
+              <span class="neo-dot" style="background:${this.toneFor(n.id).fill}"></span>
               <span class="neo-sym">${esc(n.id)}</span>
               <span class="neo-meta">${esc(n.issuerSector)} · ${esc(n.marketCapLabel)}</span>
             </button>`).join("")
@@ -581,6 +645,8 @@
                 <dl class="neo-dl">
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis</dd>
+                  <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
                   <dt>Placement</dt><dd id="neo-place">—</dd>
@@ -720,12 +786,13 @@
           ? `flame-guided · ${driftDeg}° from home sector ${String(n.sector).padStart(3, "0")}`
           : `home sector ${String(n.sector).padStart(3, "0")} (no flame guidance)`;
       el.innerHTML = `
-        <div class="neo-insp-title"><span class="neo-dot" style="background:${KIND_COLOR[n.kind]}"></span>${esc(n.id)} · ${esc(n.name)}</div>
+        <div class="neo-insp-title"><span class="neo-dot" style="background:${this.toneFor(n.id).fill}"></span>${esc(n.id)} · ${esc(n.name)}</div>
         <dl class="neo-dl">
           <dt>Issuer sector</dt><dd>${esc(n.issuerSector)} · rank ${esc(n.sectorRank)} (snapshot)</dd>
           <dt>Market cap</dt><dd>${esc(n.marketCapLabel)} · ${esc(bandNote)}</dd>
           <dt>Display sector</dt><dd>${String(n.sector).padStart(3, "0")} / 360</dd>
           <dt>Display kind</dt><dd>${esc(KIND_NAME[n.kind] || n.kind)}</dd>
+          <dt>Market colour</dt><dd id="neo-insp-market">${esc(this.marketNoteFor(n.id))}</dd>
           <dt>Placement</dt><dd>${esc(placeNote)}</dd>
           <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "placed position"}</dd>
           <dt>Stage</dt><dd>${esc(n.marketStage)}</dd>
@@ -756,6 +823,20 @@
       put("neo-roster", this.rosterInfo
         ? `${this.nodes.length} display orbs · snapshot ${this.rosterInfo.asOf}`
         : "unavailable");
+      const coloured = this.market ? this.nodes.filter(n => this.market.has(n.id)).length : 0;
+      put("neo-market", this.market
+        ? `${this.marketStatus} · ${coloured} of ${this.nodes.length} orbs coloured${this.marketAt ? ` · read ${new Date(this.marketAt).toLocaleTimeString()}` : ""}`
+        : this.marketStatus);
+      for (const item of b.querySelectorAll(".neo-roster-item")) {
+        const dot = item.querySelector(".neo-dot");
+        const fill = this.toneFor(item.dataset.id).fill;
+        if (dot && dot.style.background !== fill) dot.style.background = fill;
+      }
+      const insp = b.querySelector("#neo-insp-market");
+      if (insp && this.selectedId) {
+        const note = this.marketNoteFor(this.selectedId);
+        if (insp.textContent !== note) insp.textContent = note;
+      }
     }
 
     start() {
@@ -799,7 +880,7 @@
   }
 
   if (typeof window !== "undefined") {
-    window.NeoOrbApp = Object.freeze({ DEFAULTS, RANGES, KIND_COLOR, PHASE_SHIFT, GUIDE_WEIGHT, GUIDE_SIZE, mountNeoOrb, NeoOrbEngine });
+    window.NeoOrbApp = Object.freeze({ DEFAULTS, RANGES, KIND_COLOR, PHASE_SHIFT, GUIDE_WEIGHT, GUIDE_SIZE, MARKET_EVERY_MS, mountNeoOrb, NeoOrbEngine });
   }
   registerNeoOrbApp();
 })();

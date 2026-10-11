@@ -169,3 +169,6 @@
   .neo-panel { max-height: none; }
   .neo-hint { display: none; }
 }
+
+/* Market colour legend: swatches share the reserved palette with the orbs. */
+.neo-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 4px 0 8px; vertical-align: middle; }
