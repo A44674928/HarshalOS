@@ -9,7 +9,7 @@ const production = JSON.parse(text('wrangler.jsonc').replace(/^\s*\/\/.*$/gm, ''
 const staging = JSON.parse(text('wrangler.staging.jsonc'));
 const scripts = JSON.parse(text('package.json')).scripts;
 
-test('production retains its identity, dashboard text variables and the enabled community decision', () => {
+test('production retains its identity and explicit public community OIDC configuration', () => {
   assert.equal(production.name, 'harshalos');
   assert.equal(production.keep_vars, true);
   // The enablement decision: explicit file value, so a dashboard 'false' cannot win.
@@ -17,8 +17,15 @@ test('production retains its identity, dashboard text variables and the enabled 
   assert.equal(production.vars.MONGODB_DATABASE, 'harshalos');
   assert.equal(production.workers_dev, false);
   assert.equal(production.preview_urls, false);
-  // Do not override owner-managed issuer/client/origin or Access configuration.
-  assert.deepEqual(Object.keys(production.vars).sort(), ['COMMUNITY_ENABLED', 'MONGODB_DATABASE', 'OIDC_ADMIN_SUBJECTS']);
+  // These public OIDC/origin values are explicitly versioned in Wrangler so
+  // the Worker receives the configuration that was reviewed with this change.
+  assert.equal(production.vars.COMMUNITY_ORIGIN, 'https://main.empty.domains');
+  assert.equal(production.vars.OIDC_CLIENT_ID, '44b3124PsQvzfGQ7YOxG7bhagGWrNsxl');
+  assert.equal(production.vars.OIDC_ISSUER, 'https://dev-0yvxnqrjxm7dtqu4.us.auth0.com/');
+  assert.deepEqual(Object.keys(production.vars).sort(), [
+    'COMMUNITY_ENABLED', 'COMMUNITY_ORIGIN', 'MONGODB_DATABASE',
+    'OIDC_ADMIN_SUBJECTS', 'OIDC_CLIENT_ID', 'OIDC_ISSUER'
+  ]);
 });
 
 test('production declares the confirmed D1 and R2 targets without sharing them with staging', () => {
@@ -82,9 +89,9 @@ test('enabled release rejects unconfigured community routes before any D1 query'
     ['PUT', 'observation-profile'], ['GET', 'my-observations'], ['POST', `observations/${id}/withdraw`],
     ['POST', `observations/${id}/hide`]
   ];
-  // The origin/OIDC variables and secrets are owner-managed in the dashboard and
-  // absent here, exactly as they are absent from wrangler.jsonc. An enabled Worker
-  // must fail closed on every route and must not query D1 first.
+  // This synthetic request environment intentionally omits required origin/OIDC
+  // values and secrets. An enabled Worker must fail closed on every route and
+  // must not query D1 first.
   let queries = 0;
   const env = { COMMUNITY_ENABLED: production.vars.COMMUNITY_ENABLED,
     COMMUNITY_DB: { prepare() { queries++; throw new Error('Unconfigured request reached D1'); } } };
