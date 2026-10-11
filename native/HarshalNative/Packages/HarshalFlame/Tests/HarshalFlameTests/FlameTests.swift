@@ -195,6 +195,26 @@ final class FlameTests: XCTestCase {
         XCTAssertEqual(transform.parameters["rings2_val"] ?? 0, 0.35, accuracy: 1e-12)
     }
 
+    /// The scanner matches the document's *shape*, never its content: regex
+    /// metacharacters inside `.flame` values (`$`, `|`, `(`, `)`, `[`, `]`) are
+    /// ordinary data. This pins the switch from regex literals to compiled
+    /// patterns — nothing may re-interpret a value as syntax.
+    func testAttributeValuesWithRegexMetacharactersAreLiteralData() {
+        let text = """
+        <flames name="Meta$1">
+        <flame name="Meta$1-001" version="a|b(c)[d]">
+        <palette count="4">FF0000</palette>
+        <xform weight="1" color="0.1" spherical="1" coefs="0.8 0 0 0 0.8 0"/>
+        </flame>
+        </flames>
+        """
+        let document = FlameParser.parse(text)
+        XCTAssertEqual(document.rootName, "Meta$1")
+        XCTAssertEqual(document.frames.count, 1)
+        XCTAssertEqual(document.frames.first?.name, "Meta$1-001")
+        XCTAssertEqual(document.frames.first?.version, "a|b(c)[d]")
+    }
+
     func testLenientParserSkipsBrokenFrames() {
         let broken = sampleText + "\n<flame name=\"broken\"><palette count=\"8\">ZZZZ</palette><xform weight=\"1\" coefs=\"bad\"></flame>"
         let document = FlameParser.parse(broken)

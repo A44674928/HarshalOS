@@ -80,7 +80,6 @@ public enum FlameCurves {
         case "epispiral":
             // Epispiral / epicycloid, n cusps: (n+1)e^{it} − e^{i(n+1)t}.
             let n = finite(parameters["epispiral_n"]) ?? 3
-            let r = (x * x + y * y).squareRoot()
             let th = atan2(y, x)
             let k = n + 1
             let s = 0.6 / k

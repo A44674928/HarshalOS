@@ -139,6 +139,32 @@ public enum FlameParserError: Error, Equatable {
 }
 
 public enum FlameParser {
+    // MARK: - Patterns
+    //
+    // The document is scanned with `NSRegularExpression` rather than regex
+    // *literals* (`/.../`) on purpose. The literal syntax needs the
+    // `BareSlashRegexLiterals` upcoming feature whenever the language mode is
+    // Swift 5 — which is what the Xcode project (`SWIFT_VERSION = 5.0`) and
+    // this package's `swift-tools-version: 5.10` both compile in — and a build
+    // without that opt-in rejects `/…/` outright. Compiling the same pattern
+    // strings at runtime behaves identically on every toolchain, every
+    // language mode, and every platform this package supports.
+    //
+    // The pattern strings are the browser engine's own (`js/flame.js`), held in
+    // raw string literals so they read exactly as they do there.
+
+    private nonisolated(unsafe) static let rootNameExpression =
+        Self.expression(#"<flames[^>]*name="([^"]*)""#)
+    /// `<flame` — with a word boundary, so it never matches the `<flames` root.
+    private nonisolated(unsafe) static let frameBoundaryExpression =
+        Self.expression(#"<flame\b"#)
+    private nonisolated(unsafe) static let paletteExpression =
+        Self.expression(#"<palette[^>]*count="(\d+)"[^>]*>([\s\S]*?)</palette>"#)
+    private nonisolated(unsafe) static let transformExpression =
+        Self.expression(#"<xform\b[^>]*?/?>"#)
+    private nonisolated(unsafe) static let attributeExpression =
+        Self.expression(#"([\w.-]+)\s*=\s*"([^"]*)""#)
+
     /// Parse a `.flame` document. Lenient: broken frames are skipped.
     public static func parse(_ text: String) -> FlameDocument {
         var document = FlameDocument(rootName: "", frames: [])
@@ -148,17 +174,18 @@ public enum FlameParser {
             .replacingOccurrences(of: "\u{FEFF}", with: "")
             .replacingOccurrences(of: "\r\n", with: "\n")
 
-        if let match = normalized.firstMatch(of: /<flames[^>]*name="([^"]*)"/) {
-            document.rootName = String(match.1)
+        if let match = Self.matches(Self.rootNameExpression, in: normalized).first,
+           let rootName = Self.substring(match.range(at: 1), in: normalized) {
+            document.rootName = rootName
         }
 
         // Split on `<flame\b` (word boundary — never on the `<flames` root).
+        let boundaries = Self.matches(Self.frameBoundaryExpression, in: normalized)
+            .compactMap { Range($0.range, in: normalized) }
         var blocks: [Substring] = []
-        var nextBoundary = normalized.range(of: /<flame\b/, range: normalized.startIndex..<normalized.endIndex)
-        while let boundary = nextBoundary {
+        for (index, boundary) in boundaries.enumerated() {
             let blockStart = boundary.upperBound
-            nextBoundary = normalized.range(of: /<flame\b/, range: blockStart..<normalized.endIndex)
-            let blockEnd = nextBoundary?.lowerBound ?? normalized.endIndex
+            let blockEnd = index + 1 < boundaries.count ? boundaries[index + 1].lowerBound : normalized.endIndex
             blocks.append(normalized[blockStart..<blockEnd])
         }
 
@@ -167,12 +194,14 @@ public enum FlameParser {
             let head = Self.attributes(String(block[block.startIndex..<headEnd]))
             let body = String(block[block.index(after: headEnd)...])
 
-            guard let paletteMatch = body.firstMatch(of: /<palette[^>]*count="(\d+)"[^>]*>([\s\S]*?)<\/palette>/) else {
+            guard let paletteMatch = Self.matches(Self.paletteExpression, in: body).first,
+                  let declaredCount = Self.substring(paletteMatch.range(at: 1), in: body),
+                  let paletteBody = Self.substring(paletteMatch.range(at: 2), in: body) else {
                 continue
             }
             let palette = Self.parsePalette(
-                String(paletteMatch.2),
-                declaredCount: Int(paletteMatch.1) ?? FlamePalette.entryCount
+                paletteBody,
+                declaredCount: Int(declaredCount) ?? FlamePalette.entryCount
             )
 
             let size = Self.numbers(head["size"]) ?? [1_024, 1_024]
@@ -186,8 +215,8 @@ public enum FlameParser {
             // curve discovery, exactly like the browser engine.
             var noUnderscoreNames = Set<String>()
             var transformTags: [String] = []
-            for match in body.matches(of: /<xform\b[^>]*?\/?>/) {
-                let tag = String(match.0)
+            for match in Self.matches(Self.transformExpression, in: body) {
+                guard let tag = Self.substring(match.range, in: body) else { continue }
                 transformTags.append(tag)
                 for attribute in Self.attributes(tag).keys where !attribute.contains("_") {
                     noUnderscoreNames.insert(attribute)
@@ -238,10 +267,36 @@ public enum FlameParser {
     /// `attr="value"` scanner tolerant of whitespace and attribute order.
     static func attributes(_ tag: String) -> [String: String] {
         var out: [String: String] = [:]
-        for match in tag.matches(of: /([\w.-]+)\s*=\s*"([^"]*)"/) {
-            out[String(match.1)] = String(match.2)
+        for match in Self.matches(Self.attributeExpression, in: tag) {
+            guard let name = Self.substring(match.range(at: 1), in: tag),
+                  let value = Self.substring(match.range(at: 2), in: tag) else { continue }
+            out[name] = value
         }
         return out
+    }
+
+    // MARK: - Matching
+
+    /// A compiled expression from one of this type's literal patterns. The
+    /// patterns are constants, so a failure here is a programmer error.
+    private static func expression(_ pattern: String) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: pattern)
+        } catch {
+            preconditionFailure("invalid .flame pattern \(pattern): \(error)")
+        }
+    }
+
+    /// Every non-overlapping match of `expression` in `text`, in order.
+    private static func matches(_ expression: NSRegularExpression, in text: String) -> [NSTextCheckingResult] {
+        expression.matches(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text))
+    }
+
+    /// The text a match range covers, or `nil` when that group did not
+    /// participate in the match (or the range is out of bounds).
+    private static func substring(_ range: NSRange, in text: String) -> String? {
+        guard range.location != NSNotFound, let range = Range(range, in: text) else { return nil }
+        return String(text[range])
     }
 
     /// The browser engine's `parseFloat` rule, which is lenient about
