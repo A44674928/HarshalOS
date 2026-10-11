@@ -8,10 +8,8 @@ struct DashboardView: View {
                 .tabItem { Label("Overview", systemImage: "square.grid.2x2") }
             LibraryView()
                 .tabItem { Label("Library", systemImage: "books.vertical") }
-            MarketView()
-                .tabItem { Label("Markets", systemImage: "chart.line.uptrend.xyaxis") }
-            NeoOrbView()
-                .tabItem { Label("NEO ORB", systemImage: "circle.dotted") }
+            MarketsOrbView()
+                .tabItem { Label("Markets · ORB", systemImage: "chart.line.uptrend.xyaxis") }
             GateView()
                 .tabItem { Label("Gate", systemImage: "checkmark.shield") }
             SupplyChainView()
@@ -73,8 +71,8 @@ private struct OverviewView: View {
                     GroupBox("Next") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Use Library to read the locally bundled AGS v0.2 full book, navigate its source map, and open curated repository companions in your platform browser.")
-                            Text("Use Markets to record fixture-only paper declarations and simulated positions for any declared phase.")
-                            Text("Use Gate to inspect modeled external-action inputs and see a refusal or local-only model result.")
+                            Text("Use Markets · ORB to run the paper trading simulator over the Good Intelligence ticker board and explore NEO ORB — Orb 2's ticker orbs burning inside The Orb's dual fractal flame engines. The gear on that tab dials everything in.")
+                            Text("Use Gate to inspect modeled external-action inputs and see a refusal or local-only model result. The Human-Key gate (biometric + Apple Watch witness) guards paper orders on the Markets · ORB tab.")
                             Text("Use SCAV++ to examine the defensive supply-chain boundary. It refuses component embedding, delegated authority, external automation, and privileged downstream requests.")
                             Text("Use Ledger to inspect the declaration receipt, record private/public observations, and explicitly publish a bounded public note through the Community handoff.")
                         }

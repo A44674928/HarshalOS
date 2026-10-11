@@ -17,6 +17,14 @@ final class AppModel {
     /// ledger; the server ledger below is the shared-authority surface.
     var paperLedgerState = PaperLedgerState.empty
 
+    /// The combined Markets · NEO ORB surface: tucked-away settings, the
+    /// paper trading simulator, the ticker board, and the Watch/biometric
+    /// gate. Its account is persisted through the same encrypted local state
+    /// as every other private record.
+    var marketsOrb = MarketsOrbModel()
+    /// Durable simulator account restored at bootstrap and replaced on change.
+    var simulatorAccount: TradingSimulator.Account?
+
     /// Last validated account-scoped server snapshot. It is memory-only so a
     /// stale network response cannot be mistaken for a durable local ledger.
     var remotePaperMarketSnapshot: RemotePaperMarketSnapshot?
@@ -76,7 +84,11 @@ final class AppModel {
         guard !didBootstrap else { return }
         didBootstrap = true
 
+        marketsOrb.appModel = self
+        marketsOrb.bootstrap()
+
         guard let stored = LocalStateStore.load() else {
+            marketsOrb.restore(account: nil)
             await restoreRemotePaperMarketCapabilities()
             return
         }
@@ -92,6 +104,10 @@ final class AppModel {
                 appendRecoveryError("Recovered paper-market records failed validation and were not restored. The local paper ledger remains empty; review the prior device record before recreating it.")
             }
         }
+        // The paper simulator account restores only through its own schema
+        // validation; a corrupt blob starts fresh rather than partially.
+        simulatorAccount = stored.simulatorAccount
+        marketsOrb.restore(account: stored.simulatorAccount)
         if let recoveredNotes = stored.observationNotes {
             do {
                 try validateRecoveredNotes(recoveredNotes, declaration: stored.declaration)
@@ -944,6 +960,13 @@ final class AppModel {
         return persistCurrentState()
     }
 
+    /// Persist a simulator account change through the encrypted local-state
+    /// pipeline. Called by `MarketsOrbModel` after every validated action.
+    func persistSimulatorAccount(_ account: TradingSimulator.Account) async {
+        simulatorAccount = account
+        _ = persistCurrentState()
+    }
+
     @discardableResult
     private func persistCurrentState() -> Bool {
         let persisted = LocalStateStore.save(
@@ -953,7 +976,8 @@ final class AppModel {
                 ledgerEntries: ledgerEntries,
                 paperLedgerState: paperLedgerState,
                 observationNotes: observationNotes,
-                publicProfilePseudonym: publicProfilePseudonym
+                publicProfilePseudonym: publicProfilePseudonym,
+                simulatorAccount: simulatorAccount
             )
         )
         if persisted {
