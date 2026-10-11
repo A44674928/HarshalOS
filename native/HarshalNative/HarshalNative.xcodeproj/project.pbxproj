@@ -135,7 +135,7 @@
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 13;
+			dstSubfolderSpec = 16;
 			files = (
 				A10000000000000000000070 /* "HarshalNative Watch.app" in Embed Watch Content */,
 			);
