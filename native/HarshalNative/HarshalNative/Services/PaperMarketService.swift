@@ -508,7 +508,12 @@ struct PaperMarketService {
 
     func redeemPairing(_ pairing: PaperMarketPairingCapability) async throws -> PaperMarketDeviceCredential {
         guard !pairing.isExpired else { throw PaperMarketServiceError.pairingExpired }
-        var request = request(path: "device-pairings/\(pairing.id.uuidString.lowercased())/redeem", method: "POST", body: EmptyRequest())
+        // The `body:` overload throws — it JSON-encodes the request body.
+        var request = try request(
+            path: "device-pairings/\(pairing.id.uuidString.lowercased())/redeem",
+            method: "POST",
+            body: EmptyRequest()
+        )
         request.setValue(pairing.pollToken, forHTTPHeaderField: "X-HOS-Paper-Pairing")
         let envelope: DeviceCredentialEnvelope = try await send(request)
         try envelope.credential.validate()

@@ -39,7 +39,13 @@ struct TradingSimulatorView: View {
             fillsSection
             paperBoundarySection
         }
+        // `.insetGrouped` is iOS-only; it is marked unavailable on macOS, so
+        // macOS falls back to its closest native equivalent.
+        #if os(macOS)
+        .listStyle(.inset)
+        #else
         .listStyle(.insetGrouped)
+        #endif
         .scrollContentBackground(.hidden)
         .background(HarshalTheme.canvas)
         .onAppear {
