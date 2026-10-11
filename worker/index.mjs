@@ -13,6 +13,7 @@ import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
 import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
+import { NEO_ORB_PAGE_PATHS, NEO_ORB_PAGE_HEADER_CSP } from './neo-orb-page.mjs';
 import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
 import { runScheduledBackup } from './d1-backup.mjs';
 
@@ -203,6 +204,22 @@ export default {
         status: 404,
         headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
       });
+    }
+    /* The standalone NEO ORB page is its own document. Its policy allows no outbound
+       connection except this origin, and it is the only page that sets that policy. */
+    if (NEO_ORB_PAGE_PATHS[path]) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } });
+      }
+      const assetURL = new URL(request.url);
+      assetURL.pathname = NEO_ORB_PAGE_PATHS[path];
+      const asset = await env.ASSETS.fetch(new Request(assetURL, request));
+      const response = new Response(asset.body, asset);
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      response.headers.set('X-Content-Type-Options', 'nosniff');
+      response.headers.set('Content-Security-Policy', NEO_ORB_PAGE_HEADER_CSP);
+      return response;
     }
     const communityPageAssets = {
       // Fetch extensionless canonical paths through Assets. Cloudflare's default

@@ -77,6 +77,7 @@ import {
   selectLogBoundedOptionContracts
 } from "./options-massive.mjs";
 import { fxProviderMode, fetchFxMarketContext } from "./fx-provider.mjs";
+import { orb2CompanyFeedsEnabled, ORB2_COMPANY_FEEDS_CUT_MESSAGE } from "./orb2-company-feed-gate.mjs";
 import { fetchAlphaVantageFxDaily } from "./characters-alpha-vantage.mjs";
 import { claimTickerbotCall, readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import {
@@ -2071,6 +2072,13 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     cursorAdvanced: false, cursorReset: false, sweepsCompleted: 0,
     notes: [], errors: []
   };
+  /* Company feeds are cut for Orb 2 (see orb2-company-feed-gate.mjs). The tick returns
+     before any D1 claim or provider call, so nothing is spent and nothing is sent. */
+  if (!orb2CompanyFeedsEnabled(env)) {
+    summary.companyFeedsCut = true;
+    summary.errors.push(ORB2_COMPANY_FEEDS_CUT_MESSAGE);
+    return summary;
+  }
   if (!rawDb || typeof rawDb.prepare !== "function") {
     summary.errors.push("Bind COMMUNITY_DB and apply community migrations through 0012 before the server field can run.");
     return summary;
@@ -2938,6 +2946,8 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
   }
 
   if (request.headers.get("Origin") !== url.origin) return failure("Same-origin request required.", 403);
+  /* POST actions enqueue or run provider work. While the company-feed cut holds they are refused. */
+  if (!orb2CompanyFeedsEnabled(env)) return failure(ORB2_COMPANY_FEEDS_CUT_MESSAGE, 503);
   const db = env.COMMUNITY_DB;
   if (!db || typeof db.prepare !== "function") {
     return failure("The Orb 2 server field needs the COMMUNITY_DB binding and community migrations through 0012. No fallback source is used.", 503);

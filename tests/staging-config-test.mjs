@@ -46,7 +46,7 @@ test('staging uses the same worker-first privacy routes and allowlisted assets',
   assert.equal(staging.main, 'worker/index.mjs');
   assert.equal(staging.assets.directory, '.site-assets');
   assert.equal(staging.assets.binding, 'ASSETS');
-  assert.deepEqual(staging.assets.run_worker_first, ['/api/*','/account','/account.html','/audits','/audits.html','/observations','/observations.html','/.git','/.git/*','/.env*']);
+  assert.deepEqual(staging.assets.run_worker_first, ['/api/*','/account','/account.html','/audits','/audits.html','/observations','/observations.html','/neo-orb','/neo-orb.html','/.git','/.git/*','/.env*']);
   assert.equal(staging.assets.not_found_handling, 'none', 'missing assets must not fall through to an SPA index');
   assert.ok(!text('.assetsignore').includes('!wrangler'));
 });

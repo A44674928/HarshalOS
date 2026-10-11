@@ -1,5 +1,7 @@
 # Account-scoped PAPER_TEST market ledger
 
+> **Platform note:** the Apple-platform client described below (iPhone, iPad, macOS) is classified **AVOID** and quarantined under `AVOID-APPLE-ECOSYSTEM-CAUSTIC-COMPROMISED/`. It is not built, tested, or supported. The website and the Worker remain the supported surfaces.
+
 The HarshalOS market surface is an **account-scoped paper simulation**. Its
 canonical shared state lives in the Community D1 database and is served only by
 the HarshalOS Worker. The website and paired iPhone, iPad, and macOS app render
