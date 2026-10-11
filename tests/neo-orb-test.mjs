@@ -99,7 +99,7 @@ test("out-of-range dials and duplicate ids are refused rather than silently clam
   assert.throws(() => Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes: [node("dup"), node("dup")] }), RangeError);
 });
 
-test("berth separation re-slots crowded nodes only when enabled, and is deterministic", () => {
+test("berth separation re-slots crowded placements only when enabled, and is deterministic", () => {
   /* Latitude follows list index, so a crowd is many nodes sharing one sector and band. */
   const crowd = Array.from({ length: 20 }, (_, i) => node(`crowd-${String(i).padStart(2, "0")}`, { sector: 120, radialBand: 2 }));
   const minPairChord = shape => {
@@ -112,14 +112,21 @@ test("berth separation re-slots crowded nodes only when enabled, and is determin
     }
     return min;
   };
-  const off = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes: crowd });
-  assert.equal(off.berthSeparation.movedNodeIds.length, 0, "berth 0 never re-slots");
-  assert.ok(minPairChord(off) < Model.BERTH_MIN_CHORD, "the crowd really does overlap without berths");
+  /* At rest the homes are relaxed apart, so even a sector crowd clears the floor with no re-slots. */
+  const rest = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd });
+  assert.equal(rest.berthSeparation.movedNodeIds.length, 0, "relaxed homes need no berth re-slot at rest");
+  assert.ok(minPairChord(rest) >= Model.BERTH_MIN_CHORD - 1e-9, `homes clear the floor (min ${minPairChord(rest)})`);
 
-  const on = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd });
-  assert.ok(on.berthSeparation.movedNodeIds.length > 0, "berth 1 re-slots the crowded nodes");
+  /* Crowded placements (many orbs sent to one spot) are what the berth resolver must fix. */
+  const piled = Object.fromEntries(crowd.map(n => [n.id, { longitude: 0.3, latitude: 0.2 }]));
+  const off = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes: crowd, placements: piled });
+  assert.equal(off.berthSeparation.movedNodeIds.length, 0, "berth 0 never re-slots");
+  assert.ok(minPairChord(off) < Model.BERTH_MIN_CHORD, "the piled placements really do overlap without berths");
+
+  const on = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd, placements: piled });
+  assert.ok(on.berthSeparation.movedNodeIds.length > 0, "berth 1 re-slots the piled nodes");
   assert.ok(minPairChord(on) >= Model.BERTH_MIN_CHORD - 1e-9, `every pair clears the floor (min ${minPairChord(on)})`);
-  const again = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd });
+  const again = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd, placements: piled });
   assert.equal(JSON.stringify(again.nodes.map(n => n.position)), JSON.stringify(on.nodes.map(n => n.position)), "same input, same geometry");
 });
 

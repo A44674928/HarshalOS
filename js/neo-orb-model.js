@@ -40,6 +40,7 @@
 
   const finite = value => typeof value === "number" && Number.isFinite(value);
   const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
+  const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
 
   /* ── identity hashes ──────────────────────────────────────────────────
      64-bit FNV-1a over UTF-8 bytes. BigInt keeps the 64-bit arithmetic exact. */
@@ -239,7 +240,77 @@
   /* Home anchors: where each node sits before any dynamic placement. Sector
      fixes longitude, list position fixes latitude, band fixes radius. Shared by
      makeShape() and homesFor() so the placer starts from the same anchors. */
+  /* Sector sets each home's longitude and list index sets its latitude. Taken raw, those
+     collide: two sectors that land close, with neighbouring indices, share a slot, so the
+     berth check re-slots orbs at rest. Relax the homes once, deterministically, until no
+     pair is closer than HOME_SEPARATION in 3D (the same metric as the berth check), each
+     home staying within HOME_SHIFT of its sector. */
+  const HOME_SEPARATION = 0.16;    // chord, above the berth floor (0.12)
+  const HOME_SHIFT = 1.0;          // rad: a relaxed home stays this close to its sector longitude
+  const HOME_LAT_LIMIT = 0.8;      // rad
+  const HOME_PASSES = 400;
+  const relaxedCache = new WeakMap();
+
+  function relaxSources(sources) {
+    const ideal = { x: 1, y: 1, z: 1 };
+    const homes = sources.map(source => ({
+      id: source.id,
+      radius: source.radius,
+      baseLon: source.sourceLongitude,
+      baseLat: source.sourceLatitude,
+      lon: source.sourceLongitude,
+      lat: source.sourceLatitude
+    }));
+    const pointAt = (h, lon, lat) => positionFor(h.radius, lon, lat, 1, ideal);
+    for (let pass = 0; pass < HOME_PASSES; pass++) {
+      let worst = 0;
+      for (let i = 0; i < homes.length; i++) {
+        for (let j = i + 1; j < homes.length; j++) {
+          const a = homes[i], b = homes[j];
+          const mid = (a.lat + b.lat) / 2;
+          const cosMid = Math.max(0.2, Math.cos(mid));
+          /* chord = radius × angle, so the angular reach depends on the smaller radius */
+          const reach = HOME_SEPARATION * 1.6 / Math.min(a.radius, b.radius);
+          const dl = (a.lon - b.lon > Math.PI ? a.lon - b.lon - TAU : a.lon - b.lon < -Math.PI ? a.lon - b.lon + TAU : a.lon - b.lon) * cosMid, dt = a.lat - b.lat;
+          if (Math.abs(dl) > reach || Math.abs(dt) > reach) continue;
+          const pa = pointAt(a, a.lon, a.lat), pb = pointAt(b, b.lon, b.lat);
+          const d = Math.hypot(pa.x - pb.x, pa.y - pb.y, pa.z - pb.z);
+          if (d >= HOME_SEPARATION) continue;
+          worst = Math.max(worst, HOME_SEPARATION - d);
+          let nx = dl, ny = dt;
+          let L = Math.hypot(nx, ny);
+          if (L < 1e-9) { nx = 1; ny = 0; L = 1; }
+          nx /= L; ny /= L;
+          const meanRadius = (a.radius + b.radius) / 2;
+          const angle = ((HOME_SEPARATION - d) * 0.55) / meanRadius;
+          a.lon += (angle * nx) / cosMid / 2; a.lat += (angle * ny) / 2;
+          b.lon -= (angle * nx) / cosMid / 2; b.lat -= (angle * ny) / 2;
+        }
+      }
+      for (const h of homes) {
+        h.lon = clamp(h.lon, h.baseLon - HOME_SHIFT, h.baseLon + HOME_SHIFT);
+        h.lat = clamp(h.lat, -HOME_LAT_LIMIT, HOME_LAT_LIMIT);
+      }
+      if (worst < 1e-4) break;
+    }
+    return homes;
+  }
+
   function sourcesFor(nodes) {
+    const cached = relaxedCache.get(nodes);
+    if (cached) return cached.map(source => ({ ...source }));
+    const raw = sourcesRaw(nodes);
+    const relaxed = relaxSources(raw);
+    const sources = raw.map((source, index) => ({
+      ...source,
+      sourceLongitude: relaxed[index].lon,
+      sourceLatitude: relaxed[index].lat
+    }));
+    relaxedCache.set(nodes, sources);
+    return sources.map(source => ({ ...source }));
+  }
+
+  function sourcesRaw(nodes) {
     const bands = radialBands();
     const maxBandRadius = bands[bands.length - 1].radius;
     const count = Math.max(1, nodes.length);
@@ -261,13 +332,14 @@
     });
   }
 
-  /* [{ id, longitude, latitude, band, sector }] — the home anchors for the placer. */
+  /* [{ id, longitude, latitude, radius, band, sector }] — the home anchors for the placer. */
   function homesFor(nodes) {
     validateNodes(nodes);
     return sourcesFor(nodes).map(source => ({
       id: source.id,
       longitude: source.sourceLongitude,
       latitude: source.sourceLatitude,
+      radius: source.radius,
       band: source.node.radialBand,
       sector: source.node.sector
     }));

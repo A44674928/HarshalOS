@@ -302,6 +302,31 @@ test("placements fail closed: unknown ids, non-finite values, and out-of-range l
   assert.throws(() => M.makeShape({ formation: 1, axes: { x: 1, y: 1, z: 1 }, berthSeparation: 0, nodes, placements: { A: { longitude: 0, latitude: 2 } } }), RangeError);
 });
 
+test("guided orbs never re-slot: the full roster stays spaced in 3D while roaming a bright core", () => {
+  /* The jitter the user saw: the berth resolver re-slotting orbs on nearly every frame.
+     Guided placement must hold the spacing itself, in the same 3D geometry the berth check uses. */
+  const nodes = M.rosterNodes(ROSTER.assets);
+  const homes = M.homesFor(nodes);
+  const axes = { x: 1.1, y: 0.84, z: 1.18 };
+  const placer = P.createPlacer(homes, { roam: 0.8, positionFor: M.positionFor });
+  placer.setGeometry({ formation: 1, axes });
+  const field = coreField(0.4, 0, 0.08);
+  let reSlotFrames = 0, worstChord = Infinity;
+  for (let k = 0; k < 12 * 60; k++) {
+    const placements = Object.fromEntries(placer.step(DT, field).map(p => [p.id, { longitude: p.longitude, latitude: p.latitude }]));
+    const shape = M.makeShape({ formation: 1, axes, berthSeparation: 1, nodes, placements });
+    if (shape.berthSeparation.movedNodeIds.length) reSlotFrames++;
+    for (let i = 0; i < shape.nodes.length; i++) {
+      for (let j = i + 1; j < shape.nodes.length; j++) {
+        const p = shape.nodes[i].position, q = shape.nodes[j].position;
+        worstChord = Math.min(worstChord, Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z));
+      }
+    }
+  }
+  assert.equal(reSlotFrames, 0, "no frame re-slots a guided orb");
+  assert.ok(worstChord >= M.BERTH_MIN_CHORD, `every placed pair clears the berth floor (worst ${worstChord.toFixed(3)})`);
+});
+
 test("the placement source is pure math: no DOM, network, storage, or route", () => {
   for (const forbidden of ["document", "fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "/api/", "legitimacy(", "drawImage", "getContext"]) {
     assert.equal(placementSource.includes(forbidden), false, `neo-orb-placement.js must not reference ${forbidden}`);

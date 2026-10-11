@@ -33,13 +33,15 @@
   const BIT_FLOOR = 0.2;           // cells dimmer than this are not bits
   const BIT_MIN_SEP = 0.18;        // minimum spacing between bits, in disc units
   const TETHER_LON = 1.2;          // rad: longitudinal roam at Roam = 1 (≈69°)
-  const TETHER_LAT = 0.6;          // rad: latitudinal roam at Roam = 1 (≈34°)
-  const LAT_LIMIT = 1.0;           // rad: placed latitude is clamped here
+  const TETHER_LAT = 0.9;          // rad: latitudinal roam at Roam = 1 (≈52°)
+  const LAT_LIMIT = 1.5;           // rad: placed latitude is clamped here (≈86°, the poles stay out of reach)
   const SPRING_K = 2.4;            // spring stiffness toward the target
   const DAMPING = 2 * 0.9 * Math.sqrt(SPRING_K);   // ζ = 0.9: smooth, slight overshoot
   const GUIDE_GAIN = 0.35;         // steering up the flame gradient
   const MAX_SPEED = 0.45;          // rad/s for mass 1; heavier orbs are capped lower
   const REPEL_RADIUS = 0.12;       // rad: soft spacing between neighbours
+  const SEPARATION = 0.16;         // 3D chord floor kept while guided; above the berth floor (0.12), so the model never re-slots
+  const PROJECT_ITERATIONS = 3;    // hard spacing passes per step
   const REPEL_GAIN = 1.2;
   const ARRIVE_DIST = 0.12;        // rad: close enough to a bit to dwell there (neighbour spacing keeps a small standoff)
   const SETTLE_SPEED = 0.05;       // rad/s: slow enough to count as settled
@@ -55,6 +57,8 @@
   const finite = value => typeof value === "number" && Number.isFinite(value);
   const clamp = (value, lo, hi) => Math.min(hi, Math.max(lo, value));
   const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+  /* Cheap wrap for differences of two angles already in (−π, π] + drift: one step, no trig. */
+  const wrapDiff = a => (a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a);
 
   /* 32-bit FNV-1a with an avalanche step, mapped to [0, 1). Deterministic. */
   function hash01(text) {
@@ -214,8 +218,20 @@
   }
 
   /* ── placer ──────────────────────────────────────────────────────── */
-  /* homes: [{ id, longitude, latitude, band }] from the model's homesFor().
-     The placer keeps only offsets from home, so identity is never lost. */
+  /* Default sphere point (formation 1, ideal axes) — the same geometry the model draws
+     when no positionFor is supplied. */
+  function sphereFor(radius, longitude, latitude) {
+    return {
+      x: radius * Math.cos(latitude) * Math.cos(longitude),
+      y: radius * Math.sin(latitude),
+      z: radius * Math.cos(latitude) * Math.sin(longitude)
+    };
+  }
+
+  /* homes: [{ id, longitude, latitude, radius, band }] from the model's homesFor().
+     The placer keeps only offsets from home, so identity is never lost.
+     options.positionFor — the model's positionFor, so spacing is measured in the same
+     3D geometry the berth check uses. */
   function createPlacer(homes, options = {}) {
     if (!Array.isArray(homes)) throw new TypeError("createPlacer needs an array of homes.");
     const seen = new Set();
@@ -226,8 +242,11 @@
     }
 
     let roam = clamp(finite(options.roam) ? options.roam : 0.6, 0, 1);
+    const positionFor = typeof options.positionFor === "function" ? options.positionFor : null;
+    let geometry = { formation: 1, axes: { x: 1, y: 1, z: 1 } };
     const nodes = homes.map(h => ({
       id: h.id,
+      radius: finite(h.radius) ? h.radius : 1,
       homeLongitude: h.longitude,
       homeLatitude: h.latitude,
       mass: inertiaFor(h.band),
@@ -305,6 +324,50 @@
       }
     }
 
+    /* 3D point of a node at (lon, lat), in the same geometry the model draws. */
+    function pointOf(node, lon, lat) {
+      return positionFor
+        ? positionFor(node.radius, lon, lat, geometry.formation, geometry.axes)
+        : sphereFor(node.radius, lon, lat);
+    }
+
+    /* Hard spacing while guided: any pair closer than SEPARATION in 3D is pushed apart
+       along their lon/lat separation, split by inertia. Continuous, so no orb ever
+       jumps; the berth check then has nothing to re-slot. */
+    function separate() {
+      if (!guided || nodes.length < 2) return;
+      const pointOfNode = node => pointOf(node, node.homeLongitude + node.off.lon, node.homeLatitude + node.off.lat);
+      const pts = nodes.map(pointOfNode);
+      for (let pass = 0; pass < PROJECT_ITERATIONS; pass++) {
+        let moved = false;
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i], b = nodes[j];
+            const pa = pts[i], pb = pts[j];
+            const d = Math.hypot(pa.x - pb.x, pa.y - pb.y, pa.z - pb.z);
+            if (d >= SEPARATION) continue;
+            const latA = a.homeLatitude + a.off.lat, latB = b.homeLatitude + b.off.lat;
+            const lonA = a.homeLongitude + a.off.lon, lonB = b.homeLongitude + b.off.lon;
+            const mid = (latA + latB) / 2;
+            const cosMid = Math.max(0.2, Math.cos(mid));
+            const dl = wrapDiff(lonA - lonB) * cosMid, dt = latA - latB;
+            let nx = dl, ny = dt;
+            let L = Math.hypot(nx, ny);
+            if (L < 1e-9) { nx = 1; ny = 0; L = 1; }   // coincident: a fixed, deterministic direction
+            nx /= L; ny /= L;
+            const angle = ((SEPARATION - d) * 1.1) / ((a.radius + b.radius) / 2);
+            const wa = (1 / a.mass) / (1 / a.mass + 1 / b.mass), wb = 1 - wa;
+            a.off.lon += (wa * angle * nx) / cosMid; a.off.lat += wa * angle * ny;
+            b.off.lon -= (wb * angle * nx) / cosMid; b.off.lat -= wb * angle * ny;
+            moved = true;
+          }
+        }
+        for (const node of nodes) tether(node);
+        if (!moved) break;
+        for (let k = 0; k < nodes.length; k++) pts[k] = pointOfNode(nodes[k]);
+      }
+    }
+
     function advance(h) {
       const forces = nodes.map(node => {
         const m = node.mass;
@@ -351,6 +414,9 @@
         node.off.lon += node.vel.lon * h;
         node.off.lat += node.vel.lat * h;
         tether(node);
+      });
+      separate();
+      nodes.forEach(node => {
         node.age += h;
         const dist = Math.hypot(node.target.lon - node.off.lon, node.target.lat - node.off.lat);
         const settled = dist < ARRIVE_DIST && Math.hypot(node.vel.lon, node.vel.lat) < SETTLE_SPEED;
@@ -408,6 +474,15 @@
       });
     }
 
+    /* The live shape geometry (formation, axes), so spacing matches what the model draws. */
+    function setGeometry(value) {
+      if (!value || typeof value !== "object") return;
+      geometry = {
+        formation: finite(value.formation) ? value.formation : geometry.formation,
+        axes: value.axes && typeof value.axes === "object" ? value.axes : geometry.axes
+      };
+    }
+
     function setRoam(value) {
       roam = clamp(finite(value) ? value : roam, 0, 1);
       for (const node of nodes) tether(node);
@@ -436,6 +511,7 @@
       step,
       placements,
       setRoam,
+      setGeometry,
       reset
     });
   }

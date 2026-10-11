@@ -154,7 +154,11 @@
       this.homes = model() && this.nodes.length ? model().homesFor(this.nodes) : [];
       const placing = placerModule();
       this.placer = placing && this.homes.length
-        ? placing.createPlacer(this.homes, { roam: this.state.roam })
+        ? placing.createPlacer(this.homes, {
+            roam: this.state.roam,
+            /* the model's own 3D geometry, so spacing is measured where the berth check measures it */
+            positionFor: (radius, lon, lat, formation, axes) => model().positionFor(radius, lon, lat, formation, axes)
+          })
         : null;
 
       const { inner, outer } = flameEngines();
@@ -211,6 +215,10 @@
         return;
       }
       if (this.placer.roam !== this.state.roam) this.placer.setRoam(this.state.roam);
+      this.placer.setGeometry({
+        formation: this.state.formation,
+        axes: { x: this.state.axes.x, y: this.state.axes.y, z: this.state.axes.z }
+      });
       if (now - this.lastGuideAt >= GUIDE_EVERY_MS || this.lastGuideAt === -Infinity) {
         this.guide = this.sampleGuide();
         this.lastGuideAt = now;
