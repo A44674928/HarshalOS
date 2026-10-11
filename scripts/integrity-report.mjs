@@ -16,6 +16,7 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
+  { area: "NEO ORB web geometry and app (display-only)", script: "test:neo-orb", files: ["neo-orb-test.mjs"] },
   { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
   {
