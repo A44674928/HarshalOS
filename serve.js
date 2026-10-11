@@ -126,9 +126,9 @@ http.createServer(async (req, res) => {
     const u = new URL(req.url, "http://localhost");
     let p = decodeURIComponent(u.pathname);
     // Cloudflare handles Worker-first Community routes in production. Keep the
-    // public-observation handoff URL usable in this deliberately static local
-    // preview too; it exposes only the same allowlisted HTML publisher shell.
-    if (p === "/observations") p = "/observations.html";
+    // canonical extensionless Community URLs usable in this deliberately static
+    // local preview too; they expose only the same allowlisted HTML shells.
+    if (p === "/account" || p === "/audits" || p === "/observations") p += ".html";
     if (p.endsWith("/")) p += "index.html";
     if (!isServed(p)) {
       res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });

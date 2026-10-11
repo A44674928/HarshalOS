@@ -220,8 +220,9 @@ export default {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } });
       }
-      // Assets does not need to infer extensionless Community routes. Preserve
-      // the browser URL/query while fetching the exact allowlisted HTML asset.
+      // Preserve the request query string while rewriting any .html alias to
+      // the canonical extensionless asset URL so html_handling="auto-trailing-slash"
+      // serves 200 OK instead of issuing a 307 redirect back into the Worker.
       const assetURL = new URL(request.url);
       assetURL.pathname = communityPageAssets[path];
       const asset = await env.ASSETS.fetch(new Request(assetURL, request));
