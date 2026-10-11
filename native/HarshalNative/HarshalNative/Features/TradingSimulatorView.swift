@@ -39,7 +39,13 @@ struct TradingSimulatorView: View {
             fillsSection
             paperBoundarySection
         }
+        // `.insetGrouped` is iOS-only; it is marked unavailable on macOS, so
+        // macOS falls back to its closest native equivalent.
+        #if os(macOS)
+        .listStyle(.inset)
+        #else
         .listStyle(.insetGrouped)
+        #endif
         .scrollContentBackground(.hidden)
         .background(HarshalTheme.canvas)
         .onAppear {
@@ -307,9 +313,13 @@ struct TradingSimulatorView: View {
             ForEach(positions) { position in
                 let mark = appModel.marketsOrb.accountMarks[position.symbol]
                 let unrealized = mark.map { position.unrealizedPL(atMark: $0) }
+                // Format the signed quantity here: the `specifier:` interpolation
+                // is not available in this context, so this is the same "%.2f"
+                // applied up front.
+                let quantity = String(format: "%.2f", abs(NSDecimalNumber(decimal: position.quantity).doubleValue))
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(position.isLong ? "LONG" : "SHORT") \(position.symbol) · \(abs(NSDecimalNumber(decimal: position.quantity).doubleValue), specifier: "%.2f") @ \(position.averagePrice.map { currency($0) } ?? "—")")
+                        Text("\(position.isLong ? "LONG" : "SHORT") \(position.symbol) · \(quantity) @ \(currency(position.averagePrice))")
                             .font(.footnote.weight(.medium))
                         Text("Mark \(mark.map { currency($0) } ?? "no reading") · opened \(position.openedAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption2)
@@ -372,14 +382,14 @@ struct TradingSimulatorView: View {
     private func submitOrder() async {
         let quantity = Decimal(string: quantityText.replacingOccurrences(of: ",", with: "."))
         guard let quantity, quantity > 0 else {
-            appModel.marketsOrb.simulatorError = "Quantity must be a positive number."
+            appModel.marketsOrb.reportSimulatorError("Quantity must be a positive number.")
             return
         }
         var limit: Decimal?
         if orderType == .limit {
             let parsed = Decimal(string: limitText.replacingOccurrences(of: ",", with: "."))
             guard let parsed, parsed > 0 else {
-                appModel.marketsOrb.simulatorError = "Limit orders need a positive limit price."
+                appModel.marketsOrb.reportSimulatorError("Limit orders need a positive limit price.")
                 return
             }
             limit = parsed

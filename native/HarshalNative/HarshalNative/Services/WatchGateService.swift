@@ -241,7 +241,16 @@ final class WatchGateService: NSObject {
         if let last = lastVerification {
             context["verifiedAt"] = last.timeIntervalSince1970
         }
-        session.updateApplicationContext(context)
+        // `updateApplicationContext` is a throwing call: a context pushed
+        // before activation (or one rejected by the system) leaves the watch on
+        // its previous snapshot, which the next gate state replaces. Nothing to
+        // surface to the user, but the call still needs a `try`.
+        do {
+            try session.updateApplicationContext(context)
+        } catch {
+            // Keep the local state machine authoritative; the watch shows the
+            // last context it received until a later push succeeds.
+        }
         lastHeartbeatSentToWatch = now()
         #endif
     }

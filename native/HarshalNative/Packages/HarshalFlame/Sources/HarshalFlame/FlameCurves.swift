@@ -6,6 +6,9 @@ import Foundation
 /// Each warp maps `(x, y, parameters) → (x', y')`. Curve names that are not in
 /// this library fold into the affine term (identity warp) while their weight
 /// still participates in the convex blend — the IFS stays exactly as weighted.
+///
+/// `parameters` is keyed by the **full .flame attribute name** (`rings2_val`,
+/// `julian_dist`, `curl_c1`) — the vocabulary `FlameParser` emits.
 public enum FlameCurves {
     public static let knownNames: Set<String> = [
         "linear", "polar", "unpolar", "julian", "spiral", "whorl", "curl",
@@ -47,7 +50,7 @@ public enum FlameCurves {
             let th = atan2(y, x) + 1.2 / (0.3 + r)
             return (r * cos(th), r * sin(th))
         case "curl":
-            let k = finite(parameters["c1"]) ?? 2
+            let k = finite(parameters["curl_c1"]) ?? 2
             let r = (x * x + y * y).squareRoot()
             let th = atan2(y, x) + k / (1 + r)
             return (r * cos(th), r * sin(th))
@@ -77,7 +80,6 @@ public enum FlameCurves {
         case "epispiral":
             // Epispiral / epicycloid, n cusps: (n+1)e^{it} − e^{i(n+1)t}.
             let n = finite(parameters["epispiral_n"]) ?? 3
-            let r = (x * x + y * y).squareRoot()
             let th = atan2(y, x)
             let k = n + 1
             let s = 0.6 / k
