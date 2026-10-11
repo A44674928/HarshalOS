@@ -23,6 +23,6 @@
     <key>WKApplication</key>
     <true/>
     <key>WKCompanionAppBundleIdentifier</key>
-    <string>com.example.HarshalNative</string>
+    <string>$(HARSHAL_BUNDLE_ID)</string>
 </dict>
 </plist>

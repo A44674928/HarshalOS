@@ -123,7 +123,7 @@ CloudKit starts disabled (`HarshalCloudKitEnabled = false`) because a source rep
 
 When—and only when—the owner approves sync, configure it in Xcode:
 
-1. Replace `com.example.HarshalNative` with an owned bundle identifier and select the correct Development Team.
+1. Set the project's `HARSHAL_BUNDLE_ID` build setting to an owned bundle identifier and select the correct Development Team for every target. The watch target's identifier and its `WKCompanionAppBundleIdentifier` derive from that one setting.
 2. Add the **iCloud** capability and **CloudKit** service for both application targets.
 3. Create an owned `iCloud.*` container and use the **private database**.
 4. Configure a development schema with record type `HarshalPhaseDeclaration` and fields: `declarationJSON` (Bytes), `receiptJSON` (Bytes), `schema` (String), `assurance` (String), and `updatedAt` (Date/Time).

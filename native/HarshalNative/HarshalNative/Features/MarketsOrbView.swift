@@ -168,9 +168,9 @@ struct GateStatusBanner: View {
     private var gateTitle: String {
         switch appModel.marketsOrb.gate.sessionState {
         case .unsupported:
-            return "Human-Key gate · biometric only (no watch link on this platform)"
+            return "Human-Key gate · no watch link on this platform — no permit path"
         case .notPaired:
-            return "Human-Key gate · no Apple Watch paired"
+            return "Human-Key gate · no Apple Watch paired — no permit path"
         case .active, .activating, .inactive:
             return "Human-Key gate · Apple Watch link"
         }
@@ -184,7 +184,9 @@ struct GateStatusBanner: View {
         case .reachableAwaitingBeat:
             return "Watch reachable — no Human-Key beat yet"
         case .unavailable:
-            return gate.watchPaired ? "Watch not reachable" : "No watch heartbeat (policy: \(appModel.marketsOrb.settings.gate.witnessPolicy.label))"
+            return gate.watchPaired
+                ? "Watch paired but not reachable — no beat can arrive"
+                : "No Apple Watch paired — W = 0 in every policy"
         }
     }
 

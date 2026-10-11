@@ -19,12 +19,19 @@ final class WatchPhoneLink: NSObject {
 
     nonisolated static let schema = "hn-watch-gate-v1"
 
-    private(set) var activationStateText = "Activating…"
+    /// Written by the file-local `DelegateBox` below when activation
+    /// completes, so the setter is file-scoped rather than private to this
+    /// type — `private(set)` would be reachable only from this class and its
+    /// same-file extensions, not from `DelegateBox`.
+    fileprivate(set) var activationStateText = "Activating…"
     private(set) var phoneState: PhoneState = .unavailable
     private(set) var legitimacy = 0.0
     private(set) var threshold = 0.5
     private(set) var verifiedAtInterval: TimeInterval?
     private(set) var updatedAtInterval: TimeInterval?
+    /// Freshness window δ mirrored from the phone's dials (canonical 240 s
+    /// until the phone pushes its own value).
+    private(set) var freshnessSeconds: TimeInterval = 240
     private(set) var lastHeartbeatResult: String?
     private(set) var isSendingHeartbeat = false
 
@@ -47,10 +54,8 @@ final class WatchPhoneLink: NSObject {
 
     var freshnessRemaining: TimeInterval? {
         guard let verifiedAtInterval else { return nil }
-        // The phone mirrors the canonical 240 s freshness window.
-        let freshness: TimeInterval = 240
         let elapsed = Date().timeIntervalSince1970 - verifiedAtInterval
-        return max(0, freshness - elapsed)
+        return max(0, freshnessSeconds - elapsed)
     }
 
     /// Send the wearer's Human-Key heartbeat. The phone still runs its own
@@ -88,7 +93,19 @@ final class WatchPhoneLink: NSObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isSendingHeartbeat = false
-                self.lastHeartbeatResult = "Phone unreachable — open the app on the phone once, then retry."
+                // Live delivery failed: the phone app is not reachable right
+                // now (backgrounded or not running). Queue the same stamped
+                // beat instead of dropping the wearer's explicit tap — the
+                // phone ingests it on its next activation, and the witness
+                // decays from the moment the tap happened. The queue survives
+                // either app being suspended.
+                let session = WCSession.default
+                guard session.activationState == .activated else {
+                    self.lastHeartbeatResult = "Phone unreachable — open the app on the phone once, then retry."
+                    return
+                }
+                _ = session.transferUserInfo(message)
+                self.lastHeartbeatResult = "Phone unreachable — beat queued and will land when the phone app runs."
             }
         })
     }
@@ -114,6 +131,9 @@ final class WatchPhoneLink: NSObject {
         if let value = reply["updatedAt"] as? Double, value > 0 {
             updatedAtInterval = value
         }
+        if let value = reply["freshnessSeconds"] as? Double, value > 0 {
+            freshnessSeconds = value
+        }
     }
 }
 
@@ -123,19 +143,24 @@ final class DelegateBox: NSObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor [weak self] in
-            guard let self?.owner else { return }
+            guard let owner = self?.owner else { return }
             switch activationState {
             case .activated:
-                self?.owner.activationStateText = session.isPaired ? "Linked to iPhone" : "No iPhone paired yet"
-                if !session.recentApplicationContext.isEmpty {
-                    self?.owner.apply(context: session.recentApplicationContext)
+                // `WCSession.isPaired` and `isWatchAppInstalled` are
+                // iOS-only, so the watch asks the mirror-image question
+                // (`isCompanionAppInstalled`) and reads the last gate state
+                // the phone pushed from `receivedApplicationContext`.
+                owner.activationStateText = session.isCompanionAppInstalled ? "Linked to iPhone" : "No iPhone app installed"
+                let context = session.receivedApplicationContext
+                if !context.isEmpty {
+                    owner.apply(context: context)
                 }
             case .inactive:
-                self?.owner.activationStateText = "Link inactive"
+                owner.activationStateText = "Link inactive"
             case .notActivated:
-                self?.owner.activationStateText = "Link not activated"
+                owner.activationStateText = "Link not activated"
             @unknown default:
-                self?.owner.activationStateText = "Link state unknown"
+                owner.activationStateText = "Link state unknown"
             }
         }
     }

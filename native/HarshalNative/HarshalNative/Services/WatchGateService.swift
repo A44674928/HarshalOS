@@ -52,6 +52,9 @@ final class WatchGateService: NSObject {
     private(set) var lastRefusalReason: String?
     private(set) var biometricsAvailable = false
     private(set) var lastHeartbeatSentToWatch: Date?
+    /// The freshness δ the last evaluation used. Mirrored to the watch so its
+    /// countdown matches the dials instead of assuming the canonical 240 s.
+    private var lastFreshnessSeconds: TimeInterval = GateFormula.maximumVerificationDelay
     /// Count of gate evaluations, permits and refusals, for the readout.
     private(set) var evaluationCount = 0
 
@@ -94,6 +97,12 @@ final class WatchGateService: NSObject {
         guard let session = session as? WCSession else { return }
         watchPaired = session.isPaired
         watchReachable = session.isReachable
+        // Pairing is only meaningful on an activated session; before that the
+        // property reports false and the readout would flash "no watch paired"
+        // during a normal launch.
+        if session.activationState == .activated {
+            sessionState = watchPaired ? .active : .notPaired
+        }
         if !watchPaired {
             witness = .unavailable
         } else if case .beat = witness {
@@ -130,6 +139,7 @@ final class WatchGateService: NSObject {
         context: GateRequestContext,
         settings: MarketsGateSettings
     ) async -> GateFormula.Verdict {
+        lastFreshnessSeconds = settings.freshnessSeconds
         let biometricPassed = await runBiometricEvaluation(settings: settings)
         if biometricPassed {
             lastVerification = now()
@@ -154,6 +164,10 @@ final class WatchGateService: NSObject {
         )
 
         var prerequisites: GateFormula.Prerequisites = []
+        // Off and Preferred insert no hard prerequisite — the witness still
+        // multiplies the formula, so a zero witness refuses through τ either
+        // way; the two differ only in readout copy. Required refuses earlier
+        // and explicitly when no witness is present.
         switch settings.witnessPolicy {
         case .off:
             break
@@ -232,7 +246,7 @@ final class WatchGateService: NSObject {
             Self.schema + ".kind": "state",
             "state": resolved?.isPermit == true ? "unlocked" : "locked",
             "threshold": GateFormula.legitimacyThreshold,
-            "freshnessSeconds": GateFormula.maximumVerificationDelay,
+            "freshnessSeconds": lastFreshnessSeconds,
             "updatedAt": Date().timeIntervalSince1970
         ]
         if let resolved {
@@ -322,6 +336,25 @@ final class WatchGateService: NSObject {
         nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
             Task { @MainActor [weak self] in
                 self?.owner?.refreshWatchState(session: session)
+            }
+        }
+
+        /// Beats the watch queued with `transferUserInfo` arrive here when live
+        /// delivery was not possible (the phone app was not running, or the
+        /// watch could not reach it). The beat keeps its original `sentAt`, so
+        /// the witness decays from the moment the wearer actually tapped
+        /// rather than from the moment the queue drained.
+        nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+            let schema = userInfo[WatchGateService.schema + ".kind"] as? String
+            guard schema == "heartbeat" else { return }
+            let humanKey = (userInfo["humanKey"] as? Bool) ?? false
+            let sentAtInterval = (userInfo["sentAt"] as? TimeInterval) ?? 0
+            let sentAt = sentAtInterval > 0 ? Date(timeIntervalSince1970: sentAtInterval) : Date()
+            Task { @MainActor [weak self] in
+                guard let owner = self?.owner else { return }
+                owner.refreshWatchState(session: session)
+                owner.ingestWatchHeartbeat(humanKeyPresent: humanKey, sentAt: sentAt)
+                owner.publishGateState()
             }
         }
 
