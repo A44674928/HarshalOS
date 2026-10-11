@@ -1,6 +1,8 @@
 /* NEO ORB market colour: rally/sink and above/below basis, as descriptive tints only.
-   Display-only. Pure math: no network, no storage, no route. The data comes from the
-   Orb 2 field read by js/neo-orb-field.js, and the definitions follow Orb 2:
+   Display-only. Pure math: no network, no storage, no route. The data would come from the
+   Orb 2 field through js/neo-orb-field.js — but NEO ORB's feed is cut there, so this module
+   is handed no observations and every orb stays neutral. The rules below are the definition
+   of the colours, kept and tested for the day the cut is deliberately lifted. They follow Orb 2:
      rallying / sinking  ← market.changePct > 0 / < 0   (change vs the prior confirmed bar)
      above / below basis ← latestBar.close vs the FBB basis (FBB-L60, else FBB-200, else market.basis)
    Reserved palette, used for nothing else on the orb: green = rallying, red = sinking,
@@ -81,8 +83,9 @@
     return out;
   }
 
-  /* The newest stored stock observation time (ms), or null. Company feeds are cut for Orb 2, so
-     this is how old the colours are. It is shown beside every colour, never hidden. */
+  /* The newest stored stock observation time (ms), or null. Colours are stored, never live, so
+     this is how old they are; it is shown beside every colour, never hidden. While NEO ORB's
+     feed cut holds there are no observations at all, and this stays null. */
   function storedAsOf(observations) {
     let newest = 0;
     for (const row of Array.isArray(observations) ? observations : []) {

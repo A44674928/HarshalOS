@@ -327,6 +327,51 @@ test("guided orbs never re-slot: the full roster stays spaced in 3D while roamin
   assert.ok(worstChord >= M.BERTH_MIN_CHORD, `every placed pair clears the berth floor (worst ${worstChord.toFixed(3)})`);
 });
 
+/* ── the placer and the model share one latitude contract ─────────── */
+
+test("the placer's latitude ceiling is the model's own placement contract", () => {
+  assert.equal(P.LAT_LIMIT, M.PLACEMENT_LATITUDE_LIMIT,
+    "one limit, named in both files: makeShape() refuses anything wider than the placer may emit");
+  const placer = P.createPlacer(rosterHomes(), { roam: 0.8, latitudeLimit: M.PLACEMENT_LATITUDE_LIMIT });
+  assert.equal(placer.latitudeLimit, M.PLACEMENT_LATITUDE_LIMIT);
+  const stale = P.createPlacer(rosterHomes(), { roam: 0.8 });
+  assert.equal(stale.latitudeLimit, M.PLACEMENT_LATITUDE_LIMIT, "a caller that supplies nothing gets the contract");
+  const greedy = P.createPlacer(rosterHomes(), { roam: 0.8, latitudeLimit: 1.5 });
+  assert.equal(greedy.latitudeLimit, P.LAT_LIMIT, "no caller can widen the ceiling past the placer's own hard limit");
+});
+
+test("the freeze regression: poleward guidance never hands the model a latitude it refuses", () => {
+  /* What used to happen in the browser, a few seconds in: an orb whose home sits near a pole
+     was guided past ±1.2, makeShape() threw a RangeError inside the frame, the throw escaped
+     the tick loop, requestAnimationFrame was never re-armed, and NEO ORB froze. The placer now
+     spends its latitude budget against each orb's own home, so every frame is acceptable. */
+  const nodes = M.rosterNodes(ROSTER.assets);
+  const homes = M.homesFor(nodes);
+  const axes = { x: 1.1, y: 0.84, z: 1.18 };
+  const placer = P.createPlacer(homes, { roam: 0.8, latitudeLimit: M.PLACEMENT_LATITUDE_LIMIT, positionFor: M.positionFor });
+  placer.setGeometry({ formation: 1, axes });
+  /* Fields that pull the fleet toward each pole in turn, as a real flame core wanders. */
+  const fields = [coreField(0.1, -0.85, 0.10), coreField(-0.2, 0.85, 0.10), coreField(0.4, 0, 0.08), coreField(-0.5, -0.6, 0.12)];
+  let widest = 0, refused = null, atPole = 0;
+  for (let k = 0; k < 60 * 60 && !refused; k++) {
+    const field = fields[Math.floor((k * DT) / 8) % fields.length];
+    const placed = placer.step(DT, field);
+    const placements = Object.fromEntries(placed.map(q => [q.id, { longitude: q.longitude, latitude: q.latitude }]));
+    for (const q of placed) {
+      widest = Math.max(widest, Math.abs(q.latitude));
+      if (Math.abs(q.latitude) > M.PLACEMENT_LATITUDE_LIMIT - 1e-9) atPole++;
+    }
+    try {
+      M.makeShape({ formation: 1, axes, berthSeparation: 1, nodes, placements });
+    } catch (error) {
+      refused = { second: (k * DT).toFixed(2), message: error.message };
+    }
+  }
+  assert.equal(refused, null, refused ? `makeShape refused at t=${refused.second}s: ${refused.message}` : "");
+  assert.ok(widest <= M.PLACEMENT_LATITUDE_LIMIT, `no placement exceeds the contract (widest ${widest.toFixed(4)})`);
+  assert.ok(atPole > 0, `the run really did press orbs against the ceiling (${atPole} frames), so the budget is what held`);
+});
+
 test("the placement source is pure math: no DOM, network, storage, or route", () => {
   for (const forbidden of ["document", "fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "/api/", "legitimacy(", "drawImage", "getContext"]) {
     assert.equal(placementSource.includes(forbidden), false, `neo-orb-placement.js must not reference ${forbidden}`);

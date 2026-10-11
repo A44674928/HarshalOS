@@ -3,7 +3,6 @@
  * The provider key stays inside the Worker; only a fixed upstream origin is used.
  */
 import { claimTickerbotCall } from "./tickerbot-call-ledger.mjs";
-import { orb2CompanyFeedsEnabled, ORB2_COMPANY_FEEDS_CUT_MESSAGE } from "./orb2-company-feed-gate.mjs";
 
 const ROUTE = "/api/good-intelligence/v1/market/tickerbot/bars";
 const TICKERBOT_ORIGIN = "https://api.tickerbot.io";
@@ -232,9 +231,6 @@ export async function handleGoodIntelligenceTickerbot(request, env = {}, depende
   const url = new URL(request.url);
   if (url.pathname !== ROUTE) return failure("Tickerbot market route not found.", 404);
   if (request.method !== "GET") return failure("Tickerbot market data is read-only.", 405, { Allow: "GET" });
-  /* The Tickerbot route calls api.tickerbot.io. It is part of the Orb 2 pipeline, so the company-feed cut applies. */
-  if (!orb2CompanyFeedsEnabled(env)) return failure(ORB2_COMPANY_FEEDS_CUT_MESSAGE, 503);
-
   const symbol = (url.searchParams.get("symbol") || "AAPL").trim().toUpperCase();
   const interval = (url.searchParams.get("interval") || "1h").trim();
   if (!SYMBOLS.has(symbol)) return failure(`Choose a ticker from the configured ${SYMBOLS.size}-symbol Tickerbot watchlist.`, 400);

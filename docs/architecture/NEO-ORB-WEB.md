@@ -1,7 +1,7 @@
 # NEO ORB — the web app
 
-**Status:** display-only · local · static roster snapshot
-**Files:** `js/neo-orb-model.js` (geometry) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs`
+**Status:** display-only · local · static roster snapshot · **market feed cut** (no network call at all)
+**Files:** `js/neo-orb-model.js` (geometry) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed cut) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-cut-test.mjs`
 **Window:** **NEO ORB** in the app list, placed right after **Orb 2**.
 
 NEO ORB combines two existing browser visuals in one window:
@@ -13,15 +13,20 @@ NEO ORB combines two existing browser visuals in one window:
 
 ## Boundary
 
-NEO ORB is a display. It reads no kernel state, gate, ledger, declaration, or personal core. Its only network call is one same-origin GET of its own first-party Orb 2 field route (`/api/good-intelligence/v1/orb2/field?interval=1d`), made by `js/neo-orb-field.js`, which is the only file that calls `fetch`. It calls no third-party host and calls no provider directly, and it writes no storage. The field's upstream providers are the Worker's concern, not NEO ORB's. The test suite asserts that the app and model reference none of the forbidden channels. A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or grant. A market-cap band is a display convention, not a valuation. The phase dial is a rotation the viewer chooses; it does not declare anything. The test suite asserts that the app and model reference none of the forbidden channels.
+NEO ORB is a display. It reads no kernel state, gate, ledger, declaration, or personal core, and **it makes no network call at all**. Its market feed is cut: `js/neo-orb-field.js` — the module that used to hold the app's one same-origin GET of the Orb 2 field route — refuses instead of fetching, and holds no `fetch`, no request options, and no runtime switch. The app follows that module fail-closed: unless the reader explicitly declares `FEED_CUT === false`, nothing is read, nothing is polled, and every orb stays neutral with the cut named in the Status panel, the inspector, the colour legend, and the footer. It calls no third-party host, calls no provider, and writes no storage.
+
+**Orb 2's own feed is not cut.** The Worker's Orb 2 pipeline calls its providers (Massive, Tickerbot, Kraken, Alpha Vantage) on its own schedule and still serves `/api/good-intelligence/v1/orb2/field` to the apps meant to read it. The former `ORB2_COMPANY_FEEDS` gate and `worker/orb2-company-feed-gate.mjs` are removed; cutting Orb 2's feed to quiet NEO ORB was the wrong end of the pipe. NEO ORB simply no longer reads it.
+
+A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or grant. A market-cap band is a display convention, not a valuation. The phase dial is a rotation the viewer chooses; it does not declare anything. The test suite asserts that no NEO ORB file references a forbidden channel.
 
 ## Data path (what NEO ORB reads, and what it never touches)
 
 | Path | Status |
 | --- | --- |
-| NEO ORB → Orb 2 field route (`/api/good-intelligence/v1/orb2/field`), same-origin GET, every 20 s | The only data NEO ORB reads. Used for the rally/sink and basis colours. |
-| NEO ORB → any company, provider, or third-party host | None. No absolute or protocol-relative URL exists in the NEO ORB files or stylesheet. The test suite enforces this. |
-| Orb 2 field route → upstream market providers (Massive, Tickerbot, Kraken) | Cut at the Worker. The Orb 2 pipeline calls no company feed while `ORB2_COMPANY_FEEDS` is not `on`, which is the default. The cron tick, the manual tick, the priority and warm POSTs, and the Tickerbot bars route all refuse. The stored field is still served. See `worker/orb2-company-feed-gate.mjs`. |
+| NEO ORB → Orb 2 field route (`/api/good-intelligence/v1/orb2/field`) | **Cut in the client.** The reader names the route it refuses and makes no request. No poll, no colour, no stored time. Re-opening it is a deliberate code change in `js/neo-orb-field.js`, plus the tests and this document. |
+| NEO ORB → any company, provider, or third-party host | None. No absolute or protocol-relative URL exists in the NEO ORB files or stylesheet, and no file holds `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, or `sendBeacon`. The test suite enforces this. |
+| NEO ORB → its own origin (flame assets) | The only requests the page makes are for its own files: the two `.flame` documents and their pre-rendered slices, loaded by the shared flame engines in `js/flame.js`. That is asset loading, not a data feed. |
+| Orb 2 field route → upstream market providers (Massive, Tickerbot, Kraken, Alpha Vantage) | **Open.** Orb 2's pipeline is not gated: the cron tick, the manual tick, the priority and warm POSTs, and the Tickerbot bars route all run on their own ledgers and caps. Stored field rows are still served to whoever reads them. |
 | Site shell (`index.html`) → other apps that connect to companies (LLM → Google Generative Language, community pages → Cloudflare Turnstile, Materials Project, research app → CourtListener, Federal Register, GovTrack, GDELT, Internet Archive, Wikipedia/Wikidata, r.jina.ai) | Runs in the same document as NEO ORB, but outside NEO ORB. A page-wide Content Security Policy would break those apps, so the shell is not changed here. |
 
 NEO ORB also runs as its own document at `/neo-orb` (`neo-orb.html`). Its policy is `connect-src 'self'`, so the browser itself refuses any other connection from that page. The Worker sends the same policy as a header, with `frame-ancestors 'none'`, from one constant in `worker/neo-orb-page.mjs`. The shell (`index.html`) keeps the other apps and is not changed by this.
@@ -52,6 +57,16 @@ The **Roam** dial (default 0.8) scales the tether: 0 pins every orb to home, and
 - **Bounded:** every orb stays inside its roam tether, however long it runs.
 - **Honest fallback:** with no flame guidance, every orb rests exactly at home. The status line says so.
 - **Alive:** every orb moves on to new bits within 30 s, and the fleet never rests for more than 2 s.
+- **Acceptable to the model:** every emitted latitude is inside `PLACEMENT_LATITUDE_LIMIT` (±1.2 rad), the limit `makeShape()` validates against. Each orb spends that budget against its own home latitude, and an orb pressed against the ceiling loses only that component of velocity, so the spring cannot wind up behind a clamp. The regression test runs the full roster for 60 s under fields that pull the fleet toward both poles and asserts the model accepts all 3,600 frames — this is the freeze that used to kill the app a few seconds in (see **Frame resilience** below).
+
+### Frame resilience (`apps-neo-orb.js`)
+
+NEO ORB used to freeze a few seconds in. `makeShape()` fails closed, and the placer could emit a latitude wider than the model accepts; the resulting `RangeError` escaped `tick()`, so `requestAnimationFrame` was never called again and the display stopped with no message anywhere. Two layers now make that impossible:
+
+1. **The clock never stops.** `tick()` wraps one frame of work in `try`/`catch`, always re-arms the next frame, and writes the failure to a new **Frame** row in the Status panel (`error — … · the display keeps running`). A frame that runs clears the previous failure, so the row tells the truth.
+2. **A refusal costs one frame.** `currentShape()` catches a refused shape, keeps the last good one on screen, records the reason in `errors.shape`, and retries no more than every 250 ms, so a persistent refusal cannot become a per-frame throw storm. Status reports `shape refused — … · last good shape drawn`.
+
+The contract fix above is the real repair; these two are the guarantee that no future refusal — from geometry, canvas, or readouts — can freeze the app again.
 
 ## Geometry (`neo-orb-model.js`)
 
@@ -72,20 +87,23 @@ P = lerp(D, S, f) ⊙ (1 + (a − 1) f)             per axis
 - **Sector:** 64-bit FNV-1a of the uppercased symbol, modulo 360. Pinned values: NVDA 38, AAPL 307, SPCX 21, BRK.B 18.
 - **Band:** `13 − floor(log10(market cap))`, clamped to 0…5. $10B → band 3, $100B → band 2, $1T → band 1. Smaller caps sit farther out.
 - **Kind:** Technology and Industrials → structural; Financial Services and Energy → interaction; everything else → field. Kind is shown as text in the inspector. It no longer tints an orb, so the reserved colours mean only market state.
-- **Market colour (`js/neo-orb-market.js`):** descriptive only, and not a quote, rank, or recommendation. Fill = rally/sink: green for rallying (`changePct` > 0), red for sinking (`changePct` < 0). Ring = basis: blue for close below basis, yellow for close above basis, with no ring when equal or unknown. The basis is the preferred FBB variant that is available (FBB-L60, then FBB-200, then `market.basis`), as Orb 2 chooses it. Orbs with no field row stay neutral grey. The field is re-read every 20 seconds. A failed read keeps the last good colours and is labelled. Blue and yellow are reserved for market state, so the band rings and centre marker use neutral tones.
+- **Market colour (`js/neo-orb-market.js`):** descriptive only, and not a quote, rank, or recommendation. Fill = rally/sink: green for rallying (`changePct` > 0), red for sinking (`changePct` < 0). Ring = basis: blue for close below basis, yellow for close above basis, with no ring when equal or unknown. The basis is the preferred FBB variant that is available (FBB-L60, then FBB-200, then `market.basis`), as Orb 2 chooses it. Orbs with no field row stay neutral grey — which, with the feed cut, is every orb. The colour rules are kept and tested for the day the cut is deliberately lifted: the field would be re-read every 20 seconds, and a failed read would keep the last good colours and be labelled. Blue and yellow are reserved for market state, so the band rings and centre marker use neutral tones.
 - **Berths:** nodes are visited in a stable identity-hash order. A node closer than `0.12 × berth` to an already-placed node tries nearby longitudes, then latitude rings, then a widest-angle fallback. The source identity, sector, and band are never changed. At rest the relaxed homes need no berth moves; the berth resolver acts only when placements crowd.
 - **Convergence:** `clamp(1 − max|a − 1| / 0.35, 0, 1)`. This measures shape deformation only. It is not a health, trust, or correctness signal.
 
-Dials are validated and refused when out of range. Nothing is clamped silently inside the model. The UI clamps its own sliders to the same bounds.
+Dials are validated and refused when out of range. Nothing is clamped silently inside the model. The UI clamps its own sliders to the same bounds. Placements are validated the same way, against `PLACEMENT_LATITUDE_LIMIT`, which the model exports and the app hands to the placer, so the two files cannot drift apart at runtime.
 
-## Colour (`neo-orb-market.js`, `neo-orb-field.js`)
+## Colour (`neo-orb-market.js`) and the feed cut (`neo-orb-field.js`)
 
-Colour is descriptive. It comes from the stored Orb 2 field, read at most every 20 s, and it never triggers a provider call.
+Colour is descriptive, and **it is currently unused: NEO ORB's feed is cut.** Every orb is neutral, and the display says so.
 
+- **The cut.** `js/neo-orb-field.js` declares `FEED_CUT = true` and its `readField()` always returns `{ ok: false, cut: true, message }`. The module holds no `fetch` and accepts no fetcher, so no caller can supply one. It still names the route it refuses (`FIELD_ROUTE`) so the boundary is explicit and testable.
+- **Fail-closed in the app.** `NeoOrbEngine.feedCut()` treats the feed as cut unless the reader says `FEED_CUT === false`. While cut, the app reads nothing, polls nothing, keeps `market` null, and writes the cut into the Status panel (`Market`), the inspector, the colour legend, and the footer.
 - **Fill is the rally or sink.** Green is rallying (`changePct` > 0). Red is sinking (`changePct` < 0). Grey-blue is neutral, for flat, unknown, or no data.
 - **Ring is the basis.** Blue is a close below the FBB basis. Yellow is a close above it. No ring means equal or no basis. The basis is the preferred FBB variant that is available: FBB-L60, then FBB-200, then the market basis.
-- **Stored, not live.** Colours show the newest stored stock observation time in UTC, in the readout and in every inspector line. With the company-feed cut, that time can be old. The orbs keep the last colours, and a failed read is labelled and keeps them too.
+- **Stored, not live.** When a feed exists, colours show the newest stored stock observation time in UTC, in the readout and in every inspector line; a failed read keeps the last colours and is labelled. With the cut there are no observations, so `storedAsOf()` is null and no time is claimed.
 - **Shape.** The field row carries the FBB data as `market.fbbComparison.variants`. The client analysis carries it as `market.fbbVariants`. The mapper reads both.
+- **Re-opening is deliberate.** Set `FEED_CUT` to false, restore the single same-origin GET in `readField()`, and update `tests/neo-orb-feed-cut-test.mjs`, `tests/neo-orb-market-test.mjs`, and this document. It is a code change, not a configuration.
 
 ## Controls
 
@@ -98,7 +116,7 @@ Drag to rotate. Click an orb to select it. Reduced-motion users start paused.
 
 ## Known limits
 
-- **Static roster, stored colour.** The roster is the reviewed snapshot (as of 2026-10-02). Orb 2's live beats and saved beats are not wired in. The rally/sink and basis colour comes from the stored field only, and only for symbols that have a stock row in it. While the Orb 2 company-feed cut holds, no new colour is written, so the colours go stale and the readout shows when they were stored. The Worker route is served only by the deployed site, so on a static preview every orb stays neutral and the readout says why.
+- **Static roster, no colour.** The roster is the reviewed snapshot (as of 2026-10-02). Orb 2's live beats and saved beats are not wired in, and NEO ORB's own feed is cut, so every orb is neutral grey and no market time is shown. The colour rules in `js/neo-orb-market.js` are complete and tested but have nothing to colour until the cut is lifted deliberately. Orb 2 itself keeps its feed and keeps writing the stored field; NEO ORB just does not read it.
 - **Visual check.** The geometry, the placement dynamics, the draw path, and the input handling are covered by tests. The placement was also reviewed offline: real flame frames were baked, and home and guided layouts were rendered to a PNG outside the repository. The live look in a real browser has not been checked from this environment; do that before shipping.
 - **Asset load.** Guidance needs `assets/Demo.flame` with `assets/flame/`, and `assets/OuterOrb.flame` with `assets/outer_flame/`. If a source is missing, its guidance reads *unavailable*. If both are missing, every orb rests at home and the status says so.
 - **Sphere film removed from view.** The author's sphere film was a flame render, so it is no longer drawn or loaded by NEO ORB. Restoring it would be a deliberate decision.
@@ -111,7 +129,7 @@ Drag to rotate. Click an orb to select it. Reduced-motion users start paused.
 npm run test:neo-orb
 ```
 
-Both files run under `test:neo-orb`, and `scripts/integrity-report.mjs` lists both.
+All five files run under `test:neo-orb`, and `scripts/integrity-report.mjs` lists all five.
 
 `tests/neo-orb-test.mjs` covers:
 
@@ -123,8 +141,14 @@ Both files run under `test:neo-orb`, and `scripts/integrity-report.mjs` lists bo
 - the 52-orb roster mapping;
 - window registration, mount, dial clamping, inspector facts, and shared-engine handling;
 - a full draw with guided orbs, the flame engines read but never drawn, and orb hit-testing;
-- guidance read from a scratch canvas, and the forbidden-channel scan and page wiring.
+- guidance read from a scratch canvas, and the forbidden-channel scan and page wiring;
+- the feed cut at the app (no read, no poll, every orb neutral, the cut named on the surface), and the open path still colouring correctly when a reader declares it;
+- **frame resilience:** a frame that throws re-arms `requestAnimationFrame` and is named in Status, and a shape the model refuses costs one frame while the last good shape stays on screen.
 
-`tests/neo-orb-page-test.mjs` covers the standalone page: its policy (meta and header, from one constant), the relative-only references, the script order, the staging and route entries, the Worker's header and refusal of writes, and a boot of the page's own scripts into `#neo-root`. `tests/orb2-company-feed-cut-test.mjs` covers the company-feed cut: the default-off switch, the refused tick with no provider call and no database touch, the refused POST, and the refused Tickerbot route.
+`tests/neo-orb-page-test.mjs` covers the standalone page: its policy (meta and header, from one constant), the relative-only references, the script order, the staging and route entries, the Worker's header and refusal of writes, and a boot of the page's own scripts into `#neo-root`.
 
-`tests/neo-orb-market-test.mjs` covers the colour rules (rally/sink from `changePct`, basis from the close against the FBB basis, the preferred FBB variant), the reserved palette, the newest-stock-row index, the one same-origin field read and its fail-closed results, and the rule that only the reader calls `fetch`. `tests/neo-orb-placement-test.mjs` covers the pure math with synthetic bitmaps: field construction, bit spread, determinism, smoothness, tether, roam, inertia, reset, a fleet that keeps moving, and the model's placement invariants (radius, home, and berths preserved). It also checks that guided orbs never re-slot over 12 s of the full roster: no frame re-slots an orb, and every placed pair clears the berth floor.
+`tests/neo-orb-feed-cut-test.mjs` covers both halves of the feed boundary. NEO ORB's side: the reader declares the cut and refuses without touching a network even when handed a fetcher; no file on the surface holds `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon`, or `importScripts` (scanned as code, comments aside); the mounted app runs 180 frames and makes no request, colours no orb, and names the cut in Status, the inspector, the legend, and the footer; and the cut is fail-closed, so a stub reader that offers rows colours nothing unless it declares `FEED_CUT: false` — with which the colour path is shown to still work. Orb 2's side: the gate module and its test are gone, neither Worker file carries an `ORB2_COMPANY_FEEDS` switch, the tick with an empty environment runs past where the gate used to sit, and the Tickerbot route calls `api.tickerbot.io` again with no switch set.
+
+`tests/neo-orb-market-test.mjs` covers the colour rules (rally/sink from `changePct`, basis from the close against the FBB basis, the preferred FBB variant), the reserved palette, the newest-stock-row index, and the cut reader: it names the route it refuses, returns no rows and no observation time, ignores a supplied fetcher, and holds no network primitive in its code.
+
+`tests/neo-orb-placement-test.mjs` covers the pure math with synthetic bitmaps: field construction, bit spread, determinism, smoothness, tether, roam, inertia, reset, a fleet that keeps moving, and the model's placement invariants (radius, home, and berths preserved). It also checks that guided orbs never re-slot over 12 s of the full roster: no frame re-slots an orb, and every placed pair clears the berth floor. And it holds the latitude contract: `LAT_LIMIT` equals the model's `PLACEMENT_LATITUDE_LIMIT`, no caller can widen it, and 60 s of poleward guidance on the full roster produces 3,600 frames that `makeShape()` accepts — the freeze regression.

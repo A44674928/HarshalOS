@@ -37,7 +37,12 @@
      band rings use neutral tones. */
   const CENTER_COLOR = "#e8f1ff";
   const BAND_COLOR = "#7d93b8";
-  const MARKET_EVERY_MS = 20000;       // how often the Orb 2 field is re-read (the server's own cadence)
+  /* NEO ORB's market feed is cut (js/neo-orb-field.js). The cadence below is what the reader
+     would use if that cut were ever lifted deliberately; while it holds, nothing is polled. */
+  const MARKET_EVERY_MS = 20000;
+  const MARKET_CUT_MESSAGE = "NEO ORB reads no market feed, so every orb stays neutral.";
+  const MARKET_CUT_STATUS = `cut — ${MARKET_CUT_MESSAGE}`;
+  const SHAPE_RETRY_MS = 250;          // how soon a refused shape is retried (a refusal costs one frame, not the display)
   const NEUTRAL_FILL = "#8fa3c0";      // no data, flat, or equal to basis
   const ORIGIN_ADDRESS = "0•000•000•0000";
   const DEFAULTS = Object.freeze({
@@ -115,6 +120,13 @@
     };
   }
 
+  /* One Status line for the frame: what it drew, or what it refused and kept drawing past. */
+  function frameNote(errors) {
+    if (errors.frame) return `error — ${errors.frame} · the display keeps running`;
+    if (errors.shape) return `shape refused — ${errors.shape} · last good shape drawn`;
+    return "ok";
+  }
+
   function playerStatus(player, label, error) {
     if (!player) return "unavailable — flame engine not loaded";
     if (player.ready && player.frames.length) {
@@ -142,16 +154,17 @@
       this.screenNodes = [];
       this.shape = null;
       this.dirty = true;
+      this.lastShapeAttempt = -Infinity;
       this.lastTick = null;
       this.lastReadout = 0;
       this.stopped = false;
-      this.errors = { inner: null, outer: null, guide: null };
+      this.errors = { inner: null, outer: null, guide: null, shape: null, frame: null };
       this.placements = null;              // placed offsets for this frame, or null = home
       this.guide = null;                   // combined flame density field, or null
       this.lastGuideAt = -Infinity;
       this.guideCanvas = undefined;        // lazily created 2D scratch canvas (never shown)
-      this.market = null;                  // Map(symbol → market record) from the Orb 2 field, or null
-      this.marketStatus = "waiting for the Orb 2 field";
+      this.market = null;                  // Map(symbol → market record), or null while the feed is cut
+      this.marketStatus = MARKET_CUT_STATUS;   // fail-closed until the reader says otherwise
       this.marketAt = null;
       this.lastMarketAt = -Infinity;
       this.marketBusy = false;
@@ -162,11 +175,14 @@
       this.byId = new Map(this.nodes.map(n => [n.id, n]));
       this.homes = model() && this.nodes.length ? model().homesFor(this.nodes) : [];
       const placing = placerModule();
+      const m = model();
       this.placer = placing && this.homes.length
         ? placing.createPlacer(this.homes, {
             roam: this.state.roam,
             /* the model's own 3D geometry, so spacing is measured where the berth check measures it */
-            positionFor: (radius, lon, lat, formation, axes) => model().positionFor(radius, lon, lat, formation, axes)
+            positionFor: (radius, lon, lat, formation, axes) => model().positionFor(radius, lon, lat, formation, axes),
+            /* the model's placement contract, so the placer can never emit a latitude makeShape() refuses */
+            latitudeLimit: m && m.PLACEMENT_LATITUDE_LIMIT
           })
         : null;
 
@@ -189,18 +205,29 @@
     }
 
     /* ── shape ─────────────────────────────────────────────── */
-    currentShape() {
+    /* The shape for this frame. makeShape() fails closed: it refuses a configuration it will
+       not draw. A refusal must cost one frame, never the display — the last good shape stays
+       on screen, the reason is reported in Status, and retries are rate-limited so a
+       persistent refusal cannot become a per-frame throw storm. */
+    currentShape(now = 0) {
       if (!this.dirty && this.shape) return this.shape;
       const m = model();
       if (!m) { this.shape = null; return null; }
+      if (this.errors.shape && this.shape && now - this.lastShapeAttempt < SHAPE_RETRY_MS) return this.shape;
+      this.lastShapeAttempt = now;
       const s = this.state;
-      this.shape = m.makeShape({
-        formation: s.formation,
-        axes: { x: s.axes.x, y: s.axes.y, z: s.axes.z },
-        berthSeparation: s.berth,
-        nodes: this.nodes,
-        placements: this.placementMap()
-      });
+      try {
+        this.shape = m.makeShape({
+          formation: s.formation,
+          axes: { x: s.axes.x, y: s.axes.y, z: s.axes.z },
+          berthSeparation: s.berth,
+          nodes: this.nodes,
+          placements: this.placementMap()
+        });
+        this.errors.shape = null;
+      } catch (error) {
+        this.errors.shape = error && error.message ? error.message : String(error);
+      }
       this.dirty = false;
       return this.shape;
     }
@@ -213,12 +240,28 @@
       return map;
     }
 
-    /* ── market colour (descriptive, from the Orb 2 field) ──── */
-    /* Re-read the stored field at most every MARKET_EVERY_MS, through the reader module.
-       Fill = rally/sink; ring = basis. Nothing is written, and no provider is called here. */
+    /* Fail-closed: the feed counts as cut unless the reader module opens it explicitly. */
+    feedCut() {
+      const reader = typeof window !== "undefined" ? window.NeoOrbField : null;
+      return !reader || reader.FEED_CUT !== false;
+    }
+
+    /* ── market colour (descriptive) ────────────────────────── */
+    /* The feed is cut. js/neo-orb-field.js owns that decision and this app follows it
+       fail-closed: unless the reader explicitly declares the feed open, nothing is read,
+       nothing is polled, and every orb stays neutral with the cut named on the surface.
+       The colour rules still live in js/neo-orb-market.js; with no feed they colour nothing.
+       Fill would be rally/sink and ring the basis. Nothing is written either way. */
     refreshMarket(now) {
       const reader = typeof window !== "undefined" ? window.NeoOrbField : null;
       const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
+      if (this.feedCut()) {
+        this.market = null;
+        this.marketAt = null;
+        this.storedAt = null;
+        this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
+        return;
+      }
       if (!reader || !market) { this.marketStatus = "unavailable — the market colour module did not load"; return; }
       if (this.marketBusy || now - this.lastMarketAt < MARKET_EVERY_MS) return;
       this.lastMarketAt = now;
@@ -360,9 +403,25 @@
     }
 
     /* ── frame ─────────────────────────────────────────────── */
+    /* The clock never stops. One frame of work is wrapped, so a placement the geometry
+       refuses, a canvas that throws, or a readout that fails costs that frame only: the
+       failure is named in Status and the next frame is always armed. An uncaught throw in
+       here is what used to freeze NEO ORB — requestAnimationFrame was never called again,
+       so the picture stopped and the app looked dead a few seconds in. */
     tick(now) {
       if (this.stopped) return;
       if (!this.body.isConnected) { this.stopped = true; return; }
+      try {
+        this.frame(now);
+      } catch (error) {
+        this.errors.frame = error && error.message ? error.message : String(error);
+        this.showFrameError();
+      }
+      if (!this.stopped) requestAnimationFrame(t => this.tick(t));
+    }
+
+    frame(now) {
+      this.errors.frame = null;   /* a frame that runs clears the last failure; Status tells the truth */
       const dt = this.lastTick == null ? 0 : clamp((now - this.lastTick) / 1000, 0, 0.1);
       this.lastTick = now;
       const simDt = this.state.paused ? 0 : dt * this.state.speed;
@@ -371,7 +430,15 @@
       this.updatePlacement(simDt, now);
       this.draw(now);
       if (now - this.lastReadout > 250) { this.lastReadout = now; this.readouts(); }
-      requestAnimationFrame(t => this.tick(t));
+    }
+
+    /* Write a frame failure straight to the Status panel. It deliberately bypasses
+       readouts(), because the readout path may be the part that threw. */
+    showFrameError() {
+      try {
+        const el = this.body.querySelector("#neo-frame");
+        if (el) el.textContent = frameNote(this.errors);
+      } catch { /* no panel to write to; the loop still re-arms */ }
     }
 
     /* ── drawing ───────────────────────────────────────────── */
@@ -392,7 +459,7 @@
       const breath = 1 + BREATH_EPS * Math.sin((TAU * this.clock) / BREATH_T);
       const R = WORLD_R * breath;
       const { project, toScreen } = this.camera(s, cx, cy);
-      const shape = this.currentShape();
+      const shape = this.currentShape(now);
       const m = model();
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -650,9 +717,10 @@
               <section class="neo-section">
                 <h3>Status</h3>
                 <dl class="neo-dl">
+                  <dt>Frame</dt><dd id="neo-frame">—</dd>
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
@@ -691,7 +759,7 @@
               </section>
             </aside>
           </div>
-          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. NEO ORB confers no authority and routes nothing.</p>
+          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. NEO ORB confers no authority and routes nothing.${this.feedCut() ? " Its market feed is cut: it reads no field, so no company market data is fetched or shown." : ""}</p>
         </div>`;
 
       this.canvas = b.querySelector(".neo-canvas");
@@ -810,6 +878,7 @@
     readouts() {
       const b = this.body;
       const put = (id, text) => { const el = b.querySelector(`#${id}`); if (el && el.textContent !== text) el.textContent = text; };
+      put("neo-frame", frameNote(this.errors));
       const shape = this.shape || this.currentShape();
       if (shape) {
         put("neo-conv", `${fmtPct(shape.convergence)} · ${shape.idealSphere ? "ideal sphere" : "spheroid"}`);
@@ -833,7 +902,7 @@
       const coloured = this.market ? this.nodes.filter(n => this.market.has(n.id)).length : 0;
       put("neo-market", this.market
         ? `${this.marketStatus} · ${coloured} of ${this.nodes.length} orbs coloured${this.storedLabel()}${this.marketAt ? ` · read ${new Date(this.marketAt).toLocaleTimeString()}` : ""}`
-        : this.marketStatus);
+        : `${this.marketStatus} · 0 of ${this.nodes.length} orbs coloured`);
       for (const item of b.querySelectorAll(".neo-roster-item")) {
         const dot = item.querySelector(".neo-dot");
         const fill = this.toneFor(item.dataset.id).fill;

@@ -266,22 +266,45 @@ test("the app code reads no kernel, gate, ledger, provider, or route", () => {
   }
 });
 
-test("market colour: fill is rally/sink, the ring is basis, unknown orbs stay neutral, and the live read is labelled", async () => {
+test("the feed is cut: no read is made, every orb stays neutral, and the surface says so", () => {
   const h = appHarness({ flames: false });
   const { body, engine } = mountInto(h);
   const market = h.win.NeoOrbMarket;
   const tone = id => engine.toneFor(id);
-  assert.equal(tone("NVDA").fill, "#8fa3c0", "no field yet: neutral");
+
+  assert.equal(engine.feedCut(), true, "the reader module owns the cut and the app follows it");
+  assert.equal(tone("NVDA").fill, market.COLORS.neutral, "no feed: neutral");
   assert.equal(tone("NVDA").ring, null);
 
-  /* A stubbed reader returns one stock row for NVDA: up, and above basis. */
+  /* Even a reader that offers rows colours nothing until it declares the feed open. */
+  let reached = 0;
+  h.win.NeoOrbField = { readField: async () => { reached += 1; return { ok: true, at: 7, observations: [
+    { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100 } }
+  ] }; } };
+  engine.refreshMarket(1000);
+  assert.equal(reached, 0, "a cut app never asks the reader for rows");
+  assert.equal(engine.market, null);
+  assert.equal(tone("NVDA").fill, market.COLORS.neutral, "an undeclared reader is treated as cut");
+  engine.readouts();
+  assert.ok(body.querySelector("#neo-market").textContent.includes("0 of 52 orbs coloured"),
+    body.querySelector("#neo-market").textContent);
+});
+
+test("with the feed deliberately opened, colour still works: fill is rally/sink, ring is basis", async () => {
+  const h = appHarness({ flames: false });
+  const { body, engine } = mountInto(h);
+  const market = h.win.NeoOrbMarket;
+  const tone = id => engine.toneFor(id);
+
+  /* The open path is exercised so the cut, not stale colour code, is what keeps orbs neutral. */
   h.win.NeoOrbField = {
+    FEED_CUT: false,
     readField: async () => ({ ok: true, at: 7, observations: [
       { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100 } }
     ] })
   };
   engine.refreshMarket(1000);
-  assert.equal(engine.lastMarketAt, 1000, "the first refresh starts at once");
+  assert.equal(engine.lastMarketAt, 1000, "an open feed reads at once");
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(engine.marketStatus, "live");
   assert.equal(tone("NVDA").fill, market.COLORS.rallying, "NVDA rallies: green fill");
@@ -297,11 +320,60 @@ test("market colour: fill is rally/sink, the ring is basis, unknown orbs stay ne
   assert.ok(inspector.includes("rallying · +2.00% · close above the FBB basis"), inspector);
 
   /* A failed read is labelled, and the last good colours are kept. */
-  h.win.NeoOrbField = { readField: async () => ({ ok: false, message: "field offline" }) };
+  h.win.NeoOrbField = { FEED_CUT: false, readField: async () => ({ ok: false, message: "field offline" }) };
   engine.refreshMarket(40000);
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(engine.marketStatus, "unavailable — field offline");
   assert.equal(tone("NVDA").fill, market.COLORS.rallying, "a failed read keeps the last colours");
+});
+
+test("a frame that throws never stops the clock: the loop re-arms and Status names the failure", () => {
+  /* The freeze this guards: an uncaught throw in the frame used to skip the
+     requestAnimationFrame call, so the display stopped and the app looked dead. */
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  let armed = 0;
+  h.context.requestAnimationFrame = () => { armed += 1; return armed; };
+
+  engine.sampleGuide = () => { throw new RangeError("Placement latitude for PSX must be within ±1.2; received -1.5."); };
+  engine.tick(1000);
+  assert.equal(armed, 1, "the next frame is armed even though this one threw");
+  assert.match(engine.errors.frame, /Placement latitude/, "the failure is recorded");
+  assert.ok(body.querySelector("#neo-frame").textContent.includes("the display keeps running"),
+    body.querySelector("#neo-frame").textContent);
+
+  engine.sampleGuide = () => null;
+  engine.tick(2000);
+  assert.equal(armed, 2, "and the loop keeps running after the failure clears");
+  engine.readouts();
+  assert.equal(body.querySelector("#neo-frame").textContent, "ok", "a healthy frame says so");
+});
+
+test("a shape the model refuses costs one frame, not the display", () => {
+  const h = appHarness({ flames: false });
+  const { body, engine } = mountInto(h);
+  let armed = 0;
+  h.context.requestAnimationFrame = () => { armed += 1; return armed; };
+  const good = engine.shape;
+  assert.ok(good && good.nodes.length === 52, "the first shape is built");
+
+  const real = h.win.NeoOrbModel;
+  h.win.NeoOrbModel = Object.freeze({ ...real, makeShape: () => { throw new RangeError("Placement latitude for PSX must be within ±1.2; received -1.5."); } });
+  engine.dirty = true;
+  assert.equal(engine.currentShape(1000), good, "the last good shape stays on screen");
+  assert.match(engine.errors.shape, /Placement latitude/, "the refusal is reported, not thrown at the loop");
+
+  engine.tick(1200);
+  assert.equal(armed, 1, "the clock keeps running through a refused shape");
+  assert.equal(engine.errors.frame, null, "the refusal is handled inside the frame, so the frame itself stays clean");
+  engine.readouts();
+  assert.ok(body.querySelector("#neo-frame").textContent.includes("shape refused"), body.querySelector("#neo-frame").textContent);
+
+  h.win.NeoOrbModel = real;
+  engine.dirty = true;
+  engine.lastShapeAttempt = -Infinity;
+  engine.currentShape(2000);
+  assert.equal(engine.errors.shape, null, "and it recovers as soon as the geometry accepts a frame again");
 });
 
 test("the flame engines are read for guidance and never drawn on the NEO ORB canvas", () => {

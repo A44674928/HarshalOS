@@ -1,8 +1,9 @@
-/* NEO ORB market colour and the one field read. Display-only.
+/* NEO ORB market colour, and the feed cut that leaves it with nothing to colour. Display-only.
    Fill = rally/sink (green rallying, red sinking). Ring = basis (blue below, yellow above).
    Definitions follow Orb 2: changePct for rally/sink; the close against the FBB basis.
-   The reader is the only NEO ORB module allowed to call fetch, and it reads only the
-   first-party Orb 2 field route. Synthetic records only. */
+   The colour rules are pure math and stay tested. The reader (js/neo-orb-field.js) is cut: it
+   names the route it refuses and makes no request, so in the app every orb stays neutral.
+   tests/neo-orb-feed-cut-test.mjs covers the cut end to end. Synthetic records only. */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
@@ -27,6 +28,9 @@ vm.runInContext(marketSource, context, { filename: "js/neo-orb-market.js" });
 vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
 const Market = window.NeoOrbMarket;
 const Field = window.NeoOrbField;
+
+/* Drop block and line comments, so a scan reads the code and not the prose that explains it. */
+const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const row = (symbol, market, extra = {}) => ({ symbol, discId: "stocks", observedAt: 1000, market, ...extra });
 
@@ -107,38 +111,35 @@ test("the field rows index by symbol, keep the newest stock row, and ignore othe
   assert.equal(Market.indexField(null).size, 0);
 });
 
-test("the reader makes one same-origin GET to the first-party field route, and returns the rows", async () => {
-  const calls = [];
-  const fetcher = async (url, options) => {
-    calls.push({ url, options });
-    return { ok: true, status: 200, json: async () => ({ data: { ok: true, observations: [{ symbol: "NVDA" }] } }) };
-  };
+test("the reader is cut: it names the route it refuses and makes no request", async () => {
+  let reached = 0;
+  const fetcher = async () => { reached += 1; return { ok: true, status: 200, json: async () => ({ data: { ok: true, observations: [] } }) }; };
   const result = await Field.readField({ fetcher, now: 42 });
-  assert.equal(result.ok, true);
-  assert.equal(result.observations.length, 1);
-  assert.equal(result.at, 42);
-  assert.equal(calls.length, 1, "one read per call");
-  assert.equal(calls[0].url, "/api/good-intelligence/v1/orb2/field?interval=1d");
-  assert.equal(calls[0].options.method, "GET");
-  assert.equal(calls[0].options.credentials, "same-origin");
-  assert.equal(calls[0].options.cache, "no-store");
-  assert.equal(calls[0].options.redirect, "error");
+  assert.equal(Field.FEED_CUT, true, "the cut is declared in the reader module");
+  assert.equal(result.ok, false);
+  assert.equal(result.cut, true);
+  assert.equal(result.message, Field.FEED_CUT_MESSAGE, "the refusal carries its own reason");
+  assert.deepEqual([...result.observations], [], "no rows come from a cut feed");
+  assert.equal(result.at, null, "and no observation time is claimed");
+  assert.equal(reached, 0, "a supplied fetcher is ignored: the reader holds no network call");
+  /* The refused route stays named, so the boundary is explicit and the "one route only"
+     scan below still has something to check. */
+  assert.equal(Field.FIELD_ROUTE, "/api/good-intelligence/v1/orb2/field");
   assert.equal(Field.fieldUrl("1h"), "/api/good-intelligence/v1/orb2/field?interval=1h");
   assert.equal(Field.fieldUrl("bogus"), "/api/good-intelligence/v1/orb2/field?interval=1d", "unknown intervals fall back to daily");
 });
 
-test("the reader fails closed: HTTP errors, data.ok false, and network throws become labelled results", async () => {
-  const httpError = await Field.readField({ fetcher: async () => ({ ok: false, status: 503, json: async () => ({}) }) });
-  assert.equal(httpError.ok, false);
-  assert.ok(httpError.message.includes("503"));
-  const notOk = await Field.readField({ fetcher: async () => ({ ok: true, status: 200, json: async () => ({ message: "held", data: { ok: false } }) }) });
-  assert.equal(notOk.ok, false);
-  assert.equal(notOk.message, "held");
-  const thrown = await Field.readField({ fetcher: async () => { throw new Error("offline"); } });
-  assert.equal(thrown.ok, false);
-  assert.ok(thrown.message.includes("could not be read"));
-  const none = await Field.readField({ fetcher: null });
-  assert.equal(none.ok, false, "with no fetch available the read is labelled unavailable, not thrown");
+test("the refusal is unconditional: no argument, and no fetch in scope, changes it", async () => {
+  for (const args of [[], [{}], [{ fetcher: async () => { throw new Error("must not be called"); } }], [{ interval: "1h" }]]) {
+    const result = await Field.readField(...args);
+    assert.equal(result.ok, false);
+    assert.equal(result.cut, true);
+    assert.equal(result.message, Field.FEED_CUT_MESSAGE);
+  }
+  /* Prose may name the call the cut refuses; code may not hold it. Scan the code only. */
+  const code = stripComments(fieldSource);
+  assert.equal(/\bfetch\b|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts/.test(code), false,
+    "the reader's code holds no network primitive");
 });
 
 test("the market and reader sources touch no other channel: no third-party host, storage, socket, or write", () => {
@@ -147,9 +148,9 @@ test("the market and reader sources touch no other channel: no third-party host,
       assert.equal(source.includes(forbidden), false, `${name} must not reference ${forbidden}`);
     }
   }
-  assert.equal(marketSource.includes("fetch("), false, "the colour module never fetches; only the reader does");
+  assert.equal(marketSource.includes("fetch("), false, "the colour module never fetches");
   assert.equal(marketSource.includes("/api/"), false, "the colour module names no route");
-  assert.equal((fieldSource.match(/await doFetch\(/g) || []).length, 1, "the reader holds the only network call");
+  assert.equal(fieldSource.includes("fetch("), false, "the reader no longer holds a network call: the feed is cut");
 });
 
 test("the orb app takes its colour from the market module, and blue and yellow are never kind colours", () => {

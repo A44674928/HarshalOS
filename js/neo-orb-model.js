@@ -28,9 +28,14 @@
   const BAND_RATIO = 1.45;
   const MAX_BAND = 5;
   const CONVERGENCE_TOLERANCE = 0.35;
-  const BERTH_MIN_CHORD = 0.12;
-  const AXIS_MIN = 0.25;
-  const AXIS_MAX = 2;
+    const BERTH_MIN_CHORD = 0.12;
+    const AXIS_MIN = 0.25;
+    const AXIS_MAX = 2;
+    /* rad (≈68.8°): the widest latitude makeShape() accepts from dynamic placement.
+       This is a contract with the placer (js/neo-orb-placement.js), which is handed this
+       constant and must never emit a wider placement. A refused placement throws inside
+       the app's frame, so the two limits are one limit, exported and test-checked. */
+    const PLACEMENT_LATITUDE_LIMIT = 1.2;
   const KIND_BY_SECTOR = Object.freeze({
     Technology: "structural",
     Industrials: "structural",
@@ -353,7 +358,9 @@
     for (const [id, place] of Object.entries(placements)) {
       if (!ids.has(id)) throw new RangeError(`Placement names ${id}, which is not a node in this shape.`);
       if (!place || !finite(place.longitude) || !finite(place.latitude)) throw new RangeError(`Placement for ${id} needs finite longitude and latitude.`);
-      if (Math.abs(place.latitude) > 1.2) throw new RangeError(`Placement latitude for ${id} must be within ±1.2; received ${place.latitude}.`);
+      if (Math.abs(place.latitude) > PLACEMENT_LATITUDE_LIMIT) {
+        throw new RangeError(`Placement latitude for ${id} must be within ±${PLACEMENT_LATITUDE_LIMIT}; received ${place.latitude}.`);
+      }
     }
     return placements;
   }
@@ -450,6 +457,7 @@
     BAND_BASE,
     BAND_RATIO,
     BERTH_MIN_CHORD,
+    PLACEMENT_LATITUDE_LIMIT,
     fnv1a64,
     sectorFor,
     identityPhase,
