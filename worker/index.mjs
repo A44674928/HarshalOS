@@ -205,12 +205,16 @@ export default {
       });
     }
     const communityPageAssets = {
-      '/account': '/account.html',
-      '/account.html': '/account.html',
-      '/audits': '/audits.html',
-      '/audits.html': '/audits.html',
-      '/observations': '/observations.html',
-      '/observations.html': '/observations.html'
+      // Fetch extensionless canonical paths through Assets. Cloudflare's default
+      // HTML handling redirects *.html to the extensionless URL; fetching the
+      // explicit *.html path here would send that redirect back through this
+      // Worker and create an unbounded redirect loop.
+      '/account': '/account',
+      '/account.html': '/account',
+      '/audits': '/audits',
+      '/audits.html': '/audits',
+      '/observations': '/observations',
+      '/observations.html': '/observations'
     };
     if (communityPageAssets[path]) {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
