@@ -312,8 +312,13 @@ APPS.push({
           let serialized;
           try { serialized = JSON.stringify(transfer); } catch { api.toast("refusal", "IMPORT FAILED", "This audit could not be serialized. Export a local JSON copy instead."); return; }
           if (new TextEncoder().encode(serialized).byteLength > 65536) { api.toast("refusal", "IMPORT TOO LARGE", "This audit exceeds the 64 KiB private-draft limit. Export the JSON locally; no data was uploaded."); return; }
-          try { localStorage.setItem("ground0-private-account-handoff-v1", serialized); }
-          catch { api.toast("refusal", "LOCAL STAGING FAILED", "Browser storage could not stage this audit. Export the JSON locally; no data was uploaded."); return; }
+          try {
+            if (localStorage.getItem("ground0-private-account-handoff-v1")) {
+              api.toast("warn", "TRANSFER ALREADY STAGED", "Open /account and finish or discard the existing staged transfer before starting another.");
+              return;
+            }
+            localStorage.setItem("ground0-private-account-handoff-v1", serialized);
+          } catch { api.toast("refusal", "LOCAL STAGING FAILED", "Browser storage could not stage this audit. Export the JSON locally; no data was uploaded."); return; }
           window.location.href = "/account#ground0-import";
         },
         copyRecord() { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(S.detail.report, null, 2)).then(() => api.toast("info", "COPIED", "Audit record copied to the clipboard."), () => api.toast("refusal", "CLIPBOARD UNAVAILABLE", "Use Export JSON instead.")); },
