@@ -16,7 +16,7 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
-  { area: "NEO ORB web geometry, flame-guided placement, and app (display-only)", script: "test:neo-orb", files: ["neo-orb-test.mjs", "neo-orb-placement-test.mjs", "neo-orb-market-test.mjs", "neo-orb-page-test.mjs"] },
+  { area: "NEO ORB web geometry, instability extension, flame-guided placement, app, and feed boundary (display-only)", script: "test:neo-orb", files: ["market-extension-test.mjs", "neo-orb-test.mjs", "neo-orb-placement-test.mjs", "neo-orb-market-test.mjs", "neo-orb-page-test.mjs", "neo-orb-feed-boundary-test.mjs"] },
   { area: "Apple separation (Apple-platform work classified AVOID; kept off the supported side)", script: "test:apple-separation", files: ["apple-separation-test.mjs"] },
   { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
@@ -48,7 +48,7 @@ const SUITES = [
   {
     area: "Desktop apps, guided demo & Good Intelligence assurance & market data",
     script: "test:app",
-    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-dxy-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-orb2-test.mjs", "good-intelligence-orb2-worker-test.mjs", "orb2-baseline-test.mjs", "orb2-composition-test.mjs", "orb2-scenarios-test.mjs", "orb2-field-scheduler-test.mjs", "orb2-company-feed-cut-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs", "good-intelligence-card-test.mjs", "ground0-account-handoff-test.mjs"]
+    files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-dxy-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-orb2-test.mjs", "good-intelligence-orb2-worker-test.mjs", "orb2-baseline-test.mjs", "orb2-composition-test.mjs", "orb2-scenarios-test.mjs", "orb2-field-scheduler-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs", "good-intelligence-card-test.mjs", "ground0-account-handoff-test.mjs"]
   },
   {
     area: "Market-data provider foundation",

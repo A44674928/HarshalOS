@@ -11,7 +11,7 @@ const watchlistFields = entries => entries.map(({ symbol, name, sector }) => ({ 
 const NOW = Date.parse("2026-10-01T12:00:00.000Z");
 const ledgerFixture = createTickerbotLedgerDb();
 after(() => ledgerFixture.sql.close());
-const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db, ORB2_COMPANY_FEEDS: "on" });
+const testEnv = key => ({ TICKERBOT_API_KEY: key, COMMUNITY_DB: ledgerFixture.db });
 const route = symbol => new Request(`https://os.example.test/api/good-intelligence/v1/market/tickerbot/bars?symbol=${symbol}&interval=1h`);
 const rows = [
   { t: NOW - 2 * 60 * 60_000, o: 100, h: 102, l: 99, c: 101, v: 1200 },
@@ -36,7 +36,7 @@ const workersFetch = handler => async (url, options = {}) => {
 test("Tickerbot adapter requires a server-side key and performs no call when it is absent", async () => {
   clearTickerbotCache();
   let calls = 0;
-  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), { ORB2_COMPANY_FEEDS: "on" }, { now: () => NOW, fetch: async () => { calls++; return okResponse(); } });
+  const response = await handleGoodIntelligenceTickerbot(route("AAPL"), {}, { now: () => NOW, fetch: async () => { calls++; return okResponse(); } });
   assert.equal(response.status, 503);
   assert.match((await response.json()).message, /TICKERBOT_API_KEY/);
   assert.equal(calls, 0);

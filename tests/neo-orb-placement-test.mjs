@@ -327,8 +327,166 @@ test("guided orbs never re-slot: the full roster stays spaced in 3D while roamin
   assert.ok(worstChord >= M.BERTH_MIN_CHORD, `every placed pair clears the berth floor (worst ${worstChord.toFixed(3)})`);
 });
 
+/* ── the placer and the model share one latitude contract ─────────── */
+
+test("the placer's latitude ceiling is the model's own placement contract", () => {
+  assert.equal(P.LAT_LIMIT, M.PLACEMENT_LATITUDE_LIMIT,
+    "one limit, named in both files: makeShape() refuses anything wider than the placer may emit");
+  const placer = P.createPlacer(rosterHomes(), { roam: 0.8, latitudeLimit: M.PLACEMENT_LATITUDE_LIMIT });
+  assert.equal(placer.latitudeLimit, M.PLACEMENT_LATITUDE_LIMIT);
+  const stale = P.createPlacer(rosterHomes(), { roam: 0.8 });
+  assert.equal(stale.latitudeLimit, M.PLACEMENT_LATITUDE_LIMIT, "a caller that supplies nothing gets the contract");
+  const greedy = P.createPlacer(rosterHomes(), { roam: 0.8, latitudeLimit: 1.5 });
+  assert.equal(greedy.latitudeLimit, P.LAT_LIMIT, "no caller can widen the ceiling past the placer's own hard limit");
+});
+
+test("the freeze regression: poleward guidance never hands the model a latitude it refuses", () => {
+  /* What used to happen in the browser, a few seconds in: an orb whose home sits near a pole
+     was guided past ±1.2, makeShape() threw a RangeError inside the frame, the throw escaped
+     the tick loop, requestAnimationFrame was never re-armed, and NEO ORB froze. The placer now
+     spends its latitude budget against each orb's own home, so every frame is acceptable. */
+  const nodes = M.rosterNodes(ROSTER.assets);
+  const homes = M.homesFor(nodes);
+  const axes = { x: 1.1, y: 0.84, z: 1.18 };
+  const placer = P.createPlacer(homes, { roam: 0.8, latitudeLimit: M.PLACEMENT_LATITUDE_LIMIT, positionFor: M.positionFor });
+  placer.setGeometry({ formation: 1, axes });
+  /* Fields that pull the fleet toward each pole in turn, as a real flame core wanders. */
+  const fields = [coreField(0.1, -0.85, 0.10), coreField(-0.2, 0.85, 0.10), coreField(0.4, 0, 0.08), coreField(-0.5, -0.6, 0.12)];
+  let widest = 0, refused = null, atPole = 0;
+  for (let k = 0; k < 60 * 60 && !refused; k++) {
+    const field = fields[Math.floor((k * DT) / 8) % fields.length];
+    const placed = placer.step(DT, field);
+    const placements = Object.fromEntries(placed.map(q => [q.id, { longitude: q.longitude, latitude: q.latitude }]));
+    for (const q of placed) {
+      widest = Math.max(widest, Math.abs(q.latitude));
+      if (Math.abs(q.latitude) > M.PLACEMENT_LATITUDE_LIMIT - 1e-9) atPole++;
+    }
+    try {
+      M.makeShape({ formation: 1, axes, berthSeparation: 1, nodes, placements });
+    } catch (error) {
+      refused = { second: (k * DT).toFixed(2), message: error.message };
+    }
+  }
+  assert.equal(refused, null, refused ? `makeShape refused at t=${refused.second}s: ${refused.message}` : "");
+  assert.ok(widest <= M.PLACEMENT_LATITUDE_LIMIT, `no placement exceeds the contract (widest ${widest.toFixed(4)})`);
+  assert.ok(atPole > 0, `the run really did press orbs against the ceiling (${atPole} frames), so the budget is what held`);
+});
+
 test("the placement source is pure math: no DOM, network, storage, or route", () => {
   for (const forbidden of ["document", "fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "/api/", "legitimacy(", "drawImage", "getContext"]) {
     assert.equal(placementSource.includes(forbidden), false, `neo-orb-placement.js must not reference ${forbidden}`);
   }
+});
+
+/* ── the instability extension: spacing is measured where the orbs are drawn ──
+   An extended orb leaves its band shell for the region outside every band, so the
+   placer is handed the model's own radius rule and spaces orbs at the radius they
+   are actually drawn at. Without that rule it holds the reading and draws no lift. */
+
+const shellOf = (homes, id) => homes.find(h => h.id === id).radius;
+const chordFloor = placements => {
+  let min = Infinity;
+  for (let i = 0; i < placements.length; i += 1) {
+    for (let j = i + 1; j < placements.length; j += 1) {
+      const a = placements[i], b = placements[j];
+      const point = p => {
+        const r = p.radius;
+        return [r * Math.cos(p.latitude) * Math.cos(p.longitude), r * Math.sin(p.latitude), r * Math.cos(p.latitude) * Math.sin(p.longitude)];
+      };
+      const [ax, ay, az] = point(a), [bx, by, bz] = point(b);
+      min = Math.min(min, Math.hypot(ax - bx, ay - by, az - bz));
+    }
+  }
+  return min;
+};
+
+test("the placer lifts an orb by the model's radius rule, and only when it is handed that rule", () => {
+  const homes = rosterHomes();
+  const region = M.INSTABILITY_REGION;
+  const plain = P.createPlacer(homes);
+  const lifted = P.createPlacer(homes, { radiusFor: M.extensionRadius });
+  const byId = placer => Object.fromEntries(placer.placements().map(p => [p.id, p]));
+
+  plain.setExtensions({ NVDA: 1 });
+  const plainById = byId(plain);
+  assert.equal(plainById.NVDA.extension, 1, "the reading is held…");
+  assert.equal(plainById.NVDA.radius, shellOf(homes, "NVDA"), "…but a placer without the model's rule draws no lift");
+
+  lifted.setExtensions({ NVDA: 1, PSX: 0.5 });
+  const liftedById = byId(lifted);
+  assert.equal(liftedById.NVDA.radius, region.outer, "an extreme reading is spaced at the region's outer edge");
+  assert.ok(Math.abs(liftedById.PSX.radius - (region.inner + (region.outer - region.inner) * 0.5)) < 1e-12,
+    "a half reading sits halfway through the region, whatever shell it left");
+  assert.equal(liftedById.AAPL.radius, shellOf(homes, "AAPL"), "an orb with no reading keeps its band shell exactly");
+  assert.equal(liftedById.AAPL.extension, 0);
+  for (const p of lifted.placements()) {
+    assert.equal(p.radius, M.extensionRadius(shellOf(homes, p.id), p.extension), "every reported radius is the model's rule");
+  }
+});
+
+test("setExtensions is fail-closed: an unknown orb or an unusable value is refused, not clamped", () => {
+  const homes = rosterHomes();
+  const placer = P.createPlacer(homes, { radiusFor: M.extensionRadius });
+  const nvda = () => placer.placements().find(p => p.id === "NVDA");
+
+  assert.throws(() => placer.setExtensions({ NOPE: 0.5 }), /not a node this placer holds/);
+  for (const bad of [-0.1, 1.2, Number.NaN, Number.POSITIVE_INFINITY, "0.5", null, {}]) {
+    assert.throws(() => placer.setExtensions({ NVDA: bad }), /must be a finite 0…1/, `extension ${String(bad)} is refused`);
+  }
+  assert.throws(() => placer.setExtensions([0.5]), /map of node id/, "an array is not a map of node ids");
+
+  /* A refused call changes nothing: the previous good reading still stands. */
+  placer.setExtensions({ NVDA: 1 });
+  assert.throws(() => placer.setExtensions({ NVDA: 0.5, NOPE: 0.2 }), /not a node this placer holds/);
+  assert.equal(nvda().radius, M.INSTABILITY_REGION.outer, "the refused call left the standing reading alone");
+
+  placer.setExtensions(null);
+  assert.ok(placer.placements().every(p => p.extension === 0), "null clears every reading…");
+  assert.ok(placer.placements().every(p => p.radius === shellOf(homes, p.id)), "…and every orb back onto its band shell");
+
+  placer.setExtensions({ NVDA: 0.8 });
+  placer.reset();
+  assert.equal(nvda().extension, 0, "a reset clears the reading too");
+  assert.equal(nvda().radius, shellOf(homes, "NVDA"));
+});
+
+test("an extended fleet is spaced at the radius it is drawn at, and the model never re-slots it", () => {
+  const nodes = M.rosterNodes(ROSTER.assets);
+  const homes = M.homesFor(nodes);
+  const field = coreField(0.4, 0, 0.12);
+  const allExtended = Object.fromEntries(homes.map(h => [h.id, 1]));
+
+  const calm = P.createPlacer(homes, { roam: 1, radiusFor: M.extensionRadius, positionFor: M.positionFor });
+  const extended = P.createPlacer(homes, { roam: 1, radiusFor: M.extensionRadius, positionFor: M.positionFor });
+  extended.setExtensions(allExtended);
+
+  const calmOut = runFor(calm, field, 6);
+  const extendedOut = runFor(extended, field, 6);
+  assert.equal(calm.guided, true, "the field really guides both fleets");
+  assert.ok(calmOut.some(p => p.displacement > 0.01), "and the orbs really move");
+
+  const calmChord = chordFloor(calmOut);
+  const extendedChord = chordFloor(extendedOut);
+  assert.ok(calmChord >= M.BERTH_MIN_CHORD, `the calm fleet clears the berth floor (${calmChord.toFixed(3)})`);
+  assert.ok(extendedChord > calmChord,
+    `the same fleet lifted into the region is spaced further apart in 3D (${extendedChord.toFixed(3)} > ${calmChord.toFixed(3)})`);
+  assert.ok(extended.placements().every(p => p.radius === M.INSTABILITY_REGION.outer), "every orb is out on the region's edge");
+
+  /* Spacing at the drawn radius is what keeps the model from re-slotting the lifted fleet. */
+  const placements = Object.fromEntries(extendedOut.map(p => [p.id, { longitude: p.longitude, latitude: p.latitude }]));
+  const shape = M.makeShape({
+    formation: 1, axes: { x: 1, y: 1, z: 1 }, berthSeparation: 1, nodes, placements, extensions: allExtended
+  });
+  assert.equal(shape.berthSeparation.crowdedNodeCount, 0, "no pair is below the berth floor, so nothing is re-slotted");
+  assert.equal(shape.instability.extendedCount, nodes.length);
+  assert.equal(shape.instability.maxRadius, M.INSTABILITY_REGION.outer);
+  let minChord = Infinity;
+  for (let i = 0; i < shape.nodes.length; i += 1) {
+    for (let j = i + 1; j < shape.nodes.length; j += 1) {
+      const a = shape.nodes[i].position, b = shape.nodes[j].position;
+      minChord = Math.min(minChord, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
+    }
+  }
+  assert.ok(minChord >= shape.berthSeparation.minimumChordDistance - 1e-9,
+    `the drawn positions clear the floor too (min chord ${minChord.toFixed(3)})`);
 });

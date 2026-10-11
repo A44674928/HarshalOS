@@ -33,7 +33,7 @@ const workersFetch = handler => async (url, options = {}) => {
 
 function fixture() {
   const value = createTickerbotLedgerDb();
-  return { ...value, env: { COMMUNITY_DB: value.db, TICKERBOT_API_KEY: KEY, ORB2_COMPANY_FEEDS: "on" } };
+  return { ...value, env: { COMMUNITY_DB: value.db, TICKERBOT_API_KEY: KEY } };
 }
 
 test("D1 migration creates a compact month-keyed aggregate and enforces nonnegative values", t => {
@@ -194,7 +194,7 @@ test("both live routes fail closed if D1 is not bound or its migration is missin
   t.after(() => sql.close());
   let calls = 0;
   const dependencies = { now: () => NOW, fetch: async () => { calls += 1; return providerResponse(); } };
-  const env = { TICKERBOT_API_KEY: KEY, COMMUNITY_DB: db, ORB2_COMPANY_FEEDS: "on" };
+  const env = { TICKERBOT_API_KEY: KEY, COMMUNITY_DB: db };
 
   const characters = await handleCharactersBeat(
     new Request("https://os.example.test/api/characters/v1/beat?symbols=AAPL&interval=1h&cadence=15"), env, dependencies

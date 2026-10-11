@@ -126,7 +126,7 @@ function fixture(t, { migrated = true, maxBindParameters = Infinity, options = f
   };
   return {
     sql, db, stats,
-    env: { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key", ORB2_COMPANY_FEEDS: "on" }
+    env: { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" }
   };
 }
 
@@ -1082,13 +1082,13 @@ test("durable provider budgets hold refused queue work and the legacy Massive da
 test("a missing Worker secret and a missing binding fail closed with a readable reason", async t => {
   const { env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
-  const noSecrets = await runOrb2FieldTick({ COMMUNITY_DB: env.COMMUNITY_DB, ORB2_COMPANY_FEEDS: "on" }, null, deps(seen, { at: nextClock() }));
+  const noSecrets = await runOrb2FieldTick({ COMMUNITY_DB: env.COMMUNITY_DB }, null, deps(seen, { at: nextClock() }));
   assert.equal(noSecrets.massiveCalls, 0);
   assert.equal(noSecrets.tickerbotCalls, 0);
   assert.ok(noSecrets.notes.some(note => /TICKERBOT_API_KEY/.test(note)) && noSecrets.notes.some(note => /MASSIVE_API_KEY/.test(note)),
     "missing provider secrets are named instead of silently substituting another source");
   assert.equal(seen.krakenRanking.length, 1, "public Kraken market data requires neither a Worker secret nor an account API key");
-  const noDb = await runOrb2FieldTick({ ORB2_COMPANY_FEEDS: "on" }, null, deps(seen, { at: nextClock() }));
+  const noDb = await runOrb2FieldTick({}, null, deps(seen, { at: nextClock() }));
   assert.equal(noDb.ok, false);
   assert.match([...noDb.notes, ...noDb.errors].join(" "), /COMMUNITY_DB/);
 });
@@ -1463,7 +1463,7 @@ test("the scheduler handles missing kraken_calls column gracefully without migra
     },
     async batch(statements) { return Promise.all(statements.map(statement => statement.run())); }
   };
-  const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key", ORB2_COMPANY_FEEDS: "on" };
+  const env = { COMMUNITY_DB: db, MASSIVE_API_KEY: "test-massive-key", TICKERBOT_API_KEY: "test-tickerbot-key" };
   const seen = { urls: [], massive: [], tickerbot: [] };
   const at = nextClock();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));

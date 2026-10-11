@@ -1,8 +1,10 @@
-/* NEO ORB market colour and the one field read. Display-only.
+/* NEO ORB market colour, and the one stored read that feeds it. Display-only.
    Fill = rally/sink (green rallying, red sinking). Ring = basis (blue below, yellow above).
    Definitions follow Orb 2: changePct for rally/sink; the close against the FBB basis.
-   The reader is the only NEO ORB module allowed to call fetch, and it reads only the
-   first-party Orb 2 field route. Synthetic records only. */
+   The colour rules are pure math and stay tested here. The reader (js/neo-orb-field.js) owns
+   the surface's single network call — a same-origin GET of its own Worker route — and it is
+   the only file that holds one. tests/neo-orb-feed-boundary-test.mjs covers that boundary end
+   to end, including the fail-closed switch that closes the feed again. Synthetic records only. */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
@@ -27,6 +29,9 @@ vm.runInContext(marketSource, context, { filename: "js/neo-orb-market.js" });
 vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
 const Market = window.NeoOrbMarket;
 const Field = window.NeoOrbField;
+
+/* Drop block and line comments, so a scan reads the code and not the prose that explains it. */
+const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const row = (symbol, market, extra = {}) => ({ symbol, discId: "stocks", observedAt: 1000, market, ...extra });
 
@@ -107,38 +112,50 @@ test("the field rows index by symbol, keep the newest stock row, and ignore othe
   assert.equal(Market.indexField(null).size, 0);
 });
 
-test("the reader makes one same-origin GET to the first-party field route, and returns the rows", async () => {
+test("the reader names its one route and reads it as a same-origin GET", async () => {
   const calls = [];
+  const rows = [row("NVDA", { changePct: 2, latestBar: { close: 110 }, basis: 100 })];
   const fetcher = async (url, options) => {
-    calls.push({ url, options });
-    return { ok: true, status: 200, json: async () => ({ data: { ok: true, observations: [{ symbol: "NVDA" }] } }) };
+    calls.push({ url: String(url), options });
+    return { ok: true, status: 200, json: async () => ({ success: true, data: { ok: true, observations: rows } }) };
   };
   const result = await Field.readField({ fetcher, now: 42 });
-  assert.equal(result.ok, true);
-  assert.equal(result.observations.length, 1);
-  assert.equal(result.at, 42);
-  assert.equal(calls.length, 1, "one read per call");
-  assert.equal(calls[0].url, "/api/good-intelligence/v1/orb2/field?interval=1d");
-  assert.equal(calls[0].options.method, "GET");
+
+  assert.equal(Field.FEED_CUT, false, "the reader module is the one place the feed is declared open");
+  assert.equal(Field.FIELD_ROUTE, "/api/good-intelligence/v1/orb2/field");
+  assert.equal(Field.fieldUrl("1h"), "/api/good-intelligence/v1/orb2/field?interval=1h");
+  assert.equal(Field.fieldUrl("bogus"), "/api/good-intelligence/v1/orb2/field?interval=1d", "unknown intervals fall back to daily");
+
+  assert.equal(calls.length, 1, "one read of one relative route");
+  assert.equal(calls[0].url, Field.fieldUrl(), "and it is the daily field");
+  assert.equal(calls[0].options.method, "GET", "the display writes nothing");
   assert.equal(calls[0].options.credentials, "same-origin");
   assert.equal(calls[0].options.cache, "no-store");
   assert.equal(calls[0].options.redirect, "error");
-  assert.equal(Field.fieldUrl("1h"), "/api/good-intelligence/v1/orb2/field?interval=1h");
-  assert.equal(Field.fieldUrl("bogus"), "/api/good-intelligence/v1/orb2/field?interval=1d", "unknown intervals fall back to daily");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.observations.length, 1, "the stored rows come back as they were written");
+  assert.equal(result.at, 42, "and the read is stamped with the caller's clock");
+  assert.equal(Market.indexField(result.observations).get("NVDA").changePct, 2,
+    "the colour module indexes exactly what the reader returned");
 });
 
-test("the reader fails closed: HTTP errors, data.ok false, and network throws become labelled results", async () => {
-  const httpError = await Field.readField({ fetcher: async () => ({ ok: false, status: 503, json: async () => ({}) }) });
-  assert.equal(httpError.ok, false);
-  assert.ok(httpError.message.includes("503"));
-  const notOk = await Field.readField({ fetcher: async () => ({ ok: true, status: 200, json: async () => ({ message: "held", data: { ok: false } }) }) });
-  assert.equal(notOk.ok, false);
-  assert.equal(notOk.message, "held");
-  const thrown = await Field.readField({ fetcher: async () => { throw new Error("offline"); } });
-  assert.equal(thrown.ok, false);
-  assert.ok(thrown.message.includes("could not be read"));
-  const none = await Field.readField({ fetcher: null });
-  assert.equal(none.ok, false, "with no fetch available the read is labelled unavailable, not thrown");
+test("the reader holds exactly one call site, and no other file on the surface holds any", () => {
+  /* Prose may explain the call; code is what runs. Scan the code only. */
+  const code = stripComments(fieldSource);
+  assert.equal((code.match(/doFetch\(/g) || []).length, 1, "the reader's code holds exactly one call");
+  assert.equal(/XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts/.test(code), false,
+    "and no other network primitive beside it");
+  assert.equal(/method:\s*"GET"/.test(code), true, "the one call is a GET");
+  assert.equal(/credentials:\s*"same-origin"/.test(code), true);
+  assert.equal(/https?:\/\//.test(code), false, "it names no host: the route is relative");
+
+  for (const [name, source] of [["neo-orb-market.js", marketSource], ["apps-neo-orb.js", appSource],
+    ["neo-orb-model.js", modelSource], ["neo-orb-placement.js", placementSource]]) {
+    const stripped = stripComments(source);
+    assert.equal(/\bfetch\s*\(|doFetch\(|XMLHttpRequest|WebSocket|EventSource|sendBeacon/.test(stripped), false,
+      `${name} holds no network call: the reader is the only one`);
+  }
 });
 
 test("the market and reader sources touch no other channel: no third-party host, storage, socket, or write", () => {
@@ -147,9 +164,9 @@ test("the market and reader sources touch no other channel: no third-party host,
       assert.equal(source.includes(forbidden), false, `${name} must not reference ${forbidden}`);
     }
   }
-  assert.equal(marketSource.includes("fetch("), false, "the colour module never fetches; only the reader does");
+  assert.equal(marketSource.includes("fetch("), false, "the colour module never fetches");
   assert.equal(marketSource.includes("/api/"), false, "the colour module names no route");
-  assert.equal((fieldSource.match(/await doFetch\(/g) || []).length, 1, "the reader holds the only network call");
+  assert.equal(stripComments(fieldSource).includes("XMLHttpRequest"), false, "the reader holds one GET and no other channel");
 });
 
 test("the orb app takes its colour from the market module, and blue and yellow are never kind colours", () => {

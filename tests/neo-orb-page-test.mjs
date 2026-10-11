@@ -58,13 +58,14 @@ test("every local file the page names exists in the checkout", async () => {
     if (url.startsWith("data:")) continue;
     await readText(stripQuery(url));
   }
-  assert.ok(scriptSrcs.length >= 8, "the NEO ORB scripts are all present");
+  assert.ok(scriptSrcs.length >= 9, "the NEO ORB scripts are all present");
 });
 
 test("the scripts load in dependency order, and the page boot script runs last", () => {
   assert.deepEqual(scriptSrcs.map(stripQuery), [
     "js/good-intelligence-market-roster.js",
     "js/flame.js",
+    "js/market-extension.js",
     "js/neo-orb-model.js",
     "js/neo-orb-placement.js",
     "js/neo-orb-market.js",

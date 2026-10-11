@@ -31,6 +31,24 @@
   const BERTH_MIN_CHORD = 0.12;
   const AXIS_MIN = 0.25;
   const AXIS_MAX = 2;
+  /* rad (≈68.8°): the widest latitude makeShape() accepts from dynamic placement.
+     This is a contract with the placer (js/neo-orb-placement.js), which is handed this
+     constant and must never emit a wider placement. A refused placement throws inside
+     the app's frame, so the two limits are one limit, exported and test-checked. */
+  const PLACEMENT_LATITUDE_LIMIT = 1.2;
+  /* ── the instability region ──────────────────────────────────────────────
+     Band shells are the market-cap convention and they never move: band 0 (the
+     largest caps) sits at r ≈ 0.36 and band 5 (the smallest) at r = 1.00. An
+     instrument that is extended — overbought or oversold, per
+     js/market-extension.js — leaves its band shell and sits in a separate region
+     outside every band, further out the more extended it is. Extension is a
+     display of instability: not a valuation, a rank, or a recommendation, and it
+     never moves an orb's identity, sector, or band. */
+  const INSTABILITY_REGION = Object.freeze({
+    inner: 1.08,   // just outside the outermost band shell, so the gap reads
+    outer: 1.5,    // the region's outer edge: an extreme reading (extension 1)
+    entry: 0.15    // the extension over which an orb leaves its shell for the region
+  });
   const KIND_BY_SECTOR = Object.freeze({
     Technology: "structural",
     Industrials: "structural",
@@ -99,6 +117,23 @@
       bands.push({ index, radius: BAND_BASE * Math.pow(BAND_RATIO, index) });
     }
     return bands;
+  }
+
+  const smoothstep01 = t => { const x = clamp(t, 0, 1); return x * x * (3 - 2 * x); };
+
+  /* The radius of an orb carrying an extension of 0…1. Extension 0 is the band shell
+     exactly, so an unmeasured or calm instrument keeps the documented band radius.
+     Above 0 the orb leaves its shell and enters the instability region: over `entry`
+     it travels to the region's inner edge, and from there its own extension positions
+     it out to the outer edge. Continuous and monotone in the extension, so an orb
+     never jumps and a larger reading is always further out. */
+  function extensionRadius(radius, extension) {
+    if (!finite(radius) || radius <= 0) return radius;
+    const x = finite(extension) ? clamp(extension, 0, 1) : 0;
+    if (x <= 0) return radius;
+    const { inner, outer, entry } = INSTABILITY_REGION;
+    const target = inner + (outer - inner) * x;
+    return radius + (target - radius) * smoothstep01(x / entry);
   }
 
   function convergenceOf(axes) {
@@ -237,6 +272,19 @@
     }
   }
 
+  /* Extensions are optional: { [id]: 0…1 } from js/market-extension.js. Each must name a
+     node in the configuration and be finite and inside 0…1. Fail closed, never clamped. */
+  function validateExtensions(extensions, nodes) {
+    if (extensions === null || extensions === undefined) return null;
+    if (typeof extensions !== "object" || Array.isArray(extensions)) throw new TypeError("Extensions must be a map of node id to extension.");
+    const ids = new Set(nodes.map(n => n.id));
+    for (const [id, value] of Object.entries(extensions)) {
+      if (!ids.has(id)) throw new RangeError(`Extension names ${id}, which is not a node in this shape.`);
+      if (!finite(value) || value < 0 || value > 1) throw new RangeError(`Extension for ${id} must be a finite 0…1; received ${value}.`);
+    }
+    return extensions;
+  }
+
   /* Home anchors: where each node sits before any dynamic placement. Sector
      fixes longitude, list position fixes latitude, band fixes radius. Shared by
      makeShape() and homesFor() so the placer starts from the same anchors. */
@@ -353,7 +401,9 @@
     for (const [id, place] of Object.entries(placements)) {
       if (!ids.has(id)) throw new RangeError(`Placement names ${id}, which is not a node in this shape.`);
       if (!place || !finite(place.longitude) || !finite(place.latitude)) throw new RangeError(`Placement for ${id} needs finite longitude and latitude.`);
-      if (Math.abs(place.latitude) > 1.2) throw new RangeError(`Placement latitude for ${id} must be within ±1.2; received ${place.latitude}.`);
+      if (Math.abs(place.latitude) > PLACEMENT_LATITUDE_LIMIT) {
+        throw new RangeError(`Placement latitude for ${id} must be within ±${PLACEMENT_LATITUDE_LIMIT}; received ${place.latitude}.`);
+      }
     }
     return placements;
   }
@@ -369,12 +419,20 @@
     const bands = radialBands();
     const maxBandRadius = bands[bands.length - 1].radius;
     const placements = validatePlacements(configuration.placements, configuration.nodes);
+    const extensions = validateExtensions(configuration.extensions, configuration.nodes);
 
     const sources = sourcesFor(configuration.nodes).map(source => {
       const home = { longitude: source.sourceLongitude, latitude: source.sourceLatitude };
       const placed = placements ? placements[source.id] : null;
+      /* The band radius is the convention; the extension lifts an orb out of its shell
+         into the instability region. Berths resolve at the lifted radius, so orbs that
+         share the region are spaced where they are actually drawn. */
+      const extension = extensions ? Number(extensions[source.id] ?? 0) : 0;
       return {
         ...source,
+        bandRadius: source.radius,
+        radius: extensionRadius(source.radius, extension),
+        extension,
         homeLongitude: home.longitude,
         homeLatitude: home.latitude,
         sourceLongitude: placed ? placed.longitude : home.longitude,
@@ -396,6 +454,8 @@
         longitude: entry.longitude,
         latitude: entry.latitude,
         radius: source.radius,
+        bandRadius: source.bandRadius,
+        extension: source.extension,
         nodeRadius: source.nodeRadius,
         radialBandRadius: source.radialBandRadius,
         wasReslotted: entry.wasReslotted
@@ -403,6 +463,7 @@
     });
 
     const idealSphere = axes.x === 1 && axes.y === 1 && axes.z === 1;
+    const extended = nodes.filter(node => node.extension > 0);
     return {
       schema: SCHEMA,
       centerAddress: CENTER_ADDRESS,
@@ -412,6 +473,14 @@
       idealSphere,
       radialBands: bands,
       berthSeparation: report,
+      /* What the instability region is doing this frame, for the readouts. */
+      instability: {
+        region: INSTABILITY_REGION,
+        extendedCount: extended.length,
+        extendedNodeIds: extended.map(node => node.id),
+        maxExtension: extended.length ? Math.max(...extended.map(node => node.extension)) : 0,
+        maxRadius: nodes.length ? Math.max(...nodes.map(node => node.radius)) : 0
+      },
       nodes
     };
   }
@@ -450,6 +519,9 @@
     BAND_BASE,
     BAND_RATIO,
     BERTH_MIN_CHORD,
+    PLACEMENT_LATITUDE_LIMIT,
+    INSTABILITY_REGION,
+    extensionRadius,
     fnv1a64,
     sectorFor,
     identityPhase,

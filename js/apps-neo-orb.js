@@ -37,7 +37,18 @@
      band rings use neutral tones. */
   const CENTER_COLOR = "#e8f1ff";
   const BAND_COLOR = "#7d93b8";
-  const MARKET_EVERY_MS = 20000;       // how often the Orb 2 field is re-read (the server's own cadence)
+  /* One stored read of NEO ORB's own field route, at most this often. js/neo-orb-field.js owns
+     whether the feed is open at all; the app follows that switch fail-closed (feedCut()). */
+  const MARKET_EVERY_MS = 20000;
+  const MARKET_CUT_MESSAGE = "NEO ORB reads no market feed, so every orb stays neutral on its band shell.";
+  /* The instability extension settles on wall-clock time, not the display clock: a new
+     stored reading glides an orb out to its radius instead of teleporting it, and a paused
+     or reduced-motion view snaps straight to the reading instead of animating. */
+  const EXTENSION_TAU = 1.2;           // s to ~63% of the way to a new extension
+  const FIT_TAU = 0.6;                 // s to ~63% of the way to a new view scale
+  const MIN_FIT = 0.55;                // the view never zooms out past this
+  const MARKET_CUT_STATUS = `cut — ${MARKET_CUT_MESSAGE}`;
+  const SHAPE_RETRY_MS = 250;          // how soon a refused shape is retried (a refusal costs one frame, not the display)
   const NEUTRAL_FILL = "#8fa3c0";      // no data, flat, or equal to basis
   const ORIGIN_ADDRESS = "0•000•000•0000";
   const DEFAULTS = Object.freeze({
@@ -85,6 +96,11 @@
     return r && Array.isArray(r.assets) ? r : null;
   }
 
+  function extensionModule() {
+    if (typeof window !== "undefined" && window.MarketExtension) return window.MarketExtension;
+    return (typeof MarketExtension !== "undefined") ? MarketExtension : null;
+  }
+
   function placerModule() {
     if (typeof window !== "undefined" && window.NeoOrbPlacement) return window.NeoOrbPlacement;
     return (typeof NeoOrbPlacement !== "undefined") ? NeoOrbPlacement : null;
@@ -115,6 +131,13 @@
     };
   }
 
+  /* One Status line for the frame: what it drew, or what it refused and kept drawing past. */
+  function frameNote(errors) {
+    if (errors.frame) return `error — ${errors.frame} · the display keeps running`;
+    if (errors.shape) return `shape refused — ${errors.shape} · last good shape drawn`;
+    return "ok";
+  }
+
   function playerStatus(player, label, error) {
     if (!player) return "unavailable — flame engine not loaded";
     if (player.ready && player.frames.length) {
@@ -142,16 +165,20 @@
       this.screenNodes = [];
       this.shape = null;
       this.dirty = true;
+      this.lastShapeAttempt = -Infinity;
       this.lastTick = null;
       this.lastReadout = 0;
       this.stopped = false;
-      this.errors = { inner: null, outer: null, guide: null };
+      this.errors = { inner: null, outer: null, guide: null, shape: null, frame: null };
       this.placements = null;              // placed offsets for this frame, or null = home
       this.guide = null;                   // combined flame density field, or null
       this.lastGuideAt = -Infinity;
       this.guideCanvas = undefined;        // lazily created 2D scratch canvas (never shown)
-      this.market = null;                  // Map(symbol → market record) from the Orb 2 field, or null
-      this.marketStatus = "waiting for the Orb 2 field";
+      this.extensions = new Map();         // eased extension per symbol, 0…1
+      this.extensionStates = new Map();    // the stored reading behind each eased value
+      this.fit = 1;                        // view scale: 1 unless orbs are out in the region
+      this.market = null;                  // Map(symbol → market record), or null while the feed is cut
+      this.marketStatus = MARKET_CUT_STATUS;   // fail-closed until the reader says otherwise
       this.marketAt = null;
       this.lastMarketAt = -Infinity;
       this.marketBusy = false;
@@ -162,11 +189,16 @@
       this.byId = new Map(this.nodes.map(n => [n.id, n]));
       this.homes = model() && this.nodes.length ? model().homesFor(this.nodes) : [];
       const placing = placerModule();
+      const m = model();
       this.placer = placing && this.homes.length
         ? placing.createPlacer(this.homes, {
             roam: this.state.roam,
             /* the model's own 3D geometry, so spacing is measured where the berth check measures it */
-            positionFor: (radius, lon, lat, formation, axes) => model().positionFor(radius, lon, lat, formation, axes)
+            positionFor: (radius, lon, lat, formation, axes) => model().positionFor(radius, lon, lat, formation, axes),
+            /* the model's placement contract, so the placer can never emit a latitude makeShape() refuses */
+            latitudeLimit: m && m.PLACEMENT_LATITUDE_LIMIT,
+            /* the model's radius rule, so spacing is measured where an extended orb actually is */
+            radiusFor: (bandRadius, extension) => m.extensionRadius(bandRadius, extension)
           })
         : null;
 
@@ -189,18 +221,30 @@
     }
 
     /* ── shape ─────────────────────────────────────────────── */
-    currentShape() {
+    /* The shape for this frame. makeShape() fails closed: it refuses a configuration it will
+       not draw. A refusal must cost one frame, never the display — the last good shape stays
+       on screen, the reason is reported in Status, and retries are rate-limited so a
+       persistent refusal cannot become a per-frame throw storm. */
+    currentShape(now = 0) {
       if (!this.dirty && this.shape) return this.shape;
       const m = model();
       if (!m) { this.shape = null; return null; }
+      if (this.errors.shape && this.shape && now - this.lastShapeAttempt < SHAPE_RETRY_MS) return this.shape;
+      this.lastShapeAttempt = now;
       const s = this.state;
-      this.shape = m.makeShape({
-        formation: s.formation,
-        axes: { x: s.axes.x, y: s.axes.y, z: s.axes.z },
-        berthSeparation: s.berth,
-        nodes: this.nodes,
-        placements: this.placementMap()
-      });
+      try {
+        this.shape = m.makeShape({
+          formation: s.formation,
+          axes: { x: s.axes.x, y: s.axes.y, z: s.axes.z },
+          berthSeparation: s.berth,
+          nodes: this.nodes,
+          placements: this.placementMap(),
+          extensions: this.extensionMap()
+        });
+        this.errors.shape = null;
+      } catch (error) {
+        this.errors.shape = error && error.message ? error.message : String(error);
+      }
       this.dirty = false;
       return this.shape;
     }
@@ -213,12 +257,30 @@
       return map;
     }
 
-    /* ── market colour (descriptive, from the Orb 2 field) ──── */
-    /* Re-read the stored field at most every MARKET_EVERY_MS, through the reader module.
-       Fill = rally/sink; ring = basis. Nothing is written, and no provider is called here. */
+    /* Fail-closed: the feed counts as cut unless the reader module opens it explicitly. */
+    feedCut() {
+      const reader = typeof window !== "undefined" ? window.NeoOrbField : null;
+      return !reader || reader.FEED_CUT !== false;
+    }
+
+    /* ── market colour and extension (descriptive) ──────────── */
+    /* One stored read feeds both descriptive channels: fill = rally/sink and ring = basis
+       (js/neo-orb-market.js), and distance from the centre = the instability extension
+       (js/market-extension.js). js/neo-orb-field.js owns whether the feed is open at all and
+       this app follows it fail-closed: unless the reader declares the feed open, nothing is
+       read, nothing is polled, every orb stays neutral, and every orb stays on its band shell.
+       Nothing is written either way, and no provider is called from here. */
     refreshMarket(now) {
       const reader = typeof window !== "undefined" ? window.NeoOrbField : null;
       const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
+      if (this.feedCut()) {
+        this.market = null;
+        this.marketAt = null;
+        this.storedAt = null;
+        this.extensionStates = new Map();
+        this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
+        return;
+      }
       if (!reader || !market) { this.marketStatus = "unavailable — the market colour module did not load"; return; }
       if (this.marketBusy || now - this.lastMarketAt < MARKET_EVERY_MS) return;
       this.lastMarketAt = now;
@@ -228,6 +290,7 @@
           this.market = market.indexField(result.observations);
           this.marketAt = result.at;
           this.storedAt = market.storedAsOf(result.observations);
+          this.indexExtensions();
           this.marketStatus = this.market.size ? "live" : "no stock rows in the field yet";
         } else {
           this.marketStatus = `unavailable — ${result.message}`;
@@ -260,6 +323,93 @@
       return `${s.rally} · ${pct} · ${basis}${this.storedLabel()}`;
     }
 
+    /* The stored reading behind each orb's distance from the centre. A failed read keeps the
+       last good states, exactly as it keeps the last good colours. */
+    indexExtensions() {
+      const ext = extensionModule();
+      const states = new Map();
+      if (ext && this.market) for (const [symbol, record] of this.market) states.set(symbol, ext.extensionOf(record));
+      this.extensionStates = states;
+    }
+
+    /* Ease every orb toward its stored extension. `instant` snaps instead of gliding, which is
+       what a paused or reduced-motion view does: the reading is still shown, it just does not
+       animate. Values stay inside 0…1, so the model's validation can never be handed a stray. */
+    updateExtensions(dt, instant) {
+      const k = instant ? 1 : dt > 0 ? 1 - Math.exp(-dt / EXTENSION_TAU) : 0;
+      if (k <= 0) return;
+      let moved = false;
+      for (const node of this.nodes) {
+        const state = this.extensionStates.get(node.id);
+        const target = state && state.available ? state.extension : 0;
+        const current = this.extensions.get(node.id) || 0;
+        const next = current + (target - current) * k;
+        const settled = Math.abs(target - next) < 1e-4 ? target : next;
+        if (settled !== current) { this.extensions.set(node.id, settled); moved = true; }
+      }
+      if (moved) this.dirty = true;
+    }
+
+    /* { [id]: 0…1 } for the model and the placer. Empty when nothing is extended. */
+    extensionMap() {
+      if (!this.extensions.size) return null;
+      const map = {};
+      for (const node of this.nodes) map[node.id] = this.extensions.get(node.id) || 0;
+      return map;
+    }
+
+    /* The eased extension of one orb, and the reading behind it. */
+    extensionFor(id) {
+      return { value: this.extensions.get(id) || 0, state: this.extensionStates.get(id) || null };
+    }
+
+    /* One readable line for the inspector: how far out, why, and against which shell. */
+    extensionNoteFor(id) {
+      const ext = extensionModule();
+      const { value, state } = this.extensionFor(id);
+      if (!ext) return "unavailable — the extension module did not load";
+      if (!state) return this.feedCut() ? this.marketStatus : "unmeasured — this orb has no stored row";
+      if (!state.available) return `unmeasured — ${state.reason}`;
+      const placed = this.shape ? this.shape.nodes.find(n => n.id === id) : null;
+      const radii = placed
+        ? ` · r ${placed.radius.toFixed(3)} from a band shell of ${placed.bandRadius.toFixed(3)}`
+        : "";
+      /* The drawn value is eased, so it is named as what it is: the reading once it has
+         arrived, and a value still on its way there until then. */
+      const settling = Math.abs(value - state.extension) >= 5e-3;
+      return `${ext.describe(state)} · shown at ${value.toFixed(2)}${settling ? " while it settles" : ""}${radii}`;
+    }
+
+    /* Keep the whole fleet in frame. Orbs that lift into the instability region reach past the
+       outermost band shell, so the view eases out to hold them; with nothing extended the scale
+       is exactly what it has always been, so the framing never changes on a calm field. */
+    updateFit(dt, shape) {
+      const maxRadius = shape && shape.instability ? Math.max(1, shape.instability.maxRadius) : 1;
+      const target = clamp(1 / maxRadius, MIN_FIT, 1);
+      const k = dt > 0 ? 1 - Math.exp(-dt / FIT_TAU) : 0;
+      if (k <= 0) return;
+      this.fit += (target - this.fit) * k;
+    }
+
+    /* One Status line for the instability region: how many orbs are off their band shell,
+       the widest reading, and the region's own edges. Honest about what is unmeasured. */
+    extensionReadout() {
+      const ext = extensionModule();
+      if (!ext) return "unavailable — the extension module did not load";
+      if (this.feedCut()) return `none — ${MARKET_CUT_MESSAGE}`;
+      const info = this.shape ? this.shape.instability : null;
+      const measured = this.extensionStates.size;
+      if (!measured) return "unmeasured — no stored rows in the field yet";
+      const region = info ? info.region : null;
+      let top = null;
+      for (const [id, value] of this.extensions) if (value > 0 && (!top || value > top.value)) top = { id, value };
+      const extended = info ? info.extendedCount : 0;
+      const widest = info ? info.maxExtension : 0;
+      return `${extended} of ${this.nodes.length} outside their band shell · max ${widest.toFixed(2)}${top ? ` (${top.id})` : ""}`
+        + ` · ${measured} measured · region ${region ? `${region.inner.toFixed(2)}…${region.outer.toFixed(2)}` : "unavailable"}`
+        + ` · view ${(this.fit * 100).toFixed(0)}%${this.storedLabel()}`;
+    }
+
     /* Colours are the last stored field, not live. Say so, with the stored time in UTC. */
     storedLabel() {
       if (!this.storedAt) return "";
@@ -277,6 +427,7 @@
         return;
       }
       if (this.placer.roam !== this.state.roam) this.placer.setRoam(this.state.roam);
+      if (typeof this.placer.setExtensions === "function") this.placer.setExtensions(this.extensionMap());
       this.placer.setGeometry({
         formation: this.state.formation,
         axes: { x: this.state.axes.x, y: this.state.axes.y, z: this.state.axes.z }
@@ -360,18 +511,50 @@
     }
 
     /* ── frame ─────────────────────────────────────────────── */
+    /* The clock never stops. One frame of work is wrapped, so a placement the geometry
+       refuses, a canvas that throws, or a readout that fails costs that frame only: the
+       failure is named in Status and the next frame is always armed. An uncaught throw in
+       here is what used to freeze NEO ORB — requestAnimationFrame was never called again,
+       so the picture stopped and the app looked dead a few seconds in. */
     tick(now) {
       if (this.stopped) return;
       if (!this.body.isConnected) { this.stopped = true; return; }
+      try {
+        this.frame(now);
+      } catch (error) {
+        this.errors.frame = error && error.message ? error.message : String(error);
+        this.showFrameError();
+      }
+      if (!this.stopped) requestAnimationFrame(t => this.tick(t));
+    }
+
+    frame(now) {
+      this.errors.frame = null;   /* a frame that runs clears the last failure; Status tells the truth */
       const dt = this.lastTick == null ? 0 : clamp((now - this.lastTick) / 1000, 0, 0.1);
       this.lastTick = now;
       const simDt = this.state.paused ? 0 : dt * this.state.speed;
       this.clock += simDt;
       this.refreshMarket(now);
+      /* Extension settles on wall-clock time so a paused view still shows the stored reading;
+         a paused or reduced-motion view snaps to it instead of gliding. */
+      this.updateExtensions(dt, this.state.paused);
       this.updatePlacement(simDt, now);
+      /* The camera holds the whole fleet: orbs lifted into the instability region reach past
+         the outermost band shell, so the view eases out to keep them on screen. This runs in
+         the frame, not inside draw(), so the framing stays right even when the canvas is not
+         available to draw on. */
+      this.updateFit(dt, this.currentShape(now));
       this.draw(now);
       if (now - this.lastReadout > 250) { this.lastReadout = now; this.readouts(); }
-      requestAnimationFrame(t => this.tick(t));
+    }
+
+    /* Write a frame failure straight to the Status panel. It deliberately bypasses
+       readouts(), because the readout path may be the part that threw. */
+    showFrameError() {
+      try {
+        const el = this.body.querySelector("#neo-frame");
+        if (el) el.textContent = frameNote(this.errors);
+      } catch { /* no panel to write to; the loop still re-arms */ }
     }
 
     /* ── drawing ───────────────────────────────────────────── */
@@ -385,14 +568,16 @@
       const pxW = Math.round(W * dpr), pxH = Math.round(H * dpr);
       if (canvas.width !== pxW || canvas.height !== pxH) { canvas.width = pxW; canvas.height = pxH; }
 
-      const s = Math.min(W, H) * 0.18;
       const cx = W / 2, cy = H / 2;
       const st = this.state;
       const L = st.layers;
       const breath = 1 + BREATH_EPS * Math.sin((TAU * this.clock) / BREATH_T);
       const R = WORLD_R * breath;
+      const shape = this.currentShape(now);
+      /* The view scale only ever shrinks, and only while orbs are out in the instability
+         region, so a calm field is framed exactly as it always was. frame() eases it. */
+      const s = Math.min(W, H) * 0.18 * this.fit;
       const { project, toScreen } = this.camera(s, cx, cy);
-      const shape = this.currentShape();
       const m = model();
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -488,6 +673,32 @@
         ctx.beginPath();
         pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
         ctx.stroke();
+      }
+      /* The instability region: outside every band shell, where extended orbs sit. An inner
+         and an outer edge with ticks between them, in the bands' own neutral tone — blue and
+         yellow stay reserved for market state. It brightens while occupied, so the region reads
+         as a place something is happening rather than as decoration. */
+      const region = m.INSTABILITY_REGION;
+      if (region) {
+        const occupied = shape.instability ? shape.instability.extendedCount > 0 : false;
+        ctx.strokeStyle = BAND_COLOR;
+        for (const edge of [region.inner, region.outer]) {
+          ctx.globalAlpha = occupied ? 0.3 : 0.16;
+          const pts = ringPoints(edge, 128);
+          ctx.beginPath();
+          pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+          ctx.stroke();
+        }
+        ctx.globalAlpha = occupied ? 0.16 : 0.07;
+        for (let t = 0; t < 16; t++) {
+          const lon = (t / 16) * TAU - Math.PI / 2;
+          const inner = toScreen(project(this.worldPoint(m.positionFor(region.inner, lon, 0, st.formation, shape.axes), R, 1)));
+          const outer = toScreen(project(this.worldPoint(m.positionFor(region.outer, lon, 0, st.formation, shape.axes), R, 1)));
+          ctx.beginPath();
+          ctx.moveTo(inner.x, inner.y);
+          ctx.lineTo(outer.x, outer.y);
+          ctx.stroke();
+        }
       }
       ctx.globalAlpha = 0.07;
       for (let mi = 0; mi < 8; mi++) {
@@ -650,10 +861,13 @@
               <section class="neo-section">
                 <h3>Status</h3>
                 <dl class="neo-dl">
+                  <dt>Frame</dt><dd id="neo-frame">—</dd>
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
+                  <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its market-cap band shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
+                  <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
                   <dt>Placement</dt><dd id="neo-place">—</dd>
@@ -691,7 +905,7 @@
               </section>
             </aside>
           </div>
-          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. NEO ORB confers no authority and routes nothing.</p>
+          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. Distance from the centre is the instability extension — how far overbought or oversold the stored reading is — and it is not a valuation, a rank, or a recommendation. NEO ORB confers no authority and routes nothing.${this.feedCut() ? " Its market feed is cut: it reads no field, so no company market data is fetched or shown." : ""}</p>
         </div>`;
 
       this.canvas = b.querySelector(".neo-canvas");
@@ -800,6 +1014,7 @@
           <dt>Display sector</dt><dd>${String(n.sector).padStart(3, "0")} / 360</dd>
           <dt>Display kind</dt><dd>${esc(KIND_NAME[n.kind] || n.kind)}</dd>
           <dt>Market colour</dt><dd id="neo-insp-market">${esc(this.marketNoteFor(n.id))}</dd>
+          <dt>Distance from centre</dt><dd id="neo-insp-ext">${esc(this.extensionNoteFor(n.id))}</dd>
           <dt>Placement</dt><dd>${esc(placeNote)}</dd>
           <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "placed position"}</dd>
           <dt>Stage</dt><dd>${esc(n.marketStage)}</dd>
@@ -810,6 +1025,7 @@
     readouts() {
       const b = this.body;
       const put = (id, text) => { const el = b.querySelector(`#${id}`); if (el && el.textContent !== text) el.textContent = text; };
+      put("neo-frame", frameNote(this.errors));
       const shape = this.shape || this.currentShape();
       if (shape) {
         put("neo-conv", `${fmtPct(shape.convergence)} · ${shape.idealSphere ? "ideal sphere" : "spheroid"}`);
@@ -830,10 +1046,11 @@
       put("neo-roster", this.rosterInfo
         ? `${this.nodes.length} display orbs · snapshot ${this.rosterInfo.asOf}`
         : "unavailable");
+      put("neo-ext", this.extensionReadout());
       const coloured = this.market ? this.nodes.filter(n => this.market.has(n.id)).length : 0;
       put("neo-market", this.market
         ? `${this.marketStatus} · ${coloured} of ${this.nodes.length} orbs coloured${this.storedLabel()}${this.marketAt ? ` · read ${new Date(this.marketAt).toLocaleTimeString()}` : ""}`
-        : this.marketStatus);
+        : `${this.marketStatus} · 0 of ${this.nodes.length} orbs coloured`);
       for (const item of b.querySelectorAll(".neo-roster-item")) {
         const dot = item.querySelector(".neo-dot");
         const fill = this.toneFor(item.dataset.id).fill;
@@ -843,6 +1060,11 @@
       if (insp && this.selectedId) {
         const note = this.marketNoteFor(this.selectedId);
         if (insp.textContent !== note) insp.textContent = note;
+      }
+      const inspExt = b.querySelector("#neo-insp-ext");
+      if (inspExt && this.selectedId) {
+        const note = this.extensionNoteFor(this.selectedId);
+        if (inspExt.textContent !== note) inspExt.textContent = note;
       }
     }
 

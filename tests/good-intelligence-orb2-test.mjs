@@ -16,6 +16,7 @@ const marketSource = await readText("js/good-intelligence-market-context.js");
 const dsSource = await readText("js/good-intelligence-dxy.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const scenariosSource = await readText("js/good-intelligence-orb2-scenarios.js");
+const extensionSource = await readText("js/market-extension.js");
 const orbSource = await readText("js/good-intelligence-orb2.js");
 const appSource = await readText("js/apps-good-intelligence.js");
 const charactersAppSource = await readText("js/apps-characters.js");
@@ -48,8 +49,10 @@ function harness() {
   vm.runInContext(dsSource, context, { filename: "js/good-intelligence-dxy.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   vm.runInContext(scenariosSource, context, { filename: "js/good-intelligence-orb2-scenarios.js" });
+  /* The shared extension measure loads first, exactly as index.html orders it. */
+  vm.runInContext(extensionSource, context, { filename: "js/market-extension.js" });
   vm.runInContext(orbSource, context, { filename: "js/good-intelligence-orb2.js" });
-  return { cast: window.CharactersCast, orb: window.GoodIntelligenceOrb2, scenarios: window.GoodIntelligenceOrb2Scenarios };
+  return { cast: window.CharactersCast, orb: window.GoodIntelligenceOrb2, scenarios: window.GoodIntelligenceOrb2Scenarios, extension: window.MarketExtension };
 }
 
 /* ── the stored server field, as the Worker writes it ─────────────────────── */
@@ -379,6 +382,90 @@ test("Orb 2 places observed orbs from market metrics and keeps held packets expl
     "market direction and pressure change the free-floating placement"
   );
   assert.equal(orb.marketDataPlacement(null, "AAPL").available, false);
+});
+
+test("the more overbought or oversold a packet is, the further out Orb 2 places it", () => {
+  const { orb, extension } = harness();
+  assert.ok(extension && typeof extension.extensionOf === "function",
+    "the shared extension measure is loaded before Orb 2 reads it");
+
+  /* wt2 tracks wt1 by a fixed separation, so waveAxis — and therefore pressure,
+     longitude, latitude and the logarithmic band — are identical across every
+     packet below. The only thing that can move the radius is the extension. */
+  const packet = wt1 => ({
+    latestBar: { time: NOW, close: 100, confirmed: true },
+    changePct: 0, basis: 100, bands: { lower1000: 90, upper1000: 110 },
+    vfi: { value: 0, signal: 4, available: true }, waveTrend: { wt1, wt2: wt1 - 16 }
+  });
+  const place = wt1 => orb.marketDataPlacement(packet(wt1), "AAPL");
+  const inside = place(20);
+  const atThreshold = place(53);
+  const atOversoldThreshold = place(-53);
+  const half = place(61.5);
+  const extreme = place(-70);
+  const beyond = place(96);
+
+  assert.equal(inside.topology.extension.wave, 0, "|wt1| inside the neutral zone is not extended");
+  assert.equal(atThreshold.topology.extension.wave, 0, "the reviewed ±53 threshold is the zero of the scale");
+  assert.equal(half.topology.extension.wave, 0.5, "halfway to the extreme threshold is half the distance");
+  assert.equal(extreme.topology.extension.wave, 1, "the extreme threshold is the full distance");
+  assert.equal(beyond.topology.extension.wave, 1, "past the extreme threshold the scale is capped, not invented");
+
+  const radius = placement => placement.radius;
+  assert.equal(radius(atThreshold), radius(inside), "no push begins before the threshold");
+  assert.equal(radius(atOversoldThreshold), radius(inside), "oversold and overbought read the same distance");
+  assert.ok(radius(half) > radius(inside), "a stronger reading sits further out");
+  assert.ok(radius(extreme) > radius(half), "and further out again at the extreme");
+  assert.equal(radius(beyond), radius(extreme), "beyond the extreme the orb stays on the outer shell");
+
+  const push = orb.WAVE_EXTENSION_PUSH;
+  assert.ok(push > 0 && push <= 1, "the push is a bounded outward factor");
+  for (const placement of [inside, half, extreme, beyond]) {
+    const settled = placement.topology.bandRadius * (0.92 + placement.pressure * 0.12);
+    assert.ok(Math.abs(placement.radius - settled * (1 + push * placement.topology.extension.wave)) < 1e-9,
+      "the radius is the settled band radius lifted by exactly the shared wave measure");
+    assert.equal(placement.topology.extension.push, push * placement.topology.extension.wave,
+      "the topology reports the part of the distance the WaveTrend half contributed");
+  }
+  assert.ok(Math.abs(radius(extreme) / radius(inside) - (1 + push)) < 1e-9,
+    "an extreme reading lifts the orb by the documented factor and no more");
+
+  /* Only the WaveTrend half pushes: the basis distance is already the logarithmic
+     band index, so applying it again would double-count the envelope. */
+  const stretched = orb.marketDataPlacement({
+    ...packet(20), latestBar: { time: NOW, close: 132, confirmed: true },
+    basis: 100, bands: { lower1000: 90, upper1000: 110 }
+  }, "AAPL");
+  assert.equal(stretched.topology.extension.driver, "basis", "the far-from-basis packet is driven by its basis distance");
+  assert.ok(stretched.topology.extension.value > 0.9, "and the shared measure reads it as extended");
+  assert.equal(stretched.topology.extension.push, 0, "but the basis half adds no second push — the band already carries it");
+  const bandOnly = inside.radius * (stretched.topology.bandRadius / inside.topology.bandRadius)
+    * (0.92 + stretched.pressure * 0.12) / (0.92 + inside.pressure * 0.12);
+  assert.ok(Math.abs(stretched.radius - bandOnly) < 1e-9,
+    "its radius changes only through its own band geometry and pressure");
+
+  /* No packet, no reading: a held placeholder keeps the fixed radius, and a packet
+     with neither measure is labelled unmeasured rather than displayed as calm. */
+  assert.equal(orb.marketDataPlacement({}, "AAPL").radius, 2.12, "a held placeholder never moves outward");
+  const unmeasured = orb.marketDataPlacement({ latestBar: { time: NOW, close: 100, confirmed: true }, changePct: 1.2 }, "AAPL");
+  assert.equal(unmeasured.topology.extension.available, false, "without wt1 and without a band frame there is no measure");
+  assert.equal(unmeasured.topology.extension.push, 0, "and no push is invented for it");
+  assert.match(unmeasured.topology.extension.reason, /no WaveTrend value and no FBB basis frame/);
+  assert.equal(unmeasured.radius, 2.12,
+    "an unmeasured orb keeps the held radius: with no band frame there is nothing to push outward");
+});
+
+test("Orb 2 describes the radial encoding in its accessible colour key", async t => {
+  const { host } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const description = host.querySelector("#gi-orb2-color-description").textContent;
+  assert.match(description, /Radial distance also carries the instability extension/,
+    "the accessible description names distance as an encoding");
+  assert.match(description, /±53 to ±70/, "and states the reviewed thresholds it is measured against");
+  assert.match(description, /never displayed as calm/, "an unmeasured orb is labelled, not shown as stable");
+  const colorKey = host.querySelector("[data-gi-orb2-color-key]").textContent;
+  assert.match(colorKey, /Radial distance · overbought\/oversold/, "the colour key carries the same rule");
+  assert.match(colorKey, /js\/market-extension\.js/, "and names the one module that defines it");
 });
 test("Stocks project the logarithmic six-band FBB state inward and vertically through the spheroid", () => {
   const { orb } = harness();
@@ -903,10 +990,14 @@ test("the standalone Massive Markets desktop window remains retired and the load
   const rosterAt = indexHtml.indexOf("js/good-intelligence-market-roster.js");
   const dsAt = indexHtml.indexOf("js/good-intelligence-dxy.js");
   const scenarioAt = indexHtml.indexOf("js/good-intelligence-orb2-scenarios.js");
+  const contextAt = indexHtml.indexOf("js/good-intelligence-market-context.js");
+  const extensionAt = indexHtml.indexOf("js/market-extension.js");
   const orbAt = indexHtml.indexOf("js/good-intelligence-orb2.js");
   const appAt = indexHtml.indexOf("js/apps-good-intelligence.js");
   assert.ok(castAt < beatAt && beatAt < catalogAt && catalogAt < rosterAt && rosterAt < dsAt && dsAt < scenarioAt && scenarioAt < orbAt && orbAt < appAt,
     "the cast, beat engine, Disc catalog, roster, Dollar Strength (DS) helper, and scenarios load before Orb 2 and its tab");
+  assert.ok(contextAt > -1 && extensionAt > contextAt && extensionAt < orbAt,
+    "the shared extension measure loads after the market context whose thresholds it mirrors, and before Orb 2 reads it");
 });
 
 test("the Worker field route is the documented contract the page renders", () => {
