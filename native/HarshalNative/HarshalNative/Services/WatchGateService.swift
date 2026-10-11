@@ -164,6 +164,10 @@ final class WatchGateService: NSObject {
         )
 
         var prerequisites: GateFormula.Prerequisites = []
+        // Off and Preferred insert no hard prerequisite — the witness still
+        // multiplies the formula, so a zero witness refuses through τ either
+        // way; the two differ only in readout copy. Required refuses earlier
+        // and explicitly when no witness is present.
         switch settings.witnessPolicy {
         case .off:
             break

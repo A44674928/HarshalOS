@@ -24,7 +24,7 @@ Default: REFUSE (fail-closed)
 | `H` | Human key ∈ {0, 1} | A successful `LocalAuthentication` biometric evaluation (Face ID / Touch ID) in this window. Passcode fallback is policy-configurable. |
 | `A` | Addressability/assertion ∈ 0…1 | An active local acknowledgement on this installation (`1`) or none (`0.5`). |
 | `R` | Representation ∈ 0…1 | The bounded, labelled purpose for this evaluation (always supplied by the caller). |
-| `W` | Watch witness ∈ 0…1 | A fresh watch heartbeat decays on the same freshness clock; a merely reachable watch contributes a bounded partial factor; no watch contributes 0. |
+| `W` | Watch witness ∈ 0…1 | A fresh watch heartbeat decays on the same freshness clock; a merely reachable watch contributes a bounded partial factor (`0.25`); no watch — or no beat inside δ — contributes `0`, which drives `L` to 0. |
 | `S(t)` | Freshness scope | `max(0, 1 − Δt/δ)` since the last successful verification, δ = 240 s (canonical), tunable 30–900 s. |
 | `τ` | Legitimacy threshold | 0.5 (canonical), tunable 0.1–0.95. |
 
@@ -47,17 +47,26 @@ The iOS app and the watchOS companion speak a small, explicit contract,
 
 `WatchGateService` (iPhone side) owns all evaluation. The watch never decides
 anything: a heartbeat is a **presence witness**, never an authorization, and
-the watch renders only what the phone's formula decided. The witness policy
-dials three ways:
+the watch renders only what the phone's formula decided.
 
-- **Off** — `W` contributes whatever it has; it can never fail the gate.
-- **Preferred** — same, plus the readout explains a missing beat.
-- **Required** — a fresh heartbeat is a hard prerequisite (`missingWitness`);
-  no beat, no permit, regardless of `L`.
+`W` multiplies the formula in **every** policy, so there is no biometric-only
+permit path: with no watch link, no paired watch, or no beat inside δ,
+`W = 0` ⇒ `L = 0` ⇒ `Refuse`. The policy dial chooses *how* that refusal is
+reached and explained, never whether a witness is needed:
 
-On macOS, where `WatchConnectivity` is unavailable, the gate runs
-biometric-only and says so in the readout instead of pretending a witness
-exists.
+- **Off** — no hard witness prerequisite is inserted. The beat still
+  multiplies, so a zero witness refuses through τ (`belowThreshold`).
+- **Preferred** — identical verdicts; the readout additionally explains a
+  missing or stale beat.
+- **Required** — a zero witness refuses earlier and explicitly as
+  `missingWitness`, before `L` is compared with τ.
+
+On macOS and any other platform where `WCSession.isSupported()` is false there
+is no watch link at all, so `W` is permanently 0 and the gate refuses every
+evaluation by design. The readout says "no watch link on this platform — no
+permit path" instead of pretending a witness exists. That fail-closed choice is
+deliberate: on a watchless device, paper orders cannot pass the gate while
+"Gate paper orders" is on.
 
 ## Honest boundary
 
@@ -65,6 +74,10 @@ exists.
   of who the human is, not a background check, and not intent screening.
 - A watch heartbeat is a **proximity witness**. It is not an approval and
   cannot unlock anything by itself.
+- There is **no biometric-only permit path**. A zero witness factor (`W = 0`)
+  drives `L` to 0 in every witness policy, so a paired watch running the
+  companion app is required — not optional — for any permit. A device with no
+  watch (or a watch that never beats) refuses by design.
 - The gate currently guards one action: **submitting paper orders** on the
   Markets pane (when "Gate paper orders" is enabled). It grants no authority
   outside this app.
