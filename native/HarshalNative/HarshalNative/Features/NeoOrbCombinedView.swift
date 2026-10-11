@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import HarshalFlame
 import HarshalMarkets
 import NeoOrb
@@ -346,11 +347,12 @@ private struct CombinedOrbCanvas: View {
             return
         }
         let drawRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-        context.draw(
-            Image(decorative: image, scale: 1, orientation: .up),
-            in: drawRect,
-            opacity: min(1, max(0, opacity))
-        )
+        // `draw(_:in:style:)` has no opacity parameter; opacity is context
+        // state. Apply it to a copy so the fade is scoped to this one draw
+        // call and the caller's context is untouched.
+        var faded = context
+        faded.opacity = min(1, max(0, opacity))
+        faded.draw(Image(decorative: image, scale: 1, orientation: .up), in: drawRect)
     }
 
     // MARK: Shape layers
