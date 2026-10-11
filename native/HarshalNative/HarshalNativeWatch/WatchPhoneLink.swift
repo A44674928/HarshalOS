@@ -19,7 +19,11 @@ final class WatchPhoneLink: NSObject {
 
     nonisolated static let schema = "hn-watch-gate-v1"
 
-    private(set) var activationStateText = "Activating…"
+    /// Written by the file-local `DelegateBox` below when activation
+    /// completes, so the setter is file-scoped rather than private to this
+    /// type — `private(set)` would be reachable only from this class and its
+    /// same-file extensions, not from `DelegateBox`.
+    fileprivate(set) var activationStateText = "Activating…"
     private(set) var phoneState: PhoneState = .unavailable
     private(set) var legitimacy = 0.0
     private(set) var threshold = 0.5
@@ -123,19 +127,19 @@ final class DelegateBox: NSObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor [weak self] in
-            guard let self?.owner else { return }
+            guard let owner = self?.owner else { return }
             switch activationState {
             case .activated:
-                self?.owner.activationStateText = session.isPaired ? "Linked to iPhone" : "No iPhone paired yet"
+                owner.activationStateText = session.isPaired ? "Linked to iPhone" : "No iPhone paired yet"
                 if !session.recentApplicationContext.isEmpty {
-                    self?.owner.apply(context: session.recentApplicationContext)
+                    owner.apply(context: session.recentApplicationContext)
                 }
             case .inactive:
-                self?.owner.activationStateText = "Link inactive"
+                owner.activationStateText = "Link inactive"
             case .notActivated:
-                self?.owner.activationStateText = "Link not activated"
+                owner.activationStateText = "Link not activated"
             @unknown default:
-                self?.owner.activationStateText = "Link state unknown"
+                owner.activationStateText = "Link state unknown"
             }
         }
     }
