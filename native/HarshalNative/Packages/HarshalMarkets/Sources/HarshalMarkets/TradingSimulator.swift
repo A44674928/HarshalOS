@@ -267,9 +267,14 @@ public enum TradingSimulator {
         }
 
         static func rounded(_ value: Decimal) -> Decimal {
-            var mutable = value
-            NSDecimalRound(&mutable, value, 2, .plain)
-            return mutable
+            // `NSDecimalRound` reads its input through an `UnsafePointer`, and
+            // Swift does not implicitly convert a value to `UnsafePointer`, so
+            // the input needs a mutable copy of its own (`&value` is not
+            // available: the parameter is a `let`).
+            var source = value
+            var result = value
+            NSDecimalRound(&result, &source, 2, .plain)
+            return result
         }
     }
 
@@ -451,6 +456,14 @@ public enum TradingSimulator {
                 rejected.status = .rejected
                 rejected.statusNote = error.errorDescription ?? "Rejected at cross."
                 next.orders[index] = rejected
+            } catch {
+                // `applyFill` only throws `SimulatorError`, but this function is
+                // not `throws`, so the catch has to be exhaustive. Keep the
+                // simulator total rather than dropping the order.
+                var rejected = next.orders[index]
+                rejected.status = .rejected
+                rejected.statusNote = "Rejected at cross."
+                next.orders[index] = rejected
             }
         }
         next.updatedAt = date
@@ -517,7 +530,7 @@ public enum TradingSimulator {
             )
         }
 
-        var fill = Fill(orderID: orderID, symbol: symbol, side: side, quantity: quantity, price: price, commission: commission, timestamp: date)
+        let fill = Fill(orderID: orderID, symbol: symbol, side: side, quantity: quantity, price: price, commission: commission, timestamp: date)
 
         if let index = account.positions.firstIndex(where: { $0.symbol == symbol }) {
             var position = account.positions[index]
@@ -561,7 +574,6 @@ public enum TradingSimulator {
         }
 
         account.cash = FeeModel.rounded(account.cash - signedDelta * price - commission)
-        fill.price = price
         return fill
     }
 }
