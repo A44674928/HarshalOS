@@ -88,6 +88,35 @@ deliberate: on a watchless device, paper orders cannot pass the gate while
   witness weighting crossing below τ, required-witness fail-closed behavior,
   and non-factor clamping.
 
+## Pairing prerequisites (install-time failures)
+
+The watch app cannot be installed unless its bundle identity matches the iOS
+app's. Both derive from the single `HARSHAL_BUNDLE_ID` project build setting:
+
+| Value | Source |
+| --- | --- |
+| iOS / macOS app bundle identifier | `$(HARSHAL_BUNDLE_ID)` |
+| Watch app bundle identifier | `$(HARSHAL_BUNDLE_ID).watchkitapp` |
+| Watch `Info.plist` `WKCompanionAppBundleIdentifier` | `$(HARSHAL_BUNDLE_ID)` |
+
+Symptoms and causes:
+
+- **`InvalidCompanionAppBundleIdentifier` (MIInstallerErrorDomain 97) at
+  install** — the watch `Info.plist` names a different companion than the iOS
+  app's bundle identifier. This is what happens when the Bundle Identifier
+  field is edited on one target in Xcode's UI: it writes a literal onto that
+  target and leaves the others behind. Change `HARSHAL_BUNDLE_ID` instead.
+- **Live messaging never arrives (`isReachable` stays false)** — Watch
+  Connectivity needs a *paired* watch whose companion app is installed, both
+  apps launched at least once, and the watch app in the foreground for
+  `sendMessage`; queued beats use `transferUserInfo` and do not need
+  reachability, only a launched phone app.
+
+Run `python3 scripts/check_bundle_identifiers.py` after touching any bundle
+identifier; it fails loudly when the three values stop agreeing. A clean build
+(`Product ▸ Clean Build Folder`) is required after changing them, because the
+processed `Info.plist` is cached in DerivedData.
+
 ## Files
 
 - `Packages/HarshalCore/Sources/HarshalCore/GateFormula.swift` — the formula and its tests.

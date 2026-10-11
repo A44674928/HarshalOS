@@ -42,7 +42,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before enabling sign-in, Clo
 1. Install **Xcode 15.3+** on macOS.
 2. Open [`HarshalNative.xcodeproj`](HarshalNative.xcodeproj) in Xcode.
 3. Select either **HarshalNative iOS** or **HarshalNative macOS**.
-4. Set a real Development Team and replace the placeholder bundle identifier `com.example.HarshalNative` before signing.
+4. Set a real Development Team for both the **HarshalNative iOS** and **HarshalNative Watch** targets. The bundle identifier lives in exactly one place: the `HARSHAL_BUNDLE_ID` build setting on the project. The iOS and macOS apps use it directly, the watch app uses `$(HARSHAL_BUNDLE_ID).watchkitapp`, and the watch `Info.plist`'s `WKCompanionAppBundleIdentifier` expands from the same setting. Change `HARSHAL_BUNDLE_ID` rather than the per-target Bundle Identifier field in Xcode — editing that field writes a literal onto one target and will desynchronise the watch pairing (`InvalidCompanionAppBundleIdentifier` at install). `scripts/check_bundle_identifiers.py` verifies the three stay in step.
 5. Build and run. On the first-run declaration screen, tap **Preview NEO ORB** to open the display-only shape study immediately; after a declaration, it is also the **NEO ORB** dashboard tab.
 
 The project attaches `Packages/HarshalCore`, `Packages/HarshalLedger`, and `Packages/NeoOrb` as local Swift packages. Its Debug configurations build only the active architecture, preventing a local package/product architecture mismatch on current Xcode Simulator toolchains. You can also validate the packages directly:
