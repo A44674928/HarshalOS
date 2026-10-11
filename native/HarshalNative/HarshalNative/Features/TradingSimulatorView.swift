@@ -319,7 +319,7 @@ struct TradingSimulatorView: View {
                 let quantity = String(format: "%.2f", abs(NSDecimalNumber(decimal: position.quantity).doubleValue))
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(position.isLong ? "LONG" : "SHORT") \(position.symbol) · \(quantity) @ \(position.averagePrice.map { currency($0) } ?? "—")")
+                        Text("\(position.isLong ? "LONG" : "SHORT") \(position.symbol) · \(quantity) @ \(currency(position.averagePrice))")
                             .font(.footnote.weight(.medium))
                         Text("Mark \(mark.map { currency($0) } ?? "no reading") · opened \(position.openedAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption2)
