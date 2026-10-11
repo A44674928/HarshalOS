@@ -9,6 +9,7 @@ import { Window } from "happy-dom";
 const ROOT = new URL("../", import.meta.url);
 const readText = path => readFile(new URL(path, ROOT), "utf8");
 const modelSource = await readText("js/neo-orb-model.js");
+const placementSource = await readText("js/neo-orb-placement.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const indexHtml = await readText("index.html");
@@ -136,7 +137,7 @@ test("the full roster maps to 52 unique display orbs with valid sectors, bands, 
 
 /* ── the web app ──────────────────────────────────────────────────── */
 
-function appHarness({ flames = true, film = true } = {}) {
+function appHarness({ flames = true } = {}) {
   const win = new Window({ url: "https://os.example/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
   const doc = win.document;
   const window = win;
@@ -153,6 +154,7 @@ function appHarness({ flames = true, film = true } = {}) {
     APPS: [{ id: "ocm" }, { id: "orbs" }]
   });
   vm.runInContext(modelSource, context, { filename: "js/neo-orb-model.js" });
+  vm.runInContext(placementSource, context, { filename: "js/neo-orb-placement.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
     players.inner = fakePlayer("inner");
@@ -160,11 +162,6 @@ function appHarness({ flames = true, film = true } = {}) {
     context.FractalFlame = {
       shared(url) { return url.includes("OuterOrb") ? players.outer : players.inner; }
     };
-  }
-  if (film) {
-    players.film = { ...fakePlayer("film"), dead: false, loaded: 0, total: 200, frameAt: () => 0 };
-    context.OrbFilm = { shared: () => players.film, drawWrapped() { return false; } };
-    players.film.start = function () { log.started.push("film"); return this; };
   }
   vm.runInContext(appSource, context, { filename: "js/apps-neo-orb.js" });
   return { win, doc, context, players, log, APPS: context.APPS };
@@ -192,13 +189,14 @@ test("mounting shows the 52-orb roster, layer toggles, and live readouts", () =>
   const h = appHarness();
   const { body } = mountInto(h);
   assert.equal(body.querySelectorAll(".neo-roster-item").length, 52);
-  assert.equal(body.querySelectorAll("input[type='checkbox'][data-layer]").length, 8);
+  assert.equal(body.querySelectorAll("input[type='checkbox'][data-layer]").length, 6, "orbs, placement, labels, attachments, bands, beat");
+  assert.equal(body.querySelector("input[data-layer='placement']").checked, true, "flame-guided placement is on by default");
   assert.ok(body.querySelector("#neo-roster").textContent.includes("52 display orbs"));
   assert.ok(body.querySelector("#neo-conv").textContent.includes("spheroid"), "default axes are a deformed spheroid");
   assert.ok(body.textContent.includes("Display-only"), "the display-only boundary is stated on the surface");
 });
 
-test("the shared flame and film engines are started by NEO ORB but never replaced", () => {
+test("the shared flame engines are started by NEO ORB but never replaced", () => {
   const h = appHarness();
   let priorCalls = 0;
   h.players.inner.onerror = () => { priorCalls += 1; };
@@ -238,28 +236,39 @@ test("selecting a roster orb fills the inspector with display-only facts", () =>
   assert.equal(engine.selectedId, null, "unknown ids cannot be selected");
 });
 
-test("missing flame and film engines degrade to labelled unavailable states, not errors", () => {
-  const h = appHarness({ flames: false, film: false });
-  const { body } = mountInto(h);
+test("missing flame engines degrade to labelled states, and orbs stay at home", () => {
+  const h = appHarness({ flames: false });
+  const { body, engine } = mountInto(h);
   assert.ok(body.querySelector("#neo-inner").textContent.includes("unavailable"));
   assert.ok(body.querySelector("#neo-outer").textContent.includes("unavailable"));
-  assert.ok(body.querySelector("#neo-film").textContent.includes("unavailable"));
+  assert.ok(body.querySelector("#neo-place").textContent.includes("home — flame guidance unavailable"));
   assert.ok(body.querySelector("#neo-roster").textContent.includes("52 display orbs"), "roster still renders without the flames");
+  engine.updatePlacement(1, 1000);
+  assert.ok(engine.placements.every(p => p.displacement === 0 && !p.guided), "no guidance means no displacement");
 });
 
 test("the app code reads no kernel, gate, ledger, provider, or route", () => {
   for (const forbidden of ["HOS.", "fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "/api/", "legitimacy("]) {
     assert.equal(appSource.includes(forbidden), false, `apps-neo-orb.js must not reference ${forbidden}`);
     assert.equal(modelSource.includes(forbidden), false, `neo-orb-model.js must not reference ${forbidden}`);
+    assert.equal(placementSource.includes(forbidden), false, `neo-orb-placement.js must not reference ${forbidden}`);
   }
 });
 
-test("the page loads the NEO ORB model before its app and ships its stylesheet", () => {
+test("the flame engines are read for guidance and never drawn on the NEO ORB canvas", () => {
+  assert.equal(appSource.includes(".drawOn("), false, "no flame player draws onto the display");
+  assert.equal(appSource.includes("OrbFilm"), false, "the sphere film is not used by NEO ORB");
+  assert.equal(placementSource.includes("drawImage") || placementSource.includes("getContext"), false, "the placement math never touches a canvas");
+});
+
+test("the page loads the NEO ORB model and placement before its app and ships its stylesheet", () => {
   const modelIndex = indexHtml.indexOf("js/neo-orb-model.js");
+  const placementIndex = indexHtml.indexOf("js/neo-orb-placement.js");
   const appIndex = indexHtml.indexOf("js/apps-neo-orb.js");
   const orb2Index = indexHtml.indexOf("js/good-intelligence-orb2.js");
   assert.ok(modelIndex > orb2Index, "model follows Orb 2");
-  assert.ok(appIndex > modelIndex, "app follows the model");
+  assert.ok(placementIndex > modelIndex, "placement follows the model");
+  assert.ok(appIndex > placementIndex, "app follows placement");
   assert.ok(indexHtml.includes("css/neo-orb.css"), "stylesheet is linked");
   assert.ok(cssSource.includes(".neo-canvas") && cssSource.includes(".neo-panel"));
 });
@@ -276,19 +285,15 @@ function recordingContext() {
   return ctx;
 }
 
-test("a full frame draws the flames, the film, the bands, the spokes, and every roster orb", () => {
+test("a full frame draws the bands, the spokes, and every roster orb, and never the flames", () => {
   const h = appHarness();
   const { body, engine } = mountInto(h);
   const drawn = [];
   for (const [name, player] of [["inner", h.players.inner], ["outer", h.players.outer]]) {
     player.ready = true;
     player.frames = [{}];
-    player.drawOn = (ctx, cx, cy, size, alpha) => { drawn.push([name, size > 0, alpha >= 0]); };
+    player.drawOn = () => { drawn.push(name); };
   }
-  h.players.film.ready = true;
-  h.players.film.sampleAt = () => ({ img0: {}, img1: {}, frac: 0.5 });
-  const wrapped = [];
-  h.context.OrbFilm.drawWrapped = (ctx, o) => { wrapped.push(o.alpha); return true; };
 
   const canvas = body.querySelector(".neo-canvas");
   Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
@@ -298,9 +303,7 @@ test("a full frame draws the flames, the film, the bands, the spokes, and every 
   engine.canvas = canvas;
   engine.draw(1000);
 
-  assert.deepEqual(drawn.map(d => d[0]), ["outer", "inner"], "both flame engines draw, outer first");
-  assert.equal(wrapped.length, 2, "the film draws a cross-faded pair of frames");
-  assert.ok(wrapped.every(a => a >= 0 && a <= 1), "film alpha stays in range");
+  assert.deepEqual(drawn, [], "flame players are read for guidance, never drawn");
   assert.equal(engine.screenNodes.length, 52, "every roster orb is placed on screen");
   const arcs = ctx.calls.filter(c => c === "arc").length;
   assert.ok(arcs >= 52, `orbs are drawn as arcs (${arcs})`);
@@ -321,13 +324,9 @@ test("hit-testing finds the orb under the pointer and nothing in empty space", (
   assert.equal(engine.hit(-500, -500), null, "empty space selects nothing");
 });
 
-test("disc formation draws no film, and the frame still lays out every orb", () => {
+test("disc formation still lays out every orb on screen", () => {
   const h = appHarness();
   const { body, engine } = mountInto(h);
-  h.players.film.ready = true;
-  h.players.film.sampleAt = () => ({ img0: {}, img1: null, frac: 0 });
-  let wrapped = 0;
-  h.context.OrbFilm.drawWrapped = () => { wrapped += 1; return true; };
   engine.set("formation", 0);
   const canvas = body.querySelector(".neo-canvas");
   Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
@@ -335,6 +334,133 @@ test("disc formation draws no film, and the frame still lays out every orb", () 
   engine.ctx = recordingContext();
   engine.canvas = canvas;
   engine.draw(1000);
-  assert.equal(wrapped, 0, "the sphere film fades in with formation");
   assert.equal(engine.screenNodes.length, 52);
+});
+
+/* ── dynamic placement in the app ─────────────────────────────────── */
+
+/* A flame-like bitmap: one broad bright core, offset to the right, RGBA bytes. */
+function coreField(size = 40) {
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = ((x + 0.5) / size) * 2 - 1, v = ((y + 0.5) / size) * 2 - 1;
+      const lum = Math.exp(-(((u - 0.4) ** 2) + (v * v)) / 0.08);
+      const k = (y * size + x) * 4;
+      data[k] = data[k + 1] = data[k + 2] = Math.round(lum * 255);
+      data[k + 3] = 255;
+    }
+  }
+  return data;
+}
+
+function guidedEngine() {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const pl = h.win.NeoOrbPlacement;
+  const field = pl.fieldFromRGBA(coreField(), 40);
+  engine.sampleGuide = () => field;
+  return { h, body, engine, pl };
+}
+
+test("flame guidance moves orbs off their home sector, smoothly and within the tether", () => {
+  const { engine, pl } = guidedEngine();
+  const homes = new Map(engine.homes.map(hm => [hm.id, hm]));
+  let maxStep = 0, prev = null;
+  for (let frame = 0; frame < 6 * 60; frame++) {
+    engine.updatePlacement(1 / 60, frame * (1000 / 60));
+    if (prev) for (let i = 0; i < prev.length; i++) {
+      const dLon = Math.atan2(Math.sin(engine.placements[i].longitude - prev[i].longitude), Math.cos(engine.placements[i].longitude - prev[i].longitude));
+      maxStep = Math.max(maxStep, Math.hypot(dLon, engine.placements[i].latitude - prev[i].latitude));
+    }
+    prev = engine.placements.map(p => ({ longitude: p.longitude, latitude: p.latitude }));
+  }
+  assert.equal(engine.placements.length, 52);
+  assert.ok(engine.placements.every(p => p.guided), "every orb is flame-guided");
+  assert.ok(engine.placements.some(p => p.displacement > 0.05), "orbs leave their home sector");
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  for (const p of engine.placements) {
+    const dLon = Math.abs(wrap(p.longitude - p.homeLongitude));
+    const dLat = Math.abs(p.latitude - p.homeLatitude);
+    assert.ok(dLon <= pl.TETHER_LON * 0.8 + 1e-6 && dLat <= pl.TETHER_LAT * 0.8 + 1e-6, `${p.id} stays inside the roam tether (${dLon.toFixed(3)}, ${dLat.toFixed(3)})`);
+  }
+  assert.ok(maxStep < 0.02, `motion is smooth frame to frame (max ${maxStep.toFixed(4)} rad)`);
+  for (const p of engine.placements) assert.equal(p.homeLongitude, homes.get(p.id).longitude, "the home anchor is fixed");
+});
+
+test("the Roam dial and the placement layer control motion; zero roam returns every orb home", () => {
+  const { engine } = guidedEngine();
+  for (let frame = 0; frame < 120; frame++) engine.updatePlacement(1 / 60, frame * (1000 / 60));
+  assert.ok(engine.placements.some(p => p.displacement > 0), "guided orbs have moved");
+  engine.set("roam", 0);
+  for (let frame = 0; frame < 2; frame++) engine.updatePlacement(1 / 60, 2000 + frame * 16);
+  assert.ok(engine.placements.every(p => p.displacement === 0), "roam 0 pins every orb to home");
+  engine.set("roam", 0.6);
+  engine.state.layers.placement = false;
+  engine.updatePlacement(1 / 60, 3000);
+  assert.equal(engine.placements, null, "turning the layer off returns the shape to home");
+  engine.readouts();
+  assert.ok(engine.body.querySelector("#neo-place").textContent.includes("placement layer off"), "the status says so");
+});
+
+test("placed orbs keep their band radius and still clear the berth floor", () => {
+  const { engine, pl } = guidedEngine();
+  for (let frame = 0; frame < 4 * 60; frame++) engine.updatePlacement(1 / 60, frame * (1000 / 60));
+  const shape = engine.currentShape();
+  const bandRadius = new Map(shape.nodes.map(n => [n.id, n.radius]));
+  const home = engine.homes.map(hm => hm.id);
+  const placedHome = new Map(home.map(id => [id, shape.nodes.find(n => n.id === id)]));
+  for (const id of home) assert.ok(placedHome.get(id), `${id} is on the shape`);
+  let minChord = Infinity;
+  for (let i = 0; i < shape.nodes.length; i++) for (let j = i + 1; j < shape.nodes.length; j++) {
+    const a = shape.nodes[i].position, b = shape.nodes[j].position;
+    minChord = Math.min(minChord, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
+  }
+  assert.ok(minChord >= shape.berthSeparation.minimumChordDistance - 1e-9, `min chord ${minChord.toFixed(3)} clears the floor`);
+  assert.ok(shape.nodes.every(n => Math.abs(n.radius - bandRadius.get(n.id)) < 1e-12), "radius is untouched by placement");
+  assert.ok(pl.inertiaFor(0) > pl.inertiaFor(5), "larger caps are heavier");
+});
+
+test("a guided frame draws every placed orb and the inspector reports its drift from home", () => {
+  const { body, engine } = guidedEngine();
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  engine.canvas = canvas;
+  engine.ctx = recordingContext();
+  for (let frame = 0; frame < 3 * 60; frame++) {
+    engine.clock += 1 / 60;
+    engine.updatePlacement(1 / 60, frame * (1000 / 60));
+    engine.draw(frame * (1000 / 60));
+  }
+  assert.equal(engine.screenNodes.length, 52, "every placed orb is on screen");
+  const moved = engine.placements.filter(p => p.displacement > 0.01).length;
+  assert.ok(moved > 0, "some orbs are off their home sector");
+  engine.readouts();
+  assert.ok(body.querySelector("#neo-place").textContent.startsWith("flame-guided"), "the status reports guided placement");
+  const target = engine.placements.find(p => p.displacement > 0.01).id;
+  engine.select(target);
+  assert.ok(body.querySelector("#neo-inspector").textContent.includes("flame-guided"), "the inspector says the orb is guided");
+  assert.ok(body.querySelector("#neo-inspector").textContent.includes("from home sector"));
+});
+
+test("guidance is read from a scratch canvas and nothing is painted on the display", () => {
+  const h = appHarness();
+  const { engine } = mountInto(h);
+  const painted = [];
+  const reads = [];
+  const scratch = {
+    clearRect() {},
+    drawImage(src, x, y, w, hh) { reads.push([src, w, hh]); },
+    getImageData(x, y, w, hh) { return { data: coreField(w) }; }
+  };
+  h.players.inner.ready = true;
+  h.players.inner.frames = [{ tag: "inner-frame" }];
+  h.players.inner.playhead = () => ({ cur: 0 });
+  engine.guideCanvas = scratch;
+  const field = engine.sampleGuide();
+  assert.ok(field && field.size === 40, "one combined field comes back");
+  assert.deepEqual(reads.map(r => r[0].tag), ["inner-frame"], "only the flame frame is read");
+  assert.equal(reads[0][1], 40, "the frame is sampled at 40×40");
+  assert.equal(painted.length, 0);
 });

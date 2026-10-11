@@ -16,7 +16,7 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
-  { area: "NEO ORB web geometry and app (display-only)", script: "test:neo-orb", files: ["neo-orb-test.mjs"] },
+  { area: "NEO ORB web geometry, flame-guided placement, and app (display-only)", script: "test:neo-orb", files: ["neo-orb-test.mjs", "neo-orb-placement-test.mjs"] },
   { area: "Apple separation (Apple-platform work classified AVOID; kept off the supported side)", script: "test:apple-separation", files: ["apple-separation-test.mjs"] },
   { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },

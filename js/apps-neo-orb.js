@@ -2,14 +2,15 @@
    HarshalOS — NEO ORB app (js/apps-neo-orb.js)
    Orb 2 × The Orb, for the browser.
 
-   · The Orb layer — the author's two .flame engines, the same shared players
-     The Orb uses: Demo.flame (inner core) and OuterOrb.flame (outer macro
-     shells), composited additively; plus the rendered sphere film wrapped
-     through the same camera (OrbFilm.drawWrapped).
+   · Flame guidance — the author's two .flame engines (Demo.flame and
+     OuterOrb.flame, the shared FractalFlame players) are READ, never drawn.
+     Their bitmaps become a density field; js/neo-orb-placement.js turns the
+     bright bits into targets and steers each orb toward them, so orbs move
+     smoothly from bit to bit. No flame pixel reaches the screen.
    · Orb 2 layer — the 52-asset Good Intelligence roster as display-only orbs,
-     placed by js/neo-orb-model.js (symbol-hash sector, logarithmic
-     market-cap band, berth separation). The roster is a static snapshot, not
-     a quote feed: no live beats, no provider call, no route.
+     placed by js/neo-orb-model.js (symbol-hash sector as home, logarithmic
+     market-cap band as radius and inertia, berth separation). The roster is a
+     static snapshot, not a quote feed: no live beats, no provider call, no route.
 
    Boundary: display only. NEO ORB reads no kernel, gate, ledger, declaration,
    or personal core. Phase is a display rotation offset chosen by the viewer,
@@ -26,6 +27,9 @@
   const BREATH_T = 12;                 // seconds
   const BEAT_EPS = 0.04;               // Orb 2 bounded ±4 % radial motion
   const BEAT_T = 7;                    // seconds per beat, per-node phase offset
+  const GUIDE_EVERY_MS = 100;          // how often the flame bitmaps are re-read
+  const GUIDE_SIZE = 40;               // flame bitmap sampling resolution (cells per side)
+  const GUIDE_WEIGHT = Object.freeze({ inner: 0.6, outer: 0.4 });
   const PHASE_SHIFT = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
   const KIND_COLOR = Object.freeze({ structural: "#6fd3ff", field: "#b57cff", interaction: "#5ce6a8" });
   const KIND_NAME = Object.freeze({ structural: "Structural", field: "Field", interaction: "Interaction" });
@@ -38,26 +42,21 @@
     berth: 1,
     speed: 1,
     nodeScale: 1,
+    roam: 0.8,
     phase: "NAB",
-    innerOpacity: 0.7,
-    outerOpacity: 0.55,
-    filmOpacity: 0.45,
     layers: Object.freeze({
-      innerFlame: true, outerFlame: true, film: true, orbs: true,
+      orbs: true, placement: true,
       labels: false, attachments: true, bands: true, beat: true
     })
   });
   /* slider bounds — every dial is clamped on load and on change */
   const RANGES = Object.freeze({
     formation: [0, 1], "axes.x": [0.25, 2], "axes.y": [0.25, 2], "axes.z": [0.25, 2],
-    berth: [0, 1], speed: [0, 3], nodeScale: [0.5, 2],
-    innerOpacity: [0, 1], outerOpacity: [0, 1], filmOpacity: [0, 1]
+    berth: [0, 1], speed: [0, 3], nodeScale: [0.5, 2], roam: [0, 1]
   });
   const LAYER_ROWS = Object.freeze([
-    ["innerFlame", "Inner flame · Demo.flame"],
-    ["outerFlame", "Outer flame · OuterOrb.flame"],
-    ["film", "Sphere film · author render"],
     ["orbs", "Orb 2 roster orbs"],
+    ["placement", "Flame-guided placement"],
     ["labels", "Ticker labels"],
     ["attachments", "Center attachments"],
     ["bands", "Log bands & meridians"],
@@ -80,6 +79,19 @@
   function roster() {
     const r = (typeof window !== "undefined") ? window.GoodIntelligenceMarketRoster : null;
     return r && Array.isArray(r.assets) ? r : null;
+  }
+
+  function placerModule() {
+    if (typeof window !== "undefined" && window.NeoOrbPlacement) return window.NeoOrbPlacement;
+    return (typeof NeoOrbPlacement !== "undefined") ? NeoOrbPlacement : null;
+  }
+
+  /* Index of the flame frame nearest the player's playhead (ping-pong aware). */
+  function frameIndexOf(player) {
+    const len = player.frames.length;
+    const ph = typeof player.playhead === "function" ? player.playhead() : null;
+    const cur = ph ? ph.cur : (player.current || 0);
+    return clamp(Math.round(cur), 0, len - 1);
   }
 
   function flameEngines() {
@@ -129,18 +141,25 @@
       this.lastTick = null;
       this.lastReadout = 0;
       this.stopped = false;
-      this.errors = { inner: null, outer: null, film: null };
-      this.loadingFilm = null;
+      this.errors = { inner: null, outer: null, guide: null };
+      this.placements = null;              // placed offsets for this frame, or null = home
+      this.guide = null;                   // combined flame density field, or null
+      this.lastGuideAt = -Infinity;
+      this.guideCanvas = undefined;        // lazily created 2D scratch canvas (never shown)
 
       const r = roster();
       this.rosterInfo = r;
       this.nodes = model() && r ? model().rosterNodes(r.assets) : [];
       this.byId = new Map(this.nodes.map(n => [n.id, n]));
+      this.homes = model() && this.nodes.length ? model().homesFor(this.nodes) : [];
+      const placing = placerModule();
+      this.placer = placing && this.homes.length
+        ? placing.createPlacer(this.homes, { roam: this.state.roam })
+        : null;
 
       const { inner, outer } = flameEngines();
       this.inner = inner;
       this.outer = outer;
-      this.film = (typeof OrbFilm !== "undefined") ? OrbFilm.shared() : null;
       this.wireLoaders();
     }
 
@@ -154,10 +173,6 @@
         chain(this.outer, "onerror", e => { this.errors.outer = e && e.message ? e.message : "load failed"; });
         if (!this.outer.ready && !this.outer.baking) this.outer.start();
       }
-      if (this.film) {
-        chain(this.film, "onerror", e => { this.errors.film = e && e.message ? e.message : "load failed"; });
-        if (!this.film.ready) this.film.start();
-      }
     }
 
     /* ── shape ─────────────────────────────────────────────── */
@@ -170,10 +185,77 @@
         formation: s.formation,
         axes: { x: s.axes.x, y: s.axes.y, z: s.axes.z },
         berthSeparation: s.berth,
-        nodes: this.nodes
+        nodes: this.nodes,
+        placements: this.placementMap()
       });
       this.dirty = false;
       return this.shape;
+    }
+
+    /* { [id]: { longitude, latitude } } for the model, or null when placing at home. */
+    placementMap() {
+      if (!this.placements) return null;
+      const map = {};
+      for (const p of this.placements) map[p.id] = { longitude: p.longitude, latitude: p.latitude };
+      return map;
+    }
+
+    /* ── dynamic placement ───────────────────────────────────── */
+    /* Advance placement by simDt seconds of engine time (zero while paused). The
+       flame bitmaps are re-read at GUIDE_EVERY_MS; the placer does the motion. */
+    updatePlacement(simDt, now) {
+      const placing = placerModule();
+      const active = !!(placing && this.placer && this.state.layers.placement);
+      if (!active) {
+        if (this.placements) { this.placements = null; this.dirty = true; }
+        return;
+      }
+      if (this.placer.roam !== this.state.roam) this.placer.setRoam(this.state.roam);
+      if (now - this.lastGuideAt >= GUIDE_EVERY_MS || this.lastGuideAt === -Infinity) {
+        this.guide = this.sampleGuide();
+        this.lastGuideAt = now;
+      }
+      this.placements = this.placer.step(simDt, this.guide);
+      this.dirty = true;
+    }
+
+    /* Read the two flame bitmaps (never drawn on screen) into one density field.
+       Returns null when neither engine is ready or readable; placement then stays home. */
+    sampleGuide() {
+      const placing = placerModule();
+      if (!placing) return null;
+      const ctx = this.guideContext();
+      if (!ctx) return null;
+      const N = GUIDE_SIZE;
+      const parts = [];
+      for (const [player, weight] of [[this.inner, GUIDE_WEIGHT.inner], [this.outer, GUIDE_WEIGHT.outer]]) {
+        if (!player || !player.ready || !player.frames || !player.frames.length) continue;
+        const frame = player.frames[frameIndexOf(player)];
+        if (!frame) continue;
+        try {
+          ctx.clearRect(0, 0, N, N);
+          ctx.drawImage(frame, 0, 0, N, N);
+          const pixels = ctx.getImageData(0, 0, N, N).data;
+          parts.push({ field: placing.fieldFromRGBA(pixels, N), weight });
+          this.errors.guide = null;
+        } catch (e) {
+          this.errors.guide = e && e.message ? e.message : "guidance read failed";
+        }
+      }
+      return placing.combineFields(parts);
+    }
+
+    guideContext() {
+      if (this.guideCanvas !== undefined) return this.guideCanvas;
+      this.guideCanvas = null;
+      try {
+        const c = document.createElement("canvas");
+        c.width = GUIDE_SIZE; c.height = GUIDE_SIZE;
+        this.guideCanvas = c.getContext ? c.getContext("2d", { willReadFrequently: true }) : null;
+      } catch (e) {
+        this.errors.guide = e && e.message ? e.message : "no canvas";
+      }
+      return this.guideCanvas;
     }
 
     set(path, value) {
@@ -213,7 +295,9 @@
       if (!this.body.isConnected) { this.stopped = true; return; }
       const dt = this.lastTick == null ? 0 : clamp((now - this.lastTick) / 1000, 0, 0.1);
       this.lastTick = now;
-      if (!this.state.paused) this.clock += dt * this.state.speed;
+      const simDt = this.state.paused ? 0 : dt * this.state.speed;
+      this.clock += simDt;
+      this.updatePlacement(simDt, now);
       this.draw(now);
       if (now - this.lastReadout > 250) { this.lastReadout = now; this.readouts(); }
       requestAnimationFrame(t => this.tick(t));
@@ -248,32 +332,12 @@
       ctx.fillStyle = halo;
       ctx.fillRect(0, 0, W, H);
 
-      const Rpx = R * s;
-      /* 1 · The Orb's two flame engines, additive behind everything */
-      if (L.outerFlame && this.outer && this.outer.ready) {
-        this.outer.drawOn(ctx, cx, cy, Rpx * 2.7, st.outerOpacity);
-      }
-      if (L.innerFlame && this.inner && this.inner.ready) {
-        this.inner.drawOn(ctx, cx, cy, Rpx * 1.6, st.innerOpacity);
-      }
+      /* The flame engines are read for placement guidance and never drawn. */
 
-      /* 2 · sphere film wrapped through the same camera, fading in with formation */
-      if (L.film && this.film && this.film.ready && st.formation > 0.02 && typeof OrbFilm !== "undefined") {
-        const sample = this.film.sampleAt(now);
-        const alpha = st.filmOpacity * st.formation;
-        const common = { R, fov: FOV, dpr, project, toScreen, cs: { x: cx, y: cy } };
-        if (sample.img0 && sample.frac > 0.001 && sample.img1) {
-          OrbFilm.drawWrapped(ctx, { ...common, img: sample.img0, alpha: alpha * Math.cos(sample.frac * Math.PI / 2) });
-          OrbFilm.drawWrapped(ctx, { ...common, img: sample.img1, alpha: alpha * Math.sin(sample.frac * Math.PI / 2) });
-        } else if (sample.img0) {
-          OrbFilm.drawWrapped(ctx, { ...common, img: sample.img0, alpha });
-        }
-      }
-
-      /* 3 · log bands and meridians — the shell geometry from the model */
+      /* 1 · log bands and meridians — the shell geometry from the model */
       if (shape && m && L.bands) this.drawBands(ctx, shape, m, R, project, toScreen);
 
-      /* 4 · the placed Orb 2 nodes (computed once, shared by spokes and orbs) */
+      /* 2 · the placed Orb 2 nodes (computed once, shared by spokes and orbs) */
       this.screenNodes = [];
       const placed = shape && L.orbs ? shape.nodes.map(n => {
         const beat = L.beat ? 1 + BEAT_EPS * Math.sin((TAU * this.clock) / BEAT_T + m.identityPhase(n.id)) : 1;
@@ -283,7 +347,7 @@
         return { n, x: q.x, y: q.y, z: p.z, k: p.k, r, front: p.z < 0 };
       }) : [];
 
-      /* 5 · center origin and direct attachments (The Orb's spokes) */
+      /* 3 · center origin and direct attachments (The Orb's spokes) */
       const origin = toScreen(project({ x: 0, y: 0, z: 0 }));
       if (placed.length && L.attachments) {
         ctx.save();
@@ -308,7 +372,7 @@
       ctx.fillText(ORIGIN_ADDRESS, origin.x, origin.y + 14);
       ctx.restore();
 
-      /* 6 · Orb 2 roster orbs, far to near */
+      /* 4 · Orb 2 roster orbs, far to near */
       if (placed.length) {
         this.screenNodes = placed;
         placed.sort((a, b) => b.z - a.z);
@@ -491,7 +555,7 @@
         <div class="neo-root">
           <div class="neo-head">
             <div class="h1">NEO ORB — The Orb × Orb 2</div>
-            <div class="sub">The Orb's two fractal flame engines burn behind the Good Intelligence roster, drawn as display-only orbs on a formable sphere.</div>
+            <div class="sub">The Orb's two fractal flame engines steer the Good Intelligence roster: the flames are read, never drawn, and each display-only orb travels smoothly between their bright bits.</div>
           </div>
           <div class="neo-body">
             <div class="neo-stage">
@@ -509,9 +573,9 @@
                 <dl class="neo-dl">
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Inner flame</dt><dd id="neo-inner">—</dd>
-                  <dt>Outer flame</dt><dd id="neo-outer">—</dd>
-                  <dt>Sphere film</dt><dd id="neo-film">—</dd>
+                  <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
+                  <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
+                  <dt>Placement</dt><dd id="neo-place">—</dd>
                   <dt>Roster</dt><dd id="neo-roster">—</dd>
                 </dl>
               </section>
@@ -522,6 +586,7 @@
                 ${range("axes.y", "Axis Y", 0.25, 2, 0.01)}
                 ${range("axes.z", "Axis Z", 0.25, 2, 0.01)}
                 ${range("berth", "Berth separation", 0, 1, 0.05)}
+                ${range("roam", "Roam (tether around home sector)", 0, 1, 0.01)}
                 <label class="neo-range"><span>Phase (display rotation only)</span>
                   <select data-key="phase">
                     <option value="NAB">NAB · +0°</option>
@@ -533,9 +598,6 @@
                 <h3>Motion &amp; layers</h3>
                 ${range("speed", "Rotation speed", 0, 3, 0.05)}
                 ${range("nodeScale", "Orb size", 0.5, 2, 0.05)}
-                ${range("innerOpacity", "Inner flame opacity", 0, 1, 0.01)}
-                ${range("outerOpacity", "Outer flame opacity", 0, 1, 0.01)}
-                ${range("filmOpacity", "Sphere film opacity", 0, 1, 0.01)}
                 ${layerRows}
               </section>
               <section class="neo-section">
@@ -548,7 +610,7 @@
               </section>
             </aside>
           </div>
-          <p class="neo-foot">Display-only geometry. Orb placement uses a symbol hash and a log market-cap band; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. NEO ORB confers no authority and routes nothing.</p>
+          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. NEO ORB confers no authority and routes nothing.</p>
         </div>`;
 
       this.canvas = b.querySelector(".neo-canvas");
@@ -592,6 +654,8 @@
         this.state = cloneDefaults();
         this.state.paused = keepPaused;
         this.state.layers = layers;
+        if (this.placer) this.placer.reset();
+        this.placements = null;
         this.dirty = true;
         this.syncControls();
         this.syncLayerInputs();
@@ -611,7 +675,7 @@
         formation: this.state.formation,
         "axes.x": this.state.axes.x, "axes.y": this.state.axes.y, "axes.z": this.state.axes.z,
         berth: this.state.berth, speed: this.state.speed, nodeScale: this.state.nodeScale,
-        innerOpacity: this.state.innerOpacity, outerOpacity: this.state.outerOpacity, filmOpacity: this.state.filmOpacity
+        roam: this.state.roam
       };
       b.querySelectorAll("input[data-key]").forEach(input => {
         const key = input.dataset.key;
@@ -639,7 +703,14 @@
       }
       const shape = this.shape;
       const placed = shape ? shape.nodes.find(p => p.id === n.id) : null;
+      const move = this.placements ? this.placements.find(p => p.id === n.id) : null;
       const bandNote = n.marketCapUsd ? `log band ${n.radialBand}` : "log band (no cap)";
+      const driftDeg = move ? Math.round((move.displacement * 180) / Math.PI) : 0;
+      const placeNote = !this.state.layers.placement
+        ? "home sector (placement layer off)"
+        : move && move.guided
+          ? `flame-guided · ${driftDeg}° from home sector ${String(n.sector).padStart(3, "0")}`
+          : `home sector ${String(n.sector).padStart(3, "0")} (no flame guidance)`;
       el.innerHTML = `
         <div class="neo-insp-title"><span class="neo-dot" style="background:${KIND_COLOR[n.kind]}"></span>${esc(n.id)} · ${esc(n.name)}</div>
         <dl class="neo-dl">
@@ -647,7 +718,8 @@
           <dt>Market cap</dt><dd>${esc(n.marketCapLabel)} · ${esc(bandNote)}</dd>
           <dt>Display sector</dt><dd>${String(n.sector).padStart(3, "0")} / 360</dd>
           <dt>Display kind</dt><dd>${esc(KIND_NAME[n.kind] || n.kind)}</dd>
-          <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "source position"}</dd>
+          <dt>Placement</dt><dd>${esc(placeNote)}</dd>
+          <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "placed position"}</dd>
           <dt>Stage</dt><dd>${esc(n.marketStage)}</dd>
         </dl>
         <p class="neo-muted">Display-only. Not a quote, rank, or recommendation.</p>`;
@@ -662,12 +734,17 @@
         const moved = shape.berthSeparation.movedNodeIds.length;
         put("neo-berth", `${shape.berthSeparation.crowdedNodeCount} crowded · ${moved} re-slotted · floor ${shape.berthSeparation.minimumChordDistance.toFixed(3)}`);
       }
-      put("neo-inner", this.errors.inner ? `unavailable — ${this.errors.inner}` : playerStatus(this.inner, "Demo.flame (120f)", null));
-      put("neo-outer", this.errors.outer ? `unavailable — ${this.errors.outer}` : playerStatus(this.outer, "OuterOrb.flame (600f @ 24fps)", null));
-      if (!this.film) put("neo-film", "unavailable — sphere film not loaded");
-      else if (this.errors.film || this.film.dead) put("neo-film", `unavailable — ${this.errors.film || "load failed"}`);
-      else if (this.film.ready) put("neo-film", `live · frame ${this.film.frameAt(performance.now()) + 1}/200 · bounce`);
-      else put("neo-film", `loading ${this.film.loaded}/${this.film.total}…`);
+      put("neo-inner", this.errors.inner ? `unavailable — ${this.errors.inner}` : playerStatus(this.inner, "Demo.flame (120f) · read, not drawn", null));
+      put("neo-outer", this.errors.outer ? `unavailable — ${this.errors.outer}` : playerStatus(this.outer, "OuterOrb.flame (600f) · read, not drawn", null));
+      const moved = this.placements || [];
+      if (!this.state.layers.placement) put("neo-place", "home — placement layer off");
+      else if (!this.placer) put("neo-place", "home — placement unavailable (model or roster not loaded)");
+      else if (!this.placer.guided) put("neo-place", "home — flame guidance unavailable");
+      else {
+        const mean = moved.length ? moved.reduce((a, p) => a + p.displacement, 0) / moved.length : 0;
+        const inMotion = moved.filter(p => p.speed > 0.02).length;
+        put("neo-place", `flame-guided · ${inMotion}/${moved.length} moving · mean drift ${Math.round((mean * 180) / Math.PI)}°`);
+      }
       put("neo-roster", this.rosterInfo
         ? `${this.nodes.length} display orbs · snapshot ${this.rosterInfo.asOf}`
         : "unavailable");
@@ -700,7 +777,7 @@
       title: "NEO ORB",
       short: "NEO ORB",
       glyph: "✹",
-      desc: "Orb 2 × The Orb — roster orbs inside the two flame engines",
+      desc: "Orb 2 × The Orb — roster orbs steered by the two flame engines",
       w: 980, h: 720,
       render(body) { mountNeoOrb(body); }
     };
@@ -714,7 +791,7 @@
   }
 
   if (typeof window !== "undefined") {
-    window.NeoOrbApp = Object.freeze({ DEFAULTS, RANGES, KIND_COLOR, PHASE_SHIFT, mountNeoOrb, NeoOrbEngine });
+    window.NeoOrbApp = Object.freeze({ DEFAULTS, RANGES, KIND_COLOR, PHASE_SHIFT, GUIDE_WEIGHT, GUIDE_SIZE, mountNeoOrb, NeoOrbEngine });
   }
   registerNeoOrbApp();
 })();

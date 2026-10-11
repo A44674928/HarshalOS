@@ -221,6 +221,10 @@
       if (!finite(value) || value < AXIS_MIN || value > AXIS_MAX) throw new RangeError(`Axis ${name} must be ${AXIS_MIN}…${AXIS_MAX}; received ${value}.`);
     }
     if (!finite(berthSeparation) || berthSeparation < 0 || berthSeparation > 1) throw new RangeError(`Berth separation must be 0…1; received ${berthSeparation}.`);
+    validateNodes(nodes);
+  }
+
+  function validateNodes(nodes) {
     const seen = new Set();
     for (const node of nodes) {
       if (!node.id || typeof node.id !== "string") throw new TypeError("NEO ORB nodes require a non-empty stable id.");
@@ -232,16 +236,14 @@
     }
   }
 
-  /* make(): the full deterministic shape for a configuration. */
-  function makeShape(configuration) {
-    validate(configuration);
-    const { formation } = configuration;
-    const axes = { x: configuration.axes.x, y: configuration.axes.y, z: configuration.axes.z };
+  /* Home anchors: where each node sits before any dynamic placement. Sector
+     fixes longitude, list position fixes latitude, band fixes radius. Shared by
+     makeShape() and homesFor() so the placer starts from the same anchors. */
+  function sourcesFor(nodes) {
     const bands = radialBands();
     const maxBandRadius = bands[bands.length - 1].radius;
-    const count = Math.max(1, configuration.nodes.length);
-
-    const sources = configuration.nodes.map((node, index) => {
+    const count = Math.max(1, nodes.length);
+    return nodes.map((node, index) => {
       const sourceLongitude = (node.sector / SECTOR_COUNT) * TAU - Math.PI / 2;
       const normalizedIndex = (index + 0.5) / count;
       const sourceLatitude = Math.asin(clamp(1 - 2 * normalizedIndex, -1, 1)) * LATITUDE_SPREAD;
@@ -257,6 +259,56 @@
         radialBandRadius: bandRadius
       };
     });
+  }
+
+  /* [{ id, longitude, latitude, band, sector }] — the home anchors for the placer. */
+  function homesFor(nodes) {
+    validateNodes(nodes);
+    return sourcesFor(nodes).map(source => ({
+      id: source.id,
+      longitude: source.sourceLongitude,
+      latitude: source.sourceLatitude,
+      band: source.node.radialBand,
+      sector: source.node.sector
+    }));
+  }
+
+  /* Placements are optional. Each must name a node in the configuration, and
+     its coordinates must be finite and inside the latitude limit. Fail closed. */
+  function validatePlacements(placements, nodes) {
+    if (!placements) return null;
+    const ids = new Set(nodes.map(n => n.id));
+    for (const [id, place] of Object.entries(placements)) {
+      if (!ids.has(id)) throw new RangeError(`Placement names ${id}, which is not a node in this shape.`);
+      if (!place || !finite(place.longitude) || !finite(place.latitude)) throw new RangeError(`Placement for ${id} needs finite longitude and latitude.`);
+      if (Math.abs(place.latitude) > 1.2) throw new RangeError(`Placement latitude for ${id} must be within ±1.2; received ${place.latitude}.`);
+    }
+    return placements;
+  }
+
+  /* make(): the full deterministic shape for a configuration.
+     Optional configuration.placements = { [id]: { longitude, latitude } } moves
+     an orb's starting point (dynamic placement). Radius and identity never move;
+     berth separation still applies to the placed points. */
+  function makeShape(configuration) {
+    validate(configuration);
+    const { formation } = configuration;
+    const axes = { x: configuration.axes.x, y: configuration.axes.y, z: configuration.axes.z };
+    const bands = radialBands();
+    const maxBandRadius = bands[bands.length - 1].radius;
+    const placements = validatePlacements(configuration.placements, configuration.nodes);
+
+    const sources = sourcesFor(configuration.nodes).map(source => {
+      const home = { longitude: source.sourceLongitude, latitude: source.sourceLatitude };
+      const placed = placements ? placements[source.id] : null;
+      return {
+        ...source,
+        homeLongitude: home.longitude,
+        homeLatitude: home.latitude,
+        sourceLongitude: placed ? placed.longitude : home.longitude,
+        sourceLatitude: placed ? placed.latitude : home.latitude
+      };
+    });
 
     const { resolved, report } = resolveBerths(sources, formation, axes, configuration.berthSeparation ?? 1);
     const nodes = resolved.map(entry => {
@@ -267,6 +319,8 @@
         position: positionFor(source.radius, entry.longitude, entry.latitude, formation, axes),
         sourceLongitude: source.sourceLongitude,
         sourceLatitude: source.sourceLatitude,
+        homeLongitude: source.homeLongitude,
+        homeLatitude: source.homeLatitude,
         longitude: entry.longitude,
         latitude: entry.latitude,
         radius: source.radius,
@@ -333,6 +387,7 @@
     convergenceOf,
     positionFor,
     makeShape,
+    homesFor,
     rosterNodes
   });
   if (typeof window !== "undefined") window.NeoOrbModel = api;
