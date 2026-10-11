@@ -76,29 +76,44 @@ test('ordinary public routes still use the Assets binding', async () => {
 
 test('Community page aliases fetch extensionless canonical assets and avoid HTML redirect loops', async () => {
   const assetCalls = [];
-  const env = assetTrap(assetCalls, () => new Response('community page', { status: 200 }));
+  const canonicalAssets = new Set(['/account', '/audits', '/observations']);
+  const env = assetTrap(assetCalls, request => {
+    const pathname = new URL(request.url).pathname;
+    if (pathname.endsWith('.html')) {
+      return new Response(null, { status: 307, headers: { Location: pathname.slice(0, -5) } });
+    }
+    return canonicalAssets.has(pathname)
+      ? new Response('community page', { status: 200 })
+      : new Response(null, { status: 404 });
+  });
   for (const path of ['/account', '/account.html', '/audits', '/audits.html', '/observations', '/observations.html']) {
     const response = await worker.fetch(new Request(ORIGIN + path + '?id=abc'), env);
     assert.equal(response.status, 200, path);
+    assert.equal(response.headers.get('Location'), null, `${path} must not return a 307 redirect`);
     assert.equal(await response.text(), 'community page', path);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store', path);
+    assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer', path);
+    assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff', path);
+    assert.match(response.headers.get('Content-Security-Policy'), /connect-src 'self'/, path);
   }
   assert.deepEqual(assetCalls, [
     '/account', '/account', '/audits', '/audits', '/observations', '/observations'
   ], 'both URL forms must fetch canonical extensionless paths from Assets');
-  const response = await worker.fetch(new Request(ORIGIN + '/observations?id=abc'), env);
-  assert.equal(response.headers.get('Cache-Control'), 'no-store');
-  assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
-  assert.match(response.headers.get('Content-Security-Policy'), /connect-src 'self'/);
 
   const rejected = await worker.fetch(new Request(ORIGIN + '/observations', { method: 'POST' }), env);
   assert.equal(rejected.status, 405);
   assert.equal(rejected.headers.get('Allow'), 'GET, HEAD');
-  assert.equal(assetCalls.length, 7, 'non-GET Community page requests do not reach Assets');
+  assert.equal(assetCalls.length, 6, 'non-GET Community page requests do not reach Assets');
 });
 
 test('deployment configuration, Worker source, and arbitrary repo paths are not served as assets', async () => {
   const assetCalls = [];
-  const published = new Set(['/index.html', '/about.html', '/account.html', '/audits.html', '/observations.html']);
+  const published = new Set([
+    '/index.html', '/about.html',
+    '/account', '/account.html',
+    '/audits', '/audits.html',
+    '/observations', '/observations.html'
+  ]);
   const env = assetTrap(assetCalls, request => {
     const pathname = new URL(request.url).pathname;
     return published.has(pathname)

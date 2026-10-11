@@ -382,10 +382,16 @@ test("P13: local preview serves the selected Book I source and Collections libra
     assert.match(coreBook.headers.get("content-type"), /text\/markdown/);
     assert.ok((await coreBook.text()).includes("Part I — The Core Book"));
 
-    const observations = await fetch(`${base}/observations`);
-    assert.equal(observations.status, 200, "the public-observation publisher route is available in local preview");
-    assert.match(observations.headers.get("content-type"), /text\/html/);
-    assert.ok((await observations.text()).includes("Public observations"));
+    for (const [pathname, marker] of [
+      ["/account", "Private workspace"],
+      ["/audits", "Public audit register"],
+      ["/observations", "Public observations"]
+    ]) {
+      const response = await fetch(`${base}${pathname}`);
+      assert.equal(response.status, 200, `${pathname} should be available in local preview`);
+      assert.match(response.headers.get("content-type"), /text\/html/);
+      assert.ok((await response.text()).includes(marker), `${pathname} should return its HTML shell`);
+    }
 
     const libraryResponse = await fetch(`${base}/book-library/manifest.json`);
     assert.equal(libraryResponse.status, 200, "the generated Collections catalog is served");
