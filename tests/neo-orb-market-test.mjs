@@ -14,6 +14,9 @@ const marketSource = await readText("js/neo-orb-market.js");
 const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const indexHtml = await readText("index.html");
+const modelSource = await readText("js/neo-orb-model.js");
+const placementSource = await readText("js/neo-orb-placement.js");
+const neoCss = await readText("css/neo-orb.css");
 
 const window = {};
 const context = vm.createContext({
@@ -149,4 +152,19 @@ test("the page loads the market colour and field reader before the app", () => {
   const app = indexHtml.indexOf("js/apps-neo-orb.js");
   assert.ok(market > 0 && field > 0 && app > 0, "all three scripts are referenced");
   assert.ok(market < app && field < app, "the colour module and reader load before the app");
+});
+
+test("the whole NEO ORB surface reaches no company: no absolute or protocol-relative URL, and one route only", () => {
+  const files = {
+    "apps-neo-orb.js": appSource, "neo-orb-model.js": modelSource, "neo-orb-placement.js": placementSource,
+    "neo-orb-market.js": marketSource, "neo-orb-field.js": fieldSource, "neo-orb.css": neoCss
+  };
+  const absolute = /https?:\/\/|(^|[^:])\/\/[a-z0-9-]+\.[a-z]{2,}/i;
+  for (const [name, source] of Object.entries(files)) {
+    assert.equal(absolute.test(source), false, `${name} must name no absolute or protocol-relative URL`);
+    assert.equal(/url\(\s*['"]?(https?:|\/\/)/i.test(source), false, `${name} must load no external resource through url()`);
+  }
+  const routes = [...new Set([appSource, modelSource, placementSource, marketSource, fieldSource]
+    .flatMap(src => src.match(/\/api\/[A-Za-z0-9/_-]+/g) || []))];
+  assert.deepEqual(routes, ["/api/good-intelligence/v1/orb2/field"], "the only route NEO ORB names is the Orb 2 field");
 });

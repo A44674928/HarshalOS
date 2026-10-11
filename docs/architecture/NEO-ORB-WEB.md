@@ -15,6 +15,17 @@ NEO ORB combines two existing browser visuals in one window:
 
 NEO ORB is a display. It reads no kernel state, gate, ledger, declaration, or personal core. Its only network call is one same-origin GET of its own first-party Orb 2 field route (`/api/good-intelligence/v1/orb2/field?interval=1d`), made by `js/neo-orb-field.js`, which is the only file that calls `fetch`. It calls no third-party host and calls no provider directly, and it writes no storage. The field's upstream providers are the Worker's concern, not NEO ORB's. The test suite asserts that the app and model reference none of the forbidden channels. A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or grant. A market-cap band is a display convention, not a valuation. The phase dial is a rotation the viewer chooses; it does not declare anything. The test suite asserts that the app and model reference none of the forbidden channels.
 
+## Data path (what NEO ORB reads, and what it never touches)
+
+| Path | Status |
+| --- | --- |
+| NEO ORB → Orb 2 field route (`/api/good-intelligence/v1/orb2/field`), same-origin GET, every 20 s | The only data NEO ORB reads. Used for the rally/sink and basis colours. |
+| NEO ORB → any company, provider, or third-party host | None. No absolute or protocol-relative URL exists in the NEO ORB files or stylesheet. The test suite enforces this. |
+| Orb 2 field route → upstream market providers (Massive, Alpha Vantage, Kraken, Yahoo Finance) | Runs on the Worker, outside NEO ORB. Not changed here. |
+| Site shell (`index.html`) → other apps that connect to companies (LLM → Google Generative Language, community pages → Cloudflare Turnstile, Materials Project, research app → CourtListener, Federal Register, GovTrack, GDELT, Internet Archive, Wikipedia/Wikidata, r.jina.ai) | Runs in the same document as NEO ORB, but outside NEO ORB. A page-wide Content Security Policy would break those apps, so the shell is not changed here. |
+
+A browser-enforced block for NEO ORB alone needs NEO ORB in its own document, with `connect-src 'self'`. That is a separate decision.
+
 ## Dynamic placement (`neo-orb-placement.js`)
 
 The orbs move. The flame engines do not show; they guide.
