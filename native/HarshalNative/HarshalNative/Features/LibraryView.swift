@@ -126,7 +126,9 @@ struct LibraryView: View {
                 .accessibilityLabel("\(reader.edition.title) AGS v0.2 book reader")
             }
             .navigationTitle(isPreview ? "Library preview" : reader.edition.title)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
         } else {
             ContentUnavailableView(
                 "\(reader.edition.title) unavailable",
