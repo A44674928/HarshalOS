@@ -240,7 +240,9 @@ private struct CombinedOrbCanvas: View {
 
     private func draw(in context: inout GraphicsContext, size: CGSize, timestamp: TimeInterval) {
         let settings = appModel.marketsOrb.settings
-        guard size.width > 0, size.height > 0, let configuration else { return }
+        // `configuration` is a method, so it has to be called to bind its
+        // optional result — `let configuration` alone would bind the function.
+        guard size.width > 0, size.height > 0, let configuration = configuration() else { return }
 
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let outerRadius = min(size.width, size.height) * 0.36
@@ -515,7 +517,7 @@ private struct CombinedOrbCanvas: View {
 
     private func handleTap(at location: CGPoint) {
         let settings = appModel.marketsOrb.settings
-        guard let configuration, drawState.size.width > 0 else { return }
+        guard let configuration = configuration(), drawState.size.width > 0 else { return }
         guard let shape = try? NeoOrbGeometry.make(configuration: configuration) else { return }
 
         let canvasSize = drawState.size

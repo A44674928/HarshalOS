@@ -56,6 +56,13 @@ final class MarketsOrbModel {
         )
     }
 
+    /// Surface a validation failure raised by the order ticket. The order is
+    /// never sent; this only records why it was not. `simulatorError` stays
+    /// `private(set)` so the model remains the single writer.
+    func reportSimulatorError(_ message: String) {
+        simulatorError = message
+    }
+
     func restore(account: TradingSimulator.Account?) {
         guard let account else { return }
         do {
