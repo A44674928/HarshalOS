@@ -1791,6 +1791,11 @@ test("independent snapshot status reads overlap under the read-concurrency bound
 
   const snapshot = await readOrb2FieldSnapshot({ ...env, COMMUNITY_DB: trackingDb }, { now: at });
   assert.equal(snapshot.ok, true, snapshot.message || "");
+  /* `maxInFlight` directly observes the contract: a sequential implementation
+     can never exceed one delayed read, while a bounded fan-out must overlap and
+     stay at/below its reviewed cap. Do not assert a wall-clock target here:
+     timer wake-ups in a shared CI/Worker sandbox are scheduler-dependent and
+     made the old 36ms threshold a false failure even when overlap occurred. */
   assert.ok(maxInFlight > 1,
     `independent status reads really did overlap (max ${maxInFlight} in flight)`);
   assert.ok(maxInFlight <= ORB2_FIELD_D1_READ_CONCURRENCY,

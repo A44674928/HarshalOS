@@ -8,6 +8,8 @@ collections, and an editorial and structural report. The numbered parts
 cover foundational material, architecture, formalization, threat modeling,
 research, specifications, governance, and supplementary works.
 
+> **Published-edition mapping:** this Markdown library preserves its working-draft numbering and provenance records. The production **AGS v0.2 full-book KDP interior** is a separate 548-page, 25-part published edition with authoritative print-edition numbering. In that edition, accountability research begins at **Part XVIII** (printed p. 203 / PDF p. 229) and supply-chain research begins at **Part XIX** (printed p. 213 / PDF p. 239). Use [`publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf`](../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf) for the published artifact and [`native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](../../native/HarshalNative/docs/AGS-V0.2-CORPUS.md) for the native source-of-record translation. The two maps should not be silently conflated.
+
 ## What are Harshal's Systems?
 
 Harshal's Systems is the framework of principles, architectures, formal

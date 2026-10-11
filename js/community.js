@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let user = null, selected = null, dirty = false, busy = false, cursor = null, currentRun = null, runCursor = null, epoch = 0;
-let publicPreview = null, myCursor = null;
+let publicPreview = null, myCursor = null, paperMarketSnapshot = null, paperDevices = [];
 /* Human verification (Cloudflare Turnstile) for publishing. Checked lazily:
    nothing is fetched and no third-party script loads until a preview exists,
    and deployments without a Turnstile secret never set `required`. */
@@ -71,6 +71,9 @@ function controls() {
   for (const id of ['run', 'history', 'run-more']) $(id).disabled = busy || !user || !selected || dirty;
   $('run-export').disabled = busy || !currentRun;
   for (const button of $('run-history').querySelectorAll('button')) button.disabled = busy || dirty;
+  $('paper-market-refresh').disabled = busy || !user;
+  $('paper-pair-approve').disabled = busy || !user || !$('paper-pair-ack').checked || !$('paper-pair-code').value.trim();
+  for (const button of $('paper-device-list').querySelectorAll('button')) button.disabled = busy || !user;
 }
 function clearPublicPreview() {
   publicPreview = null; $('public-preview').hidden = true; $('preview-json').textContent = ''; $('preview-meta').textContent = ''; $('public-consent').checked = false; $('publish-public').disabled = true;
@@ -85,6 +88,7 @@ function clearRun() {
 }
 function reset() {
   epoch++; clearRun(); myCursor = null; $('my-publication-list').replaceChildren(); $('moderation-list').replaceChildren(); $('my-publication-more').hidden = true;
+  paperMarketSnapshot = null; paperDevices = []; $('paper-market-summary').hidden = true; $('paper-market-ledger').replaceChildren(); $('paper-market-events').replaceChildren(); $('paper-device-list').replaceChildren(); $('paper-market-orb').textContent = ''; $('paper-market-status').textContent = 'Load the shared snapshot when you are ready.'; $('paper-pair-code').value = ''; $('paper-pair-ack').checked = false;
   user = null; selected = null; dirty = false; cursor = null;
   $('drafts').replaceChildren(); $('title').value = ''; $('input').value = '{}'; $('notes').value = ''; $('import').value = '';
   $('identity').textContent = 'Signed out'; $('login').hidden = true;
@@ -305,4 +309,83 @@ async function moderationQueue() {
   if (!data.reports.length) notice('No unresolved reports.');
 }
 $('moderation-load').addEventListener('click', () => task(moderationQueue));
+
+// PAPER_TEST is deliberately a private, account-scoped simulation surface. The
+// browser receives the same server snapshot as a paired native device, but no
+// provider credential, native bearer, private core, CloudKit record, or order
+// capability is ever rendered here.
+async function refreshPaperMarketSnapshot() {
+  const [snapshot, devices] = await Promise.all([
+    api('paper-market/v1/snapshot'),
+    api('paper-market/v1/devices')
+  ]);
+  paperMarketSnapshot = snapshot; paperDevices = devices.devices || [];
+  renderPaperMarket();
+}
+function paperLine(title, value) {
+  const li = document.createElement('li'); const strong = document.createElement('strong');
+  strong.textContent = title + ': '; li.append(strong, document.createTextNode(value)); return li;
+}
+function renderPaperMarket() {
+  const snapshot = paperMarketSnapshot;
+  $('paper-market-ledger').replaceChildren(); $('paper-market-events').replaceChildren(); $('paper-device-list').replaceChildren();
+  if (!snapshot) { $('paper-market-summary').hidden = true; return; }
+  const ledger = snapshot.ledger || { declarations: [], positions: [], events: [] };
+  const market = snapshot.market || {};
+  $('paper-market-summary').hidden = false;
+  $('paper-market-status').textContent = market.sourceAvailability === 'UNAVAILABLE'
+    ? `Server field unavailable: ${market.sourceMessage || 'no current quote or valuation was fabricated.'}`
+    : `Server snapshot refreshed ${new Date(snapshot.generatedAt).toLocaleString()} · ${market.instruments?.length || 0} reviewed field nodes.`;
+  $('paper-market-ledger').append(
+    paperLine('Declarations', String(ledger.declarations?.length || 0)),
+    paperLine('Positions', String(ledger.positions?.length || 0)),
+    paperLine('Open positions', String((ledger.positions || []).filter(position => position.state === 'OPEN').length))
+  );
+  for (const position of (ledger.positions || []).slice(0, 12)) {
+    const li = document.createElement('li');
+    li.textContent = `${position.instrumentID} · ${position.side} · ${position.quantity} · ${position.state}`;
+    $('paper-market-ledger').append(li);
+  }
+  for (const event of (ledger.events || []).slice(0, 12)) {
+    const li = document.createElement('li');
+    li.textContent = `#${event.sequence} · ${event.kind} · ${new Date(event.createdAt).toLocaleString()} · ${event.detail}`;
+    $('paper-market-events').append(li);
+  }
+  if (!(ledger.events || []).length) $('paper-market-events').append(paperLine('Status', 'No PAPER_TEST events recorded for this account.'));
+  const orb = snapshot.orb;
+  $('paper-market-orb').textContent = orb?.availability === 'UNAVAILABLE'
+    ? `Unavailable: ${orb.message || 'no current Market Orb was rendered.'}`
+    : `${orb?.marketWide?.nodes?.length || 0} server-placed market nodes · formation ${Math.round((orb?.marketWide?.formation || 0) * 100)}% · private valuation overlay ${(orb?.accountOverlay?.valuations || []).length} position(s). Crypto nodes, if shown, are passive display-only observations.`;
+  for (const device of paperDevices) {
+    const li = document.createElement('li'); const text = document.createElement('span');
+    text.textContent = `${device.deviceLabel} · ${device.scope} · ${device.status}${device.lastUsedAt ? ' · last used ' + new Date(device.lastUsedAt).toLocaleString() : ''}`;
+    li.append(text);
+    if (device.status === 'ACTIVE') {
+      const revoke = document.createElement('button'); revoke.type = 'button'; revoke.textContent = 'Revoke';
+      revoke.addEventListener('click', () => {
+        if (busy || !window.confirm(`Revoke PAPER_TEST access for ${device.deviceLabel}? This immediately disables its device credential and retains the paper-ledger record.`)) return;
+        task(async () => { await api('paper-market/v1/devices/' + encodeURIComponent(device.id) + '/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); await refreshPaperMarketSnapshot(); notice('PAPER_TEST device credential revoked.'); });
+      });
+      li.append(document.createTextNode(' '), revoke);
+    }
+    $('paper-device-list').append(li);
+  }
+  if (!paperDevices.length) $('paper-device-list').append(paperLine('Status', 'No native PAPER_TEST device is paired to this account.'));
+}
+$('paper-market-refresh').addEventListener('click', () => task(async () => { await refreshPaperMarketSnapshot(); notice('Shared PAPER_TEST snapshot refreshed.'); }));
+$('paper-pair-code').addEventListener('input', () => { $('paper-pair-code').value = $('paper-pair-code').value.toUpperCase().replace(/[^A-Z2-9-]/g, '').slice(0, 19); controls(); });
+$('paper-pair-ack').addEventListener('change', controls);
+$('paper-pair-approve').addEventListener('click', () => {
+  const approvalCode = $('paper-pair-code').value.trim();
+  if (busy || !$('paper-pair-ack').checked || !/^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){3}$/.test(approvalCode)) { notice('Enter the complete 16-character native pairing code and review the approval acknowledgement.'); return; }
+  task(async () => {
+    const result = await api('paper-market/v1/device-pairings/approve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approvalCode, acknowledgement: 'APPROVE_PAPER_TEST_DEVICE' })
+    });
+    $('paper-pair-code').value = ''; $('paper-pair-ack').checked = false;
+    await refreshPaperMarketSnapshot();
+    notice(`Approved ${result.pairing.deviceLabel} for a revocable PAPER_TEST credential. Return to the native app to redeem it.`);
+  });
+});
 reset(); session();

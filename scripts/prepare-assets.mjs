@@ -14,7 +14,7 @@ const excludedRuntimeAssets = new Set([
 ]);
 await rm(dest, { recursive: true, force: true });
 await mkdir(dest);
-for (const entry of ['index.html', 'about.html', 'account.html', 'audits.html', 'css', 'js', 'assets', 'specs']) {
+for (const entry of ['index.html', 'about.html', 'account.html', 'audits.html', 'observations.html', 'css', 'js', 'assets', 'specs']) {
   await cp(path.join(root, entry), path.join(dest, entry), {
     recursive: true,
     filter: async source => {

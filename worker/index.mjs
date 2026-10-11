@@ -204,8 +204,23 @@ export default {
         headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
       });
     }
-    if (path === '/account' || path === '/account.html' || path === '/audits' || path === '/audits.html') {
-      const asset = await env.ASSETS.fetch(request);
+    const communityPageAssets = {
+      '/account': '/account.html',
+      '/account.html': '/account.html',
+      '/audits': '/audits.html',
+      '/audits.html': '/audits.html',
+      '/observations': '/observations.html',
+      '/observations.html': '/observations.html'
+    };
+    if (communityPageAssets[path]) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD', 'Cache-Control': 'no-store' } });
+      }
+      // Assets does not need to infer extensionless Community routes. Preserve
+      // the browser URL/query while fetching the exact allowlisted HTML asset.
+      const assetURL = new URL(request.url);
+      assetURL.pathname = communityPageAssets[path];
+      const asset = await env.ASSETS.fetch(new Request(assetURL, request));
       const response = new Response(asset.body, asset);
       response.headers.set('Cache-Control', 'no-store');
       response.headers.set('Referrer-Policy', 'no-referrer');

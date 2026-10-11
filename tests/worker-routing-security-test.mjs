@@ -74,9 +74,26 @@ test('ordinary public routes still use the Assets binding', async () => {
   assert.deepEqual(assetCalls, ['/index.html']);
 });
 
+test('Community pages resolve extensionless URLs to exact allowlisted assets with restrictive headers', async () => {
+  const assetCalls = [];
+  const env = assetTrap(assetCalls, () => new Response('observation publisher', { status: 200 }));
+  const response = await worker.fetch(new Request(ORIGIN + '/observations?id=abc'), env);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'observation publisher');
+  assert.deepEqual(assetCalls, ['/observations.html']);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
+  assert.match(response.headers.get('Content-Security-Policy'), /connect-src 'self'/);
+
+  const rejected = await worker.fetch(new Request(ORIGIN + '/observations', { method: 'POST' }), env);
+  assert.equal(rejected.status, 405);
+  assert.equal(rejected.headers.get('Allow'), 'GET, HEAD');
+  assert.deepEqual(assetCalls, ['/observations.html'], 'non-GET Community page requests do not reach Assets');
+});
+
 test('deployment configuration, Worker source, and arbitrary repo paths are not served as assets', async () => {
   const assetCalls = [];
-  const published = new Set(['/index.html', '/about.html', '/account.html', '/audits.html']);
+  const published = new Set(['/index.html', '/about.html', '/account.html', '/audits.html', '/observations.html']);
   const env = assetTrap(assetCalls, request => {
     const pathname = new URL(request.url).pathname;
     return published.has(pathname)
