@@ -16,6 +16,10 @@ struct PersistedNativeState: Codable {
     /// A self-chosen reusable public label. It is separate from the private
     /// declaration label and is never treated as verified identity.
     var publicProfilePseudonym: String?
+    /// Optional to preserve recovery of local state written before the
+    /// Markets · NEO ORB paper simulator. The simulator account is simulated
+    /// brokerage state only — never custody, wallet, or broker material.
+    var simulatorAccount: TradingSimulator.Account?
 }
 
 /// Encrypted local persistence for private native state. The encrypted file is

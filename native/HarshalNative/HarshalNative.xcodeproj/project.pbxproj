@@ -57,7 +57,37 @@
 		A10000000000000000000048 /* AGS v0.2 Night Reading Edition.pdf in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */; };
 		A10000000000000000000049 /* PaperMarketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* PaperMarketService.swift */; };
 		A10000000000000000000050 /* PaperMarketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* PaperMarketService.swift */; };
+		A10000000000000000000051 /* MarketsOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* MarketsOrbView.swift */; };
+		A10000000000000000000052 /* MarketsOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* MarketsOrbView.swift */; };
+		A10000000000000000000053 /* TradingSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* TradingSimulatorView.swift */; };
+		A10000000000000000000054 /* TradingSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* TradingSimulatorView.swift */; };
+		A10000000000000000000055 /* NeoOrbCombinedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* NeoOrbCombinedView.swift */; };
+		A10000000000000000000056 /* NeoOrbCombinedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* NeoOrbCombinedView.swift */; };
+		A10000000000000000000057 /* WatchGateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* WatchGateService.swift */; };
+		A10000000000000000000058 /* WatchGateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* WatchGateService.swift */; };
+		A10000000000000000000059 /* MarketsOrbModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MarketsOrbModel.swift */; };
+		A10000000000000000000060 /* MarketsOrbModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* MarketsOrbModel.swift */; };
+		A10000000000000000000061 /* TickerFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* TickerFeedService.swift */; };
+		A10000000000000000000062 /* TickerFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* TickerFeedService.swift */; };
+		A10000000000000000000063 /* OrbSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* OrbSettings.swift */; };
+		A10000000000000000000064 /* OrbSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* OrbSettings.swift */; };
+		A10000000000000000000065 /* HarshalFlame in Frameworks */ = {isa = PBXBuildFile; productRef = A70000000000000000000009 /* HarshalFlame */; };
+		A10000000000000000000066 /* HarshalFlame in Frameworks */ = {isa = PBXBuildFile; productRef = A7000000000000000000000A /* HarshalFlame */; };
+		A10000000000000000000067 /* HarshalWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* HarshalWatchApp.swift */; };
+		A10000000000000000000068 /* WatchPhoneLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* WatchPhoneLink.swift */; };
+		A10000000000000000000069 /* WatchGateWatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* WatchGateWatchView.swift */; };
+		A10000000000000000000070 /* "HarshalNative Watch.app" in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* "HarshalNative Watch.app" */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A9000000000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000003 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A50000000000000000000004;
+			remoteInfo = "HarshalNative Watch";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* HarshalNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/HarshalNativeApp.swift; sourceTree = SOURCE_ROOT; };
@@ -86,7 +116,33 @@
 		A20000000000000000000024 /* HarshalTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/HarshalTheme.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000025 /* AGS v0.2 Night Reading Edition.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = "AGS v0.2 Night Reading Edition.pdf"; path = ../../publications/book/AGS-v0.2-Harshal-s-Systems-Night-Reading-Edition-2026-10-10.pdf; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000026 /* PaperMarketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/PaperMarketService.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000027 /* MarketsOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/MarketsOrbView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000028 /* TradingSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/TradingSimulatorView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000029 /* NeoOrbCombinedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Features/NeoOrbCombinedView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000030 /* WatchGateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/WatchGateService.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000031 /* MarketsOrbModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/MarketsOrbModel.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000032 /* TickerFeedService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/Services/TickerFeedService.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000033 /* OrbSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNative/OrbSettings.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000034 /* HarshalWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNativeWatch/HarshalWatchApp.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000035 /* WatchPhoneLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNativeWatch/WatchPhoneLink.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000036 /* WatchGateWatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarshalNativeWatch/WatchGateWatchView.swift; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000037 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = HarshalNativeWatch/Info.plist; sourceTree = SOURCE_ROOT; };
+		A20000000000000000000038 /* "HarshalNative Watch.app" */ = {isa = PBXFileReference; explicitFileType = "wrapper.application"; includeInIndex = 0; path = "HarshalNative Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A30000000000000000000010 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000070 /* "HarshalNative Watch.app" in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {
@@ -97,6 +153,7 @@
 				A10000000000000000000012 /* HarshalLedger in Frameworks */,
 				A10000000000000000000025 /* NeoOrb in Frameworks */,
 				A10000000000000000000029 /* HarshalMarkets in Frameworks */,
+				A10000000000000000000065 /* HarshalFlame in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -108,6 +165,14 @@
 				A10000000000000000000024 /* HarshalLedger in Frameworks */,
 				A10000000000000000000026 /* NeoOrb in Frameworks */,
 				A10000000000000000000030 /* HarshalMarkets in Frameworks */,
+				A10000000000000000000066 /* HarshalFlame in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +184,7 @@
 			children = (
 				A40000000000000000000002 /* HarshalNative */,
 				A40000000000000000000006 /* Packages */,
+				A40000000000000000000008 /* HarshalNativeWatch */,
 				A40000000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -131,6 +197,8 @@
 				A20000000000000000000002 /* AppModel.swift */,
 				A20000000000000000000003 /* RootView.swift */,
 				A20000000000000000000004 /* LocalStateStore.swift */,
+				A20000000000000000000031 /* MarketsOrbModel.swift */,
+				A20000000000000000000033 /* OrbSettings.swift */,
 				A40000000000000000000003 /* Features */,
 				A40000000000000000000004 /* Services */,
 				A40000000000000000000005 /* Resources */,
@@ -148,6 +216,9 @@
 				A20000000000000000000010 /* SyncView.swift */,
 				A20000000000000000000015 /* NeoOrbView.swift */,
 				A20000000000000000000016 /* MarketView.swift */,
+				A20000000000000000000027 /* MarketsOrbView.swift */,
+				A20000000000000000000028 /* TradingSimulatorView.swift */,
+				A20000000000000000000029 /* NeoOrbCombinedView.swift */,
 				A20000000000000000000018 /* SupplyChainView.swift */,
 				A20000000000000000000022 /* LibraryView.swift */,
 			);
@@ -162,6 +233,8 @@
 				A20000000000000000000019 /* NativeKeychainStore.swift */,
 				A20000000000000000000020 /* PublicObservationCapabilityVault.swift */,
 				A20000000000000000000026 /* PaperMarketService.swift */,
+				A20000000000000000000030 /* WatchGateService.swift */,
+				A20000000000000000000032 /* TickerFeedService.swift */,
 			);
 			name = Services;
 			sourceTree = "<group>";
@@ -190,8 +263,20 @@
 			children = (
 				A20000000000000000000013 /* HarshalNative iOS.app */,
 				A20000000000000000000014 /* HarshalNative macOS.app */,
+				A20000000000000000000038 /* "HarshalNative Watch.app" */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000008 /* HarshalNativeWatch */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000034 /* HarshalWatchApp.swift */,
+				A20000000000000000000035 /* WatchPhoneLink.swift */,
+				A20000000000000000000036 /* WatchGateWatchView.swift */,
+				A20000000000000000000037 /* Info.plist */,
+			);
+			name = HarshalNativeWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -204,10 +289,12 @@
 				A30000000000000000000001 /* Frameworks */,
 				A30000000000000000000003 /* Sources */,
 				A30000000000000000000005 /* Resources */,
+				A30000000000000000000010 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A9000000000000000000000A /* PBXTargetDependency */,
 			);
 			name = "HarshalNative iOS";
 			packageProductDependencies = (
@@ -215,9 +302,29 @@
 				A70000000000000000000002 /* HarshalLedger */,
 				A70000000000000000000005 /* NeoOrb */,
 				A70000000000000000000007 /* HarshalMarkets */,
+				A70000000000000000000009 /* HarshalFlame */,
 			);
 			productName = "HarshalNative iOS";
 			productReference = A20000000000000000000013 /* HarshalNative iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A50000000000000000000004 /* HarshalNative Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000000000000000000004 /* Build configuration list for PBXNativeTarget "HarshalNative Watch" */;
+			buildPhases = (
+				A30000000000000000000007 /* Frameworks */,
+				A30000000000000000000008 /* Sources */,
+				A30000000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "HarshalNative Watch";
+			packageProductDependencies = (
+			);
+			productName = "HarshalNative Watch";
+			productReference = A20000000000000000000038 /* "HarshalNative Watch.app" */;
 			productType = "com.apple.product-type.application";
 		};
 		A50000000000000000000002 /* HarshalNative macOS */ = {
@@ -238,6 +345,7 @@
 				A70000000000000000000004 /* HarshalLedger */,
 				A70000000000000000000006 /* NeoOrb */,
 				A70000000000000000000008 /* HarshalMarkets */,
+				A7000000000000000000000A /* HarshalFlame */,
 			);
 			productName = "HarshalNative macOS";
 			productReference = A20000000000000000000014 /* HarshalNative macOS.app */;
@@ -259,6 +367,9 @@
 					A50000000000000000000002 = {
 						CreatedOnToolsVersion = 15.3;
 					};
+					A50000000000000000000004 = {
+						CreatedOnToolsVersion = 15.3;
+					};
 				};
 			};
 			buildConfigurationList = A60000000000000000000001 /* Build configuration list for PBXProject "HarshalNative" */;
@@ -275,6 +386,7 @@
 				A80000000000000000000002 /* XCLocalSwiftPackageReference "HarshalLedger" */,
 				A80000000000000000000003 /* XCLocalSwiftPackageReference "NeoOrb" */,
 				A80000000000000000000004 /* XCLocalSwiftPackageReference "HarshalMarkets" */,
+				A80000000000000000000005 /* XCLocalSwiftPackageReference "HarshalFlame" */,
 			);
 			productRefGroup = A40000000000000000000007 /* Products */;
 			projectDirPath = "";
@@ -282,6 +394,7 @@
 			targets = (
 				A50000000000000000000001 /* HarshalNative iOS */,
 				A50000000000000000000002 /* HarshalNative macOS */,
+				A50000000000000000000004 /* HarshalNative Watch */,
 			);
 		};
 /* End PBXProject section */
@@ -305,7 +418,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A30000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A9000000000000000000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A50000000000000000000004 /* HarshalNative Watch */;
+			targetProxy = A9000000000000000000000B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A30000000000000000000003 /* Sources */ = {
@@ -331,6 +459,13 @@
 				A10000000000000000000041 /* LibraryView.swift in Sources */,
 				A10000000000000000000045 /* HarshalTheme.swift in Sources */,
 				A10000000000000000000049 /* PaperMarketService.swift in Sources */,
+				A10000000000000000000051 /* MarketsOrbView.swift in Sources */,
+				A10000000000000000000053 /* TradingSimulatorView.swift in Sources */,
+				A10000000000000000000055 /* NeoOrbCombinedView.swift in Sources */,
+				A10000000000000000000057 /* WatchGateService.swift in Sources */,
+				A10000000000000000000059 /* MarketsOrbModel.swift in Sources */,
+				A10000000000000000000061 /* TickerFeedService.swift in Sources */,
+				A10000000000000000000063 /* OrbSettings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -357,6 +492,23 @@
 				A10000000000000000000042 /* LibraryView.swift in Sources */,
 				A10000000000000000000046 /* HarshalTheme.swift in Sources */,
 				A10000000000000000000050 /* PaperMarketService.swift in Sources */,
+				A10000000000000000000052 /* MarketsOrbView.swift in Sources */,
+				A10000000000000000000054 /* TradingSimulatorView.swift in Sources */,
+				A10000000000000000000056 /* NeoOrbCombinedView.swift in Sources */,
+				A10000000000000000000058 /* WatchGateService.swift in Sources */,
+				A10000000000000000000060 /* MarketsOrbModel.swift in Sources */,
+				A10000000000000000000062 /* TickerFeedService.swift in Sources */,
+				A10000000000000000000064 /* OrbSettings.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000067 /* HarshalWatchApp.swift in Sources */,
+				A10000000000000000000068 /* WatchPhoneLink.swift in Sources */,
+				A10000000000000000000069 /* WatchGateWatchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -485,6 +637,49 @@
 			};
 			name = Release;
 		};
+		A90000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ONLY_ACTIVE_ARCH = YES;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNativeWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative.watchkitapp;
+				PRODUCT_NAME = "HarshalNative Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		A90000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HarshalNativeWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.HarshalNative.watchkitapp;
+				PRODUCT_NAME = "HarshalNative Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -515,6 +710,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A60000000000000000000004 /* Build configuration list for PBXNativeTarget "HarshalNative Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000007 /* Debug */,
+				A90000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -533,6 +737,10 @@
 		A80000000000000000000004 /* XCLocalSwiftPackageReference "HarshalMarkets" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/HarshalMarkets;
+		};
+		A80000000000000000000005 /* XCLocalSwiftPackageReference "HarshalFlame" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HarshalFlame;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -576,6 +784,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A80000000000000000000004 /* XCLocalSwiftPackageReference "HarshalMarkets" */;
 			productName = HarshalMarkets;
+		};
+		A70000000000000000000009 /* HarshalFlame */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000005 /* XCLocalSwiftPackageReference "HarshalFlame" */;
+			productName = HarshalFlame;
+		};
+		A7000000000000000000000A /* HarshalFlame */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A80000000000000000000005 /* XCLocalSwiftPackageReference "HarshalFlame" */;
+			productName = HarshalFlame;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

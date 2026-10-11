@@ -20,6 +20,8 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>The Human-Key gate uses Face ID as a local acknowledgement factor before paper market actions. It never establishes identity or authorizes anything outside this app.</string>
     <key>HarshalCloudKitEnabled</key>
     <false/>
     <key>HarshalCommunityOrigin</key>

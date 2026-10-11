@@ -2,7 +2,15 @@
 
 **Status:** display-only local geometry
 **Package:** `Packages/NeoOrb`
-**Renderer:** `HarshalNative/Features/NeoOrbView.swift`
+**Renderer:** `HarshalNative/Features/NeoOrbView.swift` (geometry study) and
+`HarshalNative/Features/NeoOrbCombinedView.swift` (the combined Markets ·
+NEO ORB tab)
+
+> The combined **Markets · NEO ORB** tab renders this same geometry package
+> with the 52-asset Good Intelligence roster as display nodes and The Orb's
+> dual fractal flame engines behind it. See
+> [`MARKETS-NEO-ORB.md`](MARKETS-NEO-ORB.md) for the combined surface; this
+> document remains the geometry contract both renderers share.
 
 NEO ORB is the first native visual model that deliberately combines the two
 existing browser concepts without inheriting a claim of external knowledge or
