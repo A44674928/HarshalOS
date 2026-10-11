@@ -252,6 +252,11 @@
        supplies it. It can never be wider than this file's LAT_LIMIT, so no caller can
        widen the contract the model validates against. */
     const latLimit = clamp(finite(options.latitudeLimit) ? options.latitudeLimit : LAT_LIMIT, 0.05, LAT_LIMIT);
+    /* The model's radius rule (band shell plus any instability-region extension), so
+       spacing is measured where the orbs actually are. Identity by default. */
+    const radiusFor = typeof options.radiusFor === "function"
+      ? options.radiusFor
+      : radius => radius;
     let geometry = { formation: 1, axes: { x: 1, y: 1, z: 1 } };
     const nodes = homes.map(h => ({
       id: h.id,
@@ -259,6 +264,7 @@
       homeLongitude: h.longitude,
       homeLatitude: h.latitude,
       mass: inertiaFor(h.band),
+      extension: 0,                  // 0…1 instability extension; lifts the orb out of its band shell
       off: { lon: 0, lat: 0 },
       vel: { lon: 0, lat: 0 },
       target: { lon: 0, lat: 0 },
@@ -345,11 +351,35 @@
       else if (node.off.lat > high) { node.off.lat = high; if (node.vel.lat > 0) node.vel.lat = 0; }
     }
 
-    /* 3D point of a node at (lon, lat), in the same geometry the model draws. */
+    /* 3D point of a node at (lon, lat), in the same geometry the model draws — at the
+       radius it is drawn at, extension included. */
+    function liveRadius(node) {
+      const r = radiusFor(node.radius, node.extension);
+      return finite(r) && r > 0 ? r : node.radius;
+    }
+
     function pointOf(node, lon, lat) {
+      const radius = liveRadius(node);
       return positionFor
-        ? positionFor(node.radius, lon, lat, geometry.formation, geometry.axes)
-        : sphereFor(node.radius, lon, lat);
+        ? positionFor(radius, lon, lat, geometry.formation, geometry.axes)
+        : sphereFor(radius, lon, lat);
+    }
+
+    /* Per-node instability extensions, { [id]: 0…1 }. Fail closed: an unknown id or an
+       out-of-range value is refused rather than clamped, matching the model. */
+    function setExtensions(extensions) {
+      if (extensions === null || extensions === undefined) {
+        for (const node of nodes) node.extension = 0;
+        return;
+      }
+      if (typeof extensions !== "object" || Array.isArray(extensions)) throw new TypeError("setExtensions needs a map of node id to extension.");
+      const byId = new Map(nodes.map(node => [node.id, node]));
+      for (const [id, value] of Object.entries(extensions)) {
+        const node = byId.get(id);
+        if (!node) throw new RangeError(`Extension names ${id}, which is not a node this placer holds.`);
+        if (!finite(value) || value < 0 || value > 1) throw new RangeError(`Extension for ${id} must be a finite 0…1; received ${value}.`);
+      }
+      for (const node of nodes) node.extension = Number(extensions[node.id] ?? 0);
     }
 
     /* Hard spacing while guided: any pair closer than SEPARATION in 3D is pushed apart
@@ -489,6 +519,11 @@
           homeLatitude: node.homeLatitude,
           displacement,
           speed: Math.hypot(node.vel.lon, node.vel.lat),
+          /* The radius this orb is being spaced at: its band shell lifted by its own
+             instability extension through the model's rule. Reported, so the spacing the
+             placer enforces is visible rather than implicit. */
+          extension: node.extension,
+          radius: liveRadius(node),
           guided,
           epoch: node.epoch
         };
@@ -512,6 +547,7 @@
     /* Return every orb to its home anchor and forget the flame guidance. */
     function reset() {
       for (const node of nodes) {
+        node.extension = 0;
         node.off = { lon: 0, lat: 0 };
         node.vel = { lon: 0, lat: 0 };
         node.target = { lon: 0, lat: 0 };
@@ -534,6 +570,7 @@
       placements,
       setRoam,
       setGeometry,
+      setExtensions,
       reset
     });
   }

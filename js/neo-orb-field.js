@@ -1,24 +1,20 @@
-/* NEO ORB feed cut.
+/* NEO ORB field reader: the one read NEO ORB makes, of its own first-party Worker route.
+   Same-origin GET, no cache, no redirects, no cookies to a third party. It returns the
+   stored Orb 2 field rows as they are. The colours are derived in js/neo-orb-market.js and
+   the instability extension in js/market-extension.js. Display-only: no write, no action,
+   no authority, no identity claim.
 
-   NEO ORB is a display, and it reads no market feed. This module used to make the app's one
-   network call — a same-origin GET of the first-party Orb 2 field route. That call is gone:
-   the reader refuses, so no orb colour is ever derived from a company's market data and
-   nothing at all leaves the page. There is no fetch here, no request options, and no runtime
-   switch that could open it.
+   THE FEED SWITCH. `FEED_CUT` is the one place NEO ORB's feed is opened or closed, and the
+   app follows it fail-closed (js/apps-neo-orb.js): unless this module declares
+   `FEED_CUT === false`, the app reads nothing, polls nothing, and leaves every orb neutral
+   and on its band shell. This feed was cut on 2026-10-11 to keep company market data out of
+   a display, and re-opened deliberately the same day because NEO ORB is the destination for
+   the extension model, which cannot be drawn from data it is not allowed to read. Orb 2's
+   own feed was never the thing to cut, and it is not gated: the Worker pipeline calls its
+   providers on its own ledgers and caps.
 
-   The cut is NEO ORB's only. Orb 2's own feed is NOT cut: the Worker's Orb 2 pipeline still
-   calls its providers on its own schedule and still serves the stored field to the apps that
-   are meant to read it. NEO ORB is simply no longer one of them.
-
-   The app follows this module fail-closed (js/apps-neo-orb.js): unless FEED_CUT is exactly
-   false, it reads nothing, polls nothing, and leaves every orb neutral with the cut named in
-   the Status panel and the inspector.
-
-   Re-opening the feed is a deliberate change, not a configuration: set FEED_CUT to false,
-   restore the single same-origin GET of FIELD_ROUTE here, and update
-   tests/neo-orb-feed-cut-test.mjs, tests/neo-orb-market-test.mjs, and
-   docs/architecture/NEO-ORB-WEB.md, which all assert the cut. Display-only either way: no
-   write, no action, no authority, no identity claim. */
+   Closing it again is one edit here — set FEED_CUT to true and `readField()` refuses — plus
+   tests/neo-orb-feed-boundary-test.mjs and docs/architecture/NEO-ORB-WEB.md. */
 (function (root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
@@ -26,14 +22,13 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
 
-  /* The route the cut refuses. Named so the boundary is explicit and testable; nothing here
-     requests it, and no other route or host appears anywhere in the NEO ORB files. */
   const FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
   const DEFAULT_INTERVAL = "1d";
 
-  const FEED_CUT = true;
+  /* false = the feed is open and the one read below is live. true = every read refuses. */
+  const FEED_CUT = false;
   const FEED_CUT_MESSAGE =
-    "NEO ORB's market feed is cut: no field is read, no provider data is shown, and every orb stays neutral.";
+    "NEO ORB's market feed is cut: no field is read, no provider data is shown, and every orb stays neutral on its band shell.";
 
   function fieldUrl(interval = DEFAULT_INTERVAL) {
     const params = new URLSearchParams();
@@ -41,10 +36,25 @@
     return `${FIELD_ROUTE}?${params.toString()}`;
   }
 
-  /* Always the refusal. It takes no arguments and holds no fetcher, so no caller can supply
-     one; it never throws and never touches the network, storage, or a worker. */
-  async function readField() {
-    return Object.freeze({ ok: false, cut: FEED_CUT, message: FEED_CUT_MESSAGE, observations: Object.freeze([]), at: null });
+  /* Resolves { ok, observations, at } or { ok: false, message }. Never throws. */
+  async function readField({ fetcher, interval = DEFAULT_INTERVAL, now = Date.now() } = {}) {
+    if (FEED_CUT) return Object.freeze({ ok: false, cut: true, message: FEED_CUT_MESSAGE, observations: [], at: null });
+    const doFetch = fetcher || (typeof globalThis !== "undefined" ? globalThis.fetch : null);
+    if (typeof doFetch !== "function") return { ok: false, message: "field read unavailable in this browser" };
+    try {
+      const response = await doFetch(fieldUrl(interval), {
+        method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
+        headers: { Accept: "application/json" }
+      });
+      const payload = await response.json().catch(() => null);
+      const data = payload && typeof payload === "object" && payload.data && typeof payload.data === "object" ? payload.data : null;
+      if (!response.ok || !data || data.ok !== true) {
+        return { ok: false, message: (payload && payload.message) || `The Orb 2 field answered HTTP ${response.status}.` };
+      }
+      return { ok: true, observations: Array.isArray(data.observations) ? data.observations : [], at: now };
+    } catch (error) {
+      return { ok: false, message: "the Orb 2 field could not be read" };
+    }
   }
 
   return Object.freeze({ FIELD_ROUTE, DEFAULT_INTERVAL, FEED_CUT, FEED_CUT_MESSAGE, fieldUrl, readField });

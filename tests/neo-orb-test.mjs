@@ -11,6 +11,7 @@ const readText = path => readFile(new URL(path, ROOT), "utf8");
 const modelSource = await readText("js/neo-orb-model.js");
 const placementSource = await readText("js/neo-orb-placement.js");
 const marketSource = await readText("js/neo-orb-market.js");
+const extensionSource = await readText("js/market-extension.js");
 const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
@@ -159,12 +160,14 @@ function appHarness({ flames = true } = {}) {
   const context = vm.createContext({
     window, document: doc, performance, console,
     Math, Number, String, Object, Array, Set, Map, JSON, BigInt, Error, RangeError, TypeError, Promise,
+    Date, URLSearchParams,
     requestAnimationFrame: () => 0,
     APPS: [{ id: "ocm" }, { id: "orbs" }]
   });
   vm.runInContext(modelSource, context, { filename: "js/neo-orb-model.js" });
   vm.runInContext(placementSource, context, { filename: "js/neo-orb-placement.js" });
   vm.runInContext(marketSource, context, { filename: "js/neo-orb-market.js" });
+  vm.runInContext(extensionSource, context, { filename: "js/market-extension.js" });
   vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
@@ -266,29 +269,313 @@ test("the app code reads no kernel, gate, ledger, provider, or route", () => {
   }
 });
 
-test("the feed is cut: no read is made, every orb stays neutral, and the surface says so", () => {
+/* ── the instability region: distance from the centre is the extension ───────
+   The further overbought or oversold a stored reading is, the further out its orb
+   sits. Band shells never move; an extended orb leaves its shell for a region
+   outside every band. The reading itself comes from js/market-extension.js, which
+   tests/market-extension-test.mjs holds. */
+
+/* The drawn band shells, as the model computes them: one node per band, at full depth,
+   so band 5 is the outermost shell an orb can have without being extended. */
+function bandShells(depth = 1) {
+  const nodes = [0, 1, 2, 3, 4, 5].map(band => node(`B${band}`, { radialBand: band, sector: band * 40, depth }));
+  const shape = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes });
+  return shape.nodes.map(n => ({ band: n.node.radialBand, radius: n.bandRadius }));
+}
+
+test("the instability region sits outside every band shell, and extension 0 leaves the shells exact", () => {
+  const region = Model.INSTABILITY_REGION;
+  const shells = bandShells(1);
+  const outermost = Math.max(...shells.map(shell => shell.radius));
+
+  assert.equal(Object.isFrozen(region), true, "the region is a fixed part of the model, not a dial");
+  assert.ok(Math.abs(outermost - 1) < 1e-12, `the smallest caps sit at r = 1 (got ${outermost})`);
+  assert.ok(region.inner > outermost, `the region starts outside every band shell (${region.inner} > ${outermost})`);
+  assert.ok(region.outer > region.inner, "and it has depth, so a reading is visible inside it");
+  assert.ok(region.entry > 0 && region.entry < 1, "an orb crosses into it over a span of extension, not in one step");
+
+  for (const shell of shells) {
+    assert.equal(Model.extensionRadius(shell.radius, 0), shell.radius,
+      `band ${shell.band} keeps its exact documented radius at extension 0`);
+    for (const missing of [null, undefined, Number.NaN]) {
+      assert.equal(Model.extensionRadius(shell.radius, missing), shell.radius,
+        `a missing extension is no push (band ${shell.band})`);
+    }
+    assert.equal(Model.extensionRadius(shell.radius, -0.5), shell.radius, "a stray value below 0 is clamped, never pulled inward");
+    assert.equal(Model.extensionRadius(shell.radius, 1), region.outer, "an extreme reading reaches the region's outer edge from any band");
+    assert.equal(Model.extensionRadius(shell.radius, 3), region.outer, "and past 1 the scale is capped, not extrapolated");
+    assert.equal(Model.extensionRadius(0, 1), 0, "a degenerate radius is returned unchanged");
+    assert.equal(Model.extensionRadius(-1, 1), -1);
+    assert.ok(Math.abs(Model.extensionRadius(shell.radius, 1e-6) - shell.radius) < 1e-4,
+      `an orb leaves its shell smoothly, without a jump (band ${shell.band})`);
+
+    /* Monotone outward: the further out the reading, the further out the orb, and never inward. */
+    let previous = shell.radius;
+    for (let step = 1; step <= 400; step += 1) {
+      const x = step / 400;
+      const radius = Model.extensionRadius(shell.radius, x);
+      assert.ok(radius >= previous - 1e-12, `band ${shell.band} must not move inward at extension ${x}`);
+      assert.ok(radius >= shell.radius - 1e-12, `band ${shell.band} is never pulled inside its own shell at ${x}`);
+      assert.ok(radius <= region.outer + 1e-12, `band ${shell.band} never passes the region at ${x}`);
+      previous = radius;
+    }
+  }
+
+  /* Past the entry span the shell no longer matters: one region, positioned by the reading
+     alone, outside every band. That is what makes the distance comparable across bands. */
+  for (const x of [region.entry, 0.3, 0.6, 1]) {
+    const radii = shells.map(shell => Model.extensionRadius(shell.radius, x));
+    assert.ok(Math.max(...radii) - Math.min(...radii) < 1e-12,
+      `at extension ${x} every band lands on one shell`);
+    assert.ok(Math.abs(radii[0] - (region.inner + (region.outer - region.inner) * x)) < 1e-12,
+      `and that shell is positioned by the reading alone (x = ${x})`);
+    assert.ok(radii[0] > outermost, `so every extended orb there is outside the outermost band (x = ${x})`);
+  }
+});
+
+test("makeShape lifts only the orbs it is given, keeps every band shell, and reports the region", () => {
+  const region = Model.INSTABILITY_REGION;
+  const nodes = [
+    node("AAA", { radialBand: 0, sector: 10 }),
+    node("BBB", { radialBand: 5, sector: 130 }),
+    node("CCC", { radialBand: 2, sector: 250 })
+  ];
+  const calm = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes });
+  assert.equal(calm.instability.extendedCount, 0, "a shape with no extensions extends nothing");
+  assert.equal(calm.instability.maxExtension, 0);
+  assert.equal([...calm.instability.extendedNodeIds].join(","), "");
+  assert.ok(calm.instability.maxRadius <= 1 + 1e-12, "a calm field reaches no further than the outermost band shell");
+  assert.equal(calm.instability.region.inner, region.inner, "and it reports the region it would use");
+  for (const n of calm.nodes) {
+    assert.equal(n.radius, n.bandRadius, `${n.id} sits exactly on its band shell`);
+    assert.equal(n.extension, 0);
+  }
+
+  const pushed = Model.makeShape({
+    formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes,
+    extensions: { AAA: 1, BBB: 0.5 }
+  });
+  const byId = id => pushed.nodes.find(n => n.id === id);
+  assert.equal(byId("AAA").radius, region.outer, "an extreme reading is drawn on the region's outer edge");
+  assert.equal(byId("AAA").extension, 1);
+  assert.ok(byId("AAA").bandRadius < region.inner, "while its band shell stays where the convention puts it");
+  assert.ok(Math.abs(byId("AAA").bandRadius - bandShells(0.5)[0].radius) < 1e-12, "and it is still reported exactly");
+  const expectedHalf = region.inner + (region.outer - region.inner) * 0.5;
+  assert.ok(Math.abs(byId("BBB").radius - expectedHalf) < 1e-12, "a half reading sits halfway through the region");
+  assert.ok(byId("BBB").radius > 1, "outside the outermost band shell, whatever band it belongs to");
+  assert.equal(byId("CCC").radius, byId("CCC").bandRadius, "an orb with no reading never leaves its shell");
+  assert.equal(byId("CCC").extension, 0);
+
+  assert.equal(pushed.instability.extendedCount, 2);
+  assert.equal([...pushed.instability.extendedNodeIds].sort().join(","), "AAA,BBB");
+  assert.equal(pushed.instability.maxExtension, 1);
+  assert.equal(pushed.instability.maxRadius, region.outer, "the shape reports how far out the fleet reaches");
+
+  /* The lift moves the drawn position and nothing else. */
+  const a = byId("AAA");
+  assert.ok(Math.abs(Math.hypot(a.position.x, a.position.y, a.position.z) - a.radius) < 1e-9,
+    "the orb is drawn at the lifted radius, not at its shell");
+  for (const n of pushed.nodes) {
+    const before = calm.nodes.find(c => c.id === n.id);
+    assert.equal(n.node.sector, before.node.sector, `${n.id} keeps its sector`);
+    assert.equal(n.node.radialBand, before.node.radialBand, `${n.id} keeps its market-cap band`);
+    assert.equal(n.node.kind, before.node.kind, `${n.id} keeps its kind`);
+    assert.equal(n.nodeRadius, before.nodeRadius, `${n.id} keeps its drawn size`);
+    assert.equal(n.radialBandRadius, before.radialBandRadius, `${n.id} keeps its band convention radius`);
+  }
+  assert.equal(pushed.nodes.map(n => n.id).join(","), calm.nodes.map(n => n.id).join(","),
+    "extension adds no orb and drops none");
+
+  /* The roster shape the app draws: only the orbs with a reading move. */
+  const rosterNodes = Model.rosterNodes(ROSTER.assets);
+  const rosterShape = Model.makeShape({
+    formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: rosterNodes,
+    extensions: { NVDA: 1, PSX: 0.25 }
+  });
+  assert.equal(rosterShape.nodes.length, 52);
+  assert.equal(rosterShape.instability.extendedCount, 2);
+  assert.equal(rosterShape.nodes.find(n => n.id === "NVDA").radius, region.outer);
+  const psx = rosterShape.nodes.find(n => n.id === "PSX");
+  assert.ok(psx.radius > psx.bandRadius && psx.radius < region.inner + (region.outer - region.inner) * 0.25 + 1e-12,
+    "a quarter reading lifts a small cap part of the way into the region");
+  assert.ok(rosterShape.nodes.filter(n => n.id !== "NVDA" && n.id !== "PSX").every(n => n.radius === n.bandRadius),
+    "every other orb on the roster stays on its band shell");
+});
+
+test("an extension the model cannot draw is refused, not silently clamped", () => {
+  const nodes = [node("AAA", { sector: 10 }), node("BBB", { sector: 200 })];
+  const shape = extensions => Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes, extensions });
+
+  assert.equal(shape(null).instability.extendedCount, 0, "no extensions argument means nothing is extended");
+  assert.equal(shape(undefined).instability.extendedCount, 0);
+  assert.equal(shape({}).instability.extendedCount, 0, "and neither does an empty map");
+  assert.equal(shape({ AAA: 0 }).instability.extendedCount, 0, "an explicit zero is not an extension");
+
+  assert.throws(() => shape({ CCC: 0.5 }), /not a node in this shape/, "an id that is not in the shape is refused");
+  for (const bad of [-0.2, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "0.5", null, {}]) {
+    assert.throws(() => shape({ AAA: bad }), /must be a finite 0…1/, `extension ${JSON.stringify(bad) ?? String(bad)} is refused`);
+  }
+  assert.throws(() => shape([0.5]), /map of node id/, "an array is not a map of node ids");
+});
+
+/* The stored rows the app reads, shaped as the Worker stores them. */
+const stockRow = (symbol, market) => ({ symbol, discId: "stocks", observedAt: 9, market });
+const openReader = rows => ({ FEED_CUT: false, FEED_CUT_MESSAGE: "", readField: async () => ({ ok: true, at: 7, observations: rows }) });
+const settle = async () => { for (let turn = 0; turn < 12; turn += 1) await Promise.resolve(); };
+
+const EXTREME_ROW = stockRow("NVDA", {
+  changePct: 3.2, latestBar: { close: 118 }, basis: 100, bands: { lower1000: 90, upper1000: 110 },
+  waveTrend: { wt1: 74, wt2: 30, zone: "extreme overbought" }
+});
+const CALM_ROW = stockRow("AAPL", {
+  changePct: -0.4, latestBar: { close: 100 }, basis: 100, bands: { lower1000: 90, upper1000: 110 },
+  waveTrend: { wt1: -18, wt2: -6, zone: "neutral zone" }
+});
+const UNMEASURED_ROW = stockRow("TSLA", { changePct: 1.1 });
+
+test("the app eases each orb toward its stored reading and keeps the whole fleet in frame", async () => {
   const h = appHarness({ flames: false });
   const { body, engine } = mountInto(h);
-  const market = h.win.NeoOrbMarket;
-  const tone = id => engine.toneFor(id);
+  const region = Model.INSTABILITY_REGION;
 
-  assert.equal(engine.feedCut(), true, "the reader module owns the cut and the app follows it");
-  assert.equal(tone("NVDA").fill, market.COLORS.neutral, "no feed: neutral");
-  assert.equal(tone("NVDA").ring, null);
-
-  /* Even a reader that offers rows colours nothing until it declares the feed open. */
-  let reached = 0;
-  h.win.NeoOrbField = { readField: async () => { reached += 1; return { ok: true, at: 7, observations: [
-    { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100 } }
-  ] }; } };
+  h.win.NeoOrbField = openReader([EXTREME_ROW, CALM_ROW, UNMEASURED_ROW]);
   engine.refreshMarket(1000);
-  assert.equal(reached, 0, "a cut app never asks the reader for rows");
-  assert.equal(engine.market, null);
-  assert.equal(tone("NVDA").fill, market.COLORS.neutral, "an undeclared reader is treated as cut");
+  await settle();
+
+  assert.equal(engine.marketStatus, "live");
+  assert.equal(engine.extensionFor("NVDA").state.extension, 1, "an extreme WaveTrend reading is the full scale");
+  assert.equal(engine.extensionFor("NVDA").state.driver, "both",
+    "this row maxes both measures: wt1 past the extreme threshold and a close past the ±1000 envelope");
+  assert.equal(engine.extensionFor("NVDA").state.beyondEnvelope, true);
+  assert.equal(engine.extensionFor("AAPL").state.extension, 0, "a neutral reading is a real zero, not a missing one");
+  assert.equal(engine.extensionFor("TSLA").state.available, false, "a row with neither measure is unmeasured");
+  assert.equal(engine.extensionFor("MSFT").state, null, "and a symbol with no row has no reading at all");
+  assert.equal(engine.extensionFor("NVDA").value, 0, "nothing has moved yet: the display eases, it does not jump");
+
+  /* Ease outward: monotone, bounded, and settling exactly on the stored reading. */
+  let previous = 0;
+  for (let frame = 0; frame < 900; frame += 1) {
+    engine.updateExtensions(1 / 60, false);
+    const value = engine.extensionFor("NVDA").value;
+    assert.ok(value >= previous - 1e-15, "the orb only ever moves toward its reading");
+    assert.ok(value >= 0 && value <= 1, "and it stays inside the scale");
+    previous = value;
+  }
+  assert.equal(previous, 1, "it settles exactly on the stored reading");
+  assert.equal(engine.extensionFor("AAPL").value, 0, "a neutral orb stays on its band shell");
+  assert.equal(engine.extensionFor("TSLA").value, 0, "an unmeasured orb stays on its band shell");
+  assert.equal(engine.extensionFor("MSFT").value, 0);
+  engine.updateExtensions(0, false);
+  assert.equal(engine.extensionFor("NVDA").value, 1, "no elapsed time moves nothing");
+
+  /* A paused or reduced-motion view snaps instead of gliding, and still shows the reading. */
+  engine.extensions.set("NVDA", 0);
+  engine.updateExtensions(0, true);
+  assert.equal(engine.extensionFor("NVDA").value, 1, "instant mode snaps to the reading with no elapsed time");
+
+  /* What the frame draws, and the camera that holds it. */
+  engine.dirty = true;
+  const shape = engine.currentShape(2000);
+  const nvda = shape.nodes.find(n => n.id === "NVDA");
+  assert.equal(nvda.radius, region.outer, "the extreme orb is drawn on the region's outer edge");
+  assert.ok(nvda.bandRadius < region.inner, "while its market-cap band shell stays where the convention puts it");
+  assert.equal(shape.instability.extendedCount, 1);
+  assert.equal(shape.instability.maxRadius, region.outer);
+
+  assert.equal(engine.fit, 1, "the view starts at the scale it has always used");
+  let fit = engine.fit;
+  for (let frame = 0; frame < 900; frame += 1) {
+    engine.updateFit(1 / 60, shape);
+    assert.ok(engine.fit <= fit + 1e-15, "the view only ever eases out, never snaps");
+    assert.ok(engine.fit > 0.4 && engine.fit <= 1, "and it stays inside its documented bounds");
+    fit = engine.fit;
+  }
+  assert.ok(Math.abs(engine.fit - 1 / region.outer) < 1e-3,
+    `the view eased out to hold the extended fleet (fit ${engine.fit.toFixed(4)})`);
+  engine.updateFit(0, shape);
+  assert.ok(Math.abs(engine.fit - 1 / region.outer) < 1e-3, "no elapsed time changes the framing");
+
+  /* The Status row says what the region is doing, in numbers. */
   engine.readouts();
-  assert.ok(body.querySelector("#neo-market").textContent.includes("0 of 52 orbs coloured"),
-    body.querySelector("#neo-market").textContent);
+  const readout = body.querySelector("#neo-ext").textContent;
+  assert.match(readout, /1 of 52 outside their band shell/, readout);
+  assert.match(readout, /max 1\.00 \(NVDA\)/, readout);
+  assert.match(readout, /3 measured/, readout);
+  assert.match(readout, /region 1\.08…1\.50/, readout);
+  assert.match(readout, /view \d+%/, readout);
+  assert.match(body.querySelector("#neo-market").textContent, /3 of 52 orbs coloured/);
+
+  /* A calm field: the framing returns to exactly what it has always been. */
+  h.win.NeoOrbField = openReader([CALM_ROW]);
+  engine.refreshMarket(30_000);
+  await settle();
+  for (let frame = 0; frame < 900; frame += 1) {
+    engine.updateExtensions(1 / 60, false);
+    engine.dirty = true;
+    engine.updateFit(1 / 60, engine.currentShape(31_000 + frame));
+  }
+  assert.equal(engine.extensionFor("NVDA").value, 0, "a reading that goes away brings the orb back to its shell");
+  assert.ok(Math.abs(engine.fit - 1) < 1e-3, `and the view returns to its usual scale (fit ${engine.fit.toFixed(4)})`);
+  engine.readouts();
+  assert.match(body.querySelector("#neo-ext").textContent, /0 of 52 outside their band shell/);
+  assert.match(body.querySelector("#neo-frame").textContent, /ok/, "the frame loop is healthy throughout");
 });
+
+test("an unmeasured orb stays on its shell and says it is unmeasured, never calm", async () => {
+  const h = appHarness({ flames: false });
+  const { body, engine } = mountInto(h);
+  h.win.NeoOrbField = openReader([EXTREME_ROW, CALM_ROW, UNMEASURED_ROW]);
+  engine.refreshMarket(1000);
+  await settle();
+  /* Snap, as a paused or reduced-motion view does, so the radii below are the drawn ones. */
+  engine.updateExtensions(0, true);
+  engine.dirty = true;
+  engine.currentShape(2000);
+
+  const inspector = () => body.querySelector("#neo-insp-ext").textContent;
+
+  engine.select("NVDA");
+  engine.readouts();
+  assert.match(inspector(), /1\.00 out · driven by both measures · wt1 \+74\.0 → 1\.00/, inspector());
+  assert.match(inspector(), /close 18\.0% above the FBB basis → 1\.00/, "the basis half is reported beside it");
+  assert.match(inspector(), /beyond the ±1000 envelope/, "and a close outside the envelope says so");
+  assert.match(inspector(), /shown at 1\.00 ·/, "the snapped value is the reading itself");
+  assert.equal(/while it settles/.test(inspector()), false, "and nothing is called unsettled once it has arrived");
+  assert.match(inspector(), /r 1\.500 from a band shell of 0\.\d\d\d/, "and it names both radii");
+
+  engine.select("AAPL");
+  engine.readouts();
+  assert.match(inspector(), /0\.00 out/, inspector());
+  assert.match(inspector(), /r (0\.\d\d\d) from a band shell of \1/, "a neutral orb sits exactly on its shell");
+
+  /* Mid-ease the same line says so, instead of claiming the drawn radius is the reading. */
+  engine.select("NVDA");
+  engine.extensions.set("NVDA", 0.4);
+  engine.readouts();
+  assert.match(inspector(), /shown at 0\.40 while it settles/, inspector());
+
+  engine.select("TSLA");
+  engine.readouts();
+  assert.match(inspector(), /unmeasured — no WaveTrend value and no FBB basis frame/, inspector());
+  engine.select("MSFT");
+  engine.readouts();
+  assert.match(inspector(), /unmeasured — this orb has no stored row/, inspector());
+
+  /* The legend and the footer state the encoding, so the distance cannot be misread. */
+  assert.match(body.textContent, /further out = more extended/);
+  assert.match(body.textContent, /the larger of the WaveTrend reading past ±53…±70/);
+  assert.match(body.querySelector(".neo-foot").textContent, /Distance from the centre is the instability extension/);
+  assert.match(body.querySelector(".neo-foot").textContent, /not a valuation, a rank, or a recommendation/);
+
+  /* A module that did not load is labelled, not quietly treated as calm. */
+  h.win.MarketExtension = null;
+  assert.equal(engine.extensionReadout(), "unavailable — the extension module did not load");
+  engine.select("NVDA");
+  engine.readouts();
+  assert.match(inspector(), /unavailable — the extension module did load|unavailable — the extension module did not load/);
+  assert.match(inspector(), /unavailable/, inspector());
+});
+
 
 test("with the feed deliberately opened, colour still works: fill is rally/sink, ring is basis", async () => {
   const h = appHarness({ flames: false });

@@ -412,6 +412,40 @@
      same values; it never supplies a price, rank, sector, or motion value.
      Missing packets receive an explicitly held placeholder so the view does not
      invent a market location. */
+  /* ── overbought/oversold → distance from the centre ─────────────────────
+     js/market-extension.js owns the one definition of "how far out an
+     instrument is" (the larger of continuous |wt1| against the reviewed
+     ±53…±70 WaveTrend thresholds and the close's log distance from the FBB
+     basis to its ±1000 envelope), and NEO ORB reads the same module, so the
+     same market state means the same distance in both apps.
+
+     The basis half is already this placement's own logarithmic band index, so
+     only the WaveTrend half is added here — applying both would double-count
+     the envelope. An extreme reading (|wt1| ≥ 70) lifts an observed orb 45%
+     further out, which is roughly one logarithmic band (ratio 1.45): far
+     enough to read as "outside the settled field", not far enough to outrank
+     a genuine multi-band displacement.
+
+     Fail closed: with no module loaded, no wt1, or a held placeholder there is
+     no push. Absence of a reading is never displayed as stability. */
+  const WAVE_EXTENSION_PUSH = 0.45;
+
+  function marketExtensionState(market) {
+    const unavailable = reason => ({ available: false, extension: 0, wave: null, basis: null, driver: null, reason });
+    const mod = globalThis.MarketExtension;
+    if (!mod || typeof mod.extensionOf !== "function") return unavailable("extension module unavailable");
+    let state = null;
+    try {
+      state = mod.extensionOf(market);
+    } catch {
+      return unavailable("extension measure refused the packet");
+    }
+    if (!state || typeof state !== "object" || state.available !== true) {
+      return unavailable(state && typeof state.reason === "string" ? state.reason : "no WaveTrend value and no FBB basis frame");
+    }
+    return state;
+  }
+
   function marketDataPlacement(market, identity = "", composition = null) {
     const tiePhase = stableIdentityPhase(identity);
     const held = {
@@ -451,8 +485,13 @@
     /* The logarithmic band is now the primary radial distribution. Pressure
        still affects local dynamics, but it no longer determines the berth radius
        by itself. This is what makes volatility visibly expand the field. */
+    /* Distance from the origin carries the instability reading: the more
+       overbought or oversold the packet is, the further out the orb sits. */
+    const extension = marketExtensionState(market);
+    const waveOut = extension.wave === null ? 0 : clamp(extension.wave, 0, 1);
+    const extensionPush = band.held ? 0 : WAVE_EXTENSION_PUSH * waveOut;
     const radius = clamp(
-      band.held ? 2.12 : bandGeometry.radius * (0.92 + pressure * 0.12),
+      band.held ? 2.12 : bandGeometry.radius * (0.92 + pressure * 0.12) * (1 + extensionPush),
       1.36, 8.5
     );
     const displacementMagnitude = band.held ? 0 : Math.abs(band.displacement || 0);
@@ -466,6 +505,19 @@
       bandRadius: bandGeometry.radius,
       bandFraction: bandGeometry.fraction,
       bandSource: bandGeometry.source,
+      /* The measured extension and the part of it this radius actually shows.
+         `value` is the shared measure (larger of wave and basis); `push` is the
+         outward factor the WaveTrend half contributed to this berth. */
+      extension: {
+        available: extension.available,
+        value: extension.available ? clamp(extension.extension, 0, 1) : 0,
+        wave: extension.wave === null ? null : clamp(extension.wave, 0, 1),
+        basis: extension.basis === null ? null : clamp(extension.basis, 0, 1),
+        driver: extension.available ? extension.driver : null,
+        zone: extension.zone || "unknown",
+        push: extensionPush,
+        reason: extension.available ? null : (extension.reason || "unavailable")
+      },
       convergence: indicatorAlignment,
       volatility,
       /* Local sub-orb axes are independently derived. No sub-orb is forced to
@@ -1381,7 +1433,7 @@
       `<div><strong>Bar / data shape</strong>${swatch(DATA_COLORS.packetConfirmed, "confirmed OHLCV")}${swatch(DATA_COLORS.packetUnconfirmed, "unconfirmed")}${swatch(DATA_COLORS.packetPriceOnly, "OHLC only")}${swatch(DATA_COLORS.packetValueOnly, "value only")}${swatch(DATA_COLORS.unknown, "not supplied")}</div>`
     ].join("");
     const colorKey = `
-      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: large Disc parent orbs encode market-family identity—Stocks blue, FX / Dollar Strength cyan, Crypto violet, Futures amber, and Indices green. The translucent red upper and green lower shell bands are static FBB geometry shading only; they do not encode rally or sink, ticker performance, momentum, signal strength, or a live FBB value. Character/ticker node fills still use Characters beat moods, while node halos use provider identity. Free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
+      <p class="gi-orb2-sr-only" id="gi-orb2-color-description">Color encoding: large Disc parent orbs encode market-family identity—Stocks blue, FX / Dollar Strength cyan, Crypto violet, Futures amber, and Indices green. The translucent red upper and green lower shell bands are static FBB geometry shading only; they do not encode rally or sink, ticker performance, momentum, signal strength, or a live FBB value. Character/ticker node fills still use Characters beat moods, while node halos use provider identity. Free-floating volume-flow runners are green when supplied VFI is above its signal and red when below. They move only with confirmed OHLCV, supplied volume and VFI, and an available Characters cadence. Their cycles per second are a visual rate, not measured volume. Five satellite data bits encode price change, VFI compared with its signal, close versus Fibonacci band basis, WaveTrend zone, and bar/data shape with confirmation. Grey means unavailable, not zero. A subtle tritium-green beam, synced to each beat, connects the Center Point to the selected node and to the instruments confirmed by the latest beat; it is a highlight only. Radial distance also carries the instability extension: the larger of continuous WaveTrend wt1 measured against the reviewed ±53 to ±70 thresholds and the close's logarithmic distance from the FBB basis to its ±1000 envelope, as defined once in js/market-extension.js and shared with NEO ORB. An extreme WaveTrend reading lifts an observed orb about one logarithmic band further out, and the logarithmic band itself already carries the basis distance, so no measure is applied twice. An unmeasured instrument keeps its own band radius and is labelled unmeasured—it is never displayed as calm. Distance is display geometry, not a valuation, a rank, or a recommendation. Orb positions come from each instrument's own packet; where correlated packets land on the same berth, the berths are re-slotted on one shared display radius by stable symbol phase so no orb is hidden behind another. That separation is display geometry only: it recomputes no metric, ranks no node, hides no node, and the status row states which orbs shared which berth, how many were re-slotted, and the berth floor as a share of the drawn ring radius. Market context is not claim assurance or authorization.</p>
       <details class="gi-orb2-color-key" data-gi-orb2-color-key>
         <summary><strong>COLOR KEY</strong><span>Disc identity · FBB shell zones · Character mood · provider halo · market data bits</span></summary>
         <div class="gi-orb2-color-key-body">
@@ -1389,7 +1441,8 @@
           <section><h4>FBB SHELL · STATIC GEOMETRIC ZONES</h4><div class="gi-orb2-color-swatches">${shellZoneLegend}</div><p class="gi-orb2-color-key-note">A soft red/green volume tint follows the upper/lower shell latitude bands, like shaded FBB envelopes. It is fixed to shell geometry—not current direction, instrument performance, or a live signal.</p></section>
           <section><h4>CHARACTER / TICKER NODE · BEAT MOOD</h4><div class="gi-orb2-color-swatches">${moodLegend}</div></section>
           <section><h4>HALO · PROVIDER</h4><div class="gi-orb2-color-swatches">${providerLegend}</div><h4>VOLUME-FLOW RUNNER · VFI VS SIGNAL</h4><div class="gi-orb2-color-swatches">${flowLegend}</div><p class="gi-orb2-color-key-note">Green marks inbound VFI flow around a free-floating orb; red marks outbound flow. The runner overlays—but does not recolor—the provider halo. Its visual cadence is in cycles per second, not volume per second. It pauses if required confirmed data is unavailable.</p><h4>LOCAL OCM TRACE · ROUTE PHASE</h4><div class="gi-orb2-color-swatches">${routeLegend}</div><p class="gi-orb2-color-key-note">These route colors are local animation only; no OCM message is sent. The tritium-green beam is beat-synced: each fresh beat connects the Center Point to the selected node and to the instruments that beat confirmed, then fades — a subtle cross-ticker highlight through the Center Point, not a constant flash.</p></section>
-          <section class="gi-orb2-color-key-data"><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div></section>
+          <section class="gi-orb2-color-key-data"><h4>SATELLITE BITS · OBSERVED MARKET CONTEXT</h4><div class="gi-orb2-data-key">${dataLegend}</div>
+            <p class="gi-orb2-color-key-note">Radial distance · overbought/oversold: the further out an observed orb sits, the more extended its packet is, on the one scale shared with NEO ORB (js/market-extension.js) — the larger of continuous |wt1| past the ±53…±70 WaveTrend thresholds and the close's log distance from the FBB basis to its ±1000 envelope. Held placeholders with no packet keep their fixed radius. Distance is not a valuation, a rank, or a recommendation.</p></section>
           <p class="gi-orb2-color-key-note">A halo fades with time since the saved beat snapshot. Solid halos mean a complete confirmed observation; dashed halos mark cached, synthetic, partial, or unconfirmed data; dotted halos mark a held / unavailable result. Grey bits mean that field was not supplied—not zero.</p>
           <p class="gi-orb2-color-key-boundary">Price, volume, band, and WaveTrend colors are descriptive market context only. They do not establish claim assurance, indicate permission to act, or provide a trading instruction.</p>
         </div>
@@ -2273,6 +2326,12 @@
       const flowText = flow.moving ? `${flow.label} · ${flow.direction} · ${flow.rate.toFixed(2)} visual cycles/s`
         : `${flow.reason || "Paused"} · ${flow.label}`;
       const wave = market.waveTrend ? `WaveTrend ${formatPrice(market.waveTrend.wt1)} / ${formatPrice(market.waveTrend.wt2)} · ${market.waveTrend.zone || "unknown"}` : "WaveTrend unavailable";
+      /* The radial half of the packet, stated in words: how far out this orb sits
+         and which measure put it there. Unmeasured is labelled unmeasured. */
+      const extensionState = marketExtensionState(market);
+      const distance = extensionState.available
+        ? `${(extensionState.extension * 100).toFixed(0)}% of the instability scale · driven by ${extensionState.driver === "waveTrend" ? "WaveTrend" : extensionState.driver === "basis" ? "basis distance" : "both measures"}${extensionState.push > 0 ? ` · WaveTrend lifted this berth ${(extensionState.push * 100).toFixed(0)}%` : ""}`
+        : `unmeasured — ${extensionState.reason}`;
       const bits = dataBitsForMarket(market).map(bit => `
         <span class="gi-orb2-data-bit" style="--gi-orb2-bit:${escapeHtml(bit.color)}" title="${escapeHtml(bit.detail)}" aria-label="${escapeHtml(`${bit.label}: ${bit.value}. ${bit.detail}`)}">
           <i aria-hidden="true"></i><span>${escapeHtml(bit.label)}</span><strong>${escapeHtml(bit.value)}</strong>
@@ -2281,7 +2340,8 @@
         <div class="gi-orb2-observation-head"><strong>${escapeHtml(observation.symbol)} · ${escapeHtml(mood.toUpperCase())}</strong><span>${escapeHtml(provider)}${escapeHtml(sourceIdentity)} · ${escapeHtml(freshness)}</span></div>
         <p class="gi-orb2-observation-source">${escapeHtml(market.source || "Provider source not supplied")} · ${escapeHtml(market.timeframe || observation.interval)} · ${market.barCount} bars · field ${escapeHtml(freshness.toLowerCase())}</p>
         <dl class="gi-orb2-node-meta">${fields}<div><dt>Characters motion</dt><dd style="color:${escapeHtml(color)}">${escapeHtml(observation.motion && observation.motion.caption || mood)}</dd></div>
-          <div><dt>Observed VFI</dt><dd>${escapeHtml(vfi)}</dd></div><div class="gi-orb2-flow-detail"><dt>Volume-flow path · Characters</dt><dd style="color:${escapeHtml(flow.color)}">${escapeHtml(flowText)}</dd><small>Visual cadence only—not volume per second.</small></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div></dl>
+          <div><dt>Observed VFI</dt><dd>${escapeHtml(vfi)}</dd></div><div class="gi-orb2-flow-detail"><dt>Volume-flow path · Characters</dt><dd style="color:${escapeHtml(flow.color)}">${escapeHtml(flowText)}</dd><small>Visual cadence only—not volume per second.</small></div><div><dt>WaveTrend context</dt><dd>${escapeHtml(wave)}</dd></div>
+          <div><dt>Distance from centre</dt><dd>${escapeHtml(distance)}</dd></div></dl>
         <section class="gi-orb2-market-bits" aria-label="Observed market data channels">
           <h5>FIVE MARKET DATA BITS <span>NOT ASSURANCE</span></h5><div>${bits}</div>
         </section>
@@ -5436,6 +5496,7 @@
     BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
     SHELL_RING_LATITUDES, SHELL_BAND_LATITUDES, SHELL_SHADE_PALETTE, SHELL_SHADE, createShellShadeGradient,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
+    WAVE_EXTENSION_PUSH, marketExtensionState,
     fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
     resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
