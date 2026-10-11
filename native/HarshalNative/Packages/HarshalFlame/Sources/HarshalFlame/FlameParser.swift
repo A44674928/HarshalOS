@@ -10,6 +10,12 @@ import Foundation
 /// The parser is deliberately lenient, matching the browser engine: a BOM and
 /// CRLF line endings are tolerated, and an individual malformed frame is
 /// skipped — never fatal for the rest of the animation.
+///
+/// Two divergences from `js/flame.js` are deliberate and pinned by tests:
+/// frames whose palette has no usable entries are *kept* (they render through
+/// the ice fallback) where the browser drops them, and a short palette's tail
+/// repeats its last entry where the browser leaves zeros. Both exist so a bake
+/// can never come out dark; neither changes any bundled film.
 public struct FlameDocument: Sendable, Equatable {
     public var rootName: String
     public var frames: [FlameFrame]
@@ -166,7 +172,7 @@ public enum FlameParser {
             }
             let palette = Self.parsePalette(
                 String(paletteMatch.2),
-                declaredCount: Int(paletteMatch.1).flatMap { $0 } ?? 256
+                declaredCount: Int(paletteMatch.1) ?? FlamePalette.entryCount
             )
 
             let size = Self.numbers(head["size"]) ?? [1_024, 1_024]
@@ -238,17 +244,127 @@ public enum FlameParser {
         return out
     }
 
+    /// The browser engine's `parseFloat` rule, which is lenient about
+    /// *trailing* text: `"0.5"` → 0.5, and so are `"0.5 0.5"` → 0.5,
+    /// `"0.5abc"` → 0.5, `"0x10"` → 0 and `"1e"` → 1.
+    ///
+    /// Apophysis frames rely on this: `chaos` tables, `post` matrices and
+    /// `var_order` lists are multi-token values, and the browser folds their
+    /// leading number into the curve blend as an ordinary curve weight. The
+    /// strict `Double(_:)` used before this returned nil for those, so the
+    /// transform was left with fewer curves and the convex blend renormalized
+    /// over that smaller set — every *other* curve on the transform silently
+    /// changed weight, and the native bake drifted from the site on 19,622
+    /// transforms of the local corpus alone.
     static func finite(_ value: String?) -> Double? {
-        guard let value, let parsed = Double(value.trimmingCharacters(in: .whitespaces)), parsed.isFinite else {
+        guard let value, let parsed = prefixDouble(value), parsed.isFinite else {
             return nil
         }
         return parsed
     }
 
+    /// Longest numeric prefix of `text`, under `parseFloat` semantics: optional
+    /// leading whitespace, optional sign, digits with an optional fraction, and
+    /// an optional exponent that is consumed only when a digit follows it.
+    /// Returns `nil` when the text has no numeric prefix at all.
+    static func prefixDouble(_ text: String) -> Double? {
+        var index = text.startIndex
+        while index < text.endIndex, text[index].isWhitespace {
+            index = text.index(after: index)
+        }
+        let start = index
+        if index < text.endIndex, text[index] == "+" || text[index] == "-" {
+            index = text.index(after: index)
+        }
+
+        var integerDigits = 0
+        while index < text.endIndex, Self.isASCIIDigit(text[index]) {
+            index = text.index(after: index)
+            integerDigits += 1
+        }
+        var fractionDigits = 0
+        if index < text.endIndex, text[index] == "." {
+            var probe = text.index(after: index)
+            while probe < text.endIndex, Self.isASCIIDigit(text[probe]) {
+                probe = text.index(after: probe)
+                fractionDigits += 1
+            }
+            if integerDigits > 0 || fractionDigits > 0 {
+                index = probe
+            }
+        }
+        guard integerDigits + fractionDigits > 0 else { return nil }
+
+        if index < text.endIndex, text[index] == "e" || text[index] == "E" {
+            var probe = text.index(after: index)
+            if probe < text.endIndex, text[probe] == "+" || text[probe] == "-" {
+                probe = text.index(after: probe)
+            }
+            let exponentStart = probe
+            while probe < text.endIndex, Self.isASCIIDigit(text[probe]) {
+                probe = text.index(after: probe)
+            }
+            if probe > exponentStart {
+                index = probe
+            }
+        }
+
+        // Normalize the scanned prefix into a literal `Double(_:)` always
+        // accepts — ".5" → "0.5", "5." → "5.0", "+1" → "1".
+        var literal = String(text[start..<index])
+        var sign = ""
+        if literal.hasPrefix("+") || literal.hasPrefix("-") {
+            sign = String(literal.removeFirst())
+        }
+        var exponent = ""
+        if let marker = literal.firstIndex(where: { $0 == "e" || $0 == "E" }) {
+            exponent = String(literal[marker...])
+            literal = String(literal[..<marker])
+        }
+        if literal.hasPrefix(".") {
+            literal = "0" + literal
+        }
+        if literal.hasSuffix(".") {
+            literal += "0"
+        }
+        return Double(sign == "+" ? literal + exponent : sign + literal + exponent)
+    }
+
+    /// ASCII-only digit test — `Character.isNumber` would also accept non-ASCII
+    /// digits and numeric graphemes, which `parseFloat` rejects.
+    private static func isASCIIDigit(_ character: Character) -> Bool {
+        guard character.unicodeScalars.count == 1, let scalar = character.unicodeScalars.first else {
+            return false
+        }
+        return scalar.value >= 0x30 && scalar.value <= 0x39
+    }
+
+    /// The browser engine's `.trim().split(/\s+/).map(parseFloat)` rule.
+    ///
+    /// Tokens are kept *positionally*: a token without a numeric prefix stays
+    /// in place as `.nan` instead of being dropped, so a corrupted `coefs`
+    /// string can only reject its own transform (the first six coefficients
+    /// must be finite) and can never shift the coefficients of a transform
+    /// that survives — dropping tokens turned `"oops 0.6 0 0 0 0.6 0.1"` into
+    /// a silently *different* affine map. `nil` means the attribute is absent.
     static func numbers(_ value: String?) -> [Double]? {
         guard let value else { return nil }
-        let parts = value.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" }).compactMap { Double($0) }
-        return parts.isEmpty ? nil : parts
+        var parts: [Double] = []
+        var token = ""
+        for character in value {
+            if character.isWhitespace {
+                if !token.isEmpty {
+                    parts.append(Self.finite(token) ?? .nan)
+                    token = ""
+                }
+            } else {
+                token.append(character)
+            }
+        }
+        if !token.isEmpty {
+            parts.append(Self.finite(token) ?? .nan)
+        }
+        return parts
     }
 
     static func parsePalette(_ body: String, declaredCount: Int) -> FlamePalette {
@@ -259,7 +375,11 @@ public enum FlameParser {
         var red = [UInt8](repeating: 0, count: FlamePalette.entryCount)
         var green = [UInt8](repeating: 0, count: FlamePalette.entryCount)
         var blue = [UInt8](repeating: 0, count: FlamePalette.entryCount)
-        let usable = min(min(declaredCount, FlamePalette.entryCount), characters.count / 6)
+        // A declared count of 0 means "unspecified" — the browser reads
+        // `count || 256`, so a `<palette count="0">` that does carry entries
+        // still decodes them instead of falling back to ice.
+        let declared = declaredCount > 0 ? declaredCount : FlamePalette.entryCount
+        let usable = min(min(declared, FlamePalette.entryCount), characters.count / 6)
 
         if usable == 0 {
             return .iceFallback
@@ -271,10 +391,13 @@ public enum FlameParser {
             green[index] = UInt8(strtoul(String(chunk.dropFirst(2).prefix(2)), nil, 16))
             blue[index] = UInt8(strtoul(String(chunk.suffix(2)), nil, 16))
         }
-        // Fill the tail by repeating the last written entry (browser behavior
-        // leaves zeros; the JS renderer reads a shared Uint8Array that keeps
-        // the last decoded byte — a tail repeat is the closest safe port and
-        // the engine's files always ship 256 entries anyway).
+        // Fill the tail by repeating the last written entry. This is a
+        // deliberate, tested divergence: the browser leaves the unwritten tail
+        // at zero, so any palette index beyond the file's entry count splats
+        // black there. Repeating the last entry (with the ice fallback above
+        // covering a palette that has no entries at all) is this engine's
+        // "a render is never dark" rule; the bundled films ship all 256
+        // entries, so the two agree on every file in the repo.
         if usable < FlamePalette.entryCount {
             for index in usable..<FlamePalette.entryCount {
                 red[index] = red[usable - 1]
@@ -288,6 +411,13 @@ public enum FlameParser {
     /// Attribute → (curve weight | named parameter | ignored pipeline stage).
     /// Curves are renormalized to Σw = 1 (convex blend invariant). Keys are
     /// visited in sorted order so the blend order is process-independent.
+    ///
+    /// Parameters are keyed by their **full attribute name** (`rings2_val`,
+    /// `julian_dist`, `curl_c1`, `epispiral_n`, `rectangles_x`) — the
+    /// vocabulary `FlameCurves` reads. Keying them by the suffix after the
+    /// first underscore (`val`, `dist`, `c1`) made every parameter in every
+    /// file unreachable: 10,868 parameterized library curves in the local
+    /// corpus all silently fell back to their default values.
     static func classify(
         attributes: [String: String],
         noUnderscoreNames: Set<String>
@@ -302,12 +432,15 @@ public enum FlameParser {
             guard let weight = Self.finite(rawValue) else { continue }
 
             if name.contains("_") {
-                // Underscore attribute: parameter if it extends a known
-                // no-underscore curve name (e.g. `julian_dist`, `rings2_val`).
+                // Underscore attribute: a parameter if it extends a known
+                // no-underscore curve name (e.g. `julian_dist`, `rings2_val`,
+                // `curl_c1`). Part of a 3D variation's vocabulary
+                // (`hypertile_p`, `julia3D_power`) is kept too — the curves
+                // simply never ask for it.
                 if let underscore = name.firstIndex(of: "_") {
                     let base = String(name[name.startIndex..<underscore])
                     if noUnderscoreNames.contains(base) {
-                        parameters[String(name[name.index(after: underscore)...])] = weight
+                        parameters[name] = weight
                         continue
                     }
                 }
