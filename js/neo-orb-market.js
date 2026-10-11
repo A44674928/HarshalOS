@@ -27,9 +27,18 @@
     return finite(n) ? n : null;
   }
 
+  /* The FBB variants of one market record. The Worker's field row carries them as
+     market.fbbComparison.variants (gi-fbb-comparison-v1); the client analysis carries them as
+     market.fbbVariants. Both shapes hold { id: { status, basis } }. */
+  function fbbVariantsOf(market) {
+    if (isRecord(market.fbbVariants)) return market.fbbVariants;
+    if (isRecord(market.fbbComparison) && isRecord(market.fbbComparison.variants)) return market.fbbComparison.variants;
+    return null;
+  }
+
   /* The basis Orb 2 compares the close against: the preferred FBB variant that is available. */
   function basisOf(market) {
-    const variants = isRecord(market.fbbVariants) ? market.fbbVariants : null;
+    const variants = fbbVariantsOf(market);
     const pick = id => variants && isRecord(variants[id]) && variants[id].status === "available" ? variants[id] : null;
     const preferred = pick("FBB-L60") || pick("FBB-200");
     return numeric(preferred ? preferred.basis : market.basis);
@@ -72,5 +81,18 @@
     return out;
   }
 
-  return Object.freeze({ COLORS, marketStateOf, colourOf, indexField, basisOf });
+  /* The newest stored stock observation time (ms), or null. Company feeds are cut for Orb 2, so
+     this is how old the colours are. It is shown beside every colour, never hidden. */
+  function storedAsOf(observations) {
+    let newest = 0;
+    for (const row of Array.isArray(observations) ? observations : []) {
+      if (!isRecord(row) || !isRecord(row.market)) continue;
+      if (String(row.discId || "stocks") !== "stocks") continue;
+      const at = Number(row.observedAt) || 0;
+      if (at > newest) newest = at;
+    }
+    return newest > 0 ? newest : null;
+  }
+
+  return Object.freeze({ COLORS, marketStateOf, colourOf, indexField, basisOf, storedAsOf });
 });

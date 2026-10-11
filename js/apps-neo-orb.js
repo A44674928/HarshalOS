@@ -227,6 +227,7 @@
         if (result.ok) {
           this.market = market.indexField(result.observations);
           this.marketAt = result.at;
+          this.storedAt = market.storedAsOf(result.observations);
           this.marketStatus = this.market.size ? "live" : "no stock rows in the field yet";
         } else {
           this.marketStatus = `unavailable — ${result.message}`;
@@ -256,7 +257,13 @@
       const basis = s.basis === "above" ? "close above the FBB basis"
         : s.basis === "below" ? "close below the FBB basis"
           : s.basis === "equal" ? "close at the FBB basis" : "basis not supplied";
-      return `${s.rally} · ${pct} · ${basis}`;
+      return `${s.rally} · ${pct} · ${basis}${this.storedLabel()}`;
+    }
+
+    /* Colours are the last stored field, not live. Say so, with the stored time in UTC. */
+    storedLabel() {
+      if (!this.storedAt) return "";
+      return ` · stored ${new Date(this.storedAt).toISOString().slice(0, 16).replace("T", " ")} UTC`;
     }
 
     /* ── dynamic placement ───────────────────────────────────── */
@@ -825,7 +832,7 @@
         : "unavailable");
       const coloured = this.market ? this.nodes.filter(n => this.market.has(n.id)).length : 0;
       put("neo-market", this.market
-        ? `${this.marketStatus} · ${coloured} of ${this.nodes.length} orbs coloured${this.marketAt ? ` · read ${new Date(this.marketAt).toLocaleTimeString()}` : ""}`
+        ? `${this.marketStatus} · ${coloured} of ${this.nodes.length} orbs coloured${this.storedLabel()}${this.marketAt ? ` · read ${new Date(this.marketAt).toLocaleTimeString()}` : ""}`
         : this.marketStatus);
       for (const item of b.querySelectorAll(".neo-roster-item")) {
         const dot = item.querySelector(".neo-dot");

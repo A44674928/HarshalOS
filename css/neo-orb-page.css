@@ -1,0 +1,6 @@
+/* Layout for the standalone NEO ORB page (neo-orb.html). The shell's window chrome is not
+   loaded here, so the page sizes the NEO ORB root to the viewport itself. */
+html, body.neo-page { height: 100%; margin: 0; background: #04060c; }
+body.neo-page { overflow: hidden; }
+.neo-page-root { position: fixed; inset: 0; padding: 12px; box-sizing: border-box; }
+.neo-page-root > .neo-root { height: 100%; min-height: 0; }

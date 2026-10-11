@@ -2,6 +2,7 @@
 # In particular: no .git, secrets, worker source, tooling, or private papers.
 **
 !index.html
+!neo-orb.html
 !about.html
 !account.html
 !audits.html

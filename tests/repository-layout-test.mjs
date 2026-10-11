@@ -154,7 +154,7 @@ test("P13: root-level files stay limited to app entry points, configuration, opt
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
-    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html", "observations.html",
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html", "neo-orb.html", "observations.html",
     "package-lock.json", "package.json", "requirements-hf-data-library.txt", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
@@ -296,7 +296,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "observations.html", "specs"]);
+    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "neo-orb.html", "observations.html", "specs"]);
     for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js"]) {
       assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
     }

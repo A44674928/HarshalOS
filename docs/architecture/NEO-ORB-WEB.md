@@ -21,10 +21,10 @@ NEO ORB is a display. It reads no kernel state, gate, ledger, declaration, or pe
 | --- | --- |
 | NEO ORB → Orb 2 field route (`/api/good-intelligence/v1/orb2/field`), same-origin GET, every 20 s | The only data NEO ORB reads. Used for the rally/sink and basis colours. |
 | NEO ORB → any company, provider, or third-party host | None. No absolute or protocol-relative URL exists in the NEO ORB files or stylesheet. The test suite enforces this. |
-| Orb 2 field route → upstream market providers (Massive, Alpha Vantage, Kraken, Yahoo Finance) | Runs on the Worker, outside NEO ORB. Not changed here. |
+| Orb 2 field route → upstream market providers (Massive, Tickerbot, Kraken) | Cut at the Worker. The Orb 2 pipeline calls no company feed while `ORB2_COMPANY_FEEDS` is not `on`, which is the default. The cron tick, the manual tick, the priority and warm POSTs, and the Tickerbot bars route all refuse. The stored field is still served. See `worker/orb2-company-feed-gate.mjs`. |
 | Site shell (`index.html`) → other apps that connect to companies (LLM → Google Generative Language, community pages → Cloudflare Turnstile, Materials Project, research app → CourtListener, Federal Register, GovTrack, GDELT, Internet Archive, Wikipedia/Wikidata, r.jina.ai) | Runs in the same document as NEO ORB, but outside NEO ORB. A page-wide Content Security Policy would break those apps, so the shell is not changed here. |
 
-A browser-enforced block for NEO ORB alone needs NEO ORB in its own document, with `connect-src 'self'`. That is a separate decision.
+NEO ORB also runs as its own document at `/neo-orb` (`neo-orb.html`). Its policy is `connect-src 'self'`, so the browser itself refuses any other connection from that page. The Worker sends the same policy as a header, with `frame-ancestors 'none'`, from one constant in `worker/neo-orb-page.mjs`. The shell (`index.html`) keeps the other apps and is not changed by this.
 
 ## Dynamic placement (`neo-orb-placement.js`)
 
@@ -78,6 +78,15 @@ P = lerp(D, S, f) ⊙ (1 + (a − 1) f)             per axis
 
 Dials are validated and refused when out of range. Nothing is clamped silently inside the model. The UI clamps its own sliders to the same bounds.
 
+## Colour (`neo-orb-market.js`, `neo-orb-field.js`)
+
+Colour is descriptive. It comes from the stored Orb 2 field, read at most every 20 s, and it never triggers a provider call.
+
+- **Fill is the rally or sink.** Green is rallying (`changePct` > 0). Red is sinking (`changePct` < 0). Grey-blue is neutral, for flat, unknown, or no data.
+- **Ring is the basis.** Blue is a close below the FBB basis. Yellow is a close above it. No ring means equal or no basis. The basis is the preferred FBB variant that is available: FBB-L60, then FBB-200, then the market basis.
+- **Stored, not live.** Colours show the newest stored stock observation time in UTC, in the readout and in every inspector line. With the company-feed cut, that time can be old. The orbs keep the last colours, and a failed read is labelled and keeps them too.
+- **Shape.** The field row carries the FBB data as `market.fbbComparison.variants`. The client analysis carries it as `market.fbbVariants`. The mapper reads both.
+
 ## Controls
 
 - **Shape:** formation, axes X/Y/Z, berth separation, phase.
@@ -89,7 +98,7 @@ Drag to rotate. Click an orb to select it. Reduced-motion users start paused.
 
 ## Known limits
 
-- **Static roster, live colour.** The roster is the reviewed snapshot (as of 2026-10-02). Orb 2's live beats and saved beats are not wired in. Only the rally/sink and basis colour comes from the live field, and only for symbols that have a stock row in it. The Worker route is served only by the deployed site, so on a static preview every orb stays neutral and the readout says why.
+- **Static roster, stored colour.** The roster is the reviewed snapshot (as of 2026-10-02). Orb 2's live beats and saved beats are not wired in. The rally/sink and basis colour comes from the stored field only, and only for symbols that have a stock row in it. While the Orb 2 company-feed cut holds, no new colour is written, so the colours go stale and the readout shows when they were stored. The Worker route is served only by the deployed site, so on a static preview every orb stays neutral and the readout says why.
 - **Visual check.** The geometry, the placement dynamics, the draw path, and the input handling are covered by tests. The placement was also reviewed offline: real flame frames were baked, and home and guided layouts were rendered to a PNG outside the repository. The live look in a real browser has not been checked from this environment; do that before shipping.
 - **Asset load.** Guidance needs `assets/Demo.flame` with `assets/flame/`, and `assets/OuterOrb.flame` with `assets/outer_flame/`. If a source is missing, its guidance reads *unavailable*. If both are missing, every orb rests at home and the status says so.
 - **Sphere film removed from view.** The author's sphere film was a flame render, so it is no longer drawn or loaded by NEO ORB. Restoring it would be a deliberate decision.
@@ -115,5 +124,7 @@ Both files run under `test:neo-orb`, and `scripts/integrity-report.mjs` lists bo
 - window registration, mount, dial clamping, inspector facts, and shared-engine handling;
 - a full draw with guided orbs, the flame engines read but never drawn, and orb hit-testing;
 - guidance read from a scratch canvas, and the forbidden-channel scan and page wiring.
+
+`tests/neo-orb-page-test.mjs` covers the standalone page: its policy (meta and header, from one constant), the relative-only references, the script order, the staging and route entries, the Worker's header and refusal of writes, and a boot of the page's own scripts into `#neo-root`. `tests/orb2-company-feed-cut-test.mjs` covers the company-feed cut: the default-off switch, the refused tick with no provider call and no database touch, the refused POST, and the refused Tickerbot route.
 
 `tests/neo-orb-market-test.mjs` covers the colour rules (rally/sink from `changePct`, basis from the close against the FBB basis, the preferred FBB variant), the reserved palette, the newest-stock-row index, the one same-origin field read and its fail-closed results, and the rule that only the reader calls `fetch`. `tests/neo-orb-placement-test.mjs` covers the pure math with synthetic bitmaps: field construction, bit spread, determinism, smoothness, tether, roam, inertia, reset, a fleet that keeps moving, and the model's placement invariants (radius, home, and berths preserved). It also checks that guided orbs never re-slot over 12 s of the full roster: no frame re-slots an orb, and every placed pair clears the berth floor.

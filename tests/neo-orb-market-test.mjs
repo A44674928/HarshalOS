@@ -76,6 +76,24 @@ test("the preferred FBB variant supplies the basis, as Orb 2 chooses it, else th
   assert.equal(Market.basisOf({ basis: 100, fbbVariants: { "FBB-L60": { status: "held", basis: 1 } } }), 100, "else the market basis");
 });
 
+test("the basis reads the field row's real shape (fbbComparison.variants), as the Worker sends it", () => {
+  const serverRow = {
+    latestBar: { close: 95 }, basis: 100,
+    fbbComparison: {
+      schema: "gi-fbb-comparison-v1",
+      variants: {
+        "FBB-L60": { id: "FBB-L60", status: "insufficient-history", basis: null },
+        "FBB-200": { id: "FBB-200", status: "available", basis: 120 }
+      }
+    }
+  };
+  assert.equal(Market.basisOf(serverRow), 120, "a short L60 history falls through to FBB-200 in the server row");
+  assert.equal(Market.marketStateOf(serverRow).basis, "below", "95 is below the 120 basis");
+  assert.equal(Market.colourOf(Market.marketStateOf(serverRow)).ring, Market.COLORS.below, "the blue ring follows the real basis");
+  const l60 = { latestBar: { close: 95 }, basis: 100, fbbComparison: { variants: { "FBB-L60": { status: "available", basis: 90 }, "FBB-200": { status: "available", basis: 120 } } } };
+  assert.equal(Market.basisOf(l60), 90, "FBB-L60 is preferred in the server row too");
+});
+
 test("the field rows index by symbol, keep the newest stock row, and ignore other discs", () => {
   const index = Market.indexField([
     row("NVDA", { changePct: -1 }, { observedAt: 1000 }),
@@ -167,4 +185,11 @@ test("the whole NEO ORB surface reaches no company: no absolute or protocol-rela
   const routes = [...new Set([appSource, modelSource, placementSource, marketSource, fieldSource]
     .flatMap(src => src.match(/\/api\/[A-Za-z0-9/_-]+/g) || []))];
   assert.deepEqual(routes, ["/api/good-intelligence/v1/orb2/field"], "the only route NEO ORB names is the Orb 2 field");
+});
+
+test("storedAsOf: the newest stock observation time, so stale colours say how old they are; null when none", () => {
+  assert.equal(Market.storedAsOf([]), null);
+  assert.equal(Market.storedAsOf([row("AAPL", { changePct: 1 }, { observedAt: 5000 }), row("NVDA", { changePct: 2 }, { observedAt: 9000 })]), 9000);
+  assert.equal(Market.storedAsOf([row("BTC", { changePct: 1 }, { observedAt: 99999, discId: "crypto" })]), null, "only stock rows set the stored time");
+  assert.equal(Market.storedAsOf([{ symbol: "AAPL", discId: "stocks", observedAt: 7000 }]), null, "a row without a market is not a colour");
 });
