@@ -9,6 +9,7 @@ web artifacts). It is classified caustic and compromised. It is kept here for th
 | Path | What it is |
 | --- | --- |
 | [`apple-swift-native/`](apple-swift-native/) | The Swift / SwiftUI app, its Watch companion, Xcode projects, and its Swift packages. |
+| [`NOTE-APPLE-WATCH.md`](NOTE-APPLE-WATCH.md) | Why HarshalOS does not use Apple Watches. |
 | [`apple-web-artifacts/`](apple-web-artifacts/) | `apple-touch-icon.png`, the iOS home-screen icon. It was removed from the website's `index.html`. |
 
 ## Rules
