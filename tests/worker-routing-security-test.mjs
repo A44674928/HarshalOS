@@ -74,13 +74,18 @@ test('ordinary public routes still use the Assets binding', async () => {
   assert.deepEqual(assetCalls, ['/index.html']);
 });
 
-test('Community pages resolve extensionless URLs to exact allowlisted assets with restrictive headers', async () => {
+test('Community page aliases fetch extensionless canonical assets and avoid HTML redirect loops', async () => {
   const assetCalls = [];
-  const env = assetTrap(assetCalls, () => new Response('observation publisher', { status: 200 }));
+  const env = assetTrap(assetCalls, () => new Response('community page', { status: 200 }));
+  for (const path of ['/account', '/account.html', '/audits', '/audits.html', '/observations', '/observations.html']) {
+    const response = await worker.fetch(new Request(ORIGIN + path + '?id=abc'), env);
+    assert.equal(response.status, 200, path);
+    assert.equal(await response.text(), 'community page', path);
+  }
+  assert.deepEqual(assetCalls, [
+    '/account', '/account', '/audits', '/audits', '/observations', '/observations'
+  ], 'both URL forms must fetch canonical extensionless paths from Assets');
   const response = await worker.fetch(new Request(ORIGIN + '/observations?id=abc'), env);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), 'observation publisher');
-  assert.deepEqual(assetCalls, ['/observations.html']);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('Referrer-Policy'), 'no-referrer');
   assert.match(response.headers.get('Content-Security-Policy'), /connect-src 'self'/);
@@ -88,7 +93,7 @@ test('Community pages resolve extensionless URLs to exact allowlisted assets wit
   const rejected = await worker.fetch(new Request(ORIGIN + '/observations', { method: 'POST' }), env);
   assert.equal(rejected.status, 405);
   assert.equal(rejected.headers.get('Allow'), 'GET, HEAD');
-  assert.deepEqual(assetCalls, ['/observations.html'], 'non-GET Community page requests do not reach Assets');
+  assert.equal(assetCalls.length, 7, 'non-GET Community page requests do not reach Assets');
 });
 
 test('deployment configuration, Worker source, and arbitrary repo paths are not served as assets', async () => {
