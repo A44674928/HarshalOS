@@ -1230,7 +1230,8 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
   const cryptoRanking = JSON.parse(rankingRow.ranking_json);
   const roster = orb2FieldRoster({ now: at, cryptoRanking, commodityContracts: activeContracts(at) });
-  const ticksForOnePass = roster.instruments.length;
+  const ticksForOnePass = Math.ceil(roster.stocks.length / 12) + roster.crypto.length + roster.cryptoPairs.length +
+    roster.fx.length + Math.ceil(roster.commodities.length / 5) + Math.ceil(roster.indices.length / 5);
   const noCallIndexUnits = [];
   for (let tick = 0; tick < ticksForOnePass; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
@@ -1644,7 +1645,7 @@ test("failed work advances its lane cursor, records a held berth, and respects c
    the longest lane rather than the sum of the lanes, real containment when one
    lane throws, and a D1 budget that charges every statement exactly once. */
 
-test("the scheduler executes at most one provider lane and one work unit per Cron tick", async t => {
+test("the scheduler dispatches one provider lane and runs its serial batch within bounds", async t => {
   const { sql, env } = fixture(t, { options: true });
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = Date.parse("2026-10-06T12:00:00.000Z");
@@ -1654,17 +1655,17 @@ test("the scheduler executes at most one provider lane and one work unit per Cro
   seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at - 2 * 86_400_000 });
   const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(summary.ok, true, summary.errors.join(" "));
-  assert.ok(summary.workUnits <= 1);
-  assert.ok(summary.workUnitsList.length <= 1);
-  assert.ok(Object.values(summary.lanes).filter(lane => lane.ran).length <= 1);
+  assert.equal(summary.workUnits, 12, "Tickerbot retains its known 12-beat serial capacity");
+  assert.equal(summary.workUnitsList.length, 12);
+  assert.equal(Object.values(summary.lanes).filter(lane => lane.ran || lane.skipped).length, 1);
   assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
-  assert.equal(ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK, 1);
+  assert.equal(ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK, 12);
   assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
   CLOCK = at + 60_000;
 });
 
-test("a full serialized field rotation takes the sum of reviewed lane slots", async t => {
+test("a full serialized field rotation covers all reviewed instruments within its turn budget", async t => {
   const { sql, env, stats } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
@@ -1673,23 +1674,26 @@ test("a full serialized field rotation takes the sum of reviewed lane slots", as
   const ranking = await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
   seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at - 2 * 86_400_000 });
   const roster = orb2FieldRoster({ now: at, cryptoRanking: ranking, commodityContracts: activeContracts(at) });
-  const cycleLength = roster.instruments.length;
+  const reviewed = roster.instruments.length;
+  const cycleLength = Math.ceil(roster.stocks.length / 12) + roster.crypto.length + roster.cryptoPairs.length +
+    roster.fx.length + Math.ceil(roster.commodities.length / 5) + Math.ceil(roster.indices.length / 5);
   assert.equal(roster.indices.length, 32);
-  assert.equal(cycleLength, 171);
+  assert.equal(reviewed, 171);
+  assert.equal(cycleLength, 91);
   stats.reset();
 
   const covered = new Set();
   for (let tick = 0; tick < cycleLength; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, `serial rotation tick ${tick}: ${summary.errors.join(" ")}`);
-    assert.equal(summary.workUnits, 1, `tick ${tick} spends exactly one unit`);
-    assert.equal(summary.workUnitsList.length, 1);
+    assert.ok(summary.workUnits >= 1 && summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+    assert.equal(summary.workUnitsList.length, summary.workUnits);
     assert.equal(Object.values(summary.lanes).filter(lane => lane.ran || lane.skipped).length, 1);
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
     assert.ok(stats.maxRowsPerRead <= 12);
-    covered.add(summary.workUnit);
+    for (const unit of summary.workUnitsList) covered.add(unit);
   }
   assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts, cycleLength);
   const storedSymbols = new Set(sql.prepare(
@@ -1698,7 +1702,7 @@ test("a full serialized field rotation takes the sum of reviewed lane slots", as
   for (const instrument of roster.instruments) {
     assert.ok(storedSymbols.has(instrument.symbol), `${instrument.discId}:${instrument.symbol} was observed within one full serial cycle`);
   }
-  assert.equal(covered.size, cycleLength, "each selected slot advances to a distinct reviewed work item over the complete base cycle");
+  assert.equal(covered.size, reviewed, "all 171 reviewed instruments are covered across the 91 scheduled lane turns");
   assert.equal(seen.tickerbot.filter(entry => entry.endsWith(":1d")).length, roster.stocks.length);
   assert.equal(seen.krakenBars.length, roster.crypto.length + roster.cryptoPairs.length);
   assert.equal(seen.massive.length, roster.fx.length + roster.commodities.length + roster.indices.length);
@@ -1712,8 +1716,9 @@ test("a lane failure is contained and the durable dispatcher advances to the nex
   seedActiveContracts(base.sql, at);
   seedSchedulerControl(base.sql, at);
   await primeCryptoRanking({ db: base.env.COMMUNITY_DB, seen, at });
-  /* Indexes are the last lane block in the reviewed 171-slot base schedule. */
-  seedDispatchCursor(base.sql, { attempts: 170, at });
+  /* Select an index turn explicitly; the smooth schedule interleaves lanes. */
+  seedDispatchCursor(base.sql, { laneId: "massive-indices", at });
+  const selectedOrdinal = base.sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts;
   const poisonedReason = "field-cursor-v1:massive-indices";
   const realDb = base.env.COMMUNITY_DB;
   const poisonDb = {
@@ -1740,14 +1745,13 @@ test("a lane failure is contained and the durable dispatcher advances to the nex
   assert.ok(failed.errors.some(error => /simulated D1 fault/i.test(error)));
   assert.equal(failed.lanes["massive-indices"], undefined);
   assert.equal(failed.workUnitsByLane.get("massive-indices") || 0, 0);
-  assert.equal(base.sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts, 171,
+  assert.equal(base.sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts, selectedOrdinal + 1,
     "even a contained lane failure consumes only its assigned dispatch slot");
 
   const next = await runOrb2FieldTick(base.env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
   assert.equal(next.ok, true, next.errors.join(" "));
-  assert.equal(next.workUnits, 1);
-  assert.match(next.workUnit || "", /^(?:warm:|tickerbot:1d:)/,
-    "after the final index slot fails, rotation wraps to the stock lane on the next tick");
+  assert.ok(next.workUnits >= 1 && next.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
+  assert.ok(next.workUnit, "the next selected lane continues after the contained failure");
   CLOCK = at + 60_000;
 });
 
