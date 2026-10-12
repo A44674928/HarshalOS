@@ -1070,10 +1070,8 @@ test("durable provider budgets hold refused queue work and the legacy Massive da
   seedActiveContracts(second.sql, massiveAt);
   seedSchedulerControl(second.sql, massiveAt);
   await primeCryptoRanking({ db: second.env.COMMUNITY_DB, seen: massiveSeen, at: massiveAt });
-  /* The old fixture positioned a single whole-field cursor on the last stock so
-     the next flattened item would be the first FX pair. Lanes own their own
-     cursors now, so the FX lane simply starts at its own first reviewed pair;
-     which pair that is is not what this test is about. */
+  /* Explicitly position the durable dispatch pointer on FX; this test checks
+     provider-ledger accounting rather than cross-lane throughput. */
   const telemetry = await runOrb2FieldTick(second.env, null, deps(massiveSeen, { at: massiveAt }));
   assert.match(telemetry.lanes["massive-fx"].workUnit, /^massive:fx:/);
   assert.equal(telemetry.lanes["massive-fx"].providerCalls, 1,
@@ -1665,7 +1663,7 @@ test("a lane failure is contained and the durable dispatcher advances to the nex
   const poisonDb = {
     prepare(query) {
       const statement = realDb.prepare(query);
-      const isCursorRead = /FROM\\s+orb2_field_queue/i.test(String(query)) && /reason\\s*=\\s*\\?/i.test(String(query));
+      const isCursorRead = /FROM\s+orb2_field_queue/i.test(String(query)) && /reason\\s*=\\s*\\?/i.test(String(query));
       let bound = [];
       return {
         bind(...values) { bound = values; statement.bind(...values); return this; },
