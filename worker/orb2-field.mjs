@@ -338,12 +338,12 @@ const ORB2_FIELD_ARIZONA_STALE_CUTOFF_MINUTE = 17 * 60;
 const ARIZONA_UTC_OFFSET_MS = 7 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 
-/* Presentation-only grace: a 15m observation from the current Arizona
-   weekday is not labelled stale/expired before 5 PM Phoenix time. This lets
+/* Presentation-only grace: current-day 15m and 1h observations on an Arizona
+   weekday are not labelled stale/expired before 5 PM Phoenix time. This lets
    end-of-day and aftermarket data settle before interpreting a frozen status
    as staleness. It does not grant freshness to prior-day data. */
 function withinArizonaIntradayStaleGrace(interval, at, current) {
-  if (interval !== "15m" || !Number.isFinite(at) || !Number.isFinite(current)) return false;
+  if ((interval !== "15m" && interval !== "1h") || !Number.isFinite(at) || !Number.isFinite(current)) return false;
   const localNow = new Date(current - ARIZONA_UTC_OFFSET_MS);
   const minute = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
   const weekday = localNow.getUTCDay();
