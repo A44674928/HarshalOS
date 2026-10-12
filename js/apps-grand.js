@@ -96,11 +96,12 @@ APPS.push({
         <div class="rule-box ice">${escapeHtml(registry.form)} — orb ${escapeHtml(registry.orb)} · sector ${escapeHtml(registry.sector)} ·
         ${registry.distinctInstances} distinct named instances</div>
         <table class="table">
-          <thead><tr><th>Tier</th><th>Band</th><th>Named nodes</th><th>Share</th></tr></thead>
+          <thead><tr><th>Tier</th><th>Band</th><th>Approx. slots (of ${registry.tierDenominator})</th><th>Share of slots</th></tr></thead>
           <tbody>
             ${registry.tiers.map(tier => `<tr><td>${escapeHtml(tier.tier)}</td><td>${escapeHtml(tier.name)}</td><td>${escapeHtml(tier.nodes)}</td><td>${escapeHtml(tier.share)}</td></tr>`).join("")}
           </tbody>
         </table>
+        <p class="ga-note">${escapeHtml(registry.tierBasis)}</p>
         <p class="ga-note">${escapeHtml(registry.precisionNote)}</p>
 
         <div class="h2">Canonical quantity anchors</div>

@@ -164,7 +164,7 @@ const GRAND_ARCHITECTURE = (() => {
     Object.freeze({ id: "GA-Q-009", quantity: "Fill time at a constant sensitivity flow", figure: "169 days", detail: "73 km³ at 5,000 m³/s with zero outlet or loss", status: "Volume ÷ inflow arithmetic" }),
     Object.freeze({ id: "GA-Q-010", quantity: "Fill time at the workbook baseline", figure: "385,691 days", detail: "about 1,056 Julian years at 2.190632 m³/s", status: "Volume ÷ inflow arithmetic" }),
     Object.freeze({ id: "GA-Q-011", quantity: "Conditional hydro, historical sample", figure: "5.69 GW", detail: "476 m³/s at 1,219.2 m gross head; 5.12 GW at 90% turbine-generator efficiency", status: "Historical sample context, not an allocation" }),
-    Object.freeze({ id: "GA-Q-012", quantity: "High-flow sensitivity", figure: "59.80 GW", detail: "5,000 m³/s at 1,219.2 m gross head; 25,000 m³/s would be 269.11 GW", status: "Flow sensitivity, not an established supply" }),
+    Object.freeze({ id: "GA-Q-012", quantity: "High-flow sensitivity", figure: "59.80 GW", detail: "5,000 m³/s at 1,219.2 m gross head = 59.80 GW gross, 53.82 GW at 90%; 25,000 m³/s = 299.01 GW gross, 269.11 GW at 90%", status: "Flow sensitivity, not an established supply" }),
     Object.freeze({ id: "GA-Q-013", quantity: "Non-hydro planning entry", figure: "4.00 GW", detail: "80 × 50 MWe small modular reactors; conditional nameplate sum 9.12 GW", status: "Assumed nameplate, not a deployment plan" }),
     Object.freeze({ id: "GA-Q-014", quantity: "Portfolio ambition", figure: "1,000-GW (1-TW)", detail: "provisionally aggregate installed nameplate; 990.88 GW remains unallocated against the 9.12 GW sum", status: "Ambition; source mix and firm output unassigned" }),
     Object.freeze({ id: "GA-Q-015", quantity: "Illustrative average output", figure: "7.19 GW", detail: "63.0 TWh/year at 70% hydro and 90% SMR capacity factors", status: "Unvalidated capacity factors" }),
@@ -182,10 +182,12 @@ const GRAND_ARCHITECTURE = (() => {
     sector: "000",
     distinctInstances: 358,
     tiers: Object.freeze([
-      Object.freeze({ tier: "T1", name: "Capitol & Rim", nodes: "180+", share: "≈50%" }),
-      Object.freeze({ tier: "T2", name: "Reservoir & Biosphere", nodes: "120+", share: "≈33%" }),
-      Object.freeze({ tier: "T3", name: "Deep Core & Secure Infrastructure", nodes: "60+", share: "≈17%" })
+      Object.freeze({ tier: "T1", name: "Capitol & Rim", nodes: "≈180", share: "≈50%" }),
+      Object.freeze({ tier: "T2", name: "Reservoir & Biosphere", nodes: "≈120", share: "≈33%" }),
+      Object.freeze({ tier: "T3", name: "Deep Core & Secure Infrastructure", nodes: "≈60", share: "≈17%" })
     ]),
+    tierDenominator: 360,
+    tierBasis: "Tier counts are the update's approximate partition of the 360-slot counter (180 + 120 + 60 = 360; shares are of 360), not a count of the 358 named instances. The source's own enumerated IDs do not reconcile to these totals, so treat the split as an assertion.",
     precisionNote: "The instance counter runs 0000–0359 and borrows the 360-count motif, but it occupies the instance field. The canonical ℤ₃₆₀ ring constrains the sector field DDD ∈ [000, 359] (Part VII, INV-Z360-001). 360° ≡ 0° mod 360 is return-to-origin closure notation, never a 361st address slot."
   });
 

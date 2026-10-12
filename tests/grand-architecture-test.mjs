@@ -117,6 +117,13 @@ test("GA: the address registry keeps the render spec's instance count and the â„
   assert.match(GA.addressRegistry.precisionNote, /instance field/);
   assert.match(GA.addressRegistry.precisionNote, /DDD âˆˆ \[000, 359\]/);
   assert.match(GA.addressRegistry.precisionNote, /never a 361st address slot/);
+  const tierSum = GA.addressRegistry.tiers.reduce((sum, tier) => sum + parseInt(tier.nodes.replace(/[^0-9]/g, ""), 10), 0);
+  assert.equal(tierSum, GA.addressRegistry.tierDenominator, "tier counts reconcile to the stated 360-slot denominator");
+  assert.equal(GA.addressRegistry.tierDenominator, 360, "tier denominator is the 360-slot counter, not the 358 instances");
+  assert.match(GA.addressRegistry.tierBasis, /not a count of the 358 named instances/);
+  assert.ok(!GA.addressRegistry.tiers.some(tier => /\+/.test(tier.nodes)), "tier counts carry no lower-bound '+' that breaks the sum");
+  assert.match(GA.anchorById("GA-Q-012").detail, /59\.80 GW gross, 53\.82 GW at 90%/, "GA-Q-012 states both values on one basis");
+  assert.match(GA.anchorById("GA-Q-012").detail, /299\.01 GW gross, 269\.11 GW at 90%/, "GA-Q-012 high-flow pair is on one basis");
 });
 
 test("GA: the timeline keeps 2046 as a target, 2098 as interim, and assigns no final completion", () => {
