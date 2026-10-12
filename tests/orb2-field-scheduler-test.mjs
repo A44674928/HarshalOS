@@ -581,7 +581,7 @@ test("the persisted serial rotation covers every reviewed provider lane and all 
   CLOCK = at + cycleTurns * 60_000;
 });
 
-test("a full cycle wraps to the first stable key without resetting on each Cron tick", async t => {
+test("a batched lane wraps to the first stable key without repeating within a tick", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [] };
   const at = Date.parse("2026-10-06T12:00:00.000Z");
@@ -600,11 +600,13 @@ test("a full cycle wraps to the first stable key without resetting on each Cron 
   assert.equal(wrapped.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[0].symbol}`);
   assert.equal(wrapped.cursorReset, false);
   assert.equal(wrapped.cursorAdvanced, true);
-  assert.equal(wrapped.workUnitsByLane.get(stockLane), 1, "the lane spends one unit even while wrapping");
+  assert.equal(wrapped.workUnitsByLane.get(stockLane), 12, "the lane spends a bounded serial batch even while wrapping");
+  assert.equal(wrapped.workUnitsList.length, 12);
+  seedDispatchCursor(sql, { laneId: stockLane, at: at + 60_000 });
   const following = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(following.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[1].symbol}`,
-    "the second invocation resumes after the wrapped key instead of starting over");
-  assert.equal(readLaneCursor(sql, stockLane).attempts, roster.stocks.length + 2);
+  assert.equal(following.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[12].symbol}`,
+    "the next batch resumes after all twelve processed keys rather than replaying a key");
+  assert.equal(readLaneCursor(sql, stockLane).attempts, roster.stocks.length + 24);
 });
 
 test("a legacy whole-field cursor seeds each lane ordinal instead of replaying the field from zero", async t => {
@@ -632,9 +634,10 @@ test("a legacy whole-field cursor seeds each lane ordinal instead of replaying t
   assert.match(cursor.lane, /^cursor:tickerbot/, "the lane now owns its own durable cursor row");
   assert.ok(cursor.attempts > roster.instruments.length, "the legacy ordinal is carried forward, never restarted at zero");
 
+  seedDispatchCursor(sql, { laneId: stockLane, at: at + 60_000 });
   const second = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(second.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[(seededIndex + 2) % roster.stocks.length].symbol}`,
-    "the seeded lane advances by one on the next tick like any other cursor");
+  assert.equal(second.lanes[stockLane].workUnit, `tickerbot:1d:${roster.stocks[(seededIndex + 13) % roster.stocks.length].symbol}`,
+    "the seeded lane advances by a bounded batch on its next selected turn");
 });
 
 test("a stale cursor resumes from its durable ordinal; corrupt cursor state blocks instead of replaying the field", async t => {
@@ -652,10 +655,10 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   assert.equal(resumed.lanes[stockLane].workUnit, `tickerbot:1d:${STOCK_SYMBOLS[5]}`,
     "the missing stable key uses the saved ordinal and does not replay from roster item zero");
   assert.equal(resumed.lanes[stockLane].cursorReset, true);
-  assert.equal(resumed.workUnitsByLane.get(stockLane), 1, "recovery still spends exactly one unit of that lane");
+  assert.equal(resumed.workUnitsByLane.get(stockLane), 12, "recovery spends the lane's bounded serial batch");
   const cursor = readLaneCursor(recovered.sql, stockLane);
   assert.match(cursor.lane, /^cursor:tickerbot/);
-  assert.equal(cursor.attempts, 6);
+  assert.equal(cursor.attempts, 17);
 
   const corrupted = fixture(t);
   const blockedSeen = { urls: [], massive: [], tickerbot: [], krakenRanking: [] };
@@ -678,6 +681,7 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   assert.equal(blocked.tickerbotCalls, 0, "a blocked lane sends no provider request");
   assert.match(blocked.notes.join(" "), /blocked without replaying the lane/i);
   assert.equal(readLaneCursor(corrupted.sql, stockLane).lane, "cursor:blocked-v1");
+  seedDispatchCursor(corrupted.sql, { laneId: stockLane, at: at + 60_000 });
   const stillBlocked = await runOrb2FieldTick(corrupted.env, null, { now: () => at + 60_000, fetch: providerFetch(blockedSeen) });
   assert.equal(stillBlocked.lanes[stockLane].ran, false, "corrupt state stays fail-closed instead of silently starting a new whole cycle");
   assert.equal(stillBlocked.tickerbotCalls, 0);
