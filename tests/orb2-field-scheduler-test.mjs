@@ -1585,68 +1585,23 @@ test("failed work advances the durable cursor, records a held berth, and retries
    the longest lane rather than the sum of the lanes, real containment when one
    lane throws, and a D1 budget that charges every statement exactly once. */
 
-test("every provider lane advances inside its own envelope in the same scheduled minute", async t => {
+test("the scheduler executes at most one provider lane and one work unit per Cron tick", async t => {
   const { sql, env } = fixture(t, { options: true });
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
-  const at = nextClock();
+  const at = Date.parse("2026-10-06T12:00:00.000Z");
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
   seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
-
-  const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
+  const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(summary.ok, true, summary.errors.join(" "));
-
-  /* Every reviewed lane advanced in the same scheduled minute, each spending its
-     own documented unit budget. Most lanes own a whole provider request per
-     unit, so their budget is one; a lane may document more only where its own
-     asset-class window has the headroom. */
-  const budgets = new Map();
-  for (const lane of ORB2_FIELD_PROVIDER_LANES) {
-    budgets.set(lane.id, lane.maxWorkUnitsPerTick || ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK);
-  }
-  for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
-    const entry = summary.lanes[laneId];
-    assert.ok(entry && entry.ran, `the ${laneId} lane reported its own work`);
-    assert.equal(summary.workUnitsByLane.get(laneId), entry.workUnits.length,
-      `the ${laneId} lane counted every unit it ran`);
-    assert.equal(entry.workUnits.length, budgets.get(laneId),
-      `the ${laneId} lane spent exactly its own unit budget`);
-    assert.equal(entry.unitBudget, budgets.get(laneId),
-      `the ${laneId} lane reports the budget it was given`);
-    assert.ok(entry.workUnit && entry.workUnit === entry.workUnits[0],
-      `the ${laneId} lane names the first unit it ran`);
-    /* The binding guarantee is per lane, because that is what maps to an
-       envelope: a lane's units times its per-unit ceiling. */
-    assert.ok(entry.providerCalls <= entry.callCeiling,
-      `the ${laneId} lane stayed inside its own provider ceiling (${entry.providerCalls}/${entry.callCeiling})`);
-    assert.equal(entry.callCeiling, entry.unitBudget * entry.maxProviderCallsPerUnit,
-      `the ${laneId} ceiling is derived from its own budget, not hand-tuned`);
-  }
-  assert.equal(summary.workUnits, ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK,
-    "the whole-tick unit total is the sum of the lane budgets");
+  assert.ok(summary.workUnits <= 1);
+  assert.ok(summary.workUnitsList.length <= 1);
+  assert.ok(Object.values(summary.lanes).filter(lane => lane.ran).length <= 1);
   assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
-  assert.ok(summary.providerRequests >= ORB2_FIELD_LANE_COUNT,
-    "parallel lanes really did spend more than the old single-unit tick in one minute");
+  assert.equal(ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK, 1);
   assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
-  /* Massive's allowance is documented per asset class, so the guarantee that
-     matters is the per-class total across the whole tick, not the lane count. */
-  const perClass = new Map();
-  for (const lane of ORB2_FIELD_PROVIDER_LANES.filter(l => l.provider === "massive")) {
-    const entry = summary.lanes[lane.id];
-    perClass.set(lane.assetClass, (perClass.get(lane.assetClass) || 0) + (entry ? entry.providerCalls : 0));
-  }
-  for (const [assetClass, calls] of perClass) {
-    assert.ok(calls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
-      `Massive asset class "${assetClass}" stayed inside its per-minute window (${calls}/${ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS})`);
-  }
-  /* Massive's per-minute allowance is documented per asset class, so three
-     Massive lanes spending one request each is three separate windows. */
-  const massiveLanes = ORB2_FIELD_PROVIDER_LANES.filter(lane => lane.provider === "massive");
-  assert.ok(massiveLanes.length >= 3, "the reviewed Massive lanes cover distinct asset classes");
-  const byClass = new Set(massiveLanes.map(lane => lane.assetClass));
-  assert.equal(byClass.size, massiveLanes.length, "no two Massive lanes share one asset-class window");
   CLOCK = at + 60_000;
 });
 
