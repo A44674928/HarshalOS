@@ -670,6 +670,36 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   assert.equal(readLaneCursor(corrupted.sql, stockLane).lane, "cursor:blocked-v1");
 });
 
+test("successful cold futures discovery retains the dispatch slot until an instrument bar is fetched", async t => {
+  const { sql, env } = fixture(t);
+  const seen = { urls: [], massive: [], tickerbot: [], contracts: [] };
+  const at = nextClock();
+  seedSchedulerControl(sql, at);
+  seedDispatchCursor(sql, { laneId: "massive-futures", at });
+  const selectedOrdinal = sql.prepare(
+    "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
+  ).get().attempts;
+
+  const discovery = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
+  assert.equal(discovery.ok, true, discovery.errors.join(" "));
+  assert.equal(discovery.workUnit, "massive:futures-contract-discovery");
+  assert.equal(discovery.workUnits, 1);
+  assert.deepEqual(seen.contracts, ["CL"]);
+  assert.equal(sql.prepare(
+    "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
+  ).get().attempts, selectedOrdinal,
+  "a successful contract lookup is preparatory work, so the same lane gets its instrument slot next");
+
+  const bars = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
+  assert.equal(bars.ok, true, bars.errors.join(" "));
+  assert.equal(bars.workUnit, "massive:futures:WTI");
+  assert.equal(bars.workUnits, 1);
+  assert.ok(seen.massive.includes("CLX6"), "the active dated futures contract receives its own bar request");
+  assert.equal(sql.prepare(
+    "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
+  ).get().attempts, selectedOrdinal + 1);
+});
+
 test("priority work claims one row per tick and never mistakes cursor sentinels for queue jobs", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [] };
