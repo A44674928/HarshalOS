@@ -2196,7 +2196,10 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     const selectedLane = weightedLaneSchedule[scheduleIndex];
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
-    if (keys.tickerbot && selectedLane?.id === "tickerbot-stocks") {
+    if (keys.tickerbot) {
+      /* Priority refreshes are eligible on every tick, not only on a stock-lane
+         slot. A claimed queue item spends this tick's sole work unit and defers
+         the selected regular lane; the weighted lane schedule resumes next tick. */
       const queued = await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
       if (queued.length) {
         const job = queued[0];
