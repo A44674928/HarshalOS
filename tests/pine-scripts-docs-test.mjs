@@ -287,7 +287,7 @@ test("pine scripts: the Markdown archive stays outside the public asset allowlis
   assert.ok(copyList, "prepare-assets.mjs should stage from an explicit allowlist");
   const entries = copyList[1].split(",").map(entry => entry.trim().replace(/^['"]|['"]$/g, ""));
   /* neo-orb.html is the standalone NEO ORB page: a static, same-origin document, not a pine script. */
-  assert.deepEqual(entries, ["index.html", "neo-orb.html", "about.html", "account.html", "audits.html", "observations.html", "css", "js", "assets", "specs"],
+  assert.deepEqual(entries, ["index.html", "neo-orb.html", "about.html", "account.html", "audits.html", "observations.html", "css", "js", "assets", "trades", "specs"],
     "the staging allowlist changed — re-review whether scripts/pine/ can now be published");
   assert.ok(!entries.includes("scripts") && !entries.includes("docs"),
     "neither scripts/ nor docs/ may be staged wholesale");

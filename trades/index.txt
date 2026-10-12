@@ -1,0 +1,65 @@
+# Disc1 · The 52 Cards — reviewed stock watchlist
+NVDA | STOCK · Nvidia Corp — Technology
+AAPL | STOCK · Apple Inc. — Technology
+MSFT | STOCK · Microsoft Corp — Technology
+AVGO | STOCK · Broadcom Inc. — Technology
+MU | STOCK · Micron Technology, Inc. — Technology
+AMD | STOCK · Advanced Micro Devices — Technology
+INTC | STOCK · Intel Corp — Technology
+GOOGL | STOCK · Alphabet Inc. — Communication Services
+META | STOCK · Meta Platforms, Inc. — Communication Services
+NFLX | STOCK · NetFlix Inc — Communication Services
+VZ | STOCK · Verizon Communications Inc. — Communication Services
+TMUS | STOCK · T-Mobile US, Inc. — Communication Services
+DIS | STOCK · Walt Disney Company — Communication Services
+AMZN | STOCK · Amazon.com, Inc. — Consumer Cyclical
+TSLA | STOCK · Tesla, Inc. — Consumer Cyclical
+HD | STOCK · Home Depot, Inc. — Consumer Cyclical
+MCD | STOCK · McDonald's Corporation — Consumer Cyclical
+TJX | STOCK · The TJX Companies, Inc. — Consumer Cyclical
+BKNG | STOCK · Booking Holdings Inc. — Consumer Cyclical
+SPCX | STOCK · SpaceX — Industrials
+CAT | STOCK · Caterpillar Inc. — Industrials
+GE | STOCK · GE Aerospace — Industrials
+GEV | STOCK · GE Vernova — Industrials
+RTX | STOCK · RTX Corporation — Industrials
+DE | STOCK · Deere & Company — Industrials
+UNP | STOCK · Union Pacific Corp. — Industrials
+LLY | STOCK · Eli Lilly and Company — Healthcare
+JNJ | STOCK · Johnson & Johnson — Healthcare
+ABBV | STOCK · AbbVie Inc. — Healthcare
+MRK | STOCK · Merck & Co., Inc. — Healthcare
+UNH | STOCK · UnitedHealth Group Incorporated — Healthcare
+TMO | STOCK · Thermo Fisher Scientific Inc. — Healthcare
+AMGN | STOCK · Amgen Inc — Healthcare
+JPM | STOCK · JPMorgan Chase & Co. — Financial Services
+V | STOCK · VISA Inc. — Financial Services
+MA | STOCK · Mastercard Incorporated — Financial Services
+BAC | STOCK · Bank of America Corporation — Financial Services
+MS | STOCK · Morgan Stanley — Financial Services
+GS | STOCK · Goldman Sachs Group Inc. — Financial Services
+WFC | STOCK · Wells Fargo & Co. — Financial Services
+WMT | STOCK · Walmart Inc. — Consumer Defensive
+COST | STOCK · Costco Wholesale Corporation — Consumer Defensive
+KO | STOCK · Coca-Cola Company — Consumer Defensive
+PG | STOCK · Procter & Gamble Company — Consumer Defensive
+PM | STOCK · Philip Morris International Inc. — Consumer Defensive
+PEP | STOCK · PepsiCo, Inc. — Consumer Defensive
+XOM | STOCK · ExxonMobil — Energy
+CVX | STOCK · Chevron Corporation — Energy
+COP | STOCK · ConocoPhillips — Energy
+MPC | STOCK · MARATHON PETROLEUM CORPORATION — Energy
+VLO | STOCK · Valero Energy Corporation — Energy
+PSX | STOCK · PHILLIPS 66 — Energy
+# Disc4 · Futures — reviewed product series; codes in parentheses are product codes, not dated contracts
+WTI | FUTURES · West Texas Intermediate crude (CL)
+NATURAL_GAS | FUTURES · Henry Hub natural gas (NG)
+GOLD | FUTURES · Gold (GC)
+SILVER | FUTURES · Silver (SI)
+COPPER | FUTURES · Copper (HG)
+ALUMINUM | FUTURES · Aluminum (ALI)
+PLATINUM | FUTURES · Platinum (PL)
+PALLADIUM | FUTURES · Palladium (PA)
+WHEAT | FUTURES · Wheat (ZW)
+CORN | FUTURES · Corn (ZC)
+SOYBEANS | FUTURES · Soybeans (ZS)

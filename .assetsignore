@@ -12,6 +12,8 @@
 !js/**
 !assets/
 !assets/**
+!trades/
+!trades/**
 !specs/
 !specs/normative/
 !specs/normative/*.md

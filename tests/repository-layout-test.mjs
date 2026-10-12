@@ -296,8 +296,8 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "neo-orb.html", "observations.html", "specs"]);
-    for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js"]) {
+    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "neo-orb.html", "observations.html", "specs", "trades"]);
+    for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js", "css/trades.css", "js/apps-trades.js", "trades/index.txt"]) {
       assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
     }
     assert.equal(await exists(path.join(SITE, "worker/materials-project.mjs")), false, "Worker source and its secret-handling code are not browser assets");
@@ -409,7 +409,18 @@ test("P13: local preview serves the selected Book I source and Collections libra
     assert.equal(manuscriptIndex.status, 200, "the generated manuscript index is served");
     assert.equal((await manuscriptIndex.json()).schema, "harshalos-manuscript-v1");
 
+    const tradesIndex = await fetch(`${base}/trades/index.txt`);
+    assert.equal(tradesIndex.status, 200, "the static Trades ticker index is served");
+    assert.match(tradesIndex.headers.get("content-type"), /text\/plain/);
+    const tradesIndexText = await tradesIndex.text();
+    assert.match(tradesIndexText, /Disc1 · The 52 Cards/);
+    assert.match(tradesIndexText, /Disc4 · Futures/);
+    assert.match(tradesIndexText, /STOCK ·/);
+    assert.match(tradesIndexText, /FUTURES ·/);
+
     for (const pathname of [
+      "/trades/private.md",
+      "/trades/../README.md",
       "/docs/harshal-systems/01-core-book.md",
       "/book/another-document.md",
       "/book-library/harshal-systems/not-a-real-file.md",
