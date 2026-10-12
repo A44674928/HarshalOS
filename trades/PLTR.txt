@@ -1,4 +1,4 @@
-2026-08-19 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ $24] | size: [1 share] | note: post car crash.
+2024-08-19 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ $24] | size: [1 share] | note: post car crash.
 2026-09-03 06:30 MST | SIMULATED PAPER [SHORT] | entry: [Market @ ~$184.91] | size: [1 share] | note: [Sell PLTR, dump, expect price up on FOMO and froth, 1M NASDAQ, price 184.91 below 207.52 high]
 2026-09-13 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$167.23] | size: [1 share] | note: [BUY PLTR, 1D NASDAQ, price 167.23 recovering from ~107 July low, below 207.52 high]
 2026-10-09 06:30 MST | SIMULATED PAPER [TAKE PROFIT] | exit: [Market @ ~$209.05] | size: [1 share] | note: [PLTR: A share sellers paradise, 1D NASDAQ, price 209.05 at 209.58 resistance]
