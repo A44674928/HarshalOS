@@ -412,7 +412,11 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const tradesIndex = await fetch(`${base}/trades/index.txt`);
     assert.equal(tradesIndex.status, 200, "the static Trades ticker index is served");
     assert.match(tradesIndex.headers.get("content-type"), /text\/plain/);
-    assert.match(await tradesIndex.text(), /One ticker per line/);
+    const tradesIndexText = await tradesIndex.text();
+    assert.match(tradesIndexText, /Disc1 · The 52 Cards/);
+    assert.match(tradesIndexText, /Disc4 · Futures/);
+    assert.match(tradesIndexText, /STOCK ·/);
+    assert.match(tradesIndexText, /FUTURES ·/);
 
     for (const pathname of [
       "/trades/private.md",
