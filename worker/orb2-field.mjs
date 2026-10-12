@@ -4,24 +4,20 @@
  * The beat is a server responsibility. A Cloudflare Cron Trigger calls
  * `runOrb2FieldTick()` every minute.
  *
- * The scheduler has one execution lane per Cron invocation: it selects one
- * provider lane and spends at most one work unit. Provider adapters retain
- * their own rate-limit guards, but provider work never fans out across lanes.
- * The lane choice is deterministic from the scheduled minute, while each lane
- * retains its durable stable-key cursor. The FX adapter may make its reviewed
- * two-request fallback sequence inside its single work unit.
+ * Each Cron invocation dispatches exactly one provider lane. The selected lane
+ * may spend its explicitly reviewed serial batch: Tickerbot up to 12 units,
+ * Massive futures/indices up to five, Options up to four, and Kraken/FX one
+ * unit (FX retains its bounded Massive-to-Alpha fallback). Calls within that
+ * lane never overlap. A durable weighted dispatch cursor alternates lanes in
+ * proportion to the number of turns each needs for one field rotation, while
+ * every lane keeps its own durable stable-key instrument cursor.
  *
- * This intentionally trades field rotation speed for predictable CPU and D1
- * pressure. The tick preserves Massive's five-per-minute-per-asset-class
- * Kraken's one-per-second gate and UTC-day safety ceiling, and Tickerbot's
- * UTC-month ledger; the historical Massive daily count remains telemetry. Each
- * unit fetches one reviewed instrument, runs the same
- * `js/good-intelligence-market-context.js` evaluation and
- * `js/characters-beat.js` motion directive the browser would have run, and stores
- * one compact observation per instrument in D1.
- *
- * Because the lanes advance together, one full rotation of the field is bounded
- * by the longest single lane rather than by the sum of all of them.
+ * This design is intended to reduce cross-lane CPU and D1 peak pressure without
+ * throwing away the provider's legitimate per-tick batch capacity. Massive keeps
+ * its five-per-minute-per-asset-class gate, Kraken its one-per-second gate and
+ * UTC-day ceiling, and Tickerbot its UTC-month ledger. Each unit evaluates the
+ * same `js/good-intelligence-market-context.js` and `js/characters-beat.js`
+ * logic and stores a compact observation in D1.
  *
  * Browsers never call a provider and never own the schedule:
  *
@@ -148,15 +144,13 @@ export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
  *   massive-indices    Massive 'indices'     five requests/minute
  *   massive-options    Massive 'options'     five requests/minute
  *
- * Massive's five-per-minute allowance is documented per asset class and is
- * enforced by a synchronous, per-class sliding window in `worker/massive.mjs`,
- * so the four Massive lanes draw from four separate windows. The Kraken and
- * Tickerbot ledgers claim through an atomic `UPSERT … WHERE <predicate>
- * RETURNING`, which stays race-safe even if two isolates overlap. Nothing here
- * relaxes a provider envelope: a lane spends its own documented unit budget,
- * which is one work unit per scheduled minute for every lane whose provider
- * costs a whole request per unit — exactly as the single-cursor scheduler did —
- * and more only where the lane points at spare headroom inside its own window.
+ * Massive's five-per-minute allowance is enforced per asset class by a
+ * synchronous sliding window. Tickerbot can run up to 12 serialized beats, the
+ * futures and indices lanes up to five, and Options up to four (leaving one slot
+ * of headroom). Kraken remains one request per Cron and FX one work unit with
+ * its documented two-request fallback. These are serial batch bounds, not
+ * promises that the CPU limit can accommodate every batch; CI and production
+ * CPU telemetry must validate that separately.
  */
 export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
   Object.freeze({
@@ -224,13 +218,11 @@ export const ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE =
   TICKERBOT_WATCHLIST.length + SCHEDULER_FX_ROSTER_SIZE + CHARACTERS_CRYPTO_RANKING_SIZE +
   CHARACTERS_CRYPTO_CROSS_PAIR_SIZE + SCHEDULER_FUTURES_ROSTER_SIZE + SCHEDULER_INDEX_ROSTER_SIZE +
   TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1);
-/* Read/write quotas are derived from the lane count so the bound always matches
-   the schedule that actually runs. Per lane a unit needs: its cursor row, a
-   targeted due-rotation read, its provider ledger claim, the result row, and
-   the derived composition pair. Shared per-tick overhead is the lease, the
-   control row, the queue claim, the ranking/futures caches and the Options
-   table probe. Three writes stay reserved for the result row and lease cleanup
-   so a tick that spends its whole allowance can still finalize honestly. */
+/* Read/write quotas are hard structural ceilings for one selected lane batch.
+   Shared overhead includes lease/control reads, queue claim, and the Options
+   table probe. Per-unit work includes its stable cursor, targeted observation/
+   cache reads, provider reservation, output write and any derived composition.
+   Three writes remain reserved for tick-result finalization and lease cleanup. */
 const ORB2_FIELD_SCHEDULER_LANE_D1_READS = 8;
 const ORB2_FIELD_SCHEDULER_LANE_D1_WRITES = 8;
 const ORB2_FIELD_SCHEDULER_SHARED_D1_READS = 16;
@@ -1945,25 +1937,22 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
   await persistMarketOutcome({ db, instrument, outcome, provider: persistProvider, now, summary });
 }
 
-/* ── parallel provider lanes ─────────────────────────────────────────── */
+/* ── serialized provider lanes ────────────────────────────────────────── */
 
 /** Each lane owns one durable cursor row; the lane id rides in the reason. */
 const laneCursorReason = laneId => `${SCHEDULER_FIELD_CURSOR_REASON}:${laneId}`;
 
-/* One task per lane. The bound is the fixed, reviewed lane list — it never
-   scales with roster size, so the fan-out is structurally bounded. */
-export const ORB2_FIELD_LANE_CONCURRENCY = ORB2_FIELD_LANE_COUNT;
+/* Retained for compatibility with callers/tests that inspect the reviewed lane
+   catalog. The dispatcher intentionally invokes only one lane per Cron tick. */
+export const ORB2_FIELD_LANE_CONCURRENCY = 1;
 
 /**
  * A lane-scoped view of the tick summary.
  *
- * The worker functions mutate exactly the fields they already mutated on the
- * tick summary, so they run unchanged against a recorder. The driver merges the
- * recorder back synchronously once the lane settles, which is what makes
- * concurrent lanes safe: `summary.massiveCalls += 1` from four Massive lanes at
- * once would otherwise be indistinguishable from one lane overspending its own
- * allowance, and the old `if (summary.massiveCalls > 0)` unit test would credit
- * the wrong lane.
+ * The worker functions mutate the fields they already mutated on the tick
+ * summary, so they run against a lane-local recorder. The driver merges that
+ * recorder after the selected lane settles, preserving per-lane accounting and
+ * preventing a failed provider task from corrupting the tick result.
  */
 function createLaneRecorder() {
   return {
@@ -2174,9 +2163,9 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
 /**
  * One scheduled beat. A durable weighted dispatch cursor selects one provider
  * lane per Cron invocation; each lane retains its own durable instrument cursor.
- * A completed tick therefore performs at most one unit, while a priority queue
- * row may preempt the selected slot without consuming it. Provider and cursor
- * work remain bounded and provider calls are never fanned out across lanes.
+ * The selected lane may perform its explicit serial batch, while a priority
+ * queue row may preempt the selected slot without consuming it. Provider calls
+ * never fan out across lanes, and each batch stops at its lane's stable-key wrap.
  */
 export async function runOrb2FieldTick(env = {}, context = null, dependencies = {}) {
   const now = nowOf(dependencies);
