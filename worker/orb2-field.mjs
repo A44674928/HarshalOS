@@ -878,7 +878,9 @@ const decodeCursorLane = lane => {
  * keeps the deployment from restarting every lane at item zero, which is exactly
  * the whole-field replay the ordinal anchor exists to prevent.
  */
-async function advanceFieldWorkCursor(db, items, now, cursorReason = SCHEDULER_FIELD_CURSOR_REASON) {
+async function advanceFieldWorkCursor(
+  db, items, now, cursorReason = SCHEDULER_FIELD_CURSOR_REASON, { stopBeforeWrap = false } = {}
+) {
   if (!Array.isArray(items) || !items.length) return { ok: false, empty: true };
   let row = await readSchedulerState(db, SCHEDULER_FIELD_CURSOR_SYMBOL, cursorReason);
   let seededFromLegacy = false;
@@ -931,6 +933,13 @@ async function advanceFieldWorkCursor(db, items, now, cursorReason = SCHEDULER_F
         selectedIndex = (lastIndex + 1) % items.length;
       }
     }
+  }
+  const wrapped = Boolean(row && selectedIndex === 0);
+  if (wrapped && stopBeforeWrap) {
+    /* A serial batch must not wrap and repeat early items just to fill its
+       request allowance. The cursor still points at the last completed item,
+       so the next Cron starts cleanly at item zero. */
+    return { ok: false, wrapped: true, stoppedAtWrap: true, reset: cursorRecovered, seededFromLegacy };
   }
   const item = items[selectedIndex];
   /* Persist the selected position before the provider call, so a crash between
@@ -2125,7 +2134,9 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
        selected, so the provider's sliding-window gate still sees one ordered
        request at a time and the crash guarantee is unchanged. */
     for (let unit = 0; unit < laneUnitBudget; unit += 1) {
-      const next = await advanceFieldWorkCursor(db, items, now, laneCursorReason(lane.id));
+      const next = await advanceFieldWorkCursor(db, items, now, laneCursorReason(lane.id), {
+        stopBeforeWrap: report.workUnits.length > 0
+      });
       if (next.reset) {
         report.cursorReset = true;
         recorder.notes.push(next.blocked
