@@ -253,7 +253,7 @@ function seedDispatchCursor(sql, { laneId, attempts, at = NOW, options = false }
   const count = list => Array.isArray(list)
     ? list.filter(entry => entry && /^[A-Z0-9._-]{1,24}$/.test(String(entry.symbol || ""))).length : 0;
   const futures = catalog.futures || catalog.commodities;
-  const weights = [
+  const rawWeights = [
     ["tickerbot-stocks", STOCK_SYMBOLS.length],
     ["kraken-crypto", CHARACTERS_CRYPTO_RANKING_SIZE + 1],
     ["massive-fx", count(catalog.fxCurrencies) || 23],
@@ -261,8 +261,24 @@ function seedDispatchCursor(sql, { laneId, attempts, at = NOW, options = false }
     ["massive-indices", count(catalog.indices) || 32],
     ["massive-options", options ? STOCK_SYMBOLS.length * 5 : 0]
   ];
-  const offset = Number.isSafeInteger(attempts) ? attempts
-    : weights.slice(0, weights.findIndex(([id]) => id === laneId)).reduce((total, [, size]) => total + size, 0);
+  const capacities = new Map(ORB2_FIELD_PROVIDER_LANES.map(lane => [lane.id, lane.maxWorkUnitsPerTick || 1]));
+  const weights = rawWeights.map(([id, size]) => [id, Math.ceil(size / (capacities.get(id) || 1))])
+    .filter(([, size]) => size > 0);
+  const total = weights.reduce((sum, [, size]) => sum + size, 0);
+  const current = weights.map(() => 0);
+  const schedule = [];
+  for (let turn = 0; turn < total; turn += 1) {
+    let chosen = -1;
+    for (let i = 0; i < weights.length; i += 1) {
+      current[i] += weights[i][1];
+      if (chosen < 0 || current[i] > current[chosen]) chosen = i;
+    }
+    current[chosen] -= total;
+    schedule.push(weights[chosen][0]);
+  }
+  const stockStart = schedule.indexOf("tickerbot-stocks");
+  if (stockStart > 0) schedule.push(...schedule.splice(0, stockStart));
+  const offset = Number.isSafeInteger(attempts) ? attempts : schedule.indexOf(laneId);
   assert.ok(offset >= 0, `dispatch lane ${laneId || ""} exists in the weighted schedule`);
   sql.prepare(`INSERT INTO orb2_field_queue
     (created_at, interval, symbol, reason, lane, claimed_at, attempts)
