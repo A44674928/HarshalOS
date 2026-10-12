@@ -2253,24 +2253,16 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        one work unit total. Priority queue work preempts a lane without advancing
        the durable dispatch pointer, so the selected regular slot resumes after
        the queue drains. */
-    const liveCatalog = globalThis.CharactersDiscCatalog || REVIEWED_SCHEDULER_CATALOG;
-    const catalogCount = (list, fallback) => Array.isArray(list)
-      ? list.filter(entry => entry && SYMBOL_PATTERN.test(String(entry.symbol || ""))).length
-      : fallback;
-    const fxCount = catalogCount(liveCatalog.fxCurrencies, SCHEDULER_FX_ROSTER_SIZE);
-    const futuresList = liveCatalog.futures || liveCatalog.commodities;
-    const futuresCount = catalogCount(Array.isArray(futuresList) ? futuresList.slice(0, 11) : futuresList,
-      SCHEDULER_FUTURES_ROSTER_SIZE);
-    /* Use the current catalog length, not a module-import snapshot. The public
-       Disc catalog may be refined independently, and the dispatch cycle must
-       match the worklist the lane actually builds on this invocation. */
-    const indexCount = catalogCount(liveCatalog.indices, SCHEDULER_INDEX_ROSTER_SIZE);
+    /* These counts are captured from the reviewed, import-time catalog above.
+       Do not re-filter a second copy of the catalog at dispatch time: the roster
+       builder and dispatcher must use the same reviewed denominator, otherwise
+       one Cron rotation can end before every instrument has been scheduled. */
     const activeLaneSizes = [
       { id: "tickerbot-stocks", count: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0 },
       { id: "kraken-crypto", count: CHARACTERS_CRYPTO_RANKING_SIZE + CHARACTERS_CRYPTO_CROSS_PAIR_SIZE },
-      { id: "massive-fx", count: keys.massive || keys.twelvedata ? fxCount : 0 },
-      { id: "massive-futures", count: keys.massive || keys.twelvedata ? futuresCount : 0 },
-      { id: "massive-indices", count: keys.massive || keys.twelvedata ? indexCount : 0 },
+      { id: "massive-fx", count: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0 },
+      { id: "massive-futures", count: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0 },
+      { id: "massive-indices", count: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0 },
       { id: "massive-options", count: optionsEnabled && keys.massive
         ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
     ].filter(entry => entry.count > 0);
