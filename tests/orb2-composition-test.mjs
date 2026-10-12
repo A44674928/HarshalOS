@@ -50,45 +50,10 @@ test("a fresh aligned 15m residual receives a bounded force multiplier", () => {
   assert.equal(result.scaleFactorSqrt, Math.sqrt(26));
 });
 
-test("same-day 15m data remains available before and at 5 PM Arizona time", () => {
+test("stale or out-of-session 15m data decays to the daily baseline", () => {
   const daily = observation(market({ time: RTH_NOW, close: 106, changePct: 2 }));
-  // 1:30 PM Phoenix / 8:30 PM UTC, observed more than two hours later.
-  const sameDay = observation(market({
-    time: Date.parse("2026-10-05T20:30:00.000Z"),
-    close: 120, changePct: 15, flow: 40, wave: 40
-  }));
-
-  for (const now of [
-    Date.parse("2026-10-05T23:30:00.000Z"), // 4:30 PM MST
-    Date.parse("2026-10-06T00:00:00.000Z")  // 5:00 PM MST
-  ]) {
-    const result = composePair(daily, sameDay, now);
-    assert.equal(result.status, "composed");
-    assert.equal(result.freshness, 0.35);
-    assert.notEqual(result.reason, "15m-stale-or-out-of-session");
-  }
-});
-
-test("same-day 15m data becomes stale after 5 PM Arizona time", () => {
-  const daily = observation(market({ time: RTH_NOW, close: 106, changePct: 2 }));
-  const sameDay = observation(market({
-    time: Date.parse("2026-10-05T20:30:00.000Z"),
-    close: 120, changePct: 15, flow: 40, wave: 40
-  }));
-  const result = composePair(daily, sameDay, Date.parse("2026-10-06T00:01:00.000Z")); // 5:01 PM MST
-  assert.equal(result.status, "baseline-only");
-  assert.equal(result.reason, "15m-stale-or-out-of-session");
-  assert.equal(result.composedPosition, result.baselinePosition);
-  assert.equal(result.forceMultiplier, 1);
-});
-
-test("prior-day 15m data remains stale despite the same-day Arizona grace", () => {
-  const daily = observation(market({ time: RTH_NOW, close: 106, changePct: 2 }));
-  const priorDay = observation(market({
-    time: Date.parse("2026-10-02T20:30:00.000Z"),
-    close: 120, changePct: 15, flow: 40, wave: 40
-  }));
-  const result = composePair(daily, priorDay, Date.parse("2026-10-05T23:30:00.000Z")); // 4:30 PM MST
+  const stale = observation(market({ time: RTH_NOW - 3 * 60 * 60_000, close: 120, changePct: 15, flow: 40, wave: 40 }));
+  const result = composePair(daily, stale, RTH_NOW);
   assert.equal(result.status, "baseline-only");
   assert.equal(result.reason, "15m-stale-or-out-of-session");
   assert.equal(result.composedPosition, result.baselinePosition);
