@@ -761,7 +761,8 @@ test("priority work claims one row per tick and never mistakes cursor sentinels 
      resumed from the seeded key and persisted the item it then ran. The lane
      value is URI-encoded. */
   assert.equal(readLaneCursor(sql, "tickerbot-stocks").lane,
-    `cursor:${encodeURIComponent(`tickerbot:1d:${STOCK_SYMBOLS[1]}`)}`);
+    `cursor:${encodeURIComponent(`tickerbot:1d:${STOCK_SYMBOLS[12]}`)}`,
+    "the first work unit resumes at the seeded key, and the remaining eleven units advance serially");
 });
 
 test("scheduled D1 reads stay targeted and row-capped when the observations table is large", async t => {
@@ -1601,6 +1602,7 @@ test("failed work advances its lane cursor, records a held berth, and respects c
   assert.ok(fxRow, "a provider failure is stored against its selected instrument");
   assert.equal(JSON.parse(fxRow.payload).status, "unavailable");
 
+  seedDispatchCursor(sql, { laneId: "massive-fx", at: at + 60_000 });
   const nextTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
   assert.equal(nextTick.ok, true, nextTick.errors.join(" "));
   assert.match(nextTick.workUnit || "", /^massive:fx:/);
