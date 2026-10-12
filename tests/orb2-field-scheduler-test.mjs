@@ -1006,9 +1006,8 @@ test("cold warm-up restores its cursor after a provider preflight refusal with n
   const refused = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(refused.workUnit, "warm:15m:NVDA");
   assert.equal(refused.warmProgressed, 0);
-  /* Scoped to the Tickerbot lane: the other lanes draw from Kraken and Massive
-     envelopes the exhausted Tickerbot ledger says nothing about, so they still
-     run. What must not happen is a Tickerbot request. */
+  /* The serial scheduler records the refusal and releases the dispatch slot;
+     it does not make any upstream Tickerbot request. */
   assert.equal(refused.tickerbotCalls, 0);
   assert.equal(refused.lanes["tickerbot-stocks"].providerCalls, 0);
   assert.deepEqual(seen.tickerbot, [], "the exhausted allowance is checked before fetch");
@@ -1017,13 +1016,14 @@ test("cold warm-up restores its cursor after a provider preflight refusal with n
   assert.equal(cursor.attempts, 0, "a no-attempt preflight refusal does not consume warm progress");
 
   sql.prepare("DELETE FROM tickerbot_call_ledger WHERE utc_month='2026-10'").run();
+  seedDispatchCursor(sql, { laneId: "tickerbot-stocks", at: at + 60_000 });
   const admitted = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(admitted.workUnit, "warm:15m:NVDA", "the same work item resumes after admission is available");
-  assert.equal(admitted.warmProgressed, 1);
-  assert.equal(admitted.tickerbotCalls, 1, "one admitted warm unit costs exactly one Tickerbot request");
-  assert.deepEqual(seen.tickerbot, ["NVDA:15m"]);
+  assert.equal(admitted.workUnit, "warm:15m:NVDA", "the same cursor position resumes on the next stock turn");
+  assert.equal(admitted.warmProgressed, 12);
+  assert.equal(admitted.tickerbotCalls, 12, "the admitted Tickerbot turn spends its bounded serial batch");
+  assert.equal(seen.tickerbot.length, 12);
   cursor = sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get();
-  assert.equal(cursor.attempts, 1);
+  assert.equal(cursor.attempts, 12);
 });
 
 test("an attempted warm-up failure advances one unit and does not replay the cold batch", async t => {
@@ -1043,18 +1043,22 @@ test("an attempted warm-up failure advances one unit and does not replay the col
   };
   const failed = await runOrb2FieldTick(env, null, { now: () => at, fetch });
   assert.equal(failed.workUnit, "warm:15m:NVDA");
-  assert.equal(failed.warmProgressed, 1, "an actual attempted upstream refusal is recorded and advanced");
-  assert.equal(failed.tickerbotCalls, 1, "the attempted refusal did reach the provider exactly once");
+  assert.equal(failed.warmProgressed, 12, "an attempted upstream refusal advances its cursor, and the rest of the serial batch continues");
+  assert.equal(failed.tickerbotCalls, 12, "the failed item and eleven later units are attempted sequentially");
   assert.ok(failed.held >= 1, "the attempted refusal is represented by a bounded held berth");
   const held = sql.prepare("SELECT status, provider FROM orb2_field_observations WHERE symbol='NVDA' AND interval='15m'").get();
   assert.equal(held.status, "unavailable");
   assert.equal(held.provider, "tickerbot");
 
+  seedDispatchCursor(sql, { laneId: "tickerbot-stocks", at: at + 60_000 });
   const following = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch });
-  assert.equal(following.workUnit, "warm:15m:AAPL");
-  assert.equal(following.warmProgressed, 1);
-  assert.deepEqual(seen.attempts, ["NVDA:15m", "AAPL:15m"], "the failing first unit is not replayed as a whole-batch retry");
-  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get().attempts, 2);
+  assert.equal(following.workUnit, `warm:15m:${TICKERBOT_WATCHLIST[12].symbol}`);
+  assert.equal(following.warmProgressed, 12);
+  assert.equal(seen.attempts.length, 24);
+  assert.deepEqual(seen.attempts.slice(0, 12), TICKERBOT_WATCHLIST.slice(0, 12).map(entry => `${entry.symbol}:15m`));
+  assert.deepEqual(seen.attempts.slice(12, 24), TICKERBOT_WATCHLIST.slice(12, 24).map(entry => `${entry.symbol}:15m`),
+    "the failed first unit is not replayed and sequential progress remains ordered");
+  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get().attempts, 24);
 });
 
 test("automatic cold warm-up advances one durable unit on each Tickerbot slot without a 156-row burst", async t => {
@@ -1067,18 +1071,18 @@ test("automatic cold warm-up advances one durable unit on each Tickerbot slot wi
   for (; ticks < maxTicks && progressed < ORB2_FIELD_TICKERBOT_BURST_CALLS; ticks += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + ticks * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, summary.errors.join(" "));
-    assert.ok(summary.warmProgressed === 0 || summary.warmProgressed === 1);
-    if (summary.warmProgressed === 1) {
-      progressed += 1;
-      assert.equal(summary.tickerbotCalls, 1);
-      assert.equal(summary.workUnitsByLane.get("tickerbot-stocks"), 1);
+    assert.ok(summary.warmProgressed >= 0 && summary.warmProgressed <= 12);
+    if (summary.warmProgressed > 0) {
+      progressed += summary.warmProgressed;
+      assert.equal(summary.tickerbotCalls, summary.warmProgressed);
+      assert.equal(summary.workUnitsByLane.get("tickerbot-stocks"), summary.warmProgressed);
       assert.match(summary.workUnit || "", /^warm:/);
     }
     assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
       assert.ok((summary.workUnitsByLane.get(laneId) || 0) <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK,
-        `the ${laneId} lane spends at most one unit per scheduled minute`);
+        `the ${laneId} lane stays within its reviewed serial batch capacity`);
     }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
