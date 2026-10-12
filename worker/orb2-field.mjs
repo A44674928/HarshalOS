@@ -1257,6 +1257,14 @@ async function resolveQueueRow(db, id, { keep }) {
   await db.prepare("DELETE FROM orb2_field_queue WHERE id = ?").bind(id).run();
 }
 
+/* A refused/failed priority item remains durable but must not preempt every Cron
+   tick. Reusing claimed_at as a bounded backoff keeps the deployed schema stable;
+   claimQueue's existing lease predicate makes it eligible after delay + lease. */
+async function deferQueueRow(db, id, now, delayMs = 5 * 60_000) {
+  await db.prepare("UPDATE orb2_field_queue SET claimed_at = ? WHERE id = ? AND lane IN ('hot', 'sweep')")
+    .bind(now + delayMs, id).run();
+}
+
 async function hasPendingQueue(db, at = Date.now()) {
   const row = await db.prepare(`SELECT 1 AS pending FROM orb2_field_queue
     WHERE lane IN ('hot', 'sweep') AND (claimed_at IS NULL OR claimed_at < ?) LIMIT 1`)
@@ -1835,7 +1843,7 @@ async function processQueuedTickerbotJob({ db, env, job, now, fetcher, keys, sum
     await resolveQueueRow(db, job.id, { keep: Number(job.attempts) < ORB2_FIELD_MAX_QUEUE_ATTEMPTS });
     return;
   }
-  await processTickerbotUnit({
+  return processTickerbotUnit({
     db, env, instrument, interval: job.interval, reason: job.reason,
     now, fetcher, keys, summary, queueJob: job
   });
@@ -2301,6 +2309,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         summary.queueClaimed = 1;
         const callsBefore = summary.tickerbotCalls;
         const queuedOutcome = await processQueuedTickerbotJob({ db, env: scopedEnv, job, now, fetcher, keys, summary });
+        if (!queuedOutcome?.ok) await deferQueueRow(db, job.id, now);
         summary.lanes["tickerbot-stocks"] = {
           ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
           workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
