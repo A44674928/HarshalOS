@@ -297,3 +297,35 @@ test("a failed index shows an error and a retry control", async (t) => {
   assert.match(body.querySelector(".pnl-error").textContent, /Could not load the trade logs/);
   assert.ok(body.querySelector(".pnl-refresh"));
 });
+
+test("subtotals split crypto from stocks and other assets, and the combined total still adds both", () => {
+  const ledger = ledgerFor([
+    { ticker: "AAA", assetClass: "Stocks & other", text: [line("2026-09-03", "06:30", "LONG", "100.00", 1), exitLine("2026-09-10", "13:00", "TAKE PROFIT", "150.00")].join("\n") },
+    { ticker: "BTC", assetClass: "Crypto", text: [line("2026-09-03", "06:30", "LONG", "1000.00", 1), line("2026-09-10", "06:30", "LONG", "1200.00", 1)].join("\n") }
+  ]);
+  assert.equal(plain(ledger.byClass["Stocks & other"]).realized, 50);
+  assert.equal(plain(ledger.byClass["Stocks & other"]).unrealized, 0);
+  assert.equal(plain(ledger.byClass.Crypto).realized, 0);
+  assert.equal(plain(ledger.byClass.Crypto).unrealized, 200);
+  assert.equal(plain(ledger.byClass.Crypto).openLots, 2);
+  assert.equal(plain(ledger.totals).total, 250);
+});
+
+test("the P/L table groups crypto separately from stocks using the index labels", async (t) => {
+  const files = {
+    "AAA.txt": [line("2026-09-03", "06:30", "LONG", "100.00", 1), exitLine("2026-09-10", "13:00", "TAKE PROFIT", "150.00")].join("\n"),
+    "BTC.txt": [line("2026-09-03", "06:30", "LONG", "1000.00", 1), line("2026-09-10", "06:30", "LONG", "1200.00", 1)].join("\n")
+  };
+  const indexBody = "AAA | ETF · one\nBTC | CRYPTO · Bitcoin / U.S. Dollar, Bitstamp\n";
+  const { body } = mount(t, files, { indexBody });
+  await flushUntil(() => body.querySelector(".pnl-by-class") && body.querySelector(".pnl-by-class tbody tr"));
+
+  const classRows = [...body.querySelectorAll(".pnl-by-class tbody tr")].map(row => [...row.querySelectorAll("td")].map(cell => cell.textContent));
+  assert.deepEqual(classRows, [
+    ["Stocks & other", "0", "+$50.00", "$0.00", "+$50.00"],
+    ["Crypto", "2", "$0.00", "+$200.00", "+$200.00"],
+    ["All", "2", "+$50.00", "+$200.00", "+$250.00"]
+  ]);
+  const tickerRows = [...body.querySelectorAll(".pnl-by-ticker tbody tr")].map(row => row.querySelectorAll("td")[1].textContent);
+  assert.deepEqual(tickerRows, ["Stocks & other", "Crypto"]);
+});

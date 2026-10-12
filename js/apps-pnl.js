@@ -75,6 +75,13 @@
 
   const round = value => Math.round(value * 1e6) / 1e6;
 
+  // Asset classes for subtotals. trades/index.txt labels crypto with "CRYPTO" in its description;
+  // everything else (stocks, ETFs, commodity ETCs such as XRH0) is grouped as "Stocks & other".
+  const ASSET_CLASS_CRYPTO = "Crypto";
+  const ASSET_CLASS_OTHER = "Stocks & other";
+  const ASSET_CLASSES = [ASSET_CLASS_OTHER, ASSET_CLASS_CRYPTO];
+  const assetClassOf = description => (/\bCRYPTO\b/.test(description || "") ? ASSET_CLASS_CRYPTO : ASSET_CLASS_OTHER);
+
   // Builds the ledger for one ticker. Events are processed in timestamp order (stable for ties).
   function ledgerForTicker(ticker, parsedLines) {
     const events = parsedLines.filter(line => line.kind === "trade").slice().sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
@@ -180,21 +187,28 @@
       const parsed = parseLog(log.text, log.ticker);
       const ledger = ledgerForTicker(log.ticker, parsed);
       rows.push(...ledger.rows);
-      if (ledger.summary.lines > 0 || ledger.rows.length > 0) summaries.push(ledger.summary);
+      if (ledger.summary.lines > 0 || ledger.rows.length > 0) {
+        summaries.push({ ...ledger.summary, assetClass: log.assetClass || ASSET_CLASS_OTHER });
+      }
     }
     rows.sort((a, b) => {
       if (a.stamp !== b.stamp) return a.stamp < b.stamp ? -1 : 1;
       return a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0;
     });
     summaries.sort((a, b) => (a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0));
-    const totals = summaries.reduce((acc, summary) => ({
+    const sumOf = list => list.reduce((acc, summary) => ({
       realized: round(acc.realized + summary.realized),
       unrealized: round(acc.unrealized + summary.unrealized),
       total: round(acc.total + summary.total),
       openLots: acc.openLots + summary.openLots,
       lines: acc.lines + summary.lines
     }), { realized: 0, unrealized: 0, total: 0, openLots: 0, lines: 0 });
-    return { rows, summaries, totals };
+    const totals = sumOf(summaries);
+    const byClass = Object.fromEntries(ASSET_CLASSES.map(assetClass => [
+      assetClass,
+      sumOf(summaries.filter(summary => summary.assetClass === assetClass))
+    ]));
+    return { rows, summaries, totals, byClass };
   }
 
   const money = (value, { signed = false } = {}) => {
@@ -228,7 +242,7 @@
         if (response.status === 404) return;
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = String(await response.text()).replace(/^\uFEFF/, "");
-        if (text.trim()) logs.push({ ticker: entry.ticker, text });
+        if (text.trim()) logs.push({ ticker: entry.ticker, text, assetClass: assetClassOf(entry.description) });
       } catch {
         failed.push(entry.ticker);
       }
@@ -293,17 +307,34 @@
     status.textContent = `Loaded ${indexCount} listed tickers; ${ledger.summaries.length} with trades.${invalidCount ? ` ${invalidCount} invalid index line(s) skipped.` : ""}${failed.length ? ` Could not load: ${failed.join(", ")}.` : ""}`;
     body.appendChild(status);
 
+    body.appendChild(el("h3", "pnl-heading", "By asset class"));
+    body.appendChild(table(
+      [
+        { label: "Asset class" }, { label: "Open lots" }, { label: "Realized" }, { label: "Open" }, { label: "Total" }
+      ],
+      [...ASSET_CLASSES.map(assetClass => ({ name: assetClass, t: ledger.byClass[assetClass] })), { name: "All", t: ledger.totals }]
+        .map(({ name, t }) => [
+          { text: name, className: "pnl-ticker" },
+          { text: String(t.openLots) },
+          { text: money(t.realized, { signed: true }), className: signClass(t.realized) },
+          { text: money(t.unrealized, { signed: true }), className: signClass(t.unrealized) },
+          { text: money(t.total, { signed: true }), className: signClass(t.total) }
+        ]),
+      "pnl-by-class"
+    ));
+
     body.appendChild(el("h3", "pnl-heading", "By ticker"));
     if (!ledger.summaries.length) {
       body.appendChild(el("p", "pnl-empty", "No trades logged yet."));
     } else {
       body.appendChild(table(
         [
-          { label: "Ticker" }, { label: "Lines" }, { label: "Open lots" },
+          { label: "Ticker" }, { label: "Asset class" }, { label: "Lines" }, { label: "Open lots" },
           { label: "Realized" }, { label: "Open" }, { label: "Total" }, { label: "Last logged" }
         ],
         ledger.summaries.map(s => [
           { text: s.ticker, className: "pnl-ticker" },
+          { text: s.assetClass },
           { text: String(s.lines) },
           { text: String(s.openLots) },
           { text: money(s.realized, { signed: true }), className: signClass(s.realized) },
