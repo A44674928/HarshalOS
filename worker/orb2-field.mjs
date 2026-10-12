@@ -136,10 +136,10 @@ export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
 
 /* ── provider lanes ───────────────────────────────────────────────────────
  *
- * A lane is one independently rate-limited provider envelope. Lanes run in
- * PARALLEL with each other because spending an allowance in one cannot spend an
- * allowance in another; work inside a lane stays SEQUENTIAL because that is what
- * keeps the envelope meaningful.
+ * A lane is one independently rate-limited provider envelope. Only one lane is
+ * dispatched per Cron invocation. Its bounded units are processed SEQUENTIALLY;
+ * per-lane limits mirror the provider's actual request envelope, not an assumed
+ * universal one-request rule.
  *
  *   tickerbot-stocks   Tickerbot            UTC-month ledger
  *   kraken-crypto      Kraken public Spot    one request/second + UTC-day ceiling
@@ -161,6 +161,7 @@ export const ORB2_FIELD_MAX_PRIORITY_SYMBOLS = 12;
 export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
   Object.freeze({
     id: "tickerbot-stocks", provider: "tickerbot", assetClass: null, maxProviderCallsPerUnit: 1,
+    maxWorkUnitsPerTick: 12,
     /* Which reviewed worklist keys this lane's partition is drawn from. Scoping
        the keys per lane keeps `scheduledWorkItems` the single source of truth
        for the reviewed worklist while each lane materializes only its own
@@ -179,10 +180,12 @@ export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
   }),
   Object.freeze({
     id: "massive-futures", provider: "massive", assetClass: "futures", maxProviderCallsPerUnit: 1,
+    maxWorkUnitsPerTick: 5,
     worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: false
   }),
   Object.freeze({
     id: "massive-indices", provider: "massive", assetClass: "indices", maxProviderCallsPerUnit: 1,
+    maxWorkUnitsPerTick: 5,
     worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: false
   }),
   Object.freeze({
@@ -198,18 +201,21 @@ export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
     worklistKeys: Object.freeze({ tickerbot: false, massive: true }), worklistOptions: true
   })
 ]);
-/** One work unit per tick for every lane unless the lane documents otherwise. */
-const laneWorkUnits = () => 1;
+/** Provider-reviewed serial batch bound for this lane. */
+const laneWorkUnits = lane => Number.isSafeInteger(lane && lane.maxWorkUnitsPerTick) &&
+  lane.maxWorkUnitsPerTick > 0 ? lane.maxWorkUnitsPerTick : 1;
 /** A lane's whole-tick provider ceiling: its units times its per-unit ceiling.
    Named apart from the per-lane counter inside `runProviderLane`, which would
    otherwise shadow it. */
 const laneCallCeilingFor = lane => laneWorkUnits(lane) * lane.maxProviderCallsPerUnit;
 export const ORB2_FIELD_LANE_COUNT = ORB2_FIELD_PROVIDER_LANES.length;
-/** Default units per lane per scheduled minute; a lane may document more. */
-export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK = 1;
-/** One provider work unit is the hard per-invocation scheduler ceiling. */
-export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = 1;
-/** One unit may use the FX adapter's reviewed two-request fallback sequence. */
+/** Maximum serial units any reviewed lane may spend in one invocation. */
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK = Math.max(
+  ...ORB2_FIELD_PROVIDER_LANES.map(lane => laneWorkUnits(lane))
+);
+/** One lane per tick; that lane may spend only its documented serial batch. */
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK;
+/** The maximum provider calls for one serial lane batch, including FX fallback. */
 export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = Math.max(
   ...ORB2_FIELD_PROVIDER_LANES.map(lane => laneCallCeilingFor(lane))
 );
@@ -230,9 +236,9 @@ const ORB2_FIELD_SCHEDULER_LANE_D1_WRITES = 8;
 const ORB2_FIELD_SCHEDULER_SHARED_D1_READS = 16;
 const ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES = 8;
 export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = ORB2_FIELD_SCHEDULER_SHARED_D1_READS +
-  ORB2_FIELD_SCHEDULER_LANE_D1_READS;
+  ORB2_FIELD_SCHEDULER_LANE_D1_READS * ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK;
 export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES +
-  ORB2_FIELD_SCHEDULER_LANE_D1_WRITES;
+  ORB2_FIELD_SCHEDULER_LANE_D1_WRITES * ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK;
 const ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES = 3;
 const ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
