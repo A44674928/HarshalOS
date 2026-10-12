@@ -79,10 +79,11 @@
   // Secrets are configured in Cloudflare, not in this file.
   "vars": {
     "MONGODB_DATABASE": "harshalos",
-    // Enablement decision. Explicit file values win over dashboard text variables.
-    // Requires the dashboard origin/OIDC variables and secrets, applied migrations,
-    // and a configured moderator before the feature is actually usable.
-    "COMMUNITY_ENABLED": "true",
+    // Sole private use: community publication disabled so the site renders
+    // Orb 2 field only. COMMUNITY_DB binding stays for the field itself.
+    // Set ACCESS_TEAM_DOMAIN/ACCESS_AUD/OWNER_EMAIL secrets and an Access
+    // app for main.empty.domains/* to gate the whole site to one email.
+    "COMMUNITY_ENABLED": "false",
     "COMMUNITY_ORIGIN": "https://main.empty.domains",
     "OIDC_ADMIN_SUBJECTS": "auth0|6ac0807a3d49089da60ed21e",
     "OIDC_CLIENT_ID": "44b3124PsQvzfGQ7YOxG7bhagGWrNsxl",
