@@ -251,7 +251,7 @@ function seedFieldCursor(sql, key, { attempts = 1, at = NOW } = {}) {
 function seedDispatchCursor(sql, { laneId, attempts, at = NOW, options = false } = {}) {
   const catalog = globalThis.CharactersDiscCatalog || {};
   const count = list => Array.isArray(list)
-    ? list.filter(entry => entry && /^[A-Z0-9._-]{1,24}$/.test(String(entry.symbol || ""))).length : 0;
+    ? list.filter(entry => entry && /^[A-Z0-9][A-Z0-9._:/-]{0,31}$/.test(String(entry.symbol || ""))).length : 0;
   const futures = catalog.futures || catalog.commodities;
   const rawWeights = [
     ["tickerbot-stocks", STOCK_SYMBOLS.length],
