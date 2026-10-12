@@ -2294,6 +2294,13 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       laneCurrentWeights[chosen] -= scheduleLength;
       dispatchSchedule.push(ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === laneWeights[chosen].id) || null);
     }
+    /* Start cold boots with Tickerbot's known 12-beat lane, then preserve the
+       smooth distribution for the remaining turns in the cycle. */
+    const stockStart = dispatchSchedule.findIndex(lane => lane?.id === "tickerbot-stocks");
+    if (stockStart > 0) {
+      const prefix = dispatchSchedule.splice(0, stockStart);
+      dispatchSchedule.push(...prefix);
+    }
     const selectedLane = dispatchCursor.ok && dispatchSchedule.length
       ? dispatchSchedule[dispatchCursor.attempts % dispatchSchedule.length] || null
       : null;
