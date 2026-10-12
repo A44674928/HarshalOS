@@ -1064,7 +1064,9 @@ test("automatic cold warm-up advances one durable unit on each Tickerbot slot wi
   const at = nextClock();
   let progressed = 0;
   let ticks = 0;
-  const maxTicks = ORB2_FIELD_TICKERBOT_BURST_CALLS * 4;
+  /* Three base rotations provide 15 Tickerbot lane turns; 13 turns are
+     sufficient to process all 156 warm items at 12 serial units per turn. */
+  const maxTicks = 3 * 91;
   for (; ticks < maxTicks && progressed < ORB2_FIELD_TICKERBOT_BURST_CALLS; ticks += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + ticks * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, summary.errors.join(" "));
