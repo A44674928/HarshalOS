@@ -688,7 +688,7 @@ test("a stale cursor resumes from its durable ordinal; corrupt cursor state bloc
   assert.equal(readLaneCursor(corrupted.sql, stockLane).lane, "cursor:blocked-v1");
 });
 
-test("successful cold futures discovery retains the dispatch slot until an instrument bar is fetched", async t => {
+test("successful cold futures discovery is accounted and can fetch a bar in the same serial turn", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], contracts: [] };
   const at = nextClock();
@@ -698,24 +698,20 @@ test("successful cold futures discovery retains the dispatch slot until an instr
     "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
   ).get().attempts;
 
-  const discovery = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
-  assert.equal(discovery.ok, true, discovery.errors.join(" "));
-  assert.equal(discovery.workUnit, "massive:futures-contract-discovery");
-  assert.equal(discovery.workUnits, 1);
+  const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
+  assert.equal(summary.ok, true, summary.errors.join(" "));
+  assert.equal(summary.workUnit, "massive:futures-contract-discovery",
+    "the leading work unit clearly identifies the discovery request");
+  assert.equal(summary.workUnits, 2, "one discovery request and one commodity-bar request fit in the selected lane's budget");
+  assert.deepEqual(summary.workUnitsList, ["massive:futures-contract-discovery", "massive:futures:WTI"]);
   assert.deepEqual(seen.contracts, ["CL"]);
+  assert.ok(seen.massive.includes("CLX6"), "the newly verified active contract receives its bar immediately");
+  assert.equal(summary.lanes["massive-futures"].providerCalls, 2);
+  assert.equal(summary.workUnitsByLane.get("massive-futures"), 2);
   assert.equal(sql.prepare(
     "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
-  ).get().attempts, selectedOrdinal,
-  "a successful contract lookup is preparatory work, so the same lane gets its instrument slot next");
-
-  const bars = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(bars.ok, true, bars.errors.join(" "));
-  assert.equal(bars.workUnit, "massive:futures:WTI");
-  assert.equal(bars.workUnits, 1);
-  assert.ok(seen.massive.includes("CLX6"), "the active dated futures contract receives its own bar request");
-  assert.equal(sql.prepare(
-    "SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__' AND reason='dispatch-cursor-v1'"
-  ).get().attempts, selectedOrdinal + 1);
+  ).get().attempts, selectedOrdinal + 1,
+  "the selected lane turn finishes and regular rotation moves on without starving other Discs");
 });
 
 test("priority work claims one row per tick and never mistakes cursor sentinels for queue jobs", async t => {
