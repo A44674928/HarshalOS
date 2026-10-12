@@ -65,13 +65,15 @@ test('encoded, separator, case, and traversal variants stay outside the Assets p
   assert.deepEqual(assetCalls, [], 'encoded metadata probes must not enter Assets.fetch');
 });
 
-test('ordinary public routes still use the Assets binding', async () => {
+test('ordinary public routes and static Trades files still use the Assets binding', async () => {
   const assetCalls = [];
-  const env = assetTrap(assetCalls, () => new Response('public index', { status: 200 }));
-  const response = await worker.fetch(new Request(ORIGIN + '/index.html'), env);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), 'public index');
-  assert.deepEqual(assetCalls, ['/index.html']);
+  const env = assetTrap(assetCalls, () => new Response('public static asset', { status: 200 }));
+  for (const path of ['/index.html', '/trades/index.txt?refresh=123']) {
+    const response = await worker.fetch(new Request(ORIGIN + path), env);
+    assert.equal(response.status, 200, path);
+    assert.equal(await response.text(), 'public static asset');
+  }
+  assert.deepEqual(assetCalls, ['/index.html', '/trades/index.txt'], "Trades files remain ordinary static assets, not an API route");
 });
 
 test('Community page aliases fetch extensionless canonical assets and avoid HTML redirect loops', async () => {

@@ -17,8 +17,9 @@
    index.html, about.html, Community publisher pages, css/, js/, assets/, the versioned specs/ the
    Ground-0 app fetches at runtime, the selected Book I document at
    /book/01-core-book.md, the curated Harshal's Systems Markdown library at
-   /book-library/, and the plaintext chapters of manuscript/ — everything
-   else is a plain 404 that does not admit what exists.
+   /book-library/, the plaintext chapters of manuscript/, and the read-only
+   trade files under trades/ — everything else is a plain 404 that does not
+   admit what exists.
 
    The manuscript index is not a checked-in file: it is built from the
    chapter files on request, so dropping a new .txt into
@@ -110,7 +111,8 @@ const SERVED = [
   /^\/book-library\/manifest\.json$/,
   BOOK_LIBRARY_FILE_PATH,                    // curated Markdown subtree only
   /^\/specs\/(?:normative\/[A-Za-z0-9._-]+\.(?:md|json)|draft\/[A-Za-z0-9._-]+\.md)$/,
-  /^\/manuscript\/[A-Za-z0-9._/-]+$/      // manifest.json and public chapters only
+  /^\/manuscript\/[A-Za-z0-9._/-]+$/,     // manifest.json and public chapters only
+  /^\/trades\/[A-Za-z0-9][A-Za-z0-9._-]*\.txt$/ // public index and ticker logs
 ];
 const MANUSCRIPT_MANIFEST_PATH = "/manuscript/manifest.json";
 const MANUSCRIPT_CHAPTER_PATH = /^\/manuscript\/([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:txt|md))$/i;
