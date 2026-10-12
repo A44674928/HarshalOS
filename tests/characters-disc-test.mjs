@@ -43,19 +43,22 @@ test("the five reviewed Discs expose only their assigned providers and intervals
   assert.equal(Catalog.disc("indices").defaultProvider, "massive");
   assert.deepEqual(Catalog.disc("indices").intervalModes, ["1d"]);
   const indices = Catalog.staticInstruments("indices");
-  const expectedIndices = ["NDX","COMP","DJT","DJU","BKX","SOX","REIT","BANK","DJUSEN","DJUSFI","DJUSHC","DJUSIN","DJUSTC","DJUSUT","DJUSCN","DJUSCS","DJUSRE","DJUSRT","DJUSFN","DJUSFV","DJUSAP","DJUSBK","DJUSBS","DJUSCH","DJUSIG","DJUSIR","DJUSME","DJUSNG","DJUSFB","DJUSCG","DJUSAE","DJUSTL","DJUSCR","DJUSCA","DJUSAI","DJUSNS","DJAUS","CADOW","CHDOW","DEDOW","FRDOW","GBDOW","HKDOW","JPDOW","DWAEM","DWAMLVEM","GRNENEF","GRNWINDX","GRNEUROPE","NDXESG","NDXDIV","DEFENSE"];
-  assert.equal(indices.length, 52);
+  // Massive Basic does not authorize DJT/DJU/REIT and the DJUS* sector/industry
+  // slice that was held as `massive-plan-limited`. They are removed from the
+  // reviewed roster so the server field does not spend a held row on them.
+  const expectedIndices = ["NDX","COMP","BKX","SOX","BANK","DJUSIR","DJUSME","DJUSNG","DJUSFB","DJUSCG","DJUSAE","DJUSTL","DJUSCR","DJUSCA","DJUSAI","DJUSNS","DJAUS","CADOW","CHDOW","DEDOW","FRDOW","GBDOW","HKDOW","JPDOW","DWAEM","DWAMLVEM","GRNENEF","GRNWINDX","GRNEUROPE","NDXESG","NDXDIV","DEFENSE"];
+  assert.equal(indices.length, 32);
   assert.deepEqual(indices.map(entry => entry.symbol), expectedIndices);
-  assert.equal(new Set(indices.map(entry => entry.symbol)).size, 52);
+  assert.equal(new Set(indices.map(entry => entry.symbol)).size, 32);
   assert.ok(!indices.some(entry => ["SPX", "DJI", "RUT", "VIX"].includes(entry.symbol)),
-    "Disc5 does not reintroduce non-Basic familiar indices outside the reviewed 52-card roster");
+    "Disc5 does not reintroduce non-Basic familiar indices outside the reviewed roster");
   assert.ok(indices.every(entry => entry.assetClass === "index" && entry.dataShape === "ohlc"));
   assert.ok(indices.every(entry => entry.massive.family === "aggs" && entry.massive.ticker === `I:${entry.symbol}`));
-  assert.deepEqual(indices.slice(0, 8).map(entry => entry.sector), Array(8).fill("U.S. headline / structural"));
-  assert.deepEqual(indices.slice(8, 20).map(entry => entry.sector), Array(12).fill("U.S. sector architecture"));
-  assert.deepEqual(indices.slice(20, 36).map(entry => entry.sector), Array(16).fill("U.S. industry / subindustry"));
-  assert.deepEqual(indices.slice(36, 44).map(entry => entry.sector), Array(8).fill("International / regional"));
-  assert.deepEqual(indices.slice(44, 52).map(entry => entry.sector), Array(8).fill("Thematic / factor / specialty"));
+  // 32 = 5 headline + 11 industry/subindustry + 8 international/regional + 8 thematic
+  assert.deepEqual(indices.slice(0, 5).map(entry => entry.sector), Array(5).fill("U.S. headline / structural"));
+  assert.deepEqual(indices.slice(5, 16).map(entry => entry.sector), Array(11).fill("U.S. industry / subindustry"));
+  assert.deepEqual(indices.slice(16, 24).map(entry => entry.sector), Array(8).fill("International / regional"));
+  assert.deepEqual(indices.slice(24, 32).map(entry => entry.sector), Array(8).fill("Thematic / factor / specialty"));
 });
 
 test("Disc4 keeps its reviewed Massive product roster and energy equities remain Disc1 stocks", () => {

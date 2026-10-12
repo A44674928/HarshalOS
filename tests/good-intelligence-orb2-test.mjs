@@ -1175,7 +1175,7 @@ test("held futures and index rows are not labelled active and carry no simulated
   const commodityChip = host.querySelector('[data-gi-orb2-orb="commodities"]');
   const indexChip = host.querySelector('[data-gi-orb2-orb="indices"]');
   assert.match(commodityChip.textContent, /0\/11 active · 11 held/);
-  assert.match(indexChip.textContent, /0\/52 active · 52 held/);
+  assert.match(indexChip.textContent, /0\/32 active · 32 held/);
   assert.equal(commodityChip.classList.contains("is-empty"), true);
   assert.equal(indexChip.classList.contains("is-empty"), true);
   let guard = 0;

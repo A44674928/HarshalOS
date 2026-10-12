@@ -13,7 +13,19 @@ test('production retains its identity and explicit public community OIDC configu
   assert.equal(production.name, 'harshalos');
   assert.equal(production.keep_vars, true);
   // The enablement decision: explicit file value, so a dashboard 'false' cannot win.
-  assert.equal(production.vars.COMMUNITY_ENABLED, 'true');
+  // Private sole-use (COMMUNITY_ENABLED=false) is valid when the site is gated
+  // by Cloudflare Access for one email and Twelve Data free (800/day 8/min,
+  // personal/internal only, Basic/Grow/Pro internal, Venture+ for public) is
+  // the venue. See wrangler.jsonc vars comment and docs for that mode.
+  assert.ok(['true', 'false'].includes(production.vars.COMMUNITY_ENABLED),
+    'COMMUNITY_ENABLED must be true (public) or false (private sole-use for Twelve Data free)');
+  if (production.vars.COMMUNITY_ENABLED === 'false') {
+    const raw = text('wrangler.jsonc');
+    assert.match(raw, /COMMUNITY_ENABLED.*false/, 'private mode must be explicit in wrangler.jsonc');
+    assert.match(raw, /TWELVEDATA_API_KEY/, 'private mode with Twelve Data must document TWELVEDATA_API_KEY');
+    assert.match(raw, /COMMUNITY_DB/, 'COMMUNITY_DB binding stays for the Orb2 field even when private');
+    // Keep the origin/OIDC explicit so a future re-enable is a reviewed file change.
+  }
   assert.equal(production.vars.MONGODB_DATABASE, 'harshalos');
   assert.equal(production.workers_dev, false);
   assert.equal(production.preview_urls, false);

@@ -353,7 +353,7 @@ test("the server field roster is the reviewed catalog, in firing order, with no 
   assert.equal(roster.commodities.length, 11);
   assert.ok(roster.commodities.some(entry => entry.symbol === "ALUMINUM" && entry.massive.productCode === "ALI" && entry.massiveTicker === "ALIZ6"),
     "Aluminum is on Disc4 only after the current ALI contract is verified");
-  assert.equal(roster.indices.length, 52);
+  assert.equal(roster.indices.length, 32);
   assert.deepEqual(roster.dsSymbols, ["EURUSD", "JPYUSD", "GBPUSD", "CADUSD", "SEKUSD", "CHFUSD"]);
   assert.deepEqual(roster.discs, ["stocks", "fx", "commodities", "indices"]);
   assert.ok(roster.instruments.every(instrument => typeof instrument.discId === "string"));
@@ -472,7 +472,7 @@ test("the cold scheduler persists a single warm cursor step before making one Ti
   assert.equal(new Set(seen.tickerbot).size, 2);
 });
 
-test("the persisted one-unit rotation eventually covers every reviewed provider lane and all 52 indices", async t => {
+test("the persisted one-unit rotation eventually covers every reviewed provider lane and all 32 indices", async t => {
   const { sql, env, stats } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
@@ -487,8 +487,8 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
   const reviewed = roster.instruments.length;
   assert.equal(roster.crypto.length, 52);
   assert.equal(roster.cryptoPairs.length, 1, "the exact ADA/USDT pair joins the Kraken daily rotation");
-  assert.equal(roster.indices.length, 52, "the full 52-index roster is preserved");
-  assert.equal(reviewed, 191);
+  assert.equal(roster.indices.length, 32, "the full 32-index roster is preserved");
+  assert.equal(reviewed, 171);
 
   const coverage = () => new Set([
     ...seen.massive.map(ticker => `massive:${ticker}`),
@@ -1248,8 +1248,8 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(commodityPayload.market.massiveContract.provider, "Massive");
   assert.ok(commodityPayload.market.massiveContract.ticker.startsWith(commodityPayload.market.massiveContract.productCode),
     "Orb 2 retains the exact active-contract identity used for the futures bars");
-  assert.equal(discs.indices.instruments, 52);
-  assert.equal(discs.indices.stored, 52, "the 52-card index Disc is populated by the automatic rotation");
+  assert.equal(discs.indices.instruments, 32);
+  assert.equal(discs.indices.stored, 32, "the 32-card index Disc is populated by the automatic rotation");
   assert.equal(discs.crypto.assets, 52, "Kraken's ranking cache reports the reviewed primary USD-quoted asset roster");
   assert.equal(discs.crypto.instruments, 53, "the field denominator includes the 52 primary pair feeds and one direct cross-quote feed");
   assert.equal(discs.crypto.stored, 53, "the automatic rotation stores each exact Kraken pair once");
@@ -1261,7 +1261,7 @@ test("the snapshot serves the stored field with honest beat-type counts and the 
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
   /* Stocks are Tickerbot-only; Crypto is Kraken-only; Massive is exclusive to
      FX, active commodity futures, and indices. */
-  for (const [discId, expected] of [["fx", 23], ["commodities", 11], ["indices", 52]]) {
+  for (const [discId, expected] of [["fx", 23], ["commodities", 11], ["indices", 32]]) {
     const massiveRows = sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id=? AND provider='massive'").get(discId).count;
     assert.equal(massiveRows, expected, `${discId} is populated by the automatic Massive rotation`);
   }
@@ -1308,9 +1308,9 @@ test("Disc activation status separates fresh commodity/index data from held rows
   assert.equal(discs.commodities.members.find(member => member.symbol === commodities[3].symbol).status, "held");
   assert.deepEqual({ instruments: discs.indices.instruments, stored: discs.indices.stored, active: discs.indices.active,
     observed: discs.indices.observed, held: discs.indices.held, pending: discs.indices.pending },
-  { instruments: 52, stored: 52, active: 1, observed: 1, held: 51, pending: 0 });
+  { instruments: 32, stored: 32, active: 1, observed: 1, held: 31, pending: 0 });
   assert.equal(discs.indices.complete, false);
-  assert.equal(discs.indices.members.length, 52);
+  assert.equal(discs.indices.members.length, 32);
   const heldIndex = discs.indices.members.find(member => member.status === "held");
   assert.equal(heldIndex.code, "massive-upstream");
   assert.match(heldIndex.message, /did not return/);
