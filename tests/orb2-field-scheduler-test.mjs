@@ -1842,6 +1842,13 @@ test("the Options lane serializes its request and spends one unit per selected t
   let inFlight = 0;
   let maxInFlight = 0;
   const order = [];
+  const contracts = [
+    ["call", 160, "C00160000"], ["call", 195, "C00195000"],
+    ["put", 160, "P00160000"], ["put", 130, "P00130000"]
+  ].map(([contractType, strike, suffix]) => ({
+    ticker: `O:NVDA261016${suffix}`, contract_type: contractType,
+    expiration_date: "2026-10-16", strike_price: strike, underlying_ticker: "NVDA"
+  }));
   const fetch = async input => {
     const url = new URL(String(input));
     if (url.pathname === "/v3/reference/options/contracts" || decodeURIComponent(url.pathname).startsWith("/v2/aggs/ticker/O:")) {
@@ -1850,7 +1857,14 @@ test("the Options lane serializes its request and spends one unit per selected t
       const label = url.searchParams.get("underlying_ticker") || decodeURIComponent(url.pathname);
       order.push(`start:${label}`);
       try {
-        const response = await providerFetch(seen)(input);
+        let response;
+        if (url.pathname === "/v3/reference/options/contracts") {
+          response = Response.json({ results: url.searchParams.get("underlying_ticker") === "NVDA" ? contracts : [] });
+        } else if (decodeURIComponent(url.pathname).startsWith("/v2/aggs/ticker/O:NVDA")) {
+          response = Response.json({ results: [{ t: at, o: 10, h: 12, l: 9, c: 11, v: 25 }] });
+        } else {
+          response = Response.json({ results: [{ t: at, o: 10, h: 12, l: 9, c: 11, v: 25 }] });
+        }
         order.push(`end:${label}`);
         return response;
       } finally {
@@ -1860,19 +1874,22 @@ test("the Options lane serializes its request and spends one unit per selected t
     return providerFetch(seen)(input);
   };
 
+  const initialOrdinal = sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts;
   const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch });
   assert.equal(summary.ok, true, summary.errors.join(" "));
   const lane = summary.lanes["massive-options"];
-  assert.equal(lane.workUnits.length, 1);
-  assert.equal(summary.workUnits, 1);
-  assert.equal(summary.workUnitsByLane.get("massive-options"), 1);
-  assert.equal(lane.unitBudget, 1);
-  assert.ok(lane.providerCalls <= 1);
-  assert.equal(maxInFlight, 1, "no two options-provider requests are in flight in the same invocation");
-  assert.equal(order.length, 2, "the selected discovery or bar unit makes one request");
-  assert.match(order[0], /^start:/);
-  assert.match(order[1], /^end:/);
-  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts, 172);
+  assert.equal(lane.workUnits.length, 4);
+  assert.equal(summary.workUnits, 4);
+  assert.equal(summary.workUnitsByLane.get("massive-options"), 4);
+  assert.equal(lane.unitBudget, 4);
+  assert.ok(lane.providerCalls <= 4);
+  assert.equal(maxInFlight, 1, "four options-provider requests run one after another, never concurrently");
+  assert.equal(order.length, 8, "the four selected Options slots each make one serial request");
+  for (let index = 0; index < order.length; index += 2) {
+    assert.match(order[index], /^start:/);
+    assert.match(order[index + 1], /^end:/);
+  }
+  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__dispatch_cursor__'").get().attempts, initialOrdinal + 1);
   CLOCK = at + 60_000;
 });
 
