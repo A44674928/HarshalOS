@@ -1733,6 +1733,65 @@ function scheduledWorkItems({ roster, optionsEnabled, keys, laneId = null }) {
  */
 const laneById = id => ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === id) || null;
 
+/**
+ * Build the canonical smooth weighted round-robin of lane turns.
+ *
+ * Counts are actual reviewed worklist sizes, not provider maximums. In
+ * particular CHARACTERS_CRYPTO_CROSS_PAIR_SIZE is a ceiling, not the number of
+ * cross-pairs in today's cached Kraken ranking. Confusing those values silently
+ * overweights Disc 3 and starves stocks, FX, futures, and indices.
+ *
+ * Exported so tests use the exact same selector as the Worker rather than a
+ * second, subtly different implementation of its scheduling arithmetic.
+ */
+export function orb2FieldDispatchSchedule({
+  stockCount = TICKERBOT_WATCHLIST.length,
+  cryptoCount = CHARACTERS_CRYPTO_RANKING_SIZE,
+  fxCount = SCHEDULER_FX_ROSTER_SIZE,
+  futuresCount = SCHEDULER_FUTURES_ROSTER_SIZE,
+  indexCount = SCHEDULER_INDEX_ROSTER_SIZE,
+  optionsCount = 0
+} = {}) {
+  const reviewedSizes = [
+    { id: "tickerbot-stocks", count: stockCount },
+    { id: "kraken-crypto", count: cryptoCount },
+    { id: "massive-fx", count: fxCount },
+    { id: "massive-futures", count: futuresCount },
+    { id: "massive-indices", count: indexCount },
+    { id: "massive-options", count: optionsCount }
+  ].map(entry => ({
+    id: entry.id,
+    count: Number.isSafeInteger(entry.count) && entry.count > 0 ? entry.count : 0
+  })).filter(entry => entry.count > 0 && laneById(entry.id));
+
+  const weights = reviewedSizes.map(entry => ({
+    id: entry.id,
+    turns: Math.ceil(entry.count / laneWorkUnits(laneById(entry.id)))
+  })).filter(entry => entry.turns > 0);
+  const totalTurns = weights.reduce((sum, entry) => sum + entry.turns, 0);
+  if (!totalTurns) return [];
+
+  /* Smooth weighted round-robin spreads work rather than grouping one Disc into
+     a long block. Each lane appears exactly its weighted number of turns. */
+  const current = weights.map(() => 0);
+  const schedule = [];
+  for (let turn = 0; turn < totalTurns; turn += 1) {
+    let chosen = -1;
+    for (let index = 0; index < weights.length; index += 1) {
+      current[index] += weights[index].turns;
+      if (chosen < 0 || current[index] > current[chosen]) chosen = index;
+    }
+    current[chosen] -= totalTurns;
+    schedule.push(weights[chosen].id);
+  }
+
+  /* Start a cold rotation with the known 12-beat Tickerbot lane, then retain
+     the same smooth distribution for the remaining turns. */
+  const stockStart = schedule.indexOf("tickerbot-stocks");
+  if (stockStart > 0) schedule.push(...schedule.splice(0, stockStart));
+  return schedule;
+}
+
 function markSchedulerWorkUnit(summary, key, lane = null) {
   if (summary.workUnits >= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK) {
     throw new Error("Orb 2 scheduled provider-work unit limit was exceeded.");
@@ -2050,9 +2109,9 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
         report.ran = true;
         report.workUnit = discoveryUnit;
         report.workUnits.push(discoveryUnit);
-        /* Kraken has a one-call tick allowance, so a successful ranking refresh
-           needs one follow-up invocation before the first market bar. */
-        report.keepDispatchSlot = Boolean(cryptoRanking);
+        /* Ranking refresh is its own bounded lane turn. The dispatch pointer
+           advances afterwards so a cache refresh cannot pin the global scheduler;
+           the independent crypto instrument cursor remains at its next bar. */
         return report;
       }
       if (!cryptoRanking) {
@@ -2235,9 +2294,12 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     else if (keys.twelvedata) summary.notes.push("Twelve Data private (800/day 8/min delayed, personal/internal) is the daily FX/futures/index venue; Massive is dormant when TWELVEDATA_API_KEY is set.");
     /* READ LANE: the control row and the Options table probe are independent
        single-row reads, so they are issued together rather than back to back. */
-    const [control, optionsEnabled] = await readIndependently([
+    const [control, optionsEnabled, dispatchRankingResult] = await readIndependently([
       () => readControl(db),
-      () => (keys.massive ? optionsFieldTableAvailable(db) : Promise.resolve(false))
+      () => (keys.massive ? optionsFieldTableAvailable(db) : Promise.resolve(false)),
+      /* The cache read is provider-free and gives the dispatcher the actual
+         cross-pair count instead of treating the 52-pair ceiling as a roster. */
+      () => readCharactersCryptoRankingCache({ db, now })
     ]);
 
     /* SEQUENTIAL, and deliberately so: user-priority queue work and the one-time
@@ -2253,55 +2315,35 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        one work unit total. Priority queue work preempts a lane without advancing
        the durable dispatch pointer, so the selected regular slot resumes after
        the queue drains. */
-    /* These counts are captured from the reviewed, import-time catalog above.
-       Do not re-filter a second copy of the catalog at dispatch time: the roster
-       builder and dispatcher must use the same reviewed denominator, otherwise
-       one Cron rotation can end before every instrument has been scheduled. */
-    const activeLaneSizes = [
-      { id: "tickerbot-stocks", count: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0 },
-      { id: "kraken-crypto", count: CHARACTERS_CRYPTO_RANKING_SIZE + CHARACTERS_CRYPTO_CROSS_PAIR_SIZE },
-      { id: "massive-fx", count: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0 },
-      { id: "massive-futures", count: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0 },
-      { id: "massive-indices", count: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0 },
-      { id: "massive-options", count: optionsEnabled && keys.massive
-        ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
-    ].filter(entry => entry.count > 0);
-    /* The dispatch weight is the number of Cron turns a lane needs for one pass,
-       not its raw number of instruments. Use smooth weighted round-robin so
-       five stock batches are spread over a cycle instead of running as one block. */
-    const laneWeights = activeLaneSizes.map(entry => ({
-      id: entry.id,
-      count: Math.ceil(entry.count / laneWorkUnits(laneById(entry.id)))
-    })).filter(entry => entry.count > 0);
-    const scheduleLength = laneWeights.reduce((total, entry) => total + entry.count, 0);
+    /* Use the actual cached Kraken roster size. The configured cross-pair
+       value is a maximum response selection, not the current count of valid
+       reviewed pairs. On a cold cache, use the primary ranking size until the
+       first provider-ranked roster is persisted; subsequent ticks use exact
+       instruments from D1. */
+    const cachedCryptoRoster = dispatchRankingResult?.ok
+      ? orb2FieldRoster({
+          now, cryptoRanking: dispatchRankingResult.ranking, includeDiscIds: ["crypto"]
+        })
+      : null;
+    const dispatchCryptoCount = cachedCryptoRoster
+      ? cachedCryptoRoster.crypto.length + cachedCryptoRoster.cryptoPairs.length
+      : CHARACTERS_CRYPTO_RANKING_SIZE;
+    const dispatchSchedule = orb2FieldDispatchSchedule({
+      stockCount: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0,
+      cryptoCount: dispatchCryptoCount,
+      fxCount: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0,
+      futuresCount: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0,
+      indexCount: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0,
+      optionsCount: optionsEnabled && keys.massive
+        ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0
+    });
+    const scheduleLength = dispatchSchedule.length;
     const dispatchCursor = await readSchedulerDispatchCursor(db);
     if (!dispatchCursor.ok) {
       summary.notes.push("The durable scheduler dispatch cursor is corrupt and was blocked; regular rotation did not guess a new position.");
     }
-    /* Construct a small bounded schedule of lane turns (91 turns without
-       Options, 156 with it), rather than expanding every instrument into an
-       array on each tick. The algorithm distributes each lane's turns smoothly. */
-    const dispatchSchedule = [];
-    const laneCurrentWeights = laneWeights.map(() => 0);
-    for (let turn = 0; turn < scheduleLength; turn += 1) {
-      let chosen = -1;
-      for (let index = 0; index < laneWeights.length; index += 1) {
-        laneCurrentWeights[index] += laneWeights[index].count;
-        if (chosen < 0 || laneCurrentWeights[index] > laneCurrentWeights[chosen]) chosen = index;
-      }
-      if (chosen < 0) break;
-      laneCurrentWeights[chosen] -= scheduleLength;
-      dispatchSchedule.push(ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === laneWeights[chosen].id) || null);
-    }
-    /* Start cold boots with Tickerbot's known 12-beat lane, then preserve the
-       smooth distribution for the remaining turns in the cycle. */
-    const stockStart = dispatchSchedule.findIndex(lane => lane?.id === "tickerbot-stocks");
-    if (stockStart > 0) {
-      const prefix = dispatchSchedule.splice(0, stockStart);
-      dispatchSchedule.push(...prefix);
-    }
-    const selectedLane = dispatchCursor.ok && dispatchSchedule.length
-      ? dispatchSchedule[dispatchCursor.attempts % dispatchSchedule.length] || null
+    const selectedLane = dispatchCursor.ok && scheduleLength
+      ? laneById(dispatchSchedule[dispatchCursor.attempts % scheduleLength])
       : null;
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
@@ -2391,13 +2433,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     /* Commit the dispatch position after the lane attempt. Its own instrument
        cursor is already durable before any provider fetch, so a process failure
        cannot replay that item even if this final pointer write does not land. */
-    const keepDispatchSlot = laneReports.some(settled =>
-      settled.ok && settled.value?.keepDispatchSlot === true
-    );
-    if (!tickerbotLaneSpent && selectedLane && dispatchCursor.ok && !keepDispatchSlot) {
+    if (!tickerbotLaneSpent && selectedLane && dispatchCursor.ok) {
+      /* Every attempted lane turn consumes its dispatcher slot, including
+         cache/provider discovery. Only priority queue preemption keeps the
+         selected slot parked; warm-up consumes the stock slot it was assigned. */
       await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
-    } else if (keepDispatchSlot) {
-      summary.notes.push("Successful provider discovery used this unit; the same lane retains its dispatch slot for the first instrument bar on the next Cron tick.");
     }
     /* `settleWithConcurrency` preserves input order, so these reports arrive in
        declared lane order regardless of which lane resolved first. */
