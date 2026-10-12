@@ -2124,9 +2124,13 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
        each unit advances the durable cursor and completes before the next is
        selected, so the provider's sliding-window gate still sees one ordered
        request at a time and the crash guarantee is unchanged. */
-    for (let unit = 0; unit < laneUnitBudget; unit += 1) {
+    const instrumentUnitsRemaining = Math.max(0, laneUnitBudget - report.workUnits.length);
+    let instrumentUnitsSpent = 0;
+    for (let unit = 0; unit < instrumentUnitsRemaining; unit += 1) {
       const next = await advanceFieldWorkCursor(db, items, now, laneCursorReason(lane.id), {
-        stopBeforeWrap: report.workUnits.length > 0
+        /* Prerequisite discovery consumes the same lane capacity but is not an
+           instrument item; it must not suppress the first bar on a wrap. */
+        stopBeforeWrap: instrumentUnitsSpent > 0
       });
       if (next.reset) {
         report.cursorReset = true;
@@ -2142,6 +2146,7 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
       markSchedulerWorkUnit(summary, item.key, lane.id);
       report.ran = true;
       report.workUnits.push(item.key);
+      instrumentUnitsSpent += 1;
       if (report.workUnit === null) report.workUnit = item.key;
       report.cursorAdvanced = true;
       await processScheduledWorkItem({ db, env, item, now, fetcher: laneFetcher, keys, summary: recorder });
