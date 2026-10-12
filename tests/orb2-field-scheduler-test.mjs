@@ -467,7 +467,7 @@ test("stored provider refusals use a bounded retry instead of masquerading as 24
   assert.equal(orb2FieldNeedsRefresh({ ...heldKraken, observedAt: NOW - 60 * 60_000 }, NOW, "kraken"), true);
 });
 
-test("the cold scheduler persists a single warm cursor step before making one Tickerbot request", async t => {
+test("the cold scheduler persists a 12-unit serial warm batch before regular rotation", async t => {
   const { sql, env, stats } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [] };
   const at = nextClock();
@@ -476,42 +476,43 @@ test("the cold scheduler persists a single warm cursor step before making one Ti
   const first = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(first.ok, true);
   assert.equal(first.workUnit, "warm:15m:NVDA");
-  assert.equal(first.warmProgressed, 1);
+  assert.equal(first.warmProgressed, 12);
   assert.equal(first.cursorAdvanced, true);
-  assert.equal(first.tickerbotCalls, 1);
-  assert.equal(seen.tickerbot.length, 1);
-  /* Cold calibration is Tickerbot work, so it spends the tickerbot-stocks lane's
-     single unit and no more. It no longer suppresses the other lanes: Kraken and
-     Massive allowances are separate envelopes that the warm-up does not touch,
-     so a cold deployment warms the crypto, FX, futures, and index Discs in the
-     same minute instead of waiting 156 minutes for the stock calibration to
-     finish first. */
-  assert.equal(first.workUnitsByLane.get("tickerbot-stocks"), 1,
-    "the warm-up spends exactly one unit of the Tickerbot lane");
+  assert.equal(first.tickerbotCalls, 12);
+  assert.equal(seen.tickerbot.length, 12);
+  assert.equal(first.workUnitsByLane.get("tickerbot-stocks"), 12,
+    "the warm-up spends Tickerbot's validated serial batch, not a parallel burst");
   assert.equal(first.lanes["tickerbot-stocks"].skipped, true,
-    "the Tickerbot lane does not also rotate a stock behind the warm-up");
-  assert.equal(first.krakenCalls, 1, "a cold ranking cache spends the crypto lane's own unit");
-  assert.ok(first.massiveCalls >= 1, "the Massive lanes warm their own Discs in the same minute");
+    "regular stock rotation does not run behind the warm batch");
+  assert.equal(first.krakenCalls, 0, "only the selected stock lane runs this tick");
+  assert.equal(first.massiveCalls, 0, "only the selected stock lane runs this tick");
+  assert.equal(first.workUnits, 12);
+  assert.equal(first.providerRequests, 12);
   assert.ok(first.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
   assert.ok(first.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_queue WHERE lane IN ('hot','sweep')").get().count, 0,
     "automatic warm-up does not materialize the 156-job queue");
   const warmCursor = sql.prepare("SELECT lane, attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get();
-  assert.equal(warmCursor.lane, "cursor:warm-v1", "the next stable index is persisted before the provider call");
-  assert.equal(warmCursor.attempts, 1);
+  assert.equal(warmCursor.lane, "cursor:warm-v1");
+  assert.equal(warmCursor.attempts, 12);
   assert.ok(first.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(first.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
   assert.ok(first.d1RowsRead <= first.d1Reads * 12);
   assert.ok(stats.maxRowsPerRead <= 12);
 
+  /* Force the next stock turn to isolate cursor continuation from smooth lane
+     interleaving. No previously attempted warm unit may be replayed. */
+  seedDispatchCursor(sql, { laneId: "tickerbot-stocks", at: at + 60_000 });
   const second = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: providerFetch(seen) });
-  assert.equal(second.workUnit, "warm:15m:AAPL");
-  assert.equal(second.warmProgressed, 1, "a later Cron invocation resumes the stored cursor, not a process-local position");
-  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get().attempts, 2);
-  assert.equal(new Set(seen.tickerbot).size, 2);
+  const nextWarm = TICKERBOT_WATCHLIST[12];
+  assert.equal(second.workUnit, `warm:15m:${nextWarm.symbol}`);
+  assert.equal(second.warmProgressed, 12);
+  assert.equal(second.tickerbotCalls, 12);
+  assert.equal(sql.prepare("SELECT attempts FROM orb2_field_queue WHERE symbol='__warm_cursor__'").get().attempts, 24);
+  assert.equal(new Set(seen.tickerbot).size, 24);
 });
 
-test("the persisted one-unit rotation eventually covers every reviewed provider lane and all 32 indices", async t => {
+test("the persisted serial rotation covers every reviewed provider lane and all 32 indices", async t => {
   const { sql, env, stats } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
   const at = nextClock();
@@ -529,6 +530,9 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
   assert.equal(roster.cryptoPairs.length, 1, "the exact ADA/USDT pair joins the Kraken daily rotation");
   assert.equal(roster.indices.length, 32, "the full 32-index roster is preserved");
   assert.equal(reviewed, 171);
+  const cycleTurns = Math.ceil(roster.stocks.length / 12) + roster.crypto.length + roster.cryptoPairs.length +
+    roster.fx.length + Math.ceil(roster.commodities.length / 5) + Math.ceil(roster.indices.length / 5);
+  assert.equal(cycleTurns, 91);
 
   const coverage = () => new Set([
     ...seen.massive.map(ticker => `massive:${ticker}`),
@@ -542,24 +546,18 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
     ...roster.instruments.filter(instrument => ["fx", "commodities", "indices"].includes(instrument.discId))
       .map(instrument => `massive:${instrument.massiveTicker || instrument.massive?.ticker}`)
   ]);
-  for (let tick = 0; tick < reviewed; tick += 1) {
+  for (let tick = 0; tick < cycleTurns; tick += 1) {
     const summary = await runOrb2FieldTick(env, null, { now: () => at + tick * 60_000, fetch: providerFetch(seen) });
     assert.equal(summary.ok, true, `scheduled tick ${tick} should finish without a scheduler error: ${summary.errors.join(" ")}`);
     assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
-    /* The binding constraint is per lane, not per tick: each provider envelope
-       still sees at most one unit per scheduled minute. Massive's three
-       non-Options lanes (currencies, futures, indices) each hold their own
-       five-per-minute window, so up to three Massive calls in one tick is three
-       separate envelopes spending one request each — never one envelope
-       spending three. */
-    assert.ok(summary.massiveCalls <= 3, `Massive lanes stay inside their own per-asset-class windows: ${summary.massiveCalls}`);
+    assert.ok(summary.massiveCalls <= 5, `one Massive asset-class lane stays within its five-call minute envelope (${summary.massiveCalls})`);
     assert.ok(summary.krakenCalls <= 1);
-    assert.ok(summary.tickerbotCalls <= 1);
+    assert.ok(summary.tickerbotCalls <= 12);
     assert.equal(summary.optionsCalls, 0, "the Options lane remains dormant without migration 0013");
-    for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
-      assert.ok((summary.workUnitsByLane.get(laneId) || 0) <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK,
-        `the ${laneId} lane spends at most one unit per scheduled minute`);
+    for (const lane of ORB2_FIELD_PROVIDER_LANES) {
+      assert.ok((summary.workUnitsByLane.get(lane.id) || 0) <= (lane.maxWorkUnitsPerTick || 1),
+        `${lane.id} spends at most its reviewed serial batch allowance`);
     }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
@@ -580,7 +578,7 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
   assert.ok(seen.krakenBars.some(entry => entry.pair === "ADA/USDT"), "the cross-quote OHLC request retains ADA/USDT instead of inventing USDT/ADA");
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='crypto' AND provider='massive'").get().count, 0);
   assert.equal(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations WHERE interval='1d' AND disc_id='stocks' AND provider='massive'").get().count, 0);
-  CLOCK = at + reviewed * 60_000;
+  CLOCK = at + cycleTurns * 60_000;
 });
 
 test("a full cycle wraps to the first stable key without resetting on each Cron tick", async t => {
