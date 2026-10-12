@@ -12,7 +12,9 @@
   const SAFE_TICKER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
   const GITHUB_ROOT = "https://github.com/A44674928/HarshalOS";
   const INDEX_FILE_URL = `${GITHUB_ROOT}/blob/main/trades/index.txt`;
-  const LINE_RE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) (\S+) \| SIMULATED PAPER \[([^\]]+)\] \| (entry|price): \[(?:Market )?@ ~\$([\d,]+(?:\.\d+)?)\] \| size: \[(\d+) shares?\] \| note: \[(.*)\]\s*$/;
+  // The published logs use both approximate (~$) and exact ($) price tags,
+  // and exits may be labeled "price" or "exit". Notes can be bracketed or plain text.
+  const LINE_RE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) (\S+) \| SIMULATED PAPER \[([^\]]+)\] \| (entry|price|exit): \[(?:Market )?@ ~?\$([\d,]+(?:\.\d+)?)\] \| size: \[(\d+) shares?\] \| note: (?:\[(.*)\]|([^\[\]]*))\s*$/;
 
   function parseIndex(text) {
     const entries = [];
@@ -53,7 +55,7 @@
         lines.push({ kind: "raw", ticker, lineNumber: index + 1, raw });
         return;
       }
-      const [, date, time, , tag, field, priceText, size, note] = match;
+      const [, date, time, , tag, field, priceText, size, bracketedNote, plainNote] = match;
       lines.push({
         kind: "trade",
         ticker,
@@ -66,7 +68,7 @@
         field,
         price: Number(priceText.replace(/,/g, "")),
         size: Number(size),
-        note,
+        note: bracketedNote ?? plainNote.trim(),
         ...classifyTag(tag)
       });
     });
@@ -86,7 +88,7 @@
   function ledgerForTicker(ticker, parsedLines) {
     const events = parsedLines.filter(line => line.kind === "trade").slice().sort((a, b) => (a.stamp < b.stamp ? -1 : a.stamp > b.stamp ? 1 : 0));
     const rows = parsedLines.filter(line => line.kind === "raw").map(line => ({
-      ticker, date: "", time: "", tag: "", event: "Unparsed line", price: null, qty: null,
+      ticker, date: "", time: "", tag: "", event: `Unparsed line ${line.lineNumber}`, price: null, qty: null,
       realized: null, open: null, status: "Unparsed", note: line.raw, raw: line.raw, stamp: ""
     }));
 
@@ -220,8 +222,10 @@
   const price = value => (Number.isFinite(value) ? `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—");
   const qtyText = value => (Number.isFinite(value) ? String(round(value)) : "—");
 
-  function getText(path) {
-    return window.fetch(new URL(path, window.location.href).href, {
+  function getText(path, refreshNumber = null) {
+    const url = new URL(path, window.location.href);
+    if (refreshNumber !== null) url.searchParams.set("refresh", `${Date.now()}-${refreshNumber}`);
+    return window.fetch(url.href, {
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
@@ -230,15 +234,15 @@
   }
 
   // Loads the index, then every listed log. A missing log (404) means no trades yet; other failures are reported.
-  async function loadAllLogs() {
-    const indexResponse = await getText("trades/index.txt");
+  async function loadAllLogs(refreshNumber = null) {
+    const indexResponse = await getText("trades/index.txt", refreshNumber);
     if (!indexResponse.ok) throw new Error(`HTTP ${indexResponse.status}`);
     const parsed = parseIndex(await indexResponse.text());
     const logs = [];
     const failed = [];
     await Promise.all(parsed.entries.map(async entry => {
       try {
-        const response = await getText(`trades/${encodeURIComponent(entry.ticker)}.txt`);
+        const response = await getText(`trades/${encodeURIComponent(entry.ticker)}.txt`, refreshNumber);
         if (response.status === 404) return;
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = String(await response.text()).replace(/^\uFEFF/, "");
@@ -304,7 +308,8 @@
 
     const status = el("p", "pnl-status");
     status.setAttribute("role", "status");
-    status.textContent = `Loaded ${indexCount} listed tickers; ${ledger.summaries.length} with trades.${invalidCount ? ` ${invalidCount} invalid index line(s) skipped.` : ""}${failed.length ? ` Could not load: ${failed.join(", ")}.` : ""}`;
+    const unparsedCount = ledger.rows.filter(row => row.status === "Unparsed").length;
+    status.textContent = `Loaded ${indexCount} listed tickers; ${ledger.summaries.filter(summary => summary.lines > 0).length} with trades.${invalidCount ? ` ${invalidCount} invalid index line(s) skipped.` : ""}${failed.length ? ` Could not load: ${failed.join(", ")}.` : ""}${unparsedCount ? ` ${unparsedCount} unparsed ${unparsedCount === 1 ? "line" : "lines"} excluded from P/L; see Every logged line.` : ""}`;
     body.appendChild(status);
 
     body.appendChild(el("h3", "pnl-heading", "By asset class"));
@@ -399,7 +404,7 @@
             <p class="pnl-loading" role="status" aria-live="polite">Loading trade logs…</p>
             <div class="pnl-results"></div>
             <div class="pnl-footer">
-              <span>Read-only · computed from trades/index.txt and each ticker log.</span>
+              <span>Read-only · computed from deployed trade logs. GitHub edits require a deployment; then click Refresh.</span>
               <a class="pnl-index-source" target="_blank" rel="noopener noreferrer">View index.txt on GitHub ↗</a>
             </div>
           </section>`;
@@ -409,13 +414,13 @@
         body.querySelector(".pnl-index-source").href = INDEX_FILE_URL;
         let requestNumber = 0;
 
-        async function load() {
+        async function load(isRefresh = false) {
           const current = ++requestNumber;
           refresh.disabled = true;
           loading.hidden = false;
           loading.textContent = "Loading trade logs…";
           try {
-            const data = await loadAllLogs();
+            const data = await loadAllLogs(isRefresh ? current : null);
             if (current !== requestNumber) return;
             renderLedger(results, data);
             loading.hidden = true;
@@ -428,7 +433,7 @@
           }
         }
 
-        refresh.addEventListener("click", () => { void load(); });
+        refresh.addEventListener("click", () => { void load(true); });
         void load();
       }
     });

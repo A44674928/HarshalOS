@@ -38,9 +38,11 @@ function mount(t, files, { indexBody = tradesIndex, failFor = new Set() } = {}) 
   const window = new Window({ url: "https://main.empty.domains/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
   t.after(() => window.happyDOM.abort());
   const requests = [];
+  const requestUrls = [];
   window.fetch = async (input) => {
     const url = new URL(String(input), window.location.href);
     requests.push(url.pathname);
+    requestUrls.push(url);
     const name = decodeURIComponent(url.pathname.split("/").pop());
     if (url.pathname.endsWith("/trades/index.txt")) return { status: 200, ok: true, text: async () => indexBody };
     if (failFor.has(name)) return { status: 500, ok: false, text: async () => "boom" };
@@ -55,7 +57,7 @@ function mount(t, files, { indexBody = tradesIndex, failFor = new Set() } = {}) 
   const body = window.document.createElement("div");
   window.document.body.appendChild(body);
   app.render(body, {});
-  return { window, app, body, requests };
+  return { window, app, body, requests, requestUrls };
 }
 
 test("P/L registers as its own desktop app and is wired into index.html", (t) => {
@@ -99,6 +101,24 @@ test("parseLog keeps unmatched lines as raw rows instead of dropping them", () =
   assert.equal(raw.raw, "not a trade line");
   const ledger = ledgerFor([{ ticker: "TEST", text: `${line("2026-09-03", "06:30", "LONG", "100.00", 1)}\nnot a trade line\n` }]);
   assert.equal(ledger.rows.filter(row => row.status === "Unparsed").length, 1);
+});
+
+test("edited trade lines accept exact prices, exit labels, and plain notes without losing bracketed notes", () => {
+  const api = loadApi();
+  const text = [
+    "2024-08-19 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ $24] | size: [1 share] | note: post car crash.",
+    "2026-10-09 06:30 MST | SIMULATED PAPER [TAKE PROFIT] | exit: [Market @ ~$209.05] | size: [1 share] | note: [sale at resistance]",
+    "2026-10-10 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$200.00] | size: [1 share] | note: [bracketed [detail] kept]"
+  ].join("\n");
+  const parsed = api.parseLog(text, "PLTR");
+  assert.deepEqual(plain(parsed.map(row => row.kind)), ["trade", "trade", "trade"]);
+  assert.deepEqual(plain(parsed.map(row => row.note)), ["post car crash.", "sale at resistance", "bracketed [detail] kept"]);
+  assert.deepEqual(plain(parsed.map(row => row.price)), [24, 209.05, 200]);
+  assert.equal(parsed[1].field, "exit");
+  assert.equal(parsed[1].action, "close");
+  // Incomplete price/size and malformed notes must still remain visible, not affect P/L.
+  const invalid = api.parseLog("2026-10-09 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ $oops] | size: [1 share] | note: [bad]", "PLTR");
+  assert.equal(invalid[0].kind, "raw");
 });
 
 test("a LONG open is marked to the last logged price of its ticker", () => {
@@ -240,10 +260,14 @@ test("the current repository logs yield the expected per-ticker results and no u
   assert.equal(byTicker.CAT.realized, 156.13);
   assert.equal(byTicker.CAT.openLots, 0);
   assert.equal(byTicker.CAT.unrealized, 0);
-  // PLTR: the Sep 3 short is netted by the Sep 13 long at 167.23 → +17.68; the Oct 9 short is open at 209.05 → 0.
-  assert.equal(byTicker.PLTR.realized, 17.68);
+  // PLTR: the 2024 long at $24 is sold by the Sep 3 short at $184.91 (+160.91).
+  // The Sep 13 long at $167.23 is closed by the Oct 9 exit at $209.05 (+41.82).
+  // The Oct 9 short at $209.05 is the only open lot, marked at the same price.
+  assert.equal(byTicker.PLTR.realized, 202.73);
   assert.equal(byTicker.PLTR.unrealized, 0);
   assert.equal(byTicker.PLTR.openLots, 1);
+  assert.equal(byTicker.PLTR.lines, 5);
+  assert.equal(ledger.rows.find(row => row.ticker === "PLTR" && row.tag === "TAKE PROFIT").status, "Executed");
   // DIS: the Sep 3 long is sold by the Sep 21 DUMP at 104.23 → −3.34; flat afterwards.
   assert.equal(byTicker.DIS.realized, -3.34);
   assert.equal(byTicker.DIS.openLots, 0);
@@ -273,6 +297,30 @@ test("the app renders cards, a by-ticker table, and every logged line from the i
   assert.equal(allRows.length, 3, "every trade line (LONG, TAKE PROFIT, SHORT) is listed");
   assert.match(body.querySelector(".pnl-status").textContent, /Loaded 3 listed tickers; 2 with trades/);
   assert.match(body.querySelector(".pnl-disclaimer").textContent, /not a live quote/);
+});
+
+test("Refresh fetches the latest index and logs and rebuilds the table", async (t) => {
+  const files = { "AAA.txt": line("2026-09-03", "06:30", "LONG", "100.00", 1) };
+  const { body, requestUrls } = mount(t, files, { indexBody: "AAA | one\n" });
+  await flushUntil(() => body.querySelector(".pnl-by-ticker tbody tr"));
+  assert.equal(body.querySelector(".pnl-by-ticker tbody tr td:last-child").textContent, "$100.00");
+  files["AAA.txt"] += `\n${line("2026-09-10", "06:30", "LONG", "110.00", 1)}`;
+  body.querySelector(".pnl-refresh").click();
+  await flushUntil(() => body.querySelector(".pnl-by-ticker tbody tr td:last-child")?.textContent === "$110.00");
+  assert.equal(body.querySelectorAll(".pnl-all-lines tbody tr").length, 2);
+  assert.ok(requestUrls.filter(url => url.searchParams.has("refresh")).some(url => url.pathname.endsWith("/trades/index.txt")));
+  assert.ok(requestUrls.filter(url => url.searchParams.has("refresh")).some(url => url.pathname.endsWith("/trades/AAA.txt")));
+});
+
+test("unparsed source lines are called out and remain visible without changing totals", async (t) => {
+  const files = { "AAA.txt": `${line("2026-09-03", "06:30", "LONG", "100.00", 1)}\nnot a trade line\n` };
+  const { body } = mount(t, files, { indexBody: "AAA | one\n" });
+  await flushUntil(() => body.querySelector(".pnl-status")?.textContent.includes("unparsed"));
+  assert.match(body.querySelector(".pnl-status").textContent, /1 unparsed line excluded from P\/L/);
+  const rows = [...body.querySelectorAll(".pnl-all-lines tbody tr")];
+  assert.equal(rows.length, 2);
+  assert.ok(rows.some(row => row.textContent.includes("Unparsed line 2") && row.textContent.includes("not a trade line")));
+  assert.equal(body.querySelector(".pnl-by-ticker tbody tr td:nth-child(3)").textContent, "1");
 });
 
 test("a failing log is reported by name without hiding the others", async (t) => {
