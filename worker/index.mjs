@@ -14,6 +14,7 @@ import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
 import { handleTwelveData } from './twelvedata.mjs';
 import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
+import { runOrb2FieldBuildSlice, serveOrb2FieldSnapshot } from './orb2-field-publish.mjs';
 import { NEO_ORB_PAGE_PATHS, NEO_ORB_PAGE_HEADER_CSP } from './neo-orb-page.mjs';
 import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
 import { runScheduledBackup } from './d1-backup.mjs';
@@ -165,6 +166,20 @@ export default {
     const scheduledTime = rawScheduledTime > 0 && rawScheduledTime < 1_000_000_000_000
       ? rawScheduledTime * 1000 : rawScheduledTime;
     const now = Number.isFinite(scheduledTime) && scheduledTime > 0 ? scheduledTime : Date.now();
+    /*
+     * The published field comes first because it is what the GET route serves:
+     * one bounded slice per invocation — a page of changed berths per interval,
+     * then the status pieces and the assembly for the interval whose document is
+     * oldest — so the work that used to run on a poll now rides the free tier's
+     * 10 ms budget a piece at a time. A slice never throws; a failure is logged
+     * and the route falls back to the live read.
+     */
+    const publication = await runOrb2FieldBuildSlice(env, { now });
+    if (!publication.ok || (Array.isArray(publication.errors) && publication.errors.length)) {
+      console.error('[orb2-publish] slice failed:',
+        Array.isArray(publication.errors) && publication.errors.length
+          ? publication.errors.slice(0, 3).join(' | ') : 'unknown publication error');
+    }
     // A Cron Trigger has no response to return, so the tick is awaited: the
     // invocation stays alive for it (15-minute wall limit) and a failure lands
     // on the invocation instead of vanishing into a background promise. A
@@ -198,7 +213,7 @@ export default {
       }
     }
   },
-  async fetch(request, env) {
+  async fetch(request, env, context) {
     const path = new URL(request.url).pathname;
     if (targetsHiddenPath(path)) {
       return new Response(null, {
@@ -264,7 +279,15 @@ export default {
     // The server-side Orb 2 beat field: clients read stored observations and may
     // ask the Worker to prioritize or warm the schedule. Browsers never call a
     // market provider, and the schedule never depends on a page being visible.
-    if (path === '/api/good-intelligence/v1/orb2/field') return handleOrb2Field(request, env);
+    // The precomputed document answers first: one SELECT of an already-serialized
+    // body, no parse and no stringify. A miss (unmigrated, unpublished, filtered,
+    // non-GET, or the ORB2_FIELD_SNAPSHOT=off rollback) returns null and falls
+    // through to the live read, which stays the safety net.
+    if (path === '/api/good-intelligence/v1/orb2/field') {
+      const published = await serveOrb2FieldSnapshot(request, env, { context });
+      if (published) return published;
+      return handleOrb2Field(request, env);
+    }
     if (path === '/api/characters/v1/discs') return handleCharactersDiscCatalog(request, env);
     if (path === '/api/characters/v1/deploy') return handleCharactersDeploy(request, env);
     // Characters has three narrow providers: Tickerbot exclusively for Stocks,
