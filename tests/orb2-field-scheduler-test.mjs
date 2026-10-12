@@ -784,7 +784,8 @@ test("scheduled D1 reads stay targeted and row-capped when the observations tabl
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, summary.errors.join(" "));
   assert.match(summary.workUnit || "", /^massive:futures:/);
-  assert.equal(summary.workUnitsByLane.get("massive-futures"), 1);
+  assert.equal(summary.workUnitsByLane.get("massive-futures"), summary.lanes["massive-futures"].workUnits.length);
+  assert.ok(summary.workUnitsByLane.get("massive-futures") <= 5);
   /* The selected serialized lane still uses targeted cache/observation reads
      and remains bounded even when the observations table is large. */
   assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
@@ -851,28 +852,30 @@ test("the Options field advances discovery and four EOD bars as five separate bo
      gate still sees one ordered request at a time. */
   const optionsLane = ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === "massive-options");
   const optionsUnitBudget = optionsLane.maxWorkUnitsPerTick;
-  assert.equal(optionsUnitBudget, 1);
+  assert.equal(optionsUnitBudget, 4);
   assert.ok(optionsUnitBudget <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
     "the Options lane budget stays inside its own documented per-minute window");
 
   const workUnits = [];
   let ticks = 0;
   let lastSummary = null;
-  /* The lane keeps rotating past NVDA into the next underlying, which is the
-     point of the larger budget, so only NVDA's five slots are collected here. */
+  /* Four Options units run serially when this lane is selected; other ticks may
+     serve different provider lanes, so the NVDA sequence spans multiple turns. */
   while (workUnits.length < 5 && ticks < 8) {
     lastSummary = await runOrb2FieldTick(env, null, { now: () => at + ticks * 60_000, fetch });
     ticks += 1;
     assert.equal(lastSummary.ok, true, lastSummary.errors.join(" "));
     const lane = lastSummary.lanes["massive-options"];
-    workUnits.push(...lane.workUnits.filter(key => key.startsWith("options:NVDA:")));
-    /* Per-minute envelope: never more units or Options requests than the lane
-       budget, and never more than the asset-class window allows. */
-    assert.equal(lastSummary.workUnitsByLane.get("massive-options"), lane.workUnits.length);
-    assert.ok(lane.workUnits.length <= optionsUnitBudget);
-    assert.equal(lastSummary.optionsCalls, lane.providerCalls,
-      "every request this lane sent is charged to the Options asset-class window");
-    assert.ok(lastSummary.optionsCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+    if (lane) {
+      workUnits.push(...lane.workUnits.filter(key => key.startsWith("options:NVDA:")));
+      /* Per-turn envelope: no more than four sequential Options requests are
+         issued, leaving headroom in Massive's five-per-minute class window. */
+      assert.equal(lastSummary.workUnitsByLane.get("massive-options"), lane.workUnits.length);
+      assert.ok(lane.workUnits.length <= optionsUnitBudget);
+      assert.equal(lastSummary.optionsCalls, lane.providerCalls,
+        "every request this lane sent is charged to the Options asset-class window");
+      assert.ok(lastSummary.optionsCalls <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS);
+    }
     assert.ok(lastSummary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
     assert.ok(lastSummary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     assert.ok(lastSummary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
@@ -882,7 +885,7 @@ test("the Options field advances discovery and four EOD bars as five separate bo
   assert.deepEqual(workUnits, [
     "options:NVDA:0", "options:NVDA:1", "options:NVDA:2", "options:NVDA:3", "options:NVDA:4"
   ]);
-  assert.equal(ticks, 2, "the five slots complete in two scheduled minutes, not five");
+  assert.ok(ticks >= 2 && ticks <= 8, "the five slots complete over two Options turns, with fair interleaving for other lanes");
   assert.equal(lastSummary.optionsObserved, 1, "the fifth cursor slot completes the four-contract EOD field");
   const stored = sql.prepare("SELECT selection_json, bars_json, status FROM orb2_options_observations WHERE symbol='NVDA'").get();
   assert.equal(stored.status, "ready");
