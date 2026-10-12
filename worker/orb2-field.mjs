@@ -4,32 +4,15 @@
  * The beat is a server responsibility. A Cloudflare Cron Trigger calls
  * `runOrb2FieldTick()` every minute.
  *
- * The tick is optimized for parallel and sequential work at the same time by
- * splitting it into provider lanes (see ORB2_FIELD_PROVIDER_LANES). A lane is
- * one independently rate-limited provider envelope, and each owns its own D1
- * stable-key cursor:
+ * The scheduler has one execution lane per Cron invocation: it selects one
+ * provider lane and spends at most one work unit. Provider adapters retain
+ * their own rate-limit guards, but provider work never fans out across lanes.
+ * The lane choice is deterministic from the scheduled minute, while each lane
+ * retains its durable stable-key cursor. The FX adapter may make its reviewed
+ * two-request fallback sequence inside its single work unit.
  *
- *   · PARALLEL ACROSS LANES. Lanes advance in the same minute because spending
- *     an allowance in one cannot spend an allowance in another. Each lane spends
- *     its own documented unit budget: one unit per scheduled minute for every
- *     lane whose provider costs a whole request per unit — exactly what the
- *     former single-cursor tick did for the whole field — and more only where
- *     the lane can point at spare headroom inside its own envelope. The FX lane
- *     keeps its reviewed two-fetch ceiling for the Massive-to-Alpha fallback.
- *     Because a full rotation is bounded by the longest single lane rather than
- *     the sum of the lanes, the budget is spent where the field is deepest.
- *   · SEQUENTIAL WITHIN A LANE. Provider calls inside a lane stay ordered, and a
- *     lane that spends several units in one minute takes them one after another,
- *     because that ordering is what makes a sliding-window envelope meaningful.
- *     Statements that mutate scheduler state also stay ordered, so the
- *     single-writer lease and the cursor-advance-before-fetch crash guarantee
- *     keep their meaning.
- *   · PARALLEL READS, BOUNDED. D1 reads with no ordering dependency are issued
- *     together under ORB2_FIELD_D1_READ_CONCURRENCY. Waiting on I/O is not
- *     Worker CPU time, so this lowers wall-clock latency at essentially
- *     unchanged CPU cost; the bound is what keeps peak in-flight buffers small.
- *
- * The tick preserves Massive's five-per-minute-per-asset-class envelope,
+ * This intentionally trades field rotation speed for predictable CPU and D1
+ * pressure. The tick preserves Massive's five-per-minute-per-asset-class
  * Kraken's one-per-second gate and UTC-day safety ceiling, and Tickerbot's
  * UTC-month ledger; the historical Massive daily count remains telemetry. Each
  * unit fetches one reviewed instrument, runs the same
@@ -216,8 +199,7 @@ export const ORB2_FIELD_PROVIDER_LANES = Object.freeze([
   })
 ]);
 /** One work unit per tick for every lane unless the lane documents otherwise. */
-const laneWorkUnits = lane => Number.isSafeInteger(lane.maxWorkUnitsPerTick) && lane.maxWorkUnitsPerTick > 0
-  ? lane.maxWorkUnitsPerTick : 1;
+const laneWorkUnits = () => 1;
 /** A lane's whole-tick provider ceiling: its units times its per-unit ceiling.
    Named apart from the per-lane counter inside `runProviderLane`, which would
    otherwise shadow it. */
@@ -225,12 +207,12 @@ const laneCallCeilingFor = lane => laneWorkUnits(lane) * lane.maxProviderCallsPe
 export const ORB2_FIELD_LANE_COUNT = ORB2_FIELD_PROVIDER_LANES.length;
 /** Default units per lane per scheduled minute; a lane may document more. */
 export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_LANE_PER_TICK = 1;
-/** Derived, never hand-tuned: the sum of each lane's own reviewed unit budget. */
-export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = ORB2_FIELD_PROVIDER_LANES
-  .reduce((total, lane) => total + laneWorkUnits(lane), 0);
-/** Derived, never hand-tuned: the sum of each lane's own reviewed call ceiling. */
-export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = ORB2_FIELD_PROVIDER_LANES
-  .reduce((total, lane) => total + laneCallCeilingFor(lane), 0);
+/** One provider work unit is the hard per-invocation scheduler ceiling. */
+export const ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK = 1;
+/** One unit may use the FX adapter's reviewed two-request fallback sequence. */
+export const ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK = Math.max(
+  ...ORB2_FIELD_PROVIDER_LANES.map(lane => laneCallCeilingFor(lane))
+);
 export const ORB2_FIELD_TICKERBOT_BURST_PER_TICK = 1;
 export const ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE =
   TICKERBOT_WATCHLIST.length + SCHEDULER_FX_ROSTER_SIZE + CHARACTERS_CRYPTO_RANKING_SIZE +
@@ -248,9 +230,9 @@ const ORB2_FIELD_SCHEDULER_LANE_D1_WRITES = 8;
 const ORB2_FIELD_SCHEDULER_SHARED_D1_READS = 16;
 const ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES = 8;
 export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = ORB2_FIELD_SCHEDULER_SHARED_D1_READS +
-  ORB2_FIELD_PROVIDER_LANES.reduce((total, lane) => total + ORB2_FIELD_SCHEDULER_LANE_D1_READS * laneWorkUnits(lane), 0);
+  ORB2_FIELD_SCHEDULER_LANE_D1_READS;
 export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES +
-  ORB2_FIELD_PROVIDER_LANES.reduce((total, lane) => total + ORB2_FIELD_SCHEDULER_LANE_D1_WRITES * laneWorkUnits(lane), 0);
+  ORB2_FIELD_SCHEDULER_LANE_D1_WRITES;
 const ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES = 3;
 const ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
@@ -2128,7 +2110,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     observed: 0, packetAnalyses: 0, held: 0,
     workUnits: 0, workUnit: null, workUnitsList: [], providerRequests: 0,
     /* Per-lane unit accounting. The caps live in markSchedulerWorkUnit; this map
-       is what makes the per-lane cap enforceable while lanes run concurrently. */
+       is what makes the per-lane cap enforceable while scheduler dispatch is serialized. */
     workUnitsByLane: new Map(), lanes: {},
     d1Reads: 0, d1Writes: 0, d1RowsRead: 0,
     queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, warmProgressed: 0,
@@ -2240,18 +2222,16 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       }
     }
 
-    /* PARALLEL LANES: every lane owns a distinct provider envelope and a distinct
-       durable cursor, so they advance in the same minute. Each lane stays
-       sequential internally and spends its own unit budget. A lane that
-       fails — provider outage, exhausted allowance, or a corrupt cursor — is
-       settled on its own and reported, so it cannot take the other lanes or the
-       tick down with it. */
-    const laneReports = await settleWithConcurrency(
-      ORB2_FIELD_PROVIDER_LANES,
-      ORB2_FIELD_LANE_CONCURRENCY,
+    /* SINGLE LANE: one scheduled minute selects one provider lane and permits
+       one work unit total. A queued priority refresh or automatic warm unit
+       preempts the regular lane schedule; it does not run alongside it. */
+    const selectedLaneIndex = Math.floor(now / 60_000) % ORB2_FIELD_PROVIDER_LANES.length;
+    const selectedLane = ORB2_FIELD_PROVIDER_LANES[selectedLaneIndex];
+    const laneReports = tickerbotLaneSpent ? [] : await settleWithConcurrency(
+      [selectedLane],
+      1,
       lane => runProviderLane({
-        lane, db, env: scopedEnv, now, fetcher, keys, summary, optionsEnabled,
-        spent: lane.id === "tickerbot-stocks" ? tickerbotLaneSpent : false
+        lane, db, env: scopedEnv, now, fetcher, keys, summary, optionsEnabled
       })
     );
     /* `settleWithConcurrency` preserves input order, so these reports arrive in
