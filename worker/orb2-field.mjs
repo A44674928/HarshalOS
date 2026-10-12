@@ -1597,7 +1597,9 @@ async function resolveOrb2CommodityContracts({ env, db, now, fetcher, keys, summ
   if (reserved) summary.massiveCalls += 1;
   if (result.ok) {
     state.contracts[productCode] = result.contract;
+    state.discoverySucceeded = true;
   } else {
+    state.discoverySucceeded = false;
     if (!["massive-futures-contract-cooldown", "massive-futures-contract-circuit-open",
       "massive-rate-limit", "massive-budget-exhausted"].includes(result.code)) {
       summary.notes.push(`Disc4 ${productCode} held: ${result.message}`);
@@ -2033,6 +2035,11 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
         markSchedulerWorkUnit(summary, "kraken:ranking", lane.id);
         report.ran = true;
         report.workUnit = "kraken:ranking";
+        /* A successful cold ranking refresh precedes, rather than replaces, a
+           reviewed asset-bar slot. Repeat this lane once next tick so its full
+           worklist still receives the complete weighted allocation. Failed
+           attempts release the slot and cannot stall the global rotation. */
+        report.keepDispatchSlot = Boolean(cryptoRanking);
         return report;
       }
       if (!cryptoRanking) {
@@ -2066,6 +2073,11 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
           markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
           report.ran = true;
           report.workUnit = "massive:futures-contract-discovery";
+          /* An admitted successful discovery is prerequisite work, not an
+             instrument bar. Hold this lane's dispatch slot once so its next
+             tick can fetch a real commodity beat without stealing another
+             Disc's share. Failed discovery releases the slot. */
+          report.keepDispatchSlot = futuresState?.discoverySucceeded === true;
           return report;
         }
         commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
@@ -2330,8 +2342,13 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     /* Commit the dispatch position after the lane attempt. Its own instrument
        cursor is already durable before any provider fetch, so a process failure
        cannot replay that item even if this final pointer write does not land. */
-    if (!tickerbotLaneSpent && selectedLane && dispatchCursor.ok) {
+    const keepDispatchSlot = laneReports.some(settled =>
+      settled.ok && settled.value?.keepDispatchSlot === true
+    );
+    if (!tickerbotLaneSpent && selectedLane && dispatchCursor.ok && !keepDispatchSlot) {
       await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
+    } else if (keepDispatchSlot) {
+      summary.notes.push("Successful provider discovery used this unit; the same lane retains its dispatch slot for the first instrument bar on the next Cron tick.");
     }
     /* `settleWithConcurrency` preserves input order, so these reports arrive in
        declared lane order regardless of which lane resolved first. */
