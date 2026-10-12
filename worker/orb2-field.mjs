@@ -2291,19 +2291,21 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       : null;
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
+    const tickerbotPreemptionUnits = [];
     if (keys.tickerbot) {
       const queued = await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
       if (queued.length) {
         const job = queued[0];
         tickerbotPreemptionUnit = markSchedulerWorkUnit(summary, `queue:${job.interval}:${job.symbol}`, "tickerbot-stocks");
+        tickerbotPreemptionUnits.push(tickerbotPreemptionUnit);
         summary.queueClaimed = 1;
         const callsBefore = summary.tickerbotCalls;
-        await processQueuedTickerbotJob({ db, env: scopedEnv, job, now, fetcher, keys, summary });
+        const queuedOutcome = await processQueuedTickerbotJob({ db, env: scopedEnv, job, now, fetcher, keys, summary });
         summary.lanes["tickerbot-stocks"] = {
           ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
           workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
           unitBudget: laneWorkUnits(laneById("tickerbot-stocks")), callCeiling: laneCallCeilingFor(laneById("tickerbot-stocks")), maxProviderCallsPerUnit: 1,
-          observed: 0, held: 0, cursorAdvanced: false, cursorReset: false
+          observed: 0, held: 0, cursorAdvanced: queuedOutcome?.attempted === true, cursorReset: false
         };
         tickerbotLaneSpent = true;
       }
@@ -2311,42 +2313,54 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       summary.notes.push("Queued Tickerbot stock work is waiting for TICKERBOT_API_KEY; it was not claimed or charged.");
     }
 
-    /* Cold calibration shares the Tickerbot slot, so it cannot burst 156 rows or
-       suppress the other provider classes. A completed/attempted warm unit spends
-       the selected stock slot; a preflight refusal restores both warm progress
-       and the global dispatch position. */
+    /* Cold calibration shares the Tickerbot slot and follows the same serial
+       12-unit ceiling as regular stock rotation. Persist each cursor step before
+       its request; if a preflight refuses a unit, restore only that unit and
+       release the global dispatch slot so unrelated lanes keep progressing. */
     if (!tickerbotLaneSpent && selectedLane?.id === "tickerbot-stocks") {
       const warm = await loadAutoWarmState(db, control, now, summary);
       if (warm.reset) summary.cursorReset = true;
       if (warm.active && keys.tickerbot) {
-        const job = autoWarmJob(warm.progress);
-        if (job) {
-          await writeAutoWarmProgress(db, warm.progress + 1, now);
-          summary.cursorAdvanced = true;
-          summary.warmProgressed = 1;
-          markSchedulerWorkUnit(summary, `warm:${job.interval}:${job.instrument.symbol}`, "tickerbot-stocks");
-          tickerbotPreemptionUnit = `warm:${job.interval}:${job.instrument.symbol}`.slice(0, 96);
-          const callsBefore = summary.tickerbotCalls;
+        let progress = warm.progress;
+        let progressed = 0;
+        const warmUnits = [];
+        const callsBefore = summary.tickerbotCalls;
+        for (let unit = 0; unit < laneWorkUnits(laneById("tickerbot-stocks")) &&
+          progress < ORB2_FIELD_TICKERBOT_BURST_CALLS; unit += 1) {
+          const job = autoWarmJob(progress);
+          if (!job) break;
+          const key = `warm:${job.interval}:${job.instrument.symbol}`.slice(0, 96);
+          await writeAutoWarmProgress(db, progress + 1, now);
+          markSchedulerWorkUnit(summary, key, "tickerbot-stocks");
+          warmUnits.push(key);
           const outcome = await processTickerbotUnit({
             db, env: scopedEnv, instrument: job.instrument, interval: job.interval, reason: job.reason,
             now, fetcher, keys, summary
           });
           if (!outcome.attempted) {
-            await writeAutoWarmProgress(db, warm.progress, now);
-            summary.cursorAdvanced = false;
-            summary.warmProgressed = 0;
-          } else {
-            await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
+            await writeAutoWarmProgress(db, progress, now);
+            break;
           }
-          summary.lanes["tickerbot-stocks"] = {
-            ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
-            workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
-            unitBudget: 1, callCeiling: 1, maxProviderCallsPerUnit: 1,
-            observed: summary.observed, held: summary.held,
-            cursorAdvanced: outcome.attempted, cursorReset: false
-          };
-          tickerbotLaneSpent = true;
+          progress += 1;
+          progressed += 1;
         }
+        summary.cursorAdvanced = progressed > 0;
+        summary.warmProgressed = progressed;
+        tickerbotPreemptionUnits.push(...warmUnits);
+        tickerbotPreemptionUnit = warmUnits[0] || null;
+        summary.lanes["tickerbot-stocks"] = {
+          ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
+          workUnits: warmUnits, providerCalls: summary.tickerbotCalls - callsBefore,
+          unitBudget: laneWorkUnits(laneById("tickerbot-stocks")),
+          callCeiling: laneCallCeilingFor(laneById("tickerbot-stocks")), maxProviderCallsPerUnit: 1,
+          observed: summary.observed, held: summary.held,
+          cursorAdvanced: progressed > 0, cursorReset: false
+        };
+        /* Even a preflight refusal must not let a cold stock lane pin the
+           dispatcher forever. Warm progress remains unchanged, but other lanes
+           get their weighted turn before this item is retried. */
+        if (dispatchCursor.ok) await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
+        tickerbotLaneSpent = true;
       } else if (warm.active && !keys.tickerbot) {
         summary.notes.push(`${ORB2_FIELD_TICKERBOT_BURST_CALLS - warm.progress} automatic Tickerbot warm units remain durable until TICKERBOT_API_KEY is available.`);
       }
@@ -2403,8 +2417,8 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        that lane's unit. */
     for (const lane of ORB2_FIELD_PROVIDER_LANES) {
       const entry = summary.lanes[lane.id];
-      if (lane.id === "tickerbot-stocks" && tickerbotPreemptionUnit) {
-        summary.workUnitsList.push(tickerbotPreemptionUnit);
+      if (lane.id === "tickerbot-stocks" && tickerbotPreemptionUnits.length) {
+        summary.workUnitsList.push(...tickerbotPreemptionUnits);
         continue;
       }
       if (entry && entry.workUnits) summary.workUnitsList.push(...entry.workUnits);
