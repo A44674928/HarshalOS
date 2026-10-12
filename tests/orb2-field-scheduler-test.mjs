@@ -33,6 +33,7 @@ import {
   orb2FieldFreshness,
   orb2FieldNeedsRefresh,
   orb2FieldRoster,
+  orb2FieldDispatchSchedule,
   enqueuePriorityRefresh,
   readOrb2FieldSnapshot,
   runOrb2FieldTick,
@@ -250,34 +251,26 @@ function seedFieldCursor(sql, key, { attempts = 1, at = NOW } = {}) {
 
 function seedDispatchCursor(sql, { laneId, attempts, at = NOW, options = false } = {}) {
   const catalog = globalThis.CharactersDiscCatalog || {};
-  const count = list => Array.isArray(list)
-    ? list.filter(entry => entry && /^[A-Z0-9][A-Z0-9._:/-]{0,31}$/.test(String(entry.symbol || ""))).length : 0;
   const futures = catalog.futures || catalog.commodities;
-  const rawWeights = [
-    ["tickerbot-stocks", STOCK_SYMBOLS.length],
-    ["kraken-crypto", CHARACTERS_CRYPTO_RANKING_SIZE + 1],
-    ["massive-fx", count(catalog.fxCurrencies) || 23],
-    ["massive-futures", count(Array.isArray(futures) ? futures.slice(0, 11) : futures) || 11],
-    ["massive-indices", count(catalog.indices) || 32],
-    ["massive-options", options ? STOCK_SYMBOLS.length * 5 : 0]
-  ];
-  const capacities = new Map(ORB2_FIELD_PROVIDER_LANES.map(lane => [lane.id, lane.maxWorkUnitsPerTick || 1]));
-  const weights = rawWeights.map(([id, size]) => [id, Math.ceil(size / (capacities.get(id) || 1))])
-    .filter(([, size]) => size > 0);
-  const total = weights.reduce((sum, [, size]) => sum + size, 0);
-  const current = weights.map(() => 0);
-  const schedule = [];
-  for (let turn = 0; turn < total; turn += 1) {
-    let chosen = -1;
-    for (let i = 0; i < weights.length; i += 1) {
-      current[i] += weights[i][1];
-      if (chosen < 0 || current[i] > current[chosen]) chosen = i;
-    }
-    current[chosen] -= total;
-    schedule.push(weights[chosen][0]);
+  /* Match the Worker's canonical schedule inputs. In particular, use the
+     cached ranking's actual valid cross-pair count—not the 52-pair maximum. */
+  let cryptoCount = CHARACTERS_CRYPTO_RANKING_SIZE;
+  const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
+  if (typeof rankingRow?.ranking_json === "string") {
+    try {
+      const ranking = JSON.parse(rankingRow.ranking_json);
+      const cryptoRoster = orb2FieldRoster({ now: at, cryptoRanking: ranking, includeDiscIds: ["crypto"] });
+      cryptoCount = cryptoRoster.crypto.length + cryptoRoster.cryptoPairs.length;
+    } catch { /* no usable cached ranking means use the primary roster size */ }
   }
-  const stockStart = schedule.indexOf("tickerbot-stocks");
-  if (stockStart > 0) schedule.push(...schedule.splice(0, stockStart));
+  const schedule = orb2FieldDispatchSchedule({
+    stockCount: STOCK_SYMBOLS.length,
+    cryptoCount,
+    fxCount: Array.isArray(catalog.fxCurrencies) ? catalog.fxCurrencies.length : 23,
+    futuresCount: Array.isArray(futures) ? futures.length : 11,
+    indexCount: Array.isArray(catalog.indices) ? catalog.indices.length : 32,
+    optionsCount: options ? STOCK_SYMBOLS.length * 5 : 0
+  });
   const offset = Number.isSafeInteger(attempts) ? attempts : schedule.indexOf(laneId);
   assert.ok(offset >= 0, `dispatch lane ${laneId || ""} exists in the weighted schedule`);
   sql.prepare(`INSERT INTO orb2_field_queue
