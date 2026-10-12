@@ -372,12 +372,16 @@ export function orb2FieldNeedsRefresh(observation, now = Date.now(), provider = 
  * A catalog or active contract that is unavailable contributes nothing: the
  * sweep simply does not cover it, and no substitute instrument is invented.
  */
-export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commodityContracts = null } = {}) {
+export function orb2FieldRoster({
+  now = Date.now(), cryptoRanking = null, commodityContracts = null, includeDiscIds = null
+} = {}) {
   const roster = globalThis.GoodIntelligenceMarketRoster;
   const catalog = globalThis.CharactersDiscCatalog;
   const ds = globalThis.GoodIntelligenceDollarStrength;
+  const selectedDiscs = includeDiscIds == null ? null : new Set(includeDiscIds);
+  const includes = discId => selectedDiscs === null || selectedDiscs.has(discId);
   const stocks = [];
-  if (roster && Array.isArray(roster.assets) && ds && typeof ds.buildFiringOrder === "function") {
+  if (includes("stocks") && roster && Array.isArray(roster.assets) && ds && typeof ds.buildFiringOrder === "function") {
     for (const asset of ds.buildFiringOrder(roster.assets)) {
       if (!asset || !SYMBOL_PATTERN.test(String(asset.symbol || ""))) continue;
       stocks.push(Object.freeze({
@@ -390,11 +394,11 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
   const statics = (list, discId, assetClass) => (Array.isArray(list) ? list : [])
     .filter(entry => entry && SYMBOL_PATTERN.test(String(entry.symbol || "")))
     .map(entry => Object.freeze({ ...entry, discId, assetClass: assetClass || entry.assetClass }));
-  const fx = statics(catalog && catalog.fxCurrencies, "fx", "fx");
+  const fx = includes("fx") ? statics(catalog && catalog.fxCurrencies, "fx", "fx") : [];
   const today = new Date(Number(now)).toISOString().slice(0, 10);
   const contracts = commodityContracts && typeof commodityContracts === "object" ? commodityContracts : {};
-  const commodities = statics(catalog && (catalog.futures || catalog.commodities), "commodities", "futures")
-    .flatMap(entry => {
+  const commodities = includes("commodities")
+    ? statics(catalog && (catalog.futures || catalog.commodities), "commodities", "futures").flatMap(entry => {
       const productCode = String(entry.massive && entry.massive.productCode || "").toUpperCase();
       const contract = contracts[productCode];
       const ticker = String(contract && contract.ticker || "").toUpperCase();
@@ -416,16 +420,17 @@ export function orb2FieldRoster({ now = Date.now(), cryptoRanking = null, commod
         }),
         discId: "commodities", assetClass: "futures"
       })];
-    });
-  const indices = statics(catalog && catalog.indices, "indices", "index");
-  const crypto = (cryptoRanking && Array.isArray(cryptoRanking.instruments) ? cryptoRanking.instruments : [])
+    })
+    : [];
+  const indices = includes("indices") ? statics(catalog && catalog.indices, "indices", "index") : [];
+  const crypto = (includes("crypto") && cryptoRanking && Array.isArray(cryptoRanking.instruments) ? cryptoRanking.instruments : [])
     .filter(entry => entry && entry.rankingProvider === "Kraken" && /^[A-Z0-9]{2,12}$/.test(String(entry.symbol || "")) &&
       /^[A-Z0-9]{2,12}\/USD$/.test(String(entry.krakenPair || "")) && entry.providerId === entry.krakenPair &&
       (entry.baseAsset === undefined || entry.baseAsset === entry.symbol) &&
       (entry.quoteAsset === undefined || entry.quoteAsset === "USD"))
     .map(entry => Object.freeze({ ...entry, baseAsset: entry.baseAsset || entry.symbol, quoteAsset: "USD", pairType: "usd", discId: "crypto", assetClass: "crypto" }));
   const cryptoSymbols = new Set(crypto.map(entry => entry.symbol));
-  const cryptoPairs = (cryptoRanking && Array.isArray(cryptoRanking.crossPairs) ? cryptoRanking.crossPairs : [])
+  const cryptoPairs = (includes("crypto") && cryptoRanking && Array.isArray(cryptoRanking.crossPairs) ? cryptoRanking.crossPairs : [])
     .slice(0, CHARACTERS_CRYPTO_CROSS_PAIR_SIZE)
     .filter(entry => {
       const pair = String(entry && entry.krakenPair || "").toUpperCase();
@@ -1642,8 +1647,9 @@ export const ORB2_FIELD_WORK_LANE_IDS = Object.freeze(
 );
 const ORB2_FIELD_DECLARED_LANE_IDS = Object.freeze(new Set(ORB2_FIELD_WORK_LANE_IDS));
 
-function scheduledWorkItems({ roster, optionsEnabled, keys }) {
+function scheduledWorkItems({ roster, optionsEnabled, keys, laneId = null }) {
   const items = [];
+  const ownsLane = id => laneId === null || laneId === id;
   const add = (key, kind, instrument, extra = {}) => {
     const lane = ORB2_FIELD_LANE_BY_KIND[kind];
     /* An unmapped kind is a programming error, not schedulable work. It is
@@ -1656,19 +1662,25 @@ function scheduledWorkItems({ roster, optionsEnabled, keys }) {
     items.push({ key, kind, lane, instrument, ...extra });
   };
   const hasDailyVenue = Boolean(keys.massive || keys.twelvedata);
-  if (keys.tickerbot) {
+  if (keys.tickerbot && ownsLane("tickerbot-stocks")) {
     for (const instrument of roster.stocks) add(`tickerbot:1d:${instrument.symbol}`, "tickerbot-daily", instrument);
   }
-  if (hasDailyVenue) {
+  if (hasDailyVenue && ownsLane("massive-fx")) {
     for (const instrument of roster.fx) add(`massive:fx:${instrument.symbol}`, "massive-fx", instrument);
   }
-  for (const instrument of [...roster.crypto, ...roster.cryptoPairs]) {
-    add(`kraken:1d:${instrument.symbol}`, "kraken-daily", instrument);
+  if (ownsLane("kraken-crypto")) {
+    for (const instrument of [...roster.crypto, ...roster.cryptoPairs]) {
+      add(`kraken:1d:${instrument.symbol}`, "kraken-daily", instrument);
+    }
   }
   if (hasDailyVenue) {
-    for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
-    for (const instrument of roster.indices) add(`massive:index:${instrument.symbol}`, "massive-index", instrument);
-    if (optionsEnabled) {
+    if (ownsLane("massive-futures")) {
+      for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
+    }
+    if (ownsLane("massive-indices")) {
+      for (const instrument of roster.indices) add(`massive:index:${instrument.symbol}`, "massive-index", instrument);
+    }
+    if (optionsEnabled && ownsLane("massive-options")) {
       /* One discovery plus four selected contract bars is exactly the existing
          Options work for one reviewed underlying; each cursor slot can make one
          call, within Massive's unchanged five-requests/minute Options allowance. */
@@ -2060,15 +2072,25 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
       }
     }
 
-    const roster = orb2FieldRoster({ now, cryptoRanking, commodityContracts });
+    const laneDiscIds = {
+      "tickerbot-stocks": ["stocks"],
+      "kraken-crypto": ["crypto"],
+      "massive-fx": ["fx"],
+      "massive-futures": ["commodities"],
+      "massive-indices": ["indices"],
+      "massive-options": ["stocks"]
+    }[lane.id] || [];
+    const roster = orb2FieldRoster({
+      now, cryptoRanking, commodityContracts, includeDiscIds: laneDiscIds
+    });
     const laneOptionsEnabled = lane.worklistOptions ? optionsEnabled : false;
     if (lane.worklistOptions && keys.massive && !optionsEnabled) {
       recorder.notes.push("Stocks Options Field is dormant until migration 0013 is applied.");
       return report;
     }
     const items = scheduledWorkItems({
-      roster, optionsEnabled: laneOptionsEnabled, keys: lane.worklistKeys
-    }).filter(item => item.lane === lane.id);
+      roster, optionsEnabled: laneOptionsEnabled, keys: lane.worklistKeys, laneId: lane.id
+    });
     if (!items.length) return report;
 
     /* Rotate this lane's own cursor. A lane whose envelope has documented
@@ -2219,16 +2241,22 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       { id: "massive-options", count: optionsEnabled && keys.massive
         ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
     ].filter(entry => entry.count > 0);
-    const weightedLaneSchedule = laneWeights.flatMap(entry =>
-      Array.from({ length: entry.count }, () => ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === entry.id))
-    );
+    const scheduleLength = laneWeights.reduce((total, entry) => total + entry.count, 0);
     const dispatchCursor = await readSchedulerDispatchCursor(db);
     if (!dispatchCursor.ok) {
       summary.notes.push("The durable scheduler dispatch cursor is corrupt and was blocked; regular rotation did not guess a new position.");
     }
-    const selectedLane = dispatchCursor.ok
-      ? weightedLaneSchedule[dispatchCursor.attempts % Math.max(1, weightedLaneSchedule.length)]
-      : null;
+    let selectedLane = null;
+    if (dispatchCursor.ok && scheduleLength > 0) {
+      let slot = dispatchCursor.attempts % scheduleLength;
+      for (const entry of laneWeights) {
+        if (slot < entry.count) {
+          selectedLane = ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === entry.id) || null;
+          break;
+        }
+        slot -= entry.count;
+      }
+    }
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
     if (keys.tickerbot) {
