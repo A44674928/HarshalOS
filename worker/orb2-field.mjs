@@ -2225,9 +2225,23 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     /* SINGLE LANE: one scheduled minute selects one provider lane and permits
        one work unit total. A queued priority refresh or automatic warm unit
        preempts the regular lane schedule; it does not run alongside it. */
-    const selectedLaneIndex = Math.floor(now / 60_000) % ORB2_FIELD_PROVIDER_LANES.length;
-    const selectedLane = ORB2_FIELD_PROVIDER_LANES[selectedLaneIndex];
-    const laneReports = tickerbotLaneSpent ? [] : await settleWithConcurrency(
+    /* Weight the single lane schedule by its reviewed worklist size. This
+       preserves one unit per tick without starving the large or small Discs:
+       one complete schedule visits each lane in proportion to its worklist. */
+    const laneWeights = [
+      { id: "tickerbot-stocks", count: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0 },
+      { id: "kraken-crypto", count: CHARACTERS_CRYPTO_RANKING_SIZE + CHARACTERS_CRYPTO_CROSS_PAIR_SIZE },
+      { id: "massive-fx", count: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0 },
+      { id: "massive-futures", count: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0 },
+      { id: "massive-indices", count: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0 },
+      { id: "massive-options", count: optionsEnabled && keys.massive ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
+    ].filter(entry => entry.count > 0);
+    const weightedLaneSchedule = laneWeights.flatMap(entry =>
+      Array.from({ length: entry.count }, () => ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === entry.id))
+    );
+    const scheduleIndex = Math.floor(now / 60_000) % Math.max(1, weightedLaneSchedule.length);
+    const selectedLane = weightedLaneSchedule[scheduleIndex];
+    const laneReports = tickerbotLaneSpent || !selectedLane ? [] : await settleWithConcurrency(
       [selectedLane],
       1,
       lane => runProviderLane({
