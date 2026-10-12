@@ -448,19 +448,24 @@ test("field freshness marks daily cards stale before 24h expiry and 15m cards ex
   assert.equal(ORB2_FIELD_FRESHNESS["15m"].expireMs, 6 * 60 * 60_000);
 });
 
-test("15m field staleness is deferred until 5 PM Arizona without delaying refresh work", () => {
+test("intraday field staleness is deferred until 5 PM Arizona without delaying refresh work", () => {
   const observedAt = Date.parse("2026-10-05T15:00:00.000Z"); // 8 AM Phoenix
   const beforeCutoff = Date.parse("2026-10-05T23:30:00.000Z"); // 4:30 PM MST
   const atCutoff = Date.parse("2026-10-06T00:00:00.000Z"); // 5:00 PM MST
-  const expiredObservation = {
+  const aged15m = {
     interval: "15m", observedAt, provider: "tickerbot",
     market: { latestBar: { close: 100 } }
   };
+  const aged1h = { ...aged15m, interval: "1h" };
 
   assert.equal(orb2FieldFreshness("15m", observedAt, beforeCutoff).status, "fresh");
+  assert.equal(orb2FieldFreshness("1h", observedAt, beforeCutoff).status, "fresh");
   assert.equal(orb2FieldFreshness("15m", observedAt, atCutoff).status, "expired");
-  assert.equal(orb2FieldNeedsRefresh(expiredObservation, beforeCutoff), true,
+  assert.equal(orb2FieldFreshness("1h", observedAt, atCutoff).status, "expired");
+  assert.equal(orb2FieldNeedsRefresh(aged15m, beforeCutoff), true,
     "scheduler refresh eligibility still follows the six-hour age limit");
+  assert.equal(orb2FieldNeedsRefresh(aged1h, beforeCutoff), true,
+    "the presentation grace does not delay 1h refreshes either");
   assert.equal(orb2FieldFreshness("15m", Date.parse("2026-10-02T15:00:00.000Z"), beforeCutoff).status, "expired",
     "prior-day data receives no grace");
 });
