@@ -2250,7 +2250,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        Disc catalog may be refined independently, and the dispatch cycle must
        match the worklist the lane actually builds on this invocation. */
     const indexCount = catalogCount(liveCatalog.indices, SCHEDULER_INDEX_ROSTER_SIZE);
-    const laneWeights = [
+    const activeLaneSizes = [
       { id: "tickerbot-stocks", count: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0 },
       { id: "kraken-crypto", count: CHARACTERS_CRYPTO_RANKING_SIZE + CHARACTERS_CRYPTO_CROSS_PAIR_SIZE },
       { id: "massive-fx", count: keys.massive || keys.twelvedata ? fxCount : 0 },
@@ -2259,22 +2259,36 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
       { id: "massive-options", count: optionsEnabled && keys.massive
         ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
     ].filter(entry => entry.count > 0);
+    /* The dispatch weight is the number of Cron turns a lane needs for one pass,
+       not its raw number of instruments. Use smooth weighted round-robin so
+       five stock batches are spread over a cycle instead of running as one block. */
+    const laneWeights = activeLaneSizes.map(entry => ({
+      id: entry.id,
+      count: Math.ceil(entry.count / laneWorkUnits(laneById(entry.id)))
+    })).filter(entry => entry.count > 0);
     const scheduleLength = laneWeights.reduce((total, entry) => total + entry.count, 0);
     const dispatchCursor = await readSchedulerDispatchCursor(db);
     if (!dispatchCursor.ok) {
       summary.notes.push("The durable scheduler dispatch cursor is corrupt and was blocked; regular rotation did not guess a new position.");
     }
-    let selectedLane = null;
-    if (dispatchCursor.ok && scheduleLength > 0) {
-      let slot = dispatchCursor.attempts % scheduleLength;
-      for (const entry of laneWeights) {
-        if (slot < entry.count) {
-          selectedLane = ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === entry.id) || null;
-          break;
-        }
-        slot -= entry.count;
+    /* Construct a small bounded schedule of lane turns (91 turns without
+       Options, 156 with it), rather than expanding every instrument into an
+       array on each tick. The algorithm distributes each lane's turns smoothly. */
+    const dispatchSchedule = [];
+    const laneCurrentWeights = laneWeights.map(() => 0);
+    for (let turn = 0; turn < scheduleLength; turn += 1) {
+      let chosen = -1;
+      for (let index = 0; index < laneWeights.length; index += 1) {
+        laneCurrentWeights[index] += laneWeights[index].count;
+        if (chosen < 0 || laneCurrentWeights[index] > laneCurrentWeights[chosen]) chosen = index;
       }
+      if (chosen < 0) break;
+      laneCurrentWeights[chosen] -= scheduleLength;
+      dispatchSchedule.push(ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === laneWeights[chosen].id) || null);
     }
+    const selectedLane = dispatchCursor.ok && dispatchSchedule.length
+      ? dispatchSchedule[dispatchCursor.attempts % dispatchSchedule.length] || null
+      : null;
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
     if (keys.tickerbot) {
@@ -2288,7 +2302,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         summary.lanes["tickerbot-stocks"] = {
           ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
           workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
-          unitBudget: 1, callCeiling: 1, maxProviderCallsPerUnit: 1,
+          unitBudget: laneWorkUnits(laneById("tickerbot-stocks")), callCeiling: laneCallCeilingFor(laneById("tickerbot-stocks")), maxProviderCallsPerUnit: 1,
           observed: 0, held: 0, cursorAdvanced: false, cursorReset: false
         };
         tickerbotLaneSpent = true;
