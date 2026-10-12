@@ -415,6 +415,7 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const tradesIndexText = await tradesIndex.text();
     assert.match(tradesIndexText, /Disc1 · The 52 Cards/);
     assert.match(tradesIndexText, /Disc4 · Futures/);
+    assert.match(tradesIndexText, /Disc5 · Added from 2026 TradingView posts/);
     assert.match(tradesIndexText, /STOCK ·/);
     assert.match(tradesIndexText, /FUTURES ·/);
 

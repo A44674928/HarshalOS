@@ -1,0 +1,299 @@
+/* P/L desktop app: log parsing, ledger rules (LONG/REBUY/SHORT/DUMP/TAKE PROFIT), marking, and rendering. */
+import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
+import test from "node:test";
+import { Window } from "happy-dom";
+
+const appSource = await readFile(new URL("../js/apps-pnl.js", import.meta.url), "utf8");
+const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const tradesIndex = await readFile(new URL("../trades/index.txt", import.meta.url), "utf8");
+const tradesDir = new URL("../trades/", import.meta.url);
+
+const line = (date, time, tag, price, size, note = "fixture") =>
+  `${date} ${time} MST | SIMULATED PAPER [${tag}] | entry: [Market @ ~$${price}] | size: [${size} share${size === 1 ? "" : "s"}] | note: [${note}]`;
+const exitLine = (date, time, tag, price, note = "fixture exit") =>
+  `${date} ${time} MST | SIMULATED PAPER [${tag}] | price: [@ ~$${price}] | size: [1 share] | note: [${note}]`;
+
+const ledgerFor = (logs) => loadApi().buildLedger(logs);
+
+let cachedApi = null;
+function loadApi() {
+  if (cachedApi) return cachedApi;
+  const window = new Window({ url: "https://main.empty.domains/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+  window.eval("var APPS = window.APPS = [];");
+  window.eval(appSource);
+  cachedApi = window.TradesPnl;
+  window.happyDOM.abort();
+  return cachedApi;
+}
+
+// Values created inside the happy-dom realm carry a different Object prototype; compare plain copies.
+const plain = value => JSON.parse(JSON.stringify(value));
+
+const flushUntil = async (predicate, attempts = 200) => {
+  for (let i = 0; i < attempts && !predicate(); i++) await new Promise(resolve => setTimeout(resolve, 0));
+};
+
+function mount(t, files, { indexBody = tradesIndex, failFor = new Set() } = {}) {
+  const window = new Window({ url: "https://main.empty.domains/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+  t.after(() => window.happyDOM.abort());
+  const requests = [];
+  window.fetch = async (input) => {
+    const url = new URL(String(input), window.location.href);
+    requests.push(url.pathname);
+    const name = decodeURIComponent(url.pathname.split("/").pop());
+    if (url.pathname.endsWith("/trades/index.txt")) return { status: 200, ok: true, text: async () => indexBody };
+    if (failFor.has(name)) return { status: 500, ok: false, text: async () => "boom" };
+    if (!(name in files)) return { status: 404, ok: false, text: async () => "" };
+    return { status: 200, ok: true, text: async () => files[name] };
+  };
+  window.document.write("<!doctype html><html><body><div id=\"folder\"></div></body></html>");
+  window.eval("var APPS = window.APPS = [];");
+  window.eval(appSource);
+  const app = window.APPS.find(candidate => candidate.id === "pnl");
+  assert.ok(app, "P/L registers in the desktop app registry");
+  const body = window.document.createElement("div");
+  window.document.body.appendChild(body);
+  app.render(body, {});
+  return { window, app, body, requests };
+}
+
+test("P/L registers as its own desktop app and is wired into index.html", (t) => {
+  const window = new Window({ url: "https://main.empty.domains/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+  t.after(() => window.happyDOM.abort());
+  window.eval("var APPS = window.APPS = [];");
+  window.eval(appSource);
+  const app = window.APPS.find(candidate => candidate.id === "pnl");
+  assert.equal(app.title, "P/L");
+  assert.equal(app.glyph, "📈");
+  assert.equal(app.w, 880);
+  assert.equal(app.h, 620);
+  assert.equal(window.APPS.filter(candidate => candidate.id === "pnl").length, 1);
+  assert.match(indexHtml, /<script defer src="js\/apps-pnl\.js\?v=[^"]+"><\/script>/);
+  assert.match(indexHtml, /<link rel="stylesheet" href="css\/pnl\.css\?v=[^"]+">/);
+});
+
+test("index parsing keeps valid tickers and counts invalid lines", () => {
+  const api = loadApi();
+  const parsed = api.parseIndex("# heading\nAAPL | Apple\n\nBAD TICKER | nope\nBTC | CRYPTO · Bitcoin\n");
+  assert.deepEqual(plain(parsed.entries.map(entry => entry.ticker)), ["AAPL", "BTC"]);
+  assert.equal(parsed.invalidCount, 1);
+});
+
+test("classifyTag maps LONG and REBUY to long lots, SHORT and DUMP to short lots, and TAKE PROFIT to closes", () => {
+  const api = loadApi();
+  assert.deepEqual(plain(api.classifyTag("LONG")), { action: "open", side: "long" });
+  assert.deepEqual(plain(api.classifyTag("REBUY")), { action: "open", side: "long", rebuy: true });
+  assert.deepEqual(plain(api.classifyTag("SHORT")), { action: "open", side: "short" });
+  assert.deepEqual(plain(api.classifyTag("DUMP")), { action: "open", side: "short" });
+  assert.deepEqual(plain(api.classifyTag("TAKE PROFIT")), { action: "close", fraction: 1 });
+  assert.deepEqual(plain(api.classifyTag("TAKE PROFIT 10%")), { action: "close", fraction: 0.1 });
+  assert.equal(api.classifyTag("WHATEVER").action, "unknown");
+});
+
+test("parseLog keeps unmatched lines as raw rows instead of dropping them", () => {
+  const api = loadApi();
+  const parsed = api.parseLog(`${line("2026-09-03", "06:30", "LONG", "100.00", 1)}\nnot a trade line\n`, "TEST");
+  assert.equal(parsed.filter(row => row.kind === "trade").length, 1);
+  const raw = parsed.find(row => row.kind === "raw");
+  assert.equal(raw.raw, "not a trade line");
+  const ledger = ledgerFor([{ ticker: "TEST", text: `${line("2026-09-03", "06:30", "LONG", "100.00", 1)}\nnot a trade line\n` }]);
+  assert.equal(ledger.rows.filter(row => row.status === "Unparsed").length, 1);
+});
+
+test("a LONG open is marked to the last logged price of its ticker", () => {
+  const ledger = ledgerFor([{
+    ticker: "AAA",
+    text: [line("2026-09-03", "06:30", "LONG", "100.00", 1), line("2026-09-10", "06:30", "LONG", "110.00", 1)].join("\n")
+  }]);
+  const summary = ledger.summaries.find(entry => entry.ticker === "AAA");
+  assert.equal(summary.lastLogged, 110);
+  assert.equal(summary.realized, 0);
+  // First lot is marked +10 at 110; second lot is flat.
+  assert.equal(summary.unrealized, 10);
+  assert.equal(summary.total, 10);
+  assert.equal(summary.openLots, 2);
+});
+
+test("a TAKE PROFIT 10% line sells a tenth of each open long opened before it", () => {
+  const ledger = ledgerFor([{
+    ticker: "CAT",
+    text: [
+      line("2026-09-03", "06:30", "LONG", "200.00", 1),
+      line("2026-09-17", "06:30", "LONG", "210.00", 1),
+      exitLine("2026-10-06", "13:00", "TAKE PROFIT 10%", "240.00")
+    ].join("\n")
+  }]);
+  const summary = ledger.summaries[0];
+  // 0.1 × (240−200) + 0.1 × (240−210) = 4 + 3 = 7
+  assert.equal(summary.realized, 7);
+  // 0.9 × (240−200) + 0.9 × (240−210) = 36 + 27 = 63
+  assert.equal(summary.unrealized, 63);
+  assert.equal(summary.openLots, 2);
+  const exit = ledger.rows.find(row => row.tag === "TAKE PROFIT 10%");
+  assert.equal(exit.qty, 0.2);
+  assert.equal(exit.realized, 7);
+  assert.equal(exit.status, "Executed");
+});
+
+test("a full TAKE PROFIT closes only the longs opened before it, not later ones", () => {
+  const ledger = ledgerFor([{
+    ticker: "META",
+    text: [
+      line("2026-09-03", "06:30", "LONG", "100.00", 1),
+      exitLine("2026-09-10", "13:00", "TAKE PROFIT", "150.00"),
+      line("2026-09-20", "06:30", "REBUY", "120.00", 1),
+      line("2026-09-30", "06:30", "LONG", "130.00", 1)
+    ].join("\n")
+  }]);
+  const summary = ledger.summaries[0];
+  assert.equal(summary.realized, 50);
+  // Rebuy and later long are marked to the last logged price 130.
+  assert.equal(summary.unrealized, 10 + 0);
+  assert.equal(summary.openLots, 2);
+  assert.equal(ledger.rows.find(row => row.event === "Open long" && row.date === "2026-09-03").status, "Closed");
+  assert.equal(ledger.rows.find(row => row.event === "Rebuy (open long)").status, "Open");
+});
+
+test("DUMP and SHORT open short positions that lose when the price rises", () => {
+  const ledger = ledgerFor([{
+    ticker: "XXX",
+    text: [
+      line("2026-09-03", "06:30", "DUMP", "180.00", 1),
+      line("2026-10-09", "06:30", "SHORT", "200.00", 1)
+    ].join("\n")
+  }]);
+  const summary = ledger.summaries[0];
+  // Last logged price is 200. Two short lots: (180 − 200) + (200 − 200) = −20.
+  assert.equal(summary.unrealized, -20);
+  assert.equal(summary.realized, 0);
+  assert.equal(summary.openLots, 2);
+  assert.equal(ledger.rows.find(row => row.tag === "DUMP").event, "Open short");
+  assert.equal(ledger.rows.find(row => row.tag === "SHORT").event, "Open short");
+});
+
+test("one lane: a LONG closes an open short first, first in first out, and only the rest opens a long", () => {
+  const ledger = ledgerFor([{
+    ticker: "PLTR",
+    text: [
+      line("2026-09-03", "06:30", "DUMP", "180.00", 1),
+      line("2026-09-13", "06:30", "LONG", "160.00", 2)
+    ].join("\n")
+  }]);
+  const summary = ledger.summaries[0];
+  // The 2-share long covers the 1-share short at 160 (+20) and opens a 1-share long at 160, marked at last price 160 (0).
+  assert.equal(summary.realized, 20);
+  assert.equal(summary.unrealized, 0);
+  assert.equal(summary.openLots, 1);
+  const long = ledger.rows.find(row => row.tag === "LONG");
+  assert.equal(long.event, "Closes short, opens long");
+  assert.equal(long.realized, 20);
+  assert.equal(long.status, "Netted, rest open");
+  assert.equal(ledger.rows.find(row => row.tag === "DUMP").status, "Closed");
+});
+
+test("one lane: a DUMP sells an open long first, realizing entry-to-exit, and opens nothing when fully netted", () => {
+  const ledger = ledgerFor([{
+    ticker: "DIS",
+    text: [
+      line("2026-09-03", "06:30", "LONG", "107.57", 1),
+      line("2026-09-21", "06:30", "DUMP", "104.23", 1)
+    ].join("\n")
+  }]);
+  const summary = ledger.summaries[0];
+  assert.equal(summary.realized, -3.34);
+  assert.equal(summary.unrealized, 0);
+  assert.equal(summary.openLots, 0);
+  const dump = ledger.rows.find(row => row.tag === "DUMP");
+  assert.equal(dump.event, "Closes long");
+  assert.equal(dump.status, "Netted");
+});
+
+test("a TAKE PROFIT with no open long realizes nothing and says so", () => {
+  const ledger = ledgerFor([{
+    ticker: "ZZZ",
+    text: [exitLine("2026-09-03", "13:00", "TAKE PROFIT", "50.00")].join("\n")
+  }]);
+  const exit = ledger.rows.find(row => row.tag === "TAKE PROFIT");
+  assert.equal(exit.status, "No open long to close");
+  assert.equal(exit.realized, 0);
+});
+
+test("the current repository logs yield the expected per-ticker results and no unparsed lines", async () => {
+  const names = (await readdir(tradesDir)).filter(name => name.endsWith(".txt") && name !== "index.txt");
+  const logs = await Promise.all(names.map(async name => ({
+    ticker: name.replace(/\.txt$/, ""),
+    text: await readFile(new URL(name, tradesDir), "utf8")
+  })));
+  const ledger = ledgerFor(logs);
+  assert.equal(ledger.rows.filter(row => row.status === "Unparsed").length, 0, "every logged line parses");
+  assert.equal(ledger.rows.filter(row => row.status === "Not applied").length, 0, "every tag is recognized");
+
+  const byTicker = Object.fromEntries(ledger.summaries.map(summary => [summary.ticker, summary]));
+  // META: five open longs (Sep 3–21) closed at 769.46 → +519.34 realized; two rebuys marked to 719.00.
+  assert.equal(byTicker.META.realized, 519.34);
+  assert.equal(byTicker.META.unrealized, -1.37);
+  // INTC: five longs closed at 127.11 → +110.12; three open lots marked to 119.33.
+  assert.equal(byTicker.INTC.realized, 110.12);
+  assert.equal(byTicker.INTC.openLots, 3);
+  // CAT: full exit of both open lots at 864.70 → (864.70 − 787.86) + (864.70 − 785.41) = 76.84 + 79.29 = 156.13.
+  assert.equal(byTicker.CAT.realized, 156.13);
+  assert.equal(byTicker.CAT.openLots, 0);
+  assert.equal(byTicker.CAT.unrealized, 0);
+  // PLTR: the Sep 3 short is netted by the Sep 13 long at 167.23 → +17.68; the Oct 9 short is open at 209.05 → 0.
+  assert.equal(byTicker.PLTR.realized, 17.68);
+  assert.equal(byTicker.PLTR.unrealized, 0);
+  assert.equal(byTicker.PLTR.openLots, 1);
+  // DIS: the Sep 3 long is sold by the Sep 21 DUMP at 104.23 → −3.34; flat afterwards.
+  assert.equal(byTicker.DIS.realized, -3.34);
+  assert.equal(byTicker.DIS.openLots, 0);
+  // SPCX and UPS are short-only; their marks depend on the last logged price.
+  assert.ok(Number.isFinite(byTicker.SPCX.unrealized));
+  assert.ok(Number.isFinite(byTicker.UPS.unrealized));
+  assert.ok(ledger.totals.lines > 0);
+  assert.equal(ledger.summaries.length, names.length, "every log with lines has a summary");
+});
+
+test("the app renders cards, a by-ticker table, and every logged line from the index and logs", async (t) => {
+  const files = {
+    "AAA.txt": [line("2026-09-03", "06:30", "LONG", "100.00", 1), exitLine("2026-09-10", "13:00", "TAKE PROFIT", "150.00")].join("\n"),
+    "BBB.txt": line("2026-09-03", "06:30", "SHORT", "50.00", 1)
+  };
+  const indexBody = "AAA | one\nBBB | two\nCCC | three (no log yet)\n";
+  const { body, requests } = mount(t, files, { indexBody });
+  await flushUntil(() => /Loaded \d+ listed/.test(body.querySelector(".pnl-status")?.textContent ?? ""));
+
+  assert.ok(requests.some(path => path.endsWith("/trades/CCC.txt")), "a listed ticker without a log is requested");
+  const cards = [...body.querySelectorAll(".pnl-card-label")].map(node => node.textContent);
+  assert.deepEqual(cards, ["Realized", "Open (marked)", "Total", "Open lots", "Log lines"]);
+
+  const summaryRows = body.querySelectorAll(".pnl-by-ticker tbody tr");
+  assert.equal(summaryRows.length, 2);
+  const allRows = body.querySelectorAll(".pnl-all-lines tbody tr");
+  assert.equal(allRows.length, 3, "every trade line (LONG, TAKE PROFIT, SHORT) is listed");
+  assert.match(body.querySelector(".pnl-status").textContent, /Loaded 3 listed tickers; 2 with trades/);
+  assert.match(body.querySelector(".pnl-disclaimer").textContent, /not a live quote/);
+});
+
+test("a failing log is reported by name without hiding the others", async (t) => {
+  const files = { "AAA.txt": line("2026-09-03", "06:30", "LONG", "100.00", 1) };
+  const { body } = mount(t, files, { indexBody: "AAA | one\nBBB | two\n", failFor: new Set(["BBB.txt"]) });
+  await flushUntil(() => /Loaded \d+ listed/.test(body.querySelector(".pnl-status")?.textContent ?? ""));
+  assert.match(body.querySelector(".pnl-status").textContent, /Could not load: BBB/);
+  assert.equal(body.querySelectorAll(".pnl-by-ticker tbody tr").length, 1);
+});
+
+test("a failed index shows an error and a retry control", async (t) => {
+  const window = new Window({ url: "https://main.empty.domains/", settings: { disableCSSFileLoading: true, disableJavaScriptFileLoading: true } });
+  t.after(() => window.happyDOM.abort());
+  window.fetch = async () => ({ status: 503, ok: false, text: async () => "" });
+  window.document.write("<!doctype html><html><body></body></html>");
+  window.eval("var APPS = window.APPS = [];");
+  window.eval(appSource);
+  const body = window.document.createElement("div");
+  window.document.body.appendChild(body);
+  window.APPS.find(candidate => candidate.id === "pnl").render(body, {});
+  await flushUntil(() => body.querySelector(".pnl-error"));
+  assert.match(body.querySelector(".pnl-error").textContent, /Could not load the trade logs/);
+  assert.ok(body.querySelector(".pnl-refresh"));
+});
