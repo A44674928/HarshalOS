@@ -903,6 +903,7 @@ async function advanceFieldWorkCursor(
   const lastKey = row ? decodeCursorLane(row.lane) : "start";
   let selectedIndex = 0;
   let cursorRecovered = false;
+  let wrapped = false;
   if (row) {
     if (row.lane === `${SCHEDULER_CURSOR_PREFIX}blocked-v1`) {
       return { ok: false, reset: true, blocked: true };
@@ -917,16 +918,17 @@ async function advanceFieldWorkCursor(
     if (lastKey !== "start") {
       const lastIndex = items.findIndex(item => item.key === lastKey);
       if (lastIndex < 0) {
-        /* Keep the durable ordinal as a recovery anchor. Resetting to item zero
-           here would replay the whole field after one renamed catalog key. */
+        /* A changed roster is ordinal recovery, not a wrap. Do not suppress its
+           first recovered item merely because the saved ordinal is divisible by
+           the new roster length. */
         selectedIndex = attempts % items.length;
         cursorRecovered = true;
       } else {
         selectedIndex = (lastIndex + 1) % items.length;
+        wrapped = lastIndex === items.length - 1;
       }
     }
   }
-  const wrapped = Boolean(row && selectedIndex === 0);
   if (wrapped && stopBeforeWrap) {
     /* A serial batch must not wrap and repeat early items just to fill its
        request allowance. The cursor still points at the last completed item,
@@ -2044,13 +2046,12 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
       /* Lane-local, so a concurrent lane's Kraken spend can never be mistaken
          for this lane's discovery. */
       if (recorder.krakenCalls > 0) {
-        markSchedulerWorkUnit(summary, "kraken:ranking", lane.id);
+        const discoveryUnit = markSchedulerWorkUnit(summary, "kraken:ranking", lane.id);
         report.ran = true;
-        report.workUnit = "kraken:ranking";
-        /* A successful cold ranking refresh precedes, rather than replaces, a
-           reviewed asset-bar slot. Repeat this lane once next tick so its full
-           worklist still receives the complete weighted allocation. Failed
-           attempts release the slot and cannot stall the global rotation. */
+        report.workUnit = discoveryUnit;
+        report.workUnits.push(discoveryUnit);
+        /* Kraken has a one-call tick allowance, so a successful ranking refresh
+           needs one follow-up invocation before the first market bar. */
         report.keepDispatchSlot = Boolean(cryptoRanking);
         return report;
       }
@@ -2082,17 +2083,18 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
       } else {
         const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
         if (recorder.massiveCalls > 0) {
-          markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
+          const discoveryUnit = markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
           report.ran = true;
-          report.workUnit = "massive:futures-contract-discovery";
-          /* An admitted successful discovery is prerequisite work, not an
-             instrument bar. Hold this lane's dispatch slot once so its next
-             tick can fetch a real commodity beat without stealing another
-             Disc's share. Failed discovery releases the slot. */
-          report.keepDispatchSlot = futuresState?.discoverySucceeded === true;
-          return report;
+          report.workUnit = discoveryUnit;
+          report.workUnits.push(discoveryUnit);
+          commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
+          /* A successful discovery can feed bars in this same selected lane.
+             Its request consumes one of the futures lane's five provider-call
+             slots; a failed discovery has no verified roster to process. */
+          if (futuresState?.discoverySucceeded !== true) return report;
+        } else {
+          commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
         }
-        commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
       }
     }
 
