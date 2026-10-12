@@ -1638,6 +1638,24 @@ test("failed work advances its lane cursor, records a held berth, and respects c
    the longest lane rather than the sum of the lanes, real containment when one
    lane throws, and a D1 budget that charges every statement exactly once. */
 
+test("weighted dispatch uses actual reviewed roster sizes, not provider selection ceilings", () => {
+  const base = orb2FieldDispatchSchedule({
+    stockCount: 52, cryptoCount: 53, fxCount: 23, futuresCount: 11, indexCount: 32
+  });
+  assert.equal(base.length, 91);
+  assert.equal(base.filter(id => id === "tickerbot-stocks").length, 5);
+  assert.equal(base.filter(id => id === "kraken-crypto").length, 53);
+  assert.equal(base.filter(id => id === "massive-fx").length, 23);
+  assert.equal(base.filter(id => id === "massive-futures").length, 3);
+  assert.equal(base.filter(id => id === "massive-indices").length, 7);
+
+  const withOptions = orb2FieldDispatchSchedule({
+    stockCount: 52, cryptoCount: 53, fxCount: 23, futuresCount: 11, indexCount: 32, optionsCount: 260
+  });
+  assert.equal(withOptions.length, 156);
+  assert.equal(withOptions.filter(id => id === "massive-options").length, 65);
+});
+
 test("the scheduler dispatches one provider lane and runs its serial batch within bounds", async t => {
   const { sql, env } = fixture(t, { options: true });
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [] };
