@@ -1505,7 +1505,7 @@ test("a migrated field never issues ALTER TABLE, so no duplicate-column error re
   assert.deepEqual(steadyStateAlters, [], "steady-state ticks must not attempt ALTER TABLE at all");
 });
 
-test("failed work advances the durable cursor, records a held berth, and retries only after its existing cooldown", async t => {
+test("failed work advances its lane cursor, records a held berth, and respects cooldown in a serialized rotation", async t => {
   const { sql, env } = fixture(t);
   const seen = { urls: [], massive: [], tickerbot: [], krakenRanking: [], krakenBars: [], contracts: [], failedFx: [] };
   const at = nextClock();
@@ -1515,6 +1515,7 @@ test("failed work advances the durable cursor, records a held berth, and retries
   const audIndex = fxOrder.indexOf("AUDUSD");
   assert.ok(audIndex > 0, "AUDUSD follows another reviewed FX instrument in the deterministic roster");
   seedFieldCursor(sql, `massive:fx:${fxOrder[audIndex - 1]}`, { at });
+  seedDispatchCursor(sql, { laneId: "massive-fx", at });
 
   const normalFetch = providerFetch(seen);
   const customFetch = async (url, options = {}) => {
@@ -1531,21 +1532,36 @@ test("failed work advances the durable cursor, records a held berth, and retries
     return normalFetch(url, options);
   };
 
-  /* Ranking discovery, contract discovery, and the failing FX unit used to need
-     three separate Cron minutes because one work unit consumed the whole tick.
-     They are three different provider envelopes, so all three now happen in the
-     same minute — each lane spending exactly one unit, each failure recorded
-     against its own instrument, and each backoff still honoured afterwards. */
+  /* The FX lane is selected by the durable global cursor. Its stable-key cursor
+     advances before the failing request, so the next selected FX slot does not
+     replay AUDUSD even though other provider classes do not run in this tick. */
   const firstTick = await runOrb2FieldTick(env, null, { now: () => at, fetch: customFetch });
   assert.equal(firstTick.ok, true, firstTick.errors.join(" "));
+  assert.equal(firstTick.workUnits, 1);
+  assert.equal(firstTick.workUnit, "massive:fx:AUDUSD");
+  assert.equal(firstTick.lanes["massive-fx"].providerCalls, 1);
+  assert.equal(firstTick.lanes["massive-fx"].held, 1);
+  assert.deepEqual(seen.failedFx, ["C:AUDUSD"]);
+  const fxRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='fx' AND symbol='AUDUSD'").get();
+  assert.ok(fxRow, "a provider failure is stored against its selected instrument");
+  assert.equal(JSON.parse(fxRow.payload).status, "unavailable");
 
-  assert.equal(firstTick.lanes["kraken-crypto"].workUnit, "kraken:ranking",
-    "ranking refresh is a separate bounded work unit of the crypto lane");
-  assert.equal(firstTick.lanes["kraken-crypto"].providerCalls, 1);
-  assert.equal(firstTick.krakenCalls, 1);
+  const nextTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
+  assert.equal(nextTick.ok, true, nextTick.errors.join(" "));
+  assert.match(nextTick.workUnit || "", /^massive:fx:/);
+  assert.notEqual(nextTick.workUnit, "massive:fx:AUDUSD",
+    "the failed instrument does not pin or rewind the rolling cursor");
+  assert.equal(seen.failedFx.length, 1, "the existing six-hour held-observation backoff prevents a retry next minute");
 
-  assert.equal(firstTick.lanes["massive-futures"].workUnit, "massive:futures-contract-discovery");
-  assert.equal(firstTick.lanes["massive-futures"].providerCalls, 1);
+  /* Contract discovery is a separate work unit now. Select the futures slot
+     explicitly, verify its held berth, then exercise the same 15-minute retry
+     cooldown without requiring unrelated lanes to execute in parallel. */
+  const discoveryAt = at + 120_000;
+  seedDispatchCursor(sql, { laneId: "massive-futures", at: discoveryAt });
+  const discovery = await runOrb2FieldTick(env, null, { now: () => discoveryAt, fetch: customFetch });
+  assert.equal(discovery.ok, true, discovery.errors.join(" "));
+  assert.equal(discovery.workUnit, "massive:futures-contract-discovery");
+  assert.equal(discovery.lanes["massive-futures"].providerCalls, 1);
   assert.deepEqual(seen.contracts, ["CL"]);
   seen.contracts.length = 0;
   const clRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='commodities' AND symbol='WTI'").get();
@@ -1554,34 +1570,11 @@ test("failed work advances the durable cursor, records a held berth, and retries
   assert.equal(clPayload.status, "unavailable");
   assert.equal(clPayload.discId, "commodities");
 
-  assert.equal(firstTick.lanes["massive-fx"].workUnit, "massive:fx:AUDUSD",
-    "the FX lane resumed from the seeded key and selected the failing instrument");
-  assert.equal(firstTick.lanes["massive-fx"].providerCalls, 1);
-  assert.equal(firstTick.lanes["massive-fx"].held, 1);
-  const fxRow = sql.prepare("SELECT * FROM orb2_field_observations WHERE disc_id='fx' AND symbol='AUDUSD'").get();
-  assert.ok(fxRow, "a provider failure is stored against its selected instrument");
-  assert.equal(JSON.parse(fxRow.payload).status, "unavailable");
-
-  /* Massive's three non-Options lanes each spent one request in their own
-     per-asset-class window: currencies, futures and indices. That is three
-     envelopes spending one request each, never one envelope spending three. */
-  assert.equal(firstTick.massiveCalls, 3);
-  for (const laneId of ORB2_FIELD_WORK_LANE_IDS) {
-    const entry = firstTick.lanes[laneId];
-    if (!entry) continue;
-    assert.ok(entry.providerCalls <= entry.maxProviderCallsPerUnit,
-      `the ${laneId} lane stayed inside its own provider ceiling`);
-  }
-
-  const nextTick = await runOrb2FieldTick(env, null, { now: () => at + 60_000, fetch: customFetch });
-  assert.notEqual(nextTick.lanes["massive-fx"].workUnit, "massive:fx:AUDUSD",
-    "the failed instrument does not pin or rewind the rolling cursor");
-  assert.equal(seen.failedFx.length, 1, "the existing six-hour held-observation backoff is not retried next minute");
-  assert.ok(!seen.contracts.includes("CL"), "the existing 15-minute contract retry cooldown remains in force");
-
-  const retryAt = at + MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS + 1_000;
+  const retryAt = discoveryAt + MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS + 1_000;
+  seedDispatchCursor(sql, { laneId: "massive-futures", at: retryAt });
   const retryTick = await runOrb2FieldTick(env, null, { now: () => retryAt, fetch: customFetch });
-  assert.equal(retryTick.lanes["massive-futures"].workUnit, "massive:futures-contract-discovery");
+  assert.equal(retryTick.ok, true, retryTick.errors.join(" "));
+  assert.equal(retryTick.workUnit, "massive:futures-contract-discovery");
   assert.deepEqual(seen.contracts, ["CL"],
     "the held commodity contract is retried only when its unchanged provider cooldown expires");
   const snapshotRes = await handleOrb2Field(new Request(`${ORIGIN}${ORB2_FIELD_ROUTE}?interval=1d`), env, { now: () => retryAt });
