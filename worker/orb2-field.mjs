@@ -801,6 +801,35 @@ const SCHEDULER_FIELD_CURSOR_REASON = "field-cursor-v1";
 const SCHEDULER_WARM_CURSOR_REASON = "warm-cursor-v1";
 const SCHEDULER_CURSOR_PREFIX = "cursor:";
 
+/* One durable pointer selects the next lane slot in the serialized rotation.
+   It is separate from each lane's instrument cursor: a lane can be preempted
+   without losing its place, and a failed provider item still advances its own
+   cursor before the request. */
+const SCHEDULER_DISPATCH_CURSOR_SYMBOL = "__dispatch_cursor__";
+const SCHEDULER_DISPATCH_CURSOR_REASON = "dispatch-cursor-v1";
+const SCHEDULER_DISPATCH_CURSOR_LANE = `${SCHEDULER_CURSOR_PREFIX}dispatch-v1`;
+
+async function readSchedulerDispatchCursor(db) {
+  const row = await readSchedulerState(db, SCHEDULER_DISPATCH_CURSOR_SYMBOL, SCHEDULER_DISPATCH_CURSOR_REASON);
+  if (!row) return { ok: true, attempts: 0 };
+  const attempts = Number(row.attempts);
+  if (row.lane !== SCHEDULER_DISPATCH_CURSOR_LANE ||
+      !Number.isSafeInteger(attempts) || attempts < 0 || attempts >= Number.MAX_SAFE_INTEGER - 1) {
+    return { ok: false, attempts: 0 };
+  }
+  return { ok: true, attempts };
+}
+
+async function writeSchedulerDispatchCursor(db, attempts, now) {
+  return writeSchedulerState(db, {
+    symbol: SCHEDULER_DISPATCH_CURSOR_SYMBOL,
+    reason: SCHEDULER_DISPATCH_CURSOR_REASON,
+    lane: SCHEDULER_DISPATCH_CURSOR_LANE,
+    attempts,
+    now
+  });
+}
+
 async function readSchedulerState(db, symbol, reason) {
   return (await db.prepare(`SELECT lane, attempts FROM orb2_field_queue
     WHERE interval = ? AND symbol = ? AND reason = ? LIMIT 1`)
@@ -2084,21 +2113,11 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
 }
 
 /**
- * One scheduled beat.
- *
- * The tick is optimized for parallel and sequential work at the same time by
- * splitting it into lanes. Each provider lane owns a distinct rate-limit
- * envelope and a distinct durable cursor, so the lanes advance together in one
- * scheduled minute; work inside a lane stays strictly sequential, which is what
- * keeps that lane's envelope meaningful. Independent D1 reads are issued under a
- * bounded concurrency; statements that mutate scheduler state stay ordered, so
- * the single-writer lease and the cursor-advance-before-fetch crash guarantee
- * keep their meaning.
- *
- * User-priority queue work and the one-time cold calibration still preempt the
- * rotation, because both are Tickerbot work and share that lane's envelope.
- * Failures advance the lane cursor before the provider call, so one failed
- * instrument cannot replay the rest of its lane on the next tick.
+ * One scheduled beat. A durable weighted dispatch cursor selects one provider
+ * lane per Cron invocation; each lane retains its own durable instrument cursor.
+ * A completed tick therefore performs at most one unit, while a priority queue
+ * row may preempt the selected slot without consuming it. Provider and cursor
+ * work remain bounded and provider calls are never fanned out across lanes.
  */
 export async function runOrb2FieldTick(env = {}, context = null, dependencies = {}) {
   const now = nowOf(dependencies);
@@ -2176,44 +2195,66 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
        Scheduler cursor rows share the queue table but are excluded by the lane
        predicate, so per-lane cursors can never be mistaken for queued jobs. */
     /* SINGLE LANE: one scheduled minute selects one provider lane and permits
-       one work unit total. A queued priority refresh or automatic warm unit
-       preempts the regular lane schedule; it does not run alongside it. */
-    /* Weight the single lane schedule by its reviewed worklist size. This
-       preserves one unit per tick without starving the large or small Discs:
-       one complete schedule visits each lane in proportion to its worklist. */
+       one work unit total. Priority queue work preempts a lane without advancing
+       the durable dispatch pointer, so the selected regular slot resumes after
+       the queue drains. */
+    const liveCatalog = globalThis.CharactersDiscCatalog || REVIEWED_SCHEDULER_CATALOG;
+    const catalogCount = (list, fallback) => Array.isArray(list)
+      ? list.filter(entry => entry && SYMBOL_PATTERN.test(String(entry.symbol || ""))).length
+      : fallback;
+    const fxCount = catalogCount(liveCatalog.fxCurrencies, SCHEDULER_FX_ROSTER_SIZE);
+    const futuresList = liveCatalog.futures || liveCatalog.commodities;
+    const futuresCount = catalogCount(Array.isArray(futuresList) ? futuresList.slice(0, 11) : futuresList,
+      SCHEDULER_FUTURES_ROSTER_SIZE);
+    /* Use the current catalog length, not a module-import snapshot. The public
+       Disc catalog may be refined independently, and the dispatch cycle must
+       match the worklist the lane actually builds on this invocation. */
+    const indexCount = catalogCount(liveCatalog.indices, SCHEDULER_INDEX_ROSTER_SIZE);
     const laneWeights = [
       { id: "tickerbot-stocks", count: keys.tickerbot ? TICKERBOT_WATCHLIST.length : 0 },
       { id: "kraken-crypto", count: CHARACTERS_CRYPTO_RANKING_SIZE + CHARACTERS_CRYPTO_CROSS_PAIR_SIZE },
-      { id: "massive-fx", count: keys.massive || keys.twelvedata ? SCHEDULER_FX_ROSTER_SIZE : 0 },
-      { id: "massive-futures", count: keys.massive || keys.twelvedata ? SCHEDULER_FUTURES_ROSTER_SIZE : 0 },
-      { id: "massive-indices", count: keys.massive || keys.twelvedata ? SCHEDULER_INDEX_ROSTER_SIZE : 0 },
-      { id: "massive-options", count: optionsEnabled && keys.massive ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
+      { id: "massive-fx", count: keys.massive || keys.twelvedata ? fxCount : 0 },
+      { id: "massive-futures", count: keys.massive || keys.twelvedata ? futuresCount : 0 },
+      { id: "massive-indices", count: keys.massive || keys.twelvedata ? indexCount : 0 },
+      { id: "massive-options", count: optionsEnabled && keys.massive
+        ? TICKERBOT_WATCHLIST.length * (MASSIVE_OPTIONS_SELECTION_SIZE + 1) : 0 }
     ].filter(entry => entry.count > 0);
     const weightedLaneSchedule = laneWeights.flatMap(entry =>
       Array.from({ length: entry.count }, () => ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === entry.id))
     );
-    const scheduleIndex = Math.floor(now / 60_000) % Math.max(1, weightedLaneSchedule.length);
-    const selectedLane = weightedLaneSchedule[scheduleIndex];
+    const dispatchCursor = await readSchedulerDispatchCursor(db);
+    if (!dispatchCursor.ok) {
+      summary.notes.push("The durable scheduler dispatch cursor is corrupt and was blocked; regular rotation did not guess a new position.");
+    }
+    const selectedLane = dispatchCursor.ok
+      ? weightedLaneSchedule[dispatchCursor.attempts % Math.max(1, weightedLaneSchedule.length)]
+      : null;
     let tickerbotLaneSpent = false;
     let tickerbotPreemptionUnit = null;
     if (keys.tickerbot) {
-      /* Priority refreshes are eligible on every tick, not only on a stock-lane
-         slot. A claimed queue item spends this tick's sole work unit and defers
-         the selected regular lane; the weighted lane schedule resumes next tick. */
       const queued = await claimQueue(db, now, ORB2_FIELD_TICKERBOT_BURST_PER_TICK);
       if (queued.length) {
         const job = queued[0];
         tickerbotPreemptionUnit = markSchedulerWorkUnit(summary, `queue:${job.interval}:${job.symbol}`, "tickerbot-stocks");
         summary.queueClaimed = 1;
+        const callsBefore = summary.tickerbotCalls;
         await processQueuedTickerbotJob({ db, env: scopedEnv, job, now, fetcher, keys, summary });
+        summary.lanes["tickerbot-stocks"] = {
+          ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
+          workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
+          unitBudget: 1, callCeiling: 1, maxProviderCallsPerUnit: 1,
+          observed: 0, held: 0, cursorAdvanced: false, cursorReset: false
+        };
         tickerbotLaneSpent = true;
       }
     } else if (await hasPendingQueue(db, now)) {
       summary.notes.push("Queued Tickerbot stock work is waiting for TICKERBOT_API_KEY; it was not claimed or charged.");
     }
 
-    /* One-time cold calibration is generated from the reviewed 52 × 3 worklist,
-       not inserted as a 156-row D1 burst. Progress is stored before the fetch. */
+    /* Cold calibration shares the Tickerbot slot, so it cannot burst 156 rows or
+       suppress the other provider classes. A completed/attempted warm unit spends
+       the selected stock slot; a preflight refusal restores both warm progress
+       and the global dispatch position. */
     if (!tickerbotLaneSpent && selectedLane?.id === "tickerbot-stocks") {
       const warm = await loadAutoWarmState(db, control, now, summary);
       if (warm.reset) summary.cursorReset = true;
@@ -2225,18 +2266,25 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
           summary.warmProgressed = 1;
           markSchedulerWorkUnit(summary, `warm:${job.interval}:${job.instrument.symbol}`, "tickerbot-stocks");
           tickerbotPreemptionUnit = `warm:${job.interval}:${job.instrument.symbol}`.slice(0, 96);
+          const callsBefore = summary.tickerbotCalls;
           const outcome = await processTickerbotUnit({
             db, env: scopedEnv, instrument: job.instrument, interval: job.interval, reason: job.reason,
             now, fetcher, keys, summary
           });
           if (!outcome.attempted) {
-            /* A provider/Worker allowance refusal is not a consumed warm unit.
-               Keep the selected cursor in place; attempted upstream failures do
-               advance and are represented by their bounded held observation. */
             await writeAutoWarmProgress(db, warm.progress, now);
             summary.cursorAdvanced = false;
             summary.warmProgressed = 0;
+          } else {
+            await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
           }
+          summary.lanes["tickerbot-stocks"] = {
+            ran: false, skipped: true, workUnit: tickerbotPreemptionUnit,
+            workUnits: [tickerbotPreemptionUnit], providerCalls: summary.tickerbotCalls - callsBefore,
+            unitBudget: 1, callCeiling: 1, maxProviderCallsPerUnit: 1,
+            observed: summary.observed, held: summary.held,
+            cursorAdvanced: outcome.attempted, cursorReset: false
+          };
           tickerbotLaneSpent = true;
         }
       } else if (warm.active && !keys.tickerbot) {
@@ -2251,6 +2299,12 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
         lane, db, env: scopedEnv, now, fetcher, keys, summary, optionsEnabled
       })
     );
+    /* Commit the dispatch position after the lane attempt. Its own instrument
+       cursor is already durable before any provider fetch, so a process failure
+       cannot replay that item even if this final pointer write does not land. */
+    if (!tickerbotLaneSpent && selectedLane && dispatchCursor.ok) {
+      await writeSchedulerDispatchCursor(db, dispatchCursor.attempts + 1, now);
+    }
     /* `settleWithConcurrency` preserves input order, so these reports arrive in
        declared lane order regardless of which lane resolved first. */
     for (const settled of laneReports) {
