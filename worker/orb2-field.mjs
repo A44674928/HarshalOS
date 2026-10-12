@@ -67,6 +67,8 @@ import {
   isTickerbotSymbol
 } from "./good-intelligence-tickerbot.mjs";
 import { fetchMassiveDailyMarketContext } from "./characters-massive.mjs";
+import { fetchTwelveDataDailyMarketContext } from "./characters-twelvedata.mjs";
+import { guardTwelveDataCallBeforeFetch, recordTwelveDataCallSuccess } from "./twelvedata-call-guard.mjs";
 import {
   MASSIVE_OPTIONS_MAX_LOG_STRIKE_DISTANCE,
   MASSIVE_OPTIONS_PROVIDER,
@@ -85,6 +87,7 @@ import {
 } from "./massive-daily-call-ledger.mjs";
 import { availableMassiveBudget } from "./massive.mjs";
 import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
+import { appendTwelveDataDailyCallLedger, loadTwelveDataDailyCallLedger } from "./twelvedata-daily-call-ledger.mjs";
 import {
   CHARACTERS_CRYPTO_CROSS_PAIR_SIZE,
   CHARACTERS_CRYPTO_RANKING_SIZE,
@@ -265,6 +268,7 @@ export const ORB2_FIELD_FRESHNESS = Object.freeze({
 export const ORB2_FIELD_FAILURE_RETRY_MS = Object.freeze({
   tickerbot: 6 * 60 * 60_000,
   massive: 6 * 60 * 60_000,
+  twelvedata: 6 * 60 * 60_000,
   kraken: 60 * 60_000
 });
 
@@ -316,7 +320,7 @@ export const ORB2_FIELD_BEAT_TYPES = Object.freeze([
 ]);
 
 const BEAT_TYPE_IDS = new Set(ORB2_FIELD_BEAT_TYPES.map(type => type.id));
-const PROVIDER_IDS = new Set(["massive", "tickerbot", "kraken"]);
+const PROVIDER_IDS = new Set(["massive", "twelvedata", "tickerbot", "kraken"]);
 const STATUSES = new Set(["bars", "cached", "unavailable"]);
 
 const json = (data, status = 200, extraHeaders = {}) => Response.json(data, {
@@ -487,11 +491,11 @@ export function sanitizeOrb2FieldObservation(value, now = Date.now()) {
   const discId = text(value.discId, 24).toLowerCase();
   if (!ORB2_FIELD_DISCS.includes(discId)) return { ok: false, message: "Choose a reviewed Disc." };
   const provider = text(value.provider, 24).toLowerCase();
-  if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only the reviewed Massive, Tickerbot, and Kraken providers may write the server field." };
+  if (!PROVIDER_IDS.has(provider)) return { ok: false, message: "Only the reviewed Massive/Twelve Data, Tickerbot, and Kraken providers may write the server field." };
   const interval = text(value.interval, 8);
   if (!TICKERBOT_INTERVALS.includes(interval)) return { ok: false, message: "The field stores 15m, 1h, and 1d observations only." };
-  if (provider === "massive" && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) {
-    return { ok: false, message: "Massive writes daily FX, commodity-futures, and index observations only." };
+  if ((provider === "massive" || provider === "twelvedata") && (interval !== "1d" || !["fx", "commodities", "indices"].includes(discId))) {
+    return { ok: false, message: "Massive/Twelve Data writes daily FX, commodity-futures, and index observations only." };
   }
   if (provider === "tickerbot" && (discId !== "stocks" || !TICKERBOT_INTERVALS.includes(interval))) {
     return { ok: false, message: "Tickerbot writes Disc1 stock observations only." };
@@ -1277,6 +1281,7 @@ const CRON_REQUEST = Object.freeze({
 function providerKeys(env) {
   return {
     massive: typeof env.MASSIVE_API_KEY === "string" ? env.MASSIVE_API_KEY.trim() : "",
+    twelvedata: typeof env.TWELVEDATA_API_KEY === "string" ? env.TWELVEDATA_API_KEY.trim() : "",
     alphaVantage: typeof env.ALPHA_VANTAGE_API_KEY === "string" ? env.ALPHA_VANTAGE_API_KEY.trim() : "",
     tickerbot: typeof env.TICKERBOT_API_KEY === "string" ? env.TICKERBOT_API_KEY.trim() : ""
   };
@@ -1443,7 +1448,28 @@ async function refreshOptionsFieldForStock({ env, db, instrument, now, fetcher, 
   return { ok: true, attempted: true, status, ticker: target.item.ticker };
 }
 
+async function beatTwelveData({ env, instrument, now, fetcher, keys, dependencies }) {
+  if (!keys.twelvedata) return { ok: false, attempted: false, code: "twelvedata-not-configured", message: "Add the TWELVEDATA_API_KEY Worker secret to enable the Twelve Data daily field (800/day, 8/min, private internal use)." };
+  const guard = await guardTwelveDataCallBeforeFetch({ kv: env.COMMUNITY_DB, now: () => now, dailyKv: null });
+  if (guard.decision === "rate-limited") {
+    return { ok: false, attempted: false, code: guard.code, message: guard.message, retryAfter: guard.retryAfter, httpStatus: guard.httpStatus };
+  }
+  const result = await fetchTwelveDataDailyMarketContext({
+    instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
+    apiKey: keys.twelvedata, fetcher, now, timeoutMs: UPSTREAM_TIMEOUT_MS, dependencies
+  });
+  if (!result.ok) return { ok: false, attempted: true, code: result.code, message: result.message, retryAfter: result.retryAfter, httpStatus: result.httpStatus };
+  recordTwelveDataCallSuccess();
+  return { ok: true, attempted: true, packet: result.packet, calls: 1, provider: "twelvedata" };
+}
+
 async function beatMassive({ env, instrument, now, fetcher, keys, dependencies }) {
+  // Private sole-use: prefer Twelve Data (800/day 8/min free) when TWELVEDATA_API_KEY is set, else Massive.
+  if (keys.twelvedata) {
+    const td = await beatTwelveData({ env, instrument, now, fetcher, keys, dependencies });
+    // If Twelve Data explicitly refused (not-configured) fall through to Massive, else return its result.
+    if (td.code !== "twelvedata-not-configured") return td;
+  }
   if (!keys.massive) return { ok: false, attempted: false, code: "massive-not-configured", message: "Add the MASSIVE_API_KEY Worker secret to enable the server field." };
   const reservation = await reserveMassiveProviderCall({
     request: CRON_REQUEST, env, now,
@@ -1467,9 +1493,13 @@ async function beatAlphaVantage({ env, db, instrument, now, fetcher, keys }) {
 
 async function beatFx({ env, db, instrument, now, fetcher, keys }) {
   const mode = fxProviderMode(env);
+  // When Twelve Data is the FX venue, map the Massive holder to Twelve Data so fx-provider's dual/fallback logic still works.
+  const fxMassiveLike = () => keys.twelvedata
+    ? beatTwelveData({ env, instrument, now, fetcher, keys })
+    : beatMassive({ env, db, instrument, now, fetcher, keys });
   const result = await fetchFxMarketContext({
     mode,
-    massive: () => beatMassive({ env, db, instrument, now, fetcher, keys }),
+    massive: fxMassiveLike,
     alphaVantage: () => beatAlphaVantage({ env, db, instrument, now, fetcher, keys })
   });
   return { ...result, providerMode: mode };
@@ -1614,16 +1644,17 @@ function scheduledWorkItems({ roster, optionsEnabled, keys }) {
     }
     items.push({ key, kind, lane, instrument, ...extra });
   };
+  const hasDailyVenue = Boolean(keys.massive || keys.twelvedata);
   if (keys.tickerbot) {
     for (const instrument of roster.stocks) add(`tickerbot:1d:${instrument.symbol}`, "tickerbot-daily", instrument);
   }
-  if (keys.massive) {
+  if (hasDailyVenue) {
     for (const instrument of roster.fx) add(`massive:fx:${instrument.symbol}`, "massive-fx", instrument);
   }
   for (const instrument of [...roster.crypto, ...roster.cryptoPairs]) {
     add(`kraken:1d:${instrument.symbol}`, "kraken-daily", instrument);
   }
-  if (keys.massive) {
+  if (hasDailyVenue) {
     for (const instrument of roster.commodities) add(`massive:futures:${instrument.symbol}`, "massive-futures", instrument);
     for (const instrument of roster.indices) add(`massive:index:${instrument.symbol}`, "massive-index", instrument);
     if (optionsEnabled) {
@@ -1825,7 +1856,7 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
     }
     return;
   }
-  const provider = item.kind === "kraken-daily" ? "kraken" : item.kind === "tickerbot-daily" ? "tickerbot" : "massive";
+  const provider = item.kind === "kraken-daily" ? "kraken" : item.kind === "tickerbot-daily" ? "tickerbot" : (keys.twelvedata ? null : "massive");
   const due = await dueRotation(db, [item.instrument], 1, now, provider);
   if (!due.length) return;
   const instrument = due[0].instrument;
@@ -1844,13 +1875,26 @@ async function processScheduledWorkItem({ db, env, item, now, fetcher, keys, sum
   const outcome = item.kind === "massive-fx"
     ? await beatFx({ env, db, instrument, now, fetcher, keys })
     : await beatMassive({ env, db, instrument, now, fetcher, keys });
+  const venueIsTwelve = Boolean(keys.twelvedata);
   if (item.kind === "massive-fx") {
     const providers = outcome.providers || {};
-    if (providers.massive?.attempted) summary.massiveCalls += 1;
+    // fx-provider reports the first attempt under `massive` even when it was Twelve Data (dispatched via the massive holder).
+    const fxAttemptedIsTwelve = venueIsTwelve && (providers.massive?.attempted || (!providers.alphaVantage && outcome.attempted));
+    if (fxAttemptedIsTwelve) summary.twelvedataCalls += 1;
+    else if (providers.massive?.attempted) summary.massiveCalls += 1;
     if (providers.alphaVantage?.ok) summary.alphaVantageCalls += 1;
     else if (outcome.selectedProvider === "alpha-vantage" && outcome.ok) summary.alphaVantageCalls += 1;
-  } else if (outcome.attempted) summary.massiveCalls += 1;
-  await persistMarketOutcome({ db, instrument, outcome, provider: "massive", now, summary });
+    // When the FX outcome has no providers map (single Twelve Data direct), count it here.
+    if (!providers.massive && !providers.alphaVantage && venueIsTwelve && outcome.attempted) {
+      // already counted above if attempted, but guard against double-count when map missing
+      if (summary.twelvedataCalls === 0) summary.twelvedataCalls += 1;
+    }
+  } else if (outcome.attempted) {
+    if (venueIsTwelve) summary.twelvedataCalls += 1;
+    else summary.massiveCalls += 1;
+  }
+  const persistProvider = venueIsTwelve ? "twelvedata" : "massive";
+  await persistMarketOutcome({ db, instrument, outcome, provider: persistProvider, now, summary });
 }
 
 /* ── parallel provider lanes ─────────────────────────────────────────── */
@@ -1875,14 +1919,14 @@ export const ORB2_FIELD_LANE_CONCURRENCY = ORB2_FIELD_LANE_COUNT;
  */
 function createLaneRecorder() {
   return {
-    massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
+    massiveCalls: 0, twelvedataCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     optionsCalls: 0, optionsObserved: 0, observed: 0, packetAnalyses: 0, held: 0,
     queueCompleted: 0, notes: [], errors: []
   };
 }
 
 const LANE_RECORDER_COUNTERS = Object.freeze([
-  "massiveCalls", "alphaVantageCalls", "tickerbotCalls", "krakenCalls",
+  "massiveCalls", "twelvedataCalls", "alphaVantageCalls", "tickerbotCalls", "krakenCalls",
   "optionsCalls", "optionsObserved", "observed", "packetAnalyses", "held", "queueCompleted"
 ]);
 
@@ -1938,7 +1982,7 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
   try {
     if (spent) return report;
     if (lane.provider === "tickerbot" && !keys.tickerbot) return report;
-    if (lane.provider === "massive" && !keys.massive) return report;
+    if (lane.provider === "massive" && !keys.massive && !keys.twelvedata) return report;
 
     let cryptoRanking = null;
     let commodityContracts = null;
@@ -1975,14 +2019,34 @@ async function runProviderLane({ lane, db, env, now, fetcher, keys, summary, opt
     }
 
     if (lane.id === "massive-futures") {
-      const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
-      if (recorder.massiveCalls > 0) {
-        markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
-        report.ran = true;
-        report.workUnit = "massive:futures-contract-discovery";
-        return report;
+      if (keys.twelvedata) {
+        // Twelve Data private: bypass Massive's active-futures contract table and synthesize 1:1 contracts from catalog productCodes.
+        // No provider call is spent here; the daily bar uses the product symbol directly (e.g. CL, GC, WTI via productCode).
+        const catalog = globalThis.CharactersDiscCatalog;
+        const list = catalog && Array.isArray(catalog.futures || catalog.commodities) ? (catalog.futures || catalog.commodities) : [];
+        const today = new Date(now).toISOString().slice(0, 10);
+        commodityContracts = {};
+        for (const entry of list) {
+          const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
+          if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
+          commodityContracts[pc] = {
+            productCode: pc,
+            ticker: pc,
+            provider: "TwelveData",
+            asOfDate: today,
+            lastTradeDate: today
+          };
+        }
+      } else {
+        const futuresState = await resolveOrb2CommodityContracts({ env, db, now, fetcher: laneFetcher, keys, summary: recorder });
+        if (recorder.massiveCalls > 0) {
+          markSchedulerWorkUnit(summary, "massive:futures-contract-discovery", lane.id);
+          report.ran = true;
+          report.workUnit = "massive:futures-contract-discovery";
+          return report;
+        }
+        commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
       }
-      commodityContracts = futuresState && futuresState.ok ? futuresState.contracts : null;
     }
 
     const roster = orb2FieldRoster({ now, cryptoRanking, commodityContracts });
@@ -2059,7 +2123,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
   const rawDb = env.COMMUNITY_DB;
   const summary = {
     ok: false, schema: ORB2_FIELD_STATUS_SCHEMA, now,
-    massiveCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
+    massiveCalls: 0, twelvedataCalls: 0, alphaVantageCalls: 0, tickerbotCalls: 0, krakenCalls: 0,
     optionsCalls: 0, optionsObserved: 0,
     observed: 0, packetAnalyses: 0, held: 0,
     workUnits: 0, workUnit: null, workUnitsList: [], providerRequests: 0,
@@ -2111,7 +2175,8 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     }
     const keys = providerKeys(env);
     if (!keys.tickerbot) summary.notes.push("Stocks are held: add TICKERBOT_API_KEY. Massive is not used for Disc1.");
-    if (!keys.massive) summary.notes.push("Massive FX/futures/index/Options lanes are held: add MASSIVE_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
+    if (!keys.massive && !keys.twelvedata) summary.notes.push("Massive/Twelve Data FX/futures/index/Options lanes are held: add MASSIVE_API_KEY or TWELVEDATA_API_KEY. Stocks remain Tickerbot-only; Kraken remains the crypto venue.");
+    else if (keys.twelvedata) summary.notes.push("Twelve Data private (800/day 8/min delayed, personal/internal) is the daily FX/futures/index venue; Massive is dormant when TWELVEDATA_API_KEY is set.");
     /* READ LANE: the control row and the Options table probe are independent
        single-row reads, so they are issued together rather than back to back. */
     const [control, optionsEnabled] = await readIndependently([
@@ -2231,7 +2296,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     summary.workUnit = summary.workUnitsList.length ? summary.workUnitsList[0] : null;
 
     await recordTickResult(finalDb, {
-      now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls,
+      now, massiveCalls: summary.massiveCalls + summary.twelvedataCalls, alphaVantageCalls: summary.alphaVantageCalls,
       tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
       observed: summary.observed, error: summary.errors.length ? summary.errors[0] : ""
     });
@@ -2240,7 +2305,7 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     summary.errors.push(`The field tick failed: ${text(error && error.message, 160) || "unknown error"}`);
     try {
       await recordTickResult(finalDb, {
-        now, massiveCalls: summary.massiveCalls, alphaVantageCalls: summary.alphaVantageCalls,
+        now, massiveCalls: summary.massiveCalls + summary.twelvedataCalls, alphaVantageCalls: summary.alphaVantageCalls,
         tickerbotCalls: summary.tickerbotCalls, krakenCalls: summary.krakenCalls,
         observed: summary.observed, error: summary.errors[0]
       });
@@ -2602,10 +2667,25 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
        the response is narrowed to one Disc or a symbol list. Only fresh market
        observations count as active; held, stale, and contract-pending rows remain
        distinguishable. A Disc with no matching row reports zero and newestAt null. */
+    // When Twelve Data is the venue, bypass Massive's contract table (which stays empty without a Massive key) and synthesize.
+    let statusCommodityContracts = cachedFutures.ok ? cachedFutures.contracts : null;
+    if (typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim()) {
+      if (!cachedFutures.ok || !statusCommodityContracts || !Object.keys(statusCommodityContracts).length) {
+        const cat = globalThis.CharactersDiscCatalog;
+        const list = cat && Array.isArray(cat.futures || cat.commodities) ? (cat.futures || cat.commodities) : [];
+        const today = new Date(now).toISOString().slice(0, 10);
+        statusCommodityContracts = {};
+        for (const entry of list) {
+          const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
+          if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
+          statusCommodityContracts[pc] = { productCode: pc, ticker: pc, provider: "TwelveData", asOfDate: today, lastTradeDate: today };
+        }
+      }
+    }
     const rosterForStatus = orb2FieldRoster({
       now,
       cryptoRanking: cachedCryptoRanking.ok ? cachedCryptoRanking.ranking : null,
-      commodityContracts: cachedFutures.ok ? cachedFutures.contracts : null
+      commodityContracts: statusCommodityContracts
     });
     const catalogForStatus = globalThis.CharactersDiscCatalog;
     const storedByDisc = new Map();
@@ -2714,11 +2794,12 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         else if (memberStatus === "held") held += 1;
         else pending += 1;
         const contractPending = memberStatus === "contract-pending";
+        const pendingVenue = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim() ? "twelvedata" : "massive";
         return {
           symbol,
           displaySymbol: text(instrument.displaySymbol, 48) || symbol,
           status: memberStatus,
-          provider: observation?.provider || (discId === "crypto" ? "kraken" : discId === "stocks" ? "tickerbot" : "massive"),
+          provider: observation?.provider || (discId === "crypto" ? "kraken" : discId === "stocks" ? "tickerbot" : pendingVenue),
           observedAt: observation ? Number(observation.observedAt) || null : null,
           freshness: freshness ? freshness.status : null,
           code: observation ? text(observation.code, 48) : contractPending ? "active-contract-pending" : "",
@@ -2751,6 +2832,13 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         complete: reviewedInstrumentCount > 0 && active >= reviewedInstrumentCount
       };
     });
+    const twelvedataLedger = await (async () => {
+      try { return await loadTwelveDataDailyCallLedger(env.COMMUNITY_DB); } catch { return { records: [] }; }
+    })();
+    const twelvedataCallsToday = Array.isArray(twelvedataLedger.records)
+      ? twelvedataLedger.records.filter(r => r && r.day === new Date(now).toISOString().slice(0, 10)).reduce((s, r) => s + (Number(r.count) || 0), 0)
+      : 0;
+    const hasTwelveKey = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim().length > 0;
     const status = {
       schema: ORB2_FIELD_STATUS_SCHEMA,
       source: "server-field",
@@ -2773,7 +2861,21 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         remainingToday: null,
         exhausted: false,
         ledger: "provider-rate-class",
-        note: "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
+        note: hasTwelveKey
+          ? "Massive Basic (dormant): TWELVEDATA_API_KEY is set, so FX/futures/indices use Twelve Data (800/day 8/min delayed, personal/internal free). Remove the Twelve Data key to re-enable Massive."
+          : "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
+      },
+      twelvedata: {
+        enabled: hasTwelveKey,
+        callsToday: twelvedataCallsToday,
+        perMinute: 8,
+        dailyLimit: 800,
+        remainingToday: hasTwelveKey ? Math.max(0, 800 - twelvedataCallsToday) : null,
+        exhausted: hasTwelveKey ? twelvedataCallsToday >= 800 : null,
+        ledger: hasTwelveKey ? "kv-800-day" : "not-configured",
+        note: hasTwelveKey
+          ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
+          : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use). Massive remains the fallback."
       },
       kraken: {
         callsToday: Number(run && run.kraken_calls) || 0,
@@ -2790,14 +2892,18 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         note: krakenLedger.ok ? krakenLedger.ledger.note : krakenLedger.message
       },
       futuresContracts: {
-        cache: cachedFutures.ok ? "ready" : "unavailable",
+        cache: hasTwelveKey ? "twelvedata-bypass" : (cachedFutures.ok ? "ready" : "unavailable"),
         asOfDate: new Date(now).toISOString().slice(0, 10),
         reviewedProducts: Array.isArray(catalogForStatus && catalogForStatus.commodities) ? catalogForStatus.commodities.length : 0,
-        activeContracts: cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0,
+        activeContracts: hasTwelveKey
+          ? (statusCommodityContracts ? Object.keys(statusCommodityContracts).length : 0)
+          : (cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0),
         staleFallback: false,
-        note: cachedFutures.ok
-          ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
-          : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held."
+        note: hasTwelveKey
+          ? "Twelve Data private: Disc4 uses Twelve Data symbols directly (productCode → symbol); Massive active-contract table is bypassed."
+          : (cachedFutures.ok
+            ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
+            : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held.")
       },
       tickerbot: {
         callsToday: Number(run && run.tickerbot_calls) || 0,

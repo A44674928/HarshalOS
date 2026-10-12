@@ -12,6 +12,7 @@ import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
 import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
+import { handleTwelveData } from './twelvedata.mjs';
 import { handleOrb2Field, runOrb2FieldTick } from './orb2-field.mjs';
 import { NEO_ORB_PAGE_PATHS, NEO_ORB_PAGE_HEADER_CSP } from './neo-orb-page.mjs';
 import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
@@ -274,6 +275,8 @@ export default {
     // Massive REST market data (display-only): validated queries only, the
     // MASSIVE_API_KEY secret stays in the Worker, pacing is best-effort in-memory.
     if (path === '/api/massive/v1' || path.startsWith('/api/massive/v1/')) return handleMassive(request, env);
+    // Twelve Data private (800/day 8/min, delayed) replaces Massive when TWELVEDATA_API_KEY is set and COMMUNITY_ENABLED=false.
+    if (path === '/api/twelvedata/v1' || path.startsWith('/api/twelvedata/v1/')) return handleTwelveData(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
     // The model relay is not behind Access: it serves the free tier only, requires a
     // same-origin POST, and paces each caller and the deployment as a whole
