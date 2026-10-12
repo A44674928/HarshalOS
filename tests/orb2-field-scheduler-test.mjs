@@ -248,6 +248,29 @@ function seedFieldCursor(sql, key, { attempts = 1, at = NOW } = {}) {
     .run(at, lane, attempts);
 }
 
+function seedDispatchCursor(sql, { laneId, attempts, at = NOW, options = false } = {}) {
+  const catalog = globalThis.CharactersDiscCatalog || {};
+  const count = list => Array.isArray(list)
+    ? list.filter(entry => entry && /^[A-Z0-9._-]{1,24}$/.test(String(entry.symbol || ""))).length : 0;
+  const futures = catalog.futures || catalog.commodities;
+  const weights = [
+    ["tickerbot-stocks", STOCK_SYMBOLS.length],
+    ["kraken-crypto", CHARACTERS_CRYPTO_RANKING_SIZE + 1],
+    ["massive-fx", count(catalog.fxCurrencies) || 23],
+    ["massive-futures", count(Array.isArray(futures) ? futures.slice(0, 11) : futures) || 11],
+    ["massive-indices", count(catalog.indices) || 32],
+    ["massive-options", options ? STOCK_SYMBOLS.length * 5 : 0]
+  ];
+  const offset = Number.isSafeInteger(attempts) ? attempts
+    : weights.slice(0, weights.findIndex(([id]) => id === laneId)).reduce((total, [, size]) => total + size, 0);
+  assert.ok(offset >= 0, `dispatch lane ${laneId || ""} exists in the weighted schedule`);
+  sql.prepare(`INSERT INTO orb2_field_queue
+    (created_at, interval, symbol, reason, lane, claimed_at, attempts)
+    VALUES (?, '__orb2_scheduler__', '__dispatch_cursor__', 'dispatch-cursor-v1', 'cursor:dispatch-v1', NULL, ?)
+    ON CONFLICT(interval, symbol, reason) DO UPDATE SET lane=excluded.lane, attempts=excluded.attempts, claimed_at=NULL`)
+    .run(at, offset);
+}
+
 /* Each provider lane owns its own durable cursor row: the state table's unique
    key is (interval, symbol, reason), so the lane id rides in the reason. */
 const laneCursorReason = laneId => `field-cursor-v1:${laneId}`;
@@ -479,7 +502,7 @@ test("the persisted one-unit rotation eventually covers every reviewed provider 
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
-  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at - 2 * 86_400_000 });
   stats.reset();
 
   const rankingRow = sql.prepare("SELECT ranking_json FROM characters_crypto_ranking_cache WHERE id=1").get();
@@ -708,10 +731,11 @@ test("scheduled D1 reads stay targeted and row-capped when the observations tabl
     const time = at - 2 * 86_400_000;
     insert.run(symbol, `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`, time, time);
   }
+  seedDispatchCursor(sql, { laneId: "massive-futures", at });
   stats.reset();
   const summary = await runOrb2FieldTick(env, null, deps(seen, { at }));
   assert.equal(summary.ok, true, summary.errors.join(" "));
-  assert.equal(summary.workUnit, `tickerbot:1d:${STOCK_SYMBOLS[0]}`);
+  assert.match(summary.workUnit || "", /^massive:futures:/);
   assert.equal(summary.workUnitsByLane.get("tickerbot-stocks"), 1);
   /* Every lane now rotates against a 1,500-row table in the same tick, so this
      is the strongest form of the row-cap guarantee: the derived read budget is
@@ -737,7 +761,8 @@ test("the Options field advances discovery and four EOD bars as five separate bo
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
-  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at - 2 * 86_400_000 });
+  seedDispatchCursor(sql, { laneId: "massive-options", at, options: true });
   /* No Options-lane cursor is seeded, so the lane starts at its own first slot
      (`options:NVDA:0`) and advances one slot per scheduled minute. The other
      lanes rotate independently in the same ticks; their work is asserted
@@ -779,7 +804,7 @@ test("the Options field advances discovery and four EOD bars as five separate bo
      gate still sees one ordered request at a time. */
   const optionsLane = ORB2_FIELD_PROVIDER_LANES.find(lane => lane.id === "massive-options");
   const optionsUnitBudget = optionsLane.maxWorkUnitsPerTick;
-  assert.equal(optionsUnitBudget, 4);
+  assert.equal(optionsUnitBudget, 1);
   assert.ok(optionsUnitBudget <= ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
     "the Options lane budget stays inside its own documented per-minute window");
 
@@ -870,9 +895,9 @@ test("one FX work unit may use exactly the two-request Massive-to-Alpha fallback
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
-  /* No cursor is seeded: the FX lane owns its own cursor and starts at its own
-     first reviewed pair, so the unit under test is selected by the lane rather
-     than by a position in a flattened whole-field list. */
+  /* Select the FX lane's first weighted slot while retaining its independent
+     stable-key cursor and its reviewed fallback behavior. */
+  seedDispatchCursor(sql, { laneId: "massive-fx", at });
   env.ORB2_FX_PROVIDER_MODE = "fallback";
   env.ALPHA_VANTAGE_API_KEY = "test-alpha-key";
   const fallbackSeries = Object.create(null);
@@ -1593,7 +1618,7 @@ test("the scheduler executes at most one provider lane and one work unit per Cro
   seedActiveContracts(sql, at);
   seedSchedulerControl(sql, at);
   await primeCryptoRanking({ db: env.COMMUNITY_DB, seen, at });
-  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at });
+  seedTickerbotStockObservation(sql, { symbol: "NVDA", observedAt: at - 2 * 86_400_000 });
   const summary = await runOrb2FieldTick(env, null, { now: () => at, fetch: providerFetch(seen) });
   assert.equal(summary.ok, true, summary.errors.join(" "));
   assert.ok(summary.workUnits <= 1);
