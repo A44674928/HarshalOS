@@ -334,12 +334,33 @@ const changedRows = result => {
 };
 const utcDay = at => new Date(at).toISOString().slice(0, 10);
 
+const ORB2_FIELD_ARIZONA_STALE_CUTOFF_MINUTE = 17 * 60;
+const ARIZONA_UTC_OFFSET_MS = 7 * 60 * 60_000;
+const DAY_MS = 24 * 60 * 60_000;
+
+/* Presentation-only grace: current-day 15m and 1h observations on an Arizona
+   weekday are not labelled stale/expired before 5 PM Phoenix time. This lets
+   end-of-day and aftermarket data settle before interpreting a frozen status
+   as staleness. It does not grant freshness to prior-day data. */
+function withinArizonaIntradayStaleGrace(interval, at, current) {
+  if ((interval !== "15m" && interval !== "1h") || !Number.isFinite(at) || !Number.isFinite(current)) return false;
+  const localNow = new Date(current - ARIZONA_UTC_OFFSET_MS);
+  const minute = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
+  const weekday = localNow.getUTCDay();
+  const sameArizonaDay =
+    Math.floor((at - ARIZONA_UTC_OFFSET_MS) / DAY_MS) ===
+    Math.floor((current - ARIZONA_UTC_OFFSET_MS) / DAY_MS);
+  return sameArizonaDay && weekday >= 1 && weekday <= 5 &&
+    minute < ORB2_FIELD_ARIZONA_STALE_CUTOFF_MINUTE;
+}
+
 export function orb2FieldFreshness(interval, observedAt, now = Date.now()) {
   const policy = ORB2_FIELD_FRESHNESS[interval] || ORB2_FIELD_FRESHNESS["1d"];
   const at = Number(observedAt);
   const current = Number(now);
   const ageMs = Number.isFinite(at) && Number.isFinite(current) ? Math.max(0, current - at) : Infinity;
-  const status = ageMs >= policy.expireMs ? "expired" : ageMs >= policy.staleMs ? "stale" : "fresh";
+  const ageStatus = ageMs >= policy.expireMs ? "expired" : ageMs >= policy.staleMs ? "stale" : "fresh";
+  const status = withinArizonaIntradayStaleGrace(interval, at, current) ? "fresh" : ageStatus;
   return {
     status, ageMs: Number.isFinite(ageMs) ? ageMs : null,
     staleMs: policy.staleMs, expireMs: policy.expireMs,
@@ -347,8 +368,15 @@ export function orb2FieldFreshness(interval, observedAt, now = Date.now()) {
   };
 }
 
-const fieldObservationExpired = (interval, observedAt, now) =>
-  orb2FieldFreshness(interval, observedAt, now).status === "expired";
+/* Scheduling must remain age-based: the display grace above may suppress a
+   stale label until 5 PM Arizona time, but it must never postpone refresh work. */
+const fieldObservationExpired = (interval, observedAt, now) => {
+  const policy = ORB2_FIELD_FRESHNESS[interval] || ORB2_FIELD_FRESHNESS["1d"];
+  const at = Number(observedAt);
+  const current = Number(now);
+  const ageMs = Number.isFinite(at) && Number.isFinite(current) ? Math.max(0, current - at) : Infinity;
+  return ageMs >= policy.expireMs;
+};
 
 /** A stored refusal is not coverage. It waits only for the provider-specific
  * bounded retry interval; successful market data follows its freshness window. */
