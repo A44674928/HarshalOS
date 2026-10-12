@@ -16,9 +16,6 @@ export const ORB2_INTRADAY_INTERVAL = "15m";
 export const ORB2_BARS_PER_RTH_DAY = 26;
 export const ORB2_INTRADAY_FRESH_MS = 45 * 60_000;
 export const ORB2_INTRADAY_STALE_MS = 2 * 60 * 60_000;
-export const ORB2_ARIZONA_STALE_CUTOFF_MINUTE = 17 * 60;
-const ARIZONA_UTC_OFFSET_MS = 7 * 60 * 60_000;
-const DAY_MS = 24 * 60 * 60_000;
 export const ORB2_DAILY_WEIGHT = 0.72;
 export const ORB2_INTRADAY_WEIGHT = 0.28;
 export const ORB2_MAX_FORCE_MULTIPLIER = 1.35;
@@ -88,19 +85,6 @@ function isWeekdayRth(time) {
   return minute >= 13 * 60 + 30 && minute < 20 * 60;
 }
 
-function isWithinArizonaSameDayStaleGrace(time, now) {
-  /* Phoenix stays on MST (UTC-7) year-round; shift to Arizona wall time without
-     a timezone database lookup on every one-minute scheduler composition. */
-  const localNow = new Date(now - ARIZONA_UTC_OFFSET_MS);
-  const minute = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
-  const weekday = localNow.getUTCDay();
-  const sameArizonaDay =
-    Math.floor((time - ARIZONA_UTC_OFFSET_MS) / DAY_MS) ===
-    Math.floor((now - ARIZONA_UTC_OFFSET_MS) / DAY_MS);
-  return sameArizonaDay && weekday >= 1 && weekday <= 5 &&
-    minute <= ORB2_ARIZONA_STALE_CUTOFF_MINUTE;
-}
-
 function intradayFreshness(time, now) {
   if (!finite(time) || !finite(now) || time > now + 5 * 60_000) return 0;
   const age = Math.max(0, now - time);
@@ -108,16 +92,7 @@ function intradayFreshness(time, now) {
     age >= ORB2_INTRADAY_STALE_MS ? 0 : 1 - (age - ORB2_INTRADAY_FRESH_MS) / (ORB2_INTRADAY_STALE_MS - ORB2_INTRADAY_FRESH_MS);
   /* Outside US regular hours, a last RTH close is evidence of the last session,
      not a live intraday position. Decay it rather than treating it as current. */
-  const sessionFreshness = isWeekdayRth(time)
-    ? clamp(freshness, 0, 1)
-    : clamp(freshness * 0.35, 0, 1);
-
-  /* Do not label today's US-market close/aftermarket observation stale before
-     5:00 PM Arizona time. Keep a degraded floor, not full freshness, through
-     5:00 PM; old prior-day data and weekend data receive no grace. */
-  return isWithinArizonaSameDayStaleGrace(time, now)
-    ? Math.max(sessionFreshness, 0.35)
-    : sessionFreshness;
+  return isWeekdayRth(time) ? clamp(freshness, 0, 1) : clamp(freshness * 0.35, 0, 1);
 }
 
 function scaleVolatility(logWidth) {
