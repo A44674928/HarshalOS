@@ -1,0 +1,120 @@
+/* P/L display: read-only tables built from the Trades logs */
+.pnl-app {
+  min-width: 0;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: var(--text);
+}
+
+.pnl-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.pnl-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pnl-intro,
+.pnl-status,
+.pnl-disclaimer,
+.pnl-empty,
+.pnl-loading,
+.pnl-footer {
+  color: var(--text-faint, #9aa6b2);
+  font-size: 13px;
+}
+
+.pnl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.pnl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+.pnl-card-label {
+  color: var(--text-faint, #9aa6b2);
+  font-size: 12px;
+}
+
+.pnl-card-value {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pnl-heading {
+  margin: 18px 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pnl-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.pnl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pnl-table th,
+.pnl-table td {
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pnl-table th {
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pnl-table .pnl-note {
+  white-space: normal;
+  min-width: 220px;
+}
+
+.pnl-ticker {
+  font-weight: 700;
+}
+
+.pnl-up {
+  color: #6fd38a;
+}
+
+.pnl-down {
+  color: #ff7b7b;
+}
+
+.pnl-error {
+  color: #ff7b7b;
+}
+
+.pnl-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}

@@ -1,0 +1,3 @@
+2026-09-03 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$787.86] | size: [1 share] | note: [Buy CAT, 1M NYSE, price 787.86 after pullback from 1,073.46 high]
+2026-09-17 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$785.41] | size: [1 share] | note: [Support > Buy > CAT (updated), 1D NYSE, price 785.41 testing 782.08 / 785.63 support line]
+2026-10-06 13:00 MST | SIMULATED PAPER [TAKE PROFIT] | price: [@ ~$864.70] | size: [1 share] | note: [Closes 1 share from each open CAT entry (Sep 3 and Sep 17) at +10.1% over 785.41, 1D NYSE, sale at descending trendline resistance, full exit]

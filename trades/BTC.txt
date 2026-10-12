@@ -1,0 +1,2 @@
+2026-08-01 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$65,000.00] | size: [1 share] | note: [Paper Trading position, date estimated by author (Aug 1), entered just before the run from ~63k to ~80k]
+2026-09-03 06:30 MST | SIMULATED PAPER [LONG] | entry: [Market @ ~$78,000.00] | size: [1 share] | note: [BTC > 135k thesis, 1D Bitstamp, entry marker at Sep 3 after run from ~63k to ~80k]

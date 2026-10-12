@@ -1,0 +1,2 @@
+2026-10-06 06:30 MST | SIMULATED PAPER [SHORT] | entry: [Market @ ~$173.77] | size: [1 share] | note: [SPCX, short, 1D NASDAQ, price 173.77 rallying off 104.83 low toward 200 spike high]
+2026-10-09 06:30 MST | SIMULATED PAPER [SHORT] | entry: [Market @ ~$161.59] | size: [1 share] | note: [SPCX UPDATE: SUCCESS!, big short, 15m NASDAQ, red marker at 176.42 spike high, price 161.59 after fade]

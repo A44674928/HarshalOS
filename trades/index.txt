@@ -63,3 +63,15 @@ PALLADIUM | FUTURES · Palladium (PA)
 WHEAT | FUTURES · Wheat (ZW)
 CORN | FUTURES · Corn (ZC)
 SOYBEANS | FUTURES · Soybeans (ZS)
+
+# Disc5 · Added from 2026 TradingView posts — symbols outside the 52 Cards and futures series
+BTC | CRYPTO · Bitcoin / U.S. Dollar (Bitstamp)
+ETH | CRYPTO · Ethereum / U.S. Dollar (Coinbase)
+XRH0 | ETC · Xtrackers Physical Rhodium ETC (LSE)
+PLTR | STOCK · Palantir Technologies Inc. — Technology
+RIVN | STOCK · Rivian Automotive, Inc. — Consumer Discretionary
+LULU | STOCK · lululemon athletica inc. — Consumer Discretionary
+NET | STOCK · Cloudflare, Inc. — Technology
+UPS | STOCK · United Parcel Service, Inc. — Industrials
+LMT | STOCK · Lockheed Martin Corporation — Aerospace & Defense
+XLE | ETF · State Street Energy Select Sector SPDR ETF — Energy

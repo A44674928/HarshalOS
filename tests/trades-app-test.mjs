@@ -61,8 +61,11 @@ test("the static index covers all reviewed stock cards and futures products in s
   const lines = tradesIndex.replace(/^\uFEFF/, "").split(/\r?\n/);
   const stockStart = lines.indexOf(stockHeading);
   const futuresStart = lines.indexOf(futuresHeading);
+  const addedHeading = "# Disc5 · Added from 2026 TradingView posts — symbols outside the 52 Cards and futures series";
+  const addedStart = lines.indexOf(addedHeading);
   assert.equal(stockStart, 0, "the index labels the stock section first");
   assert.ok(futuresStart > stockStart, "the futures product-series section is clearly separated");
+  assert.ok(addedStart > futuresStart, "the added-from-posts section follows the futures series");
 
   const parseRows = sourceLines => sourceLines
     .map(line => line.trim())
@@ -73,7 +76,8 @@ test("the static index covers all reviewed stock cards and futures products in s
       return { symbol: line.slice(0, divider).trim(), description: line.slice(divider + 1).trim() };
     });
   const stocks = parseRows(lines.slice(stockStart + 1, futuresStart));
-  const futures = parseRows(lines.slice(futuresStart + 1));
+  const futures = parseRows(lines.slice(futuresStart + 1, addedStart));
+  const added = parseRows(lines.slice(addedStart + 1));
 
   assert.equal(stocks.length, 52);
   assert.deepEqual(stocks.map(entry => entry.symbol), TICKERBOT_WATCHLIST.map(entry => entry.symbol));
@@ -86,7 +90,9 @@ test("the static index covers all reviewed stock cards and futures products in s
     assert.equal(futures[index].description,
       `FUTURES · ${product.name} (${product.massive.productCode})`);
   }
-  assert.equal(new Set([...stocks, ...futures].map(entry => entry.symbol)).size, 63);
+  assert.deepEqual(added.map(entry => entry.symbol),
+    ["BTC", "ETH", "XRH0", "PLTR", "RIVN", "LULU", "NET", "UPS", "LMT", "XLE"]);
+  assert.equal(new Set([...stocks, ...futures, ...added].map(entry => entry.symbol)).size, 73);
 });
 
 test("Trades is a desktop folder; its index preserves line order and opens isolated read-only notepads", async t => {
