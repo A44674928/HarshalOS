@@ -1,7 +1,7 @@
 # NEO ORB — the web app
 
 **Status:** display-only · local · static roster snapshot · **one stored field read** (its own Worker route, at most every 20 s) · distance from the centre is the instability extension
-**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-model.js` (geometry and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
+**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
 **Window:** **NEO ORB** in the app list, placed right after **Orb 2**.
 
 NEO ORB combines two existing browser visuals in one window:
@@ -35,6 +35,19 @@ A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or 
 
 NEO ORB also runs as its own document at `/neo-orb` (`neo-orb.html`). Its policy is `connect-src 'self'`, so the browser itself refuses any other connection from that page. The Worker sends the same policy as a header, with `frame-ancestors 'none'`, from one constant in `worker/neo-orb-page.mjs`. The shell (`index.html`) keeps the other apps and is not changed by this.
 
+## Depth shell (`js/neo-orb-signals.js`, `js/neo-orb-model.js`)
+
+NEO ORB follows Orb 2's radius. Orb 2 places each orb by its close's log distance through the reviewed Fibonacci envelopes, not by market cap. NEO ORB now does the same: the depth `δ` is the mean, over the six envelopes (236, 382, 500, 618, 764, 1000), of `min(|c|, 1)`, where `c` is the close's log distance from the basis in units of that envelope's own log half-width. `δ = 0` at the basis and `δ = 1` at the ±1000 envelope on average. A partial ladder is unmeasured, never a depth.
+
+Two consequences follow from the mechanism, and they are deliberate:
+
+- **Most of the field sits on one shell.** Inside the ±1000 envelope the radius rises only with depth, and beyond it the instability region takes over. A close near the basis sits on the inner shell, so calm orbs cluster there rather than spreading by cap size.
+- **Market cap no longer sets a radius.** It still sets inertia. The former `r = 0.24 + 0.76·R_b/R_5` band rule is gone from the radius.
+
+An unmeasured orb is held on the outer shell and reported as unmeasured. It is never drawn as calm. `makeShape({ depths })` takes `{ [id]: 0…1 | null }` and refuses anything else. Absent depths mean every orb is unmeasured. The placer keeps its state across reads. `setRadii()` changes only the radius that spacing is measured at.
+
+Not yet done: the composed position and VFI flow in the colour, the latitude bias, and the volatility-driven motion. Those are separate steps and their rules are not in this section yet.
+
 ## Dynamic placement (`neo-orb-placement.js`)
 
 The orbs move. The flame engines do not show; they guide.
@@ -49,9 +62,10 @@ The orbs move. The flame engines do not show; they guide.
 | Input | Controls | Does not control |
 | --- | --- | --- |
 | Symbol hash (sector) | The **home** anchor. An orb roams only inside a tether around its own sector. | Identity. The sector is still the orb's address on the ring. |
-| Market-cap band | The **band shell** an unextended orb is drawn on, and the **inertia**: larger caps are heavier and move more slowly. | Value. Inertia is a display convention, not a valuation. |
+| Six-envelope depth (`js/neo-orb-signals.js`) | The **shell radius**: how deep the close sits through the 236…1000 Fibonacci envelopes, the same reading Orb 2 uses for its radius. An unmeasured orb is held on the outer shell and labelled unmeasured. | Value, identity, sector, or colour. |
+| Market-cap band | The **inertia** only: larger caps are heavier and move more slowly. | Value. Inertia is a display convention, not a valuation. It no longer sets a radius. |
 | Flame bitmaps | Where an orb heads next, and its path in transit. | What the orb is. No data is encoded in the flame. |
-| Stored field reading (`market-extension.js`) | The **distance from the centre**: how far out an orb is drawn, between its band shell (0) and the instability region's outer edge (1). | Identity, sector, band, size, or colour. Nothing else moves, and no orb is ranked: distance is a display of instability, not a valuation. |
+| Stored field reading (`market-extension.js`) | The **distance from the centre**: how far out an orb is drawn, between its depth shell (0) and the instability region's outer edge (1). | Identity, sector, band, size, or colour. Nothing else moves, and no orb is ranked: distance is a display of instability, not a valuation. |
 
 The **Roam** dial (default 0.8) scales the tether: 0 pins every orb to home, and 1 allows about 69° of longitude and 52° of latitude. The **Flame-guided placement** layer switches motion off, and the shape returns to home.
 
@@ -81,8 +95,9 @@ For node `i` of `n`, with sector `s`, depth `d`, formation `f`, and axes `(a_x, 
 ```text
 θ = 2π(s / 360) − π/2
 φ = 0.62 × asin(1 − 2(i + 0.5) / n)               raw latitude, relaxed below
-R_b = 0.44 × 1.45^b,  b ∈ {0…5}
-r = (0.24 + 0.76 × R_b / R_5) × (0.88 + 0.12d)   band shell, exact and unmoved
+δ = depth through the six envelopes, 0…1 (js/neo-orb-signals.js); null if unmeasured
+s = 0.36 + 0.64 × δ                              depth shell; null → held at 1.00
+r = s × (0.88 + 0.12d)                            the shell, exact and unmoved
 r_drawn = r(x)                                   x = instability extension, 0…1
 
 D = (r_drawn cos θ, 0, r_drawn sin θ)                       disc
@@ -103,7 +118,7 @@ Dials are validated and refused when out of range. Nothing is clamped silently i
 
 ## Distance from the centre — the instability region (`market-extension.js`, `neo-orb-model.js`)
 
-The more overbought or oversold a stored reading is, the further out from the centre its orb sits. Outer distance is meant to read as a lack of stability: the settled field stays on its market-cap shells, and anything extended leaves them for a region outside every band.
+The more overbought or oversold a stored reading is, the further out from the centre its orb sits. Outer distance is meant to read as a lack of stability: the settled field stays on its depth shells, and anything extended leaves them for a region outside every band.
 
 ### The measure (`js/market-extension.js`)
 

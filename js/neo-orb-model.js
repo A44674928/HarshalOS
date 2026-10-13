@@ -49,6 +49,14 @@
     outer: 1.5,    // the region's outer edge: an extreme reading (extension 1)
     entry: 0.15    // the extension over which an orb leaves its shell for the region
   });
+  /* ── the depth shell ─────────────────────────────────────────────────
+     Orb 2's radius is its FBB position, and NEO ORB now follows it. The radius is the
+     close's depth through the six Fibonacci envelopes (js/neo-orb-signals.js), on the
+     same 0…1 frame the band shells used: depth 0 (at the basis) sits on the inner shell,
+     depth 1 (at the ±1000 envelope) on the outer. An unmeasured orb is held on the outer
+     shell and labelled unmeasured — it is never placed as calm. Market-cap bands no
+     longer set a radius; they still set inertia. */
+  const DEPTH_SHELL = Object.freeze({ inner: 0.36, outer: 1.0, held: 1.0 });
   const KIND_BY_SECTOR = Object.freeze({
     Technology: "structural",
     Industrials: "structural",
@@ -274,6 +282,19 @@
 
   /* Extensions are optional: { [id]: 0…1 } from js/market-extension.js. Each must name a
      node in the configuration and be finite and inside 0…1. Fail closed, never clamped. */
+  /* Depths are optional: { [id]: 0…1 | null } from js/neo-orb-signals.js. A null is an
+     unmeasured orb and sits on the held shell. Absent entirely, every orb is unmeasured. */
+  function validateDepths(depths, nodes) {
+    if (depths === null || depths === undefined) return null;
+    if (typeof depths !== "object" || Array.isArray(depths)) throw new TypeError("Depths must be a map of node id to depth.");
+    const ids = new Set(nodes.map(n => n.id));
+    for (const [id, value] of Object.entries(depths)) {
+      if (!ids.has(id)) throw new RangeError(`Depth names ${id}, which is not a node in this shape.`);
+      if (value !== null && (!finite(value) || value < 0 || value > 1)) throw new RangeError(`Depth for ${id} must be null or 0…1; received ${value}.`);
+    }
+    return depths;
+  }
+
   function validateExtensions(extensions, nodes) {
     if (extensions === null || extensions === undefined) return null;
     if (typeof extensions !== "object" || Array.isArray(extensions)) throw new TypeError("Extensions must be a map of node id to extension.");
@@ -297,7 +318,7 @@
   const HOME_SHIFT = 1.0;          // rad: a relaxed home stays this close to its sector longitude
   const HOME_LAT_LIMIT = 0.8;      // rad
   const HOME_PASSES = 400;
-  const relaxedCache = new WeakMap();
+  const relaxedCache = new WeakMap();   // nodes → { key, sources }; key covers the depths
 
   function relaxSources(sources) {
     const ideal = { x: 1, y: 1, z: 1 };
@@ -344,21 +365,36 @@
     return homes;
   }
 
-  function sourcesFor(nodes) {
+  function depthKeyOf(nodes, depths) {
+    return nodes.map(node => {
+      const value = depths ? depths[node.id] : undefined;
+      return value === null || value === undefined ? "h" : value.toFixed(6);
+    }).join(",");
+  }
+
+  function sourcesFor(nodes, depths = null) {
+    const key = depthKeyOf(nodes, depths);
     const cached = relaxedCache.get(nodes);
-    if (cached) return cached.map(source => ({ ...source }));
-    const raw = sourcesRaw(nodes);
+    if (cached && cached.key === key) return cached.sources.map(source => ({ ...source }));
+    const raw = sourcesRaw(nodes, depths);
     const relaxed = relaxSources(raw);
     const sources = raw.map((source, index) => ({
       ...source,
       sourceLongitude: relaxed[index].lon,
       sourceLatitude: relaxed[index].lat
     }));
-    relaxedCache.set(nodes, sources);
+    relaxedCache.set(nodes, { key, sources });
     return sources.map(source => ({ ...source }));
   }
 
-  function sourcesRaw(nodes) {
+  /* The shell radius of one orb from its depth. Measured depths map linearly across the
+     inner-to-outer frame; a null or absent depth is held on the outer shell. */
+  function shellRadiusOf(depth) {
+    if (depth === null || depth === undefined) return DEPTH_SHELL.held;
+    return DEPTH_SHELL.inner + (DEPTH_SHELL.outer - DEPTH_SHELL.inner) * clamp(depth, 0, 1);
+  }
+
+  function sourcesRaw(nodes, depths = null) {
     const bands = radialBands();
     const maxBandRadius = bands[bands.length - 1].radius;
     const count = Math.max(1, nodes.length);
@@ -367,11 +403,14 @@
       const normalizedIndex = (index + 0.5) / count;
       const sourceLatitude = Math.asin(clamp(1 - 2 * normalizedIndex, -1, 1)) * LATITUDE_SPREAD;
       const bandRadius = bands[node.radialBand].radius;
-      const radius = (0.24 + 0.76 * (bandRadius / maxBandRadius)) * (0.88 + 0.12 * node.depth);
+      const depth = depths && depths[node.id] !== undefined ? depths[node.id] : null;
+      const shell = shellRadiusOf(depth);
+      const radius = shell * (0.88 + 0.12 * node.depth);
       return {
         id: node.id,
         node,
         radius,
+        depth,
         sourceLongitude,
         sourceLatitude,
         nodeRadius: 0.038 + 0.012 * node.radialBand,
@@ -381,9 +420,9 @@
   }
 
   /* [{ id, longitude, latitude, radius, band, sector }] — the home anchors for the placer. */
-  function homesFor(nodes) {
+  function homesFor(nodes, depths = null) {
     validateNodes(nodes);
-    return sourcesFor(nodes).map(source => ({
+    return sourcesFor(nodes, validateDepths(depths, nodes)).map(source => ({
       id: source.id,
       longitude: source.sourceLongitude,
       latitude: source.sourceLatitude,
@@ -421,7 +460,8 @@
     const placements = validatePlacements(configuration.placements, configuration.nodes);
     const extensions = validateExtensions(configuration.extensions, configuration.nodes);
 
-    const sources = sourcesFor(configuration.nodes).map(source => {
+    const depths = validateDepths(configuration.depths, configuration.nodes);
+    const sources = sourcesFor(configuration.nodes, depths).map(source => {
       const home = { longitude: source.sourceLongitude, latitude: source.sourceLatitude };
       const placed = placements ? placements[source.id] : null;
       /* The band radius is the convention; the extension lifts an orb out of its shell
@@ -430,7 +470,7 @@
       const extension = extensions ? Number(extensions[source.id] ?? 0) : 0;
       return {
         ...source,
-        bandRadius: source.radius,
+        shellRadius: source.radius,
         radius: extensionRadius(source.radius, extension),
         extension,
         homeLongitude: home.longitude,
@@ -454,7 +494,9 @@
         longitude: entry.longitude,
         latitude: entry.latitude,
         radius: source.radius,
-        bandRadius: source.bandRadius,
+        shellRadius: source.shellRadius,
+        depth: source.depth,
+        bandRadius: source.radialBandRadius,
         extension: source.extension,
         nodeRadius: source.nodeRadius,
         radialBandRadius: source.radialBandRadius,
@@ -521,6 +563,8 @@
     BERTH_MIN_CHORD,
     PLACEMENT_LATITUDE_LIMIT,
     INSTABILITY_REGION,
+    DEPTH_SHELL,
+    shellRadiusOf,
     extensionRadius,
     fnv1a64,
     sectorFor,

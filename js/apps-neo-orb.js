@@ -9,7 +9,7 @@
      smoothly from bit to bit. No flame pixel reaches the screen.
    · Orb 2 layer — the 52-asset Good Intelligence roster as display-only orbs,
      placed by js/neo-orb-model.js (symbol-hash sector as home, logarithmic
-     market-cap band as radius and inertia, berth separation). The roster is a
+     market-cap band as inertia, and the depth through the six envelopes as radius, berth separation). The roster is a
      static snapshot, not a quote feed: no live beats, no provider call, no route.
 
    Boundary: display only. NEO ORB reads no kernel, gate, ledger, declaration,
@@ -99,6 +99,11 @@
   function extensionModule() {
     if (typeof window !== "undefined" && window.MarketExtension) return window.MarketExtension;
     return (typeof MarketExtension !== "undefined") ? MarketExtension : null;
+  }
+
+  function signalsModule() {
+    if (typeof window !== "undefined" && window.NeoOrbSignals) return window.NeoOrbSignals;
+    return (typeof NeoOrbSignals !== "undefined") ? NeoOrbSignals : null;
   }
 
   function placerModule() {
@@ -239,7 +244,8 @@
           berthSeparation: s.berth,
           nodes: this.nodes,
           placements: this.placementMap(),
-          extensions: this.extensionMap()
+          extensions: this.extensionMap(),
+          depths: this.depthObject()
         });
         this.errors.shape = null;
       } catch (error) {
@@ -278,6 +284,8 @@
         this.marketAt = null;
         this.storedAt = null;
         this.extensionStates = new Map();
+        this.depths = null;
+        this.syncRadii();
         this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
         return;
       }
@@ -291,6 +299,7 @@
           this.marketAt = result.at;
           this.storedAt = market.storedAsOf(result.observations);
           this.indexExtensions();
+          this.indexDepths();
           this.marketStatus = this.market.size ? "live" : "no stock rows in the field yet";
         } else {
           this.marketStatus = `unavailable — ${result.message}`;
@@ -321,6 +330,36 @@
         : s.basis === "below" ? "close below the FBB basis"
           : s.basis === "equal" ? "close at the FBB basis" : "basis not supplied";
       return `${s.rally} · ${pct} · ${basis}${this.storedLabel()}`;
+    }
+
+    /* Each orb's depth through the six Fibonacci envelopes (js/neo-orb-signals.js), from the
+       stored row. null means unmeasured: the orb is held on the outer shell and labelled so. */
+    indexDepths() {
+      const signals = signalsModule();
+      const depths = new Map();
+      if (signals && this.market) for (const [symbol, record] of this.market) depths.set(symbol, signals.depthOf(record).depth);
+      this.depths = depths;
+      this.syncRadii();
+    }
+
+    /* The depth of every roster orb, { [id]: 0…1 | null }, or null before any stored read. */
+    depthObject() {
+      if (!this.depths) return null;
+      const out = {};
+      for (const node of this.nodes) out[node.id] = this.depths.has(node.id) ? this.depths.get(node.id) : null;
+      return out;
+    }
+
+    /* Rebuild the model's homes from the depths and hand the spacing radii to the placer. The
+       placer keeps its state; only the radius each orb is spaced at changes. */
+    syncRadii() {
+      const m = model();
+      if (!m || !this.nodes.length) return;
+      this.homes = m.homesFor(this.nodes, this.depthObject());
+      if (this.placer && typeof this.placer.setRadii === "function") {
+        this.placer.setRadii(Object.fromEntries(this.homes.map(h => [h.id, h.radius])));
+      }
+      this.dirty = true;
     }
 
     /* The stored reading behind each orb's distance from the centre. A failed read keeps the
@@ -372,7 +411,7 @@
       if (!state.available) return `unmeasured — ${state.reason}`;
       const placed = this.shape ? this.shape.nodes.find(n => n.id === id) : null;
       const radii = placed
-        ? ` · r ${placed.radius.toFixed(3)} from a band shell of ${placed.bandRadius.toFixed(3)}`
+        ? ` · r ${placed.radius.toFixed(3)} from a depth shell of ${placed.shellRadius.toFixed(3)}`
         : "";
       /* The drawn value is eased, so it is named as what it is: the reading once it has
          arrived, and a value still on its way there until then. */
@@ -865,7 +904,7 @@
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
                   <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
-                  <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its market-cap band shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
+                  <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its depth shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
@@ -905,7 +944,7 @@
               </section>
             </aside>
           </div>
-          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, a log market-cap band for radius and inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. Distance from the centre is the instability extension — how far overbought or oversold the stored reading is — and it is not a valuation, a rank, or a recommendation. NEO ORB confers no authority and routes nothing.${this.feedCut() ? " Its market feed is cut: it reads no field, so no company market data is fetched or shown." : ""}</p>
+          <p class="neo-foot">Display-only geometry. Placement uses a symbol hash for home, the close's depth through the six Fibonacci envelopes for radius, a log market-cap band for inertia, and the flame engines' bitmaps only as guidance; it is not a price, a rank, a recommendation, or a live quote. The roster is a static snapshot${this.rosterInfo ? ` (${esc(this.rosterInfo.asOf)}, ${esc(this.rosterInfo.source)})` : ""}. Distance from the centre is the instability extension — how far overbought or oversold the stored reading is — and it is not a valuation, a rank, or a recommendation. NEO ORB confers no authority and routes nothing.${this.feedCut() ? " Its market feed is cut: it reads no field, so no company market data is fetched or shown." : ""}</p>
         </div>`;
 
       this.canvas = b.querySelector(".neo-canvas");

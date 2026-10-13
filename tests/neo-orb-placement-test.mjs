@@ -490,3 +490,20 @@ test("an extended fleet is spaced at the radius it is drawn at, and the model ne
   assert.ok(minChord >= shape.berthSeparation.minimumChordDistance - 1e-9,
     `the drawn positions clear the floor too (min chord ${minChord.toFixed(3)})`);
 });
+
+test("setRadii is fail-closed and moves only the spacing radius the placer measures at", () => {
+  const homes = rosterHomes();
+  const placer = P.createPlacer(homes, { radiusFor: M.extensionRadius });
+  assert.throws(() => placer.setRadii({ NOPE: 0.9 }), /not a node this placer holds/);
+  for (const bad of [0, -0.4, Number.NaN, "0.9", null, {}]) {
+    assert.throws(() => placer.setRadii({ NVDA: bad }), /finite positive number/, `radius ${String(bad)} is refused`);
+  }
+  assert.throws(() => placer.setRadii([0.9]), /map of node id/, "an array is not a map of node ids");
+  /* Refusals leave the placer as it was; a valid map is accepted and the placer keeps moving. */
+  const before = placer.placements().find(p => p.id === "NVDA");
+  placer.setRadii(Object.fromEntries(homes.map(h => [h.id, 0.94])));
+  placer.setRadii(null);
+  const after = placer.placements().find(p => p.id === "NVDA");
+  assert.equal(typeof after.longitude, "number");
+  assert.equal(typeof before.longitude, "number");
+});

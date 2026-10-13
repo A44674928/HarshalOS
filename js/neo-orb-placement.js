@@ -365,6 +365,20 @@
         : sphereFor(radius, lon, lat);
     }
 
+    /* Per-node shell radii from the model's depth rule (homesFor), { [id]: radius }. The
+       placer keeps its state; only the radius its spacing measures at changes. Fail closed:
+       an unknown id or a non-positive radius is refused, never clamped. */
+    function setRadii(radii) {
+      if (radii === null || radii === undefined) return;
+      if (typeof radii !== "object" || Array.isArray(radii)) throw new TypeError("setRadii needs a map of node id to radius.");
+      const byId = new Map(nodes.map(node => [node.id, node]));
+      for (const [id, value] of Object.entries(radii)) {
+        if (!byId.has(id)) throw new RangeError(`Radius names ${id}, which is not a node this placer holds.`);
+        if (!finite(value) || value <= 0) throw new RangeError(`Radius for ${id} must be a finite positive number; received ${value}.`);
+      }
+      for (const node of nodes) if (radii[node.id] !== undefined) node.radius = Number(radii[node.id]);
+    }
+
     /* Per-node instability extensions, { [id]: 0…1 }. Fail closed: an unknown id or an
        out-of-range value is refused rather than clamped, matching the model. */
     function setExtensions(extensions) {
@@ -571,6 +585,7 @@
       setRoam,
       setGeometry,
       setExtensions,
+      setRadii,
       reset
     });
   }

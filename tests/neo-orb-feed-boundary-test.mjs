@@ -35,6 +35,7 @@ const modelSource = await readText("js/neo-orb-model.js");
 const placementSource = await readText("js/neo-orb-placement.js");
 const marketSource = await readText("js/neo-orb-market.js");
 const extensionSource = await readText("js/market-extension.js");
+const signalsSource = await readText("js/neo-orb-signals.js");
 const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const pageBootSource = await readText("js/neo-orb-page.js");
@@ -171,7 +172,7 @@ test("only the reader holds a network primitive, and the surface names exactly o
   const surface = {
     "neo-orb-market.js": marketSource, "apps-neo-orb.js": appSource, "neo-orb-model.js": modelSource,
     "neo-orb-placement.js": placementSource, "neo-orb-page.js": pageBootSource, "neo-orb.css": neoCss,
-    "market-extension.js": extensionSource
+    "market-extension.js": extensionSource, "neo-orb-signals.js": signalsSource
   };
   for (const [name, source] of Object.entries(surface)) {
     for (const primitive of NETWORK_PRIMITIVES) {
