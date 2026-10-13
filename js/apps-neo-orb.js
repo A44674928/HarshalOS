@@ -33,7 +33,7 @@
   const PHASE_SHIFT = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
   const KIND_COLOR = Object.freeze({ structural: "#6fd3ff", field: "#b57cff", interaction: "#5ce6a8" });
   const KIND_NAME = Object.freeze({ structural: "Structural", field: "Field", interaction: "Interaction" });
-  /* Blue and yellow are reserved for market state on the orbs, so the centre marker and the
+  /* The market colours are reserved for market state on the orbs, so the centre marker and the
      band rings use neutral tones. */
   const CENTER_COLOR = "#e8f1ff";
   const BAND_COLOR = "#7d93b8";
@@ -49,7 +49,7 @@
   const MIN_FIT = 0.55;                // the view never zooms out past this
   const MARKET_CUT_STATUS = `cut — ${MARKET_CUT_MESSAGE}`;
   const SHAPE_RETRY_MS = 250;          // how soon a refused shape is retried (a refusal costs one frame, not the display)
-  const NEUTRAL_FILL = "#8fa3c0";      // no data, flat, or equal to basis
+  const NEUTRAL_FILL = "#b0b0b0";      // no data, flat, or equal to basis
   const ORIGIN_ADDRESS = "0•000•000•0000";
   const DEFAULTS = Object.freeze({
     formation: 1,
@@ -441,12 +441,44 @@
       if (which === "reinsurance") {
         if (!reinsurance) return "unavailable — the module did not load";
         if (!this.market) return "waiting for a stored read";
-        const text = reinsurance.describe(this.reinsurance);
+        let text = reinsurance.describe(this.reinsurance);
+        if (!(this.reinsurance && this.reinsurance.engaged)) text = this.withDepthGap(text);
         return this.reinsuranceAt ? `${text} · read ${new Date(this.reinsuranceAt).toLocaleTimeString()}` : text;
       }
       if (!bhc || !quasar) return "unavailable — the module did not load";
       if (!this.market) return "waiting for a stored read";
-      return which === "bhc" ? bhc.describe(this.bhc) : quasar.describe(this.quasar);
+      if (which === "bhc") return bhc.describe(this.bhc);
+      const text = quasar.describe(this.quasar);
+      return this.quasar && this.quasar.measured === 0 ? this.withDepthGap(text) : text;
+    }
+
+    /* Append the reason orbs are unmeasured, when there is one. */
+    withDepthGap(text) {
+      const gap = this.depthGapText();
+      return gap ? `${text} · ${gap}` : text;
+    }
+
+    /* Why orbs are unmeasured, counted over the stored rows with the depth module's own reason for
+       each: e.g. "why: 2 stored rows: envelope 236 missing · 50 with no stored row". The first
+       missing envelope is named, so a row short of the ladder shows which level it lacks. Null when
+       the depth module is missing, there is no read, or every orb is measured. */
+    depthGapText() {
+      const signals = signalsModule();
+      if (!signals || typeof signals.depthOf !== "function" || !this.market || !this.byId) return null;
+      const reasons = new Map();
+      let noRow = 0;
+      for (const id of this.byId.keys()) {
+        const record = this.market.get(id);
+        if (!record) { noRow += 1; continue; }
+        const depth = signals.depthOf(record);
+        if (depth.available) continue;
+        reasons.set(depth.reason, (reasons.get(depth.reason) || 0) + 1);
+      }
+      const parts = [...reasons.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, n]) => `${n} stored row${n === 1 ? "" : "s"}: ${reason}`);
+      if (noRow) parts.push(`${noRow} with no stored row`);
+      return parts.length ? `why: ${parts.join(" · ")}` : null;
     }
 
     /* The inspector line for the selected orb's Black Hole Computing reading. */
@@ -810,7 +842,7 @@
 
     /* The Quasar shell: a ring at the roster's mean depth, with its 95 % interval as a band. The
        Reinsurance halo: three soft rings outside the instability region, brighter with synchrony.
-       Both sit on the model's own radii, in the bands' neutral tone (blue and yellow stay reserved
+       Both sit on the model's own radii, in the bands' neutral tone (the market colours stay reserved
        for market state). They are drawn only; nothing reads them back. */
     drawGravityShells(ctx, shape, m, R, project, toScreen) {
       const st = this.state;
@@ -886,7 +918,7 @@
       }
       /* The instability region: outside every band shell, where extended orbs sit. An inner
          and an outer edge with ticks between them, in the bands' own neutral tone — blue and
-         yellow stay reserved for market state. It brightens while occupied, so the region reads
+         market colours stay reserved for market state. It brightens while occupied, so the region reads
          as a place something is happening rather than as decoration. */
       const region = m.INSTABILITY_REGION;
       if (region) {
@@ -970,12 +1002,13 @@
           ctx.stroke();
         }
       }
-      /* The ring: the basis. Amber above, indigo below, slate at it. Thick and at full opacity on
-         the front, so the side of basis reads at a glance. */
+      /* The ring: the basis. Solid neon yellow above, dashed neon violet below, dotted grey at it.
+         Thick and at full opacity on the front. The pattern is a second cue beside the colour. */
       if (tone.ring) {
         ctx.globalAlpha = lit && lit.dark ? 0.4 : node.front ? 1 : 0.6;
         ctx.strokeStyle = tone.ring;
         ctx.lineWidth = 2.6;
+        ctx.setLineDash(tone.basis === "below" ? [6, 4] : tone.basis === "equal" ? [1, 3] : []);
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.r + 2.8, 0, TAU);
         ctx.stroke();
@@ -1099,7 +1132,7 @@
                   <dt>Frame</dt><dd id="neo-frame">—</dd>
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rising <span class="neo-swatch" style="background:#ef4444"></span>falling · body = composed position (daily baseline + 15m residual), deeper = stronger · ring = basis: <span class="neo-swatch" style="background:#fbbf24"></span>above <span class="neo-swatch" style="background:#818cf8"></span>below <span class="neo-swatch" style="background:#94a3b8"></span>at · core = VFI vs signal: <span class="neo-swatch" style="background:#ffffff"></span>above <span class="neo-swatch" style="background:#0b1020"></span>below${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#00c8ff"></span>rising <span class="neo-swatch" style="background:#ff7a00"></span>falling · body = composed position (daily baseline + 15m residual), deeper = stronger · ring = basis: <span class="neo-swatch" style="background:#fff200"></span>above (solid) <span class="neo-swatch" style="background:#b026ff"></span>below (dashed) <span class="neo-swatch" style="background:#6b7280"></span>at (dotted) · core = VFI vs signal: <span class="neo-swatch" style="background:#ffffff"></span>above <span class="neo-swatch" style="background:#0b1020"></span>below${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
                   <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its depth shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Black Hole Computing</dt><dd id="neo-bhc">—</dd>
