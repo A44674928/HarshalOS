@@ -48,7 +48,8 @@ const MIGRATIONS = [
   "0010_characters_crypto_ranking_cache.sql",
   "0011_massive_futures_contract_cache.sql",
   "0012_kraken_public_crypto.sql",
-  "0018_orb2_field_snapshot.sql"
+  "0018_orb2_field_snapshot.sql",
+  "0020_d1_rows_written.sql"
 ].map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 
 const OPTIONS_MIGRATION = "0013_orb2_options_field.sql";

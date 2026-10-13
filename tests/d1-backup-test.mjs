@@ -22,7 +22,8 @@ const MIGRATIONS = [
   "0007_massive_daily_call_ledger.sql", "0008_orb2_saved_beats.sql", "0009_orb2_server_field.sql",
   "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql",
   "0012_kraken_public_crypto.sql", "0013_orb2_options_field.sql", "0014_ai_neuron_ledger.sql",
-  "0015_d1_backup_progress.sql", "0019_twelvedata_daily_credit_ledger.sql"
+  "0015_d1_backup_progress.sql", "0019_twelvedata_daily_credit_ledger.sql",
+  "0020_d1_rows_written.sql"
 ].map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 
 function backupDb(t, seed = true) {

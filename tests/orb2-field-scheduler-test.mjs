@@ -53,7 +53,7 @@ import { clearKrakenDailyBarCache } from "../worker/characters-kraken.mjs";
 import { MASSIVE_FUTURES_CONTRACT_RETRY_COOLDOWN_MS } from "../worker/characters-futures-contracts.mjs";
 import { clearMassiveCache } from "../worker/massive.mjs";
 
-const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql", "0012_kraken_public_crypto.sql", "0018_orb2_field_snapshot.sql"]
+const MIGRATIONS = ["0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql", "0007_massive_daily_call_ledger.sql", "0009_orb2_server_field.sql", "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql", "0012_kraken_public_crypto.sql", "0018_orb2_field_snapshot.sql", "0020_d1_rows_written.sql"]
   .map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 const ORIGIN = "https://os.example";
