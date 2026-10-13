@@ -16,6 +16,7 @@ import {
   ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
   ORB2_FIELD_SCHEDULER_MAX_D1_READS,
   ORB2_FIELD_SCHEDULER_MAX_D1_WRITES,
+  ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
   ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK,
   ORB2_FIELD_SCHEDULER_MAX_WORK_ITEMS_PER_CYCLE,
   ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK,
@@ -512,6 +513,12 @@ test("the cold scheduler persists a 12-unit serial warm batch before regular rot
   assert.equal(warmCursor.attempts, 12);
   assert.ok(first.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(first.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  /* Rows written, not statements: an index is a row written of its own, so a
+     tick inside the statement budget can still be over what D1 bills. */
+  assert.ok(first.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+    `the tick stayed inside the rows-written ceiling (${first.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+  assert.ok(first.d1RowsWritten >= first.d1Writes,
+    `every write statement writes at least the table's own row (${first.d1RowsWritten} rows, ${first.d1Writes} statements)`);
   assert.ok(first.d1RowsRead <= first.d1Reads * 12);
   assert.ok(stats.maxRowsPerRead <= 12);
 
@@ -576,6 +583,12 @@ test("the persisted serial rotation covers every reviewed provider lane and all 
     }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+    /* Rows written, not statements: an index is a row written of its own, so a
+       tick inside the statement budget can still be over what D1 bills. */
+    assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+      `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+    assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+      `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
     assert.ok(stats.maxRowsPerRead <= 12, "scheduled D1 reads remain targeted and row-capped");
   }
   const fetched = coverage();
@@ -803,6 +816,12 @@ test("scheduled D1 reads stay targeted and row-capped when the observations tabl
   assert.ok(summary.workUnits <= ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK);
   assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  /* Rows written, not statements: an index is a row written of its own, so a
+     tick inside the statement budget can still be over what D1 bills. */
+  assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+    `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+  assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+    `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
   assert.ok(summary.d1RowsRead <= summary.d1Reads * 12);
   assert.ok(stats.maxRowsPerRead <= 12);
   assert.ok(sql.prepare("SELECT COUNT(*) AS count FROM orb2_field_observations").get().count >= 1_500);
@@ -892,6 +911,12 @@ test("the Options field advances discovery and four EOD bars as five separate bo
     assert.ok(lastSummary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     assert.ok(lastSummary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(lastSummary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+    /* Rows written, not statements: an index is a row written of its own, so a
+       tick inside the statement budget can still be over what D1 bills. */
+    assert.ok(lastSummary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+      `the tick stayed inside the rows-written ceiling (${lastSummary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+    assert.ok(lastSummary.d1RowsWritten >= lastSummary.d1Writes,
+      `every write statement writes at least the table's own row (${lastSummary.d1RowsWritten} rows, ${lastSummary.d1Writes} statements)`);
     assert.ok(stats.maxRowsPerRead <= 12);
   }
   assert.deepEqual(workUnits, [
@@ -1100,6 +1125,12 @@ test("automatic cold warm-up advances one durable unit on each Tickerbot slot wi
     }
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+    /* Rows written, not statements: an index is a row written of its own, so a
+       tick inside the statement budget can still be over what D1 bills. */
+    assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+      `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+    assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+      `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
   }
   assert.equal(progressed, ORB2_FIELD_TICKERBOT_BURST_CALLS, "three passes over the weighted base schedule eventually complete all warm units");
   assert.equal(seen.tickerbot.length, ORB2_FIELD_TICKERBOT_BURST_CALLS);
@@ -1695,6 +1726,12 @@ test("the scheduler dispatches one provider lane and runs its serial batch withi
   assert.equal(ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK, 12);
   assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  /* Rows written, not statements: an index is a row written of its own, so a
+     tick inside the statement budget can still be over what D1 bills. */
+  assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+    `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+  assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+    `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
   CLOCK = at + 60_000;
 });
 
@@ -1725,6 +1762,12 @@ test("a full serialized field rotation covers all reviewed instruments within it
     assert.ok(summary.providerRequests <= ORB2_FIELD_SCHEDULER_MAX_PROVIDER_CALLS_PER_TICK);
     assert.ok(summary.d1Reads <= ORB2_FIELD_SCHEDULER_MAX_D1_READS);
     assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+    /* Rows written, not statements: an index is a row written of its own, so a
+       tick inside the statement budget can still be over what D1 bills. */
+    assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+      `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+    assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+      `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
     assert.ok(stats.maxRowsPerRead <= 12);
     for (const unit of summary.workUnitsList) covered.add(unit);
   }
@@ -1860,6 +1903,12 @@ test("the D1 budget charges every statement exactly once, including batched stat
   assert.equal(summary.d1Writes, stats.writes,
     "the enforced write budget counts each executed write exactly once, batches included");
   assert.ok(summary.d1Writes <= ORB2_FIELD_SCHEDULER_MAX_D1_WRITES);
+  /* Rows written, not statements: an index is a row written of its own, so a
+     tick inside the statement budget can still be over what D1 bills. */
+  assert.ok(summary.d1RowsWritten <= ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+    `the tick stayed inside the rows-written ceiling (${summary.d1RowsWritten}/${ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN})`);
+  assert.ok(summary.d1RowsWritten >= summary.d1Writes,
+    `every write statement writes at least the table's own row (${summary.d1RowsWritten} rows, ${summary.d1Writes} statements)`);
   CLOCK = at + 60_000;
 });
 

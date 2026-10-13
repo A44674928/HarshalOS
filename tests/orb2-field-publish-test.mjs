@@ -440,12 +440,23 @@ test("a pass is sliced: the drain pages, then the status, then the assembly", as
   assert.ok(state.watermark_rowid > 0, "the saved cursor is the composite watermark");
   const fragmentCount = await db.prepare("SELECT COUNT(*) AS count FROM orb2_field_fragments WHERE interval='1d'").first();
   assert.equal(fragmentCount.count, FIELD_SIZE);
+  /* D1 bills rows written, and an index is a row written of its own, so the
+     slice reports what it cost rather than leaving it to the dashboard. A cold
+     drain writes every fragment (table + primary key + two indexes) plus the
+     build state and the document. */
+  assert.ok(first.rowsWritten >= FIELD_SIZE,
+    `a cold drain is charged at least one row per fragment (${first.rowsWritten} rows, ${FIELD_SIZE} berths)`);
   /* Nothing changed: no fragment is rewritten, but the document is republished so
      the frozen freshness labels cannot drift. */
   const idle = await runOrb2FieldBuildSlice(env, { now: NOW + 1_000, intervals: ["1d"] });
   assert.equal(idle.changed, 0);
   assert.deepEqual(idle.stages, ["fragments:0", "status:1d", "assemble:1d"]);
   assert.deepEqual(idle.published, ["1d"]);
+  /* An idle minute is not free: republishing the document is a row, and so is
+     the build state. This is the number that has to fit in the daily allowance
+     beside the beat tick, which is why it is measured at all. */
+  assert.ok(idle.rowsWritten > 0 && idle.rowsWritten < first.rowsWritten,
+    `an idle slice costs the fixed rows and nothing per berth (${idle.rowsWritten} vs ${first.rowsWritten})`);
   /* A field with more changed berths than one page drains across slices, and the
      document waits until the drain is caught up so it can never serve a partial field. */
   const wide = await runOrb2FieldBuildSlice(env, { now: NOW + 2_000, intervals: ["1h"] });

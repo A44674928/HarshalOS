@@ -61,7 +61,15 @@ revocable scoped device credentials, immutable server quote references, paper
 declarations/positions, and a private append-only event projection. It does not add a
 broker, custody, payment, wallet, mining, provider-key, or public-market authority.
 Apply `0016` and then `0017` only after the deployment has its existing `0014` and
-`0015` history; migration filenames are immutable once applied. See
+`0015` history; migration filenames are immutable once applied. `0018` and `0019`
+continue the Orb 2 field (the precomputed snapshot and the Twelve Data credit
+ledger). `0020_d1_rows_written.sql` is the first migration that *removes*
+something: it drops `idx_orb2_field_observations_observed`, because D1 charges a
+row written per index a statement touches and that index only ever served the
+precomputed-document fallback. The measurement, the accounting, and the revert
+are in [`D1-ROWS-WRITTEN-BUDGET.md`](D1-ROWS-WRITTEN-BUDGET.md); the write-cost
+model the Worker uses is pinned to this directory's migrations by
+`tests/d1-rows-written-test.mjs`. See
 [`PAPER-TEST-MARKET.md`](../PAPER-TEST-MARKET.md) for the native/browser pairing and
 server-authority contract. Focused Node/SQLite tests cover the public-observation and
 PAPER_TEST constraints using their minimal prerequisite schema. Migration and seed
