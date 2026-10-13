@@ -1,15 +1,18 @@
-/* NEO ORB market colour: the composed position and the VFI flow, as descriptive tints only.
+/* NEO ORB market colour: three readable channels, as descriptive tints only.
    Display-only. Pure math: no network, no storage, no route. The observations come from the
    stored Orb 2 field through js/neo-orb-field.js, which owns the feed switch: with no rows, or
    with that switch closed, this module is handed nothing and every orb stays neutral on its
-   depth shell. The rules below are the definition of the colours, and they follow Orb 2:
-     fill ← composition.composedPosition (0…1, daily baseline + 15m residual, from the stored
-            row). 0.5 is neutral. Further from 0.5 is a stronger tint: green towards 1 (rising),
-            red towards 0 (falling). No composition, or a held one, is neutral grey.
-     ring ← market.vfi against its signal: sky when VFI is above its signal, orange when below.
-            Equal or unavailable draws no ring.
-   Rally/sink (changePct) and the close against the FBB basis are still computed for the
-   inspector text, but they no longer set the colour. Not a quote, rank, or recommendation. */
+   depth shell. The channels, matching Orb 2's own colours:
+     body ← composition.composedPosition (0…1, daily baseline + 15m residual). 0.5 is neutral.
+            Green towards rising, red towards falling. The tint reaches full colour at a
+            position of 0.7 or 0.3 (FILL_GAIN), because the stored score is compressed. No
+            composition, or a held one, is neutral grey.
+     ring ← the close against the FBB basis: amber above (Orb 2's basisAbove), indigo below
+            (basisBelow), slate at the basis (basisEqual). No close or no basis draws no ring.
+     core ← market.vfi against its signal: white above, near-black below (with a light edge).
+            Equal or unavailable draws no core.
+   Rally/sink (changePct) is still computed for the inspector text, but it sets no colour.
+   Not a quote, rank, or recommendation. */
 (function (root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
@@ -18,12 +21,19 @@
   "use strict";
 
   const COLORS = Object.freeze({
-    rallying: "#22c55e",   // green: composed position above neutral
-    sinking: "#ef4444",    // red: composed position below neutral
-    flowAbove: "#38bdf8",  // sky: VFI above its signal (ring)
-    flowBelow: "#fb923c",  // orange: VFI below its signal (ring)
-    neutral: "#8fa3c0"     // no composition, held, or exactly neutral
+    rallying: "#22c55e",     // body: composed position above neutral
+    sinking: "#ef4444",      // body: composed position below neutral
+    neutral: "#8fa3c0",      // body: no composition, held, or exactly neutral
+    basisAbove: "#fbbf24",   // ring: close above basis (Orb 2's basisAbove)
+    basisBelow: "#818cf8",   // ring: close below basis (Orb 2's basisBelow)
+    basisEqual: "#94a3b8",   // ring: close at basis (Orb 2's basisEqual)
+    coreAbove: "#ffffff",    // core: VFI above its signal
+    coreBelow: "#0b1020"     // core: VFI below its signal
   });
+
+  /* Display gain on the composed position. The stored score is compressed, so most stocks sit
+     between 0.4 and 0.6. A gain of 2.5 makes a position of 0.7 (or 0.3) the full colour. */
+  const FILL_GAIN = 2.5;
 
   const finite = value => typeof value === "number" && Number.isFinite(value);
   const isRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -92,11 +102,16 @@
     let fill = COLORS.neutral;
     if (position !== null && position !== 0.5) {
       const base = position > 0.5 ? COLORS.rallying : COLORS.sinking;
-      fill = mix(COLORS.neutral, base, Math.abs(position - 0.5) * 2);
+      const strength = Math.min(1, Math.abs(position - 0.5) * 2 * FILL_GAIN);
+      if (strength > 0) fill = mix(COLORS.neutral, base, strength);
     }
+    const basis = marketStateOf(market).basis;
+    const ring = basis === "above" ? COLORS.basisAbove
+      : basis === "below" ? COLORS.basisBelow
+        : basis === "equal" ? COLORS.basisEqual : null;
     const flow = flowOf(market);
-    const ring = flow === "above" ? COLORS.flowAbove : flow === "below" ? COLORS.flowBelow : null;
-    return { fill, ring, position, flow };
+    const core = flow === "above" ? COLORS.coreAbove : flow === "below" ? COLORS.coreBelow : null;
+    return { fill, ring, core, basis, position, flow };
   }
 
   /* The Orb 2 field rows → Map(symbol → market). Only stock rows; the newest row per
@@ -144,5 +159,5 @@
     return newest > 0 ? newest : null;
   }
 
-  return Object.freeze({ COLORS, marketStateOf, toneOf, positionOf, flowOf, indexField, indexComposition, basisOf, storedAsOf });
+  return Object.freeze({ COLORS, FILL_GAIN, marketStateOf, toneOf, positionOf, flowOf, indexField, indexComposition, basisOf, storedAsOf });
 });

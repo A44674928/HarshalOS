@@ -604,7 +604,8 @@ test("with the feed deliberately opened, colour still works: fill is rally/sink,
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(engine.marketStatus, "live");
   assert.equal(tone("NVDA").fill, market.COLORS.rallying, "NVDA rallies: green fill");
-  assert.equal(tone("NVDA").ring, market.COLORS.flowAbove, "NVDA's VFI is above its signal: sky ring");
+  assert.equal(tone("NVDA").ring, market.COLORS.basisAbove, "NVDA closes above its basis: amber ring");
+  assert.equal(tone("NVDA").core, market.COLORS.coreAbove, "and its VFI is above its signal: white core");
   assert.equal(tone("AAPL").fill, "#8fa3c0", "a symbol with no field row stays neutral");
   engine.refreshMarket(1005);
   assert.equal(engine.lastMarketAt, 1000, "within MARKET_EVERY_MS the field is not re-read");

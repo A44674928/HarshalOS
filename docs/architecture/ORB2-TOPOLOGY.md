@@ -74,7 +74,7 @@ radius = clamp(bandGeometry.radius × (0.92 + pressure × 0.12) × (1 + 0.45 × 
 
 Fail closed: with no `wt1`, with the module not loaded, or with a packet the measure refuses, there is no push and the placement says why. `topology.extension` reports `{ available, value, wave, basis, driver, zone, push, reason }`, the selected-node panel shows a **Distance from centre** line naming the driver and the lift, and the colour key plus its accessible description state the encoding.
 
-NEO ORB draws the same measure differently — as a separate region beyond all bands (`docs/architecture/NEO-ORB-WEB.md`) — because its band shells are a market-cap convention that must not move. Orb 2's bands are already price-derived, so the push belongs inside its own radius formula. One measure, two honest geometries.
+NEO ORB draws the same measure differently — as a separate region beyond all bands (`docs/architecture/NEO-ORB-WEB.md`) — because its shells were once a market-cap convention. NEO ORB now places each orb on a six-envelope depth shell (the same Orb 2 reading, not Orb 2's flat band index), so its radius is set by depth, and the extension is still a separate region outside the shells. Orb 2's bands are already price-derived, so the push belongs inside its own radius formula. One measure, two honest geometries.
 
 ## Scope boundary
 

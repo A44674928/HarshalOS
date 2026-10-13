@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    HarshalOS — NEO ORB geometry (js/neo-orb-model.js)
    The web shape contract for NEO ORB: deterministic disc-to-sphere placement,
-   logarithmic bands, and collision-aware berths for display-only nodes.
+   depth shells (the six Fibonacci envelopes, 236…1000), and collision-aware berths for display-only nodes.
 
    NEO ORB combines two existing visual ideas without inheriting any claim of
    external knowledge or control:
@@ -12,6 +12,8 @@
        visible convergence measure with collision-aware berths.
 
    Pure math. No DOM, no network, no storage, no provider, no gate, no route.
+   The depth shell radius is the model's own: 0.36 + 0.64 × depth. The instability
+   region sits outside it. Colour is not computed here (js/neo-orb-market.js).
    Every node here is geometry. A sector is a shape coordinate, not an address,
    endpoint, rank, or grant. Market-cap bands are a display convention, not a
    valuation.
