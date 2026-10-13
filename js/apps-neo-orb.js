@@ -933,18 +933,37 @@
       ctx.restore();
 
       ctx.save();
-      ctx.globalAlpha = lit && lit.dark ? alpha * 0.4 : alpha;
-      ctx.fillStyle = color;
+      /* The body keeps its hue: an orb behind the sphere is darkened, not made transparent, so its
+         colour still reads. An orb with no depth is dimmed. */
+      ctx.globalAlpha = lit && lit.dark ? 0.4 : 1;
+      ctx.fillStyle = node.front ? color : shade(color, 0.5);
       ctx.beginPath();
       ctx.arc(node.x, node.y, node.r, 0, TAU);
       ctx.fill();
-      if (tone.ring) {
-        ctx.strokeStyle = tone.ring;
-        ctx.lineWidth = 1.6;
+      /* The core: VFI against its signal. White above; near-black below, with a light edge. */
+      if (tone.core) {
+        ctx.globalAlpha = node.front ? 0.95 : 0.55;
+        ctx.fillStyle = tone.core;
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.r + 2.2, 0, TAU);
+        ctx.arc(node.x, node.y, Math.max(1, node.r * 0.34), 0, TAU);
+        ctx.fill();
+        if (tone.flow === "below") {
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+      /* The ring: the basis. Amber above, indigo below, slate at it. Thick and at full opacity on
+         the front, so the side of basis reads at a glance. */
+      if (tone.ring) {
+        ctx.globalAlpha = lit && lit.dark ? 0.4 : node.front ? 1 : 0.6;
+        ctx.strokeStyle = tone.ring;
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.r + 2.8, 0, TAU);
         ctx.stroke();
       }
+      ctx.restore();
       if (selected || hovered) {
         ctx.strokeStyle = selected ? "#ffffff" : "#9fe9ff";
         ctx.lineWidth = selected ? 1.6 : 1;
@@ -1063,7 +1082,7 @@
                   <dt>Frame</dt><dd id="neo-frame">—</dd>
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rising <span class="neo-swatch" style="background:#ef4444"></span>falling · fill is the composed position (daily baseline + 15m residual), further from neutral = stronger · <span class="neo-swatch" style="background:#38bdf8"></span>VFI above signal <span class="neo-swatch" style="background:#fb923c"></span>VFI below signal · ring is VFI${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rising <span class="neo-swatch" style="background:#ef4444"></span>falling · body = composed position (daily baseline + 15m residual), deeper = stronger · ring = basis: <span class="neo-swatch" style="background:#fbbf24"></span>above <span class="neo-swatch" style="background:#818cf8"></span>below <span class="neo-swatch" style="background:#94a3b8"></span>at · core = VFI vs signal: <span class="neo-swatch" style="background:#ffffff"></span>above <span class="neo-swatch" style="background:#0b1020"></span>below${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
                   <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its depth shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Black Hole Computing</dt><dd id="neo-bhc">—</dd>
@@ -1286,6 +1305,13 @@
   }
 
   /* #rrggbb + alpha → rgba() */
+  /* #rrggbb scaled toward black: k = 1 keeps the colour, k = 0 is black. Used for the orbs behind
+     the sphere, so they are darker rather than transparent and keep their hue. */
+  function shade(hex, k) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${Math.round(((n >> 16) & 255) * k)},${Math.round(((n >> 8) & 255) * k)},${Math.round((n & 255) * k)})`;
+  }
+
   function hexAlpha(hex, alpha) {
     const n = parseInt(hex.slice(1), 16);
     return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${clamp(alpha, 0, 1).toFixed(3)})`;

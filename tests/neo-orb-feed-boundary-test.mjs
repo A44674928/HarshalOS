@@ -244,7 +244,8 @@ test("the mounted app reads the stored field through the reader, and colours wha
   assert.equal(h.requests[0].options.method, "GET");
   assert.equal(engine.marketStatus, "live");
   assert.equal(engine.toneFor("NVDA").fill, market.COLORS.rallying, "a rising close fills green");
-  assert.equal(engine.toneFor("NVDA").ring, market.COLORS.flowAbove, "VFI above its signal rings sky");
+  assert.equal(engine.toneFor("NVDA").ring, market.COLORS.basisAbove, "NVDA closes above its basis: amber ring");
+  assert.equal(engine.toneFor("NVDA").core, market.COLORS.coreAbove, "and its VFI is above its signal: white core");
   assert.equal(engine.toneFor("AAPL").fill, market.COLORS.sinking, "a falling close fills red");
   assert.equal(engine.toneFor("MSFT").fill, market.COLORS.neutral, "a symbol with no stored row stays neutral");
 

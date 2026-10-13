@@ -35,10 +35,13 @@ const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(
 
 const row = (symbol, market, extra = {}) => ({ symbol, discId: "stocks", observedAt: 1000, market, ...extra });
 
-test("the palette is green and red for the composed position, sky and orange for VFI, and a neutral for no data", () => {
+test("the palette: green and red for the body, amber, indigo, and slate for the basis ring, white and near-black for the VFI core", () => {
   assert.deepEqual({ ...Market.COLORS }, {
-    rallying: "#22c55e", sinking: "#ef4444", flowAbove: "#38bdf8", flowBelow: "#fb923c", neutral: "#8fa3c0"
+    rallying: "#22c55e", sinking: "#ef4444", neutral: "#8fa3c0",
+    basisAbove: "#fbbf24", basisBelow: "#818cf8", basisEqual: "#94a3b8",
+    coreAbove: "#ffffff", coreBelow: "#0b1020"
   });
+  assert.equal(Market.FILL_GAIN, 2.5);
 });
 
 test("the fill follows the composed position: up is green, down is red, neutral and missing are neutral", () => {
@@ -62,35 +65,53 @@ test("the fill is stronger further from neutral, and the position is bounded", (
   assert.equal(Market.toneOf({}, { composedPosition: "0.8" }).position, 0.8, "a numeric string is read as a number, as elsewhere in NEO ORB");
 });
 
-test("the ring follows VFI against its signal: sky above, orange below, no ring when equal or unavailable", () => {
+test("the ring is the basis: amber above, indigo below, slate at it, and none without a close and a basis", () => {
+  const above = Market.toneOf({ latestBar: { close: 110 }, basis: 100 }, null);
+  const below = Market.toneOf({ latestBar: { close: 90 }, basis: 100 }, null);
+  const equal = Market.toneOf({ latestBar: { close: 100 }, basis: 100 }, null);
+  const none = Market.toneOf({ basis: 100 }, null);
+  assert.equal(above.ring, Market.COLORS.basisAbove);
+  assert.equal(below.ring, Market.COLORS.basisBelow);
+  assert.equal(equal.ring, Market.COLORS.basisEqual);
+  assert.equal(none.ring, null, "no close means no ring, never a guess");
+  assert.equal(above.basis, "above");
+});
+
+test("the core is VFI against its signal: white above, near-black below, none when equal or unavailable", () => {
   const above = Market.toneOf({ vfi: { value: 5, signal: 3, available: true } }, null);
   const below = Market.toneOf({ vfi: { value: 3, signal: 5, available: true } }, null);
   const equal = Market.toneOf({ vfi: { value: 4, signal: 4, available: true } }, null);
   const none = Market.toneOf({ vfi: { value: 4, signal: 3, available: false } }, null);
-  assert.equal(above.ring, Market.COLORS.flowAbove);
-  assert.equal(below.ring, Market.COLORS.flowBelow);
-  assert.equal(equal.ring, null);
-  assert.equal(none.ring, null);
+  assert.equal(above.core, Market.COLORS.coreAbove);
+  assert.equal(below.core, Market.COLORS.coreBelow);
+  assert.equal(equal.core, null);
+  assert.equal(none.core, null);
   assert.equal(none.flow, "unavailable");
 });
 
-test("the fill and the ring are independent: the composition does not change the ring", () => {
-  const market = { vfi: { value: 5, signal: 3, available: true } };
+test("the body, the ring, and the core are independent of one another", () => {
+  const market = { latestBar: { close: 110 }, basis: 100, vfi: { value: 5, signal: 3, available: true } };
   const a = Market.toneOf(market, { composedPosition: 0.9 });
   const b = Market.toneOf(market, null);
-  assert.equal(a.ring, b.ring, "the VFI ring is the same with or without a composition");
-  assert.notEqual(a.fill, b.fill);
+  assert.equal(a.ring, b.ring, "the basis ring is the same with or without a composition");
+  assert.equal(a.core, b.core, "the VFI core is the same with or without a composition");
+  assert.notEqual(a.fill, b.fill, "only the body changes");
 });
 
-test("basis is still reported for the inspector, but it no longer sets a colour", () => {
+test("a moderate composed position reaches full colour: 0.7 is the full green, 0.3 the full red", () => {
+  assert.equal(Market.toneOf({}, { composedPosition: 0.7 }).fill, Market.COLORS.rallying);
+  assert.equal(Market.toneOf({}, { composedPosition: 0.3 }).fill, Market.COLORS.sinking);
+});
+
+test("the inspector and the ring read the same basis state", () => {
   const above = Market.marketStateOf({ latestBar: { close: 110 }, basis: 100 });
   const below = Market.marketStateOf({ latestBar: { close: 90 }, basis: 100 });
   const equal = Market.marketStateOf({ latestBar: { close: 100 }, basis: 100 });
   assert.equal(above.basis, "above");
   assert.equal(below.basis, "below");
   assert.equal(equal.basis, "equal");
-  assert.equal(Market.toneOf({ latestBar: { close: 90 }, basis: 100 }, null).ring, null, "a close below basis draws no ring");
-  assert.equal(Market.marketStateOf({ basis: 100 }).basis, "unknown", "no close, no basis state");
+  assert.equal(Market.toneOf({ latestBar: { close: 110 }, basis: 100 }, null).ring, Market.COLORS.basisAbove);
+  assert.equal(Market.toneOf({ latestBar: { close: 90 }, basis: 100 }, null).ring, Market.COLORS.basisBelow);
 });
 
 test("the composition is read from the newest stock row per symbol", () => {
