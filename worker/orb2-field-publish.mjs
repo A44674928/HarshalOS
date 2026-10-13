@@ -158,10 +158,6 @@ const runAll = async (db, statements) => {
   else for (const statement of statements) await statement.run();
 };
 
-/** Drop fragments whose stored observation is gone. */
-const deleteFragments = (db, interval, symbols) => runAll(db, symbols.map(symbol =>
-  db.prepare("DELETE FROM orb2_field_fragments WHERE interval = ? AND symbol = ?").bind(interval, symbol)));
-
 /* ── fragments ────────────────────────────────────────────────────────── */
 
 const fragmentUpsert = db => db.prepare(`INSERT INTO orb2_field_fragments

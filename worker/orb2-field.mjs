@@ -119,6 +119,10 @@ export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
    and LIMIT bindings so symbol-scoped field reads remain below that ceiling. */
 const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
+/* A hidden tab polls slowly rather than stopping: the schedule is the Worker's, so
+   nothing pauses server-side, and a background page should not spend the free tier's
+   D1 reads at the foreground cadence. */
+export const ORB2_FIELD_POLL_HIDDEN_MS = 120_000;
 export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
 const ORB2_OPTIONS_PER_MINUTE = 5;
 const ORB2_OPTIONS_FRESH_MS = 24 * 60 * 60_000;
@@ -3031,6 +3035,7 @@ export function orb2FieldStatusHead({
     continuous: true,
     cron: ORB2_FIELD_CRON,
     pollAfterMs: ORB2_FIELD_POLL_MS,
+    pollHiddenMs: ORB2_FIELD_POLL_HIDDEN_MS,
     interval,
     freshness: ORB2_FIELD_FRESHNESS[interval],
     lastTickAt: Number(run && run.last_tick_at) || null,

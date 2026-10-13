@@ -180,27 +180,38 @@ export default {
         Array.isArray(publication.errors) && publication.errors.length
           ? publication.errors.slice(0, 3).join(' | ') : 'unknown publication error');
     }
-    // A Cron Trigger has no response to return, so the tick is awaited: the
-    // invocation stays alive for it (15-minute wall limit) and a failure lands
-    // on the invocation instead of vanishing into a background promise. A
-    // failed summary is also logged so the cause is visible in Workers Logs
-    // without querying D1.
-    const run = runOrb2FieldTick(env, context, { now: () => now }).then(
-      summary => {
-        if (!summary || summary.ok !== true) {
-          console.error('[orb2-cron] tick failed:',
-            summary && Array.isArray(summary.errors) && summary.errors.length
-              ? summary.errors.slice(0, 3).join(' | ') : 'unknown scheduler error');
+    /*
+     * The provider beats themselves. `ORB2_FIELD_TICK=off` hands them to the
+     * off-Cloudflare runner (`scripts/orb2-beat-runner.mjs`, see
+     * `docs/deployment/ORB2-BEAT-RUNNER.md`), which runs the same tick on a
+     * machine whose budget is minutes instead of 10 ms. The publication slice
+     * above keeps running either way, so switching the beats off never freezes
+     * the served document — and leaving the default on means the field keeps
+     * beating before the runner's secrets exist.
+     */
+    if (String((env && env.ORB2_FIELD_TICK) || 'on').trim().toLowerCase() !== 'off') {
+      // A Cron Trigger has no response to return, so the tick is awaited: the
+      // invocation stays alive for it (15-minute wall limit) and a failure lands
+      // on the invocation instead of vanishing into a background promise. A
+      // failed summary is also logged so the cause is visible in Workers Logs
+      // without querying D1.
+      const run = runOrb2FieldTick(env, context, { now: () => now }).then(
+        summary => {
+          if (!summary || summary.ok !== true) {
+            console.error('[orb2-cron] tick failed:',
+              summary && Array.isArray(summary.errors) && summary.errors.length
+                ? summary.errors.slice(0, 3).join(' | ') : 'unknown scheduler error');
+          }
+          return summary;
+        },
+        error => {
+          console.error('[orb2-cron] tick threw:', error && error.message ? error.message : String(error));
+          throw error;
         }
-        return summary;
-      },
-      error => {
-        console.error('[orb2-cron] tick threw:', error && error.message ? error.message : String(error));
-        throw error;
-      }
-    );
-    if (context && typeof context.waitUntil === 'function') context.waitUntil(run.catch(() => {}));
-    await run;
+      );
+      if (context && typeof context.waitUntil === 'function') context.waitUntil(run.catch(() => {}));
+      await run;
+    }
     /* The nightly D1 backup rides the same tick: one small page per
        invocation, so a full pass drains after midnight at negligible CPU per
        tick. It never throws, and a failed page is logged, never fatal. */

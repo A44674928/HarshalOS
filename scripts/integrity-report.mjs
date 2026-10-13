@@ -51,6 +51,11 @@ const SUITES = [
     files: ["g0-app-test.mjs", "g0-desktop-test.mjs", "trades-app-test.mjs", "pnl-test.mjs", "core-book-reader-test.mjs", "book-library-index-test.mjs", "grand-architecture-test.mjs", "ocm-directory-test.mjs", "g0-storage-race-test.mjs", "guided-demo-test.mjs", "good-intelligence-test.mjs", "good-intelligence-assurance-test.mjs", "good-intelligence-demo-api-test.mjs", "good-intelligence-verification-test.mjs", "good-intelligence-market-context-test.mjs", "good-intelligence-dxy-test.mjs", "good-intelligence-tickerbot-test.mjs", "good-intelligence-orb2-test.mjs", "good-intelligence-orb2-worker-test.mjs", "orb2-baseline-test.mjs", "orb2-composition-test.mjs", "orb2-scenarios-test.mjs", "orb2-field-scheduler-test.mjs", "orb2-field-publish-test.mjs", "ocm-engine-test.mjs", "pine-scripts-docs-test.mjs", "good-intelligence-card-test.mjs", "ground0-account-handoff-test.mjs"]
   },
   {
+    area: "Off-Cloudflare Orb 2 beat runner & D1-over-HTTP transport",
+    script: "test:runner",
+    files: ["orb2-beat-runner-test.mjs"]
+  },
+  {
     area: "Market-data provider foundation",
     script: "test:market-data-provider",
     files: ["market-data-provider-test.mjs", "fx-provider-test.mjs", "options-massive-test.mjs"]
