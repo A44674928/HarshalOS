@@ -366,7 +366,8 @@
       const quasar = typeof window !== "undefined" ? window.NeoOrbQuasar : null;
       const reinsurance = typeof window !== "undefined" ? window.NeoOrbReinsurance : null;
       const signals = signalsModule();
-      if (!bhc || !quasar || !signals || !this.market) { this.bhc = null; this.quasar = null; this.syncPressures(); return; }
+      if (!bhc || !quasar || !signals || !this.market) { this.bhc = null; this.quasar = null; this.syncPressures();
+      this.syncBiases(); return; }
       this.bhc = bhc.deepen(this.market, this.compositions, signals);
       this.quasar = quasar.spheroid(this.bhc);
       /* Reinsurance is a slow snapshot over the Quasar buffers (issuer sectors). It is read at most
@@ -379,6 +380,7 @@
         }
       }
       this.syncPressures();
+      this.syncBiases();
     }
 
     /* One Quasar aggregate per issuer-sector buffer, from the Black Hole readings. */
@@ -405,6 +407,20 @@
         pressures[id] = reading.depth === null ? null : reading.pressure;
       }
       this.placer.setPressures(pressures);
+    }
+
+    /* The side of the FBB basis for each roster orb, handed to the placer as a height bias: above
+       basis +1 (drawn up, north), below −1 (drawn down, south), at or unknown 0. The sign says the
+       side only, never how far from basis. The feed cut or no market is neutral for every orb. */
+    syncBiases() {
+      if (!this.placer || typeof this.placer.setBiases !== "function") return;
+      if (!this.market || this.feedCut() || !this.byId) { this.placer.setBiases(null); return; }
+      const biases = {};
+      for (const id of this.byId.keys()) {
+        const basis = this.toneFor(id).basis;
+        biases[id] = basis === "above" ? 1 : basis === "below" ? -1 : 0;
+      }
+      this.placer.setBiases(biases);
     }
 
     /* How lit an orb is, from its Black Hole reading. Unmeasured → dark (no glow, a dimmed body).
@@ -490,6 +506,7 @@
         this.placer.setRadii(Object.fromEntries(this.homes.map(h => [h.id, h.radius])));
       }
       this.syncPressures();
+      this.syncBiases();
       this.dirty = true;
     }
 

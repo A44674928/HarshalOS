@@ -34,6 +34,11 @@
   const BIT_MIN_SEP = 0.18;        // minimum spacing between bits, in disc units
   const TETHER_LON = 1.2;          // rad: longitudinal roam at Roam = 1 (≈69°)
   const TETHER_LAT = 0.9;          // rad: latitudinal roam at Roam = 1 (≈52°)
+  /* Height bias from the basis side (setBiases). Above the FBB basis an orb's home is pulled
+     north by BIAS_LAT (drawn up); below, south. It eases over BIAS_TAU seconds, so a change of
+     side glides instead of jumping. */
+  const BIAS_LAT = 0.3;            // rad: the most a home moves, from its sector latitude (≈17°)
+  const BIAS_TAU = 1.5;            // s: time constant for the bias to ease in or out
   /* rad: the widest latitude this placer may emit (≈68.8°, the poles stay out of reach).
      This is the model's own contract — PLACEMENT_LATITUDE_LIMIT in js/neo-orb-model.js —
      because makeShape() refuses a wider placement, and a refusal thrown inside the app's
@@ -262,7 +267,10 @@
       id: h.id,
       radius: finite(h.radius) ? h.radius : 1,
       homeLongitude: h.longitude,
-      homeLatitude: h.latitude,
+      homeLatitude: h.latitude,     // the anchor the spring pulls toward; moves with bias
+      baseLatitude: h.latitude,     // the sector latitude, before any bias
+      bias: 0,                      // −1…1 eased height bias (setBiases)
+      biasTarget: 0,                // −1…1 target from the basis side
       mass: inertiaFor(h.band),
       extension: 0,                  // 0…1 instability extension; lifts the orb out of its band shell
       drive: 1,                      // 0.6…1.4 steering gain from Orb 2 pressure (setPressures); 1 is neutral
@@ -402,6 +410,28 @@
       }
     }
 
+    /* Per-node height bias, { [id]: −1 | 0 | 1 | −1…1 | null }, from the close's side of the FBB
+       basis (js/apps-neo-orb.js): +1 above, −1 below, 0 at or unknown. It moves each home by up to
+       BIAS_LAT, easing over BIAS_TAU, so the sphere shows which orbs sit above or below the basis.
+       The bias says which side, and how firmly, never how far from basis. null, or no call, is
+       neutral. Fail closed: an unknown id or an out-of-range value is refused. */
+    function setBiases(biases) {
+      if (biases === null || biases === undefined) {
+        for (const node of nodes) node.biasTarget = 0;
+        return;
+      }
+      if (typeof biases !== "object" || Array.isArray(biases)) throw new TypeError("setBiases needs a map of node id to bias.");
+      const byId = new Map(nodes.map(node => [node.id, node]));
+      for (const [id, value] of Object.entries(biases)) {
+        if (!byId.has(id)) throw new RangeError(`Bias names ${id}, which is not a node this placer holds.`);
+        if (value !== null && (!finite(value) || value < -1 || value > 1)) throw new RangeError(`Bias for ${id} must be a finite −1…1 or null; received ${value}.`);
+      }
+      for (const node of nodes) {
+        const value = biases[node.id];
+        node.biasTarget = value === null || value === undefined ? 0 : Number(value);
+      }
+    }
+
     /* Per-node instability extensions, { [id]: 0…1 }. Fail closed: an unknown id or an
        out-of-range value is refused rather than clamped, matching the model. */
     function setExtensions(extensions) {
@@ -520,6 +550,13 @@
        (or null for no guidance). Returns the placed offsets for this frame. */
     function step(dt, field) {
       const total = clamp(finite(dt) ? dt : 0, 0, MAX_FRAME_DT);
+      /* Ease the height bias toward its target, then move each home with it. The offset is kept,
+         so a change of side moves the orb continuously. */
+      const ease = 1 - Math.exp(-total / BIAS_TAU);
+      for (const node of nodes) {
+        node.bias += (node.biasTarget - node.bias) * ease;
+        node.homeLatitude = clamp(node.baseLatitude + node.bias * BIAS_LAT, -latLimit, latLimit);
+      }
       prepared = prepare(field);
       const nowGuided = !!(prepared && prepared.peaks.length && roam > 0);
       if (nowGuided && !guided) {
@@ -554,6 +591,7 @@
           latitude,
           homeLongitude: node.homeLongitude,
           homeLatitude: node.homeLatitude,
+      bias: node.bias,
           displacement,
           speed: Math.hypot(node.vel.lon, node.vel.lat),
           /* The radius this orb is being spaced at: its band shell lifted by its own
@@ -609,6 +647,7 @@
       setGeometry,
       setExtensions,
       setPressures,
+      setBiases,
       setRadii,
       reset
     });
@@ -621,6 +660,8 @@
     TETHER_LON,
     TETHER_LAT,
     LAT_LIMIT,
+    BIAS_LAT,
+    BIAS_TAU,
     MAX_SPEED,
     inertiaFor,
     hash01,

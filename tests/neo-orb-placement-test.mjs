@@ -556,3 +556,47 @@ test("the speed cap is unchanged by pressure: no orb exceeds its mass-capped spe
     for (const p of placer.placements()) assert.ok(p.speed <= cap + 1e-9, `${p.id} speed ${p.speed} stays within ${cap}`);
   }
 });
+
+/* ── height bias: the basis side moves the homes north or south (js/neo-orb-placement.js setBiases) ── */
+
+test("setBiases: +1 pulls a home north, −1 south, 0 leaves it, and the pull eases in", () => {
+  const homes = homesOf(6, { band: 2 });
+  const placer = P.createPlacer(homes, { roam: 0 });
+  const homeOf = id => placer.placements().find(p => p.id === id).homeLatitude;
+  const base = Object.fromEntries(homes.map(h => [h.id, h.latitude]));
+  placer.setBiases({ [homes[0].id]: 1, [homes[1].id]: -1, [homes[2].id]: 0 });
+  placer.step(0.5, null);
+  const early = homeOf(homes[0].id) - base[homes[0].id];
+  assert.ok(early > 0 && early < P.BIAS_LAT, `eased, not snapped: ${early}`);
+  for (let i = 0; i < 300; i++) placer.step(0.1, null);   // 30 s of frames at the placer's 0.1 s clamp
+  const up = homeOf(homes[0].id) - base[homes[0].id];
+  const down = homeOf(homes[1].id) - base[homes[1].id];
+  assert.ok(Math.abs(up - P.BIAS_LAT) < 1e-6 || homeOf(homes[0].id) >= P.LAT_LIMIT - 1e-9, `above basis: north by BIAS_LAT (${up})`);
+  assert.ok(Math.abs(down + P.BIAS_LAT) < 1e-6 || homeOf(homes[1].id) <= -P.LAT_LIMIT + 1e-9, `below basis: south by BIAS_LAT (${down})`);
+  assert.equal(homeOf(homes[2].id), base[homes[2].id], "an orb at basis keeps its sector latitude");
+});
+
+test("setBiases: no call, and null, are neutral, and every emitted latitude stays inside the contract", () => {
+  const homes = homesOf(16, { band: 2 });
+  const field = coreField(0.4, 0, 0.12);
+  const none = runFor(P.createPlacer(homes, { roam: 1 }), field, 6);
+  const nulled = P.createPlacer(homes, { roam: 1 });
+  nulled.setBiases(null);
+  assert.equal(JSON.stringify(runFor(nulled, field, 6)), JSON.stringify(none));
+  const biased = P.createPlacer(homes, { roam: 1 });
+  biased.setBiases(Object.fromEntries(homes.map((h, i) => [h.id, i % 2 ? 1 : -1])));
+  for (const frame of runFor(biased, field, 12)) {
+    assert.ok(Math.abs(frame.latitude) <= biased.latitudeLimit + 1e-12, `${frame.id} latitude ${frame.latitude} inside ${biased.latitudeLimit}`);
+  }
+});
+
+test("setBiases fails closed: an unknown id, a value outside −1…1, or a non-map is refused", () => {
+  const homes = homesOf(4, { band: 2 });
+  const placer = P.createPlacer(homes, { roam: 1 });
+  assert.throws(() => placer.setBiases({ NOPE: 1 }), /not a node/);
+  for (const bad of [2, -1.5, Number.NaN, "1"]) {
+    assert.throws(() => placer.setBiases({ [homes[0].id]: bad }), /−1…1 or null/, `bias ${String(bad)} is refused`);
+  }
+  assert.throws(() => placer.setBiases([1]), /map of node id/);
+});
+

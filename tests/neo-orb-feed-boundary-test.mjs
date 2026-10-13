@@ -253,6 +253,13 @@ test("the mounted app reads the stored field through the reader, and colours wha
   await settle();
   assert.equal(h.requests.length, 1, "within MARKET_EVERY_MS the field is not re-read");
 
+  /* The height bias follows the basis side: NVDA closes above its basis, so it eases north (+1). MSFT
+     has no stored row, so it stays on its sector latitude (0). */
+  for (let i = 0; i < 100; i++) engine.placer.step(0.1, null);
+  const biasOf = id => engine.placer.placements().find(p => p.id === id).bias;
+  assert.ok(biasOf("NVDA") > 0.9, `NVDA above basis eases north: ${biasOf("NVDA")}`);
+  assert.equal(biasOf("MSFT"), 0, "a symbol with no stored row keeps its sector latitude");
+
   engine.readouts();
   assert.match(body.querySelector("#neo-market").textContent, /2 of 52 orbs coloured/, body.querySelector("#neo-market").textContent);
   /* Black Hole Computing and Quasar Mode read the same rows. These fixtures carry only the 1000
