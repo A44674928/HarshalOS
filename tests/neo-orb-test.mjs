@@ -909,3 +909,35 @@ test("the shell radius follows depth: basis on the inner shell, the ±1000 envel
       `refused: ${JSON.stringify(bad)}`);
   }
 });
+
+/* ── brightness and the gravity shells in the frame ───────────────── */
+
+test("the Quasar shell, the Reinsurance halo, and orb brightness draw from the readings; an unmeasured orb is dark", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = recordingContext();
+  ctx.closePath = () => ctx.calls.push("closePath");
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+  const ids = engine.nodes.map(n => n.id);
+  const readings = new Map(ids.map((id, i) => [id, {
+    depth: i < 10 ? null : 0.5, pressure: i % 2 ? 0.9 : 0.1, flow: "unavailable", position: null,
+    components: null, pressureTerms: {}, forceMultiplier: 1, authority: "none"
+  }]));
+  engine.bhc = { engaged: true, readings };
+  engine.quasar = { engaged: true, measured: 42, meanDepth: 0.5, interval: { lo: 0.4, hi: 0.6 }, tail: { depth: { share: 0.2 } } };
+  engine.reinsurance = { engaged: true, synchrony: 0.5 };
+  engine.draw(1000);
+
+  assert.ok(ctx.calls.includes("closePath"), "the Quasar interval band is filled");
+  assert.equal(engine.litFor(ids[0]).dark, true, "an unmeasured orb is dark");
+  assert.equal(engine.litFor(ids[0]).glow, 0, "a dark orb has no glow");
+  assert.equal(engine.litFor(ids[20]).dark, false);
+  assert.ok(engine.litFor(ids[21]).glow > engine.litFor(ids[20]).glow, "a pressed orb glows more than a calm one");
+  assert.ok(engine.litFor(ids[21]).size > engine.litFor(ids[20]).size, "and reaches wider");
+  assert.equal(engine.litFor("NOT-AN-ORB"), null, "no reading means the original glow, not a guess");
+  assert.equal(engine.screenNodes.length, 52, "every roster orb is still placed on screen");
+});

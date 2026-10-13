@@ -507,3 +507,52 @@ test("setRadii is fail-closed and moves only the spacing radius the placer measu
   assert.equal(typeof after.longitude, "number");
   assert.equal(typeof before.longitude, "number");
 });
+
+/* ── pressure: Orb 2's pressure steers the orbs harder (js/neo-orb-placement.js setPressures) ── */
+
+test("pressure steers harder: under the same field, pressed orbs drift farther than calm ones", () => {
+  const homes = homesOf(16, { band: 2 });
+  const field = coreField(0.4, 0, 0.12);
+  const calm = P.createPlacer(homes, { roam: 1 });
+  calm.setPressures(Object.fromEntries(homes.map(h => [h.id, 0])));
+  const pressed = P.createPlacer(homes, { roam: 1 });
+  pressed.setPressures(Object.fromEntries(homes.map(h => [h.id, 1])));
+  const meanDrift = out => out.reduce((a, p) => a + p.displacement, 0) / out.length;
+  const calmDrift = meanDrift(runFor(calm, field, 6));
+  const pressedDrift = meanDrift(runFor(pressed, field, 6));
+  assert.ok(pressedDrift > calmDrift, `pressed ${pressedDrift.toFixed(4)} rad > calm ${calmDrift.toFixed(4)} rad`);
+});
+
+test("no pressure, or null pressure, is neutral: the placements are identical to no call at all", () => {
+  const homes = homesOf(12, { band: 2 });
+  const field = coreField(0.3, 0.1, 0.1);
+  const none = runFor(P.createPlacer(homes, { roam: 0.8 }), field, 4);
+  const nulled = P.createPlacer(homes, { roam: 0.8 });
+  nulled.setPressures(null);
+  assert.equal(JSON.stringify(runFor(nulled, field, 4)), JSON.stringify(none));
+  const perOrbNull = P.createPlacer(homes, { roam: 0.8 });
+  perOrbNull.setPressures(Object.fromEntries(homes.map(h => [h.id, null])));
+  assert.equal(JSON.stringify(runFor(perOrbNull, field, 4)), JSON.stringify(none), "a null for each orb is neutral too");
+});
+
+test("setPressures fails closed: an unknown id or a value outside 0…1 is refused, not clamped", () => {
+  const homes = homesOf(3, { band: 1 });
+  const placer = P.createPlacer(homes, { roam: 1 });
+  assert.throws(() => placer.setPressures({ NOPE: 0.5 }), RangeError);
+  assert.throws(() => placer.setPressures({ [homes[0].id]: 1.2 }), RangeError);
+  assert.throws(() => placer.setPressures({ [homes[0].id]: -0.1 }), RangeError);
+  assert.throws(() => placer.setPressures({ [homes[0].id]: "0.5" }), RangeError);
+  assert.throws(() => placer.setPressures([0.5]), TypeError);
+});
+
+test("the speed cap is unchanged by pressure: no orb exceeds its mass-capped speed when pressed", () => {
+  const homes = homesOf(20, { band: 2 });
+  const field = coreField(0.4, 0, 0.12);
+  const placer = P.createPlacer(homes, { roam: 1 });
+  placer.setPressures(Object.fromEntries(homes.map(h => [h.id, 1])));
+  const cap = P.MAX_SPEED / Math.sqrt(P.inertiaFor(2));
+  for (let i = 0; i < 6 * 60; i++) {
+    placer.step(DT, field);
+    for (const p of placer.placements()) assert.ok(p.speed <= cap + 1e-9, `${p.id} speed ${p.speed} stays within ${cap}`);
+  }
+});

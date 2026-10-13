@@ -185,6 +185,8 @@
       this.market = null;                  // Map(symbol → market record), or null while the feed is cut
       this.bhc = null;                     // Black Hole Computing readings (js/neo-orb-black-hole.js), or null
       this.quasar = null;                  // Quasar Mode aggregate (js/neo-orb-quasar.js), or null
+      this.reinsurance = null;             // Reinsurance Mode snapshot (js/neo-orb-reinsurance.js), held between slow reads
+      this.reinsuranceAt = null;           // when that snapshot was read
       this.marketStatus = MARKET_CUT_STATUS;   // fail-closed until the reader says otherwise
       this.marketAt = null;
       this.lastMarketAt = -Infinity;
@@ -290,6 +292,8 @@
         this.compositions = new Map();
         this.bhc = null;
         this.quasar = null;
+        this.reinsurance = null;
+        this.reinsuranceAt = null;
         this.syncRadii();
         this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
         return;
@@ -360,10 +364,56 @@
     indexGravity() {
       const bhc = typeof window !== "undefined" ? window.NeoOrbBlackHole : null;
       const quasar = typeof window !== "undefined" ? window.NeoOrbQuasar : null;
+      const reinsurance = typeof window !== "undefined" ? window.NeoOrbReinsurance : null;
       const signals = signalsModule();
-      if (!bhc || !quasar || !signals || !this.market) { this.bhc = null; this.quasar = null; return; }
+      if (!bhc || !quasar || !signals || !this.market) { this.bhc = null; this.quasar = null; this.syncPressures(); return; }
       this.bhc = bhc.deepen(this.market, this.compositions, signals);
       this.quasar = quasar.spheroid(this.bhc);
+      /* Reinsurance is a slow snapshot over the Quasar buffers (issuer sectors). It is read at most
+         every UPDATE_EVERY_MS and held in between, so a fast field refresh never moves it. */
+      if (reinsurance && this.bhc.engaged) {
+        const now = Date.now();
+        if (reinsurance.due(this.reinsuranceAt, now)) {
+          this.reinsurance = reinsurance.systemic(this.buffersOf(quasar));
+          this.reinsuranceAt = now;
+        }
+      }
+      this.syncPressures();
+    }
+
+    /* One Quasar aggregate per issuer-sector buffer, from the Black Hole readings. */
+    buffersOf(quasar) {
+      const groups = new Map();
+      for (const [id, reading] of this.bhc.readings) {
+        const node = this.byId ? this.byId.get(id) : null;
+        const sector = node && node.issuerSector ? node.issuerSector : "unassigned";
+        if (!groups.has(sector)) groups.set(sector, new Map());
+        groups.get(sector).set(id, reading);
+      }
+      return [...groups.values()].map(readings => quasar.spheroid({ engaged: true, total: readings.size, readings }));
+    }
+
+    /* Orb 2 pressure for each roster orb, handed to the placer as numbers only. An unmeasured orb
+       (no depth) is null, which the placer treats as neutral. No call, or no engaged reading, is
+       neutral for every orb. */
+    syncPressures() {
+      if (!this.placer || typeof this.placer.setPressures !== "function") return;
+      if (!this.bhc || !this.bhc.engaged) { this.placer.setPressures(null); return; }
+      const pressures = {};
+      for (const [id, reading] of this.bhc.readings) {
+        if (!this.byId || !this.byId.has(id)) continue;
+        pressures[id] = reading.depth === null ? null : reading.pressure;
+      }
+      this.placer.setPressures(pressures);
+    }
+
+    /* How lit an orb is, from its Black Hole reading. Unmeasured → dark (no glow, a dimmed body).
+       No reading (the feed is cut, or the module did not load) → null, the original glow. */
+    litFor(id) {
+      const reading = this.bhc && this.bhc.readings ? this.bhc.readings.get(id) : null;
+      if (!reading) return null;
+      if (reading.depth === null) return { dark: true, glow: 0, size: 0 };
+      return { dark: false, glow: 0.35 + 0.65 * reading.pressure, size: 2.4 + 1.6 * reading.pressure };
     }
 
     /* The Status line for Black Hole Computing and Quasar Mode. */
@@ -371,6 +421,13 @@
       if (this.feedCut()) return "no stored rows read — the feed is cut";
       const bhc = typeof window !== "undefined" ? window.NeoOrbBlackHole : null;
       const quasar = typeof window !== "undefined" ? window.NeoOrbQuasar : null;
+      const reinsurance = typeof window !== "undefined" ? window.NeoOrbReinsurance : null;
+      if (which === "reinsurance") {
+        if (!reinsurance) return "unavailable — the module did not load";
+        if (!this.market) return "waiting for a stored read";
+        const text = reinsurance.describe(this.reinsurance);
+        return this.reinsuranceAt ? `${text} · read ${new Date(this.reinsuranceAt).toLocaleTimeString()}` : text;
+      }
       if (!bhc || !quasar) return "unavailable — the module did not load";
       if (!this.market) return "waiting for a stored read";
       return which === "bhc" ? bhc.describe(this.bhc) : quasar.describe(this.quasar);
@@ -400,6 +457,7 @@
       if (this.placer && typeof this.placer.setRadii === "function") {
         this.placer.setRadii(Object.fromEntries(this.homes.map(h => [h.id, h.radius])));
       }
+      this.syncPressures();
       this.dirty = true;
     }
 
@@ -672,6 +730,8 @@
 
       /* 1 · log bands and meridians — the shell geometry from the model */
       if (shape && m && L.bands) this.drawBands(ctx, shape, m, R, project, toScreen);
+      /* 1b · the Quasar shell and the Reinsurance halo (js/neo-orb-quasar.js, js/neo-orb-reinsurance.js) */
+      if (shape && m) this.drawGravityShells(ctx, shape, m, R, project, toScreen);
 
       /* 2 · the placed Orb 2 nodes (computed once, shared by spokes and orbs) */
       this.screenNodes = [];
@@ -729,6 +789,59 @@
     worldPoint(position, R, beat) {
       const k = R * beat;
       return { x: position.x * k, y: position.y * k, z: position.z * k };
+    }
+
+    /* The Quasar shell: a ring at the roster's mean depth, with its 95 % interval as a band. The
+       Reinsurance halo: three soft rings outside the instability region, brighter with synchrony.
+       Both sit on the model's own radii, in the bands' neutral tone (blue and yellow stay reserved
+       for market state). They are drawn only; nothing reads them back. */
+    drawGravityShells(ctx, shape, m, R, project, toScreen) {
+      const st = this.state;
+      if (!shape || !m.DEPTH_SHELL || !m.INSTABILITY_REGION) return;
+      const { inner, outer } = m.DEPTH_SHELL;
+      const depthRadius = depth => inner + (outer - inner) * Math.min(1, Math.max(0, depth));
+      const ringAt = (radius, samples = 128) => {
+        const pts = [];
+        for (let j = 0; j <= samples; j++) {
+          const lon = (j / samples) * TAU - Math.PI / 2;
+          const pos = m.positionFor(radius, lon, 0, st.formation, shape.axes);
+          pts.push(toScreen(project(this.worldPoint(pos, R, 1))));
+        }
+        return pts;
+      };
+      const strokeRing = pts => {
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.stroke();
+      };
+      ctx.save();
+      ctx.strokeStyle = BAND_COLOR;
+      ctx.fillStyle = BAND_COLOR;
+      ctx.lineWidth = 1;
+      const q = this.quasar;
+      if (q && q.engaged && q.interval && q.measured >= 2) {
+        const hi = ringAt(depthRadius(q.interval.hi));
+        const lo = ringAt(depthRadius(q.interval.lo));
+        ctx.globalAlpha = 0.05 + 0.08 * ((q.tail && q.tail.depth.share) || 0);
+        ctx.beginPath();
+        hi.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        for (let i = lo.length - 1; i >= 0; i--) ctx.lineTo(lo[i].x, lo[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.22;
+        strokeRing(ringAt(depthRadius(q.meanDepth)));
+      }
+      const r = this.reinsurance;
+      if (r && r.engaged) {
+        const haloBase = m.INSTABILITY_REGION.outer + 0.14;
+        const sync = r.synchrony || 0;
+        for (let k = 0; k < 3; k++) {
+          ctx.globalAlpha = (0.03 + 0.14 * sync) * (1 - k * 0.3);
+          ctx.lineWidth = 1 + k * 1.5;
+          strokeRing(ringAt(haloBase + k * 0.07, 160));
+        }
+      }
+      ctx.restore();
     }
 
     drawBands(ctx, shape, m, R, project, toScreen) {
@@ -802,19 +915,25 @@
       const selected = node.n.id === this.selectedId;
       const hovered = node.n.id === this.hoveredId;
 
+      /* Brightness is Orb 2's pressure (through the Black Hole reading): a pressed orb glows
+         stronger and wider; an orb with no depth is dark, with no glow and a dimmed body. */
+      const lit = this.litFor(node.n.id);
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.r * 3.2);
-      glow.addColorStop(0, hexAlpha(color, 0.42 * alpha));
-      glow.addColorStop(1, hexAlpha(color, 0));
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, node.r * 3.2, 0, TAU);
-      ctx.fill();
+      if (!lit || !lit.dark) {
+        const size = lit ? lit.size : 3.2, strength = lit ? lit.glow : 1;
+        const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.r * size);
+        glow.addColorStop(0, hexAlpha(color, 0.42 * alpha * strength));
+        glow.addColorStop(1, hexAlpha(color, 0));
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.r * size, 0, TAU);
+        ctx.fill();
+      }
       ctx.restore();
 
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = lit && lit.dark ? alpha * 0.4 : alpha;
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(node.x, node.y, node.r, 0, TAU);
@@ -949,6 +1068,7 @@
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Black Hole Computing</dt><dd id="neo-bhc">—</dd>
                   <dt>Quasar Mode</dt><dd id="neo-quasar">—</dd>
+                  <dt>Reinsurance Mode</dt><dd id="neo-reins">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
@@ -1141,6 +1261,7 @@
       }
       put("neo-bhc", this.gravityTextFor("bhc"));
       put("neo-quasar", this.gravityTextFor("quasar"));
+      put("neo-reins", this.gravityTextFor("reinsurance"));
       const inspBhc = b.querySelector("#neo-insp-bhc");
       if (inspBhc && this.selectedId) {
         const note = this.bhcNoteFor(this.selectedId);
