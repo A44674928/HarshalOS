@@ -85,10 +85,15 @@ export const ORB2_FIELD_FRAGMENT_COLD_PAGE = 24;
    status pieces and the assembly for one interval. */
 export const ORB2_FIELD_SLICE_STAGE_LIMIT = 5;
 const FRAGMENT_STAGE_BUDGET = ORB2_FIELD_SLICE_STAGE_LIMIT - 2;
-/* D1 documents a 2,000,000-byte limit for a string, BLOB, or table row.
-   Publication refuses well below it and keeps the previous document rather than
-   storing a truncated one. */
-export const ORB2_FIELD_SNAPSHOT_MAX_BYTES = 900_000;
+/* D1 documents a 2,000,000-byte limit for a string, BLOB, or table row, and the
+   row also holds the status pieces (roughly 25 KB on a warm field, plus headroom
+   for non-ASCII text, which `body.length` counts once). Publication refuses below
+   that limit and keeps the previous document rather than storing a truncated one.
+   1,500,000 leaves ~450 KB of margin. It was 900,000 when the warm 171-berth field
+   was about 600 KB; a field of ~1 MB was refused by it, so the bound moved. Trim
+   the fragments before moving it again. The bound can be tightened or loosened per
+   deployment with the ORB2_FIELD_SNAPSHOT_MAX_BYTES variable. */
+export const ORB2_FIELD_SNAPSHOT_MAX_BYTES = 1_500_000;
 /* How long a served document may come from the Cache API before it is re-read:
    long enough to absorb a poll, short enough that a new beat shows up well inside
    the client's own cadence. */
@@ -774,10 +779,16 @@ export async function runOrb2FieldBuildSlice(env = {}, dependencies = {}) {
           summary.errors.push(published.message);
           summary.faults.push({ interval: target, code: published.code || "assemble-failed" });
         }
+        /* `assembled_at` is the rotation clock, not only a success stamp. A refused
+           document is still the oldest one by its publication time, so if a failure
+           left the clock alone, the same interval would be picked every minute and
+           the healthy intervals behind it would never be rebuilt. Stamping the attempt
+           moves the failure to the back of the rotation; the served document is
+           unchanged, and `last_error` still records why it was refused. */
         state = await writeBuildState(db, state, {
           stage: "fragments",
           passes: published.ok ? state.passes + 1 : state.passes,
-          assembledAt: published.ok ? now : state.assembledAt,
+          assembledAt: now,
           lastStage: "assemble",
           lastStageMs: Date.now() - started,
           lastError: published.ok ? "" : String(published.message || "assemble failed").slice(0, 200)
