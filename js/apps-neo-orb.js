@@ -183,6 +183,8 @@
       this.extensionStates = new Map();    // the stored reading behind each eased value
       this.fit = 1;                        // view scale: 1 unless orbs are out in the region
       this.market = null;                  // Map(symbol → market record), or null while the feed is cut
+      this.bhc = null;                     // Black Hole Computing readings (js/neo-orb-black-hole.js), or null
+      this.quasar = null;                  // Quasar Mode aggregate (js/neo-orb-quasar.js), or null
       this.marketStatus = MARKET_CUT_STATUS;   // fail-closed until the reader says otherwise
       this.marketAt = null;
       this.lastMarketAt = -Infinity;
@@ -286,6 +288,8 @@
         this.extensionStates = new Map();
         this.depths = null;
         this.compositions = new Map();
+        this.bhc = null;
+        this.quasar = null;
         this.syncRadii();
         this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
         return;
@@ -302,6 +306,7 @@
           this.storedAt = market.storedAsOf(result.observations);
           this.indexExtensions();
           this.indexDepths();
+          this.indexGravity();
           this.marketStatus = this.market.size ? "live" : "no stock rows in the field yet";
         } else {
           this.marketStatus = `unavailable — ${result.message}`;
@@ -347,6 +352,35 @@
       if (signals && this.market) for (const [symbol, record] of this.market) depths.set(symbol, signals.depthOf(record).depth);
       this.depths = depths;
       this.syncRadii();
+    }
+
+    /* Black Hole Computing (js/neo-orb-black-hole.js) reads each stored row once: the deep per-orb
+       reading. Quasar Mode (js/neo-orb-quasar.js) then aggregates those readings over the whole
+       roster. Both are readouts only. Colour, placement, and motion never read either. */
+    indexGravity() {
+      const bhc = typeof window !== "undefined" ? window.NeoOrbBlackHole : null;
+      const quasar = typeof window !== "undefined" ? window.NeoOrbQuasar : null;
+      const signals = signalsModule();
+      if (!bhc || !quasar || !signals || !this.market) { this.bhc = null; this.quasar = null; return; }
+      this.bhc = bhc.deepen(this.market, this.compositions, signals);
+      this.quasar = quasar.spheroid(this.bhc);
+    }
+
+    /* The Status line for Black Hole Computing and Quasar Mode. */
+    gravityTextFor(which) {
+      if (this.feedCut()) return "no stored rows read — the feed is cut";
+      const bhc = typeof window !== "undefined" ? window.NeoOrbBlackHole : null;
+      const quasar = typeof window !== "undefined" ? window.NeoOrbQuasar : null;
+      if (!bhc || !quasar) return "unavailable — the module did not load";
+      if (!this.market) return "waiting for a stored read";
+      return which === "bhc" ? bhc.describe(this.bhc) : quasar.describe(this.quasar);
+    }
+
+    /* The inspector line for the selected orb's Black Hole Computing reading. */
+    bhcNoteFor(id) {
+      const bhc = typeof window !== "undefined" ? window.NeoOrbBlackHole : null;
+      if (!bhc || !this.bhc || !this.market) return this.gravityTextFor("bhc");
+      return bhc.readingText(this.bhc.readings.get(id) || null);
     }
 
     /* The depth of every roster orb, { [id]: 0…1 | null }, or null before any stored read. */
@@ -913,6 +947,8 @@
                   <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rising <span class="neo-swatch" style="background:#ef4444"></span>falling · fill is the composed position (daily baseline + 15m residual), further from neutral = stronger · <span class="neo-swatch" style="background:#38bdf8"></span>VFI above signal <span class="neo-swatch" style="background:#fb923c"></span>VFI below signal · ring is VFI${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
                   <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its depth shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
+                  <dt>Black Hole Computing</dt><dd id="neo-bhc">—</dd>
+                  <dt>Quasar Mode</dt><dd id="neo-quasar">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
@@ -1060,6 +1096,7 @@
           <dt>Display sector</dt><dd>${String(n.sector).padStart(3, "0")} / 360</dd>
           <dt>Display kind</dt><dd>${esc(KIND_NAME[n.kind] || n.kind)}</dd>
           <dt>Market colour</dt><dd id="neo-insp-market">${esc(this.marketNoteFor(n.id))}</dd>
+          <dt>Black Hole Computing</dt><dd id="neo-insp-bhc">${esc(this.bhcNoteFor(n.id))}</dd>
           <dt>Distance from centre</dt><dd id="neo-insp-ext">${esc(this.extensionNoteFor(n.id))}</dd>
           <dt>Placement</dt><dd>${esc(placeNote)}</dd>
           <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "placed position"}</dd>
@@ -1101,6 +1138,13 @@
         const dot = item.querySelector(".neo-dot");
         const fill = this.toneFor(item.dataset.id).fill;
         if (dot && dot.style.background !== fill) dot.style.background = fill;
+      }
+      put("neo-bhc", this.gravityTextFor("bhc"));
+      put("neo-quasar", this.gravityTextFor("quasar"));
+      const inspBhc = b.querySelector("#neo-insp-bhc");
+      if (inspBhc && this.selectedId) {
+        const note = this.bhcNoteFor(this.selectedId);
+        if (inspBhc.textContent !== note) inspBhc.textContent = note;
       }
       const insp = b.querySelector("#neo-insp-market");
       if (insp && this.selectedId) {
