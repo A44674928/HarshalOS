@@ -61,14 +61,16 @@ function readerContext(source = fieldSource) {
   return { Field: window.NeoOrbField, reached, context };
 }
 
-const fieldRow = (symbol, overrides = {}) => ({
+const fieldRow = (symbol, overrides = {}, composedPosition = 1) => ({
   symbol, discId: "stocks", interval: "1d", observedAt: NOW,
   market: {
     status: "ok", source: "tickerbot", timeframe: "1d", dataShape: "confirmed-ohlcv", synthetic: false,
     changePct: 2, latestBar: { time: NOW, close: 110, confirmed: true },
     basis: 100, bands: { lower1000: 90, upper1000: 110 }, waveTrend: { wt1: 26, wt2: 8, zone: "neutral zone" },
+    vfi: { value: 5, signal: 3, available: true },
     ...overrides
-  }
+  },
+  composition: { schema: "gi-orb2-scale-composition-v1", composedPosition, forceMultiplier: 1, freshness: 1, status: "composed" }
 });
 
 const fieldResponse = (rows, { ok = true, status = 200, message = null } = {}) => ({
@@ -88,7 +90,7 @@ test("the reader opens its feed and makes one same-origin GET of its own Worker 
   assert.equal(Field.fieldUrl("5m"), `${ROUTE}?interval=1d`, "an interval the field does not store falls back to the daily row");
 
   const calls = [];
-  const rows = [fieldRow("NVDA"), fieldRow("AAPL", { changePct: -1.4 })];
+  const rows = [fieldRow("NVDA"), fieldRow("AAPL", { changePct: -1.4, vfi: { value: 3, signal: 5, available: true } }, 0)];
   const result = await Field.readField({
     fetcher: async (url, options) => { calls.push({ url: String(url), options }); return fieldResponse(rows); },
     now: NOW
@@ -225,7 +227,7 @@ function appHarness({ fieldRows = null, fieldStatus = 200 } = {}) {
 const settle = async () => { for (let turn = 0; turn < 12; turn++) await Promise.resolve(); };
 
 test("the mounted app reads the stored field through the reader, and colours what it is given", async () => {
-  const h = appHarness({ fieldRows: [fieldRow("NVDA"), fieldRow("AAPL", { changePct: -1.4, latestBar: { time: NOW, close: 92, confirmed: true } })] });
+  const h = appHarness({ fieldRows: [fieldRow("NVDA"), fieldRow("AAPL", { changePct: -1.4, latestBar: { time: NOW, close: 92, confirmed: true }, vfi: { value: 3, signal: 5, available: true } }, 0)] });
   const { body, engine } = h;
   const market = h.win.NeoOrbMarket;
 
@@ -238,7 +240,7 @@ test("the mounted app reads the stored field through the reader, and colours wha
   assert.equal(h.requests[0].options.method, "GET");
   assert.equal(engine.marketStatus, "live");
   assert.equal(engine.toneFor("NVDA").fill, market.COLORS.rallying, "a rising close fills green");
-  assert.equal(engine.toneFor("NVDA").ring, market.COLORS.above, "above basis rings yellow");
+  assert.equal(engine.toneFor("NVDA").ring, market.COLORS.flowAbove, "VFI above its signal rings sky");
   assert.equal(engine.toneFor("AAPL").fill, market.COLORS.sinking, "a falling close fills red");
   assert.equal(engine.toneFor("MSFT").fill, market.COLORS.neutral, "a symbol with no stored row stays neutral");
 
