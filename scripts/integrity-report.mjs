@@ -56,6 +56,11 @@ const SUITES = [
     files: ["orb2-beat-runner-test.mjs"]
   },
   {
+    area: "Orb 2 stored field levels and Twelve Data daily credit ledger",
+    script: "test:orb2-stored",
+    files: ["orb2-stored-bands-test.mjs", "twelvedata-beat-credit-test.mjs", "twelvedata-daily-credit-ledger-test.mjs"]
+  },
+  {
     area: "Market-data provider foundation",
     script: "test:market-data-provider",
     files: ["market-data-provider-test.mjs", "fx-provider-test.mjs", "options-massive-test.mjs"]
