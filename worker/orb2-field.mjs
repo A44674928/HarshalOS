@@ -95,6 +95,9 @@ import "../js/good-intelligence-dxy.js";
 import "../js/good-intelligence-market-roster.js";
 
 const REVIEWED_SCHEDULER_CATALOG = globalThis.CharactersDiscCatalog || {};
+/* The six reviewed Fibonacci envelopes stored with each market observation. The depth
+   reading (js/neo-orb-signals.js) needs every level, not only the outermost. */
+const ORB2_BAND_LEVELS = Object.freeze([236, 382, 500, 618, 764, 1000]);
 const SCHEDULER_FX_ROSTER_SIZE = Array.isArray(REVIEWED_SCHEDULER_CATALOG.fxCurrencies) ? REVIEWED_SCHEDULER_CATALOG.fxCurrencies.length : 23;
 const SCHEDULER_FUTURES_ROSTER_SIZE = Array.isArray(REVIEWED_SCHEDULER_CATALOG.futures || REVIEWED_SCHEDULER_CATALOG.commodities)
   ? (REVIEWED_SCHEDULER_CATALOG.futures || REVIEWED_SCHEDULER_CATALOG.commodities).length : 11;
@@ -693,10 +696,10 @@ export function observationFromPacket({
     previousClose: numberOrNull(previousClose),
     changePct: numberOrNull(changePct),
     basis: analysis.bands ? numberOrNull(analysis.bands.basis) : null,
-    bands: analysis.bands ? {
-      lower1000: numberOrNull(analysis.bands.lower1000),
-      upper1000: numberOrNull(analysis.bands.upper1000)
-    } : null,
+    bands: analysis.bands ? Object.fromEntries(ORB2_BAND_LEVELS.flatMap(level => [
+      [`lower${level}`, numberOrNull(analysis.bands[`lower${level}`])],
+      [`upper${level}`, numberOrNull(analysis.bands[`upper${level}`])]
+    ])) : null,
     vfi: analysis.vfi ? {
       value: numberOrNull(analysis.vfi.value),
       signal: numberOrNull(analysis.vfi.signal),

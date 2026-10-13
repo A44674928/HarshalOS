@@ -16,6 +16,8 @@ export const ORB2_BEAT_HISTORY_LIMIT = 120;
 const MAX_BODY_BYTES = 48 * 1024;
 const MAX_BEAT_BYTES = 40 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/* The six reviewed Fibonacci envelopes kept on each stored market record. */
+const ORB2_BAND_LEVELS = Object.freeze([236, 382, 500, 618, 764, 1000]);
 const DISC_IDS = new Set(["stocks", "fx", "crypto", "commodities", "futures", "indices"]);
 const PROVIDERS = new Set(["massive", "tickerbot", "kraken", "rehearsal"]);
 const INTERVALS = new Set(["15m", "1h", "1d"]);
@@ -169,10 +171,10 @@ export function safeMarket(value) {
     previousClose: bounded(value.previousClose, 0.000000001, 1e15, null),
     changePct: bounded(value.changePct, -1_000_000, 1_000_000, null),
     basis: bounded(value.basis, -1e15, 1e15, null),
-    bands: isRecord(value.bands) ? {
-      lower1000: bounded(value.bands.lower1000, -1e15, 1e15, null),
-      upper1000: bounded(value.bands.upper1000, -1e15, 1e15, null)
-    } : null,
+    bands: isRecord(value.bands) ? Object.fromEntries(ORB2_BAND_LEVELS.flatMap(level => [
+      [`lower${level}`, bounded(value.bands[`lower${level}`], -1e15, 1e15, null)],
+      [`upper${level}`, bounded(value.bands[`upper${level}`], -1e15, 1e15, null)]
+    ])) : null,
     vfi: isRecord(value.vfi) ? {
       value: bounded(value.vfi.value, -1e12, 1e12, null),
       signal: bounded(value.vfi.signal, -1e12, 1e12, null),
