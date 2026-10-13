@@ -708,3 +708,31 @@ test("the freshness window helper matches the interval's published policy", () =
   assert.equal(ORB2_FIELD_SNAPSHOT_CACHE_SECONDS, 20);
   assert.ok(ORB2_FIELD_FRAGMENT_PAGE > 0 && ORB2_FIELD_FRAGMENT_PAGE <= 24);
 });
+
+test("an oversize document cannot starve the healthy intervals", async t => {
+  const { sql, env } = fixture(t);
+  seedField(sql);
+  await publishAll(env, NOW);
+  const sizes = {};
+  for (const interval of ORB2_FIELD_INTERVALS) {
+    sizes[interval] = (await readOrb2FieldSnapshotRow(env.COMMUNITY_DB, interval)).bytes;
+  }
+  /* A bound that only the 1d document exceeds: the other two still fit. */
+  const bound = Math.max(...ORB2_FIELD_INTERVALS.filter(interval => interval !== "1d").map(interval => sizes[interval])) + 1;
+  assert.ok(sizes["1d"] > bound, "the fixture needs the 1d document to be the oversize one");
+  const tight = { ...env, ORB2_FIELD_SNAPSHOT_MAX_BYTES: String(bound) };
+  const counts = new Map();
+  const errors = [];
+  for (let minute = 1; minute <= 12; minute += 1) {
+    const summary = await runOrb2FieldBuildSlice(tight, { now: NOW + minute * 60_000 });
+    for (const interval of summary.published) counts.set(interval, (counts.get(interval) || 0) + 1);
+    errors.push(...summary.errors);
+  }
+  /* Each healthy document has to keep being rebuilt, not just publish once while it
+     is still ahead in the rotation. */
+  for (const interval of ["15m", "1h"]) {
+    assert.ok((counts.get(interval) || 0) >= 2,
+      `${interval} should keep publishing across the rotation (published ${counts.get(interval) || 0} time(s))`);
+  }
+  assert.ok(errors.some(message => message.includes("publication bound")), "the oversize document should still be refused");
+});
