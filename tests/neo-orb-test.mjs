@@ -12,6 +12,7 @@ const modelSource = await readText("js/neo-orb-model.js");
 const placementSource = await readText("js/neo-orb-placement.js");
 const marketSource = await readText("js/neo-orb-market.js");
 const extensionSource = await readText("js/market-extension.js");
+const signalsSource = await readText("js/neo-orb-signals.js");
 const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
@@ -116,9 +117,14 @@ test("berth separation re-slots crowded placements only when enabled, and is det
     return min;
   };
   /* At rest the homes are relaxed apart, so even a sector crowd clears the floor with no re-slots. */
-  const rest = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd });
+  const measured = Object.fromEntries(crowd.map(n => [n.id, 0.5]));
+  const rest = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd, depths: measured });
   assert.equal(rest.berthSeparation.movedNodeIds.length, 0, "relaxed homes need no berth re-slot at rest");
   assert.ok(minPairChord(rest) >= Model.BERTH_MIN_CHORD - 1e-9, `homes clear the floor (min ${minPairChord(rest)})`);
+  /* A crowd of unmeasured orbs all sit on the outer shell, where the relaxation cannot always
+     spread twenty neighbours. The resolver still has to clear the floor for every pair. */
+  const held = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 1, nodes: crowd });
+  assert.ok(minPairChord(held) >= Model.BERTH_MIN_CHORD - 1e-9, `held crowd clears the floor (min ${minPairChord(held)})`);
 
   /* Crowded placements (many orbs sent to one spot) are what the berth resolver must fix. */
   const piled = Object.fromEntries(crowd.map(n => [n.id, { longitude: 0.3, latitude: 0.2 }]));
@@ -168,6 +174,7 @@ function appHarness({ flames = true } = {}) {
   vm.runInContext(placementSource, context, { filename: "js/neo-orb-placement.js" });
   vm.runInContext(marketSource, context, { filename: "js/neo-orb-market.js" });
   vm.runInContext(extensionSource, context, { filename: "js/market-extension.js" });
+  vm.runInContext(signalsSource, context, { filename: "js/neo-orb-signals.js" });
   vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
@@ -278,58 +285,59 @@ test("the app code reads no kernel, gate, ledger, provider, or route", () => {
 /* The drawn band shells, as the model computes them: one node per band, at full depth,
    so band 5 is the outermost shell an orb can have without being extended. */
 function bandShells(depth = 1) {
-  const nodes = [0, 1, 2, 3, 4, 5].map(band => node(`B${band}`, { radialBand: band, sector: band * 40, depth }));
-  const shape = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes });
-  return shape.nodes.map(n => ({ band: n.node.radialBand, radius: n.bandRadius }));
+  /* The shell an orb of a given depth sits on; held is the outer shell. Market-cap bands no
+     longer set radius, so each shell is named by its depth. */
+  const shells = [0, 0.25, 0.5, 0.75, 1].map(d => ({ band: d, radius: Model.shellRadiusOf(d) }));
+  shells.push({ band: "held", radius: Model.shellRadiusOf(null) });
+  return shells;
 }
 
-test("the instability region sits outside every band shell, and extension 0 leaves the shells exact", () => {
+test("the instability region sits outside every depth shell, and extension 0 leaves the shells exact", () => {
   const region = Model.INSTABILITY_REGION;
   const shells = bandShells(1);
   const outermost = Math.max(...shells.map(shell => shell.radius));
 
   assert.equal(Object.isFrozen(region), true, "the region is a fixed part of the model, not a dial");
-  assert.ok(Math.abs(outermost - 1) < 1e-12, `the smallest caps sit at r = 1 (got ${outermost})`);
-  assert.ok(region.inner > outermost, `the region starts outside every band shell (${region.inner} > ${outermost})`);
+  assert.ok(Math.abs(outermost - Model.DEPTH_SHELL.outer) < 1e-12, `the ±1000 envelope sits at r = ${Model.DEPTH_SHELL.outer}`);
+  assert.ok(region.inner > outermost, `the region starts outside every shell (${region.inner} > ${outermost})`);
   assert.ok(region.outer > region.inner, "and it has depth, so a reading is visible inside it");
   assert.ok(region.entry > 0 && region.entry < 1, "an orb crosses into it over a span of extension, not in one step");
 
   for (const shell of shells) {
     assert.equal(Model.extensionRadius(shell.radius, 0), shell.radius,
-      `band ${shell.band} keeps its exact documented radius at extension 0`);
+      `shell ${shell.band} keeps its exact radius at extension 0`);
     for (const missing of [null, undefined, Number.NaN]) {
       assert.equal(Model.extensionRadius(shell.radius, missing), shell.radius,
-        `a missing extension is no push (band ${shell.band})`);
+        `a missing extension is no push (shell ${shell.band})`);
     }
     assert.equal(Model.extensionRadius(shell.radius, -0.5), shell.radius, "a stray value below 0 is clamped, never pulled inward");
-    assert.equal(Model.extensionRadius(shell.radius, 1), region.outer, "an extreme reading reaches the region's outer edge from any band");
+    assert.equal(Model.extensionRadius(shell.radius, 1), region.outer, "an extreme reading reaches the region's outer edge from any shell");
     assert.equal(Model.extensionRadius(shell.radius, 3), region.outer, "and past 1 the scale is capped, not extrapolated");
     assert.equal(Model.extensionRadius(0, 1), 0, "a degenerate radius is returned unchanged");
     assert.equal(Model.extensionRadius(-1, 1), -1);
     assert.ok(Math.abs(Model.extensionRadius(shell.radius, 1e-6) - shell.radius) < 1e-4,
-      `an orb leaves its shell smoothly, without a jump (band ${shell.band})`);
+      `an orb leaves its shell smoothly, without a jump (shell ${shell.band})`);
 
     /* Monotone outward: the further out the reading, the further out the orb, and never inward. */
     let previous = shell.radius;
     for (let step = 1; step <= 400; step += 1) {
       const x = step / 400;
       const radius = Model.extensionRadius(shell.radius, x);
-      assert.ok(radius >= previous - 1e-12, `band ${shell.band} must not move inward at extension ${x}`);
-      assert.ok(radius >= shell.radius - 1e-12, `band ${shell.band} is never pulled inside its own shell at ${x}`);
-      assert.ok(radius <= region.outer + 1e-12, `band ${shell.band} never passes the region at ${x}`);
+      assert.ok(radius >= previous - 1e-12, `shell ${shell.band} must not move inward at extension ${x}`);
+      assert.ok(radius >= shell.radius - 1e-12, `shell ${shell.band} is never pulled inside itself at ${x}`);
+      assert.ok(radius <= region.outer + 1e-12, `shell ${shell.band} never passes the region at ${x}`);
       previous = radius;
     }
   }
 
   /* Past the entry span the shell no longer matters: one region, positioned by the reading
-     alone, outside every band. That is what makes the distance comparable across bands. */
+     alone, outside every shell. That is what makes the distance comparable across orbs. */
   for (const x of [region.entry, 0.3, 0.6, 1]) {
     const radii = shells.map(shell => Model.extensionRadius(shell.radius, x));
-    assert.ok(Math.max(...radii) - Math.min(...radii) < 1e-12,
-      `at extension ${x} every band lands on one shell`);
+    assert.ok(Math.max(...radii) - Math.min(...radii) < 1e-12, `at extension ${x} every shell lands on one shell`);
     assert.ok(Math.abs(radii[0] - (region.inner + (region.outer - region.inner) * x)) < 1e-12,
       `and that shell is positioned by the reading alone (x = ${x})`);
-    assert.ok(radii[0] > outermost, `so every extended orb there is outside the outermost band (x = ${x})`);
+    assert.ok(radii[0] > outermost, `so every extended orb there is outside the outermost shell (x = ${x})`);
   }
 });
 
@@ -344,10 +352,10 @@ test("makeShape lifts only the orbs it is given, keeps every band shell, and rep
   assert.equal(calm.instability.extendedCount, 0, "a shape with no extensions extends nothing");
   assert.equal(calm.instability.maxExtension, 0);
   assert.equal([...calm.instability.extendedNodeIds].join(","), "");
-  assert.ok(calm.instability.maxRadius <= 1 + 1e-12, "a calm field reaches no further than the outermost band shell");
+  assert.ok(calm.instability.maxRadius <= 1 + 1e-12, "a calm field reaches no further than the outermost shell");
   assert.equal(calm.instability.region.inner, region.inner, "and it reports the region it would use");
   for (const n of calm.nodes) {
-    assert.equal(n.radius, n.bandRadius, `${n.id} sits exactly on its band shell`);
+    assert.equal(n.radius, n.shellRadius, `${n.id} sits exactly on its shell`);
     assert.equal(n.extension, 0);
   }
 
@@ -358,12 +366,12 @@ test("makeShape lifts only the orbs it is given, keeps every band shell, and rep
   const byId = id => pushed.nodes.find(n => n.id === id);
   assert.equal(byId("AAA").radius, region.outer, "an extreme reading is drawn on the region's outer edge");
   assert.equal(byId("AAA").extension, 1);
-  assert.ok(byId("AAA").bandRadius < region.inner, "while its band shell stays where the convention puts it");
-  assert.ok(Math.abs(byId("AAA").bandRadius - bandShells(0.5)[0].radius) < 1e-12, "and it is still reported exactly");
+  assert.ok(byId("AAA").shellRadius < region.inner, "while its shell stays where the depth puts it");
+  assert.ok(Math.abs(byId("AAA").shellRadius - Model.shellRadiusOf(null) * (0.88 + 0.12 * 0.5)) < 1e-12, "and it is still reported exactly");
   const expectedHalf = region.inner + (region.outer - region.inner) * 0.5;
   assert.ok(Math.abs(byId("BBB").radius - expectedHalf) < 1e-12, "a half reading sits halfway through the region");
   assert.ok(byId("BBB").radius > 1, "outside the outermost band shell, whatever band it belongs to");
-  assert.equal(byId("CCC").radius, byId("CCC").bandRadius, "an orb with no reading never leaves its shell");
+  assert.equal(byId("CCC").radius, byId("CCC").shellRadius, "an orb with no reading never leaves its shell");
   assert.equal(byId("CCC").extension, 0);
 
   assert.equal(pushed.instability.extendedCount, 2);
@@ -396,9 +404,9 @@ test("makeShape lifts only the orbs it is given, keeps every band shell, and rep
   assert.equal(rosterShape.instability.extendedCount, 2);
   assert.equal(rosterShape.nodes.find(n => n.id === "NVDA").radius, region.outer);
   const psx = rosterShape.nodes.find(n => n.id === "PSX");
-  assert.ok(psx.radius > psx.bandRadius && psx.radius < region.inner + (region.outer - region.inner) * 0.25 + 1e-12,
+  assert.ok(psx.radius > psx.shellRadius && psx.radius < region.inner + (region.outer - region.inner) * 0.25 + 1e-12,
     "a quarter reading lifts a small cap part of the way into the region");
-  assert.ok(rosterShape.nodes.filter(n => n.id !== "NVDA" && n.id !== "PSX").every(n => n.radius === n.bandRadius),
+  assert.ok(rosterShape.nodes.filter(n => n.id !== "NVDA" && n.id !== "PSX").every(n => n.radius === n.shellRadius),
     "every other orb on the roster stays on its band shell");
 });
 
@@ -541,12 +549,12 @@ test("an unmeasured orb stays on its shell and says it is unmeasured, never calm
   assert.match(inspector(), /beyond the ±1000 envelope/, "and a close outside the envelope says so");
   assert.match(inspector(), /shown at 1\.00 ·/, "the snapped value is the reading itself");
   assert.equal(/while it settles/.test(inspector()), false, "and nothing is called unsettled once it has arrived");
-  assert.match(inspector(), /r 1\.500 from a band shell of 0\.\d\d\d/, "and it names both radii");
+  assert.match(inspector(), /r 1\.500 from a depth shell of 0\.\d\d\d/, "and it names both radii");
 
   engine.select("AAPL");
   engine.readouts();
   assert.match(inspector(), /0\.00 out/, inspector());
-  assert.match(inspector(), /r (0\.\d\d\d) from a band shell of \1/, "a neutral orb sits exactly on its shell");
+  assert.match(inspector(), /r (\d\.\d\d\d) from a depth shell of \1/, "a neutral orb sits exactly on its shell");
 
   /* Mid-ease the same line says so, instead of claiming the drawn radius is the reading. */
   engine.select("NVDA");
@@ -871,4 +879,32 @@ test("guidance is read from a scratch canvas and nothing is painted on the displ
   assert.deepEqual(reads.map(r => r[0].tag), ["inner-frame"], "only the flame frame is read");
   assert.equal(reads[0][1], 40, "the frame is sampled at 40×40");
   assert.equal(painted.length, 0);
+});
+
+test("the shell radius follows depth: basis on the inner shell, the ±1000 envelope on the outer, unmeasured held outside", () => {
+  const { DEPTH_SHELL, shellRadiusOf } = Model;
+  assert.equal(shellRadiusOf(0), DEPTH_SHELL.inner, "depth 0 (at the basis) is the inner shell");
+  assert.equal(shellRadiusOf(1), DEPTH_SHELL.outer, "depth 1 (at the ±1000 envelope) is the outer shell");
+  assert.ok(Math.abs(shellRadiusOf(0.5) - (DEPTH_SHELL.inner + DEPTH_SHELL.outer) / 2) < 1e-12, "linear across the frame");
+  assert.equal(shellRadiusOf(null), DEPTH_SHELL.held, "an unmeasured orb is held on the outer shell");
+  assert.equal(shellRadiusOf(7), DEPTH_SHELL.outer, "a depth past 1 is capped at the outer shell");
+
+  const nodes = [node("ZERO", { sector: 10 }), node("ONE", { sector: 130 }), node("NONE", { sector: 250 })];
+  const shape = Model.makeShape({
+    formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes,
+    depths: { ZERO: 0, ONE: 1, NONE: null }
+  });
+  const byId = id => shape.nodes.find(n => n.id === id);
+  assert.ok(byId("ZERO").shellRadius < byId("ONE").shellRadius, "a deeper orb sits further out");
+  assert.equal(byId("NONE").shellRadius, byId("ONE").shellRadius, "an unmeasured orb is drawn with the outermost measured depth, not calm");
+  assert.equal(byId("ZERO").depth, 0);
+  assert.equal(byId("NONE").depth, null, "the reading is reported as unmeasured");
+
+  const absent = Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes });
+  assert.equal(absent.nodes.every(n => n.depth === null), true, "no depths at all: every orb is unmeasured");
+
+  for (const bad of [{ ZERO: -0.1 }, { ZERO: 1.2 }, { ZERO: Number.NaN }, { GHOST: 0.5 }]) {
+    assert.throws(() => Model.makeShape({ formation: 1, axes: AXES_IDEAL, berthSeparation: 0, nodes, depths: bad }), RangeError,
+      `refused: ${JSON.stringify(bad)}`);
+  }
 });
