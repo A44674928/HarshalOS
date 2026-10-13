@@ -11,6 +11,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   ORB2_FIELD_FRESHNESS,
+  ORB2_FIELD_INTERVALS,
   ORB2_FIELD_ROUTE,
   clearOrb2FieldSchemaCache,
   heldFieldObservation,
@@ -630,6 +631,67 @@ test("the fallbacks for `.raw()` and `db.batch()` build the same document", asyn
   const served = await serveOrb2FieldSnapshot(requestFor("?disc=indices"), batchedEnv, { cache: null });
   const filtered = await served.json();
   assert.equal(filtered.data.observations.length, INDEX_SYMBOLS.length);
+});
+
+/* ── the numbers the runbook quotes ───────────────────────────────────────── */
+
+/* Opt-in, because a benchmark is not an assertion: `ORB2_BENCH=1 node --test
+   tests/orb2-field-publish-test.mjs` prints the CPU cost of the read path this
+   publication replaced, of the quiet slice, and of one served request, measured
+   against the same in-memory fixture. The runbook's table comes from here. */
+const cpu = fn => {
+  const before = process.cpuUsage();
+  const started = process.hrtime.bigint();
+  return Promise.resolve(fn()).then(result => {
+    const usage = process.cpuUsage(before);
+    return { result, cpuMs: (usage.user + usage.system) / 1000, wallMs: Number(process.hrtime.bigint() - started) / 1e6 };
+  });
+};
+
+test("the runbook's CPU numbers are reproducible in this fixture", async t => {
+  if (process.env.ORB2_BENCH !== "1") { t.skip("set ORB2_BENCH=1 to measure"); return; }
+  const { sql, db, env, stats } = fixture(t);
+  seedField(sql);
+  const counters = () => ({ reads: stats.reads, writes: stats.writes, rowsRead: stats.rowsRead, batches: stats.batches });
+  stats.reset();
+  const cold = await cpu(() => publishOrb2FieldDocument(env, { now: NOW }));
+  const coldCounters = counters();
+  const row = await readOrb2FieldSnapshotRow(db, "1d");
+  clearOrb2FieldSchemaCache();
+  stats.reset();
+  const live = await cpu(() => readOrb2FieldSnapshot(env, { now: NOW, interval: "1d" }));
+  const liveCounters = counters();
+  const envelope = await cpu(async () => JSON.stringify({
+    success: true, environment: "orb2-server-field", data: live.result
+  }).length);
+  stats.reset();
+  const quiet = await cpu(() => runOrb2FieldBuildSlice(env, { now: NOW + 60_000, intervals: [...ORB2_FIELD_INTERVALS] }));
+  const quietCounters = counters();
+  const fx = await db.prepare("SELECT payload FROM orb2_field_observations WHERE symbol='EURUSD'").first();
+  const edited = JSON.parse(fx.payload);
+  edited.market.latestBar.close += 1;
+  edited.market.latestBar.high += 1;
+  await db.prepare("UPDATE orb2_field_observations SET payload=?, updated_at=? WHERE symbol='EURUSD'")
+    .run(JSON.stringify(edited), NOW + 120_000);
+  stats.reset();
+  const changed = await cpu(() => runOrb2FieldBuildSlice(env, { now: NOW + 120_000, intervals: ["1d"] }));
+  const changedCounters = counters();
+  stats.reset();
+  const served = await cpu(() => serveOrb2FieldSnapshot(requestFor(), env, { cache: null }));
+  const servedCounters = counters();
+  const report = {
+    bytes: row.bytes,
+    observations: row.observations,
+    coldPublish: { cpuMs: +cold.cpuMs.toFixed(2), wallMs: +cold.wallMs.toFixed(1), ...coldCounters },
+    liveReadPath: { cpuMs: +live.cpuMs.toFixed(2), wallMs: +live.wallMs.toFixed(1), ...liveCounters },
+    envelopeStringify: { cpuMs: +envelope.cpuMs.toFixed(2), bytes: envelope.result },
+    quietMinuteSlice: { cpuMs: +quiet.cpuMs.toFixed(2), wallMs: +quiet.wallMs.toFixed(1), stages: quiet.result.stages, ...quietCounters },
+    oneChangedBerthSlice: { cpuMs: +changed.cpuMs.toFixed(2), stages: changed.result.stages, ...changedCounters },
+    servedRequest: { cpuMs: +served.cpuMs.toFixed(2), status: served.result.status, ...servedCounters }
+  };
+  console.log(`ORB2_BENCH ${JSON.stringify(report, null, 1)}`);
+  assert.ok(report.servedRequest.cpuMs < report.liveReadPath.cpuMs,
+    "serving the precomputed document is cheaper than reading the field live");
 });
 
 test("the freshness window helper matches the interval's published policy", () => {

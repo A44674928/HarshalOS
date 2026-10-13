@@ -85,18 +85,43 @@ Logs is the measurement of record** for this field.
    read side: it should sit at the noise floor, because the route returns a
    stored string.
 
-For reference, measured in this repository's in-memory fixture against a
-170-berth `1d` field (617,211-byte document):
+For reference, measured in this repository's in-memory fixture (15 berths,
+53,695-byte `1d` document) by repeating the runs on one machine — reproduce it
+with `ORB2_BENCH=1 node --test tests/orb2-field-publish-test.mjs`:
 
-- live read path, warm: read + re-assemble ≈ 6 ms CPU, 11 statements,
-  138 rows read;
-- the envelope `JSON.stringify` alone: ≈ 3.4 ms CPU;
-- the live path cold: ≈ 18.6 ms CPU.
+| Step | CPU | Statements |
+| --- | --- | --- |
+| Live read path (what the request used to cost) | 2–4 ms | 11 reads, 20 rows |
+| The envelope `JSON.stringify` alone | 0.3–0.8 ms | — |
+| Served request, precomputed (one `SELECT` + `Response`, warm) | 0.4–0.6 ms | 1 read |
+| Quiet minute: three interval pages, status, assembly | 1.9–2.6 ms | 19 reads, 10 writes |
+| Minute with one beaten berth | 1.6–2.6 ms | 14 reads, 7 writes |
+| First publication, all three intervals (once) | 6–17 ms total | — |
 
-A slice now costs a page of changed berths (a handful of rows in the steady
-state) plus the status pieces, and the request path costs one `SELECT` of an
-already-serialized row. Confirm both in production with `cpuTimeMs` before and
-after the deployment rather than trusting the fixture numbers.
+These are orders of magnitude, not promises: at the reviewed roster's 170-berth
+scale the live read path measured ≈6 ms warm and ≈18.6 ms cold against a
+617 KB document, and the quiet-minute slice grows with the roster too. The
+numbers that decide anything are production's `cpuTimeMs` before and after the
+deployment.
+
+## The D1 free-tier budget
+
+D1 Free allows **5 M rows read and 100 k rows written per day**, and a database
+that hits a cap stops answering until 00:00 UTC. The publication is shaped
+around rows, not bytes:
+
+- The quiet-minute slice reads the status pieces plus the fragment metadata —
+  ~170 rows at the reviewed roster — and writes two rows (the status pieces and
+  the document) plus one build-state upsert per stage.
+- A changed berth adds one read of its observation row and one fragment write.
+  Only `fresh_until` forces a rewrite when nothing was beaten.
+- Serving is one row read. The Cache API copy and the `304` path make most
+  polls cost no D1 read at all.
+
+That is on the order of 250 k–500 k rows read and a few thousand rows written
+per day: a fraction of both caps, with the cold drain (one read and one write
+per berth, once) as the only burst. Watch the same numbers in the D1 dashboard
+(**Storage & Databases → D1 → Metrics**) when you compare before and after.
 
 ## Fix first: the precomputed field (already in the Worker)
 
