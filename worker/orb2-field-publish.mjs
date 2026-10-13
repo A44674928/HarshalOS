@@ -67,7 +67,7 @@ import { ORB2_INTRADAY_INTERVAL } from "./orb2-composition.mjs";
 import { MASSIVE_PROVIDER_DAILY_LIMIT, readMassiveDailyCallLedger } from "./massive-daily-call-ledger.mjs";
 import { readTickerbotCallLedger } from "./tickerbot-call-ledger.mjs";
 import { readKrakenCallLedger } from "./kraken-call-ledger.mjs";
-import { loadTwelveDataDailyCallLedger } from "./twelvedata-daily-call-ledger.mjs";
+import { readTwelveDataDailyCredits } from "./twelvedata-daily-credit-ledger.mjs";
 import { readCharactersCryptoRankingCache } from "./characters-crypto-ranking.mjs";
 import { readMassiveFuturesContractState } from "./characters-futures-contracts.mjs";
 
@@ -444,7 +444,7 @@ async function runStatusSlice({ db, env, interval, now }) {
       readMassiveDailyCallLedger(db, now, MASSIVE_PROVIDER_DAILY_LIMIT).catch(() => ({ ok: false })),
       readTickerbotCallLedger(db, now).catch(() => ({ ok: false })),
       readKrakenCallLedger(db, now).catch(() => ({ ok: false })),
-      loadTwelveDataDailyCallLedger(db).catch(() => ({ records: [] }))
+      readTwelveDataDailyCredits(db, now).catch(() => ({ ok: false }))
     ]);
   const commodityContracts = orb2FieldStatusCommodityContracts({ env, now, cachedFutures });
   const roster = orb2FieldRoster({

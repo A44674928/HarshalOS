@@ -244,6 +244,28 @@ when the display is off* in System Settings.
   npx wrangler d1 execute COMMUNITY_DB --remote --command "SELECT last_tick_at, sweeps_completed FROM orb2_field_runs WHERE utc_day = date('now');"
   ```
 
+### Provider limits and what the code enforces
+
+| Provider | Plan limit | Enforced where |
+| --- | --- | --- |
+| Massive | 5 requests/minute per asset class (Options, Indices, Currencies, Stocks, Futures) | Per-minute window in `worker/massive.mjs`, per isolate or process. The daily count in `massive_daily_call_ledger` is telemetry only and refuses nothing. |
+| Twelve Data | 800 API credits/day (Basic); 8/minute | Per-minute window in `worker/twelvedata-call-guard.mjs`. The daily allowance in `twelvedata_daily_credit_ledger` (migration 0019), charged one credit per call before the request, including failed calls. |
+| Tickerbot | 10,000 calls/month | `tickerbot_call_ledger`, one row per UTC month, claimed before each call. |
+| Kraken public | one request/second; daily ceiling | `kraken_public_call_ledger`. |
+| Alpha Vantage | daily allowance | `alpha_vantage_daily_call_ledger`. |
+
+The Massive and Twelve Data windows are not shared across the Worker and the runner
+processes; each one keeps its own. The provider's own 429 response remains the final
+word. Only one ticker runs at a time (the D1 lease), so in practice the windows do not
+overlap. The durable ledgers (Twelve Data, Tickerbot, Kraken, Alpha Vantage) are shared
+through D1 and cover both tickers.
+
+Each tick's log now includes the calls by provider, for example
+`tick 1/1 calls by provider: massive 4, tickerbot 1`.
+
+Twelve Data's day is the UTC day in this code. Twelve Data's own reset time is not
+documented in the code, so confirm it with the provider before relying on the boundary.
+
 ### Limits
 
 - A **user** LaunchAgent runs only while you are logged in. If macOS reboots to

@@ -66,7 +66,7 @@ import {
 } from "./massive-daily-call-ledger.mjs";
 import { availableMassiveBudget } from "./massive.mjs";
 import { reserveMassiveProviderCall } from "./massive-call-guard.mjs";
-import { appendTwelveDataDailyCallLedger, loadTwelveDataDailyCallLedger } from "./twelvedata-daily-call-ledger.mjs";
+import { claimTwelveDataDailyCredits, readTwelveDataDailyCredits, TWELVEDATA_DAILY_CREDIT_LIMIT } from "./twelvedata-daily-credit-ledger.mjs";
 import {
   CHARACTERS_CRYPTO_CROSS_PAIR_SIZE,
   CHARACTERS_CRYPTO_RANKING_SIZE,
@@ -1522,6 +1522,12 @@ async function beatTwelveData({ env, instrument, now, fetcher, keys, dependencie
   const guard = await guardTwelveDataCallBeforeFetch({ kv: env.COMMUNITY_DB, now: () => now, dailyKv: null });
   if (guard.decision === "rate-limited") {
     return { ok: false, attempted: false, code: guard.code, message: guard.message, retryAfter: guard.retryAfter, httpStatus: guard.httpStatus };
+  }
+  /* The day's credits are charged before the request, so a failed or timed-out call
+     still counts. The per-minute window above paces the attempts within the day. */
+  const credit = await claimTwelveDataDailyCredits(env.COMMUNITY_DB, now);
+  if (!credit.ok) {
+    return { ok: false, attempted: false, code: credit.reason, message: credit.message };
   }
   const result = await fetchTwelveDataDailyMarketContext({
     instrument: { ...instrument, interval: "1d" }, symbol: instrument.symbol,
@@ -3025,10 +3031,9 @@ export function orb2FieldStatusHead({
   krakenLedger = null, tickerbotLedger = null, twelvedataLedger = null, statusCommodityContracts = null,
   hasTwelveKey = false, catalog = globalThis.CharactersDiscCatalog
 }) {
-  const twelvedataCallsToday = Array.isArray(twelvedataLedger && twelvedataLedger.records)
-    ? twelvedataLedger.records.filter(record => record && record.day === new Date(now).toISOString().slice(0, 10))
-      .reduce((sum, record) => sum + (Number(record.count) || 0), 0)
-    : 0;
+  /* Credits spent today, from the durable D1 row (migration 0019). */
+  const twelvedataCallsToday = twelvedataLedger && twelvedataLedger.ok && twelvedataLedger.ledger
+    ? twelvedataLedger.ledger.credits : 0;
   return {
     schema: ORB2_FIELD_STATUS_SCHEMA,
     source: "server-field",
@@ -3060,10 +3065,10 @@ export function orb2FieldStatusHead({
       enabled: hasTwelveKey,
       callsToday: twelvedataCallsToday,
       perMinute: 8,
-      dailyLimit: 800,
-      remainingToday: hasTwelveKey ? Math.max(0, 800 - twelvedataCallsToday) : null,
-      exhausted: hasTwelveKey ? twelvedataCallsToday >= 800 : null,
-      ledger: hasTwelveKey ? "kv-800-day" : "not-configured",
+      dailyLimit: TWELVEDATA_DAILY_CREDIT_LIMIT,
+      remainingToday: hasTwelveKey ? Math.max(0, TWELVEDATA_DAILY_CREDIT_LIMIT - twelvedataCallsToday) : null,
+      exhausted: hasTwelveKey ? twelvedataCallsToday >= TWELVEDATA_DAILY_CREDIT_LIMIT : null,
+      ledger: hasTwelveKey ? "d1-daily-credit-ledger" : "not-configured",
       note: hasTwelveKey
         ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
         : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use). Massive remains the fallback."
@@ -3364,7 +3369,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
       providersByDisc: storedRowsRead ? providersByDisc : null
     });
     const twelvedataLedger = await (async () => {
-      try { return await loadTwelveDataDailyCallLedger(env.COMMUNITY_DB); } catch { return { records: [] }; }
+      try { return await readTwelveDataDailyCredits(env.COMMUNITY_DB, now); } catch { return { ok: false }; }
     })();
     const hasTwelveKey = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim().length > 0;
     const status = {
@@ -3621,3 +3626,7 @@ export async function handleOrb2Field(request, env = {}, dependencies = {}) {
 
   return failure("Choose action=priority (bounded focus refresh), action=warm (the Tickerbot field burst), or action=tick (run one scheduled tick now).", 400);
 }
+
+/* Test seam for the Twelve Data beat: the daily credit claim sits between the per-minute
+   guard and the provider request, so its refusal is asserted without a full tick. */
+export const twelvedataBeatInternals = Object.freeze({ beatTwelveData });

@@ -50,6 +50,7 @@ export const D1_BACKUP_TABLES = Object.freeze([
   "tickerbot_call_ledger",
   "alpha_vantage_daily_call_ledger",
   "massive_daily_call_ledger",
+  "twelvedata_daily_credit_ledger",
   "kraken_public_call_ledger",
   "ai_neuron_ledger",
   "orb2_field_runs",

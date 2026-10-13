@@ -105,6 +105,13 @@ for (let iteration = 1; iteration <= iterations; iteration += 1) {
     `${summary.d1Reads || 0} reads / ${summary.d1Writes || 0} writes`,
     `${elapsed} ms`
   ].join(", "));
+  /* Per-provider counts, so the log shows who spent the calls. Zero counts are omitted. */
+  const byProvider = [
+    ["massive", summary.massiveCalls], ["twelvedata", summary.twelvedataCalls],
+    ["tickerbot", summary.tickerbotCalls], ["kraken", summary.krakenCalls],
+    ["alphavantage", summary.alphaVantageCalls]
+  ].filter(([, count]) => Number(count) > 0).map(([name, count]) => `${name} ${count}`);
+  if (byProvider.length) log(`tick ${iteration}/${iterations} calls by provider`, byProvider.join(", "));
   if (Array.isArray(summary.errors) && summary.errors.length) {
     /* A per-lane provider failure is not a runner failure: the rotation advances
        past it and the next fire retries. It is still worth seeing in the log. */
