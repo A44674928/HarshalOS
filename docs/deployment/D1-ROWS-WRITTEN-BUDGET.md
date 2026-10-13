@@ -216,10 +216,16 @@ Two things deliberately left alone:
   every fragment in the interval and probes the observations table for each:
   ~342 rows read per interval per slice, ~0.5 M a day, ~10% of the read cap,
   to find orphans that are almost never there. It is a safety net for an
-  out-of-band D1 edit, so gating it on the slice counter (say, every 30th slice
-  plus cold passes) would cut that ~30× at the price of letting a stale
-  fragment linger for up to ~30 minutes after such an edit. Say the word and
-  it is a three-line change.
+  out-of-band D1 edit.
+
+  **Deferred, deliberately.** Gating it on the slice counter (say, every 30th
+  slice plus cold passes) would cut those reads ~30×, at the price of letting a
+  stale fragment linger for up to ~30 minutes after such an edit. Not worth the
+  semantics risk while reads have headroom. Revisit when the daily rows-read
+  counter approaches the 5 M free-tier cap — the ~0.5 M this costs is ~10% of
+  it, so there is room before it is the binding constraint. The change is three
+  lines: gate the `deleteOrphanFragments` call in
+  `runOrb2FieldBuildSlice` on `state.slices` and the cold-pass flag.
 
 ---
 
