@@ -7,8 +7,9 @@
             Green towards rising, red towards falling. The tint reaches full colour at a
             position of 0.7 or 0.3 (FILL_GAIN), because the stored score is compressed. No
             composition, or a held one, is neutral grey.
-     ring ← the close against the FBB basis: amber above (Orb 2's basisAbove), indigo below
-            (basisBelow), slate at the basis (basisEqual). No close or no basis draws no ring.
+     ring ← the close against the FBB basis: neon yellow above, neon violet below (dashed),
+            grey at the basis (dotted). No close or no basis draws no ring. The line pattern is
+            a second cue, so the three states differ without colour.
      core ← market.vfi against its signal: white above, near-black below (with a light edge).
             Equal or unavailable draws no core.
    Rally/sink (changePct) is still computed for the inspector text, but it sets no colour.
@@ -21,12 +22,12 @@
   "use strict";
 
   const COLORS = Object.freeze({
-    rallying: "#22c55e",     // body: composed position above neutral
-    sinking: "#ef4444",      // body: composed position below neutral
-    neutral: "#8fa3c0",      // body: no composition, held, or exactly neutral
-    basisAbove: "#fbbf24",   // ring: close above basis (Orb 2's basisAbove)
-    basisBelow: "#818cf8",   // ring: close below basis (Orb 2's basisBelow)
-    basisEqual: "#94a3b8",   // ring: close at basis (Orb 2's basisEqual)
+    rallying: "#00c8ff",     // body: neon cyan-blue, composed position above neutral
+    sinking: "#ff7a00",      // body: neon orange, composed position below neutral
+    neutral: "#b0b0b0",      // body: grey, no composition, held, or exactly neutral
+    basisAbove: "#fff200",   // ring: neon yellow, close above basis (solid)
+    basisBelow: "#b026ff",   // ring: neon violet, close below basis (dashed)
+    basisEqual: "#6b7280",   // ring: grey, close at basis (dotted)
     coreAbove: "#ffffff",    // core: VFI above its signal
     coreBelow: "#0b1020"     // core: VFI below its signal
   });

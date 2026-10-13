@@ -37,8 +37,8 @@ const row = (symbol, market, extra = {}) => ({ symbol, discId: "stocks", observe
 
 test("the palette: green and red for the body, amber, indigo, and slate for the basis ring, white and near-black for the VFI core", () => {
   assert.deepEqual({ ...Market.COLORS }, {
-    rallying: "#22c55e", sinking: "#ef4444", neutral: "#8fa3c0",
-    basisAbove: "#fbbf24", basisBelow: "#818cf8", basisEqual: "#94a3b8",
+    rallying: "#00c8ff", sinking: "#ff7a00", neutral: "#b0b0b0",
+    basisAbove: "#fff200", basisBelow: "#b026ff", basisEqual: "#6b7280",
     coreAbove: "#ffffff", coreBelow: "#0b1020"
   });
   assert.equal(Market.FILL_GAIN, 2.5);
@@ -271,3 +271,40 @@ test("storedAsOf: the newest stock observation time, so stale colours say how ol
   assert.equal(Market.storedAsOf([row("BTC", { changePct: 1 }, { observedAt: 99999, discId: "crypto" })]), null, "only stock rows set the stored time");
   assert.equal(Market.storedAsOf([{ symbol: "AAPL", discId: "stocks", observedAt: 7000 }]), null, "a row without a market is not a colour");
 });
+
+/* Colour-vision check: the rising and falling bodies, and the three basis rings, must stay apart
+   under simulated protanopia, deuteranopia, and tritanopia (Machado et al. 2009, severity 1.0). */
+const CVD = {
+  protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+  deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.011820, 0.042940, 0.968881]],
+  tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.303900]]
+};
+const lin = c => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const gam = c => { const v = Math.min(1, Math.max(0, c)); return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; };
+const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const labOf = rgb => {
+  const [r, g, b] = rgb.map(lin);
+  const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, Y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = t => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+};
+const seen = (hex, kind) => {
+  const rgb = rgbOf(hex);
+  if (kind === "normal") return labOf(rgb);
+  const m = CVD[kind], l = rgb.map(lin);
+  return labOf(m.map(row => gam(row[0] * l[0] + row[1] * l[1] + row[2] * l[2])));
+};
+const apart = (a, b, kind) => Math.hypot(...seen(a, kind).map((v, i) => v - seen(b, kind)[i]));
+
+test("colour-vision check: the rising and falling bodies, and the basis rings, stay apart for every simulated type", () => {
+  const C = Market.COLORS;
+  for (const kind of ["normal", "protan", "deutan", "tritan"]) {
+    assert.ok(apart(C.rallying, C.sinking, kind) >= 30, `${kind}: rising and falling bodies ${apart(C.rallying, C.sinking, kind).toFixed(0)}`);
+    assert.ok(apart(C.basisAbove, C.basisBelow, kind) >= 30, `${kind}: above and below rings ${apart(C.basisAbove, C.basisBelow, kind).toFixed(0)}`);
+    assert.ok(apart(C.basisEqual, C.basisAbove, kind) >= 20, `${kind}: equal and above rings ${apart(C.basisEqual, C.basisAbove, kind).toFixed(0)}`);
+    assert.ok(apart(C.basisEqual, C.basisBelow, kind) >= 20, `${kind}: equal and below rings ${apart(C.basisEqual, C.basisBelow, kind).toFixed(0)}`);
+    assert.ok(apart(C.neutral, C.rallying, kind) >= 25 && apart(C.neutral, C.sinking, kind) >= 25, `${kind}: neutral is apart from both bodies`);
+  }
+});
+

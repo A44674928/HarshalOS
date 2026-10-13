@@ -260,6 +260,8 @@ test("the mounted app reads the stored field through the reader, and colours wha
   const bhcText = body.querySelector("#neo-bhc").textContent;
   assert.match(bhcText, /^engaged · bound by host PDH \(display, authority none\) · 0 of 2 orbs measured/, bhcText);
   const quasarText = body.querySelector("#neo-quasar").textContent;
+  /* Nothing is measured, and the readout says why: both rows lack the 236 envelope, and 50 orbs have no row. */
+  assert.match(quasarText, /why: 2 stored rows: envelope 236 missing · 50 with no stored row/, quasarText);
   assert.match(quasarText, /^spheroid · outward · 0 of 2 measured/, quasarText);
   const reinsText = body.querySelector("#neo-reins").textContent;
   assert.match(reinsText, /^not engaged · no buffer has enough measured orbs · held/, reinsText);
