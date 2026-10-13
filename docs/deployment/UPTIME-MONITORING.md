@@ -24,13 +24,25 @@ and confirm recovery.
 
 ## Known limitation: 200 is not a fresh beat
 
-These monitors prove the site answers; they do not prove the one-minute Orb 2
-beat is advancing — a frozen tick still serves `200` with stale
-`status.lastTickAt`. Two mitigations, cheapest first:
+These monitors prove the site answers; they do not prove the Orb 2 beat is
+advancing — a frozen beat still serves `200` from the precomputed document,
+whose `status.lastTickAt` is only as new as the last tick. Two mitigations,
+cheapest first:
 
 - When an alert fires (or weekly), open monitor 2's URL and compare
-  `status.lastTickAt` against the current time. More than ~5 minutes old
-  means the beat is stuck — see `docs/deployment/ORB2-CRON-PLAN.md`.
+  `status.lastTickAt` against the current time. The field document also
+  carries `X-Orb2-Field` on every response (`snapshot; interval=…; built=…;
+  source=…`, or `cache; …` on a Cache API hit), so `built` shows how stale the
+  served document is even when the beat itself is healthy.
+- The age that matters depends on who owns the beats. With the Worker's own
+  tick it is about a minute; when the beats run off-Cloudflare
+  (`docs/deployment/ORB2-BEAT-RUNNER.md`, every five minutes) treat ~15
+  minutes as stuck, and note that a paused GitHub Actions schedule is a
+  plausible cause that the Worker's metrics will not show.
+
+Thresholds: more than ~5 minutes old with the Worker tick enabled, or more
+than ~15 minutes with the runner enabled, means the beat is stuck — see
+`docs/deployment/ORB2-CRON-PLAN.md`.
 - Phase 2 (optional, small code change): add an UptimeRobot **Heartbeat**
   monitor and `fetch()` its URL from `scheduled()` inside
   `context.waitUntil`, with the heartbeat URL stored as a Worker secret.

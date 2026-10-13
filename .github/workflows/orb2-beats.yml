@@ -1,0 +1,71 @@
+name: Orb 2 beat runner
+
+# The provider beats and the field publication, run off Cloudflare.
+#
+# Workers Free gives a Cron Trigger 10 ms of CPU, which the provider beats of a
+# large roster will not fit. This workflow runs the same scheduler and the same
+# publisher (`scripts/orb2-beat-runner.mjs`, see
+# docs/deployment/ORB2-BEAT-RUNNER.md) in a job that has minutes, and writes the
+# results into the D1 database the Worker serves from.
+#
+# It is inert until the repository secrets name a database: without
+# ORB2_D1_DATABASE_ID, CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN the step
+# prints a notice and exits successfully, so this file can be merged before the
+# secrets exist. It never reads or writes anything in that state, and it never
+# falls back to a default database id.
+#
+# GitHub's floor for `schedule` is five minutes. The Worker's own Cron Trigger
+# keeps running the sliced build either way, so the document stays fresh even if
+# this workflow is delayed, rate-limited, or disabled.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the field documents after the beats
+        type: choice
+        options: ["yes", "no"]
+        default: "yes"
+
+permissions:
+  contents: read
+
+# One runner at a time. The scheduler's own D1 lease would keep two concurrent
+# runs honest, but serializing here keeps the provider ledgers simple to read.
+concurrency:
+  group: orb2-beat-runner
+  cancel-in-progress: false
+
+jobs:
+  beats:
+    name: Beat the field
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No `npm ci`: the runner imports the Worker modules, and every import in
+      # that chain resolves inside this repository. Omitting the install keeps a
+      # five-minute cadence inside the Actions minutes a private repository has.
+      - name: Beat the field (inert until the secrets name a database)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ORB2_D1_DATABASE_ID: ${{ secrets.ORB2_D1_DATABASE_ID }}
+          # Optional guard: the name that database has to answer to.
+          ORB2_D1_DATABASE_NAME: ${{ vars.ORB2_D1_DATABASE_NAME }}
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TICKERBOT_API_KEY: ${{ secrets.TICKERBOT_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          ORB2_RUNNER_ITERATIONS: ${{ vars.ORB2_RUNNER_ITERATIONS || '1' }}
+          ORB2_RUNNER_PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == 'no' && 'off' || 'on' }}
+        run: node scripts/orb2-beat-runner.mjs

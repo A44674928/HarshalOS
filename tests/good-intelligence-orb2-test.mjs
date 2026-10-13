@@ -197,7 +197,7 @@ function fieldSnapshot(window, { fxCount = 6, stockCount = 52, interval = "1d", 
       source: id === "observation" ? "server-provider-beat" : "deterministic-local-scenario"
     })),
     status: {
-      schema: "gi-orb2-field-status-v1", source: "server-field", continuous: true, cron: "*/1 * * * *", pollAfterMs: 20_000,
+      schema: "gi-orb2-field-status-v1", source: "server-field", continuous: true, cron: "*/1 * * * *", pollAfterMs: 20_000, pollHiddenMs: 120_000,
       interval, lastTickAt: NOW, lastObservationAt: NOW, sweepsCompleted: 1, lastError: "",
       massive: { callsToday: 12, perMinute: 5, perMinutePerAssetClass: 5, perMinuteScope: "per-asset-class", dailyLimit: null, remainingToday: null, exhausted: false, ledger: "provider-rate-class", note: "The historical daily count is telemetry only." },
       tickerbot: { callsToday: 40, callsThisMonth: 40, monthlyLimit: 10_000, reserveCalls: 1500, exhausted: false, ledger: "ready", note: "" },

@@ -85,6 +85,11 @@
   const FIELD_ROUTE = "/api/good-intelligence/v1/orb2/field";
   const FIELD_REQUEST_SCHEMA = "gi-orb2-field-request-v1";
   const FIELD_POLL_MS = 20_000;
+  /* A hidden tab polls slowly instead of stopping. The 24/7 schedule is the
+     Worker's, so a hidden page pauses nothing — but a two-minute read keeps the
+     constellation warm without spending the free tier's D1 reads on a view nobody
+     is looking at. The published status carries the same two numbers. */
+  const FIELD_POLL_HIDDEN_MS = 120_000;
   const FIELD_BEAT_TYPES = Object.freeze(["observation", "message", "trade", "authorization", "permission"]);
   /* The server tick's own allowance; the page never paces a request itself. */
   const MASSIVE_REQUESTS_PER_MINUTE = 5;
@@ -1289,6 +1294,9 @@
       selected: 0,
       focus: "",
       visible: true,
+      /* `visible` is this view being on screen at all; `tabHidden` is the document
+         being in a background tab, which slows the read rather than stopping it. */
+      tabHidden: false,
       pending: false,
       destroyed: false,
       loadingCatalog: false,
@@ -1610,7 +1618,7 @@
 
             <section class="gi-orb2-settings-section gi-orb2-settings-section-wide" aria-label="Data pathway and model status">
               <div class="gi-orb2-settings-section-head"><div><p class="gi-eyebrow">04 · DATA PATHWAY</p><h5>Live-beat contract</h5></div><span>Same-origin Worker · no provider secrets in the browser</span></div>
-              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger rotates each reviewed Disc through its fixed provider: Tickerbot exclusively serves Disc1 stocks (including the bounded 15m/1h warm lanes and daily rotation); Kraken public Spot serves Disc3 via a rolling-24-hour USD-notional roster and exact-pair daily OHLC; Massive serves only FX, active futures, and indices at up to five <code>1d</code> requests per minute. The Cron cursor selects one reviewed work unit per minute (FX may use its existing two-provider fallback); a cold Tickerbot calibration advances through its 156 stock/interval units one per tick instead of firing a burst. The shared monthly ledger remains capped at 10,000 Worker attempts. Kraken uses a shared one-request-per-second gate and a 160-call application ceiling, not a Kraken quota. Its ranking is venue-only—not global or equivalent to Massive's previous-UTC-day grouping—and commercial-use terms must be confirmed before deployment. The server combines normalized daily regime metrics with fresh 15m stock residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds, holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
+              <p class="gi-orb2-context"><strong>SERVER-FIELD CONTRACT</strong> · The Worker's Cron Trigger rotates each reviewed Disc through its fixed provider: Tickerbot exclusively serves Disc1 stocks (including the bounded 15m/1h warm lanes and daily rotation); Kraken public Spot serves Disc3 via a rolling-24-hour USD-notional roster and exact-pair daily OHLC; Massive serves only FX, active futures, and indices at up to five <code>1d</code> requests per minute. The Cron cursor selects one reviewed work unit per minute (FX may use its existing two-provider fallback); a cold Tickerbot calibration advances through its 156 stock/interval units one per tick instead of firing a burst. The shared monthly ledger remains capped at 10,000 Worker attempts. Kraken uses a shared one-request-per-second gate and a 160-call application ceiling, not a Kraken quota. Its ranking is venue-only—not global or equivalent to Massive's previous-UTC-day grouping—and commercial-use terms must be confirmed before deployment. The server combines normalized daily regime metrics with fresh 15m stock residuals using a bounded force multiplier; this is a display-only position, not a signal or permission. This page polls stored observations every 20 seconds — every 2 minutes while its tab is hidden — holds no provider secret, paces nothing, and never pauses the server when hidden. Use Random US ticker to choose from the reviewed U.S. deck, then focus and recalculate when desired.</p>
               <div class="gi-orb2-pathways" aria-label="Live data pathway status">
                 <div class="gi-orb2-path-step"><span>01 · PROVIDER</span><strong data-gi-orb2-path-provider>READY</strong></div><i aria-hidden="true">→</i>
                 <div class="gi-orb2-path-step"><span>02 · WORKER</span><strong data-gi-orb2-path-worker>READY</strong></div><i aria-hidden="true">→</i>
@@ -2397,10 +2405,11 @@
       }).join("");
     }
 
-    /* One cadence only: how often this page re-reads the server field. The
-       provider cadences themselves live in the Worker's cron schedule. */
+    /* One cadence only: how often this page re-reads the server field, slowed while
+       the document is in a background tab. The provider cadences themselves live in
+       the Worker's cron schedule. */
     function currentDelay() {
-      return FIELD_POLL_MS;
+      return state.tabHidden ? FIELD_POLL_HIDDEN_MS : FIELD_POLL_MS;
     }
 
     function ignitionTarget() {
@@ -2899,18 +2908,43 @@
       else if (state.ignition.workerReady) state.ignition.phase = "ds";
     }
 
+    /* The last good payload and its validator, per interval. The field route
+       revalidates with `If-None-Match`, so an unchanged document costs one small
+       response and no re-parse: a 304 keeps rendering what the page already holds.
+       `servedBy` names the path that answered — the precomputed document, the edge
+       cache in front of it, or the live read — because that is how the free-tier
+       change is visible from the page. */
+    const fieldReads = new Map();
+
+    const servedByOf = response => {
+      const header = response && response.headers && typeof response.headers.get === "function"
+        ? String(response.headers.get("X-Orb2-Field") || "") : "";
+      if (header.startsWith("cache")) return "cache";
+      if (header.startsWith("snapshot")) return "snapshot";
+      return "live";
+    };
+
     /** One same-origin read of the stored field at one interval. */
     async function readFieldInterval(interval) {
+      const previous = fieldReads.get(interval) || null;
+      const headers = { Accept: "application/json" };
+      if (previous && previous.etag) headers["If-None-Match"] = previous.etag;
       const response = await globalThis.fetch(fieldUrl(interval), {
-        method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error",
-        headers: { Accept: "application/json" }
+        method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error", headers
       });
+      if (response.status === 304 && previous) {
+        return { ok: true, interval, data: previous.data, notModified: true, servedBy: previous.servedBy };
+      }
       const payload = await response.json().catch(() => null);
       const data = payload && isRecord(payload.data) ? payload.data : null;
       if (!response.ok || !data || data.ok !== true) {
         return { ok: false, interval, message: (payload && payload.message) || `The server field answered HTTP ${response.status}.` };
       }
-      return { ok: true, interval, data };
+      const servedBy = servedByOf(response);
+      const etag = response.headers && typeof response.headers.get === "function"
+        ? response.headers.get("ETag") : null;
+      fieldReads.set(interval, { data, etag, servedBy });
+      return { ok: true, interval, data, notModified: false, servedBy };
     }
 
     /** The reads merged into one constellation snapshot. Rows keep their own
@@ -2929,6 +2963,7 @@
         }
       }
       const merged = { ...first };
+      merged.servedBy = served[0].servedBy || "live";
       merged.observations = [...rows.values()].sort((left, right) => (Number(right.observedAt) || 0) - (Number(left.observedAt) || 0));
       merged.status = { ...(first.status || {}) };
       merged.intervalsRead = served.map(read => read.interval);
@@ -3012,7 +3047,9 @@
         if (reason !== "poll") {
           const rows = merged.observations.length;
           const scope = merged.intervalsRead.join(" + ");
-          state.message = { kind: "note", text: `Server field read · ${scope} across all five Discs · ${rows} stored observation${rows === 1 ? "" : "s"} · newest ${rows ? shortTime(Number(merged.observations[0].observedAt)) : "—"}${unread.length ? ` · the ${unread.map(read => read.interval).join(", ")} read failed and its Discs stay on what is already stored` : ""}. The page renders what the Worker stored; it requests nothing itself.` };
+          const servedLabel = merged.servedBy === "cache" ? "the edge cache"
+            : merged.servedBy === "snapshot" ? "the precomputed document" : "the live read";
+          state.message = { kind: "note", text: `Server field read · ${scope} across all five Discs · ${rows} stored observation${rows === 1 ? "" : "s"} · newest ${rows ? shortTime(Number(merged.observations[0].observedAt)) : "—"} · served from ${servedLabel}${unread.length ? ` · the ${unread.map(read => read.interval).join(", ")} read failed and its Discs stay on what is already stored` : ""}. The page renders what the Worker stored; it requests nothing itself.` };
         }
         draw();
         return true;
@@ -3145,7 +3182,8 @@
       clearBeatTimer();
       if (state.destroyed || !state.visible) { drawStatus(); return; }
       if (!state.auto) { drawStatus(); return; }
-      state.nextBeatAt = Date.now() + FIELD_POLL_MS;
+      const delay = currentDelay();
+      state.nextBeatAt = Date.now() + delay;
       drawStatus();
       beatTimer = setTimeout(async () => {
         beatTimer = null;
@@ -3153,7 +3191,7 @@
         if (state.destroyed || !state.visible) return;
         await loadFieldSnapshot({ reason: "poll" });
         schedule();
-      }, FIELD_POLL_MS);
+      }, delay);
     }
 
     /* `force` is the carousel's own door: the 52-asset ignition sweep is a Disc1
@@ -5388,11 +5426,14 @@
       drawStatus();
       scheduleRender();
     };
-    /* The page never pauses a beat: it has none to pause. Hiding the tab only
-       stops this view from re-reading; the Worker's cron schedule continues. */
+    /* The page never pauses a beat: it has none to pause. Hiding the tab slows this
+       view's read to `FIELD_POLL_HIDDEN_MS` and showing it reads immediately; the
+       Worker's cron schedule continues either way. */
     const onVisibilityChange = () => {
       if (!documentRef) return;
-      if (!documentRef.hidden && state.visible) {
+      state.tabHidden = !!documentRef.hidden;
+      if (state.tabHidden) { schedule(); return; }
+      if (state.visible) {
         schedule();
         scheduleRender();
         loadFieldSnapshot({ reason: "visibility" });

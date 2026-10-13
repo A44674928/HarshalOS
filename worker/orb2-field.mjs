@@ -119,6 +119,10 @@ export const ORB2_FIELD_MAX_OBSERVATIONS = 240;
    and LIMIT bindings so symbol-scoped field reads remain below that ceiling. */
 const ORB2_FIELD_SQL_SYMBOL_BATCH_SIZE = 90;
 export const ORB2_FIELD_POLL_MS = 20_000;
+/* A hidden tab polls slowly rather than stopping: the schedule is the Worker's, so
+   nothing pauses server-side, and a background page should not spend the free tier's
+   D1 reads at the foreground cadence. */
+export const ORB2_FIELD_POLL_HIDDEN_MS = 120_000;
 export const ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS = 5;
 const ORB2_OPTIONS_PER_MINUTE = 5;
 const ORB2_OPTIONS_FRESH_MS = 24 * 60 * 60_000;
@@ -332,6 +336,10 @@ const changedRows = result => {
   if (result && Number.isFinite(Number(result.changes))) return Number(result.changes);
   return 0;
 };
+/* The same reader for the publication module: D1 reports a write as `meta.changes`,
+   a local SQLite runtime reports `changes`, and both spellings have to mean the same
+   thing to a slice that counts what it reconciled. */
+export const orb2ChangedRows = changedRows;
 const utcDay = at => new Date(at).toISOString().slice(0, 10);
 
 const ORB2_FIELD_ARIZONA_STALE_CUTOFF_MINUTE = 17 * 60;
@@ -2685,6 +2693,430 @@ function parseOptionsRow(row, now) {
   } catch { return null; }
 }
 
+/**
+ * The Disc status array: the reviewed roster, each berth's stored state, and the
+ * per-Disc totals — the shape the constellation view reads. Extracted from the
+ * live read path so the sliced publisher (`worker/orb2-field-publish.mjs`) builds
+ * exactly the same array from its stored fragments.
+ *
+ * `memberInputsByDiscAndSymbol` is a Map of `"<disc>:<SYMBOL>"` → the berth's
+ * compact status inputs. `totalsByDisc` is the full stored field's row map when
+ * the caller read it (rows can exist whose payload no longer parses, and the
+ * totals count rows); when it is null the totals are counted from the member
+ * inputs, which is what a narrowed response already has in hand.
+ *
+ * `providersByDisc` is the set of provider ids the Disc's reviewed berths report,
+ * which each caller derives from its own rows: the live read from the stored
+ * payloads, the publisher from its fragments. The status reports it, so it has to
+ * be re-derived rather than stored once — a berth that changed provider must show
+ * the new one.
+ */
+export function orb2FieldDiscsDocument({
+  now, interval, env = {}, roster, catalog = globalThis.CharactersDiscCatalog,
+  memberInputsByDiscAndSymbol, totalsByDisc = null, cryptoRanking = null, providersByDisc = null
+}) {
+  const instrumentsByDisc = new Map(ORB2_FIELD_DISCS.map(discId => [discId, []]));
+  for (const instrument of roster.instruments) {
+    const bucket = instrumentsByDisc.get(instrument.discId);
+    if (bucket) bucket.push(instrument);
+  }
+  const activeCommoditySymbols = new Set(roster.commodities.map(instrument => instrument.symbol));
+  const pendingVenue = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim() ? "twelvedata" : "massive";
+  return ORB2_FIELD_DISCS.map((discId, index) => {
+    const instruments = instrumentsByDisc.get(discId) || [];
+    const discDef = catalog && typeof catalog.disc === "function" ? catalog.disc(discId) : null;
+    const reviewedRoster = discId === "commodities"
+      ? (Array.isArray(catalog && catalog.commodities) ? catalog.commodities : [])
+      : discId === "stocks" ? roster.stocks
+        : discId === "crypto" ? [...roster.crypto, ...roster.cryptoPairs]
+          : instruments;
+    const reviewedInstrumentCount = discId === "commodities" && Array.isArray(catalog && catalog.commodities)
+      ? catalog.commodities.length
+      : discId === "stocks"
+        ? (roster.stocks.length || 52)
+        : discId === "crypto"
+          ? (roster.crypto.length + roster.cryptoPairs.length ||
+            (cryptoRanking
+              ? (cryptoRanking.instruments?.length || 0) + (cryptoRanking.crossPairs?.length || 0)
+              : 0))
+          : instruments.length;
+    const reviewedSymbols = new Set();
+    for (const instrument of reviewedRoster) {
+      const symbol = text(instrument && instrument.symbol, 32).toUpperCase();
+      if (SYMBOL_PATTERN.test(symbol)) reviewedSymbols.add(symbol);
+    }
+    let stored = 0;
+    let confirmed = 0;
+    let newestAt = 0;
+    const providerSet = new Set();
+    if (totalsByDisc) {
+      for (const [symbol, row] of totalsByDisc.get(discId) || []) {
+        if (!reviewedSymbols.has(symbol)) continue;
+        stored += 1;
+        if (row.confirmed) confirmed += 1;
+        newestAt = Math.max(newestAt, row.observedAt);
+        if (row.provider) providerSet.add(row.provider);
+      }
+    } else {
+      for (const [key, input] of memberInputsByDiscAndSymbol) {
+        if (!key.startsWith(`${discId}:`)) continue;
+        if (!reviewedSymbols.has(key.slice(discId.length + 1))) continue;
+        stored += 1;
+        if (input.confirmed) confirmed += 1;
+        newestAt = Math.max(newestAt, Number(input.observedAt) || 0);
+      }
+    }
+    let active = 0;
+    let stale = 0;
+    let held = 0;
+    let pending = 0;
+    const members = reviewedRoster.map(instrument => {
+      const symbol = text(instrument.symbol, 32).toUpperCase();
+      const member = orb2FieldMemberStatus({
+        discId, symbol, instrument,
+        input: memberInputsByDiscAndSymbol.get(`${discId}:${symbol}`) || null,
+        pendingVenue,
+        contractPending: discId === "commodities" && !activeCommoditySymbols.has(symbol)
+      });
+      if (member.status === "active") active += 1;
+      else if (member.status === "stale") stale += 1;
+      else if (member.status === "held") held += 1;
+      else pending += 1;
+      return member;
+    });
+    if (providersByDisc) {
+      for (const provider of providersByDisc.get(discId) || []) {
+        if (provider) providerSet.add(String(provider));
+      }
+    }
+    const providers = [...providerSet].sort();
+    return {
+      id: discId,
+      number: Number(discDef && discDef.number) || index + 1,
+      label: text(discDef && discDef.label, 64) || `Disc ${index + 1} · ${discId}`,
+      name: text(discDef && discDef.name, 48) || discId,
+      assetClass: text(discDef && discDef.assetClass, 24) || "",
+      instruments: reviewedInstrumentCount,
+      ...(discId === "crypto" ? { assets: roster.crypto.length, pairs: reviewedInstrumentCount } : {}),
+      stored,
+      confirmed,
+      newestAt: newestAt || null,
+      observed: active + stale,
+      active,
+      stale,
+      held,
+      pending,
+      members,
+      providers,
+      intervals: stored > 0 ? [interval] : [],
+      covered: active > 0,
+      complete: reviewedInstrumentCount > 0 && active >= reviewedInstrumentCount
+    };
+  });
+}
+
+/* ── the shape of the document, in one place ─────────────────────────────
+ *
+ * Everything below derives a served shape from stored state. There is exactly
+ * one implementation of each derivation, because two publishers now serve this
+ * field: the live read path in this module, and `worker/orb2-field-publish.mjs`,
+ * which precomputes the document by slices and stores it pre-serialized. If the
+ * two ever disagreed, a client would see a different field depending on whether
+ * it happened to land on a published snapshot or the fallback read — so both
+ * call these functions instead of re-deriving the shapes.
+ */
+
+/** Bit i of a beat mask means `ORB2_FIELD_BEAT_TYPES[i]` applies. The mask is
+ * what lets SQL count beat types (`SUM(beat_mask & 2 ^ i)`) without parsing a
+ * payload per row. */
+export const ORB2_FIELD_BEAT_MASK_BITS = Object.freeze(
+  Object.fromEntries(ORB2_FIELD_BEAT_TYPES.map((type, index) => [type.id, 1 << index]))
+);
+
+/**
+ * The beat-type mask for one observation: bit i is set when `ORB2_FIELD_BEAT_TYPES[i]`
+ * applies. The sanitizer already computed the list on the way out and the response
+ * counts `status.counts.beats` from that list, so the stored list is preferred when
+ * the observation carries one — a recomputed gate could otherwise disagree with the
+ * array the document actually ships (a composed observation, for instance, no longer
+ * matches its pre-composition gates). The mask is therefore the same membership test
+ * the live read path counts, only expressed as bits so SQL can sum it.
+ */
+export function orb2FieldBeatMask(observation) {
+  const ids = Array.isArray(observation && observation.beatTypes)
+    ? observation.beatTypes : orb2FieldBeatTypesFor(observation);
+  let mask = 0;
+  for (const type of ORB2_FIELD_BEAT_TYPES) {
+    if (ids.includes(type.id)) mask |= ORB2_FIELD_BEAT_MASK_BITS[type.id];
+  }
+  return mask;
+}
+
+export function orb2FieldBeatTypesFromMask(mask) {
+  const value = Math.max(0, Math.floor(Number(mask) || 0));
+  return ORB2_FIELD_BEAT_TYPES.filter(type => (value & ORB2_FIELD_BEAT_MASK_BITS[type.id]) !== 0)
+    .map(type => type.id);
+}
+
+/** Zero counts for every reviewed beat type, so a missing type reads as zero. */
+export function orb2FieldEmptyBeatCounts() {
+  return Object.fromEntries(ORB2_FIELD_BEAT_TYPES.map(type => [type.id, 0]));
+}
+
+/** One stored payload → the observation the response carries, freshness included. */
+export function orb2FieldObservationFromRow({ row, now = Date.now() }) {
+  const parsed = parsePacketRow(row, now);
+  return parsed ? { ...parsed, freshness: orb2FieldFreshness(parsed.interval, parsed.observedAt, now) } : null;
+}
+
+/** Attach the read-time daily-baseline / intraday-residual composition, so a
+ * 15m packet cannot stay visually force-multiplied after its window elapsed. */
+export function orb2FieldComposeObservations({ observations, companions, interval, now }) {
+  const companionInterval = interval === "1d" ? ORB2_INTRADAY_INTERVAL : interval === ORB2_INTRADAY_INTERVAL ? "1d" : null;
+  if (!companionInterval || !observations.length) return observations;
+  const bySymbol = new Map(companions.map(observation => [observation.symbol, observation]));
+  return observations.map(observation => {
+    const daily = interval === "1d" ? observation : bySymbol.get(observation.symbol);
+    const intraday = interval === ORB2_INTRADAY_INTERVAL ? observation : bySymbol.get(observation.symbol);
+    return daily && daily.discId === "stocks"
+      ? { ...observation, composition: composePair(daily, intraday, now) }
+      : observation;
+  });
+}
+
+/** Attach the additive Options reading to Stock berths. */
+export function orb2FieldAttachOptions({ observations, optionRows, now }) {
+  const optionsBySymbol = new Map((Array.isArray(optionRows) ? optionRows : [])
+    .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
+    .filter(([, value]) => value));
+  if (!observations.length) return observations;
+  return observations.map(observation => observation.discId === "stocks"
+    ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
+    : observation);
+}
+
+/** The compact per-berth inputs the Disc status needs. Stored beside each
+ * precomputed fragment so the status slice never has to parse a payload. */
+export function orb2FieldMemberInputs(observation) {
+  return {
+    provider: text(observation && observation.provider, 24),
+    observedAt: Number(observation && observation.observedAt) || 0,
+    freshness: observation && observation.freshness && typeof observation.freshness.status === "string"
+      ? observation.freshness.status : null,
+    confirmed: observation && observation.confirmed ? 1 : 0,
+    market: observation && observation.market ? 1 : 0,
+    code: text(observation && observation.code, 48),
+    message: text(observation && observation.message, 160)
+  };
+}
+
+/**
+ * One reviewed berth's status line. `input` is `orb2FieldMemberInputs` output, or
+ * null when the berth has no stored observation at all; either way the rule is
+ * stated once here. `contractPending` marks a reviewed futures product that has
+ * no current verified active contract, which is a distinct state from "the beat
+ * has not reached this berth yet".
+ */
+export function orb2FieldMemberStatus({
+  discId, symbol, instrument = null, input = null, pendingVenue = "massive", contractPending = false
+}) {
+  const hasMarket = Boolean(input && input.market);
+  const stored = Boolean(input);
+  const freshness = stored && typeof input.freshness === "string" ? input.freshness : null;
+  const memberStatus = hasMarket
+    ? (freshness === "fresh" ? "active" : "stale")
+    : stored ? "held"
+      : contractPending ? "contract-pending" : "pending";
+  const observedAt = stored && Number(input.observedAt) > 0 ? Number(input.observedAt) : 0;
+  const productCode = String(instrument && instrument.massive && instrument.massive.productCode || "unknown");
+  return {
+    symbol,
+    displaySymbol: text(instrument && instrument.displaySymbol, 48) || symbol,
+    status: memberStatus,
+    provider: text(input && input.provider, 24) ||
+      (discId === "crypto" ? "kraken" : discId === "stocks" ? "tickerbot" : pendingVenue),
+    observedAt: stored ? (observedAt || null) : null,
+    freshness,
+    code: stored ? text(input.code, 48) : contractPending ? "active-contract-pending" : "",
+    message: stored ? text(input.message, 160)
+      : contractPending ? `Waiting for a current Massive-verified active futures contract (${productCode}).`
+        : memberStatus === "pending" ? "No stored observation yet." : ""
+  };
+}
+
+/** The whole-field countable view of a set of observations: the numbers behind
+ * `status.counts` and `beatTypes[].count`. */
+export function orb2FieldCountsOfObservations(observations) {
+  const counts = { stored: observations.length, observed: 0, confirmed: 0, held: 0, beats: orb2FieldEmptyBeatCounts() };
+  for (const observation of observations) {
+    if (observation.market) counts.observed += 1;
+    else counts.held += 1;
+    if (observation.confirmed) counts.confirmed += 1;
+    for (const typeId of observation.beatTypes || []) {
+      if (typeId in counts.beats) counts.beats[typeId] += 1;
+    }
+  }
+  return counts;
+}
+
+/** The response's `status.counts` object, assembled from either source. */
+export function orb2FieldCountsObject({ stored, observed, confirmed, held, reviewedInstruments }) {
+  return {
+    stored: Math.max(0, Math.floor(Number(stored) || 0)),
+    observed: Math.max(0, Math.floor(Number(observed) || 0)),
+    confirmed: Math.max(0, Math.floor(Number(confirmed) || 0)),
+    held: Math.max(0, Math.floor(Number(held) || 0)),
+    reviewedInstruments: Math.max(0, Math.floor(Number(reviewedInstruments) || 0))
+  };
+}
+
+/** The beat-type descriptors without counts, as stored with a snapshot. */
+export function orb2FieldBeatMeta() {
+  return ORB2_FIELD_BEAT_TYPES.map(type => ({
+    id: type.id, label: type.label, live: type.live, summary: type.summary,
+    source: type.live ? "server-provider-beat" : "deterministic-local-scenario"
+  }));
+}
+
+/** The response's `beatTypes` array: fixed descriptors plus the counts that
+ * belong to the set of observations this response carries. */
+export function orb2FieldBeatTypes({ meta = orb2FieldBeatMeta(), counts = {}, requestedTypes }) {
+  const requested = requestedTypes instanceof Set ? requestedTypes : new Set(BEAT_TYPE_IDS);
+  return meta.map(type => {
+    const count = Math.max(0, Math.floor(Number(counts[type.id]) || 0));
+    return {
+      id: type.id, label: type.label, live: type.live, summary: type.summary,
+      available: requested.has(type.id) && count > 0,
+      count,
+      source: type.source
+    };
+  });
+}
+
+/** Reviewed commodities' active-contract map for the status view: the cached
+ * Massive table when it answered, otherwise the Twelve Data bypass synthesis. */
+export function orb2FieldStatusCommodityContracts({ env = {}, now = Date.now(), cachedFutures = null }) {
+  if (!(typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim())) {
+    return cachedFutures && cachedFutures.ok ? cachedFutures.contracts : null;
+  }
+  if (cachedFutures && cachedFutures.ok && cachedFutures.contracts && Object.keys(cachedFutures.contracts).length) {
+    return cachedFutures.contracts;
+  }
+  const cat = globalThis.CharactersDiscCatalog;
+  const list = cat && Array.isArray(cat.futures || cat.commodities) ? (cat.futures || cat.commodities) : [];
+  const today = new Date(now).toISOString().slice(0, 10);
+  const synthesized = {};
+  for (const entry of list) {
+    const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
+    if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
+    synthesized[pc] = { productCode: pc, ticker: pc, provider: "TwelveData", asOfDate: today, lastTradeDate: today };
+  }
+  return synthesized;
+}
+
+/**
+ * Every status member except `counts` and `discs`. Those two are the
+ * per-response parts (they follow the set of observations a response carries),
+ * so they are appended by the caller; the large Disc status is stored beside
+ * the snapshot and spliced in without being rebuilt.
+ */
+export function orb2FieldStatusHead({
+  now, interval, run, control, queue, cachedFutures = null, cachedCryptoRanking = null,
+  krakenLedger = null, tickerbotLedger = null, twelvedataLedger = null, statusCommodityContracts = null,
+  hasTwelveKey = false, catalog = globalThis.CharactersDiscCatalog
+}) {
+  const twelvedataCallsToday = Array.isArray(twelvedataLedger && twelvedataLedger.records)
+    ? twelvedataLedger.records.filter(record => record && record.day === new Date(now).toISOString().slice(0, 10))
+      .reduce((sum, record) => sum + (Number(record.count) || 0), 0)
+    : 0;
+  return {
+    schema: ORB2_FIELD_STATUS_SCHEMA,
+    source: "server-field",
+    continuous: true,
+    cron: ORB2_FIELD_CRON,
+    pollAfterMs: ORB2_FIELD_POLL_MS,
+    pollHiddenMs: ORB2_FIELD_POLL_HIDDEN_MS,
+    interval,
+    freshness: ORB2_FIELD_FRESHNESS[interval],
+    lastTickAt: Number(run && run.last_tick_at) || null,
+    lastObservationAt: Number(run && run.last_observation_at) || null,
+    lastSweepCompletedAt: Number(run && run.last_sweep_completed_at) || null,
+    sweepsCompleted: Number(run && run.sweeps_completed) || 0,
+    lastError: text(run && run.last_error, 200),
+    massive: {
+      callsToday: Number(run && run.massive_calls) || 0,
+      perMinute: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+      perMinutePerAssetClass: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
+      perMinuteScope: "per-asset-class",
+      dailyLimit: null,
+      remainingToday: null,
+      exhausted: false,
+      ledger: "provider-rate-class",
+      note: hasTwelveKey
+        ? "Massive Basic (dormant): TWELVEDATA_API_KEY is set, so FX/futures/indices use Twelve Data (800/day 8/min delayed, personal/internal free). Remove the Twelve Data key to re-enable Massive."
+        : "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
+    },
+    twelvedata: {
+      enabled: hasTwelveKey,
+      callsToday: twelvedataCallsToday,
+      perMinute: 8,
+      dailyLimit: 800,
+      remainingToday: hasTwelveKey ? Math.max(0, 800 - twelvedataCallsToday) : null,
+      exhausted: hasTwelveKey ? twelvedataCallsToday >= 800 : null,
+      ledger: hasTwelveKey ? "kv-800-day" : "not-configured",
+      note: hasTwelveKey
+        ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
+        : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use). Massive remains the fallback."
+    },
+    kraken: {
+      callsToday: Number(run && run.kraken_calls) || 0,
+      dailyLimit: krakenLedger && krakenLedger.ok ? krakenLedger.ledger.dailyLimit : KRAKEN_PROVIDER_DAILY_LIMIT,
+      perSecond: 1,
+      remainingToday: krakenLedger && krakenLedger.ok ? krakenLedger.ledger.remaining : null,
+      exhausted: krakenLedger && krakenLedger.ok ? krakenLedger.ledger.exhausted : null,
+      ledger: krakenLedger && krakenLedger.ok ? "ready" : "unavailable",
+      ranking: cachedCryptoRanking && cachedCryptoRanking.ok ? {
+        provider: "Kraken", venue: "Kraken Spot", metric: cachedCryptoRanking.ranking.metric,
+        sourceWindow: cachedCryptoRanking.ranking.sourceWindow, rankedAt: cachedCryptoRanking.ranking.rankedAt,
+        cached: true
+      } : null,
+      note: krakenLedger && krakenLedger.ok ? krakenLedger.ledger.note : krakenLedger && krakenLedger.message
+    },
+    futuresContracts: {
+      cache: hasTwelveKey ? "twelvedata-bypass" : (cachedFutures && cachedFutures.ok ? "ready" : "unavailable"),
+      asOfDate: new Date(now).toISOString().slice(0, 10),
+      reviewedProducts: Array.isArray(catalog && catalog.commodities) ? catalog.commodities.length : 0,
+      activeContracts: hasTwelveKey
+        ? (statusCommodityContracts ? Object.keys(statusCommodityContracts).length : 0)
+        : (cachedFutures && cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0),
+      staleFallback: false,
+      note: hasTwelveKey
+        ? "Twelve Data private: Disc4 uses Twelve Data symbols directly (productCode → symbol); Massive active-contract table is bypassed."
+        : (cachedFutures && cachedFutures.ok
+          ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
+          : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held.")
+    },
+    tickerbot: {
+      callsToday: Number(run && run.tickerbot_calls) || 0,
+      callsThisMonth: tickerbotLedger && tickerbotLedger.ok ? tickerbotLedger.ledger.calls : null,
+      monthlyLimit: tickerbotLedger && tickerbotLedger.ok ? tickerbotLedger.ledger.workerLimit : null,
+      reserveCalls: tickerbotLedger && tickerbotLedger.ok ? tickerbotLedger.ledger.reserveCalls : null,
+      exhausted: tickerbotLedger && tickerbotLedger.ok ? tickerbotLedger.ledger.exhausted : null,
+      ledger: tickerbotLedger && tickerbotLedger.ok ? "ready" : "unavailable",
+      note: tickerbotLedger && tickerbotLedger.ok ? tickerbotLedger.ledger.note : tickerbotLedger && tickerbotLedger.message
+    },
+    queue,
+    warmBurst: {
+      callsPerBurst: ORB2_FIELD_TICKERBOT_BURST_CALLS,
+      perTick: ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
+      bursts: Number(control && control.warm_bursts) || 0,
+      deployWarmAt: Number(control && control.deploy_warm_at) || null,
+      manualWarmAt: Number(control && control.manual_warm_at) || null,
+      coldAfterMs: ORB2_FIELD_COLD_MS
+    }
+  };
+}
+
 /** D1 queries are limited to 100 bound variables. Split large symbol filters
  * into conservative batches, then restore the global newest-first limit after
  * merging. This is still a read of the unchanged stored field. */
@@ -2719,9 +3151,21 @@ async function readOrb2FieldRows(db, { interval, disc = null, symbols = [], limi
   const results = await readIndependently(reads);
   const rows = [];
   for (const result of results) rows.push(...(Array.isArray(result && result.results) ? result.results : []));
+  /* Order matches the published snapshot's SQL order exactly: `observed_at`
+     descending, then `symbol` in byte order (SQLite's default BINARY collation).
+     `localeCompare` would order punctuation differently — "ADA-USDT" versus
+     "ADABTC" — and a client that read a precomputed document and then a fallback
+     read of the same field would see the rows change places. */
   rows.sort((left, right) => (Number(right.observed_at) || 0) - (Number(left.observed_at) || 0) ||
-    String(left.symbol || "").localeCompare(String(right.symbol || "")));
+    compareFieldSymbols(left.symbol, right.symbol));
   return Number.isFinite(limit) ? rows.slice(0, limit) : rows;
+}
+
+/** Byte-order symbol comparison, the JS twin of `ORDER BY symbol ASC`. */
+export function compareFieldSymbols(left, right) {
+  const a = String(left || "");
+  const b = String(right || "");
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**
@@ -2764,10 +3208,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
     const parseFieldRow = row => {
       const key = `${String(row.disc_id || "")}:${String(row.symbol || "")}`;
       if (parsedFieldRows.has(key)) return parsedFieldRows.get(key);
-      const parsed = parsePacketRow(row, now);
-      const observation = parsed
-        ? { ...parsed, freshness: orb2FieldFreshness(parsed.interval, parsed.observedAt, now) }
-        : null;
+      const observation = orb2FieldObservationFromRow({ row, now });
       parsedFieldRows.set(key, observation);
       return observation;
     };
@@ -2785,14 +3226,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         interval: companionInterval, symbols: companionSymbols
       }) : [];
       const companions = companionRows.map(row => parsePacketRow(row, now)).filter(Boolean);
-      const bySymbol = new Map(companions.map(observation => [observation.symbol, observation]));
-      observations = observations.map(observation => {
-        const daily = interval === "1d" ? observation : bySymbol.get(observation.symbol);
-        const intraday = interval === ORB2_INTRADAY_INTERVAL ? observation : bySymbol.get(observation.symbol);
-        return daily && daily.discId === "stocks"
-          ? { ...observation, composition: composePair(daily, intraday, now) }
-          : observation;
-      });
+      observations = orb2FieldComposeObservations({ observations, companions, interval, now });
     }
     const stockSymbolsForOptions = [...new Set(observations.filter(observation => observation.discId === "stocks").map(observation => observation.symbol))];
     if (stockSymbolsForOptions.length && await optionsFieldTableAvailable(db)) {
@@ -2801,43 +3235,15 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
           FROM orb2_options_observations
           WHERE symbol IN (${stockSymbolsForOptions.map(() => "?").join(",")})`)
           .bind(...stockSymbolsForOptions).all();
-        const optionsBySymbol = new Map(
-          (Array.isArray(optionRows?.results) ? optionRows.results : [])
-            .map(row => [String(row.symbol || "").toUpperCase(), parseOptionsRow(row, now)])
-            .filter(([, value]) => value)
-        );
-        observations = observations.map(observation =>
-          observation.discId === "stocks"
-            ? { ...observation, options: optionsBySymbol.get(observation.symbol) || null }
-            : observation
-        );
+        observations = orb2FieldAttachOptions({ observations, optionRows: optionRows?.results, now });
       } catch {
         /* Options is additive; an unapplied migration must not make the
            authoritative Stock snapshot unreadable. */
       }
     }
 
-    let marketCount = 0;
-    let confirmedCount = 0;
-    let heldCount = 0;
-    const beatTypeCounts = new Map(ORB2_FIELD_BEAT_TYPES.map(type => [type.id, 0]));
-    for (const observation of observations) {
-      if (observation.market) marketCount += 1;
-      if (observation.confirmed) confirmedCount += 1;
-      if (!observation.market) heldCount += 1;
-      for (const typeId of observation.beatTypes || []) {
-        if (beatTypeCounts.has(typeId)) beatTypeCounts.set(typeId, beatTypeCounts.get(typeId) + 1);
-      }
-    }
-    const types = ORB2_FIELD_BEAT_TYPES.map(type => {
-      const count = beatTypeCounts.get(type.id) || 0;
-      return {
-        id: type.id, label: type.label, live: type.live, summary: type.summary,
-        available: requestedTypes.has(type.id) && count > 0,
-        count,
-        source: type.live ? "server-provider-beat" : "deterministic-local-scenario"
-      };
-    });
+    const counted = orb2FieldCountsOfObservations(observations);
+    const types = orb2FieldBeatTypes({ counts: counted.beats, requestedTypes });
     /* READ LANE: these nine D1 reads are mutually independent. Each touches a
        different table (runs, ranking cache, futures cache, control, the three
        provider ledgers, queue depth) and the Dollar Strength (DS) inputs are
@@ -2880,21 +3286,7 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
        the response is narrowed to one Disc or a symbol list. Only fresh market
        observations count as active; held, stale, and contract-pending rows remain
        distinguishable. A Disc with no matching row reports zero and newestAt null. */
-    // When Twelve Data is the venue, bypass Massive's contract table (which stays empty without a Massive key) and synthesize.
-    let statusCommodityContracts = cachedFutures.ok ? cachedFutures.contracts : null;
-    if (typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim()) {
-      if (!cachedFutures.ok || !statusCommodityContracts || !Object.keys(statusCommodityContracts).length) {
-        const cat = globalThis.CharactersDiscCatalog;
-        const list = cat && Array.isArray(cat.futures || cat.commodities) ? (cat.futures || cat.commodities) : [];
-        const today = new Date(now).toISOString().slice(0, 10);
-        statusCommodityContracts = {};
-        for (const entry of list) {
-          const pc = String(entry && entry.massive && entry.massive.productCode || "").toUpperCase();
-          if (!/^[A-Z0-9]{1,8}$/.test(pc)) continue;
-          statusCommodityContracts[pc] = { productCode: pc, ticker: pc, provider: "TwelveData", asOfDate: today, lastTradeDate: today };
-        }
-      }
-    }
+    const statusCommodityContracts = orb2FieldStatusCommodityContracts({ env, now, cachedFutures });
     const rosterForStatus = orb2FieldRoster({
       now,
       cryptoRanking: cachedCryptoRanking.ok ? cachedCryptoRanking.ranking : null,
@@ -2938,211 +3330,55 @@ export async function readOrb2FieldSnapshot(env = {}, options = {}) {
         });
       }
     }
-    const instrumentsByDisc = new Map(ORB2_FIELD_DISCS.map(discId => [discId, []]));
-    for (const instrument of rosterForStatus.instruments) {
-      const bucket = instrumentsByDisc.get(instrument.discId);
-      if (bucket) bucket.push(instrument);
+    /* The member inputs are derived from the same observations the response
+       carries; the totals come from the full stored row map when this read had
+       one. One implementation of the Disc shape, shared with the publisher. */
+    const memberInputsByDiscAndSymbol = new Map();
+    for (const [key, observation] of observationByDiscAndSymbol) {
+      const withFreshness = observation && !observation.freshness
+        ? { ...observation, freshness: orb2FieldFreshness(observation.interval || interval, observation.observedAt, now) }
+        : observation;
+      if (withFreshness) memberInputsByDiscAndSymbol.set(key, orb2FieldMemberInputs(withFreshness));
     }
-    const activeCommoditySymbols = new Set(rosterForStatus.commodities.map(instrument => instrument.symbol));
-    const discs = ORB2_FIELD_DISCS.map((discId, index) => {
-      const instruments = instrumentsByDisc.get(discId) || [];
-      const discDef = catalogForStatus && typeof catalogForStatus.disc === "function" ? catalogForStatus.disc(discId) : null;
-      const reviewedRoster = discId === "commodities"
-        ? (Array.isArray(catalogForStatus && catalogForStatus.commodities) ? catalogForStatus.commodities : [])
-        : discId === "stocks" ? rosterForStatus.stocks
-          : discId === "crypto" ? [...rosterForStatus.crypto, ...rosterForStatus.cryptoPairs]
-            : instruments;
-      const reviewedInstrumentCount = discId === "commodities" && Array.isArray(catalogForStatus && catalogForStatus.commodities)
-        ? catalogForStatus.commodities.length
-        : discId === "stocks"
-          ? (rosterForStatus.stocks.length || 52)
-          : discId === "crypto"
-            ? (rosterForStatus.crypto.length + rosterForStatus.cryptoPairs.length ||
-              (cachedCryptoRanking.ok
-                ? (cachedCryptoRanking.ranking?.instruments?.length || 0) + (cachedCryptoRanking.ranking?.crossPairs?.length || 0)
-                : 0))
-            : instruments.length;
-      const reviewedSymbols = new Set();
-      for (const instrument of reviewedRoster) {
-        const symbol = text(instrument && instrument.symbol, 32).toUpperCase();
-        if (SYMBOL_PATTERN.test(symbol)) reviewedSymbols.add(symbol);
+    /* The provider reported by the stored row is the payload's own provider; a row
+       whose payload no longer parses still reports its column value, exactly as the
+       totals above still count it. */
+    const providersByDisc = new Map();
+    if (storedRowsRead) {
+      for (const row of fieldRows) {
+        const discId = text(row.disc_id, 24).toLowerCase();
+        const symbol = text(row.symbol, 32).toUpperCase();
+        if (!ORB2_FIELD_DISCS.includes(discId) || !SYMBOL_PATTERN.test(symbol)) continue;
+        let set = providersByDisc.get(discId);
+        if (!set) { set = new Set(); providersByDisc.set(discId, set); }
+        const parsed = row.payload ? parseFieldRow(row) : null;
+        const provider = text(parsed && parsed.provider, 24) || text(row.provider, 24);
+        if (provider) set.add(provider);
       }
-      let stored = 0;
-      let confirmed = 0;
-      let newestAt = 0;
-      const providerSet = new Set();
-      if (storedRowsRead) {
-        for (const [symbol, row] of storedByDisc.get(discId) || []) {
-          if (!reviewedSymbols.has(symbol)) continue;
-          stored += 1;
-          if (row.confirmed) confirmed += 1;
-          newestAt = Math.max(newestAt, row.observedAt);
-          if (row.provider) providerSet.add(row.provider);
-        }
-      } else {
-        for (const observation of observations) {
-          if (observation.discId !== discId || !reviewedSymbols.has(observation.symbol)) continue;
-          stored += 1;
-          if (observation.confirmed) confirmed += 1;
-          newestAt = Math.max(newestAt, Number(observation.observedAt) || 0);
-        }
-      }
-      let active = 0;
-      let stale = 0;
-      let held = 0;
-      let pending = 0;
-      const members = reviewedRoster.map(instrument => {
-        const symbol = text(instrument.symbol, 32).toUpperCase();
-        const observation = observationByDiscAndSymbol.get(`${discId}:${symbol}`) || null;
-        const freshness = observation
-          ? observation.freshness || orb2FieldFreshness(observation.interval || interval, observation.observedAt, now)
-          : null;
-        const hasMarket = Boolean(observation && observation.market);
-        const memberStatus = hasMarket
-          ? freshness && freshness.status === "fresh" ? "active" : "stale"
-          : observation ? "held"
-            : discId === "commodities" && !activeCommoditySymbols.has(symbol) ? "contract-pending" : "pending";
-        if (memberStatus === "active") active += 1;
-        else if (memberStatus === "stale") stale += 1;
-        else if (memberStatus === "held") held += 1;
-        else pending += 1;
-        const contractPending = memberStatus === "contract-pending";
-        const pendingVenue = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim() ? "twelvedata" : "massive";
-        return {
-          symbol,
-          displaySymbol: text(instrument.displaySymbol, 48) || symbol,
-          status: memberStatus,
-          provider: observation?.provider || (discId === "crypto" ? "kraken" : discId === "stocks" ? "tickerbot" : pendingVenue),
-          observedAt: observation ? Number(observation.observedAt) || null : null,
-          freshness: freshness ? freshness.status : null,
-          code: observation ? text(observation.code, 48) : contractPending ? "active-contract-pending" : "",
-          message: observation ? text(observation.message, 160) : contractPending
-            ? `Waiting for a current Massive-verified active futures contract (${String(instrument.massive?.productCode || "unknown")}).`
-            : memberStatus === "pending" ? "No stored observation yet." : ""
-        };
-      });
-      const providers = [...providerSet].sort();
-      return {
-        id: discId,
-        number: Number(discDef && discDef.number) || index + 1,
-        label: text(discDef && discDef.label, 64) || `Disc ${index + 1} · ${discId}`,
-        name: text(discDef && discDef.name, 48) || discId,
-        assetClass: text(discDef && discDef.assetClass, 24) || "",
-        instruments: reviewedInstrumentCount,
-        ...(discId === "crypto" ? { assets: rosterForStatus.crypto.length, pairs: reviewedInstrumentCount } : {}),
-        stored,
-        confirmed,
-        newestAt: newestAt || null,
-        observed: active + stale,
-        active,
-        stale,
-        held,
-        pending,
-        members,
-        providers,
-        intervals: stored > 0 ? [interval] : [],
-        covered: active > 0,
-        complete: reviewedInstrumentCount > 0 && active >= reviewedInstrumentCount
-      };
+    }
+    const discs = orb2FieldDiscsDocument({
+      now, interval, env, roster: rosterForStatus, catalog: catalogForStatus,
+      memberInputsByDiscAndSymbol,
+      totalsByDisc: storedRowsRead ? storedByDisc : null,
+      cryptoRanking: cachedCryptoRanking.ok ? cachedCryptoRanking.ranking : null,
+      providersByDisc: storedRowsRead ? providersByDisc : null
     });
     const twelvedataLedger = await (async () => {
       try { return await loadTwelveDataDailyCallLedger(env.COMMUNITY_DB); } catch { return { records: [] }; }
     })();
-    const twelvedataCallsToday = Array.isArray(twelvedataLedger.records)
-      ? twelvedataLedger.records.filter(r => r && r.day === new Date(now).toISOString().slice(0, 10)).reduce((s, r) => s + (Number(r.count) || 0), 0)
-      : 0;
     const hasTwelveKey = typeof env.TWELVEDATA_API_KEY === "string" && env.TWELVEDATA_API_KEY.trim().length > 0;
     const status = {
-      schema: ORB2_FIELD_STATUS_SCHEMA,
-      source: "server-field",
-      continuous: true,
-      cron: ORB2_FIELD_CRON,
-      pollAfterMs: ORB2_FIELD_POLL_MS,
-      interval,
-      freshness: ORB2_FIELD_FRESHNESS[interval],
-      lastTickAt: Number(run && run.last_tick_at) || null,
-      lastObservationAt: Number(run && run.last_observation_at) || null,
-      lastSweepCompletedAt: Number(run && run.last_sweep_completed_at) || null,
-      sweepsCompleted: Number(run && run.sweeps_completed) || 0,
-      lastError: text(run && run.last_error, 200),
-      massive: {
-        callsToday: Number(run && run.massive_calls) || 0,
-        perMinute: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
-        perMinutePerAssetClass: ORB2_MASSIVE_PER_MINUTE_PER_ASSET_CLASS,
-        perMinuteScope: "per-asset-class",
-        dailyLimit: null,
-        remainingToday: null,
-        exhausted: false,
-        ledger: "provider-rate-class",
-        note: hasTwelveKey
-          ? "Massive Basic (dormant): TWELVEDATA_API_KEY is set, so FX/futures/indices use Twelve Data (800/day 8/min delayed, personal/internal free). Remove the Twelve Data key to re-enable Massive."
-          : "Massive Basic: five requests per minute per asset class; the former 300/day application guard is no longer a provider gate."
-      },
-      twelvedata: {
-        enabled: hasTwelveKey,
-        callsToday: twelvedataCallsToday,
-        perMinute: 8,
-        dailyLimit: 800,
-        remainingToday: hasTwelveKey ? Math.max(0, 800 - twelvedataCallsToday) : null,
-        exhausted: hasTwelveKey ? twelvedataCallsToday >= 800 : null,
-        ledger: hasTwelveKey ? "kv-800-day" : "not-configured",
-        note: hasTwelveKey
-          ? "Twelve Data free (private internal use): 800/day, 8/min global, delayed 1-15min, no commercial display. Configure TWELVEDATA_API_KEY; keep COMMUNITY_ENABLED=false for personal/internal qualification."
-          : "Add TWELVEDATA_API_KEY to use Twelve Data free (private sole-use). Massive remains the fallback."
-      },
-      kraken: {
-        callsToday: Number(run && run.kraken_calls) || 0,
-        dailyLimit: krakenLedger.ok ? krakenLedger.ledger.dailyLimit : KRAKEN_PROVIDER_DAILY_LIMIT,
-        perSecond: 1,
-        remainingToday: krakenLedger.ok ? krakenLedger.ledger.remaining : null,
-        exhausted: krakenLedger.ok ? krakenLedger.ledger.exhausted : null,
-        ledger: krakenLedger.ok ? "ready" : "unavailable",
-        ranking: cachedCryptoRanking.ok ? {
-          provider: "Kraken", venue: "Kraken Spot", metric: cachedCryptoRanking.ranking.metric,
-          sourceWindow: cachedCryptoRanking.ranking.sourceWindow, rankedAt: cachedCryptoRanking.ranking.rankedAt,
-          cached: true
-        } : null,
-        note: krakenLedger.ok ? krakenLedger.ledger.note : krakenLedger.message
-      },
-      futuresContracts: {
-        cache: hasTwelveKey ? "twelvedata-bypass" : (cachedFutures.ok ? "ready" : "unavailable"),
-        asOfDate: new Date(now).toISOString().slice(0, 10),
-        reviewedProducts: Array.isArray(catalogForStatus && catalogForStatus.commodities) ? catalogForStatus.commodities.length : 0,
-        activeContracts: hasTwelveKey
-          ? (statusCommodityContracts ? Object.keys(statusCommodityContracts).length : 0)
-          : (cachedFutures.ok ? Object.keys(cachedFutures.contracts).length : 0),
-        staleFallback: false,
-        note: hasTwelveKey
-          ? "Twelve Data private: Disc4 uses Twelve Data symbols directly (productCode → symbol); Massive active-contract table is bypassed."
-          : (cachedFutures.ok
-            ? "Only Massive-verified active single contracts for the current UTC date enter Disc4."
-            : "Apply D1 migration 0011_massive_futures_contract_cache.sql; Disc4 contracts remain held.")
-      },
-      tickerbot: {
-        callsToday: Number(run && run.tickerbot_calls) || 0,
-        callsThisMonth: tickerbotLedger.ok ? tickerbotLedger.ledger.calls : null,
-        monthlyLimit: tickerbotLedger.ok ? tickerbotLedger.ledger.workerLimit : null,
-        reserveCalls: tickerbotLedger.ok ? tickerbotLedger.ledger.reserveCalls : null,
-        exhausted: tickerbotLedger.ok ? tickerbotLedger.ledger.exhausted : null,
-        ledger: tickerbotLedger.ok ? "ready" : "unavailable",
-        note: tickerbotLedger.ok ? tickerbotLedger.ledger.note : tickerbotLedger.message
-      },
-      queue,
-      warmBurst: {
-        callsPerBurst: ORB2_FIELD_TICKERBOT_BURST_CALLS,
-        perTick: ORB2_FIELD_TICKERBOT_BURST_PER_TICK,
-        bursts: Number(control && control.warm_bursts) || 0,
-        deployWarmAt: Number(control && control.deploy_warm_at) || null,
-        manualWarmAt: Number(control && control.manual_warm_at) || null,
-        coldAfterMs: ORB2_FIELD_COLD_MS
-      },
-      counts: {
-        stored: observations.length,
-        observed: marketCount,
-        confirmed: confirmedCount,
-        held: heldCount,
-        reviewedInstruments: discs.reduce((sum, d) => sum + (Number(d.instruments) || 0), 0)
-      },
+      ...orb2FieldStatusHead({
+        now, interval, run, control, queue, cachedFutures, cachedCryptoRanking,
+        krakenLedger, tickerbotLedger, twelvedataLedger, statusCommodityContracts, hasTwelveKey
+      }),
+      counts: orb2FieldCountsObject({
+        stored: counted.stored,
+        observed: counted.observed,
+        confirmed: counted.confirmed,
+        held: counted.held,
+        reviewedInstruments: discs.reduce((sum, disc) => sum + (Number(disc.instruments) || 0), 0)
+      }),
       discs
     };
     return {
@@ -3207,6 +3443,21 @@ async function evaluateDollarStrength(db, now, existingObservations = null) {
 }
 
 /* ── HTTP surface ─────────────────────────────────────────────────────── */
+
+/*
+ * Exported for the sliced publisher (`worker/orb2-field-publish.mjs`). These are
+ * the same reads the tick and the live read path already make — the publisher
+ * runs them on its own schedule, one bounded slice at a time, so they are
+ * re-exported rather than reimplemented. They are not part of the HTTP surface.
+ */
+export {
+  readRun as orb2FieldReadRun,
+  readControl as orb2FieldReadControl,
+  queueDepth as orb2FieldQueueDepth,
+  evaluateDollarStrength as orb2FieldEvaluateDollarStrength,
+  optionsFieldTableAvailable as orb2FieldOptionsTableAvailable,
+  SYMBOL_PATTERN as ORB2_FIELD_SYMBOL_PATTERN
+};
 
 async function readBody(request) {
   if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) {
