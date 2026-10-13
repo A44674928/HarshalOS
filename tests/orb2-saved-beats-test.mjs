@@ -104,3 +104,72 @@ test("Orb 2 archive expires old rows and keeps no more than 120 entries per brow
   await handleOrb2SavedBeats(request("POST", `https://site.example${ORB2_SAVED_BEATS.ROUTE}`, expiring), { COMMUNITY_DB: db }, { now: () => now });
   assert.equal(sql.prepare("SELECT count(*) AS n FROM orb2_saved_beats WHERE session_id=?").get(sessionId).n, 120);
 });
+
+test("a read never writes: the archive's expiry cleanup is not on the GET path", async () => {
+  const { sql, db } = fixture();
+  const now = 1_800_000_000_000;
+  const sessionId = uuid();
+  /* One stale row and one live row: a GET that swept would have to delete the
+     stale one, and D1 charges a row written for it (the table carries a compound
+     primary key and two secondary indexes). */
+  for (const [beatId, expiresAt] of [[uuid(), now - 1], [uuid(), now + 60_000]]) {
+    sql.prepare(`INSERT INTO orb2_saved_beats
+      (session_id, beat_id, beat_at, provider, disc_id, payload, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(sessionId, beatId, now - 1000, "tickerbot", "stocks", "{}", now - 1000, expiresAt);
+  }
+  const writes = [];
+  const counting = {
+    prepare(text) {
+      if (/^\s*(INSERT|UPDATE|DELETE|REPLACE)/i.test(text)) writes.push(text);
+      return db.prepare(text);
+    },
+    batch(statements) {
+      for (const statement of statements) writes.push("batch");
+      return db.batch(statements);
+    }
+  };
+  const response = await handleOrb2SavedBeats(
+    request("GET", `https://site.example${ORB2_SAVED_BEATS.ROUTE}?sessionId=${sessionId}`),
+    { COMMUNITY_DB: counting }, { now: () => now });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).beats.length, 1, "the stale row is excluded by the read itself");
+  assert.deepEqual(writes, [], "a page load costs reads and nothing else");
+  /* The rows are still there: retiring them is the write route's job. */
+  assert.equal(sql.prepare("SELECT count(*) AS n FROM orb2_saved_beats WHERE session_id=?").get(sessionId).n, 2);
+});
+
+test("one save retires at most one bounded page of expired rows", async () => {
+  const { sql, db } = fixture();
+  const now = 1_800_000_000_000;
+  const staleRows = ORB2_SAVED_BEATS.MAX_EXPIRED_ROWS_PER_WRITE + 50;
+  /* Stale rows spread over several sessions, which is what an unbounded
+     `DELETE ... WHERE expires_at <= ?` would have taken in one request: every
+     browser's leftovers, at four rows written each. */
+  for (let index = 0; index < staleRows; index += 1) {
+    sql.prepare(`INSERT INTO orb2_saved_beats
+      (session_id, beat_id, beat_at, provider, disc_id, payload, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(uuid(), uuid(), now - 2000, "tickerbot", "stocks", "{}", now - 2000, now - 1);
+  }
+  const sessionId = uuid();
+  const record = {
+    sessionId, beatId: uuid(), beatAt: now, provider: "tickerbot", discId: "stocks",
+    payload: { schema: "orb2-beat-v1", observations: [], entry: { disc: "stocks", provider: "tickerbot", interval: "1d", source: "live" } }
+  };
+  const count = () => sql.prepare("SELECT count(*) AS n FROM orb2_saved_beats WHERE expires_at <= ?").get(now).n;
+  assert.equal(count(), staleRows);
+  const response = await handleOrb2SavedBeats(
+    request("POST", `https://site.example${ORB2_SAVED_BEATS.ROUTE}`, record),
+    { COMMUNITY_DB: db }, { now: () => now });
+  assert.equal(response.status, 200);
+  assert.equal(count(), staleRows - ORB2_SAVED_BEATS.MAX_EXPIRED_ROWS_PER_WRITE,
+    "one save retires exactly one page, so its cost cannot depend on what other browsers left behind");
+  assert.equal(sql.prepare("SELECT count(*) AS n FROM orb2_saved_beats WHERE session_id=?").get(sessionId).n, 1,
+    "the save itself is still stored");
+  /* The next save retires the next page rather than leaving the rest forever. */
+  await handleOrb2SavedBeats(
+    request("POST", `https://site.example${ORB2_SAVED_BEATS.ROUTE}`, { ...record, beatId: uuid() }),
+    { COMMUNITY_DB: db }, { now: () => now });
+  assert.equal(count(), 0, "a second save finishes the backlog");
+});

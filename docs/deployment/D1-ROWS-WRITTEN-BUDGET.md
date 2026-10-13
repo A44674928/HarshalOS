@@ -186,3 +186,54 @@ against the sum of the `[orb2-d1]` lines for the same UTC day.
   writing more than the reviewed worst case: check whether a lane's burst grew,
   then either fix the path or raise the ceiling **with** the new measurement
   recorded here.
+---
+
+## 7. Writes on the request path
+
+The tick is not the only writer. A second pass over the codebase looked for
+writes that fire per *request* rather than per *minute*, because those are the
+ones whose cost is set by traffic instead of by the schedule. What it found,
+and what changed:
+
+| Site | Cost per request, before | Now |
+| :--- | :--- | :--- |
+| `orb2_saved_beats`, **two** POST routes (`orb2-saved-beats.mjs`, `good-intelligence-orb2-beats.mjs`) | An unbounded global `DELETE ... WHERE expires_at <= ?` — every session's stale rows in one request, at **4 rows written each** (compound PK + two secondary indexes) | One bounded page per save: `WHERE (session_id, beat_id) IN (SELECT … ORDER BY expires_at LIMIT 200)`. The next save retires the next page; expired rows are never served either way, since every read filters `expires_at > ?`. |
+| `orb2_saved_beats` **GET** | A `DELETE` of the session's expired rows — a write on a read path, 4 rows per row retired | Removed. The `SELECT` already excludes those rows, and the write path retires them. |
+| `allowCommunityPublicRead` | Up to 20 expired rate buckets swept per anonymous read, 3 rows each (**60 rows per page view**), and rate buckets expire every 60 s by construction, so there is always something to sweep | Removed. `cleanupAuth` retires the same rows, bounded at 100, on the sign-in path. |
+| `authorizeDevice` (paper market) | `last_used_at` re-stamped on every authenticated device request — 1 row, up to 5,000/day per device for a "last seen" field | Throttled to once per five minutes per token (`AND COALESCE(last_used_at,0) < ?`); `MAX()` keeps the stamp monotonic. |
+| `cleanupAuth` | Three `DELETE` statements per call even when nothing is expired | Probed first with `SELECT 1 … LIMIT 1`. This one is latency, not rows: a `DELETE` that matches no rows writes none. |
+
+Two things deliberately left alone:
+
+- **The rate-limit row itself** (`rate()` in `community-auth.mjs`) writes on
+  every rate-limited request: 2 rows for a new bucket, 1 for an existing one.
+  That is what durable rate limiting costs in D1. The standard answer is to
+  move the counter to KV (or Cloudflare's Rate Limiting API) and keep D1 out of
+  it — a design change, not a tweak. Community publication is disabled in
+  production today (`COMMUNITY_ENABLED=false`), so this is latent, not live.
+- **`deleteOrphanFragments`** (publication slice) reconciles fragments whose
+  observation row disappeared. It uses covering indexes, but it still walks
+  every fragment in the interval and probes the observations table for each:
+  ~342 rows read per interval per slice, ~0.5 M a day, ~10% of the read cap,
+  to find orphans that are almost never there. It is a safety net for an
+  out-of-band D1 edit, so gating it on the slice counter (say, every 30th slice
+  plus cold passes) would cut that ~30× at the price of letting a stale
+  fragment linger for up to ~30 minutes after such an edit. Say the word and
+  it is a three-line change.
+
+---
+
+## 8. What the standard advice gets right — and wrong — here
+
+Checked item by item against this codebase:
+
+| Advice | Verdict |
+| :--- | :--- |
+| Never run `CREATE INDEX` / DDL on the hot path | **Clean.** The only DDL outside `migrations/` is the guarded `ALTER TABLE … ADD COLUMN kraken_calls` self-heal in `ensureRunRow`, which reads `sqlite_schema` once per isolate and caches the answer. |
+| Batch row-by-row `INSERT`s | **Already done** where it matters (`enqueueJobs`, `refreshStoredComposition`, both saved-beat routes). Note the reason this item gives is wrong: batching cuts round trips and CPU, **not rows written** — D1 bills per row either way. Worth doing for the 10 ms budget, useless for this cap. |
+| `UPDATE` needs a precise `WHERE` | **Clean.** Every write statement in `worker/` was enumerated: all target a primary key or a reviewed composite key. No broad `UPDATE`/`DELETE` scans. |
+| `DELETE` frequently on large tables; use a TTL job instead | **This was the real find** — see §7. Both saved-beat routes ran an unbounded global expiry delete per save. |
+| Drop indexes on write-heavy tables | Done in migration 0020. A full sweep of the remaining indexes found exactly one with no reader: `community_public_observation_moderation_actions_observation`, on an append-only moderator audit table written a handful of times a year. Left in place. |
+| Use `INTEGER PRIMARY KEY` (rowid) — "lookups are free" | Reads are never free: a PK lookup is a row read like any other. And swapping a `TEXT` PK for a surrogate `INTEGER` PK plus a `UNIQUE` index keeps the same number of b-trees, so there is no write win either. The lever that *would* help is `WITHOUT ROWID` (§4), which is blocked by the backup's `ORDER BY rowid` paging and migration 0018's `rowid` watermark. |
+| Buffer hot-path writes in KV/memory, flush on a cron | Correct in principle; the concrete instance is the rate-limit row (§7), which needs a design decision rather than a patch. |
+| Avoid `ORDER BY RANDOM()` | Not used. |

@@ -64,8 +64,16 @@ async function rate(db, secret, scope, ip, limit, seconds, now) {
   if (!row) throw new CommunityError(429, 'Too many authentication requests. Try again later.');
 }
 export async function cleanupAuth(db, now = Math.floor(Date.now() / 1000)) {
-  // Bounded indexed cleanup; never removes accounts or draft data.
+  /* Bounded indexed cleanup; never removes accounts or draft data.
+     The probe is first because a sweep that finds nothing still costs the
+     statement and its index scan: three DELETEs per call, every call, on the
+     sign-in path. It does not change the rows-written bill — a DELETE that
+     matches no rows writes none — but it keeps the common case to one indexed
+     read per table. The rows-written win on this table is deferring the
+     public-read sweep below to here, where it is bounded at 100 rows. */
   for (const [table, key] of [['community_auth_flows', 'state_hash'], ['community_sessions', 'token_hash'], ['community_auth_rates', 'bucket']]) {
+    const stale = await db.prepare(`SELECT 1 AS stale FROM ${table} WHERE expires_at <= ? LIMIT 1`).bind(now).first();
+    if (!stale) continue;
     await db.prepare(`DELETE FROM ${table} WHERE ${key} IN (SELECT ${key} FROM ${table} WHERE expires_at <= ? ORDER BY expires_at LIMIT 100)`).bind(now).run();
   }
 }
@@ -188,7 +196,14 @@ export async function allowCommunityPublicRead(request, env) {
   configuration(request, env);
   const now = Math.floor(Date.now() / 1000);
   await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, 'public-read', request.headers.get('CF-Connecting-IP') || 'unknown', 180, 60, now);
-  await env.COMMUNITY_DB.prepare('DELETE FROM community_auth_rates WHERE bucket IN (SELECT bucket FROM community_auth_rates WHERE expires_at<=? ORDER BY expires_at LIMIT 20)').bind(now).run();
+  /* No expiry sweep here. This runs on every anonymous public read, and rate
+     buckets expire every 60 seconds by construction, so there is almost always
+     something for it to delete: up to 20 rows per read, at three rows written
+     each (the table carries a TEXT primary key and an expiry index), which is
+     60 rows written per page view for a cleanup nobody is waiting on.
+     `cleanupAuth` retires the same rows, bounded at 100, on the sign-in path —
+     and an expired bucket is inert either way: it is simply never matched
+     again, since the bucket key is the window it belongs to. */
 }
 export async function limitCommunityAction(env, userId, action, limit) {
   await rate(env.COMMUNITY_DB, env.COMMUNITY_RATE_SECRET, action + ':' + userId, '', limit, 86400, Math.floor(Date.now() / 1000));

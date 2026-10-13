@@ -13,6 +13,9 @@ export const ORB2_BEATS_ROUTE = "/api/good-intelligence/v1/orb2/beats";
 export const ORB2_BEAT_SCHEMA = "gi-orb2-beat-v1";
 export const ORB2_BEAT_HISTORY_SCHEMA = "gi-orb2-beat-history-v1";
 export const ORB2_BEAT_HISTORY_LIMIT = 120;
+/* Expired rows one save may retire. See orb2-saved-beats.mjs: D1 charges a row
+   written per b-tree, and this table has four of them. */
+export const ORB2_BEAT_EXPIRED_ROWS_PER_WRITE = 200;
 const MAX_BODY_BYTES = 48 * 1024;
 const MAX_BEAT_BYTES = 40 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -409,10 +412,19 @@ export async function handleGoodIntelligenceOrb2Beats(request, env = {}, depende
         beat_at = excluded.beat_at, provider = excluded.provider, disc_id = excluded.disc_id,
         payload = excluded.payload, created_at = excluded.created_at, expires_at = excluded.expires_at`)
       .bind(sessionId, beat.beatId, beat.at, beat.provider, beat.discId, payload, now, expiresAt).run();
-    await db.prepare(`DELETE FROM orb2_saved_beats
-      WHERE expires_at <= ? OR (session_id = ? AND beat_id NOT IN (
-        SELECT beat_id FROM orb2_saved_beats WHERE session_id = ? ORDER BY beat_at DESC LIMIT ?
-      ))`).bind(now, sessionId, sessionId, ORB2_BEAT_HISTORY_LIMIT).run();
+    /* Two bounded statements instead of one `OR`. The old form could not use
+       the expiry index — the `OR` made it a full scan — and its global
+       `expires_at <= ?` half was unbounded: one save retired every session's
+       stale rows, at four rows written per row deleted (compound primary key
+       plus two secondary indexes). The expiry page is now capped, the session
+       cap is unchanged, and a save's cost no longer depends on what other
+       browsers left behind. */
+    await db.prepare(`DELETE FROM orb2_saved_beats WHERE (session_id, beat_id) IN (
+      SELECT session_id, beat_id FROM orb2_saved_beats WHERE expires_at <= ? ORDER BY expires_at LIMIT ?
+    )`).bind(now, ORB2_BEAT_EXPIRED_ROWS_PER_WRITE).run();
+    await db.prepare(`DELETE FROM orb2_saved_beats WHERE session_id = ? AND beat_id NOT IN (
+      SELECT beat_id FROM orb2_saved_beats WHERE session_id = ? ORDER BY beat_at DESC LIMIT ?
+    )`).bind(sessionId, sessionId, ORB2_BEAT_HISTORY_LIMIT).run();
     return json({ success: true, schema: ORB2_BEAT_HISTORY_SCHEMA, stored: true, beatId: beat.beatId, retained: ORB2_BEAT_HISTORY_LIMIT });
   } catch {
     return failure("Orb 2 server history could not be read or written. Confirm that D1 migration 0008 is applied; the live beat itself is unchanged.", 503);
