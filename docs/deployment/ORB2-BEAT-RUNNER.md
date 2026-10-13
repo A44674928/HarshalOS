@@ -82,6 +82,181 @@ both are enabled they cannot beat the same lane in the same minute. The Worker
 tick stays on by default precisely so that a repository with no secrets keeps
 beating on its own.
 
+## Running it on your own Mac instead
+
+The runner has no third-party imports. Its whole import chain is 29 files in
+this repository plus Node built-ins, so there is no `npm ci` and no build step:
+a `git clone` is the installation. That makes a Mac a workable beat host, and
+it avoids the Actions-minute arithmetic above entirely. A tick costs
+electricity and nothing else, so the cadence can be one minute rather than five.
+
+Use one ticker at a time. Both tickers share the D1 lease, so an overlap is
+harmless, but the runner exits **1** with `already-running` and logs a red
+line each time it loses the lease.
+
+### 1. Install
+
+Node 22 or later is what CI and the tests use. Node 18 or later also works.
+
+```sh
+node --version
+git clone https://github.com/A44674928/HarshalOS.git ~/HarshalOS
+```
+
+Create a Cloudflare API token (My Profile → API Tokens → Create Custom Token)
+with `Account → D1 → Edit`, scoped to the one account. It is the same token as
+the Actions path.
+
+### 2. Secrets file, outside the checkout
+
+Keep the secrets in `~/.orb2/env`, not in the repository. `.env` is covered by
+`.gitignore`, but `git clean -xfd` deletes ignored files, so the file is safer
+outside the checkout altogether.
+
+```sh
+mkdir -p ~/.orb2 && chmod 700 ~/.orb2
+cat > ~/.orb2/env <<'EOF'
+CLOUDFLARE_ACCOUNT_ID=<your account id>
+CLOUDFLARE_API_TOKEN=<the D1 Edit token>
+ORB2_D1_DATABASE_ID=ea508a07-e00c-4d41-a657-428937ba8110
+ORB2_D1_DATABASE_NAME=community_db
+MASSIVE_API_KEY=<same value the Worker uses>
+TICKERBOT_API_KEY=<same value the Worker uses>
+ORB2_RUNNER_PUBLISH=off
+EOF
+chmod 600 ~/.orb2/env
+```
+
+> **Delete any optional key you do not have; do not leave its placeholder.**
+> The runner treats any non-empty value as configured. A line such as
+> `TWELVEDATA_API_KEY=<optional>` is not skipped: the literal string
+> `<optional>` is sent to the provider as a key. Add `TWELVEDATA_API_KEY` or
+> `ALPHA_VANTAGE_API_KEY` only when you have a real value for it.
+
+`ORB2_RUNNER_PUBLISH=off` is the recommended setting for a Mac. The Worker's
+Cron Trigger keeps publishing the document, which fits its 10 ms budget, so the
+served field stays fresh while the Mac sleeps. The Mac only beats. The two
+never build the same document twice. It also means the publication step never
+runs on the Mac, so the `github-actions` source label described above does not
+appear for Mac beats.
+
+### 3. Test before scheduling
+
+```sh
+cd ~/HarshalOS
+node scripts/orb2-beat-runner.mjs --dry-run      # resolves the guards, writes nothing
+set -a; source ~/.orb2/env; set +a
+node scripts/orb2-beat-runner.mjs                # one real tick
+```
+
+A healthy tick prints `tick 1/1: N observed, …, X ms`. Only then flip the
+Worker over, in this order:
+
+1. Dashboard → **Workers & Pages → harshalos → Settings → Variables and
+   Secrets** → `ORB2_FIELD_TICK` = `off` → Save.
+
+Doing it the other way round means a runner fire while the Worker tick holds
+the lease returns `already-running`, which exits 1. That is safe, but red.
+
+### 4. Schedule it with launchd
+
+`~/.orb2/run-beat.sh`, made executable with `chmod 700`:
+
+```sh
+#!/bin/zsh
+set -euo pipefail
+set -a; source "$HOME/.orb2/env"; set +a
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+exec /usr/bin/env node "$HOME/HarshalOS/scripts/orb2-beat-runner.mjs"
+```
+
+`~/Library/LaunchAgents/com.harshalos.orb2beat.plist`, with `YOU` replaced by
+your short username:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.harshalos.orb2beat</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-l</string>
+    <string>-c</string>
+    <string>exec "$HOME/.orb2/run-beat.sh"</string>
+  </array>
+  <key>StartInterval</key><integer>60</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/Users/YOU/Library/Logs/orb2-beat.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOU/Library/Logs/orb2-beat.log</string>
+</dict>
+</plist>
+```
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.harshalos.orb2beat.plist
+launchctl list | grep orb2beat                # loaded; the second column is the last exit status
+tail -f ~/Library/Logs/orb2-beat.log          # one block per minute
+```
+
+To stop it, run `launchctl bootout gui/$(id -u)/com.harshalos.orb2beat`. To
+restart it, bootstrap the plist again. launchd does not start a second copy
+while one is still running, and `StartInterval` does not hot-loop after a
+failure.
+
+Keep the checkout current with `git pull` now and then. The runner executes
+whatever is in the checkout.
+
+### 5. Sleep
+
+A sleeping Mac beats nothing. launchd coalesces missed intervals and does not
+replay the ticks it missed. That is survivable, because the rotation is
+age-based: on wake it resumes where it stopped, and the field catches up over
+the following rotations. The lane cursors are persisted before each provider
+call, so an interruption does not corrupt anything.
+
+To keep the Mac awake on power:
+
+```sh
+sudo pmset -c sleep 0        # never sleep on the power adapter
+pmset -g                     # verify: "sleep 0" under AC Power
+```
+
+A closed lid sleeps on Apple Silicon unless the Mac is in clamshell mode with an
+external display and power. The simplest reliable setup is to keep the lid
+open. To let the display sleep while the machine stays awake, run the wrapper
+under `caffeinate -s`, or enable *Prevent automatic sleeping on power adapter
+when the display is off* in System Settings.
+
+### 6. Knowing it is alive
+
+- **Log:** one block per minute in `~/Library/Logs/orb2-beat.log`, a few
+  hundred KB a day. Trim it monthly.
+- **Field:** `https://<your-domain>/api/good-intelligence/v1/orb2/field`.
+  `status.lastTickAt` should be within a minute or two. Because the Worker's own
+  tick is off, that is the number an uptime monitor should read, and "stuck"
+  means more than 15 minutes without an advance (see `UPTIME-MONITORING.md`).
+- **D1:**
+
+  ```sh
+  npx wrangler d1 execute COMMUNITY_DB --remote --command "SELECT last_tick_at, sweeps_completed FROM orb2_field_runs WHERE utc_day = date('now');"
+  ```
+
+### Limits
+
+- A **user** LaunchAgent runs only while you are logged in. If macOS reboots to
+  the login window, beats pause until you log in. A system LaunchDaemon would
+  run without login, but as root, so it is not recommended for a Mac you use
+  yourself.
+- macOS updates, a battery drained to sleep, and closed-lid sessions all pause
+  beats. All of them are recoverable, and none corrupts state.
+- The Mac is a single point of failure for the beats only. The Worker still
+  publishes the document when the Mac is asleep, so the field goes stale, not
+  wrong. If you want a fallback, the GitHub workflow can run alongside at a
+  sparse cadence such as `*/30`, so it does not spend the Actions allowance.
+
 ## Cost
 
 - **Cloudflare:** $0 either way. The runner writes to the same D1 database and
