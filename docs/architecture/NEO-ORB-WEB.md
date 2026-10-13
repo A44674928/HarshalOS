@@ -1,7 +1,7 @@
 # NEO ORB — the web app
 
 **Status:** display-only · local · static roster snapshot · **one stored field read** (its own Worker route, at most every 20 s) · distance from the centre is the instability extension
-**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-black-hole.js` and `js/neo-orb-quasar.js` (Black Hole Computing and Quasar Mode, from the spec) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
+**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`, and `js/neo-orb-reinsurance.js` (Black Hole Computing, Quasar Mode, and Reinsurance Mode, from the spec) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
 **Window:** **NEO ORB** in the app list, placed right after **Orb 2**.
 
 NEO ORB combines two existing browser visuals in one window:
@@ -23,27 +23,43 @@ The feed was cut on 2026-10-11 to keep company market data out of a display, and
 
 A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or grant. A market-cap band is a display convention, not a valuation. The phase dial is a rotation the viewer chooses; it does not declare anything. The test suite asserts that no NEO ORB file references a forbidden channel.
 
-## Black Hole Computing and Quasar Mode (`js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`)
+## Black Hole Computing, Quasar Mode, and Reinsurance Mode (`js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`, `js/neo-orb-reinsurance.js`)
 
-Deployed from `docs/harshal-systems/12-ground-zero.md`: **Black Hole Computing (BHC)**, a compute modality, and **Quasar Mode**, a spheroid body. The term "gravity processor" in the request is taken to mean Black Hole Computing. Both are readouts only. Colour, placement, and motion never read them, and a test enforces that.
+Deployed from `docs/harshal-systems/12-ground-zero.md`: **Black Hole Computing (BHC)**, a compute modality; **Quasar Mode**, a spheroid body; and **Reinsurance Mode**, a spheroid of spheroids. The term "gravity processor" in the request is taken to mean Black Hole Computing.
 
-**Data flow (outward only):** one stored row per orb → `NeoOrbBlackHole.deepen` (one reading per orb) → `NeoOrbQuasar.spheroid` (roster aggregates) → the Status panel, and for the selected orb, the inspector. Nothing returns to the field.
+**Data flow (outward only):** one stored row per orb → `NeoOrbBlackHole.deepen` (one reading per orb) → `NeoOrbQuasar.spheroid` (aggregates per issuer-sector buffer, and for the roster) → `NeoOrbReinsurance.systemic` (a slow snapshot over the buffers, read at most every 15 minutes and held between reads). Nothing returns to the field, to colour, or to the model.
+
+**What each reading does on screen (display only):**
+
+| Part | Read by | What it shows |
+| --- | --- | --- |
+| Orb brightness | `drawOrb`, through `litFor` | Glow strength and width follow Orb 2's pressure. An orb with no depth is dark: no glow, and a dimmed body. |
+| Orb motion | `setPressures` in `js/neo-orb-placement.js` | Pressure sets the flame-steering gain from 0.6× to 1.4× per orb. Null is neutral. The speed cap does not change. |
+| Quasar shell | `drawGravityShells` | A ring at the roster's mean depth, with the 95 % interval as a faint band. Its opacity follows the tail share. |
+| Reinsurance halo | `drawGravityShells` | Three soft rings outside the instability region (1.5 + 0.14 in model radius). Brighter with synchrony. |
+| Status lines | `readouts` | The text from each module's `describe`, including the Reinsurance read time. |
+| Inspector | `renderInspector` | The selected orb's BHC reading as text: depth, position, flow, pressure, force, and authority. |
+
+The shells and the halo use the model's own radii. Depth maps to radius as `0.36 + 0.64 × depth`. The halo sits outside the instability region's outer edge. All of them use the bands' neutral tone, so blue and yellow stay reserved for market state.
 
 | Spec | Deployed as |
 | --- | --- |
-| BHC is capability only: no phase, authority, legitimacy, or decision (§2–§4, §9) | Each reading carries `authority: "none"`. Colour, placement, and the phase dial are unchanged. |
+| BHC is capability only: no phase, authority, legitimacy, or decision (§2–§4, §9) | Each reading carries `authority: "none"`. Colour, the model's homes, and the phase dial are unchanged. |
 | Bound by the host PDH (§8) | NEO ORB declares no PDH of its own. Its declared host scope is display-only, with authority `none`, so BHC engages. A host that declares any authority makes `engage` refuse. |
 | No legitimacy claims pass through (§7–§8) | A reading holds numbers and state names only. Stored text (`reason`, `status` notes, and so on) is never copied. |
-| BHC: deeper computation, not a different answer (§4–§5) | Per orb: the six-envelope depth components, the composed position, the VFI flow, and Orb 2's pressure, with the force multiplier. The stored rows are not changed. |
-| Quasar: aggregates risk and describes fragility (§2, §6) | Roster aggregates only: a distribution over five fixed depth bands; the mean depth with a 95 % interval; tail shares (depth ≥ 0.8, pressure ≥ 0.6); dispersion; and coverage (measured share, the buffer). |
-| Non-prioritised, no symbols, no ranking (§6, §3.1) | No symbol, rank, order, or remedy is returned. The result does not depend on roster order. |
-| Stateless: no learned preference (§5) | Each read recomputes from the current rows. Nothing is stored. |
-| Fixed labels only: no prescription (§7, §7.1) | Every label and number is generated from a fixed template. No free text. |
-| Feed cut (the NEO ORB boundary) | If the feed is cut, both readouts say so and nothing is computed. |
+| Quasar: aggregates risk and describes fragility (§2, §6) | Aggregates only: a distribution over five fixed depth bands, the mean depth with a 95 % interval, tail shares (depth ≥ 0.8, pressure ≥ 0.6), dispersion, and coverage (the measured share, which is the buffer). |
+| Non-prioritised, no symbols, no ranking (§6, §3.1) | No symbol, rank, order, or remedy is returned. Results do not depend on roster or buffer order. Per-orb brightness comes from BHC, which is per-orb by design. Quasar's shell is roster-level. |
+| Reinsurance: inputs are whole spheroids, not events; slow, coarse, non-binding (§1–§3, §6) | Inputs are Quasar outputs, one per issuer-sector buffer. Buffers with fewer than two measured orbs are unmeasured, not calm. Shares and envelopes are rounded to tenths. The cadence is 15 minutes, a deliberate choice, and the snapshot is held between reads. |
+| Reinsurance: exposes limits, never what must be done (§7) | Output is the envelope, synchrony, and deep-buffer share. It declares no emergency and recommends no reallocation. |
+| Stateless or snapshot only: no learned preference (§4, §5) | Quasar recomputes from the current rows. Reinsurance holds only its last snapshot. |
+| Nested hourglass (§8) | The flow is one way: rows → BHC → Quasar → Reinsurance → halo. No function reads the halo back. |
+| Feed cut (the NEO ORB boundary) | If the feed is cut, the readouts say so, nothing is computed, the orbs are neutral, and the shells and halo are not drawn. |
 
-**Not deployed, on purpose:** the spec's *Reinsurance Mode* (the meta-spheroid over many Quasar buffers), the *Insurance Mode* status banner in `13-whyland.md`, and a drawn spheroid shell. Each would be a new decision for you. The Gate Orb refusal is not built, because NEO ORB takes no compute-based legitimacy claims as input.
+**Not deployed, on purpose:** the *Insurance Mode* status banner in `13-whyland.md`, and the spec's Gate Orb refusal. The Gate Orb refusal is not built, because NEO ORB takes no compute-based legitimacy claims as input.
 
-**Limits:** the fixtures in the live tests carry only the 1000 envelope, so their depths are unmeasured and the readout says "0 of 2 measured". A full ladder is needed for depth, as the stored-levels fix requires. Quasar's "reserve" is the coverage share, not a money figure.
+**Limits:** a single snapshot cannot show correlation over time, so "synchrony" means buffers have deep tails at the same reading, not that they move together. No exhaustion horizon is estimated, because that needs a history the app does not keep. The fixtures in the live tests carry only the 1000 envelope, so their depths are unmeasured and the readouts say so. A depth needs the full six-level ladder, as the stored-levels fix requires.
+
+**Tests:** `tests/neo-orb-gravity-test.mjs` (hand-computed numbers and the spec invariants, including Reinsurance), `tests/neo-orb-placement-test.mjs` (pressure steers harder, null is neutral, unknown ids are refused, the speed cap holds), and `tests/neo-orb-test.mjs` (a frame with the shell, halo, and dark orbs drawn).
 
 ## Data path (what NEO ORB reads, and what it never touches)
 

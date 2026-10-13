@@ -265,6 +265,7 @@
       homeLatitude: h.latitude,
       mass: inertiaFor(h.band),
       extension: 0,                  // 0…1 instability extension; lifts the orb out of its band shell
+      drive: 1,                      // 0.6…1.4 steering gain from Orb 2 pressure (setPressures); 1 is neutral
       off: { lon: 0, lat: 0 },
       vel: { lon: 0, lat: 0 },
       target: { lon: 0, lat: 0 },
@@ -379,6 +380,28 @@
       for (const node of nodes) if (radii[node.id] !== undefined) node.radius = Number(radii[node.id]);
     }
 
+    /* Per-node pressure, { [id]: 0…1 | null }, from Orb 2's pressure (js/neo-orb-signals.js).
+       It scales only the flame steering gain, between 0.6× and 1.4×, so a pressed orb is steered
+       harder and a calm one drifts more gently. The speed cap is unchanged, so the mass-capped
+       speed invariant still holds. null, or no call, is neutral (1×). Fail closed: an unknown id
+       or a value outside 0…1 is refused rather than clamped. */
+    function setPressures(pressures) {
+      if (pressures === null || pressures === undefined) {
+        for (const node of nodes) node.drive = 1;
+        return;
+      }
+      if (typeof pressures !== "object" || Array.isArray(pressures)) throw new TypeError("setPressures needs a map of node id to pressure.");
+      const byId = new Map(nodes.map(node => [node.id, node]));
+      for (const [id, value] of Object.entries(pressures)) {
+        if (!byId.has(id)) throw new RangeError(`Pressure names ${id}, which is not a node this placer holds.`);
+        if (value !== null && (!finite(value) || value < 0 || value > 1)) throw new RangeError(`Pressure for ${id} must be a finite 0…1 or null; received ${value}.`);
+      }
+      for (const node of nodes) {
+        const value = pressures[node.id];
+        node.drive = value === null || value === undefined ? 1 : 0.6 + 0.8 * Number(value);
+      }
+    }
+
     /* Per-node instability extensions, { [id]: 0…1 }. Fail closed: an unknown id or an
        out-of-range value is refused rather than clamped, matching the model. */
     function setExtensions(extensions) {
@@ -447,8 +470,8 @@
           const u = node.off.lon / (TETHER_LON * roam);
           const v = -node.off.lat / (TETHER_LAT * roam);
           const g = gradientField(prepared.field, u, v);
-          ax += fade * (GUIDE_GAIN * g.u / (TETHER_LON * roam)) / m;
-          ay += fade * (GUIDE_GAIN * -g.v / (TETHER_LAT * roam)) / m;
+          ax += fade * (GUIDE_GAIN * node.drive * g.u / (TETHER_LON * roam)) / m;
+          ay += fade * (GUIDE_GAIN * node.drive * -g.v / (TETHER_LAT * roam)) / m;
         }
         return { ax, ay };
       });
@@ -585,6 +608,7 @@
       setRoam,
       setGeometry,
       setExtensions,
+      setPressures,
       setRadii,
       reset
     });

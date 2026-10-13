@@ -38,6 +38,7 @@ const extensionSource = await readText("js/market-extension.js");
 const signalsSource = await readText("js/neo-orb-signals.js");
 const blackHoleSource = await readText("js/neo-orb-black-hole.js");
 const quasarSource = await readText("js/neo-orb-quasar.js");
+const reinsuranceSource = await readText("js/neo-orb-reinsurance.js");
 const fieldSource = await readText("js/neo-orb-field.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const pageBootSource = await readText("js/neo-orb-page.js");
@@ -215,7 +216,7 @@ function appHarness({ fieldRows = null, fieldStatus = 200 } = {}) {
     requestAnimationFrame: () => 0
   });
   context.APPS = [{ id: "ocm" }, { id: "orbs" }];
-  for (const [source, name] of [[signalsSource, "js/neo-orb-signals.js"], [blackHoleSource, "js/neo-orb-black-hole.js"], [quasarSource, "js/neo-orb-quasar.js"],
+  for (const [source, name] of [[signalsSource, "js/neo-orb-signals.js"], [blackHoleSource, "js/neo-orb-black-hole.js"], [quasarSource, "js/neo-orb-quasar.js"], [reinsuranceSource, "js/neo-orb-reinsurance.js"],
     [modelSource, "js/neo-orb-model.js"], [placementSource, "js/neo-orb-placement.js"],
     [marketSource, "js/neo-orb-market.js"], [extensionSource, "js/market-extension.js"], [fieldSource, "js/neo-orb-field.js"],
     [rosterSource, "js/good-intelligence-market-roster.js"], [appSource, "js/apps-neo-orb.js"]]) {
@@ -259,6 +260,8 @@ test("the mounted app reads the stored field through the reader, and colours wha
   assert.match(bhcText, /^engaged · bound by host PDH \(display, authority none\) · 0 of 2 orbs measured/, bhcText);
   const quasarText = body.querySelector("#neo-quasar").textContent;
   assert.match(quasarText, /^spheroid · outward · 0 of 2 measured/, quasarText);
+  const reinsText = body.querySelector("#neo-reins").textContent;
+  assert.match(reinsText, /^not engaged · no buffer has enough measured orbs · held/, reinsText);
   assert.equal(engine.bhc.engaged, true);
   assert.equal(engine.quasar.prioritised, false, "Quasar Mode returns no ranking");
 });

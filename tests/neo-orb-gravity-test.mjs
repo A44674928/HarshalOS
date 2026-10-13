@@ -14,6 +14,7 @@ const readText = path => readFile(new URL(`../${path}`, import.meta.url), "utf8"
 const signalsSource = await readText("js/neo-orb-signals.js");
 const bhcSource = await readText("js/neo-orb-black-hole.js");
 const quasarSource = await readText("js/neo-orb-quasar.js");
+const reinsuranceSource = await readText("js/neo-orb-reinsurance.js");
 
 function load(source, name) {
   const context = { module: { exports: {} }, globalThis: {} };
@@ -23,6 +24,7 @@ function load(source, name) {
 const S = load(signalsSource, "neo-orb-signals.js");
 const BHC = load(bhcSource, "neo-orb-black-hole.js");
 const Q = load(quasarSource, "neo-orb-quasar.js");
+const R = load(reinsuranceSource, "neo-orb-reinsurance.js");
 
 /* A symmetric ladder: every envelope at the same ratio, so the close's depth is exact. */
 function ladder(basis, ratio) {
@@ -176,7 +178,7 @@ test("the readable text uses fixed labels and numbers, with no prescription", ()
 });
 
 test("the two modules reference no forbidden channel (the NEO ORB boundary)", () => {
-  for (const [name, source] of [["neo-orb-black-hole.js", bhcSource], ["neo-orb-quasar.js", quasarSource]]) {
+  for (const [name, source] of [["neo-orb-black-hole.js", bhcSource], ["neo-orb-quasar.js", quasarSource], ["neo-orb-reinsurance.js", reinsuranceSource]]) {
     for (const forbidden of ["http://", "https://", "fetch(", "XMLHttpRequest", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "HOS.", "legitimacy(", "/api/", "getContext", "drawImage"]) {
       assert.equal(source.includes(forbidden), false, `${name} must not reference ${forbidden}`);
     }
@@ -206,4 +208,91 @@ test("the spec's constants are carried as declared", () => {
   assert.equal(Q.SPEC.deployability, "conditional (structural role only)");
   assert.equal(BHC.SPEC.deployability, "context-dependent, bound by the host PDH");
   assert.equal(BHC.SPEC.normative, "non-normative, capability-only");
+});
+
+/* ── Reinsurance Mode: a spheroid of spheroids (js/neo-orb-reinsurance.js) ──────────── */
+
+const buffer = (measured, meanDepth, lo, hi, tailShare) => ({
+  engaged: true, measured, total: measured + 1, meanDepth, interval: { lo, hi }, tail: { depth: { share: tailShare } }
+});
+
+test("Reinsurance takes Quasar buffers, counts only buffers with two measured orbs, and says what is unmeasured", () => {
+  const buffers = [
+    buffer(4, 0.9, 0.85, 0.92, 0.75),   // deep, tail deep
+    buffer(3, 0.2, 0.1, 0.3, 0),        // calm
+    buffer(1, 0.5, 0.4, 0.6, 0.5),      // one measured orb: not a buffer
+    { engaged: false, reason: "no stored rows read" }
+  ];
+  const r = R.systemic(buffers);
+  assert.equal(r.engaged, true);
+  assert.equal(r.buffers.total, 4);
+  assert.equal(r.buffers.measured, 2);
+  assert.equal(r.buffers.coverage, 0.5);
+  assert.equal(r.envelope.lo, 0.1, "the envelope low over the buffers, to tenths");
+  assert.equal(r.envelope.hi, 0.9, "the envelope high over the buffers, to tenths");
+  assert.equal(r.deepBuffers.count, 1, "one buffer at or beyond depth 0.8");
+  assert.equal(r.deepBuffers.share, 0.5);
+  assert.equal(r.synchrony, 0.5, "one of two buffers has a deep tail: synchrony of one half");
+  assert.equal(r.meanDepth, 0.6, "the mean of buffer means (0.55) to tenths");
+  assert.equal(r.spread, 0.5, "the spread of buffer means (0.495) to tenths");
+});
+
+test("Reinsurance is coarse and non-binding: every share and envelope is rounded to tenths", () => {
+  const r = R.systemic([buffer(2, 0.83, 0.7, 0.9, 0.61), buffer(2, 0.37, 0.2, 0.5, 0.1), buffer(5, 0.61, 0.5, 0.7, 0.55)]);
+  for (const value of [r.synchrony, r.meanDepth, r.spread, r.envelope.lo, r.envelope.hi, r.deepBuffers.share, r.buffers.coverage]) {
+    assert.ok(value === null || Math.abs(value * 10 - Math.round(value * 10)) < 1e-9, `${value} is a tenth`);
+  }
+});
+
+test("with no buffer that has enough measured orbs, Reinsurance is not engaged and invents no envelope", () => {
+  const none = R.systemic([{ engaged: true, measured: 1, meanDepth: 0.5, tail: { depth: { share: 1 } } }]);
+  assert.equal(none.engaged, false);
+  assert.equal(none.envelope, null);
+  assert.equal(none.synchrony, null, "no synchrony is claimed without a buffer");
+  assert.match(R.describe(none), /not engaged .* · held$/);
+  assert.equal(R.systemic(null).engaged, false, "a missing list is not a reading");
+});
+
+test("Reinsurance does not depend on the order of its buffers", () => {
+  const list = [buffer(3, 0.9, 0.8, 0.95, 0.6), buffer(4, 0.3, 0.2, 0.4, 0.1), buffer(2, 0.6, 0.5, 0.7, 0.5)];
+  assert.deepEqual(R.systemic([...list].reverse()), R.systemic(list));
+});
+
+test("the slow cadence: a read is due before the first one and then only after the spec's long interval", () => {
+  const every = R.UPDATE_EVERY_MS;
+  assert.equal(every, 15 * 60 * 1000, "the slow update interval is fifteen minutes");
+  assert.equal(R.due(null, 1000), true, "the first read is always due");
+  assert.equal(R.due(1000, 1000 + every - 1), false, "held between slow updates");
+  assert.equal(R.due(1000, 1000 + every), true, "due at the interval");
+});
+
+test("Reinsurance returns no symbol, rank, order, priority, or remedy, and its text carries no prescription", () => {
+  const r = R.systemic([buffer(2, 0.9, 0.8, 0.95, 0.8), buffer(2, 0.1, 0.05, 0.2, 0)]);
+  const text = JSON.stringify(r);
+  for (const key of ["rank", "order", "priority", "action", "recommend", "remedy", "reserve", "symbol"]) {
+    assert.equal(text.toLowerCase().includes(`"${key}`), false, `no ${key} field`);
+  }
+  assert.equal(r.prioritised, false);
+  assert.equal(R.SPEC.orientation, "outward");
+  assert.equal(R.SPEC.authority, "none");
+  const line = R.describe(r);
+  assert.match(line, /^meta-spheroid · outward · slow, coarse, non-binding/);
+  assert.match(line, /snapshot, not a forecast$/);
+  for (const word of ["should", "recommend", "buy", "sell", "reduce", "increase", "must", "emergency"]) {
+    assert.equal(line.toLowerCase().includes(word), false, `"${line}" must not contain "${word}"`);
+  }
+});
+
+test("outward only: Reinsurance output is never read by colour, placement, the model, or the market", async () => {
+  for (const file of ["js/neo-orb-market.js", "js/neo-orb-placement.js", "js/neo-orb-model.js", "js/neo-orb-signals.js", "js/neo-orb-field.js"]) {
+    const source = await readText(file);
+    for (const token of ["NeoOrbReinsurance", "reinsurance", "systemic("]) {
+      assert.equal(source.includes(token), false, `${file} must not reference ${token}`);
+    }
+  }
+  const app = await readText("js/apps-neo-orb.js");
+  const toneFor = app.slice(app.indexOf("    toneFor(id) {"), app.indexOf("    /* One readable line"));
+  assert.equal(toneFor.toLowerCase().includes("reinsurance"), false, "toneFor does not read Reinsurance");
+  const pressure = app.slice(app.indexOf("    syncPressures() {"), app.indexOf("    /* How lit an orb is"));
+  assert.equal(pressure.toLowerCase().includes("reinsurance"), false, "the pressure sync does not read Reinsurance");
 });
