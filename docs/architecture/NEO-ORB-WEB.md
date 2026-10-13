@@ -1,7 +1,7 @@
 # NEO ORB — the web app
 
 **Status:** display-only · local · static roster snapshot · **one stored field read** (its own Worker route, at most every 20 s) · distance from the centre is the instability extension
-**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
+**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-black-hole.js` and `js/neo-orb-quasar.js` (Black Hole Computing and Quasar Mode, from the spec) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
 **Window:** **NEO ORB** in the app list, placed right after **Orb 2**.
 
 NEO ORB combines two existing browser visuals in one window:
@@ -22,6 +22,28 @@ The feed was cut on 2026-10-11 to keep company market data out of a display, and
 **Orb 2's own feed was never the thing to cut, and it is not gated.** The Worker's Orb 2 pipeline calls its providers (Massive, Tickerbot, Kraken, Alpha Vantage) on its own schedule and serves `/api/good-intelligence/v1/orb2/field` to the apps meant to read it. The former `ORB2_COMPANY_FEEDS` gate and `worker/orb2-company-feed-gate.mjs` are removed. Orb 2 also reads the same extension measure and pushes an observed orb outward by its WaveTrend half (see `docs/architecture/ORB2-TOPOLOGY.md`), so the two apps agree about what "far out" means.
 
 A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or grant. A market-cap band is a display convention, not a valuation. The phase dial is a rotation the viewer chooses; it does not declare anything. The test suite asserts that no NEO ORB file references a forbidden channel.
+
+## Black Hole Computing and Quasar Mode (`js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`)
+
+Deployed from `docs/harshal-systems/12-ground-zero.md`: **Black Hole Computing (BHC)**, a compute modality, and **Quasar Mode**, a spheroid body. The term "gravity processor" in the request is taken to mean Black Hole Computing. Both are readouts only. Colour, placement, and motion never read them, and a test enforces that.
+
+**Data flow (outward only):** one stored row per orb → `NeoOrbBlackHole.deepen` (one reading per orb) → `NeoOrbQuasar.spheroid` (roster aggregates) → the Status panel, and for the selected orb, the inspector. Nothing returns to the field.
+
+| Spec | Deployed as |
+| --- | --- |
+| BHC is capability only: no phase, authority, legitimacy, or decision (§2–§4, §9) | Each reading carries `authority: "none"`. Colour, placement, and the phase dial are unchanged. |
+| Bound by the host PDH (§8) | NEO ORB declares no PDH of its own. Its declared host scope is display-only, with authority `none`, so BHC engages. A host that declares any authority makes `engage` refuse. |
+| No legitimacy claims pass through (§7–§8) | A reading holds numbers and state names only. Stored text (`reason`, `status` notes, and so on) is never copied. |
+| BHC: deeper computation, not a different answer (§4–§5) | Per orb: the six-envelope depth components, the composed position, the VFI flow, and Orb 2's pressure, with the force multiplier. The stored rows are not changed. |
+| Quasar: aggregates risk and describes fragility (§2, §6) | Roster aggregates only: a distribution over five fixed depth bands; the mean depth with a 95 % interval; tail shares (depth ≥ 0.8, pressure ≥ 0.6); dispersion; and coverage (measured share, the buffer). |
+| Non-prioritised, no symbols, no ranking (§6, §3.1) | No symbol, rank, order, or remedy is returned. The result does not depend on roster order. |
+| Stateless: no learned preference (§5) | Each read recomputes from the current rows. Nothing is stored. |
+| Fixed labels only: no prescription (§7, §7.1) | Every label and number is generated from a fixed template. No free text. |
+| Feed cut (the NEO ORB boundary) | If the feed is cut, both readouts say so and nothing is computed. |
+
+**Not deployed, on purpose:** the spec's *Reinsurance Mode* (the meta-spheroid over many Quasar buffers), the *Insurance Mode* status banner in `13-whyland.md`, and a drawn spheroid shell. Each would be a new decision for you. The Gate Orb refusal is not built, because NEO ORB takes no compute-based legitimacy claims as input.
+
+**Limits:** the fixtures in the live tests carry only the 1000 envelope, so their depths are unmeasured and the readout says "0 of 2 measured". A full ladder is needed for depth, as the stored-levels fix requires. Quasar's "reserve" is the coverage share, not a money figure.
 
 ## Data path (what NEO ORB reads, and what it never touches)
 
