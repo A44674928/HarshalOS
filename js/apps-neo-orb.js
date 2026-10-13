@@ -270,8 +270,8 @@
     }
 
     /* ── market colour and extension (descriptive) ──────────── */
-    /* One stored read feeds both descriptive channels: fill = rally/sink and ring = basis
-       (js/neo-orb-market.js), and distance from the centre = the instability extension
+    /* One stored read feeds both descriptive channels: fill = the composed position and ring =
+       VFI against its signal (js/neo-orb-market.js), and distance from the centre = the instability extension
        (js/market-extension.js). js/neo-orb-field.js owns whether the feed is open at all and
        this app follows it fail-closed: unless the reader declares the feed open, nothing is
        read, nothing is polled, every orb stays neutral, and every orb stays on its band shell.
@@ -285,6 +285,7 @@
         this.storedAt = null;
         this.extensionStates = new Map();
         this.depths = null;
+        this.compositions = new Map();
         this.syncRadii();
         this.marketStatus = `cut — ${reader && reader.FEED_CUT_MESSAGE ? reader.FEED_CUT_MESSAGE : MARKET_CUT_MESSAGE}`;
         return;
@@ -296,6 +297,7 @@
       reader.readField({ now: Date.now() }).then(result => {
         if (result.ok) {
           this.market = market.indexField(result.observations);
+          this.compositions = market.indexComposition(result.observations);
           this.marketAt = result.at;
           this.storedAt = market.storedAsOf(result.observations);
           this.indexExtensions();
@@ -311,12 +313,14 @@
       });
     }
 
-    /* { fill, ring, rally, basis } for a roster orb. No data → neutral fill and no ring. */
+    /* { fill, ring, position, flow } for a roster orb. No stored row, no composition, or a held
+       composition → neutral fill; no VFI reading → no ring. */
     toneFor(id) {
       const market = typeof window !== "undefined" ? window.NeoOrbMarket : null;
       const record = this.market ? this.market.get(id) : null;
-      if (!market || !record) return { fill: NEUTRAL_FILL, ring: null, rally: "unknown", basis: "unknown" };
-      return market.colourOf(market.marketStateOf(record));
+      if (!market || !record) return { fill: NEUTRAL_FILL, ring: null, position: null, flow: "unavailable" };
+      const composition = this.compositions ? this.compositions.get(id) : null;
+      return market.toneOf(record, composition);
     }
 
     /* One readable line for the inspector: rally/sink, the % change, and basis. */
@@ -329,7 +333,10 @@
       const basis = s.basis === "above" ? "close above the FBB basis"
         : s.basis === "below" ? "close below the FBB basis"
           : s.basis === "equal" ? "close at the FBB basis" : "basis not supplied";
-      return `${s.rally} · ${pct} · ${basis}${this.storedLabel()}`;
+      const tone = this.toneFor(id);
+      const composed = tone.position === null ? "composed position not supplied" : `composed ${tone.position.toFixed(2)}`;
+      const flow = tone.flow === "unavailable" ? "VFI not supplied" : `VFI ${tone.flow} signal`;
+      return `${s.rally} · ${pct} · ${basis} · ${composed} · ${flow}${this.storedLabel()}`;
     }
 
     /* Each orb's depth through the six Fibonacci envelopes (js/neo-orb-signals.js), from the
@@ -903,7 +910,7 @@
                   <dt>Frame</dt><dd id="neo-frame">—</dd>
                   <dt>Convergence</dt><dd id="neo-conv">—</dd>
                   <dt>Berths</dt><dd id="neo-berth">—</dd>
-                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rallying <span class="neo-swatch" style="background:#ef4444"></span>sinking <span class="neo-swatch" style="background:#3b82f6"></span>below basis <span class="neo-swatch" style="background:#facc15"></span>above basis · fill is rally/sink, ring is basis${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
+                  <dt>Colour</dt><dd><span class="neo-swatch" style="background:#22c55e"></span>rising <span class="neo-swatch" style="background:#ef4444"></span>falling · fill is the composed position (daily baseline + 15m residual), further from neutral = stronger · <span class="neo-swatch" style="background:#38bdf8"></span>VFI above signal <span class="neo-swatch" style="background:#fb923c"></span>VFI below signal · ring is VFI${this.feedCut() ? " · the feed is cut, so no orb is coloured" : ""}</dd>
                   <dt>Distance</dt><dd>further out = more extended · the larger of the WaveTrend reading past ±53…±70 and the close's log distance from the FBB basis to its ±1000 envelope · 0 keeps an orb on its depth shell, 1 is the instability region's outer edge${this.feedCut() ? " · the feed is cut, so every orb stays on its shell" : ""}</dd>
                   <dt>Market</dt><dd id="neo-market">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>

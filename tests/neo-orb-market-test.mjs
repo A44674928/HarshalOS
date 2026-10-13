@@ -35,35 +35,75 @@ const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(
 
 const row = (symbol, market, extra = {}) => ({ symbol, discId: "stocks", observedAt: 1000, market, ...extra });
 
-test("the reserved palette is exactly green, red, blue, and yellow, with a neutral for no data", () => {
+test("the palette is green and red for the composed position, sky and orange for VFI, and a neutral for no data", () => {
   assert.deepEqual({ ...Market.COLORS }, {
-    rallying: "#22c55e", sinking: "#ef4444", below: "#3b82f6", above: "#facc15", neutral: "#8fa3c0"
+    rallying: "#22c55e", sinking: "#ef4444", flowAbove: "#38bdf8", flowBelow: "#fb923c", neutral: "#8fa3c0"
   });
 });
 
-test("rally and sink follow changePct: up is green, down is red, flat and missing are neutral", () => {
-  const up = Market.colourOf(Market.marketStateOf({ changePct: 1.2 }));
-  const down = Market.colourOf(Market.marketStateOf({ changePct: -0.4 }));
-  const flat = Market.colourOf(Market.marketStateOf({ changePct: 0 }));
-  const none = Market.colourOf(Market.marketStateOf({}));
-  assert.equal(up.fill, Market.COLORS.rallying);
-  assert.equal(down.fill, Market.COLORS.sinking);
+test("the fill follows the composed position: up is green, down is red, neutral and missing are neutral", () => {
+  const up = Market.toneOf({}, { composedPosition: 1 });
+  const down = Market.toneOf({}, { composedPosition: 0 });
+  const flat = Market.toneOf({}, { composedPosition: 0.5 });
+  const none = Market.toneOf({}, null);
+  assert.equal(up.fill, Market.COLORS.rallying, "a fully rising composition (1.0) is the full green");
+  assert.equal(down.fill, Market.COLORS.sinking, "a fully falling composition (0.0) is the full red");
+  assert.notEqual(Market.toneOf({}, { composedPosition: 0.9 }).fill, Market.COLORS.neutral, "a rising composition is tinted");
   assert.equal(flat.fill, Market.COLORS.neutral);
-  assert.equal(none.fill, Market.COLORS.neutral);
-  assert.equal(none.rally, "unknown");
+  assert.equal(none.fill, Market.COLORS.neutral, "no composition is neutral, never a tint");
+  assert.equal(none.position, null);
 });
 
-test("basis follows the close against the FBB band basis: blue below, yellow above, no ring when equal", () => {
+test("the fill is stronger further from neutral, and the position is bounded", () => {
+  const weak = Market.toneOf({}, { composedPosition: 0.6 }).fill;
+  const strong = Market.toneOf({}, { composedPosition: 0.85 }).fill;
+  assert.notEqual(weak, strong, "a stronger reading is a different tint");
+  assert.equal(Market.toneOf({}, { composedPosition: 1.4 }).position, null, "an out-of-range position is refused");
+  assert.equal(Market.toneOf({}, { composedPosition: "0.8" }).position, 0.8, "a numeric string is read as a number, as elsewhere in NEO ORB");
+});
+
+test("the ring follows VFI against its signal: sky above, orange below, no ring when equal or unavailable", () => {
+  const above = Market.toneOf({ vfi: { value: 5, signal: 3, available: true } }, null);
+  const below = Market.toneOf({ vfi: { value: 3, signal: 5, available: true } }, null);
+  const equal = Market.toneOf({ vfi: { value: 4, signal: 4, available: true } }, null);
+  const none = Market.toneOf({ vfi: { value: 4, signal: 3, available: false } }, null);
+  assert.equal(above.ring, Market.COLORS.flowAbove);
+  assert.equal(below.ring, Market.COLORS.flowBelow);
+  assert.equal(equal.ring, null);
+  assert.equal(none.ring, null);
+  assert.equal(none.flow, "unavailable");
+});
+
+test("the fill and the ring are independent: the composition does not change the ring", () => {
+  const market = { vfi: { value: 5, signal: 3, available: true } };
+  const a = Market.toneOf(market, { composedPosition: 0.9 });
+  const b = Market.toneOf(market, null);
+  assert.equal(a.ring, b.ring, "the VFI ring is the same with or without a composition");
+  assert.notEqual(a.fill, b.fill);
+});
+
+test("basis is still reported for the inspector, but it no longer sets a colour", () => {
   const above = Market.marketStateOf({ latestBar: { close: 110 }, basis: 100 });
   const below = Market.marketStateOf({ latestBar: { close: 90 }, basis: 100 });
   const equal = Market.marketStateOf({ latestBar: { close: 100 }, basis: 100 });
   assert.equal(above.basis, "above");
   assert.equal(below.basis, "below");
   assert.equal(equal.basis, "equal");
-  assert.equal(Market.colourOf(above).ring, Market.COLORS.above);
-  assert.equal(Market.colourOf(below).ring, Market.COLORS.below);
-  assert.equal(Market.colourOf(equal).ring, null);
+  assert.equal(Market.toneOf({ latestBar: { close: 90 }, basis: 100 }, null).ring, null, "a close below basis draws no ring");
   assert.equal(Market.marketStateOf({ basis: 100 }).basis, "unknown", "no close, no basis state");
+});
+
+test("the composition is read from the newest stock row per symbol", () => {
+  const rows = [
+    { symbol: "NVDA", discId: "stocks", observedAt: 100, market: {}, composition: { composedPosition: 0.2 } },
+    { symbol: "NVDA", discId: "stocks", observedAt: 200, market: {}, composition: { composedPosition: 0.8 } },
+    { symbol: "AAPL", discId: "fx", observedAt: 300, market: {}, composition: { composedPosition: 0.9 } },
+    { symbol: "MSFT", discId: "stocks", observedAt: 50, market: {} }
+  ];
+  const comp = Market.indexComposition(rows);
+  assert.equal(comp.get("NVDA").composedPosition, 0.8, "the newest row wins");
+  assert.equal(comp.has("AAPL"), false, "other asset classes are not coloured");
+  assert.equal(comp.has("MSFT"), false, "a row with no composition has none");
 });
 
 test("the preferred FBB variant supplies the basis, as Orb 2 chooses it, else the market basis", () => {
@@ -94,7 +134,7 @@ test("the basis reads the field row's real shape (fbbComparison.variants), as th
   };
   assert.equal(Market.basisOf(serverRow), 120, "a short L60 history falls through to FBB-200 in the server row");
   assert.equal(Market.marketStateOf(serverRow).basis, "below", "95 is below the 120 basis");
-  assert.equal(Market.colourOf(Market.marketStateOf(serverRow)).ring, Market.COLORS.below, "the blue ring follows the real basis");
+  assert.equal(Market.marketStateOf(serverRow).basis, "below", "the server row's basis is still read for the inspector");
   const l60 = { latestBar: { close: 95 }, basis: 100, fbbComparison: { variants: { "FBB-L60": { status: "available", basis: 90 }, "FBB-200": { status: "available", basis: 120 } } } };
   assert.equal(Market.basisOf(l60), 90, "FBB-L60 is preferred in the server row too");
 });

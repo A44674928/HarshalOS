@@ -431,14 +431,15 @@ const stockRow = (symbol, market) => ({ symbol, discId: "stocks", observedAt: 9,
 const openReader = rows => ({ FEED_CUT: false, FEED_CUT_MESSAGE: "", readField: async () => ({ ok: true, at: 7, observations: rows }) });
 const settle = async () => { for (let turn = 0; turn < 12; turn += 1) await Promise.resolve(); };
 
-const EXTREME_ROW = stockRow("NVDA", {
+const composed = (row, composedPosition) => ({ ...row, composition: { composedPosition, status: "composed" } });
+const EXTREME_ROW = composed(stockRow("NVDA", {
   changePct: 3.2, latestBar: { close: 118 }, basis: 100, bands: { lower1000: 90, upper1000: 110 },
   waveTrend: { wt1: 74, wt2: 30, zone: "extreme overbought" }
-});
-const CALM_ROW = stockRow("AAPL", {
+}), 1);
+const CALM_ROW = composed(stockRow("AAPL", {
   changePct: -0.4, latestBar: { close: 100 }, basis: 100, bands: { lower1000: 90, upper1000: 110 },
   waveTrend: { wt1: -18, wt2: -6, zone: "neutral zone" }
-});
+}), 0);
 const UNMEASURED_ROW = stockRow("TSLA", { changePct: 1.1 });
 
 test("the app eases each orb toward its stored reading and keeps the whole fleet in frame", async () => {
@@ -595,7 +596,7 @@ test("with the feed deliberately opened, colour still works: fill is rally/sink,
   h.win.NeoOrbField = {
     FEED_CUT: false,
     readField: async () => ({ ok: true, at: 7, observations: [
-      { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100 } }
+      { symbol: "NVDA", discId: "stocks", observedAt: 9, market: { changePct: 2, latestBar: { close: 110 }, basis: 100, vfi: { value: 5, signal: 3, available: true } }, composition: { composedPosition: 1, status: "composed" } }
     ] })
   };
   engine.refreshMarket(1000);
@@ -603,7 +604,7 @@ test("with the feed deliberately opened, colour still works: fill is rally/sink,
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(engine.marketStatus, "live");
   assert.equal(tone("NVDA").fill, market.COLORS.rallying, "NVDA rallies: green fill");
-  assert.equal(tone("NVDA").ring, market.COLORS.above, "NVDA is above basis: yellow ring");
+  assert.equal(tone("NVDA").ring, market.COLORS.flowAbove, "NVDA's VFI is above its signal: sky ring");
   assert.equal(tone("AAPL").fill, "#8fa3c0", "a symbol with no field row stays neutral");
   engine.refreshMarket(1005);
   assert.equal(engine.lastMarketAt, 1000, "within MARKET_EVERY_MS the field is not re-read");
