@@ -897,6 +897,10 @@ p.body strong, .li strong { color: var(--text); font-weight: 600; }
 .btn-ice:hover { border-color: var(--ice); background: rgba(111, 211, 255, 0.13); }
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+/* The removed LLM Link shell offers one signpost into Ground-0's manual
+   wizard. It is an anchor, not a button: with the shell's handler absent the
+   href deep-links the app on its own, so the link never dead-ends. */
+.btn-row a.btn { text-decoration: none; }
 
 .kv {
   display: grid;

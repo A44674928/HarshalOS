@@ -1032,7 +1032,18 @@ if (llmApp) {
     "the shell names what used to be here, so the removal is legible");
   ok(!llmWindow.body.querySelector("#ll-provider") && !llmWindow.body.querySelector("#ll-key") && !llmWindow.body.querySelector("#ll-test") && !llmWindow.body.querySelector("#ll-models"),
     "there is no provider list, key field, test button, or model list left to configure");
+  const signpost = llmWindow.body.querySelector("#ll-ground0");
+  ok(!!signpost, "the shell offers one signpost into the path that works");
+  ok(!!(signpost && signpost.attrs.href === "#app=ground0"), "the signpost deep-links the Ground-0 app, so it survives without any handler");
   ok(llmCalls.length === 0, "opening the shell makes no network request of any kind");
+  if (signpost) {
+    signpost.click();
+    const g0rec = shell.windows.get("ground0");
+    ok(!!g0rec, "the signpost opens the Ground-0 Audit window instead of dead-ending");
+    ok(!!(g0rec && /Step 1 of 4/.test(g0rec.body.textContent || "")),
+      "the signpost lands on the manual wizard's first step, not the audit desk");
+    ok(llmCalls.length === 0, "following the signpost still makes no network request");
+  }
   globalThis.fetch = outsideFetch;
 }
 ok(!globalThis.HOSLLM && !globalThis.G0LLM, "the connection layer and the reading pass are not loaded anywhere on the page");

@@ -64,8 +64,8 @@ The guided demonstration uses a fresh iframe with `sandbox="allow-scripts"` and 
 layer, no `G0LLM` reading pass, no provider preset or key field, no browser-to-provider call, and no
 same-origin relay: `worker/llm-relay.mjs` and its `/api/llm` routes are deleted, as are the Workers
 AI binding in `wrangler.jsonc` and the Neuron spend ledger with its migration. The **LLM Link** tile
-survives only as a shell that renders one `REFUSED — REMOVED` panel — it holds no key, stores
-nothing, and calls nothing. [`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) is the written
+survives only as a shell that renders one `REFUSED — REMOVED` panel and one local signpost into
+Ground-0's manual audit wizard — it holds no key, stores nothing, and calls nothing. [`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) is the written
 record; `npm run test:llm-removal` fails if a provider endpoint, key store, relay route, AI binding,
 removed module, or restored Ground-0 reading control comes back.
 

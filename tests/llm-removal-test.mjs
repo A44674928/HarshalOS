@@ -162,7 +162,7 @@ test("removal: Ground-0 has no model-reading controls left, and keeps its own wo
 });
 
 /* ── the shell says what it is ──────────────────────────────────────── */
-test("removal: the LLM Link tile is a shell that discloses the removal and calls nothing", async () => {
+test("removal: the LLM Link tile is a shell that discloses the removal and points at the manual path", async () => {
   globalThis.APPS = [];
   globalThis.window = globalThis;
   await import("../js/apps-llm.js");
@@ -176,9 +176,23 @@ test("removal: the LLM Link tile is a shell that discloses the removal and calls
   for (const named of ["js/llm.js", "js/g0-llm.js", "worker/llm-relay.mjs", "0014_ai_neuron_ledger.sql"]) {
     assert.ok(body.innerHTML.includes(named), `the shell names the removed ${named} so the record is legible`);
   }
-  for (const field of ["<input", "<select", "<button", "<form", "fetch(", "localStorage"]) {
+
+  /* One signpost, and only one. It is an anchor whose href is a real deep link
+     into Ground-0, so it survives without the handler; it is also the only
+     affordance the shell offers. A refused path should name the path that works. */
+  const anchors = body.innerHTML.match(/<a\b/g) || [];
+  assert.equal(anchors.length, 1, "the shell offers exactly one link, and it is the signpost");
+  assert.match(body.innerHTML, /<a[^>]+href="#app=ground0"/, "the signpost deep-links the Ground-0 app");
+  assert.match(body.innerHTML, /manual Ground-0 audit wizard/, "the signpost says what it opens");
+
+  for (const field of ["<input", "<select", "<textarea", "<button", "<form", "fetch(", "localStorage", "XMLHttpRequest", "WebSocket"]) {
     assert.ok(!body.innerHTML.includes(field), `the shell must expose no ${field} control or path`);
   }
+
+  /* Rendering must stay inert: the signpost's handler is only attached when the
+     window api is present, and this fake api has no openApp — nothing may throw
+     or be called just because the panel was drawn. */
+  assert.doesNotThrow(() => app.render({ innerHTML: "" }, {}), "rendering the shell without a window api is inert");
 });
 
 test("removal: the shell file itself performs no I/O", async () => {

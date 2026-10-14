@@ -43,6 +43,15 @@ no inputs, no storage access, and no network call of any kind; the CSS that
 styled its controls is gone, so it renders in the shell's ordinary refusal
 style. A test asserts each of those properties.
 
+The shell keeps exactly one affordance, and it is a signpost rather than a
+control: a single anchor that opens Ground-0's manual audit wizard. Its `href`
+is the real deep link (`#app=ground0`, read by `js/wm.js` at init), so the link
+resolves even when the shell's own click handler is unavailable; the handler
+only adds the wizard shortcut. The point is that a refused path should name the
+path that works — an audit is still completed by hand, in the wizard.
+`tests/g0-desktop-test.mjs` follows the signpost and asserts it lands on
+step 1 of 4 rather than dead-ending.
+
 Server side, a request to the old `/api/llm` path no longer matches any route.
 It falls through to the private storage API (`handleApi`), which requires a
 Cloudflare Access session and answers `404 Unknown storage endpoint.` after
