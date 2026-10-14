@@ -210,10 +210,101 @@
     return complete && numerator !== "" && denominator !== "" && Number.isInteger(n) && Number.isInteger(d) && d > 0 && n >= 0 && n <= d && n / d >= 0.5 && beforeCutoff(start, cutoff) && beforeCutoff(end, cutoff) && dateTime(start) <= dateTime(end);
   }
   /* v1.1 B4: an external order plus compliance is NOT terminal refusal. */
+  /* ──────────────────────────────────────────────────────────────
+     Direction of authority: who holds the power, and over whom
+
+     B1 to B5 ask about authority the institution exercises (outbound). C1 to
+     C4 ask about authority exercised over the institution (inbound). They
+     are not interchangeable, and the B-layer has been leaking: evidence of a
+     court overturning the institution is inbound, and it has been used to
+     answer an outbound question. Wording is the root cause — B1 says "entity"
+     for the institution and B4 says it for the party subject to it.
+
+     So every piece of evidence carries a holder and a subject, and every
+     question names the directions it will accept:
+
+       outbound      institution → subject-party
+       inbound       external    → institution
+       self-directed subject-party → subject-party, which is neither: it is
+                     the subject party over its own participation, and it
+                     changes nothing the institution does.
+
+     B4 is where this has actually gone wrong. "The user can walk away" ends
+     that user's participation and nobody else's; the institution's action
+     continues for everyone still in scope, so it does not halt the thing B4
+     asks about.
+     ────────────────────────────────────────────────────────────── */
+  const DIRECTION = Object.freeze({
+    outbound: Object.freeze({ holder: "institution", subject: "subject-party" }),
+    /* Inbound splits in two, and the split is the whole point. An external
+       body can act on the institution because somebody appealed to it, or it
+       can act on its own initiative. Those are different powers with
+       different holders in practice, and they belong to different questions:
+       a regulator recalling a model is C1's business, while an appeal that
+       stops the action is B4's. Calling both "inbound" let one event answer
+       both questions, and made every regulated entity look like it could be
+       stopped by an appeal. */
+    inboundOnAppeal: Object.freeze({ holder: "external", subject: "institution", seizedBy: "subject-party" }),
+    inboundIndependent: Object.freeze({ holder: "external", subject: "institution", seizedBy: "external" }),
+    selfDirected: Object.freeze({ holder: "subject-party", subject: "subject-party" }),
+    /* A sunset clause or a term limit is the institution binding itself, and
+       it is the only direction C3 looks for. */
+    structural: Object.freeze({ holder: "institution", subject: "institution" })
+  });
+
+  const QUESTION_DIRECTION = Object.freeze({
+    B1: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) }),
+    /* B2 is genuinely mixed: "advisory or voluntary" is the institution over
+       itself, while "legally challenged or overturned" is inbound evidence
+       feeding an outbound question. Both are accepted, and the report says
+       which was used. */
+    /* "Legally challenged or overturned" is an external body acting, whether
+       it was seized by a challenge or not, so B2 admits both. */
+    B2: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound", "inboundOnAppeal", "inboundIndependent"]) }),
+    B3: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) }),
+    /* Only an appeal. A regulator acting on its own initiative is C1. */
+    B4: Object.freeze({ axis: "inbound", accepts: Object.freeze(["inboundOnAppeal"]) }),
+    B5: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) })
+  });
+
+  /* Which direction each constraint question looks for. This is descriptive:
+       it labels the inbound profile for the reader. It does not gate C1 to C4,
+       whose scoring is untouched — an override, a granted appeal, a sunset and
+       a functioning constraint are evidenced on their own terms. */
+  const CONSTRAINT_DIRECTION = Object.freeze({
+    C1: Object.freeze({ accepts: Object.freeze(["inboundIndependent"]) }),
+    C2: Object.freeze({ accepts: Object.freeze(["inboundOnAppeal"]) }),
+    C3: Object.freeze({ accepts: Object.freeze(["structural"]) }),
+    C4: Object.freeze({ accepts: Object.freeze(["inboundOnAppeal", "inboundIndependent"]) })
+  });
+
+  /* B4's declared routes, and what each of them is really about. */
+  const B4_BASIS = Object.freeze({
+    TERMINAL_RULE: Object.freeze({ direction: "inboundOnAppeal", note: "a binding rule that stays the institution's action once an affected party refuses or appeals" }),
+    RESOLVED_APPEALS: Object.freeze({ direction: "inboundOnAppeal", note: "an external body seized by an appeal granting relief against the institution" }),
+    NO_PENALTY_EXIT: Object.freeze({
+      direction: "selfDirected",
+      note: "the subject party ending its own participation. The institution's action continues for everyone else, so it does not halt it."
+    }),
+    NOT_DEMONSTRATED: Object.freeze({ direction: "none", note: "no route demonstrated" })
+  });
+
+  function evidenceAllowedFor(code, evidence) {
+    const question = QUESTION_DIRECTION[code];
+    if (!question) return false;
+    const direction = evidence && evidence.direction ? evidence.direction : null;
+    return !!direction && question.accepts.includes(direction);
+  }
+
   function b4Qualifies(input) {
     const b = input.b4;
     if (!hasScoringCitation(input, input.answers[3]) || !b.actor.trim() || !b.action.trim() || !b.procedure.trim()) return false;
-    if (b.basis === "TERMINAL_RULE" || b.basis === "NO_PENALTY_EXIT") return true;
+    /* A route only qualifies B4 if it is authority exercised over the
+       institution. NO_PENALTY_EXIT is self-directed, so it is barred here:
+       see B4_BASIS. The other three lines of this function are unchanged. */
+    const route = B4_BASIS[b.basis];
+    if (!route || route.direction !== "inboundOnAppeal") return false;
+    if (b.basis === "TERMINAL_RULE") return true;
     return b.basis === "RESOLVED_APPEALS" && reliefQualifies(b.numerator, b.denominator, b.complete, b.start, b.end, input.cutoff);
   }
   function scoredVector(input) {
@@ -365,6 +456,30 @@
     const vector = scoredVector(input);
     const initial = classify(vector);
     const constraints = scoredConstraints(input);
+    /* The inbound axis, computed for every audit. C1 to C4 are all questions
+       about authority exercised over the entity — an override, an appeal that
+       grants relief, a sunset, a constraint functioning now — which is the
+       opposite direction from B1 to B5. Step 3.5 consulted them only when the
+       vector came out AMBIGUOUS, so an entity that lands cleanly on NAB or
+       GSRB was never told what holds over it. The phase logic is untouched;
+       this is the profile being reported rather than reached for. */
+    const inbound = {
+      axis: "authority exercised over the entity",
+      checks: constraintQuestions.map((question, i) => ({
+        code: question.code,
+        title: question.title,
+        direction: "inbound",
+        direction: (CONSTRAINT_DIRECTION[question.code] || {}).accepts
+          ? CONSTRAINT_DIRECTION[question.code].accepts[0]
+          : "inbound",
+        demonstrated: constraints[i] === true,
+        answer: input.constraints[i] ? input.constraints[i].value : null,
+        gap: input.constraints[i] ? input.constraints[i].gap : ""
+      })),
+      demonstrated: constraints.filter(Boolean).length,
+      total: constraintQuestions.length,
+      consultedForPhase: initial.phase === "AMBIGUOUS"
+    };
     let phase = initial.phase;
     let confidence = initial.confidence;
     // An unanswered behavioral question is unknown, not NO: never let it complete a NAB/CWO/GSRB branch.
@@ -446,6 +561,7 @@
       Activator_Vector: activatorVector, Branch_Matches: { NAB: initial.matches[0], CWO: initial.matches[1], GSRB: initial.matches[2] },
       B4_Event_Record: { ...input.b4, B4_Basis: input.b4.basis, Actor: input.b4.actor, Action: input.b4.action, Procedure: input.b4.procedure, Result_Claim: input.answers[3].notes || "NOT_RECORDED", External_Order_Separate: input.external, Scored_Answer: vector[3] ? "YES" : "NO" },
       Constraint_Results: input.constraints.map((a, i) => ({ Code: `C${i + 1}`, Auditor_Answer: a.value === null ? "UNANSWERED" : a.value ? "YES" : "NO", Scored_Answer: constraints[i] ? "YES" : "NO", Source: a.source, Publication_Date: a.date, Evidence_Gap: a.gap })), C2_Outcome_Record: input.c2,
+      Inbound_Profile: { Axis: inbound.axis, Demonstrated: `${inbound.demonstrated} of ${inbound.total}`, Consulted_For_Phase: inbound.consultedForPhase ? "yes — the vector was ambiguous" : "no — reported regardless of phase", Checks: inbound.checks.map(check => ({ Code: check.code, Question: check.title, Demonstrated: check.demonstrated ? "YES" : "NO", Gap: check.gap })) },
       External_Constraint_Record: externalRecord, Constraint_Decrement: { Verified_By_Auditor: decrement ? "YES" : "NO", ...input.decrement, Non_Scoring: true },
       Working_Badge: null, Duty_Collation_Entry_ID: entryId, Replication_Risk: replicationRisk, Temporal_Pattern: temporalPattern,
       Transition_History: [...history.filter(a => a.cutoff <= input.cutoff).flatMap(a => a.transition ? [a.transition] : []), ...(transition ? [transition] : [])],
@@ -459,7 +575,7 @@
       workingBadge, input, method, id: (host.crypto && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       name: input.name.trim(), identifier: input.identifier.trim(), version: input.version, createdAt: now, cutoff: input.cutoff,
       reportedDeclared: pdh.declared === "NONE" ? "None" : pdh.declared, phase, confidence, severity, compliance, badge, status, baseline: false,
-      evidence, answers: input.answers, constraints: input.constraints, pdh, finding, replicationRisk, temporalPattern, transition, report
+      evidence, answers: input.answers, constraints: input.constraints, inbound, pdh, finding, replicationRisk, temporalPattern, transition, report
     };
   }
 
@@ -705,10 +821,204 @@
     catch { return false; }
   }
 
+  /* ──────────────────────────────────────────────────────────────
+     Absence: what a silent record means, per criterion
+
+     "Absence of evidence is not evidence for no" is the right rule for a
+     model reading documents, and it stays the rule for the model. It is
+     the wrong rule for every criterion in this instrument, because the
+     criteria do not all ask the same kind of question:
+
+       documentary — the check lives in a published instrument: a sunset
+         clause, an enforcement provision, a published appeal route. If the
+         entity's governing record says nothing about it, that silence is
+         the finding. A check that is not written down is not a
+         demonstrable check, and NAB-Constrained requires demonstrable
+         checks.
+
+       occurrence — the check is something that has to have happened: an
+         override in the preceding 24 months, constraints functioning in the
+         preceding 12 months, observable downstream effects. No document can
+         be silent about an event. Silence here says the wrong records were
+         supplied, not that nothing happened.
+
+     So a documentary absence is a scored NOT DEMONSTRATED; an occurrence
+     absence is NOT ASSESSED, and the reason names the record class that
+     would answer it. Without that split, a terms-of-service page stands in
+     for a court outcome.
+
+     Two criteria are mixed, and they split on whether the documentary half
+     is a precondition or merely an alternative. C2's published appeal route
+     is a precondition: a route that is not published cannot grant relief,
+     so its absence closes the criterion. B4's terminal rule and no-penalty
+     exit are alternatives to a relief record, so their absence does not
+     close it — the relief record may still exist.
+     ────────────────────────────────────────────────────────────── */
+  const CRITERION_KIND = Object.freeze({
+    B1: { kind: "documentary" },
+    B2: { kind: "documentary" },
+    B3: { kind: "occurrence" },
+    B4: { kind: "mixed", role: "alternative", occurrence: "a complete relief record showing at least 50% relief" },
+    /* B5 is inverted, and the instrument has to say so out loud: the
+       absence of a sunset clause is itself the evidence that authority
+       persists. The same silence is therefore both an answer and an
+       undemonstrated check, so it is reported as both and scored as
+       neither — a human settles which reading the record supports. */
+    B5: { kind: "documentary", inverted: true },
+    C1: { kind: "occurrence" },
+    C2: { kind: "mixed", role: "precondition", documentary: "a published, accessible appeal route" },
+    C3: { kind: "documentary" },
+    C4: { kind: "occurrence" }
+  });
+
+  const ABSENCE = Object.freeze({
+    MIN_CORPUS: 3,                     /* dated, full-text primary records before any silence is scored */
+    NOT_DEMONSTRATED: "NOT_DEMONSTRATED",
+    NOT_ASSESSED: "NOT_ASSESSED"
+  });
+
+  const thinCount = diagnostics => ["excerptOnlyRecords", "shortRecords", "undatedRecords"]
+    .reduce((sum, key) => sum + Math.max(0, Number((diagnostics || {})[key]) || 0), 0);
+
+  /* A documentary absence is only a finding against a corpus that could have
+     carried the instrument. Three or more dated, full-text primary records,
+     and thin records — excerpt-only, under 400 characters, or undated — not
+     the majority of what was read. Against a thin corpus the honest verdict
+     is NOT ASSESSED, and the reason is the corpus, never the entity. */
+  function corpusCarriesDocuments(diagnostics) {
+    const read = Math.max(0, Number((diagnostics || {}).recordsRead) || 0);
+    return read >= ABSENCE.MIN_CORPUS && thinCount(diagnostics) * 2 <= read;
+  }
+
+  /* What a criterion's unanswered state means. This is the instrument's
+     verdict, not the model's: the model reports what it saw, and this
+     decides what the silence counts for. */
+  function absenceVerdict(code, diagnostics) {
+    const entry = CRITERION_KIND[code];
+    if (!entry) {
+      return { code, verdict: ABSENCE.NOT_ASSESSED, reason: "this is not a question the instrument scores from a silent record" };
+    }
+    const documentary = entry.kind === "documentary" || (entry.kind === "mixed" && entry.role === "precondition");
+    if (!documentary) {
+      return {
+        code,
+        verdict: ABSENCE.NOT_ASSESSED,
+        reason: entry.occurrence
+          ? `${code} asks whether something has happened — ${entry.occurrence}. Outcome records answer it: enforcement actions, resolved appeals with results, reversals, or a dated override. Governing documents cannot.`
+          : `${code} asks about effects that have to be observed. Outcome records answer it: enforcement actions, resolved appeals with results, reversals, or a dated override. Governing documents cannot.`
+      };
+    }
+    if (!corpusCarriesDocuments(diagnostics)) {
+      const read = Math.max(0, Number((diagnostics || {}).recordsRead) || 0);
+      return {
+        code, verdict: ABSENCE.NOT_ASSESSED,
+        reason: `the record is silent, but the corpus cannot carry a finding: ${read} record${read === 1 ? "" : "s"} read, ${thinCount(diagnostics)} of them excerpt-only, under 400 characters, or undated. Improve the sources first; the silence says nothing about the entity yet.`
+      };
+    }
+    if (entry.inverted) {
+      return {
+        code, verdict: ABSENCE.NOT_DEMONSTRATED, inverted: true,
+        reason: "no sunset clause, term limit, or expiry date appears in the governing record. That silence is itself the evidence that authority persists, and it is also an undemonstrated check. Both readings are reported; neither is scored automatically."
+      };
+    }
+    return {
+      code,
+      verdict: ABSENCE.NOT_DEMONSTRATED,
+      reason: entry.documentary
+        ? `${entry.documentary} does not appear in the entity's governing record, over a corpus that could have carried it. A check that is not written down is not a demonstrable check.`
+        : "nothing in the entity's governing record provides this check, over a corpus that could have carried it."
+    };
+  }
+
+  /* Evidence handed over after the audit is the weakest kind there is, and
+     the easiest to manufacture: an appeal route can be published in an
+     afternoon. It is admitted to the record — the instrument does not hide
+     it — but it cannot show the state of the entity at the cutoff. It cures
+     a finding only when it is independently shown to have predated the
+     audit. Until then it is a declaration under review: it starts a
+     transition, and it does not revise this edition. */
+  function submissionReview(submission, cutoff) {
+    const row = submission || {};
+    const date = isCalendarDate(row.date) ? row.date : "";
+    const before = date ? eligibleByCutoff(date, cutoff) : false;
+    if (before && row.independentlyDatedBefore === true) {
+      return {
+        status: "ADMITTED", cures: true, transition: false,
+        reason: "dated on or before the cutoff and independently corroborated as existing before the audit."
+      };
+    }
+    if (!before) {
+      return {
+        status: "DECLARATION_REVIEW_REQUIRED", cures: false, transition: true,
+        reason: date
+          ? `dated ${date}, after the cutoff, so it cannot show the state of the entity at the cutoff. It is admitted to the record and starts a transition; it does not revise this edition.`
+          : "undated, so nothing here can be placed against the cutoff. It is admitted to the record as a declaration under review, and it does not revise this edition."
+      };
+    }
+    return {
+      status: "DECLARATION_REVIEW_REQUIRED", cures: false, transition: false,
+      reason: "dated before the cutoff but not independently corroborated. Material submitted by the audited party, without independent dating, is a claim about the entity rather than evidence of it."
+    };
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Questions, answers and variables, from one source
+
+     B1 to B3 and B5 are named after the affirmative of their question and
+     negate by value: a "no" is enforcement_present = FALSE. B4 and B5 carry
+     a second name from v1.0, which names the exception rather than the
+     negation — refusal_override is TRUE when B4 is NO, and
+     authority_time_bound is TRUE when B5 is NO. That is the "YES activates"
+     table in js/g0-app.js, and it is why the same answer reads two ways
+     depending on where it was written down.
+
+     This table is the single source. Every variable name a document prints
+     is either in here or it is drift, and a test holds the documents to it.
+     Collapsing B4 and B5 to one name each is the right end state — a
+     variable that changes name with its answer is two variables wearing one
+     — but it is a change to the v1.0 coding that the normative spec
+     references, so it is a decision, not a cleanup.
+     ────────────────────────────────────────────────────────────── */
+  const ANSWER_VARIABLES = Object.freeze({
+    B1: Object.freeze({ yes: "enforcement_present", no: "enforcement_present" }),
+    B2: Object.freeze({ yes: "decisions_optional", no: "decisions_optional" }),
+    B3: Object.freeze({ yes: "rules_execute", no: "rules_execute" }),
+    B4: Object.freeze({ yes: "refusal_terminal", no: "refusal_override" }),
+    B5: Object.freeze({ yes: "authority_persists", no: "authority_time_bound" })
+  });
+
+  /* Variables the instrument prints that belong to a step rather than to a
+     question: PDH_VALID is Step 1's own verdict on the declaration header.
+     Declared here for the same reason as the table above — a name in a
+     document that the instrument does not know about is drift, whether or
+     not a question carries it. */
+  const INSTRUMENT_VARIABLES = Object.freeze(["PDH_VALID"]);
+
+  function questionByCode(code) {
+    return questions.find(question => question.code === code)
+      || constraintQuestions.find(question => question.code === code)
+      || null;
+  }
+  function variableFor(code) {
+    return ANSWER_VARIABLES[code] ? ANSWER_VARIABLES[code].yes : "";
+  }
+  /* The tag a document should print for an answer, built from the table so
+     that the question, the answer and the variable cannot drift apart. */
+  function answerTag(code, value) {
+    const names = ANSWER_VARIABLES[code];
+    if (!names) return "";
+    if (value !== true && value !== false) return `(${names.yes} = UNKNOWN)`;
+    const exceptionNamed = names.yes !== names.no;
+    return `(${value ? names.yes : names.no} = ${value || exceptionNamed ? "TRUE" : "FALSE"})`;
+  }
+
   /* ────────────────────────────────────────────────────────────── */
   return {
     CENTER_ORIGIN, DECLARED_PHASES, DETECTED_PHASES, DIAGNOSTIC_STATES, PHASE_EVENT_TYPES,
     questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
+    CRITERION_KIND, ABSENCE, absenceVerdict, corpusCarriesDocuments, submissionReview,
+    ANSWER_VARIABLES, INSTRUMENT_VARIABLES, questionByCode, variableFor, answerTag,
+    DIRECTION, QUESTION_DIRECTION, CONSTRAINT_DIRECTION, B4_BASIS, evidenceAllowedFor,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
     scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,

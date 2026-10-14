@@ -1,3 +1,3 @@
 // Pinned source fingerprints; tests reject stale values. Not a digital signature.
-export const ENGINE_SHA256 = "9ce0f856582747e269b77a910aa03aaa8e2fe98354482fb55a20356cc4c76f3e";
-export const EVALUATOR_SHA256 = "9a273d0c8c8693280a54abaf622d3f42872e1780ae2561a104e7dab6ad0b3180";
+export const ENGINE_SHA256 = "9d97d279e92612e2350b57ba49654919bfef82e87e698a27ca9cc7e06a8fa7d0";
+export const EVALUATOR_SHA256 = "10525e7f09f989ab111e297fe37c0543e746206506fabeee27198ec376b871d8";

@@ -468,6 +468,31 @@ window.G0LLM = (() => {
     /* What the model said when it reported a question unanswerable from these
        sources. Kept so the gap can quote its reason instead of going vague. */
     const unknownReason = new Map();
+    /* A staged call asks one question at a time, so each gap sentence it
+       returns belongs to that question. Recording the pairing is what lets a
+       silence be classified instead of merely listed. */
+    const gapCode = new Map();
+    /* Silence the instrument scores as a finding. These are not gaps: they
+       are what the record demonstrates by not having the check in it. */
+    const scoredAbsences = [];
+    /* A gap sentence is the model reporting that the record is silent.
+       Whether that silence is a finding depends on what the question asked
+       for, so the sentence is routed rather than filed. A documentary
+       absence becomes a scored NOT DEMONSTRATED and leaves the unresolved
+       list; everything else stays a gap, with the instrument's reason
+       attached so it says which records would answer it. Follow-up passes
+       read extra pages rather than questions, so their gaps are filed as
+       they always were. */
+    const routeGap = gap => {
+      const code = gapCode.get(gap);
+      if (!code) { noteOnce(notes, gap); return; }
+      const verdict = G0.absenceVerdict(code, diagnostics);
+      if (verdict.verdict === G0.ABSENCE.NOT_DEMONSTRATED) {
+        if (!scoredAbsences.some(row => row.code === code)) scoredAbsences.push(verdict);
+        return;
+      }
+      noteOnce(notes, `${gap} — ${verdict.reason}`);
+    };
     const takeUnknowns = rows => (rows || []).forEach(row => { if (row && row.reason && !unknownReason.has(row.code)) unknownReason.set(row.code, row.reason); });
     let passes = 0; let callsOk = 0; let callsFailed = 0; let lastError = null;
 
@@ -566,7 +591,10 @@ window.G0LLM = (() => {
             parsed.held.forEach(finding => { finding.pass = index + 1; heldHere.push(finding); });
             unknownHere.push(...parsed.unknown);
             pushUnique(rejectedHere, parsed.rejected, row => `${row.code}|${row.reason}|${row.quote}`);
-            summary.gaps.forEach(gap => { if (!gaps.includes(gap)) gaps.push(gap); });
+            summary.gaps.forEach(gap => {
+              if (!gaps.includes(gap)) gaps.push(gap);
+              if (askedCodes.length === 1 && !gapCode.has(gap)) gapCode.set(gap, askedCodes[0]);
+            });
           }
           entry.detail = formatReason;
           diagnostics.calls.push(entry);
@@ -600,7 +628,7 @@ window.G0LLM = (() => {
       pushUnique(rejected, result.rejected, row => `${row.code}|${row.reason}|${row.quote}`);
       pushUnique(held, result.held, row => `${row.code}|${row.sourceId}|${normalize(row.quote)}`);
       takeUnknowns(result.unknown);
-      (result.summary.gaps || []).forEach(gap => noteOnce(notes, gap));
+      (result.summary.gaps || []).forEach(routeGap);
     });
 
     let candidates = [];
@@ -730,16 +758,28 @@ window.G0LLM = (() => {
         if (decisions && decisionFor.has(code)) {
           const candidate = ranked.find(row => row.id === decisionFor.get(code));
           if (candidate) chosen.set(code, candidate);
-          else unknowns.push({ code, note: "the weighing pass rejected every candidate for this question" });
+          else unknowns.push({ code, absence: null, note: "the weighing pass rejected every candidate for this question" });
           continue;
         }
         chosen.set(code, ranked[0]);
         continue;
       }
       const heldCandidate = held.find(row => row.code === code && row.value !== "unknown");
-      if (heldCandidate) { heldFor.set(code, heldCandidate); unknowns.push({ code, note: "operative text was located, but its source carries no qualifying date" }); continue; }
+      if (heldCandidate) { heldFor.set(code, heldCandidate); unknowns.push({ code, absence: null, note: "operative text was located, but its source carries no qualifying date" }); continue; }
+      /* Two different silences, and the instrument does not confuse them.
+         A mechanical failure — a call that never returned, a quote that
+         would not verify — is never a finding about the entity, and it stays
+         unresolved whatever the question asks. Only a record the model
+         actually read and found silent can carry a verdict, and what that
+         verdict is depends on what the question asks for: a documentary
+         check that is not written down is not a demonstrable check, while an
+         occurrence question simply needs different records. See
+         absenceVerdict in js/g0-engine.js. */
+      const mechanical = unusableCodes.has(code) || failedCodes.has(code) || rejected.some(row => row.code === code);
+      const silence = mechanical ? null : G0.absenceVerdict(code, diagnostics);
       unknowns.push({
         code,
+        absence: silence,
         note: unusableCodes.has(code) ? `some model output for this question could not be used: ${unusableCodes.get(code)}`
           : failedCodes.has(code) ? "some calls for this question failed, so the whole record was not read"
           : rejected.some(row => row.code === code) ? "a quoted reading was discarded because it could not be verified"
@@ -868,7 +908,7 @@ window.G0LLM = (() => {
           providerCeiling: (LLM.tokenCeiling && LLM.tokenCeiling() || {}).maxTokens || 0
         },
         diagnostics,
-        rejected: rejected.slice(0, 40), held: held.slice(0, 40), unknowns, usage, followUps,
+        rejected: rejected.slice(0, 40), held: held.slice(0, 40), unknowns, usage, followUps, scoredAbsences,
         candidates: candidates.map(candidate => ({ id: candidate.id, code: candidate.code, value: candidate.value, quote: candidate.quote.slice(0, 600), url: candidate.url, title: candidate.title, date: candidate.date, verified: true })),
         chosen: Object.fromEntries([...chosen].map(([code, candidate]) => [code, candidate.id])),
         note: "A linked model proposed these readings from the retrieved sources. Every quote was matched after whitespace/typographic normalization against the stored text; unverifiable quotes were discarded and the question left UNKNOWN. A person must review each answer before it is relied on."
@@ -877,7 +917,7 @@ window.G0LLM = (() => {
       answers: G0.questions.map(question => readings(question.code)),
       constraints: G0.constraintQuestions.map(question => constrained(question.code)),
       candidates, chosen: Object.fromEntries([...chosen].map(([code, candidate]) => [code, candidate.id])),
-      rejected, held, unknowns, notes, followUps, usage, passes, sourcesRead, charsRead, diagnostics,
+      rejected, held, unknowns, notes, followUps, usage, passes, sourcesRead, charsRead, diagnostics, scoredAbsences,
       sources: pool, thinSources: pack.packed.filter(item => item.chars < 400).length, skippedSources: pack.skipped
     };
     if (callsFailed) noteOnce(notes, `${callsFailed} staged call${callsFailed === 1 ? "" : "s"} failed during this reading; failed calls contributed no findings, and unresolved questions stayed UNKNOWN rather than being guessed at.`);
