@@ -317,7 +317,20 @@ window.G0Research = (() => {
     if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return null;
     return G0.artifactDate(value);
   }
-  const stripMarkdown = value => value.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[*_#`]/g, "").replace(/\s+/g, " ").trim();
+  /* Stripping emphasis is meant to clean prose, but an underscore between two
+     word characters is not emphasis — it is part of an identifier, and
+     stripping it rewrote refusal_override as refusaloverride in every stored
+     text and excerpt, including the quotes a reading then verifies against.
+     So `*` , `#` and backticks go, and `_` only where it is emphasis: at the
+     edge of a word, never inside one. */
+  const stripMarkdown = value => value
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[*#`]/g, "")
+    .replace(/(^|[^A-Za-z0-9])_+/g, "$1")
+    .replace(/_+(?![A-Za-z0-9])/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   async function readPublicPage(url, website, signal) {
     if (!G0.safePublicUrl(url)) throw new Error("This source URL is not safe to retrieve.");

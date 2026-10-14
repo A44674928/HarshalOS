@@ -210,10 +210,75 @@
     return complete && numerator !== "" && denominator !== "" && Number.isInteger(n) && Number.isInteger(d) && d > 0 && n >= 0 && n <= d && n / d >= 0.5 && beforeCutoff(start, cutoff) && beforeCutoff(end, cutoff) && dateTime(start) <= dateTime(end);
   }
   /* v1.1 B4: an external order plus compliance is NOT terminal refusal. */
+  /* ──────────────────────────────────────────────────────────────
+     Direction of authority: who holds the power, and over whom
+
+     B1 to B5 ask about authority the institution exercises (outbound). C1 to
+     C4 ask about authority exercised over the institution (inbound). They
+     are not interchangeable, and the B-layer has been leaking: evidence of a
+     court overturning the institution is inbound, and it has been used to
+     answer an outbound question. Wording is the root cause — B1 says "entity"
+     for the institution and B4 says it for the party subject to it.
+
+     So every piece of evidence carries a holder and a subject, and every
+     question names the directions it will accept:
+
+       outbound      institution → subject-party
+       inbound       external    → institution
+       self-directed subject-party → subject-party, which is neither: it is
+                     the subject party over its own participation, and it
+                     changes nothing the institution does.
+
+     B4 is where this has actually gone wrong. "The user can walk away" ends
+     that user's participation and nobody else's; the institution's action
+     continues for everyone still in scope, so it does not halt the thing B4
+     asks about.
+     ────────────────────────────────────────────────────────────── */
+  const DIRECTION = Object.freeze({
+    outbound: Object.freeze({ holder: "institution", subject: "subject-party" }),
+    inbound: Object.freeze({ holder: "external", subject: "institution" }),
+    selfDirected: Object.freeze({ holder: "subject-party", subject: "subject-party" })
+  });
+
+  const QUESTION_DIRECTION = Object.freeze({
+    B1: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) }),
+    /* B2 is genuinely mixed: "advisory or voluntary" is the institution over
+       itself, while "legally challenged or overturned" is inbound evidence
+       feeding an outbound question. Both are accepted, and the report says
+       which was used. */
+    B2: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound", "inbound"]) }),
+    B3: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) }),
+    B4: Object.freeze({ axis: "inbound", accepts: Object.freeze(["inbound"]) }),
+    B5: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) })
+  });
+
+  /* B4's declared routes, and what each of them is really about. */
+  const B4_BASIS = Object.freeze({
+    TERMINAL_RULE: Object.freeze({ direction: "inbound", note: "a binding rule that stays the institution's action" }),
+    RESOLVED_APPEALS: Object.freeze({ direction: "inbound", note: "an external body granting relief against the institution" }),
+    NO_PENALTY_EXIT: Object.freeze({
+      direction: "selfDirected",
+      note: "the subject party ending its own participation. The institution's action continues for everyone else, so it does not halt it."
+    }),
+    NOT_DEMONSTRATED: Object.freeze({ direction: "none", note: "no route demonstrated" })
+  });
+
+  function evidenceAllowedFor(code, evidence) {
+    const question = QUESTION_DIRECTION[code];
+    if (!question) return false;
+    const direction = evidence && evidence.direction ? evidence.direction : null;
+    return !!direction && question.accepts.includes(direction);
+  }
+
   function b4Qualifies(input) {
     const b = input.b4;
     if (!hasScoringCitation(input, input.answers[3]) || !b.actor.trim() || !b.action.trim() || !b.procedure.trim()) return false;
-    if (b.basis === "TERMINAL_RULE" || b.basis === "NO_PENALTY_EXIT") return true;
+    /* A route only qualifies B4 if it is authority exercised over the
+       institution. NO_PENALTY_EXIT is self-directed, so it is barred here:
+       see B4_BASIS. The other three lines of this function are unchanged. */
+    const route = B4_BASIS[b.basis];
+    if (!route || route.direction !== "inbound") return false;
+    if (b.basis === "TERMINAL_RULE") return true;
     return b.basis === "RESOLVED_APPEALS" && reliefQualifies(b.numerator, b.denominator, b.complete, b.start, b.end, input.cutoff);
   }
   function scoredVector(input) {
@@ -365,6 +430,27 @@
     const vector = scoredVector(input);
     const initial = classify(vector);
     const constraints = scoredConstraints(input);
+    /* The inbound axis, computed for every audit. C1 to C4 are all questions
+       about authority exercised over the entity — an override, an appeal that
+       grants relief, a sunset, a constraint functioning now — which is the
+       opposite direction from B1 to B5. Step 3.5 consulted them only when the
+       vector came out AMBIGUOUS, so an entity that lands cleanly on NAB or
+       GSRB was never told what holds over it. The phase logic is untouched;
+       this is the profile being reported rather than reached for. */
+    const inbound = {
+      axis: "authority exercised over the entity",
+      checks: constraintQuestions.map((question, i) => ({
+        code: question.code,
+        title: question.title,
+        direction: "inbound",
+        demonstrated: constraints[i] === true,
+        answer: input.constraints[i] ? input.constraints[i].value : null,
+        gap: input.constraints[i] ? input.constraints[i].gap : ""
+      })),
+      demonstrated: constraints.filter(Boolean).length,
+      total: constraintQuestions.length,
+      consultedForPhase: initial.phase === "AMBIGUOUS"
+    };
     let phase = initial.phase;
     let confidence = initial.confidence;
     // An unanswered behavioral question is unknown, not NO: never let it complete a NAB/CWO/GSRB branch.
@@ -446,6 +532,7 @@
       Activator_Vector: activatorVector, Branch_Matches: { NAB: initial.matches[0], CWO: initial.matches[1], GSRB: initial.matches[2] },
       B4_Event_Record: { ...input.b4, B4_Basis: input.b4.basis, Actor: input.b4.actor, Action: input.b4.action, Procedure: input.b4.procedure, Result_Claim: input.answers[3].notes || "NOT_RECORDED", External_Order_Separate: input.external, Scored_Answer: vector[3] ? "YES" : "NO" },
       Constraint_Results: input.constraints.map((a, i) => ({ Code: `C${i + 1}`, Auditor_Answer: a.value === null ? "UNANSWERED" : a.value ? "YES" : "NO", Scored_Answer: constraints[i] ? "YES" : "NO", Source: a.source, Publication_Date: a.date, Evidence_Gap: a.gap })), C2_Outcome_Record: input.c2,
+      Inbound_Profile: { Axis: inbound.axis, Demonstrated: `${inbound.demonstrated} of ${inbound.total}`, Consulted_For_Phase: inbound.consultedForPhase ? "yes — the vector was ambiguous" : "no — reported regardless of phase", Checks: inbound.checks.map(check => ({ Code: check.code, Question: check.title, Demonstrated: check.demonstrated ? "YES" : "NO", Gap: check.gap })) },
       External_Constraint_Record: externalRecord, Constraint_Decrement: { Verified_By_Auditor: decrement ? "YES" : "NO", ...input.decrement, Non_Scoring: true },
       Working_Badge: null, Duty_Collation_Entry_ID: entryId, Replication_Risk: replicationRisk, Temporal_Pattern: temporalPattern,
       Transition_History: [...history.filter(a => a.cutoff <= input.cutoff).flatMap(a => a.transition ? [a.transition] : []), ...(transition ? [transition] : [])],
@@ -459,7 +546,7 @@
       workingBadge, input, method, id: (host.crypto && typeof crypto.randomUUID === "function") ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
       name: input.name.trim(), identifier: input.identifier.trim(), version: input.version, createdAt: now, cutoff: input.cutoff,
       reportedDeclared: pdh.declared === "NONE" ? "None" : pdh.declared, phase, confidence, severity, compliance, badge, status, baseline: false,
-      evidence, answers: input.answers, constraints: input.constraints, pdh, finding, replicationRisk, temporalPattern, transition, report
+      evidence, answers: input.answers, constraints: input.constraints, inbound, pdh, finding, replicationRisk, temporalPattern, transition, report
     };
   }
 
@@ -845,11 +932,64 @@
     };
   }
 
+  /* ──────────────────────────────────────────────────────────────
+     Questions, answers and variables, from one source
+
+     B1 to B3 and B5 are named after the affirmative of their question and
+     negate by value: a "no" is enforcement_present = FALSE. B4 and B5 carry
+     a second name from v1.0, which names the exception rather than the
+     negation — refusal_override is TRUE when B4 is NO, and
+     authority_time_bound is TRUE when B5 is NO. That is the "YES activates"
+     table in js/g0-app.js, and it is why the same answer reads two ways
+     depending on where it was written down.
+
+     This table is the single source. Every variable name a document prints
+     is either in here or it is drift, and a test holds the documents to it.
+     Collapsing B4 and B5 to one name each is the right end state — a
+     variable that changes name with its answer is two variables wearing one
+     — but it is a change to the v1.0 coding that the normative spec
+     references, so it is a decision, not a cleanup.
+     ────────────────────────────────────────────────────────────── */
+  const ANSWER_VARIABLES = Object.freeze({
+    B1: Object.freeze({ yes: "enforcement_present", no: "enforcement_present" }),
+    B2: Object.freeze({ yes: "decisions_optional", no: "decisions_optional" }),
+    B3: Object.freeze({ yes: "rules_execute", no: "rules_execute" }),
+    B4: Object.freeze({ yes: "refusal_terminal", no: "refusal_override" }),
+    B5: Object.freeze({ yes: "authority_persists", no: "authority_time_bound" })
+  });
+
+  /* Variables the instrument prints that belong to a step rather than to a
+     question: PDH_VALID is Step 1's own verdict on the declaration header.
+     Declared here for the same reason as the table above — a name in a
+     document that the instrument does not know about is drift, whether or
+     not a question carries it. */
+  const INSTRUMENT_VARIABLES = Object.freeze(["PDH_VALID"]);
+
+  function questionByCode(code) {
+    return questions.find(question => question.code === code)
+      || constraintQuestions.find(question => question.code === code)
+      || null;
+  }
+  function variableFor(code) {
+    return ANSWER_VARIABLES[code] ? ANSWER_VARIABLES[code].yes : "";
+  }
+  /* The tag a document should print for an answer, built from the table so
+     that the question, the answer and the variable cannot drift apart. */
+  function answerTag(code, value) {
+    const names = ANSWER_VARIABLES[code];
+    if (!names) return "";
+    if (value !== true && value !== false) return `(${names.yes} = UNKNOWN)`;
+    const exceptionNamed = names.yes !== names.no;
+    return `(${value ? names.yes : names.no} = ${value || exceptionNamed ? "TRUE" : "FALSE"})`;
+  }
+
   /* ────────────────────────────────────────────────────────────── */
   return {
     CENTER_ORIGIN, DECLARED_PHASES, DETECTED_PHASES, DIAGNOSTIC_STATES, PHASE_EVENT_TYPES,
     questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
     CRITERION_KIND, ABSENCE, absenceVerdict, corpusCarriesDocuments, submissionReview,
+    ANSWER_VARIABLES, INSTRUMENT_VARIABLES, questionByCode, variableFor, answerTag,
+    DIRECTION, QUESTION_DIRECTION, B4_BASIS, evidenceAllowedFor,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
     scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,
