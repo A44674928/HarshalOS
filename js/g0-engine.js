@@ -236,8 +236,20 @@
      ────────────────────────────────────────────────────────────── */
   const DIRECTION = Object.freeze({
     outbound: Object.freeze({ holder: "institution", subject: "subject-party" }),
-    inbound: Object.freeze({ holder: "external", subject: "institution" }),
-    selfDirected: Object.freeze({ holder: "subject-party", subject: "subject-party" })
+    /* Inbound splits in two, and the split is the whole point. An external
+       body can act on the institution because somebody appealed to it, or it
+       can act on its own initiative. Those are different powers with
+       different holders in practice, and they belong to different questions:
+       a regulator recalling a model is C1's business, while an appeal that
+       stops the action is B4's. Calling both "inbound" let one event answer
+       both questions, and made every regulated entity look like it could be
+       stopped by an appeal. */
+    inboundOnAppeal: Object.freeze({ holder: "external", subject: "institution", seizedBy: "subject-party" }),
+    inboundIndependent: Object.freeze({ holder: "external", subject: "institution", seizedBy: "external" }),
+    selfDirected: Object.freeze({ holder: "subject-party", subject: "subject-party" }),
+    /* A sunset clause or a term limit is the institution binding itself, and
+       it is the only direction C3 looks for. */
+    structural: Object.freeze({ holder: "institution", subject: "institution" })
   });
 
   const QUESTION_DIRECTION = Object.freeze({
@@ -246,16 +258,30 @@
        itself, while "legally challenged or overturned" is inbound evidence
        feeding an outbound question. Both are accepted, and the report says
        which was used. */
-    B2: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound", "inbound"]) }),
+    /* "Legally challenged or overturned" is an external body acting, whether
+       it was seized by a challenge or not, so B2 admits both. */
+    B2: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound", "inboundOnAppeal", "inboundIndependent"]) }),
     B3: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) }),
-    B4: Object.freeze({ axis: "inbound", accepts: Object.freeze(["inbound"]) }),
+    /* Only an appeal. A regulator acting on its own initiative is C1. */
+    B4: Object.freeze({ axis: "inbound", accepts: Object.freeze(["inboundOnAppeal"]) }),
     B5: Object.freeze({ axis: "outbound", accepts: Object.freeze(["outbound"]) })
+  });
+
+  /* Which direction each constraint question looks for. This is descriptive:
+       it labels the inbound profile for the reader. It does not gate C1 to C4,
+       whose scoring is untouched — an override, a granted appeal, a sunset and
+       a functioning constraint are evidenced on their own terms. */
+  const CONSTRAINT_DIRECTION = Object.freeze({
+    C1: Object.freeze({ accepts: Object.freeze(["inboundIndependent"]) }),
+    C2: Object.freeze({ accepts: Object.freeze(["inboundOnAppeal"]) }),
+    C3: Object.freeze({ accepts: Object.freeze(["structural"]) }),
+    C4: Object.freeze({ accepts: Object.freeze(["inboundOnAppeal", "inboundIndependent"]) })
   });
 
   /* B4's declared routes, and what each of them is really about. */
   const B4_BASIS = Object.freeze({
-    TERMINAL_RULE: Object.freeze({ direction: "inbound", note: "a binding rule that stays the institution's action" }),
-    RESOLVED_APPEALS: Object.freeze({ direction: "inbound", note: "an external body granting relief against the institution" }),
+    TERMINAL_RULE: Object.freeze({ direction: "inboundOnAppeal", note: "a binding rule that stays the institution's action once an affected party refuses or appeals" }),
+    RESOLVED_APPEALS: Object.freeze({ direction: "inboundOnAppeal", note: "an external body seized by an appeal granting relief against the institution" }),
     NO_PENALTY_EXIT: Object.freeze({
       direction: "selfDirected",
       note: "the subject party ending its own participation. The institution's action continues for everyone else, so it does not halt it."
@@ -277,7 +303,7 @@
        institution. NO_PENALTY_EXIT is self-directed, so it is barred here:
        see B4_BASIS. The other three lines of this function are unchanged. */
     const route = B4_BASIS[b.basis];
-    if (!route || route.direction !== "inbound") return false;
+    if (!route || route.direction !== "inboundOnAppeal") return false;
     if (b.basis === "TERMINAL_RULE") return true;
     return b.basis === "RESOLVED_APPEALS" && reliefQualifies(b.numerator, b.denominator, b.complete, b.start, b.end, input.cutoff);
   }
@@ -443,6 +469,9 @@
         code: question.code,
         title: question.title,
         direction: "inbound",
+        direction: (CONSTRAINT_DIRECTION[question.code] || {}).accepts
+          ? CONSTRAINT_DIRECTION[question.code].accepts[0]
+          : "inbound",
         demonstrated: constraints[i] === true,
         answer: input.constraints[i] ? input.constraints[i].value : null,
         gap: input.constraints[i] ? input.constraints[i].gap : ""
@@ -989,7 +1018,7 @@
     questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
     CRITERION_KIND, ABSENCE, absenceVerdict, corpusCarriesDocuments, submissionReview,
     ANSWER_VARIABLES, INSTRUMENT_VARIABLES, questionByCode, variableFor, answerTag,
-    DIRECTION, QUESTION_DIRECTION, B4_BASIS, evidenceAllowedFor,
+    DIRECTION, QUESTION_DIRECTION, CONSTRAINT_DIRECTION, B4_BASIS, evidenceAllowedFor,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
     scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,

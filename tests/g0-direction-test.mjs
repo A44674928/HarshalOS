@@ -48,20 +48,20 @@ test("every behavioural question declares which direction of evidence it accepts
   }
   /* B4 is the inbound one: it asks whether an outside mechanism stops the
      institution, which is a question about power over it, not by it. */
-  assert.deepEqual(G0.QUESTION_DIRECTION.B4.accepts, ["inbound"]);
+  assert.deepEqual(G0.QUESTION_DIRECTION.B4.accepts, ["inboundOnAppeal"]);
   assert.equal(G0.QUESTION_DIRECTION.B4.axis, "inbound");
   for (const code of ["B1", "B3", "B5"]) {
     assert.deepEqual(G0.QUESTION_DIRECTION[code].accepts, ["outbound"], `${code} is outbound only`);
   }
-  assert.deepEqual(G0.QUESTION_DIRECTION.B2.accepts, ["outbound", "inbound"], "B2 is genuinely mixed");
+  assert.deepEqual(G0.QUESTION_DIRECTION.B2.accepts, ["outbound", "inboundOnAppeal", "inboundIndependent"], "B2 is genuinely mixed, and admits either kind of external action");
 });
 
 test("self-directed evidence is refused: walking away halts nothing the institution does", () => {
-  assert.equal(G0.evidenceAllowedFor("B4", { direction: "inbound" }), true, "a court staying the action is B4's business");
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "inboundOnAppeal" }), true, "a court seized by an appeal, staying the action, is B4's business");
   assert.equal(G0.evidenceAllowedFor("B4", { direction: "selfDirected" }), false, "the subject party leaving is not");
   assert.equal(G0.evidenceAllowedFor("B4", { direction: "outbound" }), false, "and neither is the institution's own power");
-  assert.equal(G0.evidenceAllowedFor("B1", { direction: "inbound" }), false, "an outbound question refuses inbound evidence");
-  assert.equal(G0.evidenceAllowedFor("B2", { direction: "inbound" }), true, "except B2, which admits it");
+  assert.equal(G0.evidenceAllowedFor("B1", { direction: "inboundIndependent" }), false, "an outbound question refuses inbound evidence");
+  assert.equal(G0.evidenceAllowedFor("B2", { direction: "inboundIndependent" }), true, "except B2, which admits it");
   assert.equal(G0.evidenceAllowedFor("Z9", { direction: "inbound" }), false, "an unasked question accepts nothing");
   assert.equal(G0.evidenceAllowedFor("B4", {}), false, "and untagged evidence is not admitted by default");
 });
@@ -80,10 +80,34 @@ test("the exit route no longer satisfies B4, and the other routes still do", asy
 });
 
 test("B4's routes say what each of them is actually about", () => {
-  assert.equal(G0.B4_BASIS.TERMINAL_RULE.direction, "inbound");
-  assert.equal(G0.B4_BASIS.RESOLVED_APPEALS.direction, "inbound");
+  assert.equal(G0.B4_BASIS.TERMINAL_RULE.direction, "inboundOnAppeal");
+  assert.equal(G0.B4_BASIS.RESOLVED_APPEALS.direction, "inboundOnAppeal");
   assert.equal(G0.B4_BASIS.NO_PENALTY_EXIT.direction, "selfDirected");
   assert.match(G0.B4_BASIS.NO_PENALTY_EXIT.note, /continues for everyone else/);
+});
+
+test("a regulator acting on its own initiative is C1's evidence, not B4's", () => {
+  /* The Commerce case: a government orders a halt, on its own initiative, and
+     the institution complies. That is power over the entity, which is exactly
+     what C1 asks about — and it is not an appeal, which is what B4 asks about. */
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "inboundIndependent" }), false,
+    "a regulator's own-initiative halt does not answer B4");
+  assert.ok(G0.CONSTRAINT_DIRECTION.C1.accepts.includes("inboundIndependent"),
+    "it is C1's direction instead");
+  assert.ok(G0.CONSTRAINT_DIRECTION.C2.accepts.includes("inboundOnAppeal"),
+    "and an appeal that grants relief is C2's");
+  assert.equal(G0.CONSTRAINT_DIRECTION.C3.accepts[0], "structural", "a sunset binds the institution to itself");
+});
+
+test("no one event can answer both questions: B4 and C1 look in different directions", () => {
+  const b4 = new Set(G0.QUESTION_DIRECTION.B4.accepts);
+  const c1 = new Set(G0.CONSTRAINT_DIRECTION.C1.accepts);
+  const overlap = [...b4].filter(direction => c1.has(direction));
+  assert.deepEqual(overlap, [], "the same halt cannot be counted twice, once as an appeal and once as an override");
+  /* Which is the whole reason for splitting inbound: under one undifferentiated
+     "inbound", every entity that answers to any regulator would satisfy both. */
+  assert.equal(G0.DIRECTION.inboundOnAppeal.seizedBy, "subject-party");
+  assert.equal(G0.DIRECTION.inboundIndependent.seizedBy, "external");
 });
 
 test("the inbound profile is reported for a determinate phase, not only an ambiguous one", async () => {
