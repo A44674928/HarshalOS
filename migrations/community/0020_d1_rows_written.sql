@@ -1,0 +1,64 @@
+-- Orb 2 field: rows-written budget (migration 0020).
+--
+-- D1 Free allows 100,000 rows written per day, and it counts a row written per
+-- b-tree a statement maintains, not per statement. From the pricing page:
+--
+--   "Indexes will add an additional written row when writes include the indexed
+--    column, as there are two rows written: one to the table itself, and one to
+--    the index."
+--
+-- `orb2_field_observations` is the field's write-hot table: every beat upserts
+-- one row per reviewed berth per interval, 1,440 minutes a day. It carried two
+-- secondary indexes, so each upsert cost the table's own row plus two index
+-- rows. This migration retires the one that only ever served a fallback.
+--
+-- Dropped: idx_orb2_field_observations_observed (interval, observed_at).
+--
+--   What it was for. The precomputed-document fallback (`ORB2_FIELD_SNAPSHOT=off`,
+--   see docs/deployment/ORB2-CRON-PLAN.md) reads the field straight from this
+--   table with `ORDER BY observed_at DESC`, which the index served pre-sorted.
+--
+--   What it cost. One row written per upsert — a third of the write against the
+--   hot table, and it scaled with the busiest minutes, which are the minutes
+--   that decide whether the day fits in the allowance.
+--
+--   What dropping it costs. Measured with EXPLAIN QUERY PLAN against the
+--   reviewed roster:
+--     · The fallback live read still resolves through the (interval, updated_at)
+--       index and reads the same ~170 rows; it now sorts them with a temporary
+--       b-tree instead of walking them in order. Same rows read, a small amount
+--       of extra CPU on a path that is already the expensive one and is off by
+--       default.
+--     · The per-tick sweep query (MIN(observed_at) over the stock roster) already
+--       used the primary key, not this index. Unchanged.
+--     · The `warm` action's MAX(observed_at) probe becomes a scan of the
+--       observations table. It runs on a manual or deploy warm request, not on a
+--       schedule.
+--   Reads are 50x more plentiful than writes on the free tier (5 M read /
+--   100 k written), so this is the trade the allowance asks for.
+--
+--   How to put it back, if the fallback ever becomes the served path rather than
+--   the emergency one:
+--     CREATE INDEX IF NOT EXISTS idx_orb2_field_observations_observed
+--       ON orb2_field_observations (interval, observed_at);
+--   Remember to add it back to D1_WRITE_COST in worker/d1-rows-written.mjs —
+--   tests/d1-rows-written-test.mjs derives that model from this directory and
+--   fails when the two disagree.
+--
+-- Deliberately NOT done here, with reasons:
+--   · WITHOUT ROWID on the TEXT-primary-key tables. It saves one row per INSERT
+--     (the primary key stops being a second b-tree) but nothing on UPDATE, and
+--     most of the field's writes are UPDATEs of rows that already exist. It is
+--     also incompatible with two things this schema depends on: migration 0018
+--     pages the publication's change scan on `orb2_field_observations.rowid`, and
+--     worker/d1-backup.mjs pages the nightly backup with `ORDER BY rowid` on
+--     every table it copies. Those would have to move to primary-key order first.
+--   · A partial index on orb2_field_queue. Measured: `WHERE lane IN ('hot',
+--     'sweep')` drops the claim query from an index search to a full table scan,
+--     which is the wrong side of the trade for the query that runs every tick.
+--
+-- The accounting this migration is part of lives in worker/d1-rows-written.mjs;
+-- the arithmetic and the per-tick numbers are in
+-- docs/deployment/D1-ROWS-WRITTEN-BUDGET.md.
+
+DROP INDEX IF EXISTS idx_orb2_field_observations_observed;

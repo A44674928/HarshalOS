@@ -26,6 +26,11 @@ const withdrawPositionPath = new RegExp(`^${PAPER_MARKET_BASE_PATH}/positions/($
 const pairingLifetimeMilliseconds = 15 * 60 * 1000;
 const deviceTokenLifetimeMilliseconds = 30 * 24 * 60 * 60 * 1000;
 const quoteLifetimeMilliseconds = 5 * 60 * 1000;
+/* How often a device token's `last_used_at` is re-stamped. D1 charges a row
+   written for every row an UPDATE touches, and the stamp runs on every
+   authenticated device request — up to 5,000 a day per device — for a field the
+   UI only ever reads to the minute. */
+const lastUsedThrottleMilliseconds = 5 * 60 * 1000;
 const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
 const idempotencyPattern = /^[A-Za-z0-9._~-]{16,128}$/;
 const pairingCodePattern = /^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){3}$/;
@@ -176,8 +181,13 @@ async function authorizeDevice(request, env, now) {
     WHERE t.token_hash=? AND t.expires_at>? AND t.revoked_at IS NULL AND t.scope='PAPER_TEST' AND u.blocked=0`)
     .bind(await digest(match[1]), now).first();
   if (!row) throw new CommunityError(401, 'PAPER_TEST device credential is expired, revoked, or unavailable.');
-  await env.COMMUNITY_DB.prepare('UPDATE paper_market_device_tokens SET last_used_at=MAX(COALESCE(last_used_at, 0), ?) WHERE id=? AND revoked_at IS NULL')
-    .bind(now, row.id).run();
+  /* Stamped at most once per window. D1 charges a row written for every row an
+     UPDATE touches, and this runs on every authenticated device request — up to
+     5,000 a day per device, for a "last seen" field the UI reads to the minute
+     at best. A request inside the window matches no row and writes nothing; the
+     MAX() keeps the stored stamp monotonic if a clock ever steps backwards. */
+  await env.COMMUNITY_DB.prepare('UPDATE paper_market_device_tokens SET last_used_at=MAX(COALESCE(last_used_at, 0), ?) WHERE id=? AND revoked_at IS NULL AND COALESCE(last_used_at, 0) < ?')
+    .bind(now, row.id, now - lastUsedThrottleMilliseconds).run();
   return { type: 'device', ownerID: row.owner_id, deviceID: row.id, scope: row.scope };
 }
 

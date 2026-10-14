@@ -88,6 +88,17 @@ import {
   composePair,
   sanitizeOrb2Composition
 } from "./orb2-composition.mjs";
+/* D1 bills rows written, not write statements, and an index is a row written of
+   its own. The scheduler's statement budget cannot see that, so the row budget
+   below rides alongside it — same shape, different unit. See
+   `docs/deployment/D1-ROWS-WRITTEN-BUDGET.md`. */
+import {
+  observedRowsWritten,
+  rowsWrittenForStatement,
+  ORB2_FIELD_D1_ROWS_WRITTEN_DAILY_SHARE,
+  ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+  ORB2_FIELD_SCHEDULER_RESERVED_D1_ROWS_WRITTEN
+} from "./d1-rows-written.mjs";
 import "../js/characters-disc-catalog.js";
 import "../js/good-intelligence-market-context.js";
 import "../js/characters-beat.js";
@@ -239,6 +250,14 @@ export const ORB2_FIELD_SCHEDULER_MAX_D1_READS = ORB2_FIELD_SCHEDULER_SHARED_D1_
 export const ORB2_FIELD_SCHEDULER_MAX_D1_WRITES = ORB2_FIELD_SCHEDULER_SHARED_D1_WRITES +
   ORB2_FIELD_SCHEDULER_LANE_D1_WRITES * ORB2_FIELD_SCHEDULER_WORK_UNITS_PER_TICK;
 const ORB2_FIELD_SCHEDULER_RESERVED_D1_WRITES = 3;
+/* The same budget in the unit D1 actually bills. Re-exported so the tests (and
+   the status readers) can hold the tick to the number on the invoice rather
+   than the number of statements that produced it. */
+export {
+  ORB2_FIELD_D1_ROWS_WRITTEN_DAILY_SHARE,
+  ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN,
+  ORB2_FIELD_SCHEDULER_RESERVED_D1_ROWS_WRITTEN
+};
 const ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ = 12;
 export const ORB2_FIELD_TICKERBOT_BURST_CALLS = TICKERBOT_WATCHLIST.length * ORB2_FIELD_WARM_INTERVALS.length;
 export const ORB2_FIELD_COLD_MS = 6 * 60 * 60_000;
@@ -1007,7 +1026,17 @@ async function observationExists(db) {
 }
 
 function createSchedulerD1Budget(db) {
-  const stats = { reads: 0, writes: 0, rowsRead: 0 };
+  /* `rowsWritten` is the number D1 bills; `writes` is the number of statements
+     that produced it. Both are kept because they are not proportional: one
+     upsert against `orb2_field_observations` is one statement and three rows
+     (the table, its index on `updated_at`, and the primary key's own index on a
+     new berth). A tick that is inside the statement budget can still be over
+     the daily allowance, which is why the rows have their own ceiling. */
+  const stats = {
+    reads: 0, writes: 0, rowsRead: 0,
+    rowsWritten: 0, rowsWrittenModeled: 0, rowsWrittenObserved: 0, unmodelledWrites: [],
+    byTable: Object.create(null)
+  };
   /* `WITH` is a read: a CTE selects, it does not mutate. Omitting it would
      charge any future CTE against the small reserved write allowance and could
      fail a legitimate read closed. Kept identical to the classifier the
@@ -1022,6 +1051,43 @@ function createSchedulerD1Budget(db) {
     }
     stats[kind] += amount;
   };
+  /* ── the rows-written budget ───────────────────────────────────────────
+     Charged before a write is sent and corrected afterwards. The pre-flight
+     charge is the one that matters: D1 reports what a statement cost only once
+     it has run, and a write cannot be un-billed. The model is therefore the
+     gate and `meta.rows_written` is the receipt — it replaces the estimate in
+     the running total, which is what makes the number reported at the end of a
+     tick the real one in production. */
+  const rowLimit = finalizing => ORB2_FIELD_SCHEDULER_MAX_D1_ROWS_WRITTEN -
+    (finalizing ? 0 : ORB2_FIELD_SCHEDULER_RESERVED_D1_ROWS_WRITTEN);
+  const reserveRows = (query, finalizing) => {
+    const estimate = rowsWrittenForStatement(query);
+    if (stats.rowsWritten + estimate.rows > rowLimit(finalizing)) {
+      throw new Error(
+        `Orb 2 scheduled D1 rows-written budget exceeded (${stats.rowsWritten + estimate.rows}/${rowLimit(finalizing)}).`);
+    }
+    stats.rowsWritten += estimate.rows;
+    const table = estimate.table || "unknown";
+    stats.byTable[table] = (stats.byTable[table] || 0) + estimate.rows;
+    if (!estimate.known && !stats.unmodelledWrites.includes(estimate.table)) {
+      stats.unmodelledWrites.push(estimate.table);
+    }
+    return estimate;
+  };
+  const settleRows = (estimate, result) => {
+    const actual = observedRowsWritten(result);
+    if (actual === null) {
+      stats.rowsWrittenModeled += 1;
+      return;
+    }
+    stats.rowsWrittenObserved += 1;
+    /* D1's own count supersedes the estimate, in either direction. It is
+       information, not enforcement: the write has already happened. */
+    const delta = actual - estimate.rows;
+    stats.rowsWritten += delta;
+    const table = estimate.table || "unknown";
+    stats.byTable[table] = (stats.byTable[table] || 0) + delta;
+  };
   /* Every wrapper carries the budget kind it was classified with plus an
      `unwrap()` accessor, so `batch()` can charge each statement to its own
      budget exactly once and still hand the underlying driver real statements.
@@ -1029,36 +1095,56 @@ function createSchedulerD1Budget(db) {
      small reserved write allowance; without `unwrap()`, a driver whose `batch()`
      calls `.run()` on each entry (the test fixture does) charged every
      statement twice. */
-  const wrapStatement = (statement, kind, finalizing) => ({
+  const wrapStatement = (statement, kind, finalizing, query = "") => ({
     kind,
+    query,
     unwrap() { return statement; },
-    bind(...values) { return wrapStatement(statement.bind(...values), kind, finalizing); },
+    bind(...values) { return wrapStatement(statement.bind(...values), kind, finalizing, query); },
     async first(...args) { count(kind, 1, finalizing); return statement.first(...args); },
     async all(...args) {
       count(kind, 1, finalizing);
+      const estimate = kind === "writes" ? reserveRows(query, finalizing) : null;
       const result = await statement.all(...args);
       const rows = Array.isArray(result?.results) ? result.results : [];
       if (rows.length > ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ) {
         throw new Error(`Orb 2 scheduled D1 row bound exceeded (${rows.length}/${ORB2_FIELD_SCHEDULER_MAX_ROWS_PER_READ}).`);
       }
       stats.rowsRead += rows.length;
+      if (estimate) settleRows(estimate, result);
       return result;
     },
-    async run(...args) { count(kind, 1, finalizing); return statement.run(...args); }
+    async run(...args) {
+      count(kind, 1, finalizing);
+      const estimate = kind === "writes" ? reserveRows(query, finalizing) : null;
+      const result = await statement.run(...args);
+      if (estimate) settleRows(estimate, result);
+      return result;
+    }
   });
   const unwrapStatement = statement =>
     statement && typeof statement.unwrap === "function" ? statement.unwrap() : statement;
   const wrapDatabase = finalizing => ({
-    prepare(query) { return wrapStatement(db.prepare(query), classify(query), finalizing); },
+    prepare(query) { return wrapStatement(db.prepare(query), classify(query), finalizing, String(query)); },
     async batch(statements) {
       const list = Array.isArray(statements) ? statements : [];
       /* Charge the whole batch before any of it is sent, so an over-budget batch
-         is refused up front instead of half-applying and then throwing. */
+         is refused up front instead of half-applying and then throwing. The rows
+         are reserved the same way, per statement, for the same reason. */
+      const reserved = [];
       for (const statement of list) {
-        count(statement && statement.kind === "reads" ? "reads" : "writes", 1, finalizing);
+        const kind = statement && statement.kind === "reads" ? "reads" : "writes";
+        count(kind, 1, finalizing);
+        reserved.push(kind === "writes" ? reserveRows(statement ? statement.query || "" : "", finalizing) : null);
       }
       if (typeof db.batch !== "function") throw new Error("D1 batch is unavailable.");
-      return db.batch(list.map(unwrapStatement));
+      const results = await db.batch(list.map(unwrapStatement));
+      /* One result per statement, in order: each reserved estimate is settled
+         against its own `meta.rows_written` where D1 reported one. */
+      const returned = Array.isArray(results) ? results : [];
+      for (let index = 0; index < reserved.length; index += 1) {
+        if (reserved[index]) settleRows(reserved[index], returned[index]);
+      }
+      return results;
     }
   });
   return { db: wrapDatabase(false), finalDb: wrapDatabase(true), stats };
@@ -1170,11 +1256,16 @@ async function writeObservation(db, observation, now, { refresh = true } = {}) {
 /* Recalculate the daily row after either scale changes. The full 15-minute series
  * is intentionally not stored; this joins the two compact, validated summaries and
  * persists only the deterministic composition packet. */
+/* The stored payload is compared before it is rewritten, and the comparison is
+   only trusted while the whole payload was selected: `substr(payload, 1, 65536)`
+   is a defensive cap, so a row that long is unverifiable and is written. */
+const ORB2_FIELD_PAYLOAD_COMPARE_LIMIT = 65_536;
+
 async function refreshStoredComposition(db, symbol, now) {
   const rows = await db.prepare(`SELECT interval, substr(payload, 1, 65536) AS payload FROM orb2_field_observations
     WHERE symbol = ? AND interval IN ('1d', '15m') LIMIT 2`).bind(symbol).all();
   const parsed = (Array.isArray(rows && rows.results) ? rows.results : []).map(row => ({
-    interval: String(row.interval), observation: parsePacketRow(row, now)
+    interval: String(row.interval), stored: String(row.payload || ""), observation: parsePacketRow(row, now)
   })).filter(row => row.observation);
   const daily = parsed.find(row => row.interval === "1d")?.observation || null;
   const intraday = parsed.find(row => row.interval === ORB2_INTRADAY_INTERVAL)?.observation || null;
@@ -1183,12 +1274,24 @@ async function refreshStoredComposition(db, symbol, now) {
   /* WRITE LANE, batched: these UPDATEs touch disjoint (interval, symbol) rows
      and share no read-modify-write state, so they go out as one D1 batch — a
      single round trip instead of one per interval. Ordering inside the batch
-     is irrelevant because the rows do not overlap. */
-  const updates = parsed.map(row => {
-    const payload = { ...row.observation, composition };
-    return db.prepare("UPDATE orb2_field_observations SET payload = ?, updated_at = ? WHERE interval = ? AND symbol = ?")
-      .bind(JSON.stringify(payload), now, row.interval, symbol);
-  });
+     is irrelevant because the rows do not overlap.
+
+     A recomposed payload that is byte-identical to the stored one is not sent at
+     all. D1 charges a row written for the table and one for every index the
+     statement touches, so an `UPDATE` that changes nothing is not free — it is
+     billed exactly like one that does, and it also moves `updated_at`, which in
+     turn makes the publication slice re-read and rewrite the berth's fragment.
+     This fires whenever the composition is time-invariant, which is every berth
+     without a fresh 15-minute residual: the whole daily-only roster, plus any
+     stock whose intraday bar has aged out. */
+  const updates = [];
+  for (const row of parsed) {
+    const payload = JSON.stringify({ ...row.observation, composition });
+    if (row.stored.length < ORB2_FIELD_PAYLOAD_COMPARE_LIMIT && row.stored === payload) continue;
+    updates.push(db.prepare("UPDATE orb2_field_observations SET payload = ?, updated_at = ? WHERE interval = ? AND symbol = ?")
+      .bind(payload, now, row.interval, symbol));
+  }
+  if (!updates.length) return;
   if (updates.length > 1 && typeof db.batch === "function") {
     await db.batch(updates);
     return;
@@ -2290,7 +2393,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     /* Per-lane unit accounting. The caps live in markSchedulerWorkUnit; this map
        is what makes the per-lane cap enforceable while scheduler dispatch is serialized. */
     workUnitsByLane: new Map(), lanes: {},
-    d1Reads: 0, d1Writes: 0, d1RowsRead: 0,
+    /* Two units for the same work: `d1Writes` is statements, `d1RowsWritten` is
+       what D1 bills. A tick that is inside the first can still be over the
+       daily allowance on the second. */
+    d1Reads: 0, d1Writes: 0, d1RowsRead: 0, d1RowsWritten: 0,
+    d1RowsWrittenModeled: 0, d1RowsWrittenObserved: 0, d1UnmodelledWrites: [], d1RowsWrittenByTable: {},
     queueClaimed: 0, queueCompleted: 0, warmEnqueued: 0, warmProgressed: 0,
     cursorAdvanced: false, cursorReset: false, sweepsCompleted: 0,
     notes: [], errors: []
@@ -2546,6 +2653,11 @@ export async function runOrb2FieldTick(env = {}, context = null, dependencies = 
     summary.d1Reads = d1.stats.reads;
     summary.d1Writes = d1.stats.writes;
     summary.d1RowsRead = d1.stats.rowsRead;
+    summary.d1RowsWritten = d1.stats.rowsWritten;
+    summary.d1RowsWrittenModeled = d1.stats.rowsWrittenModeled;
+    summary.d1RowsWrittenObserved = d1.stats.rowsWrittenObserved;
+    summary.d1UnmodelledWrites = d1.stats.unmodelledWrites.slice();
+    summary.d1RowsWrittenByTable = { ...d1.stats.byTable };
   }
   return summary;
 }

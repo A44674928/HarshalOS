@@ -1460,7 +1460,7 @@ APPS.push({
         <div class="g0-llm-head">
           <p class="g0-eyebrow">Read retrieved source text — optional</p>
           <p class="g0-section-note">${status.linked
-            ? `Linked model: <strong>${esc(status.label)}</strong> · <span class="mono">${esc(status.model)}</span>${status.keyStorage === "none" ? "" : status.keyStorage === "persistent" ? " · key kept in this browser" : " · key held for this tab"}.`
+            ? `Linked model: <strong>${esc(status.label)}</strong> · <span class="mono">${esc(status.model)}</span>${status.relay ? " · key held by the site relay" : status.keyStorage === "none" ? "" : status.keyStorage === "persistent" ? " · key kept in this browser" : " · key held for this tab"}.`
             : "No model is linked, so the record above was matched by keyword rules only. Connect your own model to propose readings from the same retrieved documents — every answer bound to a verbatim quote."}</p>
         </div>`;
       if (!status.linked) {

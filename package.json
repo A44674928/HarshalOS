@@ -39,7 +39,7 @@
     "palace:build": "node scripts/palace-day.mjs",
     "palace:check": "node scripts/palace-day.mjs --check",
     "check:deploy": "npm run prepare:assets && wrangler deploy --dry-run",
-    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-observations-ui-test.mjs tests/community-runs-test.mjs tests/community-publication-test.mjs tests/community-observations-test.mjs tests/paper-market-test.mjs tests/community-deletion-test.mjs tests/case-studies-d1-test.mjs tests/turnstile-test.mjs tests/d1-backup-test.mjs",
+    "test:community": "node --test tests/community-db-test.mjs tests/community-auth-test.mjs tests/community-drafts-test.mjs tests/community-ui-test.mjs tests/community-observations-ui-test.mjs tests/community-runs-test.mjs tests/community-publication-test.mjs tests/community-observations-test.mjs tests/paper-market-test.mjs tests/community-deletion-test.mjs tests/case-studies-d1-test.mjs tests/turnstile-test.mjs tests/d1-backup-test.mjs tests/d1-rows-written-test.mjs",
     "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
     "check:deploy:staging": "wrangler deploy --config wrangler.staging.jsonc --dry-run",
     "db:staging:inspect": "wrangler d1 execute COMMUNITY_DB --config wrangler.staging.jsonc --remote --command \"SELECT name, sql FROM sqlite_schema WHERE type = 'table' ORDER BY name;\"",

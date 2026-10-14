@@ -18,8 +18,12 @@ import { runOrb2FieldBuildSlice, serveOrb2FieldSnapshot } from './orb2-field-pub
 import { NEO_ORB_PAGE_PATHS, NEO_ORB_PAGE_HEADER_CSP } from './neo-orb-page.mjs';
 import { handleSymbolicFirewall } from './symbolic-firewall.mjs';
 import { runScheduledBackup } from './d1-backup.mjs';
+import { formatRowsWrittenBreakdown } from './d1-rows-written.mjs';
 
 const keySets = new Map();
+/* The UTC day the D1 allowance is metered in: free-tier rows written reset at
+   00:00 UTC, so the logged ledger lines are grouped by this stamp. */
+const utcDay = at => new Date(at).toISOString().slice(0, 10);
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 
 /* Public assets are staged without any hidden path component. Reject the same
@@ -181,6 +185,23 @@ export default {
           ? publication.errors.slice(0, 3).join(' | ') : 'unknown publication error');
     }
     /*
+     * D1 Free allows 100,000 rows written per day, and an index is a row written
+     * of its own. The counter deliberately does not live in D1 — a row that
+     * counts writes is itself a write — so one line per invocation in Workers
+     * Logs is the durable record. Query `$workers.eventType = "scheduled"` and
+     * read `rowsWritten` to see where the day went; the tick's own line is
+     * `[orb2-d1] stage=tick`, and the two together are what the free tier bills.
+     */
+    if (publication && !publication.disabled) {
+      console.log(`[orb2-d1] stage=publish day=${utcDay(now)}`,
+        `rowsWritten=${publication.rowsWritten || 0}`,
+        `modeled=${publication.rowsWrittenModeled || 0}`,
+        `observed=${publication.rowsWrittenObserved || 0}`,
+        formatRowsWrittenBreakdown(publication.rowsWrittenByTable, 4),
+        publication.unmodelledWrites && publication.unmodelledWrites.length
+          ? `unmodelled=${publication.unmodelledWrites.join(',')}` : '');
+    }
+    /*
      * The provider beats themselves. `ORB2_FIELD_TICK=off` hands them to the
      * off-Cloudflare runner (`scripts/orb2-beat-runner.mjs`, see
      * `docs/deployment/ORB2-BEAT-RUNNER.md`), which runs the same tick on a
@@ -201,6 +222,20 @@ export default {
             console.error('[orb2-cron] tick failed:',
               summary && Array.isArray(summary.errors) && summary.errors.length
                 ? summary.errors.slice(0, 3).join(' | ') : 'unknown scheduler error');
+          }
+          /* The rows-written ledger (see the `[orb2-d1]` note above the
+             publication slice). Statements and rows are both reported because
+             they are not proportional: one upsert against the observations
+             table is one statement and three rows. */
+          if (summary) {
+            console.log(`[orb2-d1] stage=tick day=${utcDay(now)}`,
+              `rowsWritten=${summary.d1RowsWritten || 0}`,
+              `statements=${summary.d1Writes || 0}`,
+              `modeled=${summary.d1RowsWrittenModeled || 0}`,
+              `observed=${summary.d1RowsWrittenObserved || 0}`,
+              formatRowsWrittenBreakdown(summary.d1RowsWrittenByTable, 4),
+              Array.isArray(summary.d1UnmodelledWrites) && summary.d1UnmodelledWrites.length
+                ? `unmodelled=${summary.d1UnmodelledWrites.join(',')}` : '');
           }
           return summary;
         },

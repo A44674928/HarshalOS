@@ -3,6 +3,16 @@ const ROUTE = "/api/orb2/v1/beats";
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_PAYLOAD_BYTES = 40_960;
 const MAX_ROWS_PER_SESSION = 120;
+/* How many expired rows one save may retire. D1 charges a row written per
+   b-tree a statement maintains, and `orb2_saved_beats` carries a compound
+   primary key plus two secondary indexes — four rows written per row deleted.
+   An unbounded `DELETE ... WHERE expires_at <= ?` on a write route lets one
+   request decide how much of the day's allowance is spent: every session's
+   stale rows, at four rows each. Bounding it makes the cost of a save a
+   function of the save, not of what other browsers left behind; the next
+   save retires the next page. Expired rows are never served either way —
+   every read filters `expires_at > ?` — so this only paces the cleanup. */
+const MAX_EXPIRED_ROWS_PER_WRITE = 200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROVIDERS = new Set(["massive", "tickerbot", "kraken", "rehearsal"]);
 const DISCS = new Set(["stocks", "fx", "crypto", "commodities", "indices"]);
@@ -70,7 +80,11 @@ export async function handleOrb2SavedBeats(request, env = {}, dependencies = {})
     if (request.method === "GET") {
       const sessionId = url.searchParams.get("sessionId");
       if (!validUuid(sessionId)) return fail(400, "A valid browser session id is required.");
-      await db.prepare("DELETE FROM orb2_saved_beats WHERE session_id = ? AND expires_at <= ?").bind(sessionId, now).run();
+      /* No cleanup on the read path. D1 bills rows written whether or not the
+         request needed them, and this DELETE removed only rows the SELECT below
+         already excludes by `expires_at > ?`. Retiring them is the write
+         route's job (bounded, above), so a page load costs reads and nothing
+         else. */
       const result = await db.prepare(`SELECT beat_id, beat_at, provider, disc_id, payload, created_at, expires_at
         FROM orb2_saved_beats WHERE session_id = ? AND expires_at > ?
         ORDER BY beat_at DESC LIMIT ?`).bind(sessionId, now, MAX_ROWS_PER_SESSION).all();
@@ -90,7 +104,9 @@ export async function handleOrb2SavedBeats(request, env = {}, dependencies = {})
     const createdAt = now;
     const expiresAt = now + RETENTION_MS;
     const statements = [
-      db.prepare("DELETE FROM orb2_saved_beats WHERE expires_at <= ?").bind(now),
+      db.prepare(`DELETE FROM orb2_saved_beats WHERE (session_id, beat_id) IN (
+        SELECT session_id, beat_id FROM orb2_saved_beats WHERE expires_at <= ? ORDER BY expires_at LIMIT ?
+      )`).bind(now, MAX_EXPIRED_ROWS_PER_WRITE),
       db.prepare(`INSERT INTO orb2_saved_beats
         (session_id, beat_id, beat_at, provider, disc_id, payload, created_at, expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(session_id, beat_id) DO NOTHING`)
@@ -106,4 +122,6 @@ export async function handleOrb2SavedBeats(request, env = {}, dependencies = {})
   }
 }
 
-export const ORB2_SAVED_BEATS = Object.freeze({ ROUTE, RETENTION_MS, MAX_PAYLOAD_BYTES, MAX_ROWS_PER_SESSION });
+export const ORB2_SAVED_BEATS = Object.freeze({
+  ROUTE, RETENTION_MS, MAX_PAYLOAD_BYTES, MAX_ROWS_PER_SESSION, MAX_EXPIRED_ROWS_PER_WRITE
+});

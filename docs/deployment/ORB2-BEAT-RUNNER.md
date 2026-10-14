@@ -297,14 +297,23 @@ documented in the code, so confirm it with the provider before relying on the bo
 
 ## Reading a run
 
-Each fire logs one line per tick and one for the publication:
+Each fire logs one line per tick, a breakdown of where the rows went, and one
+line for the publication:
 
 ```
 2026-10-12T04:05:12.001Z providers: MASSIVE_API_KEY, TICKERBOT_API_KEY
-2026-10-12T04:05:14.882Z tick 1/1: 3 observed, 0 held, 4 provider calls, 4 work units, 12 reads / 9 writes, 2881 ms
+2026-10-12T04:05:14.882Z tick 1/1: 3 observed, 0 held, 4 provider calls, 4 work units, rows 1489 read / 18 written in 11 statements, 2881 ms
+2026-10-12T04:05:14.884Z tick 1/1 rows written by table: orb2_field_queue=6,orb2_field_observations=5,orb2_field_runs=5,characters_kraken_daily_bar_cache=2
 2026-10-12T04:05:21.004Z publish: ok in 6122 ms — 15m, 1h, 1d
-2026-10-12T04:05:21.006Z done: 9005 ms total
+2026-10-12T04:05:21.006Z done: 9005 ms total — 1489 rows read / 18 written in 11 statements
 ```
+
+The `rows` figures are the ones D1 bills, and they are not the statement
+counts: a write that touches an indexed column costs a row for the table plus a
+row for each index maintained, so rows written is always ≥ statements. The
+per-table line is the same `table=rows` ordering the Worker's `[orb2-d1]` line
+uses, so a runner tick and a Cron Trigger tick can be read side by side. See
+`docs/deployment/D1-ROWS-WRITTEN-BUDGET.md` for the daily arithmetic.
 
 - A **non-zero exit** means either the tick or the publication reported an
   error, and the failure lines are printed at the end.

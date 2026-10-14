@@ -39,6 +39,7 @@
 import { ORB2_FIELD_INTERVALS, runOrb2FieldTick } from "../worker/orb2-field.mjs";
 import { publishOrb2FieldDocument } from "../worker/orb2-field-publish.mjs";
 import { assertD1DatabaseName, createD1HttpClient } from "./orb2-d1-client.mjs";
+import { formatRowsWrittenBreakdown } from "../worker/d1-rows-written.mjs";
 
 const REQUIRED = ["ORB2_D1_DATABASE_ID", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"];
 const PROVIDER_KEYS = ["MASSIVE_API_KEY", "TWELVEDATA_API_KEY", "TICKERBOT_API_KEY", "ALPHA_VANTAGE_API_KEY"];
@@ -88,6 +89,13 @@ for (const name of provided) env[name] = readEnv(name);
 log("providers", provided.length ? provided.join(", ") : "none (every provider lane will be skipped)");
 
 const failures = [];
+/* Rows, not statements. D1 Free allows 100,000 rows written a day and charges
+   one per b-tree a statement maintains — the table, plus an index for every
+   indexed column it touches — so a tick inside a statement budget can still be
+   over what the account is billed for. The runner is the one place that ticks
+   outside a Cron Trigger, where nobody is watching the Worker's [orb2-d1] line,
+   so it reports the same numbers by hand. */
+const totals = { rowsRead: 0, rowsWritten: 0, statements: 0 };
 for (let iteration = 1; iteration <= iterations; iteration += 1) {
   const tickStarted = Date.now();
   const summary = await runOrb2FieldTick(env, null, { now: () => Date.now() }).catch(error => ({
@@ -102,7 +110,7 @@ for (let iteration = 1; iteration <= iterations; iteration += 1) {
   log(`tick ${iteration}/${iterations}`, [
     `${summary.observed || 0} observed`, `${summary.held || 0} held`,
     `${summary.providerRequests || 0} provider calls`, `${summary.workUnits || 0} work units`,
-    `${summary.d1Reads || 0} reads / ${summary.d1Writes || 0} writes`,
+    `rows ${summary.d1RowsRead || 0} read / ${summary.d1RowsWritten || 0} written in ${summary.d1Writes || 0} statements`,
     `${elapsed} ms`
   ].join(", "));
   /* Per-provider counts, so the log shows who spent the calls. Zero counts are omitted. */
@@ -112,6 +120,13 @@ for (let iteration = 1; iteration <= iterations; iteration += 1) {
     ["alphavantage", summary.alphaVantageCalls]
   ].filter(([, count]) => Number(count) > 0).map(([name, count]) => `${name} ${count}`);
   if (byProvider.length) log(`tick ${iteration}/${iterations} calls by provider`, byProvider.join(", "));
+  totals.rowsRead += summary.d1RowsRead || 0;
+  totals.rowsWritten += summary.d1RowsWritten || 0;
+  totals.statements += summary.d1Writes || 0;
+  /* Where the rows went, in the same `table=rows` order the Worker's [orb2-d1]
+     line uses, so a runner tick and a Cron Trigger tick read alike. */
+  const byTable = formatRowsWrittenBreakdown(summary.d1RowsWrittenByTable || {}, 6);
+  if (byTable) log(`tick ${iteration}/${iterations} rows written by table`, byTable);
   if (Array.isArray(summary.errors) && summary.errors.length) {
     /* A per-lane provider failure is not a runner failure: the rotation advances
        past it and the next fire retries. It is still worth seeing in the log. */
@@ -127,7 +142,8 @@ if (publishEnabled) {
   if (!publication.ok) failures.push(...publication.errors.slice(0, 3));
 }
 
-log("done", `${Date.now() - started} ms total${failures.length ? `, ${failures.length} failure(s)` : ""}`);
+log("done", `${Date.now() - started} ms total — ${totals.rowsRead} rows read / ${totals.rowsWritten} written in ${totals.statements} statements` +
+  `${iterations > 1 ? ` over ${iterations} ticks` : ""}${failures.length ? `, ${failures.length} failure(s)` : ""}`);
 if (failures.length) {
   for (const failure of failures) console.error(`[orb2-runner] ${failure}`);
   process.exit(1);

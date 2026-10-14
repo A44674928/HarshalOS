@@ -70,6 +70,7 @@ import { readKrakenCallLedger } from "./kraken-call-ledger.mjs";
 import { readTwelveDataDailyCredits } from "./twelvedata-daily-credit-ledger.mjs";
 import { readCharactersCryptoRankingCache } from "./characters-crypto-ranking.mjs";
 import { readMassiveFuturesContractState } from "./characters-futures-contracts.mjs";
+import { countRowsWritten } from "./d1-rows-written.mjs";
 
 /** Marker for the stored row's shape; the served document keeps its own schema. */
 export const ORB2_FIELD_SNAPSHOT_SCHEMA = "gi-orb2-field-snapshot-v1";
@@ -690,15 +691,24 @@ async function writeBuildState(db, state, patch, now) {
  * oldest. Nothing here scales with the size of the whole field.
  */
 export async function runOrb2FieldBuildSlice(env = {}, dependencies = {}) {
-  const db = dependencies.db || env.COMMUNITY_DB;
-  const summary = { ok: false, ran: false, stages: [], changed: 0, published: [], faults: [], errors: [] };
+  const rawDb = dependencies.db || env.COMMUNITY_DB;
+  /* The slice writes fragments, build state, and the assembled document through
+     its own handle, so its rows written are counted here rather than by the
+     scheduler's budget. D1 bills the account, not the module: the tick's ceiling
+     is meaningless if the publication that runs just before it is unmeasured. */
+  const summary = {
+    ok: false, ran: false, stages: [], changed: 0, published: [], faults: [], errors: [],
+    rowsWritten: 0, rowsWrittenModeled: 0, rowsWrittenObserved: 0, unmodelledWrites: [],
+    rowsWrittenByTable: {}
+  };
   if (dependencies.enabled === false || String(env.ORB2_FIELD_SNAPSHOT || "").trim().toLowerCase() === "off") {
     return { ...summary, ok: true, disabled: true };
   }
-  if (!db || typeof db.prepare !== "function") {
+  if (!rawDb || typeof rawDb.prepare !== "function") {
     summary.errors.push("Bind COMMUNITY_DB before the field publication can run.");
     return summary;
   }
+  const { db, ledger } = countRowsWritten(rawDb);
   const now = Number.isFinite(Number(dependencies.now)) ? Number(dependencies.now) : Date.now();
   const intervals = (Array.isArray(dependencies.intervals) && dependencies.intervals.length
     ? dependencies.intervals.filter(interval => ORB2_FIELD_INTERVALS.includes(interval))
@@ -806,6 +816,11 @@ export async function runOrb2FieldBuildSlice(env = {}, dependencies = {}) {
     summary.errors.push(String((error && error.message) || error).slice(0, 200));
     snapshotTablesPresent = null;
   }
+  summary.rowsWritten = ledger.rows;
+  summary.rowsWrittenModeled = ledger.modeled;
+  summary.rowsWrittenObserved = ledger.observed;
+  summary.unmodelledWrites = ledger.unmodelled.slice();
+  summary.rowsWrittenByTable = { ...ledger.byTable };
   return summary;
 }
 

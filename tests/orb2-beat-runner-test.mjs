@@ -33,7 +33,8 @@ const MIGRATIONS = [
   "0010_characters_crypto_ranking_cache.sql",
   "0011_massive_futures_contract_cache.sql",
   "0012_kraken_public_crypto.sql",
-  "0018_orb2_field_snapshot.sql"
+  "0018_orb2_field_snapshot.sql",
+  "0020_d1_rows_written.sql"
 ].map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
 
 const SECRET_NAMES = ["ORB2_D1_DATABASE_ID", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN",

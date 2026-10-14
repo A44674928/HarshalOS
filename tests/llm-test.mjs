@@ -130,6 +130,7 @@ const sources = [
   eq(openaiCall.executable, false, "a model response is explicitly non-executable");
   ok(Object.isFrozen(openaiCall) && Object.isFrozen(openaiCall.usage), "model response metadata and nested usage data are immutable");
   const last = calls[calls.length - 1];
+  eq(last.init.credentials, "omit", "a third-party provider call carries no cookies of this site's at all");
   eq(last.headers.get("Authorization"), "Bearer sk-ant-test-key-0000000000", "OpenAI-compatible providers get a bearer token");
   eq(last.body.messages[0].role, "system", "system prompt is carried as a system message");
   eq(openaiCall.usage.output, 4, "token usage is read back");
@@ -139,6 +140,20 @@ const sources = [
   let described = null;
   try { await LLM.chat({ user: "U" }); } catch (error) { described = LLM.describe(error); }
   ok(described && described.title.includes("BLOCKED"), "a blocked/browser-refused call is described as blocked");
+  ok(described && /Failed to fetch/.test(described.detail), "the browser's own words are kept instead of discarded");
+  ok(described && !/Cloudflare Access/.test(described.hint), "a third-party call is not sent looking for an Access challenge");
+
+  /* A refused relay call is the one a reader takes to the wrong place: it is
+     same-origin, so it cannot be a CORS problem, and the interesting causes are
+     in front of the Worker rather than inside it. */
+  const settingsBefore = LLM.loadSettings();
+  LLM.saveSettings({ provider: "relay", protocol: "", endpoint: "/api/llm", model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast" });
+  let relayDescribed = null;
+  try { await LLM.chat({ user: "U" }); } catch (error) { relayDescribed = LLM.describe(error); }
+  ok(relayDescribed && relayDescribed.title === "THE RELAY CALL WAS BLOCKED", "a refused same-origin relay call is not labelled a provider CORS failure");
+  ok(relayDescribed && /not a CORS problem/.test(relayDescribed.hint), "the relay's own explanation says what it is not");
+  ok(relayDescribed && /Cloudflare Access/.test(relayDescribed.hint), "the relay failure names an Access challenge as the leading cause");
+  LLM.saveSettings(settingsBefore);
 
   globalThis.fetch = async () => ({ ok: false, status: 401, headers: { get: () => "application/json" }, json: async () => ({ error: "bad key" }), text: async () => "bad key" });
   try { await LLM.chat({ user: "U" }); } catch (error) { described = LLM.describe(error); }
@@ -1103,7 +1118,14 @@ const linkPriced = () => {
   eq(calls.length, 1, "one relay call is made");
   eq(calls[0].url, "/api/llm", "the call goes to this deployment's own relay route");
   ok(!calls[0].init.headers.get("Authorization"), "the stored key is not sent to the relay");
-  eq(calls[0].init.credentials, "omit", "the relay call carries no cookies either");
+  /* Credentials follow the target. The relay is this site's own origin, and it
+     may need this origin's cookies to get past whatever protects the pages: a
+     Cloudflare Access challenge arrives when they are withheld, and it redirects
+     to another origin, which the browser reports as a refused fetch rather than
+     as a sign-in. `same-origin` sends cookies to this host and to no other, so
+     the property that matters is unchanged; a third-party provider gets none
+     at all, which the next block asserts. */
+  eq(calls[0].init.credentials, "same-origin", "the relay call carries this origin's cookies, and no other host's");
   eq(calls[0].body.model, "glm-4.7-flash", "the explicitly selected Z.AI fallback model is preserved");
   eq(calls[0].body.max_tokens, 700, "the caller's output ceiling is passed through");
   eq(calls[0].body.temperature, 0, "a greedy reading is asked for as temperature 0; the relay translates it");

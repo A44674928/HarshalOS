@@ -267,6 +267,24 @@ window.HOSLLM = (() => {
   }
 
   /* ──────────────────────────────────────────────────────────────
+     Credentials
+     ──────────────────────────────────────────────────────────────
+     This site's relay is a same-origin Worker route, and it is the one target
+     that needs the browser's own cookies. A deployment behind Cloudflare Access
+     challenges a request that arrives without the Access session cookie, and
+     that challenge redirects to another origin — which the browser reports as a
+     refused fetch, not as a sign-in, so a linked model can fail while its
+     status check succeeds. The relay holds the model credential itself, so
+     there is no key in the browser for a cookie to be protecting against.
+
+     A third-party provider keeps `omit`: no cookie of this site's is ever put
+     on the wire to an endpoint the custodian pasted in. `same-origin` already
+     withholds cookies from cross-origin targets by definition, so the two are
+     not in tension — the relay branch is about arriving *with* this site's own
+     cookies, not about sending them anywhere new. */
+  const relayCredentials = relay => (relay === true ? "same-origin" : "omit");
+
+  /* ──────────────────────────────────────────────────────────────
      Network
      ────────────────────────────────────────────────────────────── */
   class LlmError extends Error {
@@ -285,7 +303,8 @@ window.HOSLLM = (() => {
   function describe(error) {
     if (error instanceof LlmError) return {
       title: ({
-        cors: "THE BROWSER BLOCKED THE CALL", auth: "THE KEY WAS REJECTED", model: "THE MODEL WAS REJECTED",
+        cors: "THE BROWSER BLOCKED THE CALL", network: "THE RELAY CALL WAS BLOCKED", offline: "THE DEVICE IS OFFLINE",
+        auth: "THE KEY WAS REJECTED", model: "THE MODEL WAS REJECTED",
         "model-list": "MODEL LIST UNAVAILABLE", sdk: "GOOGLE GENAI SDK UNAVAILABLE", rate: "RATE LIMITED",
         budget: "THE TOKEN CEILING IS UNAFFORDABLE", busy: "THE PROVIDER IS STILL SETTLING REQUESTS",
         quota: "THE GOOGLE API QUOTA IS EXHAUSTED", pace: "THE LOCAL GOOGLE PACE GUARD HELD THIS CALL", billing: "THE PROVIDER REFUSED THE CALL", timeout: "NO COMPLETE RESPONSE"
@@ -335,10 +354,28 @@ window.HOSLLM = (() => {
     const kind = httpStatus === 401 || httpStatus === 403 ? "auth" : httpStatus === 404 ? "model" : httpStatus === 429 ? "rate" : httpStatus >= 500 ? "provider" : "error";
     return new LlmError(readableDetail(detail) || `The endpoint returned HTTP ${httpStatus}.`, { status: httpStatus, kind, hint });
   }
-  const corsError = provider => new LlmError(
-    `The request to ${provider.endpoint} never reached the provider: the browser blocked it.`,
-    { kind: "cors", hint: provider.browser === "blocked" ? provider.note : "This usually means the provider does not send CORS headers, the endpoint URL is wrong, or an extension is blocking the request. A same-origin relay or a local model avoids this entirely." }
-  );
+  /* A rejected `fetch` is one opaque TypeError for every network-layer cause
+     there is: a CORS refusal, a DNS failure, an offline device, an extension,
+     a redirect to a sign-in origin the browser may not follow. Labelling all of
+     them "the provider has a CORS problem" sends the reader to the wrong place,
+     so the three cases that are distinguishable are separated, and the browser's
+     own words are kept — they are the only evidence anyone gets from here. */
+  const networkFailure = (provider, error = null) => {
+    const said = redact(error instanceof Error ? error.message : String(error ?? ""));
+    const offline = !!(globalThis.navigator && globalThis.navigator.onLine === false);
+    if (offline) return new LlmError(
+      `The call to ${provider.endpoint} never left the browser: this device reports that it is offline.`,
+      { kind: "offline", hint: "Reconnect and retry. No reading was recorded, so nothing was lost." }
+    );
+    if (provider.relay === true) return new LlmError(
+      `The request to ${provider.endpoint} never reached this site's relay: the browser refused to complete it${said ? ` (${said})` : ""}.`,
+      { kind: "network", hint: "This is not a CORS problem — the relay is a same-origin route on this site and sends no cross-origin headers at all. The reachable causes, in order: a Cloudflare Access challenge on this hostname, a Content-Security-Policy whose connect-src does not allow this origin, an extension blocking the request, or the route not being deployed. Check relay reads /api/llm/status, which is the one call that will say which." }
+    );
+    return new LlmError(
+      `The request to ${provider.endpoint} never reached the provider: the browser blocked it${said ? ` (${said})` : ""}.`,
+      { kind: "cors", hint: provider.browser === "blocked" ? provider.note : "This usually means the provider does not send CORS headers, the endpoint URL is wrong, or an extension is blocking the request. A same-origin relay or a local model avoids this entirely." }
+    );
+  };
 
   /* This site has no bundler or package runtime. Load the official package's
      browser entry only when a Google model is listed, tested, or called. Pin
@@ -487,7 +524,7 @@ window.HOSLLM = (() => {
       return classified;
     }
     if (error && error.name === "AbortError") return error;
-    if (/failed to fetch|networkerror|network request failed|load failed/i.test(message)) return corsError(provider);
+    if (/failed to fetch|networkerror|network request failed|load failed/i.test(message)) return networkFailure(provider, new Error(message));
     return new LlmError(message || "The Google GenAI SDK request failed.", {
       kind: "provider",
       hint: "Check the key, Gemini API access, model name, and browser access to the configured Google API base URL."
@@ -599,8 +636,8 @@ window.HOSLLM = (() => {
     const key = apiKey();
     if (key) applyAuth(headers, provider, key);
     let response;
-    try { response = await fetch(provider.modelsEndpoint, { headers, signal, credentials: "omit", referrerPolicy: "no-referrer" }); }
-    catch (error) { if (error && error.name === "AbortError") throw error; throw corsError(provider); }
+    try { response = await fetch(provider.modelsEndpoint, { headers, signal, credentials: relayCredentials(provider.relay === true), referrerPolicy: "no-referrer" }); }
+    catch (error) { if (error && error.name === "AbortError") throw error; throw networkFailure(provider, error); }
     if (response.status === 404) throw new LlmError(`The model-list endpoint for ${provider.label} returned HTTP 404.`, { status: 404, kind: "model-list", hint: "This connection can still work if you type the model name. Check the provider's GET /models route if listing should be available." });
     if (!response.ok) {
       let detail = `Listing models returned HTTP ${response.status}.`;
@@ -651,6 +688,9 @@ window.HOSLLM = (() => {
     try {
       let response;
       try {
+        /* Same-origin cookies, as the chat call now is too: this probe has to
+           survive whatever protects the pages, or "Check relay" reports a relay
+           that is merely unauthenticated. */
         response = await fetch(target, { headers: { Accept: "application/json" }, signal: controller.signal, credentials: "same-origin", referrerPolicy: "no-referrer" });
       } catch {
         if (timedOut) return unavailable(`The relay did not answer within ${Math.round(timeoutMs / 1000)} seconds.`);
@@ -1285,10 +1325,10 @@ window.HOSLLM = (() => {
         for (;;) {
           let response;
           try {
-            response = await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: "omit", referrerPolicy: "no-referrer" });
+            response = await fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal, credentials: relayCredentials(config.relay === true), referrerPolicy: "no-referrer" });
           } catch (error) {
             if (error && error.name === "AbortError") throw controller.signal.reason instanceof Error ? controller.signal.reason : error;
-            throw corsError(config);
+            throw networkFailure(config, error);
           }
           const detail = response.ok ? "" : await readDetail(response);
           /* Two refusals are worth waiting out rather than failing the reading:

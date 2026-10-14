@@ -118,10 +118,20 @@ around rows, not bytes:
 - Serving is one row read. The Cache API copy and the `304` path make most
   polls cost no D1 read at all.
 
-That is on the order of 250 k–500 k rows read and a few thousand rows written
-per day: a fraction of both caps, with the cold drain (one read and one write
-per berth, once) as the only burst. Watch the same numbers in the D1 dashboard
-(**Storage & Databases → D1 → Metrics**) when you compare before and after.
+That is on the order of 250 k–500 k rows read per day: a fraction of the read
+cap, with the cold drain (one read and one write per berth, once) as the only
+burst. Watch the same numbers in the D1 dashboard (**Storage & Databases → D1 →
+Metrics**) when you compare before and after.
+
+**The write side is measured in rows, not statements, and it is the tight one.**
+An idle publication slice is ~13 rows written — the build state, the status
+pieces, and the assembled document are rows whether or not anything moved —
+which is ~18,700 a day before the beat tick writes anything. The scheduler's
+per-tick statement budget cannot see that: a rotation minute is 11 write
+statements and 18 rows written, because D1 charges a row per index a statement
+touches. The accounting, the per-tick rows ceiling, the measured costs, and the
+levers that are still open are in
+[`docs/deployment/D1-ROWS-WRITTEN-BUDGET.md`](D1-ROWS-WRITTEN-BUDGET.md).
 
 ## Fix first: the precomputed field (already in the Worker)
 
