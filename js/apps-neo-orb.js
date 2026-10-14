@@ -32,6 +32,19 @@
   const GUIDE_SIZE = 40;               // flame bitmap sampling resolution (cells per side)
   const GUIDE_WEIGHT = Object.freeze({ inner: 0.6, outer: 0.4 });
   const PHASE_SHIFT = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
+  /* The Phase Badge ring wears the Ground-0 badge colour from css/ground0.css.
+     A badge is issued to a subject, so this is one ring for the board, not one
+     per orb: it carries no comparison and no per-orb meaning. Unassigned wears
+     white — "not issued" is a state, and it is not the same state as a finding
+     about the subject. */
+  const PHASE_BADGE = Object.freeze({
+    NAB: "#a4d18d", CWO: "#9cc4e8", GSRB: "#e6b08a",
+    "NAB-Constrained": "#e6c47f", AMBIGUOUS: "#dbc98f", INCOHERENT: "#eda294"
+  });
+  const PHASE_BADGE_UNASSIGNED = "#f2f6fa";
+  const HALO_BASE_GAP = 0.14;   /* from the instability region's outer edge */
+  const HALO_RING_GAP = 0.07;   /* between the three rings that flare */
+  const BADGE_RING_GAP = 0.015; /* and the badge ring, one step further out */
   const KIND_COLOR = Object.freeze({ structural: "#6fd3ff", field: "#b57cff", interaction: "#5ce6a8" });
   const KIND_NAME = Object.freeze({ structural: "Structural", field: "Field", interaction: "Interaction" });
   /* The market colours are reserved for market state on the orbs, so the centre marker and the
@@ -452,6 +465,19 @@
        else — never a roster share, a mean, or a neighbour. The clock is the
        caller's, so a frozen clock (prefers-reduced-motion) is a fixed point in
        the pulse rather than a blank. */
+    /* The board's Phase Badge. A badge is a state, not an event: it does not
+       pulse with the clock and never has. Unassigned is a value here, not an
+       absence of one, so the ring is always drawn and simply wears white. */
+    phaseBadge() {
+      const assigned = Object.prototype.hasOwnProperty.call(PHASE_BADGE, this.state.phase);
+      return Object.freeze({
+        phase: assigned ? this.state.phase : null,
+        assigned,
+        label: assigned ? this.state.phase : "Unassigned",
+        color: assigned ? PHASE_BADGE[this.state.phase] : PHASE_BADGE_UNASSIGNED
+      });
+    }
+
     flareFor(id) {
       const flare = flareModule();
       if (!flare) return null;
@@ -931,7 +957,7 @@
       }
       const r = this.reinsurance;
       if (r && r.engaged) {
-        const haloBase = m.INSTABILITY_REGION.outer + 0.14;
+        const haloBase = m.INSTABILITY_REGION.outer + HALO_BASE_GAP;
         const sync = r.synchrony || 0;
         const halo = flareModule() ? flareModule().reinsuranceFlare(r, this.clock) : null;
         for (let k = 0; k < 3; k++) {
@@ -942,9 +968,20 @@
           ctx.strokeStyle = halo ? halo.color : BAND_COLOR;
           ctx.globalAlpha = Math.min(0.6, (0.03 + 0.14 * sync) * (1 - k * 0.3) * (1 + 1.6 * burst * sync));
           ctx.lineWidth = 1 + k * 1.5 + burst * (1 + k);
-          strokeRing(ringAt(haloBase + k * 0.07, 160));
+          strokeRing(ringAt(haloBase + k * HALO_RING_GAP, 160));
         }
       }
+      /* 1c · the Phase Badge ring, outermost of the four. It is the board's
+         badge, so one ring for everyone. It does not pulse, and it is crisp
+         rather than soft, which is what separates it from the three flaring
+         rings inside it: those are events, this is a state. It draws even when
+         Reinsurance has measured nothing, because a badge does not depend on
+         the halo — and it draws white when none has been issued. */
+      const badge = this.phaseBadge();
+      ctx.strokeStyle = badge.color;
+      ctx.globalAlpha = badge.assigned ? 0.5 : 0.32;
+      ctx.lineWidth = badge.assigned ? 2 : 1.5;
+      strokeRing(ringAt(m.INSTABILITY_REGION.outer + HALO_BASE_GAP + 3 * HALO_RING_GAP + BADGE_RING_GAP, 160));
       ctx.restore();
     }
 
@@ -1261,6 +1298,7 @@
                   <dt>Quasar Mode</dt><dd id="neo-quasar">—</dd>
                   <dt>Reinsurance Mode</dt><dd id="neo-reins">—</dd>
                   <dt>Flare</dt><dd id="neo-flare">—</dd>
+                  <dt>Phase Badge</dt><dd id="neo-badge">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
@@ -1281,6 +1319,7 @@
                     <option value="NAB">NAB · +0°</option>
                     <option value="CWO">CWO · +60°</option>
                     <option value="GSRB">GSRB · +120°</option>
+                    <option value="">Unassigned · white badge</option>
                   </select></label>
               </section>
               <section class="neo-section">
@@ -1321,7 +1360,8 @@
       });
       const phase = b.querySelector("select[data-key='phase']");
       if (phase) phase.addEventListener("change", () => {
-        this.state.phase = PHASE_SHIFT[phase.value] !== undefined ? phase.value : DEFAULTS.phase;
+        /* "" is a state, not a missing value: the unassigned badge, which wears white. */
+        this.state.phase = phase.value === "" || PHASE_SHIFT[phase.value] !== undefined ? phase.value : DEFAULTS.phase;
       });
       b.querySelectorAll("input[data-layer]").forEach(input => {
         input.addEventListener("change", () => { this.state.layers[input.dataset.layer] = input.checked; });
@@ -1456,6 +1496,11 @@
       put("neo-quasar", this.gravityTextFor("quasar"));
       put("neo-reins", this.gravityTextFor("reinsurance"));
       put("neo-flare", this.flareTextFor());
+      /* The badge line wears the ring's own colour, so the text and the ring
+         are one thing, and "Unassigned" reads as a state rather than a blank. */
+      put("neo-badge", this.phaseBadge().label);
+      const badgeEl = b.querySelector("#neo-badge");
+      if (badgeEl && badgeEl.style.color !== this.phaseBadge().color) badgeEl.style.color = this.phaseBadge().color;
       const inspBhc = b.querySelector("#neo-insp-bhc");
       if (inspBhc && this.selectedId) {
         const note = this.bhcNoteFor(this.selectedId);

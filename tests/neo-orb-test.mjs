@@ -734,6 +734,92 @@ test("a full frame draws the bands, the spokes, and every roster orb, and never 
   assert.ok(arcs >= 52, `orbs are drawn as arcs (${arcs})`);
 });
 
+/* A context that records every stroked ring — its colour and its mean radius
+   from the canvas centre — so the halo's ring order can be asserted, not assumed. */
+function ringContext(W = 640, H = 480) {
+  const gradient = { addColorStop() {} };
+  const rings = [];
+  let pts = [];
+  const state = { strokeStyle: "#000", lineWidth: 1, globalAlpha: 1 };
+  const ctx = { rings, createRadialGradient: () => gradient, createLinearGradient: () => gradient };
+  ctx.beginPath = () => { pts = []; };
+  ctx.moveTo = (x, y) => { pts.push([x, y]); };
+  ctx.lineTo = (x, y) => { pts.push([x, y]); };
+  ctx.stroke = () => {
+    if (pts.length < 8) return;
+    const cx = W / 2, cy = H / 2;
+    const mean = pts.reduce((a, [x, y]) => a + Math.hypot(x - cx, y - cy), 0) / pts.length;
+    rings.push({ color: String(state.strokeStyle).toLowerCase(), mean: Math.round(mean * 10) / 10, width: state.lineWidth, alpha: state.globalAlpha });
+  };
+  for (const name of ["setTransform", "clearRect", "fillRect", "arc", "fill", "fillText", "save", "restore",
+    "closePath", "setLineDash", "rect", "clip", "ellipse", "quadraticCurveTo", "bezierCurveTo",
+    "translate", "rotate", "scale", "measureText", "arcTo"]) ctx[name] = () => {};
+  for (const key of ["strokeStyle", "lineWidth", "globalAlpha"]) {
+    Object.defineProperty(ctx, key, { set(v) { state[key] = v; }, get() { return state[key]; } });
+  }
+  return ctx;
+}
+
+test("the Phase Badge is the fourth halo ring: white until one is issued, then outside the three", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = ringContext();
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+
+  /* Nothing engaged. The badge still draws — a badge does not depend on the
+     halo — and it is white, because none has been issued. */
+  engine.quasar = null;
+  engine.reinsurance = null;
+  engine.state.phase = "";
+  engine.draw(1000);
+  assert.equal(engine.phaseBadge().assigned, false);
+  assert.equal(engine.phaseBadge().label, "Unassigned");
+  const white = ctx.rings.filter(r => r.color === "#f2f6fa");
+  assert.equal(white.length, 1, "one white ring, and it is there with nothing else engaged");
+
+  /* A badge is a state, not an event: it does not move with the clock. */
+  const before = engine.phaseBadge();
+  engine.clock += 4.25;
+  assert.deepEqual(engine.phaseBadge(), before, "the badge ring does not pulse");
+
+  /* Issued: the ring wears the badge's colour and sits outside the three. */
+  engine.reinsurance = { engaged: true, synchrony: 0.7 };
+  engine.state.phase = "NAB";
+  ctx.rings.length = 0;
+  engine.draw(1000);
+  const badge = ctx.rings.filter(r => r.color === "#a4d18d");
+  assert.equal(badge.length, 1, "exactly one badge ring, in the NAB badge's colour");
+  const halo = ctx.rings.filter(r => r.color !== "#a4d18d" && r.color !== "#7d93b8");
+  assert.ok(halo.length >= 3, `the three flaring rings are still there (${halo.length})`);
+  for (const ring of halo) {
+    assert.ok(ring.mean < badge[0].mean, "every halo ring is inside the badge ring");
+  }
+  assert.ok(badge[0].width < halo[halo.length - 1].width,
+    "and the badge ring is the crisp thin one, not a fourth flaring one");
+});
+
+test("the badge ring wears the same colours as the Ground-0 badge chips", async () => {
+  const css = await readText("css/ground0.css");
+  const app = await readText("js/apps-neo-orb.js");
+  const chips = [...css.matchAll(/\.g0-phase-badge\.(\w+)\s*\{[^}]*?color:\s*(#[0-9a-f]{6})/gi)];
+  assert.ok(chips.length >= 6, `every badge colour lives in the stylesheet (${chips.length} chips)`);
+  /* The canvas cannot read a CSS class, so it carries its own copy of the
+     palette. This is the assertion that keeps the two copies honest. */
+  const map = /const PHASE_BADGE = Object\.freeze\(\{([\s\S]*?)\}\);/.exec(app);
+  assert.ok(map, "the app declares a badge palette for the canvas");
+  for (const [, cls, hex] of chips) {
+    assert.ok(map[1].toLowerCase().includes(hex.toLowerCase()),
+      `the ${cls} chip and the ${cls} ring are the same colour (${hex})`);
+  }
+  /* White is not a phase: it is what the ring wears when none has been issued. */
+  assert.ok(!map[1].toLowerCase().includes("#f2f6fa"),
+    "no phase wears white — white means unassigned, which is a different state");
+});
+
 test("the Quasar jets draw only when Quasar has measured, and always as two opposed beams", () => {
   const h = appHarness();
   const { body, engine } = mountInto(h);
