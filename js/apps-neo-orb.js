@@ -28,9 +28,23 @@
   const BEAT_EPS = 0.04;               // Orb 2 bounded ±4 % radial motion
   const BEAT_T = 7;                    // seconds per beat, per-node phase offset
   const GUIDE_EVERY_MS = 100;          // how often the flame bitmaps are re-read
+  const CADENCE_OF_THE_DAY = 90;       // seconds of clock per slow flare rotation (The Orb's own revolution)
   const GUIDE_SIZE = 40;               // flame bitmap sampling resolution (cells per side)
   const GUIDE_WEIGHT = Object.freeze({ inner: 0.6, outer: 0.4 });
   const PHASE_SHIFT = Object.freeze({ NAB: 0, CWO: Math.PI / 3, GSRB: (2 * Math.PI) / 3 });
+  /* The Phase Badge ring wears the Ground-0 badge colour from css/ground0.css.
+     A badge is issued to a subject, so this is one ring for the board, not one
+     per orb: it carries no comparison and no per-orb meaning. Unassigned wears
+     white — "not issued" is a state, and it is not the same state as a finding
+     about the subject. */
+  const PHASE_BADGE = Object.freeze({
+    NAB: "#a4d18d", CWO: "#9cc4e8", GSRB: "#e6b08a",
+    "NAB-Constrained": "#e6c47f", AMBIGUOUS: "#dbc98f", INCOHERENT: "#eda294"
+  });
+  const PHASE_BADGE_UNASSIGNED = "#f2f6fa";
+  const HALO_BASE_GAP = 0.14;   /* from the instability region's outer edge */
+  const HALO_RING_GAP = 0.07;   /* between the three rings that flare */
+  const BADGE_RING_GAP = 0.015; /* and the badge ring, one step further out */
   const KIND_COLOR = Object.freeze({ structural: "#6fd3ff", field: "#b57cff", interaction: "#5ce6a8" });
   const KIND_NAME = Object.freeze({ structural: "Structural", field: "Field", interaction: "Interaction" });
   /* The market colours are reserved for market state on the orbs, so the centre marker and the
@@ -109,6 +123,21 @@
   function placerModule() {
     if (typeof window !== "undefined" && window.NeoOrbPlacement) return window.NeoOrbPlacement;
     return (typeof NeoOrbPlacement !== "undefined") ? NeoOrbPlacement : null;
+  }
+
+  function flareModule() {
+    if (typeof window !== "undefined" && window.NeoOrbFlare) return window.NeoOrbFlare;
+    return (typeof NeoOrbFlare !== "undefined") ? NeoOrbFlare : null;
+  }
+
+  /* A stable 0…1 from an orb's id, used only to offset its flare so the roster
+     does not pulse in unison. It is a phase, not a rank: it carries no order and
+     is the same for the same id in every frame. */
+  function seedFor(id) {
+    let hash = 0;
+    const text = String(id === null || id === undefined ? "" : id);
+    for (let index = 0; index < text.length; index += 1) hash = (hash * 31 + text.charCodeAt(index)) % 9973;
+    return (hash % 1000) / 1000;
   }
 
   /* Index of the flame frame nearest the player's playhead (ping-pong aware). */
@@ -430,6 +459,46 @@
       if (!reading) return null;
       if (reading.depth === null) return { dark: true, glow: 0, size: 0 };
       return { dark: false, glow: 0.35 + 0.65 * reading.pressure, size: 2.4 + 1.6 * reading.pressure };
+    }
+
+    /* The flare for one orb, from that orb's own Black Hole reading and nothing
+       else — never a roster share, a mean, or a neighbour. The clock is the
+       caller's, so a frozen clock (prefers-reduced-motion) is a fixed point in
+       the pulse rather than a blank. */
+    /* The board's Phase Badge. A badge is a state, not an event: it does not
+       pulse with the clock and never has. Unassigned is a value here, not an
+       absence of one, so the ring is always drawn and simply wears white. */
+    phaseBadge() {
+      const assigned = Object.prototype.hasOwnProperty.call(PHASE_BADGE, this.state.phase);
+      return Object.freeze({
+        phase: assigned ? this.state.phase : null,
+        assigned,
+        label: assigned ? this.state.phase : "Unassigned",
+        color: assigned ? PHASE_BADGE[this.state.phase] : PHASE_BADGE_UNASSIGNED
+      });
+    }
+
+    flareFor(id) {
+      const flare = flareModule();
+      if (!flare) return null;
+      const reading = this.bhc && this.bhc.readings ? this.bhc.readings.get(id) : null;
+      return flare.orbFlare(reading, this.clock, seedFor(id));
+    }
+
+    flareTextFor() {
+      const flare = flareModule();
+      if (!flare) return "unavailable — the flare module did not load";
+      if (this.feedCut()) return "no stored rows read — the feed is cut";
+      const jets = flare.quasarJets(this.quasar, this.clock);
+      const halo = flare.reinsuranceFlare(this.reinsurance, this.clock);
+      return `${flare.jetsText(jets)} · ${flare.haloText(halo)}`;
+    }
+
+    flareNoteFor(id) {
+      const flare = flareModule();
+      if (!flare) return "unavailable — the flare module did not load";
+      const reading = this.bhc && this.bhc.readings ? this.bhc.readings.get(id) : null;
+      return flare.orbText(flare.orbFlare(reading, this.clock, seedFor(id)));
     }
 
     /* The Status line for Black Hole Computing and Quasar Mode. */
@@ -879,15 +948,79 @@
         ctx.fill();
         ctx.globalAlpha = 0.22;
         strokeRing(ringAt(depthRadius(q.meanDepth)));
+        /* The jets. Roster-level and radially symmetric: two opposed beams on an
+           axis that drifts, so no sector is ever the one they point at. */
+        if (flareModule()) {
+          const jets = flareModule().quasarJets(q, this.clock);
+          if (jets.engaged) this.drawQuasarJets(ctx, m, R, project, toScreen, shape, depthRadius(q.meanDepth), jets);
+        }
       }
       const r = this.reinsurance;
       if (r && r.engaged) {
-        const haloBase = m.INSTABILITY_REGION.outer + 0.14;
+        const haloBase = m.INSTABILITY_REGION.outer + HALO_BASE_GAP;
         const sync = r.synchrony || 0;
+        const halo = flareModule() ? flareModule().reinsuranceFlare(r, this.clock) : null;
         for (let k = 0; k < 3; k++) {
-          ctx.globalAlpha = (0.03 + 0.14 * sync) * (1 - k * 0.3);
-          ctx.lineWidth = 1 + k * 1.5;
-          strokeRing(ringAt(haloBase + k * 0.07, 160));
+          /* A burst rises fast and decays slowly, and reaches each ring a little
+             after the one inside it, so the halo reads as one structure flaring
+             rather than three rings blinking. */
+          const burst = halo && halo.rings[k] ? halo.rings[k].burst : 0;
+          ctx.strokeStyle = halo ? halo.color : BAND_COLOR;
+          ctx.globalAlpha = Math.min(0.6, (0.03 + 0.14 * sync) * (1 - k * 0.3) * (1 + 1.6 * burst * sync));
+          ctx.lineWidth = 1 + k * 1.5 + burst * (1 + k);
+          strokeRing(ringAt(haloBase + k * HALO_RING_GAP, 160));
+        }
+      }
+      /* 1c · the Phase Badge ring, outermost of the four. It is the board's
+         badge, so one ring for everyone. It does not pulse, and it is crisp
+         rather than soft, which is what separates it from the three flaring
+         rings inside it: those are events, this is a state. It draws even when
+         Reinsurance has measured nothing, because a badge does not depend on
+         the halo — and it draws white when none has been issued. */
+      const badge = this.phaseBadge();
+      ctx.strokeStyle = badge.color;
+      ctx.globalAlpha = badge.assigned ? 0.5 : 0.32;
+      ctx.lineWidth = badge.assigned ? 2 : 1.5;
+      strokeRing(ringAt(m.INSTABILITY_REGION.outer + HALO_BASE_GAP + 3 * HALO_RING_GAP + BADGE_RING_GAP, 160));
+      ctx.restore();
+    }
+
+    /* Two opposed beams from the Quasar shell, with streaks running outward.
+       Geometry only: every number it draws comes from the flare module, which
+       read Quasar's own roster-level tail share. Bipolar by construction, so
+       the aggregate stays radially symmetric, and the axis drifts slowly. */
+    drawQuasarJets(ctx, m, R, project, toScreen, shape, baseRadius, jets) {
+      const st = this.state;
+      const inner = m.DEPTH_SHELL.inner, outer = m.DEPTH_SHELL.outer;
+      const span = Math.max(0.0001, outer - inner);
+      const tipRadius = Math.min(outer + span * 0.5, baseRadius + jets.length * span * 0.5);
+      const pointAt = (radius, lon) =>
+        toScreen(project(this.worldPoint(m.positionFor(radius, lon, 0, st.formation, shape.axes), R, 1)));
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (const side of [0, Math.PI]) {
+        const lon = jets.axis + side;
+        const a = pointAt(baseRadius, lon);
+        const b = pointAt(tipRadius, lon);
+        const beam = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+        beam.addColorStop(0, hexAlpha(jets.color, 0.30 * jets.intensity));
+        beam.addColorStop(1, hexAlpha(jets.color, 0));
+        ctx.strokeStyle = beam;
+        ctx.lineWidth = jets.width;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        for (const streak of jets.streaks) {
+          const from = Math.max(0, streak.t - 0.12);
+          const p0 = pointAt(baseRadius + (tipRadius - baseRadius) * from, lon);
+          const p1 = pointAt(baseRadius + (tipRadius - baseRadius) * streak.t, lon);
+          ctx.strokeStyle = hexAlpha(jets.color, 0.5 * jets.intensity * (1 - streak.t));
+          ctx.lineWidth = jets.width * 1.6;
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
         }
       }
       ctx.restore();
@@ -980,6 +1113,32 @@
         ctx.fill();
       }
       ctx.restore();
+
+      /* The flare, behind the body: spikes and a pulsing corona from this orb's
+         own Black Hole reading. Nothing here knows another orb's number, so no
+         orb is brighter because its neighbours are calm. */
+      const flare = this.flareFor(node.n.id);
+      if (flare && flare.active) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineWidth = 1;
+        const spin = (this.clock / CADENCE_OF_THE_DAY) * TAU * 0.15;
+        ctx.strokeStyle = hexAlpha(flare.color, 0.30 * flare.intensity * (0.35 + 0.65 * flare.pulse));
+        for (let i = 0; i < flare.spikes; i++) {
+          const angle = spin + (i / flare.spikes) * TAU;
+          const r0 = node.r * 1.05;
+          const r1 = node.r * flare.reach * (0.7 + 0.3 * flare.pulse);
+          ctx.beginPath();
+          ctx.moveTo(node.x + Math.cos(angle) * r0, node.y + Math.sin(angle) * r0);
+          ctx.lineTo(node.x + Math.cos(angle) * r1, node.y + Math.sin(angle) * r1);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = hexAlpha(flare.color, 0.25 * flare.intensity * flare.pulse);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.r * (1.15 + 0.35 * flare.pulse * flare.intensity), 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       ctx.save();
       /* The body keeps its hue: an orb behind the sphere is darkened, not made transparent, so its
@@ -1138,6 +1297,8 @@
                   <dt>Black Hole Computing</dt><dd id="neo-bhc">—</dd>
                   <dt>Quasar Mode</dt><dd id="neo-quasar">—</dd>
                   <dt>Reinsurance Mode</dt><dd id="neo-reins">—</dd>
+                  <dt>Flare</dt><dd id="neo-flare">—</dd>
+                  <dt>Phase Badge</dt><dd id="neo-badge">—</dd>
                   <dt>Instability region</dt><dd id="neo-ext">—</dd>
                   <dt>Guidance · Demo.flame</dt><dd id="neo-inner">—</dd>
                   <dt>Guidance · OuterOrb.flame</dt><dd id="neo-outer">—</dd>
@@ -1158,6 +1319,7 @@
                     <option value="NAB">NAB · +0°</option>
                     <option value="CWO">CWO · +60°</option>
                     <option value="GSRB">GSRB · +120°</option>
+                    <option value="">Unassigned · white badge</option>
                   </select></label>
               </section>
               <section class="neo-section">
@@ -1198,7 +1360,8 @@
       });
       const phase = b.querySelector("select[data-key='phase']");
       if (phase) phase.addEventListener("change", () => {
-        this.state.phase = PHASE_SHIFT[phase.value] !== undefined ? phase.value : DEFAULTS.phase;
+        /* "" is a state, not a missing value: the unassigned badge, which wears white. */
+        this.state.phase = phase.value === "" || PHASE_SHIFT[phase.value] !== undefined ? phase.value : DEFAULTS.phase;
       });
       b.querySelectorAll("input[data-layer]").forEach(input => {
         input.addEventListener("change", () => { this.state.layers[input.dataset.layer] = input.checked; });
@@ -1286,6 +1449,7 @@
           <dt>Display kind</dt><dd>${esc(KIND_NAME[n.kind] || n.kind)}</dd>
           <dt>Market colour</dt><dd id="neo-insp-market">${esc(this.marketNoteFor(n.id))}</dd>
           <dt>Black Hole Computing</dt><dd id="neo-insp-bhc">${esc(this.bhcNoteFor(n.id))}</dd>
+          <dt>Flare</dt><dd id="neo-insp-flare">${esc(this.flareNoteFor(n.id))}</dd>
           <dt>Distance from centre</dt><dd id="neo-insp-ext">${esc(this.extensionNoteFor(n.id))}</dd>
           <dt>Placement</dt><dd>${esc(placeNote)}</dd>
           <dt>Berth</dt><dd>${placed && placed.wasReslotted ? "re-slotted to clear a neighbour" : "placed position"}</dd>
@@ -1331,10 +1495,21 @@
       put("neo-bhc", this.gravityTextFor("bhc"));
       put("neo-quasar", this.gravityTextFor("quasar"));
       put("neo-reins", this.gravityTextFor("reinsurance"));
+      put("neo-flare", this.flareTextFor());
+      /* The badge line wears the ring's own colour, so the text and the ring
+         are one thing, and "Unassigned" reads as a state rather than a blank. */
+      put("neo-badge", this.phaseBadge().label);
+      const badgeEl = b.querySelector("#neo-badge");
+      if (badgeEl && badgeEl.style.color !== this.phaseBadge().color) badgeEl.style.color = this.phaseBadge().color;
       const inspBhc = b.querySelector("#neo-insp-bhc");
       if (inspBhc && this.selectedId) {
         const note = this.bhcNoteFor(this.selectedId);
         if (inspBhc.textContent !== note) inspBhc.textContent = note;
+      }
+      const inspFlare = b.querySelector("#neo-insp-flare");
+      if (inspFlare && this.selectedId) {
+        const note = this.flareNoteFor(this.selectedId);
+        if (inspFlare.textContent !== note) inspFlare.textContent = note;
       }
       const insp = b.querySelector("#neo-insp-market");
       if (insp && this.selectedId) {

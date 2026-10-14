@@ -14,6 +14,7 @@ const marketSource = await readText("js/neo-orb-market.js");
 const extensionSource = await readText("js/market-extension.js");
 const signalsSource = await readText("js/neo-orb-signals.js");
 const fieldSource = await readText("js/neo-orb-field.js");
+const flareSource = await readText("js/neo-orb-flare.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const indexHtml = await readText("index.html");
@@ -176,6 +177,7 @@ function appHarness({ flames = true } = {}) {
   vm.runInContext(extensionSource, context, { filename: "js/market-extension.js" });
   vm.runInContext(signalsSource, context, { filename: "js/neo-orb-signals.js" });
   vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
+  vm.runInContext(flareSource, context, { filename: "js/neo-orb-flare.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
     players.inner = fakePlayer("inner");
@@ -697,7 +699,12 @@ function recordingContext() {
   const calls = [];
   const gradient = { addColorStop() {} };
   const ctx = { calls, createRadialGradient: () => gradient, createLinearGradient: () => gradient };
-  for (const name of ["setTransform", "clearRect", "fillRect", "beginPath", "moveTo", "lineTo", "arc", "fill", "stroke", "fillText", "save", "restore"]) {
+  /* closePath and setLineDash join the list because the Quasar band and the
+     basis rings use them: a stub that omits them hides the layers that reach
+     them, which is how a whole layer can go untested. */
+  for (const name of ["setTransform", "clearRect", "fillRect", "beginPath", "moveTo", "lineTo", "arc", "fill",
+    "stroke", "fillText", "save", "restore", "closePath", "setLineDash", "rect", "clip", "ellipse",
+    "quadraticCurveTo", "bezierCurveTo", "translate", "rotate", "scale", "measureText", "arcTo"]) {
     ctx[name] = (...args) => { calls.push(name); return args; };
   }
   return ctx;
@@ -725,6 +732,152 @@ test("a full frame draws the bands, the spokes, and every roster orb, and never 
   assert.equal(engine.screenNodes.length, 52, "every roster orb is placed on screen");
   const arcs = ctx.calls.filter(c => c === "arc").length;
   assert.ok(arcs >= 52, `orbs are drawn as arcs (${arcs})`);
+});
+
+/* A context that records every stroked ring — its colour and its mean radius
+   from the canvas centre — so the halo's ring order can be asserted, not assumed. */
+function ringContext(W = 640, H = 480) {
+  const gradient = { addColorStop() {} };
+  const rings = [];
+  let pts = [];
+  const state = { strokeStyle: "#000", lineWidth: 1, globalAlpha: 1 };
+  const ctx = { rings, createRadialGradient: () => gradient, createLinearGradient: () => gradient };
+  ctx.beginPath = () => { pts = []; };
+  ctx.moveTo = (x, y) => { pts.push([x, y]); };
+  ctx.lineTo = (x, y) => { pts.push([x, y]); };
+  ctx.stroke = () => {
+    if (pts.length < 8) return;
+    const cx = W / 2, cy = H / 2;
+    const mean = pts.reduce((a, [x, y]) => a + Math.hypot(x - cx, y - cy), 0) / pts.length;
+    rings.push({ color: String(state.strokeStyle).toLowerCase(), mean: Math.round(mean * 10) / 10, width: state.lineWidth, alpha: state.globalAlpha });
+  };
+  for (const name of ["setTransform", "clearRect", "fillRect", "arc", "fill", "fillText", "save", "restore",
+    "closePath", "setLineDash", "rect", "clip", "ellipse", "quadraticCurveTo", "bezierCurveTo",
+    "translate", "rotate", "scale", "measureText", "arcTo"]) ctx[name] = () => {};
+  for (const key of ["strokeStyle", "lineWidth", "globalAlpha"]) {
+    Object.defineProperty(ctx, key, { set(v) { state[key] = v; }, get() { return state[key]; } });
+  }
+  return ctx;
+}
+
+test("the Phase Badge is the fourth halo ring: white until one is issued, then outside the three", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = ringContext();
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+
+  /* Nothing engaged. The badge still draws — a badge does not depend on the
+     halo — and it is white, because none has been issued. */
+  engine.quasar = null;
+  engine.reinsurance = null;
+  engine.state.phase = "";
+  engine.draw(1000);
+  assert.equal(engine.phaseBadge().assigned, false);
+  assert.equal(engine.phaseBadge().label, "Unassigned");
+  const white = ctx.rings.filter(r => r.color === "#f2f6fa");
+  assert.equal(white.length, 1, "one white ring, and it is there with nothing else engaged");
+
+  /* A badge is a state, not an event: it does not move with the clock. */
+  const before = engine.phaseBadge();
+  engine.clock += 4.25;
+  assert.deepEqual(engine.phaseBadge(), before, "the badge ring does not pulse");
+
+  /* Issued: the ring wears the badge's colour and sits outside the three. */
+  engine.reinsurance = { engaged: true, synchrony: 0.7 };
+  engine.state.phase = "NAB";
+  ctx.rings.length = 0;
+  engine.draw(1000);
+  const badge = ctx.rings.filter(r => r.color === "#a4d18d");
+  assert.equal(badge.length, 1, "exactly one badge ring, in the NAB badge's colour");
+  const halo = ctx.rings.filter(r => r.color !== "#a4d18d" && r.color !== "#7d93b8");
+  assert.ok(halo.length >= 3, `the three flaring rings are still there (${halo.length})`);
+  for (const ring of halo) {
+    assert.ok(ring.mean < badge[0].mean, "every halo ring is inside the badge ring");
+  }
+  assert.ok(badge[0].width < halo[halo.length - 1].width,
+    "and the badge ring is the crisp thin one, not a fourth flaring one");
+});
+
+test("the badge ring wears the same colours as the Ground-0 badge chips", async () => {
+  const css = await readText("css/ground0.css");
+  const app = await readText("js/apps-neo-orb.js");
+  const chips = [...css.matchAll(/\.g0-phase-badge\.(\w+)\s*\{[^}]*?color:\s*(#[0-9a-f]{6})/gi)];
+  assert.ok(chips.length >= 6, `every badge colour lives in the stylesheet (${chips.length} chips)`);
+  /* The canvas cannot read a CSS class, so it carries its own copy of the
+     palette. This is the assertion that keeps the two copies honest. */
+  const map = /const PHASE_BADGE = Object\.freeze\(\{([\s\S]*?)\}\);/.exec(app);
+  assert.ok(map, "the app declares a badge palette for the canvas");
+  for (const [, cls, hex] of chips) {
+    assert.ok(map[1].toLowerCase().includes(hex.toLowerCase()),
+      `the ${cls} chip and the ${cls} ring are the same colour (${hex})`);
+  }
+  /* White is not a phase: it is what the ring wears when none has been issued. */
+  assert.ok(!map[1].toLowerCase().includes("#f2f6fa"),
+    "no phase wears white — white means unassigned, which is a different state");
+});
+
+test("the Quasar jets draw only when Quasar has measured, and always as two opposed beams", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = recordingContext();
+  let beams = 0;
+  ctx.createLinearGradient = () => { beams += 1; return { addColorStop() {} }; };
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+  const frame = () => { const before = ctx.calls.length; engine.draw(1000); return ctx.calls.length - before; };
+
+  const quiet = frame();
+  assert.equal(beams, 0, "no Quasar measurement, no jets");
+
+  engine.quasar = {
+    engaged: true, measured: 12, total: 12, meanDepth: 0.5, interval: { lo: 0.42, hi: 0.58 },
+    tail: { depth: { threshold: 0.8, share: 0.5 }, pressure: { threshold: 0.6, share: 0.25 } }
+  };
+  beams = 0;
+  const withJets = frame();
+  assert.equal(beams, 2, "two beams, opposed, on one drifting axis — no sector is the one they point at");
+  assert.ok(withJets > quiet, "the frame draws more once they are there");
+
+  engine.quasar = { engaged: true, measured: 1, tail: { depth: { share: 1 } } };
+  beams = 0;
+  frame();
+  assert.equal(beams, 0, "one measured orb is not a roster measurement, so still no jets");
+});
+
+test("an orb flares from its own reading, and only from its own", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = recordingContext();
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+  const deepId = engine.nodes[0].id;
+  const calmId = engine.nodes[1].id;
+  const readings = new Map([[deepId, { depth: 0.95, pressure: 0.82 }], [calmId, { depth: 0.2, pressure: 0.1 }]]);
+  engine.bhc = { engaged: true, readings };
+
+  assert.equal(engine.flareFor(deepId).active, true, "an orb deep in its own reading flares");
+  assert.equal(engine.flareFor(calmId).active, false, "a calm orb does not");
+
+  const before = engine.flareFor(deepId);
+  readings.set(calmId, { depth: 1, pressure: 1 });
+  assert.deepEqual(engine.flareFor(deepId), before,
+    "no comparison: this orb's flare is a function of its own row, not of the orbs around it");
+
+  const frame = () => { const start = ctx.calls.length; engine.draw(1000); return ctx.calls.length - start; };
+  const flaring = frame();
+  engine.bhc = { engaged: true, readings: new Map([[deepId, { depth: 0.2, pressure: 0.1 }], [calmId, { depth: 0.2, pressure: 0.1 }]]) };
+  const calm = frame();
+  assert.ok(flaring > calm, "a deep orb draws its spikes and corona; the same orb calm does not");
 });
 
 test("hit-testing finds the orb under the pointer and nothing in empty space", () => {
