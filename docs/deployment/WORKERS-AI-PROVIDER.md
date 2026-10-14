@@ -80,6 +80,42 @@ browser preset in `js/llm.js` is intentionally untouched: it still names the
 Z.AI free tier, so pick a Workers AI model from the live allowlist once and
 save it as the custom preset.
 
+## Pace limits
+
+The per-caller pace guard is **provider-calibrated**, because one number was
+doing duty for two providers with very different ceilings:
+
+| Path | Per caller | Shared by all callers |
+| :--- | ---: | ---: |
+| `zai` | 60 / min | 120 / min |
+| `workers-ai` | 120 / min | 150 / min |
+
+The Z.AI number is Z.AI's own free-tier pace and is deliberately no tighter:
+Ground-0 asks nine questions per source batch, so a reading is dozens of calls,
+and a guard set below the provider's own pace would refuse readings the provider
+would have served.
+
+The Workers AI numbers come from Cloudflare's published ceiling of **300 requests
+a minute per account for text generation**
+(<https://developers.cloudflare.com/workers-ai/platform/limits>). Both sit at or
+below half of it on purpose: these windows live in one isolate's memory and are
+counted again in the next one, so they are a local approximation of an
+account-wide number, and the guard's job is to stay under the platform's line
+rather than to test it.
+
+Neither window protects the daily allocation — the durable Neuron ledger does
+that, and a burst through the pace guard still cannot spend Neurons the ledger
+has not claimed.
+
+Because both numbers depend on somebody else's published rates, an operator can
+re-tune either without editing the relay:
+
+    LLM_RELAY_CHAT_PER_MINUTE=200          # per caller IP
+    LLM_RELAY_SHARED_CHAT_PER_MINUTE=240   # across all callers
+
+`GET /api/llm/status` reports the ceilings actually in force, under
+`limits.requestsPerMinute` and `limits.sharedRequestsPerMinute`.
+
 ## Limits and failure modes
 
 - Daily exhaustion is a normal state, not an incident: callers get `429`
