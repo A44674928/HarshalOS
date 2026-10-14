@@ -208,6 +208,39 @@ function resolveKey(env) {
 const disabled = env => ['false', 'off', 'no', '0'].includes(String(env && env.LLM_RELAY_ENABLED || '').trim().toLowerCase());
 /* Deliberately opt-in and preview-only in wrangler.jsonc. The default is to
    enforce this Worker's caller/shared windows; production has no such setting. */
+/* The chat pace is calibrated per provider, because one number was doing duty
+   for two providers with very different ceilings.
+
+   · zai — 60 calls a minute per caller. That is Z.AI's own free-tier pace, and
+     the guard was deliberately never tightened below it.
+   · workers-ai — 120 per caller, 150 shared. Cloudflare's published ceiling for
+     text generation is 300 requests a minute per account
+     (developers.cloudflare.com/workers-ai/platform/limits), so both sit at or
+     below half of it: these windows live in one isolate's memory and are
+     counted again in the next one, so they are a local approximation of an
+     account-wide number. What protects the daily allocation is the Neuron
+     ledger, not this window — a burst through here still cannot spend Neurons
+     the ledger has not claimed.
+
+   Both are overridable per deployment, which is the honest way to leave a number
+   that depends on somebody else's published limit. */
+const CHAT_PACE = Object.freeze({
+  'workers-ai': { caller: 120, shared: 150 },
+  zai: { caller: LIMITS.rateChatMax, shared: LIMITS.rateSharedChatMax }
+});
+
+function chatPace(env, provider) {
+  const base = CHAT_PACE[provider] || CHAT_PACE.zai;
+  const read = (name, fallback) => {
+    const raw = Number(env && env[name]);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : fallback;
+  };
+  return {
+    caller: read('LLM_RELAY_CHAT_PER_MINUTE', base.caller),
+    shared: read('LLM_RELAY_SHARED_CHAT_PER_MINUTE', base.shared)
+  };
+}
+
 const localRateLimitsDisabled = env => String(env && env.LLM_RELAY_DISABLE_RATE_LIMITS || '').trim().toLowerCase() === 'true';
 
 function notConfiguredReason(env) {
@@ -631,8 +664,8 @@ function statusPayload(env) {
     defaultOutputTokens: LIMITS.defaultOutputTokens,
     upstreamTimeoutSeconds: Math.round(LIMITS.upstreamTimeoutMs / 1000),
     localRateLimitsDisabled: rateLimitsDisabled,
-    requestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateChatMax,
-    sharedRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateSharedChatMax,
+    requestsPerMinute: rateLimitsDisabled ? null : chatPace(env, provider).caller,
+    sharedRequestsPerMinute: rateLimitsDisabled ? null : chatPace(env, provider).shared,
     modelListRequestsPerMinute: rateLimitsDisabled ? null : LIMITS.rateListMax,
     windowSeconds: rateLimitsDisabled ? null : Math.round(LIMITS.rateWindowMs / 1000)
   };
@@ -660,7 +693,7 @@ function statusPayload(env) {
         ...limits,
         rateScope: rateLimitsDisabled
           ? 'Disabled for this preview. The daily Neuron ledger still refuses new calls once claimed.'
-          : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota. The durable Neuron ledger is the actual daily authority`
+          : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${chatPace(env, provider).shared} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota. The durable Neuron ledger is the actual daily authority`
       },
       capabilities: { streaming: false, tools: false, responseFormat: 'json_object on supporting models, plain text otherwise', images: false, thinking: 'unsupported' },
       sampling: 'Workers AI takes temperature 0..2 directly; an omitted temperature uses the model default.',
@@ -685,7 +718,7 @@ function statusPayload(env) {
       ...limits,
       rateScope: rateLimitsDisabled
         ? 'Disabled for this preview. Z.AI still applies its own account and free-tier limits.'
-        : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${LIMITS.rateSharedChatMax} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
+        : `per caller IP over a sliding ${Math.round(LIMITS.rateWindowMs / 1000)}-second window, plus ${chatPace(env, provider).shared} calls a minute shared by all callers; held in one Worker isolate's memory, so it is abuse friction rather than a distributed quota`
     },
     capabilities: { streaming: false, tools: false, responseFormat: 'json_object only', images: false, thinking: 'optional, disabled by default' },
     sampling: 'Z.AI samples in [0,1]: a 0 temperature is sent as do_sample:false (greedy), a temperature above 1 is clamped to 1.',
@@ -910,15 +943,16 @@ async function relayChat(request, env, dependencies, caller, now) {
     /* Both windows are read before either is consumed, so a refused call costs
        the caller nothing, and the shared ceiling is never charged for a request
        this caller was not allowed to make anyway. */
-    const mine = slot(`chat:${caller}`, now, LIMITS.rateChatMax);
-    const shared = slot(`chat:${SHARED_CALLER}`, now, LIMITS.rateSharedChatMax);
+    const pace = chatPace(env, provider);
+    const mine = slot(`chat:${caller}`, now, pace.caller);
+    const shared = slot(`chat:${SHARED_CALLER}`, now, pace.shared);
     if (mine.full) {
-      throw new RelayError(429, `This relay allows ${LIMITS.rateChatMax} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
+      throw new RelayError(429, `This relay allows ${pace.caller} model calls a minute per caller, and this caller has used them. A Ground-0 reading asks nine questions per source batch, so calls arrive quickly; the window slides rather than resetting on the minute, so retry in about ${seconds(mine.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: 0, reset: mine.wait }, { 'Retry-After': String(mine.wait) }));
     }
     if (shared.full) {
       throw new RelayError(429, provider === 'workers-ai'
-        ? `This relay's shared Workers AI pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers is in use right now, so other people are using it. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`
-        : `This relay's shared Z.AI free-tier key is at its pace limit of ${LIMITS.rateSharedChatMax} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
+        ? `This relay's shared Workers AI pace limit of ${pace.shared} calls a minute across all callers is in use right now, so other people are using it. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`
+        : `This relay's shared Z.AI free-tier key is at its pace limit of ${pace.shared} calls a minute across all callers, so other people are using it right now. This caller's own budget is untouched; retry in about ${seconds(shared.wait)}.`, 'rate_limit_error', rateHeaders({ limit: mine.max, remaining: mine.remaining, reset: shared.wait }, { 'Retry-After': String(shared.wait) }));
     }
     remember(mine, now);
     remember(shared, now);

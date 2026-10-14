@@ -19,7 +19,8 @@ import {
   FREE_TIER_MODELS,
   DEFAULT_MODEL,
   KEY_VARIABLE_NAMES,
-  RELAY_ROUTES
+  RELAY_ROUTES,
+  AI_DEFAULT_MODEL
 } from "../worker/llm-relay.mjs";
 import worker from "../worker/index.mjs";
 
@@ -521,6 +522,51 @@ test("relay paces each caller over a sliding minute, sized to a Ground-0 batch p
   const listBlocked = await run(get(RELAY_ROUTES.models), ENV, { fetch: listFetch.fetch, now: () => clock });
   assert.equal(listBlocked.status, 429, "the model list has its own smaller budget");
   assert.match((await listBlocked.json()).error.message, /12 a minute/i);
+});
+
+test("the chat pace follows the provider: Workers AI gets Cloudflare's ceiling, Z.AI keeps its own", async () => {
+  const aiEnv = { AI: { run: async () => ({ response: "The record states an appeal procedure." }) } };
+  const zaiStatus = await (await run(get(RELAY_ROUTES.status), ENV)).json();
+  const aiStatus = await (await run(get(RELAY_ROUTES.status), aiEnv)).json();
+  assert.equal(zaiStatus.provider, "zai");
+  assert.equal(aiStatus.provider, "workers-ai");
+  /* 60 a minute is Z.AI's own free pace and it stays exactly there. Cloudflare
+     publishes 300 requests a minute for text generation, so the binding's two
+     windows sit at or below half of it: these counters are per-isolate and
+     approximate, and what guards the daily allocation is the Neuron ledger, not
+     this window. */
+  assert.equal(zaiStatus.limits.requestsPerMinute, 60, "the Z.AI path keeps the pace its free tier allows");
+  assert.equal(aiStatus.limits.requestsPerMinute, 120, "the Workers AI path is not held to Z.AI's pace");
+  assert.equal(aiStatus.limits.sharedRequestsPerMinute, 150);
+  assert.match(aiStatus.limits.rateScope, /150 calls a minute shared/, "the status describes the ceiling actually in force");
+
+  /* Somebody else's published rate is not a number to hard-code and hope: an
+     operator can re-tune either window without editing the relay. */
+  const tuned = await (await run(get(RELAY_ROUTES.status), { ...aiEnv, LLM_RELAY_CHAT_PER_MINUTE: "200" })).json();
+  assert.equal(tuned.limits.requestsPerMinute, 200, "an operator override wins over the provider default");
+});
+
+test("a full Ground-0 reading fits on the Workers AI path", async () => {
+  clearRelayRateLimits();
+  const aiEnv = { AI: { run: async () => ({ response: "The record states an appeal procedure." }) } };
+  const dependencies = { now: () => NOW };
+  /* Nine questions per source batch, and a dozen batches is an ordinary reading:
+     that burst used to be refused part-way through, and every refused question
+     is recorded UNKNOWN rather than answered. */
+  for (let attempt = 1; attempt <= 60; attempt++) {
+    const response = await run(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), aiEnv, dependencies);
+    assert.equal(response.status, 200, `call ${attempt} is inside this caller's Workers AI budget`);
+  }
+  const stillGoing = await run(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), aiEnv, dependencies);
+  assert.equal(stillGoing.status, 200, "call 61 is where the Z.AI path would have refused");
+  assert.equal(stillGoing.headers.get("ratelimit-limit"), "120", "and the headers state the budget it is drawing on");
+
+  let refusedAt = null;
+  for (let attempt = 62; attempt <= 130 && refusedAt === null; attempt++) {
+    const response = await run(chatRequest({ model: AI_DEFAULT_MODEL, messages: messages() }), aiEnv, dependencies);
+    if (response.status === 429) refusedAt = attempt;
+  }
+  assert.equal(refusedAt, 121, "the refusal lands on the binding's own ceiling");
 });
 
 test("relay holds one shared ceiling, so a crowd cannot spend the day's free quota in seconds", async () => {

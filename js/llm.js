@@ -343,8 +343,8 @@ window.HOSLLM = (() => {
       : httpStatus === 404 ? (provider.modelsEndpoint ? "Check the model name and the endpoint URL. The List models button shows what this key can use." : "Check the endpoint URL and the model name.")
       : httpStatus === 429 ? (relay
         ? (/This relay allows|shared Z\.A\.I free-tier key|Too many model-list requests/i.test(readableDetail(detail))
-          ? "This deployment's Worker-local pace guard refused the call before it reached Z.AI. Wait for the stated retry time; the refusal is not evidence, and this question remains UNKNOWN, not wrong."
-          : "Z.AI itself rate-limited the Worker-held key. The preview may have local pace guards disabled, but Z.AI's own free-tier limits still apply. Wait for the provider's retry time, then retry; a refused call is not evidence, and its question stays UNKNOWN rather than wrong.")
+          ? "This deployment's Worker-local pace guard refused the call before it reached any model — no provider was called and no budget was spent. Wait for the stated retry time; the refusal is not evidence, and this question remains UNKNOWN, not wrong."
+          : "The model provider behind this relay rate-limited the key the Worker holds. The preview may have local pace guards disabled, but the provider's own free-tier limits still apply. Wait for the provider's retry time, then retry; a refused call is not evidence, and its question stays UNKNOWN rather than wrong.")
         : "The provider is rate-limiting. A stated delay of 15 seconds or less is waited out automatically, so this one was longer or it repeated: wait and retry, or lower the reading batch size.")
       : httpStatus === 503 && relay ? "The relay is not configured on this deployment. /api/llm/status names the Worker secret its operator has to add."
       : httpStatus === 502 && relay && /could not be reached/i.test(readableDetail(detail))

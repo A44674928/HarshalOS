@@ -111,7 +111,11 @@ test("AI chat answers in the same OpenAI-compatible shape with estimated usage",
     { now: () => NOW }
   );
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("RateLimit-Limit"), "60");
+  /* The pace ceiling is the provider's, not one number shared by both: 120 a
+     minute per caller on the Workers AI path, which sits at or below half of
+     Cloudflare's published 300-requests-a-minute ceiling for text generation.
+     (The Z.AI path still reports 60, its own free-tier pace.) */
+  assert.equal(response.headers.get("RateLimit-Limit"), "120");
   const payload = await response.json();
   assert.equal(payload.object, "chat.completion");
   assert.equal(payload.choices[0].message.content, "A short verified answer.");
