@@ -48,10 +48,12 @@ anonymous per-browser Orb 2 observations with a 30-day expiry and a Worker-enfor
 0005–0007 are aggregate request ledgers, not community/user records. Apply the market
 migrations in order before enabling their provider routes; apply 0008 before using the
 D1-backed Orb 2 archive. Migrations `0009`–`0013` extend the server-managed Orb 2
-field/options storage. Owner-run `0014_ai_neuron_ledger.sql` and
-`0015_d1_backup_progress.sql` are immutable production-history steps for the Workers AI
-budget ledger and D1-backup cursor respectively; confirm their recorded history and do
-not renumber, rewrite, or replay a recorded migration. `0016_public_observations.sql` is
+field/options storage. `0014_ai_neuron_ledger.sql` was the Workers AI budget ledger; it
+was removed from this checkout with the rest of the model layer, so `0014` is now a known
+gap in the committed sequence while remaining recorded history on any database that
+already applied it. Owner-run `0015_d1_backup_progress.sql` is the D1-backup cursor;
+confirm recorded history and do not renumber, rewrite, or replay a recorded migration. See
+[`docs/REMOVED-LLM-LAYER.md`](../REMOVED-LLM-LAYER.md). `0016_public_observations.sql` is
 the subsequent separate Community publication surface
 for bounded native notes: profiles, short-lived claim handoffs, public-note rows,
 append-only public-note events, and private append-only moderator-hide action records.
@@ -60,8 +62,9 @@ additive account-scoped **PAPER_TEST** component: short-lived native pairing row
 revocable scoped device credentials, immutable server quote references, paper
 declarations/positions, and a private append-only event projection. It does not add a
 broker, custody, payment, wallet, mining, provider-key, or public-market authority.
-Apply `0016` and then `0017` only after the deployment has its existing `0014` and
-`0015` history; migration filenames are immutable once applied. `0018` and `0019`
+Apply `0016` and then `0017` only after the deployment has its existing `0015` history
+(and the recorded `0014` gap, where it was applied); migration filenames are immutable
+once applied. `0018` and `0019`
 continue the Orb 2 field (the precomputed snapshot and the Twelve Data credit
 ledger). `0020_d1_rows_written.sql` is the first migration that *removes*
 something: it drops `idx_orb2_field_observations_observed`, because D1 charges a
@@ -320,7 +323,7 @@ until subsequent cleanup. No cron or global spending ceiling is configured.
 ## Native public observations — manual one-time handoff
 
 Migration `0016_public_observations.sql` adds a distinct public-note surface after the
-owner-applied `0014` and `0015` migrations. It does **not** reuse Ground-0 reports, public report series, a declaration label, a personal
+owner-applied `0015` migration (and the recorded `0014` gap). It does **not** reuse Ground-0 reports, public report series, a declaration label, a personal
 universe core, Orb 2 data, CloudKit, paper-market records, or a browser/API credential
 inside the native app.
 
@@ -610,9 +613,9 @@ than retrying with shortcuts.
 
 4. **Apply the owner-managed migration history through `0017` and the register seed**
    to production D1. Migrations never run automatically during a deploy. First inspect
-   the remote history and confirm that owner-applied `0014` and `0015` are already
-   recorded; if either is absent or differs, stop and reconcile history rather than
-   renumbering or replaying migrations. Then apply the committed `0016` and `0017`
+   the remote history and confirm that owner-applied `0015` (and, where the model layer was
+ever deployed, `0014`) is already recorded; if it is absent or differs, stop and reconcile
+history rather than renumbering or replaying migrations. Then apply the committed `0016` and `0017`
    files in order:
 
    ```sh

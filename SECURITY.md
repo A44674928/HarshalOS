@@ -58,23 +58,33 @@ Ground-0 formal PDH validation checks an ECDSA signature using a public key supp
 
 The guided demonstration uses a fresh iframe with `sandbox="allow-scripts"` and does not pass the active HOS object into it. This is a narrow protection against accidental mutation by that walkthrough, not a general security boundary for the page or browser.
 
-### 5. LLMs, research, and other external content
+### 5. Research and other external content (the model layer is removed)
 
-`HOSLLM` is designed as a data-only interface: it has no HOS kernel capability, does not dispatch model tools, and treats provider text as untrusted and non-executable. Ground-0 model readings require explicit human selection and remain review-required drafts. Quote matching establishes that text appears in stored source text; it does not establish that the source is authentic, current, complete, or truthful.
+**All model integration has been removed from this repository.** There is no `HOSLLM` connection
+layer, no `G0LLM` reading pass, no provider preset or key field, no browser-to-provider call, and no
+same-origin relay: `worker/llm-relay.mjs` and its `/api/llm` routes are deleted, as are the Workers
+AI binding in `wrangler.jsonc` and the Neuron spend ledger with its migration. The **LLM Link** tile
+survives only as a shell that renders one `REFUSED — REMOVED` panel and one local signpost into
+Ground-0's manual audit wizard — it holds no key, stores nothing, and calls nothing. [`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) is the written
+record; `npm run test:llm-removal` fails if a provider endpoint, key store, relay route, AI binding,
+removed module, or restored Ground-0 reading control comes back.
 
-Bring-your-own-model API keys are sent from the browser to the configured provider/endpoint. They are held in memory or session storage by default; persistent browser storage is an explicit option. Anyone able to run code in the page or access the browser profile may be able to obtain a key. A custom endpoint receives whatever key and prompt the user sends to it. The Google GenAI browser SDK is loaded from a pinned jsDelivr URL; code executing in the page has the page's browser privileges. Provider retention, access, and processing are governed by the provider and the user's account settings, not by HarshalOS.
+Two consequences are worth stating plainly, because this section used to describe the opposite:
 
-The optional site relay is implemented (`worker/llm-relay.mjs`, same-origin `/api/llm`, serving Z.AI's free tier) and **changes that route**: the provider key is a Worker secret, the browser is given no key field to fill, and `js/llm.js` never attaches a stored key to a relay call — a key left over from another provider is not forwarded. The relay call is the one model call that carries this origin's cookies (`credentials: "same-origin"`), because a deployment behind Cloudflare Access challenges a request that arrives without the Access session cookie; `same-origin` sends cookies to this host and to no other, and a third-party provider endpoint still receives none at all (`credentials: "omit"`). In exchange, prompts pass through the Worker, so anyone who operates or compromises that Worker, or the Cloudflare account behind it, can read them in flight. The relay stores nothing: no prompt, no reply, no per-caller history beyond in-memory rate-limit counters.
+- **No key material is collected, so none can be lost from this application.** The earlier guidance
+  about transmitting, retaining, and clearing a bring-your-own-model key describes nothing in this
+  tree. If a browser profile still holds a key from an earlier deployment, clear it there: this code
+  neither reads nor writes any such storage.
+- **No prompts leave the page to a model provider.** Ground-0 retrieves public pages and matches
+  them against fixed keyword rules locally. Retrieved text is still requested from the public web —
+  that is what retrieval is — but no record text is transmitted to a model provider, relay, or third
+  party by any code here. A request to the old `/api/llm` path now falls through to the private
+  storage API, which requires a Cloudflare Access session and fails closed; nothing serves that path.
 
-The relay is deliberately narrow rather than a general proxy: a fixed upstream origin and path (`api.z.ai`), a hard allowlist of Z.AI's $0 free-tier text models so no caller can spend money through it (a paid model is refused before any upstream call), `system`/`user`/`assistant` messages with string content only, dropped `tools`/`tool_choice`/`functions`/`stop`/`top_p`/streaming and any other caller-invented field, an optional strictly reconstructed `response_format: {"type":"json_object"}` serialization hint (no arbitrary schemas or authority), bounded request size, message count and output ceiling, a same-origin `POST` requirement, an ignored caller-supplied `Authorization` header, and pacing over sliding windows — a chat pace calibrated per provider: 60 model calls a
-minute per caller on the Z.AI path, which is Z.AI's own free pace and deliberately no tighter because Ground-0 asks one
-question per call, and 120 per caller on the Workers AI path — which sits at or below half of Cloudflare's published
-300-requests-a-minute ceiling for text generation — plus a shared ceiling across all callers so an open relay cannot let a crowd spend
-the operator's daily free quota in seconds, each response stating the budget left. Replies are reduced to answer text: `reasoning_content` and `tool_calls` are stripped, so the relay hands the browser nothing executable and the DATA-ONLY boundary is unchanged. Upstream error bodies are not echoed, and the key is scrubbed from the short excerpts the relay does quote; a Z.AI 401 is reported as a 502 so a reader is not sent to fix a browser key that was never used.
-
-Residual risk, stated plainly: the relay is **not** behind Cloudflare Access, so any page served from the deployed origin can call it within the rate limit — put the hostname behind Access if that is not acceptable. The pacing counters are one isolate's memory, so they are abuse friction and not quota enforcement; a caller can reach another isolate, and counters do not survive a restart (distributed limiting would need KV or a Durable Object). The shared ceiling is likewise per isolate, so N isolates admit up to N times the stated shared rate — which is why Z.AI's own free-tier limits, not this code, are treated as the real ceiling. A refusal is honest about which ceiling refused it and charges the caller nothing. Z.AI's free-tier availability, limits and model list are Z.AI's to change, and no claim about continued free access is made. Operator guidance, the accepted secret names, and the full failure table are in [`docs/deployment/ZAI-FREE-TIER.md`](docs/deployment/ZAI-FREE-TIER.md).
-
-Treat retrieved web pages, documents, citations, and model responses as untrusted input. Do not rely on a model conclusion without reviewing the underlying evidence.
+Treat retrieved web pages, documents, and citations as untrusted input. Quote matching establishes
+that text appears in stored source text; it does not establish that the source is authentic,
+current, complete, or truthful. An explicit UNKNOWN is a reading of the supplied records, not a
+proven negative.
 
 ### 6. Optional Cloudflare Worker and MongoDB storage
 
@@ -82,7 +92,7 @@ Cloud storage is opt-in and uses explicit snapshot and ledger-archive actions; i
 
 The application-level checks do not protect against a compromised Cloudflare account, Access policy, Worker secret, MongoDB account, database administrator, or authorized owner's browser. The `Origin` check is an additional browser-request check, not a substitute for authentication. The Worker validates record shape, size, ledger hashes, and archived prefixes; it cannot verify event truth or make MongoDB tamper-proof. Snapshot and ledger contents are sent as application-readable JSON, not encrypted by HarshalOS before storage. Privileged database operators can read, change, or delete stored data. Cloud archives are not independent witnessing, WORM storage, or a backup/recovery guarantee. There is no delete endpoint or retention job. The compatibility check for old ledger hashes is a migration path, not identity verification.
 
-The setup guide currently uses a MongoDB Atlas network rule permitting connections from `0.0.0.0/0` for this initial Worker configuration. This is broad network reachability: database authentication and TLS are still required, and the database user should be unique and least-privileged. Restrict network access when the hosting architecture supports a reliable narrower egress range. Protect the entire configured site hostname with Cloudflare Access when following the private-storage deployment guide; review any change to that policy before deployment. Not every Worker route requires an Access JWT: `/api/good-intelligence/v1/*` (signed synthetic demo data, and the allowlisted Tickerbot proxy that holds its own `TICKERBOT_API_KEY` secret) and `/api/llm` (the Z.AI free-tier relay described in §5) answer same-origin requests directly, each behind its own allowlist, size caps and rate limits. Protecting the whole hostname as recommended above places all of them behind sign-in. The browser-side calls to those routes send this origin's cookies (`credentials: "same-origin"`), so the Access session travels with them and an Access-protected deployment still answers them. If a route such as `/api/llm` is meant to be reachable without sign-in, configure a narrow Access exclusion for that path rather than disabling Access for the hostname: a challenged fetch is redirected to another origin, and the browser reports that as a refused request rather than as a sign-in, which is easy to mistake for a CORS failure in the provider.
+The setup guide currently uses a MongoDB Atlas network rule permitting connections from `0.0.0.0/0` for this initial Worker configuration. This is broad network reachability: database authentication and TLS are still required, and the database user should be unique and least-privileged. Restrict network access when the hosting architecture supports a reliable narrower egress range. Protect the entire configured site hostname with Cloudflare Access when following the private-storage deployment guide; review any change to that policy before deployment. Not every Worker route requires an Access JWT: `/api/good-intelligence/v1/*` (signed synthetic demo data, and the allowlisted Tickerbot proxy that holds its own `TICKERBOT_API_KEY` secret) and the public market-data routes answer same-origin requests directly, each behind its own allowlist, size caps and rate limits. Protecting the whole hostname as recommended above places all of them behind sign-in. The browser-side calls to those routes send this origin's cookies (`credentials: "same-origin"`), so the Access session travels with them and an Access-protected deployment still answers them. If a route is meant to be reachable without sign-in, configure a narrow Access exclusion for that path rather than disabling Access for the hostname: a challenged fetch is redirected to another origin, and the browser reports that as a refused request rather than as a sign-in, which is easy to mistake for a CORS failure.
 
 See [MongoDB setup guide](docs/deployment/MONGODB-SETUP.md) for configuration and operational details. No live Atlas connection, Access policy, or production cloud deployment is established by the repository tests.
 
@@ -99,14 +109,14 @@ The native **SCAV++ supply-chain boundary** is a narrow local policy model groun
 - The browser, operating system, and user profile are not already compromised.
 - Production hosting serves the intended reviewed code over HTTPS and does not inject scripts or expose repository-only files.
 - Any enabled Cloudflare Access policy and Worker secrets are configured and protected as intended; MongoDB credentials are kept out of source, chat, logs, and public assets.
-- Users choose model providers and custom endpoints knowingly, understand what prompt data they receive, and do not treat the browser as a secret vault.
+- No model provider is configured or called, and no key is entered into the site: the model layer is removed, and the browser is still not a secret vault.
 - Users export important local work. Optional cloud storage is not a backup service and provides no independent evidence witness.
 
 ## Safer use and deployment
 
 1. Treat the site as a local structural demonstration. Never use its simulated gate result, demo Human Key, phase, or receipt as production authorization or proof of identity.
-2. Do not enter credentials, secrets, or sensitive personal information into audit/evidence text or model prompts unless the chosen storage and provider are approved for that data.
-3. If using an LLM, verify the provider and endpoint before entering a key. Clear the key when finished; avoid persistent key storage on shared or managed browsers.
+2. Do not enter credentials, secrets, or sensitive personal information into audit/evidence text unless the chosen storage is approved for that data.
+3. There is no model connection to configure, and no key field to fill. If a browser profile still holds a provider key from an earlier deployment, clear it there — this code does not use one.
 4. If enabling cloud storage, follow `docs/deployment/MONGODB-SETUP.md`, use Cloudflare secrets for backend credentials, protect the whole site hostname with Access, use a least-privilege database user, and retain separate exports.
 5. Do not expose `node serve.js` as a public production service. Configure and test HTTPS and suitable security headers at the production host/edge.
 6. Keep dependencies and the hosting configuration reviewed and current. Do not assume a green unit test run is a security audit.

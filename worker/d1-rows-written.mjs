@@ -123,7 +123,6 @@ export const D1_WRITE_COST = Object.freeze({
   massive_daily_call_ledger: table(["utc_day"]),
   twelvedata_daily_credit_ledger: table(["utc_day"]),
   alpha_vantage_daily_call_ledger: table(["utc_day"]),
-  ai_neuron_ledger: table(["utc_day"]),
   tickerbot_call_ledger: table(["utc_month"]),
   kraken_public_call_ledger: table([], { rowid: true }),
   d1_backup_progress: table(["utc_day", "table_name"]),

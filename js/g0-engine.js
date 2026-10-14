@@ -676,10 +676,9 @@
     let automation;
     if (isObject(raw.automation)) {
       const a = raw.automation;
-      const methods = ["web-research", "public-lookup", "llm-reading"];
+      const methods = ["web-research", "public-lookup"];
       automation = { method: methods.includes(a.method) ? a.method : "public-lookup", provider: text(a.provider, "Public research"), requestedName: text(a.requestedName, text(raw.name)), generatedAt: text(a.generatedAt), reviewRequired: a.reviewRequired !== false, sources: normalizeSources(a.sources), coverage: normalizeCoverage(a.coverage), warnings: strings(a.warnings) };
       if (typeof a.coverageNote === "string" && a.coverageNote.trim()) automation.coverageNote = a.coverageNote.slice(0, 1200);
-      if (isObject(a.llm)) automation.llm = normalizeLlm(a.llm);
     }
     return { ...defaults, name: text(raw.name), identifier: text(raw.identifier), cutoff: isCalendarDate(raw.cutoff) ? raw.cutoff : defaults.cutoff, answers: Array.from({ length: 5 }, (_, i) => normalizeAnswer(Array.isArray(raw.answers) ? raw.answers[i] : undefined)), constraints: Array.from({ length: 4 }, (_, i) => normalizeAnswer(Array.isArray(raw.constraints) ? raw.constraints[i] : undefined)), b4: typedFields(defaults.b4, raw.b4), c2: typedFields(defaults.c2, raw.c2), external: typedFields(defaults.external, raw.external), decrement: typedFields(defaults.decrement, raw.decrement), headerText: text(raw.headerText), publicKeyText: text(raw.publicKeyText), trustedOrigin: text(raw.trustedOrigin, defaults.trustedOrigin), ...(automation ? { automation } : {}) };
   }
@@ -691,49 +690,6 @@
   function normalizeEvidence(value) {
     if (!isObject(value) || !safePublicUrl(value.url)) return null;
     return { id: text(value.id, `E-${Math.random().toString(36).slice(2, 8)}`), title: text(value.title, "Public artifact"), url: value.url, published: text(value.published), retrieved: text(value.retrieved), claim: text(value.claim), codes: strings(value.codes), entity: text(value.entity) };
-  }
-  /* The record of what a linked model read and proposed. Kept separate
-     from the research block so a reviewer can see both, and so a
-     re-hydrated record never presents a model reading as a source. */
-  function normalizeLlm(value) {
-    const raw = isObject(value) ? value : {};
-    const number = key => typeof raw[key] === "number" && Number.isFinite(raw[key]) ? raw[key] : 0;
-    const rows = list => Array.isArray(list) ? list.filter(isObject).slice(0, 60).map(row => ({ ...row, quote: text(row.quote).slice(0, 800), url: safePublicUrl(row.url) ? row.url : text(row.url).slice(0, 400) })) : [];
-    return {
-      method: "llm-reading",
-      provider: text(raw.provider, "Linked model").slice(0, 120),
-      model: text(raw.model).slice(0, 120),
-      endpoint: text(raw.endpoint).slice(0, 300),
-      generatedAt: Number.isFinite(dateTime(raw.generatedAt)) ? raw.generatedAt : "",
-      reviewRequired: true,
-      passes: number("passes"),
-      sourcesRead: number("sourcesRead"),
-      charsRead: number("charsRead"),
-      verified: number("verified"),
-      authorityPlane: "DATA-ONLY", trustedForAuthority: false,
-      ...(isObject(raw.staging) ? { staging: {
-        ...Object.fromEntries(["codesPerCall", "questionsAsked", "ceilingPerCall", "weighed", "callsFailed", "plannedCalls", "formatRetries", "providerCeiling"].map(key => [key, Number.isFinite(raw.staging[key]) ? Math.max(0, raw.staging[key]) : 0])),
-        failedCodes: strings(raw.staging.failedCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code)),
-        unusableCodes: strings(raw.staging.unusableCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code))
-      } } : {}),
-      ...(isObject(raw.diagnostics) ? { diagnostics: {
-        ...Object.fromEntries(["recordsSupplied", "recordsRead", "storedTextRecords", "excerptOnlyRecords", "leadsSkipped", "shortRecords", "undatedRecords", "afterCutoffRecords", "truncatedRecords", "readCalls", "formatRetries", "nonJson", "invalidSchema", "truncated", "modelUnknown", "transportFailed"].map(key => [key, Number.isFinite(raw.diagnostics[key]) ? Math.max(0, raw.diagnostics[key]) : 0])),
-        calls: (Array.isArray(raw.diagnostics.calls) ? raw.diagnostics.calls : []).filter(isObject).slice(0, 120).map(call => ({
-          pass: Number.isFinite(call.pass) ? Math.max(0, call.pass) : 0,
-          codes: strings(call.codes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code)),
-          sourceIds: strings(call.sourceIds).slice(0, 20).map(id => id.slice(0, 60)),
-          outcome: ["failed", "non-json", "invalid-schema", "truncated", "verified", "held", "rejected", "unknown"].includes(call.outcome) ? call.outcome : "invalid-schema",
-          finishReason: text(call.finishReason).slice(0, 40), detail: text(call.detail).slice(0, 180),
-          missingCodes: strings(call.missingCodes).filter(code => /^(?:B[1-5]|C[1-4])$/.test(code))
-        }))
-      } } : {}),
-      rejected: rows(raw.rejected),
-      held: rows(raw.held),
-      unknowns: Array.isArray(raw.unknowns) ? raw.unknowns.filter(isObject).slice(0, 20).map(row => ({ code: text(row.code).slice(0, 8), note: text(row.note).slice(0, 300) })) : [],
-      usage: { input: isObject(raw.usage) && Number.isFinite(raw.usage.input) ? raw.usage.input : 0, output: isObject(raw.usage) && Number.isFinite(raw.usage.output) ? raw.usage.output : 0 },
-      followUps: Array.isArray(raw.followUps) ? raw.followUps.filter(isObject).slice(0, 12).map(row => ({ id: text(row.id).slice(0, 40), url: safePublicUrl(row.url) ? row.url : text(row.url).slice(0, 400), label: text(row.label).slice(0, 200), why: text(row.why).slice(0, 300) })) : [],
-      note: text(raw.note, "A linked model proposed these readings; every quote is checked against the stored source text and a person must review each answer.").slice(0, 800)
-    };
   }
   function normalizeTransition(value) {
     if (!isObject(value) || !phases.includes(value.from) || !phases.includes(value.to) || !isCalendarDate(value.fromDate) || !isCalendarDate(value.toDate)) return null;

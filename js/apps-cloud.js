@@ -37,7 +37,7 @@
       body.innerHTML = `
         <div class="h1">Private Cloud Storage</div>
         <div class="sub">MongoDB Atlas · owner-only Cloudflare Access · explicit saves, not automatic sync</div>
-        <div class="rule-box">Local work stays in this browser until you save it here. Cloud saves include Ground-0 audits and evidence, including retrieved source text. LLM keys, preferences, and live Human Key state are not included.</div>
+        <div class="rule-box">Local work stays in this browser until you save it here. Cloud saves include Ground-0 audits and evidence, including retrieved source text. Interface preferences and live Human Key state are not included.</div>
         <p><button type="button" data-action="status">Check connection</button></p>
         <div class="h2">Ground-0 workspace</div>
         <p>Close Ground-0 before restoring. Restore replaces local saved audits and evidence and reloads the page; unsaved drafts will be lost. Saving replaces the cloud snapshot only if its revision still matches.</p>

@@ -1,3 +1,0 @@
-llm-relay.mjs — the words, not the keys
-a strict no-keylog policy
-free-tier patience

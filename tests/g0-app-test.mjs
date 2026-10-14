@@ -198,12 +198,9 @@ globalThis.__g0toasts = toasts;
 await import("../js/data.js");
 await import("../js/g0-engine.js");
 await import("../js/g0-research.js");
-await import("../js/llm.js");
-await import("../js/g0-llm.js");
 await import("../js/g0-app.js");
 await import("../js/apps-llm.js");
 
-const LLM = globalThis.HOSLLM;
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error("  ✗ FAIL:", name); } };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -225,50 +222,6 @@ const app = globalThis.APPS.find(a => a.id === "ground0");
 ok(!!app && app.title === "Ground-0 Audit", "app registered with id ground0");
 ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one ground0 app");
 
-/* ── the official Google SDK is selectable and its browser-key warning is visible ── */
-{
-  const linkApp = globalThis.APPS.find(a => a.id === "llmlink");
-  const linkRoot = new El("div");
-  ok(!!linkApp, "LLM Link is registered");
-  linkApp.render(linkRoot, { toast() {} });
-  ok(linkRoot.innerHTML.includes("Google Gemini Developer API (GenAI SDK)"), "Google's official GenAI SDK provider is selectable");
-  ok(linkRoot.innerHTML.includes("Google GenAI SDK (@google/genai)"), "the protocol selector names the official SDK");
-  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "", model: "" });
-  linkApp.render(linkRoot, { toast() {} });
-  ok(linkRoot.innerHTML.includes("GOOGLE KEY / FREE-TIER DATA WARNING"), "Google's browser-key and Free Tier data-use warning is shown before a connection is linked");
-  ok(linkRoot.innerHTML.includes("jsDelivr"), "the UI discloses the lazy SDK code download separately from API requests");
-  ok(linkRoot.innerHTML.includes("ll-google-rpm") && linkRoot.innerHTML.includes("ll-google-tpm") && linkRoot.innerHTML.includes("ll-google-rpd"), "LLM Link exposes manual project/model RPM, input-TPM and RPD guard settings");
-  ok(linkRoot.innerHTML.includes(">All available</button>"), "Google's model discovery is exposed as one concise All available button");
-  ok(linkRoot.innerHTML.includes("not a Free Tier/quota check"), "model discovery explicitly distinguishes API visibility from Free Tier eligibility");
-  ok(linkRoot.innerHTML.includes("aistudio.google.com/rate-limit"), "the Google pace guard links to the authoritative active quota view");
-  let generated = 0;
-  class GoogleCatalogMock {
-    constructor() {
-      this.models = {
-        list: async () => (async function* () {
-          yield { name: "models/gemini-3.8-flash", displayName: "Gemini 3.8 Flash", inputTokenLimit: 1000000, outputTokenLimit: 64000, supportedActions: ["generateContent"] };
-        })(),
-        generateContent: async () => { generated++; throw new Error("Discovery must not generate content."); }
-      };
-    }
-  }
-  LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: GoogleCatalogMock }));
-  LLM.setKey("AIzaSyD-model-catalog-test-key-123456789", false);
-  LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-3.8-flash" });
-  linkApp.render(linkRoot, { toast() {} });
-  linkRoot.querySelector("#ll-provider").value = "google";
-  linkRoot.querySelector("#ll-protocol").value = "google";
-  linkRoot.querySelector("#ll-endpoint").value = "https://generativelanguage.googleapis.com";
-  linkRoot.querySelector("#ll-model").value = "gemini-3.8-flash";
-  linkRoot.querySelector("#ll-key").value = "";
-  linkRoot.querySelector("#ll-models").click();
-  ok(await waitFor(() => linkRoot.innerHTML.includes("1,000,000 in")), "All available lists the model's reported input context without a generation call");
-  ok(generated === 0, "Google model discovery does not send a sample generation prompt");
-  LLM._setGoogleSDKLoaderForTests(null);
-  LLM.clearKey();
-  LLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "", model: "" });
-}
-
 /* ── index.html must actually load the Ground-0 modules (regression guard:
       a lost edit once shipped the app unregistered — nothing referenced it) ── */
 {
@@ -277,8 +230,8 @@ ok(globalThis.APPS.filter(a => a.id === "ground0").length === 1, "exactly one gr
   const at = src => html.indexOf(`src="${src}`);
   ok(at("js/g0-engine.js") !== -1 && at("js/g0-research.js") !== -1 && at("js/g0-app.js") !== -1, "index.html references all three Ground-0 modules");
   ok(at("js/g0-engine.js") < at("js/wm.js") && at("js/g0-research.js") < at("js/wm.js") && at("js/g0-app.js") > html.indexOf('src="js/apps-shell.js"'), "module load order: engine+research before the window manager, app after the shell");
-  ok(at("js/llm.js") !== -1 && at("js/g0-llm.js") !== -1 && at("js/apps-llm.js") !== -1, "index.html references the LLM connection modules");
-  ok(at("js/g0-research.js") < at("js/llm.js") && at("js/llm.js") < at("js/g0-llm.js") && at("js/g0-llm.js") < at("js/wm.js"), "module load order: connection layer before the reading pass, both before the window manager");
+  ok(at("js/apps-llm.js") !== -1, "index.html references the LLM Link shell app");
+  ok(at("js/llm.js") === -1 && at("js/g0-llm.js") === -1, "index.html no longer loads the removed model connection layer or reading pass");
   ok(html.includes("css/ground0.css"), "index.html links the Ground-0 stylesheet");
 }
 
@@ -526,203 +479,6 @@ ok(prefs.textSize === "default", "preferences persisted after reset");
     ok(autoMain.innerHTML.includes("Suggested answers"), "the result view renders the suggested answers with their quotes");
   } finally {
     globalThis.fetch = realFetch;
-  }
-}
-
-/* ── the LLM connection point, end to end ──
-   A research draft is produced, then read by a linked model through the
-   interface: the model's quote must be verified against the stored source
-   text, the readings must be reviewable, and applying them must update the
-   same register entry without certifying anything. ── */
-{
-  const LLM = globalThis.HOSLLM;
-  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
-  const anthropic = data => json({ content: [{ type: "text", text: JSON.stringify(data) }], model: "claude-sonnet-4-5", usage: { input_tokens: 900, output_tokens: 120 } });
-  const cutoff = G0.today();
-  const site = "https://example.org/";
-  const policy = "Participation in this program is voluntary and advisory. No penalty attaches to non-participation and no obligation is imposed on participants.";
-  const realFetch = globalThis.fetch;
-  let readingPrompts = [];
-  let readingCeilings = [];
-  globalThis.fetch = async (value, init = {}) => {
-    const url = new URL(value, "https://harness.test");
-    if (url.origin === "https://harness.test") throw new Error("No hosted research service is configured for this harness.");
-    if (url.hostname === "api.anthropic.com") {
-      const body = JSON.parse(init.body);
-      const prompt = body.messages.map(message => message.content).join("\n");
-      readingPrompts.push(prompt);
-      readingCeilings.push(Number(body.max_tokens ?? body.max_completion_tokens ?? 0));
-      if (/\nLINKS\n/.test(prompt)) return anthropic({ followups: [] });
-      const blocks = prompt.split(/SOURCE /).slice(1);
-      const holder = blocks.find(block => block.includes("voluntary and advisory")) || "";
-      const index = Number((holder.match(/^(\d+)/) || [])[1]);
-      return anthropic({
-        findings: [{ code: "B2", value: "yes", source_index: index, quote: "Participation in this program is voluntary and advisory.", date: cutoff, confidence: "high", reason: "The policy states participation is voluntary." }],
-        gaps: ["No source states whether authority persists by default."]
-      });
-    }
-    if (url.hostname === "en.wikipedia.org") return json({ query: { pages: [{ pageid: 1, title: "Linked Model Body", index: 1, fullurl: "https://en.wikipedia.org/wiki/Linked_Model_Body", extract: "An example organization used by this harness.", pageprops: { wikibase_item: "Q998" } }] } });
-    if (url.hostname === "www.wikidata.org") return json({ entities: { Q998: { labels: { en: { value: "Linked Model Body" } }, descriptions: { en: { value: "corporation" } }, claims: { P856: [{ rank: "normal", mainsnak: { datavalue: { value: site } } }] } } } });
-    if (url.hostname === "r.jina.ai") return json({ data: { title: "Linked Model Body policy", url: site, publishedTime: cutoff, content: `${policy} Acme-style boilerplate omitted.` } });
-    if (url.hostname === "www.courtlistener.com") return json({ results: [] });
-    if (url.hostname === "www.federalregister.gov") return json({ results: [] });
-    if (url.hostname === "www.govtrack.us") return json({ objects: [] });
-    if (url.hostname === "api.gdeltproject.org") return json({ articles: [] });
-    throw new Error(`Unexpected request in the LLM flow: ${value}`);
-  };
-  try {
-    LLM.setKey("sk-ant-harness-key-0001", false);
-    LLM.saveSettings({ provider: "anthropic", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5", protocol: "", persist: false });
-    ok(LLM.status().linked, "the harness links a model the same way the LLM Link app does");
-
-    const root3 = new El("div");
-    app.render(root3, api);
-    const main3 = root3.querySelector("#g0-main");
-    root3.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "automatic").click();
-    const query = main3.querySelector('[data-bind="auto.query"]'); query.value = "Linked Model Body"; dispatch(query, "input");
-    const cutoffField = main3.querySelector('[data-bind="auto.cutoff"]'); cutoffField.value = cutoff; dispatch(cutoffField, "change");
-    main3.querySelector('[data-act="autoStart"]').click();
-    let choose = null;
-    for (let i = 0; i < 40 && !choose; i++) { await sleep(100); choose = main3.querySelector('[data-act="autoChoose"]'); }
-    ok(!!choose, "the research run reaches the identity choice");
-    if (choose) choose.click();
-    for (let i = 0; i < 60; i++) { await sleep(100); if (main3.querySelector('[data-act="readRecord"]')) break; }
-    const readButton = main3.querySelector('[data-act="readRecord"]');
-    ok(!!readButton && !readButton.disabled, "a completed draft offers the model reading once page text was kept");
-    ok(!main3.innerHTML.includes("could not complete"), "the draft rendered before the reading");
-
-    readButton.click();
-    let review = null;
-    for (let i = 0; i < 60 && !review; i++) { await sleep(100); review = main3.querySelector('[data-act="includeReading"]'); }
-    ok(!!review, "the model reading returns a reviewable list");
-    ok(main3.innerHTML.includes("quote verified"), "the verified quote is presented as verified");
-    ok(main3.innerHTML.includes("Reading diagnostics") && main3.innerHTML.includes("wrong-shape reply/replies"), "the UI separates output failures from explicit UNKNOWN replies and missing evidence");
-    ok(main3.innerHTML.includes("A model reading, not a finding"), "the panel refuses to present the reading as a finding");
-    ok(readingPrompts.length >= 1 && readingPrompts[0].includes("voluntary and advisory"), "the model was given the retrieved policy text, not a summary");
-    /* The audit is staged: the model is recalled once per question, and no
-       call reserves a ceiling a small balance could be refused for. */
-    const askedPerCall = prompt => (prompt.match(/QUESTION(?:S)? TO ANSWER IN THIS CALL: ([A-Z0-9, ]+)/) || [, ""])[1].split(",").map(code => code.trim()).filter(Boolean);
-    const stagedCalls = readingPrompts.filter(prompt => askedPerCall(prompt).length);
-    ok(stagedCalls.length >= 9, `the reading asked the nine questions in their own calls (${stagedCalls.length} staged calls)`);
-    ok(stagedCalls.every(prompt => askedPerCall(prompt).length === 1), "every staged call asked exactly one question");
-    ok([...new Set(stagedCalls.flatMap(askedPerCall))].sort().join(",") === "B1,B2,B3,B4,B5,C1,C2,C3,C4", "between them the calls asked all nine questions");
-    ok(readingCeilings.length && Math.max(...readingCeilings) <= 700, `no call reserved more than a staged ceiling (largest was ${Math.max(...readingCeilings)})`);
-    ok(main3.innerHTML.includes("9 questions asked one per call"), "the panel says how the reading was staged");
-    ok(main3.innerHTML.includes("reserved ≤700 output tokens"), "and what each call reserved, so a refusal can be understood");
-
-    const b2 = main3.querySelector('[data-act="includeReading"][data-code="B2"]');
-    ok(!!b2, "the B2 reading offers an include checkbox");
-    ok(b2.checked !== true, "a verified model reading is not preselected for application");
-    const before = JSON.parse(storage.get("ground-0-audits-v1") || "[]").length;
-    const applyBtn = main3.querySelector('[data-act="applyReading"]');
-    ok(!!applyBtn, "the reading offers an apply action");
-    applyBtn.click();
-    ok(toasts.some(t => t.title === "NOTHING SELECTED"), "an empty selection is explicitly refused by the UI");
-    ok(JSON.parse(storage.get("ground-0-audits-v1") || "[]").length === before, "an empty selection does not persist an audit");
-
-    b2.checked = true;
-    dispatch(b2, "change");
-    ok(b2.checked === true, "the reviewer can explicitly select a quote-backed reading");
-    const b4 = main3.querySelector('[data-act="includeReading"][data-code="B4"]');
-    ok(!!b4 && b4.disabled === true, "an unanswered question cannot be applied over the draft");
-
-    applyBtn.click();
-    for (let i = 0; i < 60; i++) { await sleep(100); if (toasts.some(t => t.title === "READINGS APPLIED")) break; }
-    ok(toasts.some(t => t.title === "READINGS APPLIED"), "applying is confirmed to the custodian");
-
-    const stored = JSON.parse(storage.get("ground-0-audits-v1") || "[]");
-    ok(stored.length === before + 1, "applying files exactly one new register entry for this draft");
-    ok(stored.filter(record => record.name === "Linked Model Body").length === 1, "the read draft appears once in the register");
-    const saved = stored[0];
-    ok(saved.name === "Linked Model Body", "the saved record is the draft that was read");
-    ok(saved.input.answers[1].value === true && /voluntary/.test(saved.input.answers[1].notes), "the model's quote is written into the answer it supports");
-    ok(saved.input.automation.llm && saved.input.automation.llm.verified >= 1, "the record carries the reading block with its verified count");
-    ok(saved.input.automation.reviewRequired === true && saved.input.automation.llm.trustedForAuthority === false, "the persisted model-assisted input remains explicitly untrusted and review-required");
-    ok(saved.input.automation.sources.some(source => source.text && source.text.includes("voluntary and advisory")), "the fetched page text is stored with the record so it can be re-read");
-    ok(saved.status === "Draft" && saved.badge === "Unissued" && saved.confidence === "NONE", "a model reading never certifies: the record stays a confidence-NONE, unissued draft");
-    ok(saved.report.Review_Status === "HUMAN_REVIEW_REQUIRED" && saved.report.Badge_Status === "Unissued", "the persisted report states the review gate and withheld formal badge");
-    ok(!JSON.stringify(saved).includes("sk-ant-harness-key"), "the key is never written into the record");
-
-    const requestsBeforePreflight = readingPrompts.length;
-    let googleInputLimit = 1000000;
-    class Ground0GoogleCatalogMock {
-      constructor() {
-        this.models = { list: async () => (async function* () {
-          yield { name: "models/gemini-3.8-flash", displayName: "Gemini 3.8 Flash", inputTokenLimit: googleInputLimit, outputTokenLimit: 64000, supportedActions: ["generateContent"] };
-        })() };
-      }
-    }
-    LLM.saveSettings({ provider: "google", protocol: "", endpoint: "https://generativelanguage.googleapis.com", model: "gemini-3.8-flash" });
-    LLM.setKey("AIzaSyD-ground0-preflight-test-key-123456", false);
-    LLM._setGoogleSDKLoaderForTests(async () => ({ GoogleGenAI: Ground0GoogleCatalogMock }));
-    await LLM.loadGoogleModelCatalog(LLM.resolved());
-    root3.querySelectorAll(".g0-rail-btn").find(button => button.dataset.tab === "automatic").click();
-    const oneRequestButton = main3.querySelector('[data-act="readRecordSingle"]');
-    const stagedFallbackButton = main3.querySelector('[data-act="readRecord"]');
-    ok(!!oneRequestButton && !oneRequestButton.disabled, "Google's default audit action is the available one-request read");
-    ok(!!stagedFallbackButton && !stagedFallbackButton.disabled, "the staged multi-call reading remains an explicit fallback");
-    ok(main3.innerHTML.includes("One-request Google audit preflight") && main3.innerHTML.includes("input tokens"), "the audit page shows a full-prompt token estimate before model reading");
-    ok(main3.innerHTML.includes("Listed model input limit 1,000,000 tokens"), "the preflight compares against the model context limit discovered by All available");
-    ok(readingPrompts.length === requestsBeforePreflight, "rendering the token preflight sends no extra model-generation request");
-
-    googleInputLimit = 1;
-    await LLM.loadGoogleModelCatalog(LLM.resolved());
-    root3.querySelectorAll(".g0-rail-btn").find(button => button.dataset.tab === "automatic").click();
-    const stagedPrimary = main3.querySelector('[data-act="readRecord"]');
-    const blockedOneRequest = main3.querySelector('[data-act="readRecordSingle"]');
-    ok(!!stagedPrimary && !stagedPrimary.disabled, "a known context overflow changes the Google primary action to staged reading");
-    ok(!!blockedOneRequest && blockedOneRequest.disabled, "the one-request action is disabled when its estimate exceeds listed input context");
-    ok(main3.innerHTML.includes("One-request mode is blocked by this preflight"), "the preflight states why the one-request path is blocked");
-    ok(readingPrompts.length === requestsBeforePreflight, "recomputing and checking context fit still sends no model-generation request");
-  } finally {
-    globalThis.fetch = realFetch;
-    globalThis.HOSLLM._setGoogleSDKLoaderForTests(null);
-    globalThis.HOSLLM.clearKey();
-    globalThis.HOSLLM.saveSettings({ provider: "anthropic", protocol: "", endpoint: "https://api.anthropic.com/v1/messages", model: "claude-sonnet-4-5", persist: false });
-  }
-}
-
-/* ── reading one saved artifact with the linked model ── */
-{
-  const LLM = globalThis.HOSLLM;
-  const json = data => new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
-  const cutoff = G0.today();
-  const quote = "Sections of this charter may be amended only by a two-thirds vote of the governing board, and no amendment expires on its own.";
-  const charter = `Charter of the Evidence Body. ${quote} The board meets quarterly and publishes its determinations.`;
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (value, init = {}) => {
-    const url = new URL(value, "https://harness.test");
-    if (url.hostname === "api.anthropic.com") {
-      return json({ content: [{ type: "text", text: JSON.stringify({ findings: [{ code: "B5", value: "yes", source_index: 0, quote, date: cutoff, confidence: "high", reason: "Amendment requires a vote and no sunset applies." }], gaps: [] }) }], model: "claude-sonnet-4-5", usage: { input_tokens: 200, output_tokens: 40 } });
-    }
-    if (url.hostname === "r.jina.ai") return json({ data: { title: "Charter", url: "https://example.com/charter", publishedTime: cutoff, content: charter } });
-    throw new Error(`Unexpected request while reading an artifact: ${value}`);
-  };
-  try {
-    LLM.setKey("sk-ant-harness-key-0002", false);
-    const evidenceRoot = new El("div");
-    app.render(evidenceRoot, api);
-    const evidenceMain = evidenceRoot.querySelector("#g0-main");
-    evidenceRoot.querySelectorAll(".g0-rail-btn").find(b => b.dataset.tab === "evidence").click();
-    ok(evidenceMain.innerHTML.includes("Save this quote") === false, "no reading panel is shown before a read is asked for");
-    const item = JSON.parse(storage.get("ground-0-evidence-v1") || "[]")[0];
-    const readBtn = evidenceMain.querySelector(`[data-act="readArtifact"][data-id="${item.id}"]`);
-    ok(!!readBtn, "each saved artifact offers a reading with the linked model");
-    readBtn.click();
-    let useQuote = null;
-    for (let i = 0; i < 40 && !useQuote; i++) { await sleep(100); useQuote = evidenceMain.querySelector('[data-act="useArtifactQuote"]'); }
-    ok(!!useQuote, "the artifact reading returns a quotable finding");
-    ok(evidenceMain.innerHTML.includes("1 of 9 questions supported by this artifact"), "unmet constraints without quotes are not mislabeled as four additional supported readings");
-    ok(evidenceMain.innerHTML.includes("quote verified"), "the artifact reading labels its finding as verified");
-    ok(evidenceMain.querySelector('[data-act="useArtifactQuote"]').dataset.code === "B5", "the finding names the question it supports");
-
-    useQuote.click();
-    const updated = JSON.parse(storage.get("ground-0-evidence-v1") || "[]").find(entry => entry.id === item.id);
-    ok(updated.claim.includes("two-thirds vote"), "saving writes the verified quote into the artifact's claim");
-    ok(updated.codes.includes("B5"), "the artifact is tagged with the question it supports");
-  } finally {
-    globalThis.fetch = realFetch;
-    globalThis.HOSLLM.clearKey();
   }
 }
 

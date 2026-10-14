@@ -44,6 +44,9 @@ test('Runs: deterministic report hashes, no fetch, no client results, no private
     assert.equal(first.report.result.computedBadge, 'Unissued'); assert.equal(first.report.result.automationReviewRequired, true);
     for (const text of ['SECRET_PROVIDER', 'SECRET_TRACE', 'SECRET_BODY', 'FAKE_VERIFIED']) assert.ok(!first.json.includes(text));
     assert.equal(first.report.input.automation.sources[0].scoringEligible, true); assert.equal(calls, 0);
+    /* The removed reading method is not recognized any more, and its block is dropped. */
+    assert.equal(normalizeRunInput(raw).automation.method, 'public-lookup');
+    assert.equal(normalizeRunInput(raw).automation.llm, undefined);
     raw.automation.sources[0].kind = 'news';
     assert.ok((await evaluateSavedInput(raw)).report.result.activatorVector.every(x => x.Scored_Answer === 'NO'));
   } finally { globalThis.fetch = oldFetch; }

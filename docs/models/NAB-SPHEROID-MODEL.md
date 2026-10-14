@@ -33,7 +33,7 @@ Orb 2 does not silently assign unrelated watchlist tickers to the nearest NAB.
 
 Every designation includes a deterministic AI **design brief** naming its NAB,
 stock, theme, institutional role, failure mode, and boundary. It is not a trained,
-loaded, or executing specialized neural network, and no new LLM/provider call is
+loaded, or executing specialized neural network, and no model or provider call is
 made. The brief is available in the UI and through `NabSectors.aiContext(id)` for
 future model-building integration. An actual runtime needs its own implementation
 and enforceable gates; this metadata is not such a gate.

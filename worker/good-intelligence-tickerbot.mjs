@@ -205,7 +205,7 @@ export async function fetchTickerbotMarketContext({
  * Category-only breadcrumb for Workers Logs when the upstream call throws. It says what kind of
  * failure it was (a TypeError with no cause means the request was rejected locally, before any
  * network I/O) and never why in words: no message, URL, header, key, stack or body is logged.
- * Mirrors the Z.AI relay's zai_upstream_fetch_failed.
+ * The failure is reported by category only, never by content.
  */
 function logUpstreamFetchFailure(error, dependencies, apiKey) {
   try {

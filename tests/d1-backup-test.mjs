@@ -21,7 +21,7 @@ const MIGRATIONS = [
   "0004_publication.sql", "0005_tickerbot_call_ledger.sql", "0006_alpha_vantage_daily_call_ledger.sql",
   "0007_massive_daily_call_ledger.sql", "0008_orb2_saved_beats.sql", "0009_orb2_server_field.sql",
   "0010_characters_crypto_ranking_cache.sql", "0011_massive_futures_contract_cache.sql",
-  "0012_kraken_public_crypto.sql", "0013_orb2_options_field.sql", "0014_ai_neuron_ledger.sql",
+  "0012_kraken_public_crypto.sql", "0013_orb2_options_field.sql",
   "0015_d1_backup_progress.sql", "0019_twelvedata_daily_credit_ledger.sql",
   "0020_d1_rows_written.sql"
 ].map(file => readFileSync(new URL(`../migrations/community/${file}`, import.meta.url), "utf8"));
@@ -37,8 +37,6 @@ function backupDb(t, seed = true) {
       const month = String((index % 12) + 1).padStart(2, "0");
       insert.run(`${year}-${month}`, index, 10_000, 10_000, NOW);
     }
-    sql.prepare("INSERT INTO ai_neuron_ledger (utc_day, neurons, attempted_calls, provider_budget, worker_limit, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .run("2026-10-10", 500, 3, 10_000, 9_000, NOW);
   }
   const db = {
     prepare(text) {
@@ -111,8 +109,8 @@ test("one page per call: small tables first, paging, resume, then manifest", asy
 
   const pages = await drain(db, bucket);
   const parts = [...bucket.objects.keys()].filter(key => key.includes("/part-"));
-  // 25 tables; the 30-row ledger spans two pages; everything else fits one page.
-  assert.equal(parts.length, 25 + 1);
+  // 24 tables; the 30-row ledger spans two pages; everything else fits one page.
+  assert.equal(parts.length, 24 + 1);
   assert.ok(parts.some(key => key === `d1-backup/${DAY}/tickerbot_call_ledger/part-000000.json`));
   assert.ok(parts.some(key => key === `d1-backup/${DAY}/tickerbot_call_ledger/part-000025.json`));
   const secondPage = JSON.parse(bucket.objects.get(`d1-backup/${DAY}/tickerbot_call_ledger/part-000025.json`));
@@ -121,9 +119,9 @@ test("one page per call: small tables first, paging, resume, then manifest", asy
 
   const manifest = JSON.parse(bucket.objects.get(`d1-backup/${DAY}/manifest.json`));
   assert.equal(manifest.schema, "hos-d1-backup-manifest-v1");
-  assert.equal(manifest.tables.length, 25);
+  assert.equal(manifest.tables.length, 24);
   assert.equal(manifest.tables.find(row => row.table === "tickerbot_call_ledger").rows, 30);
-  assert.equal(manifest.rows, 31 + schemaRows);
+  assert.equal(manifest.rows, 30 + schemaRows);
   assert.ok(pages.at(-1).done);
 
   const idle = await runD1BackupPage({ db, bucket, now: NOW + 60_000 });

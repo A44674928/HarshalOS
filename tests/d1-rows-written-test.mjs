@@ -180,7 +180,7 @@ test("every table the Orb 2 write path writes is modelled", () => {
   const sources = [
     "orb2-field.mjs", "orb2-field-publish.mjs", "massive-daily-call-ledger.mjs",
     "tickerbot-call-ledger.mjs", "kraken-call-ledger.mjs", "alpha-vantage-call-ledger.mjs",
-    "twelvedata-daily-credit-ledger.mjs", "ai-neuron-ledger.mjs",
+    "twelvedata-daily-credit-ledger.mjs",
     "characters-crypto-ranking.mjs", "characters-kraken.mjs",
     "characters-futures-contracts.mjs", "d1-backup.mjs"
   ];

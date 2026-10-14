@@ -279,7 +279,6 @@ backup fault never costs the beat its minute. Details:
 
 - `docs/deployment/ORB2-BEAT-RUNNER.md` — running the beats off Cloudflare.
 - `docs/deployment/D1-BACKUP.md` — the job riding this tick.
-- `docs/deployment/WORKERS-AI-PROVIDER.md` — the relay's free-tier provider.
 - `docs/deployment/TURNSTILE.md` — human verification for public writes.
 - `docs/deployment/UPTIME-MONITORING.md` — external eyes on the site.
 - `docs/deployment/WEB-ANALYTICS.md` — cookie-free traffic metrics.

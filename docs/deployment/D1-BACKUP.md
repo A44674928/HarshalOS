@@ -67,4 +67,4 @@ Never restore the excluded session/auth tables; users re-authenticate.
 
 Tests: `tests/d1-backup-test.mjs` (via `npm run test:community`).
 Related: `docs/deployment/ORB2-CRON-PLAN.md` (the tick it rides),
-`docs/deployment/WORKERS-AI-PROVIDER.md` (the ledger is backed up).
+`docs/deployment/ORB2-CRON-PLAN.md` (the job it rides).

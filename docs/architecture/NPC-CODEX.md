@@ -98,8 +98,11 @@ read-only 3D teaching model; its labels are not registered OCM addresses:
 | `|The OCM Operator|.txt` | `js/ocm-*.js` | Routes messages along the Resolution Axis |
 | `|The Timekeeper|.txt` | `js/uts.js` | Drives the display-only UTS clock |
 | `|The Moon Watcher|.txt` | `js/celestial-context.js` | Approximate Moon/Sun readouts (display-only) |
-| `|The LLM Relay|.txt` | `worker/llm-relay.mjs` | Relays free-tier model traffic; never stores keys |
 | `|The Storage Attendant|.txt` | `worker/storage.mjs` | Handles optional cloud-storage APIs |
+
+> **Vacated post.** `|The LLM Relay|` (Ring 2, `worker/llm-relay.mjs`) was removed with the
+> rest of the model layer; the bedroom directory is gone with it. See
+> [`../REMOVED-LLM-LAYER.md`](../REMOVED-LLM-LAYER.md).
 | `source/Orb 2/|Name|.txt` | `source/Orb 2/` | Read-only 3D model of the reviewed Characters cast; display-only |
 
 ## Ring 3 — The Book / Sclera (CONVERGENCE CYAN)
@@ -358,7 +361,7 @@ postings for cast NPCs. They retain their `.gitkeep` placeholders as
 originally authored — populating those slots is a content-authoring pass
 separate from NPC casting.
 
-**Bedroom count (as of this writing): 185 bedrooms total** — 2 Ring 0
+**Bedroom count (as of this writing): 184 bedrooms total** — 2 Ring 0
 identity/profile records (`User` and Harshal's Bedroom), 18 Ring 1–3 staff
 rostered in `docs/architecture/npcs/` plus the Ring 2 Orb 2 display model,
 16 Ring 4 assurance/build staff on-post, 15 Ring 5 archive
