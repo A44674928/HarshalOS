@@ -1593,6 +1593,10 @@ APPS.push({
             <ul class="g0-source-list">${reading.followUps.map(item => `<li><a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.label || item.url)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(item.why || "")}</span></li>`).join("")}</ul>
             <p class="g0-section-note">Only links that already appeared inside the retrieved record could be requested — the model cannot reach the open web, and every page it asked for was fetched through the same reader, archive and cutoff rules as the original research.</p>
           </details>` : ""}
+          ${(reading.scoredAbsences || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">◼</span> Not demonstrated — the record's silence is the finding (${reading.scoredAbsences.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
+            <p class="g0-section-note">These questions ask for a check that lives in a published instrument. Nothing of the kind appears in the entity's governing record, over a corpus that could have carried it. A check that is not written down is not a demonstrable check, so this is a finding and not a gap in the search.</p>
+            <ul class="g0-ul">${reading.scoredAbsences.map(row => `<li><strong>${esc(row.code)}</strong> — ${esc(row.reason)}${row.inverted ? " <em>Both readings are reported; neither is scored automatically.</em>" : ""}</li>`).join("")}</ul>
+          </details>` : ""}
           ${(reading.notes || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">⚠</span> What the reading could not resolve (${reading.notes.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
             <ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>
           </details>` : ""}

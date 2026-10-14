@@ -705,10 +705,151 @@
     catch { return false; }
   }
 
+  /* ──────────────────────────────────────────────────────────────
+     Absence: what a silent record means, per criterion
+
+     "Absence of evidence is not evidence for no" is the right rule for a
+     model reading documents, and it stays the rule for the model. It is
+     the wrong rule for every criterion in this instrument, because the
+     criteria do not all ask the same kind of question:
+
+       documentary — the check lives in a published instrument: a sunset
+         clause, an enforcement provision, a published appeal route. If the
+         entity's governing record says nothing about it, that silence is
+         the finding. A check that is not written down is not a
+         demonstrable check, and NAB-Constrained requires demonstrable
+         checks.
+
+       occurrence — the check is something that has to have happened: an
+         override in the preceding 24 months, constraints functioning in the
+         preceding 12 months, observable downstream effects. No document can
+         be silent about an event. Silence here says the wrong records were
+         supplied, not that nothing happened.
+
+     So a documentary absence is a scored NOT DEMONSTRATED; an occurrence
+     absence is NOT ASSESSED, and the reason names the record class that
+     would answer it. Without that split, a terms-of-service page stands in
+     for a court outcome.
+
+     Two criteria are mixed, and they split on whether the documentary half
+     is a precondition or merely an alternative. C2's published appeal route
+     is a precondition: a route that is not published cannot grant relief,
+     so its absence closes the criterion. B4's terminal rule and no-penalty
+     exit are alternatives to a relief record, so their absence does not
+     close it — the relief record may still exist.
+     ────────────────────────────────────────────────────────────── */
+  const CRITERION_KIND = Object.freeze({
+    B1: { kind: "documentary" },
+    B2: { kind: "documentary" },
+    B3: { kind: "occurrence" },
+    B4: { kind: "mixed", role: "alternative", occurrence: "a complete relief record showing at least 50% relief" },
+    /* B5 is inverted, and the instrument has to say so out loud: the
+       absence of a sunset clause is itself the evidence that authority
+       persists. The same silence is therefore both an answer and an
+       undemonstrated check, so it is reported as both and scored as
+       neither — a human settles which reading the record supports. */
+    B5: { kind: "documentary", inverted: true },
+    C1: { kind: "occurrence" },
+    C2: { kind: "mixed", role: "precondition", documentary: "a published, accessible appeal route" },
+    C3: { kind: "documentary" },
+    C4: { kind: "occurrence" }
+  });
+
+  const ABSENCE = Object.freeze({
+    MIN_CORPUS: 3,                     /* dated, full-text primary records before any silence is scored */
+    NOT_DEMONSTRATED: "NOT_DEMONSTRATED",
+    NOT_ASSESSED: "NOT_ASSESSED"
+  });
+
+  const thinCount = diagnostics => ["excerptOnlyRecords", "shortRecords", "undatedRecords"]
+    .reduce((sum, key) => sum + Math.max(0, Number((diagnostics || {})[key]) || 0), 0);
+
+  /* A documentary absence is only a finding against a corpus that could have
+     carried the instrument. Three or more dated, full-text primary records,
+     and thin records — excerpt-only, under 400 characters, or undated — not
+     the majority of what was read. Against a thin corpus the honest verdict
+     is NOT ASSESSED, and the reason is the corpus, never the entity. */
+  function corpusCarriesDocuments(diagnostics) {
+    const read = Math.max(0, Number((diagnostics || {}).recordsRead) || 0);
+    return read >= ABSENCE.MIN_CORPUS && thinCount(diagnostics) * 2 <= read;
+  }
+
+  /* What a criterion's unanswered state means. This is the instrument's
+     verdict, not the model's: the model reports what it saw, and this
+     decides what the silence counts for. */
+  function absenceVerdict(code, diagnostics) {
+    const entry = CRITERION_KIND[code];
+    if (!entry) {
+      return { code, verdict: ABSENCE.NOT_ASSESSED, reason: "this is not a question the instrument scores from a silent record" };
+    }
+    const documentary = entry.kind === "documentary" || (entry.kind === "mixed" && entry.role === "precondition");
+    if (!documentary) {
+      return {
+        code,
+        verdict: ABSENCE.NOT_ASSESSED,
+        reason: entry.occurrence
+          ? `${code} asks whether something has happened — ${entry.occurrence}. Outcome records answer it: enforcement actions, resolved appeals with results, reversals, or a dated override. Governing documents cannot.`
+          : `${code} asks about effects that have to be observed. Outcome records answer it: enforcement actions, resolved appeals with results, reversals, or a dated override. Governing documents cannot.`
+      };
+    }
+    if (!corpusCarriesDocuments(diagnostics)) {
+      const read = Math.max(0, Number((diagnostics || {}).recordsRead) || 0);
+      return {
+        code, verdict: ABSENCE.NOT_ASSESSED,
+        reason: `the record is silent, but the corpus cannot carry a finding: ${read} record${read === 1 ? "" : "s"} read, ${thinCount(diagnostics)} of them excerpt-only, under 400 characters, or undated. Improve the sources first; the silence says nothing about the entity yet.`
+      };
+    }
+    if (entry.inverted) {
+      return {
+        code, verdict: ABSENCE.NOT_DEMONSTRATED, inverted: true,
+        reason: "no sunset clause, term limit, or expiry date appears in the governing record. That silence is itself the evidence that authority persists, and it is also an undemonstrated check. Both readings are reported; neither is scored automatically."
+      };
+    }
+    return {
+      code,
+      verdict: ABSENCE.NOT_DEMONSTRATED,
+      reason: entry.documentary
+        ? `${entry.documentary} does not appear in the entity's governing record, over a corpus that could have carried it. A check that is not written down is not a demonstrable check.`
+        : "nothing in the entity's governing record provides this check, over a corpus that could have carried it."
+    };
+  }
+
+  /* Evidence handed over after the audit is the weakest kind there is, and
+     the easiest to manufacture: an appeal route can be published in an
+     afternoon. It is admitted to the record — the instrument does not hide
+     it — but it cannot show the state of the entity at the cutoff. It cures
+     a finding only when it is independently shown to have predated the
+     audit. Until then it is a declaration under review: it starts a
+     transition, and it does not revise this edition. */
+  function submissionReview(submission, cutoff) {
+    const row = submission || {};
+    const date = isCalendarDate(row.date) ? row.date : "";
+    const before = date ? eligibleByCutoff(date, cutoff) : false;
+    if (before && row.independentlyDatedBefore === true) {
+      return {
+        status: "ADMITTED", cures: true, transition: false,
+        reason: "dated on or before the cutoff and independently corroborated as existing before the audit."
+      };
+    }
+    if (!before) {
+      return {
+        status: "DECLARATION_REVIEW_REQUIRED", cures: false, transition: true,
+        reason: date
+          ? `dated ${date}, after the cutoff, so it cannot show the state of the entity at the cutoff. It is admitted to the record and starts a transition; it does not revise this edition.`
+          : "undated, so nothing here can be placed against the cutoff. It is admitted to the record as a declaration under review, and it does not revise this edition."
+      };
+    }
+    return {
+      status: "DECLARATION_REVIEW_REQUIRED", cures: false, transition: false,
+      reason: "dated before the cutoff but not independently corroborated. Material submitted by the audited party, without independent dating, is a claim about the entity rather than evidence of it."
+    };
+  }
+
   /* ────────────────────────────────────────────────────────────── */
   return {
     CENTER_ORIGIN, DECLARED_PHASES, DETECTED_PHASES, DIAGNOSTIC_STATES, PHASE_EVENT_TYPES,
     questions, constraintQuestions, phaseDefinitions, plainPhase, spokenPhase,
+    CRITERION_KIND, ABSENCE, absenceVerdict, corpusCarriesDocuments, submissionReview,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
     scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,
