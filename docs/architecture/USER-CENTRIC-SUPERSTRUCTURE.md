@@ -111,13 +111,13 @@ index.html  about.html  account.html  audits.html    ← shell entry points
 css/                                                ← presentation (os.css, ground0.css, …)
 js/                                                 ← runtime sources
 │   boot.js  kernel.js  wm.js  apps-*.js             ← desktop / window manager
-│   g0-engine.js  g0-app.js  g0-research.js  g0-llm.js
+│   g0-engine.js  g0-app.js  g0-research.js  g0-evidence-hydrator.js
 │   flame.js  orb-flame.js  ocm-data.js  ocm-directory.js  uts.js
 │   celestial-context.js  good-intelligence-*.js
 │   manuscript.js  core-book-reader.js
-│   llm.js  apps-llm.js  apps-news.js  apps-cloud.js
+│   apps-llm.js  apps-news.js  apps-cloud.js
 worker/                                             ← Cloudflare APIs
-│   index.mjs  llm-relay.mjs  storage.mjs
+│   index.mjs  storage.mjs
 │   community-*.mjs  good-intelligence-*.mjs
 assets/                                             ← frames the eye animates
 │   flame/        (120 PNG frames, inner flame)
@@ -178,7 +178,6 @@ case-studies/                                       ← Ground-0 audits (23 enti
 └── d1/                                             ← generated D1 register seed
 docs/
 ├── GOOD-INTELLIGENCE-ASSURANCE.md
-├── GROUND-0-LLM-RESEARCH.md
 ├── architecture/                                   ← CELESTIAL-CONTEXT, PLUGIN-ARCHITECTURE, …
 ├── deployment/                                     ← operator guides
 ├── integrations/NEWSML-G2.md

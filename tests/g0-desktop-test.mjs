@@ -1012,155 +1012,31 @@ Legitimacy precedes capability.
   globalThis.fetch = originalFetch;
 }
 
-/* ── LLM Link: the Z.AI free-tier relay needs no browser key ───── */
+/* ── LLM Link: every model feature is removed; the tile is a shell ── */
 const llmApp = globalThis.APPS.find(app => app.id === "llmlink");
-ok(!!llmApp, "LLM Link is registered in APPS");
-const settle = async (turns = 6) => { for (let i = 0; i < turns; i++) await new Promise(resolve => setImmediate(resolve)); };
+ok(!!llmApp, "the LLM Link shell is still registered in APPS");
 if (llmApp) {
   const llmCalls = [];
   const outsideFetch = globalThis.fetch;
-  const statusCalls = () => llmCalls.filter(call => call.url.endsWith("/api/llm/status")).length;
-  let relayStatusPayload = {
-    configured: true, provider: "zai", tier: "free", upstream: "https://api.z.ai",
-    defaultModel: "glm-4.5-flash", models: ["glm-4.5-flash", "glm-4.7-flash"],
-    keyVariable: "ZAI_API_KEY", acceptedKeyVariables: ["Z.AI", "ZAI_API_KEY"],
-    limits: { requestsPerMinute: 60, sharedRequestsPerMinute: 120, windowSeconds: 60 }
-  };
-  let relayStatusHttp = 200;
-  let relayStatusJson = true;
+  /* Any fetch at all is a failure here: the shell must not reach for a relay. */
   globalThis.fetch = async (url, options = {}) => {
-    const target = String(url);
-    const headers = options.headers || new Headers();
-    llmCalls.push({
-      url: target, method: options.method || "GET",
-      authorization: typeof headers.get === "function" ? headers.get("Authorization") : null,
-      body: options.body ? JSON.parse(options.body) : null
-    });
-    if (target.endsWith("/api/llm/status")) {
-      const text = relayStatusJson ? JSON.stringify(relayStatusPayload) : "<html>404</html>";
-      return { ok: relayStatusHttp < 400, status: relayStatusHttp, headers: { get: () => "application/json" }, text: async () => text, json: async () => JSON.parse(text) };
-    }
-    if (target.endsWith("/api/llm/models")) {
-      return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => "", json: async () => ({ object: "list", data: [{ id: "glm-4.5-flash" }, { id: "glm-4.7-flash" }] }) };
-    }
-    if (target.endsWith("/api/llm")) {
-      return {
-        ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => "",
-        json: async () => ({
-          object: "chat.completion", model: "glm-4.5-flash",
-          choices: [{ index: 0, message: { role: "assistant", content: "link established, model responding" }, finish_reason: "stop" }],
-          usage: { prompt_tokens: 30, completion_tokens: 5, total_tokens: 35 },
-          relay: { provider: "zai", tier: "free", keyVariable: "ZAI_API_KEY", doSample: false }
-        })
-      };
-    }
+    llmCalls.push({ url: String(url), method: options.method || "GET" });
     return { ok: false, status: 404, headers: { get: () => "text/html" }, text: async () => "<html>no such route</html>", json: async () => ({}) };
   };
-
-  /* The mini-DOM has no HTMLInputElement.value, so the fields a button handler
-     reads are set the way a reader would set them before the click. */
-  const fillForm = (win, providerId) => {
-    const preset = HOSLLM.PROVIDERS[providerId];
-    const fields = { "#ll-provider": providerId, "#ll-protocol": "", "#ll-endpoint": preset.endpoint, "#ll-model": preset.model, "#ll-key": "" };
-    for (const [selector, value] of Object.entries(fields)) {
-      const field = win.body.querySelector(selector);
-      if (field) field.value = value;
-    }
-  };
-
   shell.openApp(llmApp);
   const llmWindow = shell.windows.get("llmlink");
-  ok(!!llmWindow, "LLM Link opens as a HarshalOS desktop window");
-  const providerSelect = llmWindow && llmWindow.body.querySelector("#ll-provider");
-  ok(!!(providerSelect && providerSelect.textContent.includes("Cloudflare Workers AI")), "the provider list offers the Cloudflare Workers AI relay");
-  ok(llmWindow.body.innerHTML.includes('value="relay"'), "the relay preset is a selectable provider id");
-
-  /* A key left over from another provider must not follow the reader here. */
-  HOSLLM.setKey("sk-ant-leftover-from-another-provider", false);
-  providerSelect.value = "relay";
-  dispatch(providerSelect, "change");
-  await settle();
-  let llmText = llmWindow.body.textContent;
-  let keyInput = llmWindow.body.querySelector("#ll-key");
-  ok(!!(keyInput && "disabled" in keyInput.attrs), "the relay connection has no key field to fill");
-  ok(llmText.includes("held by this deployment's Worker"), "the UI says where the relay's key lives");
-  ok(llmText.includes("RELAY CONFIGURED"), "a configured relay says so");
-  ok(llmText.includes("glm-4.5-flash") && llmText.includes("glm-4.7-flash"), "the relay's free-model allowlist is shown");
-  ok(llmText.includes("ZAI_API_KEY"), "the Worker variable holding the key is named");
-  ok(llmText.includes("60 calls/minute per caller"), "the relay's per-caller pace is disclosed");
-  ok(llmText.includes("120/minute shared across everyone here"), "so is the ceiling this deployment shares with every other caller");
-  ok(llmText.includes("sliding 60s window"), "and the window is described as sliding, because that is what the wait quoted means");
-  ok(llmText.includes("a short wait is absorbed automatically"), "the UI says a paced call is waited out rather than failed");
-  ok(llmText.includes("this deployment's own Worker first"), "the disclosure says prompts transit the Worker");
-  ok(llmText.includes("No browser key is sent at all"), "the disclosure says no key leaves the browser");
-  ok(llmText.includes("do_sample:false"), "Z.AI's sampling translation is disclosed in the app");
-  const statusCall = llmCalls.find(call => call.url.endsWith("/api/llm/status"));
-  ok(!!statusCall, "the app asked this deployment's relay what it has");
-  ok(!!(statusCall && !statusCall.authorization), "the status question carries no key");
-  ok(!!llmWindow.body.querySelector("#ll-relay-check"), "the app offers a Check relay control");
-
-  /* One real call through the relay: the leftover key must not be attached. */
-  fillForm(llmWindow, "relay");
-  const testButton = llmWindow.body.querySelector("#ll-test");
-  ok(!!(testButton && !("disabled" in testButton.attrs)), "the relay is a complete connection with no browser key");
-  if (testButton) await testButton.listeners.click[0]();
-  await settle();
-  llmText = llmWindow.body.textContent;
-  const chatCall = llmCalls.find(call => call.method === "POST" && call.url.endsWith("/api/llm"));
-  ok(!!chatCall, "Test connection called this deployment's relay route");
-  ok(!!(chatCall && !chatCall.authorization), "the leftover browser key was not forwarded to the relay");
-  ok(!!(chatCall && chatCall.body.model === "@cf/meta/llama-3.1-8b-instruct-fp8-fast"), "the relay call names the default Workers AI model");
-  ok(!!(chatCall && chatCall.body.stream === undefined && chatCall.body.tools === undefined), "the relay call asks for no streaming and offers no tools");
-  ok(llmText.includes("LINK ESTABLISHED"), "a relayed reply is reported as an established link");
-  ok(llmText.includes("link established, model responding"), "the relayed sample reply is shown");
-
-  /* List models goes to the relay, not to Z.AI. */
-  fillForm(llmWindow, "relay");
-  const modelsButton = llmWindow.body.querySelector("#ll-models");
-  if (modelsButton) await modelsButton.listeners.click[0]();
-  await settle();
-  ok(llmCalls.some(call => call.url.endsWith("/api/llm/models") && !call.authorization), "List models asks the relay and sends no key");
-  ok(llmWindow.body.textContent.includes("models available to this key"), "the relay's allowlist is offered as choices");
-
-  /* An unconfigured relay is reported as such, with what to add. */
-  relayStatusPayload = {
-    configured: false, provider: "zai", tier: "free", models: ["glm-4.5-flash", "glm-4.7-flash"],
-    keyVariable: "", acceptedKeyVariables: ["Z.AI", "ZAI_API_KEY"],
-    message: "This deployment has no Z.AI key. Add one as a Worker secret named Z.AI or ZAI_API_KEY."
-  };
-  fillForm(llmWindow, "relay");
-  const checkButton = llmWindow.body.querySelector("#ll-relay-check");
-  if (checkButton) await checkButton.listeners.click[0]();
-  await settle();
-  llmText = llmWindow.body.textContent;
-  ok(llmText.includes("RELAY NOT CONFIGURED"), "an unconfigured relay says so instead of looking linked");
-  ok(llmText.includes("no Z.AI key"), "it names what is missing");
-  ok(llmText.includes("ZAI_API_KEY"), "it names a secret the operator can add");
-
-  /* A static preview with no Worker at all is a normal state, not a crash. */
-  relayStatusHttp = 404; relayStatusJson = false;
-  fillForm(llmWindow, "relay");
-  const recheck = llmWindow.body.querySelector("#ll-relay-check");
-  if (recheck) await recheck.listeners.click[0]();
-  await settle();
-  ok(llmWindow.body.textContent.includes("NO RELAY HERE"), "a deployment with no Worker reports that plainly");
-
-  /* Back to a BYOK provider: the key field returns and the relay box goes. */
-  relayStatusHttp = 200; relayStatusJson = true;
-  const beforeSwitch = statusCalls();
-  const providerAgain = llmWindow.body.querySelector("#ll-provider");
-  providerAgain.value = "anthropic";
-  dispatch(providerAgain, "change");
-  await settle();
-  llmText = llmWindow.body.textContent;
-  keyInput = llmWindow.body.querySelector("#ll-key");
-  ok(!!(keyInput && !("disabled" in keyInput.attrs)), "a BYOK provider asks for its own key again");
-  ok(!llmText.includes("RELAY CONFIGURED") && !llmText.includes("NO RELAY HERE"), "the relay disclosure disappears with the relay preset");
-  ok(statusCalls() === beforeSwitch, "a BYOK provider makes no relay calls");
-
-  HOSLLM.clearKey();
+  ok(!!llmWindow, "the LLM Link shell opens as a HarshalOS desktop window");
+  const shellText = llmWindow ? llmWindow.body.textContent : "";
+  ok(shellText.includes("REFUSED — REMOVED"), "the shell says it was removed instead of pretending to be a connection");
+  ok(shellText.includes("js/llm.js") && shellText.includes("js/g0-llm.js") && shellText.includes("worker/llm-relay.mjs") && shellText.includes("0014_ai_neuron_ledger.sql"),
+    "the shell names what used to be here, so the removal is legible");
+  ok(!llmWindow.body.querySelector("#ll-provider") && !llmWindow.body.querySelector("#ll-key") && !llmWindow.body.querySelector("#ll-test") && !llmWindow.body.querySelector("#ll-models"),
+    "there is no provider list, key field, test button, or model list left to configure");
+  ok(llmCalls.length === 0, "opening the shell makes no network request of any kind");
   globalThis.fetch = outsideFetch;
 }
+ok(!globalThis.HOSLLM && !globalThis.G0LLM, "the connection layer and the reading pass are not loaded anywhere on the page");
+ok(!globalThis.fetch || typeof globalThis.fetch === "function", "the harness fetch is restored");
 
 // The mail handler awaits WebCrypto. A fixed number of event-loop turns does
 // not guarantee the crypto thread pool has finished on a busy CI runner.

@@ -9,7 +9,6 @@ import { handleGoodIntelligenceOrb2Beats } from './good-intelligence-orb2-beats.
 import { handleCharactersBeat, handleCharactersDeploy } from './characters-beat.mjs';
 import { handleOrb2SavedBeats } from './orb2-saved-beats.mjs';
 import { handleCharactersDiscCatalog } from './characters-crypto-ranking.mjs';
-import { handleLlmRelay } from './llm-relay.mjs';
 import { handleMaterialsProject } from './materials-project.mjs';
 import { handleMassive } from './massive.mjs';
 import { handleTwelveData } from './twelvedata.mjs';
@@ -347,10 +346,6 @@ export default {
     // Twelve Data private (800/day 8/min, delayed) replaces Massive when TWELVEDATA_API_KEY is set and COMMUNITY_ENABLED=false.
     if (path === '/api/twelvedata/v1' || path.startsWith('/api/twelvedata/v1/')) return handleTwelveData(request, env);
     if (path === '/api/good-intelligence/v1' || path.startsWith('/api/good-intelligence/v1/')) return handleGoodIntelligenceDemo(request);
-    // The model relay is not behind Access: it serves the free tier only, requires a
-    // same-origin POST, and paces each caller and the deployment as a whole
-    // over sliding windows. See worker/llm-relay.mjs.
-    if (path === '/api/llm' || path.startsWith('/api/llm/')) return handleLlmRelay(request, env);
     if (path.startsWith('/api/')) return handleApi(request, env);
     return env.ASSETS.fetch(request);
   }

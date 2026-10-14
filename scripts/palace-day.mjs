@@ -213,7 +213,6 @@ const STAR_NOTES = {
   "The OCM Operator": "Routes every message the short way: inward first, then resolved.",
   "The Timekeeper": "Ticks. Display-only, never authority. Ticks anyway.",
   "The Moon Watcher": "Approximate, display-only — and on shift all night anyway.",
-  "The LLM Relay": "Carries every word to the models and never once keeps a key.",
   "The Storage Attendant": "Handles the optional cloud storage. Will remind you it is optional.",
   "The Magistrate": "Refuses to let a draft pass as law. This cannot be appealed.",
   "The Contradiction Ledger Keeper": "Logs CL-001 through CL-014. Hopes, quietly, for CL-015.",
@@ -326,7 +325,6 @@ function classify(npc) {
     return { wing, ring: staff.ring, faction, archetype, role: staff.role, posting: staff.posting };
   }
 
-  if (name === "The LLM Relay") return { wing: "machine-keep", ring: 2, faction: "runtime", archetype: "runtime-shift", role: "Relays free-tier model traffic; never stores keys", posting: "worker/llm-relay.mjs" };
   if (name === "The Storage Attendant") return { wing: "machine-keep", ring: 2, faction: "runtime", archetype: "runtime-shift", role: "Handles optional cloud-storage APIs", posting: "worker/storage.mjs" };
   if (name === "The Market Tickerbot") return { wing: "observatory", ring: 4, faction: "market", archetype: "market", role: "Reads the market context feed; display-only", posting: "worker/" };
   if (name === "The Supply Chain Inspector") return { wing: "observatory", ring: 4, faction: "auditor", archetype: "auditor", role: "Inspects the Storm-0558 supply-chain bundle", posting: "archives/Supply Chain/Documentation/" };

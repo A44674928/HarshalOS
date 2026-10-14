@@ -69,13 +69,6 @@
     "bucket_name": "main-empty-domains"
   }],
 
-  // The LLM relay's primary provider. With this binding present the relay
-  // serves Workers AI's free daily Neuron allocation (see
-  // docs/deployment/WORKERS-AI-PROVIDER.md) and the durable per-day ledger in
-  // migration 0014 refuses new calls before the allowance is spent. Without
-  // it, the relay falls back to the Z.AI key path when a key is set.
-  "ai": { "binding": "AI" },
-
   // Secrets are configured in Cloudflare, not in this file.
   // Twelve Data free (800/day 8/min delayed 1-15min, 3 markets) is
   // personal/internal only (Basic/Grow/Pro internal, no third-party display;
@@ -100,19 +93,15 @@
   },
 
   // Preview uses a separate database. Branch preview URLs are public, so add a
-  // temporary preview-only switch here (LLM_RELAY_DISABLE_RATE_LIMITS,
-  // LLM_RELAY_OUTBOUND_DIAGNOSTIC; see docs/deployment/ZAI-FREE-TIER.md) only for
-  // as long as it is needed, never in the base "vars" above, and remove it after.
+  // temporary preview-only switch here only for as long as it is needed, never
+  // in the base "vars" above, and remove it after.
   "previews": {
-    // No production D1 or R2 access in branch previews. The relay is switched
-    // off there too: the AI binding is account-wide, so without this a public
-    // preview could spend the shared daily Neuron allocation.
+    // No production D1 or R2 access in branch previews.
     "d1_databases": [],
     "r2_buckets": [],
     "vars": {
       "COMMUNITY_ENABLED": "false",
-      "MONGODB_DATABASE": "harshalos_preview",
-      "LLM_RELAY_ENABLED": "false"
+      "MONGODB_DATABASE": "harshalos_preview"
     }
   }
 }

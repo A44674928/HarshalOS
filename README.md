@@ -74,14 +74,18 @@ Follow **[MongoDB setup guide](docs/deployment/MONGODB-SETUP.md)** for Atlas, Ac
 and verification. `npm ci && npm run dev` runs the Worker preview. Missing authentication
 configuration intentionally disables the API; no credentials should be pasted into chat or Git.
 
-### Optional Z.AI free-tier model relay
+### The model layer is removed (not optional, not configured)
 
-The same Worker can serve LLM Link's **`/api/llm`** relay, which holds a Z.AI API key as a Worker
-secret so no key is ever pasted into a browser. It serves only Z.AI's $0 GLM Flash models, forwards
-plain text with no tools and no streaming, and rate-limits each caller; a missing key answers 503 and
-says so. Follow **[Z.AI free-tier guide](docs/deployment/ZAI-FREE-TIER.md)** for the secret names it
-accepts, the request limits, Z.AI's sampling translation, verification calls, and the honest limits
-of a same-origin relay. Without it, every BYOK connection point still works exactly as before.
+This repository no longer contains a working model integration. The connection layer
+(`js/llm.js`), the Ground-0 reading pass (`js/g0-llm.js`), the Worker relay and its
+`/api/llm` routes (`worker/llm-relay.mjs`), the outbound-spend ledger
+(`worker/ai-neuron-ledger.mjs`, migration `0014`), the `AI` binding in `wrangler.jsonc`,
+the suites and the operator guides were all removed, and the **LLM Link** tile was left as
+a shell: it keeps its id and opens one `REFUSED — REMOVED` panel naming what used to be
+here, with no provider list, key field, model call, or network path behind it.
+[`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) is the record;
+`npm run test:llm-removal` fails if any of it returns. Ground-0, the evidence library and
+the temporal ledger never needed a model and are unchanged.
 
 ### Standalone News app & NewsML-G2 export
 
@@ -115,7 +119,7 @@ NewsML routes.
 | **AI Inner Shell** | Address-constrained AI nodes (`0•100•000•NNNN•AI-XXXX`). Removing the anchor invalidates all dependent nodes instantly — *geometry, not enforcement*. Learning increases capability, never authority |
 | **Discs** | Bounded operational contexts with time horizons, fossilized scope, distance limits, and external legitimacy references. Deterministic halting; no authority residue; discs cannot create other discs |
 | **Whyland Standards (TCS)** | Local contextual-inquiry simulation: `why.query`, `why.activate`, `why.explain`, modeled session transitions, off-disc catalog virtualization, demo-timer gating, and the Bromine gateway (invalid input → local session reset) |
-| **LLM connection points** | Bring your own model: Anthropic, OpenRouter, Google's GenAI SDK, any OpenAI-compatible endpoint, a local server (Ollama / LM Studio), or **this deployment's Z.AI free-tier relay** (`/api/llm`), which holds the key as a Worker secret so no key is pasted into the browser. A BYOK key never leaves the browser except to the endpoint the custodian chose, and is held for the tab unless persistent storage is requested. Providers that refuse browser calls (`api.openai.com`) are labelled as such rather than faked, and a deployment with no relay says so instead of pretending |
+| **LLM Link (removed)** | The model connection points are gone: no BYOK provider presets (Anthropic, OpenRouter, Google GenAI SDK, OpenAI-compatible endpoints, local servers), no relay, no key field, no model listing, and no reading pass. The tile survives as a shell that says so; `npm run test:llm-removal` asserts the absence. See [`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) |
 | **Good Intelligence signal desk** | Native read-only dashboard for feed, categories, intel details, rankings, a dedicated Market Charts tab with ticker price line graphs plus VFI, Fibonacci-band, and WaveTrend visualizations, an **Orb 2** tab: a 3D OCM market-beat model presenting the five reviewed Discs as a constellation of Disc orbs around the Center Origin — one orb per Disc, **every Disc's own stored field drawn at the same time** so all five orbs and their sub-orbs are visible at once, each with its own stored/awaiting status, walked by a click/slide/keyboard carousel and a zoom-orb view that magnify one Disc's field while the ring camera widens to the whole constellation, with a display-only OCM traffic simulation of stored-field beats crossing the ring and the Center Origin tethers between orbs that actually hold rows, rebuilding the drawn orbs from that Disc's own reviewed instruments (with a Disc-aware same-origin server field read) — with free-floating, pure-market-data-derived ticker placement and a keyed Characters mood/provider/market-field color system, a green/red VFI volume-flow runner with visual cycles/s cadence (not measured volume), a Center Origin assembly (a counter-rotating inner shell, the declared PDH phase as its rotation shift, and the origin drawn as the CPU node the Human Key gates, with gate/phase/UTS read on the canvas), and separate model-view and whole-app fullscreen controls. No fractal, flame, or film engine is attached to this view: The Orb's shared frame processors and the dual-series helix arrangement were removed at the author's instruction, because a second animation system on top of market geometry added complexity without describing the data any better; the shared log-space Fibonacci-band metric they consumed survives as `GoodIntelligenceOrb2.fibonacciBandMetrics` and is pinned by `tests/orb2-baseline-test.mjs`. The 119-sector composite field sits beside this view as its own **NAB Discs** desktop app (`#app=nab-discs`) and its own Good Intelligence tab — it neither replaces the Characters app nor mounts inside Orb 2, built from the reviewed `CharactersCast.NPC_ROSTER` and Characters' reviewed Discs. Its adjacent 119-sector NAB Discs view uses explicit daily source routes: Tickerbot Stocks, Kraken Spot Crypto, and Massive FX/Commodities/Indices. The same provider/channel/interval identities are validated on every Worker write; unavailable data stays missing, and Alpha Vantage/`1mo` is retained only as read-only archive history. Orb 2's Tickerbot `15m` warm/intraday lane is separate from the Characters selector. The view is live-only — the synthetic/demo rehearsal source is disabled, and an unavailable beat leaves its berth held rather than substituted. Correlated packets that derive the same berth are opened by shared-berth separation (`GoodIntelligenceOrb2.resolveBerthSeparation`): the first node of a crowded berth keeps its exact packet placement and each later node takes the nearest free slot on its own berth's display ladder in stable identity-phase order, so every orb stays readable without recomputing a metric, ranking a node, or dropping one — the BERTH SPREAD control is 0–100% (0% restores the exact packet placement), the status row states the crowded-orb/berth counts, how many orbs were re-slotted, and the berth floor as a share of the drawn ring radius, all-render labels stagger instead of overlapping, and this is display geometry only, pinned by `tests/good-intelligence-orb2-test.mjs`. Compact beat summaries persist server-side in D1 (migration `0008_orb2_saved_beats.sql`) with a local recovery copy. Its pathways remain visual only and cannot send OCM traffic, authorize, resolve, commit, transact, or recommend. The default same-origin `empty.domains` API serves clearly marked synthetic current/stale/contested/unassessed cases, demo-only signed source-authorization fixtures, and eight synthetic ticker histories (`AAPL-DEMO`, `MSFT-DEMO`, `NVDA-DEMO`, `INTC-DEMO`, `AMD-DEMO`, `MU-DEMO`, `CVX-DEMO`, `XOM-DEMO`); these are not real prices, and APIs without OHLCV show no fabricated charts. The Market Charts tab uses one tracked-ticker search and selector and defaults to Tickerbot Live (the synthetic demo stays one explicit switch away); live search covers the configured 52-asset market-cap-ranked Tickerbot watchlist (including Apple, Microsoft, Intel, AMD, Micron, Chevron, Exxon Mobil, and Tesla) and never fetches an unconfigured symbol. An optional read-only Tickerbot Live source fetches allowlisted OHLCV through a same-origin Worker route using the `TICKERBOT_API_KEY` secret; the key never reaches browser code. Live Sentinel items without the assurance packet stay `NOT SCORED`. Market indicators never alter the assurance score. The v0.1 formula is provisional, not approved policy. Scores never certify truth or authorize action. Uses GET-only `/content/me`, `/categories`, `/rank`; tries legacy `/intel/me` only if the documented feed route is missing. No sign-in, publishing, token approval, or transaction flow |
 | **Ground-0 audits** | Observed-behavior phase classification with forced re-badging, Theorems I & II, and duty collation — the institutional honesty engine. Presets include the original worked case studies — [OpenAI Group PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20OpenAI.md) and [Anthropic PBC](case-studies/GROUND-0%20CASE%20STUDY%20-%20Anthropic.md) — plus the v1.1 manual audit register in `case-studies/` covering frontier labs, compute, platforms, enterprise and consumer AI (re-audits of OpenAI and Anthropic, plus Google DeepMind, Meta, xAI, Microsoft, Amazon, Apple, Nvidia, Mistral, Cohere, DeepSeek, Moonshot AI, Z.ai, ByteDance and Alibaba, Character.AI, Replika, Perplexity, Stability AI, Suno and Udio, and Hugging Face) |
 | **Ground-0 PDH-R registry & badges** | The issuer layer (`specs/draft/ground-0-v1.2.md`) for the first complete audit pass: 23 register-issued Phase Declaration Headers, each bound by SHA-256 to the audit record that justified it, expiring after 90 days. Ledger: [`case-studies/PDH-REGISTRY.md`](case-studies/PDH-REGISTRY.md) · machine registry: [`pdh-registry.json`](case-studies/pdh-registry.json) · gallery: [`case-studies/badges/index.html`](case-studies/badges/index.html). 18 full-class `◆ GSRB` headers and 5 conditional headers (open-weight ambiguity scoped to the platform/service surface). **Every entity still has `PDH_VALID = FALSE`** — no entity has published a signed header of its own, so these badges disclose what the register detected and claim no entity attestation, certification, or authority |
@@ -182,10 +186,10 @@ archives/ground-0/ — historical standalone ZIP bundles; not normative source o
 archives/imports/ — unmerged incoming author bundles (new-model slot skeletons, old Fractal Flames backups)
 archives/source-bundles/ — original ZIPs whose contents are organized under updates/
 archives/screenshots/2026-08/ — archived screenshot backup artifacts; not deployed
-tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM, relay, cloud, red-team)
+tests/            — Node test harnesses (kernel, replay/race/property, Ground-0, LLM-removal guard, cloud, red-team)
 scripts/          — asset staging and integrity-report tooling; not deployed with the site
 docs/GOOD-INTELLIGENCE-ASSURANCE.md — v0.1 score formula, input contract, and safety limits
-worker/           — Cloudflare APIs: private storage, signed synthetic empty.domains GI demo, and the Z.AI free-tier model relay
+worker/           — Cloudflare APIs: private storage, signed synthetic empty.domains GI demo, market-data providers, Orb 2 field
 .github/workflows/ — CI workflow that builds the integrity report on pushes and pull requests
 SECURITY.md       — project-specific threat model and vulnerability-reporting policy
 business plan/    — remaining author archive and reserved plugin/data slots; not included in the browser asset bundle
@@ -193,7 +197,7 @@ business plan/    — remaining author archive and reserved plugin/data slots; n
 Runtime JavaScript stays in `js/` so the no-build static shell, worker asset staging, and existing
 browser URLs remain direct and predictable. Its logical ownership is documented in
 [docs/REPOSITORY-STRUCTURE.md](docs/REPOSITORY-STRUCTURE.md): kernel, UI, Ground-0 research,
-LLM, Good Intelligence, and OCM modules are mapped there without creating duplicate source trees.
+Ground-0, Good Intelligence, and OCM modules are mapped there without creating duplicate source trees.
 ```
 
 ## Kernel API boundary
@@ -212,17 +216,36 @@ This narrows the accidental-mutation surface; it is **not** a browser security b
 
 Priority 12 adds the `HarshalOS Integrity` GitHub Actions workflow and a generated **HARSHALOS INTEGRITY REPORT**. It runs on pushes, pull requests, and manual dispatch with read-only repository permission. `npm run integrity` runs the full and categorized suites plus `npm run check:deploy` (asset staging and Wrangler dry-run), then emits the report to stdout and the GitHub Actions job summary.
 
-Run `node tests/red-team-test.mjs` for 18 targeted hostile-caller probes against the public HOS API. Each prints the attack, expected behavior, observation, result, and invariant. `npm test` runs the full `tests/*-test.mjs` suite. Focused scripts include `npm run test:kernel`, `npm run test:engine`, `npm run test:research`, `npm run test:app`, `npm run test:characters`, `npm run test:materials-project`, `npm run test:character-materials`, `npm run test:llm`, `npm run test:relay`, `npm run test:cloud`, `npm run test:red-team`, and `npm run test:layout`. The suites cover P7 receipt/ledger tampering and linkage, named replay cases, expiry/phase/ledger races, cross-tab stale-write detection, and seeded state-machine sequences (four fixed seeds × 60 generated operations). The cross-tab test models a stale-write event arriving before the second save; it does not imply localStorage provides atomic compare-and-swap. This is bounded test coverage—not a full browser threat model, production security audit, or formal proof.
+Run `node tests/red-team-test.mjs` for 18 targeted hostile-caller probes against the public HOS API. Each prints the attack, expected behavior, observation, result, and invariant. `npm test` runs the full `tests/*-test.mjs` suite. Focused scripts include `npm run test:kernel`, `npm run test:engine`, `npm run test:research`, `npm run test:app`, `npm run test:characters`, `npm run test:materials-project`, `npm run test:character-materials`, `npm run test:llm-removal`, `npm run test:cloud`, `npm run test:red-team`, and `npm run test:layout`. The suites cover P7 receipt/ledger tampering and linkage, named replay cases, expiry/phase/ledger races, cross-tab stale-write detection, and seeded state-machine sequences (four fixed seeds × 60 generated operations). The cross-tab test models a stale-write event arriving before the second save; it does not imply localStorage provides atomic compare-and-swap. This is bounded test coverage—not a full browser threat model, production security audit, or formal proof.
 
-## LLM authority/data-plane boundary
+## The removed model layer, and what replaced it
 
-Priority 8 separates the model integration's **application capabilities** from HOS authority-bearing actions. `HOSLLM` only returns provider text and usage metadata; its chat/probe results are explicitly `DATA-ONLY`, untrusted, and non-executable. Requests define no provider tools/functions, response parsing ignores tool/function-call fields, and no model-output dispatcher or dynamic code-evaluation path exists. `G0LLM` has no reference to `window.HOS` and returns a deeply frozen reading envelope branded in a private `WeakSet`. That brand prevents a caller from constructing an equivalent object and using the merge helper as though it came from the reader.
+The model integration was removed in full. There is no `HOSLLM`, no `G0LLM`, no provider
+preset, no key storage, no relay route, and no model call anywhere in the shipped code.
+The LLM Link tile remains as a **shell**: same id (`llmlink`), same title, same window size,
+and one `REFUSED — REMOVED` panel that names the removed modules so the change is legible
+instead of silent. It carries no provider registry, no key handling, no inputs, no storage
+access and no network call.
 
-Ground-0 application fails closed: every reading checkbox starts clear; the reviewer must select codes; and `mergeReading()` accepts only codes with a chosen, verified quote-backed candidate from an issued reading, bound to the exact draft that was read. It edits a detached copy, preserves original source codes, and records the result as review-required. Only after the reviewer clicks Apply does the app persist a local Ground-0 audit and append its descriptive demo-ledger row; the suggested answers may affect a provisional working badge, but `G0.createAudit()` keeps model-assisted records at confidence `NONE` with the formal badge `Unissued`. The provider response itself has no path to HOS actions, session/phase/attestation changes, action authorization, or formal badge issuance.
+Two properties the removed layer used to be tested for are still enforced — as absences:
 
-Empty research readings now have explicit **Reading diagnostics**: source-text coverage, lead-only records skipped, model UNKNOWN replies, malformed JSON/schema output, truncation, provider failures, and quotations held for ineligible dates/versions. Stored Markdown links enable constrained follow-up reading; JSON output mode and at most two same-source format retries per run improve serialization without weakening the evidence or review gates. See [Ground-0 research troubleshooting](docs/GROUND-0-LLM-RESEARCH.md). Re-run research to refresh older drafts that did not preserve page links.
+- **No data plane, so no authority question.** A stored record can no longer claim a model
+  reading. `G0.normalizeAuditInput()` accepts only `web-research` and `public-lookup` as
+  automation methods, and a record that arrives claiming `llm-reading` is re-labelled as
+  public lookup with its model-reading block dropped. `tests/community-runs-test.mjs`
+  asserts exactly that against the Worker's run path.
+- **No model means no gap-filling.** Ground-0 answers come from fixed keyword rules over
+  retrieved public records, each answer carrying its source and date, with the uncovered
+  questions left as coverage gaps. Nothing can propose an answer a document does not
+  contain, because nothing reads the document except those rules.
 
-This is a code/API boundary and adversarially tested application contract, **not realm isolation**. `window.HOS` is still available to other same-origin page scripts, and malicious same-origin JavaScript, extensions, developer tools, or compromised dependencies remain outside the protection offered by these changes. No claim of a browser sandbox or production trust anchor is made. `node --test tests/llm-authority-test.mjs tests/llm-test.mjs tests/g0-app-test.mjs` covers hostile plain-text and provider tool-call responses, unchanged HOS authority snapshots/ledger, forged or empty merges, unverified selections, and the review-required/no-badge path.
+This remains a code/API boundary, **not realm isolation**, and it is no longer an
+adversarially tested application contract because the application surface it described is
+gone. What is tested is the removal itself: `node --test tests/llm-removal-test.mjs`
+(`npm run test:llm-removal`, also part of `npm run integrity`) fails if a provider
+endpoint, key store, relay route, AI binding, removed module, restored Ground-0 reading
+control, or a roster entry for the removed palace resident comes back. That assertion is
+the boundary now.
 
 ## Adversarial Mode
 
@@ -366,202 +389,47 @@ hydrator that rebuilds the working badge without inventing evidence and preserve
 of malformed data. Exports are plain JSON (audits, the register view, the temporal ledger) and
 plain-text research summaries.
 
-## The coverage gap, and the way out of it
+## The coverage gap
 
 The automatic research retrieves real documents, but the shipped pipeline can only ask whether a
 page *contains fixed keywords*. An organization whose governing text says the same thing in its own
 words is recorded as a coverage gap — honestly labelled, never guessed at, and still a dead end.
 
-**With a model linked, that record is read instead of matched.** From a completed research draft:
+**A model used to read that record instead of matching it. That path was removed.** Linking a
+provider, storing a key, the relay, the reading pass, its quote verification, its follow-up
+reading, its candidate weighing, and the review-and-apply flow are all gone from this repository;
+[`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md) lists what each piece did. Nothing in the
+shipped code sends record text anywhere.
 
-1. **Retrieval keeps what it read.** Page text is stored with the source (governing documents
-   first, bounded per source and per audit) instead of being reduced to a 650-character excerpt.
-   Without this there would be nothing for a model to read.
-2. **Google's automatic-audit read defaults to one request unless preflight finds a known conflict.** After
-   retrieval, the page estimates the complete Gemini prompt locally — system rules, all nine
-   questions, response shape and packed source text — before the model button is clicked. It makes
-   no extra API/token-count call. The padded character estimate is not Google's tokenizer result.
-   When model-context metadata is available and the saved local TPM/RPD guard allows it, the primary
-   action bundles up to 216,000 source characters (roughly 60k prose tokens before instructions)
-   into one `models.generateContent` attempt. If context or TPM metadata is missing, the preflight
-   warns and leaves the one-request action available; that is not proof the prompt fits. One request
-   reduces RPM/RPD pressure, but the full input still counts against TPM. The estimate and guard
-   cannot see live Google usage from other apps, users or devices; Google remains authoritative. If
-   the known context or local TPM estimate
-   is too large, the UI switches the primary action to the staged fallback and explains why.
+What remains is the honest half, and it is unchanged:
 
-   **Staged reading remains an explicit fallback and the default for other providers.** It packs
-   documents into batches (about three documents and 12k characters each, inside a per-run budget),
-   then asks the nine Ground-0 questions one per model call (`LIMITS.codesPerCall`). Staging keeps
-   answers small, isolates failures, can follow qualifying links in the retrieved text, and leaves a
-   failed question UNKNOWN rather than treating it as a silent record. The connection honors
-   OpenRouter's `Retry-After` header for waits up to two minutes, shows the wait, and surfaces longer
-   waits instead of retrying early; without a header it uses a short bounded backoff. Raise
-   `codesPerCall` to group questions and re-send the same source text fewer times when the balance
-   allows it. The one-request Google path disables automatic format retries, linked-page follow-ups,
-   and separate candidate weighing; an incomplete reply stays unresolved. Both paths verify quotes
-   locally, and Ground-0's rules — not the model — determine phase after a person reviews and applies
-   readings.
-3. **Verification is the gate.** Every quote is normalised and matched character-for-character
-   against the stored source text. A quote that is not found is discarded, with the reason shown,
-   and that question stays **UNKNOWN — never NO**. Quotes must come from a source on or before the
-   cutoff; news indexes are leads and can never support an answer; relief figures (the ≥50% B4/C2
-   claim) must literally appear in the source or the claim is refused.
-4. **Bounded follow-up reading.** When text is missing the model may ask for specific pages — but
-   only from links that actually appear inside documents already retrieved, and each page is fetched
-   by the same reader, archive and cutoff rules as the original research. It cannot reach the open
-   web and cannot name a URL that was not already in the record.
-5. **Weighing, then a person.** Multiple verified candidates for one question are weighed against
-   the record — one call per contested question, so a question with a single verified reading costs
-   nothing; the result is presented per question with the quote, source, date and a tick box.
-   Applying writes the quotes in as suggested answers and files the draft — the status stays
-   **Draft**, confidence stays **NONE**, the badge stays **Unissued**, and the reading is recorded in
-   `automation.llm` with its verified, held and discarded counts.
+- **Retrieval keeps what it read.** Page text is stored with the source (governing documents first,
+  bounded per source and per audit) instead of being reduced to an excerpt. That stored text is
+  what makes a record re-readable and citable at all — by you, and by the quote-matching rules.
+- **Verification is still the gate for anything a person enters.** A finding needs a source on or
+  before the cutoff; news indexes are leads and can never support an answer; relief figures must
+  literally appear in the source or the claim is refused.
+- **A silence is still a reported gap, never a NO.** Where the record does not say it, the answer
+  stays **UNKNOWN** and the gap is named. Nothing in this repository is allowed to close a gap by
+  asserting something the retrieved documents do not say.
+- **The evidence library is the way through.** Save the primary artifact, cite it with a date and a
+  claim in an audit, and the audit — not a model — is what scores it. The review gate, the
+  confidence rules and the badges are unchanged.
 
-What changes: where retrieval succeeded but the keyword rules found nothing, the model usually
-reaches an answer a reviewer can check in one click. What does not change: where the record itself
-is silent, the result is still a coverage gap, stated as such. A model cannot close a gap by
-asserting something the retrieved documents do not say, and it is never allowed to try — the
-unverifiable reading is thrown away in front of you, with the reason.
+### Tests for this path
 
-### Google Gemini Developer API (BYOK)
-
-LLM Link includes a **Google Gemini Developer API (GenAI SDK)** preset. It uses Google's official
-`@google/genai` JavaScript browser build (`models.list` and `models.generateContent`), pinned to
-**2.26.0** and imported only when Google model listing, connection testing, or a Ground-0 read needs
-it. This static site has no npm build pipeline, so it loads the pinned package through jsDelivr's ESM
-conversion rather than committing a generated bundle. The SDK code and its dependencies come from
-the CDN; **the API key and prompt do not**. Model requests go directly from this browser to the
-configured base URL (the Gemini Developer API by default), using the official SDK methods—not a
-hand-built REST call or an OpenAI-compatible shim. The existing connector remains a plain,
-tool-free `generateContent` reader; Antigravity's separate Interactions/managed-agent surface is not
-silently substituted into this data-only path.
-
-The Google call passes `systemInstruction`, `maxOutputTokens`, temperature, and the active abort
-signal through the SDK. Ground-0 still asks **one audit question per recall** (including separate
-weighing calls); it does not turn the audit into one large call. SDK responses normalize into the
-same usage/model/text shape as the other providers, then pass through the unchanged
-character-for-character quote check and human-review gate.
-
-Google's SDK defaults to multiple HTTP attempts, so generation calls set its per-request attempt
-count to one and let HarshalOS handle transient retries in one place. It honors Google's structured
-`RetryInfo` / `Retry-After` delays (with small jitter), or uses bounded exponential backoff for
-transient 408, 429, 500, 502, 503, and 504 responses, with at most three retries and an abortable
-two-minute wait ceiling (subject to the call timeout). A detected per-day quota is not retried. If a
-rate limit persists, Ground-0 stops rather than fanning the same account-wide failure across every
-question; provider failures remain failures, never evidence.
-
-**Google quota guard.** Google's Gemini API limits are model- and project-specific, measured in
-requests per minute (RPM), **input** tokens per minute (TPM), and requests per day (RPD); keys in the
-same project share the quota, and RPD resets at midnight Pacific. AI Studio is authoritative for the
-active values—there is no dependable quota-discovery API for this browser connector. In LLM Link,
-open **Gemini project pace guard**, copy the selected model's active limits from [Google AI Studio's
-rate-limit page](https://aistudio.google.com/rate-limit?timeRange=last-28-days), choose a safety
-ceiling (80% by default), and save. The client then gates Google generation attempts through a
-same-origin rolling-minute request/input-token window and a Pacific-day request counter. It uses a
-padded character-based input-token estimate before a call and replaces it with Google's reported
-prompt-token count afterward when available. Retry attempts are counted too. No prompt, response, or
-key is stored in the quota ledger; only timestamps and token counts are stored in this browser.
-
-This is a **local pacing guard, not project-wide enforcement**: Web Locks coordinate tabs where
-supported, but it cannot see a different browser/device, another person, another application, API
-model-list calls, or a different key/client's traffic. Copying the active values and leaving headroom
-reduces accidental 429s; it cannot guarantee no 429. The provider still decides and returns the actual
-quota response. See **[Google Free Tier & Antigravity setup](docs/deployment/GEMINI-FREE-TIER.md)**
-for the exact Free Tier scope, privacy, Antigravity options, and setup.
-
-**Key and data warning:** Google recommends keeping production API keys server-side. LLM Link's
-personal BYOK key is sent directly from the browser and is visible to anyone with access to it; session
-storage is the default, and persistent storage is opt-in. On Google's Free Tier, prompts and responses
-may be used to improve Google products—do not send confidential or sensitive material. Check the
-model/mode's current pricing and data terms; merely seeing a model in `List models` does not mean it
-is Free Tier eligible. HarshalOS does not receive the key or the provider prompt; the browser copy of
-the audit remains local.
-
-### Z.AI free tier through this deployment's relay
-
-LLM Link's **Z.AI free tier — this site's relay (`/api/llm`)** preset is the one connection point
-where **no key is pasted into the browser at all**. [`worker/llm-relay.mjs`](worker/llm-relay.mjs)
-reads a Z.AI API key from a Worker secret (`Z.AI`, `ZAI_API_KEY`, or another accepted spelling —
-`GET /api/llm/status` reports which one it found, by name only) and forwards plain-text chat
-completions to `https://api.z.ai/api/paas/v4/chat/completions`, returning them in the same
-OpenAI-compatible shape the other providers use. Ground-0's staged reading is unchanged: still one
-question per call, still quote-verified character-for-character, still review-required.
-
-It is deliberately a narrow relay rather than a proxy. Only Z.AI's **$0 free-tier text models**
-(`glm-4.5-flash`, `glm-4.7-flash`) are accepted, and a paid model is refused **without** an upstream
-call, so a public page cannot spend money through it. `tools`, `tool_choice`, `functions`,
-`response_format`, `stop`, `top_p`, streaming and every other field a caller invents are dropped;
-messages must be `system`/`user`/`assistant` with string content, so there is no image, part-array or
-tool-result path. Requests are bounded (256 KiB, 32 messages, 8 192-token output ceiling, 60 s),
-`POST` must be same-origin, a caller-supplied `Authorization` header is ignored rather than
-forwarded, and calls are paced over **sliding** windows: 60 a minute per caller — Z.AI's own free
-pace, because Ground-0 asks one question per call and a reading is dozens of them — and 120 a minute
-shared by every caller on the deployment, each response stating the budget left in `RateLimit-Remaining`
-and `relay.pacing`. Replies are reduced to
-`choices[0].message.content`: `reasoning_content` and `tool_calls` are stripped, so nothing
-executable reaches the browser and the DATA-ONLY boundary is unchanged.
-
-Two Z.AI behaviours are translated instead of forwarded, and both are reported in the response's
-`relay` object rather than hidden. Z.AI samples in `[0, 1]` and documents that a `0` temperature is
-unavailable through its OpenAI-compatible route, so a greedy request becomes `do_sample: false` with
-no `temperature` field, and anything above `1` is clamped to `1`. GLM chain-of-thought is disabled by
-default because a 700-token Ground-0 reading call can otherwise be spent entirely on reasoning and
-come back with no answer text; when that happens anyway, the relay says so instead of returning
-empty text. Upstream failures are reported in the relay's own words — Z.AI's body is never echoed,
-the key is scrubbed from any quoted text, and a Z.AI 401 becomes a 502 here because the browser's key
-is not what was rejected.
-
-**What this changes for the reader:** a deployment that configures the relay gives Ground-0 a working
-model with nothing to paste and nothing to store in the browser. **What it does not change:** the
-prompt now transits that Worker, so its operator can read prompts in flight and Z.AI receives them
-under Z.AI's own terms; the relay stores nothing. The pace is sized to what this site does —
-Ground-0 asks one question per call, so a source batch is nine calls — and the window slides, so a
-refusal quotes the seconds until the oldest call ages out rather than the rest of a fixed minute.
-`js/llm.js` waits out a stated delay of 15 seconds or less once per call and says so in the progress
-line, because with one question per call a refused question is a question left `UNKNOWN`; a longer
-delay is shown instead of spent behind a busy bar. The counters are one isolate's memory — abuse
-friction, not quota enforcement — and Z.AI's own free-tier limits are the real ceiling. Free tiers
-change: if Z.AI moves these models behind a paid plan, calls fail with a message that says so.
-Setup, verification calls, the accepted secret names, and the full failure table are in
-**[docs/deployment/ZAI-FREE-TIER.md](docs/deployment/ZAI-FREE-TIER.md)**.
-
-**Tests.** `node tests/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
+`node tests/g0-engine-test.mjs` exercises the engine end-to-end (truth table, evidence
 qualification, v1.1 B4 discipline, signed/tampered PDHs, transitions, working-badge states, hostile
 storage); `node tests/g0-research-test.mjs` covers the scoring heuristics (add `--live` for a
 network smoke test of the public registries); `node tests/g0-app-test.mjs` boots the workspace in
-a mini-DOM and walks the interface — every tab, the manual wizard, the register, the logic sandbox,
-preferences, a complete automatic research run rendered against a stubbed public record (so a run
-that finishes always reaches its result view instead of an error state), and a full model reading
-applied to a draft; `node tests/llm-test.mjs` covers the connection layer and the reading pass
-with a stub provider and a deliberately mixed set of model replies — verified, fabricated,
-mis-dated, news-sourced and out-of-record — proving that only verifiable quotes ever reach an
-answer, that a followed page can only come from a link the record itself contained, and that
-nothing is sent without a linked model. It also runs the whole reading against a stub that refuses
-any call reserving more than 2664 output tokens the way OpenRouter does, and checks that the staged
-reading never earns that refusal: nine questions are asked one per call, each call reserves the
-small ceiling, weighing is one call per contested question, a ceiling below the floor is reported
-instead of sent, a balance smaller than one staged call still finishes the reading inside it, a
-transient in-flight-budget refusal honors `Retry-After` and is retried without changing the ceiling,
-an unresolved account-wide refusal stops before fanning out across the nine questions, one failed call
-leaves that one question UNKNOWN and says the call failed, and a reading
-in which no call completes throws instead of returning an empty audit. The LLM harness also
-injects a Google GenAI SDK mock to verify the All available model catalog and context metadata,
-request/response mapping, key redaction, a complete staged read and the one-request bundle without
-raw REST calls; it also checks the project/model-scoped local RPM/input-TPM/RPD guard, pacing before
-a provider call, exact-usage
-settlement, local daily/oversized-prompt refusals, bounded 503 backoff, the 34-second 429 `RetryInfo`,
-abort during a provider wait, no retry for a per-day quota, and stopping the staged audit after a
-persistent account-wide rate limit.
-`node --test tests/llm-relay-test.mjs` covers the Worker relay's own contract against a stubbed Z.AI:
-no upstream call when the relay is unconfigured, the accepted secret names, the exact forwarded body
-and the dropped fields, a caller-supplied `Authorization` header never being forwarded, reply
-normalization with reasoning and tool calls stripped, the sampling translation table, ceiling
-clamping, the free-model allowlist, text-only and same-origin refusals, sanitized upstream failures,
-the sliding per-caller window, the shared ceiling across distinct callers, a refusal consuming no
-slot, the `RateLimit-*` headers, the status and model-list routes, and Worker route ordering — the relay
-answers `/api/llm` while `/api/storage/*` still fails closed without Cloudflare Access. The
-browser-side relay preset, its key isolation and `relayStatus()` are covered in `tests/llm-test.mjs`.
+a mini-DOM and walks the interface — every tab, the manual wizard, the register, the evidence
+library, the logic sandbox, preferences, and a complete automatic research run rendered against a
+stubbed public record (so a run that finishes always reaches its result view instead of an error
+state); `node tests/g0-desktop-test.mjs` opens the real page and asserts that the LLM Link tile is
+a shell which discloses the removal and makes no network request of any kind. The removed layer's
+own suites (`llm-test`, `llm-authority-test`, `g0-llm-diagnostics-test`, `llm-relay-test`,
+`llm-workers-ai-test`, `ai-neuron-ledger-test`) are gone; `node --test tests/llm-removal-test.mjs`
+is what replaced them.
 `node --test tests/manuscript-test.mjs` covers the manuscript pipeline: which files count as
 chapters, file-name ordering and title derivation, per-chapter hashing, refusals for anything the
 index does not name (including `_collection.json` and traversal attempts), the reader's plaintext
@@ -593,14 +461,14 @@ exact recomputed preview and explicit consent; reports remain **UNREVIEWED**, no
 certification. Author withdrawal, private reporting and moderator hide/block controls are
 implemented. Private drafts/runs are not automatically public.
 
-The same Community service now also has a separate `/observations` public register for **explicit native public-note publication**. A native Ledger user prepares a bounded, unlisted 15-minute handoff containing only a declared phase snapshot, public note text, and self-chosen public pseudonym; the user then signs in on the site, manually enters a one-time code, reviews the exact candidate, confirms a profile pseudonym, and explicitly publishes it. Public observations are **UNREVIEWED**, author-submitted, and are not personal-universe cores, identity proof, peer authorization, market data, or investment advice. An author can withdraw a note; a configured moderator can hide an active note with an internal append-only reason. Both redact the service’s public body/author/phase but cannot recall external copies. The native app receives a status-only receipt and does not call a note published before the public feed confirms it. This requires migration `0016_public_observations.sql`, which follows the two owner-applied migrations numbered `0014` and `0015`, and the same owner-run Community launch gates; no remote migration or deployment has been run from this build environment.
+The same Community service now also has a separate `/observations` public register for **explicit native public-note publication**. A native Ledger user prepares a bounded, unlisted 15-minute handoff containing only a declared phase snapshot, public note text, and self-chosen public pseudonym; the user then signs in on the site, manually enters a one-time code, reviews the exact candidate, confirms a profile pseudonym, and explicitly publishes it. Public observations are **UNREVIEWED**, author-submitted, and are not personal-universe cores, identity proof, peer authorization, market data, or investment advice. An author can withdraw a note; a configured moderator can hide an active note with an internal append-only reason. Both redact the service’s public body/author/phase but cannot recall external copies. The native app receives a status-only receipt and does not call a note published before the public feed confirms it. This requires migration `0016_public_observations.sql`, which follows the owner-applied migration `0015` (and the retired `0014` model-ledger step where it was ever applied), and the same owner-run Community launch gates; no remote migration or deployment has been run from this build environment.
 
-The Community service also implements an account-scoped **`PAPER_TEST` market ledger** for the website and explicitly paired native apps. The Worker keeps reviewed Orb 2 field/provider isolation, server-issued immutable quote references, paper valuation, append-only event history, and normalized Market Orb placement server-side. A native app creates a 15-minute pairing, an already signed-in browser account enters and explicitly approves its manual code, and the device redeems a one-time revocable, expiring `PAPER_TEST` bearer held only in Keychain. Browser writes retain the existing exact-origin Community-session protection. A server field outage remains held/unavailable—there is no fixture fallback. Passive Crypto Orb display data is allowed only through the server field; there is no device mining, wallet, custody, token, trade, or execution capability. Apply additive `0017_paper_market.sql` after `0016` and the owner-applied `0014`/`0015` history. See [`docs/PAPER-TEST-MARKET.md`](docs/PAPER-TEST-MARKET.md).
+The Community service also implements an account-scoped **`PAPER_TEST` market ledger** for the website and explicitly paired native apps. The Worker keeps reviewed Orb 2 field/provider isolation, server-issued immutable quote references, paper valuation, append-only event history, and normalized Market Orb placement server-side. A native app creates a 15-minute pairing, an already signed-in browser account enters and explicitly approves its manual code, and the device redeems a one-time revocable, expiring `PAPER_TEST` bearer held only in Keychain. Browser writes retain the existing exact-origin Community-session protection. A server field outage remains held/unavailable—there is no fixture fallback. Passive Crypto Orb display data is allowed only through the server field; there is no device mining, wallet, custody, token, trade, or execution capability. Apply additive `0017_paper_market.sql` after `0016` and the owner-applied `0015` history (the retired `0014` step is noted in [`docs/REMOVED-LLM-LAYER.md`](docs/REMOVED-LLM-LAYER.md)). See [`docs/PAPER-TEST-MARKET.md`](docs/PAPER-TEST-MARKET.md).
 
 `COMMUNITY_ENABLED=true` is the repository decision; branch previews keep it `false`.
 The switch takes effect only on the next production deployment, and the pages below stay
 inert until the owner-managed dashboard variables/secrets exist, the production D1 migration
-history is complete through `0017` (including owner-applied `0014` and `0015`), and the register
+history is complete through `0017` (including owner-applied `0015`, plus the retired `0014` step where recorded), and the register
 seed is applied. Live Auth0/D1 verification and the launch checklist remain pending. See
 [setup, ordered enablement and launch gates](docs/deployment/COMMUNITY-D1.md).
 

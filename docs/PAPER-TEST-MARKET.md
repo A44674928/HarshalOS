@@ -97,8 +97,8 @@ with the Keychain-only scoped credential. Write requests require a bounded
 | `/orb` | `GET` | Server-normalized Market Orb and private valuation overlay |
 
 The D1 migration is `migrations/community/0017_paper_market.sql`. It is
-additive after the deployed `0014` and `0015` history and after
-`0016_public_observations.sql`; do not renumber, rewrite, or replay a migration
+additive after the deployed `0015` history (plus the retired `0014` ledger noted in
+[`REMOVED-LLM-LAYER.md`](REMOVED-LLM-LAYER.md)) and after `0016_public_observations.sql`; do not renumber, rewrite, or replay a migration
 that a production database has already recorded.
 
 ## Quotes, events, and valuation

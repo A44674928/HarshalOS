@@ -645,7 +645,7 @@ window.G0Research = (() => {
     HttpError, OrganizationChoiceError, registryLabels, mentionsEntity, externalOverrideQuote,
     searchPublicRegistries, lookupArchivedSnapshot, lookupOrganizations, researchAvailability,
     automaticAudit, attachResearchSources, coverageNote, plainResearchSummary, fetchJson, policyLinks,
-    /* used by the Ground-0 LLM reading pass to follow a link the record itself
+    /* used by the evidence hydrator to follow a link the record itself
        contains, through the same reader, archive and cutoff discipline */
     readWithArchive, readPublicPage, stripMarkdown
   };

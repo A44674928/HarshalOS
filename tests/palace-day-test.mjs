@@ -43,14 +43,14 @@ test("palace: the committed page is a deterministic render of the live roster", 
   });
   assert.equal(result.error, undefined, result.error && result.error.message);
   assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
-  assert.match(result.stdout, /matches the roster \(185 residents\)/);
+  assert.match(result.stdout, /matches the roster \(184 residents\)/);
 });
 
 test("palace: every bedroom nameplate on disk is a resident on the map", async () => {
   const [data, nameplates] = await Promise.all([buildData(), collectNameplates(ROOT, [])]);
 
-  assert.equal(nameplates.length, 185, "the roster is 185 bedrooms");
-  assert.equal(data.counts.total, 185, "the palace renders 185 residents");
+  assert.equal(nameplates.length, 184, "the roster is 184 bedrooms");
+  assert.equal(data.counts.total, 184, "the palace renders 184 residents");
 
   const onDisk = new Set(nameplates.map(file => {
     const folder = path.basename(path.dirname(file));
@@ -101,7 +101,7 @@ test("palace: every bedroom holds all seven required profile slots", async () =>
 test("palace: every bedroom's |Dialogue|.txt is authored and well-formed", async () => {
   const data = await buildData();
   const tags = new Set(["morning", "noon", "evening", "night"]);
-  assert.equal(data.counts.dialogued, 185, "all 185 residents have authored dialogue");
+  assert.equal(data.counts.dialogued, 184, "all 184 residents have authored dialogue");
   for (const npc of data.npcs) {
     const raw = await readFile(path.join(ROOT, npc.bedroom, "|Dialogue|.txt"), "utf8");
     const lines = raw.split(/\r?\n/).filter(line => line.trim());
@@ -125,7 +125,7 @@ test("palace: every bedroom's |Dialogue|.txt is authored and well-formed", async
 
 test("palace: the remaining five profile slots are authored, well-formed, and embedded", async () => {
   const data = await buildData();
-  assert.equal(data.counts.profiled, 185, "all 185 bedrooms are fully profiled");
+  assert.equal(data.counts.profiled, 184, "all 184 bedrooms are fully profiled");
   const factionNames = new Set(Object.values(FACTIONS).map(f => f.name));
   const factionCanons = new Set(Object.values(FACTIONS).map(f => f.canon));
   for (const npc of data.npcs) {
@@ -213,7 +213,7 @@ test("palace: the palace moon agrees with the UTS watch's own model", async () =
 
 test("palace: every resident's average day is a contiguous 24-hour schedule", async () => {
   const data = await buildData();
-  assert.equal(data.npcs.length, 185);
+  assert.equal(data.npcs.length, 184);
   for (const npc of data.npcs) {
     assert.ok(Array.isArray(npc.sched) && npc.sched.length >= 1, `schedule exists: ${npc.name}`);
     assert.equal(npc.sched[0][0], 0, `schedule starts at midnight: ${npc.name}`);

@@ -73,8 +73,6 @@ APPS.push({
   render(root, api) {
     const G0 = window.G0;
     const R = window.G0Research;
-    const LLM = window.HOSLLM;      // optional: the custodian's own model connection
-    const G0LLM = window.G0LLM;     // optional: the reading pass that uses it
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
     /* ---------- persistent + session state ---------- */
@@ -91,7 +89,6 @@ APPS.push({
       prefs: loadPrefs(),
       wiz: null,            // { input, step, errors, pdh, checking, preview, mode, editingId }
       auto: { stage: "input", query: "", cutoff: G0.today(), candidates: [], selected: 0, progress: null, outcome: null, error: "", controller: null },
-      reading: { stage: "idle", mode: "staged", progress: null, reading: null, error: "", controller: null, include: null, applied: "" },
       detail: null,         // audit record (object reference)
       detailTab: "summary",
       phaseDetail: null,
@@ -100,7 +97,6 @@ APPS.push({
       spec: { view: "reader", raw: { "1.0": null, "1.1": null }, loading: false },
       reg: { tab: "all", search: "", phase: "all", confidence: "all", sort: "newest" },
       evSearch: "",
-      evRead: { id: "", stage: "idle", reading: null, error: "", source: null, progress: null, controller: null },
       resetScroll: true
     };
     let announceTimer = null;
@@ -335,31 +331,7 @@ APPS.push({
         autoChoose() { autoRun(S.auto.candidates[S.auto.selected]); },
         autoCancel() { if (S.auto.controller) S.auto.controller.abort(); },
         autoRetry() { S.auto.stage = "input"; S.auto.error = ""; render(); },
-        autoBack() { S.auto.stage = "input"; S.auto.candidates = []; S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" }; render(); },
-        readRecord() { startReading("staged"); },
-        readRecordSingle() { startReading("single"); },
-        cancelReading() { if (S.reading.controller) S.reading.controller.abort(); S.reading = { ...S.reading, stage: "idle", progress: null }; render(); },
-        discardReading() {
-          S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
-          render();
-          api.toast("info", "READING DISCARDED", "The model's reading was dropped. The draft was not changed.");
-        },
-        applyReading() { applyReading(); },
-        openLlmLink() { openLlmLink(); },
-        readArtifact() { readArtifact(el.dataset.id); },
-        cancelArtifactReading() { if (S.evRead.controller) S.evRead.controller.abort(); S.evRead = { id: "", stage: "idle", reading: null, error: "", source: null, progress: null, controller: null }; render(); },
-        useArtifactQuote() {
-          const item = S.evidence.find(entry => entry.id === S.evRead.id);
-          const code = el.dataset.code;
-          const finding = S.evRead.reading && (S.evRead.reading.answers[G0.questions.findIndex(q => q.code === code)] || S.evRead.reading.constraints[G0.constraintQuestions.findIndex(q => q.code === code)]);
-          if (!item || !finding || !finding.notes) return;
-          item.claim = finding.notes;
-          item.codes = Array.from(new Set([...(item.codes || []), code]));
-          if (!item.published && finding.date) item.published = finding.date;
-          saveEvidence();
-          api.toast("info", "CLAIM UPDATED", `${code} quote saved as this artifact's claim. It still counts for nothing until an audit cites it.`);
-          render();
-        },
+        autoBack() { S.auto.stage = "input"; S.auto.candidates = []; render(); },
         runCase() { runCaseStudy(el.dataset.id); },
         presetVector() { const def = G0.phaseDefinitions.find(d => d.phase === el.dataset.phase); if (def && def.vector) { S.logic.vector = def.vector.map(v => v === true); S.logic.constraints = [false, false, false, false]; render(); updateLogicLive(); } },
         phaseDetail() { S.phaseDetail = S.phaseDetail === el.dataset.phase ? null : el.dataset.phase; render(); },
@@ -383,14 +355,6 @@ APPS.push({
       if (change) render();
     });
     root.addEventListener("change", e => {
-      const toggle = e.target.closest('[data-act="includeReading"]');
-      if (toggle) {
-        const code = toggle.dataset.code;
-        S.reading.include = { ...(S.reading.include || {}), [code]: toggle.checked };
-        const row = toggle.closest(".g0-reading");
-        if (row) row.classList.toggle("on", toggle.checked);
-        return;
-      }
       const el = e.target.closest("[data-bind]");
       if (!el) return;
       const value = el.dataset.type === "bool" ? el.checked : el.value;
@@ -1061,7 +1025,6 @@ APPS.push({
       a.error = "";
       a.controller = new AbortController();
       a.stage = "searching";
-      S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
       S.resetScroll = true;
       render();
       announce(`Searching for ${query}.`);
@@ -1080,7 +1043,6 @@ APPS.push({
       const a = S.auto;
       a.controller = new AbortController();
       a.stage = "running"; S.resetScroll = true; a.progress = { step: 0, message: "Looking for the organization’s public identity…", completed: 0, total: 5 };
-      S.reading = { stage: "idle", progress: null, reading: null, error: "", controller: null, include: null, applied: "" };
       render();
       R.automaticAudit({
         name: selection ? selection.name : a.query, version: S.version, cutoff: a.cutoff,
@@ -1203,7 +1165,6 @@ APPS.push({
           </div>
         </div>
         ${renderThreeLaneView(rec)}
-        ${readingPanel(o)}
         <h3 class="g0-subsection">Suggested answers — with the quotes behind them</h3>
         <ul class="g0-auto-questions">
           ${G0.questions.map((q, i) => {
@@ -1230,382 +1191,6 @@ APPS.push({
           <button class="g0-btn ghost" data-act="exportAuto"><span aria-hidden="true">⭳</span> Export research summary</button>
           <button class="g0-btn" data-act="saveAuto">Save as review-required draft</button>
           <button class="g0-btn primary" data-act="reviewAuto">Review in the manual wizard <span aria-hidden="true">▸</span></button>
-        </div>`;
-    }
-
-    /* ══════════ LLM READING — the connection point ══════════
-       The automatic research retrieves documents and matches them against
-       fixed keyword rules, which is why a record that says everything in
-       its own words still ends as a coverage gap. With the custodian's own
-       model linked, the retrieved record is read properly: every proposed
-       answer carries a verbatim quote that is checked against the stored
-       source text before it can be applied. Nothing here scores, and
-       nothing is applied without a click. */
-    const llmStatus = () => {
-      if (!LLM || !G0LLM) return { available: false, linked: false, reason: "The LLM connection layer is not loaded." };
-      const status = LLM.status();
-      return { available: true, ...status };
-    };
-    const openLlmLink = () => {
-      const app = (window.APPS || []).find(candidate => candidate.id === "llmlink");
-      if (app && api.openApp) api.openApp(app);
-      else api.toast("info", "LLM LINK", "Open the LLM Link app from the desktop or the Origin menu.");
-    };
-    function readingProgress() {
-      const host = main.querySelector("#g0-reading-progress");
-      if (!host) return;
-      const p = S.reading.progress || { completed: 0, total: 5, message: "Preparing…" };
-      host.innerHTML = `
-        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.completed}" aria-label="Model reading progress">
-          <div class="g0-progress-fill" style="width:${Math.round((p.completed / p.total) * 100)}%"></div>
-        </div>
-        <p class="g0-progress-msg">${esc(p.message)}</p>`;
-      const live = main.querySelector("#g0-reading-live");
-      if (live) live.textContent = p.message;
-    }
-    /* Read a single saved artifact, fetched now, with the same reader and
-       the same verification gate as the record reading. */
-    function readArtifact(id) {
-      const item = S.evidence.find(entry => entry.id === id);
-      if (!item) return;
-      if (!G0LLM || !LLM || !LLM.status().linked) { openLlmLink(); return; }
-      if (!G0.safePublicUrl(item.url)) { api.toast("refusal", "REFUSAL — NOT A PUBLIC URL", "This artifact's URL is not a public http(s) address."); return; }
-      S.evRead = { id, stage: "running", reading: null, error: "", source: null, progress: { step: 0, message: "Fetching the artifact…", completed: 0, total: 3 }, controller: new AbortController() };
-      render();
-      const cutoff = G0.today();
-      R.readWithArchive(item.url, item.url, cutoff, S.evRead.controller.signal).then(page => {
-        if (S.evRead.controller.signal.aborted) return;
-        const source = {
-          id: "EV-READ", title: page.title || item.title, url: page.url,
-          published: page.published || null, retrieved: new Date().toISOString(),
-          excerpt: R.stripMarkdown(page.content).slice(0, 1500),
-          text: String(page.content || "").slice(0, G0LLM.LIMITS.perSource),
-          codes: [], kind: page.archived ? "archive" : page.official ? "official" : "public",
-          dateBasis: page.dateBasis || (page.published ? "publication" : page.archived ? "archive-capture" : "unknown")
-        };
-        if (typeof page.scoringEligible === "boolean") source.scoringEligible = page.scoringEligible;
-        if (G0.isCalendarDate(page.archived)) source.capturedAt = page.archived;
-        if (G0.safePublicUrl(page.liveUrl)) source.originalUrl = page.liveUrl;
-        S.evRead = { ...S.evRead, source };
-        const input = G0.newInput(S.version);
-        input.name = item.entity || item.title || "Named entity";
-        input.cutoff = cutoff;
-        /* One document, read now, with the person waiting on it: three
-           questions per call keeps this to three round trips instead of nine.
-           The ceiling grows with what each call asks, so nothing is truncated,
-           and the reading block still records the grouping it was asked with. */
-        return G0LLM.readSources({ input, sources: [source], version: S.version, cutoff, signal: S.evRead.controller.signal, followLinks: false, entity: item.entity || item.title, website: item.url, codesPerCall: 3,
-          onProgress: progress => { S.evRead = { ...S.evRead, progress: { ...progress, total: 3 } }; if (S.evRead.stage === "running") renderEvidenceProgress(); } })
-          .then(reading => { S.evRead = { ...S.evRead, stage: "ready", reading, progress: null }; render(); });
-      }).catch(error => {
-        if (error && (error.name === "AbortError" || S.evRead.controller.signal.aborted)) { S.evRead = { ...S.evRead, stage: "idle", progress: null }; render(); return; }
-        S.evRead = { ...S.evRead, stage: "error", progress: null, error: LLM && LLM.describe ? LLM.describe(error) : { title: "THE READING FAILED", detail: String(error && error.message || error), hint: "" } };
-        render();
-      });
-    }
-    function renderEvidenceProgress() {
-      const host = main.querySelector(`#g0-ev-read-progress`);
-      if (!host) return;
-      const p = S.evRead.progress || { completed: 0, total: 3, message: "Preparing…" };
-      /* The reading reports its own five steps and moves in fractions while it
-         is staged; this panel shows three. Neither the bar nor the announced
-         value may claim more than the whole. */
-      const done = Math.max(0, Math.min(p.completed, p.total));
-      host.innerHTML = `
-        <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${Math.round(done * 100) / 100}" aria-label="Artifact reading progress">
-          <div class="g0-progress-fill" style="width:${Math.round((done / Math.max(1, p.total)) * 100)}%"></div>
-        </div>
-        <p class="g0-progress-msg">${esc(p.message)}</p>`;
-    }
-    /* What one artifact can support, per question, with verified quotes. */
-    function artifactReadingPanel(item) {
-      if (S.evRead.id !== item.id) return "";
-      const status = llmStatus();
-      if (S.evRead.stage === "running") return `
-        <div class="g0-llm g0-ev-reading">
-          <div id="g0-ev-read-progress"><div class="g0-progress-track"><div class="g0-progress-fill" style="width:0%"></div></div><p class="g0-progress-msg">Preparing…</p></div>
-          <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="cancelArtifactReading">Cancel</button></div>
-        </div>`;
-      if (S.evRead.stage === "error") return `
-        <div class="g0-llm g0-ev-reading">
-          <div class="g0-callout danger"><span aria-hidden="true">⚠</span><p><strong>${esc(S.evRead.error.title || "The reading failed")}.</strong> ${esc(S.evRead.error.detail || "")} ${esc(S.evRead.error.hint || "")}</p></div>
-          <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="readArtifact" data-id="${esc(item.id)}">Try again</button></div>
-        </div>`;
-      if (!S.evRead.reading) return "";
-      const reading = S.evRead.reading;
-      const rows = [...G0.questions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.answers[index] })),
-        ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, finding: reading.constraints[index] }))];
-      const answered = rows.filter(row => !!reading.chosen[row.code]);
-      return `
-        <div class="g0-llm g0-ev-reading">
-          <p class="g0-eyebrow">Read with ${esc((reading.block && reading.block.model) || status.model)} — ${answered.length} of 9 questions supported by this artifact</p>
-          ${answered.length ? `<ul class="g0-reading-list">${answered.map(row => `
-            <li class="g0-reading on">
-              <div class="g0-reading-head"><span class="g0-qcode mono">${row.code}</span><span class="g0-reading-title">${esc(row.title)}</span>
-              ${row.finding.value === null ? `<span class="g0-pill unknown">Unknown</span>` : row.finding.value ? `<span class="g0-pill yes">Yes</span>` : `<span class="g0-pill no">No</span>`}
-              <span class="g0-verified mono">quote verified</span></div>
-              <blockquote class="g0-reading-quote">${esc(row.finding.notes)}</blockquote>
-              <p class="g0-quote-meta"><span>${esc(S.evRead.source && S.evRead.source.title || item.title)}</span><span class="mono">${esc(row.finding.date ? `dated ${row.finding.date}` : "date not on the source")}</span></p>
-              <div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="useArtifactQuote" data-code="${row.code}">Save this quote as the artifact's claim</button></div>
-            </li>`).join("")}</ul>`
-            : `<p class="g0-section-note">No eligible quote-backed reading was produced for this artifact. Inspect the diagnostics to distinguish UNKNOWN, missing dates, rejected quotes, and unusable model output. ${reading.rejected.length ? `${reading.rejected.length} offered reading${reading.rejected.length === 1 ? " was" : "s were"} discarded as unverifiable.` : ""}</p>`}
-          ${readingDiagnosticsPanel(reading)}
-          ${reading.notes.length ? `<ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>` : ""}
-          <p class="g0-section-note">A reading is not a citation. Save the quote as the artifact's claim, then cite the artifact from an audit — the audit is what scores it.</p>
-        </div>`;
-    }
-    function startReading(mode = "staged") {
-      const a = S.auto; const o = a.outcome;
-      if (!o) return;
-      const status = LLM && LLM.status ? LLM.status() : null;
-      if (!G0LLM || !LLM || !status || !status.linked) { openLlmLink(); return; }
-      if (mode === "single" && status.protocol !== "google") {
-        api.toast("warn", "ONE-REQUEST MODE NEEDS GOOGLE", "Link the Gemini Developer API in LLM Link to use the one-request read.");
-        return;
-      }
-      S.reading = { ...S.reading, stage: "running", mode, error: "", reading: null, progress: { step: 0, message: "Preparing the retrieved record…", completed: 0, total: 5 }, include: null, applied: "" };
-      S.reading.controller = new AbortController();
-      render();
-      announce(mode === "single" ? "Sending the full audit reading in one Gemini generation request." : "Reading the retrieved record with your linked model.");
-      G0LLM.readSources({
-        input: o.input, sources: (o.input.automation && o.input.automation.sources) || [], version: o.input.version || S.version,
-        cutoff: o.input.cutoff, entity: o.organization.name, website: o.organization.website,
-        signal: S.reading.controller.signal, followLinks: mode !== "single", singleRequest: mode === "single",
-        onProgress: progress => { S.reading.progress = progress; if (S.reading.stage === "running") readingProgress(); }
-      }).then(reading => {
-        if (S.reading.controller.signal.aborted) return;
-        // The data plane proposes; none of its answers are selected for the
-        // review-required draft until a person ticks them individually.
-        const include = {};
-        G0.questions.forEach(question => { include[question.code] = false; });
-        G0.constraintQuestions.forEach(question => { include[question.code] = false; });
-        S.reading = { ...S.reading, stage: "ready", reading, include, progress: null, error: "" };
-        render();
-        announce(`Model reading ready: ${G0LLM.summarise(reading)}`);
-      }).catch(error => {
-        if (error && (error.name === "AbortError" || S.reading.controller.signal.aborted)) { S.reading = { ...S.reading, stage: "idle", progress: null }; render(); return; }
-        const described = LLM && LLM.describe ? LLM.describe(error) : { title: "THE READING FAILED", detail: String(error && error.message || error), hint: "" };
-        S.reading = { ...S.reading, stage: "error", progress: null, error: described };
-        render();
-      });
-    }
-    function applyReading() {
-      const a = S.auto; const o = a.outcome; const reading = S.reading.reading;
-      if (!o || !reading) return;
-      const codes = Object.entries(S.reading.include || {}).filter(([, on]) => on).map(([code]) => code);
-      if (!codes.length) { api.toast("warn", "NOTHING SELECTED", "Tick at least one reading to apply it to the draft."); return; }
-      let merged;
-      try {
-        merged = G0LLM.mergeReading(o.input, reading, { applyCodes: codes });
-      } catch (error) {
-        api.toast("refusal", "NOT APPLIED", error instanceof Error ? error.message : "The selected model readings were not eligible to apply.");
-        return;
-      }
-      const previousId = o.record && o.record.id;
-      G0.createAudit(merged, S.audits).then(record => {
-        if (R.attachResearchSources) R.attachResearchSources(record, merged.automation, merged.automation.coverage);
-        a.outcome = { ...o, input: merged, record };
-        S.reading = { ...S.reading, stage: "idle", reading: null, include: null, applied: `${codes.length} reading${codes.length === 1 ? "" : "s"} applied` };
-        commit(record, previousId);
-        render();
-        api.toast("info", "READINGS APPLIED", `${codes.length} model reading${codes.length === 1 ? "" : "s"} written into the draft with their quotes. Review each answer before saving it as your own finding.`);
-      }).catch(error => {
-        api.toast("refusal", "NOT APPLIED", error instanceof Error ? error.message : "The readings could not be applied.");
-      });
-    }
-    function readingDiagnosticsPanel(reading) {
-      const d = reading.diagnostics;
-      if (!d) return "";
-      const problems = (d.calls || []).filter(call => ["failed", "non-json", "invalid-schema", "truncated"].includes(call.outcome));
-      const names = { failed: "transport/provider failure", "non-json": "not complete JSON", "invalid-schema": "missing or invalid findings", truncated: "output-token limit reached" };
-      return `<details class="g0-pdh-details"${reading.candidates.length ? "" : " open"}>
-        <summary><span aria-hidden="true">ℹ</span> Reading diagnostics <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
-        <p class="g0-section-note">${d.recordsSupplied} source records supplied · ${d.recordsRead} sent for reading · ${d.leadsSkipped} news/indexed leads not sent. Of the records read: ${d.storedTextRecords} have stored text, ${d.excerptOnlyRecords} have only an excerpt, ${d.shortRecords} are under 400 characters, ${d.undatedRecords} have no source date, and ${d.afterCutoffRecords} are outside the cutoff. ${d.truncatedRecords} stored record(s) were shortened for the prompt.</p>
-        <p class="g0-section-note mono">${d.readCalls} audit call attempts · ${d.modelUnknown} explicit UNKNOWN answer(s) · ${d.nonJson} non-JSON reply/replies · ${d.invalidSchema} wrong-shape reply/replies · ${d.truncated} output-limit stop(s) · ${d.transportFailed} provider/transport failure(s) · ${d.formatRetries} bounded format retry/retries</p>
-        <p class="g0-section-note">${reading.held.length} quote match(es) held for a non-qualifying date or historical version. Held text cannot be ticked or scored. Matching text proves the quotation is in this record, not that the model's interpretation is correct.</p>
-        ${d.excerptOnlyRecords || d.shortRecords ? `<p class="g0-auto-gap">Improve the source record first: re-run research to capture policy, enforcement, appeal, and governance pages, or read a dated primary artifact from the Evidence library. Repeating calls over the same snippets cannot supply missing evidence.</p>` : ""}
-        ${problems.length ? `<ul class="g0-ul">${problems.slice(0, 12).map(call => `<li>Pass ${call.pass}, ${esc(call.codes.join(", "))}: ${esc(names[call.outcome])}${call.detail ? ` — ${esc(call.detail)}` : ""}${call.finishReason ? ` (provider stop: ${esc(call.finishReason)})` : ""}. Sources: ${esc(call.sourceIds.join(", "))}.</li>`).join("")}</ul><p class="g0-section-note">Only missing/invalid output gets a format retry, against the same sources and no higher token ceiling (at most ${G0LLM.LIMITS.maxFormatRetries} extra calls per run). Valid UNKNOWN answers and rejected quotations are never retried to seek a positive answer.</p>` : `<p class="g0-section-note">The model returned usable findings for the questions asked. An explicit UNKNOWN is a reading of these supplied records, not a proven negative or a successful search of the entire public record.</p>`}
-      </details>`;
-    }
-    function singleRequestPreflight(o, status) {
-      const sources = (o.input.automation && o.input.automation.sources) || [];
-      const estimate = G0LLM.estimateSingleRequest({
-        input: o.input, sources, version: o.input.version || S.version, cutoff: o.input.cutoff || "", entity: o.organization.name || o.input.name || ""
-      });
-      const model = LLM && typeof LLM.googleModelInfo === "function" ? LLM.googleModelInfo(status.model) : null;
-      const quota = LLM && typeof LLM.googleQuotaStatus === "function" ? LLM.googleQuotaStatus(status.model) : null;
-      const contextLimit = Number(model && model.inputTokenLimit) || 0;
-      const tpmLimit = Number(quota && quota.effective && quota.effective.tpm) || 0;
-      const rpdLimit = Number(quota && quota.effective && quota.effective.rpd) || 0;
-      const localRequestsToday = Number(quota && quota.usage && quota.usage.requestsPerDay) || 0;
-      const localTokensThisMinute = Number(quota && quota.usage && quota.usage.inputTokensPerMinute) || 0;
-      const exceedsContext = !!contextLimit && estimate.estimatedInputTokens > contextLimit;
-      const exceedsTpm = !!tpmLimit && estimate.estimatedInputTokens > tpmLimit;
-      const tpmWouldWait = !!tpmLimit && !exceedsTpm && localTokensThisMinute + estimate.estimatedInputTokens > tpmLimit;
-      const localDailyFull = !!rpdLimit && localRequestsToday >= rpdLimit;
-      const hasSources = estimate.includedSourceCount > 0;
-      const oneRequestAllowed = hasSources && !exceedsContext && !exceedsTpm && !localDailyFull;
-      return { estimate, model, quota, contextLimit, tpmLimit, rpdLimit, localRequestsToday, localTokensThisMinute, exceedsContext, exceedsTpm, tpmWouldWait, localDailyFull, hasSources, oneRequestAllowed };
-    }
-
-    function readingPanel(o) {
-      const status = llmStatus();
-      const state = S.reading;
-      const sourceFor = code => {
-        const candidate = (state.reading && state.reading.candidates || []).find(row => row.id === (state.reading.chosen || {})[code]);
-        return candidate || null;
-      };
-      const applied = state.applied ? `<div class="g0-callout ok"><span aria-hidden="true">✓</span><p><strong>${esc(state.applied)}.</strong> The draft above now carries the model's quotes as suggested answers. Every one still needs your review; the formal badge remains unissued.</p></div>` : "";
-      const header = `
-        <div class="g0-llm-head">
-          <p class="g0-eyebrow">Read retrieved source text — optional</p>
-          <p class="g0-section-note">${status.linked
-            ? `Linked model: <strong>${esc(status.label)}</strong> · <span class="mono">${esc(status.model)}</span>${status.relay ? " · key held by the site relay" : status.keyStorage === "none" ? "" : status.keyStorage === "persistent" ? " · key kept in this browser" : " · key held for this tab"}.`
-            : "No model is linked, so the record above was matched by keyword rules only. Connect your own model to propose readings from the same retrieved documents — every answer bound to a verbatim quote."}</p>
-        </div>`;
-      if (!status.linked) {
-        return `
-          <div class="g0-panel g0-llm">
-            ${header}
-            <div class="g0-btn-row">
-              <button class="g0-btn primary" data-act="openLlmLink"><span aria-hidden="true">⌘</span> Connect a model</button>
-            </div>
-            <p class="g0-section-note">${esc(status.reason || "Nothing is linked yet.")} A linked model can inspect the stored ${esc(o.organization.name)} rules, appeal procedures, and enforcement clauses and propose quote-backed readings beyond the keyword matches. Missing sources, unusable output, and unsupported questions remain coverage gaps; the diagnostics show which occurred.</p>
-          </div>`;
-      }
-      if (state.stage === "running") {
-        return `
-          <div class="g0-panel g0-llm">
-            ${header}
-            <div id="g0-reading-progress">
-              <div class="g0-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><div class="g0-progress-fill" style="width:0%"></div></div>
-              <p class="g0-progress-msg">Preparing…</p>
-            </div>
-            <div class="g0-btn-row"><button class="g0-btn ghost" data-act="cancelReading">Cancel the reading</button></div>
-            <div class="sr-only-g0" id="g0-reading-live" aria-live="polite"></div>
-          </div>`;
-      }
-      if (state.stage === "error") {
-        return `
-          <div class="g0-panel g0-llm">
-            ${header}
-            <div class="g0-callout danger"><span aria-hidden="true">⚠</span><p><strong>${esc(state.error.title || "The reading failed")}.</strong> ${esc(state.error.detail || "")}${state.error.hint ? ` ${esc(state.error.hint)}` : ""}</p></div>
-            <div class="g0-callout"><span aria-hidden="true">ℹ</span><p>Nothing was classified, scored or saved. The keyword reading above is untouched.</p></div>
-            <div class="g0-btn-row">
-              <button class="g0-btn ghost" data-act="openLlmLink">Open LLM Link</button>
-              <button class="g0-btn primary" data-act="${state.mode === "single" ? "readRecordSingle" : "readRecord"}">${state.mode === "single" ? "Try the one-request read again" : "Try the reading again"}</button>
-            </div>
-          </div>`;
-      }
-      if (!state.reading) {
-        const sources = (o.input.automation && o.input.automation.sources) || [];
-        const readable = sources.filter(source => G0LLM ? G0LLM.readable(source) : false).length;
-        const stored = sources.filter(source => source.text && !G0LLM.isLead(source)).length;
-        const google = status.protocol === "google";
-        const preflight = google ? singleRequestPreflight(o, status) : null;
-        const estimate = preflight && preflight.estimate;
-        const quota = preflight && preflight.quota;
-        const contextStatus = preflight && preflight.contextLimit
-          ? `Listed model input limit ${preflight.contextLimit.toLocaleString()} tokens — estimate ${preflight.exceedsContext ? "exceeds it" : "fits"}.`
-          : "Model input limit not loaded; use LLM Link → All available to compare context metadata.";
-        const rpmStatus = quota && quota.actual.rpm
-          ? `Saved RPM ${quota.actual.rpm.toLocaleString()}, local guard ${quota.effective.rpm.toLocaleString()} at ${quota.safetyPercent}% safety${quota.usage.requestsPerMinute >= quota.effective.rpm ? " — the local guard may wait for a slot" : ""}.`
-          : "No local RPM cap is configured; the audit still uses one generation request.";
-        const tpmStatus = quota && quota.actual.tpm
-          ? `Saved TPM ${quota.actual.tpm.toLocaleString()}, local guard ${quota.effective.tpm.toLocaleString()} at ${quota.safetyPercent}% safety; local rolling estimate ${preflight.localTokensThisMinute.toLocaleString()} + this prompt ${estimate.estimatedInputTokens.toLocaleString()} = ${(preflight.localTokensThisMinute + estimate.estimatedInputTokens).toLocaleString()} tokens. ${preflight.exceedsTpm ? "This prompt alone exceeds the guard." : preflight.tpmWouldWait ? "The local guard may wait for older usage to clear." : "This fits the current local window."}`
-          : "No local input-TPM cap is configured; this page cannot confirm remaining project quota.";
-        const rpdStatus = quota && quota.actual.rpd
-          ? `Local requests today ${preflight.localRequestsToday}/${quota.effective.rpd} allowed by the safety guard${preflight.localDailyFull ? " — daily local cap reached" : ""}; requests from other apps/devices are not visible here.`
-          : "No local RPD cap is configured; shared Google usage from other apps/devices is not visible here.";
-        const preflightWarning = preflight && (preflight.exceedsContext || preflight.exceedsTpm || preflight.localDailyFull || !preflight.hasSources);
-        const preflightHtml = google ? `
-          <div class="g0-callout${preflightWarning ? " amber" : ""}"><span aria-hidden="true">${preflightWarning ? "⚠" : "⏱"}</span><div class="g0-preflight-copy">
-            <p><strong>One-request Google audit preflight — local only; no generation call sent.</strong> Padded local estimate: about <strong>${estimate.estimatedInputTokens.toLocaleString()} input tokens</strong> across ${estimate.promptCharacters.toLocaleString()} prompt characters. It includes system instructions, all ${estimate.questionCount} audit questions, the response shape, and the bundled source text.</p>
-            <p class="g0-section-note">Source pack: ${estimate.includedSourceCount}/${estimate.readableSourceCount} readable sources, ${estimate.sourceCharacters.toLocaleString()} source characters${estimate.truncatedSourceCount ? `; ${estimate.truncatedSourceCount} source(s) shortened` : ""}${estimate.omittedSourceCount ? `; ${estimate.omittedSourceCount} retrieved record(s) not bundled` : ""}. One generation attempt; no automatic format retry, link follow-up, or conflict-weighing call.</p>
-            <p class="g0-section-note">${contextStatus} ${rpmStatus} ${tpmStatus} ${rpdStatus}</p>
-            <p class="g0-section-note">This character-based estimate is not Google's tokenizer/countTokens result; actual token use and context fit can differ. The local quota guard sees only this browser, not Google's shared live usage.</p>
-            ${preflightWarning ? `<p class="g0-section-note"><strong>One-request mode is blocked by this preflight.</strong> ${preflight.exceedsContext ? "The estimated prompt is above the listed context window. " : ""}${preflight.exceedsTpm ? "The estimate is above the saved local TPM guard. " : ""}${preflight.localDailyFull ? "The local daily request allowance is exhausted. " : ""}${!preflight.hasSources ? "No readable source text is available. " : ""}${preflight.localDailyFull ? "Wait for the local daily reset or change model/quota settings." : "Use the staged fallback if it fits the source/context limits."}</p>` : ""}
-          </div></div>` : "";
-        const primaryAction = google && preflight.oneRequestAllowed ? "readRecordSingle" : "readRecord";
-        const primaryDisabled = !readable || !!(google && preflight.localDailyFull);
-        const primaryLabel = google
-          ? preflight.oneRequestAllowed
-            ? `One-request audit (~${estimate.estimatedInputTokens.toLocaleString()} estimated input tokens)`
-            : `Staged audit fallback with ${esc(status.model || "the linked model")}`
-          : `Read the retrieved record with ${esc(status.model || "the linked model")}`;
-        return `
-          <div class="g0-panel g0-llm">
-            ${header}
-            <p class="g0-section-note">${stored
-              ? `${readable} of ${sources.length} retrieved sources carry readable text (${stored} with stored source text). The staged fallback asks questions in smaller calls and can request linked pages the record itself contains.`
-              : "No primary page text is stored in this draft. Excerpts may be readable, but they are not full documents. Re-run research to capture primary pages; news/indexed leads cannot support a finding."}</p>
-            ${preflightHtml}
-            ${google ? `<div class="g0-callout"><span aria-hidden="true">↗</span><p><strong>Google default: one request when preflight finds no known blocker.</strong> This reduces generation-call pressure, but trades away recovery and linked-page expansion. Ground-0 still verifies quotes locally and computes phase only from reviewed answers; the model never issues a phase verdict. Human review and explicit selection are still required.</p></div>` : ""}
-            ${applied}
-            <div class="g0-btn-row">
-              <button class="g0-btn primary" data-act="${primaryAction}"${primaryDisabled ? " disabled" : ""}><span aria-hidden="true">✦</span> ${primaryLabel}</button>
-              ${google ? `<button class="g0-btn ghost" data-act="${preflight.oneRequestAllowed ? "readRecord" : "readRecordSingle"}"${preflight.oneRequestAllowed ? (preflight.localDailyFull ? " disabled" : "") : " disabled"}>${preflight.oneRequestAllowed ? "Staged read fallback (more calls)" : "One-request audit unavailable"}</button>` : ""}
-              <button class="g0-btn ghost" data-act="openLlmLink">LLM Link</button>
-            </div>
-          </div>`;
-      }
-      const reading = state.reading;
-      const rows = [...G0.questions.map((question, index) => ({ code: question.code, title: question.title, current: o.input.answers[index], reading: reading.answers[index], kind: "behavioral" })),
-        ...G0.constraintQuestions.map((question, index) => ({ code: question.code, title: question.title, current: o.input.constraints[index], reading: reading.constraints[index], kind: "constraint" }))];
-      const pill = value => value === null ? `<span class="g0-pill unknown">Unknown</span>` : value ? `<span class="g0-pill yes">Yes</span>` : `<span class="g0-pill no">No</span>`;
-      const modelName = (reading.block && reading.block.model) || status.model;
-      /* Say how the reading was asked for: a provider prices a call by the
-         output ceiling it reserves, so the audit is staged one question per
-         call and each call stays small enough to be paid for. */
-      const staging = (reading.block && reading.block.staging) || null;
-      const staged = staging ? staging.mode === "single-request"
-        ? `${staging.questionsAsked} questions bundled into one generation call · follow-up, weighing, format retries disabled`
-        : `${staging.questionsAsked} questions asked ${staging.codesPerCall === 1 ? "one per call" : `${staging.codesPerCall} per call`} · each call reserved ≤${staging.ceilingPerCall} output tokens${staging.providerCeiling ? ` · the provider will reserve at most ${staging.providerCeiling}` : ""}${staging.callsFailed ? ` · ${staging.callsFailed} call${staging.callsFailed === 1 ? "" : "s"} failed and left that question UNKNOWN` : ""}` : "";
-      return `
-        <div class="g0-panel g0-llm">
-          ${header}
-          <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>A model reading, not a finding.</strong> ${esc(G0LLM.summarise(reading))} Every quote below was matched against the stored source text after whitespace/typographic normalization; anything that could not be verified was discarded, and a question with no verified text stays UNKNOWN rather than becoming NO. Nothing is preselected: tick only quote-backed readings you have reviewed. A model reply has no direct dispatch to the HOS kernel; it cannot authorize an action or issue a formal badge.</p></div>
-          <p class="g0-section-note mono">${reading.passes} model call${reading.passes === 1 ? "" : "s"}${staged ? ` · ${esc(staged)}` : ""} · ${reading.sourcesRead} record${reading.sourcesRead === 1 ? "" : "s"} read · ${Math.round(reading.charsRead / 1000)}k characters · ${((reading.usage || {}).input || 0).toLocaleString()} tokens in · ${((reading.usage || {}).output || 0).toLocaleString()} out${reading.followUps && reading.followUps.length ? ` · ${reading.followUps.length} linked page${reading.followUps.length === 1 ? "" : "s"} followed at the model's request` : ""}</p>
-          ${readingDiagnosticsPanel(reading)}
-          <ul class="g0-reading-list">
-            ${rows.map(row => {
-              const candidate = sourceFor(row.code);
-              const held = (reading.held || []).find(item => item.code === row.code);
-              const rejected = (reading.rejected || []).filter(item => item.code === row.code);
-              const on = S.reading.include && S.reading.include[row.code];
-              return `<li class="g0-reading${on ? " on" : ""}">
-                <label class="g0-reading-head">
-                  <input type="checkbox" data-act="includeReading" data-code="${row.code}" ${on ? "checked" : ""} ${row.reading.value === null || !candidate ? "disabled" : ""}>
-                  <span class="g0-qcode mono">${row.code}</span>
-                  <span class="g0-reading-title">${esc(row.title)}</span>
-                  ${pill(candidate ? row.reading.value : null)}
-                  ${candidate ? `<span class="g0-verified mono">quote verified</span>` : held ? `<span class="g0-held mono">date/version not eligible</span>` : `<span class="g0-unverified mono">${staging && staging.unusableCodes && staging.unusableCodes.includes(row.code) ? "model output unusable" : staging && (staging.failedCodes || []).includes(row.code) ? "call failed" : rejected.length ? "quote rejected" : "not demonstrated"}</span>`}
-                  <span class="g0-reading-was mono">draft: ${row.current.value === null ? "unknown" : row.current.value ? "yes" : "no"}</span>
-                </label>
-                ${row.reading.notes || held ? `<blockquote class="g0-reading-quote">${esc(row.reading.notes || held.quote)}</blockquote>` : ""}
-                ${row.reading.source ? `<p class="g0-quote-meta"><a href="${esc(row.reading.source)}" target="_blank" rel="noreferrer">${esc((candidate && candidate.title) || row.reading.source)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(row.reading.date ? `dated ${row.reading.date}` : "date not on the source")}</span></p>` : `<p class="g0-auto-gap">${esc(row.reading.gap)}</p>`}
-                ${held && !candidate ? `<p class="g0-quote-meta"><a href="${esc(held.url)}" target="_blank" rel="noreferrer">${esc(held.title)}</a><span class="mono">held — not eligible at this cutoff</span></p>` : ""}
-                ${rejected.map(item => `<p class="g0-reading-reject">discarded: ${esc(item.reason)}${item.quote ? ` — “${esc(item.quote.slice(0, 160))}”` : ""}</p>`).join("")}
-              </li>`;
-            }).join("")}
-          </ul>
-          ${(reading.followUps || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">⟶</span> Pages the model asked for and this browser then read (${reading.followUps.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
-            <ul class="g0-source-list">${reading.followUps.map(item => `<li><a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.label || item.url)}<span class="sr-only-g0"> (opens in a new tab)</span></a><span class="mono">${esc(item.why || "")}</span></li>`).join("")}</ul>
-            <p class="g0-section-note">Only links that already appeared inside the retrieved record could be requested — the model cannot reach the open web, and every page it asked for was fetched through the same reader, archive and cutoff rules as the original research.</p>
-          </details>` : ""}
-          ${(reading.scoredAbsences || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">◼</span> Not demonstrated — the record's silence is the finding (${reading.scoredAbsences.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
-            <p class="g0-section-note">These questions ask for a check that lives in a published instrument. Nothing of the kind appears in the entity's governing record, over a corpus that could have carried it. A check that is not written down is not a demonstrable check, so this is a finding and not a gap in the search.</p>
-            <ul class="g0-ul">${reading.scoredAbsences.map(row => `<li><strong>${esc(row.code)}</strong> — ${esc(row.reason)}${row.inverted ? " <em>Both readings are reported; neither is scored automatically.</em>" : ""}</li>`).join("")}</ul>
-          </details>` : ""}
-          ${(reading.notes || []).length ? `<details class="g0-pdh-details"><summary><span aria-hidden="true">⚠</span> What the reading could not resolve (${reading.notes.length}) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
-            <ul class="g0-ul">${reading.notes.map(note => `<li>${esc(note)}</li>`).join("")}</ul>
-          </details>` : ""}
-          <div class="g0-btn-row end">
-            <button class="g0-btn ghost" data-act="discardReading">Discard this reading</button>
-            <button class="g0-btn ghost" data-act="${staging && staging.mode === "single-request" ? "readRecordSingle" : "readRecord"}">${staging && staging.mode === "single-request" ? "One-request read again" : "Read again"}</button>
-            <button class="g0-btn primary" data-act="applyReading">Apply ticked readings to this draft <span aria-hidden="true">▸</span></button>
-          </div>
-          <p class="g0-section-note">Applying writes the quotes in as suggested answers and files the draft in the register with these readings attached${o.record && o.record.id && S.audits.some(record => record.id === o.record.id) ? ", replacing the earlier copy of this audit" : ""}. Nothing is certified and no badge is issued — the record is still marked for human review.</p>
         </div>`;
     }
 
@@ -1660,8 +1245,6 @@ APPS.push({
             ${item.claim ? `<p>${esc(item.claim)}</p>` : ""}
             <a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.url)}<span class="sr-only-g0"> (opens in a new tab)</span></a>
             <p class="g0-meta mono"><span>published ${esc(G0.formatDate(item.published, true))}</span><span>retrieved ${esc(G0.formatDate(item.retrieved, true))}</span>${item.codes.length ? `<span>tags ${esc(item.codes.join(", "))}</span>` : ""}${item.entity ? `<span>${esc(item.entity)}</span>` : ""}</p>
-            ${G0LLM ? `<div class="g0-btn-row"><button class="g0-btn ghost sm" data-act="readArtifact" data-id="${esc(item.id)}">${llmStatus().linked ? `Read this artifact with ${esc(llmStatus().model || "the linked model")}` : "Read this artifact with your own model"}</button></div>` : ""}
-            ${artifactReadingPanel(item)}
           </li>`).join("")}</ul>` : `
         <div class="g0-empty"><span class="g0-empty-icon" aria-hidden="true">◧</span><h3>No artifacts yet</h3><p>Save the public documents you plan to cite. They stay unscored until an audit uses them.</p></div>`}`;
     }

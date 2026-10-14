@@ -16,7 +16,7 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
 
 const SUITES = [
-  { area: "NEO ORB web geometry, instability extension, flame-guided placement, app, and feed boundary (display-only)", script: "test:neo-orb", files: ["market-extension-test.mjs", "neo-orb-test.mjs", "neo-orb-placement-test.mjs", "neo-orb-market-test.mjs", "neo-orb-signals-test.mjs", "neo-orb-gravity-test.mjs", "neo-orb-page-test.mjs", "neo-orb-feed-boundary-test.mjs"] },
+  { area: "NEO ORB web geometry, instability extension, flame-guided placement, app, and feed boundary (display-only)", script: "test:neo-orb", files: ["market-extension-test.mjs", "neo-orb-test.mjs", "neo-orb-placement-test.mjs", "neo-orb-market-test.mjs", "neo-orb-signals-test.mjs", "neo-orb-gravity-test.mjs", "neo-orb-page-test.mjs", "neo-orb-feed-boundary-test.mjs", "neo-orb-flare-test.mjs"] },
   { area: "Apple separation (Apple-platform work classified AVOID; kept off the supported side)", script: "test:apple-separation", files: ["apple-separation-test.mjs"] },
   { area: "Production config and hidden-path safeguards", script: "test:production", files: ["production-config-test.mjs", "worker-routing-security-test.mjs"] },
   { area: "Staging target isolation", script: "test:staging", files: ["staging-config-test.mjs"] },
@@ -33,7 +33,7 @@ const SUITES = [
   {
     area: "Ground-0 engine",
     script: "test:engine",
-    files: ["g0-engine-test.mjs"]
+    files: ["g0-engine-test.mjs", "g0-absence-test.mjs", "g0-direction-test.mjs", "g0-question-source-test.mjs"]
   },
   {
     area: "Ground-0 research & evidence",
@@ -91,14 +91,9 @@ const SUITES = [
     files: ["character-material-model-test.mjs", "character-materials-ui-test.mjs"]
   },
   {
-    area: "LLM data / authority boundary",
-    script: "test:llm",
-    files: ["llm-test.mjs", "llm-authority-test.mjs", "g0-llm-diagnostics-test.mjs"]
-  },
-  {
-    area: "LLM relay providers and Neuron ledger (Worker)",
-    script: "test:relay",
-    files: ["llm-relay-test.mjs", "llm-workers-ai-test.mjs", "ai-neuron-ledger-test.mjs"]
+    area: "LLM layer removal — no model connection, relay, ledger or reading pass remains",
+    script: "test:llm-removal",
+    files: ["llm-removal-test.mjs"]
   },
   {
     area: "Cloud storage and server-side containment",

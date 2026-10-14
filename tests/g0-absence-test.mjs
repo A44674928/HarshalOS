@@ -127,28 +127,3 @@ test("only independently corroborated, pre-cutoff material cures a finding", () 
   assert.equal(undated.status, "DECLARATION_REVIEW_REQUIRED", "an undated submission cannot be placed against the cutoff");
   assert.equal(undated.cures, false);
 });
-
-test("the reading routes a silence by the question it belongs to, rather than filing it", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../js/g0-llm.js", import.meta.url), "utf8");
-  /* The pairing: a staged call asks one question, so its gap belongs to it. */
-  assert.match(source, /if \(askedCodes\.length === 1 && !gapCode\.has\(gap\)\) gapCode\.set\(gap, askedCodes\[0\]\)/,
-    "a gap from a one-question call is attributed to that question");
-  /* The routing: a scored absence leaves the unresolved list. */
-  assert.match(source, /\(result\.summary\.gaps \|\| \[\]\)\.forEach\(routeGap\)/);
-  assert.ok(source.indexOf("forEach(routeGap)") < source.indexOf("(result.summary.gaps || []).forEach(gap => noteOnce(notes, gap))"),
-    "the main pass routes its gaps; the follow-up pass, which reads pages rather than questions, still files them");
-  assert.match(source, /scoredAbsences/, "and the findings travel with the reading");
-  /* The model's own rule is untouched: it still reports, it does not decide. */
-  assert.match(source, /Absence of evidence is not evidence for no/);
-});
-
-test("the reading's silences are shown as findings, separately from what it could not resolve", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const source = await readFile(new URL("../js/g0-app.js", import.meta.url), "utf8");
-  assert.match(source, /Not demonstrated — the record's silence is the finding/);
-  const scored = source.indexOf("reading.scoredAbsences");
-  const unresolved = source.indexOf("What the reading could not resolve");
-  assert.ok(scored > -1 && unresolved > -1 && scored < unresolved,
-    "the findings are listed first, so a scored absence is never mistaken for a failed search");
-});
