@@ -14,6 +14,7 @@ const marketSource = await readText("js/neo-orb-market.js");
 const extensionSource = await readText("js/market-extension.js");
 const signalsSource = await readText("js/neo-orb-signals.js");
 const fieldSource = await readText("js/neo-orb-field.js");
+const flareSource = await readText("js/neo-orb-flare.js");
 const appSource = await readText("js/apps-neo-orb.js");
 const rosterSource = await readText("js/good-intelligence-market-roster.js");
 const indexHtml = await readText("index.html");
@@ -176,6 +177,7 @@ function appHarness({ flames = true } = {}) {
   vm.runInContext(extensionSource, context, { filename: "js/market-extension.js" });
   vm.runInContext(signalsSource, context, { filename: "js/neo-orb-signals.js" });
   vm.runInContext(fieldSource, context, { filename: "js/neo-orb-field.js" });
+  vm.runInContext(flareSource, context, { filename: "js/neo-orb-flare.js" });
   vm.runInContext(rosterSource, context, { filename: "js/good-intelligence-market-roster.js" });
   if (flames) {
     players.inner = fakePlayer("inner");
@@ -697,7 +699,12 @@ function recordingContext() {
   const calls = [];
   const gradient = { addColorStop() {} };
   const ctx = { calls, createRadialGradient: () => gradient, createLinearGradient: () => gradient };
-  for (const name of ["setTransform", "clearRect", "fillRect", "beginPath", "moveTo", "lineTo", "arc", "fill", "stroke", "fillText", "save", "restore"]) {
+  /* closePath and setLineDash join the list because the Quasar band and the
+     basis rings use them: a stub that omits them hides the layers that reach
+     them, which is how a whole layer can go untested. */
+  for (const name of ["setTransform", "clearRect", "fillRect", "beginPath", "moveTo", "lineTo", "arc", "fill",
+    "stroke", "fillText", "save", "restore", "closePath", "setLineDash", "rect", "clip", "ellipse",
+    "quadraticCurveTo", "bezierCurveTo", "translate", "rotate", "scale", "measureText", "arcTo"]) {
     ctx[name] = (...args) => { calls.push(name); return args; };
   }
   return ctx;
@@ -725,6 +732,66 @@ test("a full frame draws the bands, the spokes, and every roster orb, and never 
   assert.equal(engine.screenNodes.length, 52, "every roster orb is placed on screen");
   const arcs = ctx.calls.filter(c => c === "arc").length;
   assert.ok(arcs >= 52, `orbs are drawn as arcs (${arcs})`);
+});
+
+test("the Quasar jets draw only when Quasar has measured, and always as two opposed beams", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = recordingContext();
+  let beams = 0;
+  ctx.createLinearGradient = () => { beams += 1; return { addColorStop() {} }; };
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+  const frame = () => { const before = ctx.calls.length; engine.draw(1000); return ctx.calls.length - before; };
+
+  const quiet = frame();
+  assert.equal(beams, 0, "no Quasar measurement, no jets");
+
+  engine.quasar = {
+    engaged: true, measured: 12, total: 12, meanDepth: 0.5, interval: { lo: 0.42, hi: 0.58 },
+    tail: { depth: { threshold: 0.8, share: 0.5 }, pressure: { threshold: 0.6, share: 0.25 } }
+  };
+  beams = 0;
+  const withJets = frame();
+  assert.equal(beams, 2, "two beams, opposed, on one drifting axis — no sector is the one they point at");
+  assert.ok(withJets > quiet, "the frame draws more once they are there");
+
+  engine.quasar = { engaged: true, measured: 1, tail: { depth: { share: 1 } } };
+  beams = 0;
+  frame();
+  assert.equal(beams, 0, "one measured orb is not a roster measurement, so still no jets");
+});
+
+test("an orb flares from its own reading, and only from its own", () => {
+  const h = appHarness();
+  const { body, engine } = mountInto(h);
+  const canvas = body.querySelector(".neo-canvas");
+  Object.defineProperty(canvas, "clientWidth", { value: 640, configurable: true });
+  Object.defineProperty(canvas, "clientHeight", { value: 480, configurable: true });
+  const ctx = recordingContext();
+  engine.ctx = ctx;
+  engine.canvas = canvas;
+  const deepId = engine.nodes[0].id;
+  const calmId = engine.nodes[1].id;
+  const readings = new Map([[deepId, { depth: 0.95, pressure: 0.82 }], [calmId, { depth: 0.2, pressure: 0.1 }]]);
+  engine.bhc = { engaged: true, readings };
+
+  assert.equal(engine.flareFor(deepId).active, true, "an orb deep in its own reading flares");
+  assert.equal(engine.flareFor(calmId).active, false, "a calm orb does not");
+
+  const before = engine.flareFor(deepId);
+  readings.set(calmId, { depth: 1, pressure: 1 });
+  assert.deepEqual(engine.flareFor(deepId), before,
+    "no comparison: this orb's flare is a function of its own row, not of the orbs around it");
+
+  const frame = () => { const start = ctx.calls.length; engine.draw(1000); return ctx.calls.length - start; };
+  const flaring = frame();
+  engine.bhc = { engaged: true, readings: new Map([[deepId, { depth: 0.2, pressure: 0.1 }], [calmId, { depth: 0.2, pressure: 0.1 }]]) };
+  const calm = frame();
+  assert.ok(flaring > calm, "a deep orb draws its spikes and corona; the same orb calm does not");
 });
 
 test("hit-testing finds the orb under the pointer and nothing in empty space", () => {

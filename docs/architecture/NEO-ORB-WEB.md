@@ -1,7 +1,7 @@
 # NEO ORB — the web app
 
 **Status:** display-only · local · static roster snapshot · **one stored field read** (its own Worker route, at most every 20 s) · distance from the centre is the instability extension
-**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`, and `js/neo-orb-reinsurance.js` (Black Hole Computing, Quasar Mode, and Reinsurance Mode, from the spec) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
+**Files:** `js/market-extension.js` (the extension measure, shared with Orb 2) · `js/neo-orb-signals.js` (the Orb 2 price mechanisms: six-envelope depth, composed position, VFI flow, pressure) · `js/neo-orb-black-hole.js`, `js/neo-orb-quasar.js`, and `js/neo-orb-reinsurance.js` (Black Hole Computing, Quasar Mode, and Reinsurance Mode, from the spec) · `js/neo-orb-flare.js` (the display motion over those three: jets on the Quasar shell, a flare on the Reinsurance halo, and a per-orb flare from that orb's own reading) · `js/neo-orb-model.js` (geometry, the depth shell, and the instability region) · `js/neo-orb-placement.js` (flame-guided dynamic placement) · `js/neo-orb-field.js` (the feed switch and its one read) · `js/neo-orb-market.js` (colour rules) · `js/apps-neo-orb.js` (window app) · `css/neo-orb.css` · `tests/market-extension-test.mjs` · `tests/neo-orb-test.mjs` · `tests/neo-orb-placement-test.mjs` · `tests/neo-orb-market-test.mjs` · `tests/neo-orb-feed-boundary-test.mjs`
 **Window:** **NEO ORB** in the app list, placed right after **Orb 2**.
 
 NEO ORB combines two existing browser visuals in one window:
@@ -27,7 +27,7 @@ A roster orb's sector is a shape coordinate, not an address, endpoint, rank, or 
 
 Deployed from `docs/harshal-systems/12-ground-zero.md`: **Black Hole Computing (BHC)**, a compute modality; **Quasar Mode**, a spheroid body; and **Reinsurance Mode**, a spheroid of spheroids. The term "gravity processor" in the request is taken to mean Black Hole Computing.
 
-**Data flow (outward only):** one stored row per orb → `NeoOrbBlackHole.deepen` (one reading per orb) → `NeoOrbQuasar.spheroid` (aggregates per issuer-sector buffer, and for the roster) → `NeoOrbReinsurance.systemic` (a slow snapshot over the buffers, read at most every 15 minutes and held between reads). Nothing returns to the field, to the model, or to colour. The one return is to motion and brightness: each orb's pressure from the BHC reading sets its flame-steering gain (`setPressures`) and its glow (`litFor`). No module reads the halo back.
+**Data flow (outward only):** one stored row per orb → `NeoOrbBlackHole.deepen` (one reading per orb) → `NeoOrbQuasar.spheroid` (aggregates per issuer-sector buffer, and for the roster) → `NeoOrbReinsurance.systemic` (a slow snapshot over the buffers, read at most every 15 minutes and held between reads). Nothing returns to the field, to the model, or to colour. The one return is to motion and brightness: each orb's pressure from the BHC reading sets its flame-steering gain (`setPressures`), its glow (`litFor`), and — past the tail thresholds — its own flare. No module reads the halo back, and no module reads the flare back. No module reads the halo back.
 
 **What each reading does on screen (display only):**
 
@@ -37,11 +37,41 @@ Deployed from `docs/harshal-systems/12-ground-zero.md`: **Black Hole Computing (
 | Orb motion | `setPressures` in `js/neo-orb-placement.js` | Pressure sets the flame-steering gain from 0.6× to 1.4× per orb. Null is neutral. The speed cap does not change. |
 | Orb height | `syncBiases` → `setBiases` in `js/neo-orb-placement.js` | Above the FBB basis an orb's home is pulled north by up to 0.3 rad (≈17°); below, south. Sign only: it says the side, not how far. Eases over 1.5 s. Null, or no feed, is neutral. |
 | Quasar shell | `drawGravityShells` | A ring at the roster's mean depth, with the 95 % interval as a faint band. Its opacity follows the tail share. |
-| Reinsurance halo | `drawGravityShells` | Three soft rings outside the instability region (1.5 + 0.14 in model radius). Brighter with synchrony. |
-| Status lines | `readouts` | The text from each module's `describe`, including the Reinsurance read time. When Quasar measures no orb, or Reinsurance is not engaged, the line also names why: the count of stored rows and the first missing envelope (`depthGapText`), or the number of orbs with no stored row. |
-| Inspector | `renderInspector` | The selected orb's BHC reading as text: depth, position, flow, pressure, force, and authority. |
+| Quasar jets | `drawQuasarJets`, from `NeoOrbFlare.quasarJets` | Two opposed beams leaving that ring, with streaks running outward. Their length, width and brightness follow the roster's tail share. The axis drifts, so no sector is ever the one they point at. |
+| Reinsurance halo | `drawGravityShells`, from `NeoOrbFlare.reinsuranceFlare` | Three soft rings outside the instability region (1.5 + 0.14 in model radius). Brighter with synchrony, and each takes a burst that rises fast and decays slowly — reaching the outer rings a little after the inner ones, so the halo reads as one structure flaring rather than three rings blinking. |
+| Orb flare | `drawOrb`, through `flareFor` | An orb whose **own** depth is at or past 0.8, or whose own pressure is at or past 0.6, gets spikes and a pulsing corona. Strength is how far past the threshold it sits; the phase comes from a hash of its id, so the roster does not pulse in unison. It reads that orb's row and nothing else — never a share, a mean, or a neighbour. |
+| Status lines | `readouts` | The text from each module's `describe`, including the Reinsurance read time and the Flare line. When Quasar measures no orb, or Reinsurance is not engaged, the line also names why: the count of stored rows and the first missing envelope (`depthGapText`), or the number of orbs with no stored row. |
+| Inspector | `renderInspector` | The selected orb's BHC reading as text: depth, position, flow, pressure, force, and authority — plus one line for its flare, which names that the number came from this orb's own reading. |
 
-The shells and the halo use the model's own radii. Depth maps to radius as `0.36 + 0.64 × depth`. The halo sits outside the instability region's outer edge. All of them use the bands' neutral tone, so blue and yellow stay reserved for market state.
+The shells and the halo use the model's own radii. Depth maps to radius as `0.36 + 0.64 × depth`. The halo sits outside the instability region's outer edge. The shells and the halo use the bands' neutral tone, so blue and yellow stay reserved for market state. The flare is the one exception, and it is a narrow one: a single rose-to-white ramp (`#ff5fa2` → `#fff4fa`), deliberately outside the market palette (cyan `#00c8ff`, orange `#ff7a00`, grey `#b0b0b0`), the basis rings (yellow `#fff200`, violet `#b026ff`, grey `#6b7280`) and the band tone (`#7d93b8`). It carries intensity only, never a direction, so a bright flare cannot be read as a rally or a sink — a test asserts no colour on the ramp is a market colour.
+
+### Flare (`js/neo-orb-flare.js`)
+
+Display motion, not a body, not a mode, and not a reading. It turns numbers the
+three modules above already published into motion and colour, and publishes
+nothing back.
+
+| Effect | Driven by | Why it is allowed |
+| :--- | :--- | :--- |
+| Quasar jets | Quasar's roster-level tail share | Drawn on the shell, which is already roster-level, and radially symmetric: two opposed beams on a drifting axis. Nothing per-orb. |
+| Reinsurance halo flare | Reinsurance's own synchrony | Drawn on the halo Reinsurance already owns. |
+| Per-orb flare | **That orb's own BHC depth and pressure** | The one sanctioned per-orb return — the same channel that already carries pressure into motion and brightness. It never sees another orb, so it cannot rank. |
+
+The module is pure: no DOM, no clock of its own, no storage. The clock is the
+caller's, so a stopped clock — which is what `prefers-reduced-motion` does to the
+engine's frame clock — is a fixed point in every pulse rather than a blank: the
+jets, the halo and the spikes stay drawn and simply stop moving.
+
+An orb enters the tail at the threshold itself, as in Quasar: depth ≥ 0.8 or
+pressure ≥ 0.6, matching `NeoOrbQuasar.TAIL_DEPTH` and `TAIL_PRESSURE` but read
+from one orb's row instead of from a roster share. An orb sitting exactly on the
+threshold still shows a little, and how far past it sits is what sets the
+strength.
+
+**Tests:** `tests/neo-orb-flare-test.mjs` (purity, determinism, bounded values,
+the tail thresholds, non-prioritisation — an orb's flare cannot change when the
+orbs around it do — a frozen clock, and the colour ramp), and two tests in
+`tests/neo-orb-test.mjs` that draw a frame and count the beams.
 
 | Spec | Deployed as |
 | --- | --- |
