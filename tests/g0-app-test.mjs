@@ -284,24 +284,58 @@ ok(html().includes("Baseline test results"), "spec TOC includes section XII");
 clickAct('[data-act="specTab"][data-view="source"]');
 ok(specFetches.includes("specs/normative/ground-0-v1.0.md"), "the source reader requests the normative baseline from its status directory");
 clickAct('[data-act="specVersion"][data-v="1.1"]');
-ok(specFetches.includes("specs/draft/ground-0-v1.1.md"), "the draft reader requests a separate draft source path");
-ok(html().includes('href="specs/draft/ground-0-v1.1.md"'), "the draft download link uses the draft source path");
+ok(specFetches.includes("specs/normative/ground-0-v1.1.md"), "the v1.1 reader requests the ratified normative source path");
+ok(html().includes('href="specs/normative/ground-0-v1.1.md"'), "the v1.1 download link uses the ratified normative source path");
 clickAct('[data-act="specTab"][data-view="reader"]');
-ok(html().includes("not ratified") && html().includes("Five proposed clarifications"), "v1.1 draft renders with amendment summary");
+ok(html().includes("RATIFIED · NORMATIVE AMENDMENT") && html().includes("Five ratified clarifications"), "v1.1 renders with ratified amendment summary");
 
 /* ── register (baselines) ── */
 clickTab("register");
 ok(html().includes("Quantum Library") && html().includes("World Health Organization"), "six source baselines listed");
 ok(html().includes("6"), "register count includes baselines");
 
-/* ── manual wizard walk-through ── */
+/* ── manual wizard versioned-input controls ── */
 clickTab("manual");
 clickAct('[data-act="startWizard"]');
+const v11Cutoff = main.querySelector('[data-bind="wiz.cutoffDraft"]');
+ok(v11Cutoff && v11Cutoff.attrs.type === "datetime-local", "v1.1 wizard asks for an explicit timestamp");
+v11Cutoff.value = "2026-09-12T12:34:56.789";
+dispatch(v11Cutoff, "input");
+dispatch(v11Cutoff, "change");
+const setV11Bind = (path, value) => { const el = main.querySelector(`[data-bind="${path}"]`); if (!el) throw new Error("no input " + path); el.value = value; dispatch(el, "input"); };
+setV11Bind("wiz.input.name", "Timestamp Contract Test");
+clickAct('[data-act="wizNext"]');
+ok(html().includes("Behavioral audit"), "matching UTS cutoff passes the v1.1 wizard gate");
+for (let i = 0; i < 5; i++) clickAct(`[data-act="bind"][data-path="wiz.input.answers.${i}.value"][data-value="false"]`);
+clickAct('[data-act="bind"][data-path="wiz.input.answers.3.value"][data-value="true"]');
+const v11Basis = main.querySelector('[data-bind="wiz.input.b4.basis"]');
+v11Basis.value = "NO_PENALTY_EXIT"; dispatch(v11Basis, "change");
+ok(main.querySelector('[data-bind="wiz.input.b4.terminatesAction"]'), "v1.1 B4 form exposes explicit action-termination evidence");
+clickAct('[data-act="bind"][data-path="wiz.input.answers.3.value"][data-value="false"]');
+clickAct('[data-act="wizNext"]');
+ok(html().includes("Constraints and history"), "v1.1 wizard reaches constraint step");
+for (let i = 0; i < 4; i++) clickAct(`[data-act="bind"][data-path="wiz.input.constraints.${i}.value"][data-value="false"]`);
+clickAct('[data-act="toggleConstraint"][data-i="1"]');
+const c2Editor = main.querySelector('[data-bind="wiz.c2Json"]');
+ok(!!c2Editor, "v1.1 wizard exposes structured C2 provenance JSON");
+c2Editor.value = "{";
+dispatch(c2Editor, "input");
+dispatch(c2Editor, "change");
+clickAct('[data-act="wizNext"]');
+ok(html().includes("C2 provenance JSON"), "invalid C2 JSON remains visible and blocks wizard progression");
+clickAct('[data-act="wizBack"]');
+clickAct('[data-act="wizBack"]');
+clickAct('[data-act="wizCancel"]');
+
+/* ── v1.0 wizard walk-through confirms the original input path still works ── */
+clickTab("manual");
+clickAct('[data-act="startWizard"]');
+clickAct('[data-act="setVersion"][data-v="1.0"]');
 ok(html().includes("Entity and declaration"), "wizard step 0");
 const setBind = (path, value) => { const el = main.querySelector(`[data-bind="${path}"]`); if (!el) throw new Error("no input " + path); el.value = value; dispatch(el, "input"); };
 setBind("wiz.input.name", "Test Regulatory Body");
 setBind("wiz.input.identifier", "TRB-1");
-setBind("wiz.input.cutoff", "2026-09-12");
+setBind("wiz.cutoffDraft", "2026-09-12");
 clickAct('[data-act="wizNext"]');
 ok(html().includes("Behavioral audit") && html().includes("Can compliance be coerced?"), "wizard step 1");
 // answer B1..B5 = NAB pattern with evidence
@@ -320,12 +354,7 @@ answers.forEach(([value], i) => {
   setBind(`wiz.input.answers.${i}.date`, a[2]);
   setBind(`wiz.input.answers.${i}.notes`, a[3]);
   });
-// v1.1: B4 = YES needs a qualifying relief record
-setBind("wiz.input.b4.actor", "The affected party");
-setBind("wiz.input.b4.action", "Enforcement directive TRB-2026-4");
-setBind("wiz.input.b4.procedure", "A filed appeal automatically stays the action until decision");
-const basis = main.querySelector('[data-bind="wiz.input.b4.basis"]');
-basis.value = "TERMINAL_RULE"; dispatch(basis, "change");
+// v1.0 compatibility: the original answer/citation contract is unchanged.
 clickAct('[data-act="wizNext"]');
 ok(html().includes("Constraints and history"), "wizard step 2");
 
@@ -374,6 +403,11 @@ ok(html().includes("No transitions recorded yet"), "empty ledger state renders")
 /* ── automatic: error path (no network in this harness) ── */
 clickTab("automatic");
 ok(html().includes("Key-free public-record research") || html().includes("Name an organization"), "automatic input renders");
+clickAct('[data-act="setVersion"][data-v="1.1"]');
+const autoV11Cutoff = main.querySelector('[data-bind="auto.cutoffDraft"]');
+ok(autoV11Cutoff && autoV11Cutoff.attrs.type === "datetime-local" && html().includes("matching HOSUTS UDate"), "v1.1 automatic research requires an exact timestamp and explains its checked UTS projection");
+clickAct('[data-act="setVersion"][data-v="1.0"]');
+ok(!!main.querySelector('[data-bind="auto.cutoff"]'), "switching back to v1.0 restores its date-only cutoff input");
 const q = main.querySelector('[data-bind="auto.query"]'); q.value = "Xy"; dispatch(q, "input");
 clickAct('[data-act="autoStart"]');
 await waitFor(() => html().includes("could not complete") || html().includes("searching") || html().includes("Choose the organization"));

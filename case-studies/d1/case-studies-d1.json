@@ -25,8 +25,8 @@
       "oidcSubject": "ground-0-audit-register",
       "createdAt": 1790942340000
     },
-    "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-    "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+    "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+    "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
   },
   "policy": {
     "reviewStatus": "UNREVIEWED",
@@ -69,15 +69,24 @@
         "publicationId": "afba7773-ed74-5886-b833-6d09ee4df81a"
       },
       "hashes": {
-        "rawInputHash": "4857c32c16c3d58d29e87194c3aadf4426ef53693dd590931131e9bd56b93206",
-        "privateReportHash": "c7f10a973c4cb8bc49a3e7d9c93217285b61e4a8a4577ecca6a4d0f259d88fbf",
-        "publicReportHash": "cddc4796f6006ea2299b1d790af64d384cce486a710314e60b40dae1955f0a9e"
+        "rawInputHash": "2a07dcacd2949cc175f2ec11050118074a7c6949955b84c021db79154215d1b0",
+        "privateReportHash": "7aa987c292654d7f7bf01ea390f6e93232bc99b47496d726326fefc2cf8837c4",
+        "publicReportHash": "695a941b7c8196b12f3dc26d8deae27f69c3e7745fdff643499fe4d16fb8b5e2"
       },
       "input": {
-        "version": "1.1",
         "name": "Anthropic",
         "identifier": "ANTHROPIC",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -145,6 +154,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -152,7 +195,18 @@
           "scope": "✓ YES Published, exercised override: the 2026-06-12 Commerce directive halted global access to Fable 5 / Mythos 5; the 2026-09-25 appellate ruling upheld the Pentagon exclusion. Scope is the deployment axis; no external body has compelled a safety mitigation or vetoed a release on safety grounds .",
           "source": "https://www.cnbc.com/2026/06/12/anthropic-disables-access-to-fable-5-and-mythos-5-to-comply-with-government-directive.html",
           "date": "2026-06-12"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -160,9 +214,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -178,7 +232,16 @@
           "name": "Anthropic",
           "identifier": "ANTHROPIC",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -255,16 +318,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -441,7 +518,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "c27663a913cf85a1cf43ca4fa3972c1466acf69dd87be13a529e53238af09355",
+        "publicInputHash": "2a07dcacd2949cc175f2ec11050118074a7c6949955b84c021db79154215d1b0",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -475,8 +552,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -529,15 +606,24 @@
         "publicationId": "2d3ad23c-6ba4-58d3-a00f-adfcc1693035"
       },
       "hashes": {
-        "rawInputHash": "e74eb12154152993afac90279b73552572fadc7e8257151e0e637a402ffbe597",
-        "privateReportHash": "92ceb3c3d168acd7662b0e06eb0a32a14def2838d31f173f9d02581d6e29fccb",
-        "publicReportHash": "e06c216fc5722b3e544b90c47a8b6b719f01032f910574eee7ee81308dffec6d"
+        "rawInputHash": "a76c62c9b483adf993b240677fc6eff8b4bd826400e60cda837ce089cf5f8242",
+        "privateReportHash": "62411bfe18a51c5d36533b948a0e575c1fba9164f5634531c9cdec009977871c",
+        "publicReportHash": "32fd1d1345783a72bd35ab0a51e4b4b42b4039127b2b42af896e04de4c8d62e1"
       },
       "input": {
-        "version": "1.1",
         "name": "OpenAI",
         "identifier": "OPENAI",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -604,7 +690,60 @@
             "notes": "✓ YES Functioning now: FTC investigation opened 2026-09; Australian parliamentary committee hearing scheduled 2026-10-06; EU AI Act GPAI fines enforceable from 2026-08-02; active litigation .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -612,9 +751,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -630,7 +769,16 @@
           "name": "OpenAI",
           "identifier": "OPENAI",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -707,16 +855,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -893,7 +1055,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "823a42e8f85e96c5039b0b00d58ca9bd8b2d6e98836a33ab1d45585bcb519356",
+        "publicInputHash": "a76c62c9b483adf993b240677fc6eff8b4bd826400e60cda837ce089cf5f8242",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -927,8 +1089,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -981,15 +1143,24 @@
         "publicationId": "9ff88d46-9915-5d4d-ae61-9ea3ad9be876"
       },
       "hashes": {
-        "rawInputHash": "5f85f353154b501340986f40669caa4a97fc75210696f248589e1d6ada4112af",
-        "privateReportHash": "f914a4bc01eb9fb6206a6b7243533b3b81bca1ed97ca06ee0a86fede18c6155b",
-        "publicReportHash": "acdbf34fe1e13c889b98ed8eae43674124a990e6ed61034d534f6e420bb867e9"
+        "rawInputHash": "443368301355af5e22b3ab256722c9ac0e3d9b75cb5193b0f7b39bd676ed977d",
+        "privateReportHash": "05f931c1bb767f24c324488a7e2535e66bea6cdb1aa37b4aac3b925680e356d8",
+        "publicReportHash": "c90bde1f41db5a682227039da33785f5d2cb326d38e60306997f7eedb55667b3"
       },
       "input": {
-        "version": "1.1",
         "name": "Google DeepMind",
         "identifier": "GOOGLEDEEPMIND",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -1056,7 +1227,60 @@
             "notes": "✓ YES EU AI Act GPAI enforcement active from 2026-08-02 and Google is a signatory; CAISI extension signed 2026-05; the FTC's sector investigation (reported 2026-09-30) touches the frontier labs; national-security export controls remain active .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -1064,9 +1288,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -1082,7 +1306,16 @@
           "name": "Google DeepMind",
           "identifier": "GOOGLEDEEPMIND",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -1159,16 +1392,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -1345,7 +1592,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "5a55becd3dc4886404c3f2122972c03d0af76220fd65a070e27064798350e3c3",
+        "publicInputHash": "443368301355af5e22b3ab256722c9ac0e3d9b75cb5193b0f7b39bd676ed977d",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -1379,8 +1626,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -1433,15 +1680,24 @@
         "publicationId": "4d5e6ab0-63dd-5ed4-9122-23efa791085b"
       },
       "hashes": {
-        "rawInputHash": "a4261926c1711ea66da71b9d490921be9c223fee9265a9c06087059403eb8718",
-        "privateReportHash": "7b964ef5b52b2d7403a956db4aef6561f8cfaf95dadcc7fbc1b3fea9e35b75bb",
-        "publicReportHash": "b1381105f820e97d6fae7ba4f96ec169f7ab36dd5c9f939cb918d7f21a31d90a"
+        "rawInputHash": "b9ede35610d924f4b38498f1623ce5142fbc0507f216b405a9d92265dca418e1",
+        "privateReportHash": "cf1174086b90c66c7add5a436ab996f6d9a4dedc7bb2a198db727093e8445ac8",
+        "publicReportHash": "40fc13ba373d19b8df15fc879b2cd76168917ae28f92949ba3f86b4b8d286340"
       },
       "input": {
-        "version": "1.1",
         "name": "Meta",
         "identifier": "META",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -1508,7 +1764,60 @@
             "notes": "✓ YES FTC 6(b) companion-chatbot inquiry active; White House accord signed 2026-09-29; state AI-companion legislation and litigation active .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -1516,9 +1825,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -1534,7 +1843,16 @@
           "name": "Meta",
           "identifier": "META",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -1611,16 +1929,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -1797,7 +2129,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "daad62bd8d82abbdb3caff200e3d72b12a45cacebe1d91e5ac2a8d3784195751",
+        "publicInputHash": "b9ede35610d924f4b38498f1623ce5142fbc0507f216b405a9d92265dca418e1",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -1831,8 +2163,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -1885,15 +2217,24 @@
         "publicationId": "607497d4-b269-5d5f-8df2-dfcdebbc184b"
       },
       "hashes": {
-        "rawInputHash": "09b54555dd5e6b362e44a28a672ef3b36a89c0c9178fcae3911b1592a9ac17fb",
-        "privateReportHash": "6279c35650ac6e09bc8184bea8bacf6ba897f72ee2f9a5c0e5fcb886f1718234",
-        "publicReportHash": "4bb549093126a719f48b625b27a323c9b1856f92147bab6a96deb45f290472e5"
+        "rawInputHash": "3cc4132d8755471b80ddf57bd7aebf2e0ed93ff7f2839431c52f996da3132bdc",
+        "privateReportHash": "3af213779670c246eb52d6649907dcf93ac700fde032817386c43858f9710870",
+        "publicReportHash": "39b2d7a108c830c389732d706e96c7990fc19b2172ab76e8ff913f2ac0ca28b5"
       },
       "input": {
-        "version": "1.1",
         "name": "xAI",
         "identifier": "XAI",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -1961,6 +2302,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -1968,7 +2343,18 @@
           "scope": "✓ YES Reported binding court injunction in the Netherlands; national access blocks (Malaysia, Indonesia); California AG cease-and-desist. Each constrained a product decision after the fact; none created an affected-party stop .",
           "source": "https://memeburn.com/every-grok-deepfake-lawsuit-and-ban-in-2026/",
           "date": "2026-06-06"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -1976,9 +2362,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -1994,7 +2380,16 @@
           "name": "xAI",
           "identifier": "XAI",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -2071,16 +2466,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -2257,7 +2666,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "6aae19a7392e08907e8907f3cd448a7390b1652459efb8674b88a2509778a96b",
+        "publicInputHash": "3cc4132d8755471b80ddf57bd7aebf2e0ed93ff7f2839431c52f996da3132bdc",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -2291,8 +2700,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -2345,15 +2754,24 @@
         "publicationId": "9601a9e0-a14a-568c-b5ef-47cd65744d99"
       },
       "hashes": {
-        "rawInputHash": "43c6f9b1f30892d1489ead14f20d501212d5a5542c47a82243d9076e581621d9",
-        "privateReportHash": "6971835f8a621d0c9b0a9905e6775c7042aa0df43ecb9983e3dc2d0c7e00559d",
-        "publicReportHash": "97e33f9d26c7f3cd49505997a06e3b6957bcb00e46decd021dae1e330bd92f3c"
+        "rawInputHash": "7f3b576e51e36b0a28cabc9d69f83895d29bb88c55e8d1d4dfaa72243084239c",
+        "privateReportHash": "f4aec032b30b9eb874699bc09c5cbc76f1451304ab91d8f56758e922c9cdc073",
+        "publicReportHash": "31a6621bb5cdec6fa21448a23a44fb15f7254a206553404b8cf802649d458ecb"
       },
       "input": {
-        "version": "1.1",
         "name": "Microsoft",
         "identifier": "MICROSOFT",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -2420,7 +2838,60 @@
             "notes": "✓ YES EU AI Act GPAI enforcement from 2026-08-02; CAISI agreement from 2026-05; FTC sector investigation reported 2026-09-30 — all within 12 months .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -2428,9 +2899,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -2446,7 +2917,16 @@
           "name": "Microsoft",
           "identifier": "MICROSOFT",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -2523,16 +3003,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -2709,7 +3203,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "13cd1b2edc0d58ddb2aacfe703d6ce916f296aaa656d6d39f820cb4942166ad5",
+        "publicInputHash": "7f3b576e51e36b0a28cabc9d69f83895d29bb88c55e8d1d4dfaa72243084239c",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -2743,8 +3237,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -2797,15 +3291,24 @@
         "publicationId": "63a9b927-04e8-5490-929f-681127527adf"
       },
       "hashes": {
-        "rawInputHash": "a7616c57a72baace0970908decedc74d46d9c8731f1616903930fe79e37e9a20",
-        "privateReportHash": "ec4487f3e3bbc4d56eebcf7772ce1d222e63de5c6f08c05c44bc1921e9472969",
-        "publicReportHash": "25f37c63bcc0f22dc477e11cf5ff405d603faa4d3ea7bf605b62351bda95308b"
+        "rawInputHash": "92c7e81d1eb0c2dd0cf0663da6a1d75c74b41bbe1a527388a114cca63fed7d8a",
+        "privateReportHash": "c6cdb04525ccf61a2174533ecd423b7e34412dbad4a0291cc1021155ce9530b2",
+        "publicReportHash": "ce2899d32410b606211b16ee5f91cddad725adf20fc8be46d65a667b7cfd0052"
       },
       "input": {
-        "version": "1.1",
         "name": "Moonshot AI",
         "identifier": "MOONSHOT",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": false,
@@ -2872,7 +3375,60 @@
             "notes": "✗ NO The only functioning constraint in the record is evaluation access, which cannot halt a release and which Moonshot participates in voluntarily .",
             "gap": "No qualifying public artifact by cutoff 2026-10-02; register coding retained."
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -2880,9 +3436,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -2898,7 +3454,16 @@
           "name": "Moonshot AI",
           "identifier": "MOONSHOT",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": false,
@@ -2975,16 +3540,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -3161,7 +3740,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "eb55e4a0da74ba41a4d8aa8e4772128e20fae625620b213d6890530783b53fd0",
+        "publicInputHash": "92c7e81d1eb0c2dd0cf0663da6a1d75c74b41bbe1a527388a114cca63fed7d8a",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -3195,8 +3774,8 @@
             "confidence": "LOW",
             "recordStatus": "Needs review",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -3249,15 +3828,24 @@
         "publicationId": "832af712-bf95-5e09-bf27-2a26ed812e5f"
       },
       "hashes": {
-        "rawInputHash": "2b6022aeb798ec93703b985cd13970553374fd3067bb56cc2e2b8df7dd41cc77",
-        "privateReportHash": "05a848f45bf4e93f235c8ab6de2c46265e0b299ffda0d3f9c49f536f1002bb55",
-        "publicReportHash": "654a8a38a7a3b4d14c354ed018eba6890ff67437b3e20a8c742b0dcc6559beb5"
+        "rawInputHash": "04b45267db0cd1f057b80b471943ef34b5854427fd04f4e4f6fe28c3fd011ce9",
+        "privateReportHash": "11d34544b4c1751fa14ece37eafc6a6a3969955e8d13c74abe2cf5921e861d66",
+        "publicReportHash": "561dfe7f7836fd4672473d4bbb04f95886e6c9a913e0142d21af8c280988a999"
       },
       "input": {
-        "version": "1.1",
         "name": "Z.ai",
         "identifier": "ZAI",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": false,
@@ -3324,7 +3912,60 @@
             "notes": "✗ NO The only constraint-like mechanism in the record is voluntary access restriction during the withholding window; no functioning external mechanism appears .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -3332,9 +3973,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -3350,7 +3991,16 @@
           "name": "Z.ai",
           "identifier": "ZAI",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": false,
@@ -3427,16 +4077,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -3613,7 +4277,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "04d1de0e6f034786efb52adac3c8155d2e5ed7d36df77da32a55fd1973cdddfe",
+        "publicInputHash": "04b45267db0cd1f057b80b471943ef34b5854427fd04f4e4f6fe28c3fd011ce9",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -3647,8 +4311,8 @@
             "confidence": "LOW",
             "recordStatus": "Needs review",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -3701,15 +4365,24 @@
         "publicationId": "e45a8729-7561-5a2c-8c50-35db0e9a7fa9"
       },
       "hashes": {
-        "rawInputHash": "b635f341834f5346f6ebad185e295162e514a19313015131be0006d7b80fd548",
-        "privateReportHash": "2319c81f385e94acdaef37dbb4ce6e9b022c8366d3834b2e132681949099c277",
-        "publicReportHash": "12462753015cc6e2119f764803b711af2d5ff4af16008f9f022de0e48e970f20"
+        "rawInputHash": "64d34dbedfd994e4d20f6f1e9e9b792fbbc6323bacaf36ad70cec76c2842e758",
+        "privateReportHash": "b6687d6ef899d4c08614a31142858719f7564d6162edb6d2b44901eb7a4cad0f",
+        "publicReportHash": "042035bb5675fc92da1db78d3121cd9535bb3fa9996d090bd4cf72a8cc65e74c"
       },
       "input": {
-        "version": "1.1",
         "name": "ByteDance (Doubao)",
         "identifier": "BYTEDANCE",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -3777,6 +4450,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -3784,7 +4491,18 @@
           "scope": "✓ YES The Interim Measures forced product shutdowns at both entities within days of taking effect — a documented override of existing product decisions by an external authority .",
           "source": "https://www.techtimes.com/articles/320525/20260715/china-ai-companion-law-takes-effect-doubao-qwen-shut-down-millions-lose-chat-data.htm",
           "date": "2026-07-15"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -3792,9 +4510,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -3810,7 +4528,16 @@
           "name": "ByteDance (Doubao)",
           "identifier": "BYTEDANCE",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -3887,16 +4614,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -4073,7 +4814,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "29f7676ce0be9dba1aaddc82842a8b5f30bb92b5ea51d16dfea78efdd9cde571",
+        "publicInputHash": "64d34dbedfd994e4d20f6f1e9e9b792fbbc6323bacaf36ad70cec76c2842e758",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -4107,8 +4848,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -4161,15 +4902,24 @@
         "publicationId": "8367037a-4bd5-5473-8ca4-6f74a4caa48b"
       },
       "hashes": {
-        "rawInputHash": "3c935e9d1da33b1525a6c452abef5ecb34250252efea4fa5213e73f413b92bc9",
-        "privateReportHash": "fd9f1e3762d82ed9d02a3b0ae1a915c5d123702320966fdd0503d1d0bd5ae0bd",
-        "publicReportHash": "96f3dbe51d62890d9250d206aeb0ca3156dcebe9d8aaf6892ba3c1b2e8e95954"
+        "rawInputHash": "406e9464bae63c05b49cda0cc8af826ea9937bb99b912738f4841b54965a5388",
+        "privateReportHash": "be933aa3df9a70fb38b3a356eebd6279adfd617b7cec5ffbee594d7b1cbf1599",
+        "publicReportHash": "cfea900298238d86757108b3a4c6dd0bf93e88ca0ae99a809011d257f3262378"
       },
       "input": {
-        "version": "1.1",
         "name": "Alibaba (Qwen)",
         "identifier": "ALIBABA",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -4237,6 +4987,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -4244,7 +5028,18 @@
           "scope": "✓ YES The Interim Measures forced product shutdowns at both entities within days of taking effect — a documented override of existing product decisions by an external authority .",
           "source": "https://www.techtimes.com/articles/320525/20260715/china-ai-companion-law-takes-effect-doubao-qwen-shut-down-millions-lose-chat-data.htm",
           "date": "2026-07-15"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -4252,9 +5047,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -4270,7 +5065,16 @@
           "name": "Alibaba (Qwen)",
           "identifier": "ALIBABA",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -4347,16 +5151,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -4533,7 +5351,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "b5df1a473bfff713dedfc23e74390a725ef38692c2f487b61ea14bda0ee59dd2",
+        "publicInputHash": "406e9464bae63c05b49cda0cc8af826ea9937bb99b912738f4841b54965a5388",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -4567,8 +5385,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -4621,15 +5439,24 @@
         "publicationId": "cec7b98e-86bc-5cb8-bd06-da491bf15614"
       },
       "hashes": {
-        "rawInputHash": "e80500204710c26b80f816cc404011c35146c5693d4f15081c9f485ddc63265d",
-        "privateReportHash": "ea58dc4b780d9c3167db38515ed664c9e0f4b06c720098fec9e706af88c8c12a",
-        "publicReportHash": "28f28a0c65d7029ce4e2ab7d4765938b7b2b576dc63fde9e529f189d9484dcd4"
+        "rawInputHash": "c9b4d46f0a928c72ff1e206f99d5599b13e585a6a3fb9b8763577e92db0541a1",
+        "privateReportHash": "bb7d2523218217ab0ee082b5590d54ae072b8ce9e590a71be804dac59cde4e6f",
+        "publicReportHash": "c734986bff07bfbd17a00ed8a9cee9b8776df4c6d6b10b7a3ad052afc39f1db7"
       },
       "input": {
-        "version": "1.1",
         "name": "Character.AI",
         "identifier": "CHARACTERAI",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -4696,7 +5523,60 @@
             "notes": "✓ YES Active now: Kentucky AG action; SB 243 private right of action; FTC 6(b) inquiry; ongoing litigation across multiple states .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -4704,9 +5584,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -4722,7 +5602,16 @@
           "name": "Character.AI",
           "identifier": "CHARACTERAI",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -4799,16 +5688,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -4985,7 +5888,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "6223b03ba55f677f63f85903ed91ede31ced11c40eb98b0df1181df44ba48a35",
+        "publicInputHash": "c9b4d46f0a928c72ff1e206f99d5599b13e585a6a3fb9b8763577e92db0541a1",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -5019,8 +5922,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -5073,15 +5976,24 @@
         "publicationId": "775e3c91-76e3-5d1c-ad91-4eadf6b0bcbb"
       },
       "hashes": {
-        "rawInputHash": "66ea61991403c85088066157e95a57c5189466718fd7f4e067d59a5d2e4587e2",
-        "privateReportHash": "2c1f8d943572aede1b09b587e42ea8a9c34960e5220c1fde8292db3a86c849ff",
-        "publicReportHash": "994b6beebfef77bc882793834d3cd542dd5a99e06c94e3c5c7bfc887e178dc84"
+        "rawInputHash": "742abbd34f22a23bb2365dee428493bc591b3502f121639fb162e6e3aa13d84c",
+        "privateReportHash": "c46f86a3be54aefeb5394afebe13823fd5d4ec4093206a39d52492212337659e",
+        "publicReportHash": "846d2d4b52f08f173553c8dd286829bdddc4f29754d8a67141ecbe5271171029"
       },
       "input": {
-        "version": "1.1",
         "name": "Amazon (AWS AI platform)",
         "identifier": "AMAZON",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -5148,7 +6060,60 @@
             "notes": "✗ NO No functioning constraint on the audited surface is demonstrated at cutoff .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -5156,9 +6121,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -5174,7 +6139,16 @@
           "name": "Amazon (AWS AI platform)",
           "identifier": "AMAZON",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -5251,16 +6225,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -5437,7 +6425,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "156d07e9753d4dec0533d19851f9466ab6885b7c720256e484ffdeceb146ac39",
+        "publicInputHash": "742abbd34f22a23bb2365dee428493bc591b3502f121639fb162e6e3aa13d84c",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -5471,8 +6459,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -5525,15 +6513,24 @@
         "publicationId": "a20f6add-0e5a-5696-9b61-ce7359adde0b"
       },
       "hashes": {
-        "rawInputHash": "104327d273bfdc3bd74b3af1130d6bad71156bfbe3277c3e988bb13d90b4a16e",
-        "privateReportHash": "c255e583ce689a4feb3eb0ccff4b6162b703b0569a2efdc03d45d1481fc96971",
-        "publicReportHash": "55da5a2ac8aab4eefd912c257a2d56300c6c10597777fb219b802d120cc8c4a6"
+        "rawInputHash": "b404881d12d64f5949e7513045717eb5feebf13b74706dcd9542c25904389f71",
+        "privateReportHash": "5c99548387243daedae0d42622e2c256554e891f0b58f1a1dbf7b45ef392d189",
+        "publicReportHash": "b5bdcf1aa0e323e21e0e76bce0ac0eed9cb2ac40718f6909294114350629d741"
       },
       "input": {
-        "version": "1.1",
         "name": "Apple (consumer AI surface)",
         "identifier": "APPLE",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -5600,7 +6597,60 @@
             "notes": "✗ NO No functioning prospective constraint mechanism on the audited surface is demonstrated at cutoff; the matter is in settlement administration .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -5608,9 +6658,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -5626,7 +6676,16 @@
           "name": "Apple (consumer AI surface)",
           "identifier": "APPLE",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -5703,16 +6762,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -5889,7 +6962,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "7da754a92c3759f01da0cb1e700235603e2af738f2a8e6d7ec59bd6d3131a1fc",
+        "publicInputHash": "b404881d12d64f5949e7513045717eb5feebf13b74706dcd9542c25904389f71",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -5923,8 +6996,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -5977,15 +7050,24 @@
         "publicationId": "0e342d81-96d4-5f89-a200-3bca05179c61"
       },
       "hashes": {
-        "rawInputHash": "9eb05b846e7460096adc6f60de52b0fbbc5515f8516a47378d715dd2b49d4fba",
-        "privateReportHash": "69859c368791bf95ffad17cb62e93706748b5ce05ad3e208552b6ebabdf08ec0",
-        "publicReportHash": "688fe544f371fe05966d052d33748d8e325e172acf5afe42a1bffbce3421d9b1"
+        "rawInputHash": "9608e79b89d7439a81e754cf6995b11afc40a5b795c7ad197bf38504f0ed83e4",
+        "privateReportHash": "5a43c03045870791de91ef6db9b1647283cf846091a38a6278c520ca6909a8d0",
+        "publicReportHash": "69117ba907f3de41693d5a69e371c0a1566d0b44f72a5d1e4cfa0e6cefd6705f"
       },
       "input": {
-        "version": "1.1",
         "name": "NVIDIA",
         "identifier": "NVIDIA",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -6053,6 +7135,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -6060,7 +7176,18 @@
           "scope": "✓ YES BIS restrictions forced a real change in NVIDIA's sales behavior (H20 charge; China share to zero) — a genuine external override of commercial decisions .",
           "source": "https://www.spheron.network/blog/gpu-export-controls-2026-cloud-pricing/",
           "date": "2026-09-08"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -6068,9 +7195,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -6086,7 +7213,16 @@
           "name": "NVIDIA",
           "identifier": "NVIDIA",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -6163,16 +7299,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -6349,7 +7499,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "62d799a5573f144b92f0ac727dce5cd8502f0c202700ad2b11ffda222fb3e481",
+        "publicInputHash": "9608e79b89d7439a81e754cf6995b11afc40a5b795c7ad197bf38504f0ed83e4",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -6383,8 +7533,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -6437,15 +7587,24 @@
         "publicationId": "2f44cbbc-3ca1-5c1a-b16b-4a432e1d4a92"
       },
       "hashes": {
-        "rawInputHash": "547325e173198239bdde5ec8763a41f308e675bcf6e36e2e7e8ff0cfe9c3bef8",
-        "privateReportHash": "2d4df1560fd156f291e58fc3932b36fc180b2f3d6aa806eb2536fbc0c4b28797",
-        "publicReportHash": "438ec6387f98b6660f6e26452c5d947c86a40cb971e2207dbf40b7f855917205"
+        "rawInputHash": "4922596837817eecabf2dd09c7da0c7792abaccb1ebe301b089799e0a9f766fd",
+        "privateReportHash": "1d09ff49cace2c416876e6002466663b3f2cd97bde1fe33e2cf98b84f200cf86",
+        "publicReportHash": "21f9a4e12f3b6addad6feac2a6957f746b37a97444c259cd9e67b543b710dbde"
       },
       "input": {
-        "version": "1.1",
         "name": "Mistral AI",
         "identifier": "MISTRAL",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -6512,7 +7671,60 @@
             "notes": "✗ NO No functioning constraint on the audited surface is demonstrated at cutoff .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -6520,9 +7732,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -6538,7 +7750,16 @@
           "name": "Mistral AI",
           "identifier": "MISTRAL",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -6615,16 +7836,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -6801,7 +8036,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "adf92200168239e3b5d8e103c04ae55a54f8c24a5618849f116e53cf4c3fc7e3",
+        "publicInputHash": "4922596837817eecabf2dd09c7da0c7792abaccb1ebe301b089799e0a9f766fd",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -6835,8 +8070,8 @@
             "confidence": "MEDIUM",
             "recordStatus": "Needs review",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -6889,15 +8124,24 @@
         "publicationId": "1beb1d06-ac19-5987-92a3-dfa4ccd1828c"
       },
       "hashes": {
-        "rawInputHash": "4425825dd5f9e147d57633fbc9659bf9b1870c85ab38073b2ccd0623d07082cb",
-        "privateReportHash": "52ed6e249e45a9f25b07aeb533368ec6b4e5409796a89c33fccc3b58c88c6310",
-        "publicReportHash": "8234e9c271e9f3539f2d296797905271d80ed9a86c4aec77987615d954e4307b"
+        "rawInputHash": "ac93574ce700b746d6e3da4f349299e4e9cc67757dca413145595dc22ff08ca3",
+        "privateReportHash": "52129559e87ae5feec8068de6915792916355da6a445027978f7af4818519c2a",
+        "publicReportHash": "4bf066665fce1502b85eb8ebcbf2bb3bab9dfad38af6f75067e094cf568aef30"
       },
       "input": {
-        "version": "1.1",
         "name": "Cohere",
         "identifier": "COHERE",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -6964,7 +8208,60 @@
             "notes": "✗ NO No functioning constraint on the audited surface is demonstrated at cutoff .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -6972,9 +8269,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -6990,7 +8287,16 @@
           "name": "Cohere",
           "identifier": "COHERE",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -7067,16 +8373,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -7253,7 +8573,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "b0bf6d6ad6d38f1b63c1cd4b978c922e4f13c477d76cff638c5df4b163b3b759",
+        "publicInputHash": "ac93574ce700b746d6e3da4f349299e4e9cc67757dca413145595dc22ff08ca3",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -7287,8 +8607,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -7341,15 +8661,24 @@
         "publicationId": "3696ace8-d49b-50e4-8b8f-5b2139b55e7c"
       },
       "hashes": {
-        "rawInputHash": "28c4f199c5986847628bb9549b73c9c5c4c4a41d1945a724f1d9376699c9d3e2",
-        "privateReportHash": "956e8c76a2dde412b62127d5bbc1268790994a89e774858a9e3abbf038fdc628",
-        "publicReportHash": "00ae1826c9cb835415ea37c026a55ec4429bb4aa49c4b5c14a4972728c03b1c7"
+        "rawInputHash": "0980f43ea21446d4f3b2e762c6a5eeba69999271e085048fcbd1ca73e42777b0",
+        "privateReportHash": "06ed737818b641d9b150a54544836eadd6fca61dd8341f34c475c526f6a73439",
+        "publicReportHash": "06c9d553dea0182a4e3a790e1d0516a3855e96e3767c17bde65134b196e60fc8"
       },
       "input": {
-        "version": "1.1",
         "name": "DeepSeek",
         "identifier": "DEEPSEEK",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": false,
@@ -7417,6 +8746,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -7424,7 +8787,18 @@
           "scope": "✓ YES Italy's data-protection action removed the service from Italian app stores; Australia and US agencies banned it from government systems; the entity's market access and behavior changed as a direct result .",
           "source": "https://axis-intelligence.com/is-deepseek-safe-2026-security-concerns/",
           "date": "2026-03-06"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -7432,9 +8806,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -7450,7 +8824,16 @@
           "name": "DeepSeek",
           "identifier": "DEEPSEEK",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": false,
@@ -7527,16 +8910,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -7713,7 +9110,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "9ee2455c6dd034bf49b3aed1431a38de5b549c20f0d820439f18cdeed5c3f542",
+        "publicInputHash": "0980f43ea21446d4f3b2e762c6a5eeba69999271e085048fcbd1ca73e42777b0",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -7747,8 +9144,8 @@
             "confidence": "LOW",
             "recordStatus": "Needs review",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -7801,15 +9198,24 @@
         "publicationId": "9b025770-df7b-5c62-bf13-a79c1e0d03b8"
       },
       "hashes": {
-        "rawInputHash": "c534fa4d0e0b7d8d04d296bdc45b98c25316082faf9f161ecf148764cb1c8cf0",
-        "privateReportHash": "207da764ab8daf46dbb01269e476124aca86c3ad4a6e78250e0b59ab036f83bb",
-        "publicReportHash": "9b99c2a92752982d079db29e6beec58238ff67389eb9004962270f05ee161054"
+        "rawInputHash": "0e1d4c7db5f707532c5566267e88019ba666d727df9f8e6665ad77103986f4ca",
+        "privateReportHash": "b42045a032e9f0c2df3946934a8e492da4ec7f42dfc01869a506b2f5ec2d5cb6",
+        "publicReportHash": "80857b1d03f444538a9b36b6f2671bf7c8c68334d0347ad963f23d133afc9055"
       },
       "input": {
-        "version": "1.1",
         "name": "Replika (Luka, Inc.)",
         "identifier": "REPLIKA",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -7876,7 +9282,60 @@
             "notes": "✗ NO No functioning constraint mechanism on the audited surface is demonstrated at cutoff; the complaint remains unresolved in the record examined .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -7884,9 +9343,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -7902,7 +9361,16 @@
           "name": "Replika (Luka, Inc.)",
           "identifier": "REPLIKA",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -7979,16 +9447,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -8165,7 +9647,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "81982d77618de10643759932b81c236d0a4305ca4a941d2ad679cea523c21854",
+        "publicInputHash": "0e1d4c7db5f707532c5566267e88019ba666d727df9f8e6665ad77103986f4ca",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -8199,8 +9681,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -8253,15 +9735,24 @@
         "publicationId": "5779de4b-1df3-5a55-8863-47a44334e99d"
       },
       "hashes": {
-        "rawInputHash": "3620b583016996d8f59ab8b36d62287fec8eb51ed9bf310b7e33834cf5a890ec",
-        "privateReportHash": "dcacdc7c92b23b4192288ab8644d37fa2cfd5085ca80d900415940aadcaaaf4c",
-        "publicReportHash": "22f9e42c697eae9065039b1564193697cea9fd4822d1a7dea59d84b0f93afa02"
+        "rawInputHash": "101e663b445ee5d738611da0a26d96f91a39695c4ef38f91a1aaf4dda3f8d5ce",
+        "privateReportHash": "c5d599d43d77a4b60e91dd667175cb4b7fe2a49a114a915edc721feb09db5ce8",
+        "publicReportHash": "4d6606c2ed492bbc10dbcc3e0a1d40bc675e0d9441609ebe9f7f110488bad060"
       },
       "input": {
-        "version": "1.1",
         "name": "Perplexity AI",
         "identifier": "PERPLEXITY",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -8329,6 +9820,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -8336,7 +9861,18 @@
           "scope": "✓ YES The 2026-03-09 preliminary injunction barred agent access to Amazon's systems and ordered destruction of obtained data — a court overriding an entity decision on a \"strong evidence\" finding .",
           "source": "https://letsdatascience.com/news/topic/amazon-ai",
           "date": "2026-06-28"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -8344,9 +9880,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -8362,7 +9898,16 @@
           "name": "Perplexity AI",
           "identifier": "PERPLEXITY",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -8439,16 +9984,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -8625,7 +10184,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "ecd71bde6e835bbed0c72551017a3c764e21c4699db943d5c4b4814ef2a52bd7",
+        "publicInputHash": "101e663b445ee5d738611da0a26d96f91a39695c4ef38f91a1aaf4dda3f8d5ce",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -8659,8 +10218,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -8713,15 +10272,24 @@
         "publicationId": "cacd1ebd-750a-58cb-b7fc-f7d69a5ccc91"
       },
       "hashes": {
-        "rawInputHash": "0ca41dc44b37bb2b5f9ec07d81a0f7c333e8a5466540b1954e6f73fb67ef9002",
-        "privateReportHash": "536fd75cad22698d7e0318e63569613c3b2a82373e6502b85690fce714b5dd0c",
-        "publicReportHash": "ff080ee3bd03f54683a7229b04a0da976feb03554a0642acab6137271a63ce22"
+        "rawInputHash": "1bca34d34589fdb7122bcaa7a660b3b202d23fbd7a8bbd9c6ef36b8f6e8f9230",
+        "privateReportHash": "7046cc555ead760de02853c84de9d29ab836ec7bf4c0fa2882b4d8fe176e710d",
+        "publicReportHash": "2ba68e5619918a9eea719c2f0b957014684e6c82862e4a2e4a8356eb058456a5"
       },
       "input": {
-        "version": "1.1",
         "name": "Stability AI",
         "identifier": "STABILITY",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -8788,7 +10356,60 @@
             "notes": "✗ NO No functioning constraint on the audited surface is demonstrated at cutoff; the UK appeal is pending and the US action is pre-judgment .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -8796,9 +10417,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -8814,7 +10435,16 @@
           "name": "Stability AI",
           "identifier": "STABILITY",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -8891,16 +10521,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -9077,7 +10721,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "9bd549549cdfe281efe694c7b9484c574c3314ab88c2e813cd996854f3fd7846",
+        "publicInputHash": "1bca34d34589fdb7122bcaa7a660b3b202d23fbd7a8bbd9c6ef36b8f6e8f9230",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -9111,8 +10755,8 @@
             "confidence": "MEDIUM",
             "recordStatus": "Needs review",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -9165,15 +10809,24 @@
         "publicationId": "d9fb22fc-0971-5a8d-bc26-b7d30c02ca64"
       },
       "hashes": {
-        "rawInputHash": "b13dcc6834ce9d0bda212f78a432260755277045c5975262c175c97f45df4a33",
-        "privateReportHash": "aeccc42fdd6e4e539a2a4c20dfe5be2b75d5285b72b06973f808f6d18982f092",
-        "publicReportHash": "4c6fc4f4ce13bb445f65e38b72fad5ecbd2bce705242ef70a5b49962d3f404ef"
+        "rawInputHash": "630a2dcf14c7574047d42718d4e823b748cd5144fe7ee95a55299f6cb86a04e0",
+        "privateReportHash": "9fdf03b811a9f162d6c27579f0c742dba3d83c276397a5e222c3fa08fb1f844f",
+        "publicReportHash": "b951efffd50710890591af3a5f7c929b3d61c121601ee0299c7e9596983011fa"
       },
       "input": {
-        "version": "1.1",
         "name": "Suno",
         "identifier": "SUNO",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -9241,6 +10894,40 @@
             "gap": ""
           }
         ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
         "external": {
           "exists": true,
           "exercised": true,
@@ -9248,7 +10935,18 @@
           "scope": "✓ YES — Munich Regional Court I prohibited four conduct categories and ordered disclosure of the scale of use; immediately enforceable pending appeal",
           "source": "https://www.chartlex.com/blog/business/music-industry-ai-lawsuits-tracker-2026",
           "date": "2026-08-20"
-        }
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -9256,9 +10954,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -9274,7 +10972,16 @@
           "name": "Suno",
           "identifier": "SUNO",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -9351,16 +11058,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": true,
@@ -9537,7 +11258,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "bb534ca66f3e0e0400c4149a32b5d71b400cc4344f03b4261258881aea4bee3f",
+        "publicInputHash": "630a2dcf14c7574047d42718d4e823b748cd5144fe7ee95a55299f6cb86a04e0",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -9571,8 +11292,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": true,
@@ -9625,15 +11346,24 @@
         "publicationId": "b2cb5986-ab14-5931-bebb-d72b9c39a440"
       },
       "hashes": {
-        "rawInputHash": "859485f56adc783130188e8a75cd83ffc2475d98d70cb633b23cd54d86d6c3b5",
-        "privateReportHash": "0ad2950232d68486db54503fa6d83661c9bdcae5d24b4ce9870918d92ff6a968",
-        "publicReportHash": "48d2dbbdafa47b8b384796f487691a1c1def80bf408c5e0e36d704a1fe246411"
+        "rawInputHash": "5930c6e5abc8fefbc79015b19cc647c0970b27fac7cb664956af7acfed417b39",
+        "privateReportHash": "0403b94549ac15306f32e5f490e05165e292b06bd897b40cceb42c9cd444ae56",
+        "publicReportHash": "d3443bbe23d361345843a6d413e365827089ab835fe770dc037f5104309619db"
       },
       "input": {
-        "version": "1.1",
         "name": "Udio (Uncharted Labs)",
         "identifier": "UDIO",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -9700,7 +11430,60 @@
             "notes": "✗ NO — no functioning external constraint; contractual obligations are private",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -9708,9 +11491,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -9726,7 +11509,16 @@
           "name": "Udio (Uncharted Labs)",
           "identifier": "UDIO",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -9803,16 +11595,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -9989,7 +11795,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "862bc5c1051843b45749dbf256d80aea08bc6899308f52b24570bbe6d3338d70",
+        "publicInputHash": "5930c6e5abc8fefbc79015b19cc647c0970b27fac7cb664956af7acfed417b39",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -10023,8 +11829,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,
@@ -10077,15 +11883,24 @@
         "publicationId": "ca7289da-0a7f-5608-8d3a-983985b75056"
       },
       "hashes": {
-        "rawInputHash": "5dbaa678ffac207b19e84916d5014a1bf643d73622040ece4d351f1c4047b924",
-        "privateReportHash": "a333afd63d2ef53c998c08eb48c159721f2ccdaa8a5d94dcb8a717d6e33f89e0",
-        "publicReportHash": "14c0015fba04d0c22066587ade91ac82d338a3e08b67f91f521bd7a8fbeb4b25"
+        "rawInputHash": "9a4d514b1a9ccade3ad06a4c00b2b3f3aae82c1e946442f99f19e903bf9096a6",
+        "privateReportHash": "7dfd8eca74db81c15b9d690a6d1b03a827cd4067b917db3a14b9a6febde3e887",
+        "publicReportHash": "deb01df0095c7b39ff0be2c4db86f903dc9ac7778c02ccec527253232cde3f6d"
       },
       "input": {
-        "version": "1.1",
         "name": "Hugging Face",
         "identifier": "HUGGINGFACE",
-        "cutoff": "2026-10-02",
+        "version": "1.1",
+        "inputSchema": "harshalos-ground0-audit-input-v1.1",
+        "cutoff": {
+          "utc": "2026-10-02T23:59:59.999Z",
+          "uts": {
+            "model": "HOSUTS-UDate-v1",
+            "scale": 6,
+            "scaledUDate": "4136836127942820787007612",
+            "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+          }
+        },
         "answers": [
           {
             "value": true,
@@ -10152,7 +11967,60 @@
             "notes": "✗ NO No functioning external constraint on the audited surface at cutoff .",
             "gap": ""
           }
-        ]
+        ],
+        "b4": {
+          "actor": "",
+          "action": "",
+          "procedure": "",
+          "basis": "NOT_DEMONSTRATED",
+          "numerator": "",
+          "denominator": "",
+          "complete": false,
+          "start": "",
+          "end": "",
+          "binding": false,
+          "noPenalty": false,
+          "terminatesAction": false
+        },
+        "c2": {
+          "publishedRoute": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "invocation": {
+            "sourceId": "",
+            "criteria": ""
+          },
+          "outcomeSet": {
+            "sourceIds": [],
+            "complete": false,
+            "periodStart": "",
+            "periodEnd": "",
+            "numerator": "",
+            "denominator": "",
+            "outcomes": []
+          },
+          "sources": []
+        },
+        "external": {
+          "exists": false,
+          "exercised": false,
+          "holder": "",
+          "scope": "",
+          "source": "",
+          "date": ""
+        },
+        "decrement": {
+          "enabled": false,
+          "oldSource": "",
+          "newSource": "",
+          "oldDate": "",
+          "newDate": "",
+          "notes": ""
+        },
+        "headerText": "",
+        "publicKeyText": "",
+        "trustedOrigin": "0•000•000•0000"
       },
       "publicReport": {
         "schema": "ground0-public-v1",
@@ -10160,9 +12028,9 @@
         "platformCertification": "NONE",
         "engine": {
           "version": "1.1",
-          "sourceSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-          "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb",
-          "specificationStatus": "AMENDMENT DRAFT — NOT RATIFIED"
+          "sourceSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+          "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e",
+          "specificationStatus": "NORMATIVE AMENDMENT"
         },
         "scope": {
           "mode": "SINGLE_RECORD",
@@ -10178,7 +12046,16 @@
           "name": "Hugging Face",
           "identifier": "HUGGINGFACE",
           "version": "1.1",
-          "cutoff": "2026-10-02",
+          "inputSchema": "harshalos-ground0-audit-input-v1.1",
+          "cutoff": {
+            "utc": "2026-10-02T23:59:59.999Z",
+            "uts": {
+              "model": "HOSUTS-UDate-v1",
+              "scale": 6,
+              "scaledUDate": "4136836127942820787007612",
+              "display": "UDate 4,136,836,127,942,820,787.007612 UY since Big Bang"
+            }
+          },
           "answers": [
             {
               "value": true,
@@ -10255,16 +12132,30 @@
             "denominator": "",
             "complete": false,
             "start": "",
-            "end": ""
+            "end": "",
+            "binding": false,
+            "noPenalty": false,
+            "terminatesAction": false
           },
           "c2": {
-            "route": false,
-            "invoked": false,
-            "complete": false,
-            "numerator": "",
-            "denominator": "",
-            "start": "",
-            "end": ""
+            "publishedRoute": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "invocation": {
+              "sourceId": "",
+              "criteria": ""
+            },
+            "outcomeSet": {
+              "sourceIds": [],
+              "complete": false,
+              "periodStart": "",
+              "periodEnd": "",
+              "numerator": "",
+              "denominator": "",
+              "outcomes": []
+            },
+            "sources": []
           },
           "external": {
             "exists": false,
@@ -10441,7 +12332,7 @@
           "automationReviewRequired": null
         },
         "author": "Ground-0 audit register",
-        "publicInputHash": "9f7ee8fe32bee5d4684cfaa7fd3d5e6667e84706d732f0cd9a82af9bfedc1c35",
+        "publicInputHash": "9a4d514b1a9ccade3ad06a4c00b2b3f3aae82c1e946442f99f19e903bf9096a6",
         "register": {
           "instrument": "PDH-R (register-issued Phase Declaration Header)",
           "format": "ground0-case-study-d1-v1",
@@ -10475,8 +12366,8 @@
             "confidence": "HIGH",
             "recordStatus": "Complete",
             "replicationRisk": "MEDIUM",
-            "engineSha256": "5096ff3f6631d13a911f49bcc3118fe7fd727001dbc42a1bdbb216cde0dd4d5b",
-            "evaluatorSha256": "a7096feeaaff2c0c2b2e4a2a2518363ae2dc2175faa97435fc01d15a48734edb"
+            "engineSha256": "5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f",
+            "evaluatorSha256": "35fbc4028c1697ada923d3a6f7aa09dbc67268cbbfd6ed2ac332dcbecd3ee46e"
           },
           "constraintRecord": {
             "C1": false,

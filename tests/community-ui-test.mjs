@@ -78,7 +78,12 @@ test('Account UI: template fills editor without saving; historical runs are labe
   const oldRun = { id: saved.id, revision: 1, createdAt: 1000, reportHash: 'b'.repeat(64), report: { engine: { specificationStatus: 'AMENDMENT DRAFT — NOT RATIFIED' }, result: { phase: 'AMBIGUOUS', recordStatus: 'Draft', finding: 'Unreviewed' } } };
   const f = await fixture(t, (url) => {
     if (url.endsWith('/me')) return Response.json({ user: { id: 'alice' } });
-    if (url.includes('audit-template')) return Response.json({ input: { version: '1.0', name: '', cutoff: '2026-10-02' } });
+    if (url.includes('audit-template')) {
+      const version = new URL(url, 'https://os.example').searchParams.get('version');
+      return Response.json({ input: version === '1.1'
+        ? { version: '1.1', inputSchema: 'harshalos-ground0-audit-input-v1.1', name: '', cutoff: { utc: '2026-10-02T23:59:59.999Z', uts: { model: 'HOSUTS-UDate-v1', scale: 6, scaledUDate: '0', display: 'UDate test' } } }
+        : { version: '1.0', name: '', cutoff: '2026-10-02' } });
+    }
     if (url.endsWith('/runs')) return Response.json({ runs: [{ ...oldRun, phase: 'AMBIGUOUS' }], nextCursor: null });
     if (url.includes('/runs/')) return Response.json({ run: oldRun });
     if (url.endsWith('/drafts')) return Response.json({ drafts: [saved], nextCursor: null });
@@ -90,6 +95,13 @@ test('Account UI: template fills editor without saving; historical runs are labe
   assert.match(f.$('run-source').textContent, /older than the current draft/);
   f.$('template').click(); await f.flush();
   assert.equal(JSON.parse(f.$('input').value).version, '1.0'); assert.equal(f.$('execution').hidden, true);
+  assert.equal(f.calls.filter(x => x.options.method === 'POST' || x.options.method === 'PUT').length, 0);
+  assert.equal(f.$('run').disabled, true);
+  f.$('template-v11').click(); await f.flush();
+  const v11 = JSON.parse(f.$('input').value);
+  assert.equal(v11.version, '1.1'); assert.equal(v11.inputSchema, 'harshalos-ground0-audit-input-v1.1');
+  assert.equal(v11.cutoff.utc, '2026-10-02T23:59:59.999Z'); assert.equal(v11.cutoff.uts.model, 'HOSUTS-UDate-v1');
+  assert.match(f.$('notice').textContent, /Ground-0 v1\.1 template loaded locally/);
   assert.equal(f.calls.filter(x => x.options.method === 'POST' || x.options.method === 'PUT').length, 0);
   assert.equal(f.$('run').disabled, true);
 });

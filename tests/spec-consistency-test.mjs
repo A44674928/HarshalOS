@@ -23,7 +23,7 @@ const canonical = JSON.parse(canonicalJsonRaw);
 const canonicalModelMd = await readFile(path.join(ROOT, "specs/normative/canonical-model.md"), "utf8");
 const contradictionsMd = await readFile(path.join(ROOT, "specs/normative/contradictions.md"), "utf8");
 const g0v10Md = await readFile(path.join(ROOT, "specs/normative/ground-0-v1.0.md"), "utf8");
-const g0v11Md = await readFile(path.join(ROOT, "specs/draft/ground-0-v1.1.md"), "utf8");
+const g0v11Md = await readFile(path.join(ROOT, "specs/normative/ground-0-v1.1.md"), "utf8");
 const readmeMd = await readFile(path.join(ROOT, "README.md"), "utf8");
 const part02Md = await readFile(path.join(ROOT, "docs/harshal-systems/02-formalization.md"), "utf8");
 const part05Md = await readFile(path.join(ROOT, "docs/harshal-systems/05-ocm-orb.md"), "utf8");
@@ -239,9 +239,10 @@ test("P1: Ground-0 DeclaredPhase and DetectedPhase enums match across canonical.
     assert.ok(part12Md.includes(rule), `12-ground-zero.md includes rule: ${rule}`);
   }
 
-  // v1.0 normative vs v1.1 draft status
+  // v1.0 normative baseline vs v1.1 ratified normative amendment
   assert.ok(g0v10Md.includes("Ground-0 Phase Detection Algorithm"));
-  assert.ok(g0v11Md.includes("Proposed amendment"));
+  assert.ok(g0v11Md.includes("Ratified normative amendment, adopted 2026-10-14"));
+  assert.ok(g0v11Md.includes("NORMATIVE AMENDMENT / RATIFIED"));
 });
 
 test("P2: all 29 corpus component files carry valid stable interface headers and form an acyclic dependency graph", async () => {

@@ -29,7 +29,21 @@ export function normalizeRunInput(raw) {
   if (!object(raw)) fail('Audit input must be an object.');
   if (!['1.0', '1.1'].includes(raw.version)) fail('Input.version must explicitly be "1.0" or "1.1".');
   if (typeof raw.name !== 'string' || !raw.name.trim() || raw.name.length > 200) fail('Input.name must contain 1–200 characters.');
-  if (!engine.isCalendarDate(raw.cutoff)) fail('Input.cutoff must be a real YYYY-MM-DD date; it is never filled in silently.');
+  const contractError = engine.validateInputContract(raw);
+  if (contractError) fail(contractError);
+  if (raw.version === '1.1' && raw.constraints[1].value === true) {
+    const c2 = engine.validateC2Evidence(raw);
+    if (!c2.valid) fail(`Ground-0 v1.1 C2 conformance failed: ${c2.errors.join('; ')}.`);
+  }
+  if (raw.version === '1.0') {
+    if (!engine.isCalendarDate(raw.cutoff)) fail('Ground-0 v1.0 Input.cutoff must remain a real YYYY-MM-DD date.');
+    if (raw.inputSchema === 'harshalos-ground0-audit-input-v1.1') fail('A v1.1 input schema cannot be evaluated under v1.0.');
+  } else {
+    if (raw.inputSchema !== engine.G0_INPUT_SCHEMA_V11) fail(`Ground-0 v1.1 requires inputSchema ${engine.G0_INPUT_SCHEMA_V11}.`);
+    if (!engine.isUtsCutoff(raw.cutoff)) fail('Ground-0 v1.1 Input.cutoff must contain an explicit UTC timestamp and its matching HOSUTS UDate projection.');
+    if (!object(raw.b4) || !['binding', 'noPenalty', 'terminatesAction'].every(key => typeof raw.b4[key] === 'boolean')) fail('Ground-0 v1.1 B4 must include explicit boolean binding, noPenalty, and terminatesAction fields.');
+    if (!object(raw.c2) || !object(raw.c2.publishedRoute) || !object(raw.c2.invocation) || !object(raw.c2.outcomeSet) || !Array.isArray(raw.c2.sources)) fail('Ground-0 v1.1 C2 must use the structured provenance schema.');
+  }
   for (const [field, count] of [['answers', 5], ['constraints', 4]]) {
     if (!Array.isArray(raw[field]) || raw[field].length !== count) fail(`Input.${field} must contain exactly ${count} answers.`);
     for (const answer of raw[field]) {
@@ -69,7 +83,7 @@ export async function evaluateSavedInput(raw) {
   const report = {
     schema: 'ground0-private-run-v1', reviewStatus: 'UNREVIEWED', platformCertification: 'NONE',
     engine: { version: input.version, sourceSha256: ENGINE_SHA256, evaluatorSha256: EVALUATOR_SHA256,
-      specificationStatus: input.version === '1.0' ? 'NORMATIVE BASELINE' : 'AMENDMENT DRAFT — NOT RATIFIED' },
+      specificationStatus: input.version === '1.0' ? 'NORMATIVE BASELINE' : 'NORMATIVE AMENDMENT' },
     scope: { mode: 'SINGLE_RECORD', externalSourcesFetched: false, independentEvidenceVerification: false,
       independentIdentityVerification: false, globalDeclarationRegistryChecked: false, crossRunDeclarationConflictsChecked: false, temporalHistoryEvaluated: false,
       notes: 'Rules applied to author-submitted claims only. Source eligibility is not source verification. Signature checks use the supplied key/origin, not a certified identity. NO is sometimes a scoring code, not proof of absence. Engine badge/completeness labels are not platform certification.' },

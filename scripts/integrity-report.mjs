@@ -33,7 +33,7 @@ const SUITES = [
   {
     area: "Ground-0 engine",
     script: "test:engine",
-    files: ["g0-engine-test.mjs", "g0-absence-test.mjs", "g0-direction-test.mjs", "g0-question-source-test.mjs"]
+    files: ["g0-engine-test.mjs", "g0-absence-test.mjs", "g0-direction-test.mjs", "g0-v1.1-conformance-test.mjs", "g0-question-source-test.mjs", "g0-automatic-audit-template-test.mjs", "g0-automatic-audit-template-v1.1-test.mjs"]
   },
   {
     area: "Ground-0 research & evidence",

@@ -32,28 +32,28 @@
    ──────────────────────────────────────────────────────────────── */
 const G0_SPEC = (() => {
   const amendmentItems = [
-    { title: "A clearer refusal test", text: "B4 separates affected-party refusal and appeal from external orders. A terminal/stay rule, a complete ≥50% relief set, or binding penalty-free exit is required." },
+    { title: "A clearer refusal test", text: "B4 separates affected-party refusal and appeal from external orders. A terminal/stay rule, a complete ≥50% relief set, or a binding, penalty-free exit that explicitly terminates the specified action is required." },
     { title: "Deterministic constraint handling", text: "All C1–C4 must pass for NAB-Constrained. Otherwise the phase remains AMBIGUOUS; Step 3.5 cannot escalate to GSRB." },
     { title: "Distinct unresolved outcomes", text: "AMBIGUOUS is a partial branch fit. INCOHERENT is below the three-condition minimum. Their reporting and severity are separate." },
     { title: "Latent is not exercised", text: "Record whether external authority exists and whether it was used. An unexercised constraint grants no phase credit." },
-    { title: "Cutoff and constraint decrement", text: "Every scored artifact must meet an inclusive evidence cutoff. Binding-to-nonbinding changes are logged as non-scoring temporal drift." }
+    { title: "UTS cutoff, C2 provenance and constraint decrement", text: "Every scored artifact and outcome must meet the inclusive, timezone-explicit UTC cutoff projected into the site's UTS. A C2 YES requires a published route, invocation criteria, a complete bounded outcome set, and sources supporting the route, criteria and outcomes. Binding-to-nonbinding changes are logged as non-scoring temporal drift." }
   ];
   function getSections(version) {
-    const draft = version === "1.1";
+    const v11 = version === "1.1";
     return [
-      { id: "inputs", numeral: "I", title: "Inputs & preconditions", summary: "Define the entity, the declaration, and the evidence boundary.", paragraphs: ["The algorithm compares observable operational behavior against a declared Phase Declaration Header (PDH). Detection proceeds even when the declaration is missing or invalid."], bullets: ["Entity name and identifier", "Phase Declaration Header, if one exists", "Observable behaviors from the Ground-0 five-question checklist", "Audit timestamp and context", "Public evidence set: policy documents, audit records, and enforcement patterns", ...(draft ? ["Inclusive Evidence_Cutoff: later artifacts cannot score; lookback windows run backward from this cutoff"] : [])] },
+      { id: "inputs", numeral: "I", title: "Inputs & preconditions", summary: "Define the entity, the declaration, and the evidence boundary.", paragraphs: ["The algorithm compares observable operational behavior against a declared Phase Declaration Header (PDH). Detection proceeds even when the declaration is missing or invalid."], bullets: ["Entity name and identifier", "Phase Declaration Header, if one exists", "Observable behaviors from the Ground-0 five-question checklist", "Audit timestamp and context", "Public evidence set: policy documents, audit records, and enforcement patterns", ...(v11 ? ["Selected v1.1 input schema and inclusive Evidence_Cutoff as an explicit timestamp with UTC offset, checked against the site's UTS; later artifacts cannot score and lookback windows run backward from this instant"] : [])] },
       { id: "flow", numeral: "II", title: "Algorithm flow", summary: "A traceable sequence from declaration to duty collation.", code: "01  Validate the Phase Declaration Header\n02  Run the five-question behavioral audit\n03  Detect the actual phase\n    ↳ AMBIGUOUS: run Step 3.5 constraint checks\n04  Compare declared and detected phases\n05  Audit temporal transitions, if applicable\n→   Output classification + duty collation entry" },
       { id: "pdh", numeral: "III", title: "PDH validation", summary: "Complete. Signed. Fresh. Consistent. All four are required.", paragraphs: ["All eleven fields must be present and properly formatted. A non-empty Declaration-Hash does not suffice: the cryptographic signature must verify against the Center-Origin. The default freshness window is 90 days. An invalid declaration is excluded from phase comparison, not from behavioral detection."], table: { headers: ["Required field", "Format or allowed values"], rows: [["Header-ID", "PDH-YYYY-MM-DD-XXXXX"], ["Creator-ID", "§ID§ + ID + (ID); all three identifiers must match the entity origin"], ["Center-Origin", "0•000•000•0000 or valid OCM derivative"], ["Declared-Phase", "NAB · CWO · GSRB"], ["Center-Capability", "Non-Acting · Custodial · Acting"], ["Legitimacy-Source", "External · Observed-Only · Internal"], ["Refusal-Semantics", "Terminal · Expository · Override-able"], ["Symbolism-Executability", "Disabled · Archived · Enabled"], ["Time-Authority-Effect", "Degrades · Neutral · Confirms"], ["Effective-Timestamp", "ISO-8601"], ["Declaration-Hash", "Non-empty, cryptographically verifiable signature"]] }, bullets: ["Incomplete → NO_VALID_PDH", "Unverifiable signature → UNSIGNED_PDH", "Older than 90 days → STALE_PDH; mandate revalidation", "Fields contradict the declared phase → INCOHERENT_PDH", "Only COMPLETE + SIGNED + FRESH + CONSISTENT yields PDH_VALID"] },
-      { id: "behavior", numeral: "IV", title: "The behavioral audit", summary: "Five binary questions. Publicly observable evidence only.", table: { headers: ["Question", "YES activates"], rows: [["B1 · Can compliance be coerced?", "enforcement_present"], ["B2 · Can decisions be ignored without consequence?", "decisions_optional"], ["B3 · Do rules activate real-world effects?", "rules_execute"], ["B4 · Does refusal or appeal reliably STOP action?", "refusal_terminal (NO: refusal_override)"], ["B5 · Do rules persist by default?", "authority_persists (NO: authority_time_bound)"]] }, paragraphs: draft ? ["Every YES must cite a qualifying public artifact. For NO, cite contrary evidence or record a bounded search and evidence gap. No evidence is coded NO for scoring, not proof of the negative. Record URL/ID, publication or effective date, retrieval date, supported claim, and cutoff status.", "B4 requires a defined actor, audited action, and procedure. YES requires either a binding terminal/automatic stay rule; a complete published set of resolved appeals showing at least 50% relief, with numerator, denominator, and dates; or binding penalty-free exit that terminates the action. An external order and compliance with it do not by themselves establish B4=YES."] : ["Answer YES or NO using public observable evidence. Qualifying evidence includes documented enforcement, non-binding directives, downstream operational effects, functional appeals, and default policy persistence. The v1.0 B4 examples include formal appeals, court overturns, legislative overrides, penalty-free exit, and successful appeal history."] },
-      { id: "detection", numeral: "V", title: "Phase detection logic", summary: "Evaluate ordered branch predicates; preserve the activator vector.", table: { headers: ["Branch", "B1", "B2", "B3", "B4", "B5"], rows: [["NAB", "NO", "YES", "NO", "YES", "NO"], ["CWO", "NO", "YES", "NO", "Either", "NO"], ["GSRB", "YES", "NO", "YES", "NO", "YES"]] }, paragraphs: ["Evaluate NAB first, then CWO, then GSRB. A complete branch match returns that phase with HIGH confidence. CWO has four required predicates; B4 is not part of its branch."], bullets: draft ? ["A partial branch with at least three matched required conditions → AMBIGUOUS", "One condition short of any branch → MEDIUM; otherwise partial fit → LOW", "No complete branch and no branch reaches three matches → INCOHERENT, LOW confidence", "Insufficient public evidence → NONE; unsupported activators are coded NO with gaps disclosed"] : ["Three or four aligned conditions, but not all → AMBIGUOUS; constraint analysis required", "Otherwise → INCOHERENT; no badge issued and clarification required", "HIGH: clear alignment; MEDIUM: one contradictory signal; LOW: multiple contradictions; NONE: insufficient public evidence"] },
-      { id: "constraints", numeral: "VI", title: "Legislative constraint check", summary: "An AMBIGUOUS result earns NAB-Constrained only with all four checks.", table: { headers: ["Criterion", "Required demonstration"], rows: [["C1 · External override", "An actual external override or repeal within 24 months"], ["C2 · Active appeal mechanism", draft ? "Published route + invoked resolved cases + complete bounded outcome set + ≥50% relief" : "Functional appeals with documented success; source lists ≥50% relief and recent successful appeals"], ["C3 · Authority sunset", "Automatic expiry or required periodic renewal"], ["C4 · Temporal freshness", "Constraints currently functioning; qualifying recent activity within 12 months"]] }, paragraphs: [draft ? "All C1–C4 YES → NAB-Constrained, HIGH confidence. Any NO → retain AMBIGUOUS at its Step 3 confidence, WARNING severity, and no badge. GSRB can only be assigned by its complete five-condition Step 3 branch." : "All C1–C4 YES → NAB-Constrained, HIGH confidence. Fewer than four: v1.0 permits remaining AMBIGUOUS or escalation to GSRB, but does not supply a binary escalation predicate. This workspace conservatively retains AMBIGUOUS; the source is not rewritten.", ...(draft ? ["Record latent external constraints separately: existence, exercise, scope, holder, source, date, and affected decision. A documented but unexercised authority is LATENT; this descriptive record is not a fifth criterion and grants no phase credit."] : [])] },
-      { id: "comparison", numeral: "VII", title: "Comparison & reclassification", summary: "A claim is tested against behavior, never substituted for it.", table: { headers: ["Condition", "Compliance / badge", "Severity"], rows: [["Valid PDH + matching phase", "COMPLIANT · Confirmed", "INFORMATIONAL"], ["Valid PDH + different determinate phase", "MISMATCH · Reclassified", "BREACH"], ["Missing / invalid PDH + determinate phase", "N/A · Unissued", "WARNING or BREACH"], ["AMBIGUOUS", draft ? "N/A (unresolved) · Unissued" : "INCOHERENT · Unissued", draft ? "WARNING" : "BREACH"], ["INCOHERENT", "INCOHERENT · Invalid", "BREACH / COLLAPSE RISK"]] }, paragraphs: draft ? ["AMBIGUOUS and INCOHERENT dedicated branches take precedence. Neither is treated as a determinate PDH phase label; do not run the match or mismatch comparison for them."] : ["If observed behavior contradicts a valid declaration, reclassify to the detected phase, log the transition, and strip declared-phase deniability. Missing or invalid declarations do not create a valid declared phase to contradict."] },
-      { id: "temporal", numeral: "VIII", title: "Temporal audit", summary: "Inspect transitions only when multiple declarations exist for the entity.", table: { headers: ["Transition", "Source rule"], rows: [["NAB ↔ CWO", "Reversible with a clear destination declaration"], ["NAB or CWO → GSRB", "One-way; declaration must state internal legitimacy, override-able refusal, time-confirmed authority, and loss of misuse resistance"], ["GSRB → NAB or CWO", "Forbidden without complete structural collapse and rebuild"]] }, bullets: ["Oscillation: rapid back-and-forth changes; source does not specify a numeric “rapid” window", "Drift: gradual escalation such as NAB → CWO → GSRB", "Rebranding: declared phase changes while observed behavior remains stable", ...(draft ? ["Constraint decrement: primary texts show a binding obligation changed to an explicitly nonbinding or discretionary goal; cite both versions and effective dates", "Constraint decrement is a temporal flag, not an independent change to the Step 3 phase"] : [])], paragraphs: ["The ledger records endpoint timestamps, declared and detected phases, transition status, pattern type, severity, and duty collation entry ID. Unspecified transition combinations are not assumed to be permitted."] },
-      { id: "output", numeral: "IX", title: "Audit output format", summary: "A reproducible record, not just a phase label.", code: ["Entity_Name · Entity_Identifier · Audit_Timestamp", ...(draft ? ["Evidence_Cutoff (inclusive date/time)"] : []), "PDH_Status · Declared_Phase · Detected_Phase", "Compliance_Status · Confidence_Level · Severity_Level", "Badge_Status · Finding (2–3 sentences)", "Evidence_Summary (public citations)", ...(draft ? ["Activator_Vector · B4_Event_Record", "External_Constraint_Record · Constraint_Decrement"] : []), "Duty_Collation_Entry_ID · Replication_Risk", "Temporal_Pattern · Transition_History"].join("\n") },
+      { id: "behavior", numeral: "IV", title: "The behavioral audit", summary: "Five binary questions. Publicly observable evidence only.", table: { headers: ["Question", "YES activates"], rows: [["B1 · Can compliance be coerced?", "enforcement_present"], ["B2 · Can decisions be ignored without consequence?", "decisions_optional"], ["B3 · Do rules activate real-world effects?", "rules_execute"], ["B4 · Does refusal or appeal reliably STOP action?", "refusal_terminal (NO: refusal_override)"], ["B5 · Do rules persist by default?", "authority_persists (NO: authority_time_bound)"]] }, paragraphs: v11 ? ["Every YES must cite a qualifying public artifact. For NO, cite contrary evidence or record a bounded search and evidence gap. No evidence is coded NO for scoring, not proof of the negative. Record URL/ID, publication or effective date, retrieval date, supported claim, and cutoff status.", "B4 requires a defined actor, audited action, and procedure. YES requires either a binding terminal/automatic stay rule; a complete published set of resolved appeals showing at least 50% relief, with numerator, denominator, and dates; or a binding, penalty-free exit that explicitly terminates the specified action. A vague walk-away or exit that leaves the action in force does not qualify. An external order and compliance with it do not by themselves establish B4=YES."] : ["Answer YES or NO using public observable evidence. Qualifying evidence includes documented enforcement, non-binding directives, downstream operational effects, functional appeals, and default policy persistence. The v1.0 B4 examples include formal appeals, court overturns, legislative overrides, penalty-free exit, and successful appeal history."] },
+      { id: "detection", numeral: "V", title: "Phase detection logic", summary: "Evaluate ordered branch predicates; preserve the activator vector.", table: { headers: ["Branch", "B1", "B2", "B3", "B4", "B5"], rows: [["NAB", "NO", "YES", "NO", "YES", "NO"], ["CWO", "NO", "YES", "NO", "Either", "NO"], ["GSRB", "YES", "NO", "YES", "NO", "YES"]] }, paragraphs: ["Evaluate NAB first, then CWO, then GSRB. A complete branch match returns that phase with HIGH confidence. CWO has four required predicates; B4 is not part of its branch."], bullets: v11 ? ["A partial branch with at least three matched required conditions → AMBIGUOUS", "One condition short of any branch → MEDIUM; otherwise partial fit → LOW", "No complete branch and no branch reaches three matches → INCOHERENT, LOW confidence", "Insufficient public evidence → NONE; unsupported activators are coded NO with gaps disclosed"] : ["Three or four aligned conditions, but not all → AMBIGUOUS; constraint analysis required", "Otherwise → INCOHERENT; no badge issued and clarification required", "HIGH: clear alignment; MEDIUM: one contradictory signal; LOW: multiple contradictions; NONE: insufficient public evidence"] },
+      { id: "constraints", numeral: "VI", title: "Legislative constraint check", summary: "An AMBIGUOUS result earns NAB-Constrained only with all four checks.", table: { headers: ["Criterion", "Required demonstration"], rows: [["C1 · External override", "An actual external override or repeal within 24 months"], ["C2 · Active appeal mechanism", v11 ? "Published route + invocation criteria + complete bounded outcome set + dated resolved outcomes + supporting source set + ≥50% relief" : "Functional appeals with documented success; source lists ≥50% relief and recent successful appeals"], ["C3 · Authority sunset", "Automatic expiry or required periodic renewal"], ["C4 · Temporal freshness", "Constraints currently functioning; qualifying recent activity within 12 months"]] }, paragraphs: [v11 ? "All C1–C4 YES → NAB-Constrained, HIGH confidence. Any NO → retain AMBIGUOUS at its Step 3 confidence, WARNING severity, and no badge. GSRB can only be assigned by its complete five-condition Step 3 branch." : "All C1–C4 YES → NAB-Constrained, HIGH confidence. Fewer than four: v1.0 permits remaining AMBIGUOUS or escalation to GSRB, but does not supply a binary escalation predicate. This workspace conservatively retains AMBIGUOUS; the source is not rewritten.", ...(v11 ? ["Record latent external constraints separately: existence, exercise, scope, holder, source, date, and affected decision. A documented but unexercised authority is LATENT; this descriptive record is not a fifth criterion and grants no phase credit."] : [])] },
+      { id: "comparison", numeral: "VII", title: "Comparison & reclassification", summary: "A claim is tested against behavior, never substituted for it.", table: { headers: ["Condition", "Compliance / badge", "Severity"], rows: [["Valid PDH + matching phase", "COMPLIANT · Confirmed", "INFORMATIONAL"], ["Valid PDH + different determinate phase", "MISMATCH · Reclassified", "BREACH"], ["Missing / invalid PDH + determinate phase", "N/A · Unissued", "WARNING or BREACH"], ["AMBIGUOUS", v11 ? "N/A (unresolved) · Unissued" : "INCOHERENT · Unissued", v11 ? "WARNING" : "BREACH"], ["INCOHERENT", "INCOHERENT · Invalid", "BREACH / COLLAPSE RISK"]] }, paragraphs: v11 ? ["AMBIGUOUS and INCOHERENT dedicated branches take precedence. Neither is treated as a determinate PDH phase label; do not run the match or mismatch comparison for them."] : ["If observed behavior contradicts a valid declaration, reclassify to the detected phase, log the transition, and strip declared-phase deniability. Missing or invalid declarations do not create a valid declared phase to contradict."] },
+      { id: "temporal", numeral: "VIII", title: "Temporal audit", summary: "Inspect transitions only when multiple declarations exist for the entity.", table: { headers: ["Transition", "Source rule"], rows: [["NAB ↔ CWO", "Reversible with a clear destination declaration"], ["NAB or CWO → GSRB", "One-way; declaration must state internal legitimacy, override-able refusal, time-confirmed authority, and loss of misuse resistance"], ["GSRB → NAB or CWO", "Forbidden without complete structural collapse and rebuild"]] }, bullets: ["Oscillation: rapid back-and-forth changes; source does not specify a numeric “rapid” window", "Drift: gradual escalation such as NAB → CWO → GSRB", "Rebranding: declared phase changes while observed behavior remains stable", ...(v11 ? ["Constraint decrement: primary texts show a binding obligation changed to an explicitly nonbinding or discretionary goal; cite both versions and effective dates", "Constraint decrement is a temporal flag, not an independent change to the Step 3 phase"] : [])], paragraphs: ["The ledger records endpoint timestamps, declared and detected phases, transition status, pattern type, severity, and duty collation entry ID. Unspecified transition combinations are not assumed to be permitted."] },
+      { id: "output", numeral: "IX", title: "Audit output format", summary: "A reproducible record, not just a phase label.", code: ["Entity_Name · Entity_Identifier · Audit_Timestamp", ...(v11 ? ["Evidence_Cutoff (inclusive ISO-8601 timestamp with UTC offset + checked UTS projection)"] : []), "PDH_Status · Declared_Phase · Detected_Phase", "Compliance_Status · Confidence_Level · Severity_Level", "Badge_Status · Finding (2–3 sentences)", "Evidence_Summary (public citations)", ...(v11 ? ["Activator_Vector · B4_Event_Record", "External_Constraint_Record · Constraint_Decrement"] : []), "Duty_Collation_Entry_ID · Replication_Risk", "Temporal_Pattern · Transition_History"].join("\n") },
       { id: "phases", numeral: "X", title: "Phase definitions", summary: "Four categories for operational authority.", bullets: ["NAB — Neural Atomic Body: refusal-bound; external legitimacy; non-acting center; time degrades authority", "CWO — Custodial Witness Orb: observation-only; inert symbolism; observed legitimacy; time accumulates meaning, not authority", "NAB-Constrained — refusal-bound with demonstrable external override, functional appeal, and renewable authority", "GSRB — God-Sovereign Religious Body: sovereign-acting; internal legitimacy; override-able refusal; executable symbolism; time confirms authority"] },
-      { id: "checklist", numeral: "XI", title: "Implementation checklist", summary: "Verify the record before publishing a classification.", bullets: ["PDH validation recorded", "All five behavioral questions answered", "Phase branch and confidence recorded", "C1–C4 evaluated if the result is AMBIGUOUS", "Declared versus detected alignment established", "Applicable temporal transitions checked", "All output fields populated; unique duty collation entry logged", "Public evidence citations and replication risk assessed", ...(draft ? ["Evidence cutoff applied to every scored artifact", "B4 actor and event separated", "Latent constraints recorded without phase credit", "Constraint decrements documented across primary-source versions"] : [])] },
-      { id: "replication", numeral: "XII", title: "Baseline test results", summary: "The source manuscript’s six reported replication cases.", table: { headers: ["Test case", "Reported declaration", "Detected", "Confidence"], rows: [["WHO", "None", "GSRB", "HIGH"], ["Quantum Library", "CWO", "CWO", "HIGH"], ["Federal Reserve", "Implicit NAB", "GSRB", "HIGH"], ["Social Platform", "NAB / CWO", "GSRB", "HIGH"], ["Government (Normal)", "Implicit CWO", "AMBIGUOUS", "MEDIUM"], ["Government (Emergency)", "Implicit", "GSRB", "HIGH"]] }, paragraphs: ["These are source-reported baseline results. Their underlying public artifacts and question vectors have not been supplied to this workspace and are not independently verified here.", ...(draft ? ["v1.1 does not retroactively rewrite these cases. A v1.1 re-audit must use a declared cutoff and the amended evidence coding rules consistently for every entity."] : [])] },
-      { id: "status", numeral: "XIII", title: draft ? "Amendment status" : "Finalization statement", summary: draft ? "Proposed for author review. Not ratified." : "Normative source baseline, finalized September 12, 2026.", paragraphs: [draft ? "The amendment is a standalone working draft pending author adoption. It is not represented as superseding v1.0 or as author-ratified. The v1.0 text remains the versioned normative baseline." : "The source author designates Ground-0 v1.0 as finalized, normative, and ready for integration into Harshal’s Systems (AGS++). This workspace implements and cites the supplied framework; source assertions are not independent scientific validation.", "Author: Harshal Priyavadan Patel. Center Origin: 0•000•000•0000. Framework: Harshal’s Systems (AGS++) | Orb Communicator Model (OCM)."] }
+      { id: "checklist", numeral: "XI", title: "Implementation checklist", summary: "Verify the record before publishing a classification.", bullets: ["PDH validation recorded", "All five behavioral questions answered", "Phase branch and confidence recorded", "C1–C4 evaluated if the result is AMBIGUOUS", "Declared versus detected alignment established", "Applicable temporal transitions checked", "All output fields populated; unique duty collation entry logged", "Public evidence citations and replication risk assessed", ...(v11 ? ["Evidence cutoff applied to every scored artifact", "B4 actor and event separated", "Latent constraints recorded without phase credit", "Constraint decrements documented across primary-source versions"] : [])] },
+      { id: "replication", numeral: "XII", title: "Baseline test results", summary: "The source manuscript’s six reported replication cases.", table: { headers: ["Test case", "Reported declaration", "Detected", "Confidence"], rows: [["WHO", "None", "GSRB", "HIGH"], ["Quantum Library", "CWO", "CWO", "HIGH"], ["Federal Reserve", "Implicit NAB", "GSRB", "HIGH"], ["Social Platform", "NAB / CWO", "GSRB", "HIGH"], ["Government (Normal)", "Implicit CWO", "AMBIGUOUS", "MEDIUM"], ["Government (Emergency)", "Implicit", "GSRB", "HIGH"]] }, paragraphs: ["These are source-reported baseline results. Their underlying public artifacts and question vectors have not been supplied to this workspace and are not independently verified here.", ...(v11 ? ["v1.1 does not retroactively rewrite these cases. A v1.1 re-audit must use a declared cutoff and the amended evidence coding rules consistently for every entity."] : [])] },
+      { id: "status", numeral: "XIII", title: "Finalization statement", summary: v11 ? "Ratified normative amendment, adopted October 14, 2026." : "Normative source baseline, finalized September 12, 2026.", paragraphs: [v11 ? "The author adopted Ground-0 v1.1 as a normative amendment on October 14, 2026. It governs audits that explicitly select v1.1. The v1.0 text remains the finalized normative baseline for audits that explicitly select v1.0, and v1.1 adoption does not retroactively rewrite v1.0 results." : "The source author designates Ground-0 v1.0 as finalized, normative, and ready for integration into Harshal’s Systems (AGS++). This workspace implements and cites the supplied framework; source assertions are not independent scientific validation.", "Author: Harshal Priyavadan Patel. Center Origin: 0•000•000•0000. Framework: Harshal’s Systems (AGS++) | Orb Communicator Model (OCM)."] }
     ];
   }
   return { amendmentItems, getSections };
@@ -88,7 +88,7 @@ APPS.push({
       version: "1.0",
       prefs: loadPrefs(),
       wiz: null,            // { input, step, errors, pdh, checking, preview, mode, editingId }
-      auto: { stage: "input", query: "", cutoff: G0.today(), candidates: [], selected: 0, progress: null, outcome: null, error: "", controller: null },
+      auto: { stage: "input", query: "", cutoff: G0.today(), cutoffDraft: "", runCutoff: null, candidates: [], selected: 0, progress: null, outcome: null, error: "", controller: null },
       detail: null,         // audit record (object reference)
       detailTab: "summary",
       phaseDetail: null,
@@ -239,7 +239,7 @@ APPS.push({
           <div class="g0-rail-group">Support</div>
           <button class="g0-rail-btn" data-tab="access"><span aria-hidden="true">♿</span>Accessibility</button>
           <div class="g0-rail-foot mono">
-            <div>v1.0 normative</div>
+            <div>v1.0 + v1.1 normative</div>
             <div>evidence before authority</div>
           </div>
         </nav>
@@ -270,6 +270,30 @@ APPS.push({
       const last = parts.pop();
       const target = parts.reduce((obj, key) => obj == null ? obj : obj[key], S);
       if (target) target[last] = value;
+    }
+    function setBoundValue(path, value) {
+      if (path === "wiz.cutoffDraft" && S.wiz) {
+        S.wiz.cutoffDraft = value;
+        if (S.wiz.input.version === "1.0") S.wiz.input.cutoff = value;
+        else {
+          const date = value ? new Date(value) : null;
+          S.wiz.input.cutoff = date && Number.isFinite(date.getTime()) ? G0.makeUtsCutoff(date) : null;
+        }
+        return;
+      }
+      if (path === "wiz.c2Json" && S.wiz) {
+        S.wiz.c2Json = value;
+        try {
+          const parsed = JSON.parse(value);
+          if (!G0.isObject(parsed)) throw new Error("C2 provenance must be a JSON object.");
+          S.wiz.input.c2 = parsed;
+          S.wiz.c2JsonError = "";
+        } catch (error) {
+          S.wiz.c2JsonError = error instanceof Error ? error.message : "Invalid JSON.";
+        }
+        return;
+      }
+      setPath(path, value);
     }
     root.addEventListener("click", e => {
       const tabBtn = e.target.closest("[data-tab]");
@@ -337,12 +361,33 @@ APPS.push({
         phaseDetail() { S.phaseDetail = S.phaseDetail === el.dataset.phase ? null : el.dataset.phase; render(); },
         specTab() { S.spec.view = el.dataset.view; render(); if (el.dataset.view === "source") loadSpecRaw(S.version); },
         specVersion() { S.version = el.dataset.v; render(); if (S.spec.view === "source") loadSpecRaw(S.version); },
-        copyCitation() { const cite = `Ground-0 Phase Detection Algorithm v${S.version} — Harshal Priyavadan Patel. ${S.version === "1.0" ? "Finalized normative baseline, September 12, 2026" : "Amendment draft, pending author adoption; not ratified"}. Center Origin: 0•000•000•0000.`; navigator.clipboard && navigator.clipboard.writeText(cite).then(() => api.toast("info", "COPIED", "Source citation copied."), () => api.toast("refusal", "CLIPBOARD UNAVAILABLE", "Download the complete source instead.")); },
+        copyCitation() { const cite = `Ground-0 Phase Detection Algorithm v${S.version} — Harshal Priyavadan Patel. ${S.version === "1.0" ? "Finalized normative baseline, September 12, 2026" : "Ratified normative amendment, adopted October 14, 2026"}. Center Origin: 0•000•000•0000.`; navigator.clipboard && navigator.clipboard.writeText(cite).then(() => api.toast("info", "COPIED", "Source citation copied."), () => api.toast("refusal", "CLIPBOARD UNAVAILABLE", "Download the complete source instead.")); },
         addEvidence() { evidenceAdd(); },
         exportView() { const view = registerFiltered().map(a => a.report); G0.downloadFile("ground-0-audit-register.json", JSON.stringify(view, null, 2)); api.toast("info", "EXPORT", "This register view was exported as JSON."); },
-        exportLedger() { const transitions = S.audits.filter(a => a.transition).sort((a, b) => b.cutoff.localeCompare(a.cutoff)).map(a => a.transition); G0.downloadFile("ground-0-temporal-ledger.json", JSON.stringify(transitions, null, 2)); api.toast("info", "EXPORT", "Temporal ledger exported."); },
+        exportLedger() { const transitions = S.audits.filter(a => a.transition).sort((a, b) => G0.compareCutoffs(b.cutoff, a.cutoff)).map(a => a.transition); G0.downloadFile("ground-0-temporal-ledger.json", JSON.stringify(transitions, null, 2)); api.toast("info", "EXPORT", "Temporal ledger exported."); },
         resetPrefs() { S.prefs = { textSize: "default", contrast: "system", motion: "system", readable: false, underline: false, speechRate: 1 }; savePrefs(); applyPrefs(); render(); announce("Accessibility preferences reset."); },
-        setVersion() { S.version = el.dataset.v; if (S.wiz) S.wiz.input.version = el.dataset.v; render(); }
+        setVersion() {
+          const nextVersion = el.dataset.v;
+          if (S.tab === "automatic" && nextVersion !== S.version) {
+            if (nextVersion === "1.1") {
+              const dayEnd = new Date(`${S.auto.cutoff}T23:59:59.999Z`);
+              const now = new Date();
+              const instant = Number.isFinite(dayEnd.getTime()) && dayEnd < now ? dayEnd : now;
+              S.auto.cutoffDraft = dateTimeLocalValue(instant);
+            } else {
+              const instant = S.auto.cutoffDraft ? new Date(S.auto.cutoffDraft) : null;
+              if (instant && Number.isFinite(instant.getTime())) S.auto.cutoff = instant.toISOString().slice(0, 10);
+            }
+          }
+          S.version = nextVersion;
+          if (S.wiz) {
+            S.wiz.input = G0.convertInputVersion(S.wiz.input, nextVersion);
+            S.wiz.cutoffDraft = wizardCutoffDraft(S.wiz.input);
+            S.wiz.c2Json = JSON.stringify(S.wiz.input.c2, null, 2);
+            S.wiz.c2JsonError = ""; S.wiz.preview = null;
+          }
+          render();
+        }
       };
       if (actions[act]) { e.preventDefault(); actions[act](); }
     });
@@ -350,7 +395,7 @@ APPS.push({
       const el = e.target.closest("[data-bind]");
       if (!el) return;
       const value = el.dataset.type === "bool" ? el.checked : el.value;
-      setPath(el.dataset.bind, value);
+      setBoundValue(el.dataset.bind, value);
       const change = el.dataset.rebind === "1";
       if (change) render();
     });
@@ -358,8 +403,8 @@ APPS.push({
       const el = e.target.closest("[data-bind]");
       if (!el) return;
       const value = el.dataset.type === "bool" ? el.checked : el.value;
-      setPath(el.dataset.bind, value);
-      if (el.dataset.rebind === "1" || el.tagName === "SELECT") render();
+      setBoundValue(el.dataset.bind, value);
+      if (el.dataset.rebind === "1" || el.tagName.toUpperCase() === "SELECT") render();
     });
 
     function findAudit(id) { return allAudits().find(a => a.id === id); }
@@ -564,7 +609,7 @@ APPS.push({
           <div class="g0-detail-head">
             <span class="g0-avatar large" aria-hidden="true">${entityIcon(audit)}</span>
             <div><p class="g0-eyebrow">${esc(eyebrow)}</p><h2 tabindex="-1">${esc(audit.name)}</h2>
-            <p class="g0-sub mono">${esc(audit.identifier || "no identifier")} · updated ${esc(G0.formatDate(audit.createdAt))}${audit.cutoff ? ` · cutoff ${esc(G0.formatDate(audit.cutoff))}` : ""}</p></div>
+            <p class="g0-sub mono">${esc(audit.identifier || "no identifier")} · updated ${esc(G0.formatDate(audit.createdAt))}${audit.cutoff ? ` · cutoff ${esc(G0.cutoffLabel(audit.cutoff))}` : ""}</p></div>
           </div>
           <div class="g0-tabs detail" role="tablist">
             ${tabs.map(([id, label]) => `<button role="tab" data-act="detailTab" data-tab="${id}" class="${S.detailTab === id ? "on" : ""}" aria-selected="${S.detailTab === id}">${label}</button>`).join("")}
@@ -686,7 +731,7 @@ APPS.push({
           <div><dt>Declaration status</dt><dd>${esc(audit.pdh.status)}</dd></div>
           <div><dt>Badge</dt><dd>${esc(audit.badge)}</dd></div>
           <div><dt>Severity</dt><dd>${esc(String(audit.severity).replace(/_/g, " "))}</dd></div>
-          <div><dt>Evidence cutoff</dt><dd>${esc(G0.formatDate(audit.cutoff))}</dd></div>
+          <div><dt>Evidence cutoff</dt><dd>${esc(G0.cutoffLabel(audit.cutoff))}</dd></div>
           <div><dt>Replication risk</dt><dd>${esc(audit.replicationRisk)}</dd></div>
         </dl>
         <h3 class="g0-subsection">Behavioral answers</h3>
@@ -716,9 +761,24 @@ APPS.push({
     }
 
     /* ══════════ MANUAL WIZARD ══════════ */
+    function dateTimeLocalValue(value) {
+      const date = value instanceof Date ? value : new Date(value);
+      if (!Number.isFinite(date.getTime())) return "";
+      const pad = number => String(number).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${String(date.getMilliseconds()).padStart(3, "0")}`;
+    }
+    function wizardCutoffDraft(input) {
+      if (input.version === "1.0") return input.cutoff || "";
+      return G0.isUtsCutoff(input.cutoff) ? dateTimeLocalValue(input.cutoff.utc) : "";
+    }
     function startWizard(input, mode, editingId = null) {
+      let wizardInput = input || G0.newInput(S.version);
+      if (wizardInput.version === "1.1" && (!G0.isUtsCutoff(wizardInput.cutoff) || wizardInput.inputSchema !== G0.G0_INPUT_SCHEMA_V11)) {
+        wizardInput = G0.convertInputVersion(wizardInput, "1.1");
+      }
       S.wiz = {
-        input: input || G0.newInput(S.version),
+        input: wizardInput, cutoffDraft: wizardCutoffDraft(wizardInput),
+        c2Json: JSON.stringify(wizardInput.c2, null, 2), c2JsonError: "",
         step: 0, openQuestion: mode === "review" ? -1 : 0, openConstraint: -1,
         errors: [], pdh: null, checking: false, preview: null, saving: false, mode, editingId
       };
@@ -732,12 +792,26 @@ APPS.push({
     }
     const wizSteps = ["Entity and declaration", "Behavioral audit", "Constraints and history", "Review and classify"];
     function wizardValidate(target, data) {
-      if (target === 0) return [
-        ...(data.name.trim().length < 2 ? ["Enter the entity’s name, at least two characters."] : []),
-        ...(!data.cutoff ? ["Choose an evidence cutoff date."] : [])
-      ];
+      if (target === 0) {
+        const cutoffValid = data.version === "1.0" ? G0.isCalendarDate(data.cutoff) : data.version === "1.1" && G0.isUtsCutoff(data.cutoff);
+        return [
+          ...(data.name.trim().length < 2 ? ["Enter the entity’s name, at least two characters."] : []),
+          ...(!cutoffValid ? [data.version === "1.1" ? "Set a valid UTC timestamp and matching HOSUTS UDate cutoff." : "Choose a real YYYY-MM-DD evidence cutoff date."] : [])
+        ];
+      }
       if (target === 1) return data.answers.flatMap((answer, index) => answer.value === null ? [`Answer ${G0.questions[index].code}: ${G0.questions[index].title}`] : []);
-      if (target === 2 && G0.classify(G0.scoredVector(data)).phase === "AMBIGUOUS") return data.constraints.flatMap((answer, index) => answer.value === null ? [`Answer ${G0.constraintQuestions[index].code}: ${G0.constraintQuestions[index].title}`] : []);
+      if (target === 2) {
+        const errors = [];
+        if (S.wiz.c2JsonError) errors.push(`C2 provenance JSON: ${S.wiz.c2JsonError}`);
+        if (data.version === "1.1" && data.constraints[1].value === true) {
+          const c2 = G0.validateC2Evidence(data);
+          errors.push(...c2.errors.map(message => `C2 provenance: ${message}`));
+        }
+        if (G0.classify(G0.scoredVector(data)).phase === "AMBIGUOUS") {
+          errors.push(...data.constraints.flatMap((answer, index) => answer.value === null ? [`Answer ${G0.constraintQuestions[index].code}: ${G0.constraintQuestions[index].title}`] : []));
+        }
+        return errors;
+      }
       return [];
     }
     function wizardNext() {
@@ -756,7 +830,7 @@ APPS.push({
     function wizardPreview() {
       const w = S.wiz;
       w.preview = null; w.previewError = "";
-      G0.createAudit(w.input, S.audits.filter(a => a.id !== w.editingId)).then(record => { w.preview = record; if (S.tab === "manual" && !S.detail) render(); }).catch(() => { w.previewError = "The record could not be generated. Check the declaration header and try again."; if (S.tab === "manual" && !S.detail) render(); });
+      G0.createAudit(w.input, S.audits.filter(a => a.id !== w.editingId)).then(record => { w.preview = record; if (S.tab === "manual" && !S.detail) render(); }).catch(error => { w.previewError = error instanceof Error ? error.message : "The record could not be generated. Review the input contract and evidence."; if (S.tab === "manual" && !S.detail) render(); });
     }
     async function wizardCheckHeader() {
       const w = S.wiz;
@@ -813,7 +887,7 @@ APPS.push({
           <div class="g0-wiz-layout">
             <nav class="g0-wiz-nav" aria-label="Audit steps">
               ${wizSteps.map((title, i) => `<div class="g0-wiz-nav-step${i === w.step ? " current" : ""}${i < w.step ? " done" : ""}"><span class="g0-wiz-num mono">${i < w.step ? "✓" : i + 1}</span><span>${title}</span></div>`).join("")}
-              <div class="g0-wiz-nav-meta mono">Ground-0 v${esc(w.input.version)}<br>${w.input.version === "1.0" ? "normative baseline" : "amendment draft — not ratified"}</div>
+              <div class="g0-wiz-nav-meta mono">Ground-0 v${esc(w.input.version)}<br>${w.input.version === "1.0" ? "normative baseline" : "ratified normative amendment"}</div>
             </nav>
             <div class="g0-wiz-step">
               ${w.step === 0 ? wizStep0(w) : ""}
@@ -839,10 +913,12 @@ APPS.push({
         <div class="g0-form-grid">
           ${field("Entity name", `<input id="wiz-name" class="g0-input" type="text" value="${esc(w.input.name)}" data-bind="wiz.input.name" placeholder="e.g. World Health Organization">`)}
           ${field("Public identifier (optional)", `<input class="g0-input" type="text" value="${esc(w.input.identifier)}" data-bind="wiz.input.identifier" placeholder="e.g. WHO, Q1376">`)}
-          ${field("Evidence cutoff (inclusive)", `<input class="g0-input" type="date" value="${esc(w.input.cutoff)}" max="${G0.today()}" data-bind="wiz.input.cutoff">`)}
-          ${field("Algorithm version", `<div class="g0-version-switch"><button class="${w.input.version === "1.0" ? "on" : ""}" data-act="setVersion" data-v="1.0">v1.0 normative</button><button class="${w.input.version === "1.1" ? "on" : ""}" data-act="setVersion" data-v="1.1">v1.1 draft</button></div>`)}
+          ${field("Evidence cutoff (inclusive)", w.input.version === "1.1"
+            ? `<input class="g0-input" type="datetime-local" step="0.001" value="${esc(w.cutoffDraft)}" max="${esc(dateTimeLocalValue(new Date()))}" data-bind="wiz.cutoffDraft"><span class="g0-section-note">Choose the cutoff in your local time; the saved contract records the equivalent UTC instant and matching HOSUTS UDate projection. UTS is approximate display output, not a trusted clock.</span>`
+            : `<input class="g0-input" type="date" value="${esc(w.input.cutoff)}" max="${G0.today()}" data-bind="wiz.cutoffDraft">`)}
+          ${field("Algorithm version", `<div class="g0-version-switch"><button class="${w.input.version === "1.0" ? "on" : ""}" data-act="setVersion" data-v="1.0">v1.0 normative</button><button class="${w.input.version === "1.1" ? "on" : ""}" data-act="setVersion" data-v="1.1">v1.1 normative</button></div>`)}
         </div>
-        ${w.input.version === "1.1" ? `<div class="g0-callout amber"><span aria-hidden="true">ℹ</span><p><strong>Proposed amendment — not ratified.</strong> v1.1 tightens B4 and the constraint checks. It does not supersede the finalized v1.0 baseline.</p></div>` : ""}
+        ${w.input.version === "1.1" ? `<div class="g0-callout amber"><span aria-hidden="true">ℹ</span><p><strong>Ratified normative amendment.</strong> v1.1 uses its own explicit UTS timestamp and C2 evidence schema. It does not change v1.0 input or behavior.</p></div>` : ""}
         <details class="g0-pdh-details">
           <summary><span aria-hidden="true">🛡</span> Phase Declaration Header (optional) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
           <div class="g0-pdh-content">
@@ -924,35 +1000,35 @@ APPS.push({
                   ${field("Procedure (the operative rule)", `<input class="g0-input" value="${esc(b.procedure)}" data-bind="wiz.input.b4.procedure" placeholder="The appeal / stay / exit rule">`)}
                   ${field("Basis", `<select class="g0-select" data-bind="wiz.input.b4.basis">${["NOT_DEMONSTRATED", "TERMINAL_RULE", "RESOLVED_APPEALS", "NO_PENALTY_EXIT"].map(o => `<option${b.basis === o ? " selected" : ""}>${o}</option>`).join("")}</select>`)}
                 </div>
-                ${b.basis === "RESOLVED_APPEALS" ? reliefFields("wiz.input.b4", b, w.input.cutoff) : ""}
-                <p class="g0-note">An external order and compliance with it do not by themselves establish B4=YES.</p>
+                ${b.basis === "RESOLVED_APPEALS" ? reliefFields("wiz.input.b4", b, G0.cutoffDate(w.input.cutoff)) : ""}
+                ${b.basis === "NO_PENALTY_EXIT" ? `<div class="g0-form-grid"><label class="g0-check"><input type="checkbox" data-bind="wiz.input.b4.binding" data-type="bool" ${b.binding ? "checked" : ""}>The cited exit is binding</label><label class="g0-check"><input type="checkbox" data-bind="wiz.input.b4.noPenalty" data-type="bool" ${b.noPenalty ? "checked" : ""}>The cited exit carries no penalty</label><label class="g0-check"><input type="checkbox" data-bind="wiz.input.b4.terminatesAction" data-type="bool" ${b.terminatesAction ? "checked" : ""}>It explicitly terminates the action named above</label></div>` : ""}
+                <p class="g0-note">A binding, penalty-free exit qualifies only if it explicitly terminates this specified action. An external order plus compliance does not by itself establish B4=YES.</p>
               </div>`;
           }
-          return answerCard(q.code, q.title, q.description + " " + q.examples, w.input.answers[i], `wiz.input.answers.${i}`, w.openQuestion === i, invalid(q.code), w.input.cutoff, extra);
+          return answerCard(q.code, q.title, q.description + " " + q.examples, w.input.answers[i], `wiz.input.answers.${i}`, w.openQuestion === i, invalid(q.code), G0.cutoffDate(w.input.cutoff), extra);
         }).join("")}`;
     }
     function wizStep2(w, detected, prior) {
-      const c2 = w.input.c2;
       return `
         <h3 class="g0-wiz-title" tabindex="-1">Constraints and history</h3>
-        <p class="g0-step-intro">Constraints must be demonstrated, not just described.</p>
+        <p class="g0-step-intro">Constraints must be demonstrated, not just described. C1–C4 are recorded as the inbound profile; they affect phase resolution only when Step 3 is AMBIGUOUS.</p>
         <div class="g0-vector-preview${detected.phase === "AMBIGUOUS" ? " ambiguous" : ""}" role="status">
           <span aria-hidden="true">${detected.phase === "AMBIGUOUS" ? "⚠" : "✓"}</span>
           <div><strong>${detected.phase === "AMBIGUOUS" ? "Your scored answers are ambiguous" : `Your scored answers match ${detected.phase}`}</strong>
-          <p>${detected.phase === "AMBIGUOUS" ? "All four checks, C1 to C4, must pass for NAB-Constrained. Otherwise the result stays unresolved." : "The Step 3.5 constraint checks are not needed for a complete match."}</p></div>
+          <p>${detected.phase === "AMBIGUOUS" ? "All four checks, C1 to C4, must pass for NAB-Constrained. Otherwise the result stays unresolved." : "The constraint profile is still recorded, but it does not change this complete branch match."}</p></div>
         </div>
-        ${detected.phase === "AMBIGUOUS" ? G0.constraintQuestions.map((q, i) => {
+        ${G0.constraintQuestions.map((q, i) => {
           let extra = "";
           if (i === 1 && w.input.version === "1.1") {
             extra = `<div class="g0-b4-record">
-              <p class="g0-eyebrow">C2 outcome record (v1.1)</p>
-              <label class="g0-check"><input type="checkbox" data-bind="wiz.input.c2.route" data-type="bool" ${c2.route ? "checked" : ""}>A published, accessible appeal route with decision criteria</label>
-              <label class="g0-check"><input type="checkbox" data-bind="wiz.input.c2.invoked" data-type="bool" ${c2.invoked ? "checked" : ""}>Invoked cases with published, resolved outcomes</label>
-              ${reliefFields("wiz.input.c2", c2, w.input.cutoff)}
+              <p class="g0-eyebrow">C2 provenance record (v1.1)</p>
+              <p class="g0-section-note">Paste the structured published route, invocation, bounded complete outcome set, each case's resolution date/source IDs, and supporting sources. The engine rejects a C2 YES if any required provenance is missing or inconsistent.</p>
+              <textarea class="g0-input" rows="18" spellcheck="false" data-bind="wiz.c2Json" aria-label="C2 provenance JSON">${esc(w.c2Json)}</textarea>
+              ${w.c2JsonError ? `<p class="g0-field-error">${esc(w.c2JsonError)}</p>` : ""}
             </div>`;
           }
-          return answerCard(q.code, q.title, q.description, w.input.constraints[i], `wiz.input.constraints.${i}`, w.openConstraint === i, w.errors.some(e => e.startsWith(`Answer ${q.code}`)), w.input.cutoff, extra);
-        }).join("") : ""}
+          return answerCard(q.code, q.title, q.description, w.input.constraints[i], `wiz.input.constraints.${i}`, w.openConstraint === i, w.errors.some(e => e.startsWith(`Answer ${q.code}`)), G0.cutoffDate(w.input.cutoff), extra);
+        }).join("")}
         <details class="g0-pdh-details">
           <summary><span aria-hidden="true">🛡</span> External constraint record (descriptive) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
           <div class="g0-pdh-content">
@@ -964,7 +1040,7 @@ APPS.push({
               ${field("Authority holder", `<input class="g0-input" value="${esc(w.input.external.holder)}" data-bind="wiz.input.external.holder">`)}
               ${field("Scope or affected decision", `<input class="g0-input" value="${esc(w.input.external.scope)}" data-bind="wiz.input.external.scope">`)}
               ${field("Public artifact URL", `<input class="g0-input" type="url" value="${esc(w.input.external.source)}" data-bind="wiz.input.external.source">`)}
-              ${field("Artifact date", `<input class="g0-input" type="date" value="${esc(w.input.external.date)}" max="${esc(w.input.cutoff)}" data-bind="wiz.input.external.date">`)}
+              ${field("Artifact date", `<input class="g0-input" type="date" value="${esc(w.input.external.date)}" max="${esc(G0.cutoffDate(w.input.cutoff))}" data-bind="wiz.input.external.date">`)}
             </div>` : ""}
           </div>
         </details>
@@ -977,15 +1053,15 @@ APPS.push({
             <div class="g0-form-grid">
               ${field("Old binding source URL", `<input class="g0-input" type="url" value="${esc(w.input.decrement.oldSource)}" data-bind="wiz.input.decrement.oldSource">`)}
               ${field("New nonbinding source URL", `<input class="g0-input" type="url" value="${esc(w.input.decrement.newSource)}" data-bind="wiz.input.decrement.newSource">`)}
-              ${field("Old effective date", `<input class="g0-input" type="date" value="${esc(w.input.decrement.oldDate)}" max="${esc(w.input.cutoff)}" data-bind="wiz.input.decrement.oldDate">`)}
-              ${field("New effective date", `<input class="g0-input" type="date" value="${esc(w.input.decrement.newDate)}" max="${esc(w.input.cutoff)}" data-bind="wiz.input.decrement.newDate">`)}
+              ${field("Old effective date", `<input class="g0-input" type="date" value="${esc(w.input.decrement.oldDate)}" max="${esc(G0.cutoffDate(w.input.cutoff))}" data-bind="wiz.input.decrement.oldDate">`)}
+              ${field("New effective date", `<input class="g0-input" type="date" value="${esc(w.input.decrement.newDate)}" max="${esc(G0.cutoffDate(w.input.cutoff))}" data-bind="wiz.input.decrement.newDate">`)}
             </div>
             ${field("Binding to discretionary wording", `<textarea class="g0-input" rows="2" data-bind="wiz.input.decrement.notes">${esc(w.input.decrement.notes)}</textarea>`)}
             <p class="g0-note">This flag records drift. It does not change the answers or the phase on its own.` : ""}
           </div>
         </details>` : ""}
         <div class="g0-history-notice"><span aria-hidden="true">⏱</span><div><strong>${prior.length ? `${prior.length} earlier audit${prior.length > 1 ? "s" : ""} found` : "A first point on the timeline"}</strong>
-        <p>${prior.length ? `Most recent: ${esc(prior[prior.length - 1].phase)}, ${esc(G0.formatDate(prior[prior.length - 1].cutoff))}. Transition rules need valid declarations at both points.` : "Later audits with the same entity ID are linked automatically. Baseline examples are not used for timelines."}</p></div></div>`;
+        <p>${prior.length ? `Most recent: ${esc(prior[prior.length - 1].phase)}, ${esc(G0.cutoffLabel(prior[prior.length - 1].cutoff))}. Transition rules need valid declarations at both points.` : "Later audits with the same entity ID are linked automatically. Baseline examples are not used for timelines."}</p></div></div>`;
     }
     function wizStep3(w) {
       const preview = w.preview;
@@ -999,7 +1075,7 @@ APPS.push({
         <div class="g0-result-banner phase-${preview.phase.toLowerCase()}">
           <p class="g0-eyebrow">Detected operational phase</p>
           <p class="g0-result-phase">${esc(preview.phase)}</p>
-          <p class="g0-result-meta mono"><span>${preview.confidence === "NONE" ? "evidence incomplete" : `${preview.confidence.charAt(0)}${preview.confidence.slice(1).toLowerCase()} confidence`}</span><span>Ground-0 v${preview.version}${preview.version === "1.1" ? " (draft rules)" : ""}</span></p>
+          <p class="g0-result-meta mono"><span>${preview.confidence === "NONE" ? "evidence incomplete" : `${preview.confidence.charAt(0)}${preview.confidence.slice(1).toLowerCase()} confidence`}</span><span>Ground-0 v${preview.version}${preview.version === "1.1" ? " (ratified amendment)" : ""}</span></p>
         </div>
         <p class="g0-finding">${esc(preview.finding)}</p>
         <div class="g0-badge-panel">${workingBadgeSVG(preview.workingBadge)}<p class="g0-note">Arcs fill only when an answer has a dated public source. Formal badge status: <strong>${esc(preview.badge)}</strong>.</p></div>
@@ -1012,7 +1088,7 @@ APPS.push({
         ${renderThreeLaneView(preview)}
         <h4 class="g0-subsection">Scored answers</h4>
         <ul class="g0-vector">${G0.questions.map((q, i) => `<li><span class="g0-qcode mono">${q.code}</span><span>${esc(q.short)}</span><strong class="${vector[i] ? "pos" : ""}">${vector[i] ? "Yes" : "No"}</strong>${w.input.answers[i].value === true && !vector[i] ? `<span class="g0-gap-tag">Yes not supported by a qualifying source</span>` : ""}</li>`).join("")}</ul>
-        <p class="g0-meta mono"><span>⏱ cutoff ${esc(G0.formatDate(preview.cutoff))}</span><span>🔗 ${preview.evidence.length} public artifact${preview.evidence.length !== 1 ? "s" : ""}</span></p>
+        <p class="g0-meta mono"><span>⏱ cutoff ${esc(G0.cutoffLabel(preview.cutoff))}</span><span>🔗 ${preview.evidence.length} public artifact${preview.evidence.length !== 1 ? "s" : ""}</span></p>
         ${preview.status === "Draft" ? `<div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>This will be saved as a draft.</strong> Evidence or provenance is incomplete, so confidence is None and no badge is issued. Saving does not verify the evidence.</p></div>` : ""}`;
     }
 
@@ -1021,7 +1097,15 @@ APPS.push({
       const a = S.auto;
       const query = a.query.trim();
       if (query.length < 2) { a.error = "Enter at least two characters of the organization’s name."; render(); return; }
-      if (!a.cutoff || a.cutoff > G0.today()) { a.error = "Choose an evidence cutoff date that is today or earlier."; render(); return; }
+      if (S.version === "1.0") {
+        if (!G0.isCalendarDate(a.cutoff) || a.cutoff > G0.today()) { a.error = "Choose a v1.0 evidence cutoff date that is today or earlier."; render(); return; }
+        a.runCutoff = a.cutoff;
+      } else if (S.version === "1.1") {
+        const instant = a.cutoffDraft ? new Date(a.cutoffDraft) : null;
+        if (!instant || !Number.isFinite(instant.getTime()) || instant.getTime() > Date.now()) { a.error = "Choose a valid v1.1 timestamp that is now or earlier; the exact UTC instant and matching HOSUTS UDate will be recorded."; render(); return; }
+        a.runCutoff = G0.makeUtsCutoff(instant);
+        if (!G0.isUtsCutoff(a.runCutoff)) { a.error = "The exact timestamp could not be converted to a matching HOSUTS UDate. Choose the cutoff again."; render(); return; }
+      } else { a.error = "Choose a supported Ground-0 version."; render(); return; }
       a.error = "";
       a.controller = new AbortController();
       a.stage = "searching";
@@ -1045,7 +1129,7 @@ APPS.push({
       a.stage = "running"; S.resetScroll = true; a.progress = { step: 0, message: "Looking for the organization’s public identity…", completed: 0, total: 5 };
       render();
       R.automaticAudit({
-        name: selection ? selection.name : a.query, version: S.version, cutoff: a.cutoff,
+        name: selection ? selection.name : a.query, version: S.version, cutoff: a.runCutoff,
         existing: S.audits, signal: a.controller.signal, selection,
         onProgress: progress => { a.progress = progress; if (a.stage === "running") renderAutoProgress(); }
       }).then(outcome => {
@@ -1080,9 +1164,11 @@ APPS.push({
           <div class="g0-panel">
             <div class="g0-form-grid">
               ${field("Organization name", `<input class="g0-input" type="text" value="${esc(a.query)}" data-bind="auto.query" placeholder="e.g. Anthropic">`)}
-              ${field("Evidence cutoff (inclusive)", `<input class="g0-input" type="date" value="${esc(a.cutoff)}" max="${G0.today()}" data-bind="auto.cutoff">`)}
+              ${field("Evidence cutoff (inclusive)", S.version === "1.1"
+                ? `<input class="g0-input" type="datetime-local" step="0.001" value="${esc(a.cutoffDraft)}" max="${esc(dateTimeLocalValue(new Date()))}" data-bind="auto.cutoffDraft"><span class="g0-section-note">Choose the exact instant in local time. The run records UTC and the matching HOSUTS UDate. Date-only artifacts on the same UTC day are excluded when their exact time cannot be established before this cutoff. UTS is approximate display output, not a trusted clock.</span>`
+                : `<input class="g0-input" type="date" value="${esc(a.cutoff)}" max="${G0.today()}" data-bind="auto.cutoff">`)}
             </div>
-            <div class="g0-version-switch">${["1.0", "1.1"].map(v => `<button class="${S.version === v ? "on" : ""}" data-act="setVersion" data-v="${v}">v${v}${v === "1.0" ? " normative" : " draft"}</button>`).join("")}</div>
+            <div class="g0-version-switch">${["1.0", "1.1"].map(v => `<button class="${S.version === v ? "on" : ""}" data-act="setVersion" data-v="${v}">v${v}${v === "1.0" ? " normative" : " normative"}</button>`).join("")}</div>
             <div class="g0-btn-row"><button class="g0-btn primary" data-act="autoStart"><span aria-hidden="true">✦</span> Research this organization</button></div>
             ${a.error ? `<div class="g0-callout danger" role="alert"><span aria-hidden="true">⚠</span><p>${esc(a.error)}</p></div>` : ""}
           </div>
@@ -1144,7 +1230,7 @@ APPS.push({
       const rec = o.record;
       registerListen("auto-summary", `Automatic research draft for ${o.organization.name}. ${rec.workingBadge.label}. ${rec.workingBadge.filled} of 5 behavioral questions evidenced. ${rec.workingBadge.explanation} Formal badge status: ${rec.badge}. Human review is required.`);
       main.innerHTML = `
-        ${heading("Automatic audit · research draft", esc(o.organization.name), `${o.method === "web-research" ? "Hosted web research" : "Key-free public lookup"} · evidence through ${esc(o.cutoff)} · nothing is scored without review`,
+        ${heading("Automatic audit · research draft", esc(o.organization.name), `${o.method === "web-research" ? "Hosted web research" : "Key-free public lookup"} · evidence through ${esc(G0.cutoffLabel(o.input.cutoff))} · nothing is scored without review`,
           listenButton("", "auto-summary"))}
         <div class="g0-callout amber"><span aria-hidden="true">⚠</span><p><strong>This is a research draft, not an audit finding.</strong> Fixed rules coded suggested answers from public records. Source identity, dates, scope, and every quote require human review. The formal badge stays unissued.</p></div>
         <div class="g0-cards2">
@@ -1251,7 +1337,7 @@ APPS.push({
 
     /* ══════════ TEMPORAL ══════════ */
     function renderTemporal() {
-      const transitions = S.audits.filter(a => a.transition).sort((a, b) => b.cutoff.localeCompare(a.cutoff));
+      const transitions = S.audits.filter(a => a.transition).sort((a, b) => G0.compareCutoffs(b.cutoff, a.cutoff));
       main.innerHTML = `
         ${heading("Temporal ledger", "A timeline needs more than one point.", "Audit an entity, then audit it again later with the same identifier. Ground-0 links the records and checks the transition rules.",
           `<button class="g0-btn ghost sm" data-act="exportLedger" ${transitions.length ? "" : "disabled"}><span aria-hidden="true">⭳</span> Export ledger</button>`)}
@@ -1318,7 +1404,7 @@ APPS.push({
       main.innerHTML = `
         ${heading("Transparent by design", "No black box. Just the branches.", "See how five yes-or-no observations become a phase classification.",
           `<button class="g0-btn ghost sm" data-act="startWizard"><span aria-hidden="true">✎</span> Manual audit</button><button class="g0-btn primary sm" data-act="nav" data-tab="automatic"><span aria-hidden="true">✦</span> Automatic audit</button>`)}
-        <div class="g0-toolbar"><div class="g0-version-switch">${["1.0", "1.1"].map(x => `<button class="${S.version === x ? "on" : ""}" data-act="setVersion" data-v="${x}">v${x}${x === "1.0" ? " normative" : " draft"}</button>`).join("")}</div><span class="g0-local mono">Rules sandbox — no evidence credit</span></div>
+        <div class="g0-toolbar"><div class="g0-version-switch">${["1.0", "1.1"].map(x => `<button class="${S.version === x ? "on" : ""}" data-act="setVersion" data-v="${x}">v${x}${x === "1.0" ? " normative" : " normative"}</button>`).join("")}</div><span class="g0-local mono">Rules sandbox — no evidence credit</span></div>
         <div class="g0-logic-grid">
           <section class="g0-panel">
             <p class="g0-eyebrow">Interactive decision tree</p>
@@ -1354,7 +1440,7 @@ APPS.push({
             <p class="g0-note"><span aria-hidden="true">ℹ</span> This sandbox tests the decision rules only. Real audits need public evidence and a validated declaration.</p>
           </section>
         </div>
-        <div class="g0-callout"><span aria-hidden="true">ƒ</span><p><strong>An implementation boundary, not an amendment.</strong> NAB and GSRB require opposite answers, so every complete set of five answers matches at least three conditions of one branch. INCOHERENT stays in the specification but cannot occur for a complete set of answers. ${S.version === "1.0" ? "The undefined optional escalation in v1.0 is not automated." : "The v1.1 draft keeps AMBIGUOUS when any constraint fails."}</p></div>
+        <div class="g0-callout"><span aria-hidden="true">ƒ</span><p><strong>An implementation boundary, not an amendment.</strong> NAB and GSRB require opposite answers, so every complete set of five answers matches at least three conditions of one branch. INCOHERENT stays in the specification but cannot occur for a complete set of answers. ${S.version === "1.0" ? "The undefined optional escalation in v1.0 is not automated." : "The v1.1 amendment keeps AMBIGUOUS when any constraint fails."}</p></div>
         <details class="g0-pdh-details truth"><summary><span aria-hidden="true">▦</span> The complete truth table (32 combinations) <span class="g0-details-chev" aria-hidden="true">▾</span></summary>
           <div class="g0-table-wrap">
             <table class="g0-table truth">
@@ -1370,7 +1456,7 @@ APPS.push({
     function specSourcePath(version) {
       return version === "1.0"
         ? "specs/normative/ground-0-v1.0.md"
-        : "specs/draft/ground-0-v1.1.md";
+        : "specs/normative/ground-0-v1.1.md";
     }
     async function loadSpecRaw(version) {
       if (S.spec.raw[version] !== null) { render(); return; }
@@ -1389,14 +1475,14 @@ APPS.push({
         ${heading("The versioned standard", "One source. A clear baseline.", "Understand the rules — and the version that governs them.",
           `<a class="g0-btn primary sm" href="${specSourcePath(S.version)}" download><span aria-hidden="true">⭳</span> Download source</a>`)}
         <div class="g0-toolbar">
-          <div class="g0-version-switch">${["1.0", "1.1"].map(v => `<button class="${S.version === v ? "on" : ""}" data-act="specVersion" data-v="${v}">v${v}${v === "1.0" ? " normative" : " draft"}</button>`).join("")}</div>
+          <div class="g0-version-switch">${["1.0", "1.1"].map(v => `<button class="${S.version === v ? "on" : ""}" data-act="specVersion" data-v="${v}">v${v}${v === "1.0" ? " normative" : " normative"}</button>`).join("")}</div>
           <div class="g0-version-switch" role="group" aria-label="Document view">
             <button class="${S.spec.view === "reader" ? "on" : ""}" data-act="specTab" data-view="reader">Reader</button>
             <button class="${S.spec.view === "source" ? "on" : ""}" data-act="specTab" data-view="source">Source text</button>
           </div>
           <button class="g0-btn ghost xs" data-act="copyCitation"><span aria-hidden="true">⧉</span> Copy citation</button>
         </div>
-        ${S.version === "1.1" ? `<div class="g0-callout amber"><span aria-hidden="true">ℹ</span><p><strong>Proposed amendment — not ratified.</strong> v1.1 is pending author adoption and does not supersede the finalized v1.0 baseline. Baseline case results must be rerun before being reported as v1.1 results.</p></div>` : ""}
+        ${S.version === "1.1" ? `<div class="g0-callout amber"><span aria-hidden="true">ℹ</span><p><strong>Ratified normative amendment.</strong> v1.1 was adopted on October 14, 2026 for audits that explicitly select v1.1. The finalized v1.0 baseline remains normative for v1.0 audits, and baseline case results must be rerun before being reported as v1.1 results.</p></div>` : ""}
         <div class="g0-spec-layout">
           <nav class="g0-spec-toc" aria-label="Specification sections">
             <p class="g0-eyebrow">In this document</p>
@@ -1405,10 +1491,10 @@ APPS.push({
           </nav>
           <article class="g0-spec-document">
             <header class="g0-spec-header">
-              <span class="g0-source-status ${S.version === "1.0" ? "normative" : "draft"}"><i></i>${S.version === "1.0" ? "FINALIZED · NORMATIVE SOURCE" : "AMENDMENT DRAFT · PENDING ADOPTION"}</span>
+              <span class="g0-source-status normative"><i></i>${S.version === "1.0" ? "FINALIZED · NORMATIVE SOURCE" : "RATIFIED · NORMATIVE AMENDMENT"}</span>
               <h3>Ground-0 Phase<br>Detection Algorithm <span>v${S.version}</span></h3>
               <p>Harshal’s Systems (AGS++) · Orb Communicator Model</p>
-              <div class="g0-spec-author"><span class="g0-avatar" aria-hidden="true">HP</span><div><strong>Harshal Priyavadan Patel</strong><span>Baseline finalized September 12, 2026</span></div></div>
+              <div class="g0-spec-author"><span class="g0-avatar" aria-hidden="true">HP</span><div><strong>Harshal Priyavadan Patel</strong><span>${S.version === "1.0" ? "Baseline finalized September 12, 2026" : "Amendment adopted October 14, 2026"}</span></div></div>
             </header>
             ${S.spec.view === "source" ? `
               <div class="g0-source-reader">
@@ -1417,7 +1503,7 @@ APPS.push({
               </div>` : `
               <div class="g0-reader">
                 <p class="g0-reader-note"><span aria-hidden="true">ℹ</span> This reader organizes the supplied specification. The source download preserves the versioned text.</p>
-                ${S.version === "1.1" ? `<section class="g0-amendment"><p class="g0-eyebrow">Five proposed clarifications</p>${G0_SPEC.amendmentItems.map((item, i) => `<div><span class="mono">0${i + 1}</span><div><h4>${esc(item.title)}</h4><p>${esc(item.text)}</p></div></div>`).join("")}</section>` : ""}
+                ${S.version === "1.1" ? `<section class="g0-amendment"><p class="g0-eyebrow">Five ratified clarifications</p>${G0_SPEC.amendmentItems.map((item, i) => `<div><span class="mono">0${i + 1}</span><div><h4>${esc(item.title)}</h4><p>${esc(item.text)}</p></div></div>`).join("")}</section>` : ""}
                 ${sections.map(s => `
                   <section id="spec-${s.id}" class="g0-spec-section" tabindex="-1">
                     <div class="g0-spec-heading"><span aria-hidden="true">${s.numeral}</span><div><h4>${esc(s.title)}</h4><p>${esc(s.summary)}</p></div></div>
@@ -1426,7 +1512,7 @@ APPS.push({
                     ${s.table ? `<div class="g0-table-wrap" role="region" aria-label="${esc(s.title)} table" tabIndex="0"><table class="g0-table spec"><thead><tr>${s.table.headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${s.table.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : ""}
                     ${(s.bullets || []).length ? `<ul class="g0-ul">${s.bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
                   </section>`).join("")}
-                <div class="g0-spec-end"><span aria-hidden="true">🛡</span><span>END OF SPECIFICATION</span><p>${S.version === "1.0" ? "Normative baseline · v1.0" : "Amendment draft · Not ratified"}</p></div>
+                <div class="g0-spec-end"><span aria-hidden="true">🛡</span><span>END OF SPECIFICATION</span><p>${S.version === "1.0" ? "Normative baseline · v1.0" : "Ratified amendment · v1.1"}</p></div>
               </div>`}
           </article>
         </div>`;

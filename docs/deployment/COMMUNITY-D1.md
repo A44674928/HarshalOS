@@ -151,7 +151,7 @@ and a private result viewer/export. Template loading is local editor setup, not 
 save. Set `input.name`, `version`, and a real `cutoff`, then save first. Exactly five
 behavioral answers and four constraint answers are required. Values are boolean or
 null (unknown), never coerced from strings. Optional method records are type-checked.
-Version 1.0 is the normative baseline; 1.1 remains an unratified draft.
+Version 1.0 is the normative baseline; 1.1 is the ratified normative amendment for inputs that explicitly select it.
 
 | Method | Route | Behavior |
 | --- | --- | --- |

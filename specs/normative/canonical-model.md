@@ -356,7 +356,7 @@ DetectedPhase
 ### 11.2 Specification Baseline Status (`v1.0` vs. `v1.1`)
 
 - **[`specs/normative/ground-0-v1.0.md`](ground-0-v1.0.md):** Finalized **normative baseline** (ratified September 12, 2026).
-- **[`specs/draft/ground-0-v1.1.md`](../draft/ground-0-v1.1.md):** Unratified **amendment draft** introducing stricter qualification criteria for `B4` (terminal/stay rule, complete `≥ 50%` appeal relief dataset, or penalty-free exit) and `C2`.
+- **[`specs/normative/ground-0-v1.1.md`](ground-0-v1.1.md):** Ratified **normative amendment** (adopted October 14, 2026) introducing stricter qualification criteria for `B4` (terminal/stay rule, complete `≥ 50%` appeal relief dataset, or binding, penalty-free exit that explicitly terminates the specified action) and `C2`. It governs audits that explicitly select v1.1; v1.0 remains normative for audits that explicitly select v1.0.
 
 ### 11.3 Phase Reclassification vs. Phase Transition (`INV-G0-CLASS-001` · `CL-013`)
 

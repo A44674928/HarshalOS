@@ -4,12 +4,12 @@
 **Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `NORMATIVE_SPEC` (Unratified Amendment Draft) · **Evidence Status:** `FORMAL_AXIOMATIC` · **Research Layer:** `DEFENSIVE_SPECIFICATION`  
 **Author of source framework:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  
-**Baseline:** Ground-0 Phase Detection Algorithm v1.0 (finalized 2026-09-12) and v1.1 amendment draft  
+**Baseline:** Ground-0 Phase Detection Algorithm v1.0 (finalized 2026-09-12) and v1.1 ratified amendment (adopted 2026-10-14)
 **Status:** Proposed amendment for author review; not represented as ratified.  
 **Evidence policy:** Public artifacts only; every issued header binds to a case study that declares an inclusive `Evidence_Cutoff`.
 
 **Status:** DRAFT — not ratified. Applies only where an audit record states it was run under v1.2.
-**Supersedes nothing:** v1.0 remains normative; v1.1 remains the behavioural-amendment draft.
+**Supersedes nothing:** v1.0 remains normative for audits that explicitly select v1.0; v1.1 is the ratified normative behavioural amendment for audits that explicitly select v1.1.
 **Scope of this file:** the *issuer layer*. v1.0 defined what a Phase Declaration Header (PDH) is and how it validates. v1.2 defines **who may issue one**, what a register-issued header may and may not claim, and how a badge is bound to evidence.
 **Origin of record:** HarshalOS / Center Origin `0•000•000•0000`.
 

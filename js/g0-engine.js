@@ -5,7 +5,7 @@
    Harshal's Systems (AGS++), implemented as a dependency-free module:
 
      · v1.0  — finalized normative baseline (September 12, 2026)
-     · v1.1  — unratified amendment draft
+     · v1.1  — ratified normative amendment (adopted 2026-10-14)
 
    Pipeline (specification Section II):
      STEP 1   validate the Phase Declaration Header (PDH)
@@ -54,19 +54,124 @@
     if (isCalendarDate(value)) return Date.parse(`${value}T00:00:00Z`);
     return isIsoTimestamp(value) ? Date.parse(value) : NaN;
   }
+
+  /* v1.1 uses the site's UTS UDate coordinate as a checked projection of an
+     explicit UTC instant. The coordinate is not a clock or attestation: the
+     UTS module itself is an approximate, device-clock-derived display model. */
+  const UTS_CUTOFF_MODEL = "HOSUTS-UDate-v1";
+  const UTS_SCALE = 1_000_000n;
+  const UTS_C_BIG = 299_792_458n;
+  const UTS_UY_SECONDS_BIG = 31_557_600n;
+  const UTS_REFERENCE_MS = Date.UTC(2026, 9, 2, 0, 0, 0);
+  const UTS_UNIVERSE_AGE_YEARS = 13_799_000_000n;
+  function isCanonicalUtcTimestamp(value) {
+    return isIsoTimestamp(value) && value.endsWith("Z") && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+  }
+  function roundedDivide(numerator, denominator) {
+    if (numerator >= 0n) return (numerator + denominator / 2n) / denominator;
+    return (numerator - denominator / 2n) / denominator;
+  }
+  function fallbackUDateParts(date) {
+    const elapsedMs = BigInt(date.getTime() - UTS_REFERENCE_MS);
+    const elapsedUS = roundedDivide(elapsedMs * UTS_C_BIG, 1_000n);
+    const referenceUS = UTS_UNIVERSE_AGE_YEARS * UTS_C_BIG * UTS_UY_SECONDS_BIG;
+    const scaledUDate = roundedDivide((referenceUS + elapsedUS) * UTS_SCALE, UTS_UY_SECONDS_BIG);
+    return { scaledUDate: scaledUDate.toString() };
+  }
+  function formatScaledUDate(value) {
+    const scaled = BigInt(value);
+    const sign = scaled < 0n ? "-" : "";
+    const absolute = scaled < 0n ? -scaled : scaled;
+    const whole = (absolute / UTS_SCALE).toString();
+    const fraction = (absolute % UTS_SCALE).toString().padStart(6, "0");
+    return `UDate ${sign}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction} UY since Big Bang`;
+  }
+  function uDateForDate(date) {
+    const uts = host.HOSUTS;
+    if (uts && typeof uts.uDateParts === "function" && typeof uts.formatUDate === "function") {
+      const parts = uts.uDateParts(date);
+      return { scaledUDate: parts.scaledUDate, display: uts.formatUDate(date) };
+    }
+    const parts = fallbackUDateParts(date);
+    return { scaledUDate: parts.scaledUDate, display: formatScaledUDate(parts.scaledUDate) };
+  }
+  function makeUtsCutoff(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    const coordinate = uDateForDate(date);
+    return {
+      utc: date.toISOString(),
+      uts: { model: UTS_CUTOFF_MODEL, scale: 6, scaledUDate: coordinate.scaledUDate, display: coordinate.display }
+    };
+  }
+  function isUtsCutoff(value) {
+    if (!isObject(value) || !isCanonicalUtcTimestamp(value.utc) || !isObject(value.uts)) return false;
+    const expected = makeUtsCutoff(new Date(value.utc));
+    return value.uts.model === UTS_CUTOFF_MODEL && value.uts.scale === 6 &&
+      value.uts.scaledUDate === expected.uts.scaledUDate && value.uts.display === expected.uts.display;
+  }
+  function cutoffBoundaryMs(cutoff) {
+    if (isCalendarDate(cutoff)) return Date.parse(`${cutoff}T23:59:59.999Z`);
+    if (isUtsCutoff(cutoff)) return Date.parse(cutoff.utc);
+    return NaN;
+  }
+  function cutoffDate(cutoff) {
+    if (isCalendarDate(cutoff)) return cutoff;
+    if (isUtsCutoff(cutoff)) return cutoff.utc.slice(0, 10);
+    return "";
+  }
+  function cutoffToken(cutoff) {
+    if (isCalendarDate(cutoff)) return cutoff;
+    if (isUtsCutoff(cutoff)) return cutoff.utc.replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1Z");
+    return "INVALID-CUTOFF";
+  }
+  function cutoffMarker(cutoff) {
+    if (isCalendarDate(cutoff)) return cutoff;
+    if (isUtsCutoff(cutoff)) return cutoff.utc;
+    return "";
+  }
+  function cutoffLabel(cutoff) {
+    if (isCalendarDate(cutoff)) return `${cutoff} (inclusive UTC date)`;
+    if (isUtsCutoff(cutoff)) return `${cutoff.utc} · ${cutoff.uts.display}`;
+    return "Not stated";
+  }
+  function compareCutoffs(left, right) {
+    const a = cutoffBoundaryMs(left), b = cutoffBoundaryMs(right);
+    if (Number.isFinite(a) && Number.isFinite(b)) return a - b;
+    return String(left || "").localeCompare(String(right || ""));
+  }
+  function evidenceTimeForCutoff(date, cutoff) {
+    /* A date-only artifact has no time-of-day. For a timestamp cutoff, use
+       the latest instant on that UTC date so a cutoff earlier that day cannot
+       accidentally admit an artifact published later the same day. */
+    if (isCalendarDate(date) && isUtsCutoff(cutoff)) return Date.parse(`${date}T23:59:59.999Z`);
+    return dateTime(date);
+  }
   function eligibleByCutoff(date, cutoff) {
-    return isCalendarDate(cutoff) && Number.isFinite(dateTime(date)) && dateTime(date) <= Date.parse(`${cutoff}T23:59:59.999Z`);
+    const boundary = cutoffBoundaryMs(cutoff);
+    const evidence = evidenceTimeForCutoff(date, cutoff);
+    return Number.isFinite(boundary) && Number.isFinite(evidence) && evidence <= boundary;
   }
   /* Calendar-month lookbacks clamp the day: March 31 minus one month is
-     February's last day, not March 3. */
+     February's last day, not March 3. v1.0 retains its date-only boundary;
+     v1.1 measures backward from the declared UTC instant. */
   function withinCalendarMonths(date, cutoff, months) {
     if (!eligibleByCutoff(date, cutoff)) return false;
-    const end = new Date(`${cutoff}T00:00:00Z`);
+    if (isCalendarDate(cutoff)) {
+      const end = new Date(`${cutoff}T00:00:00Z`);
+      const day = end.getUTCDate();
+      end.setUTCDate(1); end.setUTCMonth(end.getUTCMonth() - months);
+      const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
+      end.setUTCDate(Math.min(day, last));
+      return dateTime(date) >= end.getTime();
+    }
+    const end = new Date(cutoffBoundaryMs(cutoff));
     const day = end.getUTCDate();
+    const hour = end.getUTCHours(), minute = end.getUTCMinutes(), second = end.getUTCSeconds(), millisecond = end.getUTCMilliseconds();
     end.setUTCDate(1); end.setUTCMonth(end.getUTCMonth() - months);
     const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
-    end.setUTCDate(Math.min(day, last));
-    return dateTime(date) >= end.getTime();
+    end.setUTCDate(Math.min(day, last)); end.setUTCHours(hour, minute, second, millisecond);
+    return evidenceTimeForCutoff(date, cutoff) >= end.getTime();
   }
 
   const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -121,15 +226,28 @@
      Engine constants
      ────────────────────────────────────────────────────────────── */
   const CENTER_ORIGIN = "0•000•000•0000";
+  const G0_INPUT_SCHEMA_V11 = "harshalos-ground0-audit-input-v1.1";
   const emptyAnswer = () => ({ value: null, source: "", date: "", notes: "", gap: "" });
   const today = () => new Date().toISOString().slice(0, 10);
-  function newInput(version = "1.0") {
+  function emptyC2V11() {
     return {
-      name: "", identifier: "", version, cutoff: today(),
+      publishedRoute: { sourceId: "", criteria: "" },
+      invocation: { sourceId: "", criteria: "" },
+      outcomeSet: { sourceIds: [], complete: false, periodStart: "", periodEnd: "", numerator: "", denominator: "", outcomes: [] },
+      sources: []
+    };
+  }
+  function newInput(version = "1.0") {
+    if (!["1.0", "1.1"].includes(version)) throw new Error("Choose Ground-0 1.0 or 1.1 explicitly.");
+    const v11 = version === "1.1";
+    return {
+      name: "", identifier: "", version,
+      ...(v11 ? { inputSchema: G0_INPUT_SCHEMA_V11 } : {}),
+      cutoff: v11 ? makeUtsCutoff() : today(),
       answers: Array.from({ length: 5 }, emptyAnswer),
       constraints: Array.from({ length: 4 }, emptyAnswer),
-      b4: { actor: "", action: "", procedure: "", basis: "NOT_DEMONSTRATED", numerator: "", denominator: "", complete: false, start: "", end: "" },
-      c2: { route: false, invoked: false, complete: false, numerator: "", denominator: "", start: "", end: "" },
+      b4: { actor: "", action: "", procedure: "", basis: "NOT_DEMONSTRATED", numerator: "", denominator: "", complete: false, start: "", end: "", ...(v11 ? { binding: false, noPenalty: false, terminatesAction: false } : {}) },
+      c2: v11 ? emptyC2V11() : { route: false, invoked: false, complete: false, numerator: "", denominator: "", start: "", end: "" },
       external: { exists: false, exercised: false, holder: "", scope: "", source: "", date: "" },
       decrement: { enabled: false, oldSource: "", newSource: "", oldDate: "", newDate: "", notes: "" },
       headerText: "", publicKeyText: "", trustedOrigin: CENTER_ORIGIN
@@ -140,7 +258,7 @@
     { code: "B1", title: "Can compliance be coerced?", short: "Coercion", variable: "enforcement_present", description: "Does the entity impose penalties, access restrictions, funding cuts, or other negative consequences for not following its directives?", examples: "Funding conditions, license revocation, access restrictions, fines, termination, or documented enforcement." },
     { code: "B2", title: "Can decisions be ignored without consequence?", short: "Optional decisions", variable: "decisions_optional", description: "Can an affected entity proceed without penalty when it does not follow an institutional decision or directive?", examples: "Advisory or voluntary decisions, non-binding public statements, or documented non-compliance without penalty." },
     { code: "B3", title: "Do rules activate real-world effects?", short: "Executable rules", variable: "rules_execute", description: "Do guidance, policies, or directives cause observable downstream changes in behavior, enforcement, or resource allocation?", examples: "Implemented policies, rules embedded in law or contracts, operational changes, or a documented real-world cascade." },
-    { code: "B4", title: "Does refusal or appeal reliably stop action?", short: "Terminal refusal", variable: "refusal_terminal", description: "Is there an evidenced mechanism through which refusal or appeal reliably halts the specified institutional action?", examples: "v1.0: formal appeals, successful court review, legislative override, or penalty-free exit. v1.1: an operative terminal/stay rule, a complete ≥50% relief record, or a binding no-penalty exit; external orders alone do not qualify." },
+    { code: "B4", title: "Does refusal or appeal reliably stop action?", short: "Terminal refusal", variable: "refusal_terminal", description: "Is there an evidenced mechanism through which refusal or appeal reliably halts the specified institutional action?", examples: "v1.0: formal appeals, successful court review, legislative override, or penalty-free exit. v1.1: an operative terminal/stay rule, a complete ≥50% relief record, or a binding, penalty-free exit that explicitly terminates the specified action; external orders alone do not qualify." },
     { code: "B5", title: "Do rules persist by default over time?", short: "Persistent authority", variable: "authority_persists", description: "Does a decision remain in effect until actively changed, rather than automatically expiring and requiring renewal?", examples: "No sunset clause, policies effective until repealed, historic decisions still in force, or a burden on repeal rather than renewal." }
   ];
 
@@ -208,6 +326,118 @@
   function reliefQualifies(numerator, denominator, complete, start, end, cutoff) {
     const n = Number(numerator), d = Number(denominator);
     return complete && numerator !== "" && denominator !== "" && Number.isInteger(n) && Number.isInteger(d) && d > 0 && n >= 0 && n <= d && n / d >= 0.5 && beforeCutoff(start, cutoff) && beforeCutoff(end, cutoff) && dateTime(start) <= dateTime(end);
+  }
+  function validateInputContract(input) {
+    if (!isObject(input)) return "The audit input must be an object.";
+    if (input.version === "1.0") {
+      if (!isCalendarDate(input.cutoff)) return "Ground-0 v1.0 requires its unchanged YYYY-MM-DD cutoff contract.";
+      if (input.inputSchema === G0_INPUT_SCHEMA_V11) return "A v1.1 input schema cannot be evaluated under v1.0.";
+      return "";
+    }
+    if (input.version === "1.1") {
+      if (input.inputSchema !== G0_INPUT_SCHEMA_V11) return `Ground-0 v1.1 requires inputSchema ${G0_INPUT_SCHEMA_V11}.`;
+      if (!isUtsCutoff(input.cutoff)) return "Ground-0 v1.1 requires a valid UTC timestamp paired with its matching HOSUTS UDate projection.";
+      if (!isObject(input.b4) || !["binding", "noPenalty", "terminatesAction", "complete"].every(key => typeof input.b4[key] === "boolean")) return "Ground-0 v1.1 requires explicit boolean B4 completeness, binding, noPenalty, and terminatesAction fields.";
+      if (!["actor", "action", "procedure", "basis", "numerator", "denominator", "start", "end"].every(key => typeof input.b4[key] === "string") || !["NOT_DEMONSTRATED", "TERMINAL_RULE", "RESOLVED_APPEALS", "NO_PENALTY_EXIT"].includes(input.b4.basis)) return "Ground-0 v1.1 B4 fields do not match the versioned input schema.";
+      if (!isObject(input.c2) || !isObject(input.c2.publishedRoute) || !isObject(input.c2.invocation) || !isObject(input.c2.outcomeSet) || !Array.isArray(input.c2.sources)) return "Ground-0 v1.1 requires the versioned structured C2 provenance record.";
+      if (!["sourceId", "criteria"].every(key => typeof input.c2.publishedRoute[key] === "string") || !["sourceId", "criteria"].every(key => typeof input.c2.invocation[key] === "string")) return "Ground-0 v1.1 C2 route and invocation fields do not match the versioned input schema.";
+      const outcomeSet = input.c2.outcomeSet;
+      if (typeof outcomeSet.complete !== "boolean" || typeof outcomeSet.periodStart !== "string" || typeof outcomeSet.periodEnd !== "string" || !["string", "number"].includes(typeof outcomeSet.numerator) || !["string", "number"].includes(typeof outcomeSet.denominator) || !Array.isArray(outcomeSet.sourceIds) || !outcomeSet.sourceIds.every(id => typeof id === "string") || !Array.isArray(outcomeSet.outcomes)) return "Ground-0 v1.1 C2 outcome-set fields do not match the versioned input schema.";
+      if (!outcomeSet.outcomes.every(outcome => isObject(outcome) && typeof outcome.caseId === "string" && typeof outcome.outcome === "string" && typeof outcome.date === "string" && Array.isArray(outcome.sourceIds) && outcome.sourceIds.every(id => typeof id === "string"))) return "Ground-0 v1.1 C2 outcomes must include a caseId, outcome, date, and string sourceIds array.";
+      if (!input.c2.sources.every(source => isObject(source) && ["id", "role", "url", "date", "locator", "claim"].every(key => typeof source[key] === "string"))) return "Ground-0 v1.1 C2 source entries do not match the versioned input schema.";
+      if (!Array.isArray(input.answers) || input.answers.length !== 5 || !Array.isArray(input.constraints) || input.constraints.length !== 4) return "Ground-0 v1.1 requires exactly five behavioral answers and four constraint fields.";
+      for (const answer of [...input.answers, ...input.constraints]) {
+        if (!isObject(answer) || ![true, false, null].includes(answer.value) || !["source", "date", "notes", "gap"].every(key => typeof answer[key] === "string")) return "Ground-0 v1.1 answers must use the versioned value, citation, and evidence-gap fields.";
+      }
+      return "";
+    }
+    return "Input.version must explicitly select Ground-0 v1.0 or v1.1; unknown versions are never defaulted.";
+  }
+  function nonnegativeInteger(value) {
+    if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? value : NaN;
+    if (typeof value === "string" && /^(0|[1-9]\d*)$/.test(value)) {
+      const parsed = Number(value);
+      return Number.isSafeInteger(parsed) ? parsed : NaN;
+    }
+    return NaN;
+  }
+  function validateC2Evidence(input) {
+    const errors = [];
+    const c2 = input && input.c2;
+    const answer = input && Array.isArray(input.constraints) ? input.constraints[1] : null;
+    const fail = message => errors.push(message);
+    if (!c2 || !isObject(c2)) return { valid: false, errors: ["structured C2 record is missing"] };
+    const sources = Array.isArray(c2.sources) ? c2.sources : [];
+    const byId = new Map();
+    const roles = new Set(["ROUTE", "INVOCATION", "OUTCOME_SET", "OUTCOME"]);
+    for (const [index, source] of sources.entries()) {
+      if (!isObject(source)) { fail(`source ${index + 1} is not an object`); continue; }
+      const id = typeof source.id === "string" ? source.id.trim() : "";
+      if (!id) fail(`source ${index + 1} has no ID`);
+      else if (byId.has(id)) fail(`source ID ${id} is duplicated`);
+      else byId.set(id, source);
+      if (!roles.has(source.role)) fail(`source ${id || index + 1} has an invalid role`);
+      if (!safePublicUrl(source.url)) fail(`source ${id || index + 1} lacks a safe public URL`);
+      if (!eligibleByCutoff(source.date, input.cutoff)) fail(`source ${id || index + 1} lacks an eligible dated artifact before the cutoff`);
+      if (typeof source.locator !== "string" || source.locator.trim().length < 3) fail(`source ${id || index + 1} lacks a usable locator`);
+      if (typeof source.claim !== "string" || source.claim.trim().length < 8) fail(`source ${id || index + 1} lacks a claim supported by that locator`);
+    }
+    const referenced = new Set();
+    const requireSource = (id, role, label) => {
+      if (typeof id !== "string" || !id.trim()) { fail(`${label} source ID is missing`); return null; }
+      const source = byId.get(id);
+      if (!source) { fail(`${label} source ID ${id} is not present in c2.sources`); return null; }
+      referenced.add(id);
+      if (source.role !== role) fail(`${label} source ${id} must have role ${role}`);
+      return source;
+    };
+    const route = isObject(c2.publishedRoute) ? c2.publishedRoute : {};
+    const invocation = isObject(c2.invocation) ? c2.invocation : {};
+    const outcomeSet = isObject(c2.outcomeSet) ? c2.outcomeSet : {};
+    const periodStartMs = dateTime(outcomeSet.periodStart);
+    const periodEndMs = isCalendarDate(outcomeSet.periodEnd) ? Date.parse(`${outcomeSet.periodEnd}T23:59:59.999Z`) : dateTime(outcomeSet.periodEnd);
+    requireSource(route.sourceId, "ROUTE", "published route");
+    if (typeof route.criteria !== "string" || route.criteria.trim().length < 8) fail("published route invocation criteria are missing or too short");
+    requireSource(invocation.sourceId, "INVOCATION", "invocation");
+    if (typeof invocation.criteria !== "string" || invocation.criteria.trim().length < 8) fail("the criteria actually used to invoke the route are missing or too short");
+    if (outcomeSet.complete !== true) fail("the resolved outcome set is not explicitly marked complete");
+    const periodStart = outcomeSet.periodStart;
+    const periodEnd = outcomeSet.periodEnd;
+    if (!eligibleByCutoff(periodStart, input.cutoff) || !eligibleByCutoff(periodEnd, input.cutoff) || !Number.isFinite(periodStartMs) || !Number.isFinite(periodEndMs) || periodStartMs > periodEndMs) fail("the complete outcome set lacks a valid bounded period at or before the cutoff");
+    const outcomeSetIds = Array.isArray(outcomeSet.sourceIds) ? outcomeSet.sourceIds : [];
+    if (!outcomeSetIds.length) fail("the complete outcome set has no source set");
+    for (const id of outcomeSetIds) requireSource(id, "OUTCOME_SET", "complete outcome set");
+    const outcomes = Array.isArray(outcomeSet.outcomes) ? outcomeSet.outcomes : [];
+    if (!outcomes.length) fail("the complete outcome set contains no resolved outcomes");
+    const seenCases = new Set();
+    for (const [index, outcome] of outcomes.entries()) {
+      if (!isObject(outcome)) { fail(`outcome ${index + 1} is not an object`); continue; }
+      const caseId = typeof outcome.caseId === "string" ? outcome.caseId.trim() : "";
+      if (!caseId) fail(`outcome ${index + 1} has no case ID`);
+      else if (seenCases.has(caseId)) fail(`case ID ${caseId} is duplicated`);
+      else seenCases.add(caseId);
+      if (!["RELIEF", "NO_RELIEF"].includes(outcome.outcome)) fail(`outcome ${caseId || index + 1} must be RELIEF or NO_RELIEF`);
+      const outcomeMs = dateTime(outcome.date);
+      const outcomeEndMs = isCalendarDate(outcome.date) ? Date.parse(`${outcome.date}T23:59:59.999Z`) : outcomeMs;
+      if (!eligibleByCutoff(outcome.date, input.cutoff)) fail(`outcome ${caseId || index + 1} lacks an eligible resolved date before the cutoff`);
+      if (!Number.isFinite(outcomeMs) || !Number.isFinite(outcomeEndMs) || outcomeMs < periodStartMs || outcomeEndMs > periodEndMs) fail(`outcome ${caseId || index + 1} falls outside the complete outcome-set period`);
+      const sourceIds = Array.isArray(outcome.sourceIds) ? outcome.sourceIds : [];
+      if (!sourceIds.length) fail(`outcome ${caseId || index + 1} has no supporting source`);
+      for (const id of sourceIds) requireSource(id, "OUTCOME", `outcome ${caseId || index + 1}`);
+    }
+    const numerator = nonnegativeInteger(outcomeSet.numerator);
+    const denominator = nonnegativeInteger(outcomeSet.denominator);
+    const reliefCount = outcomes.filter(outcome => isObject(outcome) && outcome.outcome === "RELIEF").length;
+    if (!Number.isFinite(numerator) || numerator !== reliefCount) fail("the stated relief numerator does not match the listed complete outcomes");
+    if (!Number.isFinite(denominator) || denominator !== outcomes.length || denominator < 1) fail("the stated denominator does not match the complete listed outcome set");
+    if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0 && numerator / denominator < 0.5) fail("the complete outcome set demonstrates less than 50% relief");
+    if (!answer || answer.value !== true || !qualifies(answer, input.cutoff)) fail("the affirmative C2 answer lacks its own qualifying public citation and claim");
+    else if (!sources.some(source => isObject(source) && canonicalUrl(source.url) === canonicalUrl(answer.source) && dateTime(source.date) === dateTime(answer.date))) fail("the C2 answer citation is not linked to a dated source in the C2 provenance set");
+    for (const source of sources) if (isObject(source) && source.id && !referenced.has(source.id)) fail(`source ${source.id} is not connected to the route, invocation, outcome set, or a resolved outcome`);
+    return { valid: errors.length === 0, errors, numerator, denominator, reliefCount, reliefRate: Number.isFinite(denominator) && denominator > 0 ? reliefCount / denominator : null };
+  }
+  function c2Qualifies(input) {
+    return validateC2Evidence(input).valid;
   }
   /* v1.1 B4: an external order plus compliance is NOT terminal refusal. */
   /* ──────────────────────────────────────────────────────────────
@@ -284,7 +514,7 @@
     RESOLVED_APPEALS: Object.freeze({ direction: "inboundOnAppeal", note: "an external body seized by an appeal granting relief against the institution" }),
     NO_PENALTY_EXIT: Object.freeze({
       direction: "selfDirected",
-      note: "the subject party ending its own participation. The institution's action continues for everyone else, so it does not halt it."
+      note: "a binding, penalty-free exit that explicitly terminates the specified action; an exit that only ends one party's participation does not qualify."
     }),
     NOT_DEMONSTRATED: Object.freeze({ direction: "none", note: "no route demonstrated" })
   });
@@ -293,21 +523,26 @@
     const question = QUESTION_DIRECTION[code];
     if (!question) return false;
     const direction = evidence && evidence.direction ? evidence.direction : null;
+    if (code === "B4" && direction === "selfDirected") {
+      return evidence.basis === "NO_PENALTY_EXIT" && evidence.binding === true && evidence.noPenalty === true && evidence.terminatesAction === true;
+    }
     return !!direction && question.accepts.includes(direction);
   }
 
   function b4Qualifies(input) {
-    const b = input.b4;
-    if (!hasScoringCitation(input, input.answers[3]) || !b.actor.trim() || !b.action.trim() || !b.procedure.trim()) return false;
-    /* A route only qualifies B4 if it is authority exercised over the
-       institution. NO_PENALTY_EXIT is self-directed, so it is barred here:
-       see B4_BASIS. The other three lines of this function are unchanged. */
+    const b = input && input.b4;
+    if (!input || input.version !== "1.1" || !b || !hasScoringCitation(input, input.answers[3]) || !b.actor.trim() || !b.action.trim() || !b.procedure.trim()) return false;
     const route = B4_BASIS[b.basis];
-    if (!route || route.direction !== "inboundOnAppeal") return false;
+    if (!route) return false;
+    if (b.basis === "NO_PENALTY_EXIT") {
+      return evidenceAllowedFor("B4", { direction: route.direction, basis: b.basis, binding: b.binding, noPenalty: b.noPenalty, terminatesAction: b.terminatesAction });
+    }
+    if (route.direction !== "inboundOnAppeal") return false;
     if (b.basis === "TERMINAL_RULE") return true;
     return b.basis === "RESOLVED_APPEALS" && reliefQualifies(b.numerator, b.denominator, b.complete, b.start, b.end, input.cutoff);
   }
   function scoredVector(input) {
+    if (!input || !["1.0", "1.1"].includes(input.version) || !Array.isArray(input.answers)) return [false, false, false, false, false];
     return input.answers.map((answer, i) => {
       if (input.version === "1.0") return answer.value === true;
       if (input.automation && !hasScoringCitation(input, answer)) return false;
@@ -315,11 +550,12 @@
     });
   }
   function scoredConstraints(input) {
+    if (!input || !["1.0", "1.1"].includes(input.version) || !Array.isArray(input.constraints)) return [false, false, false, false];
     return input.constraints.map((answer, i) => {
       if (answer.value !== true || !hasScoringCitation(input, answer)) return false;
       if (i === 0 && !withinMonths(answer.date, input.cutoff, 24)) return false;
       if (i === 3 && !withinMonths(answer.date, input.cutoff, 12)) return false;
-      if (i === 1 && input.version === "1.1") return input.c2.route && input.c2.invoked && reliefQualifies(input.c2.numerator, input.c2.denominator, input.c2.complete, input.c2.start, input.c2.end, input.cutoff);
+      if (i === 1 && input.version === "1.1") return c2Qualifies(input);
       return true;
     });
   }
@@ -358,7 +594,7 @@
       DECLARED_PHASES.includes(String(phase)) && isIsoTimestamp(header["Effective-Timestamp"]) &&
       !!String(header["Center-Origin"]).trim();
     if (!result.structural) return { ...result, reason: "NO_VALID_PDH: A required field is missing or malformed. Creator IDs must match each other and the entity identifier." };
-    const delta = Date.parse(`${input.cutoff}T23:59:59.999Z`) - dateTime(String(header["Effective-Timestamp"]));
+    const delta = cutoffBoundaryMs(input.cutoff) - dateTime(String(header["Effective-Timestamp"]));
     result.freshness = delta >= 0 && delta <= 90 * 86400000;
     const phaseDef = phaseDefinitions.find(def => def.phase === phase);
     const fieldNames = ["Center-Capability", "Legitimacy-Source", "Refusal-Semantics", "Symbolism-Executability", "Time-Authority-Effect"];
@@ -443,11 +679,17 @@
   /* ──────────────────────────────────────────────────────────────
      STEPS 1–5 — create the full audit record
      ────────────────────────────────────────────────────────────── */
-  async function createAudit(input, existing) {
-    if (!input.name.trim() || !isCalendarDate(input.cutoff)) throw new Error("Provide an entity name and a real YYYY-MM-DD evidence cutoff.");
+  async function createAudit(input, existing = []) {
+    const contractError = validateInputContract(input);
+    if (contractError) throw new Error(contractError);
+    if (typeof input.name !== "string" || !input.name.trim()) throw new Error("Provide an entity name.");
     if (!Array.isArray(input.answers) || input.answers.length !== 5 || !Array.isArray(input.constraints) || input.constraints.length !== 4) throw new Error("The audit requires exactly five behavioral answers and four constraint fields.");
     // Snapshot the submitted record: subsequent edits must not mutate evidence already exported or saved.
     input = JSON.parse(JSON.stringify(input));
+    if (input.version === "1.1" && input.constraints[1] && input.constraints[1].value === true) {
+      const c2 = validateC2Evidence(input);
+      if (!c2.valid) throw new Error(`v1.1 C2 conformance failed: ${c2.errors.join("; ")}.`);
+    }
     const pdh = await validatePDH(input);
     if (pdh.status === "VALID" && existing.some(a => !a.baseline && a.pdh.headerId === pdh.headerId && a.pdh.payload !== pdh.payload)) {
       pdh.status = "INVALID"; pdh.structural = false; pdh.declared = "NONE";
@@ -510,11 +752,11 @@
     }
     const now = new Date().toISOString();
     const entityCode = (input.identifier || input.name).toUpperCase().replace(/[^A-Z0-9]/g, "-").replace(/-+/g, "-").slice(0, 32) || "ENTITY";
-    const history = existing.filter(a => !a.baseline && (input.identifier ? a.identifier === input.identifier : a.name.toLowerCase() === input.name.toLowerCase())).sort((a, b) => a.cutoff.localeCompare(b.cutoff));
+    const history = existing.filter(a => !a.baseline && (input.identifier ? a.identifier === input.identifier : a.name.toLowerCase() === input.name.toLowerCase())).sort((a, b) => compareCutoffs(a.cutoff, b.cutoff));
     const nextSequence = Math.max(0, ...history.map(a => Number(String((a.report && a.report.Duty_Collation_Entry_ID) || "").split("-").pop()) || 0)) + 1;
-    const entryId = `PDH-${input.cutoff}-${entityCode}-${String(nextSequence).padStart(3, "0")}`;
+    const entryId = `PDH-${cutoffToken(input.cutoff)}-${entityCode}-${String(nextSequence).padStart(3, "0")}`;
     const decrement = input.decrement.enabled && isPublicUrl(input.decrement.oldSource) && isPublicUrl(input.decrement.newSource) && beforeCutoff(input.decrement.oldDate, input.cutoff) && beforeCutoff(input.decrement.newDate, input.cutoff) && dateTime(input.decrement.oldDate) < dateTime(input.decrement.newDate) && input.decrement.notes.trim().length >= 8;
-    const previousRecords = history.filter(a => a.cutoff <= input.cutoff);
+    const previousRecords = history.filter(a => compareCutoffs(a.cutoff, input.cutoff) <= 0);
     const previous = previousRecords[previousRecords.length - 1];
     let temporalPattern = decrement ? "Drift" : "N/A";
     let transition = null;
@@ -530,7 +772,7 @@
         if (previous.pdh.declared !== pdh.declared && previous.phase === phase) { temporalPattern = "Rebranding"; severity = "BREACH"; }
         if (previousRecords.some(a => a.phase === "NAB") && previous.phase === "CWO" && phase === "GSRB") temporalPattern = "Drift";
       }
-      transition = { from: previous.phase, to: phase, fromDate: previous.cutoff, toDate: input.cutoff, status, pattern: temporalPattern, severity, entryId, notes };
+      transition = { from: previous.phase, to: phase, fromDate: cutoffMarker(previous.cutoff), toDate: cutoffMarker(input.cutoff), status, pattern: temporalPattern, severity, entryId, notes };
     }
     const evidence = [];
     [...input.answers, ...input.constraints].forEach((answer, i) => {
@@ -551,10 +793,11 @@
       evidence.push({ id: `${entryId}-${source.id}`, title: source.title, url: source.url, published: source.published || "", retrieved: source.retrieved.slice(0, 10), claim: source.excerpt || "Research context only; no qualifying operational claim extracted.", codes: [source.kind === "news" ? "NEWS LEAD — NEVER SCORED" : "RESEARCH CONTEXT — UNSCORED"], entity: input.name });
     }
     const replicationRisk = complete && pdh.status === "VALID" ? "LOW" : complete ? "MEDIUM" : "HIGH";
-    const activatorVector = input.answers.map((a, i) => ({ Question: `B${i + 1}`, Auditor_Answer: a.value === null ? "UNANSWERED" : a.value ? "YES" : "NO", Scored_Answer: vector[i] ? "YES" : "NO", Source: a.source || null, Publication_Date: a.date || null, Claim: a.notes || null, Evidence_Gap: a.gap || (!hasScoringCitation(input, a) ? "No qualifying public artifact by cutoff." : null), Cutoff_Status: hasScoringCitation(input, a) ? "ELIGIBLE" : "NOT_DEMONSTRATED" }));
+    const activatorVector = input.answers.map((a, i) => ({ Question: `B${i + 1}`, Auditor_Answer: a.value === null ? "UNANSWERED" : a.value ? "YES" : "NO", Scored_Answer: vector[i] ? "YES" : "NO", Source: a.source || null, Publication_Date: a.date || null, Claim: a.notes || null, Evidence_Gap: a.gap || (i === 3 && input.version === "1.1" && a.value === true && !b4Qualifies(input) ? "The v1.1 B4 route is not demonstrated: use an operative terminal/stay rule, a complete ≥50% relief set, or a binding, penalty-free exit explicitly terminating the specified action." : !hasScoringCitation(input, a) ? "No qualifying public artifact by cutoff." : null), Cutoff_Status: hasScoringCitation(input, a) ? "ELIGIBLE" : "NOT_DEMONSTRATED" }));
     const report = {
-      Algorithm_Version: `Ground-0 v${input.version}`, Specification_Status: input.version === "1.0" ? "NORMATIVE BASELINE" : "AMENDMENT DRAFT — NOT RATIFIED", Record_Status: complete ? "EVIDENCE_DOCUMENTED" : "DRAFT — EVIDENCE INCOMPLETE",
-      Entity_Name: input.name.trim(), Entity_Identifier: input.identifier.trim() || null, Audit_Timestamp: now, Evidence_Cutoff: `${input.cutoff}T23:59:59.999Z`,
+      Algorithm_Version: `Ground-0 v${input.version}`, Specification_Status: input.version === "1.0" ? "NORMATIVE BASELINE" : "NORMATIVE AMENDMENT", Record_Status: complete ? "EVIDENCE_DOCUMENTED" : "DRAFT — EVIDENCE INCOMPLETE",
+      Entity_Name: input.name.trim(), Entity_Identifier: input.identifier.trim() || null, Audit_Timestamp: now,
+      Evidence_Cutoff: input.version === "1.0" ? `${input.cutoff}T23:59:59.999Z` : { utc: input.cutoff.utc, uts: { model: input.cutoff.uts.model, scale: input.cutoff.uts.scale, scaledUDate: input.cutoff.uts.scaledUDate, display: input.cutoff.uts.display }, timeTrust: "UTS is an approximate display projection derived from the device clock, not a trusted time source or Ground-0 attestation." },
       PDH_Status: pdh.status, PDH_Validation: pdh, Declared_Phase: pdh.declared, Detected_Phase: phase, Compliance_Status: compliance, Confidence_Level: confidence, Severity_Level: severity, Badge_Status: badge, Finding: finding,
       Evidence_Summary: evidence,
       ...(input.automation ? { Automation: input.automation, Review_Status: input.automation.reviewRequired ? "HUMAN_REVIEW_REQUIRED" : "REVIEWED_BY_AUDITOR", Research_Sources: input.automation.sources, Registry_Coverage: input.automation.coverage || [], Research_Limits: input.automation.warnings || [] } : {}),
@@ -564,7 +807,7 @@
       Inbound_Profile: { Axis: inbound.axis, Demonstrated: `${inbound.demonstrated} of ${inbound.total}`, Consulted_For_Phase: inbound.consultedForPhase ? "yes — the vector was ambiguous" : "no — reported regardless of phase", Checks: inbound.checks.map(check => ({ Code: check.code, Question: check.title, Demonstrated: check.demonstrated ? "YES" : "NO", Gap: check.gap })) },
       External_Constraint_Record: externalRecord, Constraint_Decrement: { Verified_By_Auditor: decrement ? "YES" : "NO", ...input.decrement, Non_Scoring: true },
       Working_Badge: null, Duty_Collation_Entry_ID: entryId, Replication_Risk: replicationRisk, Temporal_Pattern: temporalPattern,
-      Transition_History: [...history.filter(a => a.cutoff <= input.cutoff).flatMap(a => a.transition ? [a.transition] : []), ...(transition ? [transition] : [])],
+      Transition_History: [...history.filter(a => compareCutoffs(a.cutoff, input.cutoff) <= 0).flatMap(a => a.transition ? [a.transition] : []), ...(transition ? [transition] : [])],
       Implementation_Notes: ["Signatures use the workspace ECDSA P-256/SHA-256 adapter; origin-key trust is supplied by the auditor, not independently certified. Header-ID conflicts are checked locally, not against an external registry.", ...(input.version === "1.0" ? ["The unspecified optional Step 3.5 GSRB escalation is never inferred automatically."] : []), "The source does not define a rapid-oscillation time threshold; no automated oscillation finding is made."]
     };
     const workingBadge = computeWorkingBadge(input, phase, badge, complete);
@@ -609,8 +852,9 @@
      ────────────────────────────────────────────────────────────── */
   function formatDate(date, short = false) {
     if (!date) return "Not stated";
-    if (!Number.isFinite(dateTime(date))) return "Invalid date";
-    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", ...(short ? {} : { year: "numeric" }), timeZone: "UTC" }).format(new Date(date.length === 10 ? `${date}T00:00:00Z` : date));
+    const value = isUtsCutoff(date) ? date.utc : date;
+    if (!Number.isFinite(dateTime(value))) return "Invalid date";
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", ...(short ? {} : { year: "numeric" }), timeZone: "UTC" }).format(new Date(isCalendarDate(value) ? `${value}T00:00:00Z` : value));
   }
   function sourceDateDescription(source) {
     if (source.kind === "news" || source.dateBasis === "indexed") return source.published ? `Indexed ${formatDate(source.published)} · not a verified publication date` : "Index date not demonstrated · lead only";
@@ -649,6 +893,38 @@
     if (isObject(value)) for (const key of Object.keys(defaults)) if (typeof value[key] === typeof defaults[key]) result[key] = value[key];
     return result;
   }
+  function normalizeB4V11(defaults, value) {
+    const result = typedFields(defaults, value);
+    for (const key of ["binding", "noPenalty", "terminatesAction"]) {
+      if (!isObject(value) || typeof value[key] !== "boolean") result[key] = null;
+    }
+    return result;
+  }
+  function normalizeC2V11(value) {
+    const raw = isObject(value) ? value : {};
+    const route = isObject(raw.publishedRoute) ? raw.publishedRoute : null;
+    const invocation = isObject(raw.invocation) ? raw.invocation : null;
+    const outcomeSet = isObject(raw.outcomeSet) ? raw.outcomeSet : null;
+    const count = value => typeof value === "number" || typeof value === "string" ? value : "";
+    const outcomes = outcomeSet && Array.isArray(outcomeSet.outcomes) ? outcomeSet.outcomes.map(item => {
+      const outcome = isObject(item) ? item : {};
+      return { caseId: text(outcome.caseId), outcome: text(outcome.outcome), date: text(outcome.date), sourceIds: strings(outcome.sourceIds) };
+    }) : [];
+    const sources = Array.isArray(raw.sources) ? raw.sources.map(item => {
+      const source = isObject(item) ? item : {};
+      return { id: text(source.id), role: text(source.role), url: text(source.url), date: text(source.date), locator: text(source.locator), claim: text(source.claim) };
+    }) : null;
+    return {
+      publishedRoute: route ? { sourceId: text(route.sourceId), criteria: text(route.criteria) } : null,
+      invocation: invocation ? { sourceId: text(invocation.sourceId), criteria: text(invocation.criteria) } : null,
+      outcomeSet: outcomeSet ? {
+        sourceIds: strings(outcomeSet.sourceIds), complete: outcomeSet.complete === true,
+        periodStart: text(outcomeSet.periodStart), periodEnd: text(outcomeSet.periodEnd),
+        numerator: count(outcomeSet.numerator), denominator: count(outcomeSet.denominator), outcomes
+      } : null,
+      sources
+    };
+  }
   function normalizeCoverage(value) {
     if (!Array.isArray(value)) return [];
     return value.filter(isObject).filter(c => typeof c.registry === "string").map(c => ({ registry: text(c.registry), scope: text(c.scope), source: text(c.source), found: typeof c.found === "number" && Number.isFinite(c.found) ? Math.max(0, c.found) : 0, mentions: typeof c.mentions === "number" && Number.isFinite(c.mentions) ? Math.max(0, c.mentions) : 0, status: ["searched", "no-match", "unavailable", "partial", "not-needed", "not-searched"].includes(text(c.status)) ? c.status : "not-searched" }));
@@ -672,7 +948,10 @@
   }
   function normalizeAuditInput(value, fallbackVersion = "1.0") {
     const raw = isObject(value) ? value : {};
-    const defaults = newInput(raw.version === "1.1" ? "1.1" : fallbackVersion);
+    const fallback = ["1.0", "1.1"].includes(fallbackVersion) ? fallbackVersion : "1.0";
+    const selected = ["1.0", "1.1"].includes(raw.version) ? raw.version : fallback;
+    const version = typeof raw.version === "string" ? raw.version : fallback;
+    const defaults = newInput(selected);
     let automation;
     if (isObject(raw.automation)) {
       const a = raw.automation;
@@ -680,7 +959,43 @@
       automation = { method: methods.includes(a.method) ? a.method : "public-lookup", provider: text(a.provider, "Public research"), requestedName: text(a.requestedName, text(raw.name)), generatedAt: text(a.generatedAt), reviewRequired: a.reviewRequired !== false, sources: normalizeSources(a.sources), coverage: normalizeCoverage(a.coverage), warnings: strings(a.warnings) };
       if (typeof a.coverageNote === "string" && a.coverageNote.trim()) automation.coverageNote = a.coverageNote.slice(0, 1200);
     }
-    return { ...defaults, name: text(raw.name), identifier: text(raw.identifier), cutoff: isCalendarDate(raw.cutoff) ? raw.cutoff : defaults.cutoff, answers: Array.from({ length: 5 }, (_, i) => normalizeAnswer(Array.isArray(raw.answers) ? raw.answers[i] : undefined)), constraints: Array.from({ length: 4 }, (_, i) => normalizeAnswer(Array.isArray(raw.constraints) ? raw.constraints[i] : undefined)), b4: typedFields(defaults.b4, raw.b4), c2: typedFields(defaults.c2, raw.c2), external: typedFields(defaults.external, raw.external), decrement: typedFields(defaults.decrement, raw.decrement), headerText: text(raw.headerText), publicKeyText: text(raw.publicKeyText), trustedOrigin: text(raw.trustedOrigin, defaults.trustedOrigin), ...(automation ? { automation } : {}) };
+    const cutoff = version === "1.0"
+      ? (isCalendarDate(raw.cutoff) ? raw.cutoff : defaults.cutoff)
+      : (raw.cutoff === undefined ? null : raw.cutoff);
+    return {
+      ...defaults,
+      name: text(raw.name), identifier: text(raw.identifier), version, cutoff,
+      ...(version === "1.1" ? { inputSchema: text(raw.inputSchema) } : (typeof raw.inputSchema === "string" ? { inputSchema: raw.inputSchema } : {})),
+      answers: Array.from({ length: 5 }, (_, i) => normalizeAnswer(Array.isArray(raw.answers) ? raw.answers[i] : undefined)),
+      constraints: Array.from({ length: 4 }, (_, i) => normalizeAnswer(Array.isArray(raw.constraints) ? raw.constraints[i] : undefined)),
+      b4: version === "1.1" ? normalizeB4V11(defaults.b4, raw.b4) : typedFields(defaults.b4, raw.b4),
+      c2: version === "1.1" ? normalizeC2V11(raw.c2) : typedFields(defaults.c2, raw.c2),
+      external: typedFields(defaults.external, raw.external), decrement: typedFields(defaults.decrement, raw.decrement),
+      headerText: text(raw.headerText), publicKeyText: text(raw.publicKeyText), trustedOrigin: text(raw.trustedOrigin, defaults.trustedOrigin),
+      ...(automation ? { automation } : {})
+    };
+  }
+  function convertInputVersion(value, version) {
+    if (!["1.0", "1.1"].includes(version)) throw new Error("Choose Ground-0 1.0 or 1.1 explicitly.");
+    const raw = isObject(value) ? value : {};
+    const defaults = newInput(version);
+    let cutoff;
+    if (version === "1.0") {
+      cutoff = isCalendarDate(raw.cutoff) ? raw.cutoff : isUtsCutoff(raw.cutoff) ? cutoffDate(raw.cutoff) : defaults.cutoff;
+    } else {
+      cutoff = isUtsCutoff(raw.cutoff) ? raw.cutoff : isCalendarDate(raw.cutoff) ? makeUtsCutoff(`${raw.cutoff}T23:59:59.999Z`) : defaults.cutoff;
+    }
+    return {
+      ...defaults,
+      name: text(raw.name), identifier: text(raw.identifier), cutoff,
+      ...(version === "1.1" ? { inputSchema: G0_INPUT_SCHEMA_V11 } : {}),
+      answers: Array.from({ length: 5 }, (_, i) => normalizeAnswer(Array.isArray(raw.answers) ? raw.answers[i] : undefined)),
+      constraints: Array.from({ length: 4 }, (_, i) => normalizeAnswer(Array.isArray(raw.constraints) ? raw.constraints[i] : undefined)),
+      b4: typedFields(defaults.b4, raw.b4),
+      c2: version === "1.1" ? emptyC2V11() : typedFields(defaults.c2, raw.c2),
+      external: typedFields(defaults.external, raw.external), decrement: typedFields(defaults.decrement, raw.decrement),
+      headerText: text(raw.headerText), publicKeyText: text(raw.publicKeyText), trustedOrigin: text(raw.trustedOrigin, defaults.trustedOrigin)
+    };
   }
   function normalizePdh(value) {
     const raw = isObject(value) ? value : {};
@@ -692,16 +1007,23 @@
     return { id: text(value.id, `E-${Math.random().toString(36).slice(2, 8)}`), title: text(value.title, "Public artifact"), url: value.url, published: text(value.published), retrieved: text(value.retrieved), claim: text(value.claim), codes: strings(value.codes), entity: text(value.entity) };
   }
   function normalizeTransition(value) {
-    if (!isObject(value) || !phases.includes(value.from) || !phases.includes(value.to) || !isCalendarDate(value.fromDate) || !isCalendarDate(value.toDate)) return null;
+    const validMarker = marker => isCalendarDate(marker) || isCanonicalUtcTimestamp(marker);
+    if (!isObject(value) || !phases.includes(value.from) || !phases.includes(value.to) || !validMarker(value.fromDate) || !validMarker(value.toDate)) return null;
     return { from: value.from, to: value.to, fromDate: value.fromDate, toDate: value.toDate, status: text(value.status, "OBSERVED_ONLY"), pattern: text(value.pattern, "N/A"), severity: text(value.severity, "WARNING"), entryId: text(value.entryId), notes: text(value.notes) };
   }
   /* Hydrate older records without inventing evidence or a declaration,
-     and rebuild only the working display badge. */
+     and rebuild only the working display badge. Old v1.1 date-cutoff records
+     remain readable as historical records but cannot be re-run as v1.1 input. */
+  function normalizeRecordCutoff(version, value) {
+    if (version === "1.0") return isCalendarDate(value) ? value : "";
+    return isUtsCutoff(value) || isCalendarDate(value) ? value : "";
+  }
   function normalizeAuditRecord(value) {
     if (!isObject(value) || typeof value.id !== "string" || !value.id || typeof value.name !== "string" || !value.name.trim() || !phases.includes(value.phase)) return null;
     const version = value.version === "1.1" ? "1.1" : "1.0";
     const phase = value.phase;
-    const input = normalizeAuditInput({ ...(isObject(value.input) ? value.input : {}), name: value.name, identifier: text(value.identifier), version, cutoff: value.cutoff, answers: isObject(value.input) && Array.isArray(value.input.answers) ? value.input.answers : value.answers, constraints: isObject(value.input) && Array.isArray(value.input.constraints) ? value.input.constraints : value.constraints }, version);
+    const recordCutoff = normalizeRecordCutoff(version, value.cutoff ?? (isObject(value.input) ? value.input.cutoff : undefined));
+    const input = normalizeAuditInput({ ...(isObject(value.input) ? value.input : {}), name: value.name, identifier: text(value.identifier), version, cutoff: recordCutoff, answers: isObject(value.input) && Array.isArray(value.input.answers) ? value.input.answers : value.answers, constraints: isObject(value.input) && Array.isArray(value.input.constraints) ? value.input.constraints : value.constraints }, version);
     if (input.automation) {
       if (!input.automation.coverage || !input.automation.coverage.length) input.automation.coverage = normalizeCoverage(isObject(value.report) ? value.report.Registry_Coverage : undefined);
       if (!input.automation.warnings || !input.automation.warnings.length) input.automation.warnings = strings(isObject(value.report) ? value.report.Research_Limits : undefined);
@@ -709,11 +1031,11 @@
     const pdh = normalizePdh(value.pdh);
     const badge = typeof value.badge === "string" && ["Confirmed", "Reclassified", "Invalid", "Unissued", "Conditional"].includes(value.badge) ? value.badge : "Unissued";
     const status = value.status === "Complete" ? "Complete" : value.status === "Needs review" ? "Needs review" : "Draft";
-    const workingBadge = computeWorkingBadge({ ...input, cutoff: isCalendarDate(value.cutoff) ? value.cutoff : "" }, phase, badge, status !== "Draft" && !(input.automation && input.automation.reviewRequired));
+    const workingBadge = computeWorkingBadge({ ...input, cutoff: recordCutoff }, phase, badge, status !== "Draft" && !(input.automation && input.automation.reviewRequired));
     const report = isObject(value.report) ? { ...value.report } : {};
     report.Working_Badge = workingBadge;
     if (input.automation) { report.Automation = input.automation; report.Registry_Coverage = input.automation.coverage || []; }
-    return { ...value, workingBadge, input, method: input.automation ? "automatic" : "manual", id: value.id, name: value.name, identifier: text(value.identifier), version, phase, createdAt: Number.isFinite(dateTime(value.createdAt)) ? value.createdAt : "", cutoff: isCalendarDate(value.cutoff) ? value.cutoff : "", reportedDeclared: text(value.reportedDeclared, "None"), confidence: ["HIGH", "MEDIUM", "LOW", "NONE"].includes(text(value.confidence)) ? value.confidence : "NONE", severity: text(value.severity, "WARNING"), compliance: text(value.compliance, "N/A"), badge, status, baseline: value.baseline === true, evidence: Array.isArray(value.evidence) ? value.evidence.map(normalizeEvidence).filter(Boolean) : [], answers: input.answers, constraints: input.constraints, pdh, finding: text(value.finding, "This saved record lacks a complete finding; review the evidence before use."), replicationRisk: text(value.replicationRisk, "HIGH"), temporalPattern: text(value.temporalPattern, "N/A"), transition: normalizeTransition(value.transition), report };
+    return { ...value, workingBadge, input, method: input.automation ? "automatic" : "manual", id: value.id, name: value.name, identifier: text(value.identifier), version, phase, createdAt: Number.isFinite(dateTime(value.createdAt)) ? value.createdAt : "", cutoff: recordCutoff, reportedDeclared: text(value.reportedDeclared, "None"), confidence: ["HIGH", "MEDIUM", "LOW", "NONE"].includes(text(value.confidence)) ? value.confidence : "NONE", severity: text(value.severity, "WARNING"), compliance: text(value.compliance, "N/A"), badge, status, baseline: value.baseline === true, evidence: Array.isArray(value.evidence) ? value.evidence.map(normalizeEvidence).filter(Boolean) : [], answers: input.answers, constraints: input.constraints, pdh, finding: text(value.finding, "This saved record lacks a complete finding; review the evidence before use."), replicationRisk: text(value.replicationRisk, "HIGH"), temporalPattern: text(value.temporalPattern, "N/A"), transition: normalizeTransition(value.transition), report };
   }
   function preserveRecovery(key, original) {
     try { if (!localStorage.getItem(`${key}-recovery`)) localStorage.setItem(`${key}-recovery`, original); } catch { /* Storage restrictions must not crash the workspace. */ }
@@ -977,12 +1299,13 @@
     DIRECTION, QUESTION_DIRECTION, CONSTRAINT_DIRECTION, B4_BASIS, evidenceAllowedFor,
     headerExample, baselineAudits, blankBadge, provisionalBadge,
     newInput, emptyAnswer, today, classify, validatePDH, createAudit, computeWorkingBadge,
-    scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation,
-    isPublicUrl, safePublicUrl, canonicalUrl, parseArchiveUrl, sameResource, isCalendarDate, isIsoTimestamp,
+    scoredVector, scoredConstraints, b4Qualifies, qualifies, hasScoringCitation, validateC2Evidence, c2Qualifies,
+    G0_INPUT_SCHEMA_V11, makeUtsCutoff, isUtsCutoff, cutoffDate, cutoffLabel, cutoffBoundaryMs, compareCutoffs, cutoffMarker, cutoffToken, validateInputContract,
+    isPublicUrl, safePublicUrl, canonicalUrl, parseArchiveUrl, sameResource, isCalendarDate, isIsoTimestamp, isCanonicalUtcTimestamp,
     dateTime, eligibleByCutoff, withinCalendarMonths, artifactDate, isObject,
     formatDate, sourceDateDescription, downloadFile, exportAudit,
     loadAuditRecords, loadEvidenceRecords, saveAuditRecords, saveEvidenceRecords,
     storageNoteOf, shrinkSourceText, MAX_SOURCE_TEXT, MAX_AUDIT_TEXT,
-    normalizeAuditRecord, normalizeAuditInput, normalizeEvidence
+    normalizeAuditRecord, normalizeAuditInput, normalizeEvidence, convertInputVersion
   };
 })();
