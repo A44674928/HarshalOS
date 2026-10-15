@@ -37,8 +37,11 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import '../js/g0-engine.js';
 import { ENGINE_SHA256, EVALUATOR_SHA256 } from '../worker/community-engine-version.mjs';
 import { evaluateSavedInput, sha256 } from '../worker/community-audit.mjs';
+
+const G0 = globalThis.G0;
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const CASE_STUDIES = path.join(ROOT, 'case-studies');
@@ -270,6 +273,21 @@ function compileInput({ entity, inputVersion, cutoff, auditText, header, index, 
       }
     : undefined;
 
+  if (inputVersion === '1.1') {
+    // The register records its cutoff as a calendar date. Preserve that
+    // inclusive date semantics under the v1.1 contract by stamping the end
+    // of the UTC day, paired with the matching UTS projection. B4/C2 start
+    // from the versioned empty records: the prose register does not supply
+    // structured v1.1 provenance, so nothing may be invented for it.
+    const input = G0.newInput('1.1');
+    input.name = entity;
+    input.identifier = header.header_id.replace(/^PDH-R-\d{4}-\d{4}-/, '').replace(/-\d{3}$/, '');
+    input.cutoff = G0.makeUtsCutoff(`${cutoff}T23:59:59.999Z`);
+    input.answers = answers;
+    input.constraints = constraintAnswers;
+    if (external) input.external = { ...input.external, ...external };
+    return input;
+  }
   return {
     version: inputVersion,
     name: entity,

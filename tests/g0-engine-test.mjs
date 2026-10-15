@@ -59,7 +59,7 @@ ok(!G0.qualifies({ value: true, source: "internal.doc", date: "2026-01-01", note
 
 /* ── v1.1 B4 discipline ── */
 const v11 = G0.newInput("1.1");
-v11.name = "Test Body 2"; v11.identifier = "TB-2"; v11.cutoff = "2026-09-12";
+v11.name = "Test Body 2"; v11.identifier = "TB-2"; v11.cutoff = G0.makeUtsCutoff("2026-09-12T23:59:59.999Z");
 v11.answers = JSON.parse(JSON.stringify(base.answers));
 v11.b4 = { actor: "Affected vendor", action: "Debarment decision", procedure: "Rule 7(b): appeal stays the action", basis: "RESOLVED_APPEALS", numerator: "3", denominator: "10", complete: false, start: "2025-01-01", end: "2026-01-01" };
 ok(!G0.b4Qualifies(v11), "v1.1 B4: incomplete relief set does not qualify");
@@ -221,7 +221,7 @@ ok(forbiddenRec.transition && forbiddenRec.transition.status === "FORBIDDEN" && 
 const blank = G0.computeWorkingBadge(G0.newInput("1.0"), "CWO", "Unissued", false);
 ok(blank.state === "blank" && blank.phase === "CWO" && blank.label.includes("default, unproven"), "blank working badge presumes CWO");
 const partial = G0.newInput("1.1");
-partial.name = "P"; partial.cutoff = "2026-09-12";
+partial.name = "P"; partial.cutoff = G0.makeUtsCutoff("2026-09-12T23:59:59.999Z");
 partial.answers[0] = ans(true, "https://example.com/x", "2026-01-01", "Documented enforcement with penalties.");
 const partialBadge = G0.computeWorkingBadge(partial, "GSRB", "Unissued", false);
 ok(partialBadge.disproved && partialBadge.filled === 1 && partialBadge.state === "forming", "one authority answer disproves the CWO default");

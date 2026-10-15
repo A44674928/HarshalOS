@@ -43,7 +43,7 @@ ok(links.includes("https://example.org/dispute") && links.includes("https://exam
 /* ── unknown suggested answers export as UNKNOWN, not NO ── */
 const summary = R.plainResearchSummary({
   organization: { name: "Acme Corp" },
-  input: { version: "1.1", cutoff: "2026-09-12", answers: [
+  input: { version: "1.1", cutoff: G0.makeUtsCutoff("2026-09-12T23:59:59.999Z"), answers: [
     { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." },
     { value: true, source: "https://example.org/t", date: "2026-01-01", notes: "Participation is voluntary and non-binding.", gap: "" },
     { value: null, source: "", date: "", notes: "", gap: "No dated artifact matched." },
@@ -102,6 +102,69 @@ try {
   ok(hosted.input.answers.map(answer => answer.value).join() === "true,,,,true", "hosted audit accepts cutoff-day and older evidence, rejects future, missing and invalid dates");
   ok(hosted.record.report.Research_Sources[1].Cutoff_Status === "AFTER CUTOFF — NOT SCORED", "future-dated hosted source remains unscored in report");
   ok(hosted.record.report.Research_Sources[2].Cutoff_Status === "DATE NOT DEMONSTRATED — NOT SCORED", "undated hosted source remains unscored in report");
+
+  // v1.1 automatic research carries the exact checked timestamp through the
+  // hosted request and rejects same-day date-only evidence when its instant
+  // cannot be placed before the cutoff.
+  const exactInstant = new Date(Date.now() - 2 * 86400000);
+  exactInstant.setUTCHours(12, 34, 56, 789);
+  if (exactInstant.getTime() > Date.now()) exactInstant.setUTCDate(exactInstant.getUTCDate() - 1);
+  const exactCutoff = G0.makeUtsCutoff(exactInstant);
+  let dateOnlyV11Rejected = false;
+  try { await R.automaticAudit({ name: organization.name, version: "1.1", cutoff: G0.cutoffDate(exactCutoff), existing: [], signal: new AbortController().signal, onProgress() {}, availability: { enabled: true } }); }
+  catch (error) { dateOnlyV11Rejected = /explicit UTC timestamp/.test(error.message); }
+  ok(dateOnlyV11Rejected, "v1.1 automatic research refuses a date-only cutoff instead of silently making it end-of-day");
+  const cutoffDay = G0.cutoffDate(exactCutoff);
+  const beforeInstant = new Date(exactInstant.getTime() - 1000).toISOString();
+  const afterInstant = new Date(exactInstant.getTime() + 1000).toISOString();
+  const priorDay = new Date(exactInstant.getTime() - 86400000).toISOString().slice(0, 10);
+  const exactSources = [
+    { title: "Before the exact cutoff", url: "https://example.org/before", kind: "official", published: beforeInstant },
+    { title: "After the exact cutoff", url: "https://example.org/after", kind: "official", published: afterInstant },
+    { title: "Date-only on cutoff day", url: "https://example.org/day-only", kind: "official", published: cutoffDay },
+    { title: "Prior-day source", url: "https://example.org/prior", kind: "official", published: priorDay }
+  ];
+  let hostedRequest;
+  globalThis.fetch = async (url, init) => {
+    if (url !== "/api/research") throw new Error(`Unexpected v1.1 hosted request: ${url}`);
+    hostedRequest = JSON.parse(init.body);
+    return json({ organization, sources: exactSources, answers: [
+      { value: true, source: exactSources[0].url, date: beforeInstant, notes: "The source predates the exact cutoff." },
+      { value: true, source: exactSources[1].url, date: afterInstant, notes: "The source follows the exact cutoff." },
+      { value: true, source: exactSources[2].url, date: cutoffDay, notes: "The source has only a date, not an instant." },
+      { value: true, source: exactSources[3].url, date: priorDay, notes: "The prior-day source is within the boundary." },
+      {}], constraints: Array.from({ length: 4 }, () => ({})) });
+  };
+  const exactResult = await R.automaticAudit({ name: organization.name, version: "1.1", cutoff: exactCutoff, existing: [], signal: new AbortController().signal, onProgress() {}, availability: { enabled: true } });
+  ok(hostedRequest.cutoff === cutoffDay && hostedRequest.cutoffTimestamp === exactCutoff.utc && JSON.stringify(hostedRequest.cutoffUts) === JSON.stringify(exactCutoff.uts), "v1.1 hosted research receives the exact UTC instant and matching UTS projection");
+  ok(exactResult.input.cutoff.utc === exactCutoff.utc && G0.isUtsCutoff(exactResult.input.cutoff), "automatic v1.1 input retains its checked timestamp rather than expanding it to end-of-day");
+  ok(exactResult.input.answers.map(answer => answer.value).join() === "true,,,true,", "v1.1 accepts an earlier same-day instant and prior-day evidence but rejects later and unresolved same-day evidence");
+  ok(exactResult.record.report.Research_Sources[1].Cutoff_Status === "AFTER CUTOFF — NOT SCORED" && exactResult.record.report.Research_Sources[2].Cutoff_Status === "AFTER CUTOFF — NOT SCORED", "later and date-only same-day sources are disclosed as unscored");
+
+  // Public indexes take a calendar-day query; GDELT and Wayback use the
+  // exact UTC second, and returned date-only records still pass the instant gate.
+  const exactRegistryCutoff = G0.makeUtsCutoff("2026-10-13T12:34:56.789Z");
+  const registryRequests = [];
+  globalThis.fetch = async value => {
+    const url = new URL(value);
+    registryRequests.push(url);
+    if (url.hostname === "www.courtlistener.com") return json({ results: [] });
+    if (url.hostname === "www.federalregister.gov") return json({ results: [] });
+    if (url.hostname === "www.govtrack.us") return json({ objects: [] });
+    if (url.hostname === "api.gdeltproject.org") return json({ articles: [] });
+    if (url.hostname === "archive.org") return json({ archived_snapshots: { closest: { available: true, status: "200", timestamp: "20261013120000", url: "https://web.archive.org/web/20261013120000/https://example.org/policy" } } });
+    throw new Error(`Unexpected cutoff request: ${url.href}`);
+  };
+  await R.searchPublicRegistries("Acme Corp", exactRegistryCutoff, new AbortController().signal);
+  const gdeltRequest = registryRequests.find(url => url.hostname === "api.gdeltproject.org");
+  const courtRequest = registryRequests.find(url => url.hostname === "www.courtlistener.com");
+  const federalRequest = registryRequests.find(url => url.hostname === "www.federalregister.gov");
+  const legislativeRequest = registryRequests.find(url => url.hostname === "www.govtrack.us");
+  ok(gdeltRequest?.searchParams.get("enddatetime") === "20261013123456", "GDELT request uses the exact v1.1 cutoff second");
+  ok(courtRequest?.searchParams.get("filed_before") === "10/13/2026" && federalRequest?.searchParams.get("conditions[publication_date][lte]") === "2026-10-13" && legislativeRequest?.searchParams.get("introduced_date__lte") === "2026-10-13", "date-indexed registries query the cutoff's UTC calendar day");
+  const archived = await R.lookupArchivedSnapshot("https://example.org/policy", exactRegistryCutoff, new AbortController().signal);
+  const archiveRequest = registryRequests.find(url => url.hostname === "archive.org");
+  ok(archiveRequest?.searchParams.get("timestamp") === "20261013123456" && archived.snapshot?.capturedAt === "2026-10-13T12:00:00Z", "Wayback lookup requests the exact cutoff and preserves the capture instant");
 } catch (error) {
   ok(false, `automatic audit regression: ${error.stack}`);
 } finally {

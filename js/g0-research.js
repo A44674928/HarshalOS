@@ -92,6 +92,16 @@ window.G0Research = (() => {
     archive: { label: "Archived snapshots", scope: "Available policy captures on or before the cutoff", source: "Internet Archive Wayback Machine" }
   };
   const now = () => new Date().toISOString();
+  const cutoffDate = cutoff => G0.cutoffDate(cutoff);
+  function cutoffQueryTimestamp(cutoff) {
+    const day = cutoffDate(cutoff);
+    if (G0.isUtsCutoff(cutoff)) return `${day.replace(/-/g, "")}${cutoff.utc.slice(11, 19).replace(/:/g, "")}`;
+    return `${day.replace(/-/g, "")}235959`;
+  }
+  function artifactEvidenceDate(value, preserveTimestamp = true) {
+    if (preserveTimestamp && G0.isIsoTimestamp(value)) return new Date(value).toISOString();
+    return G0.artifactDate(value);
+  }
   const clean = (value, limit = 700) => typeof value === "string" ? value.replace(/<[^>]*>/g, " ").replace(/&(?:amp|quot|lt|gt|nbsp);/gi, " ").replace(/\s+/g, " ").trim().slice(0, limit) : "";
   function arrayField(data, field) {
     if (!G0.isObject(data) || !Array.isArray(data[field])) throw new Error("The public index returned an unexpected record format.");
@@ -145,7 +155,7 @@ window.G0Research = (() => {
     let successes = 0;
     for (const [type, kindLabel] of [["o", "opinion"], ["r", "docket"]]) {
       signal.throwIfAborted();
-      const [year, month, day] = cutoff.split("-");
+      const [year, month, day] = cutoffDate(cutoff).split("-");
       const url = new URL("https://www.courtlistener.com/api/rest/v4/search/");
       url.search = new URLSearchParams({ q: `"${name.replace(/"/g, "")}"`, type, order_by: "dateFiled desc", filed_before: `${month}/${day}/${year}` }).toString();
       try {
@@ -174,7 +184,7 @@ window.G0Research = (() => {
   async function searchRegulatoryRecords(name, cutoff, signal) {
     const url = new URL("https://www.federalregister.gov/api/v1/documents.json");
     url.searchParams.set("conditions[term]", `"${name.replace(/"/g, "")}"`);
-    url.searchParams.set("conditions[publication_date][lte]", cutoff);
+    url.searchParams.set("conditions[publication_date][lte]", cutoffDate(cutoff));
     url.searchParams.set("per_page", "10");
     url.searchParams.set("order", "newest");
     for (const field of ["title", "publication_date", "html_url", "abstract", "type", "agencies"]) url.searchParams.append("fields[]", field);
@@ -195,7 +205,7 @@ window.G0Research = (() => {
 
   async function searchLegislativeRecords(name, cutoff, signal) {
     const url = new URL("https://www.govtrack.us/api/v2/bill");
-    url.search = new URLSearchParams({ q: name, limit: "12", sort: "-introduced_date", introduced_date__lte: cutoff }).toString();
+    url.search = new URLSearchParams({ q: name, limit: "12", sort: "-introduced_date", introduced_date__lte: cutoffDate(cutoff) }).toString();
     try {
       const data = await fetchJson(url.href, { signal }); const rows = arrayField(data, "objects"); const records = [];
       for (const item of rows) {
@@ -214,7 +224,7 @@ window.G0Research = (() => {
 
   async function searchNewsRecords(name, cutoff, signal) {
     const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
-    url.search = new URLSearchParams({ query: `"${name.replace(/"/g, "")}" (enforcement OR lawsuit OR regulator OR fine OR ruling OR appeal OR ban) sourcelang:english`, mode: "artlist", maxrecords: "12", format: "json", sort: "datedesc", enddatetime: `${cutoff.replace(/-/g, "")}235959` }).toString();
+    url.search = new URLSearchParams({ query: `"${name.replace(/"/g, "")}" (enforcement OR lawsuit OR regulator OR fine OR ruling OR appeal OR ban) sourcelang:english`, mode: "artlist", maxrecords: "12", format: "json", sort: "datedesc", enddatetime: cutoffQueryTimestamp(cutoff) }).toString();
     try {
       let data;
       try { data = await fetchJson(url.href, { signal, timeoutMs: 20000 }); }
@@ -226,7 +236,9 @@ window.G0Research = (() => {
       const rows = arrayField(data, "articles"); const records = [];
       for (const item of rows) {
         const title = clean(item.title, 240); const seen = typeof item.seendate === "string" ? item.seendate : "";
-        const indexed = G0.artifactDate(`${seen.slice(0, 4)}-${seen.slice(4, 6)}-${seen.slice(6, 8)}`);
+        const indexed = G0.isUtsCutoff(cutoff) && /^\d{14}$/.test(seen)
+          ? `${seen.slice(0, 4)}-${seen.slice(4, 6)}-${seen.slice(6, 8)}T${seen.slice(8, 10)}:${seen.slice(10, 12)}:${seen.slice(12, 14)}Z`
+          : G0.artifactDate(`${seen.slice(0, 4)}-${seen.slice(4, 6)}-${seen.slice(6, 8)}`);
         if (!title || !indexed || !G0.eligibleByCutoff(indexed, cutoff) || !mentionsEntity(title, name) || !G0.safePublicUrl(item.url)) continue;
         records.push({ id: `NEWS-${records.length + 1}`, kind: "news", title, url: item.url, published: indexed, retrieved: now(), authority: clean(item.domain, 120) || "News outlet", claim: "", excerpt: `Indexed by GDELT on ${indexed}; this is not a verified publication date. ${clean(item.domain, 120)} reporting is a lead for a primary artifact, never operative evidence.`, scoreable: false, named: true, codes: [] });
       }
@@ -235,9 +247,9 @@ window.G0Research = (() => {
   }
 
   async function lookupArchivedSnapshot(url, cutoff, signal) {
-    if (!G0.safePublicUrl(url) || !G0.isCalendarDate(cutoff)) return { status: "no-match", snapshot: null };
+    if (!G0.safePublicUrl(url) || !(G0.isCalendarDate(cutoff) || G0.isUtsCutoff(cutoff))) return { status: "no-match", snapshot: null };
     try {
-      const stamp = `${cutoff.replace(/-/g, "")}235959`;
+      const stamp = cutoffQueryTimestamp(cutoff);
       const endpoint = new URL("https://archive.org/wayback/available");
       endpoint.search = new URLSearchParams({ url, timestamp: stamp }).toString();
       const data = await fetchJson(endpoint.href, { signal, timeoutMs: 14000 });
@@ -246,7 +258,7 @@ window.G0Research = (() => {
       if (!G0.isObject(closest) || closest.available !== true || closest.status !== "200") return { status: "no-match", snapshot: null };
       const parsed = G0.parseArchiveUrl(closest.url);
       if (!parsed || parsed.timestamp !== closest.timestamp || parsed.timestamp > stamp || !G0.sameResource(parsed.original, url)) return { status: "no-match", snapshot: null };
-      return { status: "found", snapshot: { url: String(closest.url).replace(/^http:/, "https:"), captured: parsed.captured } };
+      return { status: "found", snapshot: { url: String(closest.url).replace(/^http:/, "https:"), captured: parsed.captured, capturedAt: `${parsed.captured}T${parsed.timestamp.slice(8, 10)}:${parsed.timestamp.slice(10, 12)}:${parsed.timestamp.slice(12, 14)}Z` } };
     } catch { signal.throwIfAborted(); return { status: "unavailable", snapshot: null }; }
   }
 
@@ -315,7 +327,7 @@ window.G0Research = (() => {
     const metadata = data.metadata || {};
     const value = (dateLine && dateLine[1]) || data.publishedTime || metadata["article:published_time"] || metadata["datePublished"];
     if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) return null;
-    return G0.artifactDate(value);
+    return artifactEvidenceDate(value);
   }
   /* Stripping emphasis is meant to clean prose, but an underscore between two
      word characters is not emphasis — it is part of an identifier, and
@@ -353,13 +365,15 @@ window.G0Research = (() => {
   async function readWithArchive(url, website, cutoff, signal) {
     let live = null; let liveError;
     try { live = await readPublicPage(url, website, signal); } catch (error) { signal.throwIfAborted(); liveError = error; }
-    const historical = cutoff < G0.today();
+    const boundary = G0.cutoffBoundaryMs(cutoff);
+    const historical = Number.isFinite(boundary) && boundary < Date.now();
     if (live && live.published && G0.eligibleByCutoff(live.published, cutoff) && !historical) return { ...live, archiveStatus: "not-needed", scoringEligible: true, dateBasis: "publication", liveContent: live.content };
     const lookup = await lookupArchivedSnapshot(url, cutoff, signal);
     if (lookup.snapshot) {
       try {
         const archived = await readPublicPage(lookup.snapshot.url, website, signal);
-        return { ...archived, url: lookup.snapshot.url, title: (live && live.title) || archived.title, archived: lookup.snapshot.captured, liveUrl: url, liveContent: live ? live.content : undefined, archiveStatus: "found", scoringEligible: !archived.published || G0.eligibleByCutoff(archived.published, cutoff), dateBasis: archived.published ? "publication" : "archive-capture" };
+        const capturedDate = G0.isUtsCutoff(cutoff) ? lookup.snapshot.capturedAt : lookup.snapshot.captured;
+        return { ...archived, url: lookup.snapshot.url, title: (live && live.title) || archived.title, archived: capturedDate, liveUrl: url, liveContent: live ? live.content : undefined, archiveStatus: "found", scoringEligible: archived.published ? G0.eligibleByCutoff(archived.published, cutoff) : G0.eligibleByCutoff(capturedDate, cutoff), dateBasis: archived.published ? "publication" : "archive-capture" };
       } catch (error) { signal.throwIfAborted(); liveError = error; }
     }
     if (live) return { ...live, archiveStatus: lookup.status === "unavailable" ? "unavailable" : "no-match", scoringEligible: !historical && !!live.published && G0.eligibleByCutoff(live.published, cutoff), dateBasis: live.published ? "publication" : "unknown" };
@@ -407,19 +421,23 @@ window.G0Research = (() => {
 
   function preparePublicInput(organization, documents, registryRecords, version, cutoff) {
     const input = G0.newInput(version);
-    input.name = organization.name; input.identifier = organization.identifier; input.cutoff = cutoff;
+    input.name = organization.name; input.identifier = organization.identifier;
+    input.cutoff = version === "1.1" ? cutoff : cutoffDate(cutoff);
     const candidates = [
       ...documents.map((doc, i) => {
-        const source = { id: `SITE-${i + 1}`, title: doc.archived ? `${doc.title} (archived ${doc.archived})` : doc.title, url: doc.url, published: doc.published, retrieved: new Date().toISOString(), excerpt: stripMarkdown(doc.content).slice(0, 650), codes: [], kind: doc.archived ? "archive" : doc.official ? "official" : "context", dateBasis: doc.dateBasis || (doc.published ? "publication" : doc.archived ? "archive-capture" : "unknown") };
+        const published = artifactEvidenceDate(doc.published, version === "1.1");
+        const archived = artifactEvidenceDate(doc.archived, version === "1.1");
+        const source = { id: `SITE-${i + 1}`, title: doc.archived ? `${doc.title} (archived ${doc.archived})` : doc.title, url: doc.url, published, retrieved: new Date().toISOString(), excerpt: stripMarkdown(doc.content).slice(0, 650), codes: [], kind: doc.archived ? "archive" : doc.official ? "official" : "context", dateBasis: doc.dateBasis || (doc.published ? "publication" : doc.archived ? "archive-capture" : "unknown") };
         if (typeof doc.scoringEligible === "boolean") source.scoringEligible = doc.scoringEligible;
-        if (doc.archived) { source.capturedAt = doc.archived; source.originalUrl = doc.liveUrl; }
+        if (archived) { source.capturedAt = archived; source.originalUrl = doc.liveUrl; }
         return source;
       }),
       ...registryRecords.map(recordSource)
     ];
     const sources = candidates.filter((source, i, all) => G0.safePublicUrl(source.url) && all.findIndex(s => G0.canonicalUrl(s.url) === G0.canonicalUrl(source.url)) === i);
     const officialCount = documents.filter(d => d.official).length;
-    const gap = (code, extra = "") => `Searched ${officialCount} official page${officialCount === 1 ? "" : "s"} plus court, regulatory, legislative, news, and archive indexes for ${organization.name} through ${cutoff}. No dated qualifying ${code} artifact was matched.${extra} This is a coverage gap, not proof of a negative.`;
+    const cutoffLabel = G0.cutoffLabel(cutoff);
+    const gap = (code, extra = "") => `Searched ${officialCount} official page${officialCount === 1 ? "" : "s"} plus court, regulatory, legislative, news, and archive indexes for ${organization.name} through ${cutoffLabel}. No dated qualifying ${code} artifact was matched.${extra} This is a coverage gap, not proof of a negative.`;
     // Read the organization's own governing documents first — terms of service or use,
     // acceptable-use and enforcement policies, appeal or dispute procedures, governance
     // charters and bylaws — before any other page. Operative wording lives there.
@@ -432,7 +450,7 @@ window.G0Research = (() => {
         const match = quoteMatch(doc, rules);
         if (!match) continue;
         const source = sources.find(s => s.url === doc.url);
-        const evidenceDate = doc.published || doc.archived;
+        const evidenceDate = artifactEvidenceDate(doc.published, version === "1.1") || artifactEvidenceDate(doc.archived, version === "1.1");
         if (!source || !evidenceDate || !G0.eligibleByCutoff(evidenceDate, cutoff)) continue;
         source.codes = Array.from(new Set([...source.codes, code])); source.excerpt = match.quote;
         if (code === "B4" && match.rule.basis) input.b4 = { ...input.b4, actor: "Affected party named by the cited appeal rule — review required", action: "The action specified in the cited operative rule — review required", procedure: match.quote, basis: match.rule.basis };
@@ -457,6 +475,9 @@ window.G0Research = (() => {
       input.constraints[index] = { value: true, source: record.url, date: record.published, notes: quote, gap: "" };
     }
     input.constraints[1].gap = `${gap("C2")} A complete published appeal outcome set, numerator, denominator, and at least 50% relief were not demonstrated.`;
+    if (version === "1.1" && input.constraints[1].value === true) {
+      input.constraints[1] = { value: false, source: "", date: "", notes: "", gap: `${input.constraints[1].gap} A candidate YES was withheld because route, invocation, and outcome-source provenance is incomplete.` };
+    }
     const authority = c1 ? c1.record : authorityRecords[0];
     if (authority) input.external = { exists: true, exercised: overrides.some(o => o.record.url === authority.url), holder: authority.authority, scope: authority.title, source: authority.url, date: authority.published };
 
@@ -485,11 +506,13 @@ window.G0Research = (() => {
   /* ──────────────────────────────────────────────────────────────
      Optional hosted research (same-origin /api/research)
      ────────────────────────────────────────────────────────────── */
-  function sanitizeAnswer(value, sources, cutoff, code) {
+  function sanitizeAnswer(value, sources, cutoff, code, version) {
     const source = value && typeof value.source === "string" ? sources.find(s => G0.canonicalUrl(s.url) === G0.canonicalUrl(value.source)) : undefined;
     const notes = value && typeof value.notes === "string" ? value.notes.slice(0, 1200) : "";
-    const date = value && typeof value.date === "string" ? value.date.slice(0, 10) : "";
-    const valid = !!source && source.kind !== "news" && source.dateBasis !== "indexed" && G0.safePublicUrl(source.url) && G0.eligibleByCutoff(date, cutoff) && date === (source.published || source.capturedAt) && notes.trim().length >= 10;
+    const date = artifactEvidenceDate(value && value.date, version === "1.1") || "";
+    const sourceDate = source && (source.published || source.capturedAt);
+    const sameSourceDate = !!sourceDate && Number.isFinite(G0.dateTime(date)) && G0.dateTime(date) === G0.dateTime(sourceDate);
+    const valid = !!source && source.kind !== "news" && source.dateBasis !== "indexed" && G0.safePublicUrl(source.url) && G0.eligibleByCutoff(date, cutoff) && sameSourceDate && notes.trim().length >= 10;
     if (!valid) return { value: code.startsWith("B") ? null : false, source: "", date: "", notes: "", gap: `${code}: The hosted research did not return a qualifying, dated, consulted source. Recorded as not demonstrated, not as a proven negative.` };
     source.codes = Array.from(new Set([...(source.codes || []), code]));
     return { value: value.value === true, source: source.url, date, notes, gap: typeof value.gap === "string" ? value.gap.slice(0, 1200) : "" };
@@ -504,15 +527,22 @@ window.G0Research = (() => {
   }
   async function hostedResearch(name, version, cutoff, signal, onProgress) {
     onProgress({ step: 2, message: "Researching policies, court records, regulators, and news coverage…", completed: 2, total: 5 });
-    const data = await fetchJson("/api/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, version, cutoff }), signal, timeoutMs: 180000 });
+    const request = { name, version, cutoff: cutoffDate(cutoff) };
+    if (version === "1.1") Object.assign(request, { cutoffTimestamp: cutoff.utc, cutoffUts: cutoff.uts });
+    const data = await fetchJson("/api/research", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal, timeoutMs: 180000 });
     if (!G0.isObject(data) || !(data.organization && typeof data.organization.name === "string") || !Array.isArray(data.answers) || data.answers.length !== 5 || !Array.isArray(data.constraints) || data.constraints.length !== 4 || !Array.isArray(data.sources)) throw new Error("The research service returned an incomplete record. No audit was saved.");
     const organization = { name: data.organization.name.slice(0, 200), identifier: (data.organization.identifier || "").slice(0, 100), description: (data.organization.description || "").slice(0, 1500), website: G0.safePublicUrl(data.organization.website || "") ? data.organization.website : "", articleUrl: "", pageId: 0 };
-    const sources = data.sources.filter(s => G0.isObject(s) && G0.safePublicUrl(s.url) && typeof s.title === "string").slice(0, 20).map((s, i) => ({ id: `WEB-${i + 1}`, title: s.title.slice(0, 200), url: s.url, published: G0.artifactDate(s.published), retrieved: new Date().toISOString(), excerpt: typeof s.excerpt === "string" ? s.excerpt.slice(0, 1500) : "", codes: [], kind: ["official", "court", "regulatory", "legislative", "news", "archive", "context", "public"].includes(s.kind) ? s.kind : "context", dateBasis: s.kind === "news" ? "indexed" : "publication" }));
+    const sources = data.sources.filter(s => G0.isObject(s) && G0.safePublicUrl(s.url) && typeof s.title === "string").slice(0, 20).map((s, i) => ({ id: `WEB-${i + 1}`, title: s.title.slice(0, 200), url: s.url, published: artifactEvidenceDate(s.published, version === "1.1"), retrieved: new Date().toISOString(), excerpt: typeof s.excerpt === "string" ? s.excerpt.slice(0, 1500) : "", codes: [], kind: ["official", "court", "regulatory", "legislative", "news", "archive", "context", "public"].includes(s.kind) ? s.kind : "context", dateBasis: s.kind === "news" ? "indexed" : "publication" }));
     const input = G0.newInput(version);
-    input.name = organization.name; input.identifier = organization.identifier; input.cutoff = cutoff;
-    input.answers = data.answers.map((a, i) => sanitizeAnswer(a, sources, cutoff, `B${i + 1}`));
-    input.constraints = data.constraints.map((a, i) => sanitizeAnswer(a, sources, cutoff, `C${i + 1}`));
+    input.name = organization.name; input.identifier = organization.identifier;
+    input.cutoff = version === "1.1" ? cutoff : cutoffDate(cutoff);
+    input.answers = data.answers.map((a, i) => sanitizeAnswer(a, sources, cutoff, `B${i + 1}`, version));
+    input.constraints = data.constraints.map((a, i) => sanitizeAnswer(a, sources, cutoff, `C${i + 1}`, version));
     input.b4 = safeRecord(input.b4, data.b4); input.c2 = safeRecord(input.c2, data.c2); input.external = safeRecord(input.external, data.external);
+    if (version === "1.1" && input.constraints[1].value === true) {
+      input.constraints[1] = { value: false, source: "", date: "", notes: "", gap: "A candidate C2 YES was withheld because the hosted research response lacks the required published-route, invocation-criteria, complete-outcome-set, and supporting-source provenance." };
+      input.c2 = G0.newInput("1.1").c2;
+    }
     input.automation = { method: "web-research", provider: data.provider || "Hosted web research", requestedName: name, generatedAt: new Date().toISOString(), reviewRequired: true, sources };
     return { organization, input, sources, warnings: (Array.isArray(data.warnings) ? data.warnings : []).filter(w => typeof w === "string").slice(0, 10) };
   }
@@ -541,7 +571,8 @@ window.G0Research = (() => {
   async function automaticAudit({ name, version, cutoff, existing, signal, onProgress, selection, availability }) {
     const trimmed = name.trim();
     if (trimmed.length < 2 || trimmed.length > 160) throw new Error("Enter an organization name between 2 and 160 characters.");
-    if (!G0.isCalendarDate(cutoff)) throw new Error("Choose a valid inclusive evidence cutoff.");
+    const validCutoff = version === "1.0" ? G0.isCalendarDate(cutoff) : version === "1.1" && G0.isUtsCutoff(cutoff);
+    if (!validCutoff) throw new Error(version === "1.1" ? "Ground-0 v1.1 automatic research requires an explicit UTC timestamp paired with its matching HOSUTS UDate projection." : "Choose a valid inclusive evidence cutoff for the selected Ground-0 version.");
     let progressStep = 0; const callback = onProgress;
     onProgress = progress => { signal.throwIfAborted(); progressStep = Math.max(progressStep, progress.step); callback({ ...progress, step: progressStep, completed: Math.max(progressStep, progress.completed) }); };
     onProgress({ step: 0, message: "Looking for the organization’s public identity…", completed: 0, total: 5 });
@@ -626,8 +657,8 @@ window.G0Research = (() => {
     const badge = result.record.workingBadge;
     return [
       `GROUND-0 AUTOMATIC RESEARCH DRAFT — ${result.organization.name}`,
-      `Version: v${result.input.version}${result.input.version === "1.1" ? " (unratified amendment draft)" : " (normative baseline)"}`,
-      `Evidence cutoff: ${result.input.cutoff} (inclusive, UTC)`,
+      `Version: v${result.input.version}${result.input.version === "1.1" ? " (ratified normative amendment)" : " (normative baseline)"}`,
+      `Evidence cutoff: ${G0.cutoffLabel(result.input.cutoff)}`,
       `Working badge: ${badge.label} — ${badge.filled} of 5 questions evidenced. ${badge.explanation}`,
       `Formal badge status: ${result.record.badge}. Provisional phase: ${result.record.phase}. Confidence: ${result.record.confidence}. Human review required.`,
       "", result.record.finding, "",

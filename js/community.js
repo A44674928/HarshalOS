@@ -293,10 +293,16 @@ async function runHistory(append = false) {
   runCursor = data.nextCursor; $('run-more').hidden = !runCursor;
   if (!append && !data.runs.length) notice('No saved runs for this draft yet.');
 }
-$('template').addEventListener('click', () => { if (busy || !mayDiscard()) return; task(async () => {
-  const data = await api('audit-template?version=1.0'); editor(); $('input').value = JSON.stringify(data.input, null, 2); dirty = true;
-  notice('Template loaded locally. Set the input name and cutoff, fill answers and evidence, then save. Nothing was uploaded.');
-}); });
+async function loadAuditTemplate(version) {
+  if (busy || !mayDiscard()) return;
+  task(async () => {
+    const data = await api('audit-template?version=' + encodeURIComponent(version));
+    editor(); $('input').value = JSON.stringify(data.input, null, 2); dirty = true;
+    notice(`Ground-0 v${version} template loaded locally. Set the input name and cutoff, fill answers and evidence, then save. Nothing was uploaded.`);
+  });
+}
+$('template').addEventListener('click', () => loadAuditTemplate('1.0'));
+$('template-v11').addEventListener('click', () => loadAuditTemplate('1.1'));
 $('run').addEventListener('click', () => { if (busy || dirty || !selected) return; task(async () => {
   clearRun();
   const data = await api('drafts/' + selected.id + '/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: selected.revision }) });

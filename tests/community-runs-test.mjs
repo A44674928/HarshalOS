@@ -10,16 +10,63 @@ import { digest } from '../worker/community-auth.mjs';
 import worker from '../worker/index.mjs';
 const engineSource = readFileSync(new URL('../js/g0-engine.js', import.meta.url));
 function input(version = '1.0', vector = [false, true, false, true, false]) {
-  const value = auditTemplate(version); value.name = 'Example'; value.identifier = 'ENTITY-001'; value.cutoff = '2026-10-02';
+  const value = auditTemplate(version); value.name = 'Example'; value.identifier = 'ENTITY-001'; value.cutoff = version === '1.1' ? globalThis.G0.makeUtsCutoff('2026-10-02T23:59:59.999Z') : '2026-10-02';
   value.answers = vector.map(value => ({ value, source: 'https://example.com/policy', date: '2026-09-01', notes: 'An author-submitted policy claim.', gap: '' }));
   value.constraints = Array.from({ length: 4 }, () => ({ value: false, source: '', date: '', notes: '', gap: 'Not demonstrated by the submitted evidence.' }));
   Object.assign(value.b4, { actor: 'Example', action: 'Decision', procedure: 'Appeal', basis: 'TERMINAL_RULE' });
   return value;
 }
+function completeC2() {
+  return {
+    publishedRoute: { sourceId: 'route', criteria: 'Appeals are filed through the published review portal.' },
+    invocation: { sourceId: 'invocation', criteria: 'The cited request meets the published filing criteria.' },
+    outcomeSet: {
+      sourceIds: ['set'], complete: true, periodStart: '2026-01-01', periodEnd: '2026-09-30', numerator: '1', denominator: '2',
+      outcomes: [
+        { caseId: 'case-1', outcome: 'RELIEF', date: '2026-08-01', sourceIds: ['outcome-1'] },
+        { caseId: 'case-2', outcome: 'NO_RELIEF', date: '2026-09-01', sourceIds: ['outcome-2'] }
+      ]
+    },
+    sources: [
+      { id: 'route', role: 'ROUTE', url: 'https://example.com/appeals', date: '2026-06-01', locator: 'Appeals section', claim: 'Published appeals route and criteria.' },
+      { id: 'invocation', role: 'INVOCATION', url: 'https://example.com/filing', date: '2026-06-02', locator: 'Filing record', claim: 'The filing record meets the stated criteria.' },
+      { id: 'set', role: 'OUTCOME_SET', url: 'https://example.com/report', date: '2026-09-30', locator: 'Table 2, all cases', claim: 'Complete resolved appeal outcome set.' },
+      { id: 'outcome-1', role: 'OUTCOME', url: 'https://example.com/case-1', date: '2026-08-01', locator: 'Case 1 disposition', claim: 'Case 1 was reversed and relief granted.' },
+      { id: 'outcome-2', role: 'OUTCOME', url: 'https://example.com/case-2', date: '2026-09-01', locator: 'Case 2 disposition', claim: 'Case 2 appeal was denied without relief.' }
+    ]
+  };
+}
 test('Runs: source fingerprints pin the shared engine and evaluation adapter', () => {
   const adapter = readFileSync(new URL('../worker/community-audit.mjs', import.meta.url));
   assert.equal(ENGINE_SHA256, createHash('sha256').update(engineSource).digest('hex'));
   assert.equal(EVALUATOR_SHA256, createHash('sha256').update(engineSource).update('\0').update(adapter).digest('hex'));
+});
+test('Runs: v1.1 input is versioned, timestamped, and provenance-validated on the Worker', async () => {
+  const v10 = auditTemplate('1.0');
+  assert.equal(typeof v10.cutoff, 'string');
+  assert.equal(Object.hasOwn(v10, 'inputSchema'), false);
+  const v11 = auditTemplate('1.1');
+  assert.equal(v11.version, '1.1');
+  assert.equal(v11.inputSchema, globalThis.G0.G0_INPUT_SCHEMA_V11);
+  assert.equal(globalThis.G0.isUtsCutoff(v11.cutoff), true);
+  assert.equal(normalizeRunInput(input('1.1')).version, '1.1');
+
+  const dateOnly = input('1.1'); dateOnly.cutoff = '2026-10-02';
+  assert.throws(() => normalizeRunInput(dateOnly), error => error.status === 422 && /valid UTC timestamp/.test(error.message));
+  const missingFlag = input('1.1'); delete missingFlag.b4.terminatesAction;
+  assert.throws(() => normalizeRunInput(missingFlag), error => error.status === 422 && /B4/.test(error.message));
+  const incompleteC2 = input('1.1');
+  incompleteC2.constraints[1] = { value: true, source: 'https://example.com/appeals', date: '2026-09-01', notes: 'A published appeal route.', gap: '' };
+  assert.throws(() => normalizeRunInput(incompleteC2), error => error.status === 422 && /C2 conformance failed/.test(error.message));
+
+  const complete = input('1.1');
+  complete.constraints[1] = { value: true, source: 'https://example.com/report', date: '2026-09-30', notes: 'The published complete outcome set demonstrates at least fifty percent relief.', gap: '' };
+  complete.c2 = completeC2();
+  assert.doesNotThrow(() => normalizeRunInput(complete));
+  const evaluated = await evaluateSavedInput(complete);
+  assert.equal(evaluated.report.engine.specificationStatus, 'NORMATIVE AMENDMENT');
+  assert.equal(evaluated.report.input.version, '1.1');
+  assert.equal(evaluated.report.input.constraints[1].value, true);
 });
 test('Runs: Worker/browser parity across all 32 vectors in both supported versions', async () => {
   const context = vm.createContext({ window: { crypto: webcrypto }, crypto: webcrypto, URL, TextEncoder, TextDecoder, atob, btoa });

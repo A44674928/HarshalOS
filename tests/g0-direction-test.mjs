@@ -11,10 +11,10 @@
 
    Second, the B-layer was answering outbound questions with inbound
    evidence, because B1 says "entity" for the institution and B4 says it for
-   the party subject to it. Each question now names the directions of
-   evidence it will accept. The case that motivated it: "the user can walk
-   away" is the subject party ending its own participation, which halts
-   nothing the institution does, so it no longer satisfies B4. */
+   the party subject to it. Each question names the directions of evidence it
+   accepts. Under v1.1, a self-directed exit qualifies only when it is binding,
+   penalty-free, and explicitly terminates the specified action; mere ability
+   to walk away remains insufficient. */
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -30,13 +30,31 @@ globalThis.URL.revokeObjectURL = () => {};
 await import("../js/g0-engine.js");
 const G0 = globalThis.G0;
 
-const audit = async (basis, answers = [true, false, true, true, true]) => {
-  const input = G0.normalizeAuditInput({
-    version: "1.1", name: "Example", identifier: "ENTITY-001", cutoff: "2026-10-02",
-    answers: answers.map(value => ({ value, source: "https://example.com/policy", date: "2026-09-01", notes: "A cited policy claim.", gap: "" })),
-    constraints: Array.from({ length: 4 }, () => ({ value: false, source: "", date: "", notes: "", gap: "Not demonstrated by the submitted evidence." })),
-    b4: { actor: "Example", action: "A decision", procedure: "An appeal", basis }
-  }, "1.1");
+const cutoff = G0.makeUtsCutoff("2026-10-02T23:59:59.999Z");
+const completeC2 = () => ({
+  publishedRoute: { sourceId: "route", criteria: "Appeals must be filed within thirty days and identify the challenged action." },
+  invocation: { sourceId: "invocation", criteria: "The listed cases invoked that published route under its stated filing criteria." },
+  outcomeSet: {
+    sourceIds: ["set"], complete: true, periodStart: "2025-01-01", periodEnd: "2026-09-01", numerator: "1", denominator: "2",
+    outcomes: [
+      { caseId: "CASE-1", outcome: "RELIEF", date: "2025-06-01", sourceIds: ["out-1"] },
+      { caseId: "CASE-2", outcome: "NO_RELIEF", date: "2026-01-01", sourceIds: ["out-2"] }
+    ]
+  },
+  sources: [
+    { id: "route", role: "ROUTE", url: "https://example.com/route", date: "2026-07-01", locator: "Appeals section, paragraph 2", claim: "Published route and filing criteria." },
+    { id: "invocation", role: "INVOCATION", url: "https://example.com/invocations", date: "2026-07-02", locator: "Annual report, page 14", claim: "These cases invoked the published route." },
+    { id: "set", role: "OUTCOME_SET", url: "https://example.com/outcomes", date: "2026-07-03", locator: "Resolved matters, table 3", claim: "Complete bounded set of resolved outcomes." },
+    { id: "out-1", role: "OUTCOME", url: "https://example.com/case-one", date: "2026-07-04", locator: "Disposition, paragraph 1", claim: "The appeal granted relief in case one." },
+    { id: "out-2", role: "OUTCOME", url: "https://example.com/case-two", date: "2026-07-05", locator: "Disposition, paragraph 1", claim: "The appeal denied relief in case two." }
+  ]
+});
+const audit = async (basis, answers = [true, false, true, true, true], flags = {}) => {
+  const input = G0.newInput("1.1");
+  input.name = "Example"; input.identifier = "ENTITY-001"; input.cutoff = cutoff;
+  input.answers = answers.map(value => ({ value, source: "https://example.com/policy", date: "2026-09-01", notes: "A cited policy claim.", gap: "" }));
+  input.constraints = Array.from({ length: 4 }, () => ({ value: false, source: "", date: "", notes: "", gap: "Not demonstrated by the submitted evidence." }));
+  input.b4 = { ...input.b4, actor: "Example", action: "A specified decision", procedure: "The operative exit clause", basis, ...flags };
   return G0.createAudit(input, []);
 };
 
@@ -56,24 +74,35 @@ test("every behavioural question declares which direction of evidence it accepts
   assert.deepEqual(G0.QUESTION_DIRECTION.B2.accepts, ["outbound", "inboundOnAppeal", "inboundIndependent"], "B2 is genuinely mixed, and admits either kind of external action");
 });
 
-test("self-directed evidence is refused: walking away halts nothing the institution does", () => {
+test("a self-directed exit qualifies only when it binds, carries no penalty, and terminates the specified action", () => {
   assert.equal(G0.evidenceAllowedFor("B4", { direction: "inboundOnAppeal" }), true, "a court seized by an appeal, staying the action, is B4's business");
-  assert.equal(G0.evidenceAllowedFor("B4", { direction: "selfDirected" }), false, "the subject party leaving is not");
-  assert.equal(G0.evidenceAllowedFor("B4", { direction: "outbound" }), false, "and neither is the institution's own power");
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "selfDirected" }), false, "an unspecified walk-away is not enough");
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "selfDirected", basis: "NO_PENALTY_EXIT", binding: true, noPenalty: true, terminatesAction: false }), false, "the exit must expressly terminate the named action");
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "selfDirected", basis: "NO_PENALTY_EXIT", binding: true, noPenalty: true, terminatesAction: true }), true, "the narrow, fully specified v1.1 exit is admitted");
+  assert.equal(G0.evidenceAllowedFor("B4", { direction: "outbound" }), false, "neither is the institution's own power");
   assert.equal(G0.evidenceAllowedFor("B1", { direction: "inboundIndependent" }), false, "an outbound question refuses inbound evidence");
   assert.equal(G0.evidenceAllowedFor("B2", { direction: "inboundIndependent" }), true, "except B2, which admits it");
   assert.equal(G0.evidenceAllowedFor("Z9", { direction: "inbound" }), false, "an unasked question accepts nothing");
   assert.equal(G0.evidenceAllowedFor("B4", {}), false, "and untagged evidence is not admitted by default");
 });
 
-test("the exit route no longer satisfies B4, and the other routes still do", async () => {
-  const exit = await audit("NO_PENALTY_EXIT");
+test("the v1.1 exit route qualifies only with all three binding/no-penalty/termination facts", async () => {
+  for (const flags of [
+    {},
+    { binding: false, noPenalty: true, terminatesAction: true },
+    { binding: true, noPenalty: false, terminatesAction: true },
+    { binding: true, noPenalty: true, terminatesAction: false }
+  ]) {
+    const rejected = await audit("NO_PENALTY_EXIT", undefined, flags);
+    assert.equal(rejected.report.B4_Event_Record.Scored_Answer, "NO", `incomplete exit flags ${JSON.stringify(flags)} do not qualify`);
+  }
+  const exit = await audit("NO_PENALTY_EXIT", undefined, { binding: true, noPenalty: true, terminatesAction: true });
   assert.equal(exit.report.B4_Event_Record.B4_Basis, "NO_PENALTY_EXIT");
-  assert.equal(exit.report.B4_Event_Record.Scored_Answer, "NO",
-    "a penalty-free exit ends one party's participation, not the institution's action");
+  assert.equal(exit.report.B4_Event_Record.Scored_Answer, "YES",
+    "a binding, penalty-free exit that expressly terminates this action qualifies");
 
   const rule = await audit("TERMINAL_RULE");
-  assert.equal(rule.report.B4_Event_Record.Scored_Answer, "YES", "a binding terminal rule still qualifies");
+  assert.equal(rule.report.B4_Event_Record.Scored_Answer, "YES", "a terminal rule still qualifies");
 
   const none = await audit("NOT_DEMONSTRATED");
   assert.equal(none.report.B4_Event_Record.Scored_Answer, "NO", "no route, no YES");
@@ -83,7 +112,8 @@ test("B4's routes say what each of them is actually about", () => {
   assert.equal(G0.B4_BASIS.TERMINAL_RULE.direction, "inboundOnAppeal");
   assert.equal(G0.B4_BASIS.RESOLVED_APPEALS.direction, "inboundOnAppeal");
   assert.equal(G0.B4_BASIS.NO_PENALTY_EXIT.direction, "selfDirected");
-  assert.match(G0.B4_BASIS.NO_PENALTY_EXIT.note, /continues for everyone else/);
+  assert.match(G0.B4_BASIS.NO_PENALTY_EXIT.note, /binding, penalty-free exit/);
+  assert.match(G0.B4_BASIS.NO_PENALTY_EXIT.note, /explicitly terminates the specified action/);
 });
 
 test("a regulator acting on its own initiative is C1's evidence, not B4's", () => {
@@ -128,19 +158,20 @@ test("the inbound profile is reported for a determinate phase, not only an ambig
   assert.match(result.report.Inbound_Profile.Consulted_For_Phase, /regardless of phase/);
 });
 
-test("the inbound profile still decides the phase when the vector is ambiguous", async () => {
+test("the inbound profile still decides an ambiguous phase when C2 has complete, sourced provenance", async () => {
   /* Four unanswered and one yes: the vector cannot complete a branch, so the
-     constraints are what settle it. All four demonstrated → NAB-Constrained. */
-  const input = G0.normalizeAuditInput({
-    version: "1.1", name: "Example", identifier: "ENTITY-002", cutoff: "2026-10-02",
-    answers: [true, null, null, null, null].map(value => ({ value, source: value === true ? "https://example.com/policy" : "", date: value === true ? "2026-09-01" : "", notes: value === true ? "A cited policy claim." : "", gap: "" })),
-    constraints: Array.from({ length: 4 }, () => ({ value: true, source: "https://example.com/order", date: "2026-08-01", notes: "A cited external order.", gap: "" })),
-    /* C2 only scores on an outcome record: a published route, invoked, with a
-       bounded set of resolved appeals showing at least 50% relief. Sixty of
-       one hundred, complete, and dated before the cutoff. */
-    c2: { route: true, invoked: true, complete: true, numerator: "60", denominator: "100", start: "2025-01-01", end: "2026-09-01" },
-    b4: { actor: "", action: "", procedure: "", basis: "NOT_DEMONSTRATED" }
-  }, "1.1");
+     constraints settle it. C2 is affirmative only with an explicit route,
+     invocation criteria, complete bounded outcome set and source set. */
+  const input = G0.newInput("1.1");
+  input.name = "Example"; input.identifier = "ENTITY-002"; input.cutoff = cutoff;
+  input.answers = [true, null, null, null, null].map(value => ({ value, source: value === true ? "https://example.com/policy" : "", date: value === true ? "2026-09-01" : "", notes: value === true ? "A cited policy claim." : "", gap: "" }));
+  input.constraints = [
+    { value: true, source: "https://example.com/order", date: "2026-08-01", notes: "A cited external order.", gap: "" },
+    { value: true, source: "https://example.com/route", date: "2026-07-01", notes: "Published appeal route with filing criteria.", gap: "" },
+    { value: true, source: "https://example.com/order", date: "2026-08-01", notes: "A cited sunset requirement.", gap: "" },
+    { value: true, source: "https://example.com/order", date: "2026-08-01", notes: "A cited active constraint.", gap: "" }
+  ];
+  input.c2 = completeC2();
   const result = await G0.createAudit(input, []);
   assert.equal(result.inbound.demonstrated, 4, "all four, now that C2 has its outcome record");
   assert.equal(result.inbound.consultedForPhase, true, "step 3.5 did look at these");

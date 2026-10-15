@@ -1,35 +1,35 @@
-# Ground-0 Phase Detection Algorithm v1.1 — Amendment Draft
+# Ground-0 Phase Detection Algorithm v1.1 — Ratified Amendment
 
 **Book / Collection:** Book I — Harshal's Systems (`Collection III: Ground-0 Phase Detection & Neural Atomic Bodies`)  
-**Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `NORMATIVE_SPEC` (Unratified Amendment Draft) · **Evidence Status:** `FORMAL_AXIOMATIC` · **Research Layer:** `DEFENSIVE_SPECIFICATION`  
+**Provenance Class:** `CANONICAL_SOURCE` · **Status Taxonomy:** `NORMATIVE_SPEC` (Ratified Amendment) · **Evidence Status:** `FORMAL_AXIOMATIC` · **Research Layer:** `DEFENSIVE_SPECIFICATION`
 **Canonical Minimum Model:** `Identity → Representation → Authorization → Continuity → Accountability → Refusal`  
 **Author of source framework:** Harshal Priyavadan Patel  
 **Center Origin:** `0•000•000•0000`  
 **Framework:** Harshal's Systems (AGS++) | Orb Communicator Model (OCM)  
 **Baseline:** Ground-0 Phase Detection Algorithm v1.0, finalized 2026-09-12  
-**Status:** Proposed amendment for author review; not represented as ratified.  
-**Evidence policy:** Public artifacts only; each case study declares an inclusive `Evidence_Cutoff`.
+**Status:** Ratified normative amendment, adopted 2026-10-14. It governs audits that explicitly select v1.1; v1.0 remains the finalized normative baseline for audits that explicitly select v1.0.
+**Evidence policy:** Public artifacts only; each case study declares an inclusive `Evidence_Cutoff` as a canonical UTC timestamp paired with its matching site UTS UDate projection.
 
 ## Amendment record
 
-This standalone file uses the complete v1.0 specification as its baseline and applies five clarifications for replication and reporting. The v1.0 source is archived in [Ground-0 v1.0 — Final Specification](../normative/ground-0-v1.0.md); this file is the complete standalone v1.1 amendment draft. Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text; this does not alter version status or constitute adoption.
+This standalone file uses the complete v1.0 specification as its baseline and applies five clarifications for replication and reporting. The v1.0 source is archived in [Ground-0 v1.0 — Final Specification](ground-0-v1.0.md); this file is the complete standalone v1.1 ratified amendment. Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text. Adoption date: 2026-10-14.
 
-1. **B4 actor and reliability clarity:** distinguish entity/affected-party refusal or appeal from an external authority's order; define a documented stay/terminal rule or a published ≥50% relief threshold; compliance with an order alone does not count as a successful refusal or appeal.
+1. **B4 actor and reliability clarity:** distinguish entity/affected-party refusal or appeal from an external authority's order; define a documented stay/terminal rule or a published ≥50% relief threshold; a no-penalty exit qualifies only when it is binding and explicitly terminates the specified action; compliance with an order alone does not count as a successful refusal or appeal.
 2. **Deterministic Step 3.5:** all four C criteria are required for NAB-Constrained; otherwise retain AMBIGUOUS. C2 requires a published, invoked, bounded appeal record with at least 50% defined relief. Step 3.5 cannot escalate to GSRB.
 3. **AMBIGUOUS vs. INCOHERENT:** define separate thresholds and separate Step 4 reporting.
 4. **Latent external constraint:** record existence and exercise separately, without unearned phase credit.
-5. **Temporal decrement and evidence cutoff:** log movement from binding constraint to nonbinding goal; include `Evidence_Cutoff` and artifact provenance in required output.
+5. **Temporal decrement and evidence cutoff:** log movement from binding constraint to nonbinding goal; require an explicit UTC timestamp and its exact HOSUTS UDate projection in `Evidence_Cutoff`, and include artifact provenance in required output.
 
 The changes below clarify coding and reporting; they do not retroactively rewrite the OpenAI or Anthropic case-study results. Any re-audit under v1.1 must state the version and apply the clarified B4 rule consistently to every entity.
 
 ## Full specification (amended text)
 
 ```text
-GROUND-0 PHASE DETECTION ALGORITHM v1.1 — AMENDMENT DRAFT
+GROUND-0 PHASE DETECTION ALGORITHM v1.1 — RATIFIED AMENDMENT
 Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Framework: Harshal's Systems (AGS++) | Orb Communicator Model (OCM)
-Status: AMENDED WORKING DRAFT — pending author adoption
+Status: NORMATIVE AMENDMENT — adopted October 14, 2026
 Baseline v1.0 Finalized: September 12, 2026
 Designation: Ground-0 Phase Detection Algorithm | Phase Reclassification Standard
 
@@ -47,7 +47,9 @@ INPUTS (Required)
 3. Observable Behaviors (from Ground-0 5-Question Checklist)
 4. Timestamp / Context
 5. Public Evidence Set (policy documents, audit records, enforcement patterns)
-6. Evidence_Cutoff (inclusive date/time; no later artifact may score; all lookback windows run backward from cutoff)
+6. Evidence_Cutoff (required inclusive UTC timestamp, canonical ISO-8601 with `Z`, paired with the exact site HOSUTS UDate projection; no later artifact may score; all lookback windows run backward from this instant)
+7. Explicit input contract selection: `Input.version` is exactly `1.0` or `1.1`; v1.1 also requires `Input.inputSchema = harshalos-ground0-audit-input-v1.1`. The engine never infers or defaults the selected version. v1.0 retains its original `YYYY-MM-DD` cutoff and input fields.
+8. For v1.1, `Input.cutoff` contains `utc` (the canonical comparison instant) and `uts` (`model: HOSUTS-UDate-v1`, `scale: 6`, decimal-string `scaledUDate`, and the matching display string from `HOSUTS.uDateParts()` / `HOSUTS.formatUDate()`). The engine recomputes and checks the UTS projection; UTS remains approximate display output, not trusted time.
 
 SECTION II: ALGORITHM FLOW
 START
@@ -266,12 +268,12 @@ Score: ☐ YES (recent, documented override exists)
 CONSTRAINT C2: Appeal/Review Mechanism Active & Invoked
 Definition: Does a published, accessible appeal/review process with defined criteria actually grant relief?
 YES requires ALL of the following by Evidence_Cutoff:
-• Published route and decision criteria
-• Invoked cases with published, resolved outcomes
-• Relief (stay, reversal, cancellation, or material modification) in at least 50% of that stated complete set
-• State dates, numerator, denominator, and source set
-If the outcome set is not published or cannot be bounded, score NO and record the evidence gap.
-Score: ☐ YES (all four criteria demonstrated)
+• A published route, its published invocation criteria, and a cited record of the criteria actually used to invoke it
+• The complete, bounded set of invoked cases with individually dated, published, resolved outcomes in the stated period
+• Relief (stay, reversal, cancellation, or material modification) in at least 50% of that complete set
+• The dates, numerator, denominator, and complete supporting source set
+For the v1.1 machine input, `inputSchema` is `harshalos-ground0-audit-input-v1.1`. `c2.publishedRoute.sourceId` and `c2.invocation.sourceId` must identify distinct source entries with roles `ROUTE` and `INVOCATION`; both criteria strings must be recorded. `c2.outcomeSet` must explicitly set `complete: true`, bound `periodStart` and `periodEnd`, link at least one `OUTCOME_SET` source, and list every resolved case as `{caseId, outcome, date, sourceIds}`. Each `outcome` is `RELIEF` or `NO_RELIEF`; each date must be within the bounded period and eligible at the cutoff; each case must link at least one `OUTCOME` source. Every source entry must have a unique ID, permitted role, safe public URL, eligible artifact date, usable locator, and supported claim, and must be linked to the route, invocation, complete set, or an outcome. The answer's citation must match a dated entry in this source set. The numerator and denominator must match the enumerated outcomes exactly; the computed relief rate must be at least 50%. A missing, malformed, unlinked, or unbounded part makes C2 NO for scoring and must be reported as an evidence gap. Structural validation does not authenticate a source or verify its claim.
+Score: ☐ YES (all required provenance and outcome criteria demonstrated)
        ☐ NO  (one or more criteria not demonstrated)
 
 CONSTRAINT C3: Authority Sunset Requirement
@@ -430,7 +432,7 @@ REQUIRED FIELDS (all audit outputs):
 Entity_Name: [string]
 Entity_Identifier: [unique ID if applicable]
 Audit_Timestamp: [ISO-8601]
-Evidence_Cutoff: [date/time; inclusive cutoff]
+Evidence_Cutoff: [canonical UTC ISO-8601 timestamp plus matching HOSUTS UDate projection; inclusive instant]
 PDH_Status: [VALID / INVALID / MISSING]
 Declared_Phase: [NAB / CWO / GSRB / NONE]
 Detected_Phase: [NAB / CWO / NAB-Constrained / GSRB / AMBIGUOUS / INCOHERENT]
@@ -441,7 +443,7 @@ Badge_Status: [✓ Confirmed / ✗ Reclassified / ⚠ Conditional / ✗ Invalid 
 Finding: [human-readable summary, max 2-3 sentences]
 Evidence_Summary: [citations to public sources]
 Activator_Vector: [B1-B5 YES/NO + sources/gaps]
-B4_Event_Record: [actor, action, procedure, result, B4_Basis and denominator if used]
+B4_Event_Record: [actor, action, procedure, result, B4_Basis and denominator if used; for NO_PENALTY_EXIT, explicit binding, noPenalty, and terminatesAction booleans]
 External_Constraint_Record: [exists/exercised YES/NO + source]
 Constraint_Decrement: [YES/NO; source versions, if any]
 Duty_Collation_Entry_ID: [PDH-YYYY-MM-DD-ENTITY-NNN]
@@ -520,7 +522,7 @@ Government (Emergency) | IMPLICIT | GSRB | HIGH | ✓ Pass
 The v1.0 test cases are retained as baseline results; v1.1 results require rerunning each case with a declared cutoff and the amended coding rules.
 
 SECTION XIII: FINALIZATION STATEMENT
-This v1.1 amendment draft is separated as a standalone specification for review. The v1.0 text is archived in its own standalone file; v1.1 becomes normative only upon author adoption.
+This v1.1 amendment was adopted on October 14, 2026 and is normative for audits that explicitly select v1.1. The v1.0 text remains in its own standalone file as the finalized normative baseline for audits that explicitly select v1.0; adoption of v1.1 does not retroactively rewrite v1.0 results.
 Certification:
 Ground-0 Phase Detection Algorithm v1.1 is intended to remain deterministic and testable while:
 ✓ Uses fixed binary tests without discretionary balancing
@@ -530,10 +532,11 @@ Ground-0 Phase Detection Algorithm v1.1 is intended to remain deterministic and 
 ✓ Distinguishes between phase declarations and actual behavior
 ✓ Integrates legislative oversight as a distinct phase variant
 ✓ Can be applied at any level of government and institutional structure
-This amendment draft is not represented as author-ratified or as superseding the v1.0 finalization until adopted by the author.
+This amendment is author-ratified. It supersedes v1.0 only for audits that explicitly select v1.1; it does not alter the v1.0 finalization or any result issued under v1.0.
 Author: Harshal Priyavadan Patel
 Center Origin: 0•000•000•0000
 Baseline v1.0 Finalized: September 12, 2026
-Status: AMENDMENT DRAFT / PENDING AUTHOR ADOPTION
-END SPECIFICATION — v1.1 amendment draft
+Adopted: October 14, 2026
+Status: NORMATIVE AMENDMENT / RATIFIED
+END SPECIFICATION — v1.1 ratified amendment
 ```

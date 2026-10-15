@@ -19,8 +19,8 @@ This layout separates normative specifications, implementation, evidence, operat
 │   ├── harshal-systems/              Book I umbrella Markdown and Word builds
 │   └── grand-river-foundation/       Book II — Preview Markdown and Word builds
 ├── specs/
-│   ├── normative/                    Ground-0 v1.0 finalized baseline
-│   └── draft/                        Ground-0 v1.1 unratified amendment draft
+│   ├── normative/                    Ground-0 v1.0 baseline + v1.1 ratified amendment
+│   └── draft/                        Ground-0 v1.2 issuer-layer draft
 ├── case-studies/                     Ground-0 audit writeups (v1.0 originals + v1.1 register) and PDH-R badge registry
 ├── research/
 │   ├── keyed-human-machine-hybrid-systems.md  Flagship portfolio research paper (Part XIX)
@@ -75,7 +75,9 @@ This layout separates normative specifications, implementation, evidence, operat
 ## Normative material and evidence
 
 - **Normative Ground-0 baseline:** [`specs/normative/ground-0-v1.0.md`](../specs/normative/ground-0-v1.0.md).
-- **Draft only:** [`specs/draft/ground-0-v1.1.md`](../specs/draft/ground-0-v1.1.md). It is not ratified and does not supersede v1.0.
+- **Automatic Audit Templates:** [`docs/GROUND-0-AUTOMATIC-AUDIT-TEMPLATE-v1.0.md`](GROUND-0-AUTOMATIC-AUDIT-TEMPLATE-v1.0.md) preserves the original date-only v1.0 contract; [`docs/GROUND-0-AUTOMATIC-AUDIT-TEMPLATE-v1.1.md`](GROUND-0-AUTOMATIC-AUDIT-TEMPLATE-v1.1.md) defines the separate v1.1 UTS timestamp and structured C2 provenance contract. Neither implements GitHub parsing, ingestion, or publishing.
+- **Ratified Ground-0 amendment:** [`specs/normative/ground-0-v1.1.md`](../specs/normative/ground-0-v1.1.md). Adopted 2026-10-14; it governs audits that explicitly select v1.1 and does not retroactively rewrite v1.0 results.
+- **Draft only:** [`specs/draft/ground-0-v1.2.md`](../specs/draft/ground-0-v1.2.md). It is not ratified and does not supersede v1.0 or v1.1.
 - **Source provenance:** [`docs/source-material/Ground-0 Phase Detection Algorithm.md`](source-material/Ground-0%20Phase%20Detection%20Algorithm.md) is the combined manuscript transcription retained for reference. It contains both versions; it is not the file selected by the app's version switch.
 - **Case studies:** `case-studies/` contains the standalone OpenAI and Anthropic audit reports, the v1.1 manual audit register (21 files / 23 entities, each with a declared evidence cutoff and a hash-bound PDH-R issuance record in Appendix C), and the register-issued badge assets under `badges/`. Reproduction: `node scripts/issue-pdh-badges.mjs`. `case-studies/d1/` holds the generated D1 seed that publishes the register through the public register tables (`npm run case-studies:build`); the seed and manifest are generated, not hand-edited. Supporting background research is kept separately in `research/reports/`.
 - **Historical bundles:** `archives/ground-0/` contains previously produced ZIP packages. They are archived distributions, not the normative source and not the code used by the current static shell.

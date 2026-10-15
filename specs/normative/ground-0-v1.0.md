@@ -8,7 +8,7 @@
 **Center Origin:** `0•000•000•0000`  
 **Status:** Finalized normative source, dated September 12, 2026.
 
-This document retains the supplied v1.0 source wording as the versioned baseline. Proposed changes are in [Ground-0 v1.1 — Amendment Draft](../draft/ground-0-v1.1.md). Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text. Source wording, source typos, phase predicates, and version status are retained; this presentation change is not an amendment.
+This document retains the supplied v1.0 source wording as the versioned baseline. The ratified amendment for audits that explicitly select v1.1 is [Ground-0 v1.1 — Ratified Amendment](ground-0-v1.1.md). Presentation note: decorative box borders and line wrapping have been normalized to accessible plain text. Source wording, source typos, phase predicates, and version status are retained; this presentation change is not an amendment.
 
 ```text
 GROUND-0 PHASE DETECTION ALGORITHM v1.0 — FINAL SPECIFICATION
