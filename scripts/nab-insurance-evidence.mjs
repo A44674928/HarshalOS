@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* ═══════════════════════════════════════════════════════════════
    HarshalOS — evidence tables for "Neural Atomic Bodies & Associated
-   Insurance Requirements" (research/neural-atomic-bodies-insurance.md)
+   Insurance Requirements" (research/neural-atomic-bodies-insurance-requirements.md)
 
    Recomputes, from repository files only:
      · §4.9   the property-derivation test: the v0 rules as written and the
@@ -13,10 +13,17 @@
               engine and compared with case-studies/pdh-registry.json
      · App. A the Phase × Type matrix
      · App. C the 32-row Ground-0 Step 3 truth table
+     · App. D the ambient-layer check (Chapter 5): the World Magnetic Model
+              2025 recomputed from its coefficients and verified against
+              NCEI's published test values, high-precision example, and
+              geomagnetic pole; then the proposed site zoning, by dipole
+              geomagnetic latitude, for a list of illustrative locations
 
-   Physical property values come from research/data/elemental-properties.json.
-   No network access and no dependencies. Nothing here prices cover, issues a
-   badge, or changes the register.
+   Physical property values come from research/data/elemental-properties.json;
+   the WMM2025 coefficients and NCEI's check values from
+   research/data/wmm2025.json. No network access and no dependencies. Nothing
+   here prices cover, issues a badge, or changes the register. The run exits
+   with status 1 if the WMM2025 check fails.
 
    Usage:
      node scripts/nab-insurance-evidence.mjs           Markdown report
@@ -24,6 +31,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -209,6 +217,146 @@ const matrixCounts = ["ice", "water", "gas"].reduce((acc, column) => {
   return acc;
 }, {});
 
+/* ── Ambient layer: WMM2025 check and site zoning (Chapter 5, App. D) ──
+   The WMM is NCEI/BGS's model of the core field (degree and order 12). The
+   zoning uses only its dipole, which NCEI calls "the basis for the simple
+   geomagnetic coordinate system". Formulas follow the WMM2025 Technical Report
+   (https://doi.org/10.25923/prbc-s316): geodetic-to-spherical conversion,
+   Schmidt semi-normalized Legendre functions, the field in spherical
+   coordinates, and the rotation back to geodetic axes. */
+const wmm = readJson("research/data/wmm2025.json");
+const DEG = Math.PI / 180;
+const WGS84_A = 6378.137, WGS84_F = 1 / 298.257223563, WGS84_E2 = WGS84_F * (2 - WGS84_F), R_REF = 6371.2; // km
+const WMM_EPOCH = wmm.provenance.epoch;
+const WMM_VALID = [2025.0, 2030.0];   // to be used 1 Jan 2025 – 31 Dec 2029
+
+function geodeticToSpherical(latDeg, heightKm) {
+  const phi = latDeg * DEG, s = Math.sin(phi), c = Math.cos(phi);
+  const rc = WGS84_A / Math.sqrt(1 - WGS84_E2 * s * s);
+  const p = (rc + heightKm) * c, z = (rc * (1 - WGS84_E2) + heightKm) * s;
+  const r = Math.hypot(p, z);
+  return { r, phiPrime: Math.asin(z / r) };
+}
+const factorial = n => (n <= 1 ? 1 : n * factorial(n - 1));
+function schmidtLegendre(nMax, theta) {
+  const c = Math.cos(theta), s = Math.sin(theta);
+  const P = Array.from({ length: nMax + 1 }, () => new Array(nMax + 1).fill(0));
+  const dP = Array.from({ length: nMax + 1 }, () => new Array(nMax + 1).fill(0));
+  for (let m = 0; m <= nMax; m++) {
+    let pmm = 1;
+    for (let k = 1; k <= m; k++) pmm *= (2 * k - 1) * s;            // (2m−1)!! sin^m θ
+    P[m][m] = pmm;
+    if (m + 1 <= nMax) P[m + 1][m] = (2 * m + 1) * c * pmm;
+    for (let n = m + 2; n <= nMax; n++) P[n][m] = ((2 * n - 1) * c * P[n - 1][m] - (n + m - 1) * P[n - 2][m]) / (n - m);
+  }
+  for (let n = 1; n <= nMax; n++) for (let m = 0; m <= n; m++) {
+    dP[n][m] = (n * c * P[n][m] - (n + m) * (m <= n - 1 ? P[n - 1][m] : 0)) / s;   // ∂P/∂θ
+  }
+  for (let n = 0; n <= nMax; n++) for (let m = 0; m <= n; m++) {
+    const k = Math.sqrt(((m === 0 ? 1 : 2) * factorial(n - m)) / factorial(n + m));
+    P[n][m] *= k; dP[n][m] *= k;
+  }
+  return { P, dP };
+}
+function wmmField(latDeg, lonDeg, heightKm, year) {
+  if (year < WMM_VALID[0] || year >= WMM_VALID[1]) throw new Error(`WMM2025 is not valid for ${year}`);
+  if (Math.abs(latDeg) > 89.992) throw new Error("WMM2025 check points must lie between 89.992°S and 89.992°N");
+  const { r, phiPrime } = geodeticToSpherical(latDeg, heightKm);
+  const lambda = lonDeg * DEG, dt = year - WMM_EPOCH;
+  const { P, dP } = schmidtLegendre(12, Math.PI / 2 - phiPrime);
+  let Xp = 0, Yp = 0, Zp = 0;
+  for (const [n, m, g0, h0, gDot, hDot] of wmm.coefficients) {
+    const g = g0 + dt * gDot, h = h0 + dt * hDot, ar = Math.pow(R_REF / r, n + 2);
+    const cm = Math.cos(m * lambda), sm = Math.sin(m * lambda);
+    Xp += ar * (g * cm + h * sm) * dP[n][m];
+    Yp += ar * m * (g * sm - h * cm) * P[n][m];
+    Zp -= (n + 1) * ar * (g * cm + h * sm) * P[n][m];
+  }
+  Yp /= Math.cos(phiPrime);
+  const psi = phiPrime - latDeg * DEG;
+  const X = Xp * Math.cos(psi) - Zp * Math.sin(psi), Y = Yp, Z = Xp * Math.sin(psi) + Zp * Math.cos(psi);
+  const H = Math.hypot(X, Y);
+  return { phiPrime, r, Xp, Yp, Zp, X, Y, Z, H, F: Math.hypot(H, Z), D: Math.atan2(Y, X), I: Math.atan2(Z, H) };
+}
+const coefficient = (n, m) => wmm.coefficients.find(row => row[0] === n && row[1] === m);
+function dipolePole(year) {             // boreal geomagnetic (dipole) pole from g10, g11, h11
+  const dt = year - WMM_EPOCH;
+  const [, , g10, , g10Dot] = coefficient(1, 0), [, , g11, h11, g11Dot, h11Dot] = coefficient(1, 1);
+  const G10 = g10 + dt * g10Dot, G11 = g11 + dt * g11Dot, H11 = h11 + dt * h11Dot;
+  const colatitude = Math.acos(-G10 / Math.hypot(G10, G11, H11));
+  const geocentricLat = 90 - colatitude / DEG;
+  return { geocentricLat, geodeticLat: Math.atan(Math.tan(geocentricLat * DEG) / (1 - WGS84_E2)) / DEG,
+    lon: Math.atan2(-H11, -G11) / DEG, tilt: colatitude / DEG };
+}
+function geomagneticLatitude(latDeg, lonDeg, year) {
+  const pole = dipolePole(year), { phiPrime } = geodeticToSpherical(latDeg, 0), pLat = pole.geocentricLat * DEG;
+  return Math.asin(Math.sin(phiPrime) * Math.sin(pLat) + Math.cos(phiPrime) * Math.cos(pLat) * Math.cos((lonDeg - pole.lon) * DEG)) / DEG;
+}
+
+// Check 1: the coefficients are the pinned copy.
+const canonicalCoefficients = wmm.coefficients.map(([n, m, g, h, gd, hd]) => [n, m, g.toFixed(1), h.toFixed(1), gd.toFixed(1), hd.toFixed(1)].join(" ")).join("\n");
+const coefficientsSha256 = createHash("sha256").update(canonicalCoefficients).digest("hex");
+// Check 2: NCEI's 12 test points, 7 values each; the table rounds nT to 0.1 and degrees to 0.01.
+const testDeviations = { nT: 0, deg: 0 };
+for (const [year, heightKm, lat, lon, X, Y, Z, H, F, I, D] of wmm.testValues.rows) {
+  const f = wmmField(lat, lon, heightKm, year);
+  for (const [a, b] of [[f.X, X], [f.Y, Y], [f.Z, Z], [f.H, H], [f.F, F]]) testDeviations.nT = Math.max(testDeviations.nT, Math.abs(a - b));
+  for (const [a, b] of [[f.I / DEG, I], [f.D / DEG, D]]) testDeviations.deg = Math.max(testDeviations.deg, Math.abs(a - b));
+}
+// Check 3: the Technical Report's high-precision example (Table 3b).
+const hp = wmm.highPrecisionExample, hpField = wmmField(hp.input.latDeg, hp.input.lonDeg, hp.input.heightKm, hp.input.year), hpExpected = hp.expected;
+const hpDeviationNT = Math.max(...[[hpField.Xp, hpExpected.XprimeNT], [hpField.Yp, hpExpected.YprimeNT], [hpField.Zp, hpExpected.ZprimeNT],
+  [hpField.X, hpExpected.XNT], [hpField.Y, hpExpected.YNT], [hpField.Z, hpExpected.ZNT], [hpField.F, hpExpected.FNT], [hpField.H, hpExpected.HNT]]
+  .map(([a, b]) => Math.abs(a - b)));
+const hpDeviationRad = Math.max(Math.abs(hpField.D - hpExpected.DRad), Math.abs(hpField.I - hpExpected.IRad), Math.abs(hpField.phiPrime - hpExpected.phiPrimeRad));
+// Check 4: NCEI's published geomagnetic north pole for 2025.0 (rounded to 0.01°).
+const pole2025 = dipolePole(2025.0), poleNcei = wmm.ncei.geomagneticNorthPole2025;
+const poleDeviation = Math.max(Math.abs(pole2025.geocentricLat - poleNcei.geocentricLatDeg), Math.abs(pole2025.geodeticLat - poleNcei.geodeticLatDeg),
+  Math.abs(pole2025.lon - poleNcei.lonDeg), Math.abs(pole2025.tilt - poleNcei.dipoleTiltDeg));
+const wmmChecks = {
+  coefficientsPinned: coefficientsSha256 === wmm.provenance.canonicalCoefficientsSha256,
+  testValuesWithinRounding: testDeviations.nT <= 0.05 + 1e-9 && testDeviations.deg <= 0.005 + 1e-9,
+  highPrecisionWithinLabelTolerance: hpDeviationNT < 0.1,
+  poleMatchesNcei: poleDeviation <= 0.005 + 1e-9
+};
+const wmmPass = Object.values(wmmChecks).every(Boolean);
+
+/* Proposed zoning (Section 5.4). NOAA's G-scale gives the geomagnetic latitude
+   that aurora typically reaches at each level: G4 about 45°, G5 about 40°
+   (https://www.swpc.noaa.gov/noaa-scales-explanation). The pool's floor is G4,
+   so a site's Kp trigger is the lowest level, G4 or above, that reaches it.
+   Sites below 40° have no Kp trigger, and every zone also triggers on the
+   ring-current index (Dst at or below −250 nT). Zones are fixed at inception. */
+const ZONING_YEAR = 2027.0;             // an illustrative 1 January 2027 inception
+const ZONE_EDGE_DEG = 0.5;              // flag sites this close to a zone edge
+const ZONES = [
+  { zone: "1", minAbsLat: 45, trigger: "G4 or above (Kp 8− or higher), or Dst ≤ −250 nT" },
+  { zone: "2", minAbsLat: 40, trigger: "G5 (Kp 9o), or Dst ≤ −250 nT" },
+  { zone: "3", minAbsLat: 0, trigger: "Dst ≤ −250 nT only" }
+];
+// Illustrative city coordinates (not insured facilities): data-centre markets and two polar stations.
+const SITES = [
+  ["Ashburn, Virginia, US", 39.04, -77.49], ["Phoenix, Arizona, US", 33.45, -112.07], ["Boardman, Oregon, US", 45.84, -119.70],
+  ["Montréal, Québec, CA", 45.50, -73.57], ["Dublin, IE", 53.35, -6.26], ["Frankfurt, DE", 50.11, 8.68],
+  ["Luleå, SE", 65.58, 22.15], ["Reykjavík, IS", 64.15, -21.94], ["Singapore, SG", 1.35, 103.82],
+  ["Tokyo, JP", 35.68, 139.69], ["Sydney, AU", -33.87, 151.21], ["Johannesburg, ZA", -26.20, 28.05],
+  ["São Paulo, BR", -23.55, -46.63], ["Alert, Nunavut, CA", 82.50, -62.35], ["McMurdo Station, AQ", -77.85, 166.67]
+];
+const { horizontalIntensityBelowNT: BOZ_NT, cautionZoneBelowNT: CAUTION_NT } = wmm.ncei.blackoutZone;
+const { constantDeg: D_UNC_A, hScaleNT: D_UNC_H } = wmm.ncei.declinationUncertainty;
+const zoning = SITES.map(([site, lat, lon]) => {
+  const mlat = geomagneticLatitude(lat, lon, ZONING_YEAR), abs = Math.abs(mlat);
+  const zone = ZONES.find(z => abs >= z.minAbsLat);
+  const edge = [45, 40].some(edgeLat => Math.abs(abs - edgeLat) < ZONE_EDGE_DEG);
+  const f = wmmField(lat, lon, 0, ZONING_YEAR);
+  return { site, lat, lon, geomagneticLat: Number(mlat.toFixed(2)), zone: zone.zone, trigger: zone.trigger, nearEdge: edge,
+    horizontalIntensityNT: Math.round(f.H), declinationDeg: Number((f.D / DEG).toFixed(1)),
+    declinationUncertaintyDeg: Number(Math.sqrt(D_UNC_A ** 2 + (D_UNC_H / f.H) ** 2).toFixed(2)),
+    compassZone: f.H < BOZ_NT ? "blackout" : f.H < CAUTION_NT ? "caution" : "normal" };
+});
+const zoneCounts = zoning.reduce((acc, z) => { acc[z.zone] = (acc[z.zone] || 0) + 1; return acc; }, {});
+const pole2027 = dipolePole(ZONING_YEAR);
+
 /* ── Output ── */
 const summary = {
   engineSha256Pinned: d1.publishedBy.engineSha256,
@@ -217,8 +365,19 @@ const summary = {
   register: { entities: register.length, rows: register, perQuestion, issuedConstraintCounts: issuedCounts,
     countDisagreements: register.filter(r => !r.countAgrees).map(r => r.entity),
     constraintDisagreements: register.filter(r => !r.constraintsAgree).map(r => r.entity) },
-  matrix: { counts: matrixCounts, rows: matrix }
+  matrix: { counts: matrixCounts, rows: matrix },
+  ambient: {
+    wmm: { model: wmm.provenance.model, cofHeader: wmm.provenance.cofHeader, coefficientRows: wmm.coefficients.length, coefficientsSha256,
+      testPoints: wmm.testValues.rows.length, testValues: wmm.testValues.rows.length * 7,
+      worstTestDeviation: { nT: Number(testDeviations.nT.toFixed(4)), deg: Number(testDeviations.deg.toFixed(4)) },
+      highPrecisionWorstDeviation: { nT: hpDeviationNT, rad: hpDeviationRad },
+      pole2025: Object.fromEntries(Object.entries(pole2025).map(([k, v]) => [k, Number(v.toFixed(3))])),
+      poleNcei: poleNcei, checks: wmmChecks, pass: wmmPass },
+    zoning: { year: ZONING_YEAR, pole: Object.fromEntries(Object.entries(pole2027).map(([k, v]) => [k, Number(v.toFixed(3))])),
+      zones: ZONES, counts: zoneCounts, sites: zoning }
+  }
 };
+if (!wmmPass) process.exitCode = 1;
 
 if (process.argv.includes("--json")) {
   process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
@@ -254,5 +413,16 @@ if (process.argv.includes("--json")) {
   line(`ICE ${JSON.stringify(matrixCounts.ice)} · WATER ${JSON.stringify(matrixCounts.water)} · GAS ${JSON.stringify(matrixCounts.gas)}`);
   line("");
   tableRows(["#", "Class", "Tier", "ICE", "WATER", "GAS", "Basis"], matrix.map(r => [String(r.id), `${r.name} (${r.symbol})`, r.tier, r.ice, r.water, r.gas, r.basis]));
+  line("");
+  line("## Appendix D — WMM2025 check and ambient zoning");
+  line(`WMM2025 check: ${wmmPass ? "PASS" : "FAIL"} · ${Object.entries(wmmChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Coefficients: ${wmm.coefficients.length} rows, header "${wmm.provenance.cofHeader}", canonical SHA-256 ${coefficientsSha256}`);
+  line(`NCEI test values: ${wmm.testValues.rows.length} points × 7 = ${wmm.testValues.rows.length * 7} values; worst deviation ${testDeviations.nT.toFixed(3)} nT and ${testDeviations.deg.toFixed(4)}° (table rounding 0.05 nT and 0.005°)`);
+  line(`High-precision example (Technical Report Table 3b): worst deviation ${hpDeviationNT.toExponential(1)} nT and ${hpDeviationRad.toExponential(1)} rad`);
+  line(`Geomagnetic north pole 2025.0: ${pole2025.geocentricLat.toFixed(3)}°N geocentric (${pole2025.geodeticLat.toFixed(3)}°N geodetic), ${Math.abs(pole2025.lon).toFixed(3)}°W, dipole tilt ${pole2025.tilt.toFixed(3)}° · NCEI: ${poleNcei.geocentricLatDeg}°N (${poleNcei.geodeticLatDeg}°N), ${Math.abs(poleNcei.lonDeg)}°W, ${poleNcei.dipoleTiltDeg}°`);
+  line(`Zoning at ${ZONING_YEAR.toFixed(1)}: pole ${pole2027.geocentricLat.toFixed(3)}°N geocentric, ${Math.abs(pole2027.lon).toFixed(3)}°W · zone counts ${Object.entries(zoneCounts).map(([k, v]) => `${k}: ${v}`).join(" · ")}`);
+  line("");
+  tableRows(["Site", "Geomagnetic lat.", "Zone", "Space-weather trigger", "Near edge", "H (nT)", "Declination", "Declination uncertainty", "Compass zone"],
+    zoning.map(z => [z.site, `${z.geomagneticLat.toFixed(2)}°`, z.zone, z.trigger, z.nearEdge ? "yes" : "no", String(z.horizontalIntensityNT), `${z.declinationDeg.toFixed(1)}°`, `${z.declinationUncertaintyDeg.toFixed(2)}°`, z.compassZone]));
   process.stdout.write(out.join("\n") + "\n");
 }

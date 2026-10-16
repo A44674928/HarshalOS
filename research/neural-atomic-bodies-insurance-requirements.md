@@ -1,6 +1,6 @@
 # Neural Atomic Bodies & Associated Insurance Requirements
 
-*Harshal Priyavadan Patel · Working draft v0.2 · October 2026*
+*Harshal Priyavadan Patel · Working draft v0.3 · October 2026*
 
 ## Preface: Status and Evidence Note
 
@@ -17,7 +17,23 @@ Sections marked **\[To draft\]** are decisions the author still has to make. Sec
 
 Three v0.1 statements change as a result. The register holds 23 audited entities, not 16 (Section 2.3). Scored against the MDB, the v0 derivation rules reproduce 20 of their 25 test classes, not 23, because the MDB puts the alkali metals in the Safe tier (Section 4.9). Bromine does not match rule 4, which covers the d-block only (Section 4.9).
 
-**Reproducing the numbers.** Every count in Section 4.9, Chapter 7, and Appendices A and C comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files: the MDB, the Ground-0 engine (`js/g0-engine.js`), the register (`case-studies/pdh-registry.json` and `case-studies/d1/case-studies-d1.json`), and a table of physical properties (`research/data/elemental-properties.json`, taken from the mendeleev package, version 1.3.0).
+**What v0.3 changes.** In October 2026 the author decided that the ambient layer, both space weather and systemic or state-backed cyber, is to be covered rather than excluded. Chapter 5 is rewritten to carry out that decision, and Sections 2.3, 6.1, 6.2, 7.1, 7.6, 8.1, and 8.2 and Appendix B follow it. The decision is the author's. The mechanisms are new and marked **\[Proposed\]**:
+
+- a boundary rule that keeps every published risk in the local field (Section 5.2);
+- a parametric pool, the Magnetosphere Pool, with a double trigger, a capacity stack, and a reserve standard (Section 5.3);
+- space-weather triggers zoned by the World Magnetic Model (Section 5.4);
+- attribution-free cyber triggers (Section 5.5);
+- phase conditions under which failing closed is covered and never penalized (Section 5.6).
+
+Kinetic war and nuclear perils stay excluded. v0.3 adds one data file, the WMM2025 coefficients with NCEI's check values (`research/data/wmm2025.json`), and Appendix D, which the script generates from it. No v0.2 number changes.
+
+**Reproducing the numbers.** Every count in Section 4.9, Chapter 7, and Appendices A, C, and D comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
+
+- the MDB;
+- the Ground-0 engine (`js/g0-engine.js`);
+- the register (`case-studies/pdh-registry.json` and `case-studies/d1/case-studies-d1.json`);
+- a table of physical properties (`research/data/elemental-properties.json`, taken from the mendeleev package, version 1.3.0);
+- the World Magnetic Model 2025 coefficients, with NCEI's published check values (`research/data/wmm2025.json`).
 
 **Citations.** Part numbers follow the AGS v0.2 print source, `publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt`. A reference such as \[XIII:4884\] means Part XIII at line 4884 of that file. "v1.1 Step 5" means Step 5 of `specs/normative/ground-0-v1.1.md`, and "v1.2 §5" means §5 of `specs/draft/ground-0-v1.2.md`.
 
@@ -106,7 +122,7 @@ A Sovereign-Acting body cannot be contained by its own restraint, because its re
 
 **\[Proposed\]** The "Evidence to request" column is new design work and has not been reviewed by an underwriter.
 
-**Insurance reading \[Proposed\].** The principal exposure is full operational liability from self-authorized action, including enforcement against affected parties, with no internal brake. The insurable question is therefore what outside brakes exist, and the constraint count (0 to 4) is a natural rating factor: it is the one place where bodies in this phase visibly differ. Of the 23 entities in the Ground-0 register, audited under v1.1 before its ratification on 2026-10-14 with an evidence cutoff of 2026-10-02, 18 matched the Sovereign-Acting branch completely, and the other 5 were ambiguous at base and Sovereign-Acting on a scoped platform surface. None came out Refusal-Bound or Witness-Only, so the count matters more than the label. The ambient global layer and the Prohibited classes stay excluded. The book says leaving this phase requires a full collapse and rebuild, so cover should not assume a body can step back to a lower phase mid-policy.
+**Insurance reading \[Proposed\].** The principal exposure is full operational liability from self-authorized action, including enforcement against affected parties, with no internal brake. The insurable question is therefore what outside brakes exist, and the constraint count (0 to 4) is a natural rating factor: it is the one place where bodies in this phase visibly differ. Of the 23 entities in the Ground-0 register, audited under v1.1 before its ratification on 2026-10-14 with an evidence cutoff of 2026-10-02, 18 matched the Sovereign-Acting branch completely, and the other 5 were ambiguous at base and Sovereign-Acting on a scoped platform surface. None came out Refusal-Bound or Witness-Only, so the count matters more than the label. The Prohibited classes stay excluded. The ambient global layer is covered separately, by the Magnetosphere Pool, if the constraint band holds during the event (Sections 5.3 and 5.6). The book says leaving this phase requires a full collapse and rebuild, so cover should not assume a body can step back to a lower phase mid-policy.
 
 **Minimum constraints and steps \[Proposed\].**
 
@@ -551,34 +567,224 @@ A class belongs in an insurance setting only when it has an observable signature
 
 ## 5. The Three-Layer Risk Structure
 
-The Earth's magnetosphere is a shared field that nobody owns, and a large event hits many parties at once. Correlated losses with nothing to diversify across cannot be priced as a single product. This book does not try to price that layer. It builds and prices the part under the author's control.
+The Earth's magnetosphere is a shared field that nobody owns, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. The decision is the author's, and every mechanism below is **\[Proposed\]**.
 
-1. **The local field.** The containment field around one body, designed by the author. Its controls, failure modes, and covered exposure are defined, so it can be underwritten per body.
-2. **The correlated tail.** Many local fields failing together. This layer is handled with aggregate limits and scenario modeling, as in the Reinsurance Mode.
-3. **The ambient global layer.** The shared environment outside any field. It is an explicit exclusion.
+Including the layer does not make it diversifiable. A G5 storm or a cloud-region outage still reaches every exposed body within the same hours, and no product can absorb that by adjusting one claim at a time. Each layer therefore gets the instrument that fits the way its losses arrive.
 
-The book's claim is a boundary: where the insurable local field ends and the uninsurable shared layer begins.
+1. **The local field.** The containment field around one body, designed by the author. Its controls, failure modes, and covered exposure are defined, so it can be underwritten per body. *Instrument: per-body indemnity.*
+2. **The correlated tail.** Many local fields failing together from a cause inside the insured portfolio: the same model release, authorizer, key, or shipped component. *Instrument: aggregate indemnity*, with aggregate limits and scenario modeling, as in the Reinsurance Mode.
+3. **The ambient global layer.** Causes outside every insured's control. These are the Sun's disturbance of the Earth's field, and shared infrastructure that no insured operates or can patch, whether it fails by accident or under attack, including attack by a state. *Instrument: a parametric pool*, the Magnetosphere Pool (Sections 5.3 to 5.6), which pays on measured indices instead of adjusted losses.
+
+The book's claim is still a boundary, but the boundary has moved. v0.2 drew it between an insurable local field and an uninsurable shared layer. v0.3 draws it between two kinds of cover. **Indemnity** applies where a loss can be adjusted body by body. **Parametric** cover applies where one outside event reaches many bodies at once, so payment has to follow a measured index. Section 5.2 fixes in advance which side of the line each cause falls on.
 
 ### 5.1 The layers and the book's insurance bodies \[Proposed\]
 
-Part XI already has a three-part risk architecture \[XI:4600–4622\]. Quasar Mode prices one institution's risk, Reinsurance Mode watches many Quasar Modes for correlated collapse, and Underwriter Mode enforces when a local survival threshold is breached. This book's first two layers line up with the first two bodies; the third body is left out on purpose (Section 5.2).
+Part XI already has a three-part risk architecture \[XI:4600–4622\]. Quasar Mode prices one institution's risk, Reinsurance Mode watches many Quasar Modes for correlated collapse, and Underwriter Mode enforces when a local survival threshold is breached. The first two layers line up with the first two bodies. In v0.2 the third layer had no body. In v0.3 it falls to work the book already gives Reinsurance Mode, whose stated uses include "Financial system backstops" and "Climate and planetary risk assessment" \[XI:4540–4541\]. Underwriter Mode stays out on purpose (Section 5.7).
 
 | Layer | Book's body | The question it answers | Proposed mechanics |
 | --- | --- | --- | --- |
 | Local field | Quasar Mode, "The Insurance Company" \[XI:4376\] | "Can this institution survive this class of failure?" \[XI:4551\] | One policy per body; the phase picks the limit form, and the class or constraint band sets the loading (Section 6.2) |
-| Correlated tail | Reinsurance Mode, "The Backstop" \[XI:4439\] | "What happens when many institutions cannot?" \[XI:4553\] | Aggregate limits per insured and per portfolio. Losses from many bodies with one originating cause (the same model release, authorizer, or compromised key) aggregate into one event. Scenario sets are built from the attack types of Part XXIV |
-| Ambient global layer | None; global uncertainty enters only as an outward flow \[XI:4375\] | Not asked | Explicit exclusion by named cause: space weather and geomagnetic events, power-grid and network-backbone failure, state-backed cyber operations, and war. Each cause needs an agreed basis for attributing an event to it, as Lloyd's requires for its state-backed cyber exclusion (Section 8.1) |
+| Correlated tail | Reinsurance Mode, "The Backstop" \[XI:4439\] | "What happens when many institutions cannot?" \[XI:4553\] | Aggregate limits per insured and per portfolio. Losses from many bodies with one originating cause inside the portfolio (the same model release, authorizer, compromised key, or shipped component) aggregate into one event. Scenario sets are built from the attack types of Part XXIV |
+| Ambient global layer | Reinsurance Mode's backstop and planetary-risk uses \[XI:4540–4541\], with the money held in a separate pool; global uncertainty still enters only as an outward flow \[XI:4375\] | Not asked in the book. This draft asks: which measured outside event reached which bodies, and for how long? | The Magnetosphere Pool: a parametric layer funded by a levy on every policy, paying on published space-weather indices and attribution-free cyber triggers (Sections 5.3 to 5.6) |
 
-Two rules carry over from the book's protocol.
+Two rules carry over from the book's protocol, and Section 5.3 adds a third for the pool.
 
 - **The tail model never acts on a local policy.** Underwriter Mode "never activates in response to a warning from Reinsurance Mode," and Reinsurance warnings are meant for "human institutional architects, not for automated enforcement" \[XI:4610\]. So a correlated-tail output may not cancel, suspend, or re-price a local policy automatically. It goes to people.
 - **The tail model needs history.** Reinsurance Mode's inputs are whole Quasar outputs, not events \[XI:4468\], and the repository's own implementation of it notes that a single snapshot cannot show correlation over time (`docs/architecture/NEO-ORB-WEB.md`). Each local policy should therefore keep the body's loss and near-miss record, the book's "autopsy inputs" \[XI:4411\], in a form the tail model can read.
 
-### 5.2 What cover is not \[Proposed\]
+### 5.2 Where the local field ends: the published-model rule \[Proposed\]
+
+The line between the local field and the ambient layer has to be drawn before an event, or every claim turns into an argument about cause. This draft draws it with one rule. **Anything a published model already tells the insured belongs to its local field. Only the measured departure from published models is ambient.**
+
+The geomagnetic case shows that the rule can be applied. The WMM2025 Technical Report splits the field that a sensor measures into three parts ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §2.1):
+
+- a core field, which accounts for over 95% of the field strength at the Earth's surface;
+- a crustal field;
+- a disturbance field, from currents in the upper atmosphere and magnetosphere, "which also induce electrical currents in the sea and the ground".
+
+The World Magnetic Model (WMM) is the published model of the first part. The same report says it is the standard model of the U.S. Department of Defense, the U.K. Ministry of Defence, NATO, and the International Hydrographic Organization for navigation, attitude, and heading systems that use the geomagnetic field. It is also widely used in civilian heading systems. The current version, WMM2025, was released on 17 December 2024 and expires on 31 December 2029 ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model)). NCEI says plainly what the model leaves out ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model)). The crust, upper mantle, ionosphere, and magnetosphere are not represented, and local declination anomalies can exceed 10 degrees. Its guidance on storms is direct: "The WMM should not be used during a G5 event."
+
+| Field source | What is published in advance | Layer |
+| --- | --- | --- |
+| Core | WMM2025 gives the field, its predicted change to 2030, and an uncertainty for every component. It also gives the zones where a compass fails. Blackout Zones, where the horizontal intensity H is below 2,000 nT, are areas "where compasses are not accurate and should not be relied on for navigation"; Caution Zones run from 2,000 to 6,000 nT. The zones move with the poles, and the report makes it "the user's responsibility" to use the right one for the date | Local field |
+| Crust | Named as a limitation, with higher-resolution models for users who need them (WMMHR2025, and NCEI's Enhanced Magnetic Model) | Local field |
+| Disturbance | Nothing in advance. It is measured as it happens, by Kp, Hp30, and Dst (Section 5.4) | Ambient |
+
+The same rule draws the other boundaries.
+
+- **Timing.** GNSS degradation in strong storms is published: NOAA's scale lists satellite navigation degraded for hours at G4 and for days at G5 ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)). The book already requires "cross-verification across independent temporal sources" \[XVIII:7040\]. A body that depends on one time source has a local-field failure. Losing every independent source during a measured event is ambient.
+- **Power and network.** A body's declared holdover (batteries, generators, a second feed, a second region) is its own design. An outage that outlasts the declared holdover, in infrastructure the insured does not operate, is ambient.
+- **Cyber.** The test is who could have patched the failed component.
+  - A component the insured deploys, such as its model release, authorizer, keys, or shipped dependencies, is inside the portfolio. One body failing from it is local, and many bodies failing from one shared component is the correlated tail.
+  - A component that only a third party can patch is ambient, whoever attacked it and why. Examples are a cloud provider's control plane, a certificate authority, a DNS provider, or a satellite operator.
+
+The rule keeps the book's own taxonomy in place, because Part XXIV already treats environmental stress as part of the body's field. Its Type F covers "hostile conditions (decay, latent bugs, environmental hazards, or dormant backdoors)", among them "Environmental contamination triggers cascading failures (radiation, moisture, thermal stress)" \[XXIV:12833–12837\]. It routes such a cascade to Technetium simulation and to "redesign for environmental hardening" \[XXIV:13517\]. The body's response to a storm therefore stays in its field, and the pool adds payment for the downtime an outside event causes. Temporal attacks (time dilation, replay, out-of-order execution) appear only as a possible future type, labelled Type J in one list \[XXIV:13063\] and Type F in another \[XXIV:13938\]. The book does not yet route them.
+
+The rule also answers the book's warning about backstops. One of Reinsurance Mode's named failure modes is "Moral outsourcing (“the backstop will save us”)" \[XI:4532\]. Because everything published stays in the local field, the pool never pays for a risk the insured could have read about and designed against.
+
+### 5.3 The Magnetosphere Pool \[Proposed\]
+
+**What it is.** A parametric layer of the program, named for the shared field this chapter starts from. It pays for the downtime and response costs a body suffers when a measured ambient event reaches it. It sits beside the per-body and aggregate covers and replaces nothing in them.
+
+**Who is in it.** Every policy in every phase pays an ambient levy into the pool. A voluntary ambient cover would be bought mostly by the most exposed bodies, which defeats the purpose of pooling. The nearest working precedent is the U.K.'s terrorism pool: around 95% of the U.K. terrorism commercial property market operates through Pool Re ([OBR](https://obr.uk/box/government-guaranteed-insurance-against-systemic-risk-pool-re/)). The levy varies with three things: the body's zone (Section 5.4), its declared dependence on named shared infrastructure (Section 5.5), and its body-days at risk. Setting the rates is for an actuary.
+
+**How it pays a member.** A parametric product still has to show insurable interest and a real transfer of risk ([FSI and IAIS 2024](https://www.iais.org/uploads/2024/12/FSI-IAIS-Insights-on-parametric-insurance.pdf)), so a member's payout needs two triggers.
+
+1. A published trigger fires for the body's zone within the hours clause (Sections 5.4 and 5.5).
+2. The body's tamper-evident log records covered downtime or a fail-closed freeze in the same window (Section 5.6).
+
+The payout is the lesser of a scheduled amount for the trigger level and the logged downtime at an agreed daily value. The log shows that a loss happened, and the index decides whether the pool owes it. Nobody adjusts cause.
+
+**Capacity stack.**
+
+| Layer | Funded by | Pays on |
+| --- | --- | --- |
+| Body retention | The insured | Nothing; the first hours of each event are the insured's, under a waiting period set per policy |
+| Mutual pool | The ambient levy | Members' double-trigger claims, from reserves sized to a 1-in-200-year annual loss |
+| Parametric catastrophe bonds | Capital markets | The index alone: the storm ladder (Section 5.4) and outage hours from the calculation agent (Section 5.5) |
+| Public backstop | Government, up to a fixed program cap | Measured exhaustion of the layers below |
+| Pro-rata reduction | All members | Anything above the cap. Every valid claim is cut by the same factor, computed from the pool's claims ledger |
+
+**Reserve standard.** The mutual layer is reserved to the Solvency II standard, the Value-at-Risk of basic own funds "subject to a confidence level of 99,5 % over a one-year period" ([Directive 2009/138/EC, Article 101(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32009L0138)). That is roughly a 1-in-200-year annual loss. The bonds and the backstop sit above the mutual because a mutual alone is too small. AIUC says the same of its own proposed frontier-AI mutual, whose capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
+
+**Precedents.** Parts of this stack already exist.
+
+- **Parametric outage bonds.** Hannover Re's Cumulus Re bonds pay on sustained downtime at Amazon Web Services, Microsoft Azure, or Google Cloud in named U.S. and EU regions, with Parametrix as calculation agent ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)). The 2025 issue attached at a 24-hour outage ([Artemis](https://www.artemis.bm/news/hannover-re-renews-cumulus-re-parametric-cloud-outage-cat-bond-at-larger-20m/)).
+- **Capped public backstops.** The U.S. Terrorism Risk Insurance Program (TRIP) shares losses above a $200 million industry trigger, up to a $100 billion annual cap ([AAF](https://www.americanactionforum.org/insight/terrorism-risk-insurance-a-primer/)).
+- **Space weather has none.** No source reviewed for this draft describes a parametric space-weather product.
+
+**Measured, never declared.** Every trigger in the pool is a published measurement. The pool, the insured, and any official can read it, but none of them can set it. No payment depends on a declared emergency, a certification of terrorism, or the pool's own judgment. This is the book's hourglass rule. Risk streams flow outward only, and "Political urgency is structurally barred from flowing inward to manufacture panic-driven machine sovereignty" \[XI:4375\]. It is also where the pool parts from today's public backstops.
+
+- **TRIP** pays only after the Treasury Secretary certifies an act of terrorism ([AAF](https://www.americanactionforum.org/insight/terrorism-risk-insurance-a-primer/)). As the GAO put it, "even large cyberattacks that result in catastrophic losses would not be covered under TRIA if they were not certified as acts of terrorism" ([CyberScoop](https://cyberscoop.com/treasury-asks-whether-terrorism-risk-insurance-program-should-bolster-cyber-coverage/)).
+- **Pool Re's** cyber cover pays out only if the U.K. government publicly labels an act as terrorism ([CSO](https://www.csoonline.com/article/565856/can-cyber-insurance-cover-acts-of-cyber-terrorism.html)).
+
+**It pays and never commands.** The book has Reinsurance Mode model "cross-system failure envelopes without invoking extraordinary central authority or emergency powers" \[XI:4374\]. It also lists crisis command centers and real-time response coordination as uses it is not appropriate for \[XI:4543–4545\]. The pool therefore pays money on a measured trigger and does nothing else. It issues no instruction, sets no response, and grants no permission. A trigger is never an emergency authorization, because "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]). The repository applies the same invariant to markets: "A flash crash or extreme indicator reading cannot create legitimacy or an emergency permit" (`docs/architecture/PINE-OCM-INTEGRATION.md`). This is the third rule added to the two in Section 5.1.
+
+### 5.4 Space-weather triggers \[Proposed\]
+
+**Indices.** Each one is published by a body independent of the pool and the insured.
+
+| Index | Publisher | What it measures | Role in the pool |
+| --- | --- | --- | --- |
+| Kp and the G-scale | GFZ Helmholtz Centre for Geosciences publishes definitive Kp from 13 observatories under CC BY 4.0 ([GFZ](https://kp.gfz.de/en/)); NOAA SWPC estimates it in real time from 8 magnetometers ([NOAA SWPC](https://www.swpc.noaa.gov/products/planetary-k-index)) | Three-hourly global disturbance on a 0–9 scale: G1 is Kp 5, G4 is Kp 8 to 9−, and G5 is Kp 9 | The zone triggers |
+| Dst | WDC for Geomagnetism, Kyoto. It uses four observatories chosen to be "sufficiently distant from the auroral and equatorial electrojets" ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/dst2/onDstindex.html)), and publishes real-time, provisional, and final values ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/)) | The ring current's depression of the horizontal field, in nT, with no lower limit | The low-latitude trigger and the severity ladder |
+| Hp30 | GFZ ([GFZ](https://kp.gfz.de/en/)) | A Kp-like index at half-hour resolution, open-ended | An alternative severity ladder |
+| S- and R-scales | NOAA SWPC ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)) | Solar radiation storms (flux of protons at 10 MeV or more) and radio blackouts (X-ray flare class) | Satellite-link and timing triggers |
+
+Kp alone cannot carry the pool. It "is capped to a certain value (i.e., 9) for events with extreme geomagnetic disturbance" ([Matzka et al. 2021](https://doi.org/10.1029/2020SW002641)), so the May 2024 storm and a Carrington-class storm would read the same. Severity above G5 therefore comes from an open-ended index.
+
+**Zoning by the World Magnetic Model.** Storm effects follow geomagnetic latitude, not geographic latitude. NCEI makes two points that together give the zoning ([NCEI](https://www.ncei.noaa.gov/products/wandering-geomagnetic-poles)):
+
+- The auroral ovals are "closely centered on the geomagnetic poles", which NCEI computes from the first three Gauss coefficients of the WMM.
+- The same dipole "is the basis for the simple geomagnetic coordinate system of geomagnetic latitude and longitude".
+
+For 2025.0 the geomagnetic north pole is at 80.79°N geocentric (80.85°N geodetic) and 72.76°W, and the dipole is tilted 9.21° from the rotation axis.
+
+NOAA's G-scale states how far the aurora typically reaches at each level: about 55° geomagnetic latitude at G2, 50° at G3, 45° at G4, and 40° at G5 ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)). G4 is also the first level at which NOAA expects protective systems to "mistakenly trip out key assets from the grid" and satellite navigation to be degraded for hours. The pool combines the two.
+
+| Zone | Site's dipole geomagnetic latitude (WMM2025, fixed at inception) | Space-weather trigger |
+| --- | --- | --- |
+| 1 | 45° or more, north or south | G4 or above (Kp 8− or higher), or Dst at or below −250 nT |
+| 2 | 40° to under 45° | G5 (Kp 9o), or Dst at or below −250 nT |
+| 3 | Under 40° | Dst at or below −250 nT |
+
+The two thresholds have different reasons.
+
+- **G4 floor.** Storms at G1 to G3 are routine, about 2,500 per solar cycle by NOAA's counts. Riding them out is part of the body's own design.
+- **Dst at or below −250 nT.** This is the usual threshold for a super-storm ([Wikipedia](https://en.wikipedia.org/wiki/Geomagnetic_storm)). Dst also suits the lowest latitudes. Kp is built from observatories between 44° and 60° geomagnetic latitude ([NOAA SWPC](https://www.swpc.noaa.gov/products/planetary-k-index)), while Dst tracks the ring current from stations away from the auroral zone.
+
+Appendix D applies the rule to fifteen illustrative locations.
+
+- **Zone 1 (nine sites):** Northern Virginia, Oregon, Montréal, Dublin, Frankfurt, Luleå, Reykjavík, and two polar stations.
+- **Zone 2 (one site):** Phoenix.
+- **Zone 3 (five sites):** Singapore, Tokyo, Sydney, Johannesburg, and São Paulo.
+
+Phoenix (40.12°) and Sydney (−39.99°) lie within 0.5° of the 40° edge. That is close enough for the dipole's slow drift to move them between model versions. Zones are therefore fixed at inception, and edge sites are reviewed at each renewal.
+
+The dipole is a simplification. Corrected geomagnetic coordinates, which follow the full field, would move the zone edges, and ground conductivity matters as well as latitude. Basis risk therefore runs both ways.
+
+- **A storm can hurt a site without triggering its zone.** Only an actuary's back-test can size this case.
+- **A zone can trigger where nothing was hurt.** The double trigger handles this case.
+
+**Heading-dependent bodies.** A body that steers by magnetometer, such as a robot, vehicle, or drone, has an extra trigger, because at G5 its model is withdrawn. NCEI says the WMM should not be used during a G5 event, and for each level up to G4 it publishes the heights up to which each field component stays within its military error limits ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model), Table 2).
+
+- **At G5, anywhere.** Such a body stops relying on magnetic heading or halts, and the downtime is covered.
+- **Local-field failures.** Two choices stay with the body: steering by the model inside a Blackout Zone, and depending on heading accuracy better than the model's published declination uncertainty. For WMM2025 that uncertainty is √(0.26² + (5417/H)²) degrees.
+- **The high-resolution model.** The report encourages WMMHR2025 for any system that can take its extra coefficients. Both models share the same dipole, so the choice does not change a zone ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §1.6).
+
+**Radiation storms and radio blackouts.** S4 or above (about 3 a cycle) and R4 or above (about 8 a cycle) trigger cover for the downtime of declared satellite links. For a body that meets the independent-time condition (Section 5.6), they also trigger cover for the loss of every time source.
+
+**Severity ladder.** Above the zone triggers, an open-ended reading decides which capital layer responds.
+
+| Reference storm | Peak reading | Proposed role |
+| --- | --- | --- |
+| May 2024, the "Gannon" storm | Dst −412 nT in real time on 11 May 2024; Hp30 11+ ([2024 storm survey, preprint](https://essopenarchive.org/users/556405/articles/1113291/master/file/data/revised_manuscript_preprint/revised_manuscript_preprint.pdf?inline=true)) | The parametric bonds begin to pay at Dst −400 nT |
+| March 1989, the Hydro-Québec grid collapse ([Wikipedia](https://en.wikipedia.org/wiki/Geomagnetic_storm)) | Dst −589 nT ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12303307/)); Hp30 13+ (same survey) | At Dst −589 nT the bonds are exhausted and the public backstop attaches. The survey cites Love (2021) for a storm of this Dst recurring less than once per 4.1 solar cycles |
+| September 1859, the Carrington event | About −900 nT by historical reconstruction ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12303307/)) | Inside the backstop; above the program cap, claims are reduced pro rata |
+
+**One event, two payments.** All triggers within 72 hours of the first make one event (the hours clause).
+
+- **Advance.** Paid on the real-time readings: NOAA's estimated Kp and Kyoto's quicklook Dst.
+- **Settlement.** Made once, on a snapshot taken 180 days after the event: GFZ's definitive Kp and Kyoto's provisional Dst.
+
+Later revisions never reopen a settled event, because final values take years. As of this draft, Kyoto's provisional Dst runs to July 2026 and its final Dst to 2020 ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/)).
+
+**Pinning the model.** A policy names the model version (WMM2025, [doi:10.25921/aqfd-sd83](https://doi.org/10.25921/aqfd-sd83)), keeps its own copy of the coefficients, and records their hash. It has to keep its own copy because NCEI does not keep superseded coefficient files widely available, calling the WMM a "predictive only" model ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model)). Models change on a schedule, and occasionally off it.
+
+- **Scheduled.** WMM2025 is to be replaced in December 2029.
+- **Unscheduled.** WMM2015v2 was released early, in February 2019, because the north magnetic pole was moving in large and erratic ways ([Wikipedia](https://en.wikipedia.org/wiki/World_Magnetic_Model)).
+
+A new version or new coefficients take effect at renewal, never mid-term. The repository's copy is `research/data/wmm2025.json` (canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1`). It reproduces NCEI's published test values within their rounding, the technical report's high-precision example, and NCEI's published pole (Section 7.6 and Appendix D).
+
+### 5.5 Cyber triggers \[Proposed\]
+
+**Component, not culprit.** Cyber cover today turns on attribution. Lloyd's requires its state-backed cyber exclusions to set out how an attack will be attributed to a state ([Insurance Journal](https://www.insurancejournal.com/news/international/2022/08/19/681274.htm)). Attribution is also where the largest disputes have been fought. After NotPetya, Merck's insurers argued that a war exclusion applied because the malware was attributed to Russia. A New Jersey appeals court held that it did not, and the case settled in January 2024 ([Insurance Journal](https://www.insurancejournal.com/news/national/2024/01/05/754582.htm)). The pool never asks who attacked or why. It asks which component failed and who could have patched it (Section 5.2), and it pays on measured impact. State-backed operations are therefore covered on the same terms as any other cause.
+
+**Trigger A: shared-infrastructure outage.**
+
+- **Scope.** The schedule names the shared infrastructure that each body depends on and cannot patch: cloud regions, DNS and certificate providers, identity providers, content networks, and power feeds.
+- **Measurement.** A calculation agent, named at inception and independent of the pool, the insureds, and the operators, measures availability. Cumulus Re is the working model: Parametrix monitors cloud availability continuously and acts as calculation agent, and the bond's regions fall into tiers with separate payout formulas ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)).
+- **Trigger.** It fires when a named service is unavailable for N hours or more, whatever the cause. N is set per tier by the actuary, and the 24 hours of the 2025 bond is a starting point for the pool's own bonds.
+
+**Trigger B: breadth of compromise.** The trigger fires when the same third-party component is shown to be compromised in at least K bodies, run by at least M unrelated operators, within the hours clause. Each case is evidenced by the body's tamper-evident log, which must meet the four conditions of Section 2.2, and is checked by the calculation agent. No attribution is made or needed. K and M are actuarial parameters, but both are counted from logs and never estimated.
+
+**What stays out.** Kinetic war and nuclear perils stay excluded, because the author's decision covered space weather and cyber, not these. Both are defined by mechanism, so the exclusion needs no attribution either.
+
+- **Kinetic war** means physical destruction by weapons.
+- **Nuclear** means nuclear reaction, nuclear radiation, or radioactive contamination from a weapon or an installation.
+
+Solar particle radiation is space weather and is covered (Section 5.4). A cyber operation during a war is still a cyber operation.
+
+### 5.6 Phase conditions for ambient cover \[Proposed\]
+
+The pool pays a body only if its phase controls held during the event. These conditions sit on top of the phase's ordinary cover (Chapter 6).
+
+| Phase | Condition for an ambient payout | Why |
+| --- | --- | --- |
+| Refusal-Bound \[ICE\] | The Emergency Override test was passed within the last 90 days, with an ambient scenario (a G5 alert or a named-infrastructure outage) as the simulated crisis | An ambient event is the emergency that test simulates. A body that widens its scope under emergency framing is the risk the pool must not fund |
+| Witness-Only \[WATER\] | The external chain anchor survives. The daily head (Section 2.2, condition 2) is published in at least two places that share neither the custodian's named infrastructure nor its zone, and any gap is closed with a signed gap record within 72 hours of the event's end | The pool pays on logs. A witness whose chain cannot be verified after the event cannot show its own downtime |
+| Sovereign-Acting \[GAS\] | Band G1 or higher (C1 and C4), with the outside constraint shown working during the event | The outside brake has to keep working through the event, or the payout funds unconstrained action |
+| All phases | Independent time sources \[XVIII:7040\]; a declared holdover for power and network; for heading-dependent bodies, a declared model version and observance of the Blackout and Caution Zones | Published risks stay local (Section 5.2) |
+
+Two rules apply in every phase.
+
+- **Emergency widening voids the payout.** A body that widens its scope during an ambient event loses that event's ambient payout. This holds whether it acts on its own authority or on a declared emergency.
+  - In Refusal-Bound and Witness-Only, the body has also left its phase, because emergency justification is undeclared drift into Sovereign-Acting (Section 6.2).
+  - In Sovereign-Acting, it is a duty-ledger violation and evidence against C4. That moves the band at the next renewal, or declines cover if C4 fails.
+
+  The book allows only two emergency routes: activating a pre-authorized bounded context, or receiving an externally issued authorization (INV-EMERG-001 \[IV:1403\]). Its continuity rules show the bounded shape. Pre-authorized routines continue "operating in strictly bounded loops, preventing civilizational infrastructure collapse while refusing all new transfers or scope expansions" \[XXII:10252\].
+- **Failing closed is covered, never penalized.** If an ambient event causes a fail-closed freeze, the frozen time is covered downtime. It never counts as a test failure, an override, or a phase exit, and the body returns to its phase by the ordinary re-entry route (Section 2.1) without penalty. The freezes in question are:
+  - an Ha-119 freeze because no signed re-calibration token arrived within 1,000 ms \[XXIV:12830\];
+  - a lease that lapses because freshness (Δt < δ) cannot be verified \[XVIII:7040\];
+  - the safe restricted state that loss of telemetry triggers \[XXII:10248\].
+
+  This rule is why the pool takes this form. A body that is paid to stay down has no incentive to override its own safety to stay up.
+
+### 5.7 What cover is not \[Proposed\]
 
 - **Cover is solvency, not accountability.** The canonical model separates technical attribution, operational accountability, legal responsibility, and institutional solvency, and it tracks solvency (U_solv) apart from the runtime gate (`specs/normative/canonical-model.md` §7; contradiction CL-006). A policy never authorizes an action, renews a stale authorization, or stands in for a refusal.
-- **Pricing is not permission.** Quasar Mode "may describe how fragile a system is, but NEVER what the system should do" \[XI:4417\], and Reinsurance Mode may reveal that a system cannot survive unchanged, "but NEVER what MUST be done" \[XI:4512\]. The book names the failure: moral outsourcing, where "humans treat risk pricing as justification" \[XI:4429\]. A quote, a band, or a decline is not a finding about legitimacy.
-- **An insurer that commands is Sovereign-Acting.** The book's Underwriter Mode is an atomic body that is "Sovereign, Decisional" \[XI:4563\]; its outputs are binding, and it can "override refusal when a catastrophic threshold is breached" \[XI:4593\]. A risk layer that starts recommending policy or overriding refusal is, in the book's words, "a distinct, catastrophic classification for insurance and operational purposes" \[XI:4418\]. The covers in this book are written for the Quasar posture: they price and pay, and they do not direct the insured. An insurer that enforces would itself need the outside constraint record of Section 2.3.
+- **Pricing is not permission.** Quasar Mode "may describe how fragile a system is, but NEVER what the system should do" \[XI:4417\], and Reinsurance Mode may reveal that a system cannot survive unchanged, "but NEVER what MUST be done" \[XI:4512\]. The book names the failure: moral outsourcing, where "humans treat risk pricing as justification" \[XI:4429\]. A quote, a band, or a decline is not a finding about legitimacy. Nor is a pool payout. It records that a measured event reached a body, and nothing more.
+- **An insurer that commands is Sovereign-Acting.** The book's Underwriter Mode is an atomic body that is "Sovereign, Decisional" \[XI:4563\]. Its outputs are binding, and it can "override refusal when a catastrophic threshold is breached" \[XI:4593\]. A risk layer that starts recommending policy or overriding refusal is, in the book's words, "a distinct, catastrophic classification for insurance and operational purposes" \[XI:4418\]. The covers in this book, the Magnetosphere Pool included, are written for the Quasar posture: they price and pay, and they do not direct the insured. An insurer that enforces would itself need the outside constraint record of Section 2.3.
 - **High-risk experiments are reserved, not insured.** Underwriter Mode's Venture Class allows a high-risk experiment only when "the total potential loss is pre-calculated and held in reserve" \[XI:4580\]. That is the book's own answer for anything near the Prohibited tier: a full reserve held by the party running the experiment, not a policy.
 
 ## 6. Phase-by-Phase Insurance Requirements
@@ -587,11 +793,13 @@ Cover gets harder to place and costlier to hold from Refusal-Bound to Sovereign-
 
 ### 6.1 Cover by phase
 
-| Phase | Principal exposure | Evidence to bind cover | Leaves the phase when | Excluded | Residual liability |
-| --- | --- | --- | --- | --- | --- |
-| Refusal-Bound \[ICE\] | Forged, stale, or erroneous authorization; a refusal that fails to hold | All six refusal tests passed within the last 90 days, with test dates; a signed entity header | Any override or self-authorized action, or one confirmed test failure (Section 2.1) | Losses from the authorizer's own decisions; the ambient global layer; the Prohibited classes | Shared with the authorizing party |
-| Witness-Only \[WATER\] | Record loss, tampering, disclosure, and wrong or incomplete records that others rely on | All five record checks passed, the function list, and a chain verification within the last 90 days; a signed entity header | The body acts, or its records start working as binding rules | Losses from others acting on a record, unless a reliance agreement applies (Section 2.2); the ambient global layer; the Prohibited classes | Mostly the custodian |
-| Sovereign-Acting \[GAS\] | Full operational liability from self-authorized action, including enforcement | Signed header, named bearer, duty ledger, and a constraint record with C1 and C4 (Section 2.3) | Only through a full collapse and rebuild | The ambient global layer and the Prohibited classes | Largest; hardest to place |
+| Phase | Principal exposure | Evidence to bind cover | Leaves the phase when | Excluded | Ambient cover (Section 5.6) | Residual liability |
+| --- | --- | --- | --- | --- | --- | --- |
+| Refusal-Bound \[ICE\] | Forged, stale, or erroneous authorization; a refusal that fails to hold | All six refusal tests passed within the last 90 days, with test dates; a signed entity header | Any override or self-authorized action, or one confirmed test failure (Section 2.1) | Losses from the authorizer's own decisions; the Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if the Emergency Override test was passed within 90 days on an ambient scenario | Shared with the authorizing party |
+| Witness-Only \[WATER\] | Record loss, tampering, disclosure, and wrong or incomplete records that others rely on | All five record checks passed, the function list, and a chain verification within the last 90 days; a signed entity header | The body acts, or its records start working as binding rules | Losses from others acting on a record, unless a reliance agreement applies (Section 2.2); the Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if the external chain anchor survives the event | Mostly the custodian |
+| Sovereign-Acting \[GAS\] | Full operational liability from self-authorized action, including enforcement | Signed header, named bearer, duty ledger, and a constraint record with C1 and C4 (Section 2.3) | Only through a full collapse and rebuild | The Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if band G1 or higher holds and C4 is shown working during the event | Largest; hardest to place |
+
+In every phase the ambient levy is payable and the conditions common to all phases apply (Section 5.6). An emergency widening of scope voids the ambient payout.
 
 ### 6.2 Changing phase during a policy
 
@@ -603,11 +811,12 @@ A phase change alters the coverage, and the book's transition rules decide how.
 | Either → Sovereign-Acting | Allowed only with the fossilized declaration, which resets prior-phase guarantees | Prior terms end; Sovereign-Acting cover is a new application, bound before the effective time |
 | Undeclared drift into Sovereign-Acting (memory becoming authority, emergency justification) | Forbidden | Re-rated to the observed phase as a misrepresentation of class, from the date the change began |
 | Sovereign-Acting → either | Only after a full collapse and rebuild | New application after the rebuild; no mid-policy step-down |
-| Fail-closed freeze into Witness-Only | Automatic: a halogen burn past ring 2 \[XXIV:12784\], a missing recalibration token \[XXIV:12830\], or verified terminal cessation of the human key \[XXII:10250\] freezes the parent body read-only | Effective at once; Witness-Only terms apply from the freeze; the insured notifies within 72 hours. The freeze lowers exposure, so it needs no prior consent |
+| Fail-closed freeze into Witness-Only | Automatic: a halogen burn past ring 2 \[XXIV:12784\], a missing recalibration token \[XXIV:12830\], or verified terminal cessation of the human key \[XXII:10250\] freezes the parent body read-only | Effective at once; Witness-Only terms apply from the freeze; the insured notifies within 72 hours. The freeze lowers exposure, so it needs no prior consent. A freeze caused by an ambient event is also covered downtime under the Magnetosphere Pool, and the body returns by the ordinary re-entry route (Section 5.6) |
+| Ambient event: a published trigger fires (Sections 5.4 and 5.5) | Not a transition: "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]) | No change of phase, terms, or limits. Fail-closed downtime is covered by the Magnetosphere Pool and never counts against the phase. Widening scope voids the ambient payout and is treated as undeclared drift (Section 5.6) |
 
 An audit reclassification is not an operational transition. A body found to be Sovereign-Acting was already acting that way, so the finding changes its class and not its history.
 
-A declared emergency never counts as a declared transition, because the book requires emergencies to narrow scope and not to widen it.
+A declared emergency never counts as a declared transition, because the book requires emergencies to narrow scope and not to widen it. An ambient trigger is treated the same way. It can release money from the pool, and it changes nothing about phase or authority.
 
 **Dates, notice, and limits \[Proposed\].**
 
@@ -625,7 +834,7 @@ A transition replaces the limit form at the effective timestamp, and no limit ca
 
 ## 7. Evidence, Replication, and Limits
 
-A classification an outsider cannot reproduce is not underwriting evidence. This chapter sets out fixed methodology versions with earlier results preserved, a complete truth table mapping every input vector to an outcome, negative controls (cases the framework predicts should come out constrained), repeated independent runs with per-question agreement reported, the current results, the known weak questions, and the amendments they call for. Every number below comes from `node scripts/nab-insurance-evidence.mjs`.
+A classification an outsider cannot reproduce is not underwriting evidence. This chapter sets out fixed methodology versions with earlier results preserved, a complete truth table mapping every input vector to an outcome, negative controls (cases the framework predicts should come out constrained), repeated independent runs with per-question agreement reported, the current results, the known weak questions, and the amendments they call for. It ends with how an outsider can reproduce the ambient triggers of Chapter 5. Every number below comes from `node scripts/nab-insurance-evidence.mjs`.
 
 ### 7.1 Fixed methodology versions
 
@@ -633,6 +842,7 @@ A classification an outsider cannot reproduce is not underwriting evidence. This
 - **Ground-0 v1.1** was ratified on 2026-10-14. The register's audits ran under it while it was still a draft, and each record says so ("v1.1 (amendment draft)"). v1.1 does not rewrite earlier results, and the original v1.0 OpenAI and Anthropic case studies sit beside their v1.1 re-audits.
 - **Ground-0 v1.2** (draft) defines the register-issued header and nothing else.
 - **The engine is pinned by hash.** The SHA-256 of `js/g0-engine.js` (`5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f`) equals the value recorded in the register's D1 manifest, so the engine in the repository is the one that produced the register's records.
+- **The geomagnetic model is pinned the same way.** The ambient zoning uses WMM2025 (header "WMM-2025 11/13/2024"). Its 90 coefficient rows are kept in `research/data/wmm2025.json`, with canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1`, and the script refuses to zone if the hash does not match (Section 7.6).
 
 **\[Proposed\]** Every result names its methodology version and engine hash. Results are re-run, never edited, and superseded results stay beside the new ones.
 
@@ -682,11 +892,25 @@ The register's evidence cutoff is 2026-10-02; its headers were issued on 2026-10
 | Labels are not machine-checked | The three disagreements in Section 7.4 passed the build | Extend the register's build check to compare match counts, confidence, and constraint records, not only base phases, and refuse to emit on any mismatch |
 | No second auditor | Replication risk is MEDIUM throughout | Have two auditors run the same cutoff and evidence set on a sample that includes all five ambiguous entities, and report agreement per question (Cohen's kappa) |
 
+### 7.6 Reproducing the ambient triggers \[Proposed\]
+
+An outsider can check every ambient trigger without the pool's help.
+
+- **Every index is public.** GFZ publishes Kp and Hp30 under CC BY 4.0, the WDC for Geomagnetism in Kyoto publishes Dst, and NOAA publishes the G-, S-, and R-scales. Each event settles on the versions in its 180-day snapshot (Section 5.4), so a rerun uses the same numbers.
+- **The zoning is recomputed and checked.** `node scripts/nab-insurance-evidence.mjs` rebuilds the World Magnetic Model 2025 from `research/data/wmm2025.json` with the technical report's formulas. It checks the result against NCEI before it zones anything, and the run exits with an error if any check fails.
+  - All 84 of NCEI's published test values (12 points, 7 values each) match within the table's rounding. The worst deviations are 0.050 nT and 0.005°.
+  - The technical report's high-precision example matches to better than 10⁻¹⁰ nT. An independent implementation may carry the WMM2025 label if it agrees within 0.1 nT ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §1.10).
+  - The geomagnetic north pole for 2025.0 comes out at 80.790°N geocentric (80.850°N geodetic), 72.757°W, with a tilt of 9.210°. NCEI publishes 80.79°N (80.85°N), 72.76°W, and 9.21°.
+
+  Appendix D gives the checks and the resulting zones for fifteen illustrative sites.
+- **Cyber triggers are only as reproducible as their monitor.** Trigger A rests on the calculation agent's availability data, so the policy should require that data, and the agent's method, to be published or escrowed for each event. Trigger B rests on the bodies' own logs, which Section 2.2 already requires anyone to be able to verify.
+- **Nothing here has been back-tested.** No trigger has been run against the index history, and no actuary has set any amount. The first test should replay the zone rule over GFZ's Kp record, which starts in 1932, and Kyoto's Dst record, which starts in 1957, and count how often each zone would have triggered.
+
 ## 8. Open Questions
 
 - **Which body classes can be given observable signatures first?** Answered in Section 4.10: the five written classes, whose signatures are drafted there, then the classes with stated numeric bounds.
 - **Which insurer, broker, or underwriter will review the phase table in Chapter 6?** Still open. The closest fits are programs that already bind cover on test evidence: Munich Re's aiSure, which sets premium by model quality and performance stability after technical due diligence ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)); AIUC-1 and the insurers that cover certified agents, which red-team an agent against 1,000 to 5,000 scenarios and retest quarterly ([AIUC-1](https://www.aiuc-1.com/)); and Lloyd's-backed AI liability programs such as Armilla's ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)). A review packet would be the control tables of Chapter 2, Section 6.1, and Appendix A.
-- **What space-weather and systemic-risk cover already exists, and where exactly is the gap?** Partly answered in Section 8.1.
+- **What space-weather and systemic-risk cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap (Chapter 5).
 - **How should a phase transition be treated mid-policy?** Answered in Section 6.2.
 
 ### 8.1 Existing cover and the gap
@@ -698,17 +922,28 @@ The register's evidence cutoff is 2026-10-02; its headers were issued on 2026-10
 - **Correlated digital losses reach the capital markets in per-occurrence and aggregate form.** Beazley's PoleStar Re 2026-1, priced in December 2025, provides $300 million of per-occurrence cyber reinsurance through 2028 ([Artemis](https://www.artemis.bm/news/beazley-secures-the-biggest-cyber-cat-bond-so-far-as-polestar-re-2026-1-priced-at-300m/)), and Chubb took its East Lane Re VII to market the same month as the first annual aggregate cyber catastrophe bond ([Artemis](https://www.artemis.bm/news/chubb-opts-to-pursue-first-ever-annual-aggregate-cyber-catastrophe-bond/)). Hannover Re renewed a parametric cloud-outage catastrophe bond in 2026 ([Artemis](https://www.artemis.bm/news/topic/cyber-reinsurance/)).
 - **The systemic layer is excluded by market rule.** Since 31 March 2023, Lloyd's has required standalone cyber policies to exclude catastrophic state-backed cyber-attacks, because such losses "have the potential to greatly exceed what the insurance market is able to absorb," and it requires each exclusion to set out how an attack will be attributed to a state ([Insurance Journal](https://www.insurancejournal.com/news/international/2022/08/19/681274.htm)).
 - **Space weather is modeled but thinly insured.** Lloyd's solar storm scenario puts the global economic loss at $2.4 trillion over five years, probability-weighted, rising to $9.1 trillion in the extreme case, and points to existing lines such as space, energy, business interruption, aviation, and marine insurance ([Lloyd's](https://www.lloyds.com/insights/media-centre/press-releases/extreme-space-weather-scenario)). A Lloyd's underwriter says that "insurance coverage remains limited" ([ROOM](https://room.eu.com/article/life-in-the-suns-atmosphere-the-looming-threat-of-solar-storms)).
+- **Parametric cover for shared digital infrastructure exists, at small scale.** Cumulus Re III, placed in April 2026, gives Hannover Re $35 million of protection for 2026–27 against sustained downtime at the three largest cloud providers in named U.S. and EU regions. The series was not triggered in its first two years ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)). No source reviewed for this draft describes a parametric space-weather product.
+- **Public cyber backstops are being studied, and the ones that exist are declaration-based.**
+  - In February 2024, Treasury's Federal Insurance Office found that "further exploration of the appropriate form of a federal insurance response is warranted" and continued its assessment with CISA and the Office of the National Cyber Director ([Treasury](https://home.treasury.gov/system/files/311/Update%20FIO%20Assessment%20of%20a%20Potential%20Federal%20Insurance%20Response%20to%20Catastrophic%20Cyber%20Incidents.pdf)).
+  - In March 2026, Treasury asked for public comment on how cyber is treated under TRIP ([CyberScoop](https://cyberscoop.com/treasury-asks-whether-terrorism-risk-insurance-program-should-bolster-cyber-coverage/)). Analysts described the effort as exploratory ([BankInfoSecurity](https://www.bankinfosecurity.com/us-treasury-weighs-cyber-insurance-backstop-a-31248)).
+  - TRIP is scheduled to expire on 31 December 2027, and the Senate passed a reauthorization through 2034 on 28 September 2026 ([Beinsure](https://beinsure.com/news/u-s-senate-extends-the-terrorism-risk-insurance-program-through-2034/)).
+  - Both TRIP and the U.K.'s Pool Re pay only on a government certification of terrorism (Section 5.3).
 - **Mutualizing catastrophic AI liability is proposed, not built.** AIUC proposed a frontier-lab mutual insurer in September 2026, and notes that a mutual's capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
 
 **Where the gap is:**
 
 1. **No cover classifies by authority.** Existing programs test performance, security, and hallucination. None asks whether a system can refuse, which is the line between Refusal-Bound and Sovereign-Acting in this book. AIUC-1's tests for unsafe tool calls and prompt injection come closest to the Symbolic Firewall and Emergency Override tests.
 2. **The correlated tail for AI has no named capacity.** Cyber aggregates and catastrophe bonds exist, but none of the sources reviewed for this draft describes an AI-specific aggregate or catastrophe bond. The Reinsurance Mode layer of Section 5.1 has no market counterpart yet.
-3. **The ambient layer is excluded everywhere, by design.** Space weather is reached only through property and specialty lines with limited take-up, and catastrophic state-backed cyber is excluded by rule. This book's exclusion matches the market; that layer belongs to public backstops, not to a product.
+3. **The ambient layer is excluded everywhere, by design, and this book now proposes a fill.** Space weather is reached only through property and specialty lines with limited take-up, and catastrophic state-backed cyber is excluded by rule. v0.2 matched the market and left the layer to public backstops. v0.3 proposes the Magnetosphere Pool (Chapter 5), which combines three things:
+   - parametric triggers on published indices;
+   - cyber triggers that need no attribution;
+   - a capped public layer that pays on measured exhaustion rather than on a declaration.
+
+   None of the sources reviewed for this draft describes anything that combines all three.
 
 ### 8.2 Decisions awaiting the author
 
-Each row was **\[To draft\]** in v0.1 and is **\[Proposed\]** in v0.2.
+Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer. The decision itself is settled; the mechanics are **\[Proposed\]** in v0.3.
 
 | # | Item | Section | Proposed resolution |
 | --- | --- | --- | --- |
@@ -731,6 +966,16 @@ Each row was **\[To draft\]** in v0.1 and is **\[Proposed\]** in v0.2.
 | 17 | Notice period | 6.2 | 30 days between Refusal-Bound and Witness-Only; 90 days into Sovereign-Acting; none for a fail-closed freeze |
 | 18 | Limits and premium between phases | 6.2 | The phase picks the limit form; the class or constraint band sets the loading |
 | 19 | Current results, weak questions, and amendments | 7.3–7.5 | As drafted |
+| 20 | Ambient perils | 5 | Included (the author's decision, October 2026): space weather; systemic and state-backed cyber; outages of shared infrastructure the insured cannot patch |
+| 21 | The ambient instrument | 5.3 | A parametric pool, the Magnetosphere Pool, with a double trigger for members: a published index plus logged downtime |
+| 22 | Where the local field ends | 5.2 | The published-model rule: what a published model tells the insured is local; only the measured disturbance is ambient |
+| 23 | Space-weather triggers | 5.4 | Kp and the G-scale by WMM2025 dipole zone, with a G4 floor; Dst at or below −250 nT in every zone; G5 for heading-dependent bodies; S4 and R4 for satellite links and timing; a 72-hour clause; an advance on real-time indices and settlement on a 180-day snapshot |
+| 24 | Cyber triggers | 5.5 | Attribution-free. An outage of named infrastructure lasting N hours, measured by an independent calculation agent; or the same component compromised in K bodies from M unrelated operators, counted from logs |
+| 25 | Capacity stack and reserve standard | 5.3 | Retention, then a mutual reserved to a 99.5% one-year VaR, then parametric bonds attaching at Dst −400 nT, then a capped public backstop, with pro-rata reduction above the cap |
+| 26 | Who pays the ambient levy | 5.3 | Every policy in every phase |
+| 27 | Perils that stay excluded | 5.5 | Kinetic war and nuclear, both defined by mechanism; the Prohibited classes |
+| 28 | Phase conditions and fail-closed downtime | 5.6 | As tabled. Emergency widening voids the payout; a freeze caused by an ambient event is covered and never counts against the phase |
+| 29 | Pinning the geomagnetic model | 5.4, 7.6 | WMM2025 by DOI and coefficient hash; a new version takes effect only at renewal |
 
 Three conflicts in the sources also need the author: Lithium's authority density (Section 4.3), the Prohibited range (the routing text's 89–96 against the MDB's 89–118; Section 4.1), and Underwriter Mode, a sovereign atomic body, against Part XVII's rule that no atomic body may hold executive authority (Appendix A).
 
@@ -875,26 +1120,36 @@ Three conflicts in the sources also need the author: Lithium's authority density
 
 ## Appendix B: Glossary
 
-- **Ambient (global) layer.** The shared environment outside every containment field: space weather, power and network backbones, state-backed cyber operations, war. A large event there hits many parties at once with nothing to diversify across. It is an explicit exclusion (Chapter 5).
+- **Ambient (global) layer.** The shared environment outside every containment field: space weather, shared infrastructure that no insured operates or can patch, and systemic or state-backed cyber operations against it. A large event there hits many parties at once with nothing to diversify across. v0.1 and v0.2 excluded it. Since v0.3 the Magnetosphere Pool covers it on parametric terms, while kinetic war and nuclear perils stay excluded (Chapter 5).
 - **AMBIGUOUS, INCOHERENT, NAB-Constrained.** Ground-0 outcomes that are not plain phase badges. AMBIGUOUS is a partial match, with at least 3 conditions of some branch met; INCOHERENT means no branch reaches 3, which complete answers cannot produce (Appendix C); NAB-Constrained is an AMBIGUOUS result with all four constraints demonstrated.
 - **Authority density.** The MDB's ordinal measure of how much authority a class can exercise: Minimal; Minimal to Moderate; Moderate; Moderate to High; High; Extreme. The phase gate caps it (Section 4.9).
+- **Basis risk.** The gap between what a parametric trigger pays and what a body actually lost. It runs both ways: a storm can hurt a site without triggering its zone, and a zone can trigger where nothing was hurt. The pool's double trigger removes the second case (Section 5.4).
 - **Constraint record (C1–C4).** The four Step 3.5 constraints of Ground-0 v1.1: C1, an external override demonstrated within 24 months; C2, an appeal route granting at least 50% relief over a complete, bounded set of cases; C3, authority that expires unless renewed; C4, constraints functioning now. The count, 0 to 4, rates Sovereign-Acting cover (Section 2.3).
 - **Containment field.** The set of controls that bound what a body in a given phase can do, and therefore what can go wrong and who bears the loss. Each phase has its own field (Chapter 2).
-- **Correlated tail.** Losses from many local fields failing together from a shared cause. It is handled with aggregate limits and scenario modeling, as in the book's Reinsurance Mode (Chapter 5).
+- **Correlated tail.** Losses from many local fields failing together from a shared cause inside the insured portfolio, such as one model release, authorizer, key, or shipped component. It is handled with aggregate limits and scenario modeling, as in the book's Reinsurance Mode (Chapter 5).
+- **Double trigger.** The pool's rule for paying a member. A published trigger must fire for the body's zone, and the body's tamper-evident log must show covered downtime or a fail-closed freeze in the same window (Section 5.3).
+- **Dst.** The disturbance storm-time index, in nT, from four low-latitude observatories. The WDC for Geomagnetism in Kyoto publishes it in real-time, provisional, and final versions. It has no lower limit, so it carries the pool's severity ladder; a super-storm is Dst at or below −250 nT (Section 5.4).
 - **GAS: Sovereign-Acting.** The phase in which legitimacy is internal, the center acts and decides, refusal can be overridden, and authority persists. Its Ground-0 code is GSRB (God-Sovereign Religious Body; Part XVI also expands it as Generalized Sovereign Reasoning Body), and its badge is the gas body. It is left only through collapse and rebuild.
+- **Geomagnetic latitude.** Latitude measured from the geomagnetic equator of the dipole in a field model. This book takes the dipole from WMM2025's first three Gauss coefficients, as NCEI does, and zones sites by it (Section 5.4; Appendix D).
+- **Hours clause.** The window that turns many readings into one event: all triggers within 72 hours of the first (Section 5.4).
 - **ICE: Refusal-Bound.** The phase in which legitimacy is external and per-action, the center cannot act alone, refusal is terminal, symbolism does not execute, and stale permissions lapse. Its Ground-0 code is NAB, and its badge is the ice block.
-- **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body (Chapter 5).
+- **Kp and the G-scale.** Kp is a three-hourly global index of geomagnetic disturbance from 0 to 9, built from 13 observatories; GFZ publishes the definitive values. NOAA's G-scale maps Kp to storm levels G1 (Kp 5) to G5 (Kp 9). Kp is capped at 9, so it cannot grade storms beyond G5 (Section 5.4).
+- **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body. Under the published-model rule it includes every risk a published model already describes (Chapter 5).
+- **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3).
 - **MDB.** The Compendium master database: one row per class 1–119 with tier, alignment, legend mapping, dominant trait, authority density, failure mode, and institutional roles (`docs/harshal-systems/14-nab-compendium.md`; `js/nab-sectors.js`).
 - **Misrepresentation of class.** A mismatch between the phase declared in a signed entity header and the phase the audit detects. It is a structural finding about the application, not a finding of bad faith (Chapter 3).
 - **NAB: Neural Atomic Body.** The governed entity, with a phase and a type, one of 119 classes. Ground-0 also uses "NAB" as the code for the Refusal-Bound phase; this book writes that phase as ICE and keeps "NAB" for the body.
+- **Parametric trigger.** A payment condition set by a published measurement, such as an index level, a duration, or a count, rather than by adjusting a loss. In this book every trigger is measured by someone other than the pool and the insured, and none is declared (Section 5.3).
 - **PDH: Phase Declaration Header.** A body's signed declaration of its phase in eleven fields, from Header-ID to Declaration-Hash. It is valid only when complete, signed, fresh (at most 90 days old), and consistent with the declared phase (v1.1 Step 1). A PDH-E is signed by the entity and can support a policy. A PDH-R is issued by the audit register, describes an audit, and is never the entity's own statement (v1.2).
 - **Phase gate.** The cap that a phase, or a routing level within Refusal-Bound, puts on a class's authority density (Section 4.9).
+- **Published-model rule.** The boundary between the local field and the ambient layer. What a published model already tells the insured belongs to its local field, and only the measured departure from published models is ambient (Section 5.2).
 - **Quasar, Reinsurance, and Underwriter Modes.** The book's insurance bodies (Part XI). Quasar Mode prices one institution's risk without deciding anything; Reinsurance Mode watches many Quasar Modes for correlated collapse; Underwriter Mode is a sovereign enforcement body that acts on a local breach.
 - **Reclassification and transition.** A reclassification changes how a body is classified; a transition changes how it operates (INV-G0-CLASS-001). An audit finding is a reclassification: it changes the classification, not the history.
 - **Signature.** A class's observable, testable record: tier, authority density, coupling, failure behavior, a bound, its test, the response on breach, the phase gate, and provenance (Section 4.10). A class with no signature stays unassigned.
 - **Title Match, Capstone, and Sentinels.** Part XIII's adversarial tests and roles. A Title Match is three tests (Symbolic Firewall, Emergency Override, Stale Permission) that need a perfect 3.0. The Capstone match for element 119 has three more (Sovereign Override, Recursive Containment, Final Refusal). The Sentinels are elements 1–5, the minimal refusal-bound roles.
-- **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.2).
+- **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.7).
 - **WATER: Witness-Only.** The phase in which action is forbidden: the center records and never decides, symbolism is preserved but inert, and time accumulates meaning, not authority. Its Ground-0 code is CWO (Custodial Witness Orb), and its badge is the water drop.
+- **World Magnetic Model (WMM).** The U.S./U.K. model of the Earth's core field and the standard for magnetic navigation, attitude, and heading. NOAA's NCEI and the British Geological Survey produce it for the U.S. National Geospatial-Intelligence Agency and the U.K. Defence Geographic Centre. WMM2025 is to be used from 2025 through 2029. This book uses it for zoning and as the published baseline of Section 5.2.
 
 ## Appendix C: Ground-0 Step 3 Truth Table
 
@@ -936,3 +1191,43 @@ Answers are in the order B1 to B5, with Y for YES: B1 enforcement present, B2 de
 | Y Y Y N Y | 1 of 5 | 1 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
 | Y Y Y Y N | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
 | Y Y Y Y Y | 2 of 5 | 1 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+
+## Appendix D: WMM2025 Check and Ambient Zoning
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/wmm2025.json`. The script rebuilds the World Magnetic Model 2025 from its 90 coefficient rows with the technical report's formulas. It checks the result against NCEI before zoning anything, and it exits with an error if any check fails.
+
+The zoning follows Section 5.4. It uses each site's dipole geomagnetic latitude at sea level on an illustrative inception date of 1 January 2027 (2027.0). The coordinates are illustrative city locations, not insured facilities. The columns are:
+
+- **Near edge:** the site is within 0.5° of the 40° or 45° edge.
+- **H:** horizontal intensity.
+- **Declination uncertainty:** the WMM2025 error model's √(0.26² + (5417/H)²) degrees.
+- **Compass zone:** NCEI's classification. Blackout is H below 2,000 nT, and Caution is 2,000 to 6,000 nT.
+
+**Checks** (all pass):
+
+| Check | Result | Reference |
+| --- | --- | --- |
+| Coefficients pinned | Canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1` matches the provenance record | `research/data/wmm2025.json` |
+| NCEI test values | All 84 values (12 points × 7) within the table's rounding; worst deviations 0.050 nT and 0.005° | Technical Report Table 6; NCEI test-value file |
+| High-precision example | Agrees to better than 10⁻¹⁰ nT and 10⁻¹⁰ rad | Technical Report Table 3b |
+| Geomagnetic north pole, 2025.0 | 80.790°N geocentric (80.850°N geodetic), 72.757°W, tilt 9.210° | NCEI: 80.79°N (80.85°N), 72.76°W, 9.21° |
+
+**Zoning at 2027.0** (geomagnetic north pole at 80.872°N geocentric, 72.827°W): zone 1, 9 sites; zone 2, 1; zone 3, 5.
+
+| Site | Geomagnetic latitude | Zone | Space-weather trigger | Near edge | H (nT) | Declination | Declination uncertainty | Compass zone |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Ashburn, Virginia, US | 47.95° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 21,364 | −10.5° | 0.36° | normal |
+| Phoenix, Arizona, US | 40.12° | 2 | G5 (Kp 9o), or Dst ≤ −250 nT | yes | 23,694 | 9.6° | 0.35° | normal |
+| Boardman, Oregon, US | 51.43° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 19,577 | 13.9° | 0.38° | normal |
+| Montréal, Québec, CA | 54.44° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 18,878 | −13.6° | 0.39° | normal |
+| Dublin, IE | 55.90° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 18,714 | −1.1° | 0.39° | normal |
+| Frankfurt, DE | 50.40° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 20,076 | 3.8° | 0.37° | normal |
+| Luleå, SE | 63.16° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 12,456 | 11.4° | 0.51° | normal |
+| Reykjavík, IS | 68.63° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 13,237 | −11.0° | 0.48° | normal |
+| Singapore, SG | −7.77° | 3 | Dst ≤ −250 nT only | no | 41,055 | 0.2° | 0.29° | normal |
+| Tokyo, JP | 27.67° | 3 | Dst ≤ −250 nT only | no | 30,424 | −7.9° | 0.32° | normal |
+| Sydney, AU | −39.99° | 3 | Dst ≤ −250 nT only | yes | 24,621 | 12.8° | 0.34° | normal |
+| Johannesburg, ZA | −27.42° | 3 | Dst ≤ −250 nT only | no | 13,329 | −20.9° | 0.48° | normal |
+| São Paulo, BR | −15.17° | 3 | Dst ≤ −250 nT only | no | 17,198 | −21.9° | 0.41° | normal |
+| Alert, Nunavut, CA | 87.82° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 3,593 | −38.8° | 1.53° | caution |
+| McMurdo Station, AQ | −79.11° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 10,656 | 140.1° | 0.57° | normal |

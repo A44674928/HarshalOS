@@ -1,6 +1,6 @@
 {
   "schema": "harshalos-nab-elemental-properties-v1",
-  "purpose": "Reference values for the property-derivation test in research/neural-atomic-bodies-insurance.md Section 4.9. Physical data only; NAB tiers come from js/nab-sectors.js (the Compendium master database).",
+  "purpose": "Reference values for the property-derivation test in research/neural-atomic-bodies-insurance-requirements.md Section 4.9. Physical data only; NAB tiers come from js/nab-sectors.js (the Compendium master database).",
   "source": {
     "package": "mendeleev (PyPI)",
     "version": "1.3.0",
