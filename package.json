@@ -50,7 +50,7 @@
     "nab:check": "node scripts/build-nab-sectors.mjs --check",
     "test:neo-orb": "node --test tests/market-extension-test.mjs tests/neo-orb-flare-test.mjs tests/neo-orb-test.mjs tests/neo-orb-placement-test.mjs tests/neo-orb-market-test.mjs tests/neo-orb-signals-test.mjs tests/neo-orb-gravity-test.mjs tests/neo-orb-page-test.mjs tests/neo-orb-feed-boundary-test.mjs",
     "test:apple-separation": "node --test tests/apple-separation-test.mjs",
-    "test:nab": "node --test tests/nab-sectors-test.mjs tests/nab-composites-test.mjs tests/nab-discs-ui-test.mjs tests/nab-orb-renderer-test.mjs tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs tests/nab-compounds-test.mjs"
+    "test:nab": "node --test tests/nab-sectors-test.mjs tests/nab-composites-test.mjs tests/nab-discs-ui-test.mjs tests/nab-orb-renderer-test.mjs tests/character-material-model-test.mjs tests/character-materials-ui-test.mjs tests/nab-compounds-test.mjs tests/nab-world-model-test.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0",

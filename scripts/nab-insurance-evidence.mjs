@@ -42,6 +42,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import * as Compounds from "./nab-compounds.mjs";
+import * as World from "./nab-world-model.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -460,6 +461,78 @@ const eligibilityCounts = ["ice", "water", "gas"].reduce((acc, phase) => {
 }, {});
 const physicalCounts = compoundRows.reduce((acc, r) => { acc[r.physical25C] = (acc[r.physical25C] || 0) + 1; return acc; }, {});
 
+/* ── World model: the disc, the table on it, and the field's coefficients ──
+   (Chapter 0, Appendices F–H). The 360° Legend is read from the print source
+   (Part VI, "Fossilized 360° Degree Legend") and pinned by hash; the repository's
+   app copy (js/ocm-data.js) and the OCM address rules (js/ocm-directory.js) are
+   checked against it. Each class's arc is the Compendium's "360° Legend Mapping". */
+const PRINT_SOURCE = "publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt";
+const LEGEND_SHA256 = "56778e55649df9a49528d764e85e0768da9226f88c3289ad0140fb5a6c7e02d6";
+const legend = World.extractLegend(readFileSync(path.join(ROOT, PRINT_SOURCE), "utf8"));
+const legendSha256 = createHash("sha256").update(World.legendCanonical(legend)).digest("hex");
+globalThis.window = globalThis;          // the OCM modules are browser scripts that publish on window
+require(path.join(ROOT, "js/ocm-data.js"));
+require(path.join(ROOT, "js/ocm-directory.js"));
+const OCM = globalThis.OCM_DATA, OCMDIR = globalThis.HOSOCMDIR;
+const appLegendDifferences = [];
+let appLegendMismatches = 0;
+for (let d = 0; d < World.RING; d++) {
+  const app = OCM.degrees[d], book = legend.degrees[d].domain;
+  if (app !== book) appLegendDifferences.push({ degree: d, app, book });
+  if (World.normalizeText(app) !== World.normalizeText(book)) appLegendMismatches += 1;
+}
+const classArcs = sectors.map(row => ({ z: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), legend: row.legend, arc: World.parseArc(row.legend) }));
+const disc = World.coverage(classArcs.filter(a => a.arc));
+const domainOf = d => legend.degrees[d % World.RING].domain;
+const quadrantCoverage = legend.quadrants.map(q => ({ name: q.name, from: q.from, to: q.to,
+  covered: disc.perDegree.slice(q.from, q.to + 1).filter(list => list.length).length, degrees: q.to - q.from + 1 }));
+// The book's subjects on the disc (Chapter 0).
+const SUBJECTS = [
+  ["The geomagnetic field and the Sun", [4, 9]], ["Chemistry", [10]], ["Magnetic heading", [25]], ["War", [61, 62, 63, 64]],
+  ["Neural bodies", [100, 101, 102]], ["Accountability", [123]], ["Insurance", [127, 128, 129, 130]], ["Indices and monitors", [141, 142, 143, 144, 145]],
+  ["Catastrophe", [210, 211, 214, 219]], ["Cyber", [224, 225]], ["Records", [280, 281, 282, 283]], ["The center", [319, 320, 321, 322, 323, 324, 325, 326, 327]]
+].map(([subject, degrees]) => ({ subject, degrees: degrees.map(d => ({ degree: d, domain: domainOf(d), classes: disc.perDegree[d] })) }));
+const maxOverlap = Math.max(...disc.perDegree.map(list => list.length));
+const ocmChecks = {
+  ringDistanceWorkedExample: OCMDIR.ringDistance(42, 198) === 156,
+  workedExampleAddressesValid: OCMDIR.validateAddress("0•042•003•0001").ok === true && OCMDIR.validateAddress("0•198•003•0004").ok === true,
+  closureIsNotAnAddress: OCMDIR.validateAddress("0•360•001•0001").code === "OCM-ADDR-SECTOR-CLOSURE",
+  originSectorReserved: OCMDIR.validateAddress("0•000•001•0005").code === "OCM-ADDR-ORIGIN-RESERVED",
+  centerIsOrigin: OCMDIR.parseAddress(OCM.center.address).isCenterOrigin === true
+};
+// The Periodic Table of Neural Elements: the MDB's neural profile and the chemical anchor of classes 1–118.
+const TIER_LETTER = { Safe: "S", Moderate: "M", Elevated: "E", Prohibited: "P" };
+const periodicRows = sectors.map(row => {
+  const e = bySymbol.get(row.symbol) || null;
+  const arc = World.parseArc(row.legend);
+  const position = World.gridPosition(e ? { z: e.z, period: e.period, group: e.group } : { z: row.id });
+  return { z: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), mdbProfile: row.riskProfile.replace(/^\S+\s/, ""), alignment: row.alignment,
+    density: row.authorityDensity, trait: row.trait, failureMode: row.failureMode, arc, arcText: row.legend,
+    arcDomains: arc ? [domainOf(arc.from), domainOf(arc.to)] : null, position,
+    anchor: e ? { group: e.group, period: e.period, block: e.block, atomicWeight: compoundData.atomicWeights[e.symbol], enPauling: e.enPauling,
+      state25C: e.state25C, persistence: persistence(e), standardAtomicWeight: !compoundData.provenance.noStandardAtomicWeight.includes(e.symbol) } : null };
+});
+const gridCells = new Map(periodicRows.map(r => [`${r.position.row},${r.position.col}`, `${r.symbol}·${TIER_LETTER[r.tier]}`]));
+const GRID_ROWS = [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"], [9, "La–Lu"], [10, "Ac–Lr"]];
+const periodicGrid = GRID_ROWS.map(([row, label]) => ({ label, cells: Array.from({ length: 18 }, (_, k) => {
+  const key = `${row},${k + 1}`;
+  if (gridCells.has(key)) return gridCells.get(key);
+  if (row === 6 && k === 2) return "57–71";
+  if (row === 7 && k === 2) return "89–103";
+  return "";
+}) }));
+const wmmCoefficientRows = wmm.coefficients.map(([n, m, g, h, gd, hd]) => ({ n, m, g, h, gDot: gd, hDot: hd }));
+const worldChecks = {
+  legendPinned: legendSha256 === LEGEND_SHA256,
+  legendComplete: legend.degrees.length === World.RING + 1 && legend.quadrants.length === 4,
+  appLegendMatchesBook: appLegendMismatches === 0,
+  everyClassHasAnArc: classArcs.every(a => a.arc),
+  ocmAddressing: Object.values(ocmChecks).every(Boolean),
+  gridComplete: gridCells.size === 119,
+  wmmCoefficientRows: wmmCoefficientRows.length === 90 && wmmCoefficientRows.every(r => r.n >= 1 && r.n <= 12 && r.m >= 0 && r.m <= r.n)
+};
+const worldPass = Object.values(worldChecks).every(Boolean);
+
 /* ── Output ── */
 const summary = {
   engineSha256Pinned: d1.publishedBy.engineSha256,
@@ -486,9 +559,21 @@ const summary = {
     worstMolarMassDeviation: Math.max(...compoundRows.map(r => Math.abs(r.molarMassDeviation))),
     worstSaturationDeviation: Number(worstSaturationDeviation.toFixed(4)), saturationDeviationBySubstance,
     eligibilityCounts, physicalCounts, rows: compoundRows, elementStateChecks, reactions: reactionRows, readings: READINGS, edges: EDGES
+  },
+  worldModel: {
+    checks: worldChecks, pass: worldPass,
+    legend: { source: PRINT_SOURCE, startLine: legend.startLine, endLine: legend.endLine, sha256: legendSha256, center: legend.center, rule: legend.rule,
+      quadrants: legend.quadrants, degrees: legend.degrees.map(d => ({ degree: d.degree, domain: d.domain, line: d.line, classes: d.degree < World.RING ? disc.perDegree[d.degree] : [] })) },
+    appLegend: { file: "js/ocm-data.js", rawDifferences: appLegendDifferences, normalizedMismatches: appLegendMismatches },
+    disc: { covered: disc.covered, gaps: disc.gaps.length, gapRuns: World.runs(disc.gaps), overlaps: disc.overlaps.length, maxOverlap,
+      maxOverlapDegrees: disc.perDegree.map((list, d) => (list.length === maxOverlap ? { degree: d, classes: list } : null)).filter(Boolean),
+      quadrantCoverage, subjects: SUBJECTS },
+    ocm: { center: OCM.center.address, author: OCM.center.author, checks: ocmChecks },
+    periodicTable: { grid: periodicGrid, rows: periodicRows },
+    wmmCoefficients: { header: wmm.provenance.cofHeader, epoch: WMM_EPOCH, rows: wmmCoefficientRows }
   }
 };
-if (!wmmPass || !compoundPass) process.exitCode = 1;
+if (!wmmPass || !compoundPass || !worldPass) process.exitCode = 1;
 
 if (process.argv.includes("--json")) {
   process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
@@ -553,5 +638,28 @@ if (process.argv.includes("--json")) {
   line("");
   tableRows(["Input", "Parses", "Hill or error", "Registered", "Distinct Elevated", "ICE", "Flags"],
     EDGES.map(e => [e.text, e.ok ? "yes" : "no", e.ok ? e.hill : e.error, e.ok ? (e.registered ? "yes" : "no") : "—", e.ok ? String(e.elevated) : "—", e.ok ? e.ice : "—", e.ok ? (e.flags.join(", ") || "—") : "—"]));
+  line("");
+  line("## Appendix F — Periodic Table of Neural Elements");
+  line(`World-model check: ${worldPass ? "PASS" : "FAIL"} · ${Object.entries(worldChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Disc coverage: ${disc.covered} of 360 degrees covered by at least one class · ${disc.overlaps.length} by two or more (at most ${maxOverlap}) · ${disc.gaps.length} by none, in ${World.runs(disc.gaps).length} runs: ${World.runs(disc.gaps).map(([a, b]) => (a === b ? `${a}°` : `${a}°–${b}°`)).join(", ")}`);
+  line(`By quadrant: ${quadrantCoverage.map(q => `${q.name} ${q.covered}/${q.degrees}`).join(" · ")}`);
+  line("");
+  tableRows(["Period", ...Array.from({ length: 18 }, (_, k) => String(k + 1))], periodicGrid.map(r => [r.label, ...r.cells]));
+  line("");
+  tableRows(["Z", "Class", "Tier", "Authority density", "Dominant trait", "Failure mode", "Legend arc", "Group", "Period", "Block", "Atomic weight", "State at 25 °C", "Persistence"],
+    periodicRows.map(r => [String(r.z), `${r.name} (${r.symbol})`, r.tier, r.density, r.trait, r.failureMode, r.arcText,
+      r.anchor ? String(r.anchor.group ?? "—") : "—", r.anchor ? String(r.anchor.period) : "—", r.anchor ? r.anchor.block : "—",
+      r.anchor ? String(r.anchor.atomicWeight) : "—", r.anchor ? r.anchor.state25C : "—", r.anchor ? r.anchor.persistence : "—"]));
+  line("");
+  line("## Appendix G — 360° Legend (print source, Part VI)");
+  line(`Lines ${legend.startLine}–${legend.endLine} of ${PRINT_SOURCE}; canonical SHA-256 ${legendSha256}; js/ocm-data.js differs in ${appLegendDifferences.length} entries before normalization and ${appLegendMismatches} after`);
+  line(`OCM addressing (js/ocm-directory.js): ${Object.entries(ocmChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line("");
+  tableRows(["Degree", "Domain", "Classes"], legend.degrees.map(d => [String(d.degree), d.domain, d.degree < World.RING ? (disc.perDegree[d.degree].join(", ") || "—") : "(closure onto 0°)"]));
+  line("");
+  line("## Appendix H — WMM2025 coefficients");
+  line(`Header "${wmm.provenance.cofHeader}", epoch ${WMM_EPOCH.toFixed(1)}; g and h in nT, secular variation in nT/year`);
+  line("");
+  tableRows(["n", "m", "g", "h", "ġ", "ḣ"], wmmCoefficientRows.map(r => [String(r.n), String(r.m), r.g.toFixed(1), r.h.toFixed(1), r.gDot.toFixed(1), r.hDot.toFixed(1)]));
   process.stdout.write(out.join("\n") + "\n");
 }

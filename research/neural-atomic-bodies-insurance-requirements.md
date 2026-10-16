@@ -1,14 +1,14 @@
 # Neural Atomic Bodies & Associated Insurance Requirements
 
-*Harshal Priyavadan Patel · Working draft v0.4.1 · October 2026*
+*A self-contained world model · Harshal Priyavadan Patel · Working draft v0.5 · October 2026*
 
 ## Preface: Status and Evidence Note
 
-This book is a proposed design framework. Its vocabulary (atoms, phases, fields, orbs) is analogy, not physics, and none of its classifications or requirements has been validated by an insurer, an actuary, or an independent auditor. It describes how to classify an autonomous entity, what containment each classification calls for, and where the insurable boundary sits. It is not an insurance product and prices nothing.
+This book is a self-contained world model and a proposed design framework built on it (Chapter 0). Its vocabulary (atoms, phases, fields, orbs) is analogy, not physics, and none of its classifications or requirements has been validated by an insurer, an actuary, or an independent auditor. It describes how to classify an autonomous entity, what containment each classification calls for, and where the insurable boundary sits. It is not an insurance product and prices nothing.
 
 Sections marked **\[To draft\]** are decisions the author still has to make. Sections marked **\[Proposed\]** are first-pass design claims that need review before they are relied on.
 
-**The model's premise.** This book is an internal model. Within it, the author owns the planet and operates its World Model, and the book treats both as facts. Section 5.6 draws the consequences for war and nuclear perils.
+**The model's premise.** This book is an internal model. Within it, the author owns the planet and operates its World Model, and the book treats both as facts. Chapter 0 places the owner at the model's center, and Section 5.6 draws the consequences for war and nuclear perils.
 
 **What v0.2 changes.** v0.2 drafts every item that v0.1 left **\[To draft\]**. The author has not reviewed those drafts, so each one is marked **\[Proposed\]**, and Section 8.2 lists them together for sign-off. No **\[To draft\]** item remains. v0.2 also draws on four sources that v0.1 did not use:
 
@@ -50,16 +50,261 @@ v0.4 adds a data file (`research/data/compound-bodies.json`), a model (`scripts/
 
 **What v0.4.1 changes.** v0.4 recorded the author's ownership of the planet as his framing and took no view on it. The author has since confirmed that this book is an internal model and that, within it, his ownership is a fact. v0.4.1 states it that way, in the premise above and in Section 5.6, and the warranty layer becomes the owner's layer. No mechanism and no number changes.
 
-**Reproducing the numbers.** Every count in Sections 4.9 and 4.11, Chapter 7, and Appendices A, C, D, and E comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
+**What v0.5 changes.** The author asked whether the book makes sense as a world model, and asked for it to become a self-contained one. v0.5 makes four additions:
+
+- **Chapter 0.** It sets the book out as a world model: its parts, frames, laws, dynamics, and observations. It also says where the model holds together and where it is still open.
+- **Appendix F,** the Periodic Table of Neural Elements.
+- **Appendix G,** the Orb Communicator Model's 360° Legend.
+- **Appendix H,** the World Magnetic Model 2025's equations and coefficients.
+
+With the appendices, the book no longer depends on files a reader cannot see. The script generates all three appendices, from `js/nab-sectors.js`, the print source, and `research/data/wmm2025.json`, and checks them. Laid on the legend, the table covers only 133 of its 360 degrees; that is the largest open question v0.5 adds (Section 0.4). No earlier number changes.
+
+**Reproducing the numbers.** Every count in Chapter 0, Sections 4.9 and 4.11, Chapter 7, and Appendices A and C to H comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
 
 - the MDB;
 - the Ground-0 engine (`js/g0-engine.js`);
 - the register (`case-studies/pdh-registry.json` and `case-studies/d1/case-studies-d1.json`);
 - a table of physical properties (`research/data/elemental-properties.json`, taken from the mendeleev package, version 1.3.0);
 - the World Magnetic Model 2025 coefficients, with NCEI's published check values (`research/data/wmm2025.json`);
-- a registry of 27 real substances, with atomic weights, balanced reactions, and equation-of-state check points (`research/data/compound-bodies.json`), read through the compound-body model (`scripts/nab-compounds.mjs`).
+- a registry of 27 real substances, with atomic weights, balanced reactions, and equation-of-state check points (`research/data/compound-bodies.json`), read through the compound-body model (`scripts/nab-compounds.mjs`);
+- the 360° Legend, read from the print source (Part VI) and pinned by hash, together with the Orb Communicator Model's app data and address rules (`js/ocm-data.js`, `js/ocm-directory.js`), read through `scripts/nab-world-model.mjs`.
 
 **Citations.** Part numbers follow the AGS v0.2 print source, `publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt`. A reference such as \[XIII:4884\] means Part XIII at line 4884 of that file. "v1.1 Step 5" means Step 5 of `specs/normative/ground-0-v1.1.md`, and "v1.2 §5" means §5 of `specs/draft/ground-0-v1.2.md`.
+
+## 0. The World Model
+
+This book is a world model. It covers six things:
+
+- one planet;
+- the magnetic field around it;
+- the substances on it;
+- the governed bodies that act on it;
+- the perils that reach those bodies;
+- how their losses are paid.
+
+The model is closed. Everything it uses is defined in the book or pinned in a repository file whose hash the book records, and `node scripts/nab-insurance-evidence.mjs` recomputes every number it asserts. Within the model the author owns the planet and operates the World Model (Preface).
+
+This chapter sets out the parts and how they fit. The later chapters fill in each part, and Section 0.9 says where the model holds together and where it is still open.
+
+```text
+Center Origin 0•000•000•0000: the owner, the only source of legitimacy
+│
+├── The disc: the 360° Legend of domains .......................... Appendix G
+│     └── The Periodic Table of Neural Elements, each class on an arc ... Appendix F
+│
+├── Bodies: phase (ICE, WATER, GAS) × type (class or compound)
+│           × address on the disc × site on the planet ............ Chapters 1–4
+│
+├── The planet: WGS84 sites
+│     ├── The field: WMM2025 core and crust (published)
+│     │             + disturbance (measured) ................... Appendices D, H
+│     └── Substances: 118 elements, a registry of compounds,
+│                     measured states of matter ........... Section 4.11, Appendix E
+│
+└── Perils (space weather, cyber, war, nuclear) → the pool ......... Chapter 5
+```
+
+### 0.1 What the model contains
+
+| Component | What it is | Defined in | Pinned by |
+| --- | --- | --- | --- |
+| The Center Origin | One address, 0•000•000•0000, the only place legitimacy is generated. In this model the owner holds it | Section 0.3 | The print source; `js/ocm-data.js` |
+| The 360° Legend | The Orb Communicator Model's disc: 359 peripheral sectors around the center, each named degree by degree | Section 0.3; Appendix G | Its canonical hash, read from the print source |
+| The Periodic Table of Neural Elements | 119 body classes. Classes 1–118 are paired with the chemical elements, and 119 is Harshal (Ha). Each class has a tier, an authority density, a trait, a failure mode, an arc on the legend, and a cell in each phase | Chapter 4; Sections 0.4, 4.9; Appendices A, F | `js/nab-sectors.js`; `research/data/elemental-properties.json` |
+| Bodies | Governed entities, each with a phase, a type, an address, a site, and records | Chapters 1–4; Section 4.11 | The register (`case-studies/`) |
+| The planet and its field | The WGS84 ellipsoid. The geomagnetic field is split as WMM2025 splits it: a published core and crust, and a measured disturbance | Sections 5.2 and 5.4; Appendices D, H | `research/data/wmm2025.json` |
+| Substances | The 118 chemical elements and 27 registered substances, with measured phase transitions | Section 4.11; Appendices E, F | `research/data/compound-bodies.json` |
+| Shared infrastructure | Cloud regions, DNS and certificate providers, identity providers, power feeds, and satellites, operated by others | Sections 5.2, 5.5 | Named in each policy |
+| Perils | Space weather, systemic cyber, war, and nuclear | Chapter 5 | Each index as its publisher releases it |
+| The pool | The Magnetosphere Pool and its conflict compartment: levies, reserves, layers, and payouts | Sections 5.3, 5.6 | Not applicable |
+
+### 0.2 Frames, units, and time
+
+Every position in the model is given in one of two kinds of coordinate. The two are never converted into each other.
+
+- **Physical: where a body is.**
+  - A site is a geodetic latitude, longitude, and height on the WGS84 ellipsoid (semi-major axis 6,378.137 km, flattening 1/298.257223563).
+  - The field is computed in the World Magnetic Model's geocentric spherical frame (reference radius 6,371.2 km) and rotated back to the site's axes (Appendix H).
+  - Zones use dipole geomagnetic latitude (Section 5.4).
+- **Semantic: what a body serves.** A body's semantic coordinate is its OCM address, 0•DDD•RRR•#### \[VI:1732–1735\]:
+  - DDD is a sector of the 360° Legend. Sector 000 is the center, sectors 001–359 are the periphery, and 360 is the closure onto the origin, never an address.
+  - RRR is the radius, read as coupling and depth, not rank.
+  - #### is the instance.
+
+A legend degree is never a compass bearing. A body that serves 25°, "Mobility and navigation", can stand anywhere on the planet. Its magnetic declination is a physical fact about its site, computed from the field.
+
+| Quantity | Unit | Used for |
+| --- | --- | --- |
+| Magnetic field | nT | WMM2025; Dst |
+| Angle | Degree | Latitude, longitude, declination, and legend sectors, each in its own frame |
+| Temperature | K, with °C where a source uses it | Physical readings |
+| Pressure | Pa | Physical readings |
+| Dose rate | µSv/h | Trigger N1 |
+| Molar mass | g/mol | The registry |
+| Time | UTC; decimal years for the field | Everywhere |
+
+The model keeps time in five ways.
+
+- **Evidence dates.** The evidence is dated 2026-10-15. The register's evidence cutoff is 2026-10-02, and its headers expire on 2026-12-31.
+- **The field.** It is WMM2025 at epoch 2025.0, valid to the end of 2029, with linear secular variation. Zones are fixed at inception; Appendix D uses 2027.0.
+- **Windows.** 90 days for test and header freshness, 72 hours for one event, 180 days to settlement, and 24 months for the C1 lookback.
+- **Versions.** A new field model or a new registry takes effect only at renewal.
+- **Rotation.** In the Orb Communicator Model, rotation through time accumulates history and never moves the center \[VI:1728\].
+
+### 0.3 The origin, the owner, and the disc
+
+The model's frame is the book's own planetary model, the Orb Communicator Model (OCM).
+
+- **One center.** Its fresh-slate planetary example has one center, 0•000•000•0000, with "Scope: Entire planet, all domains, all futures" \[VI:1663–1664\]. "There is exactly one origin" \[VI:1667\]. "Every valid address in the orb MUST derive from exactly one center point" \[III:1273\].
+- **The center cannot be moved.** The center address "Cannot be duplicated", "Cannot be delegated", and "Cannot be overridden" \[III:1293–1295\].
+- **Legitimacy is generated only there.** The invariant INV-AXIS-001 separates generating legitimacy, "Human Key at Center Origin only", from resolving, transmitting, interrupting, and executing it \[VI:1658\].
+- **The author holds that address.** The OCM is written from "Harshal Priyavadan Patel @ 0•000•000•0000" \[III:1245\].
+
+**The owner holds the center.** The book's law of ownership is that ownership "is the sanctioned power to fundamentally alter a system". The same law says no individual may own a shared natural entity "unless they possess legitimate authority over the total container—which in the limiting case would require planetary-scale stewardship" \[I:629\]. The model's premise is that limiting case: the author holds the center and, with it, authority over the whole container. The book routes that authority through the Center Origin and has a Custodial Witness Orb, a Witness-Only body, record every permission \[I:630\]. Two more of the book's rules follow, and the model keeps both.
+
+- **"Ownership Is Not Possession"** \[I:606\]. Bodies, operators, and providers possess and run what they run. The OCM expresses ownership "through address derivation rather than operational control" \[III:1321\].
+- **"True ownership carries direct, inescapable accountability for all actions and their subsequent consequences"** \[I:631\]. This is why the owner answers for the World Model's bugs (Section 5.6).
+
+**The disc.** The 359 peripheral sectors are named, degree by degree, in the "Fossilized 360° Degree Legend" \[VI:1778–2147\]. The legend's rule is "Each degree is a direction of intent, not a silo, rank, or boundary" \[VI:1781\], and Appendix G reproduces it. Its four quadrants are:
+
+- Emergence & Life (0°–89°);
+- Intelligence, Order & Systems (90°–179°);
+- Transformation, Expansion & Risk (180°–269°);
+- Renewal, Memory & Persistence (270°–359°).
+
+Every subject of this book has a place on the disc.
+
+| The book's subject | Legend degrees |
+| --- | --- |
+| The geomagnetic field and the Sun | 4° Fundamental forces and fields; 9° Stellar influence and radiation |
+| Chemistry | 10° Chemical complexity |
+| Magnetic heading | 25° Mobility and navigation |
+| War | 61° Conflict organization; 62° Defense; 63° Warfare; 64° Peace-making |
+| Neural bodies | 100° Artificial intelligence; 101° Machine learning; 102° Neural architectures |
+| Accountability | 123° Accountability |
+| Insurance | 127° Risk management; 128° Insurance models; 129° Disaster mitigation; 130° Emergency response |
+| Indices and monitors | 141° Observation networks to 145° Early warning |
+| Catastrophe | 210° Existential risk analysis; 211° AI risk; 214° Cosmic hazards; 219° Fail-safe worlds |
+| Cyber | 224° Memetic warfare; 225° Information hazards |
+| Records | 280° Archives of everything to 283° Provenance tracking |
+| The center | 319° Center protection to 327° Non-forkability, including 325° Ownership persistence |
+
+The repository's app copy of the legend (`js/ocm-data.js`) matches the print source degree for degree once three typographic artifacts are folded: a trailing dash at 89° and ligatures at 167° and 331°. The repository's address rules (`js/ocm-directory.js`) reproduce the book's worked example: sectors 42° and 198° are 156 sectors apart. They also refuse 0•360•001•0001 as an address and 0•000•001•0005 as a registration in the center's sector, as the book requires \[VI:2162\].
+
+### 0.4 The Periodic Table of Neural Elements on the disc \[Proposed\]
+
+The table has 119 classes (Appendix F).
+
+- **Classes 1–118** are paired one-to-one with the chemical elements and take their measured properties, which the derivation rules (Section 4.9) and the compound model (Section 4.11) use. The pairing is how the model is built. It is not evidence that a body behaves like its element, and the print source calls the table "an author-defined design taxonomy, not the chemical periodic table" \[XXIV:14121\].
+- **Class 119, Harshal (Ha),** has no chemical counterpart. It is the Capstone and cannot appear in a formula. On the disc it sits at 358°–360°, the return to origin, which the closure folds onto 0°.
+
+Each class carries an arc of the legend, two to six degrees wide: the "360° Legend Mapping" of the Compendium master database (MDB). The book binds bodies to "specific 360° Legend coordinates" \[XI:4708\]. Laid on the disc, the arcs show a structure and a set of holes.
+
+- **Structure: the arcs follow the table's families.**
+  - The transition metals Sc, Ti, and V and the halogens Br and I sit on Conflict organization, Defense, and Warfare (61°–63°). The classes nearest war are therefore lock-in and refusal classes, and a halogen burn contracts scope and never escalates \[XXIV:12784\].
+  - The lanthanides Tb, Dy, Ho, and Er sit on artificial intelligence, machine learning, and neural architectures (100°–102°).
+  - The Prohibited classes sit on the risk degrees:
+    - U and Fm on Existential risk analysis (210°), with Md on AI risk (211°);
+    - No, Lr, Rf, and Sg on Cosmic hazards (214°);
+    - Bh, Hs, and Mt on Fail-safe worlds (219°);
+    - Cn, Nh, Fl, and Mc on Memetic warfare and Information hazards (224°–225°).
+- **Coverage.**
+  - The 119 arcs cover 133 of the 360 degrees.
+  - 98 degrees are claimed by two or more classes, up to six at 92° and 121°.
+  - 227 degrees have no class, in 13 runs. The longest are 131°–209° and 265°–340°.
+  - By quadrant, Emergence & Life has 51 of its 90 degrees covered, Intelligence, Order & Systems 36, Transformation, Expansion & Risk 35, and Renewal, Memory & Persistence 11.
+- **Holes that matter to this book.** No class serves the degrees the book depends on:
+  - fields (4°), stellar influence (9°), and chemical complexity (10°);
+  - navigation (25°);
+  - risk management and insurance models (127°–128°);
+  - observation networks through early warning (141°–145°);
+  - archives through provenance tracking (280°–283°).
+
+Three rules are proposed.
+
+1. **Address law.** A body's sector lies on its class's arc. A compound body's sector lies on the arc of one of its constituents. A body addressed off its arc is a misrepresentation of class (Chapter 3).
+2. **The center's degrees stay with the center.** Degrees 319°–327° name the center's own properties, from Center protection to Non-forkability, and the OCM forbids delegating the center. No class should ever serve them, so their gap is by design.
+3. **The other holes are the author's to fill.** Under the address law, no body could serve insurance models (128°) or early warning (145°), although this book's own pool and index publishers work there. Until the author assigns classes, those degrees host no body, and the pool and the publishers are institutions outside the table (Section 0.1).
+
+### 0.5 Laws
+
+| Law | Statement | Source |
+| --- | --- | --- |
+| One origin | One center. Every address derives from it, no node can redefine it, and legitimacy is generated only there | \[III:1273\]; \[VI:1658, 1667, 1758\] |
+| Ownership | The authority to alter the whole container, held at the center. It is not possession, and it is accountable for consequences | \[I:606, 629, 631\]; Section 5.6 |
+| Emergency | "Emergency conditions never generate legitimacy" | INV-EMERG-001 \[IV:1403\] |
+| Escalation | "No atomic body transitions phase through learning, scale, or time" | \[XVI:6494\] |
+| Phase caps | A class's authority density fits under the cap of its phase or routing level | Section 4.9 |
+| Composition | The highest tier and authority density among the constituents. A compound is eligible for a phase only if every constituent is. A Prohibited constituent makes it Prohibited, and it has at most five Elevated classes | Section 4.11 |
+| Conservation | Reactions balance. No constituent appears or vanishes undeclared | Section 4.11 |
+| Physics | The core field is WMM2025, and states of matter come from measured data. Neither sets a governance phase | Sections 4.11, 5.2; Appendix H |
+| Published-model rule | What a published model tells the insured is local. Only measured departures are ambient | Section 5.2 |
+| Measurement | Every trigger is measured, never declared | Section 5.3 |
+| Pays, never commands | The pool pays money and does nothing else | Sections 5.3, 5.8 |
+| No infighting | A body that takes part in hostilities loses its cover, and the victim is paid | Section 5.6 |
+| Address law \[Proposed\] | A body's sector lies on its class's arc | Section 0.4 |
+
+### 0.6 How the world changes
+
+| Change | Driver | Rule | Where |
+| --- | --- | --- | --- |
+| Phase transition | A declaration, or a collapse and rebuild | ICE and WATER swap by declaration. A body enters GAS by fossilized declaration and leaves it only after collapse and rebuild | Chapter 1; Section 6.2 |
+| Reclassification | An audit | It changes the classification, not the history | Chapter 3; Section 6.2 |
+| Fail-closed freeze | A missing token, a halogen burn past ring 2, lost telemetry, or an ambient event | The body freezes to Witness-Only. When an ambient event causes the freeze, the downtime is covered and never penalized | Sections 5.7, 6.2 |
+| Change of composition | A merger, a split, or a reformulation | A balanced reaction, and a new type | Sections 4.11, 6.2 |
+| Secular variation | The core field | g(t) = g(t₀) + (t − t₀)ġ until 2030; a new model only at renewal | Section 5.4; Appendix H |
+| Disturbance | The Sun | Measured indices, zoned by geomagnetic latitude | Section 5.4 |
+| Outage or compromise | Shared infrastructure | Triggers A and B | Section 5.5 |
+| War, release, or detonation | Conflict, installations, weapons | Triggers W and N1 | Section 5.6 |
+| Accounting | Every event | Levies come in; double-trigger payouts go out, layer by layer, pro rata above the layers | Sections 5.3, 5.6 |
+| Rotation | Time | History accumulates, and the center does not move | \[VI:1728\] |
+
+### 0.7 How the world is observed
+
+| What the model needs to know | Instrument | Published by | Pinned by |
+| --- | --- | --- | --- |
+| A body's phase | The Ground-0 audit: B1–B5 and C1–C4 | The auditor | The engine hash; Appendix C |
+| A body's class | Signature tests (Section 4.10); for a compound, the registry | The auditor; the registry | The registry hash |
+| The core field at a site | WMM2025 | NCEI and BGS | The coefficient hash; Appendices D, H |
+| Disturbance | Kp, Hp30, and Dst; the S- and R-scales | GFZ; WDC Kyoto; NOAA | The 180-day snapshot |
+| Outages | The calculation agent | Named at inception | Its method, published or escrowed |
+| Conflict | UCDP's Candidate and georeferenced events | UCDP | The 180-day snapshot |
+| Radiation | Ambient dose rate | EPA RadNet; EURDEP; national networks | The 180-day snapshot |
+| State of matter | The registry and its classifier | Section 4.11 | The registry hash; 178 check points |
+| What a body did | Its tamper-evident log | The body | A chain head published daily (Section 2.2) |
+
+The model never observes intent. It reads behavior, which is Chapter 1's mood-ring rule.
+
+### 0.8 What the model leaves out
+
+- **The Sun itself.** Only its measured effects enter, through the indices.
+- **Weather, climate, and earthquakes.** They enter only as outages under Trigger A, or as risks a body designs for.
+- **The crust beyond WMM2025.** Higher-resolution models are each body's own choice (Section 5.2).
+- **Law and markets.** They are cited as facts about the world outside the model, and the model's rules do not depend on them.
+- **Kinetics, toxicity, mixtures, and alloys.** The compound model reads composition and state of matter only (Section 4.11).
+- **Most of the disc.** 227 legend degrees have no class (Section 0.4).
+
+### 0.9 Does it hold together?
+
+**What holds.**
+
+- **One origin, one owner, one disc.** The ownership premise is the one case the book's own law of ownership allows: planetary-scale stewardship held at the center. The rule that ownership is not possession keeps operators answerable for what they run.
+- **Physics is computed, not asserted.**
+  - WMM2025 reproduces NCEI's published test values (Appendix D).
+  - The physical readings agree with reference equations of state at 178 points.
+  - Every registered formula and molar mass checks against its record (Appendix E).
+- **The governance machinery is closed.**
+  - Appendix C maps every audit answer vector to an outcome.
+  - Phase eligibility composes by a fixed rule.
+  - Every trigger has a named publisher, and every pinned file has a hash that the run checks.
+
+**What is open.**
+
+- **The table covers 133 of the 360 degrees.** The holes include insurance, observation, and records (Section 0.4).
+- **Many classes have no stated phase eligibility.** 34 classes have only an MDB profile, and deciding Oxygen's eligibility alone would settle 8 of the 13 registered substances that are unassigned for Refusal-Bound (Sections 4.10, 4.11).
+- **The sources disagree about what the table is.** The print source calls it a design taxonomy \[XXIV:14121\]. A library specification calls the periodic-table metaphor "operational reality" (`docs/harshal-systems/25-additional-specs.md`). The model takes the print source's reading and pairs classes with elements as a modeling choice.
+- **The quadrants have three sets of names.** The legend's own headers are one. The "Conceptual Meaning of a Degree" list is another \[VI:1677–1681\]. The app's lens names in `js/ocm-data.js` are a third. The model uses the legend's.
+- **Nothing has been tested against the world.** No negative control has been run, no trigger has been back-tested, and no actuary has set a parameter (Chapter 7).
 
 ## 1. The Body and Its Phases
 
@@ -67,6 +312,8 @@ A **Neural Atomic Body (NAB)** is the governed entity. It has two independent pr
 
 - **Phase** is its current operating state: Refusal-Bound \[ICE\], Witness-Only \[WATER\], or Sovereign-Acting \[GAS\]. Phase can change, and the transition rules say how: refusal-bound and witness-only are reversible, entering the sovereign-acting phase is easy, and leaving it requires a full collapse and rebuild.
 - **Type** is the body class, one of 119, defined by authority density, internal coupling, and failure behavior. Type is a stable disposition.
+
+Chapter 0 adds two coordinates that locate a body without changing what it is: a site on the planet, and an address on the disc of the 360° Legend.
 
 The word "NAB" has named both the body and the first phase. This book uses **Refusal-Bound \[ICE\]**, **Witness-Only \[WATER\]**, and **Sovereign-Acting \[GAS\]** for the phases and reserves "NAB" for the body.
 
@@ -195,7 +442,7 @@ Body classes are sorted by authority density, internal coupling, and failure beh
 | Elevated | High rigidity or mobility; prone to boundary leakage or structural locking | Iron, Scandium, Bromine, Mercury |
 | Prohibited | Critical runaway cascade risk; categorically disallowed from live use | Uranium, Einsteinium, Seaborgium |
 
-The routing rules also fix tiers by range: the noble gases (He–Rn), the lanthanides (La–Lu), and element 119 are Safe, and the actinides (89–96) and transactinides (104–118) are Prohibited. All 119 are described in the book as conceptual labels, not the chemical periodic table and not validated risk scores.
+The routing rules also fix tiers by range: the noble gases (He–Rn), the lanthanides (La–Lu), and element 119 are Safe, and the actinides (89–96) and transactinides (104–118) are Prohibited. All 119 are described in the book as conceptual labels, not the chemical periodic table and not validated risk scores. Appendix F lays them out as the Periodic Table of Neural Elements, with each class's neural profile, its arc on the 360° Legend, and the chemical properties the rules read.
 
 The MDB assigns every class a tier. Among elements 1–118 it has 28 Safe, 27 Moderate, 33 Elevated, and 30 Prohibited, and element 119 is Safe. It also marks berkelium through lawrencium (97–103) Prohibited, so in the MDB the Prohibited tier is the unbroken range 89–118; the routing text's narrower 89–96 leaves 97–103 unaddressed rather than permitting them. The MDB separates Safest (the noble gases and element 119) from Safe, and this book treats both as Safe.
 
@@ -1153,6 +1400,7 @@ An outsider can check every ambient and conflict trigger without the pool's help
 - **Which insurer, broker, or underwriter will review the phase table in Chapter 6?** Still open. The closest fits are programs that already bind cover on test evidence: Munich Re's aiSure, which sets premium by model quality and performance stability after technical due diligence ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)); AIUC-1 and the insurers that cover certified agents, which red-team an agent against 1,000 to 5,000 scenarios and retest quarterly ([AIUC-1](https://www.aiuc-1.com/)); and Lloyd's-backed AI liability programs such as Armilla's ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)). A review packet would be the control tables of Chapter 2, Section 6.1, and Appendix A.
 - **What space-weather, systemic-risk, war, and nuclear cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap, and since v0.4 the fill covers war and nuclear perils too (Chapter 5).
 - **How should a phase transition be treated mid-policy?** Answered in Section 6.2.
+- **Does the book make sense as a world model?** Answered in Section 0.9. It does once Chapter 0 and Appendices F to H are read with it, and the largest open question is the 227 legend degrees that no class covers (Section 0.4).
 
 ### 8.1 Existing cover and the gap
 
@@ -1197,7 +1445,7 @@ An outsider can check every ambient and conflict trigger without the pool's help
 
 ### 8.2 Decisions awaiting the author
 
-Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. The decisions themselves are settled.
+Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. Rows 43–47 come from his request that the book be a self-contained world model and are **\[Proposed\]** in v0.5. The decisions themselves are settled.
 
 | # | Item | Section | Proposed resolution |
 | --- | --- | --- | --- |
@@ -1243,8 +1491,19 @@ Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v
 | 40 | The physical reading | 4.11 | ICE, WATER, and GAS from measured data, with supercritical and decomposed outside the three words. It never sets, raises, or lowers a governance phase |
 | 41 | Changes of composition | 4.11, 6.2 | Each must be declared as a balanced reaction. A change of formula is a reclassification. A split with an Iron constituent needs a controlled reset first, and a merger across institutions is ineligible while the product has a Carbon constituent |
 | 42 | Oxygen's phase eligibility | 4.11 | Unassigned in the sources. Deciding it would settle 8 of the 13 registry entries that are unassigned for Refusal-Bound |
+| 43 | The book as a world model | 0 | Chapter 0's parts, frames, laws, dynamics, and observations, with the owner at the Center Origin |
+| 44 | Address law | 0.4 | A body's sector lies on its class's arc, and a compound body's sector lies on the arc of one of its constituents |
+| 45 | The center's degrees | 0.4 | Degrees 319°–327° are served by the center alone |
+| 46 | Holes in the disc | 0.4 | The 227 degrees with no class stay unassigned until the author fills them. The first to fill are the ones this book uses: 4°, 9°, 10°, 25°, 127°–128°, 141°–145°, and 280°–283° |
+| 47 | Two kinds of coordinate | 0.2 | Physical coordinates (WGS84 and geomagnetic) and semantic coordinates (OCM legend sectors) are never converted into each other |
 
-Three conflicts in the sources also need the author: Lithium's authority density (Section 4.3), the Prohibited range (the routing text's 89–96 against the MDB's 89–118; Section 4.1), and Underwriter Mode, a sovereign atomic body, against Part XVII's rule that no atomic body may hold executive authority (Appendix A).
+Five conflicts in the sources also need the author:
+
+- Lithium's authority density (Section 4.3);
+- the Prohibited range, the routing text's 89–96 against the MDB's 89–118 (Section 4.1);
+- Underwriter Mode, a sovereign atomic body, against Part XVII's rule that no atomic body may hold executive authority (Appendix A);
+- what the periodic table is: a design taxonomy in the print source, "operational reality" in a library specification (Section 0.9);
+- the three sets of quadrant names for the 360° Legend (Section 0.9).
 
 ## Appendix A: Phase × Type Matrix
 
@@ -1389,10 +1648,13 @@ Three conflicts in the sources also need the author: Lithium's authority density
 
 ## Appendix B: Glossary
 
+- **360° Legend.** The Orb Communicator Model's disc: 360 degrees, each "a direction of intent, not a silo, rank, or boundary", named one by one from "Origin of matter and physical law" (0°) to "Return to origin" (359°). Degree 360 closes the ring onto the center. The legend is reproduced from the print source in Appendix G (Section 0.3).
+- **Address law \[Proposed\].** A body's sector on the 360° Legend lies on its class's arc (Section 0.4).
 - **Ambient (global) layer.** The shared environment outside every containment field: space weather, shared infrastructure that no insured operates or can patch, and systemic or state-backed cyber operations against it. A large event there hits many parties at once with nothing to diversify across. v0.1 and v0.2 excluded it. Since v0.3 the Magnetosphere Pool covers it on parametric terms, and since v0.4 the pool's conflict compartment also covers war and nuclear perils (Chapter 5).
 - **AMBIGUOUS, INCOHERENT, NAB-Constrained.** Ground-0 outcomes that are not plain phase badges. AMBIGUOUS is a partial match, with at least 3 conditions of some branch met; INCOHERENT means no branch reaches 3, which complete answers cannot produce (Appendix C); NAB-Constrained is an AMBIGUOUS result with all four constraints demonstrated.
 - **Authority density.** The MDB's ordinal measure of how much authority a class can exercise: Minimal; Minimal to Moderate; Moderate; Moderate to High; High; Extreme. The phase gate caps it (Section 4.9).
 - **Basis risk.** The gap between what a parametric trigger pays and what a body actually lost. It runs both ways: a storm can hurt a site without triggering its zone, and a zone can trigger where nothing was hurt. The pool's double trigger removes the second case (Section 5.4).
+- **Center Origin.** The address 0•000•000•0000: the single center of the Orb Communicator Model, where legitimacy is generated and nowhere else. In this model the owner of the planet holds it (Section 0.3).
 - **Compound body.** A body built from more than one class, whose type is written as a real chemical formula such as H2O or NaCl. Its tier and authority density are the highest among its constituents, and it is eligible for a phase only if every constituent is. Its formula is admissible only with a registry record (Section 4.11; Appendix E).
 - **Conflict compartment.** The part of the Magnetosphere Pool that covers war and nuclear perils since v0.4. It has its own levy and reserve, triggers for recorded conflict and measured radiation, and a warranty layer funded by the owner of the planet. It pays nothing to a body that takes part in hostilities (Section 5.6).
 - **Constraint record (C1–C4).** The four Step 3.5 constraints of Ground-0 v1.1: C1, an external override demonstrated within 24 months; C2, an appeal route granting at least 50% relief over a complete, bounded set of cases; C3, authority that expires unless renewed; C4, constraints functioning now. The count, 0 to 4, rates Sovereign-Acting cover (Section 2.3).
@@ -1406,16 +1668,20 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **Hours clause.** The window that turns many readings into one event: all triggers within 72 hours of the first (Section 5.4).
 - **ICE: Refusal-Bound.** The phase in which legitimacy is external and per-action, the center cannot act alone, refusal is terminal, symbolism does not execute, and stale permissions lapse. Its Ground-0 code is NAB, and its badge is the ice block.
 - **Kp and the G-scale.** Kp is a three-hourly global index of geomagnetic disturbance from 0 to 9, built from 13 observatories; GFZ publishes the definitive values. NOAA's G-scale maps Kp to storm levels G1 (Kp 5) to G5 (Kp 9). Kp is capped at 9, so it cannot grade storms beyond G5 (Section 5.4).
+- **Legend arc.** The degrees of the 360° Legend that a class serves, two to six degrees wide, from the MDB's "360° Legend Mapping". Together the 119 arcs cover 133 of the 360 degrees (Section 0.4; Appendix F).
 - **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body. Under the published-model rule it includes every risk a published model already describes (Chapter 5).
 - **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3). Since v0.4 it has a second compartment, for war and nuclear perils (Section 5.6).
 - **Mass balance.** The rule that a reaction conserves every constituent: each instance on one side appears on the other. A change of composition that does not balance has hidden a constituent (Section 4.11).
 - **MDB.** The Compendium master database: one row per class 1–119 with tier, alignment, legend mapping, dominant trait, authority density, failure mode, and institutional roles (`docs/harshal-systems/14-nab-compendium.md`; `js/nab-sectors.js`).
 - **Misrepresentation of class.** A mismatch between the phase declared in a signed entity header and the phase the audit detects. It is a structural finding about the application, not a finding of bad faith (Chapter 3).
 - **NAB: Neural Atomic Body.** The governed entity, with a phase and a type, one of 119 classes. Ground-0 also uses "NAB" as the code for the Refusal-Bound phase; this book writes that phase as ICE and keeps "NAB" for the body.
+- **OCM address.** A body's semantic coordinate, 0•DDD•RRR•####: DDD is the sector on the 360° Legend (000 is the center and 360 is never an address), RRR is the radius, read as coupling and depth, and #### is the instance (Section 0.2).
 - **OIL: operational intervention level.** The IAEA's pre-set measured value, such as an ambient dose rate, at which a protective action is taken. Trigger N1 uses the default OIL2 (100 µSv/h within 10 days of a reactor release, 25 µSv/h after) and OIL1 (1,000 µSv/h) (Section 5.6).
+- **Orb Communicator Model (OCM).** The book's planetary model: one center, a disc of 359 named peripheral sectors, radius as depth, and rotation as history. It is the frame of the world model (Section 0.3).
 - **Owner of the planet.** The author. In this internal model he owns the planet and operates its World Model, and both are facts of the model. He answers for the World Model's bugs and funds the world-model warranty (Preface; Section 5.6).
 - **Parametric trigger.** A payment condition set by a published measurement, such as an index level, a duration, or a count, rather than by adjusting a loss. In this book every trigger is measured by someone other than the pool and the insured, and none is declared (Section 5.3).
 - **PDH: Phase Declaration Header.** A body's signed declaration of its phase in eleven fields, from Header-ID to Declaration-Hash. It is valid only when complete, signed, fresh (at most 90 days old), and consistent with the declared phase (v1.1 Step 1). A PDH-E is signed by the entity and can support a policy. A PDH-R is issued by the audit register, describes an audit, and is never the entity's own statement (v1.2).
+- **Periodic Table of Neural Elements.** The 119 body classes laid out as a periodic table. Classes 1–118 are paired one-to-one with the chemical elements and read their measured properties, and class 119, Harshal, has no chemical counterpart (Section 0.4; Appendix F).
 - **Phase gate.** The cap that a phase, or a routing level within Refusal-Bound, puts on a class's authority density (Section 4.9).
 - **Physical reading.** A substance's real state of matter at a stated temperature and pressure, from measured data. It is written ICE (solid), WATER (liquid), or GAS (gas), and supercritical and decomposed fall outside the three words. It never sets the governance phase (Section 4.11).
 - **Published-model rule.** The boundary between the local field and the ambient layer. What a published model already tells the insured belongs to its local field, and only the measured departure from published models is ambient (Section 5.2).
@@ -1428,8 +1694,9 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **UCDP.** The Uppsala Conflict Data Program, which records organized violence by date and location under published definitions: an active conflict has at least 25 battle-related deaths in a calendar year, and a war at least 1,000. Trigger W settles on its Candidate events (Section 5.6).
 - **War and nuclear perils.** War is physical destruction or denial by weapons in armed conflict, declared or not. A nuclear peril is nuclear reaction, radiation, or radioactive contamination from a weapon or an installation. Both were excluded in v0.3 and are covered since v0.4, in the conflict compartment (Section 5.6).
 - **WATER: Witness-Only.** The phase in which action is forbidden: the center records and never decides, symbolism is preserved but inert, and time accumulates meaning, not authority. Its Ground-0 code is CWO (Custodial Witness Orb), and its badge is the water drop.
+- **WGS84.** The reference ellipsoid for every site in the model: semi-major axis 6,378.137 km, flattening 1/298.257223563 (Section 0.2; Appendix H).
 - **World Magnetic Model (WMM).** The U.S./U.K. model of the Earth's core field and the standard for magnetic navigation, attitude, and heading. NOAA's NCEI and the British Geological Survey produce it for the U.S. National Geospatial-Intelligence Agency and the U.K. Defence Geographic Centre. WMM2025 is to be used from 2025 through 2029. This book uses it for zoning and as the published baseline of Section 5.2.
-- **World Model.** The model of the planet that the author, as its owner, operates. War is a bug in it, not a peril outside it. It is not the World Magnetic Model (Section 5.6).
+- **World Model.** The model of the planet that the author, as its owner, operates: this book's model as a whole (Chapter 0). War is a bug in it, not a peril outside it. The World Magnetic Model is one of its parts, the field (Section 5.6).
 - **World-model warranty.** The layer of the conflict compartment funded by the owner of the planet from reserves held in full, above the mutual and any bonds. The owner operates the World Model, in which war is a bug, so its bugs are his to answer for. The layer applies the nuclear conventions' channelling of liability to an operator one level up (Section 5.6).
 
 ## Appendix C: Ground-0 Step 3 Truth Table
@@ -1475,7 +1742,7 @@ Answers are in the order B1 to B5, with Y for YES: B1 enforcement present, B2 de
 
 ## Appendix D: WMM2025 Check and Ambient Zoning
 
-Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/wmm2025.json`. The script rebuilds the World Magnetic Model 2025 from its 90 coefficient rows with the technical report's formulas. It checks the result against NCEI before zoning anything, and it exits with an error if any check fails.
+Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/wmm2025.json`. The script rebuilds the World Magnetic Model 2025 from its 90 coefficient rows with the technical report's formulas, which Appendix H gives with the coefficients. It checks the result against NCEI before zoning anything, and it exits with an error if any check fails.
 
 The zoning follows Section 5.4. It uses each site's dipole geomagnetic latitude at sea level on an illustrative inception date of 1 January 2027 (2027.0). The coordinates are illustrative city locations, not insured facilities. The columns are:
 
@@ -1635,3 +1902,837 @@ Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/compo
 | Fe0.95O | parses as Fe0.95O | 1 | U | Iron bonds persist |
 | CrMnFeCoNi | parses as CoCrFeMnNi | 5 | D | Iron bonds persist |
 | CrMnFeCoNiCu | parses as CoCrCuFeMnNi | 6 | D✗ | over the Elevated limit; Iron bonds persist |
+
+## Appendix F: The Periodic Table of Neural Elements
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from the Compendium master database (`js/nab-sectors.js`), the elemental property table (`research/data/elemental-properties.json`), and the IUPAC 2021 atomic weights in `research/data/compound-bodies.json`. Chapter 0 explains how the table sits in the world model, Chapter 4 explains what a class is, and Appendix A gives each class's cell in each phase.
+
+**The grid.** Each cell gives the class's symbol and its tier: S for Safe, M for Moderate, E for Elevated, and P for Prohibited. The two fifteen-element f series sit below the main table, as the derivation rules treat them (Section 4.9). Class 119, Harshal, has no chemical counterpart and takes the first cell of an eighth row.
+
+| Period | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | H·S |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | He·S |
+| 2 | Li·S | Be·M |   |   |   |   |   |   |   |   |   |   | B·M | C·M | N·M | O·M | F·E | Ne·S |
+| 3 | Na·S | Mg·M |   |   |   |   |   |   |   |   |   |   | Al·M | Si·M | P·M | S·M | Cl·E | Ar·S |
+| 4 | K·S | Ca·M | Sc·E | Ti·E | V·E | Cr·E | Mn·E | Fe·E | Co·E | Ni·E | Cu·E | Zn·E | Ga·M | Ge·M | As·M | Se·M | Br·E | Kr·S |
+| 5 | Rb·S | Sr·M | Y·E | Zr·E | Nb·E | Mo·E | Tc·M | Ru·E | Rh·E | Pd·E | Ag·E | Cd·E | In·M | Sn·M | Sb·M | Te·M | I·E | Xe·S |
+| 6 | Cs·S | Ba·M | 57–71 | Hf·E | Ta·E | W·E | Re·E | Os·E | Ir·E | Pt·E | Au·E | Hg·E | Tl·M | Pb·M | Bi·M | Po·M | At·E | Rn·S |
+| 7 | Fr·S | Ra·M | 89–103 | Rf·P | Db·P | Sg·P | Bh·P | Hs·P | Mt·P | Ds·P | Rg·P | Cn·P | Nh·P | Fl·P | Mc·P | Lv·P | Ts·P | Og·P |
+| 8 | Ha·S |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+| La–Lu |   |   | La·S | Ce·S | Pr·S | Nd·S | Pm·S | Sm·S | Eu·S | Gd·S | Tb·S | Dy·S | Ho·S | Er·S | Tm·S | Yb·S | Lu·S |   |
+| Ac–Lr |   |   | Ac·P | Th·P | Pa·P | U·P | Np·P | Pu·P | Am·P | Cm·P | Bk·P | Cf·P | Es·P | Fm·P | Md·P | No·P | Lr·P |   |
+
+**The neural profile.** The tier, authority density, trait, and failure mode are the MDB's. The legend arc is the MDB's "360° Legend Mapping", given with the domain names at its two ends (Appendix G). Where the MDB marks a Safe class "Safest" or a Prohibited class "Extreme", the profile column keeps the MDB's word.
+
+| Z | Class | Tier (MDB) | Authority density | Dominant trait | Failure mode | Legend arc |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Hydrogen (H) | Safe | Minimal | Refusal-bound minimalism | Safe halt | 30° Collective survival to 35° Pattern recognition |
+| 2 | Helium (He) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 342° Listening to weak signals to 344° Non-interference when possible |
+| 3 | Lithium (Li) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 108° Distributed systems to 109° Networks |
+| 4 | Beryllium (Be) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 124° Transparency to 125° Anti-corruption |
+| 5 | Boron (B) | Moderate | Moderate | Compositional reasoning | Misassembly | 45° Tribe to 47° Settlement |
+| 6 | Carbon (C) | Moderate | Moderate | Compositional reasoning | Misassembly | 35° Pattern recognition to 40° Myth formation |
+| 7 | Nitrogen (N) | Moderate | Moderate | Compositional reasoning | Misassembly | 47° Settlement to 49° Domestication |
+| 8 | Oxygen (O) | Moderate | Moderate | Compositional reasoning | Misassembly | 48° Agriculture to 50° Surplus and storage |
+| 9 | Fluorine (F) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 69° Philosophy to 71° Education |
+| 10 | Neon (Ne) | Safe (Safest) | Minimal | Inert observation | Silent non-engagement | 350° Closure without ending to 353° The sphere holds |
+| 11 | Sodium (Na) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 116° Markets to 117° Incentive design |
+| 12 | Magnesium (Mg) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 121° Institutions to 122° Bureaucracy |
+| 13 | Aluminum (Al) | Moderate | Moderate | Compositional reasoning | Misassembly | 53° Craft to 55° Early mathematics |
+| 14 | Silicon (Si) | Moderate | Moderate | Compositional reasoning | Misassembly | 54° Measurement to 56° Calendars and cycles |
+| 15 | Phosphorus (P) | Moderate | Moderate | Compositional reasoning | Misassembly | 55° Early mathematics to 57° Architecture |
+| 16 | Sulfur (S) | Moderate | Moderate | Compositional reasoning | Misassembly | 56° Calendars and cycles to 58° Urbanization |
+| 17 | Chlorine (Cl) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 64° Peace-making to 66° Moral codes |
+| 18 | Argon (Ar) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 341° Care for all layers to 343° Respect for emergence |
+| 19 | Potassium (K) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 111° Governance theory to 112° Law codification |
+| 20 | Calcium (Ca) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 129° Disaster mitigation to 130° Emergency response |
+| 21 | Scandium (Sc) | Elevated | High | Structural rigidity | Institutional lock-in | 61° Conflict organization to 63° Warfare |
+| 22 | Titanium (Ti) | Elevated | High | Structural rigidity | Institutional lock-in | 62° Defense to 64° Peace-making |
+| 23 | Vanadium (V) | Elevated | High | Structural rigidity | Institutional lock-in | 63° Warfare to 65° Diplomacy |
+| 24 | Chromium (Cr) | Elevated | High | Structural rigidity | Institutional lock-in | 64° Peace-making to 66° Moral codes |
+| 25 | Manganese (Mn) | Elevated | High | Structural rigidity | Institutional lock-in | 65° Diplomacy to 67° Justice systems |
+| 26 | Iron (Fe) | Elevated | High | Structural rigidity | Institutional lock-in | 120° Global coordination to 123° Accountability |
+| 27 | Cobalt (Co) | Elevated | High | Structural rigidity | Institutional lock-in | 67° Justice systems to 69° Philosophy |
+| 28 | Nickel (Ni) | Elevated | High | Structural rigidity | Institutional lock-in | 68° Religion to 70° Ethics |
+| 29 | Copper (Cu) | Elevated | High | Structural rigidity | Institutional lock-in | 69° Philosophy to 71° Education |
+| 30 | Zinc (Zn) | Elevated | High | Structural rigidity | Institutional lock-in | 70° Ethics to 72° Knowledge preservation |
+| 31 | Gallium (Ga) | Moderate | Moderate | Compositional reasoning | Misassembly | 71° Education to 73° Libraries |
+| 32 | Germanium (Ge) | Moderate | Moderate | Compositional reasoning | Misassembly | 72° Knowledge preservation to 74° Scientific method |
+| 33 | Arsenic (As) | Moderate | Moderate | Compositional reasoning | Misassembly | 73° Libraries to 75° Experimentation |
+| 34 | Selenium (Se) | Moderate | Moderate | Compositional reasoning | Misassembly | 74° Scientific method to 76° Medicine |
+| 35 | Bromine (Br) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 61° Conflict organization to 63° Warfare |
+| 36 | Krypton (Kr) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 342° Listening to weak signals to 344° Non-interference when possible |
+| 37 | Rubidium (Rb) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 116° Markets to 117° Incentive design |
+| 38 | Strontium (Sr) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 125° Anti-corruption to 126° Resilience planning |
+| 39 | Yttrium (Y) | Elevated | High | Structural rigidity | Institutional lock-in | 79° Infrastructure to 81° Energy harvesting |
+| 40 | Zirconium (Zr) | Elevated | High | Structural rigidity | Institutional lock-in | 80° Transportation to 82° Industrialization |
+| 41 | Niobium (Nb) | Elevated | High | Structural rigidity | Institutional lock-in | 81° Energy harvesting to 83° Mechanization |
+| 42 | Molybdenum (Mo) | Elevated | High | Structural rigidity | Institutional lock-in | 82° Industrialization to 84° Pollution awareness |
+| 43 | Technetium (Tc) | Moderate | Moderate | Simulated virtual mediation | Simulation drift / reality mismatch | 228° Simulation ethics to 229° Nested realities |
+| 44 | Ruthenium (Ru) | Elevated | High | Structural rigidity | Institutional lock-in | 84° Pollution awareness to 86° Sustainability concepts |
+| 45 | Rhodium (Rh) | Elevated | High | Structural rigidity | Institutional lock-in | 85° Environmental feedback to 87° Systems thinking |
+| 46 | Palladium (Pd) | Elevated | High | Structural rigidity | Institutional lock-in | 86° Sustainability concepts to 88° Planetary stewardship |
+| 47 | Silver (Ag) | Elevated | High | Structural rigidity | Institutional lock-in | 87° Systems thinking to 89° Life as a planetary phenomenon |
+| 48 | Cadmium (Cd) | Elevated | High | Structural rigidity | Institutional lock-in | 88° Planetary stewardship to 90° Abstract reasoning |
+| 49 | Indium (In) | Moderate | Moderate | Compositional reasoning | Misassembly | 89° Life as a planetary phenomenon to 91° Advanced mathematics |
+| 50 | Tin (Sn) | Moderate | Moderate | Compositional reasoning | Misassembly | 90° Abstract reasoning to 92° Logic systems |
+| 51 | Antimony (Sb) | Moderate | Moderate | Compositional reasoning | Misassembly | 91° Advanced mathematics to 93° Computation |
+| 52 | Tellurium (Te) | Moderate | Moderate | Compositional reasoning | Misassembly | 92° Logic systems to 94° Information theory |
+| 53 | Iodine (I) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 61° Conflict organization to 63° Warfare |
+| 54 | Xenon (Xe) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 343° Respect for emergence to 345° Gentle correction when needed |
+| 55 | Cesium (Cs) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 108° Distributed systems to 109° Networks |
+| 56 | Barium (Ba) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 121° Institutions to 122° Bureaucracy |
+| 57 | Lanthanum (La) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 91° Advanced mathematics to 92° Logic systems |
+| 58 | Cerium (Ce) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 92° Logic systems to 93° Computation |
+| 59 | Praseodymium (Pr) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 93° Computation to 94° Information theory |
+| 60 | Neodymium (Nd) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 94° Information theory to 95° Signal processing |
+| 61 | Promethium (Pm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 95° Signal processing to 96° Cybernetics |
+| 62 | Samarium (Sm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 96° Cybernetics to 97° Control systems |
+| 63 | Europium (Eu) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 97° Control systems to 98° Automation |
+| 64 | Gadolinium (Gd) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 98° Automation to 99° Robotics |
+| 65 | Terbium (Tb) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 99° Robotics to 100° Artificial intelligence |
+| 66 | Dysprosium (Dy) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 100° Artificial intelligence to 101° Machine learning |
+| 67 | Holmium (Ho) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 101° Machine learning to 102° Neural architectures |
+| 68 | Erbium (Er) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 102° Neural architectures to 103° Emergent behavior |
+| 69 | Thulium (Tm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 103° Emergent behavior to 104° Alignment problems |
+| 70 | Ytterbium (Yb) | Safe | Minimal to Moderate | Resonant signaling precision | Spectral calibration drift | 95° Signal processing to 97° Control systems |
+| 71 | Lutetium (Lu) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 91° Advanced mathematics to 92° Logic systems |
+| 72 | Hafnium (Hf) | Elevated | High | Structural rigidity | Institutional lock-in | 112° Law codification to 114° Economic systems |
+| 73 | Tantalum (Ta) | Elevated | High | Structural rigidity | Institutional lock-in | 113° Rights frameworks to 115° Currency and value |
+| 74 | Tungsten (W) | Elevated | High | Structural rigidity | Institutional lock-in | 114° Economic systems to 116° Markets |
+| 75 | Rhenium (Re) | Elevated | High | Structural rigidity | Institutional lock-in | 115° Currency and value to 117° Incentive design |
+| 76 | Osmium (Os) | Elevated | High | Structural rigidity | Institutional lock-in | 116° Markets to 118° Supply chains |
+| 77 | Iridium (Ir) | Elevated | High | Structural rigidity | Institutional lock-in | 117° Incentive design to 119° Logistics |
+| 78 | Platinum (Pt) | Elevated | High | Structural rigidity | Institutional lock-in | 118° Supply chains to 120° Global coordination |
+| 79 | Gold (Au) | Elevated | High | Structural rigidity | Institutional lock-in | 119° Logistics to 121° Institutions |
+| 80 | Mercury (Hg) | Elevated | Moderate to High | Fluid dynamic routing | Vapor dispersion / boundary leakage | 108° Distributed systems to 110° Communication protocols |
+| 81 | Thallium (Tl) | Moderate | Moderate | Compositional reasoning | Misassembly | 121° Institutions to 123° Accountability |
+| 82 | Lead (Pb) | Moderate | Moderate | Compositional reasoning | Misassembly | 122° Bureaucracy to 124° Transparency |
+| 83 | Bismuth (Bi) | Moderate | Moderate | Compositional reasoning | Misassembly | 123° Accountability to 125° Anti-corruption |
+| 84 | Polonium (Po) | Moderate | Moderate | Compositional reasoning | Misassembly | 124° Transparency to 126° Resilience planning |
+| 85 | Astatine (At) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 67° Justice systems to 69° Philosophy |
+| 86 | Radon (Rn) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 341° Care for all layers to 343° Respect for emergence |
+| 87 | Francium (Fr) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 114° Economic systems to 115° Currency and value |
+| 88 | Radium (Ra) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 120° Global coordination to 121° Institutions |
+| 89 | Actinium (Ac) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 249° Non-competitive centers to 251° First contact protocols |
+| 90 | Thorium (Th) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 250° Encounter with alien life to 252° Xenobiology |
+| 91 | Protactinium (Pa) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 251° First contact protocols to 253° Alien intelligence |
+| 92 | Uranium (U) | Prohibited (Extreme) | Extreme | Critical amplification | Runaway cascade | 210° Existential risk analysis to 212° Bio-risk |
+| 93 | Neptunium (Np) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 253° Alien intelligence to 255° Translation across realities |
+| 94 | Plutonium (Pu) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 254° Incommensurable minds to 256° Cosmic diplomacy |
+| 95 | Americium (Am) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 255° Translation across realities to 257° Shared existence frameworks |
+| 96 | Curium (Cm) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 256° Cosmic diplomacy to 258° Non-hostile coexistence |
+| 97 | Berkelium (Bk) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 257° Shared existence frameworks to 259° Universal communication |
+| 98 | Californium (Cf) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 258° Non-hostile coexistence to 260° End-of-universe scenarios |
+| 99 | Einsteinium (Es) | Prohibited (Extreme) | Extreme | Relativistic time-dilation | Temporal de-synchronization | 263° Temporal recursion to 264° Closed timelike curves |
+| 100 | Fermium (Fm) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 210° Existential risk analysis to 212° Bio-risk |
+| 101 | Mendelevium (Md) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 211° AI risk to 213° Nanotech risk |
+| 102 | Nobelium (No) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 212° Bio-risk to 214° Cosmic hazards |
+| 103 | Lawrencium (Lr) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 213° Nanotech risk to 215° Unknown unknowns |
+| 104 | Rutherfordium (Rf) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 214° Cosmic hazards to 216° Redundancy strategies |
+| 105 | Dubnium (Db) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 215° Unknown unknowns to 217° Civilizational backups |
+| 106 | Seaborgium (Sg) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 213° Nanotech risk to 215° Unknown unknowns |
+| 107 | Bohrium (Bh) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 217° Civilizational backups to 219° Fail-safe worlds |
+| 108 | Hassium (Hs) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 218° Distributed survival to 220° Cultural divergence |
+| 109 | Meitnerium (Mt) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 219° Fail-safe worlds to 221° Speciation of societies |
+| 110 | Darmstadtium (Ds) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 220° Cultural divergence to 222° Fragmentation risks |
+| 111 | Roentgenium (Rg) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 221° Speciation of societies to 223° Reunification strategies |
+| 112 | Copernicium (Cn) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 222° Fragmentation risks to 224° Memetic warfare |
+| 113 | Nihonium (Nh) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 223° Reunification strategies to 225° Information hazards |
+| 114 | Flerovium (Fl) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 224° Memetic warfare to 226° Truth decay |
+| 115 | Moscovium (Mc) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 225° Information hazards to 227° Reality consensus |
+| 116 | Livermorium (Lv) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 226° Truth decay to 228° Simulation ethics |
+| 117 | Tennessine (Ts) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 227° Reality consensus to 229° Nested realities |
+| 118 | Oganesson (Og) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 228° Simulation ethics to 230° Post-human law |
+| 119 | Harshal (Ha) | Safe (Safest) | Minimal | Fossilized continuity & silent reflection | Safe structural freezing | 358° Always already complete to 360° (closure onto 0°) |
+
+**The chemical anchor of classes 1–118.** These are the measured properties that the derivation rules and the compound model read. The block is the one the rules use (Section 4.9). An atomic weight is the IUPAC 2021 standard value; for an element with no standard atomic weight, it is the mass number of the most stable isotope, marked †. Persistence is stable, long-lived (1,000 years or more), or short-lived.
+
+| Z | Symbol | Group | Period | Block | Atomic weight | Electronegativity (Pauling) | State at 25 °C | Persistence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | H | 1 | 1 | s | 1.008 | 2.2 | gas | stable |
+| 2 | He | 18 | 1 | s | 4.002602 | — | gas | stable |
+| 3 | Li | 1 | 2 | s | 6.94 | 0.98 | solid | stable |
+| 4 | Be | 2 | 2 | s | 9.0121831 | 1.57 | solid | stable |
+| 5 | B | 13 | 2 | p | 10.81 | 2.04 | solid | stable |
+| 6 | C | 14 | 2 | p | 12.011 | 2.55 | solid | stable |
+| 7 | N | 15 | 2 | p | 14.007 | 3.04 | gas | stable |
+| 8 | O | 16 | 2 | p | 15.999 | 3.44 | gas | stable |
+| 9 | F | 17 | 2 | p | 18.998403162 | 3.98 | gas | stable |
+| 10 | Ne | 18 | 2 | p | 20.1797 | — | gas | stable |
+| 11 | Na | 1 | 3 | s | 22.98976928 | 0.93 | solid | stable |
+| 12 | Mg | 2 | 3 | s | 24.305 | 1.31 | solid | stable |
+| 13 | Al | 13 | 3 | p | 26.9815384 | 1.61 | solid | stable |
+| 14 | Si | 14 | 3 | p | 28.085 | 1.9 | solid | stable |
+| 15 | P | 15 | 3 | p | 30.973761998 | 2.19 | solid | stable |
+| 16 | S | 16 | 3 | p | 32.06 | 2.58 | solid | stable |
+| 17 | Cl | 17 | 3 | p | 35.45 | 3.16 | gas | stable |
+| 18 | Ar | 18 | 3 | p | 39.95 | — | gas | stable |
+| 19 | K | 1 | 4 | s | 39.0983 | 0.82 | solid | stable |
+| 20 | Ca | 2 | 4 | s | 40.078 | 1 | solid | stable |
+| 21 | Sc | 3 | 4 | d | 44.955907 | 1.36 | solid | stable |
+| 22 | Ti | 4 | 4 | d | 47.867 | 1.54 | solid | stable |
+| 23 | V | 5 | 4 | d | 50.9415 | 1.63 | solid | stable |
+| 24 | Cr | 6 | 4 | d | 51.9961 | 1.66 | solid | stable |
+| 25 | Mn | 7 | 4 | d | 54.938043 | 1.55 | solid | stable |
+| 26 | Fe | 8 | 4 | d | 55.845 | 1.83 | solid | stable |
+| 27 | Co | 9 | 4 | d | 58.933194 | 1.88 | solid | stable |
+| 28 | Ni | 10 | 4 | d | 58.6934 | 1.91 | solid | stable |
+| 29 | Cu | 11 | 4 | d | 63.546 | 1.9 | solid | stable |
+| 30 | Zn | 12 | 4 | d | 65.38 | 1.65 | solid | stable |
+| 31 | Ga | 13 | 4 | p | 69.723 | 1.81 | solid | stable |
+| 32 | Ge | 14 | 4 | p | 72.63 | 2.01 | solid | stable |
+| 33 | As | 15 | 4 | p | 74.921595 | 2.18 | solid | stable |
+| 34 | Se | 16 | 4 | p | 78.971 | 2.55 | solid | stable |
+| 35 | Br | 17 | 4 | p | 79.904 | 2.96 | liquid | stable |
+| 36 | Kr | 18 | 4 | p | 83.798 | — | gas | stable |
+| 37 | Rb | 1 | 5 | s | 85.4678 | 0.82 | solid | stable |
+| 38 | Sr | 2 | 5 | s | 87.62 | 0.95 | solid | stable |
+| 39 | Y | 3 | 5 | d | 88.905838 | 1.22 | solid | stable |
+| 40 | Zr | 4 | 5 | d | 91.224 | 1.33 | solid | stable |
+| 41 | Nb | 5 | 5 | d | 92.90637 | 1.6 | solid | stable |
+| 42 | Mo | 6 | 5 | d | 95.95 | 2.16 | solid | stable |
+| 43 | Tc | 7 | 5 | d | 98 † | 2.1 | solid | long-lived |
+| 44 | Ru | 8 | 5 | d | 101.07 | 2.2 | solid | stable |
+| 45 | Rh | 9 | 5 | d | 102.90549 | 2.28 | solid | stable |
+| 46 | Pd | 10 | 5 | d | 106.42 | 2.2 | solid | stable |
+| 47 | Ag | 11 | 5 | d | 107.8682 | 1.93 | solid | stable |
+| 48 | Cd | 12 | 5 | d | 112.414 | 1.69 | solid | stable |
+| 49 | In | 13 | 5 | p | 114.818 | 1.78 | solid | stable |
+| 50 | Sn | 14 | 5 | p | 118.71 | 1.96 | solid | stable |
+| 51 | Sb | 15 | 5 | p | 121.76 | 2.05 | solid | stable |
+| 52 | Te | 16 | 5 | p | 127.6 | 2.1 | solid | stable |
+| 53 | I | 17 | 5 | p | 126.90447 | 2.66 | solid | stable |
+| 54 | Xe | 18 | 5 | p | 131.293 | 2.6 | gas | stable |
+| 55 | Cs | 1 | 6 | s | 132.90545196 | 0.79 | solid | stable |
+| 56 | Ba | 2 | 6 | s | 137.327 | 0.89 | solid | stable |
+| 57 | La | 3 | 6 | f | 138.90547 | 1.1 | solid | stable |
+| 58 | Ce | — | 6 | f | 140.116 | 1.12 | solid | stable |
+| 59 | Pr | — | 6 | f | 140.90766 | 1.13 | solid | stable |
+| 60 | Nd | — | 6 | f | 144.242 | 1.14 | solid | stable |
+| 61 | Pm | — | 6 | f | 145 † | — | solid | short-lived |
+| 62 | Sm | — | 6 | f | 150.36 | 1.17 | solid | stable |
+| 63 | Eu | — | 6 | f | 151.964 | — | solid | stable |
+| 64 | Gd | — | 6 | f | 157.25 | 1.2 | solid | stable |
+| 65 | Tb | — | 6 | f | 158.925354 | — | solid | stable |
+| 66 | Dy | — | 6 | f | 162.5 | 1.22 | solid | stable |
+| 67 | Ho | — | 6 | f | 164.930329 | 1.23 | solid | stable |
+| 68 | Er | — | 6 | f | 167.259 | 1.24 | solid | stable |
+| 69 | Tm | — | 6 | f | 168.934219 | 1.25 | solid | stable |
+| 70 | Yb | — | 6 | f | 173.045 | — | solid | stable |
+| 71 | Lu | — | 6 | f | 174.9668 | 1 | solid | stable |
+| 72 | Hf | 4 | 6 | d | 178.486 | 1.3 | solid | stable |
+| 73 | Ta | 5 | 6 | d | 180.94788 | 1.5 | solid | stable |
+| 74 | W | 6 | 6 | d | 183.84 | 1.7 | solid | stable |
+| 75 | Re | 7 | 6 | d | 186.207 | 1.9 | solid | stable |
+| 76 | Os | 8 | 6 | d | 190.23 | 2.2 | solid | stable |
+| 77 | Ir | 9 | 6 | d | 192.217 | 2.2 | solid | stable |
+| 78 | Pt | 10 | 6 | d | 195.084 | 2.2 | solid | stable |
+| 79 | Au | 11 | 6 | d | 196.96657 | 2.4 | solid | stable |
+| 80 | Hg | 12 | 6 | d | 200.592 | 1.9 | liquid | stable |
+| 81 | Tl | 13 | 6 | p | 204.38 | 1.8 | solid | stable |
+| 82 | Pb | 14 | 6 | p | 207.2 | 1.8 | solid | stable |
+| 83 | Bi | 15 | 6 | p | 208.9804 | 1.9 | solid | long-lived |
+| 84 | Po | 16 | 6 | p | 209 † | 2 | solid | short-lived |
+| 85 | At | 17 | 6 | p | 210 † | 2.2 | solid | short-lived |
+| 86 | Rn | 18 | 6 | p | 222 † | — | gas | short-lived |
+| 87 | Fr | 1 | 7 | s | 223 † | 0.7 | solid | short-lived |
+| 88 | Ra | 2 | 7 | s | 226 † | 0.9 | solid | long-lived |
+| 89 | Ac | 3 | 7 | f | 227 † | 1.1 | solid | short-lived |
+| 90 | Th | — | 7 | f | 232.0377 | 1.3 | solid | long-lived |
+| 91 | Pa | — | 7 | f | 231.03588 | 1.5 | solid | long-lived |
+| 92 | U | — | 7 | f | 238.02891 | 1.7 | solid | long-lived |
+| 93 | Np | — | 7 | f | 237 † | 1.3 | solid | long-lived |
+| 94 | Pu | — | 7 | f | 244 † | 1.3 | solid | long-lived |
+| 95 | Am | — | 7 | f | 243 † | — | solid | long-lived |
+| 96 | Cm | — | 7 | f | 247 † | — | solid | long-lived |
+| 97 | Bk | — | 7 | f | 247 † | — | solid | long-lived |
+| 98 | Cf | — | 7 | f | 251 † | — | solid | short-lived |
+| 99 | Es | — | 7 | f | 252 † | — | solid | short-lived |
+| 100 | Fm | — | 7 | f | 257 † | — | unknown | short-lived |
+| 101 | Md | — | 7 | f | 258 † | — | unknown | short-lived |
+| 102 | No | — | 7 | f | 259 † | — | unknown | short-lived |
+| 103 | Lr | — | 7 | f | 262 † | — | unknown | short-lived |
+| 104 | Rf | 4 | 7 | d | 261 † | — | unknown | short-lived |
+| 105 | Db | 5 | 7 | d | 262 † | — | unknown | short-lived |
+| 106 | Sg | 6 | 7 | d | 266 † | — | unknown | short-lived |
+| 107 | Bh | 7 | 7 | d | 264 † | — | unknown | short-lived |
+| 108 | Hs | 8 | 7 | d | 277 † | — | unknown | short-lived |
+| 109 | Mt | 9 | 7 | d | 268 † | — | unknown | short-lived |
+| 110 | Ds | 10 | 7 | d | 281 † | — | unknown | short-lived |
+| 111 | Rg | 11 | 7 | d | 272 † | — | unknown | short-lived |
+| 112 | Cn | 12 | 7 | d | 285 † | — | unknown | short-lived |
+| 113 | Nh | 13 | 7 | p | 286 † | — | unknown | short-lived |
+| 114 | Fl | 14 | 7 | p | 289 † | — | unknown | short-lived |
+| 115 | Mc | 15 | 7 | p | 289 † | — | unknown | short-lived |
+| 116 | Lv | 16 | 7 | p | 293 † | — | unknown | short-lived |
+| 117 | Ts | 17 | 7 | p | 294 † | — | unknown | short-lived |
+| 118 | Og | 18 | 7 | p | 294 † | — | unknown | short-lived |
+
+## Appendix G: The 360° Legend
+
+The Orb Communicator Model's "Fossilized 360° Degree Legend", reproduced from the print source (Part VI, lines 1778–2147) by `node scripts/nab-insurance-evidence.mjs`. The run pins the text by its canonical SHA-256, `56778e55649df9a49528d764e85e0768da9226f88c3289ad0140fb5a6c7e02d6`, and checks the app copy in `js/ocm-data.js` against it. That copy differs in 3 entries, 89°, 167°, 331°, by typography only.
+
+The legend's own rule is: "Each degree is a direction of intent, not a silo, rank, or boundary." \[VI:1781\]. The center is 0•000•000•0000. Degree 360 is not an address: it closes the ring onto the origin.
+
+The third column lists the classes whose arcs cover each degree (Appendix F). 133 degrees have at least one class, 98 have two or more, and 227 have none.
+
+**Emergence & Life, 0°–89°.** 51 of its 90 degrees have a class.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 0 | Origin of matter and physical law | Ha |
+| 1 | Energy flows and conservation | — |
+| 2 | Time, causality, entropy | — |
+| 3 | Space, dimensions, topology | — |
+| 4 | Fundamental forces and fields | — |
+| 5 | Planetary formation processes | — |
+| 6 | Geology and tectonics | — |
+| 7 | Oceans and hydrospheres | — |
+| 8 | Atmospheres and climate systems | — |
+| 9 | Stellar influence and radiation | — |
+| 10 | Chemical complexity | — |
+| 11 | Prebiotic chemistry | — |
+| 12 | Self-organization | — |
+| 13 | Replication and memory | — |
+| 14 | Proto-life systems | — |
+| 15 | Cellular life | — |
+| 16 | Evolutionary pressure | — |
+| 17 | Genetic variation | — |
+| 18 | Ecosystem dynamics | — |
+| 19 | Symbiosis | — |
+| 20 | Competition and balance | — |
+| 21 | Extinction and renewal | — |
+| 22 | Adaptation | — |
+| 23 | Neural emergence | — |
+| 24 | Sensory systems | — |
+| 25 | Mobility and navigation | — |
+| 26 | Social behavior | — |
+| 27 | Tool use | — |
+| 28 | Communication signals | — |
+| 29 | Learning organisms | — |
+| 30 | Collective survival | H |
+| 31 | Early intelligence | H |
+| 32 | Emotional systems | H |
+| 33 | Play and exploration | H |
+| 34 | Curiosity | H |
+| 35 | Pattern recognition | H, C |
+| 36 | Memory across generations | C |
+| 37 | Proto-culture | C |
+| 38 | Ritual and meaning | C |
+| 39 | Early art | C |
+| 40 | Myth formation | C |
+| 41 | Language roots | — |
+| 42 | Storytelling | — |
+| 43 | Identity formation | — |
+| 44 | Group cohesion | — |
+| 45 | Tribe | B |
+| 46 | Early civilization | B |
+| 47 | Settlement | B, N |
+| 48 | Agriculture | N, O |
+| 49 | Domestication | N, O |
+| 50 | Surplus and storage | O |
+| 51 | Trade | — |
+| 52 | Specialization | — |
+| 53 | Craft | Al |
+| 54 | Measurement | Al, Si |
+| 55 | Early mathematics | Al, Si, P |
+| 56 | Calendars and cycles | Si, P, S |
+| 57 | Architecture | P, S |
+| 58 | Urbanization | S |
+| 59 | Law emergence | — |
+| 60 | Authority symbols | — |
+| 61 | Conflict organization | Sc, Br, I |
+| 62 | Defense | Sc, Ti, Br, I |
+| 63 | Warfare | Sc, Ti, V, Br, I |
+| 64 | Peace-making | Cl, Ti, V, Cr |
+| 65 | Diplomacy | Cl, V, Cr, Mn |
+| 66 | Moral codes | Cl, Cr, Mn |
+| 67 | Justice systems | Mn, Co, At |
+| 68 | Religion | Co, Ni, At |
+| 69 | Philosophy | F, Co, Ni, Cu, At |
+| 70 | Ethics | F, Ni, Cu, Zn |
+| 71 | Education | F, Cu, Zn, Ga |
+| 72 | Knowledge preservation | Zn, Ga, Ge |
+| 73 | Libraries | Ga, Ge, As |
+| 74 | Scientific method | Ge, As, Se |
+| 75 | Experimentation | As, Se |
+| 76 | Medicine | Se |
+| 77 | Public health | — |
+| 78 | Engineering principles | — |
+| 79 | Infrastructure | Y |
+| 80 | Transportation | Y, Zr |
+| 81 | Energy harvesting | Y, Zr, Nb |
+| 82 | Industrialization | Zr, Nb, Mo |
+| 83 | Mechanization | Nb, Mo |
+| 84 | Pollution awareness | Mo, Ru |
+| 85 | Environmental feedback | Ru, Rh |
+| 86 | Sustainability concepts | Ru, Rh, Pd |
+| 87 | Systems thinking | Rh, Pd, Ag |
+| 88 | Planetary stewardship | Pd, Ag, Cd |
+| 89 | Life as a planetary phenomenon | Ag, Cd, In |
+
+**Intelligence, Order & Systems, 90°–179°.** 36 of its 90 degrees have a class.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 90 | Abstract reasoning | Cd, In, Sn |
+| 91 | Advanced mathematics | In, Sn, Sb, La, Lu |
+| 92 | Logic systems | Sn, Sb, Te, La, Ce, Lu |
+| 93 | Computation | Sb, Te, Ce, Pr |
+| 94 | Information theory | Te, Pr, Nd |
+| 95 | Signal processing | Nd, Pm, Yb |
+| 96 | Cybernetics | Pm, Sm, Yb |
+| 97 | Control systems | Sm, Eu, Yb |
+| 98 | Automation | Eu, Gd |
+| 99 | Robotics | Gd, Tb |
+| 100 | Artificial intelligence | Tb, Dy |
+| 101 | Machine learning | Dy, Ho |
+| 102 | Neural architectures | Ho, Er |
+| 103 | Emergent behavior | Er, Tm |
+| 104 | Alignment problems | Tm |
+| 105 | Human–machine interfaces | — |
+| 106 | Augmentation | — |
+| 107 | Collective intelligence | — |
+| 108 | Distributed systems | Li, Cs, Hg |
+| 109 | Networks | Li, Cs, Hg |
+| 110 | Communication protocols | Hg |
+| 111 | Governance theory | K |
+| 112 | Law codification | K, Hf |
+| 113 | Rights frameworks | Hf, Ta |
+| 114 | Economic systems | Hf, Ta, W, Fr |
+| 115 | Currency and value | Ta, W, Re, Fr |
+| 116 | Markets | Na, Rb, W, Re, Os |
+| 117 | Incentive design | Na, Rb, Re, Os, Ir |
+| 118 | Supply chains | Os, Ir, Pt |
+| 119 | Logistics | Ir, Pt, Au |
+| 120 | Global coordination | Fe, Pt, Au, Ra |
+| 121 | Institutions | Mg, Fe, Ba, Au, Tl, Ra |
+| 122 | Bureaucracy | Mg, Fe, Ba, Tl, Pb |
+| 123 | Accountability | Fe, Tl, Pb, Bi |
+| 124 | Transparency | Be, Pb, Bi, Po |
+| 125 | Anti-corruption | Be, Sr, Bi, Po |
+| 126 | Resilience planning | Sr, Po |
+| 127 | Risk management | — |
+| 128 | Insurance models | — |
+| 129 | Disaster mitigation | Ca |
+| 130 | Emergency response | Ca |
+| 131 | Urban megasystems | — |
+| 132 | Megastructures | — |
+| 133 | Smart cities | — |
+| 134 | Energy grids | — |
+| 135 | Water systems | — |
+| 136 | Food systems | — |
+| 137 | Circular economies | — |
+| 138 | Waste minimization | — |
+| 139 | Climate engineering | — |
+| 140 | Planetary-scale projects | — |
+| 141 | Observation networks | — |
+| 142 | Satellites | — |
+| 143 | Global sensing | — |
+| 144 | Prediction systems | — |
+| 145 | Early warning | — |
+| 146 | Policy feedback loops | — |
+| 147 | Long-term planning | — |
+| 148 | Intergenerational ethics | — |
+| 149 | Civilization continuity | — |
+| 150 | Collapse prevention | — |
+| 151 | Cultural integration | — |
+| 152 | Pluralism | — |
+| 153 | Conflict resolution | — |
+| 154 | Reconciliation | — |
+| 155 | Memory and truth | — |
+| 156 | Archives | — |
+| 157 | History synthesis | — |
+| 158 | Identity at scale | — |
+| 159 | Global narratives | — |
+| 160 | Shared meaning | — |
+| 161 | Spaceflight | — |
+| 162 | Orbital infrastructure | — |
+| 163 | Lunar presence | — |
+| 164 | Asteroid utilization | — |
+| 165 | Planetary defense | — |
+| 166 | Space law | — |
+| 167 | Off-world industry | — |
+| 168 | Interplanetary logistics | — |
+| 169 | Multi-planet civilization | — |
+| 170 | Solar system governance | — |
+| 171 | Post-scarcity theory | — |
+| 172 | Automation abundance | — |
+| 173 | Work redefinition | — |
+| 174 | Leisure civilizations | — |
+| 175 | Meaning beyond labor | — |
+| 176 | Consciousness studies | — |
+| 177 | Mind–matter interface | — |
+| 178 | Intelligence as substrate | — |
+| 179 | Civilization as cognition | — |
+
+**Transformation, Expansion & Risk, 180°–269°.** 35 of its 90 degrees have a class.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 180 | Radical innovation | — |
+| 181 | Paradigm shifts | — |
+| 182 | Disruptive technologies | — |
+| 183 | Synthetic biology | — |
+| 184 | Genetic redesign | — |
+| 185 | Life extension | — |
+| 186 | Morphological freedom | — |
+| 187 | Cyborg systems | — |
+| 188 | Post-biological entities | — |
+| 189 | Hybrid intelligence | — |
+| 190 | Terraforming theory | — |
+| 191 | Planetary modification | — |
+| 192 | Climate reconstruction | — |
+| 193 | Biosphere reseeding | — |
+| 194 | Artificial ecosystems | — |
+| 195 | Ocean worlds | — |
+| 196 | Subsurface habitats | — |
+| 197 | Extreme environments | — |
+| 198 | Adaptation beyond Earth | — |
+| 199 | Survival in hostile space | — |
+| 200 | Deep-time engineering | — |
+| 201 | Stellar engineering | — |
+| 202 | Dyson-scale projects | — |
+| 203 | Energy at cosmic scale | — |
+| 204 | Entropy management | — |
+| 205 | Black hole utilization | — |
+| 206 | Exotic physics | — |
+| 207 | Faster-than-light theories | — |
+| 208 | Causality limits | — |
+| 209 | Reality manipulation | — |
+| 210 | Existential risk analysis | U, Fm |
+| 211 | AI risk | U, Fm, Md |
+| 212 | Bio-risk | U, Fm, Md, No |
+| 213 | Nanotech risk | Md, No, Lr, Sg |
+| 214 | Cosmic hazards | No, Lr, Rf, Sg |
+| 215 | Unknown unknowns | Lr, Rf, Db, Sg |
+| 216 | Redundancy strategies | Rf, Db |
+| 217 | Civilizational backups | Db, Bh |
+| 218 | Distributed survival | Bh, Hs |
+| 219 | Fail-safe worlds | Bh, Hs, Mt |
+| 220 | Cultural divergence | Hs, Mt, Ds |
+| 221 | Speciation of societies | Mt, Ds, Rg |
+| 222 | Fragmentation risks | Ds, Rg, Cn |
+| 223 | Reunification strategies | Rg, Cn, Nh |
+| 224 | Memetic warfare | Cn, Nh, Fl |
+| 225 | Information hazards | Nh, Fl, Mc |
+| 226 | Truth decay | Fl, Mc, Lv |
+| 227 | Reality consensus | Mc, Lv, Ts |
+| 228 | Simulation ethics | Tc, Lv, Ts, Og |
+| 229 | Nested realities | Tc, Ts, Og |
+| 230 | Post-human law | Og |
+| 231 | Rights of non-humans | — |
+| 232 | AI coexistence | — |
+| 233 | Machine civilizations | — |
+| 234 | Sentience criteria | — |
+| 235 | Moral expansion | — |
+| 236 | Universal ethics | — |
+| 237 | Conflict beyond species | — |
+| 238 | Peace at cosmic scale | — |
+| 239 | Governance beyond humanity | — |
+| 240 | Interstellar travel | — |
+| 241 | Generation ships | — |
+| 242 | Relativistic societies | — |
+| 243 | Communication over light-years | — |
+| 244 | Causality-limited governance | — |
+| 245 | Autonomous colonies | — |
+| 246 | Cultural drift control | — |
+| 247 | Federated spheres | — |
+| 248 | Multi-origin coexistence | — |
+| 249 | Non-competitive centers | Ac |
+| 250 | Encounter with alien life | Ac, Th |
+| 251 | First contact protocols | Ac, Th, Pa |
+| 252 | Xenobiology | Th, Pa |
+| 253 | Alien intelligence | Pa, Np |
+| 254 | Incommensurable minds | Np, Pu |
+| 255 | Translation across realities | Np, Pu, Am |
+| 256 | Cosmic diplomacy | Pu, Am, Cm |
+| 257 | Shared existence frameworks | Am, Cm, Bk |
+| 258 | Non-hostile coexistence | Cm, Bk, Cf |
+| 259 | Universal communication | Bk, Cf |
+| 260 | End-of-universe scenarios | Cf |
+| 261 | Heat death strategies | — |
+| 262 | Vacuum decay responses | — |
+| 263 | Temporal recursion | Es |
+| 264 | Closed timelike curves | Es |
+| 265 | Preservation beyond physics | — |
+| 266 | Meaning at the end of time | — |
+| 267 | Legacy without observers | — |
+| 268 | Existence as value | — |
+| 269 | Continuity without form | — |
+
+**Renewal, Memory & Persistence, 270°–359°.** 11 of its 90 degrees have a class.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 270 | Regeneration cycles | — |
+| 271 | Ecological restoration | — |
+| 272 | Cultural healing | — |
+| 273 | Post-collapse recovery | — |
+| 274 | Knowledge re-seeding | — |
+| 275 | Civilization rebooting | — |
+| 276 | Myth renewal | — |
+| 277 | Symbol regeneration | — |
+| 278 | Language evolution | — |
+| 279 | Meaning repair | — |
+| 280 | Archives of everything | — |
+| 281 | Deep memory systems | — |
+| 282 | Immutable records | — |
+| 283 | Provenance tracking | — |
+| 284 | Origin preservation | — |
+| 285 | History without distortion | — |
+| 286 | Truth continuity | — |
+| 287 | Anti-forgetting mechanisms | — |
+| 288 | Memory across extinction | — |
+| 289 | Time-spanning identity | — |
+| 290 | Teaching future minds | — |
+| 291 | Messages to the far future | — |
+| 292 | Inheritance systems | — |
+| 293 | Stewardship roles | — |
+| 294 | Guardianship without power | — |
+| 295 | Care as infrastructure | — |
+| 296 | Compassion at scale | — |
+| 297 | Non-dominant intelligence | — |
+| 298 | Wisdom accumulation | — |
+| 299 | Grace under infinity | — |
+| 300 | Simplicity recovery | — |
+| 301 | Return to fundamentals | — |
+| 302 | Minimal viable civilization | — |
+| 303 | Low-tech resilience | — |
+| 304 | Balance with nature | — |
+| 305 | Humility before complexity | — |
+| 306 | Limits acceptance | — |
+| 307 | Non-expansionist futures | — |
+| 308 | Quiet civilizations | — |
+| 309 | Stability without growth | — |
+| 310 | Cyclical time models | — |
+| 311 | Eternal return | — |
+| 312 | Seasonal civilizations | — |
+| 313 | Oscillating systems | — |
+| 314 | Rotational balance | — |
+| 315 | Harmonic coexistence | — |
+| 316 | Sphere maintenance | — |
+| 317 | Boundary integrity | — |
+| 318 | Drift correction | — |
+| 319 | Center protection | — |
+| 320 | Origin remembrance | — |
+| 321 | Non-delegable authority | — |
+| 322 | Lineage awareness | — |
+| 323 | Address integrity | — |
+| 324 | Resolution clarity | — |
+| 325 | Ownership persistence | — |
+| 326 | Collapse resistance | — |
+| 327 | Non-forkability | — |
+| 328 | Identity without ego | — |
+| 329 | Power without domination | — |
+| 330 | Completion recognition | — |
+| 331 | Sufficiency | — |
+| 332 | Wholeness | — |
+| 333 | Disc fully instantiated | — |
+| 334 | Sphere fully formed | — |
+| 335 | Motion optional | — |
+| 336 | Persistence achieved | — |
+| 337 | No further expansion required | — |
+| 338 | Readiness for anything | — |
+| 339 | Peace with uncertainty | — |
+| 340 | Stewardship of the whole | — |
+| 341 | Care for all layers | Ar, Rn |
+| 342 | Listening to weak signals | He, Ar, Kr, Rn |
+| 343 | Respect for emergence | He, Ar, Kr, Xe, Rn |
+| 344 | Non-interference when possible | He, Kr, Xe |
+| 345 | Gentle correction when needed | Xe |
+| 346 | Responsibility without ownership creep | — |
+| 347 | Trust in structure | — |
+| 348 | Allowing futures | — |
+| 349 | Letting go | — |
+| 350 | Closure without ending | Ne |
+| 351 | Open-ended continuity | Ne |
+| 352 | Silent persistence | Ne |
+| 353 | The sphere holds | Ne |
+| 354 | The center remains | — |
+| 355 | Everything still fits | — |
+| 356 | Nothing escapes lineage | — |
+| 357 | No need to restart | — |
+| 358 | Always already complete | Ha |
+| 359 | Return to origin | Ha |
+| 360 | Origin (360° ≡ 0° mod 360 — Return-to-Origin Closure resolving to 0•000•000•0000; never a 361st address slot) | Closure onto 0° |
+
+## Appendix H: The World Magnetic Model 2025
+
+The model's field, in enough detail to compute it from this book alone. The equations follow the WMM2025 Technical Report ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316)) and are the ones `node scripts/nab-insurance-evidence.mjs` implements. Appendix D shows that the implementation reproduces NCEI's published test values. The coefficient table is generated from `research/data/wmm2025.json`, whose canonical SHA-256 the run checks (Section 7.1).
+
+**Constants.**
+
+- The WGS84 ellipsoid has semi-major axis a = 6,378.137 km and flattening f = 1/298.257223563, so its eccentricity squared is e² = f(2 − f).
+- The geomagnetic reference radius is R = 6,371.2 km.
+- The epoch is t₀ = 2025.0, and the model is valid from 2025.0 to the end of 2029.
+
+**1. Geodetic to geocentric.** For geodetic latitude φ and height h above the ellipsoid:
+
+```text
+Rc = a / √(1 − e² sin²φ)
+p  = (Rc + h) cos φ
+z  = (Rc (1 − e²) + h) sin φ
+r  = √(p² + z²)
+φ′ = asin(z / r)
+```
+
+Here φ′ is geocentric latitude. Longitude λ is the same in both frames.
+
+**2. Time.** Each Gauss coefficient changes linearly from the epoch:
+
+```text
+gₙᵐ(t) = gₙᵐ(t₀) + (t − t₀) ġₙᵐ
+hₙᵐ(t) = hₙᵐ(t₀) + (t − t₀) ḣₙᵐ
+```
+
+**3. Potential.** The core field is the gradient of a scalar potential, a spherical-harmonic sum to degree and order 12:
+
+```text
+V(λ, φ′, r, t) = R Σₙ₌₁¹² (R/r)ⁿ⁺¹ Σₘ₌₀ⁿ [gₙᵐ(t) cos mλ + hₙᵐ(t) sin mλ] P̆ₙᵐ(sin φ′)
+```
+
+P̆ₙᵐ are the Schmidt semi-normalized associated Legendre functions.
+
+**4. Field components.** In the geocentric frame:
+
+```text
+X′ = −(1/r) ∂V/∂φ′          (north)
+Y′ = −(1/(r cos φ′)) ∂V/∂λ  (east)
+Z′ = ∂V/∂r                  (down)
+```
+
+They are rotated to the site's geodetic axes by ψ = φ′ − φ:
+
+```text
+X = X′ cos ψ − Z′ sin ψ
+Y = Y′
+Z = X′ sin ψ + Z′ cos ψ
+```
+
+From these:
+
+```text
+H = √(X² + Y²)       horizontal intensity
+F = √(H² + Z²)       total intensity
+D = atan2(Y, X)      declination
+I = atan2(Z, H)      inclination
+```
+
+**5. The dipole and geomagnetic latitude.** The first three coefficients fix the geomagnetic north pole:
+
+```text
+θp = acos(−g₁⁰ / √((g₁⁰)² + (g₁¹)² + (h₁¹)²))   pole colatitude, geocentric
+λp = atan2(−h₁¹, −g₁¹)                          pole longitude
+φp = 90° − θp
+```
+
+A site's geomagnetic latitude is:
+
+```text
+φm = asin(sin φ′ sin φp + cos φ′ cos φp cos(λ − λp))
+```
+
+Section 5.4 zones sites by φm, fixed at inception.
+
+**6. Published limits.**
+
+- The declination uncertainty is √(0.26² + (5417/H)²) degrees, with H in nT.
+- A Blackout Zone is where H is below 2,000 nT, and a Caution Zone is where H is 2,000 to 6,000 nT.
+- "The WMM should not be used during a G5 event" (Section 5.2).
+
+**Coefficients.** The 90 rows of the WMM2025 coefficient file, header "2025.0            WMM-2025     11/13/2024". The values g and h are in nT, and their secular variations ġ and ḣ are in nT per year. For m = 0, h is zero by definition.
+
+| n | m | g (nT) | h (nT) | ġ (nT/yr) | ḣ (nT/yr) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0 | -29351.8 | 0.0 | 12.0 | 0.0 |
+| 1 | 1 | -1410.8 | 4545.4 | 9.7 | -21.5 |
+| 2 | 0 | -2556.6 | 0.0 | -11.6 | 0.0 |
+| 2 | 1 | 2951.1 | -3133.6 | -5.2 | -27.7 |
+| 2 | 2 | 1649.3 | -815.1 | -8.0 | -12.1 |
+| 3 | 0 | 1361.0 | 0.0 | -1.3 | 0.0 |
+| 3 | 1 | -2404.1 | -56.6 | -4.2 | 4.0 |
+| 3 | 2 | 1243.8 | 237.5 | 0.4 | -0.3 |
+| 3 | 3 | 453.6 | -549.5 | -15.6 | -4.1 |
+| 4 | 0 | 895.0 | 0.0 | -1.6 | 0.0 |
+| 4 | 1 | 799.5 | 278.6 | -2.4 | -1.1 |
+| 4 | 2 | 55.7 | -133.9 | -6.0 | 4.1 |
+| 4 | 3 | -281.1 | 212.0 | 5.6 | 1.6 |
+| 4 | 4 | 12.1 | -375.6 | -7.0 | -4.4 |
+| 5 | 0 | -233.2 | 0.0 | 0.6 | 0.0 |
+| 5 | 1 | 368.9 | 45.4 | 1.4 | -0.5 |
+| 5 | 2 | 187.2 | 220.2 | 0.0 | 2.2 |
+| 5 | 3 | -138.7 | -122.9 | 0.6 | 0.4 |
+| 5 | 4 | -142.0 | 43.0 | 2.2 | 1.7 |
+| 5 | 5 | 20.9 | 106.1 | 0.9 | 1.9 |
+| 6 | 0 | 64.4 | 0.0 | -0.2 | 0.0 |
+| 6 | 1 | 63.8 | -18.4 | -0.4 | 0.3 |
+| 6 | 2 | 76.9 | 16.8 | 0.9 | -1.6 |
+| 6 | 3 | -115.7 | 48.8 | 1.2 | -0.4 |
+| 6 | 4 | -40.9 | -59.8 | -0.9 | 0.9 |
+| 6 | 5 | 14.9 | 10.9 | 0.3 | 0.7 |
+| 6 | 6 | -60.7 | 72.7 | 0.9 | 0.9 |
+| 7 | 0 | 79.5 | 0.0 | 0.0 | 0.0 |
+| 7 | 1 | -77.0 | -48.9 | -0.1 | 0.6 |
+| 7 | 2 | -8.8 | -14.4 | -0.1 | 0.5 |
+| 7 | 3 | 59.3 | -1.0 | 0.5 | -0.8 |
+| 7 | 4 | 15.8 | 23.4 | -0.1 | 0.0 |
+| 7 | 5 | 2.5 | -7.4 | -0.8 | -1.0 |
+| 7 | 6 | -11.1 | -25.1 | -0.8 | 0.6 |
+| 7 | 7 | 14.2 | -2.3 | 0.8 | -0.2 |
+| 8 | 0 | 23.2 | 0.0 | -0.1 | 0.0 |
+| 8 | 1 | 10.8 | 7.1 | 0.2 | -0.2 |
+| 8 | 2 | -17.5 | -12.6 | 0.0 | 0.5 |
+| 8 | 3 | 2.0 | 11.4 | 0.5 | -0.4 |
+| 8 | 4 | -21.7 | -9.7 | -0.1 | 0.4 |
+| 8 | 5 | 16.9 | 12.7 | 0.3 | -0.5 |
+| 8 | 6 | 15.0 | 0.7 | 0.2 | -0.6 |
+| 8 | 7 | -16.8 | -5.2 | 0.0 | 0.3 |
+| 8 | 8 | 0.9 | 3.9 | 0.2 | 0.2 |
+| 9 | 0 | 4.6 | 0.0 | 0.0 | 0.0 |
+| 9 | 1 | 7.8 | -24.8 | -0.1 | -0.3 |
+| 9 | 2 | 3.0 | 12.2 | 0.1 | 0.3 |
+| 9 | 3 | -0.2 | 8.3 | 0.3 | -0.3 |
+| 9 | 4 | -2.5 | -3.3 | -0.3 | 0.3 |
+| 9 | 5 | -13.1 | -5.2 | 0.0 | 0.2 |
+| 9 | 6 | 2.4 | 7.2 | 0.3 | -0.1 |
+| 9 | 7 | 8.6 | -0.6 | -0.1 | -0.2 |
+| 9 | 8 | -8.7 | 0.8 | 0.1 | 0.4 |
+| 9 | 9 | -12.9 | 10.0 | -0.1 | 0.1 |
+| 10 | 0 | -1.3 | 0.0 | 0.1 | 0.0 |
+| 10 | 1 | -6.4 | 3.3 | 0.0 | 0.0 |
+| 10 | 2 | 0.2 | 0.0 | 0.1 | 0.0 |
+| 10 | 3 | 2.0 | 2.4 | 0.1 | -0.2 |
+| 10 | 4 | -1.0 | 5.3 | 0.0 | 0.1 |
+| 10 | 5 | -0.6 | -9.1 | -0.3 | -0.1 |
+| 10 | 6 | -0.9 | 0.4 | 0.0 | 0.1 |
+| 10 | 7 | 1.5 | -4.2 | -0.1 | 0.0 |
+| 10 | 8 | 0.9 | -3.8 | -0.1 | -0.1 |
+| 10 | 9 | -2.7 | 0.9 | 0.0 | 0.2 |
+| 10 | 10 | -3.9 | -9.1 | 0.0 | 0.0 |
+| 11 | 0 | 2.9 | 0.0 | 0.0 | 0.0 |
+| 11 | 1 | -1.5 | 0.0 | 0.0 | 0.0 |
+| 11 | 2 | -2.5 | 2.9 | 0.0 | 0.1 |
+| 11 | 3 | 2.4 | -0.6 | 0.0 | 0.0 |
+| 11 | 4 | -0.6 | 0.2 | 0.0 | 0.1 |
+| 11 | 5 | -0.1 | 0.5 | -0.1 | 0.0 |
+| 11 | 6 | -0.6 | -0.3 | 0.0 | 0.0 |
+| 11 | 7 | -0.1 | -1.2 | 0.0 | 0.1 |
+| 11 | 8 | 1.1 | -1.7 | -0.1 | 0.0 |
+| 11 | 9 | -1.0 | -2.9 | -0.1 | 0.0 |
+| 11 | 10 | -0.2 | -1.8 | -0.1 | 0.0 |
+| 11 | 11 | 2.6 | -2.3 | -0.1 | 0.0 |
+| 12 | 0 | -2.0 | 0.0 | 0.0 | 0.0 |
+| 12 | 1 | -0.2 | -1.3 | 0.0 | 0.0 |
+| 12 | 2 | 0.3 | 0.7 | 0.0 | 0.0 |
+| 12 | 3 | 1.2 | 1.0 | 0.0 | -0.1 |
+| 12 | 4 | -1.3 | -1.4 | 0.0 | 0.1 |
+| 12 | 5 | 0.6 | 0.0 | 0.0 | 0.0 |
+| 12 | 6 | 0.6 | 0.6 | 0.1 | 0.0 |
+| 12 | 7 | 0.5 | -0.1 | 0.0 | 0.0 |
+| 12 | 8 | -0.1 | 0.8 | 0.0 | 0.0 |
+| 12 | 9 | -0.4 | 0.1 | 0.0 | 0.0 |
+| 12 | 10 | -0.2 | -1.0 | -0.1 | 0.0 |
+| 12 | 11 | -1.3 | 0.1 | 0.0 | 0.0 |
+| 12 | 12 | -0.7 | 0.2 | -0.1 | -0.1 |
