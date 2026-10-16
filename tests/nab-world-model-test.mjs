@@ -56,6 +56,26 @@ test("every class has an arc on the disc, and the coverage is what Chapter 0 rep
   assert.deepEqual(W.runs([0, 1, 2, 5, 7, 8]), [[0, 2], [5, 5], [7, 8]]);
 });
 
+test("Harshal (Ha-119) covers every degree no other class covers, by the author's decision", () => {
+  const arcs = sectors.map(row => ({ symbol: row.symbol, arc: W.parseArc(row.legend) }));
+  const disc = W.coverage(arcs);
+  const full = W.withResidual(disc, "Ha");
+  assert.equal(full.covered, 360);
+  assert.ok(full.perDegree.every(list => list.length > 0), "no degree is left without a class");
+  assert.equal(full.residual.length, 227);
+  assert.deepEqual(full.perDegree[128], ["Ha"], "Insurance models");
+  assert.deepEqual(full.perDegree[284], ["Ha"], "Origin preservation, one of Ha's own MDB roles");
+  assert.deepEqual(full.perDegree[63], ["Sc", "Ti", "V", "Br", "I"], "a degree with its own classes keeps them");
+  const ha = full.perDegree.filter(list => list.includes("Ha")).length;
+  assert.equal(ha, 230, "227 residual degrees plus Ha's own 358°–360°");
+  for (let d = 354; d <= 389; d++) assert.ok(full.perDegree[d % 360].includes("Ha"), `${d % 360}°: Ha's coverage runs unbroken from 354° through the origin to 29°`);
+  const tier = new Map(sectors.map(row => [row.symbol, row.riskLevel]));
+  const prohibitedOnly = W.onlyTier(disc, s => (tier.get(s) === 3 ? "Prohibited" : "other"), "Prohibited");
+  assert.equal(prohibitedOnly.length, 33);
+  assert.deepEqual(W.runs(prohibitedOnly), [[210, 227], [230, 230], [249, 260], [263, 264]]);
+  assert.deepEqual(evidence.worldModel.disc.residual.classDegreesInAll, 230);
+});
+
 test("OCM addresses follow the book's own worked example and validation rules", () => {
   assert.equal(OCMDIR.ringDistance(42, 198), 156, "Worked Example 6.1");
   assert.equal(OCMDIR.ringDistance(1, 359), 2);

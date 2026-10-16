@@ -483,9 +483,19 @@ for (let d = 0; d < World.RING; d++) {
 }
 const classArcs = sectors.map(row => ({ z: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), legend: row.legend, arc: World.parseArc(row.legend) }));
 const disc = World.coverage(classArcs.filter(a => a.arc));
+/* The author's decision of October 2026 (v0.6): Harshal (Ha-119) covers every
+   degree that no class covers by its own arc. Computed from the arcs, so a degree
+   later given to another class leaves Ha's residual set by itself. */
+const RESIDUAL_CLASS = "Ha";
+const discWithResidual = World.withResidual(disc, RESIDUAL_CLASS);
+const residualArc = classArcs.find(a => a.symbol === RESIDUAL_CLASS);
+const residualClassDegrees = World.arcDegrees(residualArc.arc).length + discWithResidual.residual.length;
+const tierBySymbol = new Map(classArcs.map(a => [a.symbol, a.tier]));
+const prohibitedOnlyDegrees = World.onlyTier(disc, s => tierBySymbol.get(s), "Prohibited");
 const domainOf = d => legend.degrees[d % World.RING].domain;
 const quadrantCoverage = legend.quadrants.map(q => ({ name: q.name, from: q.from, to: q.to,
-  covered: disc.perDegree.slice(q.from, q.to + 1).filter(list => list.length).length, degrees: q.to - q.from + 1 }));
+  covered: disc.perDegree.slice(q.from, q.to + 1).filter(list => list.length).length, degrees: q.to - q.from + 1,
+  residual: discWithResidual.residual.filter(d => d >= q.from && d <= q.to).length }));
 // The book's subjects on the disc (Chapter 0).
 const SUBJECTS = [
   ["The geomagnetic field and the Sun", [4, 9]], ["Chemistry", [10]], ["Magnetic heading", [25]], ["War", [61, 62, 63, 64]],
@@ -529,7 +539,8 @@ const worldChecks = {
   everyClassHasAnArc: classArcs.every(a => a.arc),
   ocmAddressing: Object.values(ocmChecks).every(Boolean),
   gridComplete: gridCells.size === 119,
-  wmmCoefficientRows: wmmCoefficientRows.length === 90 && wmmCoefficientRows.every(r => r.n >= 1 && r.n <= 12 && r.m >= 0 && r.m <= r.n)
+  wmmCoefficientRows: wmmCoefficientRows.length === 90 && wmmCoefficientRows.every(r => r.n >= 1 && r.n <= 12 && r.m >= 0 && r.m <= r.n),
+  residualCoversEveryDegree: discWithResidual.perDegree.every(list => list.length > 0) && disc.covered + discWithResidual.residual.length === World.RING
 };
 const worldPass = Object.values(worldChecks).every(Boolean);
 
@@ -567,7 +578,11 @@ const summary = {
     appLegend: { file: "js/ocm-data.js", rawDifferences: appLegendDifferences, normalizedMismatches: appLegendMismatches },
     disc: { covered: disc.covered, gaps: disc.gaps.length, gapRuns: World.runs(disc.gaps), overlaps: disc.overlaps.length, maxOverlap,
       maxOverlapDegrees: disc.perDegree.map((list, d) => (list.length === maxOverlap ? { degree: d, classes: list } : null)).filter(Boolean),
-      quadrantCoverage, subjects: SUBJECTS },
+      quadrantCoverage, subjects: SUBJECTS,
+      residual: { class: RESIDUAL_CLASS, decided: "October 2026 (v0.6)", degrees: discWithResidual.residual.length, runs: World.runs(discWithResidual.residual),
+        classDegreesInAll: residualClassDegrees, share: Number((residualClassDegrees / World.RING).toFixed(3)), coveredWithResidual: discWithResidual.covered },
+      prohibitedOnly: { degrees: prohibitedOnlyDegrees.length, runs: World.runs(prohibitedOnlyDegrees),
+        domains: World.runs(prohibitedOnlyDegrees).map(([a, b]) => ({ from: a, to: b, first: domainOf(a), last: domainOf(b), classes: [...new Set(disc.perDegree.slice(a, b + 1).flat())] })) } },
     ocm: { center: OCM.center.address, author: OCM.center.author, checks: ocmChecks },
     periodicTable: { grid: periodicGrid, rows: periodicRows },
     wmmCoefficients: { header: wmm.provenance.cofHeader, epoch: WMM_EPOCH, rows: wmmCoefficientRows }
@@ -643,6 +658,7 @@ if (process.argv.includes("--json")) {
   line(`World-model check: ${worldPass ? "PASS" : "FAIL"} · ${Object.entries(worldChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
   line(`Disc coverage: ${disc.covered} of 360 degrees covered by at least one class · ${disc.overlaps.length} by two or more (at most ${maxOverlap}) · ${disc.gaps.length} by none, in ${World.runs(disc.gaps).length} runs: ${World.runs(disc.gaps).map(([a, b]) => (a === b ? `${a}°` : `${a}°–${b}°`)).join(", ")}`);
   line(`By quadrant: ${quadrantCoverage.map(q => `${q.name} ${q.covered}/${q.degrees}`).join(" · ")}`);
+  line(`Residual coverage (the author's decision, October 2026): ${RESIDUAL_CLASS} covers the ${discWithResidual.residual.length} degrees no other class covers, so every degree has a class; ${RESIDUAL_CLASS} covers ${residualClassDegrees} degrees in all · degrees held only by Prohibited classes: ${prohibitedOnlyDegrees.length} (${World.runs(prohibitedOnlyDegrees).map(([a, b]) => (a === b ? `${a}°` : `${a}°–${b}°`)).join(", ")})`);
   line("");
   tableRows(["Period", ...Array.from({ length: 18 }, (_, k) => String(k + 1))], periodicGrid.map(r => [r.label, ...r.cells]));
   line("");
@@ -655,7 +671,7 @@ if (process.argv.includes("--json")) {
   line(`Lines ${legend.startLine}–${legend.endLine} of ${PRINT_SOURCE}; canonical SHA-256 ${legendSha256}; js/ocm-data.js differs in ${appLegendDifferences.length} entries before normalization and ${appLegendMismatches} after`);
   line(`OCM addressing (js/ocm-directory.js): ${Object.entries(ocmChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
   line("");
-  tableRows(["Degree", "Domain", "Classes"], legend.degrees.map(d => [String(d.degree), d.domain, d.degree < World.RING ? (disc.perDegree[d.degree].join(", ") || "—") : "(closure onto 0°)"]));
+  tableRows(["Degree", "Domain", "Classes"], legend.degrees.map(d => [String(d.degree), d.domain, d.degree < World.RING ? (disc.perDegree[d.degree].join(", ") || `${RESIDUAL_CLASS} (residual)`) : "(closure onto 0°)"]));
   line("");
   line("## Appendix H — WMM2025 coefficients");
   line(`Header "${wmm.provenance.cofHeader}", epoch ${WMM_EPOCH.toFixed(1)}; g and h in nT, secular variation in nT/year`);

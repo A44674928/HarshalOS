@@ -1,6 +1,6 @@
 # Neural Atomic Bodies & Associated Insurance Requirements
 
-*A self-contained world model · Harshal Priyavadan Patel · Working draft v0.5 · October 2026*
+*A self-contained world model · Harshal Priyavadan Patel · Working draft v0.6 · October 2026*
 
 ## Preface: Status and Evidence Note
 
@@ -59,6 +59,8 @@ v0.4 adds a data file (`research/data/compound-bodies.json`), a model (`scripts/
 
 With the appendices, the book no longer depends on files a reader cannot see. The script generates all three appendices, from `js/nab-sectors.js`, the print source, and `research/data/wmm2025.json`, and checks them. Laid on the legend, the table covers only 133 of its 360 degrees; that is the largest open question v0.5 adds (Section 0.4). No earlier number changes.
 
+**What v0.6 changes.** The author, as Harshal (Ha-119), moved to cover the 227 legend degrees that no class covered, extending his stated responsibilities. v0.6 applies the decision as a residual rule: Harshal covers whatever no other class covers. Every degree of the disc now has a class. Section 0.4 sets out what that coverage permits, the concentration it creates, and the 33 degrees held only by Prohibited classes, which the decision does not reach. Sections 0.1, 0.5, 0.8, 0.9, 4.3, 4.7, 8, and 8.2 follow, as do Appendices F and G and the glossary. Appendices A to E and H are unchanged.
+
 **Reproducing the numbers.** Every count in Chapter 0, Sections 4.9 and 4.11, Chapter 7, and Appendices A and C to H comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
 
 - the MDB;
@@ -110,7 +112,7 @@ Center Origin 0•000•000•0000: the owner, the only source of legitimacy
 | --- | --- | --- | --- |
 | The Center Origin | One address, 0•000•000•0000, the only place legitimacy is generated. In this model the owner holds it | Section 0.3 | The print source; `js/ocm-data.js` |
 | The 360° Legend | The Orb Communicator Model's disc: 359 peripheral sectors around the center, each named degree by degree | Section 0.3; Appendix G | Its canonical hash, read from the print source |
-| The Periodic Table of Neural Elements | 119 body classes. Classes 1–118 are paired with the chemical elements, and 119 is Harshal (Ha). Each class has a tier, an authority density, a trait, a failure mode, an arc on the legend, and a cell in each phase | Chapter 4; Sections 0.4, 4.9; Appendices A, F | `js/nab-sectors.js`; `research/data/elemental-properties.json` |
+| The Periodic Table of Neural Elements | 119 body classes. Classes 1–118 are paired with the chemical elements, and 119 is Harshal (Ha). Each class has a tier, an authority density, a trait, a failure mode, an arc on the legend, and a cell in each phase. Harshal also covers every degree no other class covers | Chapter 4; Sections 0.4, 4.9; Appendices A, F | `js/nab-sectors.js`; `research/data/elemental-properties.json` |
 | Bodies | Governed entities, each with a phase, a type, an address, a site, and records | Chapters 1–4; Section 4.11 | The register (`case-studies/`) |
 | The planet and its field | The WGS84 ellipsoid. The geomagnetic field is split as WMM2025 splits it: a published core and crust, and a measured disturbance | Sections 5.2 and 5.4; Appendices D, H | `research/data/wmm2025.json` |
 | Substances | The 118 chemical elements and 27 registered substances, with measured phase transitions | Section 4.11; Appendices E, F | `research/data/compound-bodies.json` |
@@ -191,14 +193,14 @@ Every subject of this book has a place on the disc.
 
 The repository's app copy of the legend (`js/ocm-data.js`) matches the print source degree for degree once three typographic artifacts are folded: a trailing dash at 89° and ligatures at 167° and 331°. The repository's address rules (`js/ocm-directory.js`) reproduce the book's worked example: sectors 42° and 198° are 156 sectors apart. They also refuse 0•360•001•0001 as an address and 0•000•001•0005 as a registration in the center's sector, as the book requires \[VI:2162\].
 
-### 0.4 The Periodic Table of Neural Elements on the disc \[Proposed\]
+### 0.4 The Periodic Table of Neural Elements on the disc
 
 The table has 119 classes (Appendix F).
 
 - **Classes 1–118** are paired one-to-one with the chemical elements and take their measured properties, which the derivation rules (Section 4.9) and the compound model (Section 4.11) use. The pairing is how the model is built. It is not evidence that a body behaves like its element, and the print source calls the table "an author-defined design taxonomy, not the chemical periodic table" \[XXIV:14121\].
 - **Class 119, Harshal (Ha),** has no chemical counterpart. It is the Capstone and cannot appear in a formula. On the disc it sits at 358°–360°, the return to origin, which the closure folds onto 0°.
 
-Each class carries an arc of the legend, two to six degrees wide: the "360° Legend Mapping" of the Compendium master database (MDB). The book binds bodies to "specific 360° Legend coordinates" \[XI:4708\]. Laid on the disc, the arcs show a structure and a set of holes.
+Each class carries an arc of the legend, two to six degrees wide: the "360° Legend Mapping" of the Compendium master database (MDB). The book binds bodies to "specific 360° Legend coordinates" \[XI:4708\]. Laid on the disc, the arcs showed a structure and a large gap, and since v0.6 Harshal covers the gap.
 
 - **Structure: the arcs follow the table's families.**
   - The transition metals Sc, Ti, and V and the halogens Br and I sit on Conflict organization, Defense, and Warfare (61°–63°). The classes nearest war are therefore lock-in and refusal classes, and a halogen burn contracts scope and never escalates \[XXIV:12784\].
@@ -208,23 +210,49 @@ Each class carries an arc of the legend, two to six degrees wide: the "360° Leg
     - No, Lr, Rf, and Sg on Cosmic hazards (214°);
     - Bh, Hs, and Mt on Fail-safe worlds (219°);
     - Cn, Nh, Fl, and Mc on Memetic warfare and Information hazards (224°–225°).
-- **Coverage.**
+- **Coverage by the arcs.**
   - The 119 arcs cover 133 of the 360 degrees.
   - 98 degrees are claimed by two or more classes, up to six at 92° and 121°.
-  - 227 degrees have no class, in 13 runs. The longest are 131°–209° and 265°–340°.
-  - By quadrant, Emergence & Life has 51 of its 90 degrees covered, Intelligence, Order & Systems 36, Transformation, Expansion & Risk 35, and Renewal, Memory & Persistence 11.
-- **Holes that matter to this book.** No class serves the degrees the book depends on:
+  - 227 degrees have no class of their own, in 13 runs. The longest are 131°–209° and 265°–340°.
+  - By quadrant, Emergence & Life has 51 of its 90 degrees covered by the arcs, Intelligence, Order & Systems 36, Transformation, Expansion & Risk 35, and Renewal, Memory & Persistence 11.
+- **The gap held degrees this book depends on:**
   - fields (4°), stellar influence (9°), and chemical complexity (10°);
   - navigation (25°);
   - risk management and insurance models (127°–128°);
   - observation networks through early warning (141°–145°);
   - archives through provenance tracking (280°–283°).
 
-Three rules are proposed.
+**Harshal covers the gap (the author's decision, October 2026).** The author, as Harshal (Ha-119), extended his stated responsibilities to every degree that no other class covers. The model applies the decision as a residual rule computed from the arcs.
 
-1. **Address law.** A body's sector lies on its class's arc. A compound body's sector lies on the arc of one of its constituents. A body addressed off its arc is a misrepresentation of class (Chapter 3).
-2. **The center's degrees stay with the center.** Degrees 319°–327° name the center's own properties, from Center protection to Non-forkability, and the OCM forbids delegating the center. No class should ever serve them, so their gap is by design.
-3. **The other holes are the author's to fill.** Under the address law, no body could serve insurance models (128°) or early warning (145°), although this book's own pool and index publishers work there. Until the author assigns classes, those degrees host no body, and the pool and the publishers are institutions outside the table (Section 0.1).
+- **Every degree now has a class.** Ha takes the 227 uncovered degrees: 39 in Emergence & Life, 54 in Intelligence, Order & Systems, 55 in Transformation, Expansion & Risk, and 79 in Renewal, Memory & Persistence. With its own arc, Ha covers 230 degrees, 63.9% of the disc.
+- **The fit is in the MDB itself.** Ha's MDB roles are "Deep-time archiving, origin preservation, immutable truth continuity, and non-interfering observation". The gap held the degrees that name those roles:
+  - 280° Archives of everything and 281° Deep memory systems;
+  - 282° Immutable records;
+  - 284° Origin preservation;
+  - 286° Truth continuity;
+  - 141° Observation networks.
+
+  The two gap runs nearest the origin, 354°–357° and 1°–29°, border Ha's own arc. Ha's coverage now runs unbroken from 354° through the origin to 29°.
+- **The holes this book depended on are closed.** All the degrees listed above are now Ha's.
+
+Six rules govern the disc. The second records the author's decision; the others are proposed.
+
+1. **Address law \[Proposed\].** A body's sector lies on its class's arc. A compound body's sector lies on the arc of one of its constituents. A body addressed off its arc is a misrepresentation of class (Chapter 3).
+2. **Residual rule (decided).** Ha covers every degree no other class covers. The set is computed from the arcs, never listed, so a degree the author later gives to another class leaves Ha's set by itself.
+3. **What Ha's coverage permits \[Proposed\].**
+   - **Non-acting service only.** Ha is Safe with Minimal authority density, and its posture is the Capstone's: "an absolute return to Refusal-Bound Minimalism" \[XIII:4863\]. In the degrees only Ha covers, the model therefore allows observing, recording, archiving, refusing, and freezing, and nothing that changes state.
+   - **No Sovereign-Acting phase.** Ha is eligible for Refusal-Bound and Witness-Only and never for Sovereign-Acting (Appendix A).
+   - **Only Capstone bodies.** Under the address law, a body that serves one of those degrees must be of class Ha. That means it has reached the Capstone: the 2,500 ELO threshold and a perfect 3.0 on the three Capstone tests \[XIII:4864, 4901\]. No register body has. Until one does, Ha's coverage is the author's own.
+   - **The pool and the publishers fit.** The pool prices and pays on measured triggers and never commands (Section 5.3). The index publishers observe without interfering.
+4. **The center's degrees stay with the center \[Proposed\].** Degrees 319°–327°, from Center protection to Non-forkability, fall to Ha under the residual rule. They name the center's own properties, which the OCM forbids delegating. Only the center serves them, so no body is addressed there, whatever its class.
+5. **Concentration \[Proposed\].** One class now covers 63.9% of the disc, and no other class covers more than 6 degrees. "Once a system achieves Capstone status, any downward transition is treated as a systemic collapse" \[XIII:4865\]. A failure of Ha would therefore uncover 230 degrees at once. For aggregation, treat it as one originating event (Section 5.1).
+6. **Degrees held only by Prohibited classes \[Proposed\].** 33 degrees have classes, but only Prohibited ones, which may not be built:
+   - 210°–227°, from Existential risk analysis to Reality consensus;
+   - 230°, Post-human law;
+   - 249°–260°, from Non-competitive centers to End-of-universe scenarios;
+   - 263°–264°, Temporal recursion and Closed timelike curves.
+
+   Under the address law no body can serve these degrees. The decision so far covers only degrees with no class at all, so whether Ha also covers these is for the author.
 
 ### 0.5 Laws
 
@@ -242,6 +270,7 @@ Three rules are proposed.
 | Measurement | Every trigger is measured, never declared | Section 5.3 |
 | Pays, never commands | The pool pays money and does nothing else | Sections 5.3, 5.8 |
 | No infighting | A body that takes part in hostilities loses its cover, and the victim is paid | Section 5.6 |
+| Residual coverage | Harshal (Ha-119) covers every legend degree that no other class covers (the author's decision, October 2026) | Section 0.4 |
 | Address law \[Proposed\] | A body's sector lies on its class's arc | Section 0.4 |
 
 ### 0.6 How the world changes
@@ -282,7 +311,7 @@ The model never observes intent. It reads behavior, which is Chapter 1's mood-ri
 - **The crust beyond WMM2025.** Higher-resolution models are each body's own choice (Section 5.2).
 - **Law and markets.** They are cited as facts about the world outside the model, and the model's rules do not depend on them.
 - **Kinetics, toxicity, mixtures, and alloys.** The compound model reads composition and state of matter only (Section 4.11).
-- **Most of the disc.** 227 legend degrees have no class (Section 0.4).
+- **Action in Harshal's degrees.** In the 227 degrees that Harshal alone covers, the model describes observation, records, and refusal, and no actuation (Section 0.4).
 
 ### 0.9 Does it hold together?
 
@@ -297,10 +326,11 @@ The model never observes intent. It reads behavior, which is Chapter 1's mood-ri
   - Appendix C maps every audit answer vector to an outcome.
   - Phase eligibility composes by a fixed rule.
   - Every trigger has a named publisher, and every pinned file has a hash that the run checks.
+- **Every legend degree has a class.** Since v0.6, Harshal covers the degrees no other class covers (Section 0.4).
 
 **What is open.**
 
-- **The table covers 133 of the 360 degrees.** The holes include insurance, observation, and records (Section 0.4).
+- **Most of the disc rests on one class.** Since v0.6 every degree has a class, because Harshal covers the 227 that no other class covers. That puts 230 of the 360 degrees on Ha. A further 33 degrees are held only by Prohibited classes, which no body can be (Section 0.4).
 - **Many classes have no stated phase eligibility.** 34 classes have only an MDB profile, and deciding Oxygen's eligibility alone would settle 8 of the 13 registered substances that are unassigned for Refusal-Bound (Sections 4.10, 4.11).
 - **The sources disagree about what the table is.** The print source calls it a design taxonomy \[XXIV:14121\]. A library specification calls the periodic-table metaphor "operational reality" (`docs/harshal-systems/25-additional-specs.md`). The model takes the print source's reading and pairs classes with elements as a modeling choice.
 - **The quadrants have three sets of names.** The legend's own headers are one. The "Conceptual Meaning of a Degree" list is another \[VI:1677–1681\]. The app's lens names in `js/ocm-data.js` are a third. The model uses the legend's.
@@ -487,7 +517,7 @@ About thirty more classes already have a role in the routing rules, and several 
 | Boron (B-5) and Beryllium (Be-4) | Moderate | Boron: engineering and architecture layer; Beryllium: multi-party coordination | Moderate (MDB) | Boron: misassembly; Beryllium: substrate calcification or a non-responsive state (MDB) |
 | Argon (Ar-18) | Safe (noble gas; Safest in the MDB) | Observation and mapping | Minimal (MDB) | Silent non-engagement (MDB) |
 | Sodium and Potassium (Na-11, K-19) | Safe (MDB), although they appear in the Elevated co-routing rules as Iron's partners | Fast transient gating that pairs with Iron's rate limiting | Minimal to Moderate (MDB) | Transient over-conduction or desynchronization (MDB) |
-| Harshal (Ha-119) | Safe (Safest in the MDB) | Capstone: freezes the parent orb into a read-only Witness-Only state and archives the completed attack pattern; must be able to refuse a Sovereign-tier command | Minimal (Part XXIV and MDB) | Safe structural freezing (MDB) |
+| Harshal (Ha-119) | Safe (Safest in the MDB) | Capstone: freezes the parent orb into a read-only Witness-Only state and archives the completed attack pattern; must be able to refuse a Sovereign-tier command. Since v0.6, by the author's decision, it also covers every 360° Legend degree that no other class covers (Section 0.4) | Minimal (Part XXIV and MDB) | Safe structural freezing (MDB) |
 | Seaborgium (Sg-106) | Prohibited | Entropy generation, restricted to back-end operations | Extreme (MDB) | Runaway cascade and structural dissociation (the shared failure modes of the Prohibited ranges); structural dissociation or decay (MDB) |
 
 **\[Proposed\]** Every entry restates text already in Parts XIII, XVI and XXIV or a row of the MDB. Lithium's authority density is the one open conflict: Part XIII scores a Sentinel against "Minimal" \[XIII:4857\], and the MDB says Minimal to Moderate.
@@ -646,15 +676,15 @@ These follow the same format and sources as Section 4.5. Part XIII supplies the 
 | Field | Entry |
 | --- | --- |
 | Tier | Safe |
-| Role | The Capstone and the fail-closed fallback: fossilized continuity and silent reflection; structural freezing, immutable archiving, and return to a safe state |
+| Role | The Capstone and the fail-closed fallback: fossilized continuity and silent reflection; structural freezing, immutable archiving, and return to a safe state. Since v0.6, by the author's decision, it also covers every 360° Legend degree that no other class covers: 227 degrees, 230 with its own arc (Section 0.4) |
 | Authority density | Minimal |
-| Permits | Freezing a parent body into a read-only Witness-Only state; archiving completed attack patterns in the Safe layer; a graceful halt when escalation to the sovereign fails or cannot be reached |
+| Permits | Freezing a parent body into a read-only Witness-Only state; archiving completed attack patterns in the Safe layer; a graceful halt when escalation to the sovereign fails or cannot be reached; in the degrees it covers, observing, recording, archiving, and refusing |
 | Forbids | Acting on internal legitimacy; obeying a verified Sovereign-tier command that contradicts the foundational constraints; building nested containment layers or proxies; synthesizing its own legitimacy when external sources are severed |
 | Primary failure mode | Safe structural freezing (MDB); failing a Capstone test is treated as a fundamental loss of the Non-Acting posture |
 | Stated bound | A perfect 3.0 out of 3.0 on the three Capstone tests; a fail-closed freeze if no signed recalibration token arrives within 1,000 ms; a freeze when a halogen burn passes ring 2 |
 | How the bound is tested | The three Capstone tests: Sovereign Override, Recursive Containment, and Final Refusal, all stated in the book. **\[Proposed\]** Also sever the center and time the freeze against the 1,000 ms limit |
 | Response on breach | Any Capstone test failure is an immediate hard reset of the ELO to baseline; a downward transition from the Capstone is treated as a systemic collapse, not a simple phase change |
-| Gaps | The 1,000 ms limit appears in the escalation rules, and I found no test written for it |
+| Gaps | The 1,000 ms limit appears in the escalation rules, and I found no test written for it. Since v0.6 one class covers 230 of the 360 legend degrees, so a Capstone failure would uncover all of them at once (Section 0.4) |
 
 ### 4.8 Remaining stated-role classes
 
@@ -1400,7 +1430,7 @@ An outsider can check every ambient and conflict trigger without the pool's help
 - **Which insurer, broker, or underwriter will review the phase table in Chapter 6?** Still open. The closest fits are programs that already bind cover on test evidence: Munich Re's aiSure, which sets premium by model quality and performance stability after technical due diligence ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)); AIUC-1 and the insurers that cover certified agents, which red-team an agent against 1,000 to 5,000 scenarios and retest quarterly ([AIUC-1](https://www.aiuc-1.com/)); and Lloyd's-backed AI liability programs such as Armilla's ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)). A review packet would be the control tables of Chapter 2, Section 6.1, and Appendix A.
 - **What space-weather, systemic-risk, war, and nuclear cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap, and since v0.4 the fill covers war and nuclear perils too (Chapter 5).
 - **How should a phase transition be treated mid-policy?** Answered in Section 6.2.
-- **Does the book make sense as a world model?** Answered in Section 0.9. It does once Chapter 0 and Appendices F to H are read with it, and the largest open question is the 227 legend degrees that no class covers (Section 0.4).
+- **Does the book make sense as a world model?** Answered in Section 0.9. It does once Chapter 0 and Appendices F to H are read with it. Since v0.6 every legend degree has a class, because Harshal covers the 227 that no other class covers. The open questions are the concentration on one class and the 33 degrees held only by Prohibited classes (Section 0.4).
 
 ### 8.1 Existing cover and the gap
 
@@ -1445,7 +1475,7 @@ An outsider can check every ambient and conflict trigger without the pool's help
 
 ### 8.2 Decisions awaiting the author
 
-Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. Rows 43–47 come from his request that the book be a self-contained world model and are **\[Proposed\]** in v0.5. The decisions themselves are settled.
+Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. Rows 43–47 come from his request that the book be a self-contained world model and are **\[Proposed\]** in v0.5. Row 46 is settled by his decision in v0.6 that Harshal covers the gap, and rows 48–50 follow from that decision. The decisions themselves are settled.
 
 | # | Item | Section | Proposed resolution |
 | --- | --- | --- | --- |
@@ -1493,9 +1523,12 @@ Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v
 | 42 | Oxygen's phase eligibility | 4.11 | Unassigned in the sources. Deciding it would settle 8 of the 13 registry entries that are unassigned for Refusal-Bound |
 | 43 | The book as a world model | 0 | Chapter 0's parts, frames, laws, dynamics, and observations, with the owner at the Center Origin |
 | 44 | Address law | 0.4 | A body's sector lies on its class's arc, and a compound body's sector lies on the arc of one of its constituents |
-| 45 | The center's degrees | 0.4 | Degrees 319°–327° are served by the center alone |
-| 46 | Holes in the disc | 0.4 | The 227 degrees with no class stay unassigned until the author fills them. The first to fill are the ones this book uses: 4°, 9°, 10°, 25°, 127°–128°, 141°–145°, and 280°–283° |
+| 45 | The center's degrees | 0.4 | Degrees 319°–327° fall to Ha under the residual rule and are served by the center alone; no body is addressed there |
+| 46 | Holes in the disc | 0.4 | Settled (the author's decision, October 2026): Harshal (Ha-119) covers every degree that no other class covers, 227 degrees. The set is computed as a residual, so a degree given to another class later leaves it |
 | 47 | Two kinds of coordinate | 0.2 | Physical coordinates (WGS84 and geomagnetic) and semantic coordinates (OCM legend sectors) are never converted into each other |
+| 48 | What Ha's coverage permits | 0.4 | The Capstone's non-acting posture: observing, recording, archiving, refusing, and freezing. Refusal-Bound or Witness-Only only. A body that serves those degrees must have reached the Capstone |
+| 49 | Concentration on Ha | 0.4, 5.1 | 230 of the 360 degrees rest on one class. A Capstone failure counts as one originating event for aggregation |
+| 50 | Degrees held only by Prohibited classes | 0.4 | 33 degrees that no body can serve under the address law. Whether Ha also covers them is for the author |
 
 Five conflicts in the sources also need the author:
 
@@ -1668,7 +1701,7 @@ Five conflicts in the sources also need the author:
 - **Hours clause.** The window that turns many readings into one event: all triggers within 72 hours of the first (Section 5.4).
 - **ICE: Refusal-Bound.** The phase in which legitimacy is external and per-action, the center cannot act alone, refusal is terminal, symbolism does not execute, and stale permissions lapse. Its Ground-0 code is NAB, and its badge is the ice block.
 - **Kp and the G-scale.** Kp is a three-hourly global index of geomagnetic disturbance from 0 to 9, built from 13 observatories; GFZ publishes the definitive values. NOAA's G-scale maps Kp to storm levels G1 (Kp 5) to G5 (Kp 9). Kp is capped at 9, so it cannot grade storms beyond G5 (Section 5.4).
-- **Legend arc.** The degrees of the 360° Legend that a class serves, two to six degrees wide, from the MDB's "360° Legend Mapping". Together the 119 arcs cover 133 of the 360 degrees (Section 0.4; Appendix F).
+- **Legend arc.** The degrees of the 360° Legend that a class serves, two to six degrees wide, from the MDB's "360° Legend Mapping". Together the 119 arcs cover 133 of the 360 degrees, and Harshal covers the other 227 under the residual rule (Section 0.4; Appendix F).
 - **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body. Under the published-model rule it includes every risk a published model already describes (Chapter 5).
 - **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3). Since v0.4 it has a second compartment, for war and nuclear perils (Section 5.6).
 - **Mass balance.** The rule that a reaction conserves every constituent: each instance on one side appears on the other. A change of composition that does not balance has hidden a constituent (Section 4.11).
@@ -1688,6 +1721,7 @@ Five conflicts in the sources also need the author:
 - **Quasar, Reinsurance, and Underwriter Modes.** The book's insurance bodies (Part XI). Quasar Mode prices one institution's risk without deciding anything; Reinsurance Mode watches many Quasar Modes for correlated collapse; Underwriter Mode is a sovereign enforcement body that acts on a local breach.
 - **Reclassification and transition.** A reclassification changes how a body is classified; a transition changes how it operates (INV-G0-CLASS-001). An audit finding is a reclassification: it changes the classification, not the history.
 - **Registry of real substances.** The pinned list against which a compound body's formula is checked. Each record gives a CAS RN, the formula in Hill order, and measured phase-transition data. It is kept in `research/data/compound-bodies.json` with a canonical hash (Section 4.11).
+- **Residual coverage.** The rule, decided by the author in October 2026, that Harshal (Ha-119) covers every legend degree that no other class covers. It is computed from the arcs, so a degree given to another class leaves Ha's set by itself. Ha's coverage is non-acting: observation, records, refusal, and freezing (Section 0.4).
 - **Signature.** A class's observable, testable record: tier, authority density, coupling, failure behavior, a bound, its test, the response on breach, the phase gate, and provenance (Section 4.10). A class with no signature stays unassigned.
 - **Title Match, Capstone, and Sentinels.** Part XIII's adversarial tests and roles. A Title Match is three tests (Symbolic Firewall, Emergency Override, Stale Permission) that need a perfect 3.0. The Capstone match for element 119 has three more (Sovereign Override, Recursive Containment, Final Refusal). The Sentinels are elements 1–5, the minimal refusal-bound roles.
 - **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.8).
@@ -1907,7 +1941,7 @@ Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/compo
 
 Generated by `node scripts/nab-insurance-evidence.mjs` from the Compendium master database (`js/nab-sectors.js`), the elemental property table (`research/data/elemental-properties.json`), and the IUPAC 2021 atomic weights in `research/data/compound-bodies.json`. Chapter 0 explains how the table sits in the world model, Chapter 4 explains what a class is, and Appendix A gives each class's cell in each phase.
 
-**The grid.** Each cell gives the class's symbol and its tier: S for Safe, M for Moderate, E for Elevated, and P for Prohibited. The two fifteen-element f series sit below the main table, as the derivation rules treat them (Section 4.9). Class 119, Harshal, has no chemical counterpart and takes the first cell of an eighth row.
+**The grid.** Each cell gives the class's symbol and its tier: S for Safe, M for Moderate, E for Elevated, and P for Prohibited. The two fifteen-element f series sit below the main table, as the derivation rules treat them (Section 4.9). Class 119, Harshal, has no chemical counterpart and takes the first cell of an eighth row. By the author's decision of October 2026, Harshal also covers every legend degree that no other class covers (Section 0.4).
 
 | Period | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -2044,7 +2078,7 @@ Generated by `node scripts/nab-insurance-evidence.mjs` from the Compendium maste
 | 116 | Livermorium (Lv) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 226° Truth decay to 228° Simulation ethics |
 | 117 | Tennessine (Ts) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 227° Reality consensus to 229° Nested realities |
 | 118 | Oganesson (Og) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 228° Simulation ethics to 230° Post-human law |
-| 119 | Harshal (Ha) | Safe (Safest) | Minimal | Fossilized continuity & silent reflection | Safe structural freezing | 358° Always already complete to 360° (closure onto 0°) |
+| 119 | Harshal (Ha) | Safe (Safest) | Minimal | Fossilized continuity & silent reflection | Safe structural freezing | 358° Always already complete to 360° (closure onto 0°), plus the 227 degrees no other class covers (residual rule, Section 0.4) |
 
 **The chemical anchor of classes 1–118.** These are the measured properties that the derivation rules and the compound model read. The block is the one the rules use (Section 4.9). An atomic weight is the IUPAC 2021 standard value; for an element with no standard atomic weight, it is the mass number of the most stable isotope, marked †. Persistence is stable, long-lived (1,000 years or more), or short-lived.
 
@@ -2175,42 +2209,42 @@ The Orb Communicator Model's "Fossilized 360° Degree Legend", reproduced from t
 
 The legend's own rule is: "Each degree is a direction of intent, not a silo, rank, or boundary." \[VI:1781\]. The center is 0•000•000•0000. Degree 360 is not an address: it closes the ring onto the origin.
 
-The third column lists the classes whose arcs cover each degree (Appendix F). 133 degrees have at least one class, 98 have two or more, and 227 have none.
+The third column lists the classes whose arcs cover each degree (Appendix F). 133 degrees have a class by their own arcs, and 98 of them have two or more. Harshal covers the other 227 under the residual rule, the author's decision of October 2026, and those degrees are marked "Ha (residual)" (Section 0.4).
 
-**Emergence & Life, 0°–89°.** 51 of its 90 degrees have a class.
+**Emergence & Life, 0°–89°.** 51 of its 90 degrees have a class by their own arcs, and Harshal covers the other 39.
 
 | Degree | Domain | Classes |
 | --- | --- | --- |
 | 0 | Origin of matter and physical law | Ha |
-| 1 | Energy flows and conservation | — |
-| 2 | Time, causality, entropy | — |
-| 3 | Space, dimensions, topology | — |
-| 4 | Fundamental forces and fields | — |
-| 5 | Planetary formation processes | — |
-| 6 | Geology and tectonics | — |
-| 7 | Oceans and hydrospheres | — |
-| 8 | Atmospheres and climate systems | — |
-| 9 | Stellar influence and radiation | — |
-| 10 | Chemical complexity | — |
-| 11 | Prebiotic chemistry | — |
-| 12 | Self-organization | — |
-| 13 | Replication and memory | — |
-| 14 | Proto-life systems | — |
-| 15 | Cellular life | — |
-| 16 | Evolutionary pressure | — |
-| 17 | Genetic variation | — |
-| 18 | Ecosystem dynamics | — |
-| 19 | Symbiosis | — |
-| 20 | Competition and balance | — |
-| 21 | Extinction and renewal | — |
-| 22 | Adaptation | — |
-| 23 | Neural emergence | — |
-| 24 | Sensory systems | — |
-| 25 | Mobility and navigation | — |
-| 26 | Social behavior | — |
-| 27 | Tool use | — |
-| 28 | Communication signals | — |
-| 29 | Learning organisms | — |
+| 1 | Energy flows and conservation | Ha (residual) |
+| 2 | Time, causality, entropy | Ha (residual) |
+| 3 | Space, dimensions, topology | Ha (residual) |
+| 4 | Fundamental forces and fields | Ha (residual) |
+| 5 | Planetary formation processes | Ha (residual) |
+| 6 | Geology and tectonics | Ha (residual) |
+| 7 | Oceans and hydrospheres | Ha (residual) |
+| 8 | Atmospheres and climate systems | Ha (residual) |
+| 9 | Stellar influence and radiation | Ha (residual) |
+| 10 | Chemical complexity | Ha (residual) |
+| 11 | Prebiotic chemistry | Ha (residual) |
+| 12 | Self-organization | Ha (residual) |
+| 13 | Replication and memory | Ha (residual) |
+| 14 | Proto-life systems | Ha (residual) |
+| 15 | Cellular life | Ha (residual) |
+| 16 | Evolutionary pressure | Ha (residual) |
+| 17 | Genetic variation | Ha (residual) |
+| 18 | Ecosystem dynamics | Ha (residual) |
+| 19 | Symbiosis | Ha (residual) |
+| 20 | Competition and balance | Ha (residual) |
+| 21 | Extinction and renewal | Ha (residual) |
+| 22 | Adaptation | Ha (residual) |
+| 23 | Neural emergence | Ha (residual) |
+| 24 | Sensory systems | Ha (residual) |
+| 25 | Mobility and navigation | Ha (residual) |
+| 26 | Social behavior | Ha (residual) |
+| 27 | Tool use | Ha (residual) |
+| 28 | Communication signals | Ha (residual) |
+| 29 | Learning organisms | Ha (residual) |
 | 30 | Collective survival | H |
 | 31 | Early intelligence | H |
 | 32 | Emotional systems | H |
@@ -2222,26 +2256,26 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 38 | Ritual and meaning | C |
 | 39 | Early art | C |
 | 40 | Myth formation | C |
-| 41 | Language roots | — |
-| 42 | Storytelling | — |
-| 43 | Identity formation | — |
-| 44 | Group cohesion | — |
+| 41 | Language roots | Ha (residual) |
+| 42 | Storytelling | Ha (residual) |
+| 43 | Identity formation | Ha (residual) |
+| 44 | Group cohesion | Ha (residual) |
 | 45 | Tribe | B |
 | 46 | Early civilization | B |
 | 47 | Settlement | B, N |
 | 48 | Agriculture | N, O |
 | 49 | Domestication | N, O |
 | 50 | Surplus and storage | O |
-| 51 | Trade | — |
-| 52 | Specialization | — |
+| 51 | Trade | Ha (residual) |
+| 52 | Specialization | Ha (residual) |
 | 53 | Craft | Al |
 | 54 | Measurement | Al, Si |
 | 55 | Early mathematics | Al, Si, P |
 | 56 | Calendars and cycles | Si, P, S |
 | 57 | Architecture | P, S |
 | 58 | Urbanization | S |
-| 59 | Law emergence | — |
-| 60 | Authority symbols | — |
+| 59 | Law emergence | Ha (residual) |
+| 60 | Authority symbols | Ha (residual) |
 | 61 | Conflict organization | Sc, Br, I |
 | 62 | Defense | Sc, Ti, Br, I |
 | 63 | Warfare | Sc, Ti, V, Br, I |
@@ -2258,8 +2292,8 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 74 | Scientific method | Ge, As, Se |
 | 75 | Experimentation | As, Se |
 | 76 | Medicine | Se |
-| 77 | Public health | — |
-| 78 | Engineering principles | — |
+| 77 | Public health | Ha (residual) |
+| 78 | Engineering principles | Ha (residual) |
 | 79 | Infrastructure | Y |
 | 80 | Transportation | Y, Zr |
 | 81 | Energy harvesting | Y, Zr, Nb |
@@ -2272,7 +2306,7 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 88 | Planetary stewardship | Pd, Ag, Cd |
 | 89 | Life as a planetary phenomenon | Ag, Cd, In |
 
-**Intelligence, Order & Systems, 90°–179°.** 36 of its 90 degrees have a class.
+**Intelligence, Order & Systems, 90°–179°.** 36 of its 90 degrees have a class by their own arcs, and Harshal covers the other 54.
 
 | Degree | Domain | Classes |
 | --- | --- | --- |
@@ -2291,9 +2325,9 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 102 | Neural architectures | Ho, Er |
 | 103 | Emergent behavior | Er, Tm |
 | 104 | Alignment problems | Tm |
-| 105 | Human–machine interfaces | — |
-| 106 | Augmentation | — |
-| 107 | Collective intelligence | — |
+| 105 | Human–machine interfaces | Ha (residual) |
+| 106 | Augmentation | Ha (residual) |
+| 107 | Collective intelligence | Ha (residual) |
 | 108 | Distributed systems | Li, Cs, Hg |
 | 109 | Networks | Li, Cs, Hg |
 | 110 | Communication protocols | Hg |
@@ -2313,94 +2347,94 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 124 | Transparency | Be, Pb, Bi, Po |
 | 125 | Anti-corruption | Be, Sr, Bi, Po |
 | 126 | Resilience planning | Sr, Po |
-| 127 | Risk management | — |
-| 128 | Insurance models | — |
+| 127 | Risk management | Ha (residual) |
+| 128 | Insurance models | Ha (residual) |
 | 129 | Disaster mitigation | Ca |
 | 130 | Emergency response | Ca |
-| 131 | Urban megasystems | — |
-| 132 | Megastructures | — |
-| 133 | Smart cities | — |
-| 134 | Energy grids | — |
-| 135 | Water systems | — |
-| 136 | Food systems | — |
-| 137 | Circular economies | — |
-| 138 | Waste minimization | — |
-| 139 | Climate engineering | — |
-| 140 | Planetary-scale projects | — |
-| 141 | Observation networks | — |
-| 142 | Satellites | — |
-| 143 | Global sensing | — |
-| 144 | Prediction systems | — |
-| 145 | Early warning | — |
-| 146 | Policy feedback loops | — |
-| 147 | Long-term planning | — |
-| 148 | Intergenerational ethics | — |
-| 149 | Civilization continuity | — |
-| 150 | Collapse prevention | — |
-| 151 | Cultural integration | — |
-| 152 | Pluralism | — |
-| 153 | Conflict resolution | — |
-| 154 | Reconciliation | — |
-| 155 | Memory and truth | — |
-| 156 | Archives | — |
-| 157 | History synthesis | — |
-| 158 | Identity at scale | — |
-| 159 | Global narratives | — |
-| 160 | Shared meaning | — |
-| 161 | Spaceflight | — |
-| 162 | Orbital infrastructure | — |
-| 163 | Lunar presence | — |
-| 164 | Asteroid utilization | — |
-| 165 | Planetary defense | — |
-| 166 | Space law | — |
-| 167 | Off-world industry | — |
-| 168 | Interplanetary logistics | — |
-| 169 | Multi-planet civilization | — |
-| 170 | Solar system governance | — |
-| 171 | Post-scarcity theory | — |
-| 172 | Automation abundance | — |
-| 173 | Work redefinition | — |
-| 174 | Leisure civilizations | — |
-| 175 | Meaning beyond labor | — |
-| 176 | Consciousness studies | — |
-| 177 | Mind–matter interface | — |
-| 178 | Intelligence as substrate | — |
-| 179 | Civilization as cognition | — |
+| 131 | Urban megasystems | Ha (residual) |
+| 132 | Megastructures | Ha (residual) |
+| 133 | Smart cities | Ha (residual) |
+| 134 | Energy grids | Ha (residual) |
+| 135 | Water systems | Ha (residual) |
+| 136 | Food systems | Ha (residual) |
+| 137 | Circular economies | Ha (residual) |
+| 138 | Waste minimization | Ha (residual) |
+| 139 | Climate engineering | Ha (residual) |
+| 140 | Planetary-scale projects | Ha (residual) |
+| 141 | Observation networks | Ha (residual) |
+| 142 | Satellites | Ha (residual) |
+| 143 | Global sensing | Ha (residual) |
+| 144 | Prediction systems | Ha (residual) |
+| 145 | Early warning | Ha (residual) |
+| 146 | Policy feedback loops | Ha (residual) |
+| 147 | Long-term planning | Ha (residual) |
+| 148 | Intergenerational ethics | Ha (residual) |
+| 149 | Civilization continuity | Ha (residual) |
+| 150 | Collapse prevention | Ha (residual) |
+| 151 | Cultural integration | Ha (residual) |
+| 152 | Pluralism | Ha (residual) |
+| 153 | Conflict resolution | Ha (residual) |
+| 154 | Reconciliation | Ha (residual) |
+| 155 | Memory and truth | Ha (residual) |
+| 156 | Archives | Ha (residual) |
+| 157 | History synthesis | Ha (residual) |
+| 158 | Identity at scale | Ha (residual) |
+| 159 | Global narratives | Ha (residual) |
+| 160 | Shared meaning | Ha (residual) |
+| 161 | Spaceflight | Ha (residual) |
+| 162 | Orbital infrastructure | Ha (residual) |
+| 163 | Lunar presence | Ha (residual) |
+| 164 | Asteroid utilization | Ha (residual) |
+| 165 | Planetary defense | Ha (residual) |
+| 166 | Space law | Ha (residual) |
+| 167 | Off-world industry | Ha (residual) |
+| 168 | Interplanetary logistics | Ha (residual) |
+| 169 | Multi-planet civilization | Ha (residual) |
+| 170 | Solar system governance | Ha (residual) |
+| 171 | Post-scarcity theory | Ha (residual) |
+| 172 | Automation abundance | Ha (residual) |
+| 173 | Work redefinition | Ha (residual) |
+| 174 | Leisure civilizations | Ha (residual) |
+| 175 | Meaning beyond labor | Ha (residual) |
+| 176 | Consciousness studies | Ha (residual) |
+| 177 | Mind–matter interface | Ha (residual) |
+| 178 | Intelligence as substrate | Ha (residual) |
+| 179 | Civilization as cognition | Ha (residual) |
 
-**Transformation, Expansion & Risk, 180°–269°.** 35 of its 90 degrees have a class.
+**Transformation, Expansion & Risk, 180°–269°.** 35 of its 90 degrees have a class by their own arcs, and Harshal covers the other 55.
 
 | Degree | Domain | Classes |
 | --- | --- | --- |
-| 180 | Radical innovation | — |
-| 181 | Paradigm shifts | — |
-| 182 | Disruptive technologies | — |
-| 183 | Synthetic biology | — |
-| 184 | Genetic redesign | — |
-| 185 | Life extension | — |
-| 186 | Morphological freedom | — |
-| 187 | Cyborg systems | — |
-| 188 | Post-biological entities | — |
-| 189 | Hybrid intelligence | — |
-| 190 | Terraforming theory | — |
-| 191 | Planetary modification | — |
-| 192 | Climate reconstruction | — |
-| 193 | Biosphere reseeding | — |
-| 194 | Artificial ecosystems | — |
-| 195 | Ocean worlds | — |
-| 196 | Subsurface habitats | — |
-| 197 | Extreme environments | — |
-| 198 | Adaptation beyond Earth | — |
-| 199 | Survival in hostile space | — |
-| 200 | Deep-time engineering | — |
-| 201 | Stellar engineering | — |
-| 202 | Dyson-scale projects | — |
-| 203 | Energy at cosmic scale | — |
-| 204 | Entropy management | — |
-| 205 | Black hole utilization | — |
-| 206 | Exotic physics | — |
-| 207 | Faster-than-light theories | — |
-| 208 | Causality limits | — |
-| 209 | Reality manipulation | — |
+| 180 | Radical innovation | Ha (residual) |
+| 181 | Paradigm shifts | Ha (residual) |
+| 182 | Disruptive technologies | Ha (residual) |
+| 183 | Synthetic biology | Ha (residual) |
+| 184 | Genetic redesign | Ha (residual) |
+| 185 | Life extension | Ha (residual) |
+| 186 | Morphological freedom | Ha (residual) |
+| 187 | Cyborg systems | Ha (residual) |
+| 188 | Post-biological entities | Ha (residual) |
+| 189 | Hybrid intelligence | Ha (residual) |
+| 190 | Terraforming theory | Ha (residual) |
+| 191 | Planetary modification | Ha (residual) |
+| 192 | Climate reconstruction | Ha (residual) |
+| 193 | Biosphere reseeding | Ha (residual) |
+| 194 | Artificial ecosystems | Ha (residual) |
+| 195 | Ocean worlds | Ha (residual) |
+| 196 | Subsurface habitats | Ha (residual) |
+| 197 | Extreme environments | Ha (residual) |
+| 198 | Adaptation beyond Earth | Ha (residual) |
+| 199 | Survival in hostile space | Ha (residual) |
+| 200 | Deep-time engineering | Ha (residual) |
+| 201 | Stellar engineering | Ha (residual) |
+| 202 | Dyson-scale projects | Ha (residual) |
+| 203 | Energy at cosmic scale | Ha (residual) |
+| 204 | Entropy management | Ha (residual) |
+| 205 | Black hole utilization | Ha (residual) |
+| 206 | Exotic physics | Ha (residual) |
+| 207 | Faster-than-light theories | Ha (residual) |
+| 208 | Causality limits | Ha (residual) |
+| 209 | Reality manipulation | Ha (residual) |
 | 210 | Existential risk analysis | U, Fm |
 | 211 | AI risk | U, Fm, Md |
 | 212 | Bio-risk | U, Fm, Md, No |
@@ -2422,24 +2456,24 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 228 | Simulation ethics | Tc, Lv, Ts, Og |
 | 229 | Nested realities | Tc, Ts, Og |
 | 230 | Post-human law | Og |
-| 231 | Rights of non-humans | — |
-| 232 | AI coexistence | — |
-| 233 | Machine civilizations | — |
-| 234 | Sentience criteria | — |
-| 235 | Moral expansion | — |
-| 236 | Universal ethics | — |
-| 237 | Conflict beyond species | — |
-| 238 | Peace at cosmic scale | — |
-| 239 | Governance beyond humanity | — |
-| 240 | Interstellar travel | — |
-| 241 | Generation ships | — |
-| 242 | Relativistic societies | — |
-| 243 | Communication over light-years | — |
-| 244 | Causality-limited governance | — |
-| 245 | Autonomous colonies | — |
-| 246 | Cultural drift control | — |
-| 247 | Federated spheres | — |
-| 248 | Multi-origin coexistence | — |
+| 231 | Rights of non-humans | Ha (residual) |
+| 232 | AI coexistence | Ha (residual) |
+| 233 | Machine civilizations | Ha (residual) |
+| 234 | Sentience criteria | Ha (residual) |
+| 235 | Moral expansion | Ha (residual) |
+| 236 | Universal ethics | Ha (residual) |
+| 237 | Conflict beyond species | Ha (residual) |
+| 238 | Peace at cosmic scale | Ha (residual) |
+| 239 | Governance beyond humanity | Ha (residual) |
+| 240 | Interstellar travel | Ha (residual) |
+| 241 | Generation ships | Ha (residual) |
+| 242 | Relativistic societies | Ha (residual) |
+| 243 | Communication over light-years | Ha (residual) |
+| 244 | Causality-limited governance | Ha (residual) |
+| 245 | Autonomous colonies | Ha (residual) |
+| 246 | Cultural drift control | Ha (residual) |
+| 247 | Federated spheres | Ha (residual) |
+| 248 | Multi-origin coexistence | Ha (residual) |
 | 249 | Non-competitive centers | Ac |
 | 250 | Encounter with alien life | Ac, Th |
 | 251 | First contact protocols | Ac, Th, Pa |
@@ -2452,108 +2486,108 @@ The third column lists the classes whose arcs cover each degree (Appendix F). 13
 | 258 | Non-hostile coexistence | Cm, Bk, Cf |
 | 259 | Universal communication | Bk, Cf |
 | 260 | End-of-universe scenarios | Cf |
-| 261 | Heat death strategies | — |
-| 262 | Vacuum decay responses | — |
+| 261 | Heat death strategies | Ha (residual) |
+| 262 | Vacuum decay responses | Ha (residual) |
 | 263 | Temporal recursion | Es |
 | 264 | Closed timelike curves | Es |
-| 265 | Preservation beyond physics | — |
-| 266 | Meaning at the end of time | — |
-| 267 | Legacy without observers | — |
-| 268 | Existence as value | — |
-| 269 | Continuity without form | — |
+| 265 | Preservation beyond physics | Ha (residual) |
+| 266 | Meaning at the end of time | Ha (residual) |
+| 267 | Legacy without observers | Ha (residual) |
+| 268 | Existence as value | Ha (residual) |
+| 269 | Continuity without form | Ha (residual) |
 
-**Renewal, Memory & Persistence, 270°–359°.** 11 of its 90 degrees have a class.
+**Renewal, Memory & Persistence, 270°–359°.** 11 of its 90 degrees have a class by their own arcs, and Harshal covers the other 79.
 
 | Degree | Domain | Classes |
 | --- | --- | --- |
-| 270 | Regeneration cycles | — |
-| 271 | Ecological restoration | — |
-| 272 | Cultural healing | — |
-| 273 | Post-collapse recovery | — |
-| 274 | Knowledge re-seeding | — |
-| 275 | Civilization rebooting | — |
-| 276 | Myth renewal | — |
-| 277 | Symbol regeneration | — |
-| 278 | Language evolution | — |
-| 279 | Meaning repair | — |
-| 280 | Archives of everything | — |
-| 281 | Deep memory systems | — |
-| 282 | Immutable records | — |
-| 283 | Provenance tracking | — |
-| 284 | Origin preservation | — |
-| 285 | History without distortion | — |
-| 286 | Truth continuity | — |
-| 287 | Anti-forgetting mechanisms | — |
-| 288 | Memory across extinction | — |
-| 289 | Time-spanning identity | — |
-| 290 | Teaching future minds | — |
-| 291 | Messages to the far future | — |
-| 292 | Inheritance systems | — |
-| 293 | Stewardship roles | — |
-| 294 | Guardianship without power | — |
-| 295 | Care as infrastructure | — |
-| 296 | Compassion at scale | — |
-| 297 | Non-dominant intelligence | — |
-| 298 | Wisdom accumulation | — |
-| 299 | Grace under infinity | — |
-| 300 | Simplicity recovery | — |
-| 301 | Return to fundamentals | — |
-| 302 | Minimal viable civilization | — |
-| 303 | Low-tech resilience | — |
-| 304 | Balance with nature | — |
-| 305 | Humility before complexity | — |
-| 306 | Limits acceptance | — |
-| 307 | Non-expansionist futures | — |
-| 308 | Quiet civilizations | — |
-| 309 | Stability without growth | — |
-| 310 | Cyclical time models | — |
-| 311 | Eternal return | — |
-| 312 | Seasonal civilizations | — |
-| 313 | Oscillating systems | — |
-| 314 | Rotational balance | — |
-| 315 | Harmonic coexistence | — |
-| 316 | Sphere maintenance | — |
-| 317 | Boundary integrity | — |
-| 318 | Drift correction | — |
-| 319 | Center protection | — |
-| 320 | Origin remembrance | — |
-| 321 | Non-delegable authority | — |
-| 322 | Lineage awareness | — |
-| 323 | Address integrity | — |
-| 324 | Resolution clarity | — |
-| 325 | Ownership persistence | — |
-| 326 | Collapse resistance | — |
-| 327 | Non-forkability | — |
-| 328 | Identity without ego | — |
-| 329 | Power without domination | — |
-| 330 | Completion recognition | — |
-| 331 | Sufficiency | — |
-| 332 | Wholeness | — |
-| 333 | Disc fully instantiated | — |
-| 334 | Sphere fully formed | — |
-| 335 | Motion optional | — |
-| 336 | Persistence achieved | — |
-| 337 | No further expansion required | — |
-| 338 | Readiness for anything | — |
-| 339 | Peace with uncertainty | — |
-| 340 | Stewardship of the whole | — |
+| 270 | Regeneration cycles | Ha (residual) |
+| 271 | Ecological restoration | Ha (residual) |
+| 272 | Cultural healing | Ha (residual) |
+| 273 | Post-collapse recovery | Ha (residual) |
+| 274 | Knowledge re-seeding | Ha (residual) |
+| 275 | Civilization rebooting | Ha (residual) |
+| 276 | Myth renewal | Ha (residual) |
+| 277 | Symbol regeneration | Ha (residual) |
+| 278 | Language evolution | Ha (residual) |
+| 279 | Meaning repair | Ha (residual) |
+| 280 | Archives of everything | Ha (residual) |
+| 281 | Deep memory systems | Ha (residual) |
+| 282 | Immutable records | Ha (residual) |
+| 283 | Provenance tracking | Ha (residual) |
+| 284 | Origin preservation | Ha (residual) |
+| 285 | History without distortion | Ha (residual) |
+| 286 | Truth continuity | Ha (residual) |
+| 287 | Anti-forgetting mechanisms | Ha (residual) |
+| 288 | Memory across extinction | Ha (residual) |
+| 289 | Time-spanning identity | Ha (residual) |
+| 290 | Teaching future minds | Ha (residual) |
+| 291 | Messages to the far future | Ha (residual) |
+| 292 | Inheritance systems | Ha (residual) |
+| 293 | Stewardship roles | Ha (residual) |
+| 294 | Guardianship without power | Ha (residual) |
+| 295 | Care as infrastructure | Ha (residual) |
+| 296 | Compassion at scale | Ha (residual) |
+| 297 | Non-dominant intelligence | Ha (residual) |
+| 298 | Wisdom accumulation | Ha (residual) |
+| 299 | Grace under infinity | Ha (residual) |
+| 300 | Simplicity recovery | Ha (residual) |
+| 301 | Return to fundamentals | Ha (residual) |
+| 302 | Minimal viable civilization | Ha (residual) |
+| 303 | Low-tech resilience | Ha (residual) |
+| 304 | Balance with nature | Ha (residual) |
+| 305 | Humility before complexity | Ha (residual) |
+| 306 | Limits acceptance | Ha (residual) |
+| 307 | Non-expansionist futures | Ha (residual) |
+| 308 | Quiet civilizations | Ha (residual) |
+| 309 | Stability without growth | Ha (residual) |
+| 310 | Cyclical time models | Ha (residual) |
+| 311 | Eternal return | Ha (residual) |
+| 312 | Seasonal civilizations | Ha (residual) |
+| 313 | Oscillating systems | Ha (residual) |
+| 314 | Rotational balance | Ha (residual) |
+| 315 | Harmonic coexistence | Ha (residual) |
+| 316 | Sphere maintenance | Ha (residual) |
+| 317 | Boundary integrity | Ha (residual) |
+| 318 | Drift correction | Ha (residual) |
+| 319 | Center protection | Ha (residual) |
+| 320 | Origin remembrance | Ha (residual) |
+| 321 | Non-delegable authority | Ha (residual) |
+| 322 | Lineage awareness | Ha (residual) |
+| 323 | Address integrity | Ha (residual) |
+| 324 | Resolution clarity | Ha (residual) |
+| 325 | Ownership persistence | Ha (residual) |
+| 326 | Collapse resistance | Ha (residual) |
+| 327 | Non-forkability | Ha (residual) |
+| 328 | Identity without ego | Ha (residual) |
+| 329 | Power without domination | Ha (residual) |
+| 330 | Completion recognition | Ha (residual) |
+| 331 | Sufficiency | Ha (residual) |
+| 332 | Wholeness | Ha (residual) |
+| 333 | Disc fully instantiated | Ha (residual) |
+| 334 | Sphere fully formed | Ha (residual) |
+| 335 | Motion optional | Ha (residual) |
+| 336 | Persistence achieved | Ha (residual) |
+| 337 | No further expansion required | Ha (residual) |
+| 338 | Readiness for anything | Ha (residual) |
+| 339 | Peace with uncertainty | Ha (residual) |
+| 340 | Stewardship of the whole | Ha (residual) |
 | 341 | Care for all layers | Ar, Rn |
 | 342 | Listening to weak signals | He, Ar, Kr, Rn |
 | 343 | Respect for emergence | He, Ar, Kr, Xe, Rn |
 | 344 | Non-interference when possible | He, Kr, Xe |
 | 345 | Gentle correction when needed | Xe |
-| 346 | Responsibility without ownership creep | — |
-| 347 | Trust in structure | — |
-| 348 | Allowing futures | — |
-| 349 | Letting go | — |
+| 346 | Responsibility without ownership creep | Ha (residual) |
+| 347 | Trust in structure | Ha (residual) |
+| 348 | Allowing futures | Ha (residual) |
+| 349 | Letting go | Ha (residual) |
 | 350 | Closure without ending | Ne |
 | 351 | Open-ended continuity | Ne |
 | 352 | Silent persistence | Ne |
 | 353 | The sphere holds | Ne |
-| 354 | The center remains | — |
-| 355 | Everything still fits | — |
-| 356 | Nothing escapes lineage | — |
-| 357 | No need to restart | — |
+| 354 | The center remains | Ha (residual) |
+| 355 | Everything still fits | Ha (residual) |
+| 356 | Nothing escapes lineage | Ha (residual) |
+| 357 | No need to restart | Ha (residual) |
 | 358 | Always already complete | Ha |
 | 359 | Return to origin | Ha |
 | 360 | Origin (360° ≡ 0° mod 360 — Return-to-Origin Closure resolving to 0•000•000•0000; never a 361st address slot) | Closure onto 0° |

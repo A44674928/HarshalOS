@@ -93,3 +93,17 @@ export function gridPosition({ z, period, group }) {
   if (!group) throw new Error(`no group for element ${z}`);
   return { row: period, col: group };
 }
+
+/* Residual coverage: one class takes every degree that no class covers by its
+   own arc. By the author's decision of October 2026 (v0.6) that class is
+   Harshal (Ha-119). The rule is computed, never listed: a degree the author
+   later gives to another class leaves the residual set by itself. */
+export function withResidual(cov, symbol) {
+  const perDegree = cov.perDegree.map(list => (list.length ? [...list] : [symbol]));
+  return { perDegree, residual: [...cov.gaps], covered: RING, symbol };
+}
+/* Degrees whose only classes are of one tier (for example, Prohibited classes,
+   which may not be built and so cannot host a body under the address law). */
+export function onlyTier(cov, tierOf, tier) {
+  return cov.perDegree.map((list, d) => (list.length && list.every(s => tierOf(s) === tier) ? d : null)).filter(d => d !== null);
+}
