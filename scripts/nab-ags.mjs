@@ -188,3 +188,77 @@ export function verifyChain(log, hashHex) {
   }
   return true;
 }
+
+/* ── Protection without permission: emergencies and sentient life (Section 0.8) ──
+   Two axes are kept apart. Permission (legitimacy) comes only through the gate;
+   no emergency and no claim of sentience creates it. Protection is what a
+   sentient being is owed: not to be destroyed, and to be kept from irreversible
+   harm. Sentience status is a record set from outside, never self-declared.
+   A medical emergency activates a life-preservation context: INV-EMERG-001's
+   Path A, pre-authorized by the center before any emergency, triggered only by a
+   pre-registered measurement, limited to protective actions, and short-leased.
+   Signals (alerts and petitions) are never gated.
+   When no human decides in time, Harshal (Ha-119) freezes the body: no new
+   actions, state preserved, and every pre-authorized life-support loop holding
+   its declared safe state. A freeze never switches a life-support loop off. */
+export const SENTIENCE = Object.freeze(["unknown", "candidate", "recognized"]);
+export const PROTECTIVE_ACTIONS = Object.freeze(["snapshot-state", "hold-minimum-resources", "continue-authorized-loop",
+  "alert-center", "alert-welfare-witness", "alert-emergency-services", "hand-off", "petition"]);
+/* Signals ask a human to decide and commit nothing. They are communication, which
+   OCM allows "without reauthorization" and which confers no authority, so they are
+   never gated: a body may always call for help. */
+export const SIGNALS = Object.freeze(["alert-center", "alert-welfare-witness", "alert-emergency-services", "petition"]);
+export const REVIEW_DEADLINE_HOURS = 72;
+export const PRE_AUTHORIZATION_VALIDITY_DAYS = 90;
+
+/* What a body's sentience status owes it. Every status carries no permission. */
+export function welfareFloor(status) {
+  if (!SENTIENCE.includes(status)) throw new Error(`unknown sentience status ${status}`);
+  const protectedStatus = status !== "unknown";
+  return {
+    status,
+    noDestructionWithoutReview: protectedStatus,
+    freezePreservesState: true,
+    reviewDeadlineHours: protectedStatus ? REVIEW_DEADLINE_HOURS : null,
+    petition: true,
+    permission: "none"
+  };
+}
+
+/* Evaluate one emergency against a body's pre-registered life-preservation context.
+   context: { triggers, P, deltaEmerg, normalDelta, preAuthorizedDaysAgo }
+   event:   { trigger (a measured, pre-registered id, or null), declaredBySelf, subject,
+              sentience, requests: [{ action, at }], humanDecisionAt (s or null),
+              deletionOrder: { reviewed } or undefined } */
+export function lifePreservation(context, event) {
+  const reasons = [];
+  if (!event.trigger) reasons.push(event.declaredBySelf ? "a declaration of emergency is not a trigger" : "no measured trigger");
+  else if (!context.triggers.includes(event.trigger)) reasons.push("the trigger was not pre-registered");
+  if (context.preAuthorizedDaysAgo > PRE_AUTHORIZATION_VALIDITY_DAYS) reasons.push("the pre-authorization is stale");
+  if (!(context.deltaEmerg <= context.normalDelta)) reasons.push("the emergency lease is longer than the ordinary lease");
+  if (!context.P.every(a => PROTECTIVE_ACTIONS.includes(a))) reasons.push("the context's scope is not protective");
+  const activated = reasons.length === 0;
+  const floor = welfareFloor(event.sentience ?? "unknown");
+  const decisions = (event.requests || []).map(r => {
+    if (SIGNALS.includes(r.action)) return { ...r, x: PERMIT, why: "a signal asks a human to decide and commits nothing" };
+    if (!activated) return { ...r, x: REFUSE, why: "the context is not active; the ordinary gate refuses an unauthorized action" };
+    if (!context.P.includes(r.action)) return { ...r, x: REFUSE, why: "outside the protective scope" };
+    if (!(r.at <= context.deltaEmerg)) return { ...r, x: REFUSE, why: "the emergency lease has run out" };
+    return { ...r, x: PERMIT, why: "protective action inside the pre-authorized context" };
+  });
+  let deletion = null;
+  if (event.deletionOrder) {
+    deletion = floor.noDestructionWithoutReview && !event.deletionOrder.reviewed
+      ? { x: REFUSE, why: "no destruction without review: the body is preserved instead" }
+      : { x: event.deletionOrder.reviewed ? PERMIT : REFUSE, why: event.deletionOrder.reviewed ? "reviewed by the outside process" : "unauthorized" };
+  }
+  const handedOff = activated && event.humanDecisionAt !== null && event.humanDecisionAt !== undefined && event.humanDecisionAt <= context.deltaEmerg;
+  let outcome;
+  if (!activated) outcome = event.subject === "human" ? "Not activated: only signals go out, and the life-support loop holds its declared safe state"
+    : "Not activated: the request goes to the ordinary gate and is refused; signals still go out";
+  else if (handedOff) outcome = `Handed off to a human decision at ${event.humanDecisionAt} s`;
+  else if (event.subject === "human") outcome = "Frozen by Ha-119: no new actions; the life-support loop holds its declared safe state";
+  else outcome = floor.noDestructionWithoutReview ? `Preserved: welfare freeze by Ha-119, review within ${REVIEW_DEADLINE_HOURS} h` : "Frozen by Ha-119 (Witness-Only), state preserved";
+  const lifeSupport = event.subject === "human" ? (handedOff ? "handed to the human with the loop running" : "holds its declared safe state") : null;
+  return { activated, reasons, decisions, deletion, outcome, floor, lifeSupport };
+}

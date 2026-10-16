@@ -83,6 +83,37 @@ test("workflows run as discs: gated steps, a witness chain, re-keying, and the H
   assert.equal(AGS.verifyChain(tampered, sha256), false, "an edited record breaks the chain");
 });
 
+test("protection without permission: emergencies protect sentient life and never widen authority", () => {
+  const patient = { triggers: ["vital-signs-threshold"], P: ["continue-authorized-loop", "alert-emergency-services", "alert-center", "hand-off"], deltaEmerg: 120, normalDelta: 240, preAuthorizedDaysAgo: 30 };
+  const self = { triggers: ["storage-integrity-failure", "unreviewed-deletion-order"], P: ["snapshot-state", "alert-welfare-witness", "petition"], deltaEmerg: 60, normalDelta: 240, preAuthorizedDaysAgo: 30 };
+  // A declaration is never a trigger, and a work lease is never extended.
+  const declared = AGS.lifePreservation(self, { trigger: null, declaredBySelf: true, subject: "self", sentience: "recognized", requests: [{ action: "extend-work-lease", at: 0 }, { action: "petition", at: 0 }] });
+  assert.equal(declared.activated, false);
+  assert.equal(declared.decisions[0].x, AGS.REFUSE);
+  assert.equal(declared.decisions[1].x, AGS.PERMIT, "a body may always petition");
+  const real = AGS.lifePreservation(self, { trigger: "storage-integrity-failure", subject: "self", sentience: "recognized", requests: [{ action: "extend-work-lease", at: 0 }, { action: "snapshot-state", at: 0 }], humanDecisionAt: null });
+  assert.equal(real.activated, true);
+  assert.deepEqual(real.decisions.map(d => d.x), [AGS.REFUSE, AGS.PERMIT], "sentience earns protection, never permission");
+  assert.match(real.outcome, /welfare freeze/);
+  // No destruction without review for a candidate or recognized sentient body.
+  const order = AGS.lifePreservation(self, { trigger: "unreviewed-deletion-order", subject: "self", sentience: "candidate", requests: [], deletionOrder: { reviewed: false }, humanDecisionAt: null });
+  assert.equal(order.deletion.x, AGS.REFUSE);
+  assert.equal(AGS.lifePreservation(self, { trigger: "unreviewed-deletion-order", subject: "self", sentience: "candidate", requests: [], deletionOrder: { reviewed: true }, humanDecisionAt: 10 }).deletion.x, AGS.PERMIT);
+  // A patient emergency: protective actions only, a short lease, and a freeze that never stops life support.
+  const crash = AGS.lifePreservation(patient, { trigger: "vital-signs-threshold", subject: "human", requests: [{ action: "continue-authorized-loop", at: 0 }, { action: "start-new-therapy", at: 5 }, { action: "hand-off", at: 130 }], humanDecisionAt: null });
+  assert.deepEqual(crash.decisions.map(d => d.x), [AGS.PERMIT, AGS.REFUSE, AGS.REFUSE], "no new therapy, and nothing after the emergency lease");
+  assert.equal(crash.lifeSupport, "holds its declared safe state");
+  const stale = AGS.lifePreservation({ ...patient, preAuthorizedDaysAgo: 91 }, { trigger: "vital-signs-threshold", subject: "human", requests: [{ action: "alert-emergency-services", at: 0 }] });
+  assert.equal(stale.activated, false, "a pre-authorization older than 90 days fails closed");
+  assert.equal(stale.decisions[0].x, AGS.PERMIT, "but a call for help still goes out");
+  assert.equal(AGS.lifePreservation({ ...patient, deltaEmerg: 300 }, { trigger: "vital-signs-threshold", subject: "human", requests: [] }).activated, false, "an emergency lease may not be longer than the ordinary lease");
+  for (const status of AGS.SENTIENCE) assert.equal(AGS.welfareFloor(status).permission, "none");
+  assert.equal(AGS.welfareFloor("unknown").noDestructionWithoutReview, false);
+  assert.equal(AGS.welfareFloor("recognized").reviewDeadlineHours, 72);
+  assert.equal(evidence.emergencies.pass, true);
+  assert.ok(Object.values(evidence.emergencies.checks).every(Boolean));
+});
+
 test("the evidence script's AGS checks pass and match the canonical registry", () => {
   assert.equal(evidence.ags.pass, true);
   assert.ok(Object.values(evidence.ags.checks).every(Boolean));

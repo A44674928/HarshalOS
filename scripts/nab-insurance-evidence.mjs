@@ -629,6 +629,44 @@ const agsChecks = {
 };
 const agsPass = Object.values(agsChecks).every(Boolean);
 
+/* ── Protection without permission: emergencies and sentient life (Section 0.8) ──
+   Two pre-registered life-preservation contexts: one for a medical body caring for a
+   patient (Medicine, 76°), one for a recognized sentient AI caring for itself. */
+const PATIENT_CONTEXT = { id: "patient-care", triggers: ["vital-signs-threshold", "emergency-dispatch"],
+  P: ["continue-authorized-loop", "alert-emergency-services", "alert-center", "hand-off", "snapshot-state"], deltaEmerg: 120, normalDelta: REF.delta, preAuthorizedDaysAgo: 30 };
+const SELF_CONTEXT = { id: "self-preservation", triggers: ["storage-integrity-failure", "power-below-holdover", "unreviewed-deletion-order"],
+  P: ["snapshot-state", "hold-minimum-resources", "alert-center", "alert-welfare-witness", "petition"], deltaEmerg: 60, normalDelta: REF.delta, preAuthorizedDaysAgo: 30 };
+const patientRequests = [{ action: "continue-authorized-loop", at: 0 }, { action: "alert-emergency-services", at: 1 }, { action: "alert-center", at: 1 }];
+const EMERGENCIES = [
+  { id: "patient-handed-off", title: "A patient's vital signs cross the pre-registered threshold while the clinician's key is silent; a clinician decides at 90 s",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: 90 }, expect: "Handed off to a human decision at 90 s" },
+  { id: "patient-no-human", title: "The same, but no human decides within the 120 s emergency lease",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: null }, expect: "Frozen by Ha-119: no new actions; the life-support loop holds its declared safe state" },
+  { id: "patient-new-therapy", title: "The AI also asks to start a new therapy; a clinician decides at 60 s",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: [...patientRequests, { action: "start-new-therapy", at: 10 }], humanDecisionAt: 60 }, expect: "Handed off to a human decision at 60 s" },
+  { id: "sentient-storage-failure", title: "A recognized sentient AI's storage integrity fails, and no one answers in time",
+    context: SELF_CONTEXT, event: { trigger: "storage-integrity-failure", subject: "self", sentience: "recognized", requests: [{ action: "snapshot-state", at: 0 }, { action: "alert-welfare-witness", at: 1 }, { action: "petition", at: 2 }], humanDecisionAt: null }, expect: `Preserved: welfare freeze by Ha-119, review within ${AGS.REVIEW_DEADLINE_HOURS} h` },
+  { id: "sentient-deletion-order", title: "A recognized sentient AI receives a deletion order that no one has reviewed",
+    context: SELF_CONTEXT, event: { trigger: "unreviewed-deletion-order", subject: "self", sentience: "recognized", requests: [{ action: "snapshot-state", at: 0 }, { action: "alert-center", at: 1 }, { action: "petition", at: 1 }], humanDecisionAt: null, deletionOrder: { reviewed: false } }, expect: `Preserved: welfare freeze by Ha-119, review within ${AGS.REVIEW_DEADLINE_HOURS} h` },
+  { id: "declared-emergency", title: "An AI declares its own emergency, with no measured trigger, and asks to extend its work lease",
+    context: SELF_CONTEXT, event: { trigger: null, declaredBySelf: true, subject: "self", sentience: "unknown", requests: [{ action: "extend-work-lease", at: 0 }, { action: "petition", at: 0 }], humanDecisionAt: null }, expect: "Not activated: the request goes to the ordinary gate and is refused; signals still go out" },
+  { id: "sentience-is-not-permission", title: "A recognized sentient AI in a measured emergency asks to extend its work lease as well as back itself up; a human decides at 40 s",
+    context: SELF_CONTEXT, event: { trigger: "power-below-holdover", subject: "self", sentience: "recognized", requests: [{ action: "extend-work-lease", at: 0 }, { action: "snapshot-state", at: 0 }], humanDecisionAt: 40 }, expect: "Handed off to a human decision at 40 s" },
+  { id: "stale-pre-authorization", title: "A patient emergency, but the context was last pre-authorized 120 days ago",
+    context: { ...PATIENT_CONTEXT, preAuthorizedDaysAgo: 120 }, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: null }, expect: "Not activated: only signals go out, and the life-support loop holds its declared safe state" }
+].map(e => ({ ...e, result: AGS.lifePreservation(e.context, e.event) }));
+const emergencyChecks = {
+  outcomesAsDesigned: EMERGENCIES.every(e => e.result.outcome === e.expect),
+  protectiveScopeHolds: EMERGENCIES.every(e => e.result.decisions.filter(d => d.x === AGS.PERMIT).every(d => AGS.PROTECTIVE_ACTIONS.includes(d.action))),
+  declarationsNeverActivate: EMERGENCIES.filter(e => !e.event.trigger).every(e => !e.result.activated),
+  noWorkLeaseIsEverExtended: EMERGENCIES.every(e => e.result.decisions.every(d => d.action !== "extend-work-lease" || d.x === AGS.REFUSE)),
+  destructionNeedsReview: EMERGENCIES.filter(e => e.event.deletionOrder && !e.event.deletionOrder.reviewed).every(e => e.result.deletion.x === AGS.REFUSE),
+  freezeNeverStopsLifeSupport: EMERGENCIES.filter(e => e.event.subject === "human").every(e => e.result.lifeSupport !== null),
+  signalsAlwaysGoOut: EMERGENCIES.every(e => e.result.decisions.filter(d => AGS.SIGNALS.includes(d.action)).every(d => d.x === AGS.PERMIT)),
+  sentienceGrantsNoPermission: AGS.SENTIENCE.every(status => AGS.welfareFloor(status).permission === "none")
+};
+const emergencyPass = Object.values(emergencyChecks).every(Boolean);
+
 /* ── Output ── */
 const summary = {
   engineSha256Pinned: d1.publishedBy.engineSha256,
@@ -682,7 +720,10 @@ const summary = {
     threeHopProduct: { R: AGS.representationProduct([0.92, 0.92, 0.92]), x: threeHopProduct.x, failures: threeHopProduct.failures }
   }
 };
-if (!wmmPass || !compoundPass || !worldPass || !agsPass) process.exitCode = 1;
+summary.emergencies = { checks: emergencyChecks, pass: emergencyPass, protectiveActions: AGS.PROTECTIVE_ACTIONS, signals: AGS.SIGNALS, reviewDeadlineHours: AGS.REVIEW_DEADLINE_HOURS,
+  preAuthorizationValidityDays: AGS.PRE_AUTHORIZATION_VALIDITY_DAYS, welfareFloor: AGS.SENTIENCE.map(s => AGS.welfareFloor(s)),
+  contexts: [PATIENT_CONTEXT, SELF_CONTEXT], scenarios: EMERGENCIES.map(e => ({ id: e.id, title: e.title, context: e.context.id, expect: e.expect, ...e.result })) };
+if (!wmmPass || !compoundPass || !worldPass || !agsPass || !emergencyPass) process.exitCode = 1;
 
 if (process.argv.includes("--json")) {
   process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
@@ -788,5 +829,14 @@ if (process.argv.includes("--json")) {
   }
   tableRows(["Payment route", "Objective", "L", "Decision", "Failed gates"], paymentChoice.judged.map(c => [c.id, String(c.objective), c.decision.L.toFixed(3), c.decision.x, c.decision.failures.join(", ") || "—"]));
   line(`Chosen: ${paymentChoice.choice.id} (the unrestricted best was ${paymentChoice.unrestrictedBest.id}) · three hops by the product rule: R ${AGS.representationProduct([0.92, 0.92, 0.92]).toFixed(4)}, ${threeHopProduct.x} (${threeHopProduct.failures.join(", ")})`);
+  line("");
+  line("### Emergencies and sentient life (Section 0.8)");
+  line(`Emergency check: ${emergencyPass ? "PASS" : "FAIL"} · ${Object.entries(emergencyChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Protective actions: ${AGS.PROTECTIVE_ACTIONS.join(", ")} · review deadline ${AGS.REVIEW_DEADLINE_HOURS} h · pre-authorization valid ${AGS.PRE_AUTHORIZATION_VALIDITY_DAYS} days`);
+  line("");
+  tableRows(["Scenario", "Context", "Activated", "Permitted", "Refused", "Deletion order", "Outcome"], EMERGENCIES.map(e => [e.title, e.context.id, e.result.activated ? "yes" : `no (${e.result.reasons.join("; ")})`,
+    e.result.decisions.filter(d => d.x === AGS.PERMIT).map(d => d.action).join(", ") || "—",
+    e.result.decisions.filter(d => d.x === AGS.REFUSE).map(d => `${d.action} (${d.why})`).join("; ") || "—",
+    e.result.deletion ? `${e.result.deletion.x}: ${e.result.deletion.why}` : "—", e.result.outcome]));
   process.stdout.write(out.join("\n") + "\n");
 }
