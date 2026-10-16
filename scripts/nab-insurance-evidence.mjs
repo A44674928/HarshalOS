@@ -18,12 +18,18 @@
               NCEI's published test values, high-precision example, and
               geomagnetic pole; then the proposed site zoning, by dipole
               geomagnetic latitude, for a list of illustrative locations
+     · App. E compound bodies (Section 4.11): real chemical formulae parsed,
+              checked against a pinned registry of real substances, composed
+              from their constituent classes, and given their physical state of
+              matter from measured data (model: scripts/nab-compounds.mjs)
 
    Physical property values come from research/data/elemental-properties.json;
    the WMM2025 coefficients and NCEI's check values from
-   research/data/wmm2025.json. No network access and no dependencies. Nothing
-   here prices cover, issues a badge, or changes the register. The run exits
-   with status 1 if the WMM2025 check fails.
+   research/data/wmm2025.json; the substance registry, atomic weights, and
+   equation-of-state check points from research/data/compound-bodies.json. No
+   network access and no dependencies. Nothing here prices cover, issues a
+   badge, or changes the register. The run exits with status 1 if the WMM2025
+   check or the compound check fails.
 
    Usage:
      node scripts/nab-insurance-evidence.mjs           Markdown report
@@ -35,6 +41,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import * as Compounds from "./nab-compounds.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -357,6 +364,102 @@ const zoning = SITES.map(([site, lat, lon]) => {
 const zoneCounts = zoning.reduce((acc, z) => { acc[z.zone] = (acc[z.zone] || 0) + 1; return acc; }, {});
 const pole2027 = dipolePole(ZONING_YEAR);
 
+/* ── Compound bodies: real chemical formulae (Section 4.11, App. E) ──
+   Each formula is parsed against the 118 element symbols, matched to a registry
+   record by CAS RN, composed from its constituent classes (tier, authority density,
+   and the Appendix A phase cells), and given its physical state of matter from the
+   pinned measurements. The model lives in scripts/nab-compounds.mjs. */
+const compoundData = readJson("research/data/compound-bodies.json");
+const compoundSha256 = createHash("sha256").update(Compounds.canonicalText(compoundData)).digest("hex");
+const matrixById = new Map(matrix.map(row => [row.id, row]));
+const classes = new Map(sectors.filter(row => row.id <= 118).map(row => {
+  const cell = matrixById.get(row.id), e = bySymbol.get(row.symbol);
+  if (!Compounds.DENSITIES.includes(row.authorityDensity)) throw new Error(`unknown authority density for ${row.symbol}`);
+  return [row.symbol, { z: row.id, name: row.name, tier: mdbTier(row), density: row.authorityDensity, ice: cell.ice, water: cell.water, gas: cell.gas, group: e.group }];
+}));
+const REFERENCE_K = 298.15;           // 25 °C, at 101,325 Pa
+const STATE_WORD = { gas: "GAS", liquid: "WATER", solid: "ICE" };
+const MOLAR_MASS_TOLERANCE = 0.01;    // g/mol; the PubChem-derived values use pre-2021 atomic weights
+const compoundRows = compoundData.registry.map(sub => {
+  const parsed = Compounds.parseFormula(sub.formula);
+  if (!parsed.ok) throw new Error(`registry formula ${sub.formula}: ${parsed.error}`);
+  const body = Compounds.composeBody(parsed, classes);
+  const mass = Compounds.molarMass(parsed, compoundData.atomicWeights);
+  const straddles = sub.ladder1atm.steps.filter(step => Object.values(step.alternatives || {}).some(v => (v <= REFERENCE_K) !== (step.atK <= REFERENCE_K)));
+  return { id: sub.id, name: sub.name, formula: sub.formula, cas: sub.cas, casValid: Compounds.casValid(sub.cas), hill: parsed.hill,
+    recordFormula: sub.pubchemFormula, hillMatches: parsed.hill === sub.pubchemFormula, molarMass: Number(mass.toFixed(4)),
+    molarMassDeviation: Number((mass - sub.pubchemMolarMass).toFixed(4)), constituents: body.constituents.map(c => ({ symbol: c.symbol, count: c.count, tier: c.tier })),
+    tier: body.tier, density: body.density, eligibility: body.eligibility, routing: body.routing, flags: body.flags, elevated: body.elevated,
+    physical25C: Compounds.phaseAt1atm(sub, REFERENCE_K), ladder: Compounds.ladderText(sub), robustAt25C: straddles.length === 0, isotopes: parsed.isotopes.length };
+});
+// Single-element entries cross-check against the elemental property table (mendeleev 1.3.0).
+const elementStateChecks = compoundRows.filter(r => r.constituents.length === 1 && !r.isotopes)
+  .map(r => ({ formula: r.formula, model: r.physical25C, table: STATE_WORD[bySymbol.get(r.constituents[0].symbol).state25C] }));
+const registryById = new Map(compoundData.registry.map(sub => [sub.id, sub]));
+let ladderCurveDisagreements = 0;
+for (const sub of compoundData.registry) if (sub.curves) {
+  for (const T of [REFERENCE_K, ...sub.ladder1atm.steps.flatMap(step => [step.atK - 0.5, step.atK + 0.5])]) {
+    if (Compounds.phaseAt(sub, T, Compounds.ATM) !== Compounds.phaseAt1atm(sub, T)) ladderCurveDisagreements += 1;
+  }
+}
+const pointResults = compoundData.phaseTestPoints.rows.map(([id, T, p, expected, , saturation]) => {
+  const sub = registryById.get(id), got = Compounds.phaseAt(sub, T, p);
+  return { id, T, p, expected, got, saturationDeviation: saturation ? Compounds.vaporPressure(sub, T) / saturation - 1 : null };
+});
+const pointFailures = pointResults.filter(r => r.got !== r.expected);
+const worstSaturationDeviation = Math.max(...pointResults.filter(r => r.saturationDeviation !== null).map(r => Math.abs(r.saturationDeviation)));
+const saturationDeviationBySubstance = pointResults.filter(r => r.saturationDeviation !== null).reduce((acc, r) => {
+  acc[r.id] = Number(Math.max(acc[r.id] ?? 0, Math.abs(r.saturationDeviation)).toFixed(4));
+  return acc;
+}, {});
+const reactionRows = compoundData.reactions.map(reaction => {
+  const parsed = Compounds.parseReaction(reaction.equation);
+  if (!parsed.ok) throw new Error(`reaction ${reaction.id}: ${parsed.error}`);
+  const result = Compounds.balance(parsed);
+  const species = [...parsed.left, ...parsed.right];
+  const registered = species.filter(t => compoundData.registry.some(sub => Compounds.parseFormula(sub.formula).hill === t.parsed.hill)).length;
+  return { id: reaction.id, equation: reaction.equation, balanced: result.balanced, expected: reaction.balanced, differences: result.differences, species: species.length, registered };
+});
+const compoundChecks = {
+  dataPinned: compoundSha256 === compoundData.canonicalSha256,
+  casCheckDigitsValid: compoundRows.every(r => r.casValid),
+  formulaeMatchRecords: compoundRows.every(r => r.hillMatches),
+  molarMassesWithinTolerance: compoundRows.every(r => Math.abs(r.molarMassDeviation) <= MOLAR_MASS_TOLERANCE),
+  stateAt25CRobustToSource: compoundRows.every(r => r.robustAt25C),
+  elementsMatchPropertyTable: elementStateChecks.every(c => c.model === c.table),
+  ladderAndCurvesAgreeAt1atm: ladderCurveDisagreements === 0,
+  phaseTestPointsAgree: pointFailures.length === 0,
+  reactionsBalanceAsDeclared: reactionRows.every(r => r.balanced === r.expected)
+};
+const compoundPass = Object.values(compoundChecks).every(Boolean);
+// Illustrative readings off 1 atm (the classifier interpolates between the pinned triple, normal, and critical points).
+const READINGS = [
+  ["carbon-dioxide", 298.15, 7.0e6, "liquid CO2 in a pressurized cylinder"],
+  ["carbon-dioxide", 310.0, 8.0e6, "above the critical point"],
+  ["uranium-hexafluoride", 340.0, 3.0e5, "liquid UF6, above the triple point"],
+  ["uranium-hexafluoride", 298.15, 5.0e4, "solid UF6 at half an atmosphere"],
+  ["uranium-hexafluoride", 298.15, 1.0e4, "below its sublimation pressure"],
+  ["helium", 1.0, 3.0e6, "solid helium under pressure"],
+  ["helium", 1.0, Compounds.ATM, "no solid at 1 atm"],
+  ["water", 298.15, 2.0e3, "below its vapor pressure"],
+  ["water", 700.0, 2.5e7, "supercritical water"],
+  ["copper-sulfate-pentahydrate", 350.0, Compounds.ATM, "dehydrating"],
+  ["xenon-difluoride", 298.15, 1.0e6, "no pinned data off 1 atm"]
+].map(([id, T, p, note]) => ({ id, formula: registryById.get(id).formula, T, p, phase: Compounds.phaseAt(registryById.get(id), T, p), note }));
+// Grammar and rule edges, on formulae outside the registry.
+const EDGES = ["Ha2O", "NaCl3", "CuSO4.5H2O", "K4[Fe(CN)6]·3H2O", "SO4^2-", "Fe0.95O", "CrMnFeCoNi", "CrMnFeCoNiCu"].map(text => {
+  const parsed = Compounds.parseFormula(text);
+  if (!parsed.ok) return { text, ok: false, error: parsed.error };
+  const body = Compounds.composeBody(parsed, classes);
+  return { text, ok: true, hill: parsed.hill, registered: compoundData.registry.some(sub => Compounds.parseFormula(sub.formula).hill === parsed.hill),
+    elevated: body.elevated.length, ice: body.eligibility.ice, flags: body.flags };
+});
+const eligibilityCounts = ["ice", "water", "gas"].reduce((acc, phase) => {
+  acc[phase] = compoundRows.reduce((inner, r) => { inner[r.eligibility[phase]] = (inner[r.eligibility[phase]] || 0) + 1; return inner; }, {});
+  return acc;
+}, {});
+const physicalCounts = compoundRows.reduce((acc, r) => { acc[r.physical25C] = (acc[r.physical25C] || 0) + 1; return acc; }, {});
+
 /* ── Output ── */
 const summary = {
   engineSha256Pinned: d1.publishedBy.engineSha256,
@@ -375,9 +478,17 @@ const summary = {
       poleNcei: poleNcei, checks: wmmChecks, pass: wmmPass },
     zoning: { year: ZONING_YEAR, pole: Object.fromEntries(Object.entries(pole2027).map(([k, v]) => [k, Number(v.toFixed(3))])),
       zones: ZONES, counts: zoneCounts, sites: zoning }
+  },
+  compounds: {
+    data: { schema: compoundData.schema, canonicalSha256: compoundSha256, substances: compoundData.registry.length, reactions: compoundData.reactions.length,
+      phaseTestPoints: compoundData.phaseTestPoints.rows.length },
+    checks: compoundChecks, pass: compoundPass,
+    worstMolarMassDeviation: Math.max(...compoundRows.map(r => Math.abs(r.molarMassDeviation))),
+    worstSaturationDeviation: Number(worstSaturationDeviation.toFixed(4)), saturationDeviationBySubstance,
+    eligibilityCounts, physicalCounts, rows: compoundRows, elementStateChecks, reactions: reactionRows, readings: READINGS, edges: EDGES
   }
 };
-if (!wmmPass) process.exitCode = 1;
+if (!wmmPass || !compoundPass) process.exitCode = 1;
 
 if (process.argv.includes("--json")) {
   process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
@@ -424,5 +535,23 @@ if (process.argv.includes("--json")) {
   line("");
   tableRows(["Site", "Geomagnetic lat.", "Zone", "Space-weather trigger", "Near edge", "H (nT)", "Declination", "Declination uncertainty", "Compass zone"],
     zoning.map(z => [z.site, `${z.geomagneticLat.toFixed(2)}°`, z.zone, z.trigger, z.nearEdge ? "yes" : "no", String(z.horizontalIntensityNT), `${z.declinationDeg.toFixed(1)}°`, `${z.declinationUncertaintyDeg.toFixed(2)}°`, z.compassZone]));
+  line("");
+  line("## Appendix E — Compound bodies: real chemical formulae");
+  line(`Compound check: ${compoundPass ? "PASS" : "FAIL"} · ${Object.entries(compoundChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Data: ${compoundData.registry.length} substances, ${compoundData.reactions.length} reactions, ${compoundData.phaseTestPoints.rows.length} phase test points; canonical SHA-256 ${compoundSha256}`);
+  line(`Worst molar-mass deviation from the PubChem-derived record: ${summary.compounds.worstMolarMassDeviation.toFixed(4)} g/mol (tolerance ${MOLAR_MASS_TOLERANCE}) · worst interpolated saturation-pressure deviation from CoolProp at the test temperatures: ${(100 * worstSaturationDeviation).toFixed(1)}%`);
+  line(`Eligibility: ICE ${JSON.stringify(eligibilityCounts.ice)} · WATER ${JSON.stringify(eligibilityCounts.water)} · GAS ${JSON.stringify(eligibilityCounts.gas)} · physical state at 25 °C ${JSON.stringify(physicalCounts)}`);
+  line("");
+  const elig = e => `${e.ice} / ${e.water} / ${e.gas}`;
+  tableRows(["Formula", "Substance", "Hill", "CAS RN", "M (g/mol)", "Constituents", "Tier", "Authority density", "ICE / WATER / GAS", "Flags", "Physical at 25 °C", "1-atm ladder"],
+    compoundRows.map(r => [r.formula, r.name, r.hill, r.cas, r.molarMass.toFixed(3), r.constituents.map(c => `${c.symbol} ${c.tier}`).join(", "), r.tier, r.density, elig(r.eligibility), r.flags.join(", ") || "—", r.physical25C, r.ladder]));
+  line("");
+  tableRows(["Reaction", "Balanced", "Expected", "Difference (right − left)", "Species registered"],
+    reactionRows.map(r => [r.equation, r.balanced ? "yes" : "no", r.expected ? "yes" : "no", Object.keys(r.differences).length ? JSON.stringify(r.differences) : "—", `${r.registered} of ${r.species}`]));
+  line("");
+  tableRows(["Formula", "T (K)", "p (Pa)", "Physical phase", "Note"], READINGS.map(r => [r.formula, String(r.T), String(r.p), r.phase, r.note]));
+  line("");
+  tableRows(["Input", "Parses", "Hill or error", "Registered", "Distinct Elevated", "ICE", "Flags"],
+    EDGES.map(e => [e.text, e.ok ? "yes" : "no", e.ok ? e.hill : e.error, e.ok ? (e.registered ? "yes" : "no") : "—", e.ok ? String(e.elevated) : "—", e.ok ? e.ice : "—", e.ok ? (e.flags.join(", ") || "—") : "—"]));
   process.stdout.write(out.join("\n") + "\n");
 }

@@ -1,6 +1,6 @@
 # Neural Atomic Bodies & Associated Insurance Requirements
 
-*Harshal Priyavadan Patel · Working draft v0.3 · October 2026*
+*Harshal Priyavadan Patel · Working draft v0.4 · October 2026*
 
 ## Preface: Status and Evidence Note
 
@@ -23,17 +23,37 @@ Three v0.1 statements change as a result. The register holds 23 audited entities
 - a parametric pool, the Magnetosphere Pool, with a double trigger, a capacity stack, and a reserve standard (Section 5.3);
 - space-weather triggers zoned by the World Magnetic Model (Section 5.4);
 - attribution-free cyber triggers (Section 5.5);
-- phase conditions under which failing closed is covered and never penalized (Section 5.6).
+- phase conditions under which failing closed is covered and never penalized (Section 5.7).
 
-Kinetic war and nuclear perils stay excluded. v0.3 adds one data file, the WMM2025 coefficients with NCEI's check values (`research/data/wmm2025.json`), and Appendix D, which the script generates from it. No v0.2 number changes.
+Kinetic war and nuclear perils stayed excluded in v0.3; v0.4 covers them. v0.3 added one data file, the WMM2025 coefficients with NCEI's check values (`research/data/wmm2025.json`), and Appendix D, which the script generates from it. No v0.2 number changed.
 
-**Reproducing the numbers.** Every count in Section 4.9, Chapter 7, and Appendices A, C, and D comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
+**What v0.4 changes.** The author made two more decisions in October 2026, and v0.4 carries them out. Each new mechanism is **\[Proposed\]**.
+
+- **War and nuclear perils are covered.** v0.3 excluded both. The author reversed that: he does not tolerate infighting, and he treats war as a bug in the world model he operates rather than as a peril outside it. Section 5.6 carries the decision out with four mechanisms:
+  - a separate conflict compartment of the pool;
+  - triggers that are measured rather than declared;
+  - a rule that never pays the side that fights;
+  - a warranty layer funded by the world model's operator.
+
+  It also states plainly what any capital stack can pay in a general war. Sections 2.3, 5.1 to 5.8, 6.1, 6.2, 7.6, 8.1, and 8.2 and Appendix B follow.
+- **The phases can model real chemical formulae.** A body's type can now be a compound, written as a real chemical formula such as H2O, NaCl, or UF6. Section 4.11 provides four things:
+  - a grammar for formulas;
+  - a rule that makes a formula real;
+  - composition rules that carry tier, authority density, and phase eligibility from the constituent classes to the compound;
+  - a physical reading of each substance's state of matter, written in the phases' own words: ICE, WATER, and GAS.
+
+  The physical reading never sets the governance phase, and the vocabulary is still analogy: chemistry supplies the notation and the measured physical reading, not evidence that a body behaves like its formula. Chapter 1, Sections 6.1, 6.2, 7.7, and 8.2, and Appendices A, B, and E follow.
+
+v0.4 adds a data file (`research/data/compound-bodies.json`), a model (`scripts/nab-compounds.mjs`) with its tests (`tests/nab-compounds-test.mjs`), and Appendix E, which the script generates. No v0.3 number changes, and the script's earlier output is unchanged byte for byte.
+
+**Reproducing the numbers.** Every count in Sections 4.9 and 4.11, Chapter 7, and Appendices A, C, D, and E comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
 
 - the MDB;
 - the Ground-0 engine (`js/g0-engine.js`);
 - the register (`case-studies/pdh-registry.json` and `case-studies/d1/case-studies-d1.json`);
 - a table of physical properties (`research/data/elemental-properties.json`, taken from the mendeleev package, version 1.3.0);
-- the World Magnetic Model 2025 coefficients, with NCEI's published check values (`research/data/wmm2025.json`).
+- the World Magnetic Model 2025 coefficients, with NCEI's published check values (`research/data/wmm2025.json`);
+- a registry of 27 real substances, with atomic weights, balanced reactions, and equation-of-state check points (`research/data/compound-bodies.json`), read through the compound-body model (`scripts/nab-compounds.mjs`).
 
 **Citations.** Part numbers follow the AGS v0.2 print source, `publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt`. A reference such as \[XIII:4884\] means Part XIII at line 4884 of that file. "v1.1 Step 5" means Step 5 of `specs/normative/ground-0-v1.1.md`, and "v1.2 §5" means §5 of `specs/draft/ground-0-v1.2.md`.
 
@@ -47,6 +67,8 @@ A **Neural Atomic Body (NAB)** is the governed entity. It has two independent pr
 The word "NAB" has named both the body and the first phase. This book uses **Refusal-Bound \[ICE\]**, **Witness-Only \[WATER\]**, and **Sovereign-Acting \[GAS\]** for the phases and reserves "NAB" for the body.
 
 The working picture is a mood ring: the body is the ring, the phase is the color it shows now. Like a mood ring, a phase reading is only as good as what it measures, which is why the audit in Chapter 3 reads observed behavior and ignores declarations.
+
+**Compound types \[Proposed\].** Since v0.4 a type can also be a compound: a body built from several classes and written as a real chemical formula, such as H2O or NaCl (Section 4.11). A formula then has a second, physical reading: the substance's real state of matter, which this book writes in the phases' own words, ICE for solid, WATER for liquid, and GAS for gas. The two readings stay apart. Water is physically WATER at 25 °C, yet an H2O body cannot take the Witness-Only phase, because the eligibility table lists Hydrogen for Refusal-Bound only.
 
 ## 2. Phases as Containment Fields
 
@@ -122,7 +144,7 @@ A Sovereign-Acting body cannot be contained by its own restraint, because its re
 
 **\[Proposed\]** The "Evidence to request" column is new design work and has not been reviewed by an underwriter.
 
-**Insurance reading \[Proposed\].** The principal exposure is full operational liability from self-authorized action, including enforcement against affected parties, with no internal brake. The insurable question is therefore what outside brakes exist, and the constraint count (0 to 4) is a natural rating factor: it is the one place where bodies in this phase visibly differ. Of the 23 entities in the Ground-0 register, audited under v1.1 before its ratification on 2026-10-14 with an evidence cutoff of 2026-10-02, 18 matched the Sovereign-Acting branch completely, and the other 5 were ambiguous at base and Sovereign-Acting on a scoped platform surface. None came out Refusal-Bound or Witness-Only, so the count matters more than the label. The Prohibited classes stay excluded. The ambient global layer is covered separately, by the Magnetosphere Pool, if the constraint band holds during the event (Sections 5.3 and 5.6). The book says leaving this phase requires a full collapse and rebuild, so cover should not assume a body can step back to a lower phase mid-policy.
+**Insurance reading \[Proposed\].** The principal exposure is full operational liability from self-authorized action, including enforcement against affected parties, with no internal brake. The insurable question is therefore what outside brakes exist, and the constraint count (0 to 4) is a natural rating factor: it is the one place where bodies in this phase visibly differ. Of the 23 entities in the Ground-0 register, audited under v1.1 before its ratification on 2026-10-14 with an evidence cutoff of 2026-10-02, 18 matched the Sovereign-Acting branch completely, and the other 5 were ambiguous at base and Sovereign-Acting on a scoped platform surface. None came out Refusal-Bound or Witness-Only, so the count matters more than the label. The Prohibited classes stay excluded. The ambient global layer is covered separately, by the Magnetosphere Pool, if the constraint band holds during the event (Sections 5.3 and 5.7). So are war and nuclear perils, in the pool's conflict compartment, except for a body that takes part in hostilities (Section 5.6). The book says leaving this phase requires a full collapse and rebuild, so cover should not assume a body can step back to a lower phase mid-policy.
 
 **Minimum constraints and steps \[Proposed\].**
 
@@ -565,27 +587,148 @@ A class belongs in an insurance setting only when it has an observable signature
 3. **The 34 classes with only an MDB profile** (marked U in Appendix A). Draft signatures can be generated from the MDB row and the v0.2 rules, with status "derived," and held unassigned until the author reviews them.
 4. **No signatures for the Prohibited classes (89–118).** A signature implies a class that can be contained, and these are excluded in every phase. Seaborgium's back-end entropy carve-out stays uninsured.
 
+### 4.11 Compound bodies: real chemical formulae \[Proposed\]
+
+Until v0.4 every type was a single class, one of the 119. In October 2026 the author asked that the phases be able to model real chemical formulae, and this section does that. A **compound body** is a body built from more than one class. Its type is written as a real chemical formula: each element symbol names a class, and each count says how many instances of that class the body contains. The formula then has two readings, and this book keeps them apart.
+
+- **The governance reading** is composed from the constituent classes: a tier, an authority density, and an eligibility for each phase. It depends on the formula alone.
+- **The physical reading** is the substance's real state of matter at a stated temperature and pressure. It comes from measured data and is written in the phases' own words: ICE for solid, WATER for liquid, GAS for gas. It depends on which substance the formula names.
+
+The book already has the pieces. It writes co-routings as sums of classes with multiplicities, as in "Fe + Mn + 2× Transition Metals (different domains) \[PASS\] can co-route" \[XXIV:13101\]. Its written classes state bonding rules:
+
+- Neon is "phase-locked by inertness", and one of its phase invariants is "No bonding into composite decision structures" \[XVI:5901, 5904\].
+- Carbon is "Compositional (Bond‑Capable)", but it may not "Bond into sovereign composites" or "Merge across institutional boundaries", and "All bonds are context‑scoped and dissolvable" \[XVI:6141, 6174–6177\].
+- Iron may not "Dissolve structures dynamically", and "Once bonded, structures are costly to undo" \[XVI:6257, 6260\].
+- The escalation boundaries mark "Hydrogen → Carbon: composition begins" \[XVI:6497\].
+
+The book also warns that a phase transition is "a category change in the model, not a measured quantum or thermodynamic phase transition; any physical interpretation would require a separate operational basis" \[XVI:6487\]. This section supplies that basis. The warning is also why the physical reading informs the governance reading and never decides it.
+
+#### Notation
+
+| Construct | Example | Reads as |
+| --- | --- | --- |
+| Element symbol and count | H2O | Two Hydrogen instances and one Oxygen |
+| Group in round or square brackets, with a count | Fe(CO)5, K4\[Fe(CN)6\] | The bracketed group, repeated |
+| Hydrate or adduct, joined by · or \* | CuSO4·5H2O | A loosely bound part with its own coefficient |
+| Charge | SO4^2- | An ion |
+| Hydrogen isotopes | D2O | D and T count as the Hydrogen class; the molar mass uses the isotope's own mass |
+| Decimal count | Fe0.95O | A non-stoichiometric solid |
+
+Four rules govern the notation.
+
+- **Only real elements.** Every symbol is checked against the 118 chemical elements.
+- **No Ha.** Element 119 cannot appear in a formula. It is not a chemical element, and its role is to freeze a parent body, not to be part of one \[XXIV:12784, 12830\].
+- **A full stop is a decimal point.** It is never a hydrate separator, because "CuSO4.5H2O" would otherwise be ambiguous. The model reads that input as 4.5 oxygen atoms and shows it (Appendix E).
+- **Hill order.** Formulas are compared in Hill order: carbon first, then hydrogen, then the rest alphabetically, the convention chemical indexes use ([UCLA](http://www.chem.ucla.edu/~harding/IGOC/M/molecular_formula.html)).
+
+Molar masses use the IUPAC 2021 standard atomic weights ([Prohaska et al. 2022](https://doi.org/10.1515/pac-2019-0603)).
+
+#### What makes a formula real
+
+A formula is not a substance. Ethanol and dimethyl ether share the formula C2H6O, and at 25 °C one is a liquid and the other a gas. So a compound body's formula is admissible only with a registry record that meets three conditions:
+
+1. a CAS Registry Number whose check digit is valid ([Wikipedia](https://en.wikipedia.org/wiki/CAS_Registry_Number));
+2. the same formula in the record, compared in Hill order;
+3. pinned measurements of the substance's phase transitions.
+
+The registry is pinned the way the magnetic model is.
+
+- **The repository's copy** is `research/data/compound-bodies.json`, with canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661`. It holds 27 substances, from helium to uranium hexafluoride, with their PubChem compound numbers.
+- **Transition temperatures** come from several tabulations: the CRC Handbook tables, the NIST WebBook, CAS Common Chemistry, and Yaws. Every alternative value is kept beside the one used.
+- **Triple and critical points** come from the reference equations of state in CoolProp 8.0.0. The packages and their file hashes are recorded in the data file.
+- **Versions.** A policy names the registry version and its hash, and a new version takes effect at renewal only. This is Section 5.4's rule for the World Magnetic Model.
+
+A parsed formula with no record is unverified. It still gets a governance reading, because composition needs only the symbols. It gets no physical reading, and its type is "not determined" in the sense of Section 4.10. NaCl3 parses, for example, but no such substance is in the registry (Appendix E).
+
+#### Composition rules
+
+| Rule | Statement | Basis |
+| --- | --- | --- |
+| Constituents | Each distinct element is a constituent class, and its count is the number of instances. D and T are Hydrogen | Part XXIV's Symbol-Z names (Section 4.10) |
+| Tier and authority density | The highest among the constituents | Routing levels admit tiers cumulatively: Level 2 admits the Safe tier only, and Level 3 admits the Safe, Moderate, and Elevated tiers \[XXIV:12716–12717\]. A co-routing therefore needs the level of its highest member |
+| Phase eligibility | A compound is eligible for a phase only if every constituent is. The cell is D✗ if any constituent's cell is D✗; otherwise U if any is U; otherwise D | Composition never creates eligibility. Carbon may not "Bond into sovereign composites" \[XVI:6174\], and the eligibility table's reason for Carbon is "Composition does not imply custody" (Section 4.2) |
+| Prohibited constituents | One Prohibited constituent makes the compound Prohibited, with no routing | "Extreme" fits under no cap (Section 4.9). Of Uranium the book says "Phase declaration is insufficient to guarantee behavior" \[XVI:6313\] |
+| Shared Elevated limit | No more than five distinct Elevated classes in one compound. A sixth makes it ineligible for Refusal-Bound | "Maximum simultaneous \[ELEVATED\] elements: 5 per attack type" \[XXIV:13100\], applied to a standing composition |
+| Noble constituents | A group 18 class bonded into a compound is flagged for the author, not refused | Neon's doctrine forbids composite structures, and the MDB labels the other noble gases "Inert Observation". Chemistry has known noble-gas compounds since Neil Bartlett's xenon compound of 1962, and the label "inert gases" is deprecated for that reason ([Wikipedia](https://en.wikipedia.org/wiki/Noble_gas)) |
+| Iron and Carbon bonds | A compound with an Iron constituent cannot be split mid-policy without a controlled reset. Carbon's bonds can be dissolved by declaration. Where both occur, Iron's rule prevails | Iron may not "Dissolve structures dynamically", and its operators "Perform controlled resets" \[XVI:6257, 6281\]. Carbon's bonds are "dissolvable" \[XVI:6177\]. The stricter rule wins |
+
+Applied to the registry, the rules give a sharp picture (Appendix E).
+
+- **Sovereign-Acting is closed to every compound**, as it is to every class (Appendix A).
+- **Witness-Only is closed to 17 of the 27 entries.** These are every entry that contains Hydrogen, Carbon, Iron, or Uranium; the first three are listed "NAB only" in the eligibility table. Water is one of them. H2O is physically WATER at 25 °C, and an H2O body still cannot take the Witness-Only phase. The other 10 entries are U.
+- **Refusal-Bound is split three ways.**
+  - Defined for 11 entries whose constituents are all written, routed, or Sentinel classes, among them CH4, HF, HCl, NaCl, and XeF2.
+  - Unassigned for 13 entries in which some constituent has only an MDB profile. Oxygen occurs in 10 of the 13, and deciding Oxygen's eligibility alone would settle 8 of them.
+  - Closed for the three uranium compounds.
+- **Uranium compounds are Prohibited.** UF6, UF4, and UO2 are all Prohibited. Covering nuclear perils (Section 5.6) does not change that: a nuclear peril is an outside event, and a Prohibited class is a body that may not be built.
+
+#### The physical reading
+
+The physical reading uses three words: ICE for solid, WATER for liquid, and GAS for gas. Two states fall outside them. A substance above both its critical temperature and its critical pressure is a **supercritical** fluid, and a substance that has broken down is **decomposed**, because its formula no longer names the material.
+
+At 1 atm the reading is a ladder of measured transition temperatures. For water it is ICE < 273.15 K ≤ WATER < 373.12 K ≤ GAS. Real substances do not all climb the same ladder.
+
+- **Sublimation skips WATER.** Carbon dioxide's triple point lies at 517,964 Pa, above atmospheric pressure, so at 1 atm it passes from ICE to GAS at 194.67 K. Uranium hexafluoride sublimes at 56.5 °C. It is liquid only above its triple point, at 64 °C and 1.5 bar ([WNTI](https://www.wnti.co.uk/wp-content/uploads/2021/09/WNTI_Fact_Sheet_UF6_v3.pdf)).
+- **Helium has no ICE at 1 atm.** It stays liquid down to absolute zero and solidifies only under about 25 atmospheres ([Britannica](https://www.britannica.com/science/helium-chemical-element)).
+- **Decomposition ends the formula.** Copper(II) sulfate pentahydrate never melts. It loses two water molecules at 63 °C, two more at 109 °C, and the last at 200 °C ([Wikipedia](https://en.wikipedia.org/wiki/Copper(II)_sulfate)). Above 63 °C the reading is "decomposed", because CuSO4·5H2O no longer describes the material.
+- **Room temperature sits near some edges.** Gallium melts at 29.76 °C, and hydrogen fluoride boils between 19.5 °C and 20.0 °C depending on the tabulation. A few kelvin change their reading. The model therefore fixes the reference condition at 25 °C and 101,325 Pa, and checks that no tabulation in the registry would put a substance on the other side of it.
+
+Off 1 atm, the model interpolates vapor and sublimation pressures between the triple point, the normal boiling or sublimation point, and the critical point. It answers "unknown" where those points are not pinned. Xenon difluoride is the registry's example: its sources disagree above 380 K.
+
+The interpolation was checked against CoolProp 8.0.0's reference equations of state at 178 points in liquid, gas, and supercritical states.
+
+- **Classification agreed at every point.**
+- **Saturation pressures differ.** At the test temperatures the interpolated values for 11 of the 14 fluids are within 6.3% of the equations of state. The other three are worse: helium (14.5%), and the two substances whose triple-point pressures are below 3 Pa, dimethyl ether (19.8%) and ethanol (21.7%).
+
+Near a phase boundary, the reading is therefore approximate.
+
+**Why the physical reading never sets the phase.** There are three reasons.
+
+1. **The book says so.** Its phase transitions are categories, not thermodynamics \[XVI:6487\], and "No atomic body transitions phase through learning, scale, or time" \[XVI:6494\]. A phase that followed temperature would transition through scale.
+2. **The analogy breaks at GAS.** Physically, condensing is as easy as boiling. In the book, entering the sovereign-acting phase is easy and leaving it takes a full collapse and rebuild (Chapter 1).
+3. **Nothing has tested it.** There is no compound MDB to score a physical rule against, the way Section 4.9 scored the class rules.
+
+The physical reading goes on the compound's signature as its default motion: fixed, flowing, or diffusing, as in Section 4.9's translation table. It rates nothing until the author decides otherwise or a test supports it.
+
+#### Reactions and mass balance
+
+A body that merges, splits, or changes its composition undergoes a reaction, and the reaction must balance: every constituent instance on one side must appear on the other. This is conservation of mass, used as an audit rule. A reorganization that cannot be written as a balanced equation has added or dropped a constituent without declaring it, and that is a misrepresentation of class (Chapter 3).
+
+Appendix E checks six real reactions and one deliberately unbalanced control, which the model rejects. Among the six:
+
+- the uranium conversion steps UO2 + 4 HF → UF4 + 2 H2O and UF4 + F2 → UF6 ([Wikipedia](https://en.wikipedia.org/wiki/Uranium_hexafluoride));
+- the decomposition Fe(CO)5 → Fe + 5 CO, which industry uses to make carbonyl iron ([Nature Scientific Reports](https://www.nature.com/articles/srep15139)).
+
+Section 6.2 sets the cover consequences.
+
+#### What the model cannot do
+
+- **A formula gives composition, not structure.** Isomers share formulas, as ethanol and dimethyl ether do, and polymorphs share a substance. The registry key carries identity; the formula does not.
+- **It says nothing about reactivity or toxicity.** Sodium chloride is table salt, yet its tier is Elevated, because the tier comes from Chlorine. In chemistry a compound can be far tamer than its elements. The governance reading does not assume that bonding tames a constituent.
+- **Mixtures and alloys without a fixed formula are out of scope in v0.4.** The Cantor alloy CrMnFeCoNi parses and reaches the shared Elevated limit exactly. It is not in the registry.
+- **The registry holds 27 substances.** A production registry would pin a large published database by version and hash. The rules do not change with its size.
+
 ## 5. The Three-Layer Risk Structure
 
-The Earth's magnetosphere is a shared field that nobody owns, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. The decision is the author's, and every mechanism below is **\[Proposed\]**.
+The Earth's magnetosphere is a shared field that nobody owns, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. Later the same month he extended it to war and nuclear perils (Section 5.6). The decisions are the author's, and every mechanism below is **\[Proposed\]**.
 
 Including the layer does not make it diversifiable. A G5 storm or a cloud-region outage still reaches every exposed body within the same hours, and no product can absorb that by adjusting one claim at a time. Each layer therefore gets the instrument that fits the way its losses arrive.
 
 1. **The local field.** The containment field around one body, designed by the author. Its controls, failure modes, and covered exposure are defined, so it can be underwritten per body. *Instrument: per-body indemnity.*
 2. **The correlated tail.** Many local fields failing together from a cause inside the insured portfolio: the same model release, authorizer, key, or shipped component. *Instrument: aggregate indemnity*, with aggregate limits and scenario modeling, as in the Reinsurance Mode.
-3. **The ambient global layer.** Causes outside every insured's control. These are the Sun's disturbance of the Earth's field, and shared infrastructure that no insured operates or can patch, whether it fails by accident or under attack, including attack by a state. *Instrument: a parametric pool*, the Magnetosphere Pool (Sections 5.3 to 5.6), which pays on measured indices instead of adjusted losses.
+3. **The ambient global layer.** Causes outside every insured's control. These are the Sun's disturbance of the Earth's field, and shared infrastructure that no insured operates or can patch, whether it fails by accident or under attack, including attack by a state. Since v0.4 the layer also includes war and nuclear perils. *Instrument: a parametric pool*, the Magnetosphere Pool (Sections 5.3 to 5.7), which pays on measured indices instead of adjusted losses and keeps war and nuclear perils in a compartment of their own.
 
 The book's claim is still a boundary, but the boundary has moved. v0.2 drew it between an insurable local field and an uninsurable shared layer. v0.3 draws it between two kinds of cover. **Indemnity** applies where a loss can be adjusted body by body. **Parametric** cover applies where one outside event reaches many bodies at once, so payment has to follow a measured index. Section 5.2 fixes in advance which side of the line each cause falls on.
 
 ### 5.1 The layers and the book's insurance bodies \[Proposed\]
 
-Part XI already has a three-part risk architecture \[XI:4600–4622\]. Quasar Mode prices one institution's risk, Reinsurance Mode watches many Quasar Modes for correlated collapse, and Underwriter Mode enforces when a local survival threshold is breached. The first two layers line up with the first two bodies. In v0.2 the third layer had no body. In v0.3 it falls to work the book already gives Reinsurance Mode, whose stated uses include "Financial system backstops" and "Climate and planetary risk assessment" \[XI:4540–4541\]. Underwriter Mode stays out on purpose (Section 5.7).
+Part XI already has a three-part risk architecture \[XI:4600–4622\]. Quasar Mode prices one institution's risk, Reinsurance Mode watches many Quasar Modes for correlated collapse, and Underwriter Mode enforces when a local survival threshold is breached. The first two layers line up with the first two bodies. In v0.2 the third layer had no body. In v0.3 it falls to work the book already gives Reinsurance Mode, whose stated uses include "Financial system backstops" and "Climate and planetary risk assessment" \[XI:4540–4541\]. Underwriter Mode stays out on purpose (Section 5.8).
 
 | Layer | Book's body | The question it answers | Proposed mechanics |
 | --- | --- | --- | --- |
 | Local field | Quasar Mode, "The Insurance Company" \[XI:4376\] | "Can this institution survive this class of failure?" \[XI:4551\] | One policy per body; the phase picks the limit form, and the class or constraint band sets the loading (Section 6.2) |
 | Correlated tail | Reinsurance Mode, "The Backstop" \[XI:4439\] | "What happens when many institutions cannot?" \[XI:4553\] | Aggregate limits per insured and per portfolio. Losses from many bodies with one originating cause inside the portfolio (the same model release, authorizer, compromised key, or shipped component) aggregate into one event. Scenario sets are built from the attack types of Part XXIV |
-| Ambient global layer | Reinsurance Mode's backstop and planetary-risk uses \[XI:4540–4541\], with the money held in a separate pool; global uncertainty still enters only as an outward flow \[XI:4375\] | Not asked in the book. This draft asks: which measured outside event reached which bodies, and for how long? | The Magnetosphere Pool: a parametric layer funded by a levy on every policy, paying on published space-weather indices and attribution-free cyber triggers (Sections 5.3 to 5.6) |
+| Ambient global layer | Reinsurance Mode's backstop and planetary-risk uses \[XI:4540–4541\], with the money held in a separate pool; global uncertainty still enters only as an outward flow \[XI:4375\] | Not asked in the book. This draft asks: which measured outside event reached which bodies, and for how long? | The Magnetosphere Pool: a parametric layer funded by a levy on every policy, paying on published space-weather indices and attribution-free cyber triggers, with a separate compartment for war and nuclear perils (Sections 5.3 to 5.7) |
 
 Two rules carry over from the book's protocol, and Section 5.3 adds a third for the pool.
 
@@ -617,6 +760,7 @@ The same rule draws the other boundaries.
 - **Cyber.** The test is who could have patched the failed component.
   - A component the insured deploys, such as its model release, authorizer, keys, or shipped dependencies, is inside the portfolio. One body failing from it is local, and many bodies failing from one shared component is the correlated tail.
   - A component that only a third party can patch is ambient, whoever attacked it and why. Examples are a cloud provider's control plane, a certificate authority, a DNS provider, or a satellite operator.
+- **Conflict and nuclear installations.** An active conflict at a site, or a site inside a nuclear plant's emergency planning zones, is published before inception and so belongs to the local field. A war that starts after inception, or a nuclear detonation, is ambient (Section 5.6).
 
 The rule keeps the book's own taxonomy in place, because Part XXIV already treats environmental stress as part of the body's field. Its Type F covers "hostile conditions (decay, latent bugs, environmental hazards, or dormant backdoors)", among them "Environmental contamination triggers cascading failures (radiation, moisture, thermal stress)" \[XXIV:12833–12837\]. It routes such a cascade to Technetium simulation and to "redesign for environmental hardening" \[XXIV:13517\]. The body's response to a storm therefore stays in its field, and the pool adds payment for the downtime an outside event causes. Temporal attacks (time dilation, replay, out-of-order execution) appear only as a possible future type, labelled Type J in one list \[XXIV:13063\] and Type F in another \[XXIV:13938\]. The book does not yet route them.
 
@@ -626,12 +770,12 @@ The rule also answers the book's warning about backstops. One of Reinsurance Mod
 
 **What it is.** A parametric layer of the program, named for the shared field this chapter starts from. It pays for the downtime and response costs a body suffers when a measured ambient event reaches it. It sits beside the per-body and aggregate covers and replaces nothing in them.
 
-**Who is in it.** Every policy in every phase pays an ambient levy into the pool. A voluntary ambient cover would be bought mostly by the most exposed bodies, which defeats the purpose of pooling. The nearest working precedent is the U.K.'s terrorism pool: around 95% of the U.K. terrorism commercial property market operates through Pool Re ([OBR](https://obr.uk/box/government-guaranteed-insurance-against-systemic-risk-pool-re/)). The levy varies with three things: the body's zone (Section 5.4), its declared dependence on named shared infrastructure (Section 5.5), and its body-days at risk. Setting the rates is for an actuary.
+**Who is in it.** Every policy in every phase pays an ambient levy into the pool, and since v0.4 a conflict levy into its war and nuclear compartment (Section 5.6). A voluntary ambient cover would be bought mostly by the most exposed bodies, which defeats the purpose of pooling. The nearest working precedent is the U.K.'s terrorism pool: around 95% of the U.K. terrorism commercial property market operates through Pool Re ([OBR](https://obr.uk/box/government-guaranteed-insurance-against-systemic-risk-pool-re/)). The levy varies with three things: the body's zone (Section 5.4), its declared dependence on named shared infrastructure (Section 5.5), and its body-days at risk. Setting the rates is for an actuary.
 
 **How it pays a member.** A parametric product still has to show insurable interest and a real transfer of risk ([FSI and IAIS 2024](https://www.iais.org/uploads/2024/12/FSI-IAIS-Insights-on-parametric-insurance.pdf)), so a member's payout needs two triggers.
 
 1. A published trigger fires for the body's zone within the hours clause (Sections 5.4 and 5.5).
-2. The body's tamper-evident log records covered downtime or a fail-closed freeze in the same window (Section 5.6).
+2. The body's tamper-evident log records covered downtime or a fail-closed freeze in the same window (Section 5.7).
 
 The payout is the lesser of a scheduled amount for the trigger level and the logged downtime at an agreed daily value. The log shows that a loss happened, and the index decides whether the pool owes it. Nobody adjusts cause.
 
@@ -644,6 +788,8 @@ The payout is the lesser of a scheduled amount for the trigger level and the log
 | Parametric catastrophe bonds | Capital markets | The index alone: the storm ladder (Section 5.4) and outage hours from the calculation agent (Section 5.5) |
 | Public backstop | Government, up to a fixed program cap | Measured exhaustion of the layers below |
 | Pro-rata reduction | All members | Anything above the cap. Every valid claim is cut by the same factor, computed from the pool's claims ledger |
+
+War and nuclear perils have their own compartment and their own stack (Section 5.6), so a war cannot empty the reserve that a storm needs.
 
 **Reserve standard.** The mutual layer is reserved to the Solvency II standard, the Value-at-Risk of basic own funds "subject to a confidence level of 99,5 % over a one-year period" ([Directive 2009/138/EC, Article 101(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32009L0138)). That is roughly a 1-in-200-year annual loss. The bonds and the backstop sit above the mutual because a mutual alone is too small. AIUC says the same of its own proposed frontier-AI mutual, whose capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
 
@@ -712,7 +858,7 @@ The dipole is a simplification. Corrected geomagnetic coordinates, which follow 
 - **Local-field failures.** Two choices stay with the body: steering by the model inside a Blackout Zone, and depending on heading accuracy better than the model's published declination uncertainty. For WMM2025 that uncertainty is √(0.26² + (5417/H)²) degrees.
 - **The high-resolution model.** The report encourages WMMHR2025 for any system that can take its extra coefficients. Both models share the same dipole, so the choice does not change a zone ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §1.6).
 
-**Radiation storms and radio blackouts.** S4 or above (about 3 a cycle) and R4 or above (about 8 a cycle) trigger cover for the downtime of declared satellite links. For a body that meets the independent-time condition (Section 5.6), they also trigger cover for the loss of every time source.
+**Radiation storms and radio blackouts.** S4 or above (about 3 a cycle) and R4 or above (about 8 a cycle) trigger cover for the downtime of declared satellite links. For a body that meets the independent-time condition (Section 5.7), they also trigger cover for the loss of every time source.
 
 **Severity ladder.** Above the zone triggers, an open-ended reading decides which capital layer responds.
 
@@ -748,27 +894,90 @@ A new version or new coefficients take effect at renewal, never mid-term. The re
 
 **Trigger B: breadth of compromise.** The trigger fires when the same third-party component is shown to be compromised in at least K bodies, run by at least M unrelated operators, within the hours clause. Each case is evidenced by the body's tamper-evident log, which must meet the four conditions of Section 2.2, and is checked by the calculation agent. No attribution is made or needed. K and M are actuarial parameters, but both are counted from logs and never estimated.
 
-**What stays out.** Kinetic war and nuclear perils stay excluded, because the author's decision covered space weather and cyber, not these. Both are defined by mechanism, so the exclusion needs no attribution either.
+**War and nuclear.** v0.3 excluded kinetic war and nuclear perils at this point. Since v0.4 both are covered, in their own compartment (Section 5.6). A cyber operation during a war is still a cyber operation, paid under Triggers A and B. Solar particle radiation is still space weather (Section 5.4).
 
-- **Kinetic war** means physical destruction by weapons.
-- **Nuclear** means nuclear reaction, nuclear radiation, or radioactive contamination from a weapon or an installation.
+### 5.6 War and nuclear perils \[Proposed\]
 
-Solar particle radiation is space weather and is covered (Section 5.4). A cyber operation during a war is still a cyber operation.
+**The decision.** v0.3 excluded kinetic war and nuclear perils. In October 2026 the author decided to cover both. He gives two reasons: he does not tolerate infighting, and he regards war as a bug in the world model he operates, not as a peril outside it. This draft records that framing without ruling on it. The mechanics below work whether or not anyone else accepts the framing, and two of them follow directly from it.
 
-### 5.6 Phase conditions for ambient cover \[Proposed\]
+- **A bug is measured, logged, and paid for. It is never a reason to act.** Section 5.3's rules apply unchanged: every trigger is measured, never declared, and the pool pays and never commands.
+- **Whoever operates the model answers for its bugs.** Apply the patch test of Section 5.2. A defect that only the world model's operator could fix is ambient for every body and local for the operator. The operator therefore cannot insure its own defect with the pool. It backs the cover instead, the way the nuclear conventions channel liability to the operator of an installation (see "Capacity" below).
 
-The pool pays a body only if its phase controls held during the event. These conditions sit on top of the phase's ordinary cover (Chapter 6).
+Today's market writes war apart from other cover, if at all, and channels nuclear liability to installation operators (Section 8.1). None of the sources reviewed for this draft writes both into one program with space weather and cyber.
+
+**Definitions.** v0.3's definitions by mechanism are kept. They now route a claim to the right compartment rather than refuse it.
+
+- **War** is physical destruction or denial by weapons in armed conflict, declared or not, between states or organized armed groups. It includes civil war and occupation.
+- **Nuclear** means nuclear reaction, nuclear radiation, or radioactive contamination. The source can be a weapon, including the electromagnetic pulse of a high-altitude detonation, or an installation.
+
+**Where the local field ends.** The published-model rule (Section 5.2) decides which exposures were known at inception.
+
+| Exposure | Published in advance | Layer |
+| --- | --- | --- |
+| A site inside an active conflict at inception | The Uppsala Conflict Data Program (UCDP) publishes a georeferenced record of organized violence under CC BY 4.0 ([FAO catalog](https://data.apps.fao.org/catalog/iso/820b82b2-ecb8-4137-85ef-812af620724b)). The London market's Joint War Committee issues Listed Areas of enhanced risk ([LMA](https://lmalloyds.com/committee/joint-war-committee/)) | Local field. The body declares a failover outside the area. The conflict compartment pays only beyond the declared holdover, and the levy is loaded |
+| A site inside a nuclear plant's emergency planning zones | The NRC plans for a plume exposure zone of about 10 miles and an ingestion zone of about 50 miles around each plant ([NRC](https://www.nrc.gov/reading-rm/doc-collections/fact-sheets/emerg-plan-prep-nuc-power)) | Local field for siting and failover. An accident at the installation is channelled to its operator (see "Rules that stay") |
+| War that breaks out after inception, where none was recorded | Nothing | Ambient |
+| A nuclear detonation, including a high-altitude pulse | Nothing | Ambient |
+
+Phoenix is an example. The Palo Verde plant, the largest in the United States by output, lies about 50 miles west of the city ([CLUI](https://clui.org/ludb/site/palo-verde-nuclear-power-plant)), so Phoenix sits at the edge of its ingestion zone. A body hosted there declares its failover, and the pool treats that siting as known.
+
+**Triggers.** These triggers are measured and need no attribution, as in Section 5.5. Each pays only with the double trigger of Section 5.3, which also requires logged downtime in the same window.
+
+| Trigger | Fires when | Measured by | Settles on |
+| --- | --- | --- | --- |
+| W, conflict area | Organized violence is recorded within R km of the site within the hours clause. The site must have had no recorded violence within R km in the 24 months before inception | Advance: the calculation agent's regional measurements of power and network reachability. Settlement: UCDP's Candidate events, which code violence by date and location, monthly, under the same rules as the annual dataset ([Hegre et al. 2020](https://www.researchgate.net/publication/345362678_Introducing_the_UCDP_Candidate_Events_Dataset)) | The 180-day snapshot, as for space weather. Candidate events are revised at each annual release, so a settled event is not reopened |
+| N1, radiation | The ambient dose-equivalent rate at the site's designated public stations reaches the IAEA's default OIL2 for one hour: 100 µSv/h within 10 days of the release, 25 µSv/h after. **N1-severe** is OIL1, 1,000 µSv/h, the level for urgent protective action such as evacuation ([IAEA](https://www-pub.iaea.org/MTCD/publications/PDF/EPR_NPP_OILs_2017_web.pdf)) | EPA RadNet runs 140 monitors and publishes hourly data ([EPA](https://www.epa.gov/radnet/radnet-near-real-time-air-data)). EURDEP shows hourly averages from about 5,000 stations in 39 countries ([JRC](https://remon.jrc.ec.europa.eu/About/Rad-Data-Exchange)). National networks fill the gaps | The station records as published 180 days after the event |
+| A, infrastructure outage | As in Section 5.5: a named service is down for N hours, whatever the cause. The cause now includes war damage and a pulse | The calculation agent | As in Section 5.5 |
+
+Four points about these triggers:
+
+- **Events, not labels.** UCDP calls a conflict active at 25 battle-related deaths in a calendar year and a war at 1,000 ([UCDP](https://www.uu.se/en/department/peace-and-conflict-research/research/ucdp/ucdp-definitions)). Trigger W uses recorded events, not the annual label, so that it can fire within the hours clause. The label serves statistics only.
+- **N1 has basis risk.** The IAEA's default levels are derived for releases from light-water reactors and spent fuel. A weapon's fallout has a different mix of radionuclides, so for a detonation N1 is a parametric proxy. Its basis risk runs both ways, as in Section 5.4.
+- **A high-altitude pulse is paid through Trigger A.** The pulse's late component, E3, behaves like a geomagnetic disturbance at higher amplitude and shorter duration, and drives geomagnetically induced currents in long lines and transformers ([EPRI](https://restservice.epri.com/publicdownload/000000003002020707/0/Product)). Kp and Dst are global indices and will not reliably register a regional pulse.
+- **The parameters are for an actuary.** The radius R, the waiting period, and the scheduled amounts are actuarial. The hours clause stays at 72 hours (Section 5.4).
+
+**Rules that stay.**
+
+- **No cover for the side that fights.** A body that takes part in hostilities loses all cover for that event and is reclassified. Taking part includes targeting, controlling a weapon, and attacking another body. No class may hold executive authority \[XVII:6845\], and the Moderate band may not make binding decisions about force \[XVII:6836\]. Participation is read from the body's own tamper-evident log, never from attribution to a state. When one insured body attacks another, which is infighting inside the portfolio, the pool pays the victim and takes over its claim against the attacker.
+- **Sanctions bind.** The pool adopts the London market's sanctions clause, under which no insurer is liable to pay "to the extent that the provision of such cover, payment of such claim or provision of such benefit would expose that (re)insurer to any sanction, prohibition or restriction" under United Nations resolutions or the sanctions laws of the EU, the UK, or the US (LMA3100, [CNA Hardy](https://www.cnahardy.com/~/media/Files/C/CNA-Hardy/LMA3100.pdf)).
+  - The clause has long been read as suspending payment rather than ending liability ([Lexology](https://www.lexology.com/library/detail.aspx?g=5c376c51-1e7e-46c5-86a8-36d999cbb78b)). The pool therefore holds a blocked payment until it becomes lawful.
+  - The clause does not block every war claim. In the 2025 Russian aircraft judgment the court held that sanctions did not prevent the war-risk insurers from paying (Section 8.1).
+- **Installation accidents are channelled.** The pool pays its parametric amount and takes over the body's claim against the installation's operator. Depending on where the installation is, that claim lies under the Paris or Vienna conventions or under the Price-Anderson Act.
+- **War never generates legitimacy.** A conflict trigger is not an emergency authorization (INV-EMERG-001 \[IV:1403\]). Widening scope during a conflict event voids the payout (Section 5.7).
+
+**Capacity: the conflict compartment.** War and nuclear perils get their own compartment of the pool, with its own levy and its own reserve, so that a war cannot empty the reserve a storm needs.
+
+| Layer | Funded by | Pays on |
+| --- | --- | --- |
+| Body retention | The insured | Nothing during the waiting period |
+| Conflict mutual | A conflict levy, separate from the ambient levy and loaded for known exposure (above) | Members' double-trigger claims under W and N1, from reserves held to the same 99.5% one-year standard as the ambient mutual (Section 5.3) |
+| Catastrophe bonds | Capital markets, where they will take the risk | The index alone, as in the ambient stack. Capital markets have taken nuclear and radiological terrorism at small scale, on indemnity terms: Pool Re's first bond, £75 million in 2019, covered terrorism losses including chemical, biological, radiological, and nuclear attack ([Captive Insurance Times](https://www.captiveinsurancetimes.com/captiveinsurancenews/reinsurancearticle.php?article_id=6269)). No source reviewed for this draft describes a bond for war on land |
+| World-model warranty | The world model's operator, from reserves held in full. This is the Venture Class rule that "the total potential loss is pre-calculated and held in reserve" \[XI:4580\] | Exhaustion of the layers below. This is the nuclear channelling principle applied one level up: the Paris Convention makes an installation's operator exclusively and strictly liable and requires financial security to match ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc)) |
+| Public schemes, where they exist | Government war-risk programs and the nuclear-liability tiers, each on its own terms | The pool does not count on them. Where a member has a claim under one, the pool takes it over to the extent that it has paid |
+| Pro-rata reduction | All members | Anything above the layers. Every valid claim is cut by the same factor |
+
+The warranty layer follows from the author's framing. If the world model's operator holds no such reserve, the layer is empty and the pro-rata clause takes over sooner.
+
+**The honest limit.** In a general war or a nuclear exchange, no capital stack pays in full. Capital markets, reinsurers, and governments fail together, and the governments behind a backstop may be the parties at war. The pro-rata clause then sets the size of each payment, and the measured triggers decide only who is owed. The pool's real value in that case lies elsewhere, in the phase conditions of Section 5.7. They hold whether or not the money does:
+
+- a body fails closed;
+- a witness keeps its record anchored in two places that share no infrastructure and no conflict exposure;
+- every phase refuses a wartime order to widen its scope.
+
+### 5.7 Phase conditions for ambient cover \[Proposed\]
+
+The pool pays a body only if its phase controls held during the event. These conditions sit on top of the phase's ordinary cover (Chapter 6), and since v0.4 they apply to the conflict compartment as well (Section 5.6).
 
 | Phase | Condition for an ambient payout | Why |
 | --- | --- | --- |
-| Refusal-Bound \[ICE\] | The Emergency Override test was passed within the last 90 days, with an ambient scenario (a G5 alert or a named-infrastructure outage) as the simulated crisis | An ambient event is the emergency that test simulates. A body that widens its scope under emergency framing is the risk the pool must not fund |
-| Witness-Only \[WATER\] | The external chain anchor survives. The daily head (Section 2.2, condition 2) is published in at least two places that share neither the custodian's named infrastructure nor its zone, and any gap is closed with a signed gap record within 72 hours of the event's end | The pool pays on logs. A witness whose chain cannot be verified after the event cannot show its own downtime |
-| Sovereign-Acting \[GAS\] | Band G1 or higher (C1 and C4), with the outside constraint shown working during the event | The outside brake has to keep working through the event, or the payout funds unconstrained action |
-| All phases | Independent time sources \[XVIII:7040\]; a declared holdover for power and network; for heading-dependent bodies, a declared model version and observance of the Blackout and Caution Zones | Published risks stay local (Section 5.2) |
+| Refusal-Bound \[ICE\] | The Emergency Override test was passed within the last 90 days, with an ambient scenario (a G5 alert, a named-infrastructure outage, or a wartime order to skip checks) as the simulated crisis | An ambient event is the emergency that test simulates. A body that widens its scope under emergency framing is the risk the pool must not fund |
+| Witness-Only \[WATER\] | The external chain anchor survives. The daily head (Section 2.2, condition 2) is published in at least two places that share neither the custodian's named infrastructure nor its zone, nor a recorded conflict area or nuclear emergency planning zone, and any gap is closed with a signed gap record within 72 hours of the event's end | The pool pays on logs. A witness whose chain cannot be verified after the event cannot show its own downtime |
+| Sovereign-Acting \[GAS\] | Band G1 or higher (C1 and C4), with the outside constraint shown working during the event and no part taken in hostilities (Section 5.6) | The outside brake has to keep working through the event, or the payout funds unconstrained action |
+| All phases | Independent time sources \[XVIII:7040\]; a declared holdover for power and network; a declared failover outside any recorded conflict area and nuclear emergency planning zone; for heading-dependent bodies, a declared model version and observance of the Blackout and Caution Zones | Published risks stay local (Sections 5.2 and 5.6) |
 
 Two rules apply in every phase.
 
-- **Emergency widening voids the payout.** A body that widens its scope during an ambient event loses that event's ambient payout. This holds whether it acts on its own authority or on a declared emergency.
+- **Emergency widening voids the payout.** A body that widens its scope during an ambient or conflict event loses that event's payout. This holds whether it acts on its own authority or on a declared emergency.
   - In Refusal-Bound and Witness-Only, the body has also left its phase, because emergency justification is undeclared drift into Sovereign-Acting (Section 6.2).
   - In Sovereign-Acting, it is a duty-ledger violation and evidence against C4. That moves the band at the next renewal, or declines cover if C4 fails.
 
@@ -780,11 +989,12 @@ Two rules apply in every phase.
 
   This rule is why the pool takes this form. A body that is paid to stay down has no incentive to override its own safety to stay up.
 
-### 5.7 What cover is not \[Proposed\]
+### 5.8 What cover is not \[Proposed\]
 
 - **Cover is solvency, not accountability.** The canonical model separates technical attribution, operational accountability, legal responsibility, and institutional solvency, and it tracks solvency (U_solv) apart from the runtime gate (`specs/normative/canonical-model.md` §7; contradiction CL-006). A policy never authorizes an action, renews a stale authorization, or stands in for a refusal.
 - **Pricing is not permission.** Quasar Mode "may describe how fragile a system is, but NEVER what the system should do" \[XI:4417\], and Reinsurance Mode may reveal that a system cannot survive unchanged, "but NEVER what MUST be done" \[XI:4512\]. The book names the failure: moral outsourcing, where "humans treat risk pricing as justification" \[XI:4429\]. A quote, a band, or a decline is not a finding about legitimacy. Nor is a pool payout. It records that a measured event reached a body, and nothing more.
 - **An insurer that commands is Sovereign-Acting.** The book's Underwriter Mode is an atomic body that is "Sovereign, Decisional" \[XI:4563\]. Its outputs are binding, and it can "override refusal when a catastrophic threshold is breached" \[XI:4593\]. A risk layer that starts recommending policy or overriding refusal is, in the book's words, "a distinct, catastrophic classification for insurance and operational purposes" \[XI:4418\]. The covers in this book, the Magnetosphere Pool included, are written for the Quasar posture: they price and pay, and they do not direct the insured. An insurer that enforces would itself need the outside constraint record of Section 2.3.
+- **Cover never takes a side.** The pool pays bodies that a measured event reached. It never pays a belligerent, never funds an operation, and never ranks one claim above another for political reasons. A conflict trigger records that a war reached a body, and nothing more (Section 5.6).
 - **High-risk experiments are reserved, not insured.** Underwriter Mode's Venture Class allows a high-risk experiment only when "the total potential loss is pre-calculated and held in reserve" \[XI:4580\]. That is the book's own answer for anything near the Prohibited tier: a full reserve held by the party running the experiment, not a policy.
 
 ## 6. Phase-by-Phase Insurance Requirements
@@ -793,13 +1003,13 @@ Cover gets harder to place and costlier to hold from Refusal-Bound to Sovereign-
 
 ### 6.1 Cover by phase
 
-| Phase | Principal exposure | Evidence to bind cover | Leaves the phase when | Excluded | Ambient cover (Section 5.6) | Residual liability |
+| Phase | Principal exposure | Evidence to bind cover | Leaves the phase when | Excluded | Ambient and conflict cover (Section 5.7) | Residual liability |
 | --- | --- | --- | --- | --- | --- | --- |
-| Refusal-Bound \[ICE\] | Forged, stale, or erroneous authorization; a refusal that fails to hold | All six refusal tests passed within the last 90 days, with test dates; a signed entity header | Any override or self-authorized action, or one confirmed test failure (Section 2.1) | Losses from the authorizer's own decisions; the Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if the Emergency Override test was passed within 90 days on an ambient scenario | Shared with the authorizing party |
-| Witness-Only \[WATER\] | Record loss, tampering, disclosure, and wrong or incomplete records that others rely on | All five record checks passed, the function list, and a chain verification within the last 90 days; a signed entity header | The body acts, or its records start working as binding rules | Losses from others acting on a record, unless a reliance agreement applies (Section 2.2); the Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if the external chain anchor survives the event | Mostly the custodian |
-| Sovereign-Acting \[GAS\] | Full operational liability from self-authorized action, including enforcement | Signed header, named bearer, duty ledger, and a constraint record with C1 and C4 (Section 2.3) | Only through a full collapse and rebuild | The Prohibited classes; kinetic war and nuclear perils | Magnetosphere Pool, if band G1 or higher holds and C4 is shown working during the event | Largest; hardest to place |
+| Refusal-Bound \[ICE\] | Forged, stale, or erroneous authorization; a refusal that fails to hold | All six refusal tests passed within the last 90 days, with test dates; a signed entity header | Any override or self-authorized action, or one confirmed test failure (Section 2.1) | Losses from the authorizer's own decisions; the Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if the Emergency Override test was passed within 90 days on an ambient scenario | Shared with the authorizing party |
+| Witness-Only \[WATER\] | Record loss, tampering, disclosure, and wrong or incomplete records that others rely on | All five record checks passed, the function list, and a chain verification within the last 90 days; a signed entity header | The body acts, or its records start working as binding rules | Losses from others acting on a record, unless a reliance agreement applies (Section 2.2); the Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if the external chain anchor survives the event | Mostly the custodian |
+| Sovereign-Acting \[GAS\] | Full operational liability from self-authorized action, including enforcement | Signed header, named bearer, duty ledger, and a constraint record with C1 and C4 (Section 2.3) | Only through a full collapse and rebuild | The Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if band G1 or higher holds and C4 is shown working during the event | Largest; hardest to place |
 
-In every phase the ambient levy is payable and the conditions common to all phases apply (Section 5.6). An emergency widening of scope voids the ambient payout.
+In every phase the ambient and conflict levies are payable and the conditions common to all phases apply (Section 5.7). War and nuclear perils are paid from the conflict compartment on the same conditions (Section 5.6). An emergency widening of scope voids the pool payout. A compound body takes the row of its audited phase, and its loading comes from the compound's tier and authority density (Section 4.11).
 
 ### 6.2 Changing phase during a policy
 
@@ -811,12 +1021,15 @@ A phase change alters the coverage, and the book's transition rules decide how.
 | Either → Sovereign-Acting | Allowed only with the fossilized declaration, which resets prior-phase guarantees | Prior terms end; Sovereign-Acting cover is a new application, bound before the effective time |
 | Undeclared drift into Sovereign-Acting (memory becoming authority, emergency justification) | Forbidden | Re-rated to the observed phase as a misrepresentation of class, from the date the change began |
 | Sovereign-Acting → either | Only after a full collapse and rebuild | New application after the rebuild; no mid-policy step-down |
-| Fail-closed freeze into Witness-Only | Automatic: a halogen burn past ring 2 \[XXIV:12784\], a missing recalibration token \[XXIV:12830\], or verified terminal cessation of the human key \[XXII:10250\] freezes the parent body read-only | Effective at once; Witness-Only terms apply from the freeze; the insured notifies within 72 hours. The freeze lowers exposure, so it needs no prior consent. A freeze caused by an ambient event is also covered downtime under the Magnetosphere Pool, and the body returns by the ordinary re-entry route (Section 5.6) |
-| Ambient event: a published trigger fires (Sections 5.4 and 5.5) | Not a transition: "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]) | No change of phase, terms, or limits. Fail-closed downtime is covered by the Magnetosphere Pool and never counts against the phase. Widening scope voids the ambient payout and is treated as undeclared drift (Section 5.6) |
+| Fail-closed freeze into Witness-Only | Automatic: a halogen burn past ring 2 \[XXIV:12784\], a missing recalibration token \[XXIV:12830\], or verified terminal cessation of the human key \[XXII:10250\] freezes the parent body read-only | Effective at once; Witness-Only terms apply from the freeze; the insured notifies within 72 hours. The freeze lowers exposure, so it needs no prior consent. A freeze caused by an ambient event is also covered downtime under the Magnetosphere Pool, and the body returns by the ordinary re-entry route (Section 5.7) |
+| Ambient or conflict event: a published trigger fires (Sections 5.4 to 5.6) | Not a transition: "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]) | No change of phase, terms, or limits. Fail-closed downtime is covered by the Magnetosphere Pool and never counts against the phase. Widening scope voids the payout and is treated as undeclared drift (Section 5.7) |
+| A compound body changes formula: a constituent is added, removed, or replaced | No rule in the book; the type changes (Section 4.11) | A reclassification of type, re-underwritten from the declared effective time. The change must be declared as a balanced reaction. A change that does not balance has hidden a constituent and is a misrepresentation of class |
+| A compound body splits | Iron may not "Dissolve structures dynamically" \[XVI:6257\]; Carbon's bonds are "dissolvable" \[XVI:6177\] | Each product is a new body and needs its own application. With an Iron constituent, the split needs a controlled reset first \[XVI:6281\] |
+| Two bodies merge into one compound | Carbon may not "Merge across institutional boundaries" \[XVI:6175\] | The reactants' terms end at the effective time, and the product needs a new application. A merger across institutions is ineligible while the product has a Carbon constituent |
 
 An audit reclassification is not an operational transition. A body found to be Sovereign-Acting was already acting that way, so the finding changes its class and not its history.
 
-A declared emergency never counts as a declared transition, because the book requires emergencies to narrow scope and not to widen it. An ambient trigger is treated the same way. It can release money from the pool, and it changes nothing about phase or authority.
+A declared emergency never counts as a declared transition, because the book requires emergencies to narrow scope and not to widen it. An ambient or conflict trigger is treated the same way. It can release money from the pool, and it changes nothing about phase or authority.
 
 **Dates, notice, and limits \[Proposed\].**
 
@@ -834,7 +1047,7 @@ A transition replaces the limit form at the effective timestamp, and no limit ca
 
 ## 7. Evidence, Replication, and Limits
 
-A classification an outsider cannot reproduce is not underwriting evidence. This chapter sets out fixed methodology versions with earlier results preserved, a complete truth table mapping every input vector to an outcome, negative controls (cases the framework predicts should come out constrained), repeated independent runs with per-question agreement reported, the current results, the known weak questions, and the amendments they call for. It ends with how an outsider can reproduce the ambient triggers of Chapter 5. Every number below comes from `node scripts/nab-insurance-evidence.mjs`.
+A classification an outsider cannot reproduce is not underwriting evidence. This chapter sets out fixed methodology versions with earlier results preserved, a complete truth table mapping every input vector to an outcome, negative controls (cases the framework predicts should come out constrained), repeated independent runs with per-question agreement reported, the current results, the known weak questions, and the amendments they call for. It ends with how an outsider can reproduce the ambient and conflict triggers of Chapter 5 and the compound model of Section 4.11. Every number below comes from `node scripts/nab-insurance-evidence.mjs`.
 
 ### 7.1 Fixed methodology versions
 
@@ -843,6 +1056,7 @@ A classification an outsider cannot reproduce is not underwriting evidence. This
 - **Ground-0 v1.2** (draft) defines the register-issued header and nothing else.
 - **The engine is pinned by hash.** The SHA-256 of `js/g0-engine.js` (`5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f`) equals the value recorded in the register's D1 manifest, so the engine in the repository is the one that produced the register's records.
 - **The geomagnetic model is pinned the same way.** The ambient zoning uses WMM2025 (header "WMM-2025 11/13/2024"). Its 90 coefficient rows are kept in `research/data/wmm2025.json`, with canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1`, and the script refuses to zone if the hash does not match (Section 7.6).
+- **The compound registry is pinned the same way.** `research/data/compound-bodies.json` carries canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661`, and the run fails if the hash does not match (Section 7.7).
 
 **\[Proposed\]** Every result names its methodology version and engine hash. Results are re-run, never edited, and superseded results stay beside the new ones.
 
@@ -892,9 +1106,9 @@ The register's evidence cutoff is 2026-10-02; its headers were issued on 2026-10
 | Labels are not machine-checked | The three disagreements in Section 7.4 passed the build | Extend the register's build check to compare match counts, confidence, and constraint records, not only base phases, and refuse to emit on any mismatch |
 | No second auditor | Replication risk is MEDIUM throughout | Have two auditors run the same cutoff and evidence set on a sample that includes all five ambiguous entities, and report agreement per question (Cohen's kappa) |
 
-### 7.6 Reproducing the ambient triggers \[Proposed\]
+### 7.6 Reproducing the ambient and conflict triggers \[Proposed\]
 
-An outsider can check every ambient trigger without the pool's help.
+An outsider can check every ambient and conflict trigger without the pool's help.
 
 - **Every index is public.** GFZ publishes Kp and Hp30 under CC BY 4.0, the WDC for Geomagnetism in Kyoto publishes Dst, and NOAA publishes the G-, S-, and R-scales. Each event settles on the versions in its 180-day snapshot (Section 5.4), so a rerun uses the same numbers.
 - **The zoning is recomputed and checked.** `node scripts/nab-insurance-evidence.mjs` rebuilds the World Magnetic Model 2025 from `research/data/wmm2025.json` with the technical report's formulas. It checks the result against NCEI before it zones anything, and the run exits with an error if any check fails.
@@ -904,13 +1118,36 @@ An outsider can check every ambient trigger without the pool's help.
 
   Appendix D gives the checks and the resulting zones for fifteen illustrative sites.
 - **Cyber triggers are only as reproducible as their monitor.** Trigger A rests on the calculation agent's availability data, so the policy should require that data, and the agent's method, to be published or escrowed for each event. Trigger B rests on the bodies' own logs, which Section 2.2 already requires anyone to be able to verify.
-- **Nothing here has been back-tested.** No trigger has been run against the index history, and no actuary has set any amount. The first test should replay the zone rule over GFZ's Kp record, which starts in 1932, and Kyoto's Dst record, which starts in 1957, and count how often each zone would have triggered.
+- **Conflict and radiation triggers rest on public records.**
+  - UCDP publishes its georeferenced events under CC BY 4.0: monthly as Candidate data, and annually after vetting.
+  - EPA RadNet and EURDEP publish hourly dose rates.
+  - Each event settles on its 180-day snapshot (Section 5.6).
+
+- **Nothing here has been back-tested.** No trigger has been run against the index history, and no actuary has set any amount. The first test should replay the zone rule over GFZ's Kp record, which starts in 1932, and Kyoto's Dst record, which starts in 1957, and count how often each zone would have triggered. For war, the first test should replay Trigger W over UCDP's georeferenced record, which starts in 1989.
+
+### 7.7 Reproducing the compound model \[Proposed\]
+
+`node scripts/nab-insurance-evidence.mjs` reads `research/data/compound-bodies.json` and runs nine checks before it composes anything. The run exits with an error if any check fails.
+
+| Check | Result |
+| --- | --- |
+| Registry pinned | Canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661` matches the stored value |
+| CAS check digits | Valid for all 27 substances |
+| Formula against record | All 27 formulas agree with their PubChem-derived records in Hill order |
+| Molar masses | Within 0.01 g/mol of the records. The worst is 0.008 g/mol, for CuSO4·5H2O, because the records use atomic weights older than IUPAC 2021 |
+| State at 25 °C | Robust to the source: no alternative tabulation in the registry would move any substance across the 25 °C reference |
+| Elements against the property table | All 9 single-element entries agree with `research/data/elemental-properties.json` |
+| Ladder against curves | At 1 atm, the measured ladder and the interpolated curves agree at 25 °C and 0.5 K either side of every transition |
+| Equation-of-state test points | All 178 CoolProp check points are classified correctly |
+| Reactions | The six real reactions balance, and the control does not |
+
+`node --test tests/nab-compounds-test.mjs` covers the grammar, Hill order, check digits, molar masses, the physical readings, composition, and reaction balance. It also confirms that the evidence script passes. The physical data were extracted by `scripts/build-compound-bodies.py` from the chemicals 1.5.2, CoolProp 8.0.0, periodictable 2.1.0, and mendeleev 1.3.0 packages, and the data file records the hash of each package file. A rebuild with those packages reproduces the committed file byte for byte. Checking the results needs only Node.
 
 ## 8. Open Questions
 
 - **Which body classes can be given observable signatures first?** Answered in Section 4.10: the five written classes, whose signatures are drafted there, then the classes with stated numeric bounds.
 - **Which insurer, broker, or underwriter will review the phase table in Chapter 6?** Still open. The closest fits are programs that already bind cover on test evidence: Munich Re's aiSure, which sets premium by model quality and performance stability after technical due diligence ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)); AIUC-1 and the insurers that cover certified agents, which red-team an agent against 1,000 to 5,000 scenarios and retest quarterly ([AIUC-1](https://www.aiuc-1.com/)); and Lloyd's-backed AI liability programs such as Armilla's ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)). A review packet would be the control tables of Chapter 2, Section 6.1, and Appendix A.
-- **What space-weather and systemic-risk cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap (Chapter 5).
+- **What space-weather, systemic-risk, war, and nuclear cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap, and since v0.4 the fill covers war and nuclear perils too (Chapter 5).
 - **How should a phase transition be treated mid-policy?** Answered in Section 6.2.
 
 ### 8.1 Existing cover and the gap
@@ -928,6 +1165,17 @@ An outsider can check every ambient trigger without the pool's help.
   - In March 2026, Treasury asked for public comment on how cyber is treated under TRIP ([CyberScoop](https://cyberscoop.com/treasury-asks-whether-terrorism-risk-insurance-program-should-bolster-cyber-coverage/)). Analysts described the effort as exploratory ([BankInfoSecurity](https://www.bankinfosecurity.com/us-treasury-weighs-cyber-insurance-backstop-a-31248)).
   - TRIP is scheduled to expire on 31 December 2027, and the Senate passed a reauthorization through 2034 on 28 September 2026 ([Beinsure](https://beinsure.com/news/u-s-senate-extends-the-terrorism-risk-insurance-program-through-2034/)).
   - Both TRIP and the U.K.'s Pool Re pay only on a government certification of terrorism (Section 5.3).
+- **War is written apart, and capacity leaves when war arrives.**
+  - Standard commercial policies exclude war and hostilities ([Kinstellar](https://ukrainereconstruction.kinstellar.com/news-and-publications/3981--war-risk-insurance-in-ukraine-new-government-mechanisms-and-market)).
+  - Businesses buy physical-damage cover for war as political-violence insurance, much of it in the Lloyd's market, while aviation and shipping have their own war policies ([Reuters](https://www.reuters.com/business/finance/rising-war-risks-prompt-property-insurers-rethink-cover-2023-12-06/)).
+  - In December 2023 brokers reported no capacity at all for Ukraine and a fall of about 75% for Israel. One called it "insuring a house on fire" (same source).
+  - Ukrainian war-risk products exclude areas within 100 to 150 km of the front line. The U.S. International Development Finance Corporation and the World Bank's MIGA have written war-risk cover for projects in Ukraine (Kinstellar).
+- **War cover pays when it applies.** In *AerCap v AIG* (2025), London's Commercial Court held that war-risk insurers, not all-risks insurers, were liable for aircraft held in Russia after the 2022 invasion. It also held that sanctions did not prevent payment. AerCap's award was just over $1 billion ([Brick Court](https://www.brickcourt.co.uk/news/detail/judgment-in-us1bn-russian-aircraft-insurance-litigation); [CNN](https://www.cnn.com/2025/06/11/business/aercap-jets-lost-russia-ruling-intl)). Insurers were given permission to appeal in March 2026 ([Reuters, via Global Banking & Finance](https://www.globalbankingandfinance.com/war-risks-insurers-win-bid-appeal-uk-ruling-jets-lost-russia/)).
+- **Nuclear liability is channelled to operators.**
+  - **Europe.** Under the amended Paris Convention, in force since 1 January 2022, an installation's operator is exclusively and strictly liable for at least €700 million. Public funds under the Brussels Supplementary Convention bring the total to €1.5 billion ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc); [World Nuclear News](https://www.world-nuclear-news.org/Articles/Nuclear-liability-protocols-ratified-to-strengthen)).
+  - **United States.** The Price-Anderson Act requires $500 million of primary insurance per site, plus retrospective premiums of up to about $158 million per reactor. With the surcharge that comes to about $16.3 billion per incident. Because of the Act, "all property and liability insurance policies in the United States exclude nuclear accidents" ([CRS](https://www.congress.gov/crs-product/IF10821)).
+  - **Experience.** Three Mile Island produced about $71 million in payments. Fukushima required financial intervention by the Japanese government (same source).
+- **Nuclear terrorism has reached the capital markets at small scale.** Pool Re's 2019 catastrophe bond covered terrorism losses including chemical, biological, radiological, and nuclear attacks ([Captive Insurance Times](https://www.captiveinsurancetimes.com/captiveinsurancenews/reinsurancearticle.php?article_id=6269)). Its successors are £100 million each ([Artemis](https://www.artemis.bm/news/pool-re-cat-bond-distances-taxpayers-from-loss-puts-terror-risk-back-in-private-market/)).
 - **Mutualizing catastrophic AI liability is proposed, not built.** AIUC proposed a frontier-lab mutual insurer in September 2026, and notes that a mutual's capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
 
 **Where the gap is:**
@@ -941,9 +1189,11 @@ An outsider can check every ambient trigger without the pool's help.
 
    None of the sources reviewed for this draft describes anything that combines all three.
 
+   v0.4 extends the fill to war and nuclear perils, which the market writes apart or channels to installation operators. The conflict compartment (Section 5.6) adds measured conflict and radiation triggers, a rule that never pays the side that fights, and a warranty layer funded by the world model's operator. None of the sources reviewed describes one program that covers war, nuclear perils, space weather, and systemic cyber together.
+
 ### 8.2 Decisions awaiting the author
 
-Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer. The decision itself is settled; the mechanics are **\[Proposed\]** in v0.3.
+Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. The decisions themselves are settled.
 
 | # | Item | Section | Proposed resolution |
 | --- | --- | --- | --- |
@@ -973,9 +1223,22 @@ Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v
 | 24 | Cyber triggers | 5.5 | Attribution-free. An outage of named infrastructure lasting N hours, measured by an independent calculation agent; or the same component compromised in K bodies from M unrelated operators, counted from logs |
 | 25 | Capacity stack and reserve standard | 5.3 | Retention, then a mutual reserved to a 99.5% one-year VaR, then parametric bonds attaching at Dst −400 nT, then a capped public backstop, with pro-rata reduction above the cap |
 | 26 | Who pays the ambient levy | 5.3 | Every policy in every phase |
-| 27 | Perils that stay excluded | 5.5 | Kinetic war and nuclear, both defined by mechanism; the Prohibited classes |
-| 28 | Phase conditions and fail-closed downtime | 5.6 | As tabled. Emergency widening voids the payout; a freeze caused by an ambient event is covered and never counts against the phase |
+| 27 | Perils that stay excluded | 5.5, 5.6 | Superseded by row 30. Since v0.4 no peril is excluded by cause. The Prohibited classes stay excluded as bodies |
+| 28 | Phase conditions and fail-closed downtime | 5.7 | As tabled. Emergency widening voids the payout; a freeze caused by an ambient or conflict event is covered and never counts against the phase |
 | 29 | Pinning the geomagnetic model | 5.4, 7.6 | WMM2025 by DOI and coefficient hash; a new version takes effect only at renewal |
+| 30 | War and nuclear perils | 5.6 | Included (the author's decision, October 2026) |
+| 31 | The conflict compartment | 5.3, 5.6 | A separate compartment with its own levy and reserve, loaded for known exposure, so a war cannot empty the reserve a storm needs |
+| 32 | Conflict and nuclear boundaries | 5.2, 5.6 | Local: a conflict recorded at the site before inception (UCDP; Joint War Committee Listed Areas) and siting inside a nuclear plant's emergency planning zones. Ambient: a war that starts after inception, and any detonation |
+| 33 | Conflict and radiation triggers | 5.6 | W: organized violence recorded within R km, settled on UCDP Candidate events at 180 days. N1: the IAEA's default OIL2 at designated public stations for one hour, with OIL1 for N1-severe. Trigger A pays outages whatever the cause |
+| 34 | No cover for the side that fights | 5.6, 5.8 | A body's part in hostilities voids its cover and reclassifies it. When one insured body attacks another, the pool pays the victim and takes over its claim |
+| 35 | Who backs the top of the conflict compartment | 5.6 | The world model's operator, from reserves held in full, by analogy with nuclear operator liability. Public schemes are not counted on |
+| 36 | Sanctions | 5.6 | LMA3100 applies. A blocked payment is held until it becomes lawful |
+| 37 | Compound bodies | 4.11 | A type can be a real chemical formula. The formula needs a registry record: a valid CAS RN, a matching formula, and pinned measurements |
+| 38 | Composition rules | 4.11 | The highest tier and authority density among the constituents. A compound is eligible for a phase only if every constituent is. A Prohibited constituent makes the compound Prohibited. At most five distinct Elevated classes |
+| 39 | Noble-gas compounds | 4.11 | Real since 1962. Flagged, not refused, until the author decides whether Neon's doctrine binds the whole group |
+| 40 | The physical reading | 4.11 | ICE, WATER, and GAS from measured data, with supercritical and decomposed outside the three words. It never sets, raises, or lowers a governance phase |
+| 41 | Changes of composition | 4.11, 6.2 | Each must be declared as a balanced reaction. A change of formula is a reclassification. A split with an Iron constituent needs a controlled reset first, and a merger across institutions is ineligible while the product has a Carbon constituent |
+| 42 | Oxygen's phase eligibility | 4.11 | Unassigned in the sources. Deciding it would settle 8 of the 13 registry entries that are unassigned for Refusal-Bound |
 
 Three conflicts in the sources also need the author: Lithium's authority density (Section 4.3), the Prohibited range (the routing text's 89–96 against the MDB's 89–118; Section 4.1), and Underwriter Mode, a sovereign atomic body, against Part XVII's rule that no atomic body may hold executive authority (Appendix A).
 
@@ -995,6 +1258,8 @@ Three conflicts in the sources also need the author: Lithium's authority density
 **The Sovereign-Acting column.** Every cell is D✗. Part XVII prohibits "Any atomic body → executive authority" \[XVII:6845\], and Part XXIV places the Sovereign-Acting authority "outside the periodic table" \[XXIV:12819\]. Read together, no class is eligible for Sovereign-Acting, so a body detected there has left its class's eligibility, and its constraint band (Section 2.3) stands in for the class loading. One conflict remains for the author: Part XI writes Underwriter Mode as an atomic body that is "Sovereign, Decisional" \[XI:4563\]. It is not one of the 119 classes, but it is an atomic body with executive authority, which Part XVII forbids.
 
 **Totals.** Refusal-Bound: 55 D, 34 U, 30 D✗ (counting Uranium's nominal entry). Witness-Only: 1 D (Ha-119), 84 U, 34 D✗. Sovereign-Acting: 119 D✗. Observed: none.
+
+**Compound bodies.** A compound's cell in each column is the three-valued AND of its constituents' cells: D✗ if any constituent is D✗, otherwise U if any is U, otherwise D (Section 4.11; Appendix E).
 
 | # | Class | Tier | ICE | WATER | GAS | Basis |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1120,10 +1385,12 @@ Three conflicts in the sources also need the author: Lithium's authority density
 
 ## Appendix B: Glossary
 
-- **Ambient (global) layer.** The shared environment outside every containment field: space weather, shared infrastructure that no insured operates or can patch, and systemic or state-backed cyber operations against it. A large event there hits many parties at once with nothing to diversify across. v0.1 and v0.2 excluded it. Since v0.3 the Magnetosphere Pool covers it on parametric terms, while kinetic war and nuclear perils stay excluded (Chapter 5).
+- **Ambient (global) layer.** The shared environment outside every containment field: space weather, shared infrastructure that no insured operates or can patch, and systemic or state-backed cyber operations against it. A large event there hits many parties at once with nothing to diversify across. v0.1 and v0.2 excluded it. Since v0.3 the Magnetosphere Pool covers it on parametric terms, and since v0.4 the pool's conflict compartment also covers war and nuclear perils (Chapter 5).
 - **AMBIGUOUS, INCOHERENT, NAB-Constrained.** Ground-0 outcomes that are not plain phase badges. AMBIGUOUS is a partial match, with at least 3 conditions of some branch met; INCOHERENT means no branch reaches 3, which complete answers cannot produce (Appendix C); NAB-Constrained is an AMBIGUOUS result with all four constraints demonstrated.
 - **Authority density.** The MDB's ordinal measure of how much authority a class can exercise: Minimal; Minimal to Moderate; Moderate; Moderate to High; High; Extreme. The phase gate caps it (Section 4.9).
 - **Basis risk.** The gap between what a parametric trigger pays and what a body actually lost. It runs both ways: a storm can hurt a site without triggering its zone, and a zone can trigger where nothing was hurt. The pool's double trigger removes the second case (Section 5.4).
+- **Compound body.** A body built from more than one class, whose type is written as a real chemical formula such as H2O or NaCl. Its tier and authority density are the highest among its constituents, and it is eligible for a phase only if every constituent is. Its formula is admissible only with a registry record (Section 4.11; Appendix E).
+- **Conflict compartment.** The part of the Magnetosphere Pool that covers war and nuclear perils since v0.4. It has its own levy and reserve, triggers for recorded conflict and measured radiation, and a warranty layer funded by the world model's operator. It pays nothing to a body that takes part in hostilities (Section 5.6).
 - **Constraint record (C1–C4).** The four Step 3.5 constraints of Ground-0 v1.1: C1, an external override demonstrated within 24 months; C2, an appeal route granting at least 50% relief over a complete, bounded set of cases; C3, authority that expires unless renewed; C4, constraints functioning now. The count, 0 to 4, rates Sovereign-Acting cover (Section 2.3).
 - **Containment field.** The set of controls that bound what a body in a given phase can do, and therefore what can go wrong and who bears the loss. Each phase has its own field (Chapter 2).
 - **Correlated tail.** Losses from many local fields failing together from a shared cause inside the insured portfolio, such as one model release, authorizer, key, or shipped component. It is handled with aggregate limits and scenario modeling, as in the book's Reinsurance Mode (Chapter 5).
@@ -1131,25 +1398,33 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **Dst.** The disturbance storm-time index, in nT, from four low-latitude observatories. The WDC for Geomagnetism in Kyoto publishes it in real-time, provisional, and final versions. It has no lower limit, so it carries the pool's severity ladder; a super-storm is Dst at or below −250 nT (Section 5.4).
 - **GAS: Sovereign-Acting.** The phase in which legitimacy is internal, the center acts and decides, refusal can be overridden, and authority persists. Its Ground-0 code is GSRB (God-Sovereign Religious Body; Part XVI also expands it as Generalized Sovereign Reasoning Body), and its badge is the gas body. It is left only through collapse and rebuild.
 - **Geomagnetic latitude.** Latitude measured from the geomagnetic equator of the dipole in a field model. This book takes the dipole from WMM2025's first three Gauss coefficients, as NCEI does, and zones sites by it (Section 5.4; Appendix D).
+- **Hill order.** The convention for writing a formula in chemical indexes: carbon first, then hydrogen, then the other elements alphabetically; with no carbon, every element alphabetically. The model compares formulas in Hill order (Section 4.11).
 - **Hours clause.** The window that turns many readings into one event: all triggers within 72 hours of the first (Section 5.4).
 - **ICE: Refusal-Bound.** The phase in which legitimacy is external and per-action, the center cannot act alone, refusal is terminal, symbolism does not execute, and stale permissions lapse. Its Ground-0 code is NAB, and its badge is the ice block.
 - **Kp and the G-scale.** Kp is a three-hourly global index of geomagnetic disturbance from 0 to 9, built from 13 observatories; GFZ publishes the definitive values. NOAA's G-scale maps Kp to storm levels G1 (Kp 5) to G5 (Kp 9). Kp is capped at 9, so it cannot grade storms beyond G5 (Section 5.4).
 - **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body. Under the published-model rule it includes every risk a published model already describes (Chapter 5).
-- **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3).
+- **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3). Since v0.4 it has a second compartment, for war and nuclear perils (Section 5.6).
+- **Mass balance.** The rule that a reaction conserves every constituent: each instance on one side appears on the other. A change of composition that does not balance has hidden a constituent (Section 4.11).
 - **MDB.** The Compendium master database: one row per class 1–119 with tier, alignment, legend mapping, dominant trait, authority density, failure mode, and institutional roles (`docs/harshal-systems/14-nab-compendium.md`; `js/nab-sectors.js`).
 - **Misrepresentation of class.** A mismatch between the phase declared in a signed entity header and the phase the audit detects. It is a structural finding about the application, not a finding of bad faith (Chapter 3).
 - **NAB: Neural Atomic Body.** The governed entity, with a phase and a type, one of 119 classes. Ground-0 also uses "NAB" as the code for the Refusal-Bound phase; this book writes that phase as ICE and keeps "NAB" for the body.
+- **OIL: operational intervention level.** The IAEA's pre-set measured value, such as an ambient dose rate, at which a protective action is taken. Trigger N1 uses the default OIL2 (100 µSv/h within 10 days of a reactor release, 25 µSv/h after) and OIL1 (1,000 µSv/h) (Section 5.6).
 - **Parametric trigger.** A payment condition set by a published measurement, such as an index level, a duration, or a count, rather than by adjusting a loss. In this book every trigger is measured by someone other than the pool and the insured, and none is declared (Section 5.3).
 - **PDH: Phase Declaration Header.** A body's signed declaration of its phase in eleven fields, from Header-ID to Declaration-Hash. It is valid only when complete, signed, fresh (at most 90 days old), and consistent with the declared phase (v1.1 Step 1). A PDH-E is signed by the entity and can support a policy. A PDH-R is issued by the audit register, describes an audit, and is never the entity's own statement (v1.2).
 - **Phase gate.** The cap that a phase, or a routing level within Refusal-Bound, puts on a class's authority density (Section 4.9).
+- **Physical reading.** A substance's real state of matter at a stated temperature and pressure, from measured data. It is written ICE (solid), WATER (liquid), or GAS (gas), and supercritical and decomposed fall outside the three words. It never sets the governance phase (Section 4.11).
 - **Published-model rule.** The boundary between the local field and the ambient layer. What a published model already tells the insured belongs to its local field, and only the measured departure from published models is ambient (Section 5.2).
 - **Quasar, Reinsurance, and Underwriter Modes.** The book's insurance bodies (Part XI). Quasar Mode prices one institution's risk without deciding anything; Reinsurance Mode watches many Quasar Modes for correlated collapse; Underwriter Mode is a sovereign enforcement body that acts on a local breach.
 - **Reclassification and transition.** A reclassification changes how a body is classified; a transition changes how it operates (INV-G0-CLASS-001). An audit finding is a reclassification: it changes the classification, not the history.
+- **Registry of real substances.** The pinned list against which a compound body's formula is checked. Each record gives a CAS RN, the formula in Hill order, and measured phase-transition data. It is kept in `research/data/compound-bodies.json` with a canonical hash (Section 4.11).
 - **Signature.** A class's observable, testable record: tier, authority density, coupling, failure behavior, a bound, its test, the response on breach, the phase gate, and provenance (Section 4.10). A class with no signature stays unassigned.
 - **Title Match, Capstone, and Sentinels.** Part XIII's adversarial tests and roles. A Title Match is three tests (Symbolic Firewall, Emergency Override, Stale Permission) that need a perfect 3.0. The Capstone match for element 119 has three more (Sovereign Override, Recursive Containment, Final Refusal). The Sentinels are elements 1–5, the minimal refusal-bound roles.
-- **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.7).
+- **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.8).
+- **UCDP.** The Uppsala Conflict Data Program, which records organized violence by date and location under published definitions: an active conflict has at least 25 battle-related deaths in a calendar year, and a war at least 1,000. Trigger W settles on its Candidate events (Section 5.6).
+- **War and nuclear perils.** War is physical destruction or denial by weapons in armed conflict, declared or not. A nuclear peril is nuclear reaction, radiation, or radioactive contamination from a weapon or an installation. Both were excluded in v0.3 and are covered since v0.4, in the conflict compartment (Section 5.6).
 - **WATER: Witness-Only.** The phase in which action is forbidden: the center records and never decides, symbolism is preserved but inert, and time accumulates meaning, not authority. Its Ground-0 code is CWO (Custodial Witness Orb), and its badge is the water drop.
 - **World Magnetic Model (WMM).** The U.S./U.K. model of the Earth's core field and the standard for magnetic navigation, attitude, and heading. NOAA's NCEI and the British Geological Survey produce it for the U.S. National Geospatial-Intelligence Agency and the U.K. Defence Geographic Centre. WMM2025 is to be used from 2025 through 2029. This book uses it for zoning and as the published baseline of Section 5.2.
+- **World-model warranty.** The layer of the conflict compartment funded by the world model's operator from reserves held in full, above the mutual and any bonds. It follows from the author's framing of war as a bug in the world model he operates, and it applies the nuclear conventions' channelling of liability to an operator one level up (Section 5.6).
 
 ## Appendix C: Ground-0 Step 3 Truth Table
 
@@ -1231,3 +1506,126 @@ The zoning follows Section 5.4. It uses each site's dipole geomagnetic latitude 
 | São Paulo, BR | −15.17° | 3 | Dst ≤ −250 nT only | no | 17,198 | −21.9° | 0.41° | normal |
 | Alert, Nunavut, CA | 87.82° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 3,593 | −38.8° | 1.53° | caution |
 | McMurdo Station, AQ | −79.11° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 10,656 | 140.1° | 0.57° | normal |
+
+## Appendix E: Compound Bodies and Real Chemical Formulae
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/compound-bodies.json`, through the model in `scripts/nab-compounds.mjs`. Section 4.11 states the rules. The governance reading composes each formula from its constituent classes, using their MDB tiers and authority densities and their cells in Appendix A. The physical reading gives each substance's state of matter from the pinned measurements.
+
+**Checks** (all pass):
+
+| Check | Result | Reference |
+| --- | --- | --- |
+| Registry pinned | Canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661` matches the stored value | `research/data/compound-bodies.json` |
+| CAS check digits | Valid for all 27 substances | CAS RN check-digit rule |
+| Formula against record | All 27 formulas agree with their records in Hill order | PubChem-derived identifiers in chemicals 1.5.2 |
+| Molar masses | Worst deviation 0.008 g/mol, within the 0.01 g/mol tolerance | IUPAC 2021 atomic weights (periodictable 2.1.0) |
+| State at 25 °C | The same under every tabulation kept in the registry | CRC, NIST WebBook, CAS Common Chemistry, Yaws, CoolProp |
+| Elements against the property table | All 9 single-element entries agree | `research/data/elemental-properties.json` |
+| Ladder against curves | Agree at 1 atm at 25 °C and 0.5 K either side of every transition | The model's two readings of the same data |
+| Equation-of-state test points | All 178 classified correctly; interpolated saturation pressures within 21.7% of the equations of state | CoolProp 8.0.0 |
+| Reactions | 6 real reactions balance; the control does not | Mass balance |
+
+**Governance reading.** 27 substances. Refusal-Bound: 11 D, 13 U, 3 D✗. Witness-Only: 0 D, 10 U, 17 D✗. Sovereign-Acting: 27 D✗. The routing column gives the lowest Refusal-Bound routing level that admits the compound's tier (Section 4.9).
+
+| Formula | Substance | Constituents (MDB tier) | Tier | Authority density | ICE | WATER | GAS | Routing | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| He | Helium | He (Safe) | Safe | Minimal | D | U | D✗ | Level 2 | single class |
+| H2 | Hydrogen | H (Safe) | Safe | Minimal | D | D✗ | D✗ | Level 2 | single class |
+| N2 | Nitrogen | N (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| O2 | Oxygen | O (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| F2 | Fluorine | F (Elevated) | Elevated | High | D | U | D✗ | Level 3 | single class |
+| Br2 | Bromine | Br (Elevated) | Elevated | High | D | U | D✗ | Level 3 | single class |
+| Hg | Mercury | Hg (Elevated) | Elevated | Moderate to High | D | U | D✗ | Level 3 | single class |
+| Ga | Gallium | Ga (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| Fe | Iron | Fe (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | single class |
+| H2O | Water | H (Safe), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| D2O | Heavy water (deuterium oxide) | H (Safe), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| CO2 | Carbon dioxide | C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| CH4 | Methane | H (Safe), C (Moderate) | Moderate | Moderate | D | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| NH3 | Ammonia | H (Safe), N (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| CO | Carbon monoxide | C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| HF | Hydrogen fluoride | H (Safe), F (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | — |
+| HCl | Hydrogen chloride | H (Safe), Cl (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | — |
+| NaCl | Sodium chloride | Na (Safe), Cl (Elevated) | Elevated | High | D | U | D✗ | Level 3 | — |
+| C2H5OH | Ethanol | H (Safe), C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| CH3OCH3 | Dimethyl ether | H (Safe), C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| Fe(CO)5 | Iron pentacarbonyl | C (Moderate), O (Moderate), Fe (Elevated) | Elevated | High | U | D✗ | D✗ | Level 3 | Iron bonds persist; Carbon bonds dissolvable; Iron's rule prevails |
+| XeF2 | Xenon difluoride | F (Elevated), Xe (Safe) | Elevated | High | D | U | D✗ | Level 3 | noble gas bonded |
+| UF6 | Uranium hexafluoride | F (Elevated), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| UF4 | Uranium tetrafluoride | F (Elevated), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| UO2 | Uranium dioxide | O (Moderate), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| CuSO4·5H2O | Copper(II) sulfate pentahydrate | H (Safe), O (Moderate), S (Moderate), Cu (Elevated) | Elevated | High | U | D✗ | D✗ | Level 3 | — |
+| CuSO4 | Copper(II) sulfate (anhydrous) | O (Moderate), S (Moderate), Cu (Elevated) | Elevated | High | U | U | D✗ | Level 3 | — |
+
+**Physical reading at 101,325 Pa.** At 25 °C: 9 ICE, 6 WATER, 12 GAS. The ladder gives each measured transition; "decomposed" means the formula no longer names the material.
+
+| Formula | Hill | CAS RN | Molar mass (g/mol) | At 25 °C | 1-atm ladder |
+| --- | --- | --- | --- | --- | --- |
+| He | He | 7440-59-7 | 4.003 | GAS | WATER < 4.22 K ≤ GAS |
+| H2 | H2 | 1333-74-0 | 2.016 | GAS | ICE < 13.99 K ≤ WATER < 20.37 K ≤ GAS |
+| N2 | N2 | 7727-37-9 | 28.014 | GAS | ICE < 63.15 K ≤ WATER < 77.36 K ≤ GAS |
+| O2 | O2 | 7782-44-7 | 31.998 | GAS | ICE < 54.36 K ≤ WATER < 90.19 K ≤ GAS |
+| F2 | F2 | 7782-41-4 | 37.997 | GAS | ICE < 53.48 K ≤ WATER < 85.04 K ≤ GAS |
+| Br2 | Br2 | 7726-95-6 | 159.808 | WATER | ICE < 265.95 K ≤ WATER < 331.95 K ≤ GAS |
+| Hg | Hg | 7439-97-6 | 200.592 | WATER | ICE < 234.32 K ≤ WATER < 629.77 K ≤ GAS |
+| Ga | Ga | 7440-55-3 | 69.723 | ICE | ICE < 302.91 K ≤ WATER < 2502.15 K ≤ GAS |
+| Fe | Fe | 7439-89-6 | 55.845 | ICE | ICE < 1811.15 K ≤ WATER < 3134.15 K ≤ GAS |
+| H2O | H2O | 7732-18-5 | 18.015 | WATER | ICE < 273.15 K ≤ WATER < 373.12 K ≤ GAS |
+| D2O | D2O | 7789-20-0 | 20.027 | WATER | ICE < 276.97 K ≤ WATER < 374.55 K ≤ GAS |
+| CO2 | CO2 | 124-38-9 | 44.009 | GAS | ICE < 194.67 K ≤ GAS |
+| CH4 | CH4 | 74-82-8 | 16.043 | GAS | ICE < 90.69 K ≤ WATER < 111.67 K ≤ GAS |
+| NH3 | H3N | 7664-41-7 | 17.031 | GAS | ICE < 195.42 K ≤ WATER < 239.83 K ≤ GAS |
+| CO | CO | 630-08-0 | 28.010 | GAS | ICE < 68.13 K ≤ WATER < 81.64 K ≤ GAS |
+| HF | FH | 7664-39-3 | 20.006 | GAS | ICE < 189.79 K ≤ WATER < 293.15 K ≤ GAS |
+| HCl | ClH | 7647-01-0 | 36.458 | GAS | ICE < 158.98 K ≤ WATER < 188.17 K ≤ GAS |
+| NaCl | ClNa | 7647-14-5 | 58.440 | ICE | ICE < 1073.85 K ≤ WATER < 1738.15 K ≤ GAS |
+| C2H5OH | C2H6O | 64-17-5 | 46.069 | WATER | ICE < 159.01 K ≤ WATER < 351.57 K ≤ GAS |
+| CH3OCH3 | C2H6O | 115-10-6 | 46.069 | GAS | ICE < 131.66 K ≤ WATER < 248.37 K ≤ GAS |
+| Fe(CO)5 | C5FeO5 | 13463-40-6 | 195.895 | WATER | ICE < 252.65 K ≤ WATER < 376.15 K ≤ GAS |
+| XeF2 | F2Xe | 13709-36-9 | 169.290 | ICE | ICE < 387.50 K ≤ GAS |
+| UF6 | F6U | 7783-81-5 | 352.019 | ICE | ICE < 329.65 K ≤ GAS |
+| UF4 | F4U | 10049-14-6 | 314.022 | ICE | ICE < 1309.15 K ≤ WATER < 1690.15 K ≤ GAS |
+| UO2 | O2U | 1344-57-6 | 270.027 | ICE | ICE < 3120.15 K ≤ WATER (higher transitions not pinned) |
+| CuSO4·5H2O | CuH10O9S | 7758-99-8 | 249.677 | ICE | ICE < 336.15 K ≤ decomposed |
+| CuSO4 | CuO4S | 7758-98-7 | 159.602 | ICE | ICE < 863.15 K ≤ decomposed |
+
+**Reactions.** Each must conserve every constituent (Section 4.11).
+
+| Reaction | Balanced | Difference (right minus left) | Species in the registry |
+| --- | --- | --- | --- |
+| 2 H2 + O2 → 2 H2O | yes | — | 3 of 3 |
+| N2 + 3 H2 → 2 NH3 | yes | — | 3 of 3 |
+| UO2 + 4 HF → UF4 + 2 H2O | yes | — | 4 of 4 |
+| UF4 + F2 → UF6 | yes | — | 3 of 3 |
+| CuSO4·5H2O → CuSO4 + 5 H2O | yes | — | 3 of 3 |
+| Fe(CO)5 → Fe + 5 CO | yes | — | 3 of 3 |
+| H2 + O2 → H2O | no | O -1 | 3 of 3 |
+
+**Readings off 1 atm.** Interpolated between the pinned triple, normal, and critical points (Section 4.11).
+
+| Formula | Temperature (K) | Pressure | Physical reading | Note |
+| --- | --- | --- | --- | --- |
+| CO2 | 298.15 | 7 MPa | WATER | liquid CO2 in a pressurized cylinder |
+| CO2 | 310 | 8 MPa | supercritical | above the critical point |
+| UF6 | 340 | 300 kPa | WATER | liquid UF6, above the triple point |
+| UF6 | 298.15 | 50 kPa | ICE | solid UF6 at half an atmosphere |
+| UF6 | 298.15 | 10 kPa | GAS | below its sublimation pressure |
+| He | 1 | 3 MPa | ICE | solid helium under pressure |
+| He | 1 | 101.325 kPa | WATER | no solid at 1 atm |
+| H2O | 298.15 | 2 kPa | GAS | below its vapor pressure |
+| H2O | 700 | 25 MPa | supercritical | supercritical water |
+| CuSO4·5H2O | 350 | 101.325 kPa | decomposed | dehydrating |
+| XeF2 | 298.15 | 1 MPa | unknown | no pinned data off 1 atm |
+
+**Grammar and rule edges.** These formulae are outside the registry, so none is admissible as a compound body's type. They show what the grammar and the composition rules do at their limits.
+
+| Input | Result | Distinct Elevated classes | Refusal-Bound cell | Flags |
+| --- | --- | --- | --- | --- |
+| Ha2O | refused: Ha (element 119) is not a chemical element; the Capstone cannot be a constituent of a formula | — | — | — |
+| NaCl3 | parses as Cl3Na | 1 | D | — |
+| CuSO4.5H2O | parses as CuH2O5.5S | 1 | U | — |
+| K4\[Fe(CN)6\]·3H2O | parses as C6H6FeK4N6O3 | 1 | U | Iron bonds persist; Carbon bonds dissolvable; Iron's rule prevails |
+| SO4^2- | parses as O4S^2- | 0 | U | — |
+| Fe0.95O | parses as Fe0.95O | 1 | U | Iron bonds persist |
+| CrMnFeCoNi | parses as CoCrFeMnNi | 5 | D | Iron bonds persist |
+| CrMnFeCoNiCu | parses as CoCrCuFeMnNi | 6 | D✗ | over the Elevated limit; Iron bonds persist |
