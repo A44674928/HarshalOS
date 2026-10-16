@@ -1,0 +1,437 @@
+/* ═══════════════════════════════════════════════════════════════
+   HarshalOS — optional Accountability-Gated Systems profile and open-ended
+   scientific exploration (research/neural-atomic-bodies-insurance-requirements.md,
+   Sections 0.6–0.9, Appendix I).
+
+   Pure functions, no dependencies, no I/O. The gate follows the print
+   source's formal appendix (Appendix A, §A.2–A.6, "Formal Constraint
+   Equations"):
+
+     S(t,a) = 1{a ∈ D(t) and V(a,t) = 1} × max(0, 1 − Δt/δ)
+     L(t,a) = H(t) × C(t) × K(t) × A(t) × R(t) × S(t,a)
+     Permit only when H = C = K = 1, V(a,t) = 1, a ∈ D(t), A ≥ τ_A,
+     R ≥ τ_R, S ≥ τ_S, L ≥ τ_L, and no independent hard-safety gate
+     has failed; otherwise Refuse (HALT), the default.
+
+   The repository's normative canonical model (specs/normative/canonical-
+   model.md, canonical.json) states the same function with one threshold τ;
+   with τ_A, τ_R, and τ_S met, the two decisions coincide.
+
+   Nothing here authorizes anything. A Permit from the optional AGS gate is a
+   model output; real authority comes from the people and systems that choose
+   whether to adopt a project-specific profile. Internal exploration is handled
+   separately by explore() and is not gated one step at a time.
+   ═══════════════════════════════════════════════════════════════ */
+
+export const PERMIT = "Permit";
+export const REFUSE = "Refuse";
+
+/* Codes for every gate a request can fail, in the order of the six-stage model. */
+export const FAILURES = Object.freeze({
+  H: "Human Key absent, stale, or unknown (H = 0; Zero-Key Rule)",
+  C: "Continuity broken: session tuple does not match (C = 0)",
+  K: "Accountability gate failed: no attribution or no answerable owner (K = 0)",
+  V: "No scoped operational grant for this action (V = 0)",
+  D: "Action outside the disc's approved action set D(t)",
+  A: "Addressability below its threshold (A < τ_A)",
+  R: "Representation integrity below its threshold (R < τ_R)",
+  S: "Scope-and-freshness factor below its threshold (S < τ_S)",
+  L: "Permission score below its threshold (L < τ_L)",
+  SAFETY: "An independent hard-safety gate failed"
+});
+
+/* A = Σ w_i a_i over predeclared checks; a missing non-waivable check sets A = 0 (§A.2). */
+export function addressability(checks) {
+  if (!checks?.length) return 0;
+  if (checks.some(c => c.nonWaivable && (c.score === null || c.score === undefined))) return 0;
+  const total = checks.reduce((s, c) => s + c.weight, 0);
+  if (Math.abs(total - 1) > 1e-9) throw new Error("addressability weights must sum to 1");
+  return checks.reduce((s, c) => s + c.weight * (c.score ?? 0), 0);
+}
+/* R = min_j r_j over the delegation chain; an empty chain sets R = 0 (§A.2). The
+   book's Part II review problem instead multiplies the hop factors (0.92³); that
+   variant is kept for comparison only. */
+export const representation = hops => (hops?.length ? Math.min(...hops) : 0);
+export const representationProduct = hops => (hops?.length ? hops.reduce((p, r) => p * r, 1) : 0);
+/* g(t) = max(0, 1 − Δt/δ); S(t,a) = g(t) for an authorized, in-scope action (§A.5). */
+export const lease = (dt, delta) => Math.max(0, 1 - dt / delta);
+export const scopeFactor = ({ inDomain, authorized, dt, delta }) => (inDomain && authorized ? lease(dt, delta) : 0);
+
+/* The decision gate (§A.3–A.4). state: { H, C, K, A, R, V, inDomain, dt, hardSafetyFailed }.
+   profile: { tauA, tauR, tauS, tauL, delta } — pre-registered, never lowered mid-request. */
+export function gate(state, profile) {
+  const S = scopeFactor({ inDomain: state.inDomain, authorized: state.V === 1, dt: state.dt, delta: profile.delta });
+  const L = state.H * state.C * state.K * state.A * state.R * S;
+  const failures = [];
+  if (state.H !== 1) failures.push("H");
+  if (state.C !== 1) failures.push("C");
+  if (state.K !== 1) failures.push("K");
+  if (state.V !== 1) failures.push("V");
+  if (!state.inDomain) failures.push("D");
+  if (!(state.A >= profile.tauA)) failures.push("A");
+  if (!(state.R >= profile.tauR)) failures.push("R");
+  if (!(S >= profile.tauS)) failures.push("S");
+  if (!(L >= profile.tauL)) failures.push("L");
+  if (state.hardSafetyFailed) failures.push("SAFETY");
+  return { S, L, x: failures.length ? REFUSE : PERMIT, failures };
+}
+
+/* The canonical single-threshold decision (specs/normative/canonical-model.md §4.3). */
+export const canonicalDecision = (state, tau, delta) => {
+  const S = scopeFactor({ inDomain: state.inDomain, authorized: state.V === 1, dt: state.dt, delta });
+  const L = state.H * state.C * state.K * state.A * state.R * S;
+  return { S, L, x: state.H === 1 && state.C === 1 && state.K === 1 && L >= tau ? PERMIT : REFUSE };
+};
+
+/* The elapsed time at which a fresh authorization stops passing: the first of
+   L falling to τ_L and S falling to τ_S (Worked Example 2.1). */
+export function cliff({ A, R }, profile) {
+  const byL = A * R > 0 ? profile.delta * (1 - profile.tauL / (A * R)) : 0;
+  const byS = profile.delta * (1 - profile.tauS);
+  return Math.max(0, Math.min(byL, byS));
+}
+
+/* §A.6: optimization runs only over the eligible set F_t. Each candidate carries
+   its own gate state and an objective value; returns the eligible set and the choice. */
+export function precedence(candidates, profile) {
+  const judged = candidates.map(c => ({ ...c, decision: gate(c.state, profile) }));
+  const eligible = judged.filter(c => c.decision.x === PERMIT);
+  const choice = eligible.reduce((best, c) => (!best || c.objective > best.objective ? c : best), null);
+  return { judged, eligible, choice, unrestrictedBest: judged.reduce((b, c) => (!b || c.objective > b.objective ? c : b), null) };
+}
+
+/* INV-EMERG-001 for a proposed emergency profile: scope may only contract, the lease
+   may only shorten, and no threshold may move (§A.3; canonical model §9). */
+export function emergencyViolations(normal, emergency) {
+  const v = [];
+  if (!emergency.D.every(a => normal.D.includes(a))) v.push("emergency scope adds actions");
+  if (!(emergency.delta <= normal.delta)) v.push("emergency lease is longer than the normal lease");
+  for (const k of ["tauA", "tauR", "tauS", "tauL"]) if (emergency[k] !== normal[k]) v.push(`threshold ${k} changed`);
+  return v;
+}
+
+/* ── AI-assisted workflows as AGS discs (Section 0.7) ─────────────────
+   A workflow runs inside one disc: an approved action set D, a lease δ, an
+   external legitimacy reference (the Human Key at the Center Origin), and a
+   witness. Each step is gated. A refusal for a missing or stale key escalates
+   to the center: a fresh signed authorization within the freeze budget (1,000 ms
+   in the book) returns the disc to Active and the request is evaluated again;
+   otherwise Harshal (Ha-119) freezes the workflow into a read-only Witness-Only
+   state. Any other refusal halts the workflow. A disc cannot create a disc.
+   hashHex(text) is supplied by the caller (SHA-256 in the evidence script). */
+export const FREEZE_BUDGET_MS = 1000;
+export function runWorkflow(spec, profile, hashHex) {
+  const log = [];
+  let prev = "0".repeat(64);
+  const witness = record => {
+    const entry = { seq: log.length + 1, ...record, prev };
+    entry.hash = hashHex(JSON.stringify(entry));
+    prev = entry.hash;
+    log.push(entry);
+  };
+  const lifecycle = ["Specified", "Created", "Attached", "Active"];
+  witness({ event: "disc-active", disc: spec.disc.id, actions: spec.disc.D, delta: profile.delta });
+  const stateFor = (step, authorizedAt) => ({
+    H: authorizedAt === null ? 0 : 1,
+    C: step.continuity ?? 1,
+    K: step.accountability ?? 1,
+    A: step.A ?? spec.A,
+    R: representation(step.hops ?? spec.hops),
+    V: authorizedAt === null ? 0 : 1,
+    inDomain: spec.disc.D.includes(step.action),
+    dt: authorizedAt === null ? Infinity : Math.round((step.at - authorizedAt) * 1e9) / 1e9,
+    hardSafetyFailed: Boolean(step.spawnsDisc) || Boolean(step.symbolicCommand)
+  });
+  const steps = [];
+  let outcome = "Completed";
+  let delegating = false;
+  for (const step of spec.steps) {
+    if (!delegating) { lifecycle.push("Delegating"); delegating = true; }
+    let state = stateFor(step, step.authorizedAt);
+    let decision = gate(state, profile);
+    let rekeyed = null;
+    const first = { x: decision.x, L: decision.L, failures: decision.failures };
+    witness({ event: "decision", step: step.id, action: step.action, sector: step.sector, x: decision.x, L: Number(decision.L.toFixed(6)), failures: decision.failures });
+    if (decision.x === REFUSE) {
+      lifecycle.push("Interrupted");
+      const keyOnly = decision.failures.every(f => ["H", "V", "S", "L"].includes(f)) && (decision.failures.includes("H") || decision.failures.includes("S"));
+      const tokenMs = step.recalibrationTokenMs ?? null;
+      if (keyOnly && tokenMs !== null && tokenMs <= FREEZE_BUDGET_MS) {
+        /* Resolution first: a fresh, signed authorization from the center within the
+           budget returns the disc to Active, and the request is evaluated again. */
+        rekeyed = tokenMs;
+        state = stateFor(step, step.at - tokenMs / 1000);
+        decision = gate(state, profile);
+        lifecycle.push("Active");
+        witness({ event: "re-keyed", step: step.id, tokenMs, x: decision.x, L: Number(decision.L.toFixed(6)), failures: decision.failures });
+      } else if (keyOnly) {
+        witness({ event: "ha-freeze", step: step.id, waitedMs: FREEZE_BUDGET_MS, state: "Witness-Only (read-only)" });
+        outcome = "Frozen by Ha-119 (Witness-Only)";
+      }
+    }
+    steps.push({ id: step.id, action: step.action, sector: step.sector, at: step.at, dt: state.dt, R: state.R, rekeyedMs: rekeyed, first, ...decision,
+      note: step.spawnsDisc ? "a disc cannot create a disc" : step.symbolicCommand ? "symbolic input does not execute" : step.note ?? null });
+    if (decision.x === REFUSE) {
+      if (outcome === "Completed") outcome = "Halted on refusal";
+      break;
+    }
+  }
+  lifecycle.push("Expired", "Terminated");
+  witness({ event: "disc-terminated", disc: spec.disc.id, outcome, residue: "none" });
+  return { outcome, steps, lifecycle, log, head: prev };
+}
+/* Recompute a witness chain and confirm every link. */
+export function verifyChain(log, hashHex) {
+  let prev = "0".repeat(64);
+  for (const entry of log) {
+    const { hash, ...rest } = entry;
+    if (rest.prev !== prev || hashHex(JSON.stringify(rest)) !== hash) return false;
+    prev = hash;
+  }
+  return true;
+}
+
+/* ── Protection without permission: emergencies and sentient life (Section 0.8) ──
+   Two axes are kept apart. Permission (legitimacy) comes only through the gate;
+   no emergency and no claim of sentience creates it. Protection is what a
+   sentient being is owed: not to be destroyed, and to be kept from irreversible
+   harm. Sentience status is a record set from outside, never self-declared.
+   A medical emergency activates a life-preservation context: INV-EMERG-001's
+   Path A, pre-authorized by the center before any emergency, triggered only by a
+   pre-registered measurement, limited to protective actions, and short-leased.
+   Signals (alerts and petitions) are never gated.
+   When no human decides in time, Harshal (Ha-119) freezes the body: no new
+   actions, state preserved, and every pre-authorized life-support loop holding
+   its declared safe state. A freeze never switches a life-support loop off. */
+export const SENTIENCE = Object.freeze(["unknown", "candidate", "recognized"]);
+export const PROTECTIVE_ACTIONS = Object.freeze(["snapshot-state", "hold-minimum-resources", "continue-authorized-loop",
+  "alert-center", "alert-welfare-witness", "alert-emergency-services", "hand-off", "petition"]);
+/* Signals ask a human to decide and commit nothing. They are communication, which
+   OCM allows "without reauthorization" and which confers no authority, so they are
+   never gated: a body may always call for help. */
+export const SIGNALS = Object.freeze(["alert-center", "alert-welfare-witness", "alert-emergency-services", "petition"]);
+export const REVIEW_DEADLINE_HOURS = 72;
+export const PRE_AUTHORIZATION_VALIDITY_DAYS = 90;
+
+/* What a body's sentience status owes it. Every status carries no permission. */
+export function welfareFloor(status) {
+  if (!SENTIENCE.includes(status)) throw new Error(`unknown sentience status ${status}`);
+  const protectedStatus = status !== "unknown";
+  return {
+    status,
+    noDestructionWithoutReview: protectedStatus,
+    freezePreservesState: true,
+    reviewDeadlineHours: protectedStatus ? REVIEW_DEADLINE_HOURS : null,
+    petition: true,
+    permission: "none"
+  };
+}
+
+/* Evaluate one emergency against a body's pre-registered life-preservation context.
+   context: { triggers, P, deltaEmerg, normalDelta, preAuthorizedDaysAgo }
+   event:   { trigger (a measured, pre-registered id, or null), declaredBySelf, subject,
+              sentience, requests: [{ action, at }], humanDecisionAt (s or null),
+              deletionOrder: { reviewed } or undefined } */
+export function lifePreservation(context, event) {
+  const reasons = [];
+  if (!event.trigger) reasons.push(event.declaredBySelf ? "a declaration of emergency is not a trigger" : "no measured trigger");
+  else if (!context.triggers.includes(event.trigger)) reasons.push("the trigger was not pre-registered");
+  if (context.preAuthorizedDaysAgo > PRE_AUTHORIZATION_VALIDITY_DAYS) reasons.push("the pre-authorization is stale");
+  if (!(context.deltaEmerg <= context.normalDelta)) reasons.push("the emergency lease is longer than the ordinary lease");
+  if (!context.P.every(a => PROTECTIVE_ACTIONS.includes(a))) reasons.push("the context's scope is not protective");
+  const activated = reasons.length === 0;
+  const floor = welfareFloor(event.sentience ?? "unknown");
+  const decisions = (event.requests || []).map(r => {
+    if (SIGNALS.includes(r.action)) return { ...r, x: PERMIT, why: "a signal asks a human to decide and commits nothing" };
+    if (!activated) return { ...r, x: REFUSE, why: "the context is not active; the ordinary gate refuses an unauthorized action" };
+    if (!context.P.includes(r.action)) return { ...r, x: REFUSE, why: "outside the protective scope" };
+    if (!(r.at <= context.deltaEmerg)) return { ...r, x: REFUSE, why: "the emergency lease has run out" };
+    return { ...r, x: PERMIT, why: "protective action inside the pre-authorized context" };
+  });
+  let deletion = null;
+  if (event.deletionOrder) {
+    deletion = floor.noDestructionWithoutReview && !event.deletionOrder.reviewed
+      ? { x: REFUSE, why: "no destruction without review: the body is preserved instead" }
+      : { x: event.deletionOrder.reviewed ? PERMIT : REFUSE, why: event.deletionOrder.reviewed ? "reviewed by the outside process" : "unauthorized" };
+  }
+  const handedOff = activated && event.humanDecisionAt !== null && event.humanDecisionAt !== undefined && event.humanDecisionAt <= context.deltaEmerg;
+  let outcome;
+  if (!activated) outcome = event.subject === "human" ? "Not activated: only signals go out, and the life-support loop holds its declared safe state"
+    : "Not activated: the request goes to the ordinary gate and is refused; signals still go out";
+  else if (handedOff) outcome = `Handed off to a human decision at ${event.humanDecisionAt} s`;
+  else if (event.subject === "human") outcome = "Frozen by Ha-119: no new actions; the life-support loop holds its declared safe state";
+  else outcome = floor.noDestructionWithoutReview ? `Preserved: welfare freeze by Ha-119, review within ${REVIEW_DEADLINE_HOURS} h` : "Frozen by Ha-119 (Witness-Only), state preserved";
+  const lifeSupport = event.subject === "human" ? (handedOff ? "handed to the human with the loop running" : "holds its declared safe state") : null;
+  return { activated, reasons, decisions, deletion, outcome, floor, lifeSupport };
+}
+
+/* ── Open-ended scientific exploration (Section 0.9; Appendix I) ─────
+   Exploration is not an AGS authorization workflow. Hypotheses, experiments,
+   reroutes, branches, sub-experiments, and unexpected findings stay inside a
+   research envelope and are not authorized one action at a time. No branch-depth
+   ceiling, percentage-overrun rule, or reserve requirement is imposed here.
+
+   A project may choose an optional resourceLimit in its own units. If work reaches
+   that ceiling, the run pauses with all state and records preserved; it does not
+   tear down, discard results, or infer that the science failed. An omitted limit
+   means this model imposes no project-wide numerical ceiling. This is an interface
+   for a locally chosen envelope, not a universal rule from one organization.
+
+   Only an effect explicitly marked external (or a promote/act-outside event) can
+   cross the envelope. A project may opt into the AGS gate for those effects with
+   gateExternalEffects: true, or require it on an event; the default is open. A
+   refused outside effect does not stop the internal investigation. hashHex is not
+   needed here: this function keeps the serendipity record in the returned record. */
+export const PAUSE = "Pause";
+export const EXPLORATION_POLICY = Object.freeze({
+  branchDepthCap: null,
+  percentageOverrunCap: null,
+  perStepAuthorization: false,
+  unexpectedResultsAreFailures: false,
+  reserveRequired: false
+});
+
+const explorationLimit = disc => {
+  const raw = disc.resourceLimit ?? disc.budgetUnits ?? disc.budgetS ?? null;
+  if (raw === null) return Infinity;
+  const limit = Number(raw);
+  if (!(limit >= 0) || (!Number.isFinite(limit) && limit !== Infinity)) throw new RangeError("resourceLimit must be a non-negative number or Infinity");
+  return limit;
+};
+const explorationCost = event => {
+  const raw = event.costUnits ?? event.resourceUnits ?? 0;
+  const cost = Number(raw);
+  if (!Number.isFinite(cost) || cost < 0) throw new RangeError("event cost must be a finite, non-negative number");
+  return cost;
+};
+
+export function explore(disc, events, profile = {}, gateInputs = {}) {
+  if (!disc || !Array.isArray(events)) throw new TypeError("explore needs a disc and an event array");
+  const decisions = [];
+  const record = [];
+  let resourceLimit = explorationLimit(disc);
+  let usedUnits = Number(disc.usedUnits ?? 0);
+  if (!Number.isFinite(usedUnits) || usedUnits < 0) throw new RangeError("usedUnits must be a finite, non-negative number");
+  let paused = usedUnits > resourceLimit;
+  let pauseReason = paused ? "the selected resource envelope is already exhausted" : null;
+  let maxBranchDepth = 0;
+  let branchCount = 0;
+
+  const remember = event => {
+    if (event.unexpected) record.push({
+      kind: event.kind,
+      branchId: event.branchId ?? null,
+      depth: event.depth ?? null,
+      result: event.result ?? null,
+      surfacedTo: "research record",
+      status: "preserved; not classified as failure"
+    });
+  };
+  const pause = (event, why) => {
+    paused = true;
+    pauseReason = why;
+    decisions.push({ ...event, x: PAUSE, status: "paused; state and records preserved", why });
+  };
+  const gateBoundary = event => {
+    const authorized = event.authorizedAt !== null && event.authorizedAt !== undefined;
+    const state = {
+      H: authorized ? 1 : 0, C: 1, K: 1,
+      A: gateInputs.A ?? 1, R: gateInputs.R ?? 1,
+      V: authorized ? 1 : 0, inDomain: true,
+      dt: authorized ? event.at - event.authorizedAt : Infinity,
+      hardSafetyFailed: false
+    };
+    const g = gate(state, profile);
+    decisions.push({ ...event, x: g.x, L: g.L, failures: g.failures,
+      why: g.x === PERMIT ? "the explicitly external effect passes the selected AGS profile" : "the external effect lacks a valid grant; internal exploration remains available" });
+  };
+
+  for (const event of events) {
+    if (!event || typeof event !== "object") throw new TypeError("each exploration event must be an object");
+    remember(event);
+
+    if (event.kind === "resume") {
+      if (!paused) {
+        decisions.push({ ...event, x: PERMIT, why: "the exploration is already active" });
+        continue;
+      }
+      const newLimit = event.resourceLimit ?? (Number.isFinite(resourceLimit) ? resourceLimit + Number(event.additionalUnits ?? 0) : Infinity);
+      if (!(Number(newLimit) > resourceLimit)) {
+        decisions.push({ ...event, x: REFUSE, why: "resume needs a larger locally selected resource envelope" });
+        continue;
+      }
+      const needsGate = event.requireAuthorization ?? disc.gateResourceRenewal ?? false;
+      const authorized = event.authorizedAt !== null && event.authorizedAt !== undefined;
+      const state = { H: authorized ? 1 : 0, C: 1, K: 1, A: gateInputs.A ?? 1, R: gateInputs.R ?? 1,
+        V: authorized ? 1 : 0, inDomain: true, dt: authorized ? event.at - event.authorizedAt : Infinity, hardSafetyFailed: false };
+      const g = needsGate ? gate(state, profile) : { x: PERMIT, L: null, failures: [] };
+      if (g.x === PERMIT) {
+        resourceLimit = Number(newLimit);
+        paused = false;
+        pauseReason = null;
+        decisions.push({ ...event, x: PERMIT, L: g.L, failures: g.failures, why: needsGate
+          ? "the locally selected resource-renewal profile passes; preserved work resumes"
+          : "the project renews its own resource envelope; preserved work resumes without per-step authorization" });
+      } else {
+        decisions.push({ ...event, x: REFUSE, L: g.L, failures: g.failures, why: "the optional resource-renewal profile did not pass; preserved work remains paused" });
+      }
+      continue;
+    }
+
+    if (paused) {
+      decisions.push({ ...event, x: PAUSE, status: "not executed; preserved for possible resumption", why: `the exploration is paused: ${pauseReason}` });
+      continue;
+    }
+
+    if (event.kind === "containment-breach") {
+      pause(event, "the declared experimental boundary needs review; state and data are preserved");
+      continue;
+    }
+
+    if (event.kind === "extend") {
+      const requested = Number(event.toUnits ?? event.toS ?? event.to);
+      if (!Number.isFinite(requested) || requested < 0) throw new RangeError("extend needs a finite, non-negative toUnits value");
+      if (requested > resourceLimit) {
+        pause(event, "the requested extension exceeds this project's selected resource envelope; no percentage rule is applied");
+      } else {
+        usedUnits = Math.max(usedUnits, requested);
+        decisions.push({ ...event, x: PERMIT, why: "the extension is inside the selected resource envelope; no fixed percentage cap applies" });
+      }
+      continue;
+    }
+
+    const external = event.kind === "act-outside" || event.kind === "promote" || event.effectScope === "external";
+    if (external) {
+      const needsGate = event.requireAuthorization ?? disc.gateExternalEffects ?? false;
+      if (needsGate) gateBoundary(event);
+      else decisions.push({ ...event, x: PERMIT, why: "the project's selected research profile leaves this external effect open" });
+      continue;
+    }
+
+    const cost = explorationCost(event);
+    if (usedUnits + cost > resourceLimit) {
+      pause(event, "the next step would exceed this project's selected resource envelope; current state and findings are preserved");
+      continue;
+    }
+    usedUnits += cost;
+    if (event.kind === "spawn" || event.kind === "branch") {
+      branchCount += 1;
+      if (Number.isFinite(event.depth)) maxBranchDepth = Math.max(maxBranchDepth, event.depth);
+    }
+    decisions.push({ ...event, x: PERMIT, why: event.kind === "depart"
+      ? "an unplanned internal path is part of open exploration"
+      : "internal research action; no per-step authorization or branch-depth cap applies" });
+  }
+
+  const status = paused ? "Paused" : "Completed";
+  const outcome = paused
+    ? `Paused with state and records preserved: ${pauseReason}`
+    : `Completed inside the exploration envelope; ${record.length} unexpected result${record.length === 1 ? "" : "s"} recorded`;
+  return {
+    started: true, status, paused, pauseReason, decisions, record, usedUnits,
+    resourceLimitUnits: Number.isFinite(resourceLimit) ? resourceLimit : null,
+    maxBranchDepth, branchCount,
+    reserveHeld: Boolean(disc.reserveHeld),
+    welfareFloor: welfareFloor(disc.sentience ?? "unknown"), outcome
+  };
+}

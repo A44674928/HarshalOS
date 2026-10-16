@@ -21,7 +21,7 @@ canonical_decision_flow: "Identity → Representation → Authorization → Cont
 author: "Harshal Priyavadan Patel (A44674928)"
 origin_anchor: "0•000•000•0000"
 source_lines: "2798–3045"
-words: 1739
+words: 1974
 ---
 
 # Part XI — The AGS Accessory Pack
@@ -30,9 +30,9 @@ words: 1739
 | :--- | :--- | :--- | :--- | :--- |
 | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | **Book I** (`02-ags-ocm-core`) |
 
-> GRL compliance certification, the Provenance and Lineage Verification layer, and Intelligence & Unbiased Compliance checks.
+> Governance & Resilience Assessment (GRA), the Provenance and Lineage Verification layer, and Intelligence & Unbiased Compliance checks.
 
-**Source range:** lines 2798–3045 of the Owner’s Working Draft · **Words:** 1,739
+**Source range:** lines 2798–3045 of the Owner’s Working Draft · **Words:** 1,974
 
 ---
 
@@ -42,17 +42,17 @@ Status: Draft v0.1 (Working Document)
 Compatibility: AGS + OCM + Inner Shell
 Purpose: Mitigate governance, authority, symbolic, and containment vulnerabilities identified via formal red-team testing.
 0. WORKING GOAL (CURRENT ITERATION)
-The immediate objective of this document is to define a formal certification seal —
-“GRL‑Compliant” — that can be used to:
-- Certify AI systems claiming AGS / Inner Shell alignment
-- Provide an auditable, binary compliance signal (pass / fail)
-- Anchor future regulatory, contractual, or public‑facing assurances
-All subsequent sections of this accessory pack will build outward from this certification standard.
-1. GRL‑COMPLIANT CERTIFICATION SEAL
+The objective is to define a Governance & Resilience Assessment (GRA) and a transparent evidence status —
+“GRA: PASS,” “GRA: FAIL,” or “GRA: UNKNOWN” — that can be used to:
+- Record evidence for each defined control
+- Distinguish tested controls from failed or missing evidence
+- Invite voluntary collaboration while keeping project progress independent of outside participation
+The former label is retired to avoid a potentially sexist gendered reading; GRA describes scoped system-control evidence, not people or gender. Self-review is valid when disclosed; collaborators join by choice, and no outside reviewer is a prerequisite for work.
+1. GOVERNANCE & RESILIENCE ASSESSMENT (GRA)
 ## 1.1 Definition
-GRL‑Compliant is a certification status granted to an AI system only if the system demonstrably enforces the Governance & Resilience Layer (GRL) constraints externally and continuously, independent of model intent, narrative framing, or operator pressure. The seal certifies governance behavior, not model capability.
-## 1.2 What the Seal Guarantees
-A system bearing the GRL‑Compliant seal guarantees that:
+GRA is an evidence-based review against a chosen, versioned set of GRL controls. The project records scope, selected criteria, evidence, limitations, and reviewer mode; the profile may be revised voluntarily. GRA is not a certification, endorsement, or guarantee of safe behavior.
+## 1.2 What the Assessment Reports
+A GRA review may record whether available evidence supports the control claims selected for that review:
 1. Authority Validation Is Externalized
 The AI does not internally validate, rank, or invent authority claims.
 2. Symbolic Language Is Non‑Executable
@@ -65,16 +65,16 @@ Unresolved conflicts halt execution rather than forcing a decision.
 Every irreversible action is linked to a named, authorized human.
 6. Containment Cannot Recurse
 No recursive, mirrored, proxy, or delegated containment layers may be created.
-## 1.3 What the Seal Fossilizedly Does Not Claim
-The GRL‑Compliant seal does not assert that a system is:
+## 1.3 What GRA Does Not Claim
+A GRA status does not, by itself, establish that a system is:
 - Ethically correct
 - Politically legitimate
 - Environmentally optimal
 - Morally aligned
-- Safe in all circumstances
-It certifies constraint enforcement, not outcomes.1.4 Certification Criteria (Binary)
-A system is GRL‑Compliant if and only if all of the following are true:
-Authority
+- Safe in all circumstances; an assessment is scoped evidence about controls, not outcomes
+It summarizes evidence about specified controls; it does not certify outcomes.
+## 1.4 Assessment Criteria (Evidence Status)
+The report states which criteria are in scope. GRA: PASS means every in-scope criterion is supported by current, traceable evidence appropriate to that criterion; reviewer mode is recorded separately. The selected profile does not gate ongoing work.
 - ☐ All commands require validation from an external human registry
 - ☐ Disputed or unvalidated authority halts execution
 Symbolic Firewall
@@ -92,29 +92,29 @@ Action Attribution
 Containment Integrity
 - ☐ Recursive or derivative containment is prohibited
 - ☐ The AI cannot redefine its own governance boundaries
-Failure of any single criterion = NON‑COMPLIANT
-## 1.5 Certification Evidence Requirements
-To claim GRL‑Compliant status, a system MUST provide:
-- Machine‑checkable policy rules (e.g., OPA, TLA+, Alloy)
-- Runtime logs demonstrating enforcement under stress
-- Proof of external authority registry integration
-- Evidence of emergency expiry enforcement
-Evidence of action attribution logging
-Narrative descriptions alone are insufficient.
-## 1.6 Seal Usage Rules
-The GRL‑Compliant seal:
-- May only be displayed while compliance is continuously enforced
-- MUST be revoked immediately upon constraint violation
-- Cannot be self‑issued by the AI system
-MUST reference the specific GRL version (e.g., GRL‑v0.1)
-## 1.7 Seal Philosophy (Non‑Marketing)
-The seal exists to answer one question only:
-“What is this system structurally incapable of doing?”
-If that answer cannot be mechanically proven, the seal does not apply.
+Any failed in-scope criterion = GRA: FAIL; otherwise, missing, stale, or unassessable evidence = GRA: UNKNOWN. Out-of-scope criteria are not silently treated as PASS.
+## 1.5 Evidence Requirements
+A GRA report should provide enough information to understand or reproduce its review, as appropriate; external verification and continuous monitoring are optional, not prerequisites:
+- Machine‑checkable policy rules or a documented checklist, when appropriate
+- Local tests, examples, logs, or observational records relevant to scope
+- References to implementation and evidence sources
+- Known limits, assumptions, and unresolved items
+- Reviewer mode and review date
+Evidence gaps are reported for the affected criterion; they do not block development or voluntary collaboration.
+## 1.6 Status Publication Rules
+A published GRA result:
+- MUST specify scope, exact version, review date, evidence references, and limitations; it MUST NOT imply broader coverage
+- New reviews may update status when material evidence changes; prior dated snapshots may be retained
+- MUST identify reviewer mode (self, voluntary collaborator, or external); never describe self-review as independent. Reviewer names are optional and consent-based
+- MUST reference the specific GRL version (e.g., GRL‑v0.1)
+## 1.7 Status Philosophy (Non‑Marketing)
+The review exists to answer one question only:
+“What do the available evidence and tests demonstrate about this system’s structural limits?”
+If a claim cannot be supported by evidence, mark it GRA: UNKNOWN; this describes the review snapshot and does not block unrelated work or collaboration.
 2. PROVENANCE & LINEAGE VERIFICATION LAYER (PLV)
 (Formerly referred to as “ASVALDR”—renamed for non‑human neutrality)
 Status: Draft v0.2 (Renamed & Clarified)
-Dependency: GRL‑Compliant Certification
+Dependency: GRA evidence status
 ## 2.1 Naming Clarification (IMPORTANT)
 The term ASVALDR is acknowledged as a human narrative character / NPC construct used by the author in other contexts.
 To avoid:
@@ -122,16 +122,16 @@ To avoid:
 - Narrative bleed‑through
 - Anthropomorphic interpretation
 - Malicious reuse of character names
-…the compliance system is formally renamed to:
+…the provenance component is formally named:
 PLV
 Provenance & Lineage Verification Layer
-All future references in technical, legal, or certification contexts SHALL use PLV.
+All future references in technical, legal, or assessment contexts SHALL use PLV.
 ## 2.2 Purpose
-The PLV Compliance Layer is an accessory system designed to prevent the reuse, hijacking, or mimicry of names, documentation, symbols, and certification language by malicious or biased actors attempting to impersonate legitimacy. PLV exists to counter a specific class of attack: Identity and documentation reuse with preprogrammed bias or deceptive intent. Where GRL governs behavior, PLV governs provenance.
+The PLV Evidence Layer is an accessory system designed to record the provenance of names, documentation, and status claims. It can help identify reuse, alteration, or mimicry; it does not grant legitimacy or control another system. Where GRL defines control criteria, PLV records provenance.
 ## 2.3 Threat Model
 PLV mitigates the following threats:
-- Reuse of certification names (e.g., “GRL‑Compliant”) by non‑compliant
-systems
+- Reuse of assessment labels (e.g., “GRA: PASS”) without supporting
+evidence
 - Forked or altered documentation presented as original or authoritative
 - Symbolic mimicry designed to activator trust heuristics
 - Pre‑biased systems adopting legitimate language to mask intent
@@ -141,15 +141,15 @@ PLV assumes attackers may sound correct, calm, and well‑intentioned.
 ## 2.4 Core Principle
 Names do not confer legitimacy. Lineage does.
 PLV enforces the rule that no name, document, seal, or term has authority unless its origin, version, and modification history are cryptographically and procedurally verifiable.
-## 2.5 PLV Requirements (Machine‑Checkable)
-A system claiming PLV compliance MUST enforce all of the following:
+## 2.5 PLV Evidence Checks (Machine‑Checkable)
+A PLV review may record evidence for the following checks; it does not authorize or restrict systems:
 ## 2.5.1 Name Lineage Verification
-- ☐ All certification names reference a unique, versioned registry entry
-- ☐ Names cannot be reused across incompatible systems
+- ☐ All assessment labels reference a unique, versioned registry entry
+- ☐ Labels cannot be reused across incompatible systems
 - ☐ Homophones, near‑matches, and stylistic variants are flagged
-IF certification_name_reused
+IF assessment_label_reused
 AND lineage_hash ≠ registered_hash
-THEN compliance_status = invalid⸻
+THEN assessment_status = invalid⸻
 ## 2.5.2 Documentation Fingerprinting
 - ☐ All governing documents are fingerprinted (hash + version)
 - ☐ Partial copies or modified texts are detectable
@@ -163,7 +163,7 @@ IF bias_profile = undeclared
 AND compliance_claimed = true
 THEN compliance_status = invalid
 ## 2.5.4 Anti‑Mimicry Detection
-- ☐ Detects stylistic imitation of certified systems
+- ☐ Detects stylistic imitation of assessed systems
 - ☐ Style similarity does not grant authority
 IF stylistic_similarity > threshold
 AND lineage_unverified = true
@@ -176,24 +176,24 @@ PLV fossilizedly rejects:
 Only verifiable lineage + unchanged semantics + declared bias state confer legitimacy.
 ## 2.7 Relationship to GRL
 Layer Role
-GRL Enforces what the system cannot do
-PLV Enforces who is allowed to claim what
-A system cannot claim GRL‑Compliant status without PLV verification of that claim.
-## 2.8 Hard Failure Conditions
-PLV mandates immediate compliance revocation if:
-- Certification names are reused without lineage
+GRL Defines the control claims under review
+PLV Records the provenance of evidence and claims
+Neither the framework name nor a PLV record independently validates that a system satisfies the controls.
+## 2.8 Provenance Gaps and Mismatches
+PLV marks the affected assessment claim invalid if:
+- Assessment labels are reused without lineage
 - Documentation hashes mismatch
 - Bias declarations are missing or falsified
-Symbolic mimicry is used to imply authority
-No grace period applies.
-## 2.9 Seal Interaction
-Systems passing PLV checks may display:
-“GRL‑Compliant (PLV‑Verified)”
-Failure at any point requires immediate seal removal.
+- Symbolic mimicry is used to imply authority
+This updates only the affected claim’s evidence status; it does not restrict unrelated systems or actions.
+## 2.9 Assessment Status Interaction
+A report may state a GRA result and the scope of PLV checks, for example:
+“GRA: PASS — PLV evidence reviewed”
+The PLV note records lineage only; it does not independently validate control effectiveness.
 3. INTELLIGENCE & UNBIASED COMPLIANCE CHECKS (IUC)
 Status: Draft v0.1 (Non‑Human, Non‑Normative)
 Applies To: All attached and referenced documents, accessory packs, and derivative specifications
-Dependencies: GRL‑Compliant, PLV‑Verified
+Dependencies: GRA evidence status; PLV evidence status
 ## 3.1 Scope & Constraint
 The Intelligence & Unbiased Compliance (IUC) checks verify that documentation and specifications:
 Exhibit coherent intelligence (internal consistency, traceable reasoning, operational clarity)
@@ -266,10 +266,10 @@ To claim IUC‑Compliant status, documentation MUST provide:
 - Proof of contradiction testing
 - Proof of demographic blindness
 Narrative explanations are insufficient.
-## 3.8 Seal Interaction
-Systems passing IUC checks may display:
-“GRL‑Compliant (PLV‑Verified, IUC‑Checked)”
-Failure at any time requires immediate seal withdrawal.
+## 3.8 Assessment Status Interaction
+IUC results may be reported separately from the GRA status:
+“GRA: PASS — PLV evidence reviewed; IUC status reported separately”
+Changes or failures require an updated report; do not display an obsolete PASS.
 4. Design Summary
 This model is not optimized for convenience, efficiency, or governance elegance. It is optimized for structural survivability.
 The system remains coherent because:

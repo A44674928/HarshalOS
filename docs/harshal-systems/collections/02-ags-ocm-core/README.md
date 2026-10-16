@@ -17,4 +17,4 @@
 | `08-operator-model` | [Part VIII — The Operator Model](../../08-operator-model.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (1,264 words) |
 | `09-disc-lifecycle` | [Part IX — Disc Primitives, Routing, and Lifecycle](../../09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (3,681 words) |
 | `10-ags-conformance` | [Part X — AGS+ Layering and Conformance](../../10-ags-conformance.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (817 words) |
-| `11-accessory-pack` | [Part XI — The AGS Accessory Pack](../../11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (1,739 words) |
+| `11-accessory-pack` | [Part XI — The AGS Accessory Pack](../../11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` (1,974 words) |

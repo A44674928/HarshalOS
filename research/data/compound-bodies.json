@@ -1,0 +1,1158 @@
+{
+  "schema": "harshalos-nab-compound-bodies-v1",
+  "purpose": "Pinned reference data for the compound-body model in research/neural-atomic-bodies-insurance-requirements.md Section 4.11 and Appendix E: atomic weights for molar masses, a registry of real substances with measured phase-transition data, balanced reactions, and equation-of-state check points for the physical-phase classifier. Physical data only; NAB tiers and phase eligibility come from js/nab-sectors.js and the Appendix A matrix.",
+  "provenance": {
+    "retrieved": "2026-10-15",
+    "builder": "scripts/build-compound-bodies.py",
+    "packages": [
+      {
+        "name": "chemicals",
+        "version": "1.5.2",
+        "licence": "MIT",
+        "wheel": "chemicals-1.5.2-py3-none-any.whl",
+        "sha256": "f85ef7f36e77fee634686c26562929ee61026cd548d89cebd57b2251ca843d6e",
+        "used": "PubChem-derived identifiers (CID, formula, molar mass, InChIKey); tabulated transition temperatures from the CRC Handbook tables, NIST WebBook, CAS Common Chemistry, and Yaws; critical points from Mathews (1972)"
+      },
+      {
+        "name": "CoolProp",
+        "version": "8.0.0",
+        "licence": "MIT",
+        "wheel": "coolprop-8.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "sha256": "e9bb1d10df8a1b29ba1387f3e7896f7878ec16e3af46b06f82831150bacb7a39",
+        "used": "triple and critical points, normal boiling points, and the phase test points, from the reference equations of state"
+      },
+      {
+        "name": "periodictable",
+        "version": "2.1.0",
+        "licence": "public domain (NIST)",
+        "wheel": "periodictable-2.1.0-py3-none-any.whl",
+        "sha256": "e9155d2bf5ac10050abeff2f99096d4f04312c0c8a6bb432e28744367c5064b3",
+        "used": "standard atomic weights (IUPAC 2021, Prohaska et al. 2022, doi:10.1515/pac-2019-0603; for elements with no standard atomic weight, the mass number of the most stable isotope) and the isotope masses of D and T (AME2020)"
+      },
+      {
+        "name": "mendeleev",
+        "version": "1.3.0",
+        "licence": "MIT",
+        "wheel": "mendeleev-1.3.0-py3-none-any.whl",
+        "sha256": "76f415767b654634e51dead755513ef431abf200e892eab8468aa659ff218d1c",
+        "used": "cross-check of every standard atomic weight"
+      }
+    ],
+    "web": {
+      "Britannica": "https://www.britannica.com/science/helium-chemical-element",
+      "WNTI": "https://www.wnti.co.uk/wp-content/uploads/2021/09/WNTI_Fact_Sheet_UF6_v3.pdf",
+      "Wikipedia, Uranium hexafluoride": "https://en.wikipedia.org/wiki/Uranium_hexafluoride",
+      "Wikipedia, Copper(II) sulfate": "https://en.wikipedia.org/wiki/Copper(II)_sulfate",
+      "Wikipedia, Noble gas": "https://en.wikipedia.org/wiki/Noble_gas",
+      "Nature Sci. Rep. 2015": "https://www.nature.com/articles/srep15139"
+    },
+    "conditions": "Temperatures in kelvin, pressures in pascal. ladder1atm gives the state of matter at 101,325 Pa: the state below the first step, then each step's temperature and the state above it. curves gives the triple point (tt, pt), the critical point (tc, pc), and for substances that sublime at 1 atm the sublimation point (tsub).",
+    "atomicWeightCrossCheck": {
+      "agreeingElements": 79,
+      "tolerance": 0.000001,
+      "differences": [
+        {"symbol": "Ar", "iupac2021": 39.95, "mendeleev130": 39.948},
+        {"symbol": "Y", "iupac2021": 88.905838, "mendeleev130": 88.90584},
+        {"symbol": "Rh", "iupac2021": 102.90549, "mendeleev130": 102.9055},
+        {"symbol": "Tb", "iupac2021": 158.925354, "mendeleev130": 158.92535},
+        {"symbol": "Hf", "iupac2021": 178.486, "mendeleev130": 178.49}
+      ],
+      "note": "The IUPAC 2021 table changed the values for Ar and Hf and the uncertainties (and so the stated digits) for Y, Rh, and Tb; mendeleev 1.3.0 still carries the earlier values. None of the five occurs in the registry."
+    },
+    "noStandardAtomicWeight": ["Ac", "Am", "At", "Bh", "Bk", "Cf", "Cm", "Cn", "Db", "Ds", "Es", "Fl", "Fm", "Fr", "Hs", "Lr", "Lv", "Mc", "Md", "Mt", "Nh", "No", "Np", "Og", "Pm", "Po", "Pu", "Ra", "Rf", "Rg", "Rn", "Sg", "Tc", "Ts"],
+    "knownIssues": ["A formula is not a substance: ethanol and dimethyl ether share C2H6O. The registry is keyed by CAS RN, and the formula must agree with the record.", "Tabulated values differ between sources; each step keeps the alternatives, and the script checks that the state at 25 °C does not depend on which source is used.", "Equations of state extrapolate below the triple point without complaint (CoolProp gives CO2 a 'boiling point' of 185.10 K at 1 atm); the classifier never uses a liquid-vapor curve below the triple point.", "Off 1 atm, vapor and sublimation pressures are interpolated linearly in ln p against 1/T between the triple, normal, and critical points, and melting lines are taken as vertical. Classifications near a phase boundary are approximate; the phase test points measure how approximate."]
+  },
+  "atomicWeights": {
+    "H": 1.008,
+    "He": 4.002602,
+    "Li": 6.94,
+    "Be": 9.0121831,
+    "B": 10.81,
+    "C": 12.011,
+    "N": 14.007,
+    "O": 15.999,
+    "F": 18.998403162,
+    "Ne": 20.1797,
+    "Na": 22.98976928,
+    "Mg": 24.305,
+    "Al": 26.9815384,
+    "Si": 28.085,
+    "P": 30.973761998,
+    "S": 32.06,
+    "Cl": 35.45,
+    "Ar": 39.95,
+    "K": 39.0983,
+    "Ca": 40.078,
+    "Sc": 44.955907,
+    "Ti": 47.867,
+    "V": 50.9415,
+    "Cr": 51.9961,
+    "Mn": 54.938043,
+    "Fe": 55.845,
+    "Co": 58.933194,
+    "Ni": 58.6934,
+    "Cu": 63.546,
+    "Zn": 65.38,
+    "Ga": 69.723,
+    "Ge": 72.63,
+    "As": 74.921595,
+    "Se": 78.971,
+    "Br": 79.904,
+    "Kr": 83.798,
+    "Rb": 85.4678,
+    "Sr": 87.62,
+    "Y": 88.905838,
+    "Zr": 91.224,
+    "Nb": 92.90637,
+    "Mo": 95.95,
+    "Tc": 98,
+    "Ru": 101.07,
+    "Rh": 102.90549,
+    "Pd": 106.42,
+    "Ag": 107.8682,
+    "Cd": 112.414,
+    "In": 114.818,
+    "Sn": 118.71,
+    "Sb": 121.76,
+    "Te": 127.6,
+    "I": 126.90447,
+    "Xe": 131.293,
+    "Cs": 132.90545196,
+    "Ba": 137.327,
+    "La": 138.90547,
+    "Ce": 140.116,
+    "Pr": 140.90766,
+    "Nd": 144.242,
+    "Pm": 145,
+    "Sm": 150.36,
+    "Eu": 151.964,
+    "Gd": 157.25,
+    "Tb": 158.925354,
+    "Dy": 162.5,
+    "Ho": 164.930329,
+    "Er": 167.259,
+    "Tm": 168.934219,
+    "Yb": 173.045,
+    "Lu": 174.9668,
+    "Hf": 178.486,
+    "Ta": 180.94788,
+    "W": 183.84,
+    "Re": 186.207,
+    "Os": 190.23,
+    "Ir": 192.217,
+    "Pt": 195.084,
+    "Au": 196.96657,
+    "Hg": 200.592,
+    "Tl": 204.38,
+    "Pb": 207.2,
+    "Bi": 208.9804,
+    "Po": 209,
+    "At": 210,
+    "Rn": 222,
+    "Fr": 223,
+    "Ra": 226,
+    "Ac": 227,
+    "Th": 232.0377,
+    "Pa": 231.03588,
+    "U": 238.02891,
+    "Np": 237,
+    "Pu": 244,
+    "Am": 243,
+    "Cm": 247,
+    "Bk": 247,
+    "Cf": 251,
+    "Es": 252,
+    "Fm": 257,
+    "Md": 258,
+    "No": 259,
+    "Lr": 262,
+    "Rf": 261,
+    "Db": 262,
+    "Sg": 266,
+    "Bh": 264,
+    "Hs": 277,
+    "Mt": 268,
+    "Ds": 281,
+    "Rg": 272,
+    "Cn": 285,
+    "Nh": 286,
+    "Fl": 289,
+    "Mc": 289,
+    "Lv": 293,
+    "Ts": 294,
+    "Og": 294,
+    "D": 2.01410177784,
+    "T": 3.01604928132
+  },
+  "registry": [
+    {
+      "id": "helium",
+      "name": "Helium",
+      "formula": "He",
+      "cas": "7440-59-7",
+      "pubchemCid": 23987,
+      "inchiKey": "SWQJXJOGLNCZEY-UHFFFAOYSA-N",
+      "pubchemFormula": "He",
+      "pubchemMolarMass": 4.002602,
+      "coolpropFluid": "Helium",
+      "ladder1atm": {
+        "start": "WATER",
+        "steps": [
+          {
+            "atK": 4.2238,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 4.222, "CAS Common Chemistry": 4.25, "Yaws": 4.22}
+          }
+        ]
+      },
+      "curves": {"ttK": 2.1768, "ptPa": 5039.33, "tcK": 5.1953, "pcPa": 228322.8, "source": "CoolProp 8.0.0 (Helium)"},
+      "noSolidBelowPa": 2533125,
+      "notes": ["No solid at 1 atm: helium stays liquid down to absolute zero and solidifies only under about 25 atm (2.53 MPa) [Britannica].", "CoolProp reports the lambda point (2.1768 K) as its triple point; helium has no solid-liquid-vapor triple point. The vapor curve still passes through it."]
+    },
+    {
+      "id": "hydrogen",
+      "name": "Hydrogen",
+      "formula": "H2",
+      "cas": "1333-74-0",
+      "pubchemCid": 783,
+      "inchiKey": "UFHFLCQGNIYNRP-UHFFFAOYSA-N",
+      "pubchemFormula": "H2",
+      "pubchemMolarMass": 2.01588,
+      "coolpropFluid": "Hydrogen",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 13.99,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 13.95}
+          },
+          {
+            "atK": 20.3689,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 20.271, "CAS Common Chemistry": 20.38, "Yaws": 20.39}
+          }
+        ]
+      },
+      "curves": {"ttK": 13.957, "ptPa": 7357.828, "tcK": 33.1443, "pcPa": 1296357.6, "source": "CoolProp 8.0.0 (Hydrogen)"}
+    },
+    {
+      "id": "nitrogen",
+      "name": "Nitrogen",
+      "formula": "N2",
+      "cas": "7727-37-9",
+      "pubchemCid": 947,
+      "inchiKey": "IJGRMHOSHXDMSA-UHFFFAOYSA-N",
+      "pubchemFormula": "N2",
+      "pubchemMolarMass": 28.0134,
+      "coolpropFluid": "Nitrogen",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 63.15,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 63.3, "CAS Common Chemistry": 63.14}
+          },
+          {
+            "atK": 77.355,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 77.355, "NIST WebBook": 77.3557, "CAS Common Chemistry": 77.36, "Yaws": 77.34}
+          }
+        ]
+      },
+      "curves": {"ttK": 63.151, "ptPa": 12519.783, "tcK": 126.192, "pcPa": 3395800.4, "source": "CoolProp 8.0.0 (Nitrogen)"}
+    },
+    {
+      "id": "oxygen",
+      "name": "Oxygen",
+      "formula": "O2",
+      "cas": "7782-44-7",
+      "pubchemCid": 977,
+      "inchiKey": "MYMOFIZGZYHOMD-UHFFFAOYSA-N",
+      "pubchemFormula": "O2",
+      "pubchemMolarMass": 31.9988,
+      "coolpropFluid": "Oxygen",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 54.36,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 54.8, "CAS Common Chemistry": 54.75}
+          },
+          {
+            "atK": 90.1878,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 90.188, "NIST WebBook": 90.2, "CAS Common Chemistry": 90.19, "Yaws": 90.19}
+          }
+        ]
+      },
+      "curves": {"ttK": 54.361, "ptPa": 146.278, "tcK": 154.5994, "pcPa": 5046410.5, "source": "CoolProp 8.0.0 (Oxygen)"}
+    },
+    {
+      "id": "fluorine",
+      "name": "Fluorine",
+      "formula": "F2",
+      "cas": "7782-41-4",
+      "pubchemCid": 24524,
+      "inchiKey": "PXGOKWXKJXAPGV-UHFFFAOYSA-N",
+      "pubchemFormula": "F2",
+      "pubchemMolarMass": 37.996806,
+      "coolpropFluid": "Fluorine",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 53.48,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 55.2, "CAS Common Chemistry": 53.54}
+          },
+          {
+            "atK": 85.0368,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 85.04, "NIST WebBook": 85.2, "CAS Common Chemistry": 85.02, "Yaws": 84.95}
+          }
+        ]
+      },
+      "curves": {"ttK": 53.4811, "ptPa": 238.81, "tcK": 144.4144, "pcPa": 5239516.5, "source": "CoolProp 8.0.0 (Fluorine)"}
+    },
+    {
+      "id": "bromine",
+      "name": "Bromine",
+      "formula": "Br2",
+      "cas": "7726-95-6",
+      "pubchemCid": 24408,
+      "inchiKey": "GDTBXPJZTBHREO-UHFFFAOYSA-N",
+      "pubchemFormula": "Br2",
+      "pubchemMolarMass": 159.808,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 265.95,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 260.075, "CAS Common Chemistry": 265.9}
+          },
+          {
+            "atK": 331.95,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 331.93, "Yaws": 331.9}
+          }
+        ]
+      }
+    },
+    {
+      "id": "mercury",
+      "name": "Mercury",
+      "formula": "Hg",
+      "cas": "7439-97-6",
+      "pubchemCid": 23931,
+      "inchiKey": "QSHDDOUJBYECFT-UHFFFAOYSA-N",
+      "pubchemFormula": "Hg",
+      "pubchemMolarMass": 200.59,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 234.321,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 234.3049, "CAS Common Chemistry": 234.28}
+          },
+          {
+            "atK": 629.769,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 629.7858, "CAS Common Chemistry": 629.88, "Yaws": 629.84}
+          }
+        ]
+      }
+    },
+    {
+      "id": "gallium",
+      "name": "Gallium",
+      "formula": "Ga",
+      "cas": "7440-55-3",
+      "pubchemCid": 5360835,
+      "inchiKey": "GYHNNYVSQQEPJS-UHFFFAOYSA-N",
+      "pubchemFormula": "Ga",
+      "pubchemMolarMass": 69.723,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 302.9146,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 302.92, "CAS Common Chemistry": 302.93}
+          },
+          {
+            "atK": 2502.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 2673.15, "Yaws": 2477.15}
+          }
+        ]
+      },
+      "notes": ["The melting point of gallium (302.9146 K, 29.7646 °C) is a defining fixed point of the International Temperature Scale of 1990; tabulated boiling points range from 2477 K to 2673 K."]
+    },
+    {
+      "id": "iron",
+      "name": "Iron",
+      "formula": "Fe",
+      "cas": "7439-89-6",
+      "pubchemCid": 23925,
+      "inchiKey": "XEEYBQQBJWHFJM-UHFFFAOYSA-N",
+      "pubchemFormula": "Fe",
+      "pubchemMolarMass": 55.845,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 1811.15,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 1808.15}
+          },
+          {
+            "atK": 3134.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 3273.15, "Yaws": 3133.35}
+          }
+        ]
+      },
+      "notes": ["The solid allotropes (alpha, gamma, delta) are all ICE here; only the state of matter is modeled."]
+    },
+    {
+      "id": "water",
+      "name": "Water",
+      "formula": "H2O",
+      "cas": "7732-18-5",
+      "pubchemCid": 962,
+      "inchiKey": "XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+      "pubchemFormula": "H2O",
+      "pubchemMolarMass": 18.01528,
+      "coolpropFluid": "Water",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 273.15,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 273.15}
+          },
+          {
+            "atK": 373.1243,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 373.124, "NIST WebBook": 373.17, "CAS Common Chemistry": 373.15, "Yaws": 373.15}
+          }
+        ]
+      },
+      "curves": {"ttK": 273.16, "ptPa": 611.655, "tcK": 647.096, "pcPa": 22064000, "source": "CoolProp 8.0.0 (Water)"}
+    },
+    {
+      "id": "heavy-water",
+      "name": "Heavy water (deuterium oxide)",
+      "formula": "D2O",
+      "cas": "7789-20-0",
+      "pubchemCid": 24602,
+      "inchiKey": "XLYOFNOQVPJJNP-ZSJDYOACSA-N",
+      "pubchemFormula": "D2O",
+      "pubchemMolarMass": 20.027604,
+      "coolpropFluid": "HeavyWater",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 276.97,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 276.97, "CAS Common Chemistry": 276.96}
+          },
+          {
+            "atK": 374.5488,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 374.57, "CAS Common Chemistry": 374.57, "Yaws": 374.55}
+          }
+        ]
+      },
+      "curves": {"ttK": 276.969, "ptPa": 661.587, "tcK": 643.847, "pcPa": 21661831, "source": "CoolProp 8.0.0 (HeavyWater)"},
+      "notes": ["D is hydrogen-2. It takes the Hydrogen class; its mass is the isotope mass, not the standard atomic weight of hydrogen."]
+    },
+    {
+      "id": "carbon-dioxide",
+      "name": "Carbon dioxide",
+      "formula": "CO2",
+      "cas": "124-38-9",
+      "pubchemCid": 280,
+      "inchiKey": "CURLTUGMZLYLDI-UHFFFAOYSA-N",
+      "pubchemFormula": "CO2",
+      "pubchemMolarMass": 44.0095,
+      "coolpropFluid": "CarbonDioxide",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 194.67,
+            "to": "GAS",
+            "kind": "sublimation",
+            "source": "Yaws",
+            "alternatives": {}
+          }
+        ]
+      },
+      "curves": {"ttK": 216.592, "ptPa": 517964.343, "tcK": 304.1282, "pcPa": 7377298.4, "source": "CoolProp 8.0.0 (CarbonDioxide)", "tsubK": 194.67},
+      "notes": ["Sublimes at 1 atm: the triple-point pressure (517,964 Pa) is above 101,325 Pa, so there is no liquid at 1 atm.", "CoolProp returns 185.10 K for the saturation temperature at 101,325 Pa. That is an extrapolation below the triple point, not a boiling point.", "The CRC organic table lists 216.589 K as a melting point; that is the triple point at 5.2 bar, not a melting point at 1 atm."]
+    },
+    {
+      "id": "methane",
+      "name": "Methane",
+      "formula": "CH4",
+      "cas": "74-82-8",
+      "pubchemCid": 297,
+      "inchiKey": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+      "pubchemFormula": "CH4",
+      "pubchemMolarMass": 16.04246,
+      "coolpropFluid": "Methane",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 90.6934,
+            "to": "WATER",
+            "source": "CRC (organic)",
+            "alternatives": {"NIST WebBook": 85.7924, "CAS Common Chemistry": 90.55}
+          },
+          {
+            "atK": 111.6672,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC (organic)": 111.65, "NIST WebBook": 111, "CAS Common Chemistry": 111.75, "Yaws": 111.66}
+          }
+        ]
+      },
+      "curves": {"ttK": 90.6941, "ptPa": 11696.064, "tcK": 190.564, "pcPa": 4599200.5, "source": "CoolProp 8.0.0 (Methane)"}
+    },
+    {
+      "id": "ammonia",
+      "name": "Ammonia",
+      "formula": "NH3",
+      "cas": "7664-41-7",
+      "pubchemCid": 222,
+      "inchiKey": "QGZKDVFQNNGYKY-UHFFFAOYSA-N",
+      "pubchemFormula": "H3N",
+      "pubchemMolarMass": 17.03052,
+      "coolpropFluid": "Ammonia",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 195.42,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 194.95, "CAS Common Chemistry": 195.45}
+          },
+          {
+            "atK": 239.8343,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 239.82, "CAS Common Chemistry": 239.8, "Yaws": 239.72}
+          }
+        ]
+      },
+      "curves": {"ttK": 195.495, "ptPa": 6055.814, "tcK": 405.56, "pcPa": 11363391.2, "source": "CoolProp 8.0.0 (Ammonia)"}
+    },
+    {
+      "id": "carbon-monoxide",
+      "name": "Carbon monoxide",
+      "formula": "CO",
+      "cas": "630-08-0",
+      "pubchemCid": 281,
+      "inchiKey": "UGFAIRIUMAVXCW-UHFFFAOYSA-N",
+      "pubchemFormula": "CO",
+      "pubchemMolarMass": 28.0101,
+      "coolpropFluid": "CarbonMonoxide",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 68.13,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CRC (organic)": 68.05, "CAS Common Chemistry": 68.15}
+          },
+          {
+            "atK": 81.6382,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 81.65, "CRC (organic)": 81.64, "NIST WebBook": 81.6297, "CAS Common Chemistry": 81.65, "Yaws": 81.7}
+          }
+        ]
+      },
+      "curves": {"ttK": 68.16, "ptPa": 15536.877, "tcK": 132.8599, "pcPa": 3498194.7, "source": "CoolProp 8.0.0 (CarbonMonoxide)"}
+    },
+    {
+      "id": "hydrogen-fluoride",
+      "name": "Hydrogen fluoride",
+      "formula": "HF",
+      "cas": "7664-39-3",
+      "pubchemCid": 14917,
+      "inchiKey": "KRHYYFGTRYWZRS-UHFFFAOYSA-N",
+      "pubchemFormula": "FH",
+      "pubchemMolarMass": 20.006343,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 189.79,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 190, "CAS Common Chemistry": 189.79}
+          },
+          {
+            "atK": 293.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 292.7, "CAS Common Chemistry": 293.15, "Yaws": 292.67}
+          }
+        ]
+      },
+      "notes": ["Boils near room temperature: tabulated normal boiling points run from 292.67 K to 293.15 K, all below 298.15 K, so it is a gas at 25 °C and a liquid at 15 °C."]
+    },
+    {
+      "id": "hydrogen-chloride",
+      "name": "Hydrogen chloride",
+      "formula": "HCl",
+      "cas": "7647-01-0",
+      "pubchemCid": 313,
+      "inchiKey": "VEXZGXHMUGYJMC-UHFFFAOYSA-N",
+      "pubchemFormula": "ClH",
+      "pubchemMolarMass": 36.46094,
+      "coolpropFluid": "HydrogenChloride",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 158.98,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"NIST WebBook": 161.15, "CAS Common Chemistry": 159.15}
+          },
+          {
+            "atK": 188.1726,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC": 188.15, "CAS Common Chemistry": 188.15, "Yaws": 188.15}
+          }
+        ]
+      },
+      "curves": {"ttK": 159.07, "ptPa": 13828.405, "tcK": 324.68, "pcPa": 8313508.9, "source": "CoolProp 8.0.0 (HydrogenChloride)"}
+    },
+    {
+      "id": "sodium-chloride",
+      "name": "Sodium chloride",
+      "formula": "NaCl",
+      "cas": "7647-14-5",
+      "pubchemCid": 5234,
+      "inchiKey": "FAPWRFPIFSIZLT-UHFFFAOYSA-M",
+      "pubchemFormula": "ClNa",
+      "pubchemMolarMass": 58.442769,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 1073.85,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 1074.15}
+          },
+          {
+            "atK": 1738.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 1686.15, "Yaws": 1738.2}
+          }
+        ]
+      }
+    },
+    {
+      "id": "ethanol",
+      "name": "Ethanol",
+      "formula": "C2H5OH",
+      "cas": "64-17-5",
+      "pubchemCid": 702,
+      "inchiKey": "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+      "pubchemFormula": "C2H6O",
+      "pubchemMolarMass": 46.06844,
+      "coolpropFluid": "Ethanol",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 159.01,
+            "to": "WATER",
+            "source": "CRC (organic)",
+            "alternatives": {"NIST WebBook": 158.8, "CAS Common Chemistry": 159.05}
+          },
+          {
+            "atK": 351.5704,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC (organic)": 351.39, "NIST WebBook": 351.5, "CAS Common Chemistry": 351.65, "Yaws": 351.44}
+          }
+        ]
+      },
+      "curves": {"ttK": 159.1, "ptPa": 0.001, "tcK": 514.7093, "pcPa": 6267914.6, "source": "CoolProp 8.0.0 (Ethanol)"}
+    },
+    {
+      "id": "dimethyl-ether",
+      "name": "Dimethyl ether",
+      "formula": "CH3OCH3",
+      "cas": "115-10-6",
+      "pubchemCid": 8254,
+      "inchiKey": "LCGLNKUTAGEVQW-UHFFFAOYSA-N",
+      "pubchemFormula": "C2H6O",
+      "pubchemMolarMass": 46.06844,
+      "coolpropFluid": "DimethylEther",
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 131.66,
+            "to": "WATER",
+            "source": "CRC (organic)",
+            "alternatives": {"NIST WebBook": 131.6574, "CAS Common Chemistry": 131.65}
+          },
+          {
+            "atK": 248.3678,
+            "to": "GAS",
+            "source": "CoolProp 8.0.0",
+            "alternatives": {"CRC (organic)": 248.35, "NIST WebBook": 249, "CAS Common Chemistry": 248.35, "Yaws": 248.31}
+          }
+        ]
+      },
+      "curves": {"ttK": 131.66, "ptPa": 2.211, "tcK": 400.378, "pcPa": 5336664.8, "source": "CoolProp 8.0.0 (DimethylEther)"},
+      "notes": ["Same molecular formula as ethanol (C2H6O); a gas at 25 °C where ethanol is a liquid."]
+    },
+    {
+      "id": "iron-pentacarbonyl",
+      "name": "Iron pentacarbonyl",
+      "formula": "Fe(CO)5",
+      "cas": "13463-40-6",
+      "pubchemCid": 26040,
+      "inchiKey": "FYOFOKCECDGJBF-UHFFFAOYSA-N",
+      "pubchemFormula": "C5FeO5",
+      "pubchemMolarMass": 195.8955,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 252.65,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CRC (organic)": 253.15, "CAS Common Chemistry": 252.15}
+          },
+          {
+            "atK": 376.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"CRC (organic)": 376.15, "NIST WebBook": 376, "CAS Common Chemistry": 375.95, "Yaws": 376.15}
+          }
+        ]
+      },
+      "notes": ["A liquid iron compound. Heat decomposes it to iron and carbon monoxide, the route to carbonyl iron powder [Nature Sci. Rep. 2015]."]
+    },
+    {
+      "id": "xenon-difluoride",
+      "name": "Xenon difluoride",
+      "formula": "XeF2",
+      "cas": "13709-36-9",
+      "pubchemCid": 83674,
+      "inchiKey": "IGELFKKMDLGCJO-UHFFFAOYSA-N",
+      "pubchemFormula": "F2Xe",
+      "pubchemMolarMass": 169.289806,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 387.5,
+            "to": "GAS",
+            "kind": "sublimation",
+            "source": "Yaws",
+            "alternatives": {}
+          }
+        ]
+      },
+      "notes": ["A compound of a noble gas. Noble-gas compounds have been known since 1962 [Wikipedia, Noble gas].", "Sources disagree above 380 K: a 1-atm sublimation point of 387.5 K (Yaws), a triple point of 402.5 K (NIST WebBook), and a boiling point of 155 °C in some vendor sheets. The state at 25 °C (solid) is the same under every source."]
+    },
+    {
+      "id": "uranium-hexafluoride",
+      "name": "Uranium hexafluoride",
+      "formula": "UF6",
+      "cas": "7783-81-5",
+      "pubchemCid": 24560,
+      "inchiKey": "SANRKQGLYCLAFE-UHFFFAOYSA-H",
+      "pubchemFormula": "F6U",
+      "pubchemMolarMass": 352.019329,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 329.65,
+            "to": "GAS",
+            "kind": "sublimation",
+            "source": "Yaws",
+            "alternatives": {}
+          }
+        ]
+      },
+      "curves": {
+        "ttK": 337.15,
+        "ptPa": 150000,
+        "tcK": 505.8,
+        "pcPa": 4660950,
+        "source": "WNTI fact sheet (triple point 64 °C and 1.5 bar); Mathews 1972 via chemicals 1.5.2 (critical point)",
+        "tsubK": 329.65
+      },
+      "notes": ["Sublimes at 56.5 °C at atmospheric pressure; liquid only above the triple point, 64 °C and 1.5 bar [WNTI; Wikipedia]."]
+    },
+    {
+      "id": "uranium-tetrafluoride",
+      "name": "Uranium tetrafluoride",
+      "formula": "UF4",
+      "cas": "10049-14-6",
+      "pubchemCid": 61461,
+      "inchiKey": "MZFRHHGRNOIMLW-UHFFFAOYSA-J",
+      "pubchemFormula": "F4U",
+      "pubchemMolarMass": 314.022523,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 1309.15,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {}
+          },
+          {
+            "atK": 1690.15,
+            "to": "GAS",
+            "source": "CRC",
+            "alternatives": {"Yaws": 1690.15}
+          }
+        ]
+      }
+    },
+    {
+      "id": "uranium-dioxide",
+      "name": "Uranium dioxide",
+      "formula": "UO2",
+      "cas": "1344-57-6",
+      "pubchemCid": 10916,
+      "inchiKey": "FCTBKIHDJGHPPO-UHFFFAOYSA-N",
+      "pubchemFormula": "O2U",
+      "pubchemMolarMass": 270.02771,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 3120.15,
+            "to": "WATER",
+            "source": "CRC",
+            "alternatives": {"CAS Common Chemistry": 3138.15}
+          }
+        ]
+      },
+      "notes": ["No boiling point is pinned, so the 1-atm ladder ends at the melting point."]
+    },
+    {
+      "id": "copper-sulfate-pentahydrate",
+      "name": "Copper(II) sulfate pentahydrate",
+      "formula": "CuSO4·5H2O",
+      "cas": "7758-99-8",
+      "pubchemCid": 24463,
+      "inchiKey": "JZCCFEFSEZPSOG-UHFFFAOYSA-L",
+      "pubchemFormula": "CuH10O9S",
+      "pubchemMolarMass": 249.685,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 336.15,
+            "to": "decomposed",
+            "source": "Wikipedia",
+            "alternatives": {}
+          }
+        ]
+      },
+      "notes": ["Decomposes before melting: it loses two water molecules at 63 °C, two more at 109 °C, and the last at 200 °C [Wikipedia, Copper(II) sulfate]."]
+    },
+    {
+      "id": "copper-sulfate",
+      "name": "Copper(II) sulfate (anhydrous)",
+      "formula": "CuSO4",
+      "cas": "7758-98-7",
+      "pubchemCid": 24462,
+      "inchiKey": "ARUVKPQLZAKDPS-UHFFFAOYSA-L",
+      "pubchemFormula": "CuO4S",
+      "pubchemMolarMass": 159.6086,
+      "ladder1atm": {
+        "start": "ICE",
+        "steps": [
+          {
+            "atK": 863.15,
+            "to": "decomposed",
+            "source": "CAS Common Chemistry",
+            "alternatives": {}
+          }
+        ]
+      },
+      "notes": ["Decomposes before melting; fully decomposed at 590 °C [Wikipedia, Copper(II) sulfate]."]
+    }
+  ],
+  "reactions": [
+    {
+      "id": "water-formation",
+      "equation": "2 H2 + O2 -> 2 H2O",
+      "note": "Hydrogen burns in oxygen to water.",
+      "source": "Stoichiometry",
+      "balanced": true
+    },
+    {"id": "haber-bosch", "equation": "N2 + 3 H2 -> 2 NH3", "note": "Ammonia synthesis.", "source": "Stoichiometry", "balanced": true},
+    {
+      "id": "uf4-from-uo2",
+      "equation": "UO2 + 4 HF -> UF4 + 2 H2O",
+      "note": "Conversion step of the nuclear fuel cycle.",
+      "source": "https://en.wikipedia.org/wiki/Uranium_hexafluoride",
+      "balanced": true
+    },
+    {
+      "id": "uf6-from-uf4",
+      "equation": "UF4 + F2 -> UF6",
+      "note": "Fluorination to the enrichment feed.",
+      "source": "https://en.wikipedia.org/wiki/Uranium_hexafluoride",
+      "balanced": true
+    },
+    {
+      "id": "copper-sulfate-dehydration",
+      "equation": "CuSO4·5H2O -> CuSO4 + 5 H2O",
+      "note": "Dehydration on heating, complete by 200 °C.",
+      "source": "https://en.wikipedia.org/wiki/Copper(II)_sulfate",
+      "balanced": true
+    },
+    {
+      "id": "carbonyl-iron",
+      "equation": "Fe(CO)5 -> Fe + 5 CO",
+      "note": "Thermal decomposition to carbonyl iron.",
+      "source": "https://www.nature.com/articles/srep15139",
+      "balanced": true
+    },
+    {
+      "id": "negative-control",
+      "equation": "H2 + O2 -> H2O",
+      "note": "Deliberately unbalanced: one oxygen atom is unaccounted for.",
+      "source": "Negative control",
+      "balanced": false
+    }
+  ],
+  "phaseTestPoints": {
+    "columns": ["substance", "T_K", "p_Pa", "expected", "coolpropPhase", "coolpropSaturationPressure_Pa"],
+    "rows": [
+      ["helium", 2.931, 10830.6, "GAS", "gas", 21661.3],
+      ["helium", 2.931, 43322.5, "WATER", "liquid", 21661.3],
+      ["helium", 2.931, 101325, "WATER", "liquid", 21661.3],
+      ["helium", 3.686, 29194.9, "GAS", "gas", 58389.8],
+      ["helium", 3.686, 116780, "WATER", "liquid", 58389.8],
+      ["helium", 3.686, 101325, "WATER", "liquid", 58389.8],
+      ["helium", 4.743, 79855.8, "GAS", "gas", 159712],
+      ["helium", 4.743, 319423, "WATER", "supercritical_liquid", 159712],
+      ["helium", 4.743, 101325, "GAS", "gas", 159712],
+      ["helium", 5.975, 114161, "GAS", "supercritical_gas", null],
+      ["helium", 5.975, 456646, "supercritical", "supercritical", null],
+      ["helium", 5.975, 101325, "GAS", "supercritical_gas", null],
+      ["hydrogen", 18.754, 30384.9, "GAS", "gas", 60769.8],
+      ["hydrogen", 18.754, 121540, "WATER", "liquid", 60769.8],
+      ["hydrogen", 18.754, 101325, "WATER", "liquid", 60769.8],
+      ["hydrogen", 23.551, 116437, "GAS", "gas", 232873],
+      ["hydrogen", 23.551, 465746, "WATER", "liquid", 232873],
+      ["hydrogen", 23.551, 101325, "GAS", "gas", 232873],
+      ["hydrogen", 30.266, 419662, "GAS", "gas", 839325],
+      ["hydrogen", 30.266, 1678650, "WATER", "supercritical_liquid", 839325],
+      ["hydrogen", 30.266, 101325, "GAS", "gas", 839325],
+      ["hydrogen", 38.116, 648179, "GAS", "supercritical_gas", null],
+      ["hydrogen", 38.116, 2592720, "supercritical", "supercritical", null],
+      ["hydrogen", 38.116, 101325, "GAS", "supercritical_gas", null],
+      ["nitrogen", 78.911, 60625.2, "GAS", "gas", 121250],
+      ["nitrogen", 78.911, 242501, "WATER", "liquid", 121250],
+      ["nitrogen", 94.671, 263502, "GAS", "gas", 527005],
+      ["nitrogen", 94.671, 1054010, "WATER", "liquid", 527005],
+      ["nitrogen", 94.671, 101325, "GAS", "gas", 527005],
+      ["nitrogen", 116.736, 1061890, "GAS", "gas", 2123770],
+      ["nitrogen", 116.736, 4247540, "WATER", "supercritical_liquid", 2123770],
+      ["nitrogen", 116.736, 101325, "GAS", "gas", 2123770],
+      ["nitrogen", 145.121, 1697900, "GAS", "supercritical_gas", null],
+      ["nitrogen", 145.121, 6791600, "supercritical", "supercritical", null],
+      ["nitrogen", 145.121, 101325, "GAS", "supercritical_gas", null],
+      ["oxygen", 79.421, 13915.5, "GAS", "gas", 27830.9],
+      ["oxygen", 79.421, 55661.9, "WATER", "liquid", 27830.9],
+      ["oxygen", 79.421, 101325, "WATER", "liquid", 27830.9],
+      ["oxygen", 104.48, 181909, "GAS", "gas", 363819],
+      ["oxygen", 104.48, 727637, "WATER", "liquid", 363819],
+      ["oxygen", 104.48, 101325, "GAS", "gas", 363819],
+      ["oxygen", 139.564, 1367500, "GAS", "gas", 2735010],
+      ["oxygen", 139.564, 5470010, "WATER", "supercritical_liquid", 2735010],
+      ["oxygen", 139.564, 101325, "GAS", "gas", 2735010],
+      ["oxygen", 177.789, 2523210, "GAS", "supercritical_gas", null],
+      ["oxygen", 177.789, 10092800, "supercritical", "supercritical", null],
+      ["oxygen", 177.789, 101325, "GAS", "supercritical_gas", null],
+      ["fluorine", 76.214, 16201, "GAS", "gas", 32401.9],
+      ["fluorine", 76.214, 64803.9, "WATER", "liquid", 32401.9],
+      ["fluorine", 76.214, 101325, "WATER", "liquid", 32401.9],
+      ["fluorine", 98.948, 196134, "GAS", "gas", 392267],
+      ["fluorine", 98.948, 784534, "WATER", "liquid", 392267],
+      ["fluorine", 98.948, 101325, "GAS", "gas", 392267],
+      ["fluorine", 130.774, 1425910, "GAS", "gas", 2851820],
+      ["fluorine", 130.774, 5703630, "WATER", "supercritical_liquid", 2851820],
+      ["fluorine", 130.774, 101325, "GAS", "gas", 2851820],
+      ["fluorine", 166.077, 2619760, "GAS", "supercritical_gas", null],
+      ["fluorine", 166.077, 10479000, "supercritical", "supercritical", null],
+      ["fluorine", 166.077, 101325, "GAS", "supercritical_gas", null],
+      ["water", 366.644, 40012.6, "GAS", "gas", 80025.2],
+      ["water", 366.644, 160050, "WATER", "liquid", 80025.2],
+      ["water", 366.644, 101325, "WATER", "liquid", 80025.2],
+      ["water", 460.128, 587113, "GAS", "gas", 1174230],
+      ["water", 460.128, 2348450, "WATER", "liquid", 1174230],
+      ["water", 460.128, 101325, "GAS", "gas", 1174230],
+      ["water", 591.006, 5483720, "GAS", "gas", 10967400],
+      ["water", 591.006, 21934900, "WATER", "liquid", 10967400],
+      ["water", 591.006, 101325, "GAS", "gas", 10967400],
+      ["water", 744.16, 11032000, "GAS", "supercritical_gas", null],
+      ["water", 744.16, 44128000, "supercritical", "supercritical", null],
+      ["water", 744.16, 101325, "GAS", "supercritical_gas", null],
+      ["heavy-water", 368.688, 40828.1, "GAS", "gas", 81656.1],
+      ["heavy-water", 368.688, 163312, "WATER", "liquid", 81656.1],
+      ["heavy-water", 460.408, 585731, "GAS", "gas", 1171460],
+      ["heavy-water", 460.408, 2342920, "WATER", "liquid", 1171460],
+      ["heavy-water", 460.408, 101325, "GAS", "gas", 1171460],
+      ["heavy-water", 588.815, 5399860, "GAS", "gas", 10799700],
+      ["heavy-water", 588.815, 21599500, "WATER", "liquid", 10799700],
+      ["heavy-water", 588.815, 101325, "GAS", "gas", 10799700],
+      ["heavy-water", 740.424, 10830900, "GAS", "supercritical_gas", null],
+      ["heavy-water", 740.424, 43323700, "supercritical", "supercritical", null],
+      ["heavy-water", 740.424, 101325, "GAS", "supercritical_gas", null],
+      ["carbon-dioxide", 238.476, 608126, "GAS", "gas", 1216250],
+      ["carbon-dioxide", 238.476, 2432500, "WATER", "liquid", 1216250],
+      ["carbon-dioxide", 238.476, 101325, "GAS", "gas", 1216250],
+      ["carbon-dioxide", 260.36, 1222150, "GAS", "gas", 2444300],
+      ["carbon-dioxide", 260.36, 4888590, "WATER", "liquid", 2444300],
+      ["carbon-dioxide", 260.36, 101325, "GAS", "gas", 2444300],
+      ["carbon-dioxide", 290.998, 2722720, "GAS", "gas", 5445440],
+      ["carbon-dioxide", 290.998, 10890900, "WATER", "supercritical_liquid", 5445440],
+      ["carbon-dioxide", 290.998, 101325, "GAS", "gas", 5445440],
+      ["carbon-dioxide", 349.747, 3688650, "GAS", "supercritical_gas", null],
+      ["carbon-dioxide", 349.747, 14754600, "supercritical", "supercritical", null],
+      ["carbon-dioxide", 349.747, 101325, "GAS", "supercritical_gas", null],
+      ["methane", 115.662, 69561.2, "GAS", "gas", 139122],
+      ["methane", 115.662, 278245, "WATER", "liquid", 139122],
+      ["methane", 115.662, 101325, "GAS", "gas", 139122],
+      ["methane", 140.629, 331147, "GAS", "gas", 662294],
+      ["methane", 140.629, 1324590, "WATER", "liquid", 662294],
+      ["methane", 140.629, 101325, "GAS", "gas", 662294],
+      ["methane", 175.584, 1416340, "GAS", "gas", 2832680],
+      ["methane", 175.584, 5665360, "WATER", "supercritical_liquid", 2832680],
+      ["methane", 175.584, 101325, "GAS", "gas", 2832680],
+      ["methane", 219.149, 2299600, "GAS", "supercritical_gas", null],
+      ["methane", 219.149, 9198400, "supercritical", "supercritical", null],
+      ["methane", 219.149, 101325, "GAS", "supercritical_gas", null],
+      ["ammonia", 248.011, 75222.3, "GAS", "gas", 150445],
+      ["ammonia", 248.011, 300889, "WATER", "liquid", 150445],
+      ["ammonia", 248.011, 101325, "GAS", "gas", 150445],
+      ["ammonia", 300.528, 539132, "GAS", "gas", 1078260],
+      ["ammonia", 300.528, 2156530, "WATER", "liquid", 1078260],
+      ["ammonia", 300.528, 101325, "GAS", "gas", 1078260],
+      ["ammonia", 374.05, 3183140, "GAS", "gas", 6366290],
+      ["ammonia", 374.05, 12732600, "WATER", "supercritical_liquid", 6366290],
+      ["ammonia", 374.05, 101325, "GAS", "gas", 6366290],
+      ["ammonia", 466.394, 5681700, "GAS", "supercritical_gas", null],
+      ["ammonia", 466.394, 22726800, "supercritical", "supercritical", null],
+      ["ammonia", 466.394, 101325, "GAS", "supercritical_gas", null],
+      ["ammonia", 298.15, 501347, "GAS", "gas", 1002690],
+      ["ammonia", 298.15, 2005390, "WATER", "liquid", 1002690],
+      ["ammonia", 298.15, 101325, "GAS", "gas", 1002690],
+      ["carbon-monoxide", 84.335, 68129.6, "GAS", "gas", 136259],
+      ["carbon-monoxide", 84.335, 272518, "WATER", "liquid", 136259],
+      ["carbon-monoxide", 84.335, 101325, "GAS", "gas", 136259],
+      ["carbon-monoxide", 100.51, 282599, "GAS", "gas", 565198],
+      ["carbon-monoxide", 100.51, 1130400, "WATER", "liquid", 565198],
+      ["carbon-monoxide", 100.51, 101325, "GAS", "gas", 565198],
+      ["carbon-monoxide", 123.155, 1102500, "GAS", "gas", 2204990],
+      ["carbon-monoxide", 123.155, 4409980, "WATER", "supercritical_liquid", 2204990],
+      ["carbon-monoxide", 123.155, 101325, "GAS", "gas", 2204990],
+      ["carbon-monoxide", 152.789, 1749100, "GAS", "supercritical_gas", null],
+      ["carbon-monoxide", 152.789, 6996390, "supercritical", "supercritical", null],
+      ["carbon-monoxide", 152.789, 101325, "GAS", "supercritical_gas", null],
+      ["hydrogen-chloride", 200.472, 97147.4, "GAS", "gas", 194295],
+      ["hydrogen-chloride", 200.472, 388590, "WATER", "liquid", 194295],
+      ["hydrogen-chloride", 200.472, 101325, "GAS", "gas", 194295],
+      ["hydrogen-chloride", 241.875, 516988, "GAS", "gas", 1033980],
+      ["hydrogen-chloride", 241.875, 2067950, "WATER", "liquid", 1033980],
+      ["hydrogen-chloride", 241.875, 101325, "GAS", "gas", 1033980],
+      ["hydrogen-chloride", 299.839, 2459540, "GAS", "gas", 4919090],
+      ["hydrogen-chloride", 299.839, 9838180, "WATER", "supercritical_liquid", 4919090],
+      ["hydrogen-chloride", 299.839, 101325, "GAS", "gas", 4919090],
+      ["hydrogen-chloride", 373.382, 4156750, "GAS", "supercritical_gas", null],
+      ["hydrogen-chloride", 373.382, 16627000, "supercritical", "supercritical", null],
+      ["hydrogen-chloride", 373.382, 101325, "GAS", "supercritical_gas", null],
+      ["hydrogen-chloride", 298.15, 2368380, "GAS", "gas", 4736770],
+      ["hydrogen-chloride", 298.15, 9473530, "WATER", "supercritical_liquid", 4736770],
+      ["hydrogen-chloride", 298.15, 101325, "GAS", "gas", 4736770],
+      ["ethanol", 248.002, 111.463, "GAS", "gas", 222.926],
+      ["ethanol", 248.002, 445.852, "WATER", "liquid", 222.926],
+      ["ethanol", 248.002, 101325, "WATER", "liquid", 222.926],
+      ["ethanol", 336.905, 27579.7, "GAS", "gas", 55159.4],
+      ["ethanol", 336.905, 110319, "WATER", "liquid", 55159.4],
+      ["ethanol", 336.905, 101325, "WATER", "liquid", 55159.4],
+      ["ethanol", 461.368, 1177350, "GAS", "gas", 2354690],
+      ["ethanol", 461.368, 4709390, "WATER", "liquid", 2354690],
+      ["ethanol", 461.368, 101325, "GAS", "gas", 2354690],
+      ["ethanol", 591.916, 3133960, "GAS", "supercritical_gas", null],
+      ["ethanol", 591.916, 12535800, "supercritical", "supercritical", null],
+      ["ethanol", 591.916, 101325, "GAS", "supercritical_gas", null],
+      ["ethanol", 298.15, 3942.93, "GAS", "gas", 7885.87],
+      ["ethanol", 298.15, 15771.7, "WATER", "liquid", 7885.87],
+      ["ethanol", 298.15, 101325, "WATER", "liquid", 7885.87],
+      ["dimethyl-ether", 198.839, 3095.87, "GAS", "gas", 6191.74],
+      ["dimethyl-ether", 198.839, 12383.5, "WATER", "liquid", 6191.74],
+      ["dimethyl-ether", 198.839, 101325, "WATER", "liquid", 6191.74],
+      ["dimethyl-ether", 266.019, 103071, "GAS", "gas", 206143],
+      ["dimethyl-ether", 266.019, 412286, "WATER", "liquid", 206143],
+      ["dimethyl-ether", 266.019, 101325, "GAS", "gas", 206143],
+      ["dimethyl-ether", 360.07, 1280700, "GAS", "gas", 2561410],
+      ["dimethyl-ether", 360.07, 5122810, "WATER", "liquid", 2561410],
+      ["dimethyl-ether", 360.07, 101325, "GAS", "gas", 2561410],
+      ["dimethyl-ether", 460.435, 2668330, "GAS", "supercritical_gas", null],
+      ["dimethyl-ether", 460.435, 10673300, "supercritical", "supercritical", null],
+      ["dimethyl-ether", 460.435, 101325, "GAS", "supercritical_gas", null],
+      ["dimethyl-ether", 298.15, 295109, "GAS", "gas", 590217],
+      ["dimethyl-ether", 298.15, 1180430, "WATER", "liquid", 590217],
+      ["dimethyl-ether", 298.15, 101325, "GAS", "gas", 590217]
+    ]
+  },
+  "canonicalSha256": "eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661"
+}

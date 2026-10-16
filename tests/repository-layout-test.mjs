@@ -406,7 +406,7 @@ test("P13: local preview serves the selected Book I source and Collections libra
     assert.equal(library.schema, "harshalos-book-library-v1");
     assert.equal(library.collectionCount, 7);
     assert.equal(library.moduleCount, 32);
-    assert.equal(library.documentCount, 42);
+    assert.equal(library.documentCount, 43);
     const collectionOverview = await fetch(`${base}/book-library/harshal-systems/collections/01-foundations/README.md`);
     assert.equal(collectionOverview.status, 200, "collection overview files can be read online");
     assert.match(collectionOverview.headers.get("content-type"), /text\/markdown/);

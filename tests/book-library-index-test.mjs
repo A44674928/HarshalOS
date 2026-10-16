@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -22,18 +22,29 @@ test("Collections index covers every Harshal's Systems Markdown file", async () 
   assert.equal(manifest.schema, "harshalos-book-library-v1");
   assert.equal(manifest.collectionCount, 7);
   assert.equal(manifest.moduleCount, 32);
-  assert.equal(manifest.documentCount, 42);
-  assert.equal(documents.length, 42);
+  assert.equal(manifest.documentCount, 43);
+  assert.equal(documents.length, 43);
 
   const sourceFiles = await markdownPaths(path.join(ROOT, "docs", "harshal-systems"));
   assert.deepEqual(documents.map(document => document.file).sort(), sourceFiles);
   assert.equal(new Set(documents.map(document => document.file)).size, documents.length, "every Markdown path is indexed exactly once");
-  assert.equal(manifest.guides.length, 3, "the library guide, collections index, and editorial report are browsable");
+  assert.equal(manifest.guides.length, 4, "the library guide, collections index, editorial report, and terminology erratum are browsable");
 
   for (const document of documents) {
     assert.equal(document.url, `/book-library/harshal-systems/${document.file}`);
     assert.equal(document.githubUrl, `https://github.com/A44674928/HarshalOS/blob/main/docs/harshal-systems/${document.file}`);
   }
+});
+
+test("Part XI keeps GRA scope voluntary and progress independent of outside review", async () => {
+  const part = await readFile(path.join(ROOT, "docs/harshal-systems/11-accessory-pack.md"), "utf8");
+  assert.match(part, /Self-review is valid when disclosed/);
+  assert.match(part, /chosen, versioned set of GRL controls/);
+  assert.match(part, /Out-of-scope criteria are not silently treated as PASS/);
+  assert.match(part, /selected profile does not gate ongoing work/);
+  assert.match(part, /external verification and continuous monitoring are optional, not prerequisites/);
+  assert.match(part, /do not block development or voluntary collaboration/);
+  assert.match(part, /reviewer mode/i);
 });
 
 test("each collection exposes its overview and ordered modules with source metadata", () => {
