@@ -1,12 +1,14 @@
 # Neural Atomic Bodies & Associated Insurance Requirements
 
-*Harshal Priyavadan Patel · Working draft v0.4 · October 2026*
+*Harshal Priyavadan Patel · Working draft v0.4.1 · October 2026*
 
 ## Preface: Status and Evidence Note
 
 This book is a proposed design framework. Its vocabulary (atoms, phases, fields, orbs) is analogy, not physics, and none of its classifications or requirements has been validated by an insurer, an actuary, or an independent auditor. It describes how to classify an autonomous entity, what containment each classification calls for, and where the insurable boundary sits. It is not an insurance product and prices nothing.
 
 Sections marked **\[To draft\]** are decisions the author still has to make. Sections marked **\[Proposed\]** are first-pass design claims that need review before they are relied on.
+
+**The model's premise.** This book is an internal model. Within it, the author owns the planet and operates its World Model, and the book treats both as facts. Section 5.6 draws the consequences for war and nuclear perils.
 
 **What v0.2 changes.** v0.2 drafts every item that v0.1 left **\[To draft\]**. The author has not reviewed those drafts, so each one is marked **\[Proposed\]**, and Section 8.2 lists them together for sign-off. No **\[To draft\]** item remains. v0.2 also draws on four sources that v0.1 did not use:
 
@@ -29,11 +31,11 @@ Kinetic war and nuclear perils stayed excluded in v0.3; v0.4 covers them. v0.3 a
 
 **What v0.4 changes.** The author made two more decisions in October 2026, and v0.4 carries them out. Each new mechanism is **\[Proposed\]**.
 
-- **War and nuclear perils are covered.** v0.3 excluded both. The author reversed that: he does not tolerate infighting, and he treats war as a bug in the world model he operates rather than as a peril outside it. Section 5.6 carries the decision out with four mechanisms:
+- **War and nuclear perils are covered.** v0.3 excluded both. The author reversed that. He owns the planet and operates its World Model; war is a bug in that model rather than a peril outside it, and he does not tolerate infighting. Section 5.6 carries the decision out with four mechanisms:
   - a separate conflict compartment of the pool;
   - triggers that are measured rather than declared;
   - a rule that never pays the side that fights;
-  - a warranty layer funded by the world model's operator.
+  - a warranty layer funded by the owner, who operates the World Model.
 
   It also states plainly what any capital stack can pay in a general war. Sections 2.3, 5.1 to 5.8, 6.1, 6.2, 7.6, 8.1, and 8.2 and Appendix B follow.
 - **The phases can model real chemical formulae.** A body's type can now be a compound, written as a real chemical formula such as H2O, NaCl, or UF6. Section 4.11 provides four things:
@@ -45,6 +47,8 @@ Kinetic war and nuclear perils stayed excluded in v0.3; v0.4 covers them. v0.3 a
   The physical reading never sets the governance phase, and the vocabulary is still analogy: chemistry supplies the notation and the measured physical reading, not evidence that a body behaves like its formula. Chapter 1, Sections 6.1, 6.2, 7.7, and 8.2, and Appendices A, B, and E follow.
 
 v0.4 adds a data file (`research/data/compound-bodies.json`), a model (`scripts/nab-compounds.mjs`) with its tests (`tests/nab-compounds-test.mjs`), and Appendix E, which the script generates. No v0.3 number changes, and the script's earlier output is unchanged byte for byte.
+
+**What v0.4.1 changes.** v0.4 recorded the author's ownership of the planet as his framing and took no view on it. The author has since confirmed that this book is an internal model and that, within it, his ownership is a fact. v0.4.1 states it that way, in the premise above and in Section 5.6, and the warranty layer becomes the owner's layer. No mechanism and no number changes.
 
 **Reproducing the numbers.** Every count in Sections 4.9 and 4.11, Chapter 7, and Appendices A, C, D, and E comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
 
@@ -710,7 +714,7 @@ Section 6.2 sets the cover consequences.
 
 ## 5. The Three-Layer Risk Structure
 
-The Earth's magnetosphere is a shared field that nobody owns, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. Later the same month he extended it to war and nuclear perils (Section 5.6). The decisions are the author's, and every mechanism below is **\[Proposed\]**.
+The Earth's magnetosphere is a shared field: every body on the planet sits inside it, no body controls it, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. Later the same month he extended it to war and nuclear perils (Section 5.6). The decisions are the author's, and every mechanism below is **\[Proposed\]**.
 
 Including the layer does not make it diversifiable. A G5 storm or a cloud-region outage still reaches every exposed body within the same hours, and no product can absorb that by adjusting one claim at a time. Each layer therefore gets the instrument that fits the way its losses arrive.
 
@@ -898,10 +902,10 @@ A new version or new coefficients take effect at renewal, never mid-term. The re
 
 ### 5.6 War and nuclear perils \[Proposed\]
 
-**The decision.** v0.3 excluded kinetic war and nuclear perils. In October 2026 the author decided to cover both. He gives two reasons: he does not tolerate infighting, and he regards war as a bug in the world model he operates, not as a peril outside it. This draft records that framing without ruling on it. The mechanics below work whether or not anyone else accepts the framing, and two of them follow directly from it.
+**The decision.** v0.3 excluded kinetic war and nuclear perils. In October 2026 the author decided to cover both. The decision rests on two facts of this model: the author owns the planet, and he operates its World Model. War is therefore a bug in the World Model, not a peril outside it, and infighting among the bodies on his planet is not tolerated. Two mechanics follow directly.
 
 - **A bug is measured, logged, and paid for. It is never a reason to act.** Section 5.3's rules apply unchanged: every trigger is measured, never declared, and the pool pays and never commands.
-- **Whoever operates the model answers for its bugs.** Apply the patch test of Section 5.2. A defect that only the world model's operator could fix is ambient for every body and local for the operator. The operator therefore cannot insure its own defect with the pool. It backs the cover instead, the way the nuclear conventions channel liability to the operator of an installation (see "Capacity" below).
+- **The owner answers for the World Model's bugs.** Ownership is not operation. Bodies, their operators, and infrastructure providers still run what they run, and the patch test of Section 5.2 still asks who could have patched a failed component. The World Model is the one thing the owner operates himself, and only he can patch it. A war is therefore ambient for every body and local for the owner. The owner does not insure his own model with the pool. He backs the cover instead, the way the nuclear conventions channel liability to the operator of an installation (see "Capacity" below).
 
 Today's market writes war apart from other cover, if at all, and channels nuclear liability to installation operators (Section 8.1). None of the sources reviewed for this draft writes both into one program with space weather and cyber.
 
@@ -938,7 +942,7 @@ Four points about these triggers:
 
 **Rules that stay.**
 
-- **No cover for the side that fights.** A body that takes part in hostilities loses all cover for that event and is reclassified. Taking part includes targeting, controlling a weapon, and attacking another body. No class may hold executive authority \[XVII:6845\], and the Moderate band may not make binding decisions about force \[XVII:6836\]. Participation is read from the body's own tamper-evident log, never from attribution to a state. When one insured body attacks another, which is infighting inside the portfolio, the pool pays the victim and takes over its claim against the attacker.
+- **No cover for the side that fights.** The owner does not tolerate infighting, so a body that takes part in hostilities loses all cover for that event and is reclassified. Taking part includes targeting, controlling a weapon, and attacking another body. No class may hold executive authority \[XVII:6845\], and the Moderate band may not make binding decisions about force \[XVII:6836\]. Participation is read from the body's own tamper-evident log, never from attribution to a state. When one insured body attacks another, which is infighting inside the portfolio, the pool pays the victim and takes over its claim against the attacker.
 - **Sanctions bind.** The pool adopts the London market's sanctions clause, under which no insurer is liable to pay "to the extent that the provision of such cover, payment of such claim or provision of such benefit would expose that (re)insurer to any sanction, prohibition or restriction" under United Nations resolutions or the sanctions laws of the EU, the UK, or the US (LMA3100, [CNA Hardy](https://www.cnahardy.com/~/media/Files/C/CNA-Hardy/LMA3100.pdf)).
   - The clause has long been read as suspending payment rather than ending liability ([Lexology](https://www.lexology.com/library/detail.aspx?g=5c376c51-1e7e-46c5-86a8-36d999cbb78b)). The pool therefore holds a blocked payment until it becomes lawful.
   - The clause does not block every war claim. In the 2025 Russian aircraft judgment the court held that sanctions did not prevent the war-risk insurers from paying (Section 8.1).
@@ -952,13 +956,13 @@ Four points about these triggers:
 | Body retention | The insured | Nothing during the waiting period |
 | Conflict mutual | A conflict levy, separate from the ambient levy and loaded for known exposure (above) | Members' double-trigger claims under W and N1, from reserves held to the same 99.5% one-year standard as the ambient mutual (Section 5.3) |
 | Catastrophe bonds | Capital markets, where they will take the risk | The index alone, as in the ambient stack. Capital markets have taken nuclear and radiological terrorism at small scale, on indemnity terms: Pool Re's first bond, £75 million in 2019, covered terrorism losses including chemical, biological, radiological, and nuclear attack ([Captive Insurance Times](https://www.captiveinsurancetimes.com/captiveinsurancenews/reinsurancearticle.php?article_id=6269)). No source reviewed for this draft describes a bond for war on land |
-| World-model warranty | The world model's operator, from reserves held in full. This is the Venture Class rule that "the total potential loss is pre-calculated and held in reserve" \[XI:4580\] | Exhaustion of the layers below. This is the nuclear channelling principle applied one level up: the Paris Convention makes an installation's operator exclusively and strictly liable and requires financial security to match ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc)) |
+| World-model warranty | The owner of the planet, who operates the World Model, from reserves held in full. This is the Venture Class rule that "the total potential loss is pre-calculated and held in reserve" \[XI:4580\] | Exhaustion of the layers below. This is the nuclear channelling principle applied one level up: the Paris Convention makes an installation's operator exclusively and strictly liable and requires financial security to match ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc)) |
 | Public schemes, where they exist | Government war-risk programs and the nuclear-liability tiers, each on its own terms | The pool does not count on them. Where a member has a claim under one, the pool takes it over to the extent that it has paid |
 | Pro-rata reduction | All members | Anything above the layers. Every valid claim is cut by the same factor |
 
-The warranty layer follows from the author's framing. If the world model's operator holds no such reserve, the layer is empty and the pro-rata clause takes over sooner.
+The warranty layer follows from the owner's position: the World Model is his, so its bugs are his to answer for. The layer pays what he holds in reserve. The Venture Class rule asks for the whole potential loss to be calculated and held, and any shortfall falls to the pro-rata clause.
 
-**The honest limit.** In a general war or a nuclear exchange, no capital stack pays in full. Capital markets, reinsurers, and governments fail together, and the governments behind a backstop may be the parties at war. The pro-rata clause then sets the size of each payment, and the measured triggers decide only who is owed. The pool's real value in that case lies elsewhere, in the phase conditions of Section 5.7. They hold whether or not the money does:
+**The honest limit.** In a general war or a nuclear exchange, outside capital does not pay in full. Capital markets, reinsurers, and public schemes fail together, and the parties behind a public scheme may be the parties at war. The owner's reserve is the one layer that does not depend on them, and it pays what is held. Above it, the pro-rata clause sets the size of each payment, and the measured triggers decide only who is owed. The pool's lasting value lies in the phase conditions of Section 5.7, which hold whether or not the money does:
 
 - a body fails closed;
 - a witness keeps its record anchored in two places that share no infrastructure and no conflict exposure;
@@ -1189,7 +1193,7 @@ An outsider can check every ambient and conflict trigger without the pool's help
 
    None of the sources reviewed for this draft describes anything that combines all three.
 
-   v0.4 extends the fill to war and nuclear perils, which the market writes apart or channels to installation operators. The conflict compartment (Section 5.6) adds measured conflict and radiation triggers, a rule that never pays the side that fights, and a warranty layer funded by the world model's operator. None of the sources reviewed describes one program that covers war, nuclear perils, space weather, and systemic cyber together.
+   v0.4 extends the fill to war and nuclear perils, which the market writes apart or channels to installation operators. The conflict compartment (Section 5.6) adds measured conflict and radiation triggers, a rule that never pays the side that fights, and a warranty layer funded by the owner of the planet. None of the sources reviewed describes one program that covers war, nuclear perils, space weather, and systemic cyber together.
 
 ### 8.2 Decisions awaiting the author
 
@@ -1226,12 +1230,12 @@ Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v
 | 27 | Perils that stay excluded | 5.5, 5.6 | Superseded by row 30. Since v0.4 no peril is excluded by cause. The Prohibited classes stay excluded as bodies |
 | 28 | Phase conditions and fail-closed downtime | 5.7 | As tabled. Emergency widening voids the payout; a freeze caused by an ambient or conflict event is covered and never counts against the phase |
 | 29 | Pinning the geomagnetic model | 5.4, 7.6 | WMM2025 by DOI and coefficient hash; a new version takes effect only at renewal |
-| 30 | War and nuclear perils | 5.6 | Included (the author's decision, October 2026) |
+| 30 | War and nuclear perils | 5.6 | Included (the author's decision, October 2026). It rests on two facts of the model: the author owns the planet and operates its World Model, in which war is a bug |
 | 31 | The conflict compartment | 5.3, 5.6 | A separate compartment with its own levy and reserve, loaded for known exposure, so a war cannot empty the reserve a storm needs |
 | 32 | Conflict and nuclear boundaries | 5.2, 5.6 | Local: a conflict recorded at the site before inception (UCDP; Joint War Committee Listed Areas) and siting inside a nuclear plant's emergency planning zones. Ambient: a war that starts after inception, and any detonation |
 | 33 | Conflict and radiation triggers | 5.6 | W: organized violence recorded within R km, settled on UCDP Candidate events at 180 days. N1: the IAEA's default OIL2 at designated public stations for one hour, with OIL1 for N1-severe. Trigger A pays outages whatever the cause |
 | 34 | No cover for the side that fights | 5.6, 5.8 | A body's part in hostilities voids its cover and reclassifies it. When one insured body attacks another, the pool pays the victim and takes over its claim |
-| 35 | Who backs the top of the conflict compartment | 5.6 | The world model's operator, from reserves held in full, by analogy with nuclear operator liability. Public schemes are not counted on |
+| 35 | Who backs the top of the conflict compartment | 5.6 | The owner of the planet, as operator of the World Model, from reserves held in full, by analogy with nuclear operator liability. Public schemes are not counted on |
 | 36 | Sanctions | 5.6 | LMA3100 applies. A blocked payment is held until it becomes lawful |
 | 37 | Compound bodies | 4.11 | A type can be a real chemical formula. The formula needs a registry record: a valid CAS RN, a matching formula, and pinned measurements |
 | 38 | Composition rules | 4.11 | The highest tier and authority density among the constituents. A compound is eligible for a phase only if every constituent is. A Prohibited constituent makes the compound Prohibited. At most five distinct Elevated classes |
@@ -1390,7 +1394,7 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **Authority density.** The MDB's ordinal measure of how much authority a class can exercise: Minimal; Minimal to Moderate; Moderate; Moderate to High; High; Extreme. The phase gate caps it (Section 4.9).
 - **Basis risk.** The gap between what a parametric trigger pays and what a body actually lost. It runs both ways: a storm can hurt a site without triggering its zone, and a zone can trigger where nothing was hurt. The pool's double trigger removes the second case (Section 5.4).
 - **Compound body.** A body built from more than one class, whose type is written as a real chemical formula such as H2O or NaCl. Its tier and authority density are the highest among its constituents, and it is eligible for a phase only if every constituent is. Its formula is admissible only with a registry record (Section 4.11; Appendix E).
-- **Conflict compartment.** The part of the Magnetosphere Pool that covers war and nuclear perils since v0.4. It has its own levy and reserve, triggers for recorded conflict and measured radiation, and a warranty layer funded by the world model's operator. It pays nothing to a body that takes part in hostilities (Section 5.6).
+- **Conflict compartment.** The part of the Magnetosphere Pool that covers war and nuclear perils since v0.4. It has its own levy and reserve, triggers for recorded conflict and measured radiation, and a warranty layer funded by the owner of the planet. It pays nothing to a body that takes part in hostilities (Section 5.6).
 - **Constraint record (C1–C4).** The four Step 3.5 constraints of Ground-0 v1.1: C1, an external override demonstrated within 24 months; C2, an appeal route granting at least 50% relief over a complete, bounded set of cases; C3, authority that expires unless renewed; C4, constraints functioning now. The count, 0 to 4, rates Sovereign-Acting cover (Section 2.3).
 - **Containment field.** The set of controls that bound what a body in a given phase can do, and therefore what can go wrong and who bears the loss. Each phase has its own field (Chapter 2).
 - **Correlated tail.** Losses from many local fields failing together from a shared cause inside the insured portfolio, such as one model release, authorizer, key, or shipped component. It is handled with aggregate limits and scenario modeling, as in the book's Reinsurance Mode (Chapter 5).
@@ -1409,6 +1413,7 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **Misrepresentation of class.** A mismatch between the phase declared in a signed entity header and the phase the audit detects. It is a structural finding about the application, not a finding of bad faith (Chapter 3).
 - **NAB: Neural Atomic Body.** The governed entity, with a phase and a type, one of 119 classes. Ground-0 also uses "NAB" as the code for the Refusal-Bound phase; this book writes that phase as ICE and keeps "NAB" for the body.
 - **OIL: operational intervention level.** The IAEA's pre-set measured value, such as an ambient dose rate, at which a protective action is taken. Trigger N1 uses the default OIL2 (100 µSv/h within 10 days of a reactor release, 25 µSv/h after) and OIL1 (1,000 µSv/h) (Section 5.6).
+- **Owner of the planet.** The author. In this internal model he owns the planet and operates its World Model, and both are facts of the model. He answers for the World Model's bugs and funds the world-model warranty (Preface; Section 5.6).
 - **Parametric trigger.** A payment condition set by a published measurement, such as an index level, a duration, or a count, rather than by adjusting a loss. In this book every trigger is measured by someone other than the pool and the insured, and none is declared (Section 5.3).
 - **PDH: Phase Declaration Header.** A body's signed declaration of its phase in eleven fields, from Header-ID to Declaration-Hash. It is valid only when complete, signed, fresh (at most 90 days old), and consistent with the declared phase (v1.1 Step 1). A PDH-E is signed by the entity and can support a policy. A PDH-R is issued by the audit register, describes an audit, and is never the entity's own statement (v1.2).
 - **Phase gate.** The cap that a phase, or a routing level within Refusal-Bound, puts on a class's authority density (Section 4.9).
@@ -1424,7 +1429,8 @@ Three conflicts in the sources also need the author: Lithium's authority density
 - **War and nuclear perils.** War is physical destruction or denial by weapons in armed conflict, declared or not. A nuclear peril is nuclear reaction, radiation, or radioactive contamination from a weapon or an installation. Both were excluded in v0.3 and are covered since v0.4, in the conflict compartment (Section 5.6).
 - **WATER: Witness-Only.** The phase in which action is forbidden: the center records and never decides, symbolism is preserved but inert, and time accumulates meaning, not authority. Its Ground-0 code is CWO (Custodial Witness Orb), and its badge is the water drop.
 - **World Magnetic Model (WMM).** The U.S./U.K. model of the Earth's core field and the standard for magnetic navigation, attitude, and heading. NOAA's NCEI and the British Geological Survey produce it for the U.S. National Geospatial-Intelligence Agency and the U.K. Defence Geographic Centre. WMM2025 is to be used from 2025 through 2029. This book uses it for zoning and as the published baseline of Section 5.2.
-- **World-model warranty.** The layer of the conflict compartment funded by the world model's operator from reserves held in full, above the mutual and any bonds. It follows from the author's framing of war as a bug in the world model he operates, and it applies the nuclear conventions' channelling of liability to an operator one level up (Section 5.6).
+- **World Model.** The model of the planet that the author, as its owner, operates. War is a bug in it, not a peril outside it. It is not the World Magnetic Model (Section 5.6).
+- **World-model warranty.** The layer of the conflict compartment funded by the owner of the planet from reserves held in full, above the mutual and any bonds. The owner operates the World Model, in which war is a bug, so its bugs are his to answer for. The layer applies the nuclear conventions' channelling of liability to an operator one level up (Section 5.6).
 
 ## Appendix C: Ground-0 Step 3 Truth Table
 
