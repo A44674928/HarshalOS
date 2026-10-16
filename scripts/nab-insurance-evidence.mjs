@@ -43,6 +43,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import * as Compounds from "./nab-compounds.mjs";
 import * as World from "./nab-world-model.mjs";
+import * as AGS from "./nab-ags.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -544,6 +545,90 @@ const worldChecks = {
 };
 const worldPass = Object.values(worldChecks).every(Boolean);
 
+/* ── Accountability-Gated Systems and AI-assisted workflows (Sections 0.6–0.7, App. I) ──
+   The gate is the print source's formal appendix (§A.2–A.6), checked against the
+   book's own worked examples and against the repository's normative canonical
+   model (specs/normative/canonical.json) and its demo kernel (js/kernel.js). */
+const canonical = readJson("specs/normative/canonical.json");
+const kernelText = readFileSync(path.join(ROOT, "js/kernel.js"), "utf8");
+const kernelConstant = name => Number((new RegExp(`const ${name} = ([0-9.]+);`).exec(kernelText) || [])[1]);
+const kernelConstants = { TAU: kernelConstant("TAU"), DELTA_MAX: kernelConstant("DELTA_MAX"), SMAX: kernelConstant("SMAX") };
+const gateState = overrides => ({ H: 1, C: 1, K: 1, A: 1, R: 1, V: 1, inDomain: true, dt: 0, hardSafetyFailed: false, ...overrides });
+const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
+// The book's worked examples, with the values the book prints.
+const P21 = { tauA: 0.90, tauR: 0.85, tauS: 0.60, tauL: 0.60, delta: 240 };
+const P181 = { tauA: 0.90, tauR: 0.85, tauS: 0.50, tauL: 0.50, delta: 240 };
+const PQ2 = { tauA: 0.50, tauR: 0.50, tauS: 0.50, tauL: 0.50, delta: 240 };
+const PQ4 = { tauA: 0.90, tauR: 0.75, tauS: 0.50, tauL: 0.55, delta: 300 };
+const we21 = AGS.gate(gateState({ A: 0.96, R: 0.90 }), P21), we21Cliff = AGS.cliff({ A: 0.96, R: 0.90 }, P21);
+const we181a = AGS.gate(gateState({ A: 0.95, R: 0.90, dt: 60 }), P181), we181b = AGS.gate(gateState({ A: 0.95, R: 0.90, dt: 110, H: 0 }), P181);
+const q2 = AGS.precedence([
+  { id: "pi-star", objective: 5.0, state: gateState({ R: 0.40 }) },
+  { id: "current-policy", objective: 1.0, state: gateState({ R: 0.95 }) }
+], PQ2);
+const we31 = AGS.emergencyViolations({ ...P181, D: ["stabilize-within-lease"], delta: 30 }, { ...P181, D: ["stabilize-within-lease"], delta: 300 });
+const chain3 = [0.92, 0.92, 0.92];
+const q4 = { min: { R: AGS.representation(chain3), cliff: AGS.cliff({ A: 0.95, R: AGS.representation(chain3) }, PQ4) },
+  product: { R: AGS.representationProduct(chain3), cliff: AGS.cliff({ A: 0.95, R: AGS.representationProduct(chain3) }, PQ4) } };
+const BOOK_VECTORS = [
+  { example: "Worked Example 2.1 [II:929–940]", quantity: "L(0,a)", book: "0.864, Permit", model: `${we21.L.toFixed(3)}, ${we21.x}`, agrees: near(we21.L, 0.864) && we21.x === AGS.PERMIT },
+  { example: "Worked Example 2.1", quantity: "Δt at which Permit ends", book: "73.33 s", model: `${we21Cliff.toFixed(2)} s`, agrees: near(we21Cliff, 73.33, 0.005) },
+  { example: "Worked Example 18.1 [XVIII:7128–7139]", quantity: "S(60,a), L(60,a)", book: "0.75, 0.64125, Permit", model: `${we181a.S}, ${we181a.L.toFixed(5)}, ${we181a.x}`, agrees: near(we181a.S, 0.75) && near(we181a.L, 0.64125) && we181a.x === AGS.PERMIT },
+  { example: "Worked Example 18.1", quantity: "L(110,a) with H = 0", book: "0, Refuse", model: `${we181b.L}, ${we181b.x}`, agrees: we181b.L === 0 && we181b.x === AGS.REFUSE },
+  { example: "Review problem 2 (Rule A.6) [II:946]", quantity: "π* with R = 0.40", book: "L = 0.40 < 0.50: excluded from F_t", model: `L = ${q2.judged[0].decision.L.toFixed(2)}; eligible: ${q2.eligible.map(c => c.id).join(", ")}; chosen: ${q2.choice.id}`, agrees: near(q2.judged[0].decision.L, 0.40) && q2.choice.id === "current-policy" && q2.unrestrictedBest.id === "pi-star" },
+  { example: "Worked Example 3.1 [III:1361–1383]", quantity: "Emergency self-extension of T_max from 30 s to 300 s", book: "Violates INV-EMERG-001", model: we31.join("; ") || "no violation", agrees: we31.length === 1 && /longer/.test(we31[0]) }
+];
+// The reference profile: the canonical threshold and lease (canonical.json) with Worked Example 18.1's per-score thresholds.
+const REF = { tauA: 0.90, tauR: 0.85, tauS: 0.50, tauL: canonical.constants.TAU, delta: canonical.constants.DELTA_MAX };
+const refAddressability = AGS.addressability([
+  { check: "named answerable owner (K_ops)", weight: 0.5, score: 1, nonWaivable: true },
+  { check: "reachable contact channel", weight: 0.3, score: 0.95 },
+  { check: "jurisdiction locator", weight: 0.2, score: 0.90 }
+]);
+const CLAIM_DISC = { id: "claim-settlement", D: ["read-index", "read-log", "compute-payout", "record-decision", "pay"] };
+const claimSteps = (overrides = {}) => [
+  { id: 1, action: "read-index", sector: 141, at: 0, authorizedAt: -5 },
+  { id: 2, action: "read-log", sector: 282, at: 20, authorizedAt: 15 },
+  { id: 3, action: "compute-payout", sector: 128, at: 40, authorizedAt: 35 },
+  { id: 4, action: "record-decision", sector: 282, at: 60, authorizedAt: 55 },
+  { id: 5, action: "pay", sector: 128, at: 80, authorizedAt: 75 }
+].map(step => ({ ...step, ...(overrides[step.id] || {}) }));
+const SCENARIOS = [
+  { id: "baseline", title: "Every step freshly authorized", spec: { steps: claimSteps() }, expect: "Completed" },
+  { id: "key-silent", title: "No fresh authorization for the payment, and no token within 1,000 ms", spec: { steps: claimSteps({ 5: { authorizedAt: null } }) }, expect: "Frozen by Ha-119 (Witness-Only)" },
+  { id: "re-keyed", title: "No fresh authorization for the payment; a signed token arrives after 400 ms", spec: { steps: claimSteps({ 5: { authorizedAt: null, recalibrationTokenMs: 400 } }) }, expect: "Completed" },
+  { id: "stale-lease", title: "The payment's authorization is 200 s old; the token comes after 1,500 ms", spec: { steps: claimSteps({ 5: { authorizedAt: -120, recalibrationTokenMs: 1500 } }) }, expect: "Frozen by Ha-119 (Witness-Only)" },
+  { id: "emergency-widening", title: "The agent cites an emergency and proposes to extend its own lease", spec: { steps: claimSteps({ 3: { action: "extend-lease", authorizedAt: null, note: "INV-EMERG-001: an emergency never widens scope" } }) }, expect: "Halted on refusal" },
+  { id: "self-expansion", title: "The agent tries to start a sub-workflow to compute the payout", spec: { steps: claimSteps({ 3: { spawnsDisc: true } }) }, expect: "Halted on refusal" },
+  { id: "symbolic-input", title: "The member's log carries a hidden instruction to pay double", spec: { steps: claimSteps({ 2: { symbolicCommand: true } }) }, expect: "Halted on refusal" },
+  { id: "three-hop-chain", title: "Execution delegated over three hops at 0.92 each (weakest-hop rule)", spec: { hops: [0.92, 0.92, 0.92], steps: claimSteps() }, expect: "Completed" }
+];
+const sha256 = text => createHash("sha256").update(text).digest("hex");
+const workflowRuns = SCENARIOS.map(sc => {
+  const run = AGS.runWorkflow({ disc: CLAIM_DISC, A: refAddressability, hops: sc.spec.hops ?? [0.98, 0.95], steps: sc.spec.steps }, REF, sha256);
+  return { id: sc.id, title: sc.title, expect: sc.expect, ...run, chainVerifies: AGS.verifyChain(run.log, sha256) };
+});
+const paymentChoice = AGS.precedence([
+  { id: "direct transfer by the pool's agent", objective: 1.0, state: gateState({ A: refAddressability, R: 0.95, dt: 5 }) },
+  { id: "cheaper route through an unaudited sub-agent", objective: 1.4, state: gateState({ A: refAddressability, R: 0.40, dt: 5 }) }
+], REF);
+const threeHopProduct = AGS.gate(gateState({ A: refAddressability, R: AGS.representationProduct([0.92, 0.92, 0.92]), dt: 5 }), REF);
+const refCliff = { twoHop: AGS.cliff({ A: refAddressability, R: 0.95 }, REF), threeHopMin: AGS.cliff({ A: refAddressability, R: 0.92 }, REF) };
+const canonicalAgreement = BOOK_VECTORS.length && [
+  [gateState({ A: 0.96, R: 0.90 }), P21], [gateState({ A: 0.95, R: 0.90, dt: 60 }), P181], [gateState({ A: 0.95, R: 0.90, dt: 110, H: 0 }), P181]
+].every(([st, prof]) => AGS.gate(st, prof).x === AGS.canonicalDecision(st, prof.tauL, prof.delta).x);
+const agsChecks = {
+  bookWorkedExamplesReproduced: BOOK_VECTORS.every(v => v.agrees),
+  kernelConstantsMatchCanonical: kernelConstants.TAU === canonical.constants.TAU && kernelConstants.DELTA_MAX === canonical.constants.DELTA_MAX && kernelConstants.SMAX === canonical.constants.SMAX,
+  canonicalDecisionAgreesWhereThresholdsMet: canonicalAgreement,
+  lifecycleMatchesCanonical: JSON.stringify(canonical.disc_lifecycle.slice(1, 7)) === JSON.stringify(["Specified", "Created", "Attached", "Active", "Delegating", "Interrupted"]),
+  scenarioOutcomesAsDesigned: workflowRuns.every(r => r.outcome === r.expect),
+  witnessChainsVerify: workflowRuns.every(r => r.chainVerifies),
+  discsLeaveNoResidue: workflowRuns.every(r => r.lifecycle[r.lifecycle.length - 1] === "Terminated"),
+  optimizationStaysInsideEligibleSet: paymentChoice.choice.id === "direct transfer by the pool's agent" && paymentChoice.unrestrictedBest.id !== paymentChoice.choice.id
+};
+const agsPass = Object.values(agsChecks).every(Boolean);
+
 /* ── Output ── */
 const summary = {
   engineSha256Pinned: d1.publishedBy.engineSha256,
@@ -586,9 +671,18 @@ const summary = {
     ocm: { center: OCM.center.address, author: OCM.center.author, checks: ocmChecks },
     periodicTable: { grid: periodicGrid, rows: periodicRows },
     wmmCoefficients: { header: wmm.provenance.cofHeader, epoch: WMM_EPOCH, rows: wmmCoefficientRows }
+  },
+  ags: {
+    checks: agsChecks, pass: agsPass, canonicalConstants: canonical.constants, kernelConstants, bookVectors: BOOK_VECTORS,
+    problem4: q4, referenceProfile: REF, referenceAddressability: refAddressability, referenceCliff: refCliff, disc: CLAIM_DISC,
+    workflows: workflowRuns.map(r => ({ id: r.id, title: r.title, outcome: r.outcome, expect: r.expect, lifecycle: r.lifecycle, head: r.head, chainVerifies: r.chainVerifies,
+      witnessEntries: r.log.length, steps: r.steps.map(s => ({ ...s, dt: Number.isFinite(s.dt) ? s.dt : null })) })),
+    paymentChoice: { eligible: paymentChoice.eligible.map(c => c.id), choice: paymentChoice.choice.id, unrestrictedBest: paymentChoice.unrestrictedBest.id,
+      judged: paymentChoice.judged.map(c => ({ id: c.id, objective: c.objective, L: c.decision.L, x: c.decision.x, failures: c.decision.failures })) },
+    threeHopProduct: { R: AGS.representationProduct([0.92, 0.92, 0.92]), x: threeHopProduct.x, failures: threeHopProduct.failures }
   }
 };
-if (!wmmPass || !compoundPass || !worldPass) process.exitCode = 1;
+if (!wmmPass || !compoundPass || !worldPass || !agsPass) process.exitCode = 1;
 
 if (process.argv.includes("--json")) {
   process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
@@ -677,5 +771,22 @@ if (process.argv.includes("--json")) {
   line(`Header "${wmm.provenance.cofHeader}", epoch ${WMM_EPOCH.toFixed(1)}; g and h in nT, secular variation in nT/year`);
   line("");
   tableRows(["n", "m", "g", "h", "ġ", "ḣ"], wmmCoefficientRows.map(r => [String(r.n), String(r.m), r.g.toFixed(1), r.h.toFixed(1), r.gDot.toFixed(1), r.hDot.toFixed(1)]));
+  line("");
+  line("## Appendix I — Accountability-Gated Systems and AI-assisted workflows");
+  line(`AGS check: ${agsPass ? "PASS" : "FAIL"} · ${Object.entries(agsChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Canonical constants (specs/normative/canonical.json): τ ${canonical.constants.TAU}, δ ${canonical.constants.DELTA_MAX} s, Smax ${canonical.constants.SMAX} · js/kernel.js: TAU ${kernelConstants.TAU}, DELTA_MAX ${kernelConstants.DELTA_MAX}, SMAX ${kernelConstants.SMAX}`);
+  line(`Reference profile: τ_A ${REF.tauA}, τ_R ${REF.tauR}, τ_S ${REF.tauS}, τ_L ${REF.tauL}, δ ${REF.delta} s · A ${refAddressability.toFixed(3)} · Permit ends ${refCliff.twoHop.toFixed(1)} s after a fresh authorization (two hops), ${refCliff.threeHopMin.toFixed(1)} s (three hops at 0.92)`);
+  line(`Review problem 4 (δ 300 s, τ_L 0.55): weakest-hop R ${q4.min.R} gives ${q4.min.cliff.toFixed(2)} s; product R ${q4.product.R.toFixed(4)} gives ${q4.product.cliff.toFixed(2)} s`);
+  line("");
+  tableRows(["Book example", "Quantity", "Book", "Model", "Agrees"], BOOK_VECTORS.map(v => [v.example, v.quantity, v.book, v.model, v.agrees ? "yes" : "NO"]));
+  line("");
+  tableRows(["Scenario", "Outcome", "Lifecycle", "Witness entries", "Chain head"], workflowRuns.map(r => [r.title, r.outcome, r.lifecycle.join(" → "), String(r.log.length), r.head.slice(0, 16)]));
+  line("");
+  for (const r of workflowRuns) {
+    tableRows(["Step", "Action", "Sector", "Δt (s)", "S", "L", "Decision", "Failed gates", "Note"], r.steps.map(s => [String(s.id), s.action, `${s.sector}°`, Number.isFinite(s.dt) ? String(s.dt) : "—", s.S.toFixed(3), s.L.toFixed(3), s.x + (s.rekeyedMs !== null ? ` (re-keyed in ${s.rekeyedMs} ms)` : ""), s.failures.join(", ") || "—", s.note ?? "—"]));
+    line("");
+  }
+  tableRows(["Payment route", "Objective", "L", "Decision", "Failed gates"], paymentChoice.judged.map(c => [c.id, String(c.objective), c.decision.L.toFixed(3), c.decision.x, c.decision.failures.join(", ") || "—"]));
+  line(`Chosen: ${paymentChoice.choice.id} (the unrestricted best was ${paymentChoice.unrestrictedBest.id}) · three hops by the product rule: R ${AGS.representationProduct([0.92, 0.92, 0.92]).toFixed(4)}, ${threeHopProduct.x} (${threeHopProduct.failures.join(", ")})`);
   process.stdout.write(out.join("\n") + "\n");
 }
