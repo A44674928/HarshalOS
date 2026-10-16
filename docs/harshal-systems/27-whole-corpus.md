@@ -146,7 +146,7 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,264 |
 | `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 3,681 |
 | `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 817 |
-| `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,739 |
+| `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 1,974 |
 | `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | `CASE_STUDY_AUDIT` | `MIXED_VERIFIED_AND_REPORTED` | `DEFENSIVE_SPECIFICATION` | 17,086 |
 | `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | `CONCEPTUAL_DOCTRINE` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 986 |
 | `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | `NORMATIVE_SPEC` | `FORMAL_AXIOMATIC` | `DEFENSIVE_SPECIFICATION` | 5,040 |
@@ -165,5 +165,5 @@ Every module in the repository is governed by four orthogonal metadata dimension
 | `27` | **Part XXVII** | [Part XXVII — Whole Corpus / Complete Work](27-whole-corpus.md) | `DERIVATIVE_BUILD` | `UMBRELLA_INDEX` | `FORMAL_AXIOMATIC` | `PUBLIC_RESEARCH_SUMMARY` | ~1,650 |
 
 **Whole Corpus Totals:**
-- **Book I Reference Library (`00`–`27`):** 179,064 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
+- **Book I Reference Library (`00`–`27`):** 179,299 words across Front Matter, Author's Front Matter, and Parts I–XXVII.
 - **Book II — Preview Companion Novel (`manuscript/the-grand-river-foundation/`):** 16,338 words across 9 indexed plaintext chapters (synchronized in Part XXIV and `publications/grand-river-foundation/BOOK-II-THE-GRAND-RIVER-FOUNDATION-PREVIEW.md`).

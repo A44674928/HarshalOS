@@ -930,10 +930,10 @@ Legitimacy precedes capability.
     await settleTurns();
     ok(collectionsPanel.hidden === false && corePanel.hidden === true, "opening Collections switches to its own panel");
     ok(msCalls.filter(call => call.endsWith("book-library/manifest.json")).length === 1, "the Collections index loads lazily and only once");
-    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("32 modules") && (collectionsPanel.textContent || "").includes("42 readable files"), "the Collections reader reports the complete library size");
+    ok((collectionsPanel.textContent || "").includes("7 collections") && (collectionsPanel.textContent || "").includes("32 modules") && (collectionsPanel.textContent || "").includes("43 readable files"), "the Collections reader reports the complete library size");
     const nav = collectionsPanel.querySelector("[data-library-nav]");
     const allLibraryButtons = nav ? nav.querySelectorAll("[data-library-file]") : [];
-    ok(allLibraryButtons.length === 42, "all guides, collection overviews, and modules are listed");
+    ok(allLibraryButtons.length === 43, "all guides, collection overviews, and modules are listed");
     ok(!!(nav && nav.textContent.includes("Collection I — Foundational Doctrine")), "collections are grouped by their documented titles");
     const librarySearch = collectionsPanel.querySelector("#book-library-search");
     if (librarySearch) { librarySearch.value = "01-core-book"; dispatch(librarySearch, "input"); }
@@ -950,7 +950,7 @@ Legitimacy precedes capability.
       ok(msCalls.some(call => call.endsWith("/book-library/harshal-systems/01-core-book.md")), "the selected module is fetched from the library allowlist");
     }
     if (librarySearch) { librarySearch.value = ""; dispatch(librarySearch, "input"); }
-    ok(nav && nav.querySelectorAll("[data-library-file]").length === 42, "clearing search restores the complete library navigation");
+    ok(nav && nav.querySelectorAll("[data-library-file]").length === 43, "clearing search restores the complete library navigation");
     const collectionOverview = nav && nav.querySelectorAll("[data-library-file]").find(button => button.dataset.libraryFile === "collections/01-foundations/README.md");
     if (collectionOverview) {
       collectionOverview.click();

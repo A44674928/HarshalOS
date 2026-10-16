@@ -3,7 +3,7 @@
 **Work:** Harshal’s Systems — The Ultimate User Manual (Book I Reference Library & Book II Preview Mirror)
 **Source:** `Harshal’s Systems (Copyrighted) [Owner’s Working Draft].md`
 (1,278,427 bytes · 16,674 lines · 165,900 words) + synchronized `manuscript/the-grand-river-foundation/` chapters
-**Output:** 189,240 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
+**Output:** 189,486 words across Front Matter, Author's Front Matter (`00`), and 27 Roman-numbered Parts (`Parts I–XXVII`), plus this report.
 **Build:** `python3 source/build.py` — deterministic and reproducible.
 
 ---
@@ -19,9 +19,9 @@
 | 5 | A literal address placeholder misparsed as a heading | **High** | 1 |
 | 6 | Malformed table separator rows | Medium | 6 |
 | 7 | Headings shouting in ALL CAPS | Medium | 106 |
-| 8 | Heading level jumps (h1 → h4 with no h2/h3) | Medium | 191 |
-| 9 | Formatted list bullets (`•`) instead of Markdown lists | Low | 1181 |
-| 10 | Tabs used as separators in prose | Low | 1035 |
+| 8 | Heading level jumps (h1 → h4 with no h2/h3) | Medium | 192 |
+| 9 | Formatted list bullets (`•`) instead of Markdown lists | Low | 1184 |
+| 10 | Tabs used as separators in prose | Low | 1038 |
 | 11 | Trailing whitespace | Low | 0 |
 | 12 | Non-breaking spaces used as ordinary spaces | Low | 8 |
 | 13 | Corrupted tokens (`llany`/`LLANY` → `any`, `orand`/`ORAND` → `or`, `andor` → `and/or`) | Medium | 3 |
@@ -112,11 +112,11 @@ Chapter 1 — Ownership Is Not Possession
 
 Markdown renders those as ordinary paragraphs, so **none of them appeared in any table of
 contents**, on GitHub or anywhere else. The same pattern runs through the rest of the draft:
-230 chapter and section titles were invisible as structure.
+231 chapter and section titles were invisible as structure.
 
 **Repair:** lines that are unambiguously titles — short, opening with a chapter label or a
 dotted section number, starting uppercase, and not ending in sentence punctuation — are now
-real headings. All 230 were promoted, which is why the rebuilt
+real headings. All 231 were promoted, which is why the rebuilt
 table of contents is roughly ten times the size of the original and why Part I is finally
 navigable. A prose sentence that merely happens to begin with a number is not affected.
 
@@ -126,15 +126,15 @@ navigable. A prose sentence that merely happens to begin with a number is not af
 
 | Change | Count |
 |---|---|
-| Typographic bullets (`•`, `●`, `▪`) converted to Markdown list items | 1181 |
-| Lines with tab characters replaced by spaces | 1035 |
+| Typographic bullets (`•`, `●`, `▪`) converted to Markdown list items | 1184 |
+| Lines with tab characters replaced by spaces | 1038 |
 | Lines with trailing whitespace trimmed | 0 |
 | Non-breaking spaces replaced with ordinary spaces | 8 |
 | Form feeds converted to line breaks | 27 |
 | Malformed table separator rows repaired or removed | 6 |
 | ALL-CAPS headings converted to Title Case | 106 |
-| Headings promoted from plain text to real markup | 230 |
-| Heading levels re-derived from document nesting | 191 |
+| Headings promoted from plain text to real markup | 231 |
+| Heading levels re-derived from document nesting | 192 |
 | Spelling and token corrections | 3 |
 
 ### On the spelling pass, honestly
@@ -177,7 +177,7 @@ The manual now arranges the whole work into **Author's Front Matter (`00`)** plu
 | `08` | **Part VIII** | [Part VIII — The Operator Model](08-operator-model.md) | `CANONICAL_SOURCE` | 1,264 | 2,018–2,181 |
 | `09` | **Part IX** | [Part IX — Disc Primitives, Routing, and Lifecycle](09-disc-lifecycle.md) | `CANONICAL_SOURCE` | 3,681 | 2,182–2,651 |
 | `10` | **Part X** | [Part X — AGS+ Layering and Conformance](10-ags-conformance.md) | `CANONICAL_SOURCE` | 817 | 2,652–2,797 |
-| `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | 1,739 | 2,798–3,045 |
+| `11` | **Part XI** | [Part XI — The AGS Accessory Pack](11-accessory-pack.md) | `CANONICAL_SOURCE` | 1,974 | 2,798–3,045 |
 | `12` | **Part XII** | [Part XII — Ground-0: Phase Detection, Audits, and the Duty Collation Ledger](12-ground-zero.md) | `CANONICAL_SOURCE` | 17,086 | 3,046–5,104 |
 | `13` | **Part XIII** | [Part XIII — The Whyland Standards](13-whyland.md) | `CANONICAL_SOURCE` | 986 | 5,105–5,162 |
 | `14` | **Part XIV** | [Part XIV — Neural Atomic Bodies Compendium](14-nab-compendium.md) | `CANONICAL_SOURCE` | 5,040 | 5,163–5,344 |

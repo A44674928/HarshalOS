@@ -9,6 +9,8 @@ cover foundational material, architecture, formalization, threat modeling,
 research, specifications, governance, and supplementary works.
 
 > **Published-edition mapping:** this Markdown library preserves its working-draft numbering and provenance records. The production **AGS v0.2 full-book KDP interior** is a separate 548-page, 25-part published edition with authoritative print-edition numbering. In that edition, accountability research begins at **Part XVIII** (printed p. 203 / PDF p. 229) and supply-chain research begins at **Part XIX** (printed p. 213 / PDF p. 239). Use [`publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf`](../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf) for the published artifact and [`native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](../../native/HarshalNative/docs/AGS-V0.2-CORPUS.md) for the native source-of-record translation. The two maps should not be silently conflated.
+>
+> **Terminology update (2026-10-16):** Part XI now uses **Governance & Resilience Assessment (GRA)** with scoped `PASS`, `FAIL`, or `UNKNOWN` evidence statuses. This is a scoped evidence review, not a certification. The project chooses and can revise its profile; disclosed self-review is valid, and volunteer collaborators or external reviewers may join by choice. Outside review and continuous monitoring do not gate development. The date-stamped print edition is preserved as issued; see the [terminology erratum](TERMINOLOGY-ERRATUM-2026-10-16.md).
 
 ## What are Harshal's Systems?
 

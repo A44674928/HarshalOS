@@ -105,7 +105,7 @@ PARTS = [
 
     (2798, '11-accessory-pack',
      'Part XI — The AGS Accessory Pack',
-     'GRL compliance certification, the Provenance and Lineage Verification layer, '
+     'Governance & Resilience Assessment (GRA), the Provenance and Lineage Verification layer, '
      'and Intelligence & Unbiased Compliance checks.'),
 
     (3046, '12-ground-zero',
@@ -199,6 +199,7 @@ ATLINE = re.compile(r'^\s*(?P<fence>`{3,})\s*(?P<tag>.*?)\s*$')
 
 
 ATX_HEAD = re.compile(r'^#{1,6}\s+\S')
+RETIRED_GRL_STATUS = re.compile(r'\bGRL[\s\-‐‑‒–—−]+Compliant\b', re.IGNORECASE)
 
 
 def split_headings_out_of_fences(lines):
@@ -865,6 +866,8 @@ def strip_yaml_frontmatter(md_text):
 
 def main():
     raw = open(SRC, encoding='utf-8').read()
+    if RETIRED_GRL_STATUS.search(raw):
+        raise ValueError('Retired gendered-reading status wording found; use the GRA evidence status.')
     n_words_in = len(raw.split())
 
     marked_raw = inject_raw_part_markers(raw)
@@ -1273,6 +1276,10 @@ Systems. It contains the front matter, 27 numbered parts, seven functional
 collections, and an editorial and structural report. The numbered parts
 cover foundational material, architecture, formalization, threat modeling,
 research, specifications, governance, and supplementary works.
+
+> **Published-edition mapping:** this Markdown library preserves its working-draft numbering and provenance records. The production **AGS v0.2 full-book KDP interior** is a separate 548-page, 25-part published edition with authoritative print-edition numbering. In that edition, accountability research begins at **Part XVIII** (printed p. 203 / PDF p. 229) and supply-chain research begins at **Part XIX** (printed p. 213 / PDF p. 239). Use [`publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf`](../../publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-KDP-interior-2026-10-07.pdf) for the published artifact and [`native/HarshalNative/docs/AGS-V0.2-CORPUS.md`](../../native/HarshalNative/docs/AGS-V0.2-CORPUS.md) for the native source-of-record translation. The two maps should not be silently conflated.
+>
+> **Terminology update (2026-10-16):** Part XI now uses **Governance & Resilience Assessment (GRA)** with scoped `PASS`, `FAIL`, or `UNKNOWN` evidence statuses. This is a scoped evidence review, not a certification. The project chooses and can revise its profile; disclosed self-review is valid, and volunteer collaborators or external reviewers may join by choice. Outside review and continuous monitoring do not gate development. The date-stamped print edition is preserved as issued; see the [terminology erratum](TERMINOLOGY-ERRATUM-2026-10-16.md).
 
 ## What are Harshal's Systems?
 

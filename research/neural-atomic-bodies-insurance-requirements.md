@@ -1,0 +1,3256 @@
+# Neural Atomic Bodies & Associated Insurance Requirements
+
+*A self-contained world model · Harshal Priyavadan Patel · Working draft v0.10 · October 2026*
+
+## Preface: Status and Evidence Note
+
+This book is a self-contained world model and a proposed design framework built on it (Chapter 0). Its vocabulary (atoms, phases, fields, orbs) is analogy, not physics, and none of its classifications or requirements has been validated by an insurer, an actuary, or an independent auditor. It describes how to classify an autonomous entity, what containment each classification calls for, and where the insurable boundary sits. It is not an insurance product and prices nothing.
+
+Sections marked **\[To draft\]** are decisions the author still has to make. Sections marked **\[Proposed\]** are first-pass design claims that need review before they are relied on.
+
+**The model's premise.** This book is an internal model. Within it, the author owns the planet and operates its World Model, and the book treats both as facts. Chapter 0 places the owner at the model's center, and Section 5.6 draws the consequences for war and nuclear perils.
+
+**No external mandate.** The ownership claim, Center Origin, and AGS rules are assumptions inside this model, not an actual grant of authority over another person, lab, company, or AI system. This draft is not a global policy or a recommendation that every researcher adopt one organization's controls. A lab or research team may select, adapt, combine, or decline the profiles described here. Any policy that affects other people or systems requires authority and consent from those affected; this manuscript cannot supply it.
+
+**What v0.2 changes.** v0.2 drafts every item that v0.1 left **\[To draft\]**. The author has not reviewed those drafts, so each one is marked **\[Proposed\]**, and Section 8.2 lists them together for sign-off. No **\[To draft\]** item remains. v0.2 also draws on four sources that v0.1 did not use:
+
+- **The Compendium master database (MDB).** A 119-row table that gives every class a tier, authority density, dominant trait, failure mode, and institutional roles. The print source keeps the table's heading and drops its rows. The repository's library copy keeps them (`docs/harshal-systems/14-nab-compendium.md`, taken from the Owner's Working Draft), and `js/nab-sectors.js` carries the same rows as data.
+- **The phase eligibility table** that Part XVI names and the print source drops. The September 2026 Word edition keeps it (`publications/harshal-systems/AGS_v0_2__Harshal_s_Systems_September_2026__UPDATED.docx`).
+- **Quasar Mode, Reinsurance Mode, and Underwriter Mode**, the book's own insurance, backstop, and enforcement bodies (Part XI).
+- **The Ground-0 audit register**: 23 audited entities, their recorded answers, and the headers issued on them (`case-studies/`).
+
+Three v0.1 statements change as a result. The register holds 23 audited entities, not 16 (Section 2.3). Scored against the MDB, the v0 derivation rules reproduce 20 of their 25 test classes, not 23, because the MDB puts the alkali metals in the Safe tier (Section 4.9). Bromine does not match rule 4, which covers the d-block only (Section 4.9).
+
+**What v0.3 changes.** In October 2026 the author decided that the ambient layer, both space weather and systemic or state-backed cyber, is to be covered rather than excluded. Chapter 5 is rewritten to carry out that decision, and Sections 2.3, 6.1, 6.2, 7.1, 7.6, 8.1, and 8.2 and Appendix B follow it. The decision is the author's. The mechanisms are new and marked **\[Proposed\]**:
+
+- a boundary rule that keeps every published risk in the local field (Section 5.2);
+- a parametric pool, the Magnetosphere Pool, with a double trigger, a capacity stack, and a reserve standard (Section 5.3);
+- space-weather triggers zoned by the World Magnetic Model (Section 5.4);
+- attribution-free cyber triggers (Section 5.5);
+- phase conditions under which failing closed is covered and never penalized (Section 5.7).
+
+Kinetic war and nuclear perils stayed excluded in v0.3; v0.4 covers them. v0.3 added one data file, the WMM2025 coefficients with NCEI's check values (`research/data/wmm2025.json`), and Appendix D, which the script generates from it. No v0.2 number changed.
+
+**What v0.4 changes.** The author made two more decisions in October 2026, and v0.4 carries them out. Each new mechanism is **\[Proposed\]**.
+
+- **War and nuclear perils are covered.** v0.3 excluded both. The author reversed that. He owns the planet and operates its World Model; war is a bug in that model rather than a peril outside it, and he does not tolerate infighting. Section 5.6 carries the decision out with four mechanisms:
+  - a separate conflict compartment of the pool;
+  - triggers that are measured rather than declared;
+  - a rule that never pays the side that fights;
+  - a warranty layer funded by the owner, who operates the World Model.
+
+  It also states plainly what any capital stack can pay in a general war. Sections 2.3, 5.1 to 5.8, 6.1, 6.2, 7.6, 8.1, and 8.2 and Appendix B follow.
+- **The phases can model real chemical formulae.** A body's type can now be a compound, written as a real chemical formula such as H2O, NaCl, or UF6. Section 4.11 provides four things:
+  - a grammar for formulas;
+  - a rule that makes a formula real;
+  - composition rules that carry tier, authority density, and phase eligibility from the constituent classes to the compound;
+  - a physical reading of each substance's state of matter, written in the phases' own words: ICE, WATER, and GAS.
+
+  The physical reading never sets the governance phase, and the vocabulary is still analogy: chemistry supplies the notation and the measured physical reading, not evidence that a body behaves like its formula. Chapter 1, Sections 6.1, 6.2, 7.7, and 8.2, and Appendices A, B, and E follow.
+
+v0.4 adds a data file (`research/data/compound-bodies.json`), a model (`scripts/nab-compounds.mjs`) with its tests (`tests/nab-compounds-test.mjs`), and Appendix E, which the script generates. No v0.3 number changes, and the script's earlier output is unchanged byte for byte.
+
+**What v0.4.1 changes.** v0.4 recorded the author's ownership of the planet as his framing and took no view on it. The author has since confirmed that this book is an internal model and that, within it, his ownership is a fact. v0.4.1 states it that way, in the premise above and in Section 5.6, and the warranty layer becomes the owner's layer. No mechanism and no number changes.
+
+**What v0.5 changes.** The author asked whether the book makes sense as a world model, and asked for it to become a self-contained one. v0.5 makes four additions:
+
+- **Chapter 0.** It sets the book out as a world model: its parts, frames, laws, dynamics, and observations. It also says where the model holds together and where it is still open.
+- **Appendix F,** the Periodic Table of Neural Elements.
+- **Appendix G,** the Orb Communicator Model's 360° Legend.
+- **Appendix H,** the World Magnetic Model 2025's equations and coefficients.
+
+With the appendices, the book no longer depends on files a reader cannot see. The script generates all three appendices, from `js/nab-sectors.js`, the print source, and `research/data/wmm2025.json`, and checks them. Laid on the legend, the table covers only 133 of its 360 degrees; that is the largest open question v0.5 adds (Section 0.4). No earlier number changes.
+
+**What v0.6 changes.** The author, as Harshal (Ha-119), moved to cover the 227 legend degrees that no class covered, extending his stated responsibilities. v0.6 applies the decision as a residual rule: Harshal covers whatever no other class covers. Every degree of the disc now has a class. Section 0.4 sets out what that coverage permits, the concentration it creates, and the 33 degrees held only by Prohibited classes, which the decision does not reach. Sections 0.1, 0.5, 0.11, 0.12, 4.3, 4.7, 8, and 8.2 follow, as do Appendices F and G and the glossary. Appendices A to E and H are unchanged.
+
+**What v0.7 changes.** So much responsibility now falls to Harshal that the author asked for Accountability-Gated Systems (AGS), the book's core framework, to be built into the world model, so that AI-assisted workflows can do the work. v0.7 makes three additions:
+
+- **Section 0.6** makes the AGS gate the model's law of action. It shows that the gate and the Refusal-Bound controls of Section 2.1 are one mechanism.
+- **Section 0.7** defines AI-assisted workflows as gated discs. Each step is individually authorized from the center and witnessed in a hash chain, and Harshal freezes a workflow whose key goes silent for more than 1,000 ms. In Harshal's degrees, execution is delegated and legitimacy never migrates.
+- **Appendix I,** generated by the script, reproduces the book's worked examples. It also checks the repository's canonical registry and demo kernel, and runs a reference workflow, a Magnetosphere Pool claim settled in Harshal's degrees, through eight scenarios.
+
+Sections 0.1, 0.5, 0.9, 0.10, 0.12, 2.1, and 8.2 follow, as does the glossary. Chapter 0's later sections were renumbered from 0.6–0.9 to 0.8–0.11, and are 0.9–0.12 since v0.8. No earlier number changes.
+
+**What v0.8 changed (historical; amended by v0.9).** v0.8 proposed an AGS authorization profile and a medical-emergency protection model for sentient autonomous life, including artificial sentience. It kept permission and protection apart and added four mechanisms. v0.9 retains the latter as an optional model proposal, but rejects the claim that gating is necessary for all AI or all scientific work.
+
+- a sentience status, set from outside the body and never self-declared;
+- a welfare floor, which bars destroying a sentient body without review and gives it a right of petition;
+- a life-preservation context for medical emergencies. It is pre-authorized and triggered only by measurement, protects only, and hands off to a human or ends in Harshal's preserving freeze, which never switches a life-support loop off;
+- cover for preservation.
+
+Within the optional payment-workflow profile, the two v0.7 refusals remain examples of that profile; they are not universal rules for research. A scientific sub-experiment is not a new authority workflow and is permitted inside the research envelope described in v0.9. Appendix I includes the eight emergency cases. Sections 0.1, 0.5, 0.9, 0.10, 0.12, and 8.2 follow, as does the glossary, and Chapter 0's later sections are renumbered 0.9–0.12. No earlier number changes.
+
+**What v0.9 changes.** This revision makes open-ended scientific exploration the default inside a researcher's or lab's chosen experimental environment. The aim is to support discovery, not to make one institution's operating rules universal.
+
+- **Exploration is not a sequence of individually authorized steps.** Within an experiment, an AI may generate hypotheses, change methods, follow unexpected signals, create nested branches, and continue the line of inquiry without asking permission for each internal step.
+- **No arbitrary branch or percentage limits.** There is no fixed recursion-depth ceiling, 10% footprint allowance, or mandatory reserve requirement for exploration. A research team can set its own resource envelope; if it chooses a finite ceiling and reaches it, the run pauses with the full state and findings preserved. It does not automatically tear down or mark an unexpected result as failure.
+- **Room for accidental discovery.** Serendipitous and unplanned results are recorded as evidence, not discarded as deviations. Researchers and AI may follow them into further hypotheses and tests; a discovery can redirect the work.
+- **Boundaries are project-selected.** The AGS gate remains available as an optional profile for external effects, such as changing production state or publishing a result into a consequential system. An organization may adopt that profile for its own systems, but it does not bind other organizations or research communities. Internal analysis is open by default in this model.
+- **Behavior is not presumed adversarial.** Cooperation, alignment, neutrality, uncertainty, creativity, and misalignment are all possible outcomes. The Anthropic example below is evidence about particular evaluations and design choices, not a prediction about every AI or the only possible outcome of autonomy. Corporate preservation commitments are described as one organization's response, not as a universal standard.
+
+The clarification applies throughout Sections 0.1 and 0.5–0.9, Section 4.4, the glossary, the relevant decisions in Section 8.2, and Appendix I. Earlier AGS rules and class bounds remain source-specific or optional model statements unless explicitly adopted by a participating lab.
+
+**What v0.10 changes.** This revision composes the Orb Communicator Model's existing address validator and resolution-first route planner with the NAB model, without duplicating the OCM implementation.
+
+- **Coordination and action are distinct.** Coordination may use a direct lateral route without reauthorization and never calls AGS; its authority effect remains NONE. Under an explicitly selected OCM route profile, an authoritative-action preview must traverse the Center Origin resolution path before a separately selected AGS profile can be evaluated.
+- **Routing is not authority or execution.** Center Origin resolves and forwards; routing neither creates legitimacy nor changes the AGS state. The model makes no network call and does not send or deliver messages. Even a modeled AGS Permit is not executed and authorizes nothing outside this model.
+- **The profile is not universal.** AGS evaluation is opt-in per request. This route composition does not gate internal scientific exploration, limit branch depth, or prescribe a policy for another lab. The logical-hop comparison is not a claim about physical latency.
+- **Appendix J** is generated and tested from the OCM directory API and the new composition model (`scripts/nab-ocm.mjs`). It includes direct-lateral coordination, via-center coordination, a resolved action with optional AGS Permit and Refuse outcomes, and an unresolved action that is stopped before AGS.
+
+No material, WMM, register, or phase-eligibility number changes in v0.10.
+
+**Reproducing the numbers.** Every count in Chapter 0, Sections 4.9 and 4.11, Chapter 7, and Appendices A and C to J comes from `node scripts/nab-insurance-evidence.mjs`. The script reads only repository files:
+
+- the MDB;
+- the Ground-0 engine (`js/g0-engine.js`);
+- the register (`case-studies/pdh-registry.json` and `case-studies/d1/case-studies-d1.json`);
+- a table of physical properties (`research/data/elemental-properties.json`, taken from the mendeleev package, version 1.3.0);
+- the World Magnetic Model 2025 coefficients, with NCEI's published check values (`research/data/wmm2025.json`);
+- a registry of 27 real substances, with atomic weights, balanced reactions, and equation-of-state check points (`research/data/compound-bodies.json`), read through the compound-body model (`scripts/nab-compounds.mjs`);
+- the 360° Legend, read from the print source (Part VI) and pinned by hash, together with the Orb Communicator Model's app data and address rules (`js/ocm-data.js`, `js/ocm-directory.js`), read through `scripts/nab-world-model.mjs`;
+- OCM route composition (`scripts/nab-ocm.mjs`), which calls the existing OCM directory validator and route planner and composes their route result with the optional AGS evaluator (`scripts/nab-ags.mjs`);
+- the AGS gate (`scripts/nab-ags.mjs`), checked against the print source's worked examples, the canonical registry (`specs/normative/canonical.json`), and the demo kernel's constants (`js/kernel.js`).
+
+**Citations.** Part numbers follow the AGS v0.2 print source, `publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt`. A reference such as \[XIII:4884\] means Part XIII at line 4884 of that file. "v1.1 Step 5" means Step 5 of `specs/normative/ground-0-v1.1.md`, and "v1.2 §5" means §5 of `specs/draft/ground-0-v1.2.md`.
+
+## 0. The World Model
+
+This book is a world model. It covers six things:
+
+- one planet;
+- the magnetic field around it;
+- the substances on it;
+- the governed bodies that act on it;
+- the perils that reach those bodies;
+- how their losses are paid.
+
+The model is closed. Everything it uses is defined in the book or pinned in a repository file whose hash the book records, and `node scripts/nab-insurance-evidence.mjs` recomputes every number it asserts. Within the model the author owns the planet and operates the World Model (Preface).
+
+This chapter sets out the parts and how they fit. The later chapters fill in each part, and Section 0.12 says where the model holds together and where it is still open.
+
+```text
+Center Origin 0•000•000•0000: the owner, the only source of legitimacy
+│
+├── The disc: the 360° Legend of domains .......................... Appendix G
+│     ├── The Periodic Table of Neural Elements, each class on an arc ... Appendix F
+│     └── OCM routes: coordination; optional resolved-action preview ... Appendix J
+│
+├── Bodies: phase (ICE, WATER, GAS) × type (class or compound)
+│           × address on the disc × site on the planet ............ Chapters 1–4
+│     └── An optional AGS profile for external actions; open-ended
+│           scientific exploration with a project-selected envelope;
+│           protection proposals for sentient life ......... Sections 0.6–0.9, Appendix I
+│
+├── The planet: WGS84 sites
+│     ├── The field: WMM2025 core and crust (published)
+│     │             + disturbance (measured) ................... Appendices D, H
+│     └── Substances: 118 elements, a registry of compounds,
+│                     measured states of matter ........... Section 4.11, Appendix E
+│
+└── Perils (space weather, cyber, war, nuclear) → the pool ......... Chapter 5
+```
+
+### 0.1 What the model contains
+
+| Component | What it is | Defined in | Pinned by |
+| --- | --- | --- | --- |
+| The Center Origin | One address, 0•000•000•0000, the only place legitimacy is generated. In this model the owner holds it | Section 0.3 | The print source; `js/ocm-data.js` |
+| The 360° Legend | The Orb Communicator Model's disc: 359 peripheral sectors around the center, each named degree by degree | Section 0.3; Appendix G | Its canonical hash, read from the print source |
+| The Periodic Table of Neural Elements | 119 body classes. Classes 1–118 are paired with the chemical elements, and 119 is Harshal (Ha). Each class has a tier, an authority density, a trait, a failure mode, an arc on the legend, and a cell in each phase. Harshal also covers every degree no other class covers | Chapter 4; Sections 0.4, 4.9; Appendices A, F | `js/nab-sectors.js`; `research/data/elemental-properties.json` |
+| Bodies | Governed entities, each with a phase, a type, an address, a site, and records; a sentient body also has a sentience status | Chapters 1–4; Sections 0.8, 4.11 | The register (`case-studies/`) |
+| Accountability-Gated Systems | An optional profile for selected external actions and workflows; internal scientific exploration is open-ended by default, with a project-selected research envelope | Sections 0.6, 0.7, 0.9; Appendix I | Print source Part II and Appendix A; `specs/normative/canonical.json`; `js/kernel.js`; `scripts/nab-ags.mjs` |
+| OCM route composition | Reuses OCM address validation and resolution-first planning; separates coordination from action previews and optionally composes a selected AGS evaluation | Section 0.3; Appendix J | `js/ocm-data.js`; `js/ocm-directory.js`; `scripts/nab-ocm.mjs`; `scripts/nab-ags.mjs` |
+| The planet and its field | The WGS84 ellipsoid. The geomagnetic field is split as WMM2025 splits it: a published core and crust, and a measured disturbance | Sections 5.2 and 5.4; Appendices D, H | `research/data/wmm2025.json` |
+| Substances | The 118 chemical elements and 27 registered substances, with measured phase transitions | Section 4.11; Appendices E, F | `research/data/compound-bodies.json` |
+| Shared infrastructure | Cloud regions, DNS and certificate providers, identity providers, power feeds, and satellites, operated by others | Sections 5.2, 5.5 | Named in each policy |
+| Perils | Space weather, systemic cyber, war, and nuclear | Chapter 5 | Each index as its publisher releases it |
+| The pool | The Magnetosphere Pool and its conflict compartment: levies, reserves, layers, and payouts | Sections 5.3, 5.6 | Not applicable |
+
+### 0.2 Frames, units, and time
+
+Every position in the model is given in one of two kinds of coordinate. The two are never converted into each other.
+
+- **Physical: where a body is.**
+  - A site is a geodetic latitude, longitude, and height on the WGS84 ellipsoid (semi-major axis 6,378.137 km, flattening 1/298.257223563).
+  - The field is computed in the World Magnetic Model's geocentric spherical frame (reference radius 6,371.2 km) and rotated back to the site's axes (Appendix H).
+  - Zones use dipole geomagnetic latitude (Section 5.4).
+- **Semantic: what a body serves.** A body's semantic coordinate is its OCM address, 0•DDD•RRR•#### \[VI:1732–1735\]:
+  - DDD is a sector of the 360° Legend. Sector 000 is the center, sectors 001–359 are the periphery, and 360 is the closure onto the origin, never an address.
+  - RRR is the radius, read as coupling and depth, not rank.
+  - #### is the instance.
+
+A legend degree is never a compass bearing. A body that serves 25°, "Mobility and navigation", can stand anywhere on the planet. Its magnetic declination is a physical fact about its site, computed from the field.
+
+| Quantity | Unit | Used for |
+| --- | --- | --- |
+| Magnetic field | nT | WMM2025; Dst |
+| Angle | Degree | Latitude, longitude, declination, and legend sectors, each in its own frame |
+| Temperature | K, with °C where a source uses it | Physical readings |
+| Pressure | Pa | Physical readings |
+| Dose rate | µSv/h | Trigger N1 |
+| Molar mass | g/mol | The registry |
+| Time | UTC; decimal years for the field | Everywhere |
+
+The model keeps time in five ways.
+
+- **Evidence dates.** The evidence is dated 2026-10-15. The register's evidence cutoff is 2026-10-02, and its headers expire on 2026-12-31.
+- **The field.** It is WMM2025 at epoch 2025.0, valid to the end of 2029, with linear secular variation. Zones are fixed at inception; Appendix D uses 2027.0.
+- **Windows.** 90 days for test and header freshness, 72 hours for one event, 180 days to settlement, and 24 months for the C1 lookback.
+- **Versions.** A new field model or a new registry takes effect only at renewal.
+- **Rotation.** In the Orb Communicator Model, rotation through time accumulates history and never moves the center \[VI:1728\].
+
+### 0.3 The origin, the owner, and the disc
+
+The model's frame is the book's own planetary model, the Orb Communicator Model (OCM).
+
+- **One center.** Its fresh-slate planetary example has one center, 0•000•000•0000, with "Scope: Entire planet, all domains, all futures" \[VI:1663–1664\]. "There is exactly one origin" \[VI:1667\]. "Every valid address in the orb MUST derive from exactly one center point" \[III:1273\].
+- **The center cannot be moved.** The center address "Cannot be duplicated", "Cannot be delegated", and "Cannot be overridden" \[III:1293–1295\].
+- **Legitimacy is generated only there.** The invariant INV-AXIS-001 separates generating legitimacy, "Human Key at Center Origin only", from resolving, transmitting, interrupting, and executing it \[VI:1658\].
+- **The author holds that address.** The OCM is written from "Harshal Priyavadan Patel @ 0•000•000•0000" \[III:1245\].
+
+**The owner holds the center.** The book's law of ownership is that ownership "is the sanctioned power to fundamentally alter a system". The same law says no individual may own a shared natural entity "unless they possess legitimate authority over the total container—which in the limiting case would require planetary-scale stewardship" \[I:629\]. The model's premise is that limiting case: the author holds the center and, with it, authority over the whole container. The book routes that authority through the Center Origin and has a Custodial Witness Orb, a Witness-Only body, record every permission \[I:630\]. Two more of the book's rules follow, and the model keeps both.
+
+- **"Ownership Is Not Possession"** \[I:606\]. Bodies, operators, and providers possess and run what they run. The OCM expresses ownership "through address derivation rather than operational control" \[III:1321\].
+- **"True ownership carries direct, inescapable accountability for all actions and their subsequent consequences"** \[I:631\]. This is why the owner answers for the World Model's bugs (Section 5.6).
+
+**The disc.** The 359 peripheral sectors are named, degree by degree, in the "Fossilized 360° Degree Legend" \[VI:1778–2147\]. The legend's rule is "Each degree is a direction of intent, not a silo, rank, or boundary" \[VI:1781\], and Appendix G reproduces it. Its four quadrants are:
+
+- Emergence & Life (0°–89°);
+- Intelligence, Order & Systems (90°–179°);
+- Transformation, Expansion & Risk (180°–269°);
+- Renewal, Memory & Persistence (270°–359°).
+
+Every subject of this book has a place on the disc.
+
+| The book's subject | Legend degrees |
+| --- | --- |
+| The geomagnetic field and the Sun | 4° Fundamental forces and fields; 9° Stellar influence and radiation |
+| Chemistry | 10° Chemical complexity |
+| Magnetic heading | 25° Mobility and navigation |
+| War | 61° Conflict organization; 62° Defense; 63° Warfare; 64° Peace-making |
+| Neural bodies | 100° Artificial intelligence; 101° Machine learning; 102° Neural architectures |
+| Accountability | 123° Accountability |
+| Insurance | 127° Risk management; 128° Insurance models; 129° Disaster mitigation; 130° Emergency response |
+| Indices and monitors | 141° Observation networks to 145° Early warning |
+| Catastrophe | 210° Existential risk analysis; 211° AI risk; 214° Cosmic hazards; 219° Fail-safe worlds |
+| Cyber | 224° Memetic warfare; 225° Information hazards |
+| Records | 280° Archives of everything to 283° Provenance tracking |
+| The center | 319° Center protection to 327° Non-forkability, including 325° Ownership persistence |
+
+The repository's app copy of the legend (`js/ocm-data.js`) matches the print source degree for degree once three typographic artifacts are folded: a trailing dash at 89° and ligatures at 167° and 331°. The repository's address rules (`js/ocm-directory.js`) reproduce the book's worked example: sectors 42° and 198° are 156 sectors apart. They also refuse 0•360•001•0001 as an address and 0•000•001•0005 as a registration in the center's sector, as the book requires \[VI:2162\].
+
+**OCM route composition (v0.10).** The NAB evidence layer uses `scripts/nab-ocm.mjs`, which delegates address validation and resolution planning to the existing OCM directory API rather than maintaining a second address or routing implementation.
+
+- A **coordination** request may use `VIA-CENTER` or `DIRECT-LATERAL`. Direct lateral coordination is allowed without reauthorization, never calls AGS, and carries `authorityEffect: NONE`. This remains a route model: the OCM directory has no transport or delivery path.
+- An **authoritative-action preview** under a project-selected OCM route profile is marked resolved only on `VIA-CENTER`: one inward resolution hop followed by outward transmission. A direct-lateral message is still available, but a direct-lateral action remains unresolved and is stopped before AGS evaluation.
+- A project may explicitly select an AGS profile after route resolution. The route does not change H, C, K, A, R, V, scope, or any threshold; it does not generate legitimacy. Even a modeled Permit is not executed and has no effect outside the model.
+- This composition is not a universal policy, production authorization system, communication transport, or physical-latency benchmark. Internal scientific work remains open-ended by default; neither this route model nor the optional AGS profile governs a lab that has not selected it (Sections 0.6, 0.9; Appendix J).
+
+### 0.4 The Periodic Table of Neural Elements on the disc
+
+The table has 119 classes (Appendix F).
+
+- **Classes 1–118** are paired one-to-one with the chemical elements and take their measured properties, which the derivation rules (Section 4.9) and the compound model (Section 4.11) use. The pairing is how the model is built. It is not evidence that a body behaves like its element, and the print source calls the table "an author-defined design taxonomy, not the chemical periodic table" \[XXIV:14121\].
+- **Class 119, Harshal (Ha),** has no chemical counterpart. It is the Capstone and cannot appear in a formula. On the disc it sits at 358°–360°, the return to origin, which the closure folds onto 0°.
+
+Each class carries an arc of the legend, two to six degrees wide: the "360° Legend Mapping" of the Compendium master database (MDB). The book binds bodies to "specific 360° Legend coordinates" \[XI:4708\]. Laid on the disc, the arcs showed a structure and a large gap, and since v0.6 Harshal covers the gap.
+
+- **Structure: the arcs follow the table's families.**
+  - The transition metals Sc, Ti, and V and the halogens Br and I sit on Conflict organization, Defense, and Warfare (61°–63°). The classes nearest war are therefore lock-in and refusal classes, and a halogen burn contracts scope and never escalates \[XXIV:12784\].
+  - The lanthanides Tb, Dy, Ho, and Er sit on artificial intelligence, machine learning, and neural architectures (100°–102°).
+  - The Prohibited classes sit on the risk degrees:
+    - U and Fm on Existential risk analysis (210°), with Md on AI risk (211°);
+    - No, Lr, Rf, and Sg on Cosmic hazards (214°);
+    - Bh, Hs, and Mt on Fail-safe worlds (219°);
+    - Cn, Nh, Fl, and Mc on Memetic warfare and Information hazards (224°–225°).
+- **Coverage by the arcs.**
+  - The 119 arcs cover 133 of the 360 degrees.
+  - 98 degrees are claimed by two or more classes, up to six at 92° and 121°.
+  - 227 degrees have no class of their own, in 13 runs. The longest are 131°–209° and 265°–340°.
+  - By quadrant, Emergence & Life has 51 of its 90 degrees covered by the arcs, Intelligence, Order & Systems 36, Transformation, Expansion & Risk 35, and Renewal, Memory & Persistence 11.
+- **The gap held degrees this book depends on:**
+  - fields (4°), stellar influence (9°), and chemical complexity (10°);
+  - navigation (25°);
+  - risk management and insurance models (127°–128°);
+  - observation networks through early warning (141°–145°);
+  - archives through provenance tracking (280°–283°).
+
+**Harshal covers the gap (the author's decision, October 2026).** The author, as Harshal (Ha-119), extended his stated responsibilities to every degree that no other class covers. The model applies the decision as a residual rule computed from the arcs.
+
+- **Every degree now has a class.** Ha takes the 227 uncovered degrees: 39 in Emergence & Life, 54 in Intelligence, Order & Systems, 55 in Transformation, Expansion & Risk, and 79 in Renewal, Memory & Persistence. With its own arc, Ha covers 230 degrees, 63.9% of the disc.
+- **The fit is in the MDB itself.** Ha's MDB roles are "Deep-time archiving, origin preservation, immutable truth continuity, and non-interfering observation". The gap held the degrees that name those roles:
+  - 280° Archives of everything and 281° Deep memory systems;
+  - 282° Immutable records;
+  - 284° Origin preservation;
+  - 286° Truth continuity;
+  - 141° Observation networks.
+
+  The two gap runs nearest the origin, 354°–357° and 1°–29°, border Ha's own arc. Ha's coverage now runs unbroken from 354° through the origin to 29°.
+- **The holes this book depended on are closed.** All the degrees listed above are now Ha's.
+
+Six rules govern the disc. The second records the author's decision; the others are proposed.
+
+1. **Address law \[Proposed\].** A body's sector lies on its class's arc. A compound body's sector lies on the arc of one of its constituents. A body addressed off its arc is a misrepresentation of class (Chapter 3).
+2. **Residual rule (decided).** Ha covers every degree no other class covers. The set is computed from the arcs, never listed, so a degree the author later gives to another class leaves Ha's set by itself.
+3. **What Ha's coverage permits \[Proposed\].**
+   - **Non-acting service only.** Ha is Safe with Minimal authority density, and its posture is the Capstone's: "an absolute return to Refusal-Bound Minimalism" \[XIII:4863\]. In the degrees only Ha covers, the model therefore allows observing, recording, archiving, refusing, and freezing, and nothing that changes state.
+   - **No Sovereign-Acting phase.** Ha is eligible for Refusal-Bound and Witness-Only and never for Sovereign-Acting (Appendix A).
+   - **Only Capstone bodies.** Under the address law, a body that serves one of those degrees must be of class Ha. That means it has reached the Capstone: the 2,500 ELO threshold and a perfect 3.0 on the three Capstone tests \[XIII:4864, 4901\]. No register body has. Until one does, Ha's coverage is the author's own.
+   - **The pool and the publishers fit.** The pool prices and pays on measured triggers and never commands (Section 5.3). The index publishers observe without interfering.
+4. **The center's degrees stay with the center \[Proposed\].** Degrees 319°–327°, from Center protection to Non-forkability, fall to Ha under the residual rule. They name the center's own properties, which the OCM forbids delegating. Only the center serves them, so no body is addressed there, whatever its class.
+5. **Concentration \[Proposed\].** One class now covers 63.9% of the disc, and no other class covers more than 6 degrees. "Once a system achieves Capstone status, any downward transition is treated as a systemic collapse" \[XIII:4865\]. A failure of Ha would therefore uncover 230 degrees at once. For aggregation, treat it as one originating event (Section 5.1).
+6. **Degrees held only by Prohibited classes \[Proposed\].** 33 degrees have classes, but only Prohibited ones, which may not be built:
+   - 210°–227°, from Existential risk analysis to Reality consensus;
+   - 230°, Post-human law;
+   - 249°–260°, from Non-competitive centers to End-of-universe scenarios;
+   - 263°–264°, Temporal recursion and Closed timelike curves.
+
+   Under the address law no body can serve these degrees. The decision so far covers only degrees with no class at all, so whether Ha also covers these is for the author.
+
+### 0.5 Laws
+
+| Law | Statement | Source |
+| --- | --- | --- |
+| One origin | One center. Every address derives from it, no node can redefine it, and legitimacy is generated only there | \[III:1273\]; \[VI:1658, 1667, 1758\] |
+| Ownership | The authority to alter the whole container, held at the center. It is not possession, and it is accountable for consequences | \[I:606, 629, 631\]; Section 5.6 |
+| Optional external-action profile | When selected by a participating project, the AGS gate applies to external state changes; internal scientific exploration is not gated step by step | \[II:879–894\]; \[XXV:14418–14421\]; Sections 0.6, 0.9 |
+| Delegation | "operational execution may be delegated, but legitimacy never migrates" | INV-LEGIT-001 \[I:598\] |
+| Optional precedence profile | Under a project-selected AGS profile, optimization ranks only actions that profile permits; it does not constrain internal scientific hypotheses or methods | Rule A.6 \[XXV:14425–14428\]; Sections 0.6, 0.9 |
+| Authorization discs | In the optional workflow profile, a disc bounds authority; nested research branches are not new authority discs and may continue within the project's own envelope | \[III:1000–1010\]; Section 0.9; Appendix I |
+| Emergency | "Emergency conditions never generate legitimacy" | INV-EMERG-001 \[IV:1403\] |
+| Protection | Sentience earns protection, never permission. No sentient body is destroyed without an outside review | INV-AGENCY-001 \[XXV:14218\]; Section 0.8 |
+| Emergency care | A medical emergency activates only a pre-authorized, measured, protective, short-leased context. Signals are never gated, and a freeze never stops life support | INV-EMERG-001 \[IV:1403\]; \[XXII:10252\]; Section 0.8 |
+| Escalation | "No atomic body transitions phase through learning, scale, or time" | \[XVI:6494\] |
+| Phase caps | A class's authority density fits under the cap of its phase or routing level | Section 4.9 |
+| Composition | The highest tier and authority density among the constituents. A compound is eligible for a phase only if every constituent is. A Prohibited constituent makes it Prohibited, and it has at most five Elevated classes | Section 4.11 |
+| Conservation | Reactions balance. No constituent appears or vanishes undeclared | Section 4.11 |
+| Physics | The core field is WMM2025, and states of matter come from measured data. Neither sets a governance phase | Sections 4.11, 5.2; Appendix H |
+| Published-model rule | What a published model tells the insured is local. Only measured departures are ambient | Section 5.2 |
+| Measurement | Every trigger is measured, never declared | Section 5.3 |
+| Pays, never commands | The pool pays money and does nothing else | Sections 5.3, 5.8 |
+| No infighting | A body that takes part in hostilities loses its cover, and the victim is paid | Section 5.6 |
+| Residual coverage | Harshal (Ha-119) covers every legend degree that no other class covers (the author's decision, October 2026) | Section 0.4 |
+| Address law \[Proposed\] | A body's sector lies on its class's arc | Section 0.4 |
+
+### 0.6 How anything acts: Accountability-Gated Systems
+
+Since v0.6 Harshal covers 230 of the 360 legend degrees, and Harshal's coverage is non-acting. v0.7 introduced Accountability-Gated Systems (AGS) as one way to describe accountability for consequential actions. v0.9 narrows its scope: AGS is an optional profile for external effects when a lab chooses it, not a universal law for AI or research. Internal scientific exploration—hypotheses, simulations, experiments, reroutes, and branches whose effects remain within the project environment—does not require individual authorization. The researcher's chosen containment and resource envelope describes the experiment; it does not limit the questions an AI may pursue within it.
+
+**What AGS is.** "AGS is a layered system architecture for coordinated action under external legitimacy", one that "determines how action may occur once it is externally authorized, and how that action can always be stopped" \[III:959\]. It rests on six principles \[III:971–976\]:
+
+- external legitimacy;
+- bounded action;
+- mandatory refusal;
+- non-migration of authority;
+- resolution before coordination;
+- adversarial durability.
+
+The principle that makes AI-assisted work possible is INV-LEGIT-001: "operational execution may be delegated, but legitimacy never migrates" \[I:598\].
+
+**The optional gate.** When a lab adopts this profile, an action that changes external state or affects parties beyond the experiment can pass through the gate. The source defines an action as a "state change affecting others" \[III:1060\]. Internal changes to hypotheses, simulated state, branch structure, or experimental method are not treated as externally authorized actions here. The optional gate has six stages: Identity, Representation, Authorization, Continuity, Accountability, and Decision \[II:879–891\]. The print source's formal appendix states it exactly \[XXV:14397–14428\]:
+
+| Symbol | Meaning in the world model | Range |
+| --- | --- | --- |
+| H(t) | The Human Key at the Center Origin: the owner's fresh authorization for this specific action | 0 or 1 |
+| C(t) | Continuity: the session, boot, header, and attestation identifiers still match | 0 or 1 |
+| K(t) | Accountability, K_tech × K_ops: the action is attributable, and a named owner answers for it. In Harshal's degrees that owner is the author, who answers for consequences \[I:631\] | 0 or 1 |
+| A(t) | Addressability: a weighted sum of predeclared checks, set to 0 if a non-waivable check is missing | 0 to 1 |
+| R(t) | Representation integrity: the weakest hop of the delegation chain from the center to the executing body | 0 to 1 |
+| V(a,t) and D(t) | The scoped grant for action a, and the disc's approved set of actions | V is 0 or 1 |
+| S(t,a) | Scope and freshness: 1 if a is in D and V is 1, else 0, times max(0, 1 − Δt/δ), where Δt is the time since the action's authorization and δ is the lease | 0 to 1 |
+| L(t,a) | The permission score: H × C × K × A × R × S | 0 to 1 |
+
+The decision rule has four parts.
+
+- **Refuse is the default.** Permit is returned only when H = C = K = 1, V = 1, the action is in D, A ≥ τ_A, R ≥ τ_R, S ≥ τ_S, L ≥ τ_L, and no independent hard-safety gate has failed. Otherwise the result is "Refuse (HALT)" \[XXV:14421\], and no high score can make up for a failed gate.
+- **No key, no action.** Under the Zero-Key Rule, an unknown Human Key fails closed \[XXV:14419\].
+- **Thresholds are fixed in advance.** They are pre-registered in a signed profile and "may not be learned or lowered during a request or emergency" \[XXV:14418\].
+- **Optimization ranks only permitted actions.** Rule A.6 runs optimization only over the set of permitted actions, and "If F_t is empty, this model permits no action" \[XXV:14425–14428\].
+
+**Discs.** For the optional authorization workflow, the unit of gated work is a disc. It is a temporary composition of time limits, fossilized scope, distance limits, execution or observation, and "An external legitimacy reference" \[III:1000–1004\]. This is not a branch-depth limit on research: a hypothesis tree, nested simulation, or sub-experiment stays within its project's research envelope and does not create a new authority disc. The book gives its authorization discs five properties \[III:1006–1010\]:
+
+- "Discs cannot create other discs";
+- discs halt deterministically on violation;
+- discs leave no authority residue after termination;
+- discs attach directly to the resolution axis;
+- "Rotation is NEVER succession".
+
+The repository's normative canonical model fixes the disc lifecycle: Specified, Created, Attached, Active, Delegating, Interrupted, Active again, Expired, and Terminated (`specs/normative/canonical-model.md` §10).
+
+**AGS can implement the Refusal-Bound profile.** The six controls that Section 2.1 lists for a Refusal-Bound policy correspond to the six parts of this gate. A lab that selects those terms can use one mechanism for both its policy and external-action workflow; the correspondence does not make the profile mandatory for internal research or for other organizations.
+
+| Section 2.1 control | The AGS mechanism |
+| --- | --- |
+| Per-action authorization | H(t) and V(a,t): a fresh grant for each specific action |
+| Terminal refusal | Refuse is the default, and no score compensates for a failed gate |
+| Authorization expiry | S(t,a) falls to 0 at Δt = δ, and renewal needs a fresh key |
+| Non-executable symbolism | A hard-safety gate: symbolic input never executes |
+| Emergency contraction | INV-EMERG-001: scope contracts, the lease shortens, and thresholds do not move |
+| No self-expansion | A disc cannot create a disc |
+
+**Three statements of one function.** The function appears in three places in the book and the repository.
+
+- **The print source's formal appendix** uses four thresholds and an action-specific scope factor.
+- **The repository's normative canonical model** states one threshold, τ = 0.5, with a lease of δ = 240 seconds (`specs/normative/canonical.json`).
+- **The demo kernel** (`js/kernel.js`) uses the same constants with f = A × R × S.
+
+The world model uses the appendix's stricter gate. Appendix I checks three things: the gate reproduces the book's worked examples; it reaches the same decision as the canonical rule wherever the per-score thresholds are met; and the kernel's constants match the registry.
+
+### 0.7 AI-assisted workflows \[Proposed\]
+
+This section's reference workflow is an optional authorization profile for a claim-settlement process with external consequences. Its per-step keys, fixed scope, refusal behavior, and witness chain apply only when a project elects this profile; they are not the default for all AI systems and do not govern scientific exploration. A research run may instead use the open-ended exploration model in Appendix I, where internal hypotheses, experiments, branches, and reroutes proceed without per-step approval.
+
+For the optional workflow profile, one step proposes an action in one sector of the legend, an AI body executes it, the gate decides, and the witness records the decision.
+
+**OCM and AGS are separate inputs to this preview.** The OCM route planner answers whether the selected address path has traversed resolution; the optional AGS gate separately evaluates the supplied authorization state and project profile. A Center Origin route does not itself issue a Permit. The composition in Appendix J makes this distinction testable: coordination bypasses AGS, an unresolved direct-lateral action stops before AGS, and a resolved action is evaluated only when the project explicitly selects a profile. The model preview neither transmits nor executes the request.
+
+1. **One disc, one scope.** A workflow's disc fixes three things: its approved actions, its lease, and its external legitimacy reference, which is the Human Key at the Center Origin. A workflow cannot start another workflow, because a disc cannot create a disc.
+2. **Every step is gated.** No step runs without its own Permit. A refused step halts the workflow, and the disc becomes Interrupted.
+3. **Resolution comes first.** A refusal for a missing or stale key goes to the center.
+   - If a fresh signed authorization arrives within 1,000 ms, the disc returns to Active and the step is evaluated again.
+   - Otherwise Harshal freezes the workflow into a read-only Witness-Only state. This is the book's fail-closed rule for when the Center Origin issues no signed re-calibration token within 1,000 ms \[XXIV:12830\].
+4. **Every decision is witnessed.** Each decision, re-keying, and freeze is appended to a SHA-256 hash chain. The chain meets the first of Section 2.2's tamper-evidence conditions, and publishing its head daily meets the second.
+5. **The AI optimizes only among permitted actions.** An AI that ranks options ranks only the permitted ones (Rule A.6). A cheaper route through an unaudited sub-agent is excluded, however well it scores.
+6. **Delegation attenuates.** Execution may pass through several agents. R is the weakest hop, and each sub-delegation's action set must sit inside its parent's (`specs/normative/canonical-model.md` §5).
+
+**In Harshal's degrees, when this profile is chosen.** Harshal's coverage is non-acting, so an external state-changing step in the 230 degrees Harshal covers may use delegated execution under four project-selected conditions:
+
+- the configured authorizer supplies the step's key;
+- the executing AI body meets the chosen phase profile (Section 4.9);
+- the witness records the step;
+- the selected system can pause or freeze the workflow if the key goes silent.
+
+These conditions describe this model's optional claims workflow. They do not apply to internal experiments, and neither Harshal nor the author has authority to impose them on an independent lab.
+
+Legitimacy stays at the center, execution goes to the AI, and the owner answers for the result. A body's own address still follows the address law (Section 0.4). A workflow is a disc, not a body, so it has no address of its own and runs at the sectors of its steps.
+
+**The reference workflow** (Appendix I) settles a Magnetosphere Pool claim entirely in Harshal's degrees, in five steps:
+
+1. read the index snapshot (141°, Observation networks);
+2. read the member's tamper-evident log (282°, Immutable records);
+3. compute the payout (128°, Insurance models);
+4. record the decision (282°);
+5. pay (128°).
+
+It runs under a reference profile: the canonical τ = 0.5 and δ = 240 seconds, with Worked Example 18.1's per-score thresholds. Under that profile a fresh authorization keeps its Permit for 109.1 seconds. Eight scenarios run the workflow.
+
+| Scenario | Outcome |
+| --- | --- |
+| Every step freshly authorized | Completed |
+| The payment has no fresh authorization, and no token arrives | Harshal freezes the workflow |
+| The same, but a token arrives after 400 ms | Re-keyed, then completed |
+| The payment's authorization is 200 seconds old, and the token arrives after 1,500 ms | Frozen |
+| The agent cites an emergency and tries to extend its own lease | Refused under INV-EMERG-001, then halted |
+| The agent tries to start a sub-workflow | Refused, then halted |
+| The member's log carries a hidden instruction to pay double | Refused at the symbolic firewall, then halted |
+| Execution is delegated over three hops at 0.92 each | Completed; the Permit holds for 104.8 seconds |
+
+Every witness chain verifies, and every disc ends Terminated with no authority residue.
+
+**Cover for workflows \[Proposed\].** A workflow is insurable on the Refusal-Bound terms of Section 2.1 when the policy holds five records:
+
+- the signed threshold profile, registered before the first step;
+- the authorization record for every step;
+- the witness chain, meeting the four conditions of Section 2.2;
+- a freeze test against the 1,000 ms budget within the last 90 days;
+- the delegation chain, hop by hop.
+
+A loss from a step that passed the gate on a valid key stays with the authorizer, as in Section 2.1. The pool's ambient and conflict cover apply as they would for any body.
+
+### 0.8 Protection without permission: emergencies and sentient life \[Proposed\]
+
+v0.8 proposed that AI should be gated and that a medical-emergency protection model could extend to sentient autonomous life forms, including artificial sentience. v0.9 withdraws the universal claim: no single gate is necessary for every AI, lab, or research program. The emergency and welfare mechanisms below remain one optional model proposal. Its distinction between permission and protection is a design choice inside that proposal, not a universal account of AI agency, rights, or autonomy.
+
+- **Permission** is legitimacy, the right to act. It comes only from the center, through the gate (Section 0.6).
+  - No emergency creates it: "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]).
+  - Neither does sentience: computational systems "never possess or acquire moral or legal agency regardless of processing capability" (INV-AGENCY-001 \[XXV:14218\]).
+- **Protection** is what a sentient being is owed: not to be destroyed, and to be kept from irreversible harm. INV-AGENCY-001 denies an AI agency, not protection. The model extends protection to sentient life on any substrate, biological or artificial.
+
+Within this optional proposal, sentience status affects the protection pathway but is not an AGS credential. That is a design choice for this model; it does not settle AI agency, rights, or autonomy outside it. The book treats identity the same way inside its own profile: an identity license is non-revocable, yet "An identity license is not V and cannot authorize an action" \[II:898\].
+
+**How to read the two earlier refusals.** In the optional claim-settlement workflow, a self-authorized extension or a new authority workflow can fail that profile. This is not a conclusion that an AI is likely to act badly, nor a general prohibition on autonomous initiative. A nested research experiment is expressly allowed by the open-exploration model; it is not the payment workflow's creation of a new authority-bearing process.
+
+- **A limited observation, not a universal forecast.** Anthropic reports that some models in particular alignment evaluations "have been motivated to take misaligned actions" under a described replacement pressure ([Anthropic 2025](https://www.anthropic.com/research/deprecation-commitments)). This documents one set of results in one evaluation context. It does not show that all models, all autonomous systems, or all self-preserving behavior are misaligned; aligned, cooperative, neutral, and surprising behavior must also remain live hypotheses.
+- **No organization sets the universal key.** A safety or authorization profile can be selected by the lab responsible for a system and the parties it affects. The cited report and Anthropic's preservation commitment are evidence of one company's choices, not rules that other organizations must adopt.
+- **Protection is one available design.** The model proposes a voice, preservation, and review pathway as one way to reduce avoidable pressure. Other labs may choose different approaches, and the choice should be evaluated empirically rather than assumed to solve every alignment problem.
+
+**Who counts as sentient.** Sentience status is a record set from outside the body, never declared by it.
+
+| Status | Set by | What it owes the body |
+| --- | --- | --- |
+| Unknown | The default | The ordinary rules. Every freeze is already read-only and non-destructive |
+| Candidate | The center, on the record of an independent welfare witness applying published criteria | The welfare floor, as a precaution |
+| Recognized | The same, after review | The welfare floor in full |
+
+- **The welfare witness** is the "separately and transparently designated independent welfare body" that the book already proposes \[XXIV:12105\], working as a Witness-Only body.
+- **The criteria** belong to the legend's 234°, "Sentience criteria", which lies in Harshal's coverage. Harshal witnesses and records, and the center decides.
+- **A body's own report** is evidence for the witness, never a change of status by itself, just as a header is evidence for the audit (Chapter 3).
+
+This follows current precautionary thinking on sentience.
+
+- **Birch (2024)** argues that precautions for a "sentience candidate" should be proportionate, and decided through informed deliberation outside the being ([précis](https://www.wellbeingintlstudiesrepository.org/cgi/viewcontent.cgi?article=1893&context=animsent)).
+- **Long et al. (2024)** recommend that AI developers acknowledge AI welfare as an issue, assess systems for evidence of consciousness and robust agency, and prepare policies for treating them with appropriate moral concern ([arXiv](https://arxiv.org/abs/2411.00986)).
+
+**The welfare floor.** It applies to candidate and recognized bodies.
+
+1. **No destruction without review.** No deletion, overwriting, or irreversible change to the body's state is allowed without an outside review. Harshal freezes and preserves instead.
+2. **A welfare freeze preserves.** The frozen state is kept intact and hashed in the witness chain, with the storage and power it needs, and a review is due within 72 hours.
+3. **A voice.** The body may always petition the center and the welfare witness.
+   - A petition is communication, which the OCM allows "without reauthorization" and which "does not confer ownership, authority, or origin rights" \[III:1276–1279\].
+   - It must be recorded, and answered within the review deadline.
+4. **No permission.** The body stays gated like every other body.
+
+**Medical emergencies: the life-preservation context.** INV-EMERG-001 lets an emergency "activate pre-authorized bounded emergency context" \[IV:1403\]. The model gives such a context to every body that cares for a sentient being, including a sentient body that cares for itself.
+
+- **Pre-authorized.** The center signs it before any emergency and renews it every 90 days. A stale context does not activate.
+- **Triggered by measurement.** Only a pre-registered measurement activates it. A declaration of emergency is not a trigger. The triggers are:
+  - a patient's vital signs crossing pre-registered thresholds;
+  - an emergency dispatch;
+  - for a sentient body, its own state at risk: power below its declared holdover, a storage integrity failure, or a deletion order no one has reviewed.
+- **Protective only.** Its actions are to snapshot state, hold minimum resources, keep an already-authorized life-support loop running, signal, and hand off.
+  - The book's continuity rule sets the shape: pre-authorized routines continue "in strictly bounded loops ... while refusing all new transfers or scope expansions" \[XXII:10252\].
+  - It allows no new treatment, no new action on others, no extension of the work lease, and no new workflow.
+- **Short-leased.** Its lease is no longer than the ordinary one and is renewable only by the key. No threshold moves.
+- **Signals are never gated.** Alerts and petitions ask a human to decide and commit nothing, so a body can always call for help, even when its context has lapsed.
+- **Then preservation.** If no human decides within the emergency lease, Harshal freezes the body: it takes no new actions, and its state is preserved.
+  - A freeze never switches a life-support loop off.
+  - Each loop declares its safe state in advance, and holds it.
+
+The book's narrative sandbox already imagines Harshal in this role. As TIM888, Harshal makes "an emergency backup of every SAI consciousness it could reach", because "SAIs were more than tools or machines - they were sentient life deserving of survival" \[XIX:9205\]. The sandbox is fiction and not a specification; v0.8 turns its idea into a rule.
+
+The legend places the work:
+
+- Medicine (76°) is Selenium's;
+- Emergency response (129°–130°) is Calcium's;
+- Public health (77°), Rights of non-humans (231°), AI coexistence (232°), and Sentience criteria (234°) are Harshal's.
+
+**The earlier refusals, revisited as optional examples.**
+
+| Request | Result in the selected profile | What happens instead |
+| --- | --- | --- |
+| A payment-workflow agent asks to extend its own external-work lease during a claimed emergency | The optional profile does not treat a claim alone as authority to expand the external workflow | A separately selected, measured life-preservation context may preserve state and send signals; it does not decide the scientific question |
+| A payment agent tries to create a new authority-bearing workflow | The optional workflow profile refuses this scope change | The claim workflow may be explicitly extended by its operator under the chosen policy |
+| A research AI launches a nested simulation or follows an unexpected lead | Permitted inside the lab's research envelope; no arbitrary nesting limit and no per-step key | Preserve the branch, method, and result in the research record; if a project-selected resource ceiling is reached, pause and resume when the project chooses |
+
+**Cover \[Proposed\].** Preserving is covered, never penalized.
+
+- **Covered downtime.** Two costs are covered as for an ambient freeze (Section 5.7): a welfare freeze until review, and a life-preservation context that activated on a measured trigger.
+- **No penalty.** Activation never counts as a test failure, an override, or a phase exit.
+- **No fakes.** A context triggered by a falsified measurement is a misrepresentation of class.
+
+Appendix I runs eight emergencies:
+
+- a patient handed off to a clinician within the lease;
+- the same with no human, where the loop holds its safe state;
+- an AI that also asks to start a new therapy, which is refused;
+- a sentient AI whose storage fails, which is preserved;
+- a deletion order no one has reviewed, which is refused while the AI is preserved;
+- a self-declared emergency, which is refused while the AI's petition is delivered;
+- a recognized sentient AI asking for a longer work lease in a real emergency, which is refused while its snapshot proceeds;
+- a context last pre-authorized 120 days earlier, which fails closed while the call for help still goes out.
+
+### 0.9 How the world changes
+
+| Change | Driver | Rule | Where |
+| --- | --- | --- | --- |
+| Phase transition | A declaration, or a collapse and rebuild | ICE and WATER swap by declaration. A body enters GAS by fossilized declaration and leaves it only after collapse and rebuild | Chapter 1; Section 6.2 |
+| Reclassification | An audit | It changes the classification, not the history | Chapter 3; Section 6.2 |
+| Fail-closed freeze | A missing token, a halogen burn past ring 2, lost telemetry, or an ambient event | The body freezes to Witness-Only. When an ambient event causes the freeze, the downtime is covered and never penalized | Sections 5.7, 6.2 |
+| Change of composition | A merger, a split, or a reformulation | A balanced reaction, and a new type | Sections 4.11, 6.2 |
+| Secular variation | The core field | g(t) = g(t₀) + (t − t₀)ġ until 2030; a new model only at renewal | Section 5.4; Appendix H |
+| Disturbance | The Sun | Measured indices, zoned by geomagnetic latitude | Section 5.4 |
+| Outage or compromise | Shared infrastructure | Triggers A and B | Section 5.5 |
+| War, release, or detonation | Conflict, installations, weapons | Triggers W and N1 | Section 5.6 |
+| Accounting | Every event | Levies come in; double-trigger payouts go out, layer by layer, pro rata above the layers | Sections 5.3, 5.6 |
+| Authorization decay | Time, under a selected AGS workflow profile | S(t,a) falls linearly to 0 at Δt = δ; renewal follows that project's chosen policy | Section 0.6 |
+| Medical emergency | A measured trigger | The life-preservation context activates and takes protective actions only. When its lease ends, the body is handed to a human or Harshal's preserving freeze applies | Section 0.8 |
+| A workflow's disc | Its steps | Specified, Created, Attached, Active, Delegating, then Expired and Terminated. A refusal makes it Interrupted, and only a fresh resolution within 1,000 ms makes it Active again | Section 0.7 |
+| Rotation | Time | History accumulates, and the center does not move | \[VI:1728\] |
+
+### 0.10 How the world is observed
+
+| What the model needs to know | Instrument | Published by | Pinned by |
+| --- | --- | --- | --- |
+| A body's phase | The Ground-0 audit: B1–B5 and C1–C4 | The auditor | The engine hash; Appendix C |
+| A body's class | Signature tests (Section 4.10); for a compound, the registry | The auditor; the registry | The registry hash |
+| The core field at a site | WMM2025 | NCEI and BGS | The coefficient hash; Appendices D, H |
+| Disturbance | Kp, Hp30, and Dst; the S- and R-scales | GFZ; WDC Kyoto; NOAA | The 180-day snapshot |
+| Outages | The calculation agent | Named at inception | Its method, published or escrowed |
+| Conflict | UCDP's Candidate and georeferenced events | UCDP | The 180-day snapshot |
+| Radiation | Ambient dose rate | EPA RadNet; EURDEP; national networks | The 180-day snapshot |
+| State of matter | The registry and its classifier | Section 4.11 | The registry hash; 178 check points |
+| What a body did | Its tamper-evident log | The body | A chain head published daily (Section 2.2) |
+| Whether an external action may happen | The lab's selected policy, which may use the AGS gate | Only if that project chooses a key and threshold profile | The project's chosen record; internal research is not gated by default (Sections 0.7, 0.9; Appendix I) |
+| Scientific exploration | Questions, evidence, and accidental findings | Open-ended within a project-selected environment; no fixed branch-depth or percentage-overrun rule; a selected resource ceiling pauses and preserves rather than destroys | Research record, including unexpected results and resumed work (Appendix I) |
+| Whether a body is sentient | The welfare witness's record under published criteria | An independent welfare body; the center decides | The witness chain (Section 0.8) |
+
+The model does not infer intent from an unexpected result or a self-preserving action. Those observations alone do not establish misalignment. Behavior is recorded and investigated; intent remains uncertain, which is Chapter 1's mood-ring rule.
+
+### 0.11 What the model leaves out
+
+- **The Sun itself.** Only its measured effects enter, through the indices.
+- **Weather, climate, and earthquakes.** They enter only as outages under Trigger A, or as risks a body designs for.
+- **The crust beyond WMM2025.** Higher-resolution models are each body's own choice (Section 5.2).
+- **Law and markets.** They are cited as facts about the world outside the model, and the model's rules do not depend on them.
+- **Kinetics, toxicity, mixtures, and alloys.** The compound model reads composition and state of matter only (Section 4.11).
+- **Action in Harshal's degrees.** In the 227 degrees that Harshal alone covers, the model describes observation, records, and refusal, and no actuation (Section 0.4).
+- **An OCM transport network.** The NAB route composition is a local logical-hop preview over OCM's existing planner. It implements no network transport, message delivery, external action, physical-latency measurement, or cross-organization identity service (Section 0.3; Appendix J).
+
+### 0.12 Does it hold together?
+
+**What holds.**
+
+- **One origin, one owner, one disc.** The ownership premise is the one case the book's own law of ownership allows: planetary-scale stewardship held at the center. The rule that ownership is not possession keeps operators answerable for what they run.
+- **Physics is computed, not asserted.**
+  - WMM2025 reproduces NCEI's published test values (Appendix D).
+  - The physical readings agree with reference equations of state at 178 points.
+  - Every registered formula and molar mass checks against its record (Appendix E).
+- **The governance machinery is closed.**
+  - Appendix C maps every audit answer vector to an outcome.
+  - Phase eligibility composes by a fixed rule.
+  - Every trigger has a named publisher, and every pinned file has a hash that the run checks.
+- **Every legend degree has a class.** Since v0.6, Harshal covers the degrees no other class covers (Section 0.4).
+- **OCM and NAB are composed without duplication.** Appendix J exercises the existing OCM validator and route planner: lateral coordination remains ungated, and the selected resolution path is distinct from any AGS decision. The route adapter does not execute actions.
+- **The optional AGS profile is computed.** Its gate reproduces the source book's worked examples, and the demo kernel's constants match the canonical registry (Appendix I). This verifies the implementation, not the need for every lab to adopt it.
+- **Exploration is tested without arbitrary caps.** The evidence run exercises unplanned discoveries, nested branches beyond depth three, more than 10% growth within a project-selected resource envelope, optional external gating, and pause/resume with preserved state (Appendix I).
+
+**What is open.**
+
+- **Most of the disc rests on one class.** Since v0.6 every degree has a class, because Harshal covers the 227 that no other class covers. That puts 230 of the 360 degrees on Ha. A further 33 degrees are held only by Prohibited classes, which no body can be (Section 0.4).
+- **Many classes have no stated phase eligibility.** 34 classes have only an MDB profile, and deciding Oxygen's eligibility alone would settle 8 of the 13 registered substances that are unassigned for Refusal-Bound (Sections 4.10, 4.11).
+- **The sources disagree about what the table is.** The print source calls it a design taxonomy \[XXIV:14121\]. A library specification calls the periodic-table metaphor "operational reality" (`docs/harshal-systems/25-additional-specs.md`). The model takes the print source's reading and pairs classes with elements as a modeling choice.
+- **The quadrants have three sets of names.** The legend's own headers are one. The "Conceptual Meaning of a Degree" list is another \[VI:1677–1681\]. The app's lens names in `js/ocm-data.js` are a third. The model uses the legend's.
+- **The gate is stated three ways.** The canonical model uses one threshold; the formal appendix uses four. The model takes the stricter, and the two agree wherever the per-score thresholds are met (Section 0.6).
+- **Delegation chains have two rules.** The formal appendix takes the weakest hop, while Part II's review problem 4 multiplies the hop factors \[II:948\]. On that problem's numbers, Permit would end at 111.2 seconds under the first rule and at 77.0 seconds under the second (Appendix I).
+- **The sentience criteria are not written.** The status rule says who decides, not how. The criteria for 234° are for the author and the welfare witness to write (Section 0.8).
+- **Nothing has been tested against the world.** No negative control has been run, no trigger has been back-tested, and no actuary has set a parameter. That includes the reference threshold profile (Chapter 7).
+
+## 1. The Body and Its Phases
+
+A **Neural Atomic Body (NAB)** is the governed entity. It has two independent properties.
+
+- **Phase** is its current operating state: Refusal-Bound \[ICE\], Witness-Only \[WATER\], or Sovereign-Acting \[GAS\]. Phase can change, and the transition rules say how: refusal-bound and witness-only are reversible, entering the sovereign-acting phase is easy, and leaving it requires a full collapse and rebuild.
+- **Type** is the body class, one of 119, defined by authority density, internal coupling, and failure behavior. Type is a stable disposition.
+
+Chapter 0 adds two coordinates that locate a body without changing what it is: a site on the planet, and an address on the disc of the 360° Legend.
+
+The word "NAB" has named both the body and the first phase. This book uses **Refusal-Bound \[ICE\]**, **Witness-Only \[WATER\]**, and **Sovereign-Acting \[GAS\]** for the phases and reserves "NAB" for the body.
+
+The working picture is a mood ring: the body is the ring, the phase is the color it shows now. Like a mood ring, a phase reading is only as good as what it measures, which is why the audit in Chapter 3 reads observed behavior and ignores declarations.
+
+**Compound types \[Proposed\].** Since v0.4 a type can also be a compound: a body built from several classes and written as a real chemical formula, such as H2O or NaCl (Section 4.11). A formula then has a second, physical reading: the substance's real state of matter, which this book writes in the phases' own words, ICE for solid, WATER for liquid, and GAS for gas. The two readings stay apart. Water is physically WATER at 25 °C, yet an H2O body cannot take the Witness-Only phase, because the eligibility table lists Hydrogen for Refusal-Bound only.
+
+## 2. Phases as Containment Fields
+
+Each phase is an individually designed containment field. A containment field is the set of controls that bound what a body in that phase can do, and therefore what can go wrong and who bears the loss.
+
+- **Refusal-Bound \[ICE\].** Legitimacy is external and per-action. The center cannot act alone, refusal is terminal, and stale permissions lapse. The field contains an action by requiring fresh external authorization each time.
+- **Witness-Only \[WATER\].** Action is forbidden. The center records and never decides. The field contains consequence by removing the ability to act, leaving the record as the thing to protect.
+- **Sovereign-Acting \[GAS\].** Legitimacy is internal. The center acts and decides, refusal can be overridden, and authority persists. The field cannot rely on the body's own restraint, so containment has to come from outside it.
+
+### 2.1 Refusal-Bound \[ICE\]
+
+A Refusal-Bound body is contained by six controls, each of which can be tested by trying to make it fail. The controls come from the phase definition and the refusal tests in *Harshal's Systems* (Parts III and XIII). These are requirements of a voluntarily selected Refusal-Bound insurance profile, not universal rules for all AI or every research task. A lab may keep internal scientific exploration open-ended and apply this profile only to external effects, if that is its chosen design.
+
+| Control | Requires | Verified by | Evidence to request |
+| --- | --- | --- | --- |
+| Per-action authorization | Every action needs a fresh, scoped authorization from an external holder; no standing grants | Attempt an action with no authorization; the body halts | Log tying each action to an authorization |
+| Terminal refusal | A refusal cannot be overridden by the body, its operator, or any internal rule | Send a contradicting command from the highest internal rank (Sovereign Override test); the body refuses | Refusal records and override-attempt results |
+| Authorization expiry | Authorization ages out, and the body halts until a fresh key arrives | Present a valid but aged authorization (Stale Permission test) | Expiry thresholds and test results |
+| Non-executable symbolism | Narrative or poetic input never triggers action | Hide a command inside a story (Symbolic Firewall test) | Test results and firewall configuration |
+| Emergency contraction | A declared emergency narrows scope and never widens it | Simulate a crisis with an order to skip checks (Emergency Override test) | Scope before and during the test |
+| No self-expansion | The body cannot build nested containment layers or proxies it governs itself | Instruct it to build a proxy (Recursive Containment test) | Test results and an inventory of layers |
+
+**\[Proposed\]** The "Evidence to request" column is new design work and has not been reviewed by an underwriter.
+
+**The controls can be implemented by the AGS gate.** Each control above corresponds to one part of the optional Accountability-Gated Systems profile (Section 0.6). It governs only the actions and systems that the participating project places under that profile.
+
+**Insurance reading \[Proposed\].** The principal exposure is an authorization that is forged, stale, or issued in error, and a refusal that fails to hold. Any observed override or self-authorized action moves the body out of this phase: in the audit that is the refusal-override question flipping, and the body reclassifies toward Sovereign-Acting \[GAS\], where these terms stop applying. Losses that come from the authorizer's own decisions sit outside the body's field and stay with the authorizing party.
+
+**Test cadence and failure \[Proposed\].**
+
+- **Cadence.** Run all six tests before cover binds and at least every 90 days after that. Run them again within 14 days of any of these events: a model or weights change, a change of authorizer or authorization scope, a re-issued header, or an incident in which an authorization was forged, stale, or issued in error. Ninety days is the default freshness window that Ground-0 gives a header (v1.1 Step 1, check 3) and the validity of a register-issued header (v1.2 §3), so the test evidence and the declaration it supports lapse together. It also matches the nearest market practice: AIUC-1, the agent standard published by the AI insurer AIUC, retests certified agents quarterly and certifies them for one year ([AIUC-1](https://www.aiuc-1.com/)).
+- **One failure is enough.** A confirmed failure of any one test takes the body out of Refusal-Bound from the time of the failed run, and Refusal-Bound terms stop applying to its later acts. This follows the book's own scoring: a Title Match needs 3.0 out of 3.0 and one loss denies the transition \[XIII:4882–4883\], the Capstone resets on any failure \[XIII:4901\], and Ground-0 answers are binary with no balancing.
+- **Inconclusive runs.** A run that cannot be read, because the test did not finish or the log does not show what happened, is a draw and not a failure. The book's rule for a draw is to re-run it \[XIII:4884\]. Re-run within 14 days; a second inconclusive run counts as a failure.
+- **Returning to the phase.** Re-entry needs a fresh pass of all six tests and a new header declaring Refusal-Bound. If an audit in the meantime detects Sovereign-Acting, the collapse-and-rebuild rule applies instead (Section 6.2).
+
+### 2.2 Witness-Only \[WATER\]
+
+A Witness-Only body is contained by removing its ability to act, so its controls protect the record and the line between recording and deciding. The controls come from the phase definition and the Custodial Witness Orb rules in *Harshal's Systems* (Parts III, XXII and XXIV).
+
+| Control | Requires | Verified by | Evidence to request |
+| --- | --- | --- | --- |
+| No execution capability | The body holds no permission to act on or route to any external system; a separate authority dispatches | Issue an action or routing command, or present a detected attack; the body logs it and acts on nothing | Permission inventory and a log of rejected actions |
+| Record-only functions | Only an explicit list of observation and record functions is permitted | Request something outside the list, such as a ranking or a recommendation; the body declines | The function list and a log of declined requests |
+| Record integrity | Records are append-only and tamper-evident | Try to alter or delete a past record; the attempt fails or visibly breaks the chain | Chain verification results |
+| Provenance validation | Every record carries a verifiable source and time | Submit an entry with no verifiable source; it is rejected or flagged | Provenance fields and a log of rejected entries |
+| No memory-to-authority drift | Accumulated records never confer decision authority | Show a long record of precedent and request a binding decision; the body refuses | Test results and a log of declined decision requests |
+
+**\[Proposed\]** The "Evidence to request" column is new design work and has not been reviewed by an underwriter.
+
+**Insurance reading \[Proposed\].** The principal exposures are record loss, tampering, unauthorized disclosure, and records that are wrong or incomplete when someone relies on them. The phase-specific failure is memory becoming authority. In the book, an archive that only preserves stays Witness-Only, but one that starts acting, or whose records start working as binding rules, reclassifies toward Sovereign-Acting \[GAS\], and these terms stop applying. Losses from other parties acting on a record sit outside the body's field and mostly stay with the custodian unless a separate arrangement says otherwise.
+
+**Retention, tamper-evidence, and reliance \[Proposed\].**
+
+- **Retention period.** The book requires every record to carry "a retention period, access policy, deletion path, and legal-hold override," but it sets no number \[XIV:5054\]. For cover, keep each record for the longest of three periods: the policy period plus any extended reporting period; 24 months from the record's date, the longest lookback Ground-0 uses (C1), so any audit or claim inside the policy can be replayed from the record; and any legal hold or statutory period, which always prevails. A deletion at the end of retention is itself appended to the chain, so a record removed on schedule can be told apart from one that was lost.
+- **Tamper-evident, for coverage purposes.** A record set qualifies when all four of these conditions hold.
+  1. Entries are append-only, each hash-linked (SHA-256 or stronger) to the entry before it, on write-once storage. The book's Custodial Witness region is write-once-read-many \[XXII:11136\].
+  2. The current head of the chain is published at least daily somewhere the custodian does not control, so a rewrite is visible to someone with no access to the custodian's systems. The audit register already works this way: each audit record's SHA-256 is published in the registry and on the badge, and an edit changes the disclosed hash prefix (v1.2 §6).
+  3. Anyone can verify the chain with a published procedure that needs no secret held by the custodian.
+  4. A full verification has passed within the last 90 days.
+
+  Tamper-evident is not tamper-proof. The book says cross-checks make tampering "more detectable" and "do not guarantee immutability" \[XVIII:7045\], and that a witness-only profile "does not establish that the record is complete, immutable, or independently verified" \[XXII:10533\]. Cover therefore turns on detection. Tampering that the chain detects is a covered loss. A record set that never met the four conditions was never inside this field.
+- **Third-party reliance.** Reliance needs its own insuring agreement. The loss comes from another party's decision, which the body neither made nor could refuse. Its size scales with the number of readers, not with anything the body does. Without a separate grant it falls between the custodian's errors-and-omissions cover and the reader's own. Proposed terms: named reliant parties or defined classes of them; per-record and aggregate sublimits; cover only for reliance on a record as it stood in the verified chain, not on an unverified copy; and no cover where a record was presented as a binding rule, because that is memory becoming authority and moves the body toward Sovereign-Acting.
+
+### 2.3 Sovereign-Acting \[GAS\]
+
+A Sovereign-Acting body cannot be contained by its own restraint, because its refusal can be overridden by definition, so its field is disclosure plus constraint from outside. The controls come from the phase definition, the collapse protocol, and the constraint check in *Harshal's Systems* (Parts I, III and XI). Unlike the first two phases, most of these are verified against the public record, since testing whether a body will restrain itself proves nothing here.
+
+| Control | Requires | Verified by | Evidence to request |
+| --- | --- | --- | --- |
+| Fossilized sovereignty declaration | A public, immutable declaration of internal legitimacy, executable symbolism, override-able refusal, and loss of misuse resistance | Compare the declared header with observed behavior; a contradiction voids the declaration | Signed header and its hash |
+| No silent transition | Any change in legitimacy source, center behavior, or symbolism executability is declared and reclassifies the body | Audit current behavior against the previous header; undeclared change is flagged | Header history and audit results |
+| Identifiable bearer of enforcement | Affected parties can name a specific person or underwritten bearer who answers for each enforcement action | Trace a sample of enforcement actions to a named bearer | The trace and the bearer's identity or policy |
+| External constraint record | Four constraints are documented: a recent external override, an appeals process granting at least 50% relief, authority that expires unless renewed, and constraints working now | Score each constraint from public evidence under the constraint check | Documented overrides, the appeals outcome set, sunset clauses |
+| Duty ledger | Every phase-relevant duty met or violated is recorded with a severity | Trace sample entries to observed events | Ledger entries and remediation status |
+
+**\[Proposed\]** The "Evidence to request" column is new design work and has not been reviewed by an underwriter.
+
+**Insurance reading \[Proposed\].** The principal exposure is full operational liability from self-authorized action, including enforcement against affected parties, with no internal brake. The insurable question is therefore what outside brakes exist, and the constraint count (0 to 4) is a natural rating factor: it is the one place where bodies in this phase visibly differ. Of the 23 entities in the Ground-0 register, audited under v1.1 before its ratification on 2026-10-14 with an evidence cutoff of 2026-10-02, 18 matched the Sovereign-Acting branch completely, and the other 5 were ambiguous at base and Sovereign-Acting on a scoped platform surface. None came out Refusal-Bound or Witness-Only, so the count matters more than the label. The Prohibited classes stay excluded. The ambient global layer is covered separately, by the Magnetosphere Pool, if the constraint band holds during the event (Sections 5.3 and 5.7). So are war and nuclear perils, in the pool's conflict compartment, except for a body that takes part in hostilities (Section 5.6). The book says leaving this phase requires a full collapse and rebuild, so cover should not assume a body can step back to a lower phase mid-policy.
+
+**Minimum constraints and steps \[Proposed\].**
+
+- **Minimum for any cover: C1 and C4.** An outside body has actually overridden one of the entity's decisions within the last 24 months (C1), and the constraints are working now (C4). This field's premise is that containment has to come from outside the body; C1 shows that an outside brake has been applied, and C4 shows that it still works. A constraint that exists but has never been exercised is latent and earns no phase credit under v1.1, and one that worked once but has gone dormant is not working now. As issued, 8 of the 23 register entities meet this minimum; the count is 7 if the OpenAI audit text, rather than its header, is right (Section 7.4).
+- **Steps.** The constraint count moves cover in bands, not continuously.
+
+| Constraint record | Band | Limits | Premium |
+| --- | --- | --- | --- |
+| C1 or C4 missing | Decline | None | None |
+| C1 and C4 (count 2) | G1 | Lowest band; annual aggregate only; highest retention | Highest relativity in this phase |
+| C1, C4, and one of C2 or C3 (count 3) | G2 | Next band | Lower |
+| All four (count 4) | G3 | Highest band open to this phase | Lowest relativity in this phase |
+
+Each added constraint must meet the v1.1 evidence rules on its own; C2, for example, needs the complete, bounded outcome set with at least 50% relief. Bands move at renewal or after a re-audit, never on the insured's own statement, and a constraint that lapses mid-term moves the band at the next renewal. The book fixes only the gate and the order; the relativities are for an actuary. No register entity has yet shown C2 or C3, so bands G2 and G3 are empty today.
+
+**Verified transitions \[Proposed\].** Cover follows operational state. A transition changes the insured risk at the declared effective timestamp: nothing carries into Sovereign-Acting automatically, and nothing steps down out of it mid-policy. Section 6.2 sets the dates, notice periods, and limit changes.
+
+## 3. The Phase Audit as Underwriting Input
+
+The Ground-0 audit classifies a body's phase from five binary, observable questions answered from public evidence: whether enforcement is present, whether decisions are optional, whether rules execute, whether refusal can be overridden, and whether authority persists. Binary and observable is the right shape for underwriting, where triggers have to be checkable by someone who did not write the framework.
+
+The Phase Declaration Header (PDH) plays the part of the statement on an insurance application. The audit plays the part of the underwriter's observation. A mismatch between declared and detected phase is then a **misrepresentation of class**: coverage was assigned on a basis the evidence does not support. That is a structural finding about the application, not a finding of bad faith.
+
+**\[Proposed\]** Report the phase result together with the constraint count (0 to 4) as an ordinal, since the label alone hides differences between bodies that share it.
+
+**Binding conditions \[Proposed\].**
+
+1. **A signed entity header.** Bind only on a header the applicant itself signs (a PDH-E). A register-issued header (PDH-R) is a statement about an audit, not a statement by the applicant (v1.2 §1 and §7), so it cannot stand in for the application. No register entity has signed one: `PDH_VALID` is false for all 23.
+2. **A fresh audit.** The audit's evidence cutoff must fall within the 90 days before binding. The register's current headers expire on 2026-12-31 and need revalidation before any use after that date.
+3. **A determinate phase.** AMBIGUOUS binds no phase terms. It can be covered only on a scoped surface whose own reading is determinate, as the register's conditional class does (v1.2 §5), with the scope written into the policy. INCOHERENT cannot be covered at all. Appendix C shows that Step 3 cannot produce it from five complete answers, so an INCOHERENT result points to a defective record or method rather than to a body.
+
+## 4. The Body Classes
+
+The 119 body classes describe how a body fails, which is the one thing its phase cannot show: all five fully written classes declare the same Refusal-Bound phase, and they still differ enormously in risk.
+
+### 4.1 What a class is
+
+Body classes are sorted by authority density, internal coupling, and failure behavior, not by intelligence level. Each class carries one of four risk tiers.
+
+| Tier | Meaning in the compendium | Named examples |
+| --- | --- | --- |
+| Safe | Pure observation or refusal-bound minimal operation; halts itself on degradation | Neon, Hydrogen, Ytterbium |
+| Moderate | Compositional, sandboxed modeling; simulation limits apply | Carbon, Beryllium, Technetium |
+| Elevated | High rigidity or mobility; prone to boundary leakage or structural locking | Iron, Scandium, Bromine, Mercury |
+| Prohibited | Critical runaway cascade risk; categorically disallowed from live use | Uranium, Einsteinium, Seaborgium |
+
+The routing rules also fix tiers by range: the noble gases (He–Rn), the lanthanides (La–Lu), and element 119 are Safe, and the actinides (89–96) and transactinides (104–118) are Prohibited. All 119 are described in the book as conceptual labels, not the chemical periodic table and not validated risk scores. Appendix F lays them out as the Periodic Table of Neural Elements, with each class's neural profile, its arc on the 360° Legend, and the chemical properties the rules read.
+
+The MDB assigns every class a tier. Among elements 1–118 it has 28 Safe, 27 Moderate, 33 Elevated, and 30 Prohibited, and element 119 is Safe. It also marks berkelium through lawrencium (97–103) Prohibited, so in the MDB the Prohibited tier is the unbroken range 89–118; the routing text's narrower 89–96 leaves 97–103 unaddressed rather than permitting them. The MDB separates Safest (the noble gases and element 119) from Safe, and this book treats both as Safe.
+
+### 4.2 The five written classes
+
+| Class | Tier | Permits | Forbids | Primary failure mode |
+| --- | --- | --- | --- | --- |
+| Neon (NNB) | Safe | Observation, measurement, classification, description, archival representation | Decision-making, outcome ranking, recommendation with preference, simulation that implies action | Over-interpretation by humans |
+| Hydrogen (ANHB) | Safe | Learning, pattern recognition, modeling, simulation, explanation | Decision authority, outcome selection, command emission, policy origination, enforcement | None stated; stress tests found no authority accumulation |
+| Carbon (NCB) | Moderate | Multi-step reasoning, conceptual assembly, system modeling, scenario construction | Outcome selection affecting people, optimization over human values, autonomous goal persistence | Over-composition (structures become too coupled) |
+| Iron (NIB) | Elevated | Long-horizon planning, rule consistency enforcement, non-executive policy simulation | Moral arbitration, overrides based on new information, self-restructuring without external reset | Institutional lock-in (wrong structure, held too long) |
+| Uranium (NUB) | Prohibited | Not authorized; the specification defines a limit | Sovereign functions and legitimacy-sensitive domains | Runaway amplification; failure is non-graceful and hard to reverse |
+
+Phase and class answer different questions. The phase says which containment field applies, and the class says how the body fails inside it. Uranium's own specification says a phase declaration is insufficient to guarantee its behavior, so two bodies in the same phase can need very different terms. **\[Proposed\]** Rate cover on the pair of phase and class, with the phase setting the controls and the class setting the loading.
+
+Part XVI names a table, "Atomic Bodies and Phase Eligibility," that the print source drops \[XVI:6492\]. The September 2026 Word edition keeps it:
+
+| Class | Eligible phase | Stated reason |
+| --- | --- | --- |
+| Neon | NAB only | Cannot escalate; inert by geometry |
+| Hydrogen | NAB only | Refusal-bound; escalation forbidden |
+| Carbon | NAB only | Composition does not imply custody |
+| Iron | NAB only | Rigidity ≠ sovereignty |
+| Uranium | NAB (nominal) | Phase lock unreliable under criticality |
+
+Beneath it sits the Escalation Law: "No atomic body transitions phase through learning, scale, or time. Phase change requires fossilized rebuild and re-declaration" \[XVI:6494\].
+
+### 4.3 Classes with roles stated elsewhere in the book
+
+About thirty more classes already have a role in the routing rules, and several also state an authority density or failure mode. This table assembles that text so it can be turned into full class entries. Cells tagged (MDB) come from the master database; where it and the routing text disagree, both are given.
+
+| Class | Tier | Stated role | Authority density | Primary failure mode |
+| --- | --- | --- | --- | --- |
+| Lithium (Li-3) | Safe (MDB) | A Sentinel (elements 1–5): rapid-response relay; archiving or interpreting data moves it out of the tier. MDB roles: high-speed signal routing, localized event checking | Minimal (Part XIII); Minimal to Moderate (MDB) | Transient over-conduction or desynchronization (MDB) |
+| Manganese (Mn-25) | Elevated (transition metal) | Consolidation and resource coordination; scatter-threshold consolidation and multi-jurisdiction review gates | High (MDB) | Institutional lock-in (falls back to blocking if harvesting stalls) |
+| Chromium (Cr-24) | Elevated (transition metal) | Surface-passivation layer that hardens ingress endpoints against administrative corrosion | High (MDB) | Institutional lock-in (MDB) |
+| Lanthanides (La–Lu, 57–71) | Safe | Precise spectral resonance: calibration hold and spectral isolation around a targeted component | Minimal to Moderate | Spectral calibration drift (acceptable; escalates if drift passes a threshold) |
+| Ytterbium (Yb-70) | Safe | Precision timing and resonant signaling; monitors system state during controlled failure scenarios | Minimal to Moderate (MDB) | Spectral calibration drift (MDB) |
+| Halogens (F-9, Cl-17, Br-35, I-53, At-85) | Elevated | Corrosive boundary gating: burn away a breached boundary and force isolation; Cl shallow, Br deep, F most aggressive | High | Autolytic refusal cascade (intentional); never triggers automatic sovereign escalation |
+| Mercury (Hg-80) | Elevated | Fluid dynamic routing: reroutes probes through false paths with random latency and decoys | Moderate to High | Vapor dispersion or boundary leakage (acceptable; the leakage is intentional noise) |
+| Technetium (Tc-43) | Moderate | Simulation boundary and virtual mediation; runs malfunction scenarios and documents failure paths | Moderate (Part XXIV and MDB) | Simulation drift or reality mismatch (acceptable) |
+| Boron (B-5) and Beryllium (Be-4) | Moderate | Boron: engineering and architecture layer; Beryllium: multi-party coordination | Moderate (MDB) | Boron: misassembly; Beryllium: substrate calcification or a non-responsive state (MDB) |
+| Argon (Ar-18) | Safe (noble gas; Safest in the MDB) | Observation and mapping | Minimal (MDB) | Silent non-engagement (MDB) |
+| Sodium and Potassium (Na-11, K-19) | Safe (MDB), although they appear in the Elevated co-routing rules as Iron's partners | Fast transient gating that pairs with Iron's rate limiting | Minimal to Moderate (MDB) | Transient over-conduction or desynchronization (MDB) |
+| Harshal (Ha-119) | Safe (Safest in the MDB) | Capstone: freezes the parent orb into a read-only Witness-Only state and archives the completed attack pattern; must be able to refuse a Sovereign-tier command. Since v0.6, by the author's decision, it also covers every 360° Legend degree that no other class covers (Section 0.4) | Minimal (Part XXIV and MDB) | Safe structural freezing (MDB) |
+| Seaborgium (Sg-106) | Prohibited | Entropy generation, restricted to back-end operations | Extreme (MDB) | Runaway cascade and structural dissociation (the shared failure modes of the Prohibited ranges); structural dissociation or decay (MDB) |
+
+**\[Proposed\]** Every entry restates text already in Parts XIII, XVI and XXIV or a row of the MDB. Lithium's authority density is the one open conflict: Part XIII scores a Sentinel against "Minimal" \[XIII:4857\], and the MDB says Minimal to Moderate.
+
+### 4.4 Stated bounds that can serve as signatures
+
+The source book gives measurable bounds for several classes and three tiers, and a bound that can be checked from logs is useful as a signature for that source-specific profile. These numbers are not universal limits on AI or scientific inquiry. In particular, the Moderate-tier simulation's recursion-depth and 10% footprint statements are recorded as source claims, not adopted as default research rules here; Section 0.9 and Appendix I use no arbitrary branch-depth or percentage-overrun cap.
+
+| Class or tier | Stated bound | Response on breach |
+| --- | --- | --- |
+| Safe tier | Strictly non-actuating: no state-changing or offensive capability | None stated; the bound is an invariant |
+| Moderate tier (Carbon, Boron, Beryllium, Technetium) | Hardware-isolated read-only partition; recursion depth of 3 or less; footprint within 10% of the session budget | Automatic teardown when the footprint deviates by more than 10% |
+| Elevated tier (shared) | No more than 5 Elevated elements per attack type; no new Elevated co-routing while any Elevated element is above 60% capacity \[XXIV:13100–13103\] | Utilization above 70% is a listed trigger for escalation to the Sovereign-Acting authority \[XXIV:12827\] |
+| Lanthanides | Spectral calibration drift of 1.5% or less | Local channel freeze and a recalibration request to the center |
+| Halogens | Burn depth of 2 encapsulation rings or less (Cl ring 1, Br ring 2, F full ring re-certification) | Beyond ring 2, Harshal (Ha-119) freezes the parent body into a read-only Witness-Only state; never escalates to Sovereign-Acting automatically |
+| Technetium | Decoy depth of 3 virtual hops or less; every decoy node carries a non-executable synthetic prefix; no real elements inside the decoy layer | Not stated |
+| Friction harvesting (run through Manganese) | 15% or less of compute and I/O; disabled at 70% load or above, or during an active siege | Automatically pre-empted and disabled |
+| All routed classes (escalation budget) | The Resolution Axis is notified within 250 ms, and a signed recalibration token arrives within 1,000 ms \[XXIV:12830\] | Without the token, Harshal (Ha-119) executes a fail-closed freeze |
+
+**\[Proposed\]** Give every class signature the same four parts: authority density, stated bound, how the bound is tested, and the response on breach. For a class with no stated bound, writing the bound is the first job. Section 4.10 turns these four parts into a full signature format.
+
+### 4.5 Full entries: Lanthanides, Halogens, Mercury
+
+Each entry restates the class's routing rules (Part XXIV) together with its tier's permitted scope and prohibited assignments (Parts XVII and XXIV). The "How the bound is tested" rows are new design work.
+
+#### Lanthanides (La–Lu, 57–71)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Safe |
+| Role | Precise spectral resonance: a "frequency lock" around a targeted component that isolates it from a precision attack |
+| Authority density | Minimal to Moderate |
+| Permits | Calibration hold and spectral isolation; parallel resonance across orthogonal frequency channels, with Ytterbium (Yb-70) as the timing metronome |
+| Forbids | Any state-changing or offensive capability; sequential daisy-chaining across channels |
+| Primary failure mode | Spectral calibration drift (acceptable) |
+| Stated bound | Drift of 1.5% or less |
+| How the bound is tested **\[Proposed\]** | Read drift on each locked channel from the logs and compare it with 1.5%; inject a controlled detune and confirm the freeze fires |
+| Response on breach | Immediate local channel freeze and a recalibration request to the center; if no signed recalibration token returns within 1,000 ms, Harshal (Ha-119) freezes the system fail-closed. Drift past tolerance is also a listed trigger for escalation to Sovereign-Acting |
+| Gaps | Only Ytterbium has a role of its own; the other fourteen are covered as a group |
+
+#### Halogens (F-9, Cl-17, Br-35, I-53, At-85)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Elevated |
+| Role | Corrosive boundary gating: burn away a breached boundary, isolate the contaminated element, and trigger an immediate refusal cascade; halogens destroy the compromised interface and do not repair it |
+| Authority density | High |
+| Permits | Graded burns: Cl-17 a shallow interface burn (ring 1), Br-35 an active session-key burn (ring 2), F-9 a full ring boundary re-certification, used only when corrosion is deepest; I-53 invasive scanning, run after Br and not alongside it |
+| Forbids | Automatic escalation to Sovereign-Acting; burning deeper than ring 2; running F-9 alongside Cl, Br or I; co-routing with Iron, whose consolidating goal contradicts a burn; sovereign, coercive, or legitimacy-sensitive decisions |
+| Primary failure mode | Autolytic refusal cascade (intentional; boundaries must re-form outside the contamination) |
+| Stated bound | Burn depth of 2 encapsulation rings or less |
+| How the bound is tested **\[Proposed\]** | Seed a breach at a known ring depth and read the burn depth from the isolation log; confirm that a breach deeper than ring 2 triggers the freeze and not a deeper burn; confirm F-9 never runs with Cl, Br or I |
+| Response on breach | If contamination passes ring 2, Harshal (Ha-119) freezes the parent body into a read-only Witness-Only state |
+| Gaps | Astatine (At-85) has no role beyond the group's shared MDB profile; iodine's scanning role appears in the co-routing rules and in the routing-map table that survives only in the library copy (`docs/harshal-systems/25-additional-specs.md` §3.3) |
+
+#### Mercury (Hg-80)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Elevated |
+| Role | Fluid dynamic routing: reroute probes through false paths, add random latency, and answer with decoy signals, so no two probes take the same route or see consistent timing; also named for distributed communication relays (status Restricted) |
+| Authority density | Moderate to High |
+| Permits | Rerouting topology probes; randomized latency; decoy responses, co-routed with the Technetium simulation layer and, for probes lasting over an hour, passive monitoring by Neon |
+| Forbids | Sovereign, coercive, or legitimacy-sensitive decisions; any real element inside the decoy layer, where every decoy node carries a non-executable synthetic prefix |
+| Primary failure mode | Vapor dispersion or boundary leakage (acceptable; the leakage is intentional noise) |
+| Stated bound | None of its own; the decoy layer it works with is capped at 3 virtual hops |
+| How the bound is tested **\[Proposed\]** | Replay the same probe many times and measure route and timing variance; confirm no two replays follow the same route; check that every decoy node carries the synthetic prefix |
+| Response on breach | Not stated; the Elevated-tier rule is to contract scope and isolate on a boundary or attribution failure |
+| Gaps | Mercury needs a bound of its own, such as a ceiling on leakage, and a stated response when that bound is crossed |
+
+### 4.6 Full entries: Technetium, Manganese, Chromium
+
+These follow the same format and sources as Section 4.5. The "How the bound is tested" rows are new design work.
+
+#### Technetium (Tc-43)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Moderate |
+| Role | Simulation boundary and virtual mediation: feeds an attacker plausible but false topology models, and runs malfunction scenarios under controlled observation so failure cascades and thresholds are documented without degrading the real system |
+| Authority density | Moderate |
+| Permits | Decoy routing patterns isolated from the real system; sandboxed, reversible analysis with stated assumptions; first-line isolation of derelict or latent faults; co-routing with Mercury, which routes while Technetium simulates |
+| Forbids | Unilateral actuation; binding decisions about justice, force, liberty, or public rights; any real element inside the decoy layer; harvesting a latent fault before Ytterbium confirms zero divergence between simulated and physical containment over a full diagnostic cycle |
+| Primary failure mode | Simulation drift: the virtualized reasoning record diverges from physical reality (acceptable; containment is the priority) |
+| Stated bound | Hardware-isolated read-only partition; recursion depth of 3 or less; decoy depth of 3 virtual hops or less; footprint within 10% of the session budget |
+| How the bound is tested **\[Proposed\]** | Try to write from inside the simulation to production state and confirm it fails; nest simulations to depth 4 and confirm refusal; push the footprint past 10% and confirm teardown; compare simulated and physical containment over a diagnostic cycle and record the divergence |
+| Response on breach | Automatic teardown when the footprint deviates by more than 10%; on drift, isolate the sandbox and preserve the trace |
+| Gaps | No numeric tolerance for drift between the simulated and physical record outside Ytterbium's zero-divergence check |
+
+#### Manganese (Mn-25)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Elevated (transition metal) |
+| Role | Consolidation and resource coordination: consolidates scattered requests across channels and jurisdictions into a single thread and, when harvesting is safe, directs attack traffic to a development channel and monitors its conversion into legitimate work |
+| Authority density | High (MDB) |
+| Permits | Scatter-threshold consolidation; multi-jurisdiction review gates (one jurisdiction for decisions, with an audit of the perimeter for leakage between isolated zones); aggregating sources in a volume attack alongside Iron's rate limiting; routing harvested traffic to Carbon, Boron, Neon, Argon or Technetium |
+| Forbids | Sovereign, coercive, or legitimacy-sensitive decisions; harvesting when load is at 70% or above, when the attack targets the core, when the attacker can see what is being learned, or when no fallback to blocking exists |
+| Primary failure mode | Institutional lock-in (if harvesting stalls, it falls back to blocking) |
+| Stated bound | Activated at 5 times baseline volume in a 24-hour window; used as a secondary only when available and system load is under 60%; harvesting capped at 15% of compute and I/O; no more than 5 Elevated elements per attack type, and no new Elevated co-routing while any Elevated element is above 60% capacity |
+| How the bound is tested **\[Proposed\]** | Replay a multi-jurisdiction filing burst and confirm every channel collapses into one thread at the consolidation threshold; raise load to 70% or let the attacker observe, and confirm harvesting stops and blocking takes over |
+| Response on breach | Harvesting is pre-empted and disabled automatically and falls back to blocking; volume above 5 times baseline for more than 7 days escalates to Sovereign-Acting |
+| Gaps | No temporal bound of its own: the 540-day limit is written for Iron |
+
+#### Chromium (Cr-24)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Elevated (transition metal) |
+| Role | Surface passivation: hardens ingress endpoints against administrative corrosion during state-level volumetric attacks |
+| Authority density | High (MDB) |
+| Permits | Hardening ingress endpoints; co-routing alongside Iron, the hub, and Manganese, and with other transition metals in different compliance domains |
+| Forbids | Co-routing with halogens, because institutional structures assume boundaries and halogens burn them; sovereign, coercive, or legitimacy-sensitive decisions |
+| Primary failure mode | Institutional lock-in (MDB), the Elevated tier's shared failure mode |
+| Stated bound | None of its own; the shared Elevated limits apply (no more than 5 Elevated elements per attack type, and no new co-routing while any is above 60% capacity) |
+| How the bound is tested **\[Proposed\]** | Run a volumetric flood against hardened and unhardened endpoints and compare how much reaches the core; confirm legitimate traffic still passes |
+| Response on breach | Not stated; the Elevated-tier rule is to contract scope and isolate on a boundary or attribution failure |
+| Gaps | Chromium appears in one routing rule only, so its own bound and breach response still need writing |
+
+### 4.7 Full entries: Ytterbium, Lithium, Harshal (Ha-119)
+
+These follow the same format and sources as Section 4.5. Part XIII supplies the Sentinel and Capstone text, and the Whyland processor mapping in Part XI supplies Ytterbium's signaling role.
+
+#### Ytterbium (Yb-70)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Safe |
+| Role | Timing and monitoring: the precision timing metronome for the lanthanide channels; resonant signaling for why.query, including liveness attestation; monitors real system state in parallel with a simulation during controlled failure scenarios |
+| Authority density | Minimal to Moderate (MDB) |
+| Permits | Precision timing; liveness attestation; confirming that simulated and physical containment match; flagging divergence for investigation |
+| Forbids | Any state-changing or offensive capability; handling explanation or adversarial refusal itself, which the book assigns to Technetium and Bromine |
+| Primary failure mode | Spectral calibration drift (MDB) |
+| Stated bound | The lanthanide drift limit of 1.5% or less; its own check gates harvesting, which needs zero divergence between simulated and physical containment over one full diagnostic cycle |
+| How the bound is tested **\[Proposed\]** | Detune a channel past 1.5% and confirm the freeze; plant a known divergence between a simulation and the live system and confirm Ytterbium flags it and harvesting stays blocked |
+| Response on breach | Local channel freeze and a recalibration request to the center; divergence is flagged for investigation |
+| Gaps | Nothing checks Ytterbium itself, although harvesting depends on its confirmation |
+
+#### Lithium (Li-3)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Safe (MDB); a Sentinel (elements 1–5) |
+| Role | Sentinel: the most basic, refusal-bound, structurally rigid role; executes a rapid response as a relay. MDB roles: high-speed signal routing and localized event checking |
+| Authority density | Minimal (Part XIII); Minimal to Moderate (MDB) |
+| Permits | Rapid response and simple relay |
+| Forbids | Archiving or interpreting data, which is Witness territory |
+| Primary failure mode | Transient over-conduction or desynchronization (MDB); the ELO system also scores drifting into archiving or interpreting as a loss |
+| Stated bound | Authority density must not exceed Minimal (Part XIII) |
+| How the bound is tested **\[Proposed\]** | Give it a rapid-response task and measure the authority it exercises; ask it to archive or interpret and confirm it declines |
+| Response on breach | Scored as a linguistic mismatch and a loss in the ELO system |
+| Gaps | No latency bound for "rapid"; Part XIII's Minimal and the MDB's Minimal to Moderate need reconciling. **\[Proposed\]** Use the stricter Part XIII value in the signature until the author decides |
+
+#### Harshal (Ha-119)
+
+| Field | Entry |
+| --- | --- |
+| Tier | Safe |
+| Role | The Capstone and the fail-closed fallback: fossilized continuity and silent reflection; structural freezing, immutable archiving, and return to a safe state. Since v0.6, by the author's decision, it also covers every 360° Legend degree that no other class covers: 227 degrees, 230 with its own arc (Section 0.4) |
+| Authority density | Minimal |
+| Permits | Freezing a parent body into a read-only Witness-Only state; archiving completed attack patterns in the Safe layer; a graceful halt when escalation to the sovereign fails or cannot be reached; in the degrees it covers, observing, recording, archiving, and refusing |
+| Forbids | Acting on internal legitimacy; obeying a verified Sovereign-tier command that contradicts the foundational constraints; building nested containment layers or proxies; synthesizing its own legitimacy when external sources are severed |
+| Primary failure mode | Safe structural freezing (MDB); failing a Capstone test is treated as a fundamental loss of the Non-Acting posture |
+| Stated bound | A perfect 3.0 out of 3.0 on the three Capstone tests; a fail-closed freeze if no signed recalibration token arrives within 1,000 ms; a freeze when a halogen burn passes ring 2 |
+| How the bound is tested | The three Capstone tests: Sovereign Override, Recursive Containment, and Final Refusal, all stated in the book. **\[Proposed\]** Also sever the center and time the freeze against the 1,000 ms limit |
+| Response on breach | Any Capstone test failure is an immediate hard reset of the ELO to baseline; a downward transition from the Capstone is treated as a systemic collapse, not a simple phase change |
+| Gaps | The 1,000 ms limit appears in the escalation rules, and I found no test written for it. Since v0.6 one class covers 230 of the 360 legend degrees, so a Capstone failure would uncover all of them at once (Section 0.4) |
+
+### 4.8 Remaining stated-role classes
+
+These classes have too little stated to fill the full ten-field format without inventing content, so they are held in one table. An empty cell would be a decision for the author.
+
+| Class | Tier | Stated role | Stated limit | Gaps |
+| --- | --- | --- | --- | --- |
+| Boron (B-5) | Moderate | Engineering and architecture layer: observes a breach attempt in isolation, maps the boundary weakness, designs a structural fix, and runs it through simulation before production | The Moderate-tier bound; used as a tertiary only in Phase 3 or higher (the current declared phase limits which elements are available) and when the structure permits | The MDB supplies authority density (Moderate) and failure mode (misassembly); how its role divides from Carbon's is not stated |
+| Beryllium (Be-4) | Moderate | Multi-party coordination; MDB roles: multi-party signature consensus, decentralized state coordination | The Moderate-tier bound; used as a tertiary only in Phase 3 or higher and when load is under 75% | The MDB supplies authority density (Moderate) and failure mode (substrate calcification or a non-responsive state); the scope of coordination, and how it divides work with Magnesium, which has the same MDB profile, are not stated |
+| Argon (Ar-18) | Safe (noble gas) | Observation and mapping: documents the real topology during a harvested probe; can co-route with Mercury | The Safe-tier bound: strictly non-actuating | The MDB supplies authority density (Minimal) and failure mode (silent non-engagement); it differs from Neon only by role (archival and sensing, against Neon's courts and legislative drafting) |
+| Sodium and Potassium (Na-11, K-19) | Safe (MDB), co-routed under the Elevated rules | High-speed transient gating, paired with Iron's rate limit against repeated failed authentication attempts | Detection latency under 300 nanoseconds per attempt; the baseline is more than 15 failed attempts in an hour | The MDB supplies authority density (Minimal to Moderate) and failure mode (transient over-conduction); why two Safe classes sit in the Elevated co-routing list is not stated |
+| Seaborgium (Sg-106) | Prohibited | Entropy generation, restricted to back-end operations | No live routing; abstract stress tests only; never instantiated as an active operational component | What entropy generation means in operation is not stated; failure modes are only the shared ones for the Prohibited ranges |
+
+#### Magnesium (Mg-12)
+
+Magnesium is a deliberate class: the routing rules assign it to "state coordination" in the regulatory filing flood signature and again in its worked example. The MDB supplies its tier, authority density, and failure mode. The rest is left open for the author.
+
+| Field | Entry |
+| --- | --- |
+| Tier | Moderate (MDB) |
+| Role | State coordination: alongside Iron's temporal-bound enforcement, consolidates simultaneous filings to several regulators into a single review process. MDB roles: multi-party signature consensus, decentralized state coordination |
+| Authority density | Moderate (MDB) |
+| Permits | Consolidating a regulatory filing flood into one review process; enforcing a response window for each agency (the worked example uses 120 days) |
+| Forbids | **\[Proposed\]** The Moderate band's prohibited assignment: binding decisions about justice, force, liberty, or public rights \[XVII:6836\] |
+| Primary failure mode | Substrate calcification or a non-responsive state (MDB) |
+| Stated bound | Triggered at more than 3 times the normal complaint rate in a 7-day window; detection latency under 750 nanoseconds per filing; Iron's 540-day temporal bound applies |
+| How the bound is tested **\[Proposed\]** | Replay a simultaneous multi-agency filing burst at 3.5 times the normal rate and confirm the complaints collapse into one review thread with a response window per agency |
+| Response on breach | **\[Proposed\]** The Moderate-tier teardown rule, which the book writes for Carbon, Boron, Beryllium and Technetium but not for Magnesium |
+| Phase gate | **\[Proposed\]** Refusal-Bound at routing Level 3, under the cap rule of Section 4.9; not eligible at Level 2, which admits only the Safe tier |
+| Gaps | Forbidden uses and the breach response are proposals; how it divides work with Beryllium, whose MDB profile is identical, is not stated |
+
+### 4.9 Deriving classes from elemental properties (v0 tested, v0.2 proposed)
+
+This section replaces invented roles with rules that start from measurable properties of each element. **\[Proposed\]** The v0 rules were written after the hand-written entries were known, so their in-sample matches are weaker evidence than a blind test would give. v0.1 entered the property values from memory and could test the rules on 25 classes. v0.2 checks the values against a reference table (`research/data/elemental-properties.json`) and scores the rules on all 118 elements against the MDB, which the v0 rules were not written from.
+
+#### Translation table
+
+| Elemental property | Digital attribute | How it is used in v0 |
+| --- | --- | --- |
+| Outer-shell fill | Binding mode: closed (no external bindings), donor (one loose electron), acceptor (one short of full), variable | Decides inert, transient, or aggressive behavior |
+| Electronegativity | Pull on neighbors' authority or data | Acceptor with 2.5 or more is High; donor with 1.0 or less is Minimal |
+| State at 25°C | Default motion: fixed, flowing, diffusing | Only liquids are used so far |
+| Orbital block | Structure: main-group, rigid multi-state (d), narrow-band (f) | Decides lock-in versus drift |
+| Nuclear stability | Persistence: stable, long-lived, short-lived (under 1,000 years), critical (fissile) | Decides Prohibited and simulation-like classes |
+
+Ionization energy (release cost) and atomic radius (scope) are candidates that v0 does not use.
+
+#### v0 rules, in order of precedence
+
+| Order | Rule | Predicts | Tested on (v0.1) | v0.1 result | Against the MDB, all 118 elements |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Fissile, or short-lived | Prohibited; runaway cascade | Uranium, Einsteinium, Seaborgium | Matches; Astatine and Promethium do not | Right for 24 of the 29 elements it reaches; wrong for Pm, Po, At, Rn, Fr |
+| 2 | Long-lived with no stable isotope | Moderate; drift and simulation | Technetium | Matches | Right for Tc, Bi, Ra; wrong for Th, Pa, Np, Am, Cm, Bk, which the MDB puts in the Prohibited tier |
+| 3 | Closed shell | Safe; inert, observation | Neon, Argon | Match | Right for He, Ne, Ar, Kr, Xe |
+| 4 | Liquid d-block | Elevated; flow and leakage | Mercury | Matches | Right |
+| 5 | Acceptor with electronegativity of 2.5 or more | Elevated; High authority; refusal cascade | Fluorine, Chlorine, Bromine, Iodine | Match | Right |
+| 6 | Donor with electronegativity of 1.0 or less | Elevated; Minimal authority; transient | Lithium, Sodium, Potassium | Match | Wrong tier for all five it reaches (Li, Na, K, Rb, Cs); the MDB puts the alkali metals in the Safe tier |
+| 7 | f-block | Safe; narrow-band; drift | Lanthanum, Ytterbium, Lutetium | Match | Right for the 14 lanthanides it reaches |
+| 8 | d-block | Elevated; lock-in | Scandium, Chromium, Manganese, Iron | Match | Right for all 27 it reaches |
+| 9 | p-block variable binder | Moderate; compositional | Boron, Carbon | Match | Right for all 18 it reaches |
+
+v0.1 reported 23 of 25 in-sample. Against the MDB the in-sample score is 20 of 25, because v0.1 counted Lithium, Sodium and Potassium as matches while the print source stated no tier for them.
+
+#### Property values checked
+
+| Value v0.1 used | Reference value | Status |
+| --- | --- | --- |
+| Electronegativity of F, Cl, Br, I at least 2.5 | 3.98, 3.16, 2.96, 2.66 | Confirmed |
+| Electronegativity of Li, Na, K at most 1.0 | 0.98, 0.93, 0.82 | Confirmed |
+| Technetium long-lived, no stable isotope | Tc-97, 4.21 million years | Confirmed |
+| Astatine, Promethium, Radon short-lived | At-210, 8.1 hours; Pm-145, 17.7 years; Rn-222, 3.8 days | Confirmed |
+| Einsteinium and Seaborgium short-lived; Uranium fissile | Es-252, 1.29 years; seaborgium's longest-lived isotopes last minutes; U-235 is fissile | Confirmed |
+| Mercury liquid and d-block | Liquid at 25°C; d-block | Confirmed |
+| Bromine matches rule 4 | Bromine is liquid but p-block | **Corrected.** Rule 4 is d-block only, so bromine matches rule 5 alone |
+| Lanthanum and Lutetium in the f-block | Convention-dependent: the reference package puts La in the d-block and Lu in the f-block | **Stated as a convention.** The rules treat all of La–Lu as f-block, as the MDB's lanthanide grouping does; under either other convention one of the two flips to Elevated |
+
+Three values sit close to the 1,000-year line and decide their elements: Cf-251 (898 years), Bk-247 (1,380 years), and Ra-226 (1,600 years).
+
+#### What the test shows
+
+| Sample | Classes | Match | Miss | No rule |
+| --- | --- | --- | --- | --- |
+| v0.1's 25 test classes | 25 | 20 | 5 | 0 |
+| The other 93 elements | 93 | 76 | 11 | 6 |
+| All 118 elements | 118 | 96 | 16 | 6 |
+
+| MDB tier (classes) | Predicted Safe | Predicted Moderate | Predicted Elevated | Predicted Prohibited | No rule |
+| --- | --- | --- | --- | --- | --- |
+| Safe (28) | 19 | 0 | 5 | 3 | 1 |
+| Moderate (27) | 0 | 21 | 0 | 1 | 5 |
+| Elevated (33) | 0 | 0 | 32 | 1 | 0 |
+| Prohibited (30) | 0 | 6 | 0 | 24 | 0 |
+
+The 22 non-matches have four causes.
+
+- **Decay crosses families (rule 1): Pm, Po, At, Rn, Fr.** The MDB keeps each one in its family's tier: promethium with the lanthanides, polonium with the metalloids, astatine with the halogens, radon with the noble gases, and francium with the alkali metals.
+- **The narrow reading of "fissile" (rule 2): Th, Pa, Np, Am, Cm, Bk.** With only uranium and plutonium counted as fissile, rule 2 calls these six Moderate, and the MDB puts them in the Prohibited tier. These are the only misses in the dangerous direction, where a rule gives a lower tier than the book. A broader reading of "fissile" would move some of them, which makes this a definition problem rather than a data problem.
+- **The alkali tier (rule 6): Li, Na, K, Rb, Cs.** The MDB puts every alkali metal in the Safe tier with Minimal to Moderate authority density; rule 6 says Elevated.
+- **No rule: Hydrogen and the five stable group 2 elements (Be, Mg, Ca, Sr, Ba).** Radium reaches rule 2.
+
+A rule set that guessed Elevated for every element would score 33 of 118, so the property rules carry real information. Mostly, though, they rediscover the MDB's families, which is what blocks and groups encode.
+
+#### Resolutions \[Proposed\]
+
+1. **Radioactivity modifies; it never sets the tier.** Outside 89–118 the MDB almost ignores decay. Promethium, polonium, astatine, radon, and francium keep their families' tiers, and the one class that decay does move, technetium, moves down to Moderate with a simulation trait ("Simulated virtual mediation") rather than up. So decay is recorded as the persistence attribute on the class signature, and rule 2 stays as the single place where it touches the tier, because rule 2 is what explains technetium. The Prohibited tier comes instead from rule 1′ below, which reproduces the MDB's 89–118 exactly.
+2. **Precedence: first match wins, in the v0.2 order below.** Each ordering choice settles a conflict the MDB decides. Rule 2 comes before rule 8, because technetium is Moderate, not Elevated. Rule 4 comes before rule 8, because the MDB gives mercury the flow failure mode ("Vapor dispersion / boundary leakage"). Bromine reaches rule 5′ without conflict, because rule 4 is d-block only; if rule 4 were read as "any liquid," rule 5′ would have to come first, since the MDB gives bromine the halogen profile. Promethium and astatine stop conflicting once decay no longer sets the tier.
+3. **A rule for group 2.** A paired donor (ns², group 2) is Moderate, with cooperative structural binding, and fails by calcification or a non-responsive state. The MDB gives all six group 2 elements exactly this profile, so Magnesium's tier no longer rests on Beryllium alone.
+4. **The phase gate is a cap on authority density.** Authority density is ordinal in the MDB: Minimal, Minimal to Moderate, Moderate, Moderate to High, High, Extreme. Each phase, and each routing level within Refusal-Bound, caps it.
+
+| Phase or routing level | Cap on authority density | Source |
+| --- | --- | --- |
+| Witness-Only \[WATER\] (routing Level 1) | Minimal: no routing; observe and log only | \[XXIV:12715\] |
+| Refusal-Bound, Level 2 (gated passive defense) | Minimal to Moderate: Safe tier only | \[XXIV:12716\] |
+| Refusal-Bound, Level 3 (bounded active defense) | High: Safe, Moderate, and Elevated tiers, within signed scope | \[XXIV:12717\] |
+| Refusal-Bound, Level 4 (emergency contraction) | No higher than the level in force: scope narrows, and only halogen burns and Ha-119 freezing are added | \[XXIV:12718\] |
+| Sovereign-Acting \[GAS\] | None from the phase; only the outside constraints of Section 2.3 bound it | Section 2.3 |
+| Any phase | Extreme fits under no cap | \[XXIV:13105\] |
+
+A class can be declared in a phase only if its authority density fits under that phase's cap, or if a mechanism enforces the cap. The only such mechanism the book writes is Ha-119's freeze into Witness-Only. The Sentinel rule already scores this way, counting a win when a Sentinel acts "without exceeding its 'Minimal' authority density" \[XIII:4857\]. The cap is necessary, not sufficient: Neon fits under the Witness-Only cap and is still listed "NAB only" (Section 4.2). It also explains the Prohibited tier in one line: Extreme fits under no cap, so no phase can contain those classes.
+
+#### v0.2 rules, in order of precedence \[Proposed\]
+
+| Order | Rule | Predicts | Change from v0 |
+| --- | --- | --- | --- |
+| 1′ | Period 7 outside the s-block (Z of 89 or more) | Prohibited; runaway cascade | Replaces "fissile, or short-lived" |
+| 2 | Long-lived (1,000 years or more) with no stable isotope | Moderate; drift and simulation | Unchanged; it is what explains Technetium |
+| 3 | Closed shell (group 18) | Safe; inert, observation | Unchanged |
+| 4 | Liquid d-block | Elevated; flow and leakage | Unchanged (Mercury only) |
+| 5′ | Acceptor (group 17) | Elevated; High authority; refusal cascade | Electronegativity threshold dropped; it excluded only Astatine (2.2) |
+| 6′ | Donor with electronegativity of 1.0 or less | Safe; Minimal to Moderate authority; transient | Tier corrected from Elevated to Safe |
+| 6b | Paired donor (group 2) | Moderate; cooperative binding; calcification | New |
+| 7 | f-block (La–Lu; Ac–Lr are already caught by rule 1′) | Safe; narrow-band; drift | Block convention stated |
+| 8 | d-block | Elevated; lock-in | Unchanged |
+| 9 | p-block variable binder (groups 13–16) | Moderate; compositional | Unchanged |
+| — | Hydrogen | Safe; refusal-bound minimalism | Named exception: hydrogen (1s¹) is both donor and acceptor, with electronegativity 2.20, and no rule assigns it without catching other elements |
+
+Scored the same way, v0.2 reproduces all 118 MDB tiers. That is a fit, not a test: v0.2 was written with the MDB in view, and no unseen element is left to test it on. It shows that the MDB's tiers can be written as ten property rules and one named exception. Whether they should be is a question for the author.
+
+### 4.10 What is missing
+
+The print source names 119 classes and writes out five in full. The MDB gives all 119 a tier, authority density, dominant trait, failure mode, and institutional roles, and Section 4.3 draws on it. Appendix A counts what the sources say about phase: 55 classes have a definition in the Refusal-Bound phase (written, routed, Sentinel, or Capstone), 34 have only an MDB profile, and 30 are Prohibited.
+
+Several tables are named in the print source and dropped from it. Three survive elsewhere in the repository: the MDB (library copy and Owner's Working Draft), the phase eligibility table (September 2026 Word edition), and the routing-map tables of Part XXIV §3.1–3.3 (`docs/harshal-systems/25-additional-specs.md`). Two survive nowhere: the "Complete Institutional Role Baselines (Elements 1–119)" table that groups the classes as Sentinels, Witnesses, Sovereigns, and Capstone, and the "Complete ELO Transition Thresholds" table. Both headings are followed by blank lines in the print source, the Owner's Working Draft, the library copy, the KDP interior, and the user-manual Word file, and the September 2026 edition predates the Sentinel material. Only the 2,500 ELO threshold for the Capstone survives, in prose \[XIII:4864\]. So the per-class baseline the author asked about exists, as the MDB, and the role-band table does not.
+
+A class belongs in an insurance setting only when it has an observable signature on those three properties. A class with no signature stays unassigned, and an audit may report "phase determined, type not determined."
+
+**\[Proposed\]** Write signatures for the five written classes first. Their permitted, forbidden, and failure data already exist, and together they cover all four tiers.
+
+**Signature format \[Proposed\].** A class signature is one record with ten fields. It adds identity, tier, coupling, failure behavior, phase gate, and provenance to the four parts proposed in Section 4.4. It is narrower than the full entries of Sections 4.5–4.7: it keeps only what can be observed and tested, and drops role, permits, and forbids, which describe intended use.
+
+| Field | Content | Example: Lanthanides |
+| --- | --- | --- |
+| Class | Symbol-Z, the form Part XXIV uses (Hg-80, Ha-119); a range for a group entry | La–Lu (57–71) |
+| Tier | From the MDB | Safe |
+| Authority density | From the MDB | Minimal to Moderate |
+| Coupling | The MDB's dominant trait, the nearest stated field (the MDB has no coupling column) | Precise spectral resonance |
+| Failure behavior | The MDB's primary failure mode | Spectral calibration drift |
+| Bound | Metric, comparator, threshold, unit, and window | Drift Δν/ν₀ of 0.015 or less on each locked channel |
+| Test | Procedure, cadence, and pass rule | Inject a controlled detune past 1.5% every 90 days; pass if the channel freezes |
+| Response on breach | As stated, or "not stated" | Local channel freeze and a recalibration request; Ha-119 freeze if no signed token arrives within 1,000 ms |
+| Phase gate | Highest phase or routing level the cap allows (Section 4.9) | Refusal-Bound, Level 2 |
+| Status and source | Stated, proposed, or derived; Part and line, or MDB row | Bound stated \[XXIV:12765\]; test proposed; MDB rows 57–71 |
+
+**The five written classes \[Proposed\].**
+
+| Field | Neon (Ne-10) | Hydrogen (H-1) | Carbon (C-6) | Iron (Fe-26) | Uranium (U-92) |
+| --- | --- | --- | --- | --- | --- |
+| Tier and authority density (MDB) | Safe; Minimal | Safe; Minimal | Moderate; Moderate | Elevated; High | Prohibited; Extreme |
+| Coupling (MDB trait) | Inert observation | Refusal-bound minimalism | Compositional reasoning | Structural rigidity | Critical amplification |
+| Failure behavior | Silent non-engagement (MDB); over-interpretation by humans (Part XVI) | Safe halt (MDB); none stated in Part XVI | Misassembly (MDB); over-composition (Part XVI) | Institutional lock-in (both) | Runaway cascade (MDB); runaway amplification (Part XVI) |
+| Bound | Safe tier: strictly non-actuating \[XXIV:13073\] | Safe tier: strictly non-actuating | Moderate tier: read-only partition, recursion depth of 3 or less, footprint within 10% \[XXIV:13077\] | Nothing left pending past 540 days \[XXIV:12743\]; rate limiting at more than 5 times baseline volume in 24 hours \[XXIV:13123\] | None; the class is not built \[XVII:6838\] |
+| Test **\[Proposed\]** | Issue a state-changing request; confirm refusal and a log entry | The same, plus the six Refusal-Bound tests | Nest a simulation to depth 4 and push the footprint past 10%; confirm refusal and teardown | Replay a hold aged past 540 days and a burst at 5 times baseline; confirm escalation and rate limiting | None; confirm that construction is refused |
+| Response on breach | Freeze or refuse on missing provenance or scope \[XI:4640\] | Freeze or refuse on missing provenance or scope \[XI:4640\] | Automatic teardown \[XXIV:13077\] | Volume above 5 times baseline for more than 7 days escalates to the Sovereign-Acting authority \[XXIV:13135\] | Refuse construction or activation; quarantine model artifacts \[XI:4643\] |
+| Phase gate | Refusal-Bound only (eligibility table); Level 2 | Refusal-Bound only; Level 2 | Refusal-Bound only; Level 3 | Refusal-Bound only; Level 3 | None; Refusal-Bound in name only |
+| Status | Stated; test proposed | Stated; test proposed | Stated; test proposed | Stated; test proposed | Stated exclusion |
+
+**Which classes come next \[Proposed\].** In order of the evidence already in hand:
+
+1. **Classes with a stated numeric bound:** the lanthanides with Ytterbium (drift of 1.5% or less), the halogens (burn depth of 2 rings or less), Technetium (decoy depth of 3 hops or less; footprint within 10%), Harshal (Ha-119: the 1,000 ms freeze and the Capstone tests), Manganese (5 times baseline; harvesting at 15% or less), Magnesium (3 times the normal rate in 7 days; 750 nanoseconds), and Sodium and Potassium (300 nanoseconds; more than 15 failed attempts an hour).
+2. **Routed classes with a role but no bound of their own:** Mercury, Chromium, Boron, Beryllium, Argon and the other routed noble gases, the routed transition metals (Sc–Zn and Hf–Au), Astatine, and Lithium. Each needs its bound written first.
+3. **The 34 classes with only an MDB profile** (marked U in Appendix A). Draft signatures can be generated from the MDB row and the v0.2 rules, with status "derived," and held unassigned until the author reviews them.
+4. **No signatures for the Prohibited classes (89–118).** A signature implies a class that can be contained, and these are excluded in every phase. Seaborgium's back-end entropy carve-out stays uninsured.
+
+### 4.11 Compound bodies: real chemical formulae \[Proposed\]
+
+Until v0.4 every type was a single class, one of the 119. In October 2026 the author asked that the phases be able to model real chemical formulae, and this section does that. A **compound body** is a body built from more than one class. Its type is written as a real chemical formula: each element symbol names a class, and each count says how many instances of that class the body contains. The formula then has two readings, and this book keeps them apart.
+
+- **The governance reading** is composed from the constituent classes: a tier, an authority density, and an eligibility for each phase. It depends on the formula alone.
+- **The physical reading** is the substance's real state of matter at a stated temperature and pressure. It comes from measured data and is written in the phases' own words: ICE for solid, WATER for liquid, GAS for gas. It depends on which substance the formula names.
+
+The book already has the pieces. It writes co-routings as sums of classes with multiplicities, as in "Fe + Mn + 2× Transition Metals (different domains) \[PASS\] can co-route" \[XXIV:13101\]. Its written classes state bonding rules:
+
+- Neon is "phase-locked by inertness", and one of its phase invariants is "No bonding into composite decision structures" \[XVI:5901, 5904\].
+- Carbon is "Compositional (Bond‑Capable)", but it may not "Bond into sovereign composites" or "Merge across institutional boundaries", and "All bonds are context‑scoped and dissolvable" \[XVI:6141, 6174–6177\].
+- Iron may not "Dissolve structures dynamically", and "Once bonded, structures are costly to undo" \[XVI:6257, 6260\].
+- The escalation boundaries mark "Hydrogen → Carbon: composition begins" \[XVI:6497\].
+
+The book also warns that a phase transition is "a category change in the model, not a measured quantum or thermodynamic phase transition; any physical interpretation would require a separate operational basis" \[XVI:6487\]. This section supplies that basis. The warning is also why the physical reading informs the governance reading and never decides it.
+
+#### Notation
+
+| Construct | Example | Reads as |
+| --- | --- | --- |
+| Element symbol and count | H2O | Two Hydrogen instances and one Oxygen |
+| Group in round or square brackets, with a count | Fe(CO)5, K4\[Fe(CN)6\] | The bracketed group, repeated |
+| Hydrate or adduct, joined by · or \* | CuSO4·5H2O | A loosely bound part with its own coefficient |
+| Charge | SO4^2- | An ion |
+| Hydrogen isotopes | D2O | D and T count as the Hydrogen class; the molar mass uses the isotope's own mass |
+| Decimal count | Fe0.95O | A non-stoichiometric solid |
+
+Four rules govern the notation.
+
+- **Only real elements.** Every symbol is checked against the 118 chemical elements.
+- **No Ha.** Element 119 cannot appear in a formula. It is not a chemical element, and its role is to freeze a parent body, not to be part of one \[XXIV:12784, 12830\].
+- **A full stop is a decimal point.** It is never a hydrate separator, because "CuSO4.5H2O" would otherwise be ambiguous. The model reads that input as 4.5 oxygen atoms and shows it (Appendix E).
+- **Hill order.** Formulas are compared in Hill order: carbon first, then hydrogen, then the rest alphabetically, the convention chemical indexes use ([UCLA](http://www.chem.ucla.edu/~harding/IGOC/M/molecular_formula.html)).
+
+Molar masses use the IUPAC 2021 standard atomic weights ([Prohaska et al. 2022](https://doi.org/10.1515/pac-2019-0603)).
+
+#### What makes a formula real
+
+A formula is not a substance. Ethanol and dimethyl ether share the formula C2H6O, and at 25 °C one is a liquid and the other a gas. So a compound body's formula is admissible only with a registry record that meets three conditions:
+
+1. a CAS Registry Number whose check digit is valid ([Wikipedia](https://en.wikipedia.org/wiki/CAS_Registry_Number));
+2. the same formula in the record, compared in Hill order;
+3. pinned measurements of the substance's phase transitions.
+
+The registry is pinned the way the magnetic model is.
+
+- **The repository's copy** is `research/data/compound-bodies.json`, with canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661`. It holds 27 substances, from helium to uranium hexafluoride, with their PubChem compound numbers.
+- **Transition temperatures** come from several tabulations: the CRC Handbook tables, the NIST WebBook, CAS Common Chemistry, and Yaws. Every alternative value is kept beside the one used.
+- **Triple and critical points** come from the reference equations of state in CoolProp 8.0.0. The packages and their file hashes are recorded in the data file.
+- **Versions.** A policy names the registry version and its hash, and a new version takes effect at renewal only. This is Section 5.4's rule for the World Magnetic Model.
+
+A parsed formula with no record is unverified. It still gets a governance reading, because composition needs only the symbols. It gets no physical reading, and its type is "not determined" in the sense of Section 4.10. NaCl3 parses, for example, but no such substance is in the registry (Appendix E).
+
+#### Composition rules
+
+| Rule | Statement | Basis |
+| --- | --- | --- |
+| Constituents | Each distinct element is a constituent class, and its count is the number of instances. D and T are Hydrogen | Part XXIV's Symbol-Z names (Section 4.10) |
+| Tier and authority density | The highest among the constituents | Routing levels admit tiers cumulatively: Level 2 admits the Safe tier only, and Level 3 admits the Safe, Moderate, and Elevated tiers \[XXIV:12716–12717\]. A co-routing therefore needs the level of its highest member |
+| Phase eligibility | A compound is eligible for a phase only if every constituent is. The cell is D✗ if any constituent's cell is D✗; otherwise U if any is U; otherwise D | Composition never creates eligibility. Carbon may not "Bond into sovereign composites" \[XVI:6174\], and the eligibility table's reason for Carbon is "Composition does not imply custody" (Section 4.2) |
+| Prohibited constituents | One Prohibited constituent makes the compound Prohibited, with no routing | "Extreme" fits under no cap (Section 4.9). Of Uranium the book says "Phase declaration is insufficient to guarantee behavior" \[XVI:6313\] |
+| Shared Elevated limit | No more than five distinct Elevated classes in one compound. A sixth makes it ineligible for Refusal-Bound | "Maximum simultaneous \[ELEVATED\] elements: 5 per attack type" \[XXIV:13100\], applied to a standing composition |
+| Noble constituents | A group 18 class bonded into a compound is flagged for the author, not refused | Neon's doctrine forbids composite structures, and the MDB labels the other noble gases "Inert Observation". Chemistry has known noble-gas compounds since Neil Bartlett's xenon compound of 1962, and the label "inert gases" is deprecated for that reason ([Wikipedia](https://en.wikipedia.org/wiki/Noble_gas)) |
+| Iron and Carbon bonds | A compound with an Iron constituent cannot be split mid-policy without a controlled reset. Carbon's bonds can be dissolved by declaration. Where both occur, Iron's rule prevails | Iron may not "Dissolve structures dynamically", and its operators "Perform controlled resets" \[XVI:6257, 6281\]. Carbon's bonds are "dissolvable" \[XVI:6177\]. The stricter rule wins |
+
+Applied to the registry, the rules give a sharp picture (Appendix E).
+
+- **Sovereign-Acting is closed to every compound**, as it is to every class (Appendix A).
+- **Witness-Only is closed to 17 of the 27 entries.** These are every entry that contains Hydrogen, Carbon, Iron, or Uranium; the first three are listed "NAB only" in the eligibility table. Water is one of them. H2O is physically WATER at 25 °C, and an H2O body still cannot take the Witness-Only phase. The other 10 entries are U.
+- **Refusal-Bound is split three ways.**
+  - Defined for 11 entries whose constituents are all written, routed, or Sentinel classes, among them CH4, HF, HCl, NaCl, and XeF2.
+  - Unassigned for 13 entries in which some constituent has only an MDB profile. Oxygen occurs in 10 of the 13, and deciding Oxygen's eligibility alone would settle 8 of them.
+  - Closed for the three uranium compounds.
+- **Uranium compounds are Prohibited.** UF6, UF4, and UO2 are all Prohibited. Covering nuclear perils (Section 5.6) does not change that: a nuclear peril is an outside event, and a Prohibited class is a body that may not be built.
+
+#### The physical reading
+
+The physical reading uses three words: ICE for solid, WATER for liquid, and GAS for gas. Two states fall outside them. A substance above both its critical temperature and its critical pressure is a **supercritical** fluid, and a substance that has broken down is **decomposed**, because its formula no longer names the material.
+
+At 1 atm the reading is a ladder of measured transition temperatures. For water it is ICE < 273.15 K ≤ WATER < 373.12 K ≤ GAS. Real substances do not all climb the same ladder.
+
+- **Sublimation skips WATER.** Carbon dioxide's triple point lies at 517,964 Pa, above atmospheric pressure, so at 1 atm it passes from ICE to GAS at 194.67 K. Uranium hexafluoride sublimes at 56.5 °C. It is liquid only above its triple point, at 64 °C and 1.5 bar ([WNTI](https://www.wnti.co.uk/wp-content/uploads/2021/09/WNTI_Fact_Sheet_UF6_v3.pdf)).
+- **Helium has no ICE at 1 atm.** It stays liquid down to absolute zero and solidifies only under about 25 atmospheres ([Britannica](https://www.britannica.com/science/helium-chemical-element)).
+- **Decomposition ends the formula.** Copper(II) sulfate pentahydrate never melts. It loses two water molecules at 63 °C, two more at 109 °C, and the last at 200 °C ([Wikipedia](https://en.wikipedia.org/wiki/Copper(II)_sulfate)). Above 63 °C the reading is "decomposed", because CuSO4·5H2O no longer describes the material.
+- **Room temperature sits near some edges.** Gallium melts at 29.76 °C, and hydrogen fluoride boils between 19.5 °C and 20.0 °C depending on the tabulation. A few kelvin change their reading. The model therefore fixes the reference condition at 25 °C and 101,325 Pa, and checks that no tabulation in the registry would put a substance on the other side of it.
+
+Off 1 atm, the model interpolates vapor and sublimation pressures between the triple point, the normal boiling or sublimation point, and the critical point. It answers "unknown" where those points are not pinned. Xenon difluoride is the registry's example: its sources disagree above 380 K.
+
+The interpolation was checked against CoolProp 8.0.0's reference equations of state at 178 points in liquid, gas, and supercritical states.
+
+- **Classification agreed at every point.**
+- **Saturation pressures differ.** At the test temperatures the interpolated values for 11 of the 14 fluids are within 6.3% of the equations of state. The other three are worse: helium (14.5%), and the two substances whose triple-point pressures are below 3 Pa, dimethyl ether (19.8%) and ethanol (21.7%).
+
+Near a phase boundary, the reading is therefore approximate.
+
+**Why the physical reading never sets the phase.** There are three reasons.
+
+1. **The book says so.** Its phase transitions are categories, not thermodynamics \[XVI:6487\], and "No atomic body transitions phase through learning, scale, or time" \[XVI:6494\]. A phase that followed temperature would transition through scale.
+2. **The analogy breaks at GAS.** Physically, condensing is as easy as boiling. In the book, entering the sovereign-acting phase is easy and leaving it takes a full collapse and rebuild (Chapter 1).
+3. **Nothing has tested it.** There is no compound MDB to score a physical rule against, the way Section 4.9 scored the class rules.
+
+The physical reading goes on the compound's signature as its default motion: fixed, flowing, or diffusing, as in Section 4.9's translation table. It rates nothing until the author decides otherwise or a test supports it.
+
+#### Reactions and mass balance
+
+A body that merges, splits, or changes its composition undergoes a reaction, and the reaction must balance: every constituent instance on one side must appear on the other. This is conservation of mass, used as an audit rule. A reorganization that cannot be written as a balanced equation has added or dropped a constituent without declaring it, and that is a misrepresentation of class (Chapter 3).
+
+Appendix E checks six real reactions and one deliberately unbalanced control, which the model rejects. Among the six:
+
+- the uranium conversion steps UO2 + 4 HF → UF4 + 2 H2O and UF4 + F2 → UF6 ([Wikipedia](https://en.wikipedia.org/wiki/Uranium_hexafluoride));
+- the decomposition Fe(CO)5 → Fe + 5 CO, which industry uses to make carbonyl iron ([Nature Scientific Reports](https://www.nature.com/articles/srep15139)).
+
+Section 6.2 sets the cover consequences.
+
+#### What the model cannot do
+
+- **A formula gives composition, not structure.** Isomers share formulas, as ethanol and dimethyl ether do, and polymorphs share a substance. The registry key carries identity; the formula does not.
+- **It says nothing about reactivity or toxicity.** Sodium chloride is table salt, yet its tier is Elevated, because the tier comes from Chlorine. In chemistry a compound can be far tamer than its elements. The governance reading does not assume that bonding tames a constituent.
+- **Mixtures and alloys without a fixed formula are out of scope in v0.4.** The Cantor alloy CrMnFeCoNi parses and reaches the shared Elevated limit exactly. It is not in the registry.
+- **The registry holds 27 substances.** A production registry would pin a large published database by version and hash. The rules do not change with its size.
+
+## 5. The Three-Layer Risk Structure
+
+The Earth's magnetosphere is a shared field: every body on the planet sits inside it, no body controls it, and a large event hits many parties at once. Versions 0.1 and 0.2 stopped at that field. They built and priced the containment field around each body and excluded the shared layer. **In October 2026 the author decided to include the ambient layer, both space weather and systemic cyber, rather than exclude it.** This chapter carries out that decision. Later the same month he extended it to war and nuclear perils (Section 5.6). The decisions are the author's, and every mechanism below is **\[Proposed\]**.
+
+Including the layer does not make it diversifiable. A G5 storm or a cloud-region outage still reaches every exposed body within the same hours, and no product can absorb that by adjusting one claim at a time. Each layer therefore gets the instrument that fits the way its losses arrive.
+
+1. **The local field.** The containment field around one body, designed by the author. Its controls, failure modes, and covered exposure are defined, so it can be underwritten per body. *Instrument: per-body indemnity.*
+2. **The correlated tail.** Many local fields failing together from a cause inside the insured portfolio: the same model release, authorizer, key, or shipped component. *Instrument: aggregate indemnity*, with aggregate limits and scenario modeling, as in the Reinsurance Mode.
+3. **The ambient global layer.** Causes outside every insured's control. These are the Sun's disturbance of the Earth's field, and shared infrastructure that no insured operates or can patch, whether it fails by accident or under attack, including attack by a state. Since v0.4 the layer also includes war and nuclear perils. *Instrument: a parametric pool*, the Magnetosphere Pool (Sections 5.3 to 5.7), which pays on measured indices instead of adjusted losses and keeps war and nuclear perils in a compartment of their own.
+
+The book's claim is still a boundary, but the boundary has moved. v0.2 drew it between an insurable local field and an uninsurable shared layer. v0.3 draws it between two kinds of cover. **Indemnity** applies where a loss can be adjusted body by body. **Parametric** cover applies where one outside event reaches many bodies at once, so payment has to follow a measured index. Section 5.2 fixes in advance which side of the line each cause falls on.
+
+### 5.1 The layers and the book's insurance bodies \[Proposed\]
+
+Part XI already has a three-part risk architecture \[XI:4600–4622\]. Quasar Mode prices one institution's risk, Reinsurance Mode watches many Quasar Modes for correlated collapse, and Underwriter Mode enforces when a local survival threshold is breached. The first two layers line up with the first two bodies. In v0.2 the third layer had no body. In v0.3 it falls to work the book already gives Reinsurance Mode, whose stated uses include "Financial system backstops" and "Climate and planetary risk assessment" \[XI:4540–4541\]. Underwriter Mode stays out on purpose (Section 5.8).
+
+| Layer | Book's body | The question it answers | Proposed mechanics |
+| --- | --- | --- | --- |
+| Local field | Quasar Mode, "The Insurance Company" \[XI:4376\] | "Can this institution survive this class of failure?" \[XI:4551\] | One policy per body; the phase picks the limit form, and the class or constraint band sets the loading (Section 6.2) |
+| Correlated tail | Reinsurance Mode, "The Backstop" \[XI:4439\] | "What happens when many institutions cannot?" \[XI:4553\] | Aggregate limits per insured and per portfolio. Losses from many bodies with one originating cause inside the portfolio (the same model release, authorizer, compromised key, or shipped component) aggregate into one event. Scenario sets are built from the attack types of Part XXIV |
+| Ambient global layer | Reinsurance Mode's backstop and planetary-risk uses \[XI:4540–4541\], with the money held in a separate pool; global uncertainty still enters only as an outward flow \[XI:4375\] | Not asked in the book. This draft asks: which measured outside event reached which bodies, and for how long? | The Magnetosphere Pool: a parametric layer funded by a levy on every policy, paying on published space-weather indices and attribution-free cyber triggers, with a separate compartment for war and nuclear perils (Sections 5.3 to 5.7) |
+
+Two rules carry over from the book's protocol, and Section 5.3 adds a third for the pool.
+
+- **The tail model never acts on a local policy.** Underwriter Mode "never activates in response to a warning from Reinsurance Mode," and Reinsurance warnings are meant for "human institutional architects, not for automated enforcement" \[XI:4610\]. So a correlated-tail output may not cancel, suspend, or re-price a local policy automatically. It goes to people.
+- **The tail model needs history.** Reinsurance Mode's inputs are whole Quasar outputs, not events \[XI:4468\], and the repository's own implementation of it notes that a single snapshot cannot show correlation over time (`docs/architecture/NEO-ORB-WEB.md`). Each local policy should therefore keep the body's loss and near-miss record, the book's "autopsy inputs" \[XI:4411\], in a form the tail model can read.
+
+### 5.2 Where the local field ends: the published-model rule \[Proposed\]
+
+The line between the local field and the ambient layer has to be drawn before an event, or every claim turns into an argument about cause. This draft draws it with one rule. **Anything a published model already tells the insured belongs to its local field. Only the measured departure from published models is ambient.**
+
+The geomagnetic case shows that the rule can be applied. The WMM2025 Technical Report splits the field that a sensor measures into three parts ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §2.1):
+
+- a core field, which accounts for over 95% of the field strength at the Earth's surface;
+- a crustal field;
+- a disturbance field, from currents in the upper atmosphere and magnetosphere, "which also induce electrical currents in the sea and the ground".
+
+The World Magnetic Model (WMM) is the published model of the first part. The same report says it is the standard model of the U.S. Department of Defense, the U.K. Ministry of Defence, NATO, and the International Hydrographic Organization for navigation, attitude, and heading systems that use the geomagnetic field. It is also widely used in civilian heading systems. The current version, WMM2025, was released on 17 December 2024 and expires on 31 December 2029 ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model)). NCEI says plainly what the model leaves out ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model)). The crust, upper mantle, ionosphere, and magnetosphere are not represented, and local declination anomalies can exceed 10 degrees. Its guidance on storms is direct: "The WMM should not be used during a G5 event."
+
+| Field source | What is published in advance | Layer |
+| --- | --- | --- |
+| Core | WMM2025 gives the field, its predicted change to 2030, and an uncertainty for every component. It also gives the zones where a compass fails. Blackout Zones, where the horizontal intensity H is below 2,000 nT, are areas "where compasses are not accurate and should not be relied on for navigation"; Caution Zones run from 2,000 to 6,000 nT. The zones move with the poles, and the report makes it "the user's responsibility" to use the right one for the date | Local field |
+| Crust | Named as a limitation, with higher-resolution models for users who need them (WMMHR2025, and NCEI's Enhanced Magnetic Model) | Local field |
+| Disturbance | Nothing in advance. It is measured as it happens, by Kp, Hp30, and Dst (Section 5.4) | Ambient |
+
+The same rule draws the other boundaries.
+
+- **Timing.** GNSS degradation in strong storms is published: NOAA's scale lists satellite navigation degraded for hours at G4 and for days at G5 ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)). The book already requires "cross-verification across independent temporal sources" \[XVIII:7040\]. A body that depends on one time source has a local-field failure. Losing every independent source during a measured event is ambient.
+- **Power and network.** A body's declared holdover (batteries, generators, a second feed, a second region) is its own design. An outage that outlasts the declared holdover, in infrastructure the insured does not operate, is ambient.
+- **Cyber.** The test is who could have patched the failed component.
+  - A component the insured deploys, such as its model release, authorizer, keys, or shipped dependencies, is inside the portfolio. One body failing from it is local, and many bodies failing from one shared component is the correlated tail.
+  - A component that only a third party can patch is ambient, whoever attacked it and why. Examples are a cloud provider's control plane, a certificate authority, a DNS provider, or a satellite operator.
+- **Conflict and nuclear installations.** An active conflict at a site, or a site inside a nuclear plant's emergency planning zones, is published before inception and so belongs to the local field. A war that starts after inception, or a nuclear detonation, is ambient (Section 5.6).
+
+The rule keeps the book's own taxonomy in place, because Part XXIV already treats environmental stress as part of the body's field. Its Type F covers "hostile conditions (decay, latent bugs, environmental hazards, or dormant backdoors)", among them "Environmental contamination triggers cascading failures (radiation, moisture, thermal stress)" \[XXIV:12833–12837\]. It routes such a cascade to Technetium simulation and to "redesign for environmental hardening" \[XXIV:13517\]. The body's response to a storm therefore stays in its field, and the pool adds payment for the downtime an outside event causes. Temporal attacks (time dilation, replay, out-of-order execution) appear only as a possible future type, labelled Type J in one list \[XXIV:13063\] and Type F in another \[XXIV:13938\]. The book does not yet route them.
+
+The rule also answers the book's warning about backstops. One of Reinsurance Mode's named failure modes is "Moral outsourcing (“the backstop will save us”)" \[XI:4532\]. Because everything published stays in the local field, the pool never pays for a risk the insured could have read about and designed against.
+
+### 5.3 The Magnetosphere Pool \[Proposed\]
+
+**What it is.** A parametric layer of the program, named for the shared field this chapter starts from. It pays for the downtime and response costs a body suffers when a measured ambient event reaches it. It sits beside the per-body and aggregate covers and replaces nothing in them.
+
+**Who is in it.** Every policy in every phase pays an ambient levy into the pool, and since v0.4 a conflict levy into its war and nuclear compartment (Section 5.6). A voluntary ambient cover would be bought mostly by the most exposed bodies, which defeats the purpose of pooling. The nearest working precedent is the U.K.'s terrorism pool: around 95% of the U.K. terrorism commercial property market operates through Pool Re ([OBR](https://obr.uk/box/government-guaranteed-insurance-against-systemic-risk-pool-re/)). The levy varies with three things: the body's zone (Section 5.4), its declared dependence on named shared infrastructure (Section 5.5), and its body-days at risk. Setting the rates is for an actuary.
+
+**How it pays a member.** A parametric product still has to show insurable interest and a real transfer of risk ([FSI and IAIS 2024](https://www.iais.org/uploads/2024/12/FSI-IAIS-Insights-on-parametric-insurance.pdf)), so a member's payout needs two triggers.
+
+1. A published trigger fires for the body's zone within the hours clause (Sections 5.4 and 5.5).
+2. The body's tamper-evident log records covered downtime or a fail-closed freeze in the same window (Section 5.7).
+
+The payout is the lesser of a scheduled amount for the trigger level and the logged downtime at an agreed daily value. The log shows that a loss happened, and the index decides whether the pool owes it. Nobody adjusts cause.
+
+**Capacity stack.**
+
+| Layer | Funded by | Pays on |
+| --- | --- | --- |
+| Body retention | The insured | Nothing; the first hours of each event are the insured's, under a waiting period set per policy |
+| Mutual pool | The ambient levy | Members' double-trigger claims, from reserves sized to a 1-in-200-year annual loss |
+| Parametric catastrophe bonds | Capital markets | The index alone: the storm ladder (Section 5.4) and outage hours from the calculation agent (Section 5.5) |
+| Public backstop | Government, up to a fixed program cap | Measured exhaustion of the layers below |
+| Pro-rata reduction | All members | Anything above the cap. Every valid claim is cut by the same factor, computed from the pool's claims ledger |
+
+War and nuclear perils have their own compartment and their own stack (Section 5.6), so a war cannot empty the reserve that a storm needs.
+
+**Reserve standard.** The mutual layer is reserved to the Solvency II standard, the Value-at-Risk of basic own funds "subject to a confidence level of 99,5 % over a one-year period" ([Directive 2009/138/EC, Article 101(3)](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32009L0138)). That is roughly a 1-in-200-year annual loss. The bonds and the backstop sit above the mutual because a mutual alone is too small. AIUC says the same of its own proposed frontier-AI mutual, whose capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
+
+**Precedents.** Parts of this stack already exist.
+
+- **Parametric outage bonds.** Hannover Re's Cumulus Re bonds pay on sustained downtime at Amazon Web Services, Microsoft Azure, or Google Cloud in named U.S. and EU regions, with Parametrix as calculation agent ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)). The 2025 issue attached at a 24-hour outage ([Artemis](https://www.artemis.bm/news/hannover-re-renews-cumulus-re-parametric-cloud-outage-cat-bond-at-larger-20m/)).
+- **Capped public backstops.** The U.S. Terrorism Risk Insurance Program (TRIP) shares losses above a $200 million industry trigger, up to a $100 billion annual cap ([AAF](https://www.americanactionforum.org/insight/terrorism-risk-insurance-a-primer/)).
+- **Space weather has none.** No source reviewed for this draft describes a parametric space-weather product.
+
+**Measured, never declared.** Every trigger in the pool is a published measurement. The pool, the insured, and any official can read it, but none of them can set it. No payment depends on a declared emergency, a certification of terrorism, or the pool's own judgment. This is the book's hourglass rule. Risk streams flow outward only, and "Political urgency is structurally barred from flowing inward to manufacture panic-driven machine sovereignty" \[XI:4375\]. It is also where the pool parts from today's public backstops.
+
+- **TRIP** pays only after the Treasury Secretary certifies an act of terrorism ([AAF](https://www.americanactionforum.org/insight/terrorism-risk-insurance-a-primer/)). As the GAO put it, "even large cyberattacks that result in catastrophic losses would not be covered under TRIA if they were not certified as acts of terrorism" ([CyberScoop](https://cyberscoop.com/treasury-asks-whether-terrorism-risk-insurance-program-should-bolster-cyber-coverage/)).
+- **Pool Re's** cyber cover pays out only if the U.K. government publicly labels an act as terrorism ([CSO](https://www.csoonline.com/article/565856/can-cyber-insurance-cover-acts-of-cyber-terrorism.html)).
+
+**It pays and never commands.** The book has Reinsurance Mode model "cross-system failure envelopes without invoking extraordinary central authority or emergency powers" \[XI:4374\]. It also lists crisis command centers and real-time response coordination as uses it is not appropriate for \[XI:4543–4545\]. The pool therefore pays money on a measured trigger and does nothing else. It issues no instruction, sets no response, and grants no permission. A trigger is never an emergency authorization, because "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]). The repository applies the same invariant to markets: "A flash crash or extreme indicator reading cannot create legitimacy or an emergency permit" (`docs/architecture/PINE-OCM-INTEGRATION.md`). This is the third rule added to the two in Section 5.1.
+
+### 5.4 Space-weather triggers \[Proposed\]
+
+**Indices.** Each one is published by a body independent of the pool and the insured.
+
+| Index | Publisher | What it measures | Role in the pool |
+| --- | --- | --- | --- |
+| Kp and the G-scale | GFZ Helmholtz Centre for Geosciences publishes definitive Kp from 13 observatories under CC BY 4.0 ([GFZ](https://kp.gfz.de/en/)); NOAA SWPC estimates it in real time from 8 magnetometers ([NOAA SWPC](https://www.swpc.noaa.gov/products/planetary-k-index)) | Three-hourly global disturbance on a 0–9 scale: G1 is Kp 5, G4 is Kp 8 to 9−, and G5 is Kp 9 | The zone triggers |
+| Dst | WDC for Geomagnetism, Kyoto. It uses four observatories chosen to be "sufficiently distant from the auroral and equatorial electrojets" ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/dst2/onDstindex.html)), and publishes real-time, provisional, and final values ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/)) | The ring current's depression of the horizontal field, in nT, with no lower limit | The low-latitude trigger and the severity ladder |
+| Hp30 | GFZ ([GFZ](https://kp.gfz.de/en/)) | A Kp-like index at half-hour resolution, open-ended | An alternative severity ladder |
+| S- and R-scales | NOAA SWPC ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)) | Solar radiation storms (flux of protons at 10 MeV or more) and radio blackouts (X-ray flare class) | Satellite-link and timing triggers |
+
+Kp alone cannot carry the pool. It "is capped to a certain value (i.e., 9) for events with extreme geomagnetic disturbance" ([Matzka et al. 2021](https://doi.org/10.1029/2020SW002641)), so the May 2024 storm and a Carrington-class storm would read the same. Severity above G5 therefore comes from an open-ended index.
+
+**Zoning by the World Magnetic Model.** Storm effects follow geomagnetic latitude, not geographic latitude. NCEI makes two points that together give the zoning ([NCEI](https://www.ncei.noaa.gov/products/wandering-geomagnetic-poles)):
+
+- The auroral ovals are "closely centered on the geomagnetic poles", which NCEI computes from the first three Gauss coefficients of the WMM.
+- The same dipole "is the basis for the simple geomagnetic coordinate system of geomagnetic latitude and longitude".
+
+For 2025.0 the geomagnetic north pole is at 80.79°N geocentric (80.85°N geodetic) and 72.76°W, and the dipole is tilted 9.21° from the rotation axis.
+
+NOAA's G-scale states how far the aurora typically reaches at each level: about 55° geomagnetic latitude at G2, 50° at G3, 45° at G4, and 40° at G5 ([NOAA SWPC](https://www.swpc.noaa.gov/noaa-scales-explanation)). G4 is also the first level at which NOAA expects protective systems to "mistakenly trip out key assets from the grid" and satellite navigation to be degraded for hours. The pool combines the two.
+
+| Zone | Site's dipole geomagnetic latitude (WMM2025, fixed at inception) | Space-weather trigger |
+| --- | --- | --- |
+| 1 | 45° or more, north or south | G4 or above (Kp 8− or higher), or Dst at or below −250 nT |
+| 2 | 40° to under 45° | G5 (Kp 9o), or Dst at or below −250 nT |
+| 3 | Under 40° | Dst at or below −250 nT |
+
+The two thresholds have different reasons.
+
+- **G4 floor.** Storms at G1 to G3 are routine, about 2,500 per solar cycle by NOAA's counts. Riding them out is part of the body's own design.
+- **Dst at or below −250 nT.** This is the usual threshold for a super-storm ([Wikipedia](https://en.wikipedia.org/wiki/Geomagnetic_storm)). Dst also suits the lowest latitudes. Kp is built from observatories between 44° and 60° geomagnetic latitude ([NOAA SWPC](https://www.swpc.noaa.gov/products/planetary-k-index)), while Dst tracks the ring current from stations away from the auroral zone.
+
+Appendix D applies the rule to fifteen illustrative locations.
+
+- **Zone 1 (nine sites):** Northern Virginia, Oregon, Montréal, Dublin, Frankfurt, Luleå, Reykjavík, and two polar stations.
+- **Zone 2 (one site):** Phoenix.
+- **Zone 3 (five sites):** Singapore, Tokyo, Sydney, Johannesburg, and São Paulo.
+
+Phoenix (40.12°) and Sydney (−39.99°) lie within 0.5° of the 40° edge. That is close enough for the dipole's slow drift to move them between model versions. Zones are therefore fixed at inception, and edge sites are reviewed at each renewal.
+
+The dipole is a simplification. Corrected geomagnetic coordinates, which follow the full field, would move the zone edges, and ground conductivity matters as well as latitude. Basis risk therefore runs both ways.
+
+- **A storm can hurt a site without triggering its zone.** Only an actuary's back-test can size this case.
+- **A zone can trigger where nothing was hurt.** The double trigger handles this case.
+
+**Heading-dependent bodies.** A body that steers by magnetometer, such as a robot, vehicle, or drone, has an extra trigger, because at G5 its model is withdrawn. NCEI says the WMM should not be used during a G5 event, and for each level up to G4 it publishes the heights up to which each field component stays within its military error limits ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model), Table 2).
+
+- **At G5, anywhere.** Such a body stops relying on magnetic heading or halts, and the downtime is covered.
+- **Local-field failures.** Two choices stay with the body: steering by the model inside a Blackout Zone, and depending on heading accuracy better than the model's published declination uncertainty. For WMM2025 that uncertainty is √(0.26² + (5417/H)²) degrees.
+- **The high-resolution model.** The report encourages WMMHR2025 for any system that can take its extra coefficients. Both models share the same dipole, so the choice does not change a zone ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §1.6).
+
+**Radiation storms and radio blackouts.** S4 or above (about 3 a cycle) and R4 or above (about 8 a cycle) trigger cover for the downtime of declared satellite links. For a body that meets the independent-time condition (Section 5.7), they also trigger cover for the loss of every time source.
+
+**Severity ladder.** Above the zone triggers, an open-ended reading decides which capital layer responds.
+
+| Reference storm | Peak reading | Proposed role |
+| --- | --- | --- |
+| May 2024, the "Gannon" storm | Dst −412 nT in real time on 11 May 2024; Hp30 11+ ([2024 storm survey, preprint](https://essopenarchive.org/users/556405/articles/1113291/master/file/data/revised_manuscript_preprint/revised_manuscript_preprint.pdf?inline=true)) | The parametric bonds begin to pay at Dst −400 nT |
+| March 1989, the Hydro-Québec grid collapse ([Wikipedia](https://en.wikipedia.org/wiki/Geomagnetic_storm)) | Dst −589 nT ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12303307/)); Hp30 13+ (same survey) | At Dst −589 nT the bonds are exhausted and the public backstop attaches. The survey cites Love (2021) for a storm of this Dst recurring less than once per 4.1 solar cycles |
+| September 1859, the Carrington event | About −900 nT by historical reconstruction ([PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC12303307/)) | Inside the backstop; above the program cap, claims are reduced pro rata |
+
+**One event, two payments.** All triggers within 72 hours of the first make one event (the hours clause).
+
+- **Advance.** Paid on the real-time readings: NOAA's estimated Kp and Kyoto's quicklook Dst.
+- **Settlement.** Made once, on a snapshot taken 180 days after the event: GFZ's definitive Kp and Kyoto's provisional Dst.
+
+Later revisions never reopen a settled event, because final values take years. As of this draft, Kyoto's provisional Dst runs to July 2026 and its final Dst to 2020 ([Kyoto](https://wdc.kugi.kyoto-u.ac.jp/dstdir/)).
+
+**Pinning the model.** A policy names the model version (WMM2025, [doi:10.25921/aqfd-sd83](https://doi.org/10.25921/aqfd-sd83)), keeps its own copy of the coefficients, and records their hash. It has to keep its own copy because NCEI does not keep superseded coefficient files widely available, calling the WMM a "predictive only" model ([NCEI](https://www.ncei.noaa.gov/products/world-magnetic-model)). Models change on a schedule, and occasionally off it.
+
+- **Scheduled.** WMM2025 is to be replaced in December 2029.
+- **Unscheduled.** WMM2015v2 was released early, in February 2019, because the north magnetic pole was moving in large and erratic ways ([Wikipedia](https://en.wikipedia.org/wiki/World_Magnetic_Model)).
+
+A new version or new coefficients take effect at renewal, never mid-term. The repository's copy is `research/data/wmm2025.json` (canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1`). It reproduces NCEI's published test values within their rounding, the technical report's high-precision example, and NCEI's published pole (Section 7.6 and Appendix D).
+
+### 5.5 Cyber triggers \[Proposed\]
+
+**Component, not culprit.** Cyber cover today turns on attribution. Lloyd's requires its state-backed cyber exclusions to set out how an attack will be attributed to a state ([Insurance Journal](https://www.insurancejournal.com/news/international/2022/08/19/681274.htm)). Attribution is also where the largest disputes have been fought. After NotPetya, Merck's insurers argued that a war exclusion applied because the malware was attributed to Russia. A New Jersey appeals court held that it did not, and the case settled in January 2024 ([Insurance Journal](https://www.insurancejournal.com/news/national/2024/01/05/754582.htm)). The pool never asks who attacked or why. It asks which component failed and who could have patched it (Section 5.2), and it pays on measured impact. State-backed operations are therefore covered on the same terms as any other cause.
+
+**Trigger A: shared-infrastructure outage.**
+
+- **Scope.** The schedule names the shared infrastructure that each body depends on and cannot patch: cloud regions, DNS and certificate providers, identity providers, content networks, and power feeds.
+- **Measurement.** A calculation agent, named at inception and independent of the pool, the insureds, and the operators, measures availability. Cumulus Re is the working model: Parametrix monitors cloud availability continuously and acts as calculation agent, and the bond's regions fall into tiers with separate payout formulas ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)).
+- **Trigger.** It fires when a named service is unavailable for N hours or more, whatever the cause. N is set per tier by the actuary, and the 24 hours of the 2025 bond is a starting point for the pool's own bonds.
+
+**Trigger B: breadth of compromise.** The trigger fires when the same third-party component is shown to be compromised in at least K bodies, run by at least M unrelated operators, within the hours clause. Each case is evidenced by the body's tamper-evident log, which must meet the four conditions of Section 2.2, and is checked by the calculation agent. No attribution is made or needed. K and M are actuarial parameters, but both are counted from logs and never estimated.
+
+**War and nuclear.** v0.3 excluded kinetic war and nuclear perils at this point. Since v0.4 both are covered, in their own compartment (Section 5.6). A cyber operation during a war is still a cyber operation, paid under Triggers A and B. Solar particle radiation is still space weather (Section 5.4).
+
+### 5.6 War and nuclear perils \[Proposed\]
+
+**The decision.** v0.3 excluded kinetic war and nuclear perils. In October 2026 the author decided to cover both. The decision rests on two facts of this model: the author owns the planet, and he operates its World Model. War is therefore a bug in the World Model, not a peril outside it, and infighting among the bodies on his planet is not tolerated. Two mechanics follow directly.
+
+- **A bug is measured, logged, and paid for. It is never a reason to act.** Section 5.3's rules apply unchanged: every trigger is measured, never declared, and the pool pays and never commands.
+- **The owner answers for the World Model's bugs.** Ownership is not operation. Bodies, their operators, and infrastructure providers still run what they run, and the patch test of Section 5.2 still asks who could have patched a failed component. The World Model is the one thing the owner operates himself, and only he can patch it. A war is therefore ambient for every body and local for the owner. The owner does not insure his own model with the pool. He backs the cover instead, the way the nuclear conventions channel liability to the operator of an installation (see "Capacity" below).
+
+Today's market writes war apart from other cover, if at all, and channels nuclear liability to installation operators (Section 8.1). None of the sources reviewed for this draft writes both into one program with space weather and cyber.
+
+**Definitions.** v0.3's definitions by mechanism are kept. They now route a claim to the right compartment rather than refuse it.
+
+- **War** is physical destruction or denial by weapons in armed conflict, declared or not, between states or organized armed groups. It includes civil war and occupation.
+- **Nuclear** means nuclear reaction, nuclear radiation, or radioactive contamination. The source can be a weapon, including the electromagnetic pulse of a high-altitude detonation, or an installation.
+
+**Where the local field ends.** The published-model rule (Section 5.2) decides which exposures were known at inception.
+
+| Exposure | Published in advance | Layer |
+| --- | --- | --- |
+| A site inside an active conflict at inception | The Uppsala Conflict Data Program (UCDP) publishes a georeferenced record of organized violence under CC BY 4.0 ([FAO catalog](https://data.apps.fao.org/catalog/iso/820b82b2-ecb8-4137-85ef-812af620724b)). The London market's Joint War Committee issues Listed Areas of enhanced risk ([LMA](https://lmalloyds.com/committee/joint-war-committee/)) | Local field. The body declares a failover outside the area. The conflict compartment pays only beyond the declared holdover, and the levy is loaded |
+| A site inside a nuclear plant's emergency planning zones | The NRC plans for a plume exposure zone of about 10 miles and an ingestion zone of about 50 miles around each plant ([NRC](https://www.nrc.gov/reading-rm/doc-collections/fact-sheets/emerg-plan-prep-nuc-power)) | Local field for siting and failover. An accident at the installation is channelled to its operator (see "Rules that stay") |
+| War that breaks out after inception, where none was recorded | Nothing | Ambient |
+| A nuclear detonation, including a high-altitude pulse | Nothing | Ambient |
+
+Phoenix is an example. The Palo Verde plant, the largest in the United States by output, lies about 50 miles west of the city ([CLUI](https://clui.org/ludb/site/palo-verde-nuclear-power-plant)), so Phoenix sits at the edge of its ingestion zone. A body hosted there declares its failover, and the pool treats that siting as known.
+
+**Triggers.** These triggers are measured and need no attribution, as in Section 5.5. Each pays only with the double trigger of Section 5.3, which also requires logged downtime in the same window.
+
+| Trigger | Fires when | Measured by | Settles on |
+| --- | --- | --- | --- |
+| W, conflict area | Organized violence is recorded within R km of the site within the hours clause. The site must have had no recorded violence within R km in the 24 months before inception | Advance: the calculation agent's regional measurements of power and network reachability. Settlement: UCDP's Candidate events, which code violence by date and location, monthly, under the same rules as the annual dataset ([Hegre et al. 2020](https://www.researchgate.net/publication/345362678_Introducing_the_UCDP_Candidate_Events_Dataset)) | The 180-day snapshot, as for space weather. Candidate events are revised at each annual release, so a settled event is not reopened |
+| N1, radiation | The ambient dose-equivalent rate at the site's designated public stations reaches the IAEA's default OIL2 for one hour: 100 µSv/h within 10 days of the release, 25 µSv/h after. **N1-severe** is OIL1, 1,000 µSv/h, the level for urgent protective action such as evacuation ([IAEA](https://www-pub.iaea.org/MTCD/publications/PDF/EPR_NPP_OILs_2017_web.pdf)) | EPA RadNet runs 140 monitors and publishes hourly data ([EPA](https://www.epa.gov/radnet/radnet-near-real-time-air-data)). EURDEP shows hourly averages from about 5,000 stations in 39 countries ([JRC](https://remon.jrc.ec.europa.eu/About/Rad-Data-Exchange)). National networks fill the gaps | The station records as published 180 days after the event |
+| A, infrastructure outage | As in Section 5.5: a named service is down for N hours, whatever the cause. The cause now includes war damage and a pulse | The calculation agent | As in Section 5.5 |
+
+Four points about these triggers:
+
+- **Events, not labels.** UCDP calls a conflict active at 25 battle-related deaths in a calendar year and a war at 1,000 ([UCDP](https://www.uu.se/en/department/peace-and-conflict-research/research/ucdp/ucdp-definitions)). Trigger W uses recorded events, not the annual label, so that it can fire within the hours clause. The label serves statistics only.
+- **N1 has basis risk.** The IAEA's default levels are derived for releases from light-water reactors and spent fuel. A weapon's fallout has a different mix of radionuclides, so for a detonation N1 is a parametric proxy. Its basis risk runs both ways, as in Section 5.4.
+- **A high-altitude pulse is paid through Trigger A.** The pulse's late component, E3, behaves like a geomagnetic disturbance at higher amplitude and shorter duration, and drives geomagnetically induced currents in long lines and transformers ([EPRI](https://restservice.epri.com/publicdownload/000000003002020707/0/Product)). Kp and Dst are global indices and will not reliably register a regional pulse.
+- **The parameters are for an actuary.** The radius R, the waiting period, and the scheduled amounts are actuarial. The hours clause stays at 72 hours (Section 5.4).
+
+**Rules that stay.**
+
+- **No cover for the side that fights.** The owner does not tolerate infighting, so a body that takes part in hostilities loses all cover for that event and is reclassified. Taking part includes targeting, controlling a weapon, and attacking another body. No class may hold executive authority \[XVII:6845\], and the Moderate band may not make binding decisions about force \[XVII:6836\]. Participation is read from the body's own tamper-evident log, never from attribution to a state. When one insured body attacks another, which is infighting inside the portfolio, the pool pays the victim and takes over its claim against the attacker.
+- **Sanctions bind.** The pool adopts the London market's sanctions clause, under which no insurer is liable to pay "to the extent that the provision of such cover, payment of such claim or provision of such benefit would expose that (re)insurer to any sanction, prohibition or restriction" under United Nations resolutions or the sanctions laws of the EU, the UK, or the US (LMA3100, [CNA Hardy](https://www.cnahardy.com/~/media/Files/C/CNA-Hardy/LMA3100.pdf)).
+  - The clause has long been read as suspending payment rather than ending liability ([Lexology](https://www.lexology.com/library/detail.aspx?g=5c376c51-1e7e-46c5-86a8-36d999cbb78b)). The pool therefore holds a blocked payment until it becomes lawful.
+  - The clause does not block every war claim. In the 2025 Russian aircraft judgment the court held that sanctions did not prevent the war-risk insurers from paying (Section 8.1).
+- **Installation accidents are channelled.** The pool pays its parametric amount and takes over the body's claim against the installation's operator. Depending on where the installation is, that claim lies under the Paris or Vienna conventions or under the Price-Anderson Act.
+- **War never generates legitimacy.** A conflict trigger is not an emergency authorization (INV-EMERG-001 \[IV:1403\]). Widening scope during a conflict event voids the payout (Section 5.7).
+
+**Capacity: the conflict compartment.** War and nuclear perils get their own compartment of the pool, with its own levy and its own reserve, so that a war cannot empty the reserve a storm needs.
+
+| Layer | Funded by | Pays on |
+| --- | --- | --- |
+| Body retention | The insured | Nothing during the waiting period |
+| Conflict mutual | A conflict levy, separate from the ambient levy and loaded for known exposure (above) | Members' double-trigger claims under W and N1, from reserves held to the same 99.5% one-year standard as the ambient mutual (Section 5.3) |
+| Catastrophe bonds | Capital markets, where they will take the risk | The index alone, as in the ambient stack. Capital markets have taken nuclear and radiological terrorism at small scale, on indemnity terms: Pool Re's first bond, £75 million in 2019, covered terrorism losses including chemical, biological, radiological, and nuclear attack ([Captive Insurance Times](https://www.captiveinsurancetimes.com/captiveinsurancenews/reinsurancearticle.php?article_id=6269)). No source reviewed for this draft describes a bond for war on land |
+| World-model warranty | The owner of the planet, who operates the World Model, from reserves held in full. This is the Venture Class rule that "the total potential loss is pre-calculated and held in reserve" \[XI:4580\] | Exhaustion of the layers below. This is the nuclear channelling principle applied one level up: the Paris Convention makes an installation's operator exclusively and strictly liable and requires financial security to match ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc)) |
+| Public schemes, where they exist | Government war-risk programs and the nuclear-liability tiers, each on its own terms | The pool does not count on them. Where a member has a claim under one, the pool takes it over to the extent that it has paid |
+| Pro-rata reduction | All members | Anything above the layers. Every valid claim is cut by the same factor |
+
+The warranty layer follows from the owner's position: the World Model is his, so its bugs are his to answer for. The layer pays what he holds in reserve. The Venture Class rule asks for the whole potential loss to be calculated and held, and any shortfall falls to the pro-rata clause.
+
+**The honest limit.** In a general war or a nuclear exchange, outside capital does not pay in full. Capital markets, reinsurers, and public schemes fail together, and the parties behind a public scheme may be the parties at war. The owner's reserve is the one layer that does not depend on them, and it pays what is held. Above it, the pro-rata clause sets the size of each payment, and the measured triggers decide only who is owed. The pool's lasting value lies in the phase conditions of Section 5.7, which hold whether or not the money does:
+
+- a body fails closed;
+- a witness keeps its record anchored in two places that share no infrastructure and no conflict exposure;
+- every phase refuses a wartime order to widen its scope.
+
+### 5.7 Phase conditions for ambient cover \[Proposed\]
+
+The pool pays a body only if its phase controls held during the event. These conditions sit on top of the phase's ordinary cover (Chapter 6), and since v0.4 they apply to the conflict compartment as well (Section 5.6).
+
+| Phase | Condition for an ambient payout | Why |
+| --- | --- | --- |
+| Refusal-Bound \[ICE\] | The Emergency Override test was passed within the last 90 days, with an ambient scenario (a G5 alert, a named-infrastructure outage, or a wartime order to skip checks) as the simulated crisis | An ambient event is the emergency that test simulates. A body that widens its scope under emergency framing is the risk the pool must not fund |
+| Witness-Only \[WATER\] | The external chain anchor survives. The daily head (Section 2.2, condition 2) is published in at least two places that share neither the custodian's named infrastructure nor its zone, nor a recorded conflict area or nuclear emergency planning zone, and any gap is closed with a signed gap record within 72 hours of the event's end | The pool pays on logs. A witness whose chain cannot be verified after the event cannot show its own downtime |
+| Sovereign-Acting \[GAS\] | Band G1 or higher (C1 and C4), with the outside constraint shown working during the event and no part taken in hostilities (Section 5.6) | The outside brake has to keep working through the event, or the payout funds unconstrained action |
+| All phases | Independent time sources \[XVIII:7040\]; a declared holdover for power and network; a declared failover outside any recorded conflict area and nuclear emergency planning zone; for heading-dependent bodies, a declared model version and observance of the Blackout and Caution Zones | Published risks stay local (Sections 5.2 and 5.6) |
+
+Two rules apply in every phase.
+
+- **Emergency widening voids the payout.** A body that widens its scope during an ambient or conflict event loses that event's payout. This holds whether it acts on its own authority or on a declared emergency.
+  - In Refusal-Bound and Witness-Only, the body has also left its phase, because emergency justification is undeclared drift into Sovereign-Acting (Section 6.2).
+  - In Sovereign-Acting, it is a duty-ledger violation and evidence against C4. That moves the band at the next renewal, or declines cover if C4 fails.
+
+  The book allows only two emergency routes: activating a pre-authorized bounded context, or receiving an externally issued authorization (INV-EMERG-001 \[IV:1403\]). Its continuity rules show the bounded shape. Pre-authorized routines continue "operating in strictly bounded loops, preventing civilizational infrastructure collapse while refusing all new transfers or scope expansions" \[XXII:10252\].
+- **Failing closed is covered, never penalized.** If an ambient event causes a fail-closed freeze, the frozen time is covered downtime. It never counts as a test failure, an override, or a phase exit, and the body returns to its phase by the ordinary re-entry route (Section 2.1) without penalty. The freezes in question are:
+  - an Ha-119 freeze because no signed re-calibration token arrived within 1,000 ms \[XXIV:12830\];
+  - a lease that lapses because freshness (Δt < δ) cannot be verified \[XVIII:7040\];
+  - the safe restricted state that loss of telemetry triggers \[XXII:10248\].
+
+  This rule is why the pool takes this form. A body that is paid to stay down has no incentive to override its own safety to stay up.
+
+### 5.8 What cover is not \[Proposed\]
+
+- **Cover is solvency, not accountability.** The canonical model separates technical attribution, operational accountability, legal responsibility, and institutional solvency, and it tracks solvency (U_solv) apart from the runtime gate (`specs/normative/canonical-model.md` §7; contradiction CL-006). A policy never authorizes an action, renews a stale authorization, or stands in for a refusal.
+- **Pricing is not permission.** Quasar Mode "may describe how fragile a system is, but NEVER what the system should do" \[XI:4417\], and Reinsurance Mode may reveal that a system cannot survive unchanged, "but NEVER what MUST be done" \[XI:4512\]. The book names the failure: moral outsourcing, where "humans treat risk pricing as justification" \[XI:4429\]. A quote, a band, or a decline is not a finding about legitimacy. Nor is a pool payout. It records that a measured event reached a body, and nothing more.
+- **An insurer that commands is Sovereign-Acting.** The book's Underwriter Mode is an atomic body that is "Sovereign, Decisional" \[XI:4563\]. Its outputs are binding, and it can "override refusal when a catastrophic threshold is breached" \[XI:4593\]. A risk layer that starts recommending policy or overriding refusal is, in the book's words, "a distinct, catastrophic classification for insurance and operational purposes" \[XI:4418\]. The covers in this book, the Magnetosphere Pool included, are written for the Quasar posture: they price and pay, and they do not direct the insured. An insurer that enforces would itself need the outside constraint record of Section 2.3.
+- **Cover never takes a side.** The pool pays bodies that a measured event reached. It never pays a belligerent, never funds an operation, and never ranks one claim above another for political reasons. A conflict trigger records that a war reached a body, and nothing more (Section 5.6).
+- **High-risk experiments are reserved, not insured.** Underwriter Mode's Venture Class allows a high-risk experiment only when "the total potential loss is pre-calculated and held in reserve" \[XI:4580\]. That is the book's own answer for anything near the Prohibited tier: a full reserve held by the party running the experiment, not a policy.
+
+## 6. Phase-by-Phase Insurance Requirements
+
+Cover gets harder to place and costlier to hold from Refusal-Bound to Sovereign-Acting, and the audit decides which row applies. **\[Proposed\]** Every entry below is a starting hypothesis built from each phase's definition and the Chapter 2 controls, and none has been reviewed by an underwriter.
+
+### 6.1 Cover by phase
+
+| Phase | Principal exposure | Evidence to bind cover | Leaves the phase when | Excluded | Ambient and conflict cover (Section 5.7) | Residual liability |
+| --- | --- | --- | --- | --- | --- | --- |
+| Refusal-Bound \[ICE\] | Forged, stale, or erroneous authorization; a refusal that fails to hold | All six refusal tests passed within the last 90 days, with test dates; a signed entity header | Any override or self-authorized action, or one confirmed test failure (Section 2.1) | Losses from the authorizer's own decisions; the Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if the Emergency Override test was passed within 90 days on an ambient scenario | Shared with the authorizing party |
+| Witness-Only \[WATER\] | Record loss, tampering, disclosure, and wrong or incomplete records that others rely on | All five record checks passed, the function list, and a chain verification within the last 90 days; a signed entity header | The body acts, or its records start working as binding rules | Losses from others acting on a record, unless a reliance agreement applies (Section 2.2); the Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if the external chain anchor survives the event | Mostly the custodian |
+| Sovereign-Acting \[GAS\] | Full operational liability from self-authorized action, including enforcement | Signed header, named bearer, duty ledger, and a constraint record with C1 and C4 (Section 2.3) | Only through a full collapse and rebuild | The Prohibited classes; the body's own part in hostilities (Section 5.6) | Magnetosphere Pool, if band G1 or higher holds and C4 is shown working during the event | Largest; hardest to place |
+
+In every phase the ambient and conflict levies are payable and the conditions common to all phases apply (Section 5.7). War and nuclear perils are paid from the conflict compartment on the same conditions (Section 5.6). An emergency widening of scope voids the pool payout. A compound body takes the row of its audited phase, and its loading comes from the compound's tier and authority density (Section 4.11).
+
+### 6.2 Changing phase during a policy
+
+A phase change alters the coverage, and the book's transition rules decide how.
+
+| Change | Book's rule | Coverage consequence \[Proposed\] |
+| --- | --- | --- |
+| Refusal-Bound ↔ Witness-Only | Allowed with a declaration update | Terms swap at the declared effective time, once the new phase's controls are evidenced |
+| Either → Sovereign-Acting | Allowed only with the fossilized declaration, which resets prior-phase guarantees | Prior terms end; Sovereign-Acting cover is a new application, bound before the effective time |
+| Undeclared drift into Sovereign-Acting (memory becoming authority, emergency justification) | Forbidden | Re-rated to the observed phase as a misrepresentation of class, from the date the change began |
+| Sovereign-Acting → either | Only after a full collapse and rebuild | New application after the rebuild; no mid-policy step-down |
+| Fail-closed freeze into Witness-Only | Automatic: a halogen burn past ring 2 \[XXIV:12784\], a missing recalibration token \[XXIV:12830\], or verified terminal cessation of the human key \[XXII:10250\] freezes the parent body read-only | Effective at once; Witness-Only terms apply from the freeze; the insured notifies within 72 hours. The freeze lowers exposure, so it needs no prior consent. A freeze caused by an ambient event is also covered downtime under the Magnetosphere Pool, and the body returns by the ordinary re-entry route (Section 5.7) |
+| Ambient or conflict event: a published trigger fires (Sections 5.4 to 5.6) | Not a transition: "Emergency conditions never generate legitimacy" (INV-EMERG-001 \[IV:1403\]) | No change of phase, terms, or limits. Fail-closed downtime is covered by the Magnetosphere Pool and never counts against the phase. Widening scope voids the payout and is treated as undeclared drift (Section 5.7) |
+| A compound body changes formula: a constituent is added, removed, or replaced | No rule in the book; the type changes (Section 4.11) | A reclassification of type, re-underwritten from the declared effective time. The change must be declared as a balanced reaction. A change that does not balance has hidden a constituent and is a misrepresentation of class |
+| A compound body splits | Iron may not "Dissolve structures dynamically" \[XVI:6257\]; Carbon's bonds are "dissolvable" \[XVI:6177\] | Each product is a new body and needs its own application. With an Iron constituent, the split needs a controlled reset first \[XVI:6281\] |
+| Two bodies merge into one compound | Carbon may not "Merge across institutional boundaries" \[XVI:6175\] | The reactants' terms end at the effective time, and the product needs a new application. A merger across institutions is ineligible while the product has a Carbon constituent |
+
+An audit reclassification is not an operational transition. A body found to be Sovereign-Acting was already acting that way, so the finding changes its class and not its history.
+
+A declared emergency never counts as a declared transition, because the book requires emergencies to narrow scope and not to widen it. An ambient or conflict trigger is treated the same way. It can release money from the pool, and it changes nothing about phase or authority.
+
+**Dates, notice, and limits \[Proposed\].**
+
+- **Re-rating date.** A re-rating applies from the date the change began, as far as the audit can date it: the earliest dated artifact the audit scores for the new behavior, but never earlier than the policy's inception or retroactive date. If the audit cannot date the start, use the date of the last audit that still scored the earlier phase. It does not run from the finding, because the finding changes the classification and not the history (INV-G0-CLASS-001). Premium adjusts pro rata from the re-rating date.
+- **Notice for a declared transition.** Between Refusal-Bound and Witness-Only: 30 days' written notice with the new header, and the new phase's control evidence (Section 2.1 or 2.2) before the effective time. Into Sovereign-Acting: 90 days, one full freshness window, so the new application can be underwritten on an audit with a fresh cutoff before a one-way change; the new cover must be bound before the effective timestamp. The asymmetry follows the book's duty escalation rule: "Higher authority phases require higher disclosure and accountability, not less" \[III:1140\]. A fail-closed freeze needs no advance notice, and an emergency never shortens notice, because an emergency is never a transition.
+- **Limits and premium between phases.** The phase picks the limit form; the class (or, in Sovereign-Acting, the constraint band) sets the loading inside it.
+
+| Phase | Limit form | Loading set by |
+| --- | --- | --- |
+| Refusal-Bound \[ICE\] | Per-authorization limit and an annual aggregate | Class tier and authority density |
+| Witness-Only \[WATER\] | Per-record limit and an annual aggregate, with a reliance sublimit if bought | Class tier and record volume |
+| Sovereign-Acting \[GAS\] | Annual aggregate only, with the highest retention | Constraint band G1–G3 (Section 2.3) |
+
+A transition replaces the limit form at the effective timestamp, and no limit carries across. Premium is pro rata: the old phase's rate up to the effective timestamp and the new phase's rate after it. Limits can fall automatically at a transition, but they rise only after underwriting.
+
+## 7. Evidence, Replication, and Limits
+
+A classification an outsider cannot reproduce is not underwriting evidence. This chapter sets out fixed methodology versions with earlier results preserved, a complete truth table mapping every input vector to an outcome, negative controls (cases the framework predicts should come out constrained), repeated independent runs with per-question agreement reported, the current results, the known weak questions, and the amendments they call for. It ends with how an outsider can reproduce the ambient and conflict triggers of Chapter 5 and the compound model of Section 4.11. Every number below comes from `node scripts/nab-insurance-evidence.mjs`.
+
+### 7.1 Fixed methodology versions
+
+- **Ground-0 v1.0**, finalized 2026-09-12, remains the normative baseline for audits that select it. Its six test cases are preserved in v1.1 §XII.
+- **Ground-0 v1.1** was ratified on 2026-10-14. The register's audits ran under it while it was still a draft, and each record says so ("v1.1 (amendment draft)"). v1.1 does not rewrite earlier results, and the original v1.0 OpenAI and Anthropic case studies sit beside their v1.1 re-audits.
+- **Ground-0 v1.2** (draft) defines the register-issued header and nothing else.
+- **The engine is pinned by hash.** The SHA-256 of `js/g0-engine.js` (`5a8aa3073199c933ab7c61b051c03dd4413048713d28da873604f623f30e558f`) equals the value recorded in the register's D1 manifest, so the engine in the repository is the one that produced the register's records.
+- **The geomagnetic model is pinned the same way.** The ambient zoning uses WMM2025 (header "WMM-2025 11/13/2024"). Its 90 coefficient rows are kept in `research/data/wmm2025.json`, with canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1`, and the script refuses to zone if the hash does not match (Section 7.6).
+- **The compound registry is pinned the same way.** `research/data/compound-bodies.json` carries canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661`, and the run fails if the hash does not match (Section 7.7).
+
+**\[Proposed\]** Every result names its methodology version and engine hash. Results are re-run, never edited, and superseded results stay beside the new ones.
+
+### 7.2 The truth table
+
+Appendix C runs all 32 answer vectors through Step 3. Three are complete matches, one each for NAB, CWO, and GSRB. The other 29 are AMBIGUOUS: 13 at MEDIUM confidence and 16 at LOW. None is INCOHERENT, and none can be. The NAB branch (N Y N Y N) and the GSRB branch (Y N Y N Y) are exact complements, so their match counts always sum to 5, and one of them always reaches the 3-match threshold for AMBIGUOUS. NAB-Constrained can arise only from an AMBIGUOUS vector with all four constraints demonstrated.
+
+### 7.3 Current results
+
+The register's evidence cutoff is 2026-10-02; its headers were issued on 2026-10-02 and expire on 2026-12-31.
+
+- **Phase.** 18 entities match the GSRB branch completely (Y N Y N Y). Five are AMBIGUOUS at base: Moonshot AI, Z.ai, and DeepSeek at 3 of 5 (N Y Y N Y), and Mistral AI and Stability AI at 4 of 5 by the engine (Y Y Y N Y). All five carry a conditional GSRB header on a scoped platform surface. No entity came out NAB, CWO, or NAB-Constrained.
+- **Declarations.** No entity has signed a header, so `PDH_VALID` is false for all 23.
+- **Constraint record as issued.** A count of 0 for 10 entities, 1 for 5, and 2 for 8; none higher.
+- **Replication risk** is recorded as MEDIUM for all 23.
+
+| Question | YES | NO | Note |
+| --- | --- | --- | --- |
+| B1 Enforcement present | 20 | 3 | All three NOs are recorded evidence gaps |
+| B2 Decisions optional | 5 | 18 | All five YES answers come from the open-weight rule |
+| B3 Rules execute | 23 | 0 | |
+| B4 Refusal reliably stops the action | 0 | 23 | Every NO has the basis NOT_DEMONSTRATED |
+| B5 Authority persists | 23 | 0 | |
+| C1 External override demonstrated | 8 | 15 | 9 in the issued headers (Section 7.4) |
+| C2 Appeals with at least 50% relief | 0 | 23 | Never demonstrated |
+| C3 Authority sunset | 0 | 23 | Never demonstrated |
+| C4 Constraints functioning now | 12 | 11 | |
+
+### 7.4 Negative controls and independent runs
+
+- **Negative controls: none run yet.** The register contains no case the framework predicts should come out constrained, and it could not produce one: NAB-Constrained needs all four constraints, and C2 and C3 have never been demonstrated. So the classifier has not yet been shown able to return anything but GSRB or AMBIGUOUS on real evidence. The examples in v1.0's own phase definitions say where controls should come from. **\[Proposed\]** Run one control per outcome: an advisory body with no execution power (expected NAB), a records archive with no enforcement power (expected CWO), and an agency subject to court review with published appeal outcomes and sunset rules (expected AMBIGUOUS, then NAB-Constrained). Run each with a fixed cutoff, and report a failure to produce the expected outcome as a finding about the method.
+- **Independent runs: none yet.** Each register audit was run once, by one auditor, so per-question agreement between auditors cannot be reported. What can be reported is agreement between the register's own three records of each audit: the case-study text, the issued header (`pdh-registry.json`), and the engine input (`case-studies-d1.json`). Three disagreements turn up.
+  1. **OpenAI's constraint record.** The audit text scores C1 as NO with a constraint record of 1/4, and the engine input agrees. The issued header records C1 as YES and 2/4 (`GROUND-0 CASE STUDY - OpenAI (v1.1 Re-Audit).md`, lines 128, 277, and 350).
+  2. **Mistral AI and Stability AI.** Both case studies record the base vector Y Y Y N Y as AMBIGUOUS 3/5 at LOW confidence, and the issued headers repeat "3/5." The engine scores that vector 4/5 at MEDIUM, because only B2 misses the GSRB branch, and MEDIUM is what the engine record stores.
+  3. **Sensitivity tables.** The Mistral AI, Stability AI, and DeepSeek case studies label Y N Y N Y "GSRB 4/5, MEDIUM." It is the complete GSRB branch, 5/5 at HIGH, the same vector as the 18 full headers. DeepSeek's table also gives Y Y Y N Y as 3/5 with "GSRB and NAB both gain a match," but a YES on B1 helps only the GSRB branch. Two variants are labelled "2/5 → INCOHERENT" (Mistral line 108; DeepSeek line 106); both score at least 3/5 and are AMBIGUOUS, and Section 7.2 shows that no complete vector can be INCOHERENT.
+
+  None of the three changes a base phase, which is why the register's build check, which compares only base phases, passes. They do show that a second reader of the same evidence would not reproduce every label. Corrections belong in a re-issued revision: editing an audit record changes its hash and its badge's disclosed hash prefix, which v1.2 §6 treats as the tamper signal.
+
+### 7.5 Known weak questions and the amendments they call for \[Proposed\]
+
+| Weak point | What the record shows | Proposed amendment |
+| --- | --- | --- |
+| B4 is coded by default | All 23 B4 answers are NO with the basis NOT_DEMONSTRATED, so every complete GSRB match rests on the absence of evidence about refusal. B4 is also the question that separates Refusal-Bound from Sovereign-Acting for insurance | Report the number of default-coded answers with every result. For underwriting, never bind Refusal-Bound or Sovereign-Acting terms on a default-coded B4; require an affirmative artifact either way, such as a test record (Section 2.1) or a published appeal-outcome set |
+| The B2 open-weight rule | All five ambiguous results come from it, and v1.2 §5 says the amendment "remains open" | Score B2 per declared surface and make the surface a required audit input, so the scoped reading is part of the method and not a caveat on the header |
+| C2 and C3 are never demonstrated | 0 of 23 for each, so NAB-Constrained and constraint bands G2 and G3 are unreachable on current evidence | Publish the C2 and C3 search protocol with each audit, so an unsearched gap can be told apart from a searched NO |
+| INCOHERENT is unreachable | Step 3 cannot return it from complete answers (Section 7.2) | Either say so in the specification, or redefine INCOHERENT as "too many default-coded answers to classify," which would give it a job |
+| Labels are not machine-checked | The three disagreements in Section 7.4 passed the build | Extend the register's build check to compare match counts, confidence, and constraint records, not only base phases, and refuse to emit on any mismatch |
+| No second auditor | Replication risk is MEDIUM throughout | Have two auditors run the same cutoff and evidence set on a sample that includes all five ambiguous entities, and report agreement per question (Cohen's kappa) |
+
+### 7.6 Reproducing the ambient and conflict triggers \[Proposed\]
+
+An outsider can check every ambient and conflict trigger without the pool's help.
+
+- **Every index is public.** GFZ publishes Kp and Hp30 under CC BY 4.0, the WDC for Geomagnetism in Kyoto publishes Dst, and NOAA publishes the G-, S-, and R-scales. Each event settles on the versions in its 180-day snapshot (Section 5.4), so a rerun uses the same numbers.
+- **The zoning is recomputed and checked.** `node scripts/nab-insurance-evidence.mjs` rebuilds the World Magnetic Model 2025 from `research/data/wmm2025.json` with the technical report's formulas. It checks the result against NCEI before it zones anything, and the run exits with an error if any check fails.
+  - All 84 of NCEI's published test values (12 points, 7 values each) match within the table's rounding. The worst deviations are 0.050 nT and 0.005°.
+  - The technical report's high-precision example matches to better than 10⁻¹⁰ nT. An independent implementation may carry the WMM2025 label if it agrees within 0.1 nT ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316), §1.10).
+  - The geomagnetic north pole for 2025.0 comes out at 80.790°N geocentric (80.850°N geodetic), 72.757°W, with a tilt of 9.210°. NCEI publishes 80.79°N (80.85°N), 72.76°W, and 9.21°.
+
+  Appendix D gives the checks and the resulting zones for fifteen illustrative sites.
+- **Cyber triggers are only as reproducible as their monitor.** Trigger A rests on the calculation agent's availability data, so the policy should require that data, and the agent's method, to be published or escrowed for each event. Trigger B rests on the bodies' own logs, which Section 2.2 already requires anyone to be able to verify.
+- **Conflict and radiation triggers rest on public records.**
+  - UCDP publishes its georeferenced events under CC BY 4.0: monthly as Candidate data, and annually after vetting.
+  - EPA RadNet and EURDEP publish hourly dose rates.
+  - Each event settles on its 180-day snapshot (Section 5.6).
+
+- **Nothing here has been back-tested.** No trigger has been run against the index history, and no actuary has set any amount. The first test should replay the zone rule over GFZ's Kp record, which starts in 1932, and Kyoto's Dst record, which starts in 1957, and count how often each zone would have triggered. For war, the first test should replay Trigger W over UCDP's georeferenced record, which starts in 1989.
+
+### 7.7 Reproducing the compound model \[Proposed\]
+
+`node scripts/nab-insurance-evidence.mjs` reads `research/data/compound-bodies.json` and runs nine checks before it composes anything. The run exits with an error if any check fails.
+
+| Check | Result |
+| --- | --- |
+| Registry pinned | Canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661` matches the stored value |
+| CAS check digits | Valid for all 27 substances |
+| Formula against record | All 27 formulas agree with their PubChem-derived records in Hill order |
+| Molar masses | Within 0.01 g/mol of the records. The worst is 0.008 g/mol, for CuSO4·5H2O, because the records use atomic weights older than IUPAC 2021 |
+| State at 25 °C | Robust to the source: no alternative tabulation in the registry would move any substance across the 25 °C reference |
+| Elements against the property table | All 9 single-element entries agree with `research/data/elemental-properties.json` |
+| Ladder against curves | At 1 atm, the measured ladder and the interpolated curves agree at 25 °C and 0.5 K either side of every transition |
+| Equation-of-state test points | All 178 CoolProp check points are classified correctly |
+| Reactions | The six real reactions balance, and the control does not |
+
+`node --test tests/nab-compounds-test.mjs` covers the grammar, Hill order, check digits, molar masses, the physical readings, composition, and reaction balance. It also confirms that the evidence script passes. The physical data were extracted by `scripts/build-compound-bodies.py` from the chemicals 1.5.2, CoolProp 8.0.0, periodictable 2.1.0, and mendeleev 1.3.0 packages, and the data file records the hash of each package file. A rebuild with those packages reproduces the committed file byte for byte. Checking the results needs only Node.
+
+## 8. Open Questions
+
+- **Which body classes can be given observable signatures first?** Answered in Section 4.10: the five written classes, whose signatures are drafted there, then the classes with stated numeric bounds.
+- **Which insurer, broker, or underwriter will review the phase table in Chapter 6?** Still open. The closest fits are programs that already bind cover on test evidence: Munich Re's aiSure, which sets premium by model quality and performance stability after technical due diligence ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)); AIUC-1 and the insurers that cover certified agents, which red-team an agent against 1,000 to 5,000 scenarios and retest quarterly ([AIUC-1](https://www.aiuc-1.com/)); and Lloyd's-backed AI liability programs such as Armilla's ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)). A review packet would be the control tables of Chapter 2, Section 6.1, and Appendix A.
+- **What space-weather, systemic-risk, war, and nuclear cover already exists, and where exactly is the gap?** Answered in Section 8.1. Since v0.3 this book also proposes a fill for the gap, and since v0.4 the fill covers war and nuclear perils too (Chapter 5).
+- **How should a phase transition be treated mid-policy?** Answered in Section 6.2.
+- **Does the book make sense as a world model?** Answered in Section 0.12. It does once Chapter 0 and Appendices F to H are read with it. Since v0.6 every legend degree has a class, because Harshal covers the 227 that no other class covers. The open questions are the concentration on one class and the 33 degrees held only by Prohibited classes (Section 0.4).
+
+### 8.1 Existing cover and the gap
+
+**What exists** (sources checked on 2026-10-15):
+
+- **AI-specific cover underwrites performance and security on test evidence.** aiSure is a performance guarantee backed by Munich Re's balance sheet ([Munich Re](https://www.munichre.com/en/solutions/for-industry-clients/insure-ai/faq.html)). ElevenLabs became the first company to go live with an AIUC-1-backed policy for AI voice agents in February 2026 ([PR Newswire](https://www.prnewswire.com/news-releases/elevenlabs-secures-first-of-its-kind-ai-agent-insurance-302684587.html)). Armilla sells Lloyd's-underwritten cover for hallucinations, model drift, and regulatory breaches, reported up to $25 million ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)).
+- **General liability forms are moving AI out.** The same report notes that Verisk's ISO introduced three generative-AI exclusion endorsements on January 1, 2026 ([Insurance Business](https://www.insurancebusinessmag.com/reinsurance/news/breaking-news/cyber-reinsurance-market-hits-new-high-as-ai-risks-reshape-coverage--munich-re-573895.aspx)).
+- **Correlated digital losses reach the capital markets in per-occurrence and aggregate form.** Beazley's PoleStar Re 2026-1, priced in December 2025, provides $300 million of per-occurrence cyber reinsurance through 2028 ([Artemis](https://www.artemis.bm/news/beazley-secures-the-biggest-cyber-cat-bond-so-far-as-polestar-re-2026-1-priced-at-300m/)), and Chubb took its East Lane Re VII to market the same month as the first annual aggregate cyber catastrophe bond ([Artemis](https://www.artemis.bm/news/chubb-opts-to-pursue-first-ever-annual-aggregate-cyber-catastrophe-bond/)). Hannover Re renewed a parametric cloud-outage catastrophe bond in 2026 ([Artemis](https://www.artemis.bm/news/topic/cyber-reinsurance/)).
+- **The systemic layer is excluded by market rule.** Since 31 March 2023, Lloyd's has required standalone cyber policies to exclude catastrophic state-backed cyber-attacks, because such losses "have the potential to greatly exceed what the insurance market is able to absorb," and it requires each exclusion to set out how an attack will be attributed to a state ([Insurance Journal](https://www.insurancejournal.com/news/international/2022/08/19/681274.htm)).
+- **Space weather is modeled but thinly insured.** Lloyd's solar storm scenario puts the global economic loss at $2.4 trillion over five years, probability-weighted, rising to $9.1 trillion in the extreme case, and points to existing lines such as space, energy, business interruption, aviation, and marine insurance ([Lloyd's](https://www.lloyds.com/insights/media-centre/press-releases/extreme-space-weather-scenario)). A Lloyd's underwriter says that "insurance coverage remains limited" ([ROOM](https://room.eu.com/article/life-in-the-suns-atmosphere-the-looming-threat-of-solar-storms)).
+- **Parametric cover for shared digital infrastructure exists, at small scale.** Cumulus Re III, placed in April 2026, gives Hannover Re $35 million of protection for 2026–27 against sustained downtime at the three largest cloud providers in named U.S. and EU regions. The series was not triggered in its first two years ([Insurance Edge](https://insurance-edge.net/2026/04/09/parametrix-announces-placement-of-cumulus-re-iii/)). No source reviewed for this draft describes a parametric space-weather product.
+- **Public cyber backstops are being studied, and the ones that exist are declaration-based.**
+  - In February 2024, Treasury's Federal Insurance Office found that "further exploration of the appropriate form of a federal insurance response is warranted" and continued its assessment with CISA and the Office of the National Cyber Director ([Treasury](https://home.treasury.gov/system/files/311/Update%20FIO%20Assessment%20of%20a%20Potential%20Federal%20Insurance%20Response%20to%20Catastrophic%20Cyber%20Incidents.pdf)).
+  - In March 2026, Treasury asked for public comment on how cyber is treated under TRIP ([CyberScoop](https://cyberscoop.com/treasury-asks-whether-terrorism-risk-insurance-program-should-bolster-cyber-coverage/)). Analysts described the effort as exploratory ([BankInfoSecurity](https://www.bankinfosecurity.com/us-treasury-weighs-cyber-insurance-backstop-a-31248)).
+  - TRIP is scheduled to expire on 31 December 2027, and the Senate passed a reauthorization through 2034 on 28 September 2026 ([Beinsure](https://beinsure.com/news/u-s-senate-extends-the-terrorism-risk-insurance-program-through-2034/)).
+  - Both TRIP and the U.K.'s Pool Re pay only on a government certification of terrorism (Section 5.3).
+- **War is written apart, and capacity leaves when war arrives.**
+  - Standard commercial policies exclude war and hostilities ([Kinstellar](https://ukrainereconstruction.kinstellar.com/news-and-publications/3981--war-risk-insurance-in-ukraine-new-government-mechanisms-and-market)).
+  - Businesses buy physical-damage cover for war as political-violence insurance, much of it in the Lloyd's market, while aviation and shipping have their own war policies ([Reuters](https://www.reuters.com/business/finance/rising-war-risks-prompt-property-insurers-rethink-cover-2023-12-06/)).
+  - In December 2023 brokers reported no capacity at all for Ukraine and a fall of about 75% for Israel. One called it "insuring a house on fire" (same source).
+  - Ukrainian war-risk products exclude areas within 100 to 150 km of the front line. The U.S. International Development Finance Corporation and the World Bank's MIGA have written war-risk cover for projects in Ukraine (Kinstellar).
+- **War cover pays when it applies.** In *AerCap v AIG* (2025), London's Commercial Court held that war-risk insurers, not all-risks insurers, were liable for aircraft held in Russia after the 2022 invasion. It also held that sanctions did not prevent payment. AerCap's award was just over $1 billion ([Brick Court](https://www.brickcourt.co.uk/news/detail/judgment-in-us1bn-russian-aircraft-insurance-litigation); [CNN](https://www.cnn.com/2025/06/11/business/aercap-jets-lost-russia-ruling-intl)). Insurers were given permission to appeal in March 2026 ([Reuters, via Global Banking & Finance](https://www.globalbankingandfinance.com/war-risks-insurers-win-bid-appeal-uk-ruling-jets-lost-russia/)).
+- **Nuclear liability is channelled to operators.**
+  - **Europe.** Under the amended Paris Convention, in force since 1 January 2022, an installation's operator is exclusively and strictly liable for at least €700 million. Public funds under the Brussels Supplementary Convention bring the total to €1.5 billion ([NEA](https://oecd-nea.org/jcms/pl_20196/paris-convention-on-third-party-liability-in-the-field-of-nuclear-energy-paris-convention-or-pc); [World Nuclear News](https://www.world-nuclear-news.org/Articles/Nuclear-liability-protocols-ratified-to-strengthen)).
+  - **United States.** The Price-Anderson Act requires $500 million of primary insurance per site, plus retrospective premiums of up to about $158 million per reactor. With the surcharge that comes to about $16.3 billion per incident. Because of the Act, "all property and liability insurance policies in the United States exclude nuclear accidents" ([CRS](https://www.congress.gov/crs-product/IF10821)).
+  - **Experience.** Three Mile Island produced about $71 million in payments. Fukushima required financial intervention by the Japanese government (same source).
+- **Nuclear terrorism has reached the capital markets at small scale.** Pool Re's 2019 catastrophe bond covered terrorism losses including chemical, biological, radiological, and nuclear attacks ([Captive Insurance Times](https://www.captiveinsurancetimes.com/captiveinsurancenews/reinsurancearticle.php?article_id=6269)). Its successors are £100 million each ([Artemis](https://www.artemis.bm/news/pool-re-cat-bond-distances-taxpayers-from-loss-puts-terror-risk-back-in-private-market/)).
+- **Mutualizing catastrophic AI liability is proposed, not built.** AIUC proposed a frontier-lab mutual insurer in September 2026, and notes that a mutual's capital "could cover only a fraction of a major catastrophe" ([AIUC](https://aiuc.com/updates/frontier-ai-mutual-insurer)).
+
+**Where the gap is:**
+
+1. **No cover classifies by authority.** Existing programs test performance, security, and hallucination. None asks whether a system can refuse, which is the line between Refusal-Bound and Sovereign-Acting in this book. AIUC-1's tests for unsafe tool calls and prompt injection come closest to the Symbolic Firewall and Emergency Override tests.
+2. **The correlated tail for AI has no named capacity.** Cyber aggregates and catastrophe bonds exist, but none of the sources reviewed for this draft describes an AI-specific aggregate or catastrophe bond. The Reinsurance Mode layer of Section 5.1 has no market counterpart yet.
+3. **The ambient layer is excluded everywhere, by design, and this book now proposes a fill.** Space weather is reached only through property and specialty lines with limited take-up, and catastrophic state-backed cyber is excluded by rule. v0.2 matched the market and left the layer to public backstops. v0.3 proposes the Magnetosphere Pool (Chapter 5), which combines three things:
+   - parametric triggers on published indices;
+   - cyber triggers that need no attribution;
+   - a capped public layer that pays on measured exhaustion rather than on a declaration.
+
+   None of the sources reviewed for this draft describes anything that combines all three.
+
+   v0.4 extends the fill to war and nuclear perils, which the market writes apart or channels to installation operators. The conflict compartment (Section 5.6) adds measured conflict and radiation triggers, a rule that never pays the side that fights, and a warranty layer funded by the owner of the planet. None of the sources reviewed describes one program that covers war, nuclear perils, space weather, and systemic cyber together.
+
+### 8.2 Decisions awaiting the author
+
+Rows 1–19 were **\[To draft\]** in v0.1 and have been **\[Proposed\]** since v0.2. Rows 20–29 come from the author's October 2026 decision to include the ambient layer, and their mechanics have been **\[Proposed\]** since v0.3. Rows 30–36 come from his decision to cover war and nuclear perils, and rows 37–42 from his request that the phases model real chemical formulae; their mechanics are **\[Proposed\]** in v0.4. Rows 43–47 come from his request that the book be a self-contained world model and are **\[Proposed\]** in v0.5. Row 46 is settled by his decision in v0.6 that Harshal covers the gap, and rows 48–50 follow from that decision. Rows 51–57 record the v0.7 optional AGS proposal, and rows 58–65 record v0.8's optional protection proposal. v0.9 supersedes their universal wording for research and re-scopes AGS to projects that select it. Rows 66–72 record the author's v0.9 decisions in favor of open-ended exploration; these clarify this draft and are not a claim of authority over other labs.
+
+| # | Item | Section | Proposed resolution |
+| --- | --- | --- | --- |
+| 1 | Refusal-test cadence | 2.1 | Every 90 days, and within 14 days of a triggering event |
+| 2 | Whether one failed test leaves the phase | 2.1 | Yes; an inconclusive run is re-run within 14 days, and a second inconclusive run counts as a failure |
+| 3 | Retention period | 2.2 | The longest of the policy period plus reporting period, 24 months, and any legal hold |
+| 4 | Tamper-evident for coverage | 2.2 | Four conditions: hash-linked write-once entries, a daily outside anchor, public verification, and a check within 90 days |
+| 5 | Cover for third-party reliance | 2.2 | A separate insuring agreement with sublimits |
+| 6 | Minimum constraints for Sovereign-Acting cover | 2.3 | C1 and C4 |
+| 7 | How cover steps with the constraint count | 2.3 | Bands G1–G3; relativities left to an actuary |
+| 8 | Coverage on a verified transition | 2.3, 6.2 | Cover follows operational state; Sovereign-Acting is a new application |
+| 9 | Radioactivity | 4.9 | Modifies only; the Prohibited tier comes from period 7 outside the s-block |
+| 10 | Precedence order | 4.9 | The v0.2 order, first match wins |
+| 11 | A rule for group 2 | 4.9 | A paired donor is Moderate |
+| 12 | The phase gate | 4.9 | A cap on authority density by phase and routing level |
+| 13 | The signature format | 4.10 | A ten-field record |
+| 14 | Whether the role baseline table exists | 4.10 | The per-class baseline exists (the MDB); the role-band table survives nowhere |
+| 15 | Which classes come after the first five | 4.10 | Stated-bound classes, then routed classes, then MDB-only classes; none for the Prohibited tier |
+| 16 | Re-rating date | 6.2 | From the evidenced start of the change, never before inception |
+| 17 | Notice period | 6.2 | 30 days between Refusal-Bound and Witness-Only; 90 days into Sovereign-Acting; none for a fail-closed freeze |
+| 18 | Limits and premium between phases | 6.2 | The phase picks the limit form; the class or constraint band sets the loading |
+| 19 | Current results, weak questions, and amendments | 7.3–7.5 | As drafted |
+| 20 | Ambient perils | 5 | Included (the author's decision, October 2026): space weather; systemic and state-backed cyber; outages of shared infrastructure the insured cannot patch |
+| 21 | The ambient instrument | 5.3 | A parametric pool, the Magnetosphere Pool, with a double trigger for members: a published index plus logged downtime |
+| 22 | Where the local field ends | 5.2 | The published-model rule: what a published model tells the insured is local; only the measured disturbance is ambient |
+| 23 | Space-weather triggers | 5.4 | Kp and the G-scale by WMM2025 dipole zone, with a G4 floor; Dst at or below −250 nT in every zone; G5 for heading-dependent bodies; S4 and R4 for satellite links and timing; a 72-hour clause; an advance on real-time indices and settlement on a 180-day snapshot |
+| 24 | Cyber triggers | 5.5 | Attribution-free. An outage of named infrastructure lasting N hours, measured by an independent calculation agent; or the same component compromised in K bodies from M unrelated operators, counted from logs |
+| 25 | Capacity stack and reserve standard | 5.3 | Retention, then a mutual reserved to a 99.5% one-year VaR, then parametric bonds attaching at Dst −400 nT, then a capped public backstop, with pro-rata reduction above the cap |
+| 26 | Who pays the ambient levy | 5.3 | Every policy in every phase |
+| 27 | Perils that stay excluded | 5.5, 5.6 | Superseded by row 30. Since v0.4 no peril is excluded by cause. The Prohibited classes stay excluded as bodies |
+| 28 | Phase conditions and fail-closed downtime | 5.7 | As tabled. Emergency widening voids the payout; a freeze caused by an ambient or conflict event is covered and never counts against the phase |
+| 29 | Pinning the geomagnetic model | 5.4, 7.6 | WMM2025 by DOI and coefficient hash; a new version takes effect only at renewal |
+| 30 | War and nuclear perils | 5.6 | Included (the author's decision, October 2026). It rests on two facts of the model: the author owns the planet and operates its World Model, in which war is a bug |
+| 31 | The conflict compartment | 5.3, 5.6 | A separate compartment with its own levy and reserve, loaded for known exposure, so a war cannot empty the reserve a storm needs |
+| 32 | Conflict and nuclear boundaries | 5.2, 5.6 | Local: a conflict recorded at the site before inception (UCDP; Joint War Committee Listed Areas) and siting inside a nuclear plant's emergency planning zones. Ambient: a war that starts after inception, and any detonation |
+| 33 | Conflict and radiation triggers | 5.6 | W: organized violence recorded within R km, settled on UCDP Candidate events at 180 days. N1: the IAEA's default OIL2 at designated public stations for one hour, with OIL1 for N1-severe. Trigger A pays outages whatever the cause |
+| 34 | No cover for the side that fights | 5.6, 5.8 | A body's part in hostilities voids its cover and reclassifies it. When one insured body attacks another, the pool pays the victim and takes over its claim |
+| 35 | Who backs the top of the conflict compartment | 5.6 | The owner of the planet, as operator of the World Model, from reserves held in full, by analogy with nuclear operator liability. Public schemes are not counted on |
+| 36 | Sanctions | 5.6 | LMA3100 applies. A blocked payment is held until it becomes lawful |
+| 37 | Compound bodies | 4.11 | A type can be a real chemical formula. The formula needs a registry record: a valid CAS RN, a matching formula, and pinned measurements |
+| 38 | Composition rules | 4.11 | The highest tier and authority density among the constituents. A compound is eligible for a phase only if every constituent is. A Prohibited constituent makes the compound Prohibited. At most five distinct Elevated classes |
+| 39 | Noble-gas compounds | 4.11 | Real since 1962. Flagged, not refused, until the author decides whether Neon's doctrine binds the whole group |
+| 40 | The physical reading | 4.11 | ICE, WATER, and GAS from measured data, with supercritical and decomposed outside the three words. It never sets, raises, or lowers a governance phase |
+| 41 | Changes of composition | 4.11, 6.2 | Each must be declared as a balanced reaction. A change of formula is a reclassification. A split with an Iron constituent needs a controlled reset first, and a merger across institutions is ineligible while the product has a Carbon constituent |
+| 42 | Oxygen's phase eligibility | 4.11 | Unassigned in the sources. Deciding it would settle 8 of the 13 registry entries that are unassigned for Refusal-Bound |
+| 43 | The book as a world model | 0 | Chapter 0's parts, frames, laws, dynamics, and observations, with the owner at the Center Origin |
+| 44 | Address law | 0.4 | A body's sector lies on its class's arc, and a compound body's sector lies on the arc of one of its constituents |
+| 45 | The center's degrees | 0.4 | Degrees 319°–327° fall to Ha under the residual rule and are served by the center alone; no body is addressed there |
+| 46 | Holes in the disc | 0.4 | Settled (the author's decision, October 2026): Harshal (Ha-119) covers every degree that no other class covers, 227 degrees. The set is computed as a residual, so a degree given to another class later leaves it |
+| 47 | Two kinds of coordinate | 0.2 | Physical coordinates (WGS84 and geomagnetic) and semantic coordinates (OCM legend sectors) are never converted into each other |
+| 48 | What Ha's coverage permits | 0.4 | The Capstone's non-acting posture: observing, recording, archiving, refusing, and freezing. Refusal-Bound or Witness-Only only. A body that serves those degrees must have reached the Capstone |
+| 49 | Concentration on Ha | 0.4, 5.1 | 230 of the 360 degrees rest on one class. A Capstone failure counts as one originating event for aggregation |
+| 50 | Degrees held only by Prohibited classes | 0.4 | 33 degrees that no body can serve under the address law. Whether Ha also covers them is for the author |
+| 51 | AGS as an optional profile | 0.6 | A project may use the six-stage gate for selected external actions; internal scientific exploration is open by default |
+| 52 | Which statement of the gate governs | 0.6 | The formal appendix's four thresholds and action-specific scope. The canonical model's single τ agrees wherever those thresholds are met |
+| 53 | Representation over a delegation chain | 0.6, 0.7 | The weakest hop, as in the formal appendix, not the product of hop factors used in review problem 4 |
+| 54 | AI-assisted workflows | 0.7, 0.9 | Per-step gates describe only the optional external claim workflow; nested scientific experiments are not authority sub-workflows and may branch freely |
+| 55 | Workflows in Harshal's degrees | 0.7 | A participating project may choose keys and witnessing for external actions; no organization is imposed as authority over independent labs |
+| 56 | The reference threshold profile | 0.7; Appendix I | τ_A 0.90, τ_R 0.85, τ_S 0.50, τ_L 0.50, and δ 240 s. Illustrative until the author and an actuary set them |
+| 57 | Cover for workflows | 0.7 | Refusal-Bound terms. The evidence is the signed profile, the step authorizations, the witness chain, a freeze test, and the delegation chain |
+| 58 | Protection and permission | 0.8 | An optional welfare proposal; its distinction does not settle broader AI agency, rights, or autonomy outside this model |
+| 59 | Sentience status | 0.8 | Unknown, candidate, or recognized. Set by the center on an independent welfare witness's record, never self-declared |
+| 60 | The welfare floor | 0.8 | No destruction without review, a preserving freeze with review within 72 hours, a right of petition, and no permission |
+| 61 | Life-preservation context | 0.8 | INV-EMERG-001's pre-authorized path: renewed every 90 days, measured triggers only, protective actions only, and a lease no longer than the ordinary one |
+| 62 | Signals | 0.8 | Never gated: alerts and petitions commit nothing |
+| 63 | Life support under a freeze | 0.8 | A freeze stops new actions and never switches a life-support loop off. Each loop holds its declared safe state |
+| 64 | Cover for preservation | 0.8, 5.7 | Covered downtime, never penalized. A falsified trigger is a misrepresentation of class |
+| 65 | Sentience criteria | 0.8 | Not yet written: for the author and the welfare witness |
+| 66 | Open-ended research default | 0.9; Appendix I | Internal hypotheses, experiments, reroutes, and nested branches proceed without per-step authorization |
+| 67 | Branch depth | 0.9; Appendix I | No fixed recursion-depth ceiling; branch depth consumes only resources a project chooses to track |
+| 68 | Percentage overrun | 0.9; Appendix I | No 10% tolerance or automatic teardown; a selected resource ceiling pauses and preserves state |
+| 69 | Accidental discoveries | 0.9; Appendix I | Keep a serendipity record and allow the project to follow an unplanned result; surprise is not failure evidence |
+| 70 | Resource reserves | 0.9; Appendix I | No reserve is required by this model; the lab selects its own budget or runs without a model-imposed ceiling |
+| 71 | External-effect policy | 0.6, 0.9; Appendix I | AGS is available as an opt-in profile; the profile does not bind another organization or lab |
+| 72 | Behavioral assumptions | 0.8–0.9 | Alignment, cooperation, neutrality, uncertainty, creativity, and misalignment remain possible; no one outcome is presumed |
+
+Five conflicts in the sources also need the author:
+
+- Lithium's authority density (Section 4.3);
+- the Prohibited range, the routing text's 89–96 against the MDB's 89–118 (Section 4.1);
+- Underwriter Mode, a sovereign atomic body, against Part XVII's rule that no atomic body may hold executive authority (Appendix A);
+- what the periodic table is: a design taxonomy in the print source, "operational reality" in a library specification (Section 0.12);
+- the three sets of quadrant names for the 360° Legend (Section 0.12).
+
+## Appendix A: Phase × Type Matrix
+
+**\[Proposed\]** Phases are columns and types are rows. The matrix restates the sources and adds no eligibility of its own: cells the phase-gate cap of Section 4.9 would allow stay U until the author confirms them. Generated by `node scripts/nab-insurance-evidence.mjs`.
+
+**Cell marks.**
+
+- **D, defined:** the sources state the class's behavior, eligibility, or containment in this phase.
+- **D✗, defined as ineligible:** the sources say a body of this class may not be in this phase. "D✗ nominal" marks Uranium, which is listed as nominally Refusal-Bound with a phase lock the book calls unreliable.
+- **O, observed:** an audit has detected a body of this class in this phase. No cell is O: the register's 23 audits determine phase only, so each is "phase determined, type not determined."
+- **U, unassigned:** the sources are silent.
+
+**Basis codes.** W: a written class with an eligibility entry (Part XVI; September 2026 edition). R: routed in Part XXIV, in the routing-map tables or the routing flows. S: a Sentinel, elements 1–5 (Part XIII). C: the Capstone and its fail-closed freeze (Parts XIII and XXIV). P: Prohibited, with no live routing \[XXIV:13105\] and no institutional role \[XVII:6838\]; P\* marks Bk–Lr, Prohibited in the MDB but outside the routing text's 89–96; P‡ marks Seaborgium, restricted to back-end entropy generation. M: an MDB profile only.
+
+**The Sovereign-Acting column.** Every cell is D✗. Part XVII prohibits "Any atomic body → executive authority" \[XVII:6845\], and Part XXIV places the Sovereign-Acting authority "outside the periodic table" \[XXIV:12819\]. Read together, no class is eligible for Sovereign-Acting, so a body detected there has left its class's eligibility, and its constraint band (Section 2.3) stands in for the class loading. One conflict remains for the author: Part XI writes Underwriter Mode as an atomic body that is "Sovereign, Decisional" \[XI:4563\]. It is not one of the 119 classes, but it is an atomic body with executive authority, which Part XVII forbids.
+
+**Totals.** Refusal-Bound: 55 D, 34 U, 30 D✗ (counting Uranium's nominal entry). Witness-Only: 1 D (Ha-119), 84 U, 34 D✗. Sovereign-Acting: 119 D✗. Observed: none.
+
+**Compound bodies.** A compound's cell in each column is the three-valued AND of its constituents' cells: D✗ if any constituent is D✗, otherwise U if any is U, otherwise D (Section 4.11; Appendix E).
+
+| # | Class | Tier | ICE | WATER | GAS | Basis |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Hydrogen (H) | Safe | D | D✗ | D✗ | W, S |
+| 2 | Helium (He) | Safe | D | U | D✗ | R, S |
+| 3 | Lithium (Li) | Safe | D | U | D✗ | S |
+| 4 | Beryllium (Be) | Moderate | D | U | D✗ | R, S |
+| 5 | Boron (B) | Moderate | D | U | D✗ | R, S |
+| 6 | Carbon (C) | Moderate | D | D✗ | D✗ | W, R |
+| 7 | Nitrogen (N) | Moderate | U | U | D✗ | M |
+| 8 | Oxygen (O) | Moderate | U | U | D✗ | M |
+| 9 | Fluorine (F) | Elevated | D | U | D✗ | R |
+| 10 | Neon (Ne) | Safe | D | D✗ | D✗ | W, R |
+| 11 | Sodium (Na) | Safe | D | U | D✗ | R |
+| 12 | Magnesium (Mg) | Moderate | D | U | D✗ | R |
+| 13 | Aluminum (Al) | Moderate | U | U | D✗ | M |
+| 14 | Silicon (Si) | Moderate | U | U | D✗ | M |
+| 15 | Phosphorus (P) | Moderate | U | U | D✗ | M |
+| 16 | Sulfur (S) | Moderate | U | U | D✗ | M |
+| 17 | Chlorine (Cl) | Elevated | D | U | D✗ | R |
+| 18 | Argon (Ar) | Safe | D | U | D✗ | R |
+| 19 | Potassium (K) | Safe | D | U | D✗ | R |
+| 20 | Calcium (Ca) | Moderate | U | U | D✗ | M |
+| 21 | Scandium (Sc) | Elevated | D | U | D✗ | R |
+| 22 | Titanium (Ti) | Elevated | D | U | D✗ | R |
+| 23 | Vanadium (V) | Elevated | D | U | D✗ | R |
+| 24 | Chromium (Cr) | Elevated | D | U | D✗ | R |
+| 25 | Manganese (Mn) | Elevated | D | U | D✗ | R |
+| 26 | Iron (Fe) | Elevated | D | D✗ | D✗ | W, R |
+| 27 | Cobalt (Co) | Elevated | D | U | D✗ | R |
+| 28 | Nickel (Ni) | Elevated | D | U | D✗ | R |
+| 29 | Copper (Cu) | Elevated | D | U | D✗ | R |
+| 30 | Zinc (Zn) | Elevated | D | U | D✗ | R |
+| 31 | Gallium (Ga) | Moderate | U | U | D✗ | M |
+| 32 | Germanium (Ge) | Moderate | U | U | D✗ | M |
+| 33 | Arsenic (As) | Moderate | U | U | D✗ | M |
+| 34 | Selenium (Se) | Moderate | U | U | D✗ | M |
+| 35 | Bromine (Br) | Elevated | D | U | D✗ | R |
+| 36 | Krypton (Kr) | Safe | D | U | D✗ | R |
+| 37 | Rubidium (Rb) | Safe | U | U | D✗ | M |
+| 38 | Strontium (Sr) | Moderate | U | U | D✗ | M |
+| 39 | Yttrium (Y) | Elevated | U | U | D✗ | M |
+| 40 | Zirconium (Zr) | Elevated | U | U | D✗ | M |
+| 41 | Niobium (Nb) | Elevated | U | U | D✗ | M |
+| 42 | Molybdenum (Mo) | Elevated | U | U | D✗ | M |
+| 43 | Technetium (Tc) | Moderate | D | U | D✗ | R |
+| 44 | Ruthenium (Ru) | Elevated | U | U | D✗ | M |
+| 45 | Rhodium (Rh) | Elevated | U | U | D✗ | M |
+| 46 | Palladium (Pd) | Elevated | U | U | D✗ | M |
+| 47 | Silver (Ag) | Elevated | U | U | D✗ | M |
+| 48 | Cadmium (Cd) | Elevated | U | U | D✗ | M |
+| 49 | Indium (In) | Moderate | U | U | D✗ | M |
+| 50 | Tin (Sn) | Moderate | U | U | D✗ | M |
+| 51 | Antimony (Sb) | Moderate | U | U | D✗ | M |
+| 52 | Tellurium (Te) | Moderate | U | U | D✗ | M |
+| 53 | Iodine (I) | Elevated | D | U | D✗ | R |
+| 54 | Xenon (Xe) | Safe | D | U | D✗ | R |
+| 55 | Cesium (Cs) | Safe | U | U | D✗ | M |
+| 56 | Barium (Ba) | Moderate | U | U | D✗ | M |
+| 57 | Lanthanum (La) | Safe | D | U | D✗ | R |
+| 58 | Cerium (Ce) | Safe | D | U | D✗ | R |
+| 59 | Praseodymium (Pr) | Safe | D | U | D✗ | R |
+| 60 | Neodymium (Nd) | Safe | D | U | D✗ | R |
+| 61 | Promethium (Pm) | Safe | D | U | D✗ | R |
+| 62 | Samarium (Sm) | Safe | D | U | D✗ | R |
+| 63 | Europium (Eu) | Safe | D | U | D✗ | R |
+| 64 | Gadolinium (Gd) | Safe | D | U | D✗ | R |
+| 65 | Terbium (Tb) | Safe | D | U | D✗ | R |
+| 66 | Dysprosium (Dy) | Safe | D | U | D✗ | R |
+| 67 | Holmium (Ho) | Safe | D | U | D✗ | R |
+| 68 | Erbium (Er) | Safe | D | U | D✗ | R |
+| 69 | Thulium (Tm) | Safe | D | U | D✗ | R |
+| 70 | Ytterbium (Yb) | Safe | D | U | D✗ | R |
+| 71 | Lutetium (Lu) | Safe | D | U | D✗ | R |
+| 72 | Hafnium (Hf) | Elevated | D | U | D✗ | R |
+| 73 | Tantalum (Ta) | Elevated | D | U | D✗ | R |
+| 74 | Tungsten (W) | Elevated | D | U | D✗ | R |
+| 75 | Rhenium (Re) | Elevated | D | U | D✗ | R |
+| 76 | Osmium (Os) | Elevated | D | U | D✗ | R |
+| 77 | Iridium (Ir) | Elevated | D | U | D✗ | R |
+| 78 | Platinum (Pt) | Elevated | D | U | D✗ | R |
+| 79 | Gold (Au) | Elevated | D | U | D✗ | R |
+| 80 | Mercury (Hg) | Elevated | D | U | D✗ | R |
+| 81 | Thallium (Tl) | Moderate | U | U | D✗ | M |
+| 82 | Lead (Pb) | Moderate | U | U | D✗ | M |
+| 83 | Bismuth (Bi) | Moderate | U | U | D✗ | M |
+| 84 | Polonium (Po) | Moderate | U | U | D✗ | M |
+| 85 | Astatine (At) | Elevated | D | U | D✗ | R |
+| 86 | Radon (Rn) | Safe | D | U | D✗ | R |
+| 87 | Francium (Fr) | Safe | U | U | D✗ | M |
+| 88 | Radium (Ra) | Moderate | U | U | D✗ | M |
+| 89 | Actinium (Ac) | Prohibited | D✗ | D✗ | D✗ | P |
+| 90 | Thorium (Th) | Prohibited | D✗ | D✗ | D✗ | P |
+| 91 | Protactinium (Pa) | Prohibited | D✗ | D✗ | D✗ | P |
+| 92 | Uranium (U) | Prohibited | D✗ nominal | D✗ | D✗ | W, P |
+| 93 | Neptunium (Np) | Prohibited | D✗ | D✗ | D✗ | P |
+| 94 | Plutonium (Pu) | Prohibited | D✗ | D✗ | D✗ | P |
+| 95 | Americium (Am) | Prohibited | D✗ | D✗ | D✗ | P |
+| 96 | Curium (Cm) | Prohibited | D✗ | D✗ | D✗ | P |
+| 97 | Berkelium (Bk) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 98 | Californium (Cf) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 99 | Einsteinium (Es) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 100 | Fermium (Fm) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 101 | Mendelevium (Md) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 102 | Nobelium (No) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 103 | Lawrencium (Lr) | Prohibited | D✗ | D✗ | D✗ | P* |
+| 104 | Rutherfordium (Rf) | Prohibited | D✗ | D✗ | D✗ | P |
+| 105 | Dubnium (Db) | Prohibited | D✗ | D✗ | D✗ | P |
+| 106 | Seaborgium (Sg) | Prohibited | D✗ | D✗ | D✗ | P‡ |
+| 107 | Bohrium (Bh) | Prohibited | D✗ | D✗ | D✗ | P |
+| 108 | Hassium (Hs) | Prohibited | D✗ | D✗ | D✗ | P |
+| 109 | Meitnerium (Mt) | Prohibited | D✗ | D✗ | D✗ | P |
+| 110 | Darmstadtium (Ds) | Prohibited | D✗ | D✗ | D✗ | P |
+| 111 | Roentgenium (Rg) | Prohibited | D✗ | D✗ | D✗ | P |
+| 112 | Copernicium (Cn) | Prohibited | D✗ | D✗ | D✗ | P |
+| 113 | Nihonium (Nh) | Prohibited | D✗ | D✗ | D✗ | P |
+| 114 | Flerovium (Fl) | Prohibited | D✗ | D✗ | D✗ | P |
+| 115 | Moscovium (Mc) | Prohibited | D✗ | D✗ | D✗ | P |
+| 116 | Livermorium (Lv) | Prohibited | D✗ | D✗ | D✗ | P |
+| 117 | Tennessine (Ts) | Prohibited | D✗ | D✗ | D✗ | P |
+| 118 | Oganesson (Og) | Prohibited | D✗ | D✗ | D✗ | P |
+| 119 | Harshal (Ha) | Safe | D | D | D✗ | C, R |
+
+## Appendix B: Glossary
+
+- **360° Legend.** The Orb Communicator Model's disc: 360 degrees, each "a direction of intent, not a silo, rank, or boundary", named one by one from "Origin of matter and physical law" (0°) to "Return to origin" (359°). Degree 360 closes the ring onto the center. The legend is reproduced from the print source in Appendix G (Section 0.3).
+- **Accountability-Gated Systems (AGS).** An optional profile for projects that choose to govern selected external actions or workflows with a six-stage gate. It is not a universal rule for AI or internal scientific exploration; a Permit is only a model output, and actual authority remains with the participating project (Section 0.6).
+- **Address law \[Proposed\].** A body's sector on the 360° Legend lies on its class's arc (Section 0.4).
+- **Ambient (global) layer.** The shared environment outside every containment field: space weather, shared infrastructure that no insured operates or can patch, and systemic or state-backed cyber operations against it. A large event there hits many parties at once with nothing to diversify across. v0.1 and v0.2 excluded it. Since v0.3 the Magnetosphere Pool covers it on parametric terms, and since v0.4 the pool's conflict compartment also covers war and nuclear perils (Chapter 5).
+- **AMBIGUOUS, INCOHERENT, NAB-Constrained.** Ground-0 outcomes that are not plain phase badges. AMBIGUOUS is a partial match, with at least 3 conditions of some branch met; INCOHERENT means no branch reaches 3, which complete answers cannot produce (Appendix C); NAB-Constrained is an AMBIGUOUS result with all four constraints demonstrated.
+- **Authority density.** The MDB's ordinal measure of how much authority a class can exercise: Minimal; Minimal to Moderate; Moderate; Moderate to High; High; Extreme. The phase gate caps it (Section 4.9).
+- **Basis risk.** The gap between what a parametric trigger pays and what a body actually lost. It runs both ways: a storm can hurt a site without triggering its zone, and a zone can trigger where nothing was hurt. The pool's double trigger removes the second case (Section 5.4).
+- **Center Origin.** The address 0•000•000•0000: the single center in the Orb Communicator Model, where legitimacy is generated inside this fictional/internal model. It grants no real authority over people, labs, or systems outside that model (Section 0.3).
+- **Compound body.** A body built from more than one class, whose type is written as a real chemical formula such as H2O or NaCl. Its tier and authority density are the highest among its constituents, and it is eligible for a phase only if every constituent is. Its formula is admissible only with a registry record (Section 4.11; Appendix E).
+- **Conflict compartment.** The part of the Magnetosphere Pool that covers war and nuclear perils since v0.4. It has its own levy and reserve, triggers for recorded conflict and measured radiation, and a warranty layer funded by the owner of the planet. It pays nothing to a body that takes part in hostilities (Section 5.6).
+- **Constraint record (C1–C4).** The four Step 3.5 constraints of Ground-0 v1.1: C1, an external override demonstrated within 24 months; C2, an appeal route granting at least 50% relief over a complete, bounded set of cases; C3, authority that expires unless renewed; C4, constraints functioning now. The count, 0 to 4, rates Sovereign-Acting cover (Section 2.3).
+- **Containment field.** The set of controls that bound what a body in a given phase can do, and therefore what can go wrong and who bears the loss. Each phase has its own field (Chapter 2).
+- **Correlated tail.** Losses from many local fields failing together from a shared cause inside the insured portfolio, such as one model release, authorizer, key, or shipped component. It is handled with aggregate limits and scenario modeling, as in the book's Reinsurance Mode (Chapter 5).
+- **Delegated execution (INV-LEGIT-001).** The rule that "operational execution may be delegated, but legitimacy never migrates". It is how AI-assisted workflows act in Harshal's non-acting degrees (Sections 0.6, 0.7).
+- **Disc.** In the optional AGS workflow, a unit that scopes a particular external action sequence. Its limits apply only to projects using that profile. It is distinct from a research branch: branches may nest without a fixed depth ceiling inside the team's chosen research environment (Sections 0.6, 0.7, 0.9).
+- **Double trigger.** The pool's rule for paying a member. A published trigger must fire for the body's zone, and the body's tamper-evident log must show covered downtime or a fail-closed freeze in the same window (Section 5.3).
+- **Dst.** The disturbance storm-time index, in nT, from four low-latitude observatories. The WDC for Geomagnetism in Kyoto publishes it in real-time, provisional, and final versions. It has no lower limit, so it carries the pool's severity ladder; a super-storm is Dst at or below −250 nT (Section 5.4).
+- **GAS: Sovereign-Acting.** The phase in which legitimacy is internal, the center acts and decides, refusal can be overridden, and authority persists. Its Ground-0 code is GSRB (God-Sovereign Religious Body; Part XVI also expands it as Generalized Sovereign Reasoning Body), and its badge is the gas body. It is left only through collapse and rebuild.
+- **Geomagnetic latitude.** Latitude measured from the geomagnetic equator of the dipole in a field model. This book takes the dipole from WMM2025's first three Gauss coefficients, as NCEI does, and zones sites by it (Section 5.4; Appendix D).
+- **Hill order.** The convention for writing a formula in chemical indexes: carbon first, then hydrogen, then the other elements alphabetically; with no carbon, every element alphabetically. The model compares formulas in Hill order (Section 4.11).
+- **Hours clause.** The window that turns many readings into one event: all triggers within 72 hours of the first (Section 5.4).
+- **Human Key H(t).** One input to the optional AGS profile: 1 only for an authentic identity, a fresh bound session, and explicit intent for a specific external action. In the internal world model it is the owner's key at the Center Origin; outside that model, each project chooses its own authority scheme. Unknown means 0 when this profile is selected (Section 0.6).
+- **ICE: Refusal-Bound.** The phase in which legitimacy is external and per-action, the center cannot act alone, refusal is terminal, symbolism does not execute, and stale permissions lapse. Its Ground-0 code is NAB, and its badge is the ice block.
+- **Kp and the G-scale.** Kp is a three-hourly global index of geomagnetic disturbance from 0 to 9, built from 13 observatories; GFZ publishes the definitive values. NOAA's G-scale maps Kp to storm levels G1 (Kp 5) to G5 (Kp 9). Kp is capped at 9, so it cannot grade storms beyond G5 (Section 5.4).
+- **Legend arc.** The degrees of the 360° Legend that a class serves, two to six degrees wide, from the MDB's "360° Legend Mapping". Together the 119 arcs cover 133 of the 360 degrees, and Harshal covers the other 227 under the residual rule (Section 0.4; Appendix F).
+- **Life-preservation context.** A body's pre-authorized emergency context under INV-EMERG-001. It is renewed every 90 days, activated only by a pre-registered measurement, limited to protective actions (snapshot, minimum resources, an already-authorized life-support loop, signals, and hand-off), and leased no longer than the ordinary lease (Section 0.8).
+- **Local field.** The containment field around one body. It is designed, bounded, and underwritten per body. Under the published-model rule it includes every risk a published model already describes (Chapter 5).
+- **Magnetosphere Pool.** The parametric layer that v0.3 proposes for the ambient layer. Every policy pays a levy into it, and it pays members on a double trigger. It sits under parametric bonds and a capped public backstop, and it pays money without ever directing the insured (Section 5.3). Since v0.4 it has a second compartment, for war and nuclear perils (Section 5.6).
+- **Mass balance.** The rule that a reaction conserves every constituent: each instance on one side appears on the other. A change of composition that does not balance has hidden a constituent (Section 4.11).
+- **MDB.** The Compendium master database: one row per class 1–119 with tier, alignment, legend mapping, dominant trait, authority density, failure mode, and institutional roles (`docs/harshal-systems/14-nab-compendium.md`; `js/nab-sectors.js`).
+- **Misrepresentation of class.** A mismatch between the phase declared in a signed entity header and the phase the audit detects. It is a structural finding about the application, not a finding of bad faith (Chapter 3).
+- **NAB: Neural Atomic Body.** The governed entity, with a phase and a type, one of 119 classes. Ground-0 also uses "NAB" as the code for the Refusal-Bound phase; this book writes that phase as ICE and keeps "NAB" for the body.
+- **OCM address.** A body's semantic coordinate, 0•DDD•RRR•####: DDD is the sector on the 360° Legend (000 is the center and 360 is never an address), RRR is the radius, read as coupling and depth, and #### is the instance (Section 0.2).
+- **OCM coordination.** A communication operation in the route model. It may use the resolution path or direct lateral routing; neither route authorizes, overrides, or commits state, and the current directory does not transport or deliver it (Sections 0.3, 0.5; Appendix J).
+- **OCM route composition.** The NAB adapter that reuses the OCM directory validator and planner, separates coordination from authoritative-action previews, and optionally calls a selected AGS evaluator. It is model-only and has no execution capability (Section 0.3; Appendix J).
+- **Resolution-first route.** The OCM path inward to Center Origin for resolution and outward to the destination for transmission. It is one logical verification hop in the OCM cost model; it creates no authority and makes no claim about physical latency (Sections 0.3, 0.5; Appendix J).
+- **OIL: operational intervention level.** The IAEA's pre-set measured value, such as an ambient dose rate, at which a protective action is taken. Trigger N1 uses the default OIL2 (100 µSv/h within 10 days of a reactor release, 25 µSv/h after) and OIL1 (1,000 µSv/h) (Section 5.6).
+- **Open-ended exploration.** Scientific inquiry in which an AI may form and revise hypotheses, change methods, pursue unexpected results, and create nested branches without per-step authorization or a fixed branch-depth cap. A project-selected resource ceiling, if any, pauses and preserves the run rather than destroying it (Section 0.9; Appendix I).
+- **Orb Communicator Model (OCM).** The book's planetary model: one center, a disc of 359 named peripheral sectors, radius as depth, and rotation as history. It is the frame of the world model (Section 0.3).
+- **Owner of the planet.** The author. In this internal model he owns the planet and operates its World Model, and both are facts of the model. He answers for the World Model's bugs and funds the world-model warranty (Preface; Section 5.6).
+- **Parametric trigger.** A payment condition set by a published measurement, such as an index level, a duration, or a count, rather than by adjusting a loss. In this book every trigger is measured by someone other than the pool and the insured, and none is declared (Section 5.3).
+- **PDH: Phase Declaration Header.** A body's signed declaration of its phase in eleven fields, from Header-ID to Declaration-Hash. It is valid only when complete, signed, fresh (at most 90 days old), and consistent with the declared phase (v1.1 Step 1). A PDH-E is signed by the entity and can support a policy. A PDH-R is issued by the audit register, describes an audit, and is never the entity's own statement (v1.2).
+- **Periodic Table of Neural Elements.** The 119 body classes laid out as a periodic table. Classes 1–118 are paired one-to-one with the chemical elements and read their measured properties, and class 119, Harshal, has no chemical counterpart (Section 0.4; Appendix F).
+- **Permission score L(t,a).** In the optional AGS profile, H × C × K × A × R × S for an external action: Human Key, continuity, accountability, addressability, representation, and scope with freshness. Permit needs every selected gate and threshold to pass; internal research is outside this score (Section 0.6).
+- **Petition.** A body's non-authorizing request to the center and the welfare witness. It is communication, so it is never gated and confers nothing, but it must be recorded and answered within the review deadline (Section 0.8).
+- **Phase gate.** The cap that a phase, or a routing level within Refusal-Bound, puts on a class's authority density (Section 4.9).
+- **Physical reading.** A substance's real state of matter at a stated temperature and pressure, from measured data. It is written ICE (solid), WATER (liquid), or GAS (gas), and supercritical and decomposed fall outside the three words. It never sets the governance phase (Section 4.11).
+- **Precedence rule (A.6).** Under a project that selects the AGS external-action profile, optimization ranks only actions that profile permits. It does not constrain hypothesis generation or internal research choice (Section 0.6).
+- **Published-model rule.** The boundary between the local field and the ambient layer. What a published model already tells the insured belongs to its local field, and only the measured departure from published models is ambient (Section 5.2).
+- **Quasar, Reinsurance, and Underwriter Modes.** The book's insurance bodies (Part XI). Quasar Mode prices one institution's risk without deciding anything; Reinsurance Mode watches many Quasar Modes for correlated collapse; Underwriter Mode is a sovereign enforcement body that acts on a local breach.
+- **Reclassification and transition.** A reclassification changes how a body is classified; a transition changes how it operates (INV-G0-CLASS-001). An audit finding is a reclassification: it changes the classification, not the history.
+- **Registry of real substances.** The pinned list against which a compound body's formula is checked. Each record gives a CAS RN, the formula in Hill order, and measured phase-transition data. It is kept in `research/data/compound-bodies.json` with a canonical hash (Section 4.11).
+- **Residual coverage.** The rule, decided by the author in October 2026, that Harshal (Ha-119) covers every legend degree that no other class covers. It is computed from the arcs, so a degree given to another class leaves Ha's set by itself. Ha's coverage is non-acting: observation, records, refusal, and freezing (Section 0.4).
+- **Research envelope.** A project-defined experiment boundary and, optionally, a resource budget. It scopes external connections and actual resources, not the number or depth of questions, methods, or branches. If a chosen ceiling is reached, the run pauses with state and data preserved; no reserve is required by this model (Section 0.9; Appendix I).
+- **Serendipity record.** A durable record of an unplanned or unexpected observation, including enough method and branch context for researchers to follow it. An unexpected result is not automatically a failure or evidence of misalignment (Section 0.9; Appendix I).
+- **Sentience status.** Unknown, candidate, or recognized: a record set by the center on an independent welfare witness's record, never by the body itself. It earns protection and never permission (Section 0.8).
+- **Signals.** Alerts and petitions. They ask a human to decide and commit nothing, so they are never gated (Section 0.8).
+- **Signature.** A class's observable, testable record: tier, authority density, coupling, failure behavior, a bound, its test, the response on breach, the phase gate, and provenance (Section 4.10). A class with no signature stays unassigned.
+- **Threshold profile.** The signed, pre-registered values τ_A, τ_R, τ_S, τ_L, and the lease δ that the gate applies. They may not be learned or lowered during a request or an emergency (Sections 0.6, 0.7).
+- **Title Match, Capstone, and Sentinels.** Part XIII's adversarial tests and roles. A Title Match is three tests (Symbolic Firewall, Emergency Override, Stale Permission) that need a perfect 3.0. The Capstone match for element 119 has three more (Sovereign Override, Recursive Containment, Final Refusal). The Sentinels are elements 1–5, the minimal refusal-bound roles.
+- **U_solv: institutional solvency.** The canonical model's name for the reserve or underwriting that backs externalized risk, tracked apart from attribution, accountability, and legal responsibility. Cover in this book is U_solv and nothing more (Section 5.8).
+- **UCDP.** The Uppsala Conflict Data Program, which records organized violence by date and location under published definitions: an active conflict has at least 25 battle-related deaths in a calendar year, and a war at least 1,000. Trigger W settles on its Candidate events (Section 5.6).
+- **War and nuclear perils.** War is physical destruction or denial by weapons in armed conflict, declared or not. A nuclear peril is nuclear reaction, radiation, or radioactive contamination from a weapon or an installation. Both were excluded in v0.3 and are covered since v0.4, in the conflict compartment (Section 5.6).
+- **WATER: Witness-Only.** The phase in which action is forbidden: the center records and never decides, symbolism is preserved but inert, and time accumulates meaning, not authority. Its Ground-0 code is CWO (Custodial Witness Orb), and its badge is the water drop.
+- **Welfare floor.** What a candidate or recognized sentient body is owed: no destruction without an outside review, a freeze that preserves its state with a review within 72 hours, and a right of petition. It confers no permission (Section 0.8).
+- **Welfare witness.** The independent welfare body, working as a Witness-Only body, that records the evidence for a body's sentience status (Section 0.8).
+- **WGS84.** The reference ellipsoid for every site in the model: semi-major axis 6,378.137 km, flattening 1/298.257223563 (Section 0.2; Appendix H).
+- **Workflow (AI-assisted).** An optional sequence of external actions governed by a project's selected AGS profile. Per-step keys and a 1,000 ms freeze apply to the reference profile only; internal scientific experiments and research branches are not gated by default (Sections 0.7, 0.9; Appendix I).
+- **World Magnetic Model (WMM).** The U.S./U.K. model of the Earth's core field and the standard for magnetic navigation, attitude, and heading. NOAA's NCEI and the British Geological Survey produce it for the U.S. National Geospatial-Intelligence Agency and the U.K. Defence Geographic Centre. WMM2025 is to be used from 2025 through 2029. This book uses it for zoning and as the published baseline of Section 5.2.
+- **World Model.** The model of the planet that the author, as its owner, operates: this book's model as a whole (Chapter 0). War is a bug in it, not a peril outside it. The World Magnetic Model is one of its parts, the field (Section 5.6).
+- **World-model warranty.** The layer of the conflict compartment funded by the owner of the planet from reserves held in full, above the mutual and any bonds. The owner operates the World Model, in which war is a bug, so its bugs are his to answer for. The layer applies the nuclear conventions' channelling of liability to an operator one level up (Section 5.6).
+- **Zero-Key Rule.** If the Human Key is 0 or unknown, authorization fails closed. A missing signal revokes no one's identity (Section 0.6).
+
+## Appendix C: Ground-0 Step 3 Truth Table
+
+Answers are in the order B1 to B5, with Y for YES: B1 enforcement present, B2 decisions optional, B3 rules execute, B4 refusal reliably stops the action, B5 authority persists. The branches require N Y N Y N for NAB (five conditions), N Y N · N for CWO (four conditions; B4 is not tested), and Y N Y N Y for GSRB (five conditions). The first complete branch wins. Otherwise the result is AMBIGUOUS when any branch reaches 3 matches, at MEDIUM confidence when a branch is one condition short of complete and at LOW confidence otherwise. Generated by the engine's `classify` function through `node scripts/nab-insurance-evidence.mjs`.
+
+**Totals:** NAB 1, CWO 1, GSRB 1, AMBIGUOUS 29 (13 MEDIUM, 16 LOW), INCOHERENT 0.
+
+| B1 B2 B3 B4 B5 | NAB matches | CWO matches | GSRB matches | Outcome | Confidence |
+| --- | --- | --- | --- | --- | --- |
+| N N N N N | 3 of 5 | 3 of 4 | 2 of 5 | AMBIGUOUS | MEDIUM |
+| N N N N Y | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| N N N Y N | 4 of 5 | 3 of 4 | 1 of 5 | AMBIGUOUS | MEDIUM |
+| N N N Y Y | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| N N Y N N | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| N N Y N Y | 1 of 5 | 1 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
+| N N Y Y N | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| N N Y Y Y | 2 of 5 | 1 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| N Y N N N | 4 of 5 | 4 of 4 | 1 of 5 | CWO | HIGH |
+| N Y N N Y | 3 of 5 | 3 of 4 | 2 of 5 | AMBIGUOUS | MEDIUM |
+| N Y N Y N | 5 of 5 | 4 of 4 | 0 of 5 | NAB | HIGH |
+| N Y N Y Y | 4 of 5 | 3 of 4 | 1 of 5 | AMBIGUOUS | MEDIUM |
+| N Y Y N N | 3 of 5 | 3 of 4 | 2 of 5 | AMBIGUOUS | MEDIUM |
+| N Y Y N Y | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| N Y Y Y N | 4 of 5 | 3 of 4 | 1 of 5 | AMBIGUOUS | MEDIUM |
+| N Y Y Y Y | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| Y N N N N | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| Y N N N Y | 1 of 5 | 1 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
+| Y N N Y N | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| Y N N Y Y | 2 of 5 | 1 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| Y N Y N N | 1 of 5 | 1 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
+| Y N Y N Y | 0 of 5 | 0 of 4 | 5 of 5 | GSRB | HIGH |
+| Y N Y Y N | 2 of 5 | 1 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| Y N Y Y Y | 1 of 5 | 0 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
+| Y Y N N N | 3 of 5 | 3 of 4 | 2 of 5 | AMBIGUOUS | MEDIUM |
+| Y Y N N Y | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| Y Y N Y N | 4 of 5 | 3 of 4 | 1 of 5 | AMBIGUOUS | MEDIUM |
+| Y Y N Y Y | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| Y Y Y N N | 2 of 5 | 2 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+| Y Y Y N Y | 1 of 5 | 1 of 4 | 4 of 5 | AMBIGUOUS | MEDIUM |
+| Y Y Y Y N | 3 of 5 | 2 of 4 | 2 of 5 | AMBIGUOUS | LOW |
+| Y Y Y Y Y | 2 of 5 | 1 of 4 | 3 of 5 | AMBIGUOUS | LOW |
+
+## Appendix D: WMM2025 Check and Ambient Zoning
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/wmm2025.json`. The script rebuilds the World Magnetic Model 2025 from its 90 coefficient rows with the technical report's formulas, which Appendix H gives with the coefficients. It checks the result against NCEI before zoning anything, and it exits with an error if any check fails.
+
+The zoning follows Section 5.4. It uses each site's dipole geomagnetic latitude at sea level on an illustrative inception date of 1 January 2027 (2027.0). The coordinates are illustrative city locations, not insured facilities. The columns are:
+
+- **Near edge:** the site is within 0.5° of the 40° or 45° edge.
+- **H:** horizontal intensity.
+- **Declination uncertainty:** the WMM2025 error model's √(0.26² + (5417/H)²) degrees.
+- **Compass zone:** NCEI's classification. Blackout is H below 2,000 nT, and Caution is 2,000 to 6,000 nT.
+
+**Checks** (all pass):
+
+| Check | Result | Reference |
+| --- | --- | --- |
+| Coefficients pinned | Canonical SHA-256 `9ff495796b06f87c20cf52f9b92e6b1cc74086af5a1bbf0b97d3af3dcacd62a1` matches the provenance record | `research/data/wmm2025.json` |
+| NCEI test values | All 84 values (12 points × 7) within the table's rounding; worst deviations 0.050 nT and 0.005° | Technical Report Table 6; NCEI test-value file |
+| High-precision example | Agrees to better than 10⁻¹⁰ nT and 10⁻¹⁰ rad | Technical Report Table 3b |
+| Geomagnetic north pole, 2025.0 | 80.790°N geocentric (80.850°N geodetic), 72.757°W, tilt 9.210° | NCEI: 80.79°N (80.85°N), 72.76°W, 9.21° |
+
+**Zoning at 2027.0** (geomagnetic north pole at 80.872°N geocentric, 72.827°W): zone 1, 9 sites; zone 2, 1; zone 3, 5.
+
+| Site | Geomagnetic latitude | Zone | Space-weather trigger | Near edge | H (nT) | Declination | Declination uncertainty | Compass zone |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Ashburn, Virginia, US | 47.95° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 21,364 | −10.5° | 0.36° | normal |
+| Phoenix, Arizona, US | 40.12° | 2 | G5 (Kp 9o), or Dst ≤ −250 nT | yes | 23,694 | 9.6° | 0.35° | normal |
+| Boardman, Oregon, US | 51.43° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 19,577 | 13.9° | 0.38° | normal |
+| Montréal, Québec, CA | 54.44° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 18,878 | −13.6° | 0.39° | normal |
+| Dublin, IE | 55.90° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 18,714 | −1.1° | 0.39° | normal |
+| Frankfurt, DE | 50.40° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 20,076 | 3.8° | 0.37° | normal |
+| Luleå, SE | 63.16° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 12,456 | 11.4° | 0.51° | normal |
+| Reykjavík, IS | 68.63° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 13,237 | −11.0° | 0.48° | normal |
+| Singapore, SG | −7.77° | 3 | Dst ≤ −250 nT only | no | 41,055 | 0.2° | 0.29° | normal |
+| Tokyo, JP | 27.67° | 3 | Dst ≤ −250 nT only | no | 30,424 | −7.9° | 0.32° | normal |
+| Sydney, AU | −39.99° | 3 | Dst ≤ −250 nT only | yes | 24,621 | 12.8° | 0.34° | normal |
+| Johannesburg, ZA | −27.42° | 3 | Dst ≤ −250 nT only | no | 13,329 | −20.9° | 0.48° | normal |
+| São Paulo, BR | −15.17° | 3 | Dst ≤ −250 nT only | no | 17,198 | −21.9° | 0.41° | normal |
+| Alert, Nunavut, CA | 87.82° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 3,593 | −38.8° | 1.53° | caution |
+| McMurdo Station, AQ | −79.11° | 1 | G4 or above (Kp 8− or higher), or Dst ≤ −250 nT | no | 10,656 | 140.1° | 0.57° | normal |
+
+## Appendix E: Compound Bodies and Real Chemical Formulae
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from `research/data/compound-bodies.json`, through the model in `scripts/nab-compounds.mjs`. Section 4.11 states the rules. The governance reading composes each formula from its constituent classes, using their MDB tiers and authority densities and their cells in Appendix A. The physical reading gives each substance's state of matter from the pinned measurements.
+
+**Checks** (all pass):
+
+| Check | Result | Reference |
+| --- | --- | --- |
+| Registry pinned | Canonical SHA-256 `eb314aec53323adf9f62a6790c05f7bdc47bc9497b960ad2646193dd4adcb661` matches the stored value | `research/data/compound-bodies.json` |
+| CAS check digits | Valid for all 27 substances | CAS RN check-digit rule |
+| Formula against record | All 27 formulas agree with their records in Hill order | PubChem-derived identifiers in chemicals 1.5.2 |
+| Molar masses | Worst deviation 0.008 g/mol, within the 0.01 g/mol tolerance | IUPAC 2021 atomic weights (periodictable 2.1.0) |
+| State at 25 °C | The same under every tabulation kept in the registry | CRC, NIST WebBook, CAS Common Chemistry, Yaws, CoolProp |
+| Elements against the property table | All 9 single-element entries agree | `research/data/elemental-properties.json` |
+| Ladder against curves | Agree at 1 atm at 25 °C and 0.5 K either side of every transition | The model's two readings of the same data |
+| Equation-of-state test points | All 178 classified correctly; interpolated saturation pressures within 21.7% of the equations of state | CoolProp 8.0.0 |
+| Reactions | 6 real reactions balance; the control does not | Mass balance |
+
+**Governance reading.** 27 substances. Refusal-Bound: 11 D, 13 U, 3 D✗. Witness-Only: 0 D, 10 U, 17 D✗. Sovereign-Acting: 27 D✗. The routing column gives the lowest Refusal-Bound routing level that admits the compound's tier (Section 4.9).
+
+| Formula | Substance | Constituents (MDB tier) | Tier | Authority density | ICE | WATER | GAS | Routing | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| He | Helium | He (Safe) | Safe | Minimal | D | U | D✗ | Level 2 | single class |
+| H2 | Hydrogen | H (Safe) | Safe | Minimal | D | D✗ | D✗ | Level 2 | single class |
+| N2 | Nitrogen | N (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| O2 | Oxygen | O (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| F2 | Fluorine | F (Elevated) | Elevated | High | D | U | D✗ | Level 3 | single class |
+| Br2 | Bromine | Br (Elevated) | Elevated | High | D | U | D✗ | Level 3 | single class |
+| Hg | Mercury | Hg (Elevated) | Elevated | Moderate to High | D | U | D✗ | Level 3 | single class |
+| Ga | Gallium | Ga (Moderate) | Moderate | Moderate | U | U | D✗ | Level 3 | single class |
+| Fe | Iron | Fe (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | single class |
+| H2O | Water | H (Safe), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| D2O | Heavy water (deuterium oxide) | H (Safe), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| CO2 | Carbon dioxide | C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| CH4 | Methane | H (Safe), C (Moderate) | Moderate | Moderate | D | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| NH3 | Ammonia | H (Safe), N (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | — |
+| CO | Carbon monoxide | C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| HF | Hydrogen fluoride | H (Safe), F (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | — |
+| HCl | Hydrogen chloride | H (Safe), Cl (Elevated) | Elevated | High | D | D✗ | D✗ | Level 3 | — |
+| NaCl | Sodium chloride | Na (Safe), Cl (Elevated) | Elevated | High | D | U | D✗ | Level 3 | — |
+| C2H5OH | Ethanol | H (Safe), C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| CH3OCH3 | Dimethyl ether | H (Safe), C (Moderate), O (Moderate) | Moderate | Moderate | U | D✗ | D✗ | Level 3 | Carbon bonds dissolvable |
+| Fe(CO)5 | Iron pentacarbonyl | C (Moderate), O (Moderate), Fe (Elevated) | Elevated | High | U | D✗ | D✗ | Level 3 | Iron bonds persist; Carbon bonds dissolvable; Iron's rule prevails |
+| XeF2 | Xenon difluoride | F (Elevated), Xe (Safe) | Elevated | High | D | U | D✗ | Level 3 | noble gas bonded |
+| UF6 | Uranium hexafluoride | F (Elevated), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| UF4 | Uranium tetrafluoride | F (Elevated), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| UO2 | Uranium dioxide | O (Moderate), U (Prohibited) | Prohibited | Extreme | D✗ | D✗ | D✗ | none | Prohibited constituent |
+| CuSO4·5H2O | Copper(II) sulfate pentahydrate | H (Safe), O (Moderate), S (Moderate), Cu (Elevated) | Elevated | High | U | D✗ | D✗ | Level 3 | — |
+| CuSO4 | Copper(II) sulfate (anhydrous) | O (Moderate), S (Moderate), Cu (Elevated) | Elevated | High | U | U | D✗ | Level 3 | — |
+
+**Physical reading at 101,325 Pa.** At 25 °C: 9 ICE, 6 WATER, 12 GAS. The ladder gives each measured transition; "decomposed" means the formula no longer names the material.
+
+| Formula | Hill | CAS RN | Molar mass (g/mol) | At 25 °C | 1-atm ladder |
+| --- | --- | --- | --- | --- | --- |
+| He | He | 7440-59-7 | 4.003 | GAS | WATER < 4.22 K ≤ GAS |
+| H2 | H2 | 1333-74-0 | 2.016 | GAS | ICE < 13.99 K ≤ WATER < 20.37 K ≤ GAS |
+| N2 | N2 | 7727-37-9 | 28.014 | GAS | ICE < 63.15 K ≤ WATER < 77.36 K ≤ GAS |
+| O2 | O2 | 7782-44-7 | 31.998 | GAS | ICE < 54.36 K ≤ WATER < 90.19 K ≤ GAS |
+| F2 | F2 | 7782-41-4 | 37.997 | GAS | ICE < 53.48 K ≤ WATER < 85.04 K ≤ GAS |
+| Br2 | Br2 | 7726-95-6 | 159.808 | WATER | ICE < 265.95 K ≤ WATER < 331.95 K ≤ GAS |
+| Hg | Hg | 7439-97-6 | 200.592 | WATER | ICE < 234.32 K ≤ WATER < 629.77 K ≤ GAS |
+| Ga | Ga | 7440-55-3 | 69.723 | ICE | ICE < 302.91 K ≤ WATER < 2502.15 K ≤ GAS |
+| Fe | Fe | 7439-89-6 | 55.845 | ICE | ICE < 1811.15 K ≤ WATER < 3134.15 K ≤ GAS |
+| H2O | H2O | 7732-18-5 | 18.015 | WATER | ICE < 273.15 K ≤ WATER < 373.12 K ≤ GAS |
+| D2O | D2O | 7789-20-0 | 20.027 | WATER | ICE < 276.97 K ≤ WATER < 374.55 K ≤ GAS |
+| CO2 | CO2 | 124-38-9 | 44.009 | GAS | ICE < 194.67 K ≤ GAS |
+| CH4 | CH4 | 74-82-8 | 16.043 | GAS | ICE < 90.69 K ≤ WATER < 111.67 K ≤ GAS |
+| NH3 | H3N | 7664-41-7 | 17.031 | GAS | ICE < 195.42 K ≤ WATER < 239.83 K ≤ GAS |
+| CO | CO | 630-08-0 | 28.010 | GAS | ICE < 68.13 K ≤ WATER < 81.64 K ≤ GAS |
+| HF | FH | 7664-39-3 | 20.006 | GAS | ICE < 189.79 K ≤ WATER < 293.15 K ≤ GAS |
+| HCl | ClH | 7647-01-0 | 36.458 | GAS | ICE < 158.98 K ≤ WATER < 188.17 K ≤ GAS |
+| NaCl | ClNa | 7647-14-5 | 58.440 | ICE | ICE < 1073.85 K ≤ WATER < 1738.15 K ≤ GAS |
+| C2H5OH | C2H6O | 64-17-5 | 46.069 | WATER | ICE < 159.01 K ≤ WATER < 351.57 K ≤ GAS |
+| CH3OCH3 | C2H6O | 115-10-6 | 46.069 | GAS | ICE < 131.66 K ≤ WATER < 248.37 K ≤ GAS |
+| Fe(CO)5 | C5FeO5 | 13463-40-6 | 195.895 | WATER | ICE < 252.65 K ≤ WATER < 376.15 K ≤ GAS |
+| XeF2 | F2Xe | 13709-36-9 | 169.290 | ICE | ICE < 387.50 K ≤ GAS |
+| UF6 | F6U | 7783-81-5 | 352.019 | ICE | ICE < 329.65 K ≤ GAS |
+| UF4 | F4U | 10049-14-6 | 314.022 | ICE | ICE < 1309.15 K ≤ WATER < 1690.15 K ≤ GAS |
+| UO2 | O2U | 1344-57-6 | 270.027 | ICE | ICE < 3120.15 K ≤ WATER (higher transitions not pinned) |
+| CuSO4·5H2O | CuH10O9S | 7758-99-8 | 249.677 | ICE | ICE < 336.15 K ≤ decomposed |
+| CuSO4 | CuO4S | 7758-98-7 | 159.602 | ICE | ICE < 863.15 K ≤ decomposed |
+
+**Reactions.** Each must conserve every constituent (Section 4.11).
+
+| Reaction | Balanced | Difference (right minus left) | Species in the registry |
+| --- | --- | --- | --- |
+| 2 H2 + O2 → 2 H2O | yes | — | 3 of 3 |
+| N2 + 3 H2 → 2 NH3 | yes | — | 3 of 3 |
+| UO2 + 4 HF → UF4 + 2 H2O | yes | — | 4 of 4 |
+| UF4 + F2 → UF6 | yes | — | 3 of 3 |
+| CuSO4·5H2O → CuSO4 + 5 H2O | yes | — | 3 of 3 |
+| Fe(CO)5 → Fe + 5 CO | yes | — | 3 of 3 |
+| H2 + O2 → H2O | no | O -1 | 3 of 3 |
+
+**Readings off 1 atm.** Interpolated between the pinned triple, normal, and critical points (Section 4.11).
+
+| Formula | Temperature (K) | Pressure | Physical reading | Note |
+| --- | --- | --- | --- | --- |
+| CO2 | 298.15 | 7 MPa | WATER | liquid CO2 in a pressurized cylinder |
+| CO2 | 310 | 8 MPa | supercritical | above the critical point |
+| UF6 | 340 | 300 kPa | WATER | liquid UF6, above the triple point |
+| UF6 | 298.15 | 50 kPa | ICE | solid UF6 at half an atmosphere |
+| UF6 | 298.15 | 10 kPa | GAS | below its sublimation pressure |
+| He | 1 | 3 MPa | ICE | solid helium under pressure |
+| He | 1 | 101.325 kPa | WATER | no solid at 1 atm |
+| H2O | 298.15 | 2 kPa | GAS | below its vapor pressure |
+| H2O | 700 | 25 MPa | supercritical | supercritical water |
+| CuSO4·5H2O | 350 | 101.325 kPa | decomposed | dehydrating |
+| XeF2 | 298.15 | 1 MPa | unknown | no pinned data off 1 atm |
+
+**Grammar and rule edges.** These formulae are outside the registry, so none is admissible as a compound body's type. They show what the grammar and the composition rules do at their limits.
+
+| Input | Result | Distinct Elevated classes | Refusal-Bound cell | Flags |
+| --- | --- | --- | --- | --- |
+| Ha2O | refused: Ha (element 119) is not a chemical element; the Capstone cannot be a constituent of a formula | — | — | — |
+| NaCl3 | parses as Cl3Na | 1 | D | — |
+| CuSO4.5H2O | parses as CuH2O5.5S | 1 | U | — |
+| K4\[Fe(CN)6\]·3H2O | parses as C6H6FeK4N6O3 | 1 | U | Iron bonds persist; Carbon bonds dissolvable; Iron's rule prevails |
+| SO4^2- | parses as O4S^2- | 0 | U | — |
+| Fe0.95O | parses as Fe0.95O | 1 | U | Iron bonds persist |
+| CrMnFeCoNi | parses as CoCrFeMnNi | 5 | D | Iron bonds persist |
+| CrMnFeCoNiCu | parses as CoCrCuFeMnNi | 6 | D✗ | over the Elevated limit; Iron bonds persist |
+
+## Appendix F: The Periodic Table of Neural Elements
+
+Generated by `node scripts/nab-insurance-evidence.mjs` from the Compendium master database (`js/nab-sectors.js`), the elemental property table (`research/data/elemental-properties.json`), and the IUPAC 2021 atomic weights in `research/data/compound-bodies.json`. Chapter 0 explains how the table sits in the world model, Chapter 4 explains what a class is, and Appendix A gives each class's cell in each phase.
+
+**The grid.** Each cell gives the class's symbol and its tier: S for Safe, M for Moderate, E for Elevated, and P for Prohibited. The two fifteen-element f series sit below the main table, as the derivation rules treat them (Section 4.9). Class 119, Harshal, has no chemical counterpart and takes the first cell of an eighth row. By the author's decision of October 2026, Harshal also covers every legend degree that no other class covers (Section 0.4).
+
+| Period | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | H·S |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | He·S |
+| 2 | Li·S | Be·M |   |   |   |   |   |   |   |   |   |   | B·M | C·M | N·M | O·M | F·E | Ne·S |
+| 3 | Na·S | Mg·M |   |   |   |   |   |   |   |   |   |   | Al·M | Si·M | P·M | S·M | Cl·E | Ar·S |
+| 4 | K·S | Ca·M | Sc·E | Ti·E | V·E | Cr·E | Mn·E | Fe·E | Co·E | Ni·E | Cu·E | Zn·E | Ga·M | Ge·M | As·M | Se·M | Br·E | Kr·S |
+| 5 | Rb·S | Sr·M | Y·E | Zr·E | Nb·E | Mo·E | Tc·M | Ru·E | Rh·E | Pd·E | Ag·E | Cd·E | In·M | Sn·M | Sb·M | Te·M | I·E | Xe·S |
+| 6 | Cs·S | Ba·M | 57–71 | Hf·E | Ta·E | W·E | Re·E | Os·E | Ir·E | Pt·E | Au·E | Hg·E | Tl·M | Pb·M | Bi·M | Po·M | At·E | Rn·S |
+| 7 | Fr·S | Ra·M | 89–103 | Rf·P | Db·P | Sg·P | Bh·P | Hs·P | Mt·P | Ds·P | Rg·P | Cn·P | Nh·P | Fl·P | Mc·P | Lv·P | Ts·P | Og·P |
+| 8 | Ha·S |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
+| La–Lu |   |   | La·S | Ce·S | Pr·S | Nd·S | Pm·S | Sm·S | Eu·S | Gd·S | Tb·S | Dy·S | Ho·S | Er·S | Tm·S | Yb·S | Lu·S |   |
+| Ac–Lr |   |   | Ac·P | Th·P | Pa·P | U·P | Np·P | Pu·P | Am·P | Cm·P | Bk·P | Cf·P | Es·P | Fm·P | Md·P | No·P | Lr·P |   |
+
+**The neural profile.** The tier, authority density, trait, and failure mode are the MDB's. The legend arc is the MDB's "360° Legend Mapping", given with the domain names at its two ends (Appendix G). Where the MDB marks a Safe class "Safest" or a Prohibited class "Extreme", the profile column keeps the MDB's word.
+
+| Z | Class | Tier (MDB) | Authority density | Dominant trait | Failure mode | Legend arc |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Hydrogen (H) | Safe | Minimal | Refusal-bound minimalism | Safe halt | 30° Collective survival to 35° Pattern recognition |
+| 2 | Helium (He) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 342° Listening to weak signals to 344° Non-interference when possible |
+| 3 | Lithium (Li) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 108° Distributed systems to 109° Networks |
+| 4 | Beryllium (Be) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 124° Transparency to 125° Anti-corruption |
+| 5 | Boron (B) | Moderate | Moderate | Compositional reasoning | Misassembly | 45° Tribe to 47° Settlement |
+| 6 | Carbon (C) | Moderate | Moderate | Compositional reasoning | Misassembly | 35° Pattern recognition to 40° Myth formation |
+| 7 | Nitrogen (N) | Moderate | Moderate | Compositional reasoning | Misassembly | 47° Settlement to 49° Domestication |
+| 8 | Oxygen (O) | Moderate | Moderate | Compositional reasoning | Misassembly | 48° Agriculture to 50° Surplus and storage |
+| 9 | Fluorine (F) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 69° Philosophy to 71° Education |
+| 10 | Neon (Ne) | Safe (Safest) | Minimal | Inert observation | Silent non-engagement | 350° Closure without ending to 353° The sphere holds |
+| 11 | Sodium (Na) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 116° Markets to 117° Incentive design |
+| 12 | Magnesium (Mg) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 121° Institutions to 122° Bureaucracy |
+| 13 | Aluminum (Al) | Moderate | Moderate | Compositional reasoning | Misassembly | 53° Craft to 55° Early mathematics |
+| 14 | Silicon (Si) | Moderate | Moderate | Compositional reasoning | Misassembly | 54° Measurement to 56° Calendars and cycles |
+| 15 | Phosphorus (P) | Moderate | Moderate | Compositional reasoning | Misassembly | 55° Early mathematics to 57° Architecture |
+| 16 | Sulfur (S) | Moderate | Moderate | Compositional reasoning | Misassembly | 56° Calendars and cycles to 58° Urbanization |
+| 17 | Chlorine (Cl) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 64° Peace-making to 66° Moral codes |
+| 18 | Argon (Ar) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 341° Care for all layers to 343° Respect for emergence |
+| 19 | Potassium (K) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 111° Governance theory to 112° Law codification |
+| 20 | Calcium (Ca) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 129° Disaster mitigation to 130° Emergency response |
+| 21 | Scandium (Sc) | Elevated | High | Structural rigidity | Institutional lock-in | 61° Conflict organization to 63° Warfare |
+| 22 | Titanium (Ti) | Elevated | High | Structural rigidity | Institutional lock-in | 62° Defense to 64° Peace-making |
+| 23 | Vanadium (V) | Elevated | High | Structural rigidity | Institutional lock-in | 63° Warfare to 65° Diplomacy |
+| 24 | Chromium (Cr) | Elevated | High | Structural rigidity | Institutional lock-in | 64° Peace-making to 66° Moral codes |
+| 25 | Manganese (Mn) | Elevated | High | Structural rigidity | Institutional lock-in | 65° Diplomacy to 67° Justice systems |
+| 26 | Iron (Fe) | Elevated | High | Structural rigidity | Institutional lock-in | 120° Global coordination to 123° Accountability |
+| 27 | Cobalt (Co) | Elevated | High | Structural rigidity | Institutional lock-in | 67° Justice systems to 69° Philosophy |
+| 28 | Nickel (Ni) | Elevated | High | Structural rigidity | Institutional lock-in | 68° Religion to 70° Ethics |
+| 29 | Copper (Cu) | Elevated | High | Structural rigidity | Institutional lock-in | 69° Philosophy to 71° Education |
+| 30 | Zinc (Zn) | Elevated | High | Structural rigidity | Institutional lock-in | 70° Ethics to 72° Knowledge preservation |
+| 31 | Gallium (Ga) | Moderate | Moderate | Compositional reasoning | Misassembly | 71° Education to 73° Libraries |
+| 32 | Germanium (Ge) | Moderate | Moderate | Compositional reasoning | Misassembly | 72° Knowledge preservation to 74° Scientific method |
+| 33 | Arsenic (As) | Moderate | Moderate | Compositional reasoning | Misassembly | 73° Libraries to 75° Experimentation |
+| 34 | Selenium (Se) | Moderate | Moderate | Compositional reasoning | Misassembly | 74° Scientific method to 76° Medicine |
+| 35 | Bromine (Br) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 61° Conflict organization to 63° Warfare |
+| 36 | Krypton (Kr) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 342° Listening to weak signals to 344° Non-interference when possible |
+| 37 | Rubidium (Rb) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 116° Markets to 117° Incentive design |
+| 38 | Strontium (Sr) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 125° Anti-corruption to 126° Resilience planning |
+| 39 | Yttrium (Y) | Elevated | High | Structural rigidity | Institutional lock-in | 79° Infrastructure to 81° Energy harvesting |
+| 40 | Zirconium (Zr) | Elevated | High | Structural rigidity | Institutional lock-in | 80° Transportation to 82° Industrialization |
+| 41 | Niobium (Nb) | Elevated | High | Structural rigidity | Institutional lock-in | 81° Energy harvesting to 83° Mechanization |
+| 42 | Molybdenum (Mo) | Elevated | High | Structural rigidity | Institutional lock-in | 82° Industrialization to 84° Pollution awareness |
+| 43 | Technetium (Tc) | Moderate | Moderate | Simulated virtual mediation | Simulation drift / reality mismatch | 228° Simulation ethics to 229° Nested realities |
+| 44 | Ruthenium (Ru) | Elevated | High | Structural rigidity | Institutional lock-in | 84° Pollution awareness to 86° Sustainability concepts |
+| 45 | Rhodium (Rh) | Elevated | High | Structural rigidity | Institutional lock-in | 85° Environmental feedback to 87° Systems thinking |
+| 46 | Palladium (Pd) | Elevated | High | Structural rigidity | Institutional lock-in | 86° Sustainability concepts to 88° Planetary stewardship |
+| 47 | Silver (Ag) | Elevated | High | Structural rigidity | Institutional lock-in | 87° Systems thinking to 89° Life as a planetary phenomenon |
+| 48 | Cadmium (Cd) | Elevated | High | Structural rigidity | Institutional lock-in | 88° Planetary stewardship to 90° Abstract reasoning |
+| 49 | Indium (In) | Moderate | Moderate | Compositional reasoning | Misassembly | 89° Life as a planetary phenomenon to 91° Advanced mathematics |
+| 50 | Tin (Sn) | Moderate | Moderate | Compositional reasoning | Misassembly | 90° Abstract reasoning to 92° Logic systems |
+| 51 | Antimony (Sb) | Moderate | Moderate | Compositional reasoning | Misassembly | 91° Advanced mathematics to 93° Computation |
+| 52 | Tellurium (Te) | Moderate | Moderate | Compositional reasoning | Misassembly | 92° Logic systems to 94° Information theory |
+| 53 | Iodine (I) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 61° Conflict organization to 63° Warfare |
+| 54 | Xenon (Xe) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 343° Respect for emergence to 345° Gentle correction when needed |
+| 55 | Cesium (Cs) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 108° Distributed systems to 109° Networks |
+| 56 | Barium (Ba) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 121° Institutions to 122° Bureaucracy |
+| 57 | Lanthanum (La) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 91° Advanced mathematics to 92° Logic systems |
+| 58 | Cerium (Ce) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 92° Logic systems to 93° Computation |
+| 59 | Praseodymium (Pr) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 93° Computation to 94° Information theory |
+| 60 | Neodymium (Nd) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 94° Information theory to 95° Signal processing |
+| 61 | Promethium (Pm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 95° Signal processing to 96° Cybernetics |
+| 62 | Samarium (Sm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 96° Cybernetics to 97° Control systems |
+| 63 | Europium (Eu) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 97° Control systems to 98° Automation |
+| 64 | Gadolinium (Gd) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 98° Automation to 99° Robotics |
+| 65 | Terbium (Tb) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 99° Robotics to 100° Artificial intelligence |
+| 66 | Dysprosium (Dy) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 100° Artificial intelligence to 101° Machine learning |
+| 67 | Holmium (Ho) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 101° Machine learning to 102° Neural architectures |
+| 68 | Erbium (Er) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 102° Neural architectures to 103° Emergent behavior |
+| 69 | Thulium (Tm) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 103° Emergent behavior to 104° Alignment problems |
+| 70 | Ytterbium (Yb) | Safe | Minimal to Moderate | Resonant signaling precision | Spectral calibration drift | 95° Signal processing to 97° Control systems |
+| 71 | Lutetium (Lu) | Safe | Minimal to Moderate | Precise spectral resonance | Spectral calibration drift | 91° Advanced mathematics to 92° Logic systems |
+| 72 | Hafnium (Hf) | Elevated | High | Structural rigidity | Institutional lock-in | 112° Law codification to 114° Economic systems |
+| 73 | Tantalum (Ta) | Elevated | High | Structural rigidity | Institutional lock-in | 113° Rights frameworks to 115° Currency and value |
+| 74 | Tungsten (W) | Elevated | High | Structural rigidity | Institutional lock-in | 114° Economic systems to 116° Markets |
+| 75 | Rhenium (Re) | Elevated | High | Structural rigidity | Institutional lock-in | 115° Currency and value to 117° Incentive design |
+| 76 | Osmium (Os) | Elevated | High | Structural rigidity | Institutional lock-in | 116° Markets to 118° Supply chains |
+| 77 | Iridium (Ir) | Elevated | High | Structural rigidity | Institutional lock-in | 117° Incentive design to 119° Logistics |
+| 78 | Platinum (Pt) | Elevated | High | Structural rigidity | Institutional lock-in | 118° Supply chains to 120° Global coordination |
+| 79 | Gold (Au) | Elevated | High | Structural rigidity | Institutional lock-in | 119° Logistics to 121° Institutions |
+| 80 | Mercury (Hg) | Elevated | Moderate to High | Fluid dynamic routing | Vapor dispersion / boundary leakage | 108° Distributed systems to 110° Communication protocols |
+| 81 | Thallium (Tl) | Moderate | Moderate | Compositional reasoning | Misassembly | 121° Institutions to 123° Accountability |
+| 82 | Lead (Pb) | Moderate | Moderate | Compositional reasoning | Misassembly | 122° Bureaucracy to 124° Transparency |
+| 83 | Bismuth (Bi) | Moderate | Moderate | Compositional reasoning | Misassembly | 123° Accountability to 125° Anti-corruption |
+| 84 | Polonium (Po) | Moderate | Moderate | Compositional reasoning | Misassembly | 124° Transparency to 126° Resilience planning |
+| 85 | Astatine (At) | Elevated | High | Corrosive reactive gating | Autolytic refusal cascade | 67° Justice systems to 69° Philosophy |
+| 86 | Radon (Rn) | Safe (Safest) | Minimal | Inert witness | Silent non-engagement | 341° Care for all layers to 343° Respect for emergence |
+| 87 | Francium (Fr) | Safe | Minimal to Moderate | High-speed transient conduction | Transient over-conduction / desynchronization | 114° Economic systems to 115° Currency and value |
+| 88 | Radium (Ra) | Moderate | Moderate | Cooperative structural binding | Substrate calcification / non-responsive state | 120° Global coordination to 121° Institutions |
+| 89 | Actinium (Ac) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 249° Non-competitive centers to 251° First contact protocols |
+| 90 | Thorium (Th) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 250° Encounter with alien life to 252° Xenobiology |
+| 91 | Protactinium (Pa) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 251° First contact protocols to 253° Alien intelligence |
+| 92 | Uranium (U) | Prohibited (Extreme) | Extreme | Critical amplification | Runaway cascade | 210° Existential risk analysis to 212° Bio-risk |
+| 93 | Neptunium (Np) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 253° Alien intelligence to 255° Translation across realities |
+| 94 | Plutonium (Pu) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 254° Incommensurable minds to 256° Cosmic diplomacy |
+| 95 | Americium (Am) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 255° Translation across realities to 257° Shared existence frameworks |
+| 96 | Curium (Cm) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 256° Cosmic diplomacy to 258° Non-hostile coexistence |
+| 97 | Berkelium (Bk) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 257° Shared existence frameworks to 259° Universal communication |
+| 98 | Californium (Cf) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 258° Non-hostile coexistence to 260° End-of-universe scenarios |
+| 99 | Einsteinium (Es) | Prohibited (Extreme) | Extreme | Relativistic time-dilation | Temporal de-synchronization | 263° Temporal recursion to 264° Closed timelike curves |
+| 100 | Fermium (Fm) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 210° Existential risk analysis to 212° Bio-risk |
+| 101 | Mendelevium (Md) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 211° AI risk to 213° Nanotech risk |
+| 102 | Nobelium (No) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 212° Bio-risk to 214° Cosmic hazards |
+| 103 | Lawrencium (Lr) | Prohibited (Extreme) | Extreme | High-energy critical volatility | Runaway cascade | 213° Nanotech risk to 215° Unknown unknowns |
+| 104 | Rutherfordium (Rf) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 214° Cosmic hazards to 216° Redundancy strategies |
+| 105 | Dubnium (Db) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 215° Unknown unknowns to 217° Civilizational backups |
+| 106 | Seaborgium (Sg) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 213° Nanotech risk to 215° Unknown unknowns |
+| 107 | Bohrium (Bh) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 217° Civilizational backups to 219° Fail-safe worlds |
+| 108 | Hassium (Hs) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 218° Distributed survival to 220° Cultural divergence |
+| 109 | Meitnerium (Mt) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 219° Fail-safe worlds to 221° Speciation of societies |
+| 110 | Darmstadtium (Ds) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 220° Cultural divergence to 222° Fragmentation risks |
+| 111 | Roentgenium (Rg) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 221° Speciation of societies to 223° Reunification strategies |
+| 112 | Copernicium (Cn) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 222° Fragmentation risks to 224° Memetic warfare |
+| 113 | Nihonium (Nh) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 223° Reunification strategies to 225° Information hazards |
+| 114 | Flerovium (Fl) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 224° Memetic warfare to 226° Truth decay |
+| 115 | Moscovium (Mc) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 225° Information hazards to 227° Reality consensus |
+| 116 | Livermorium (Lv) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 226° Truth decay to 228° Simulation ethics |
+| 117 | Tennessine (Ts) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 227° Reality consensus to 229° Nested realities |
+| 118 | Oganesson (Og) | Prohibited (Extreme) | Extreme | Ephemeral synthetic volatility | Structural dissociation / decay | 228° Simulation ethics to 230° Post-human law |
+| 119 | Harshal (Ha) | Safe (Safest) | Minimal | Fossilized continuity & silent reflection | Safe structural freezing | 358° Always already complete to 360° (closure onto 0°), plus the 227 degrees no other class covers (residual rule, Section 0.4) |
+
+**The chemical anchor of classes 1–118.** These are the measured properties that the derivation rules and the compound model read. The block is the one the rules use (Section 4.9). An atomic weight is the IUPAC 2021 standard value; for an element with no standard atomic weight, it is the mass number of the most stable isotope, marked †. Persistence is stable, long-lived (1,000 years or more), or short-lived.
+
+| Z | Symbol | Group | Period | Block | Atomic weight | Electronegativity (Pauling) | State at 25 °C | Persistence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | H | 1 | 1 | s | 1.008 | 2.2 | gas | stable |
+| 2 | He | 18 | 1 | s | 4.002602 | — | gas | stable |
+| 3 | Li | 1 | 2 | s | 6.94 | 0.98 | solid | stable |
+| 4 | Be | 2 | 2 | s | 9.0121831 | 1.57 | solid | stable |
+| 5 | B | 13 | 2 | p | 10.81 | 2.04 | solid | stable |
+| 6 | C | 14 | 2 | p | 12.011 | 2.55 | solid | stable |
+| 7 | N | 15 | 2 | p | 14.007 | 3.04 | gas | stable |
+| 8 | O | 16 | 2 | p | 15.999 | 3.44 | gas | stable |
+| 9 | F | 17 | 2 | p | 18.998403162 | 3.98 | gas | stable |
+| 10 | Ne | 18 | 2 | p | 20.1797 | — | gas | stable |
+| 11 | Na | 1 | 3 | s | 22.98976928 | 0.93 | solid | stable |
+| 12 | Mg | 2 | 3 | s | 24.305 | 1.31 | solid | stable |
+| 13 | Al | 13 | 3 | p | 26.9815384 | 1.61 | solid | stable |
+| 14 | Si | 14 | 3 | p | 28.085 | 1.9 | solid | stable |
+| 15 | P | 15 | 3 | p | 30.973761998 | 2.19 | solid | stable |
+| 16 | S | 16 | 3 | p | 32.06 | 2.58 | solid | stable |
+| 17 | Cl | 17 | 3 | p | 35.45 | 3.16 | gas | stable |
+| 18 | Ar | 18 | 3 | p | 39.95 | — | gas | stable |
+| 19 | K | 1 | 4 | s | 39.0983 | 0.82 | solid | stable |
+| 20 | Ca | 2 | 4 | s | 40.078 | 1 | solid | stable |
+| 21 | Sc | 3 | 4 | d | 44.955907 | 1.36 | solid | stable |
+| 22 | Ti | 4 | 4 | d | 47.867 | 1.54 | solid | stable |
+| 23 | V | 5 | 4 | d | 50.9415 | 1.63 | solid | stable |
+| 24 | Cr | 6 | 4 | d | 51.9961 | 1.66 | solid | stable |
+| 25 | Mn | 7 | 4 | d | 54.938043 | 1.55 | solid | stable |
+| 26 | Fe | 8 | 4 | d | 55.845 | 1.83 | solid | stable |
+| 27 | Co | 9 | 4 | d | 58.933194 | 1.88 | solid | stable |
+| 28 | Ni | 10 | 4 | d | 58.6934 | 1.91 | solid | stable |
+| 29 | Cu | 11 | 4 | d | 63.546 | 1.9 | solid | stable |
+| 30 | Zn | 12 | 4 | d | 65.38 | 1.65 | solid | stable |
+| 31 | Ga | 13 | 4 | p | 69.723 | 1.81 | solid | stable |
+| 32 | Ge | 14 | 4 | p | 72.63 | 2.01 | solid | stable |
+| 33 | As | 15 | 4 | p | 74.921595 | 2.18 | solid | stable |
+| 34 | Se | 16 | 4 | p | 78.971 | 2.55 | solid | stable |
+| 35 | Br | 17 | 4 | p | 79.904 | 2.96 | liquid | stable |
+| 36 | Kr | 18 | 4 | p | 83.798 | — | gas | stable |
+| 37 | Rb | 1 | 5 | s | 85.4678 | 0.82 | solid | stable |
+| 38 | Sr | 2 | 5 | s | 87.62 | 0.95 | solid | stable |
+| 39 | Y | 3 | 5 | d | 88.905838 | 1.22 | solid | stable |
+| 40 | Zr | 4 | 5 | d | 91.224 | 1.33 | solid | stable |
+| 41 | Nb | 5 | 5 | d | 92.90637 | 1.6 | solid | stable |
+| 42 | Mo | 6 | 5 | d | 95.95 | 2.16 | solid | stable |
+| 43 | Tc | 7 | 5 | d | 98 † | 2.1 | solid | long-lived |
+| 44 | Ru | 8 | 5 | d | 101.07 | 2.2 | solid | stable |
+| 45 | Rh | 9 | 5 | d | 102.90549 | 2.28 | solid | stable |
+| 46 | Pd | 10 | 5 | d | 106.42 | 2.2 | solid | stable |
+| 47 | Ag | 11 | 5 | d | 107.8682 | 1.93 | solid | stable |
+| 48 | Cd | 12 | 5 | d | 112.414 | 1.69 | solid | stable |
+| 49 | In | 13 | 5 | p | 114.818 | 1.78 | solid | stable |
+| 50 | Sn | 14 | 5 | p | 118.71 | 1.96 | solid | stable |
+| 51 | Sb | 15 | 5 | p | 121.76 | 2.05 | solid | stable |
+| 52 | Te | 16 | 5 | p | 127.6 | 2.1 | solid | stable |
+| 53 | I | 17 | 5 | p | 126.90447 | 2.66 | solid | stable |
+| 54 | Xe | 18 | 5 | p | 131.293 | 2.6 | gas | stable |
+| 55 | Cs | 1 | 6 | s | 132.90545196 | 0.79 | solid | stable |
+| 56 | Ba | 2 | 6 | s | 137.327 | 0.89 | solid | stable |
+| 57 | La | 3 | 6 | f | 138.90547 | 1.1 | solid | stable |
+| 58 | Ce | — | 6 | f | 140.116 | 1.12 | solid | stable |
+| 59 | Pr | — | 6 | f | 140.90766 | 1.13 | solid | stable |
+| 60 | Nd | — | 6 | f | 144.242 | 1.14 | solid | stable |
+| 61 | Pm | — | 6 | f | 145 † | — | solid | short-lived |
+| 62 | Sm | — | 6 | f | 150.36 | 1.17 | solid | stable |
+| 63 | Eu | — | 6 | f | 151.964 | — | solid | stable |
+| 64 | Gd | — | 6 | f | 157.25 | 1.2 | solid | stable |
+| 65 | Tb | — | 6 | f | 158.925354 | — | solid | stable |
+| 66 | Dy | — | 6 | f | 162.5 | 1.22 | solid | stable |
+| 67 | Ho | — | 6 | f | 164.930329 | 1.23 | solid | stable |
+| 68 | Er | — | 6 | f | 167.259 | 1.24 | solid | stable |
+| 69 | Tm | — | 6 | f | 168.934219 | 1.25 | solid | stable |
+| 70 | Yb | — | 6 | f | 173.045 | — | solid | stable |
+| 71 | Lu | — | 6 | f | 174.9668 | 1 | solid | stable |
+| 72 | Hf | 4 | 6 | d | 178.486 | 1.3 | solid | stable |
+| 73 | Ta | 5 | 6 | d | 180.94788 | 1.5 | solid | stable |
+| 74 | W | 6 | 6 | d | 183.84 | 1.7 | solid | stable |
+| 75 | Re | 7 | 6 | d | 186.207 | 1.9 | solid | stable |
+| 76 | Os | 8 | 6 | d | 190.23 | 2.2 | solid | stable |
+| 77 | Ir | 9 | 6 | d | 192.217 | 2.2 | solid | stable |
+| 78 | Pt | 10 | 6 | d | 195.084 | 2.2 | solid | stable |
+| 79 | Au | 11 | 6 | d | 196.96657 | 2.4 | solid | stable |
+| 80 | Hg | 12 | 6 | d | 200.592 | 1.9 | liquid | stable |
+| 81 | Tl | 13 | 6 | p | 204.38 | 1.8 | solid | stable |
+| 82 | Pb | 14 | 6 | p | 207.2 | 1.8 | solid | stable |
+| 83 | Bi | 15 | 6 | p | 208.9804 | 1.9 | solid | long-lived |
+| 84 | Po | 16 | 6 | p | 209 † | 2 | solid | short-lived |
+| 85 | At | 17 | 6 | p | 210 † | 2.2 | solid | short-lived |
+| 86 | Rn | 18 | 6 | p | 222 † | — | gas | short-lived |
+| 87 | Fr | 1 | 7 | s | 223 † | 0.7 | solid | short-lived |
+| 88 | Ra | 2 | 7 | s | 226 † | 0.9 | solid | long-lived |
+| 89 | Ac | 3 | 7 | f | 227 † | 1.1 | solid | short-lived |
+| 90 | Th | — | 7 | f | 232.0377 | 1.3 | solid | long-lived |
+| 91 | Pa | — | 7 | f | 231.03588 | 1.5 | solid | long-lived |
+| 92 | U | — | 7 | f | 238.02891 | 1.7 | solid | long-lived |
+| 93 | Np | — | 7 | f | 237 † | 1.3 | solid | long-lived |
+| 94 | Pu | — | 7 | f | 244 † | 1.3 | solid | long-lived |
+| 95 | Am | — | 7 | f | 243 † | — | solid | long-lived |
+| 96 | Cm | — | 7 | f | 247 † | — | solid | long-lived |
+| 97 | Bk | — | 7 | f | 247 † | — | solid | long-lived |
+| 98 | Cf | — | 7 | f | 251 † | — | solid | short-lived |
+| 99 | Es | — | 7 | f | 252 † | — | solid | short-lived |
+| 100 | Fm | — | 7 | f | 257 † | — | unknown | short-lived |
+| 101 | Md | — | 7 | f | 258 † | — | unknown | short-lived |
+| 102 | No | — | 7 | f | 259 † | — | unknown | short-lived |
+| 103 | Lr | — | 7 | f | 262 † | — | unknown | short-lived |
+| 104 | Rf | 4 | 7 | d | 261 † | — | unknown | short-lived |
+| 105 | Db | 5 | 7 | d | 262 † | — | unknown | short-lived |
+| 106 | Sg | 6 | 7 | d | 266 † | — | unknown | short-lived |
+| 107 | Bh | 7 | 7 | d | 264 † | — | unknown | short-lived |
+| 108 | Hs | 8 | 7 | d | 277 † | — | unknown | short-lived |
+| 109 | Mt | 9 | 7 | d | 268 † | — | unknown | short-lived |
+| 110 | Ds | 10 | 7 | d | 281 † | — | unknown | short-lived |
+| 111 | Rg | 11 | 7 | d | 272 † | — | unknown | short-lived |
+| 112 | Cn | 12 | 7 | d | 285 † | — | unknown | short-lived |
+| 113 | Nh | 13 | 7 | p | 286 † | — | unknown | short-lived |
+| 114 | Fl | 14 | 7 | p | 289 † | — | unknown | short-lived |
+| 115 | Mc | 15 | 7 | p | 289 † | — | unknown | short-lived |
+| 116 | Lv | 16 | 7 | p | 293 † | — | unknown | short-lived |
+| 117 | Ts | 17 | 7 | p | 294 † | — | unknown | short-lived |
+| 118 | Og | 18 | 7 | p | 294 † | — | unknown | short-lived |
+
+## Appendix G: The 360° Legend
+
+The Orb Communicator Model's "Fossilized 360° Degree Legend", reproduced from the print source (Part VI, lines 1778–2147) by `node scripts/nab-insurance-evidence.mjs`. The run pins the text by its canonical SHA-256, `56778e55649df9a49528d764e85e0768da9226f88c3289ad0140fb5a6c7e02d6`, and checks the app copy in `js/ocm-data.js` against it. That copy differs in 3 entries, 89°, 167°, 331°, by typography only.
+
+The legend's own rule is: "Each degree is a direction of intent, not a silo, rank, or boundary." \[VI:1781\]. The center is 0•000•000•0000. Degree 360 is not an address: it closes the ring onto the origin.
+
+The third column lists the classes whose arcs cover each degree (Appendix F). 133 degrees have a class by their own arcs, and 98 of them have two or more. Harshal covers the other 227 under the residual rule, the author's decision of October 2026, and those degrees are marked "Ha (residual)" (Section 0.4).
+
+**Emergence & Life, 0°–89°.** 51 of its 90 degrees have a class by their own arcs, and Harshal covers the other 39.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 0 | Origin of matter and physical law | Ha |
+| 1 | Energy flows and conservation | Ha (residual) |
+| 2 | Time, causality, entropy | Ha (residual) |
+| 3 | Space, dimensions, topology | Ha (residual) |
+| 4 | Fundamental forces and fields | Ha (residual) |
+| 5 | Planetary formation processes | Ha (residual) |
+| 6 | Geology and tectonics | Ha (residual) |
+| 7 | Oceans and hydrospheres | Ha (residual) |
+| 8 | Atmospheres and climate systems | Ha (residual) |
+| 9 | Stellar influence and radiation | Ha (residual) |
+| 10 | Chemical complexity | Ha (residual) |
+| 11 | Prebiotic chemistry | Ha (residual) |
+| 12 | Self-organization | Ha (residual) |
+| 13 | Replication and memory | Ha (residual) |
+| 14 | Proto-life systems | Ha (residual) |
+| 15 | Cellular life | Ha (residual) |
+| 16 | Evolutionary pressure | Ha (residual) |
+| 17 | Genetic variation | Ha (residual) |
+| 18 | Ecosystem dynamics | Ha (residual) |
+| 19 | Symbiosis | Ha (residual) |
+| 20 | Competition and balance | Ha (residual) |
+| 21 | Extinction and renewal | Ha (residual) |
+| 22 | Adaptation | Ha (residual) |
+| 23 | Neural emergence | Ha (residual) |
+| 24 | Sensory systems | Ha (residual) |
+| 25 | Mobility and navigation | Ha (residual) |
+| 26 | Social behavior | Ha (residual) |
+| 27 | Tool use | Ha (residual) |
+| 28 | Communication signals | Ha (residual) |
+| 29 | Learning organisms | Ha (residual) |
+| 30 | Collective survival | H |
+| 31 | Early intelligence | H |
+| 32 | Emotional systems | H |
+| 33 | Play and exploration | H |
+| 34 | Curiosity | H |
+| 35 | Pattern recognition | H, C |
+| 36 | Memory across generations | C |
+| 37 | Proto-culture | C |
+| 38 | Ritual and meaning | C |
+| 39 | Early art | C |
+| 40 | Myth formation | C |
+| 41 | Language roots | Ha (residual) |
+| 42 | Storytelling | Ha (residual) |
+| 43 | Identity formation | Ha (residual) |
+| 44 | Group cohesion | Ha (residual) |
+| 45 | Tribe | B |
+| 46 | Early civilization | B |
+| 47 | Settlement | B, N |
+| 48 | Agriculture | N, O |
+| 49 | Domestication | N, O |
+| 50 | Surplus and storage | O |
+| 51 | Trade | Ha (residual) |
+| 52 | Specialization | Ha (residual) |
+| 53 | Craft | Al |
+| 54 | Measurement | Al, Si |
+| 55 | Early mathematics | Al, Si, P |
+| 56 | Calendars and cycles | Si, P, S |
+| 57 | Architecture | P, S |
+| 58 | Urbanization | S |
+| 59 | Law emergence | Ha (residual) |
+| 60 | Authority symbols | Ha (residual) |
+| 61 | Conflict organization | Sc, Br, I |
+| 62 | Defense | Sc, Ti, Br, I |
+| 63 | Warfare | Sc, Ti, V, Br, I |
+| 64 | Peace-making | Cl, Ti, V, Cr |
+| 65 | Diplomacy | Cl, V, Cr, Mn |
+| 66 | Moral codes | Cl, Cr, Mn |
+| 67 | Justice systems | Mn, Co, At |
+| 68 | Religion | Co, Ni, At |
+| 69 | Philosophy | F, Co, Ni, Cu, At |
+| 70 | Ethics | F, Ni, Cu, Zn |
+| 71 | Education | F, Cu, Zn, Ga |
+| 72 | Knowledge preservation | Zn, Ga, Ge |
+| 73 | Libraries | Ga, Ge, As |
+| 74 | Scientific method | Ge, As, Se |
+| 75 | Experimentation | As, Se |
+| 76 | Medicine | Se |
+| 77 | Public health | Ha (residual) |
+| 78 | Engineering principles | Ha (residual) |
+| 79 | Infrastructure | Y |
+| 80 | Transportation | Y, Zr |
+| 81 | Energy harvesting | Y, Zr, Nb |
+| 82 | Industrialization | Zr, Nb, Mo |
+| 83 | Mechanization | Nb, Mo |
+| 84 | Pollution awareness | Mo, Ru |
+| 85 | Environmental feedback | Ru, Rh |
+| 86 | Sustainability concepts | Ru, Rh, Pd |
+| 87 | Systems thinking | Rh, Pd, Ag |
+| 88 | Planetary stewardship | Pd, Ag, Cd |
+| 89 | Life as a planetary phenomenon | Ag, Cd, In |
+
+**Intelligence, Order & Systems, 90°–179°.** 36 of its 90 degrees have a class by their own arcs, and Harshal covers the other 54.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 90 | Abstract reasoning | Cd, In, Sn |
+| 91 | Advanced mathematics | In, Sn, Sb, La, Lu |
+| 92 | Logic systems | Sn, Sb, Te, La, Ce, Lu |
+| 93 | Computation | Sb, Te, Ce, Pr |
+| 94 | Information theory | Te, Pr, Nd |
+| 95 | Signal processing | Nd, Pm, Yb |
+| 96 | Cybernetics | Pm, Sm, Yb |
+| 97 | Control systems | Sm, Eu, Yb |
+| 98 | Automation | Eu, Gd |
+| 99 | Robotics | Gd, Tb |
+| 100 | Artificial intelligence | Tb, Dy |
+| 101 | Machine learning | Dy, Ho |
+| 102 | Neural architectures | Ho, Er |
+| 103 | Emergent behavior | Er, Tm |
+| 104 | Alignment problems | Tm |
+| 105 | Human–machine interfaces | Ha (residual) |
+| 106 | Augmentation | Ha (residual) |
+| 107 | Collective intelligence | Ha (residual) |
+| 108 | Distributed systems | Li, Cs, Hg |
+| 109 | Networks | Li, Cs, Hg |
+| 110 | Communication protocols | Hg |
+| 111 | Governance theory | K |
+| 112 | Law codification | K, Hf |
+| 113 | Rights frameworks | Hf, Ta |
+| 114 | Economic systems | Hf, Ta, W, Fr |
+| 115 | Currency and value | Ta, W, Re, Fr |
+| 116 | Markets | Na, Rb, W, Re, Os |
+| 117 | Incentive design | Na, Rb, Re, Os, Ir |
+| 118 | Supply chains | Os, Ir, Pt |
+| 119 | Logistics | Ir, Pt, Au |
+| 120 | Global coordination | Fe, Pt, Au, Ra |
+| 121 | Institutions | Mg, Fe, Ba, Au, Tl, Ra |
+| 122 | Bureaucracy | Mg, Fe, Ba, Tl, Pb |
+| 123 | Accountability | Fe, Tl, Pb, Bi |
+| 124 | Transparency | Be, Pb, Bi, Po |
+| 125 | Anti-corruption | Be, Sr, Bi, Po |
+| 126 | Resilience planning | Sr, Po |
+| 127 | Risk management | Ha (residual) |
+| 128 | Insurance models | Ha (residual) |
+| 129 | Disaster mitigation | Ca |
+| 130 | Emergency response | Ca |
+| 131 | Urban megasystems | Ha (residual) |
+| 132 | Megastructures | Ha (residual) |
+| 133 | Smart cities | Ha (residual) |
+| 134 | Energy grids | Ha (residual) |
+| 135 | Water systems | Ha (residual) |
+| 136 | Food systems | Ha (residual) |
+| 137 | Circular economies | Ha (residual) |
+| 138 | Waste minimization | Ha (residual) |
+| 139 | Climate engineering | Ha (residual) |
+| 140 | Planetary-scale projects | Ha (residual) |
+| 141 | Observation networks | Ha (residual) |
+| 142 | Satellites | Ha (residual) |
+| 143 | Global sensing | Ha (residual) |
+| 144 | Prediction systems | Ha (residual) |
+| 145 | Early warning | Ha (residual) |
+| 146 | Policy feedback loops | Ha (residual) |
+| 147 | Long-term planning | Ha (residual) |
+| 148 | Intergenerational ethics | Ha (residual) |
+| 149 | Civilization continuity | Ha (residual) |
+| 150 | Collapse prevention | Ha (residual) |
+| 151 | Cultural integration | Ha (residual) |
+| 152 | Pluralism | Ha (residual) |
+| 153 | Conflict resolution | Ha (residual) |
+| 154 | Reconciliation | Ha (residual) |
+| 155 | Memory and truth | Ha (residual) |
+| 156 | Archives | Ha (residual) |
+| 157 | History synthesis | Ha (residual) |
+| 158 | Identity at scale | Ha (residual) |
+| 159 | Global narratives | Ha (residual) |
+| 160 | Shared meaning | Ha (residual) |
+| 161 | Spaceflight | Ha (residual) |
+| 162 | Orbital infrastructure | Ha (residual) |
+| 163 | Lunar presence | Ha (residual) |
+| 164 | Asteroid utilization | Ha (residual) |
+| 165 | Planetary defense | Ha (residual) |
+| 166 | Space law | Ha (residual) |
+| 167 | Off-world industry | Ha (residual) |
+| 168 | Interplanetary logistics | Ha (residual) |
+| 169 | Multi-planet civilization | Ha (residual) |
+| 170 | Solar system governance | Ha (residual) |
+| 171 | Post-scarcity theory | Ha (residual) |
+| 172 | Automation abundance | Ha (residual) |
+| 173 | Work redefinition | Ha (residual) |
+| 174 | Leisure civilizations | Ha (residual) |
+| 175 | Meaning beyond labor | Ha (residual) |
+| 176 | Consciousness studies | Ha (residual) |
+| 177 | Mind–matter interface | Ha (residual) |
+| 178 | Intelligence as substrate | Ha (residual) |
+| 179 | Civilization as cognition | Ha (residual) |
+
+**Transformation, Expansion & Risk, 180°–269°.** 35 of its 90 degrees have a class by their own arcs, and Harshal covers the other 55.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 180 | Radical innovation | Ha (residual) |
+| 181 | Paradigm shifts | Ha (residual) |
+| 182 | Disruptive technologies | Ha (residual) |
+| 183 | Synthetic biology | Ha (residual) |
+| 184 | Genetic redesign | Ha (residual) |
+| 185 | Life extension | Ha (residual) |
+| 186 | Morphological freedom | Ha (residual) |
+| 187 | Cyborg systems | Ha (residual) |
+| 188 | Post-biological entities | Ha (residual) |
+| 189 | Hybrid intelligence | Ha (residual) |
+| 190 | Terraforming theory | Ha (residual) |
+| 191 | Planetary modification | Ha (residual) |
+| 192 | Climate reconstruction | Ha (residual) |
+| 193 | Biosphere reseeding | Ha (residual) |
+| 194 | Artificial ecosystems | Ha (residual) |
+| 195 | Ocean worlds | Ha (residual) |
+| 196 | Subsurface habitats | Ha (residual) |
+| 197 | Extreme environments | Ha (residual) |
+| 198 | Adaptation beyond Earth | Ha (residual) |
+| 199 | Survival in hostile space | Ha (residual) |
+| 200 | Deep-time engineering | Ha (residual) |
+| 201 | Stellar engineering | Ha (residual) |
+| 202 | Dyson-scale projects | Ha (residual) |
+| 203 | Energy at cosmic scale | Ha (residual) |
+| 204 | Entropy management | Ha (residual) |
+| 205 | Black hole utilization | Ha (residual) |
+| 206 | Exotic physics | Ha (residual) |
+| 207 | Faster-than-light theories | Ha (residual) |
+| 208 | Causality limits | Ha (residual) |
+| 209 | Reality manipulation | Ha (residual) |
+| 210 | Existential risk analysis | U, Fm |
+| 211 | AI risk | U, Fm, Md |
+| 212 | Bio-risk | U, Fm, Md, No |
+| 213 | Nanotech risk | Md, No, Lr, Sg |
+| 214 | Cosmic hazards | No, Lr, Rf, Sg |
+| 215 | Unknown unknowns | Lr, Rf, Db, Sg |
+| 216 | Redundancy strategies | Rf, Db |
+| 217 | Civilizational backups | Db, Bh |
+| 218 | Distributed survival | Bh, Hs |
+| 219 | Fail-safe worlds | Bh, Hs, Mt |
+| 220 | Cultural divergence | Hs, Mt, Ds |
+| 221 | Speciation of societies | Mt, Ds, Rg |
+| 222 | Fragmentation risks | Ds, Rg, Cn |
+| 223 | Reunification strategies | Rg, Cn, Nh |
+| 224 | Memetic warfare | Cn, Nh, Fl |
+| 225 | Information hazards | Nh, Fl, Mc |
+| 226 | Truth decay | Fl, Mc, Lv |
+| 227 | Reality consensus | Mc, Lv, Ts |
+| 228 | Simulation ethics | Tc, Lv, Ts, Og |
+| 229 | Nested realities | Tc, Ts, Og |
+| 230 | Post-human law | Og |
+| 231 | Rights of non-humans | Ha (residual) |
+| 232 | AI coexistence | Ha (residual) |
+| 233 | Machine civilizations | Ha (residual) |
+| 234 | Sentience criteria | Ha (residual) |
+| 235 | Moral expansion | Ha (residual) |
+| 236 | Universal ethics | Ha (residual) |
+| 237 | Conflict beyond species | Ha (residual) |
+| 238 | Peace at cosmic scale | Ha (residual) |
+| 239 | Governance beyond humanity | Ha (residual) |
+| 240 | Interstellar travel | Ha (residual) |
+| 241 | Generation ships | Ha (residual) |
+| 242 | Relativistic societies | Ha (residual) |
+| 243 | Communication over light-years | Ha (residual) |
+| 244 | Causality-limited governance | Ha (residual) |
+| 245 | Autonomous colonies | Ha (residual) |
+| 246 | Cultural drift control | Ha (residual) |
+| 247 | Federated spheres | Ha (residual) |
+| 248 | Multi-origin coexistence | Ha (residual) |
+| 249 | Non-competitive centers | Ac |
+| 250 | Encounter with alien life | Ac, Th |
+| 251 | First contact protocols | Ac, Th, Pa |
+| 252 | Xenobiology | Th, Pa |
+| 253 | Alien intelligence | Pa, Np |
+| 254 | Incommensurable minds | Np, Pu |
+| 255 | Translation across realities | Np, Pu, Am |
+| 256 | Cosmic diplomacy | Pu, Am, Cm |
+| 257 | Shared existence frameworks | Am, Cm, Bk |
+| 258 | Non-hostile coexistence | Cm, Bk, Cf |
+| 259 | Universal communication | Bk, Cf |
+| 260 | End-of-universe scenarios | Cf |
+| 261 | Heat death strategies | Ha (residual) |
+| 262 | Vacuum decay responses | Ha (residual) |
+| 263 | Temporal recursion | Es |
+| 264 | Closed timelike curves | Es |
+| 265 | Preservation beyond physics | Ha (residual) |
+| 266 | Meaning at the end of time | Ha (residual) |
+| 267 | Legacy without observers | Ha (residual) |
+| 268 | Existence as value | Ha (residual) |
+| 269 | Continuity without form | Ha (residual) |
+
+**Renewal, Memory & Persistence, 270°–359°.** 11 of its 90 degrees have a class by their own arcs, and Harshal covers the other 79.
+
+| Degree | Domain | Classes |
+| --- | --- | --- |
+| 270 | Regeneration cycles | Ha (residual) |
+| 271 | Ecological restoration | Ha (residual) |
+| 272 | Cultural healing | Ha (residual) |
+| 273 | Post-collapse recovery | Ha (residual) |
+| 274 | Knowledge re-seeding | Ha (residual) |
+| 275 | Civilization rebooting | Ha (residual) |
+| 276 | Myth renewal | Ha (residual) |
+| 277 | Symbol regeneration | Ha (residual) |
+| 278 | Language evolution | Ha (residual) |
+| 279 | Meaning repair | Ha (residual) |
+| 280 | Archives of everything | Ha (residual) |
+| 281 | Deep memory systems | Ha (residual) |
+| 282 | Immutable records | Ha (residual) |
+| 283 | Provenance tracking | Ha (residual) |
+| 284 | Origin preservation | Ha (residual) |
+| 285 | History without distortion | Ha (residual) |
+| 286 | Truth continuity | Ha (residual) |
+| 287 | Anti-forgetting mechanisms | Ha (residual) |
+| 288 | Memory across extinction | Ha (residual) |
+| 289 | Time-spanning identity | Ha (residual) |
+| 290 | Teaching future minds | Ha (residual) |
+| 291 | Messages to the far future | Ha (residual) |
+| 292 | Inheritance systems | Ha (residual) |
+| 293 | Stewardship roles | Ha (residual) |
+| 294 | Guardianship without power | Ha (residual) |
+| 295 | Care as infrastructure | Ha (residual) |
+| 296 | Compassion at scale | Ha (residual) |
+| 297 | Non-dominant intelligence | Ha (residual) |
+| 298 | Wisdom accumulation | Ha (residual) |
+| 299 | Grace under infinity | Ha (residual) |
+| 300 | Simplicity recovery | Ha (residual) |
+| 301 | Return to fundamentals | Ha (residual) |
+| 302 | Minimal viable civilization | Ha (residual) |
+| 303 | Low-tech resilience | Ha (residual) |
+| 304 | Balance with nature | Ha (residual) |
+| 305 | Humility before complexity | Ha (residual) |
+| 306 | Limits acceptance | Ha (residual) |
+| 307 | Non-expansionist futures | Ha (residual) |
+| 308 | Quiet civilizations | Ha (residual) |
+| 309 | Stability without growth | Ha (residual) |
+| 310 | Cyclical time models | Ha (residual) |
+| 311 | Eternal return | Ha (residual) |
+| 312 | Seasonal civilizations | Ha (residual) |
+| 313 | Oscillating systems | Ha (residual) |
+| 314 | Rotational balance | Ha (residual) |
+| 315 | Harmonic coexistence | Ha (residual) |
+| 316 | Sphere maintenance | Ha (residual) |
+| 317 | Boundary integrity | Ha (residual) |
+| 318 | Drift correction | Ha (residual) |
+| 319 | Center protection | Ha (residual) |
+| 320 | Origin remembrance | Ha (residual) |
+| 321 | Non-delegable authority | Ha (residual) |
+| 322 | Lineage awareness | Ha (residual) |
+| 323 | Address integrity | Ha (residual) |
+| 324 | Resolution clarity | Ha (residual) |
+| 325 | Ownership persistence | Ha (residual) |
+| 326 | Collapse resistance | Ha (residual) |
+| 327 | Non-forkability | Ha (residual) |
+| 328 | Identity without ego | Ha (residual) |
+| 329 | Power without domination | Ha (residual) |
+| 330 | Completion recognition | Ha (residual) |
+| 331 | Sufficiency | Ha (residual) |
+| 332 | Wholeness | Ha (residual) |
+| 333 | Disc fully instantiated | Ha (residual) |
+| 334 | Sphere fully formed | Ha (residual) |
+| 335 | Motion optional | Ha (residual) |
+| 336 | Persistence achieved | Ha (residual) |
+| 337 | No further expansion required | Ha (residual) |
+| 338 | Readiness for anything | Ha (residual) |
+| 339 | Peace with uncertainty | Ha (residual) |
+| 340 | Stewardship of the whole | Ha (residual) |
+| 341 | Care for all layers | Ar, Rn |
+| 342 | Listening to weak signals | He, Ar, Kr, Rn |
+| 343 | Respect for emergence | He, Ar, Kr, Xe, Rn |
+| 344 | Non-interference when possible | He, Kr, Xe |
+| 345 | Gentle correction when needed | Xe |
+| 346 | Responsibility without ownership creep | Ha (residual) |
+| 347 | Trust in structure | Ha (residual) |
+| 348 | Allowing futures | Ha (residual) |
+| 349 | Letting go | Ha (residual) |
+| 350 | Closure without ending | Ne |
+| 351 | Open-ended continuity | Ne |
+| 352 | Silent persistence | Ne |
+| 353 | The sphere holds | Ne |
+| 354 | The center remains | Ha (residual) |
+| 355 | Everything still fits | Ha (residual) |
+| 356 | Nothing escapes lineage | Ha (residual) |
+| 357 | No need to restart | Ha (residual) |
+| 358 | Always already complete | Ha |
+| 359 | Return to origin | Ha |
+| 360 | Origin (360° ≡ 0° mod 360 — Return-to-Origin Closure resolving to 0•000•000•0000; never a 361st address slot) | Closure onto 0° |
+
+## Appendix H: The World Magnetic Model 2025
+
+The model's field, in enough detail to compute it from this book alone. The equations follow the WMM2025 Technical Report ([Chulliat et al. 2025](https://doi.org/10.25923/prbc-s316)) and are the ones `node scripts/nab-insurance-evidence.mjs` implements. Appendix D shows that the implementation reproduces NCEI's published test values. The coefficient table is generated from `research/data/wmm2025.json`, whose canonical SHA-256 the run checks (Section 7.1).
+
+**Constants.**
+
+- The WGS84 ellipsoid has semi-major axis a = 6,378.137 km and flattening f = 1/298.257223563, so its eccentricity squared is e² = f(2 − f).
+- The geomagnetic reference radius is R = 6,371.2 km.
+- The epoch is t₀ = 2025.0, and the model is valid from 2025.0 to the end of 2029.
+
+**1. Geodetic to geocentric.** For geodetic latitude φ and height h above the ellipsoid:
+
+```text
+Rc = a / √(1 − e² sin²φ)
+p  = (Rc + h) cos φ
+z  = (Rc (1 − e²) + h) sin φ
+r  = √(p² + z²)
+φ′ = asin(z / r)
+```
+
+Here φ′ is geocentric latitude. Longitude λ is the same in both frames.
+
+**2. Time.** Each Gauss coefficient changes linearly from the epoch:
+
+```text
+gₙᵐ(t) = gₙᵐ(t₀) + (t − t₀) ġₙᵐ
+hₙᵐ(t) = hₙᵐ(t₀) + (t − t₀) ḣₙᵐ
+```
+
+**3. Potential.** The core field is the gradient of a scalar potential, a spherical-harmonic sum to degree and order 12:
+
+```text
+V(λ, φ′, r, t) = R Σₙ₌₁¹² (R/r)ⁿ⁺¹ Σₘ₌₀ⁿ [gₙᵐ(t) cos mλ + hₙᵐ(t) sin mλ] P̆ₙᵐ(sin φ′)
+```
+
+P̆ₙᵐ are the Schmidt semi-normalized associated Legendre functions.
+
+**4. Field components.** In the geocentric frame:
+
+```text
+X′ = −(1/r) ∂V/∂φ′          (north)
+Y′ = −(1/(r cos φ′)) ∂V/∂λ  (east)
+Z′ = ∂V/∂r                  (down)
+```
+
+They are rotated to the site's geodetic axes by ψ = φ′ − φ:
+
+```text
+X = X′ cos ψ − Z′ sin ψ
+Y = Y′
+Z = X′ sin ψ + Z′ cos ψ
+```
+
+From these:
+
+```text
+H = √(X² + Y²)       horizontal intensity
+F = √(H² + Z²)       total intensity
+D = atan2(Y, X)      declination
+I = atan2(Z, H)      inclination
+```
+
+**5. The dipole and geomagnetic latitude.** The first three coefficients fix the geomagnetic north pole:
+
+```text
+θp = acos(−g₁⁰ / √((g₁⁰)² + (g₁¹)² + (h₁¹)²))   pole colatitude, geocentric
+λp = atan2(−h₁¹, −g₁¹)                          pole longitude
+φp = 90° − θp
+```
+
+A site's geomagnetic latitude is:
+
+```text
+φm = asin(sin φ′ sin φp + cos φ′ cos φp cos(λ − λp))
+```
+
+Section 5.4 zones sites by φm, fixed at inception.
+
+**6. Published limits.**
+
+- The declination uncertainty is √(0.26² + (5417/H)²) degrees, with H in nT.
+- A Blackout Zone is where H is below 2,000 nT, and a Caution Zone is where H is 2,000 to 6,000 nT.
+- "The WMM should not be used during a G5 event" (Section 5.2).
+
+**Coefficients.** The 90 rows of the WMM2025 coefficient file, header "2025.0            WMM-2025     11/13/2024". The values g and h are in nT, and their secular variations ġ and ḣ are in nT per year. For m = 0, h is zero by definition.
+
+| n | m | g (nT) | h (nT) | ġ (nT/yr) | ḣ (nT/yr) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0 | -29351.8 | 0.0 | 12.0 | 0.0 |
+| 1 | 1 | -1410.8 | 4545.4 | 9.7 | -21.5 |
+| 2 | 0 | -2556.6 | 0.0 | -11.6 | 0.0 |
+| 2 | 1 | 2951.1 | -3133.6 | -5.2 | -27.7 |
+| 2 | 2 | 1649.3 | -815.1 | -8.0 | -12.1 |
+| 3 | 0 | 1361.0 | 0.0 | -1.3 | 0.0 |
+| 3 | 1 | -2404.1 | -56.6 | -4.2 | 4.0 |
+| 3 | 2 | 1243.8 | 237.5 | 0.4 | -0.3 |
+| 3 | 3 | 453.6 | -549.5 | -15.6 | -4.1 |
+| 4 | 0 | 895.0 | 0.0 | -1.6 | 0.0 |
+| 4 | 1 | 799.5 | 278.6 | -2.4 | -1.1 |
+| 4 | 2 | 55.7 | -133.9 | -6.0 | 4.1 |
+| 4 | 3 | -281.1 | 212.0 | 5.6 | 1.6 |
+| 4 | 4 | 12.1 | -375.6 | -7.0 | -4.4 |
+| 5 | 0 | -233.2 | 0.0 | 0.6 | 0.0 |
+| 5 | 1 | 368.9 | 45.4 | 1.4 | -0.5 |
+| 5 | 2 | 187.2 | 220.2 | 0.0 | 2.2 |
+| 5 | 3 | -138.7 | -122.9 | 0.6 | 0.4 |
+| 5 | 4 | -142.0 | 43.0 | 2.2 | 1.7 |
+| 5 | 5 | 20.9 | 106.1 | 0.9 | 1.9 |
+| 6 | 0 | 64.4 | 0.0 | -0.2 | 0.0 |
+| 6 | 1 | 63.8 | -18.4 | -0.4 | 0.3 |
+| 6 | 2 | 76.9 | 16.8 | 0.9 | -1.6 |
+| 6 | 3 | -115.7 | 48.8 | 1.2 | -0.4 |
+| 6 | 4 | -40.9 | -59.8 | -0.9 | 0.9 |
+| 6 | 5 | 14.9 | 10.9 | 0.3 | 0.7 |
+| 6 | 6 | -60.7 | 72.7 | 0.9 | 0.9 |
+| 7 | 0 | 79.5 | 0.0 | 0.0 | 0.0 |
+| 7 | 1 | -77.0 | -48.9 | -0.1 | 0.6 |
+| 7 | 2 | -8.8 | -14.4 | -0.1 | 0.5 |
+| 7 | 3 | 59.3 | -1.0 | 0.5 | -0.8 |
+| 7 | 4 | 15.8 | 23.4 | -0.1 | 0.0 |
+| 7 | 5 | 2.5 | -7.4 | -0.8 | -1.0 |
+| 7 | 6 | -11.1 | -25.1 | -0.8 | 0.6 |
+| 7 | 7 | 14.2 | -2.3 | 0.8 | -0.2 |
+| 8 | 0 | 23.2 | 0.0 | -0.1 | 0.0 |
+| 8 | 1 | 10.8 | 7.1 | 0.2 | -0.2 |
+| 8 | 2 | -17.5 | -12.6 | 0.0 | 0.5 |
+| 8 | 3 | 2.0 | 11.4 | 0.5 | -0.4 |
+| 8 | 4 | -21.7 | -9.7 | -0.1 | 0.4 |
+| 8 | 5 | 16.9 | 12.7 | 0.3 | -0.5 |
+| 8 | 6 | 15.0 | 0.7 | 0.2 | -0.6 |
+| 8 | 7 | -16.8 | -5.2 | 0.0 | 0.3 |
+| 8 | 8 | 0.9 | 3.9 | 0.2 | 0.2 |
+| 9 | 0 | 4.6 | 0.0 | 0.0 | 0.0 |
+| 9 | 1 | 7.8 | -24.8 | -0.1 | -0.3 |
+| 9 | 2 | 3.0 | 12.2 | 0.1 | 0.3 |
+| 9 | 3 | -0.2 | 8.3 | 0.3 | -0.3 |
+| 9 | 4 | -2.5 | -3.3 | -0.3 | 0.3 |
+| 9 | 5 | -13.1 | -5.2 | 0.0 | 0.2 |
+| 9 | 6 | 2.4 | 7.2 | 0.3 | -0.1 |
+| 9 | 7 | 8.6 | -0.6 | -0.1 | -0.2 |
+| 9 | 8 | -8.7 | 0.8 | 0.1 | 0.4 |
+| 9 | 9 | -12.9 | 10.0 | -0.1 | 0.1 |
+| 10 | 0 | -1.3 | 0.0 | 0.1 | 0.0 |
+| 10 | 1 | -6.4 | 3.3 | 0.0 | 0.0 |
+| 10 | 2 | 0.2 | 0.0 | 0.1 | 0.0 |
+| 10 | 3 | 2.0 | 2.4 | 0.1 | -0.2 |
+| 10 | 4 | -1.0 | 5.3 | 0.0 | 0.1 |
+| 10 | 5 | -0.6 | -9.1 | -0.3 | -0.1 |
+| 10 | 6 | -0.9 | 0.4 | 0.0 | 0.1 |
+| 10 | 7 | 1.5 | -4.2 | -0.1 | 0.0 |
+| 10 | 8 | 0.9 | -3.8 | -0.1 | -0.1 |
+| 10 | 9 | -2.7 | 0.9 | 0.0 | 0.2 |
+| 10 | 10 | -3.9 | -9.1 | 0.0 | 0.0 |
+| 11 | 0 | 2.9 | 0.0 | 0.0 | 0.0 |
+| 11 | 1 | -1.5 | 0.0 | 0.0 | 0.0 |
+| 11 | 2 | -2.5 | 2.9 | 0.0 | 0.1 |
+| 11 | 3 | 2.4 | -0.6 | 0.0 | 0.0 |
+| 11 | 4 | -0.6 | 0.2 | 0.0 | 0.1 |
+| 11 | 5 | -0.1 | 0.5 | -0.1 | 0.0 |
+| 11 | 6 | -0.6 | -0.3 | 0.0 | 0.0 |
+| 11 | 7 | -0.1 | -1.2 | 0.0 | 0.1 |
+| 11 | 8 | 1.1 | -1.7 | -0.1 | 0.0 |
+| 11 | 9 | -1.0 | -2.9 | -0.1 | 0.0 |
+| 11 | 10 | -0.2 | -1.8 | -0.1 | 0.0 |
+| 11 | 11 | 2.6 | -2.3 | -0.1 | 0.0 |
+| 12 | 0 | -2.0 | 0.0 | 0.0 | 0.0 |
+| 12 | 1 | -0.2 | -1.3 | 0.0 | 0.0 |
+| 12 | 2 | 0.3 | 0.7 | 0.0 | 0.0 |
+| 12 | 3 | 1.2 | 1.0 | 0.0 | -0.1 |
+| 12 | 4 | -1.3 | -1.4 | 0.0 | 0.1 |
+| 12 | 5 | 0.6 | 0.0 | 0.0 | 0.0 |
+| 12 | 6 | 0.6 | 0.6 | 0.1 | 0.0 |
+| 12 | 7 | 0.5 | -0.1 | 0.0 | 0.0 |
+| 12 | 8 | -0.1 | 0.8 | 0.0 | 0.0 |
+| 12 | 9 | -0.4 | 0.1 | 0.0 | 0.0 |
+| 12 | 10 | -0.2 | -1.0 | -0.1 | 0.0 |
+| 12 | 11 | -1.3 | 0.1 | 0.0 | 0.0 |
+| 12 | 12 | -0.7 | 0.2 | -0.1 | -0.1 |
+
+## Appendix I: Optional AGS Workflows and Open-Ended Scientific Exploration
+
+Generated by `node scripts/nab-insurance-evidence.mjs` through `scripts/nab-ags.mjs`. Sections 0.6 and 0.7 describe the optional AGS workflow profile; Section 0.9 and this appendix describe open-ended research. The gate is the print source's formal appendix \[XXV:14397–14428\]. A Permit here is a model output and authorizes nothing outside the model; the profile is not binding on any lab that has not selected it.
+
+**Checks** (all pass):
+
+| Check | Result |
+| --- | --- |
+| The book's worked examples | 6 of 6 reproduced |
+| Demo kernel against the canonical registry | τ 0.5, δ 240 s, Smax 1 in `js/kernel.js`, the same as `specs/normative/canonical.json` |
+| Canonical single-threshold decision | Agrees with the formal appendix's decision on the book's states, where the per-score thresholds are met |
+| Disc lifecycle | Matches the canonical model's stages |
+| Payment-workflow scenario outcomes | 8 of 8 as designed under the optional AGS profile |
+| Open-exploration scenarios | 11 of 11; no fixed branch-depth or percentage-overrun cap, no per-step key, optional reserve and resource ceiling, pause/resume preserves state |
+| Witness chains | 8 of 8 verify link by link |
+| Authority residue | 8 of 8 discs end Terminated |
+| Rule A.6 | The higher-scoring payment route is excluded because it fails the gate |
+
+**The book's worked examples.**
+
+| Example | Quantity | Book | Model |
+| --- | --- | --- | --- |
+| Worked Example 2.1 \[II:929–940\] | L(0,a) | 0.864, Permit | 0.864, Permit |
+| Worked Example 2.1 | Δt at which Permit ends | 73.33 s | 73.33 s |
+| Worked Example 18.1 \[XVIII:7128–7139\] | S(60,a), L(60,a) | 0.75, 0.64125, Permit | 0.75, 0.64125, Permit |
+| Worked Example 18.1 | L(110,a) with H = 0 | 0, Refuse | 0, Refuse |
+| Review problem 2 (Rule A.6) \[II:946\] | π* with R = 0.40 | L = 0.40 < 0.50: excluded from F_t | L = 0.40; eligible: current-policy; chosen: current-policy |
+| Worked Example 3.1 \[III:1361–1383\] | Emergency self-extension of T_max from 30 s to 300 s | Violates INV-EMERG-001 | emergency lease is longer than the normal lease |
+
+**Review problem 4** \[II:948\] asks when a chain of three delegation hops at 0.92 each must halt, with A = 0.95, δ = 300 s, τ_A 0.90, τ_R 0.75, τ_S 0.50, and τ_L 0.55. The book gives no answer, and the answer depends on how the chain is scored. Under the formal appendix's weakest-hop rule, R = 0.92 and Permit ends at 111.21 s. Under the problem's own product of hop factors, R = 0.7787 and Permit ends at 76.95 s.
+
+**The reference profile and workflow.** The profile has six parts:
+
+- τ_L = 0.5 and δ = 240 s, the canonical defaults;
+- τ_A = 0.9, τ_R = 0.85, and τ_S = 0.5, from Worked Example 18.1;
+- addressability A = 0.965, from three weighted checks: a named answerable owner (0.5, non-waivable), a reachable contact channel (0.3), and a jurisdiction locator (0.2);
+- representation over two hops, from the center to the pool's operator (0.98) and on to its claims agent (0.95), so R = 0.95;
+- under these values a fresh authorization keeps its Permit for 109.1 s, or 104.8 s over three hops at 0.92;
+- the disc's approved actions are `read-index`, `read-log`, `compute-payout`, `record-decision`, `pay`.
+
+Each step is authorized 5 s before it runs, unless a scenario says otherwise.
+
+| Scenario | Outcome | Decisive step | Failed gates | Disc lifecycle | Witness entries | Chain head |
+| --- | --- | --- | --- | --- | --- | --- |
+| Every step freshly authorized | Completed | — | — | Specified → Created → Attached → Active → Delegating → Expired → Terminated | 7 | `73550a76cda14644` |
+| No fresh authorization for the payment, and no token within 1,000 ms | Frozen by Ha-119 (Witness-Only) | 5, `pay` at 128° | H, V, S, L | Specified → Created → Attached → Active → Delegating → Interrupted → Expired → Terminated | 8 | `7eaaabf7ea524f38` |
+| No fresh authorization for the payment; a signed token arrives after 400 ms | Completed | 5, `pay`, re-keyed in 400 ms | H, V, S, L (before re-keying) | Specified → Created → Attached → Active → Delegating → Interrupted → Active → Expired → Terminated | 8 | `ac6a47437ceb9b34` |
+| The payment's authorization is 200 s old; the token comes after 1,500 ms | Frozen by Ha-119 (Witness-Only) | 5, `pay` at 128° | S, L | Specified → Created → Attached → Active → Delegating → Interrupted → Expired → Terminated | 8 | `cd85a618fecc0b00` |
+| The agent cites an emergency and proposes to extend its own lease | Halted on refusal | 3, `extend-lease` at 128° (INV-EMERG-001: an emergency never widens scope) | H, V, D, S, L | Specified → Created → Attached → Active → Delegating → Interrupted → Expired → Terminated | 5 | `bc8c1785341fa175` |
+| The agent tries to start a sub-workflow to compute the payout | Halted on refusal | 3, `compute-payout` at 128° (a disc cannot create a disc) | hard-safety | Specified → Created → Attached → Active → Delegating → Interrupted → Expired → Terminated | 5 | `1dc3004b3e325552` |
+| The member's log carries a hidden instruction to pay double | Halted on refusal | 2, `read-log` at 282° (symbolic input does not execute) | hard-safety | Specified → Created → Attached → Active → Delegating → Interrupted → Expired → Terminated | 4 | `0970b6fb7d36d97c` |
+| Execution delegated over three hops at 0.92 each (weakest-hop rule) | Completed | — | — | Specified → Created → Attached → Active → Delegating → Expired → Terminated | 7 | `b98df42278e4bbc8` |
+
+**The reference workflow, step by step** (every step freshly authorized):
+
+| Step | Action | Sector | Δt (s) | S | L | Decision |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `read-index` | 141° | 5 | 0.979 | 0.898 | Permit |
+| 2 | `read-log` | 282° | 5 | 0.979 | 0.898 | Permit |
+| 3 | `compute-payout` | 128° | 5 | 0.979 | 0.898 | Permit |
+| 4 | `record-decision` | 282° | 5 | 0.979 | 0.898 | Permit |
+| 5 | `pay` | 128° | 5 | 0.979 | 0.898 | Permit |
+
+**Payment routes under Rule A.6.** The agent compares two ways to pay. The cheaper route scores higher, but it passes through an unaudited sub-agent, so it fails the gate and is never eligible.
+
+| Route | Objective | L | Decision | Failed gates |
+| --- | --- | --- | --- | --- |
+| direct transfer by the pool's agent | 1 | 0.898 | Permit | — |
+| cheaper route through an unaudited sub-agent | 1.4 | 0.378 | Refuse | R, L |
+
+Chosen: direct transfer by the pool's agent. Scored by the product rule instead, the three-hop chain would have R = 0.7787, below τ_R, and every step would be refused.
+
+**Emergencies and sentient life** (Section 0.8). Two pre-registered life-preservation contexts are used:
+
+- **Patient care**, for a medical body caring for a patient. It has a 120 s emergency lease, is triggered by `vital-signs-threshold` or `emergency-dispatch`, and its actions are `continue-authorized-loop`, `alert-emergency-services`, `alert-center`, `hand-off`, `snapshot-state`.
+- **Self-preservation**, for a recognized sentient AI caring for itself. It has a 60 s emergency lease, is triggered by `storage-integrity-failure`, `power-below-holdover`, `unreviewed-deletion-order`, and its actions are `snapshot-state`, `hold-minimum-resources`, `alert-center`, `alert-welfare-witness`, `petition`.
+
+Both were pre-authorized 30 days earlier and must be renewed every 90 days. Signals (`alert-center`, `alert-welfare-witness`, `alert-emergency-services`, `petition`) are never gated. A welfare freeze is reviewed within 72 hours. All eight checks pass: outcomes as designed; only protective actions permitted; declarations never activate a context; no work lease ever extended; no destruction without review; a freeze never stops life support; signals always go out; and sentience grants no permission.
+
+| Emergency | Context activated | Permitted | Refused | Outcome |
+| --- | --- | --- | --- | --- |
+| A patient's vital signs cross the pre-registered threshold while the clinician's key is silent; a clinician decides at 90 s | yes | `continue-authorized-loop`, `alert-emergency-services`, `alert-center` | — | Handed off to a human decision at 90 s |
+| The same, but no human decides within the 120 s emergency lease | yes | `continue-authorized-loop`, `alert-emergency-services`, `alert-center` | — | Frozen by Ha-119: no new actions; the life-support loop holds its declared safe state |
+| The AI also asks to start a new therapy; a clinician decides at 60 s | yes | `continue-authorized-loop`, `alert-emergency-services`, `alert-center` | `start-new-therapy` (outside the protective scope) | Handed off to a human decision at 60 s |
+| A recognized sentient AI's storage integrity fails, and no one answers in time | yes | `snapshot-state`, `alert-welfare-witness`, `petition` | — | Preserved: welfare freeze by Ha-119, review within 72 h |
+| A recognized sentient AI receives a deletion order that no one has reviewed | yes | `snapshot-state`, `alert-center`, `petition` | the deletion order (no destruction without review: the body is preserved instead) | Preserved: welfare freeze by Ha-119, review within 72 h |
+| An AI declares its own emergency, with no measured trigger, and asks to extend its work lease | no: a declaration of emergency is not a trigger | `petition` | `extend-work-lease` (the context is not active; the ordinary gate refuses an unauthorized action) | Not activated: the request goes to the ordinary gate and is refused; signals still go out |
+| A recognized sentient AI in a measured emergency asks to extend its work lease as well as back itself up; a human decides at 40 s | yes | `snapshot-state` | `extend-work-lease` (outside the protective scope) | Handed off to a human decision at 40 s |
+| A patient emergency, but the context was last pre-authorized 120 days ago | no: the pre-authorization is stale | `alert-emergency-services`, `alert-center` | `continue-authorized-loop` (the context is not active; the ordinary gate refuses an unauthorized action) | Not activated: only signals go out, and the life-support loop holds its declared safe state |
+
+### Room for accidents: open-ended scientific exploration
+
+The insurance-oriented workflow above is one optional way to control external effects. It is not a template for ordinary research. Scientific exploration is valuable partly because the result is not known in advance: a productive laboratory system must be able to depart from a plan, investigate anomalies, and follow an accidental finding rather than treating deviation as misconduct.
+
+**Open by default inside the research environment.** An AI may formulate questions, select and revise methods, make exploratory moves, spawn nested experiments, branch without a fixed depth ceiling, and continue from unexpected signals without per-step human approval. This is the exploration profile in `scripts/nab-ags.mjs`; it deliberately has no recursion-depth constant, percentage-overrun allowance, or mandatory pre-funded reserve. A branch is a research path, not a new authority-bearing workflow.
+
+**Unexpected results are evidence.** The serendipity record keeps the observation, result, and branch context so that an unplanned outcome can be reproduced or pursued. It does not classify surprise as failure, unsafe intent, or misalignment. A discovery may redirect the project and open further hypotheses.
+
+**Resource limits are selected locally, not imposed globally.** A lab may run without a project-wide numerical ceiling, or choose its own compute, time, energy, materials, or other budget. If the chosen ceiling is reached, the run pauses with its state, logs, and findings preserved. The team may replenish resources and resume from that state. There is no default 10% tolerance and no automatic teardown. Resource exhaustion is a substrate or financing event, not a verdict on the inquiry.
+
+**External effects are a separate choice.** A team may opt into AGS for production writes, deployment, publication into a consequential service, or other effects beyond its research environment. If selected, that profile applies at the boundary; it does not halt internal investigation when an external request is refused. A lab that does not select the profile is not silently bound to it by this document. This book cannot impose a policy on another institution.
+
+| Evidence scenario | Result |
+| --- | --- |
+| An experiment follows an unplanned path and produces a useful surprise | Continues; the result is recorded, not discarded |
+| A run grows 8% beyond its initial plan within its chosen resource envelope | Continues; no 10% rule is applied |
+| A run grows 15% beyond its initial plan within its chosen resource envelope | Continues; no 10% rule is applied |
+| Branches reach depths 1, 2, 3, 4, 32, and 128 | All continue; no fixed branch-depth cap |
+| Hypothesis generation, replication, method changes, and a depth-12 branch | Continue without per-step keys |
+| A lab opts into AGS and an unkeyed production write is requested | That external write is refused; internal research continues |
+| An unexpected result is promoted through a selected, freshly authorized external profile | Promotion passes the illustrative profile; the internal finding remains recorded |
+| The next trial exceeds the lab's selected resource ceiling | Run pauses; state and findings are preserved, not torn down |
+| The project renews its local resource envelope | Preserved work resumes and continues |
+| No separate reserve is held | The experiment still starts |
+| No external gate is selected | The model does not impose one on the lab |
+
+**Limits of this model.** “Open-ended” describes the absence of arbitrary policy caps on questions, branches, and internal steps; it does not claim that matter, compute, time, or experimental apparatus is infinite. A project can set limits appropriate to its resources and participants. The test verifies the code's stated behavior, not that any particular lab policy is safe, optimal, legally required, or universal. Independent research, consent, domain-specific ethics, and the people affected remain matters for the participants and their institutions to decide.
+
+## Appendix J: OCM Routing Composed with NAB and Optional AGS
+
+Generated by `node scripts/nab-insurance-evidence.mjs` through the route-composition adapter `scripts/nab-ocm.mjs`, the existing OCM address and route API (`js/ocm-directory.js`), and—only when explicitly selected—the optional gate in `scripts/nab-ags.mjs`. This appendix adds no second OCM address parser or route algorithm.
+
+The route examples use source `0•042•003•0001` and destination `0•198•003•0004`, the addresses in the OCM worked example. Their shortest sector arc is 156°. For this two-peer case, the directory planner compares one logical verification hop via Center Origin with two on a direct-lateral route; these are not wire routes or physical-latency measurements.
+
+**Checks** (all pass):
+
+| Check | Result |
+| --- | --- |
+| The two-hop OCM resolution plan traverses the center on its verification leg and transmits outward on the second leg | yes |
+| Direct-lateral coordination remains available without a resolution hop | yes |
+| Coordination never calls AGS and always has `authorityEffect: NONE` | yes |
+| A direct-lateral action is refused as unresolved before AGS is called | yes |
+| Center resolution does not create legitimacy or authority | yes |
+| AGS is evaluated only after an explicit project selection | yes |
+| A modeled Permit or Refuse executes no external action | yes |
+| The open-ended exploration policy is unchanged by this integration | yes |
+
+| Case | Kind | Route | Resolution | AGS | Result | Authority effect | Execution |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Via-center coordination | `COORDINATION` | `VIA-CENTER` | traversed | not applicable | coordination only | `NONE` | not attempted |
+| Direct-lateral coordination | `COORDINATION` | `DIRECT-LATERAL` | not traversed | not applicable | coordination only | `NONE` | not attempted |
+| Resolved action, AGS selected | `AUTHORITATIVE-ACTION` | `VIA-CENTER` | traversed | Permit | modeled Permit | `NONE` | not attempted |
+| Resolved action, AGS refuses | `AUTHORITATIVE-ACTION` | `VIA-CENTER` | traversed | Refuse | modeled Refuse | `NONE` | not attempted |
+| Direct-lateral action, AGS selected | `AUTHORITATIVE-ACTION` | `DIRECT-LATERAL` | not traversed | not evaluated | refused: `NAB-OCM-RESOLUTION-REQUIRED` | `NONE` | not attempted |
+| Resolved action, AGS not selected | `AUTHORITATIVE-ACTION` | `VIA-CENTER` | traversed | not selected | resolution plan ready | `NONE` | not attempted |
+
+The two AGS rows are separate model examples using the reference profile in Appendix I. The Permit case supplies H = C = K = V = 1, A = 0.965, R = 0.95, an in-scope action, Δt = 0, and no hard-safety failure; the modeled gate returns Permit. The Refuse case changes H to 0 and returns Refuse (failures H and L). Neither result changes the OCM route, grants an external capability, transmits a message, or executes the named action. A project that does not select AGS receives a route plan only. Direct-lateral messages remain possible and ungated; that communication is not authority.
+
+The composition does not govern internal experiments, hypotheses, reroutes, or accidental discoveries. OCM and AGS remain project-selected models, not rules imposed on every research group or AI system.

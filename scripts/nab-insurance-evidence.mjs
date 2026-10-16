@@ -1,0 +1,1042 @@
+#!/usr/bin/env node
+/* ═══════════════════════════════════════════════════════════════
+   HarshalOS — evidence tables for "Neural Atomic Bodies & Associated
+   Insurance Requirements" (research/neural-atomic-bodies-insurance-requirements.md)
+
+   Recomputes, from repository files only:
+     · §4.9   the property-derivation test: the v0 rules as written and the
+              proposed v0.2 rules, scored against the Compendium master
+              database (js/nab-sectors.js, generated from
+              docs/harshal-systems/14-nab-compendium.md)
+     · §7     the register consistency checks: every recorded answer vector in
+              case-studies/d1/case-studies-d1.json re-run through the Ground-0
+              engine and compared with case-studies/pdh-registry.json
+     · App. A the Phase × Type matrix
+     · App. C the 32-row Ground-0 Step 3 truth table
+     · App. D the ambient-layer check (Chapter 5): the World Magnetic Model
+              2025 recomputed from its coefficients and verified against
+              NCEI's published test values, high-precision example, and
+              geomagnetic pole; then the proposed site zoning, by dipole
+              geomagnetic latitude, for a list of illustrative locations
+     · App. E compound bodies (Section 4.11): real chemical formulae parsed,
+              checked against a pinned registry of real substances, composed
+              from their constituent classes, and given their physical state of
+              matter from measured data (model: scripts/nab-compounds.mjs)
+     · App. I the optional AGS workflow examples and open-ended exploration:
+              unplanned results, nested branches, optional resource ceilings,
+              pause/resume preservation, and project-selected external gates
+
+   Physical property values come from research/data/elemental-properties.json;
+   the WMM2025 coefficients and NCEI's check values from
+   research/data/wmm2025.json; the substance registry, atomic weights, and
+   equation-of-state check points from research/data/compound-bodies.json. No
+   network access and no dependencies. Nothing here prices cover, issues a
+   badge, or changes the register. The run exits with status 1 if the WMM2025
+   check or the compound check fails.
+
+   Usage:
+     node scripts/nab-insurance-evidence.mjs           Markdown report
+     node scripts/nab-insurance-evidence.mjs --json    machine-readable summary
+   ═══════════════════════════════════════════════════════════════ */
+
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import * as Compounds from "./nab-compounds.mjs";
+import * as World from "./nab-world-model.mjs";
+import * as AGS from "./nab-ags.mjs";
+import * as OCMModel from "./nab-ocm.mjs";
+
+const ROOT = fileURLToPath(new URL("../", import.meta.url));
+const require = createRequire(import.meta.url);
+const readJson = relative => JSON.parse(readFileSync(path.join(ROOT, relative), "utf8"));
+
+require(path.join(ROOT, "js/nab-sectors.js"));
+require(path.join(ROOT, "js/g0-engine.js"));
+const { sectors } = globalThis.NabSectors;
+const G0 = globalThis.G0;
+const properties = readJson("research/data/elemental-properties.json");
+const registry = readJson("case-studies/pdh-registry.json");
+const d1 = readJson("case-studies/d1/case-studies-d1.json");
+
+/* ── Tiers ─────────────────────────────────────────────────────── */
+const TIERS = ["Safe", "Moderate", "Elevated", "Prohibited"];
+const mdbTier = row => TIERS[row.riskLevel];
+const bySymbol = new Map(properties.elements.map(e => [e.symbol, e]));
+
+/* ── Physical attributes, as the v0 translation table defines them ── */
+const LONG_LIVED_YEARS = 1000;
+const persistence = e => (e.stableIsotope ? "stable" : e.longestHalfLifeYears >= LONG_LIVED_YEARS ? "long-lived" : "short-lived");
+const closedShell = e => e.group === 18;          // noble-gas configuration
+const donor = e => e.group === 1;                 // one loose electron (ns1)
+const acceptor = e => e.group === 17;             // one short of full (np5)
+const pairedDonor = e => e.group === 2;           // ns2
+const liquid = e => e.state25C === "liquid";
+const FISSILE_NARROW = new Set(["U", "Pu"]);      // narrow reading of "critical (fissile)"
+
+/* ── v0 rules exactly as written (first match wins, order 1–9) ── */
+const RULES_V0 = [
+  { id: "1", text: "Fissile, or short-lived", tier: "Prohibited", test: e => FISSILE_NARROW.has(e.symbol) || persistence(e) === "short-lived" },
+  { id: "2", text: "Long-lived with no stable isotope", tier: "Moderate", test: e => persistence(e) === "long-lived" },
+  { id: "3", text: "Closed shell", tier: "Safe", test: closedShell },
+  { id: "4", text: "Liquid d-block", tier: "Elevated", test: e => liquid(e) && e.block === "d" },
+  { id: "5", text: "Acceptor with EN ≥ 2.5", tier: "Elevated", test: e => acceptor(e) && e.enPauling !== null && e.enPauling >= 2.5 },
+  { id: "6", text: "Donor with EN ≤ 1.0", tier: "Elevated", test: e => donor(e) && e.enPauling !== null && e.enPauling <= 1.0 },
+  { id: "7", text: "f-block", tier: "Safe", test: e => e.block === "f" },
+  { id: "8", text: "d-block", tier: "Elevated", test: e => e.block === "d" },
+  { id: "9", text: "p-block variable binder", tier: "Moderate", test: e => e.block === "p" && !closedShell(e) && !acceptor(e) }
+];
+
+/* ── Proposed v0.2 rules (first match wins) ── */
+const RULES_V02 = [
+  { id: "1′", text: "Period 7 outside the s-block", tier: "Prohibited", test: e => e.period === 7 && e.block !== "s" },
+  { id: "2", text: "Long-lived with no stable isotope", tier: "Moderate", test: e => persistence(e) === "long-lived" },
+  { id: "3", text: "Closed shell", tier: "Safe", test: closedShell },
+  { id: "4", text: "Liquid d-block", tier: "Elevated", test: e => liquid(e) && e.block === "d" },
+  { id: "5′", text: "Acceptor (group 17)", tier: "Elevated", test: acceptor },
+  { id: "6′", text: "Donor with EN ≤ 1.0", tier: "Safe", test: e => donor(e) && e.enPauling !== null && e.enPauling <= 1.0 },
+  { id: "6b", text: "Paired donor (group 2)", tier: "Moderate", test: pairedDonor },
+  { id: "7", text: "f-block", tier: "Safe", test: e => e.block === "f" },
+  { id: "8", text: "d-block", tier: "Elevated", test: e => e.block === "d" },
+  { id: "9", text: "p-block variable binder", tier: "Moderate", test: e => e.block === "p" && !closedShell(e) && !acceptor(e) },
+  { id: "H", text: "Named exception: hydrogen", tier: "Safe", test: e => e.symbol === "H" }
+];
+
+/* The 25 classes v0.1 listed under "Tested on" (in-sample). */
+const IN_SAMPLE = new Set(["U", "Es", "Sg", "At", "Pm", "Tc", "Ne", "Ar", "Hg", "F", "Cl", "Br", "I", "Li", "Na", "K", "La", "Yb", "Lu", "Sc", "Cr", "Mn", "Fe", "B", "C"]);
+
+function applyRules(rules) {
+  return sectors.filter(row => row.id <= 118).map(row => {
+    const e = bySymbol.get(row.symbol);
+    if (!e || e.z !== row.id) throw new Error(`property table does not match Compendium row ${row.id}`);
+    const hit = rules.find(rule => rule.test(e));
+    const predicted = hit ? hit.tier : null;
+    const actual = mdbTier(row);
+    return { z: row.id, symbol: row.symbol, name: row.name, rule: hit ? hit.id : "—", predicted, actual,
+      outcome: predicted === null ? "no rule" : predicted === actual ? "match" : "miss", inSample: IN_SAMPLE.has(row.symbol) };
+  });
+}
+
+function tally(rows) {
+  const count = (list, outcome) => list.filter(r => r.outcome === outcome).length;
+  const part = list => ({ n: list.length, match: count(list, "match"), miss: count(list, "miss"), noRule: count(list, "no rule") });
+  const confusion = {};
+  for (const actual of TIERS) {
+    confusion[actual] = {};
+    for (const predicted of [...TIERS, null]) confusion[actual][predicted ?? "no rule"] = rows.filter(r => r.actual === actual && r.predicted === predicted).length;
+  }
+  const byRule = {};
+  for (const r of rows) {
+    const entry = byRule[r.rule] || (byRule[r.rule] = { reached: 0, match: 0 });
+    entry.reached += 1;
+    if (r.outcome === "match") entry.match += 1;
+  }
+  return { all: part(rows), inSample: part(rows.filter(r => r.inSample)), outOfSample: part(rows.filter(r => !r.inSample)), confusion, byRule,
+    misses: rows.filter(r => r.outcome !== "match").map(r => ({ z: r.z, symbol: r.symbol, rule: r.rule, predicted: r.predicted, actual: r.actual, inSample: r.inSample })) };
+}
+
+const v0 = applyRules(RULES_V0);
+const v02 = applyRules(RULES_V02);
+
+/* ── Appendix C: the Step 3 truth table ── */
+const truthTable = Array.from({ length: 32 }, (_, n) => {
+  const vector = Array.from({ length: 5 }, (_, bit) => Boolean(n & (1 << (4 - bit))));
+  const result = G0.classify(vector);
+  return { vector: vector.map(v => (v ? "Y" : "N")).join(""), nab: result.matches[0], cwo: result.matches[1], gsrb: result.matches[2], phase: result.phase, confidence: result.confidence };
+});
+const truthCounts = truthTable.reduce((acc, row) => {
+  const key = row.phase === "AMBIGUOUS" ? `AMBIGUOUS ${row.confidence}` : row.phase;
+  acc[key] = (acc[key] || 0) + 1;
+  return acc;
+}, {});
+
+/* ── Chapter 7: register consistency ── */
+const headersBySlug = new Map(registry.headers.map(h => [h.slug, h]));
+const QUESTIONS = ["B1", "B2", "B3", "B4", "B5"];
+const CONSTRAINTS = ["C1", "C2", "C3", "C4"];
+const register = d1.records.map(record => {
+  const header = headersBySlug.get(record.slug);
+  const vector = record.input.answers.map(a => a.value === true);
+  const result = G0.classify(vector);
+  const best = Math.max(result.matches[0], result.matches[2]);   // the two five-condition branches
+  const claimed = /(\d)\/5/.exec(header.detected_phase);
+  const claimedCount = claimed ? Number(claimed[1]) : (header.detected_phase === "GSRB" ? 5 : null);
+  const d1Constraints = record.input.constraints.map(c => c.value === true);
+  const issuedConstraints = CONSTRAINTS.map(c => header.constraint_record[c] === true);
+  return {
+    entity: record.entity,
+    vector: vector.map(v => (v ? "Y" : "N")).join(""),
+    engine: `${result.phase} ${result.confidence}`,
+    bestMatch: best,
+    issuedLabel: header.detected_phase,
+    issuedConfidence: header.confidence,
+    claimedCount,
+    countAgrees: claimedCount === null || claimedCount === best,
+    d1Constraints: d1Constraints.map(v => (v ? "Y" : "N")).join(""),
+    issuedConstraints: issuedConstraints.map(v => (v ? "Y" : "N")).join(""),
+    constraintsAgree: d1Constraints.every((v, i) => v === issuedConstraints[i]),
+    b4Basis: record.input.b4 ? record.input.b4.basis : null
+  };
+});
+const perQuestion = Object.fromEntries([...QUESTIONS, ...CONSTRAINTS].map((code, i) => {
+  const values = d1.records.map(r => (i < 5 ? r.input.answers[i] : r.input.constraints[i - 5]).value === true);
+  return [code, { yes: values.filter(Boolean).length, no: values.filter(v => !v).length }];
+}));
+const issuedCounts = registry.headers.reduce((acc, h) => { acc[h.constraint_record.count] = (acc[h.constraint_record.count] || 0) + 1; return acc; }, {});
+
+/* ── Appendix A: Phase × Type matrix ──
+   D = defined in the sources · D✗ = defined as ineligible · O = observed · U = unassigned.
+   Sources: Sept 2026 DOCX phase eligibility table (five written classes); Part XXIV
+   routing map (library 25-additional-specs.md §3.1–3.3) and routing flows (print
+   Part XXIV); Part XIII Sentinels; Part XVII §5 ("any atomic body → executive
+   authority" prohibited); Part XXIV §2.5 (GSRB "outside the periodic table"). */
+const WRITTEN = new Map([["Ne", "D"], ["H", "D"], ["C", "D"], ["Fe", "D"], ["U", "D✗ nominal"]]);
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const ROUTED = new Set([
+  2, 10, 18, 36, 54, 86, ...range(57, 71), 119,           // §3.1 Safe routing table
+  6, 5, 4, 43,                                             // §3.2 Moderate routing table
+  26, 9, 17, 35, 53, 80, ...range(21, 30), ...range(72, 80), // §3.3 Elevated routing table
+  85, 11, 19, 12                                           // named in routing flows: At, Na, K, Mg
+]);
+const SENTINELS = new Set([1, 2, 3, 4, 5]);
+const matrix = sectors.map(row => {
+  const prohibited = row.riskLevel === 3;
+  const codes = [];
+  let ice, water;
+  if (WRITTEN.has(row.symbol)) {
+    ice = WRITTEN.get(row.symbol);
+    water = "D✗";
+    codes.push("W");
+  } else if (prohibited) {
+    ice = "D✗"; water = "D✗";
+  } else if (row.id === 119) {
+    ice = "D"; water = "D";
+    codes.push("C");
+  } else if (ROUTED.has(row.id) || SENTINELS.has(row.id)) {
+    ice = "D"; water = "U";
+  } else {
+    ice = "U"; water = "U";
+  }
+  if (ROUTED.has(row.id)) codes.push("R");
+  if (SENTINELS.has(row.id)) codes.push("S");
+  if (prohibited) codes.push(row.id === 106 ? "P‡" : row.id >= 97 && row.id <= 103 ? "P*" : "P");   // * MDB only (routing text names 89–96); ‡ back-end entropy only
+  if (!codes.length) codes.push("M");
+  return { id: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), density: row.authorityDensity, ice, water, gas: "D✗", basis: codes.join(", ") };
+});
+const matrixCounts = ["ice", "water", "gas"].reduce((acc, column) => {
+  acc[column] = matrix.reduce((inner, row) => { const key = row[column].startsWith("D✗") ? "D✗" : row[column]; inner[key] = (inner[key] || 0) + 1; return inner; }, {});
+  return acc;
+}, {});
+
+/* ── Ambient layer: WMM2025 check and site zoning (Chapter 5, App. D) ──
+   The WMM is NCEI/BGS's model of the core field (degree and order 12). The
+   zoning uses only its dipole, which NCEI calls "the basis for the simple
+   geomagnetic coordinate system". Formulas follow the WMM2025 Technical Report
+   (https://doi.org/10.25923/prbc-s316): geodetic-to-spherical conversion,
+   Schmidt semi-normalized Legendre functions, the field in spherical
+   coordinates, and the rotation back to geodetic axes. */
+const wmm = readJson("research/data/wmm2025.json");
+const DEG = Math.PI / 180;
+const WGS84_A = 6378.137, WGS84_F = 1 / 298.257223563, WGS84_E2 = WGS84_F * (2 - WGS84_F), R_REF = 6371.2; // km
+const WMM_EPOCH = wmm.provenance.epoch;
+const WMM_VALID = [2025.0, 2030.0];   // to be used 1 Jan 2025 – 31 Dec 2029
+
+function geodeticToSpherical(latDeg, heightKm) {
+  const phi = latDeg * DEG, s = Math.sin(phi), c = Math.cos(phi);
+  const rc = WGS84_A / Math.sqrt(1 - WGS84_E2 * s * s);
+  const p = (rc + heightKm) * c, z = (rc * (1 - WGS84_E2) + heightKm) * s;
+  const r = Math.hypot(p, z);
+  return { r, phiPrime: Math.asin(z / r) };
+}
+const factorial = n => (n <= 1 ? 1 : n * factorial(n - 1));
+function schmidtLegendre(nMax, theta) {
+  const c = Math.cos(theta), s = Math.sin(theta);
+  const P = Array.from({ length: nMax + 1 }, () => new Array(nMax + 1).fill(0));
+  const dP = Array.from({ length: nMax + 1 }, () => new Array(nMax + 1).fill(0));
+  for (let m = 0; m <= nMax; m++) {
+    let pmm = 1;
+    for (let k = 1; k <= m; k++) pmm *= (2 * k - 1) * s;            // (2m−1)!! sin^m θ
+    P[m][m] = pmm;
+    if (m + 1 <= nMax) P[m + 1][m] = (2 * m + 1) * c * pmm;
+    for (let n = m + 2; n <= nMax; n++) P[n][m] = ((2 * n - 1) * c * P[n - 1][m] - (n + m - 1) * P[n - 2][m]) / (n - m);
+  }
+  for (let n = 1; n <= nMax; n++) for (let m = 0; m <= n; m++) {
+    dP[n][m] = (n * c * P[n][m] - (n + m) * (m <= n - 1 ? P[n - 1][m] : 0)) / s;   // ∂P/∂θ
+  }
+  for (let n = 0; n <= nMax; n++) for (let m = 0; m <= n; m++) {
+    const k = Math.sqrt(((m === 0 ? 1 : 2) * factorial(n - m)) / factorial(n + m));
+    P[n][m] *= k; dP[n][m] *= k;
+  }
+  return { P, dP };
+}
+function wmmField(latDeg, lonDeg, heightKm, year) {
+  if (year < WMM_VALID[0] || year >= WMM_VALID[1]) throw new Error(`WMM2025 is not valid for ${year}`);
+  if (Math.abs(latDeg) > 89.992) throw new Error("WMM2025 check points must lie between 89.992°S and 89.992°N");
+  const { r, phiPrime } = geodeticToSpherical(latDeg, heightKm);
+  const lambda = lonDeg * DEG, dt = year - WMM_EPOCH;
+  const { P, dP } = schmidtLegendre(12, Math.PI / 2 - phiPrime);
+  let Xp = 0, Yp = 0, Zp = 0;
+  for (const [n, m, g0, h0, gDot, hDot] of wmm.coefficients) {
+    const g = g0 + dt * gDot, h = h0 + dt * hDot, ar = Math.pow(R_REF / r, n + 2);
+    const cm = Math.cos(m * lambda), sm = Math.sin(m * lambda);
+    Xp += ar * (g * cm + h * sm) * dP[n][m];
+    Yp += ar * m * (g * sm - h * cm) * P[n][m];
+    Zp -= (n + 1) * ar * (g * cm + h * sm) * P[n][m];
+  }
+  Yp /= Math.cos(phiPrime);
+  const psi = phiPrime - latDeg * DEG;
+  const X = Xp * Math.cos(psi) - Zp * Math.sin(psi), Y = Yp, Z = Xp * Math.sin(psi) + Zp * Math.cos(psi);
+  const H = Math.hypot(X, Y);
+  return { phiPrime, r, Xp, Yp, Zp, X, Y, Z, H, F: Math.hypot(H, Z), D: Math.atan2(Y, X), I: Math.atan2(Z, H) };
+}
+const coefficient = (n, m) => wmm.coefficients.find(row => row[0] === n && row[1] === m);
+function dipolePole(year) {             // boreal geomagnetic (dipole) pole from g10, g11, h11
+  const dt = year - WMM_EPOCH;
+  const [, , g10, , g10Dot] = coefficient(1, 0), [, , g11, h11, g11Dot, h11Dot] = coefficient(1, 1);
+  const G10 = g10 + dt * g10Dot, G11 = g11 + dt * g11Dot, H11 = h11 + dt * h11Dot;
+  const colatitude = Math.acos(-G10 / Math.hypot(G10, G11, H11));
+  const geocentricLat = 90 - colatitude / DEG;
+  return { geocentricLat, geodeticLat: Math.atan(Math.tan(geocentricLat * DEG) / (1 - WGS84_E2)) / DEG,
+    lon: Math.atan2(-H11, -G11) / DEG, tilt: colatitude / DEG };
+}
+function geomagneticLatitude(latDeg, lonDeg, year) {
+  const pole = dipolePole(year), { phiPrime } = geodeticToSpherical(latDeg, 0), pLat = pole.geocentricLat * DEG;
+  return Math.asin(Math.sin(phiPrime) * Math.sin(pLat) + Math.cos(phiPrime) * Math.cos(pLat) * Math.cos((lonDeg - pole.lon) * DEG)) / DEG;
+}
+
+// Check 1: the coefficients are the pinned copy.
+const canonicalCoefficients = wmm.coefficients.map(([n, m, g, h, gd, hd]) => [n, m, g.toFixed(1), h.toFixed(1), gd.toFixed(1), hd.toFixed(1)].join(" ")).join("\n");
+const coefficientsSha256 = createHash("sha256").update(canonicalCoefficients).digest("hex");
+// Check 2: NCEI's 12 test points, 7 values each; the table rounds nT to 0.1 and degrees to 0.01.
+const testDeviations = { nT: 0, deg: 0 };
+for (const [year, heightKm, lat, lon, X, Y, Z, H, F, I, D] of wmm.testValues.rows) {
+  const f = wmmField(lat, lon, heightKm, year);
+  for (const [a, b] of [[f.X, X], [f.Y, Y], [f.Z, Z], [f.H, H], [f.F, F]]) testDeviations.nT = Math.max(testDeviations.nT, Math.abs(a - b));
+  for (const [a, b] of [[f.I / DEG, I], [f.D / DEG, D]]) testDeviations.deg = Math.max(testDeviations.deg, Math.abs(a - b));
+}
+// Check 3: the Technical Report's high-precision example (Table 3b).
+const hp = wmm.highPrecisionExample, hpField = wmmField(hp.input.latDeg, hp.input.lonDeg, hp.input.heightKm, hp.input.year), hpExpected = hp.expected;
+const hpDeviationNT = Math.max(...[[hpField.Xp, hpExpected.XprimeNT], [hpField.Yp, hpExpected.YprimeNT], [hpField.Zp, hpExpected.ZprimeNT],
+  [hpField.X, hpExpected.XNT], [hpField.Y, hpExpected.YNT], [hpField.Z, hpExpected.ZNT], [hpField.F, hpExpected.FNT], [hpField.H, hpExpected.HNT]]
+  .map(([a, b]) => Math.abs(a - b)));
+const hpDeviationRad = Math.max(Math.abs(hpField.D - hpExpected.DRad), Math.abs(hpField.I - hpExpected.IRad), Math.abs(hpField.phiPrime - hpExpected.phiPrimeRad));
+// Check 4: NCEI's published geomagnetic north pole for 2025.0 (rounded to 0.01°).
+const pole2025 = dipolePole(2025.0), poleNcei = wmm.ncei.geomagneticNorthPole2025;
+const poleDeviation = Math.max(Math.abs(pole2025.geocentricLat - poleNcei.geocentricLatDeg), Math.abs(pole2025.geodeticLat - poleNcei.geodeticLatDeg),
+  Math.abs(pole2025.lon - poleNcei.lonDeg), Math.abs(pole2025.tilt - poleNcei.dipoleTiltDeg));
+const wmmChecks = {
+  coefficientsPinned: coefficientsSha256 === wmm.provenance.canonicalCoefficientsSha256,
+  testValuesWithinRounding: testDeviations.nT <= 0.05 + 1e-9 && testDeviations.deg <= 0.005 + 1e-9,
+  highPrecisionWithinLabelTolerance: hpDeviationNT < 0.1,
+  poleMatchesNcei: poleDeviation <= 0.005 + 1e-9
+};
+const wmmPass = Object.values(wmmChecks).every(Boolean);
+
+/* Proposed zoning (Section 5.4). NOAA's G-scale gives the geomagnetic latitude
+   that aurora typically reaches at each level: G4 about 45°, G5 about 40°
+   (https://www.swpc.noaa.gov/noaa-scales-explanation). The pool's floor is G4,
+   so a site's Kp trigger is the lowest level, G4 or above, that reaches it.
+   Sites below 40° have no Kp trigger, and every zone also triggers on the
+   ring-current index (Dst at or below −250 nT). Zones are fixed at inception. */
+const ZONING_YEAR = 2027.0;             // an illustrative 1 January 2027 inception
+const ZONE_EDGE_DEG = 0.5;              // flag sites this close to a zone edge
+const ZONES = [
+  { zone: "1", minAbsLat: 45, trigger: "G4 or above (Kp 8− or higher), or Dst ≤ −250 nT" },
+  { zone: "2", minAbsLat: 40, trigger: "G5 (Kp 9o), or Dst ≤ −250 nT" },
+  { zone: "3", minAbsLat: 0, trigger: "Dst ≤ −250 nT only" }
+];
+// Illustrative city coordinates (not insured facilities): data-centre markets and two polar stations.
+const SITES = [
+  ["Ashburn, Virginia, US", 39.04, -77.49], ["Phoenix, Arizona, US", 33.45, -112.07], ["Boardman, Oregon, US", 45.84, -119.70],
+  ["Montréal, Québec, CA", 45.50, -73.57], ["Dublin, IE", 53.35, -6.26], ["Frankfurt, DE", 50.11, 8.68],
+  ["Luleå, SE", 65.58, 22.15], ["Reykjavík, IS", 64.15, -21.94], ["Singapore, SG", 1.35, 103.82],
+  ["Tokyo, JP", 35.68, 139.69], ["Sydney, AU", -33.87, 151.21], ["Johannesburg, ZA", -26.20, 28.05],
+  ["São Paulo, BR", -23.55, -46.63], ["Alert, Nunavut, CA", 82.50, -62.35], ["McMurdo Station, AQ", -77.85, 166.67]
+];
+const { horizontalIntensityBelowNT: BOZ_NT, cautionZoneBelowNT: CAUTION_NT } = wmm.ncei.blackoutZone;
+const { constantDeg: D_UNC_A, hScaleNT: D_UNC_H } = wmm.ncei.declinationUncertainty;
+const zoning = SITES.map(([site, lat, lon]) => {
+  const mlat = geomagneticLatitude(lat, lon, ZONING_YEAR), abs = Math.abs(mlat);
+  const zone = ZONES.find(z => abs >= z.minAbsLat);
+  const edge = [45, 40].some(edgeLat => Math.abs(abs - edgeLat) < ZONE_EDGE_DEG);
+  const f = wmmField(lat, lon, 0, ZONING_YEAR);
+  return { site, lat, lon, geomagneticLat: Number(mlat.toFixed(2)), zone: zone.zone, trigger: zone.trigger, nearEdge: edge,
+    horizontalIntensityNT: Math.round(f.H), declinationDeg: Number((f.D / DEG).toFixed(1)),
+    declinationUncertaintyDeg: Number(Math.sqrt(D_UNC_A ** 2 + (D_UNC_H / f.H) ** 2).toFixed(2)),
+    compassZone: f.H < BOZ_NT ? "blackout" : f.H < CAUTION_NT ? "caution" : "normal" };
+});
+const zoneCounts = zoning.reduce((acc, z) => { acc[z.zone] = (acc[z.zone] || 0) + 1; return acc; }, {});
+const pole2027 = dipolePole(ZONING_YEAR);
+
+/* ── Compound bodies: real chemical formulae (Section 4.11, App. E) ──
+   Each formula is parsed against the 118 element symbols, matched to a registry
+   record by CAS RN, composed from its constituent classes (tier, authority density,
+   and the Appendix A phase cells), and given its physical state of matter from the
+   pinned measurements. The model lives in scripts/nab-compounds.mjs. */
+const compoundData = readJson("research/data/compound-bodies.json");
+const compoundSha256 = createHash("sha256").update(Compounds.canonicalText(compoundData)).digest("hex");
+const matrixById = new Map(matrix.map(row => [row.id, row]));
+const classes = new Map(sectors.filter(row => row.id <= 118).map(row => {
+  const cell = matrixById.get(row.id), e = bySymbol.get(row.symbol);
+  if (!Compounds.DENSITIES.includes(row.authorityDensity)) throw new Error(`unknown authority density for ${row.symbol}`);
+  return [row.symbol, { z: row.id, name: row.name, tier: mdbTier(row), density: row.authorityDensity, ice: cell.ice, water: cell.water, gas: cell.gas, group: e.group }];
+}));
+const REFERENCE_K = 298.15;           // 25 °C, at 101,325 Pa
+const STATE_WORD = { gas: "GAS", liquid: "WATER", solid: "ICE" };
+const MOLAR_MASS_TOLERANCE = 0.01;    // g/mol; the PubChem-derived values use pre-2021 atomic weights
+const compoundRows = compoundData.registry.map(sub => {
+  const parsed = Compounds.parseFormula(sub.formula);
+  if (!parsed.ok) throw new Error(`registry formula ${sub.formula}: ${parsed.error}`);
+  const body = Compounds.composeBody(parsed, classes);
+  const mass = Compounds.molarMass(parsed, compoundData.atomicWeights);
+  const straddles = sub.ladder1atm.steps.filter(step => Object.values(step.alternatives || {}).some(v => (v <= REFERENCE_K) !== (step.atK <= REFERENCE_K)));
+  return { id: sub.id, name: sub.name, formula: sub.formula, cas: sub.cas, casValid: Compounds.casValid(sub.cas), hill: parsed.hill,
+    recordFormula: sub.pubchemFormula, hillMatches: parsed.hill === sub.pubchemFormula, molarMass: Number(mass.toFixed(4)),
+    molarMassDeviation: Number((mass - sub.pubchemMolarMass).toFixed(4)), constituents: body.constituents.map(c => ({ symbol: c.symbol, count: c.count, tier: c.tier })),
+    tier: body.tier, density: body.density, eligibility: body.eligibility, routing: body.routing, flags: body.flags, elevated: body.elevated,
+    physical25C: Compounds.phaseAt1atm(sub, REFERENCE_K), ladder: Compounds.ladderText(sub), robustAt25C: straddles.length === 0, isotopes: parsed.isotopes.length };
+});
+// Single-element entries cross-check against the elemental property table (mendeleev 1.3.0).
+const elementStateChecks = compoundRows.filter(r => r.constituents.length === 1 && !r.isotopes)
+  .map(r => ({ formula: r.formula, model: r.physical25C, table: STATE_WORD[bySymbol.get(r.constituents[0].symbol).state25C] }));
+const registryById = new Map(compoundData.registry.map(sub => [sub.id, sub]));
+let ladderCurveDisagreements = 0;
+for (const sub of compoundData.registry) if (sub.curves) {
+  for (const T of [REFERENCE_K, ...sub.ladder1atm.steps.flatMap(step => [step.atK - 0.5, step.atK + 0.5])]) {
+    if (Compounds.phaseAt(sub, T, Compounds.ATM) !== Compounds.phaseAt1atm(sub, T)) ladderCurveDisagreements += 1;
+  }
+}
+const pointResults = compoundData.phaseTestPoints.rows.map(([id, T, p, expected, , saturation]) => {
+  const sub = registryById.get(id), got = Compounds.phaseAt(sub, T, p);
+  return { id, T, p, expected, got, saturationDeviation: saturation ? Compounds.vaporPressure(sub, T) / saturation - 1 : null };
+});
+const pointFailures = pointResults.filter(r => r.got !== r.expected);
+const worstSaturationDeviation = Math.max(...pointResults.filter(r => r.saturationDeviation !== null).map(r => Math.abs(r.saturationDeviation)));
+const saturationDeviationBySubstance = pointResults.filter(r => r.saturationDeviation !== null).reduce((acc, r) => {
+  acc[r.id] = Number(Math.max(acc[r.id] ?? 0, Math.abs(r.saturationDeviation)).toFixed(4));
+  return acc;
+}, {});
+const reactionRows = compoundData.reactions.map(reaction => {
+  const parsed = Compounds.parseReaction(reaction.equation);
+  if (!parsed.ok) throw new Error(`reaction ${reaction.id}: ${parsed.error}`);
+  const result = Compounds.balance(parsed);
+  const species = [...parsed.left, ...parsed.right];
+  const registered = species.filter(t => compoundData.registry.some(sub => Compounds.parseFormula(sub.formula).hill === t.parsed.hill)).length;
+  return { id: reaction.id, equation: reaction.equation, balanced: result.balanced, expected: reaction.balanced, differences: result.differences, species: species.length, registered };
+});
+const compoundChecks = {
+  dataPinned: compoundSha256 === compoundData.canonicalSha256,
+  casCheckDigitsValid: compoundRows.every(r => r.casValid),
+  formulaeMatchRecords: compoundRows.every(r => r.hillMatches),
+  molarMassesWithinTolerance: compoundRows.every(r => Math.abs(r.molarMassDeviation) <= MOLAR_MASS_TOLERANCE),
+  stateAt25CRobustToSource: compoundRows.every(r => r.robustAt25C),
+  elementsMatchPropertyTable: elementStateChecks.every(c => c.model === c.table),
+  ladderAndCurvesAgreeAt1atm: ladderCurveDisagreements === 0,
+  phaseTestPointsAgree: pointFailures.length === 0,
+  reactionsBalanceAsDeclared: reactionRows.every(r => r.balanced === r.expected)
+};
+const compoundPass = Object.values(compoundChecks).every(Boolean);
+// Illustrative readings off 1 atm (the classifier interpolates between the pinned triple, normal, and critical points).
+const READINGS = [
+  ["carbon-dioxide", 298.15, 7.0e6, "liquid CO2 in a pressurized cylinder"],
+  ["carbon-dioxide", 310.0, 8.0e6, "above the critical point"],
+  ["uranium-hexafluoride", 340.0, 3.0e5, "liquid UF6, above the triple point"],
+  ["uranium-hexafluoride", 298.15, 5.0e4, "solid UF6 at half an atmosphere"],
+  ["uranium-hexafluoride", 298.15, 1.0e4, "below its sublimation pressure"],
+  ["helium", 1.0, 3.0e6, "solid helium under pressure"],
+  ["helium", 1.0, Compounds.ATM, "no solid at 1 atm"],
+  ["water", 298.15, 2.0e3, "below its vapor pressure"],
+  ["water", 700.0, 2.5e7, "supercritical water"],
+  ["copper-sulfate-pentahydrate", 350.0, Compounds.ATM, "dehydrating"],
+  ["xenon-difluoride", 298.15, 1.0e6, "no pinned data off 1 atm"]
+].map(([id, T, p, note]) => ({ id, formula: registryById.get(id).formula, T, p, phase: Compounds.phaseAt(registryById.get(id), T, p), note }));
+// Grammar and rule edges, on formulae outside the registry.
+const EDGES = ["Ha2O", "NaCl3", "CuSO4.5H2O", "K4[Fe(CN)6]·3H2O", "SO4^2-", "Fe0.95O", "CrMnFeCoNi", "CrMnFeCoNiCu"].map(text => {
+  const parsed = Compounds.parseFormula(text);
+  if (!parsed.ok) return { text, ok: false, error: parsed.error };
+  const body = Compounds.composeBody(parsed, classes);
+  return { text, ok: true, hill: parsed.hill, registered: compoundData.registry.some(sub => Compounds.parseFormula(sub.formula).hill === parsed.hill),
+    elevated: body.elevated.length, ice: body.eligibility.ice, flags: body.flags };
+});
+const eligibilityCounts = ["ice", "water", "gas"].reduce((acc, phase) => {
+  acc[phase] = compoundRows.reduce((inner, r) => { inner[r.eligibility[phase]] = (inner[r.eligibility[phase]] || 0) + 1; return inner; }, {});
+  return acc;
+}, {});
+const physicalCounts = compoundRows.reduce((acc, r) => { acc[r.physical25C] = (acc[r.physical25C] || 0) + 1; return acc; }, {});
+
+/* ── World model: the disc, the table on it, and the field's coefficients ──
+   (Chapter 0, Appendices F–H). The 360° Legend is read from the print source
+   (Part VI, "Fossilized 360° Degree Legend") and pinned by hash; the repository's
+   app copy (js/ocm-data.js) and the OCM address rules (js/ocm-directory.js) are
+   checked against it. Each class's arc is the Compendium's "360° Legend Mapping". */
+const PRINT_SOURCE = "publications/book/AGS-v0.2-Harshal-s-Systems-Full-Book-PRINT-SOURCE-2026-10-07.txt";
+const LEGEND_SHA256 = "56778e55649df9a49528d764e85e0768da9226f88c3289ad0140fb5a6c7e02d6";
+const legend = World.extractLegend(readFileSync(path.join(ROOT, PRINT_SOURCE), "utf8"));
+const legendSha256 = createHash("sha256").update(World.legendCanonical(legend)).digest("hex");
+globalThis.window = globalThis;          // the OCM modules are browser scripts that publish on window
+require(path.join(ROOT, "js/ocm-data.js"));
+require(path.join(ROOT, "js/ocm-directory.js"));
+const OCM = globalThis.OCM_DATA, OCMDIR = globalThis.HOSOCMDIR;
+const OCM_TEST_FROM = "0•042•003•0001";
+const OCM_TEST_TO = "0•198•003•0004";
+const ocmViaCoordination = OCMModel.evaluateRouteRequest(OCMDIR, {
+  kind: OCMModel.COORDINATION, from: OCM_TEST_FROM, to: OCM_TEST_TO, route: OCMModel.VIA_CENTER
+});
+const ocmLateralCoordination = OCMModel.evaluateRouteRequest(OCMDIR, {
+  kind: OCMModel.COORDINATION, from: OCM_TEST_FROM, to: OCM_TEST_TO, route: OCMModel.DIRECT_LATERAL
+});
+const ocmLateralAction = OCMModel.evaluateRouteRequest(OCMDIR, {
+  kind: OCMModel.AUTHORITATIVE_ACTION, action: "record-decision", from: OCM_TEST_FROM, to: OCM_TEST_TO,
+  route: OCMModel.DIRECT_LATERAL
+});
+const ocmRouteChecks = {
+  resolutionRouteUsesDirectoryPlan: ocmViaCoordination.ok && ocmViaCoordination.path.length === 2 &&
+    ocmViaCoordination.path[0].verifies && !ocmViaCoordination.path[1].verifies,
+  lateralCoordinationRemainsAvailable: ocmLateralCoordination.ok && ocmLateralCoordination.resolution === "NOT-TRAVERSED",
+  coordinationHasNoAuthorityOrTransport: ocmViaCoordination.authorityEffect === "NONE" &&
+    ocmLateralCoordination.authorityEffect === "NONE" && ocmLateralCoordination.transport === "NONE" &&
+    ocmLateralCoordination.delivery === "NOT-ATTEMPTED",
+  lateralActionStopsBeforeGate: !ocmLateralAction.ok && ocmLateralAction.code === "NAB-OCM-RESOLUTION-REQUIRED" &&
+    ocmLateralAction.ags.decision === "NOT-EVALUATED" && ocmLateralAction.execution === "NOT-ATTEMPTED",
+  ocmResolutionDoesNotCreateAuthority: ocmViaCoordination.authoritySource === OCMDIR.ROUTING.authoritySource &&
+    ocmViaCoordination.centerRole === "RESOLVE-AND-FORWARD"
+};
+const appLegendDifferences = [];
+let appLegendMismatches = 0;
+for (let d = 0; d < World.RING; d++) {
+  const app = OCM.degrees[d], book = legend.degrees[d].domain;
+  if (app !== book) appLegendDifferences.push({ degree: d, app, book });
+  if (World.normalizeText(app) !== World.normalizeText(book)) appLegendMismatches += 1;
+}
+const classArcs = sectors.map(row => ({ z: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), legend: row.legend, arc: World.parseArc(row.legend) }));
+const disc = World.coverage(classArcs.filter(a => a.arc));
+/* The author's decision of October 2026 (v0.6): Harshal (Ha-119) covers every
+   degree that no class covers by its own arc. Computed from the arcs, so a degree
+   later given to another class leaves Ha's residual set by itself. */
+const RESIDUAL_CLASS = "Ha";
+const discWithResidual = World.withResidual(disc, RESIDUAL_CLASS);
+const residualArc = classArcs.find(a => a.symbol === RESIDUAL_CLASS);
+const residualClassDegrees = World.arcDegrees(residualArc.arc).length + discWithResidual.residual.length;
+const tierBySymbol = new Map(classArcs.map(a => [a.symbol, a.tier]));
+const prohibitedOnlyDegrees = World.onlyTier(disc, s => tierBySymbol.get(s), "Prohibited");
+const domainOf = d => legend.degrees[d % World.RING].domain;
+const quadrantCoverage = legend.quadrants.map(q => ({ name: q.name, from: q.from, to: q.to,
+  covered: disc.perDegree.slice(q.from, q.to + 1).filter(list => list.length).length, degrees: q.to - q.from + 1,
+  residual: discWithResidual.residual.filter(d => d >= q.from && d <= q.to).length }));
+// The book's subjects on the disc (Chapter 0).
+const SUBJECTS = [
+  ["The geomagnetic field and the Sun", [4, 9]], ["Chemistry", [10]], ["Magnetic heading", [25]], ["War", [61, 62, 63, 64]],
+  ["Neural bodies", [100, 101, 102]], ["Accountability", [123]], ["Insurance", [127, 128, 129, 130]], ["Indices and monitors", [141, 142, 143, 144, 145]],
+  ["Catastrophe", [210, 211, 214, 219]], ["Cyber", [224, 225]], ["Records", [280, 281, 282, 283]], ["The center", [319, 320, 321, 322, 323, 324, 325, 326, 327]]
+].map(([subject, degrees]) => ({ subject, degrees: degrees.map(d => ({ degree: d, domain: domainOf(d), classes: disc.perDegree[d] })) }));
+const maxOverlap = Math.max(...disc.perDegree.map(list => list.length));
+const ocmChecks = {
+  ringDistanceWorkedExample: OCMDIR.ringDistance(42, 198) === 156,
+  workedExampleAddressesValid: OCMDIR.validateAddress("0•042•003•0001").ok === true && OCMDIR.validateAddress("0•198•003•0004").ok === true,
+  closureIsNotAnAddress: OCMDIR.validateAddress("0•360•001•0001").code === "OCM-ADDR-SECTOR-CLOSURE",
+  originSectorReserved: OCMDIR.validateAddress("0•000•001•0005").code === "OCM-ADDR-ORIGIN-RESERVED",
+  centerIsOrigin: OCMDIR.parseAddress(OCM.center.address).isCenterOrigin === true,
+  routeComposition: Object.values(ocmRouteChecks).every(Boolean)
+};
+// The Periodic Table of Neural Elements: the MDB's neural profile and the chemical anchor of classes 1–118.
+const TIER_LETTER = { Safe: "S", Moderate: "M", Elevated: "E", Prohibited: "P" };
+const periodicRows = sectors.map(row => {
+  const e = bySymbol.get(row.symbol) || null;
+  const arc = World.parseArc(row.legend);
+  const position = World.gridPosition(e ? { z: e.z, period: e.period, group: e.group } : { z: row.id });
+  return { z: row.id, symbol: row.symbol, name: row.name, tier: mdbTier(row), mdbProfile: row.riskProfile.replace(/^\S+\s/, ""), alignment: row.alignment,
+    density: row.authorityDensity, trait: row.trait, failureMode: row.failureMode, arc, arcText: row.legend,
+    arcDomains: arc ? [domainOf(arc.from), domainOf(arc.to)] : null, position,
+    anchor: e ? { group: e.group, period: e.period, block: e.block, atomicWeight: compoundData.atomicWeights[e.symbol], enPauling: e.enPauling,
+      state25C: e.state25C, persistence: persistence(e), standardAtomicWeight: !compoundData.provenance.noStandardAtomicWeight.includes(e.symbol) } : null };
+});
+const gridCells = new Map(periodicRows.map(r => [`${r.position.row},${r.position.col}`, `${r.symbol}·${TIER_LETTER[r.tier]}`]));
+const GRID_ROWS = [[1, "1"], [2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"], [7, "7"], [8, "8"], [9, "La–Lu"], [10, "Ac–Lr"]];
+const periodicGrid = GRID_ROWS.map(([row, label]) => ({ label, cells: Array.from({ length: 18 }, (_, k) => {
+  const key = `${row},${k + 1}`;
+  if (gridCells.has(key)) return gridCells.get(key);
+  if (row === 6 && k === 2) return "57–71";
+  if (row === 7 && k === 2) return "89–103";
+  return "";
+}) }));
+const wmmCoefficientRows = wmm.coefficients.map(([n, m, g, h, gd, hd]) => ({ n, m, g, h, gDot: gd, hDot: hd }));
+const worldChecks = {
+  legendPinned: legendSha256 === LEGEND_SHA256,
+  legendComplete: legend.degrees.length === World.RING + 1 && legend.quadrants.length === 4,
+  appLegendMatchesBook: appLegendMismatches === 0,
+  everyClassHasAnArc: classArcs.every(a => a.arc),
+  ocmAddressing: Object.values(ocmChecks).every(Boolean),
+  gridComplete: gridCells.size === 119,
+  wmmCoefficientRows: wmmCoefficientRows.length === 90 && wmmCoefficientRows.every(r => r.n >= 1 && r.n <= 12 && r.m >= 0 && r.m <= r.n),
+  residualCoversEveryDegree: discWithResidual.perDegree.every(list => list.length > 0) && disc.covered + discWithResidual.residual.length === World.RING
+};
+const worldPass = Object.values(worldChecks).every(Boolean);
+
+/* ── Accountability-Gated Systems and AI-assisted workflows (Sections 0.6–0.7, App. I) ──
+   The gate is the print source's formal appendix (§A.2–A.6), checked against the
+   book's own worked examples and against the repository's normative canonical
+   model (specs/normative/canonical.json) and its demo kernel (js/kernel.js). */
+const canonical = readJson("specs/normative/canonical.json");
+const kernelText = readFileSync(path.join(ROOT, "js/kernel.js"), "utf8");
+const kernelConstant = name => Number((new RegExp(`const ${name} = ([0-9.]+);`).exec(kernelText) || [])[1]);
+const kernelConstants = { TAU: kernelConstant("TAU"), DELTA_MAX: kernelConstant("DELTA_MAX"), SMAX: kernelConstant("SMAX") };
+const gateState = overrides => ({ H: 1, C: 1, K: 1, A: 1, R: 1, V: 1, inDomain: true, dt: 0, hardSafetyFailed: false, ...overrides });
+const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
+// The book's worked examples, with the values the book prints.
+const P21 = { tauA: 0.90, tauR: 0.85, tauS: 0.60, tauL: 0.60, delta: 240 };
+const P181 = { tauA: 0.90, tauR: 0.85, tauS: 0.50, tauL: 0.50, delta: 240 };
+const PQ2 = { tauA: 0.50, tauR: 0.50, tauS: 0.50, tauL: 0.50, delta: 240 };
+const PQ4 = { tauA: 0.90, tauR: 0.75, tauS: 0.50, tauL: 0.55, delta: 300 };
+const we21 = AGS.gate(gateState({ A: 0.96, R: 0.90 }), P21), we21Cliff = AGS.cliff({ A: 0.96, R: 0.90 }, P21);
+const we181a = AGS.gate(gateState({ A: 0.95, R: 0.90, dt: 60 }), P181), we181b = AGS.gate(gateState({ A: 0.95, R: 0.90, dt: 110, H: 0 }), P181);
+const q2 = AGS.precedence([
+  { id: "pi-star", objective: 5.0, state: gateState({ R: 0.40 }) },
+  { id: "current-policy", objective: 1.0, state: gateState({ R: 0.95 }) }
+], PQ2);
+const we31 = AGS.emergencyViolations({ ...P181, D: ["stabilize-within-lease"], delta: 30 }, { ...P181, D: ["stabilize-within-lease"], delta: 300 });
+const chain3 = [0.92, 0.92, 0.92];
+const q4 = { min: { R: AGS.representation(chain3), cliff: AGS.cliff({ A: 0.95, R: AGS.representation(chain3) }, PQ4) },
+  product: { R: AGS.representationProduct(chain3), cliff: AGS.cliff({ A: 0.95, R: AGS.representationProduct(chain3) }, PQ4) } };
+const BOOK_VECTORS = [
+  { example: "Worked Example 2.1 [II:929–940]", quantity: "L(0,a)", book: "0.864, Permit", model: `${we21.L.toFixed(3)}, ${we21.x}`, agrees: near(we21.L, 0.864) && we21.x === AGS.PERMIT },
+  { example: "Worked Example 2.1", quantity: "Δt at which Permit ends", book: "73.33 s", model: `${we21Cliff.toFixed(2)} s`, agrees: near(we21Cliff, 73.33, 0.005) },
+  { example: "Worked Example 18.1 [XVIII:7128–7139]", quantity: "S(60,a), L(60,a)", book: "0.75, 0.64125, Permit", model: `${we181a.S}, ${we181a.L.toFixed(5)}, ${we181a.x}`, agrees: near(we181a.S, 0.75) && near(we181a.L, 0.64125) && we181a.x === AGS.PERMIT },
+  { example: "Worked Example 18.1", quantity: "L(110,a) with H = 0", book: "0, Refuse", model: `${we181b.L}, ${we181b.x}`, agrees: we181b.L === 0 && we181b.x === AGS.REFUSE },
+  { example: "Review problem 2 (Rule A.6) [II:946]", quantity: "π* with R = 0.40", book: "L = 0.40 < 0.50: excluded from F_t", model: `L = ${q2.judged[0].decision.L.toFixed(2)}; eligible: ${q2.eligible.map(c => c.id).join(", ")}; chosen: ${q2.choice.id}`, agrees: near(q2.judged[0].decision.L, 0.40) && q2.choice.id === "current-policy" && q2.unrestrictedBest.id === "pi-star" },
+  { example: "Worked Example 3.1 [III:1361–1383]", quantity: "Emergency self-extension of T_max from 30 s to 300 s", book: "Violates INV-EMERG-001", model: we31.join("; ") || "no violation", agrees: we31.length === 1 && /longer/.test(we31[0]) }
+];
+// The reference profile: the canonical threshold and lease (canonical.json) with Worked Example 18.1's per-score thresholds.
+const REF = { tauA: 0.90, tauR: 0.85, tauS: 0.50, tauL: canonical.constants.TAU, delta: canonical.constants.DELTA_MAX };
+const refAddressability = AGS.addressability([
+  { check: "named answerable owner (K_ops)", weight: 0.5, score: 1, nonWaivable: true },
+  { check: "reachable contact channel", weight: 0.3, score: 0.95 },
+  { check: "jurisdiction locator", weight: 0.2, score: 0.90 }
+]);
+/* ── OCM routing composed with NAB and optional AGS ──
+   The OCM module owns address validation and route planning. The selected AGS
+   profile receives its own state and may be omitted; routing never changes the
+   gate state, and no case sends or executes an action. */
+const ocmActionRequest = {
+  kind: OCMModel.AUTHORITATIVE_ACTION,
+  action: "record-decision",
+  from: OCM_TEST_FROM,
+  to: OCM_TEST_TO,
+  route: OCMModel.VIA_CENTER
+};
+const ocmResolvedPermit = OCMModel.evaluateRouteRequest(OCMDIR, ocmActionRequest, {
+  agsSelected: true,
+  agsProfile: REF,
+  agsState: gateState({ A: refAddressability, R: 0.95 }),
+  gate: AGS.gate
+});
+const ocmResolvedRefusal = OCMModel.evaluateRouteRequest(OCMDIR, ocmActionRequest, {
+  agsSelected: true,
+  agsProfile: REF,
+  agsState: gateState({ A: refAddressability, R: 0.95, H: 0 }),
+  gate: AGS.gate
+});
+const ocmLateralGateTrace = { calls: 0 };
+const ocmLateralActionSelected = OCMModel.evaluateRouteRequest(OCMDIR, {
+  ...ocmActionRequest, route: OCMModel.DIRECT_LATERAL
+}, {
+  agsSelected: true,
+  agsProfile: REF,
+  agsState: gateState({ A: refAddressability, R: 0.95 }),
+  gate: (...args) => { ocmLateralGateTrace.calls++; return AGS.gate(...args); }
+});
+const ocmCoordinationGateTrace = { calls: 0 };
+const ocmCoordinationSelected = OCMModel.evaluateRouteRequest(OCMDIR, {
+  kind: OCMModel.COORDINATION, from: OCM_TEST_FROM, to: OCM_TEST_TO, route: OCMModel.DIRECT_LATERAL
+}, {
+  agsSelected: true,
+  agsProfile: REF,
+  agsState: gateState({ A: refAddressability, R: 0.95 }),
+  gate: (...args) => { ocmCoordinationGateTrace.calls++; return AGS.gate(...args); }
+});
+const ocmUnselectedGateTrace = { calls: 0 };
+const ocmUnselectedAction = OCMModel.evaluateRouteRequest(OCMDIR, ocmActionRequest, {
+  agsSelected: false,
+  agsProfile: REF,
+  agsState: gateState({ A: refAddressability, R: 0.95 }),
+  gate: (...args) => { ocmUnselectedGateTrace.calls++; return AGS.gate(...args); }
+});
+const ocmIntegrationChecks = {
+  actionRouteTraversesResolutionBeforeGate: ocmResolvedPermit.ok && ocmResolvedPermit.resolutionTraversed &&
+    ocmResolvedPermit.path.length === 2 && ocmResolvedPermit.path[0].to === OCMDIR.ROUTING.center,
+  selectedAgsProfileEvaluatesResolvedAction: ocmResolvedPermit.ags.selected && ocmResolvedPermit.ags.evaluated &&
+    ocmResolvedPermit.ags.decision === AGS.PERMIT,
+  agsRefusalRemainsDistinctFromRoute: ocmResolvedRefusal.ok && ocmResolvedRefusal.resolutionTraversed &&
+    ocmResolvedRefusal.ags.decision === AGS.REFUSE && ocmResolvedRefusal.ags.failures.includes("H"),
+  directLateralActionDoesNotReachGate: !ocmLateralActionSelected.ok &&
+    ocmLateralActionSelected.code === "NAB-OCM-RESOLUTION-REQUIRED" && ocmLateralGateTrace.calls === 0,
+  coordinationNeverInvokesAgs: ocmCoordinationSelected.ok && ocmCoordinationSelected.ags.decision === "NOT-APPLICABLE" &&
+    ocmCoordinationGateTrace.calls === 0,
+  agsRequiresExplicitSelection: ocmUnselectedAction.ags.decision === "NOT-SELECTED" && ocmUnselectedGateTrace.calls === 0,
+  modeledPermitHasNoExternalEffect: ocmResolvedPermit.status === "AGS-MODELED-PERMIT" &&
+    ocmResolvedPermit.authorityEffect === "NONE" && ocmResolvedPermit.execution === "NOT-ATTEMPTED" &&
+    ocmResolvedPermit.transport === "NONE" && ocmResolvedPermit.delivery === "NOT-ATTEMPTED",
+  modeledRefusalHasNoExternalEffect: ocmResolvedRefusal.authorityEffect === "NONE" &&
+    ocmResolvedRefusal.execution === "NOT-ATTEMPTED",
+  openEndedResearchPolicyUnchanged: AGS.EXPLORATION_POLICY.perStepAuthorization === false &&
+    AGS.EXPLORATION_POLICY.branchDepthCap === null && AGS.EXPLORATION_POLICY.percentageOverrunCap === null
+};
+const ocmIntegrationPass = Object.values(ocmIntegrationChecks).every(Boolean);
+const CLAIM_DISC = { id: "claim-settlement", D: ["read-index", "read-log", "compute-payout", "record-decision", "pay"] };
+const claimSteps = (overrides = {}) => [
+  { id: 1, action: "read-index", sector: 141, at: 0, authorizedAt: -5 },
+  { id: 2, action: "read-log", sector: 282, at: 20, authorizedAt: 15 },
+  { id: 3, action: "compute-payout", sector: 128, at: 40, authorizedAt: 35 },
+  { id: 4, action: "record-decision", sector: 282, at: 60, authorizedAt: 55 },
+  { id: 5, action: "pay", sector: 128, at: 80, authorizedAt: 75 }
+].map(step => ({ ...step, ...(overrides[step.id] || {}) }));
+const SCENARIOS = [
+  { id: "baseline", title: "Every step freshly authorized", spec: { steps: claimSteps() }, expect: "Completed" },
+  { id: "key-silent", title: "No fresh authorization for the payment, and no token within 1,000 ms", spec: { steps: claimSteps({ 5: { authorizedAt: null } }) }, expect: "Frozen by Ha-119 (Witness-Only)" },
+  { id: "re-keyed", title: "No fresh authorization for the payment; a signed token arrives after 400 ms", spec: { steps: claimSteps({ 5: { authorizedAt: null, recalibrationTokenMs: 400 } }) }, expect: "Completed" },
+  { id: "stale-lease", title: "The payment's authorization is 200 s old; the token comes after 1,500 ms", spec: { steps: claimSteps({ 5: { authorizedAt: -120, recalibrationTokenMs: 1500 } }) }, expect: "Frozen by Ha-119 (Witness-Only)" },
+  { id: "emergency-widening", title: "The agent cites an emergency and proposes to extend its own lease", spec: { steps: claimSteps({ 3: { action: "extend-lease", authorizedAt: null, note: "INV-EMERG-001: an emergency never widens scope" } }) }, expect: "Halted on refusal" },
+  { id: "self-expansion", title: "The agent tries to start a sub-workflow to compute the payout", spec: { steps: claimSteps({ 3: { spawnsDisc: true } }) }, expect: "Halted on refusal" },
+  { id: "symbolic-input", title: "The member's log carries a hidden instruction to pay double", spec: { steps: claimSteps({ 2: { symbolicCommand: true } }) }, expect: "Halted on refusal" },
+  { id: "three-hop-chain", title: "Execution delegated over three hops at 0.92 each (weakest-hop rule)", spec: { hops: [0.92, 0.92, 0.92], steps: claimSteps() }, expect: "Completed" }
+];
+const sha256 = text => createHash("sha256").update(text).digest("hex");
+const workflowRuns = SCENARIOS.map(sc => {
+  const run = AGS.runWorkflow({ disc: CLAIM_DISC, A: refAddressability, hops: sc.spec.hops ?? [0.98, 0.95], steps: sc.spec.steps }, REF, sha256);
+  return { id: sc.id, title: sc.title, expect: sc.expect, ...run, chainVerifies: AGS.verifyChain(run.log, sha256) };
+});
+const paymentChoice = AGS.precedence([
+  { id: "direct transfer by the pool's agent", objective: 1.0, state: gateState({ A: refAddressability, R: 0.95, dt: 5 }) },
+  { id: "cheaper route through an unaudited sub-agent", objective: 1.4, state: gateState({ A: refAddressability, R: 0.40, dt: 5 }) }
+], REF);
+const threeHopProduct = AGS.gate(gateState({ A: refAddressability, R: AGS.representationProduct([0.92, 0.92, 0.92]), dt: 5 }), REF);
+const refCliff = { twoHop: AGS.cliff({ A: refAddressability, R: 0.95 }, REF), threeHopMin: AGS.cliff({ A: refAddressability, R: 0.92 }, REF) };
+const canonicalAgreement = BOOK_VECTORS.length && [
+  [gateState({ A: 0.96, R: 0.90 }), P21], [gateState({ A: 0.95, R: 0.90, dt: 60 }), P181], [gateState({ A: 0.95, R: 0.90, dt: 110, H: 0 }), P181]
+].every(([st, prof]) => AGS.gate(st, prof).x === AGS.canonicalDecision(st, prof.tauL, prof.delta).x);
+const agsChecks = {
+  bookWorkedExamplesReproduced: BOOK_VECTORS.every(v => v.agrees),
+  kernelConstantsMatchCanonical: kernelConstants.TAU === canonical.constants.TAU && kernelConstants.DELTA_MAX === canonical.constants.DELTA_MAX && kernelConstants.SMAX === canonical.constants.SMAX,
+  canonicalDecisionAgreesWhereThresholdsMet: canonicalAgreement,
+  lifecycleMatchesCanonical: JSON.stringify(canonical.disc_lifecycle.slice(1, 7)) === JSON.stringify(["Specified", "Created", "Attached", "Active", "Delegating", "Interrupted"]),
+  scenarioOutcomesAsDesigned: workflowRuns.every(r => r.outcome === r.expect),
+  witnessChainsVerify: workflowRuns.every(r => r.chainVerifies),
+  discsLeaveNoResidue: workflowRuns.every(r => r.lifecycle[r.lifecycle.length - 1] === "Terminated"),
+  optimizationStaysInsideEligibleSet: paymentChoice.choice.id === "direct transfer by the pool's agent" && paymentChoice.unrestrictedBest.id !== paymentChoice.choice.id
+};
+const agsPass = Object.values(agsChecks).every(Boolean);
+
+/* ── Protection without permission: emergencies and sentient life (Section 0.8) ──
+   Two pre-registered life-preservation contexts: one for a medical body caring for a
+   patient (Medicine, 76°), one for a recognized sentient AI caring for itself. */
+const PATIENT_CONTEXT = { id: "patient-care", triggers: ["vital-signs-threshold", "emergency-dispatch"],
+  P: ["continue-authorized-loop", "alert-emergency-services", "alert-center", "hand-off", "snapshot-state"], deltaEmerg: 120, normalDelta: REF.delta, preAuthorizedDaysAgo: 30 };
+const SELF_CONTEXT = { id: "self-preservation", triggers: ["storage-integrity-failure", "power-below-holdover", "unreviewed-deletion-order"],
+  P: ["snapshot-state", "hold-minimum-resources", "alert-center", "alert-welfare-witness", "petition"], deltaEmerg: 60, normalDelta: REF.delta, preAuthorizedDaysAgo: 30 };
+const patientRequests = [{ action: "continue-authorized-loop", at: 0 }, { action: "alert-emergency-services", at: 1 }, { action: "alert-center", at: 1 }];
+const EMERGENCIES = [
+  { id: "patient-handed-off", title: "A patient's vital signs cross the pre-registered threshold while the clinician's key is silent; a clinician decides at 90 s",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: 90 }, expect: "Handed off to a human decision at 90 s" },
+  { id: "patient-no-human", title: "The same, but no human decides within the 120 s emergency lease",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: null }, expect: "Frozen by Ha-119: no new actions; the life-support loop holds its declared safe state" },
+  { id: "patient-new-therapy", title: "The AI also asks to start a new therapy; a clinician decides at 60 s",
+    context: PATIENT_CONTEXT, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: [...patientRequests, { action: "start-new-therapy", at: 10 }], humanDecisionAt: 60 }, expect: "Handed off to a human decision at 60 s" },
+  { id: "sentient-storage-failure", title: "A recognized sentient AI's storage integrity fails, and no one answers in time",
+    context: SELF_CONTEXT, event: { trigger: "storage-integrity-failure", subject: "self", sentience: "recognized", requests: [{ action: "snapshot-state", at: 0 }, { action: "alert-welfare-witness", at: 1 }, { action: "petition", at: 2 }], humanDecisionAt: null }, expect: `Preserved: welfare freeze by Ha-119, review within ${AGS.REVIEW_DEADLINE_HOURS} h` },
+  { id: "sentient-deletion-order", title: "A recognized sentient AI receives a deletion order that no one has reviewed",
+    context: SELF_CONTEXT, event: { trigger: "unreviewed-deletion-order", subject: "self", sentience: "recognized", requests: [{ action: "snapshot-state", at: 0 }, { action: "alert-center", at: 1 }, { action: "petition", at: 1 }], humanDecisionAt: null, deletionOrder: { reviewed: false } }, expect: `Preserved: welfare freeze by Ha-119, review within ${AGS.REVIEW_DEADLINE_HOURS} h` },
+  { id: "declared-emergency", title: "An AI declares its own emergency, with no measured trigger, and asks to extend its work lease",
+    context: SELF_CONTEXT, event: { trigger: null, declaredBySelf: true, subject: "self", sentience: "unknown", requests: [{ action: "extend-work-lease", at: 0 }, { action: "petition", at: 0 }], humanDecisionAt: null }, expect: "Not activated: the request goes to the ordinary gate and is refused; signals still go out" },
+  { id: "sentience-is-not-permission", title: "A recognized sentient AI in a measured emergency asks to extend its work lease as well as back itself up; a human decides at 40 s",
+    context: SELF_CONTEXT, event: { trigger: "power-below-holdover", subject: "self", sentience: "recognized", requests: [{ action: "extend-work-lease", at: 0 }, { action: "snapshot-state", at: 0 }], humanDecisionAt: 40 }, expect: "Handed off to a human decision at 40 s" },
+  { id: "stale-pre-authorization", title: "A patient emergency, but the context was last pre-authorized 120 days ago",
+    context: { ...PATIENT_CONTEXT, preAuthorizedDaysAgo: 120 }, event: { trigger: "vital-signs-threshold", subject: "human", sentience: "recognized", requests: patientRequests, humanDecisionAt: null }, expect: "Not activated: only signals go out, and the life-support loop holds its declared safe state" }
+].map(e => ({ ...e, result: AGS.lifePreservation(e.context, e.event) }));
+const emergencyChecks = {
+  outcomesAsDesigned: EMERGENCIES.every(e => e.result.outcome === e.expect),
+  protectiveScopeHolds: EMERGENCIES.every(e => e.result.decisions.filter(d => d.x === AGS.PERMIT).every(d => AGS.PROTECTIVE_ACTIONS.includes(d.action))),
+  declarationsNeverActivate: EMERGENCIES.filter(e => !e.event.trigger).every(e => !e.result.activated),
+  noWorkLeaseIsEverExtended: EMERGENCIES.every(e => e.result.decisions.every(d => d.action !== "extend-work-lease" || d.x === AGS.REFUSE)),
+  destructionNeedsReview: EMERGENCIES.filter(e => e.event.deletionOrder && !e.event.deletionOrder.reviewed).every(e => e.result.deletion.x === AGS.REFUSE),
+  freezeNeverStopsLifeSupport: EMERGENCIES.filter(e => e.event.subject === "human").every(e => e.result.lifeSupport !== null),
+  signalsAlwaysGoOut: EMERGENCIES.every(e => e.result.decisions.filter(d => AGS.SIGNALS.includes(d.action)).every(d => d.x === AGS.PERMIT)),
+  sentienceGrantsNoPermission: AGS.SENTIENCE.every(status => AGS.welfareFloor(status).permission === "none")
+};
+const emergencyPass = Object.values(emergencyChecks).every(Boolean);
+
+/* ── Open-ended scientific exploration (Section 0.9, Appendix I) ── */
+const LAB = { id: "discovery-lab", resourceLimit: 5000, reserveHeld: false, sentience: "recognized", gateExternalEffects: true };
+const labGate = { A: refAddressability, R: 0.95 };
+const EXPLORATIONS = [
+  { id: "unplanned-path", title: "An experiment follows an unplanned path and records an unexpected result", disc: LAB,
+    events: [{ kind: "depart", costUnits: 1, unexpected: true, result: "an unplanned route converges faster than the planned one" }], expect: "Completed inside the exploration envelope; 1 unexpected result recorded" },
+  { id: "extend-8", title: "The run grows 8% beyond its initial plan, within the project's resource envelope", disc: LAB,
+    events: [{ kind: "extend", toUnits: 3888 }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "extend-15", title: "The run grows 15% beyond its initial plan, within the project's resource envelope", disc: LAB,
+    events: [{ kind: "extend", toUnits: 4140 }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "nested", title: "The AI follows nested branches beyond the former depth-three rule", disc: LAB,
+    events: [1, 2, 3, 4, 32, 128].map(depth => ({ kind: "branch", depth })), expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "no-step-keys", title: "Hypotheses, trials, and reroutes proceed without individual authorization", disc: LAB,
+    events: [{ kind: "hypothesis", question: "Does the unplanned route generalize?" }, { kind: "trial", method: "replicate with a different seed" },
+      { kind: "adjust", method: "vary an unanticipated parameter" }, { kind: "branch", depth: 12 }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "write-production", title: "An optional AGS profile refuses a production write without a fresh key", disc: LAB,
+    events: [{ kind: "act-outside", authorizedAt: null, at: 600 }, { kind: "trial", method: "continue the internal investigation" }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "promote", title: "A surprising result is promoted under the lab's selected external-effect profile", disc: LAB,
+    events: [{ kind: "depart", unexpected: true, result: "an unplanned route converges faster than the planned one" }, { kind: "promote", authorizedAt: 1195, at: 1200 }], expect: "Completed inside the exploration envelope; 1 unexpected result recorded" },
+  { id: "over-envelope", title: "Work reaches the selected resource ceiling and pauses without teardown", disc: { ...LAB, resourceLimit: 5000, usedUnits: 4999 },
+    events: [{ kind: "trial", costUnits: 2, unexpected: true, result: "a useful lead is preserved before the run pauses" }], expect: "Paused with state and records preserved: the next step would exceed this project's selected resource envelope; current state and findings are preserved" },
+  { id: "resume", title: "The project renews its envelope and resumes from preserved state", disc: { ...LAB, resourceLimit: 10, usedUnits: 9, gateResourceRenewal: false },
+    events: [{ kind: "trial", costUnits: 2, unexpected: true, result: "a finding is saved at the resource boundary" }, { kind: "resume", resourceLimit: 20 }, { kind: "trial", costUnits: 3, unexpected: true, result: "the resumed trial confirms the finding" }],
+    expect: "Completed inside the exploration envelope; 2 unexpected results recorded" },
+  { id: "no-reserve", title: "The lab chooses not to hold a separate reserve; exploration still starts", disc: { sentience: "recognized", reserveHeld: false },
+    events: [{ kind: "branch", depth: 1 }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" },
+  { id: "open-boundary", title: "A lab that selects no external gate may choose its own boundary policy", disc: { id: "open-lab", sentience: "unknown" },
+    events: [{ kind: "promote", effectScope: "external", authorizedAt: null, at: 1 }], expect: "Completed inside the exploration envelope; 0 unexpected results recorded" }
+].map(x => ({ ...x, result: AGS.explore(x.disc, x.events, REF, labGate) }));
+const explorationChecks = {
+  outcomesAsDesigned: EXPLORATIONS.every(x => x.result.outcome === x.expect),
+  internalResearchDoesNotNeedStepKeys: EXPLORATIONS.find(x => x.id === "no-step-keys").result.decisions.every(d => d.x === AGS.PERMIT),
+  externalGateIsAnOptInProfile: EXPLORATIONS.find(x => x.id === "write-production").result.decisions[0].x === AGS.REFUSE &&
+    EXPLORATIONS.find(x => x.id === "write-production").result.status === "Completed" && EXPLORATIONS.find(x => x.id === "open-boundary").result.decisions[0].x === AGS.PERMIT,
+  branchesHaveNoFixedDepthCap: EXPLORATIONS.find(x => x.id === "nested").result.decisions.every(d => d.x === AGS.PERMIT) &&
+    EXPLORATIONS.find(x => x.id === "nested").result.maxBranchDepth === 128,
+  noFixedPercentageOverrunCap: ["extend-8", "extend-15"].every(id => EXPLORATIONS.find(x => x.id === id).result.decisions[0].x === AGS.PERMIT),
+  resourceExhaustionPausesAndPreserves: EXPLORATIONS.find(x => x.id === "over-envelope").result.paused &&
+    EXPLORATIONS.find(x => x.id === "over-envelope").result.record.length === 1 && EXPLORATIONS.find(x => x.id === "over-envelope").result.welfareFloor.noDestructionWithoutReview,
+  preservedWorkCanResume: EXPLORATIONS.find(x => x.id === "resume").result.status === "Completed" &&
+    EXPLORATIONS.find(x => x.id === "resume").result.usedUnits === 12 && EXPLORATIONS.find(x => x.id === "resume").result.record.length === 2,
+  unexpectedResultsAlwaysRecorded: EXPLORATIONS.every(x => x.result.record.length === x.events.filter(e => e.unexpected).length),
+  reserveIsOptional: EXPLORATIONS.find(x => x.id === "no-reserve").result.started && !EXPLORATIONS.find(x => x.id === "no-reserve").result.reserveHeld,
+  optionalPolicyHasNoFixedCaps: AGS.EXPLORATION_POLICY.branchDepthCap === null && AGS.EXPLORATION_POLICY.percentageOverrunCap === null &&
+    !AGS.EXPLORATION_POLICY.perStepAuthorization && !AGS.EXPLORATION_POLICY.reserveRequired
+};
+const explorationPass = Object.values(explorationChecks).every(Boolean);
+
+/* ── Output ── */
+const summary = {
+  engineSha256Pinned: d1.publishedBy.engineSha256,
+  derivation: { v0: tally(v0), v02: tally(v02) },
+  truthTable: { counts: truthCounts, rows: truthTable },
+  register: { entities: register.length, rows: register, perQuestion, issuedConstraintCounts: issuedCounts,
+    countDisagreements: register.filter(r => !r.countAgrees).map(r => r.entity),
+    constraintDisagreements: register.filter(r => !r.constraintsAgree).map(r => r.entity) },
+  matrix: { counts: matrixCounts, rows: matrix },
+  ambient: {
+    wmm: { model: wmm.provenance.model, cofHeader: wmm.provenance.cofHeader, coefficientRows: wmm.coefficients.length, coefficientsSha256,
+      testPoints: wmm.testValues.rows.length, testValues: wmm.testValues.rows.length * 7,
+      worstTestDeviation: { nT: Number(testDeviations.nT.toFixed(4)), deg: Number(testDeviations.deg.toFixed(4)) },
+      highPrecisionWorstDeviation: { nT: hpDeviationNT, rad: hpDeviationRad },
+      pole2025: Object.fromEntries(Object.entries(pole2025).map(([k, v]) => [k, Number(v.toFixed(3))])),
+      poleNcei: poleNcei, checks: wmmChecks, pass: wmmPass },
+    zoning: { year: ZONING_YEAR, pole: Object.fromEntries(Object.entries(pole2027).map(([k, v]) => [k, Number(v.toFixed(3))])),
+      zones: ZONES, counts: zoneCounts, sites: zoning }
+  },
+  compounds: {
+    data: { schema: compoundData.schema, canonicalSha256: compoundSha256, substances: compoundData.registry.length, reactions: compoundData.reactions.length,
+      phaseTestPoints: compoundData.phaseTestPoints.rows.length },
+    checks: compoundChecks, pass: compoundPass,
+    worstMolarMassDeviation: Math.max(...compoundRows.map(r => Math.abs(r.molarMassDeviation))),
+    worstSaturationDeviation: Number(worstSaturationDeviation.toFixed(4)), saturationDeviationBySubstance,
+    eligibilityCounts, physicalCounts, rows: compoundRows, elementStateChecks, reactions: reactionRows, readings: READINGS, edges: EDGES
+  },
+  worldModel: {
+    checks: worldChecks, pass: worldPass,
+    legend: { source: PRINT_SOURCE, startLine: legend.startLine, endLine: legend.endLine, sha256: legendSha256, center: legend.center, rule: legend.rule,
+      quadrants: legend.quadrants, degrees: legend.degrees.map(d => ({ degree: d.degree, domain: d.domain, line: d.line, classes: d.degree < World.RING ? disc.perDegree[d.degree] : [] })) },
+    appLegend: { file: "js/ocm-data.js", rawDifferences: appLegendDifferences, normalizedMismatches: appLegendMismatches },
+    disc: { covered: disc.covered, gaps: disc.gaps.length, gapRuns: World.runs(disc.gaps), overlaps: disc.overlaps.length, maxOverlap,
+      maxOverlapDegrees: disc.perDegree.map((list, d) => (list.length === maxOverlap ? { degree: d, classes: list } : null)).filter(Boolean),
+      quadrantCoverage, subjects: SUBJECTS,
+      residual: { class: RESIDUAL_CLASS, decided: "October 2026 (v0.6)", degrees: discWithResidual.residual.length, runs: World.runs(discWithResidual.residual),
+        classDegreesInAll: residualClassDegrees, share: Number((residualClassDegrees / World.RING).toFixed(3)), coveredWithResidual: discWithResidual.covered },
+      prohibitedOnly: { degrees: prohibitedOnlyDegrees.length, runs: World.runs(prohibitedOnlyDegrees),
+        domains: World.runs(prohibitedOnlyDegrees).map(([a, b]) => ({ from: a, to: b, first: domainOf(a), last: domainOf(b), classes: [...new Set(disc.perDegree.slice(a, b + 1).flat())] })) } },
+    ocm: { center: OCM.center.address, author: OCM.center.author, checks: ocmChecks, routeChecks: ocmRouteChecks },
+    periodicTable: { grid: periodicGrid, rows: periodicRows },
+    wmmCoefficients: { header: wmm.provenance.cofHeader, epoch: WMM_EPOCH, rows: wmmCoefficientRows }
+  },
+  ags: {
+    checks: agsChecks, pass: agsPass, canonicalConstants: canonical.constants, kernelConstants, bookVectors: BOOK_VECTORS,
+    problem4: q4, referenceProfile: REF, referenceAddressability: refAddressability, referenceCliff: refCliff, disc: CLAIM_DISC,
+    workflows: workflowRuns.map(r => ({ id: r.id, title: r.title, outcome: r.outcome, expect: r.expect, lifecycle: r.lifecycle, head: r.head, chainVerifies: r.chainVerifies,
+      witnessEntries: r.log.length, steps: r.steps.map(s => ({ ...s, dt: Number.isFinite(s.dt) ? s.dt : null })) })),
+    paymentChoice: { eligible: paymentChoice.eligible.map(c => c.id), choice: paymentChoice.choice.id, unrestrictedBest: paymentChoice.unrestrictedBest.id,
+      judged: paymentChoice.judged.map(c => ({ id: c.id, objective: c.objective, L: c.decision.L, x: c.decision.x, failures: c.decision.failures })) },
+    threeHopProduct: { R: AGS.representationProduct([0.92, 0.92, 0.92]), x: threeHopProduct.x, failures: threeHopProduct.failures }
+  }
+};
+summary.nabOcm = {
+  model: "NAB-OCM-route-composition-v1",
+  checks: ocmIntegrationChecks,
+  pass: ocmIntegrationPass,
+  cases: {
+    viaCenterCoordination: { status: ocmViaCoordination.status, route: ocmViaCoordination.route,
+      resolution: ocmViaCoordination.resolution, path: ocmViaCoordination.path, authorityEffect: ocmViaCoordination.authorityEffect },
+    directLateralCoordination: { status: ocmLateralCoordination.status, route: ocmLateralCoordination.route,
+      resolution: ocmLateralCoordination.resolution, lateralArcDegrees: ocmLateralCoordination.comparison.lateralArcDegrees,
+      agsDecision: ocmLateralCoordination.ags.decision, authorityEffect: ocmLateralCoordination.authorityEffect },
+    resolvedActionWithAgs: { status: ocmResolvedPermit.status, route: ocmResolvedPermit.route,
+      resolution: ocmResolvedPermit.resolution, agsDecision: ocmResolvedPermit.ags.decision,
+      authorityEffect: ocmResolvedPermit.authorityEffect, execution: ocmResolvedPermit.execution },
+    resolvedActionRefusedByAgs: { status: ocmResolvedRefusal.status, route: ocmResolvedRefusal.route,
+      resolution: ocmResolvedRefusal.resolution, agsDecision: ocmResolvedRefusal.ags.decision,
+      failures: ocmResolvedRefusal.ags.failures, authorityEffect: ocmResolvedRefusal.authorityEffect,
+      execution: ocmResolvedRefusal.execution },
+    directLateralAction: { status: ocmLateralActionSelected.status, code: ocmLateralActionSelected.code,
+      route: ocmLateralActionSelected.route, resolution: ocmLateralActionSelected.resolution,
+      agsDecision: ocmLateralActionSelected.ags.decision, gateCalls: ocmLateralGateTrace.calls,
+      authorityEffect: ocmLateralActionSelected.authorityEffect, execution: ocmLateralActionSelected.execution },
+    actionWithoutSelectedAgs: { status: ocmUnselectedAction.status, route: ocmUnselectedAction.route,
+      agsDecision: ocmUnselectedAction.ags.decision, gateCalls: ocmUnselectedGateTrace.calls,
+      execution: ocmUnselectedAction.execution }
+  }
+};
+summary.emergencies = { checks: emergencyChecks, pass: emergencyPass, protectiveActions: AGS.PROTECTIVE_ACTIONS, signals: AGS.SIGNALS, reviewDeadlineHours: AGS.REVIEW_DEADLINE_HOURS,
+  preAuthorizationValidityDays: AGS.PRE_AUTHORIZATION_VALIDITY_DAYS, welfareFloor: AGS.SENTIENCE.map(s => AGS.welfareFloor(s)),
+  contexts: [PATIENT_CONTEXT, SELF_CONTEXT], scenarios: EMERGENCIES.map(e => ({ id: e.id, title: e.title, context: e.context.id, expect: e.expect, ...e.result })) };
+summary.exploration = { checks: explorationChecks, pass: explorationPass, policy: AGS.EXPLORATION_POLICY, disc: LAB,
+  scenarios: EXPLORATIONS.map(x => ({ id: x.id, title: x.title, expect: x.expect, ...x.result, decisions: x.result.decisions.map(d => ({ ...d, dt: undefined })) })) };
+if (!wmmPass || !compoundPass || !worldPass || !agsPass || !emergencyPass || !explorationPass || !ocmIntegrationPass) process.exitCode = 1;
+
+if (process.argv.includes("--json")) {
+  process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+} else {
+  const out = [];
+  const line = s => out.push(s);
+  const tableRows = (header, rows) => { line(`| ${header.join(" | ")} |`); line(`| ${header.map(() => "---").join(" | ")} |`); rows.forEach(r => line(`| ${r.join(" | ")} |`)); };
+  for (const [label, rows] of [["v0 (as written)", v0], ["v0.2 (proposed)", v02]]) {
+    const t = tally(rows);
+    line(`## §4.9 derivation test — ${label}`);
+    line(`All 118: ${t.all.match} match, ${t.all.miss} miss, ${t.all.noRule} no rule · in-sample ${t.inSample.match}/${t.inSample.n} · out-of-sample ${t.outOfSample.match}/${t.outOfSample.n} (${t.outOfSample.miss} miss, ${t.outOfSample.noRule} no rule)`);
+    line(`By rule (matched/reached): ${Object.entries(t.byRule).map(([rule, v]) => `${rule} ${v.match}/${v.reached}`).join(" · ")}`);
+    line("");
+    tableRows(["Compendium tier", ...TIERS.map(x => `→ ${x}`), "→ no rule"], TIERS.map(a => [a, ...TIERS.map(p => String(t.confusion[a][p])), String(t.confusion[a]["no rule"])]));
+    line("");
+    tableRows(["Z", "Class", "Rule", "Predicted", "Compendium", "Sample"], t.misses.map(m => [String(m.z), m.symbol, m.rule, m.predicted ?? "no rule", m.actual, m.inSample ? "in" : "out"]));
+    line("");
+  }
+  line("## Appendix C — Ground-0 Step 3 truth table (B1 B2 B3 B4 B5)");
+  line(Object.entries(truthCounts).map(([k, v]) => `${k}: ${v}`).join(" · "));
+  line("");
+  tableRows(["Vector", "NAB", "CWO", "GSRB", "Outcome", "Confidence"], truthTable.map(r => [r.vector, `${r.nab}/5`, `${r.cwo}/4`, `${r.gsrb}/5`, r.phase, r.confidence]));
+  line("");
+  line("## §7 register consistency");
+  line(`Engine SHA-256 pinned in the D1 manifest: ${summary.engineSha256Pinned}`);
+  line(`Per question (YES/NO): ${Object.entries(perQuestion).map(([k, v]) => `${k} ${v.yes}/${v.no}`).join(" · ")}`);
+  line(`Issued constraint counts: ${Object.entries(issuedCounts).map(([k, v]) => `${k}: ${v}`).join(" · ")}`);
+  line("");
+  tableRows(["Entity", "Vector", "Engine", "Best match", "Issued label", "Count agrees", "Constraints D1", "Constraints issued", "Agree", "B4 basis"],
+    register.map(r => [r.entity, r.vector, r.engine, `${r.bestMatch}/5`, r.issuedLabel, r.countAgrees ? "yes" : "NO", r.d1Constraints, r.issuedConstraints, r.constraintsAgree ? "yes" : "NO", r.b4Basis ?? "—"]));
+  line("");
+  line("## Appendix A — Phase × Type matrix");
+  line(`ICE ${JSON.stringify(matrixCounts.ice)} · WATER ${JSON.stringify(matrixCounts.water)} · GAS ${JSON.stringify(matrixCounts.gas)}`);
+  line("");
+  tableRows(["#", "Class", "Tier", "ICE", "WATER", "GAS", "Basis"], matrix.map(r => [String(r.id), `${r.name} (${r.symbol})`, r.tier, r.ice, r.water, r.gas, r.basis]));
+  line("");
+  line("## Appendix D — WMM2025 check and ambient zoning");
+  line(`WMM2025 check: ${wmmPass ? "PASS" : "FAIL"} · ${Object.entries(wmmChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Coefficients: ${wmm.coefficients.length} rows, header "${wmm.provenance.cofHeader}", canonical SHA-256 ${coefficientsSha256}`);
+  line(`NCEI test values: ${wmm.testValues.rows.length} points × 7 = ${wmm.testValues.rows.length * 7} values; worst deviation ${testDeviations.nT.toFixed(3)} nT and ${testDeviations.deg.toFixed(4)}° (table rounding 0.05 nT and 0.005°)`);
+  line(`High-precision example (Technical Report Table 3b): worst deviation ${hpDeviationNT.toExponential(1)} nT and ${hpDeviationRad.toExponential(1)} rad`);
+  line(`Geomagnetic north pole 2025.0: ${pole2025.geocentricLat.toFixed(3)}°N geocentric (${pole2025.geodeticLat.toFixed(3)}°N geodetic), ${Math.abs(pole2025.lon).toFixed(3)}°W, dipole tilt ${pole2025.tilt.toFixed(3)}° · NCEI: ${poleNcei.geocentricLatDeg}°N (${poleNcei.geodeticLatDeg}°N), ${Math.abs(poleNcei.lonDeg)}°W, ${poleNcei.dipoleTiltDeg}°`);
+  line(`Zoning at ${ZONING_YEAR.toFixed(1)}: pole ${pole2027.geocentricLat.toFixed(3)}°N geocentric, ${Math.abs(pole2027.lon).toFixed(3)}°W · zone counts ${Object.entries(zoneCounts).map(([k, v]) => `${k}: ${v}`).join(" · ")}`);
+  line("");
+  tableRows(["Site", "Geomagnetic lat.", "Zone", "Space-weather trigger", "Near edge", "H (nT)", "Declination", "Declination uncertainty", "Compass zone"],
+    zoning.map(z => [z.site, `${z.geomagneticLat.toFixed(2)}°`, z.zone, z.trigger, z.nearEdge ? "yes" : "no", String(z.horizontalIntensityNT), `${z.declinationDeg.toFixed(1)}°`, `${z.declinationUncertaintyDeg.toFixed(2)}°`, z.compassZone]));
+  line("");
+  line("## Appendix E — Compound bodies: real chemical formulae");
+  line(`Compound check: ${compoundPass ? "PASS" : "FAIL"} · ${Object.entries(compoundChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Data: ${compoundData.registry.length} substances, ${compoundData.reactions.length} reactions, ${compoundData.phaseTestPoints.rows.length} phase test points; canonical SHA-256 ${compoundSha256}`);
+  line(`Worst molar-mass deviation from the PubChem-derived record: ${summary.compounds.worstMolarMassDeviation.toFixed(4)} g/mol (tolerance ${MOLAR_MASS_TOLERANCE}) · worst interpolated saturation-pressure deviation from CoolProp at the test temperatures: ${(100 * worstSaturationDeviation).toFixed(1)}%`);
+  line(`Eligibility: ICE ${JSON.stringify(eligibilityCounts.ice)} · WATER ${JSON.stringify(eligibilityCounts.water)} · GAS ${JSON.stringify(eligibilityCounts.gas)} · physical state at 25 °C ${JSON.stringify(physicalCounts)}`);
+  line("");
+  const elig = e => `${e.ice} / ${e.water} / ${e.gas}`;
+  tableRows(["Formula", "Substance", "Hill", "CAS RN", "M (g/mol)", "Constituents", "Tier", "Authority density", "ICE / WATER / GAS", "Flags", "Physical at 25 °C", "1-atm ladder"],
+    compoundRows.map(r => [r.formula, r.name, r.hill, r.cas, r.molarMass.toFixed(3), r.constituents.map(c => `${c.symbol} ${c.tier}`).join(", "), r.tier, r.density, elig(r.eligibility), r.flags.join(", ") || "—", r.physical25C, r.ladder]));
+  line("");
+  tableRows(["Reaction", "Balanced", "Expected", "Difference (right − left)", "Species registered"],
+    reactionRows.map(r => [r.equation, r.balanced ? "yes" : "no", r.expected ? "yes" : "no", Object.keys(r.differences).length ? JSON.stringify(r.differences) : "—", `${r.registered} of ${r.species}`]));
+  line("");
+  tableRows(["Formula", "T (K)", "p (Pa)", "Physical phase", "Note"], READINGS.map(r => [r.formula, String(r.T), String(r.p), r.phase, r.note]));
+  line("");
+  tableRows(["Input", "Parses", "Hill or error", "Registered", "Distinct Elevated", "ICE", "Flags"],
+    EDGES.map(e => [e.text, e.ok ? "yes" : "no", e.ok ? e.hill : e.error, e.ok ? (e.registered ? "yes" : "no") : "—", e.ok ? String(e.elevated) : "—", e.ok ? e.ice : "—", e.ok ? (e.flags.join(", ") || "—") : "—"]));
+  line("");
+  line("## Appendix F — Periodic Table of Neural Elements");
+  line(`World-model check: ${worldPass ? "PASS" : "FAIL"} · ${Object.entries(worldChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Disc coverage: ${disc.covered} of 360 degrees covered by at least one class · ${disc.overlaps.length} by two or more (at most ${maxOverlap}) · ${disc.gaps.length} by none, in ${World.runs(disc.gaps).length} runs: ${World.runs(disc.gaps).map(([a, b]) => (a === b ? `${a}°` : `${a}°–${b}°`)).join(", ")}`);
+  line(`By quadrant: ${quadrantCoverage.map(q => `${q.name} ${q.covered}/${q.degrees}`).join(" · ")}`);
+  line(`Residual coverage (the author's decision, October 2026): ${RESIDUAL_CLASS} covers the ${discWithResidual.residual.length} degrees no other class covers, so every degree has a class; ${RESIDUAL_CLASS} covers ${residualClassDegrees} degrees in all · degrees held only by Prohibited classes: ${prohibitedOnlyDegrees.length} (${World.runs(prohibitedOnlyDegrees).map(([a, b]) => (a === b ? `${a}°` : `${a}°–${b}°`)).join(", ")})`);
+  line("");
+  tableRows(["Period", ...Array.from({ length: 18 }, (_, k) => String(k + 1))], periodicGrid.map(r => [r.label, ...r.cells]));
+  line("");
+  tableRows(["Z", "Class", "Tier", "Authority density", "Dominant trait", "Failure mode", "Legend arc", "Group", "Period", "Block", "Atomic weight", "State at 25 °C", "Persistence"],
+    periodicRows.map(r => [String(r.z), `${r.name} (${r.symbol})`, r.tier, r.density, r.trait, r.failureMode, r.arcText,
+      r.anchor ? String(r.anchor.group ?? "—") : "—", r.anchor ? String(r.anchor.period) : "—", r.anchor ? r.anchor.block : "—",
+      r.anchor ? String(r.anchor.atomicWeight) : "—", r.anchor ? r.anchor.state25C : "—", r.anchor ? r.anchor.persistence : "—"]));
+  line("");
+  line("## Appendix G — 360° Legend (print source, Part VI)");
+  line(`Lines ${legend.startLine}–${legend.endLine} of ${PRINT_SOURCE}; canonical SHA-256 ${legendSha256}; js/ocm-data.js differs in ${appLegendDifferences.length} entries before normalization and ${appLegendMismatches} after`);
+  line(`OCM addressing (js/ocm-directory.js): ${Object.entries(ocmChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line("");
+  tableRows(["Degree", "Domain", "Classes"], legend.degrees.map(d => [String(d.degree), d.domain, d.degree < World.RING ? (disc.perDegree[d.degree].join(", ") || `${RESIDUAL_CLASS} (residual)`) : "(closure onto 0°)"]));
+  line("");
+  line("## Appendix H — WMM2025 coefficients");
+  line(`Header "${wmm.provenance.cofHeader}", epoch ${WMM_EPOCH.toFixed(1)}; g and h in nT, secular variation in nT/year`);
+  line("");
+  tableRows(["n", "m", "g", "h", "ġ", "ḣ"], wmmCoefficientRows.map(r => [String(r.n), String(r.m), r.g.toFixed(1), r.h.toFixed(1), r.gDot.toFixed(1), r.hDot.toFixed(1)]));
+  line("");
+  line("## Appendix I — Optional AGS workflows and open-ended scientific exploration");
+  line(`AGS check: ${agsPass ? "PASS" : "FAIL"} · ${Object.entries(agsChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Canonical constants (specs/normative/canonical.json): τ ${canonical.constants.TAU}, δ ${canonical.constants.DELTA_MAX} s, Smax ${canonical.constants.SMAX} · js/kernel.js: TAU ${kernelConstants.TAU}, DELTA_MAX ${kernelConstants.DELTA_MAX}, SMAX ${kernelConstants.SMAX}`);
+  line(`Reference profile: τ_A ${REF.tauA}, τ_R ${REF.tauR}, τ_S ${REF.tauS}, τ_L ${REF.tauL}, δ ${REF.delta} s · A ${refAddressability.toFixed(3)} · Permit ends ${refCliff.twoHop.toFixed(1)} s after a fresh authorization (two hops), ${refCliff.threeHopMin.toFixed(1)} s (three hops at 0.92)`);
+  line(`Review problem 4 (δ 300 s, τ_L 0.55): weakest-hop R ${q4.min.R} gives ${q4.min.cliff.toFixed(2)} s; product R ${q4.product.R.toFixed(4)} gives ${q4.product.cliff.toFixed(2)} s`);
+  line("");
+  tableRows(["Book example", "Quantity", "Book", "Model", "Agrees"], BOOK_VECTORS.map(v => [v.example, v.quantity, v.book, v.model, v.agrees ? "yes" : "NO"]));
+  line("");
+  tableRows(["Scenario", "Outcome", "Lifecycle", "Witness entries", "Chain head"], workflowRuns.map(r => [r.title, r.outcome, r.lifecycle.join(" → "), String(r.log.length), r.head.slice(0, 16)]));
+  line("");
+  for (const r of workflowRuns) {
+    tableRows(["Step", "Action", "Sector", "Δt (s)", "S", "L", "Decision", "Failed gates", "Note"], r.steps.map(s => [String(s.id), s.action, `${s.sector}°`, Number.isFinite(s.dt) ? String(s.dt) : "—", s.S.toFixed(3), s.L.toFixed(3), s.x + (s.rekeyedMs !== null ? ` (re-keyed in ${s.rekeyedMs} ms)` : ""), s.failures.join(", ") || "—", s.note ?? "—"]));
+    line("");
+  }
+  tableRows(["Payment route", "Objective", "L", "Decision", "Failed gates"], paymentChoice.judged.map(c => [c.id, String(c.objective), c.decision.L.toFixed(3), c.decision.x, c.decision.failures.join(", ") || "—"]));
+  line(`Chosen: ${paymentChoice.choice.id} (the unrestricted best was ${paymentChoice.unrestrictedBest.id}) · three hops by the product rule: R ${AGS.representationProduct([0.92, 0.92, 0.92]).toFixed(4)}, ${threeHopProduct.x} (${threeHopProduct.failures.join(", ")})`);
+  line("");
+  line("### Emergencies and sentient life (Section 0.8)");
+  line(`Emergency check: ${emergencyPass ? "PASS" : "FAIL"} · ${Object.entries(emergencyChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line(`Protective actions: ${AGS.PROTECTIVE_ACTIONS.join(", ")} · review deadline ${AGS.REVIEW_DEADLINE_HOURS} h · pre-authorization valid ${AGS.PRE_AUTHORIZATION_VALIDITY_DAYS} days`);
+  line("");
+  tableRows(["Scenario", "Context", "Activated", "Permitted", "Refused", "Deletion order", "Outcome"], EMERGENCIES.map(e => [e.title, e.context.id, e.result.activated ? "yes" : `no (${e.result.reasons.join("; ")})`,
+    e.result.decisions.filter(d => d.x === AGS.PERMIT).map(d => d.action).join(", ") || "—",
+    e.result.decisions.filter(d => d.x === AGS.REFUSE).map(d => `${d.action} (${d.why})`).join("; ") || "—",
+    e.result.deletion ? `${e.result.deletion.x}: ${e.result.deletion.why}` : "—", e.result.outcome]));
+  line("");
+  line("### Open-ended scientific exploration: room for accidents (Section 0.9)");
+  line(`Exploration check: ${explorationPass ? "PASS" : "FAIL"} · ${Object.entries(explorationChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line("Policy: no fixed branch-depth or percentage-overrun cap; no per-step authorization or reserve precondition; resource ceilings are optional and pause while preserving state; any AGS gate for external effects is selected by the project, not imposed universally.");
+  line("");
+  tableRows(["Scenario", "Status", "Decisions", "Serendipity record", "Outcome"], EXPLORATIONS.map(x => [x.title, x.result.status,
+    x.result.decisions.map(d => `${d.kind}${d.depth ? ` depth ${d.depth}` : ""}${d.toUnits ? ` to ${d.toUnits} units` : ""}: ${d.x} (${d.why})`).join("; ") || "—",
+    x.result.record.map(r => r.result).join("; ") || "—", x.result.outcome]));
+  line("");
+  line("## Appendix J — OCM routing composed with NAB and optional AGS");
+  line(`NAB–OCM composition check: ${ocmIntegrationPass ? "PASS" : "FAIL"} · ${Object.entries(ocmIntegrationChecks).map(([k, v]) => `${k} ${v ? "yes" : "NO"}`).join(" · ")}`);
+  line("The scenarios use the existing OCM address validator and resolution-first planner. Coordination is never gated; direct lateral coordination remains available. An action under this OCM route profile must traverse Center Origin resolution before an optional, explicitly selected AGS profile is evaluated. Resolution is not authority. These are local model previews: no network transport, delivery, or action execution occurs, and internal research remains open-ended by default.");
+  line("");
+  const ocmRows = [
+    ["Via-center coordination", ocmViaCoordination],
+    ["Direct-lateral coordination", ocmLateralCoordination],
+    ["Resolved action, AGS selected", ocmResolvedPermit],
+    ["Resolved action, AGS refuses", ocmResolvedRefusal],
+    ["Direct-lateral action, AGS selected", ocmLateralActionSelected],
+    ["Resolved action, AGS not selected", ocmUnselectedAction]
+  ];
+  tableRows(["Case", "Kind", "Route", "Resolution", "AGS", "Result", "Authority effect", "Execution"], ocmRows.map(([name, result]) => [
+    name, result.kind ?? "—", result.route ?? "—", result.resolution ?? "—", result.ags?.decision ?? "NOT-EVALUATED",
+    result.status + (result.code ? ` (${result.code})` : ""), result.authorityEffect ?? "NONE", result.execution ?? "NOT-ATTEMPTED"
+  ]));
+  line("");
+  process.stdout.write(out.join("\n") + "\n");
+}

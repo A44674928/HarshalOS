@@ -113,7 +113,7 @@ Librarians, readers, and the manuscript narrator. Nameplates in
 
 | NPC | Posting | Role |
 |---|---|---|
-| `|The Librarian|.txt` | `docs/harshal-systems/` | Curates the 42-file reference library |
+| `|The Librarian|.txt` | `docs/harshal-systems/` | Curates the 43-document reference library |
 | `|The Core Book Reader|.txt` | `docs/harshal-systems/01-core-book.md` | Turns pages of Part I |
 | `|The Manuscript Narrator|.txt` | `manuscript/the-grand-river-foundation/` | Reads chapters 00–08 for the Novel tab |
 | `|The Publications Printer|.txt` | `publications/` | Compiles .docx / assembled .md editions |

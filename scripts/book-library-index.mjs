@@ -78,7 +78,8 @@ export async function buildBookLibrary(root) {
   const guideDefinitions = [
     { file: "README.md", title: "Library guide" },
     { file: "collections/README.md", title: "Functional collections index" },
-    { file: "EDITORIAL-REPORT.md", title: "Editorial report" }
+    { file: "EDITORIAL-REPORT.md", title: "Editorial report" },
+    { file: "TERMINOLOGY-ERRATUM-2026-10-16.md", title: "Terminology erratum (AGS v0.2 Part XI)" }
   ];
   const guides = [];
   for (const guide of guideDefinitions) {

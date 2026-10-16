@@ -1,6 +1,8 @@
 # AGS v0.2: Harshal’s Systems — Full Book
 ## KDP print QA & handoff · 2026-10-07 (rev. 2 — Appendix G full Python listing)
 
+> **Terminology update (2026-10-16):** Part XI now uses **Governance & Resilience Assessment (GRA)** against a project-chosen, scoped profile, not a certification mark. Disclosed self-review is valid; volunteer collaborators or external reviewers may join by choice, and outside review or continuous monitoring does not gate project work. The dated print artifacts below are preserved as issued. See the [terminology erratum](../../docs/harshal-systems/TERMINOLOGY-ERRATUM-2026-10-16.md) for the correction and current wording.
+
 **Production title:** *AGS v0.2: Harshal’s Systems* (Full Book). The public-facing
 edition label is v0.2, used consistently in the interior and cover PDFs.
 

@@ -167,7 +167,7 @@ test("GA: the module is indexed exactly once in the Collections catalog", async 
      legitimately differ; the contract is that the row and the catalog agree. */
   assert.equal(entry.words, 1732, "the catalog carries the collection row's stated word count");
   assert.ok(moduleText.split(/\s+/).filter(Boolean).length > 1600, "the module on disk is substantial");
-  assert.ok(manifest.documentCount >= 42 && manifest.moduleCount >= 32, "the catalog grew to include the new module");
+  assert.ok(manifest.documentCount >= 43 && manifest.moduleCount >= 32, "the catalog grew to include the new module");
 });
 
 test("GA: the desktop app is read-only and renders from the data module alone", () => {

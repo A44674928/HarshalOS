@@ -137,7 +137,7 @@ onto some outer ring.
 Authoritative writing — what `|User|` has said, and is saying.
 
 ```
-docs/harshal-systems/                               ← Book I reference library (42 files)
+docs/harshal-systems/                               ← Book I reference library (43 files)
 │   00-front-matter.md  00-author-front-matter.md
 │   01-core-book.md … 27-whole-corpus.md            ← Parts I–XXVII
 │   EDITORIAL-REPORT.md

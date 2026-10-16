@@ -121,9 +121,9 @@ const SUITES = [
     files: ["manuscript-test.mjs"]
   },
   {
-    area: "NAB composite registry, composite field, and primary orb renderer",
+    area: "NAB composite registry, composite field, primary orb renderer, compound-body formulae, the world model, optional AGS profile, and open-ended research exploration",
     script: "test:nab",
-    files: ["nab-sectors-test.mjs", "nab-composites-test.mjs", "nab-discs-ui-test.mjs", "nab-orb-renderer-test.mjs"]
+    files: ["nab-sectors-test.mjs", "nab-composites-test.mjs", "nab-discs-ui-test.mjs", "nab-orb-renderer-test.mjs", "nab-compounds-test.mjs", "nab-world-model-test.mjs", "nab-ags-test.mjs", "nab-ocm-test.mjs"]
   },
   {
     area: "Harshal's Palace roster sync, authored profiles, weather & moon",
