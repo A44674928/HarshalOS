@@ -1334,11 +1334,17 @@ test("the carousel walks to the next Disc orb with a step, a click, a slide, or 
   assert.ok(orbPoint, "the futures orb is projected");
   const PointerEventCtor = window.PointerEvent || window.MouseEvent;
   if (typeof PointerEventCtor === "function") {
+    /* Simulate a CSS-scaled canvas inside a transformed window: event.clientX/Y
+       are viewport pixels while the constellation uses logical canvas pixels. */
+    const bounds = { left: 37, top: 61, width: 360, height: 220 };
+    Object.defineProperty(canvas, "getBoundingClientRect", { configurable: true, value: () => ({ ...bounds }) });
+    const clientX = bounds.left + orbPoint.point.x * bounds.width / canvas.clientWidth;
+    const clientY = bounds.top + orbPoint.point.y * bounds.height / canvas.clientHeight;
     for (const type of ["pointerdown", "pointerup"]) {
-      canvas.dispatchEvent(new PointerEventCtor(type, { clientX: orbPoint.point.x, clientY: orbPoint.point.y, bubbles: true, cancelable: true }));
+      canvas.dispatchEvent(new PointerEventCtor(type, { clientX, clientY, bubbles: true, cancelable: true }));
     }
     await flush();
-    assert.equal(engine.state.discId, "commodities", "clicking an orb walks the carousel to that Disc");
+    assert.equal(engine.state.discId, "commodities", "CSS-scaled canvas coordinates still select the orb under the pointer");
   }
 
   const KeyboardEventCtor = window.KeyboardEvent;
@@ -1357,6 +1363,35 @@ test("the carousel walks to the next Disc orb with a step, a click, a slide, or 
   assert.ok(engine.state.camZoom <= 1, "the wide view is not magnified");
   assert.equal(providerCalls.length, 0, "the whole carousel walk made no provider call");
   assert.ok(reads().length <= before + 1, "the walk costs at most one stored-field re-read, never a fan-out");
+});
+
+test("Orb 2 packet hit-testing stays under the pointer when its canvas is CSS-scaled", async t => {
+  const { host, engine, window, frames } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  const canvas = host.querySelector("[data-gi-orb2-canvas]");
+  const drawQueuedFrames = () => {
+    let guard = 0;
+    while (frames.length && guard < 20) { frames.shift()(NOW + guard); guard += 1; }
+  };
+  await flush();
+  drawQueuedFrames();
+  host.querySelector('[data-gi-orb2-orb="stocks"]').click();
+  await flush();
+  drawQueuedFrames();
+  assert.equal(engine.state.focusOrb, true, "the Disc field is projected in Focus mode");
+
+  const target = engine.state.projected.find(point => point.node.order !== engine.state.selected
+    && engine.state.projectedOrbs.every(orb => Math.hypot(point.x - orb.point.x, point.y - orb.point.y) > 40));
+  assert.ok(target, "a packet lies clear of every Disc-orb hit target");
+  const bounds = { left: 29, top: 53, width: 360, height: 220 };
+  Object.defineProperty(canvas, "getBoundingClientRect", { configurable: true, value: () => ({ ...bounds }) });
+  const clientX = bounds.left + target.x * bounds.width / canvas.clientWidth;
+  const clientY = bounds.top + target.y * bounds.height / canvas.clientHeight;
+  const PointerEventCtor = window.PointerEvent || window.MouseEvent;
+  assert.equal(typeof PointerEventCtor, "function");
+  for (const type of ["pointerdown", "pointerup"]) {
+    canvas.dispatchEvent(new PointerEventCtor(type, { clientX, clientY, bubbles: true, cancelable: true }));
+  }
+  assert.equal(engine.state.selected, target.node.order, "packet hit-testing uses the same logical canvas mapping as drawing");
 });
 
 test("the drawn field follows the Disc orb instead of re-drawing the 52-card deck on every Disc", async t => {
