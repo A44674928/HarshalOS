@@ -601,35 +601,32 @@ test("berth separation is deterministic, idempotent, and leaves clear fields unt
   assert.ok(separationChords(partial) >= partialReport.minimum, "a partial spread still clears its own floor");
 });
 
-test("screen-space glyph separation resolves exact overlaps deterministically and reports the displaced pixels", () => {
+test("screen overlap diagnostics never move glyphs, while the optical lens smoothly magnifies near-centre positions", () => {
   const { orb } = harness();
-  const makePoints = () => Array.from({ length: 52 }, (unused, index) => ({
+  const points = Array.from({ length: 52 }, (unused, index) => ({
     identity: `PIXEL-${String(index).padStart(2, "0")}`,
     x: 320,
     y: 210,
     collisionRadius: 5 + (index % 5),
     node: { symbol: `PIXEL-${String(index).padStart(2, "0")}` }
   }));
-  const first = makePoints();
-  const second = makePoints();
-  const initial = orb.screenCollisionSummary(first, 2);
-  assert.equal(initial.crowded, 52);
-  assert.equal(initial.overlapPairs, 1326, "every pair starts at the exact same screen point");
-  assert.equal(initial.groups.length, 1);
-  assert.equal(initial.groups[0].size, 52);
+  const before = points.map(point => [point.x, point.y]);
+  const overlap = orb.screenCollisionSummary(points, 0);
+  assert.equal(overlap.crowded, 52);
+  assert.equal(overlap.overlapPairs, 1326, "every pair starts at the exact same screen point");
+  assert.equal(overlap.groups.length, 1);
+  assert.equal(overlap.groups[0].size, 52);
+  assert.deepEqual(points.map(point => [point.x, point.y]), before, "collision reporting is observational, not a layout solver");
 
-  const report = orb.resolveScreenGlyphCollisions(first, { gap: 2, maxPasses: 120 });
-  const repeated = orb.resolveScreenGlyphCollisions(second, { gap: 2, maxPasses: 120 });
-  assert.equal(report.initialOverlaps, 1326);
-  assert.equal(report.remainingOverlaps, 0, "every rendered body clears its actual radius plus the two-pixel gap");
-  assert.ok(report.minimumClearance >= 2 - 1e-4);
-  assert.equal(report.moved, 52);
-  assert.ok(first.every(point => point.screenNudge.distance > 0));
-  assert.deepEqual(first.map(point => [point.x, point.y]), second.map(point => [point.x, point.y]), "stable identities produce the same pixel layout");
-  const settled = first.map(point => [point.x, point.y]);
-  const rerun = orb.resolveScreenGlyphCollisions(first, { gap: 2, maxPasses: 120 });
-  assert.equal(rerun.moved, 0, "the pixel correction is idempotent");
-  assert.deepEqual(first.map(point => [point.x, point.y]), settled);
+  const center = { x: 320, y: 210 };
+  const near = orb.radialLensProjection({ x: 340, y: 210 }, center, 0.65, 100);
+  const mid = orb.radialLensProjection({ x: 370, y: 210 }, center, 0.65, 100);
+  const far = orb.radialLensProjection({ x: 520, y: 210 }, center, 0.65, 100);
+  const off = orb.radialLensProjection({ x: 340, y: 210 }, center, 0, 100);
+  assert.ok(near.magnification > mid.magnification && mid.magnification > far.magnification, "the lens is strongest near the field centre and fades smoothly outward");
+  assert.ok(near.displacement.distance > 0 && far.displacement.distance < near.displacement.distance);
+  assert.equal(near.y, center.y, "the radial lens preserves angular direction");
+  assert.deepEqual([off.x, off.y], [340, 210], "0% restores the unwarped screen projection");
 });
 
 test("held and market packets share the same separation rules without inventing data", () => {
@@ -651,7 +648,7 @@ test("held and market packets share the same separation rules without inventing 
   assert.match(orb.berthSeparationText({ spread: 0, minimum: 0, crowded: 0, berths: 0, moved: 0 }), /OFF/);
 });
 
-test("the separated field renders distinct orbs and states the berth readout", async t => {
+test("the field projection reports its compact or focused screen layout", async t => {
   const { host, engine, frames } = interactiveHarness(t, {
     tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER,
     fieldHandler: () => Response.json({ success: true, data: fieldSnapshot(window, { stockCount: 12 }) })
@@ -664,14 +661,8 @@ test("the separated field renders distinct orbs and states the berth readout", a
   }
   const drawn = engine.state.projected;
   assert.ok(drawn.length >= 12, "the field was drawn");
-  const positions = drawn.map(point => ({ x: point.x, y: point.y }));
-  let closest = Infinity;
-  for (let left = 0; left < positions.length; left += 1) {
-    for (let right = left + 1; right < positions.length; right += 1) {
-      closest = Math.min(closest, Math.hypot(positions[left].x - positions[right].x, positions[left].y - positions[right].y));
-    }
-  }
-  assert.ok(closest > 4, `no two drawn orbs share a screen berth (closest ${closest.toFixed(1)} px)`);
+  const mode = engine.state.berthReport.screen.mode;
+  assert.ok(mode === "compact" || mode === "focus", `screen layout is explicitly reported (${mode})`);
   assert.equal(engine.state.separation, 0.7, "berth spread defaults on");
   const readout = host.querySelector("[data-gi-orb2-berth-readout]");
   assert.match(readout.textContent, /BERTH SEPARATION · (FULL|\d+%)/);
@@ -689,9 +680,17 @@ test("the separated field renders distinct orbs and states the berth readout", a
   await flush();
   assert.equal(engine.state.separation, 0);
   assert.match(readout.textContent, /BERTH SEPARATION · OFF/);
+  const lensSlider = host.querySelector("[data-gi-orb2-lens]");
+  assert.equal(lensSlider.value, "65");
+  lensSlider.value = "80";
+  lensSlider.dispatchEvent(new host.ownerDocument.defaultView.Event("input"));
+  await flush();
+  assert.equal(engine.state.opticalLens, 0.8);
+  const savedLens = JSON.parse(host.ownerDocument.defaultView.localStorage.getItem("harshalos.good-intelligence.orb2.preferences.v1"));
+  assert.equal(savedLens.opticalLens, 0.8, "the optical lens strength persists as view state only");
 });
 
-test("Orb 2 explains compact clumps, resolves focused glyph overlaps, and exposes market-to-pixel outlier provenance", async t => {
+test("Orb 2 explains compact clumps, lenses the focused field, and exposes market-to-screen outlier provenance", async t => {
   const outlierSymbol = MARKET_ROSTER[0].symbol;
   const { host, engine, frames } = interactiveHarness(t, {
     tickers: MARKET_ROSTER,
@@ -736,21 +735,21 @@ test("Orb 2 explains compact clumps, resolves focused glyph overlaps, and expose
   }
   const report = engine.state.berthReport;
   assert.equal(report.screen.mode, "focus");
-  assert.equal(report.screen.remainingOverlaps, 0, "the focused view clears final on-screen orb bodies, not only packet anchors");
+  assert.equal(report.screen.lensStrength, 0.65);
+  assert.ok(report.screen.moved > 0, "the optical lens refracts projected positions without a collision-force pass");
+  assert.ok(report.screen.maxMagnification > 1);
+  assert.ok(report.screen.overlapPairs <= report.screen.rawOverlaps, "the central optical magnification does not increase visible body intersections in this field");
   const projected = engine.state.projected;
-  for (let left = 0; left < projected.length; left += 1) {
-    for (let right = left + 1; right < projected.length; right += 1) {
-      const a = projected[left], b = projected[right];
-      const gap = Math.hypot(a.x - b.x, a.y - b.y) - a.collisionRadius - b.collisionRadius;
-      assert.ok(gap >= 2 - 1e-4, `${a.identity}/${b.identity} core bodies leave the two-pixel screen gap (actual ${gap})`);
-    }
-  }
+  assert.equal(report.screen.overlapPairs, projected.reduce((sum, point, index) => sum + projected.slice(index + 1)
+    .filter(other => Math.hypot(point.x - other.x, point.y - other.y) < point.collisionRadius + other.collisionRadius).length, 0));
+  assert.ok(projected.some(point => point.positionTrace.screen.lens.displacement.distance > 0));
+  assert.ok(projected.every(point => point.positionTrace.screen.lens.radius === report.screen.lensRadius));
 
   const outlierIndex = engine.nodes.findIndex(node => node.symbol === outlierSymbol);
   assert.notEqual(outlierIndex, -1);
   const outlierPoint = projected.find(point => point.identity === outlierSymbol);
   assert.ok(outlierPoint.packetRadius > report.packetRadius.median, "the packet-derived radius remains visible separately from the final display radius");
-  assert.equal(outlierPoint.packetRadius, outlierPoint.marketPlacement.radius, "pixel correction never overwrites the market-derived radius");
+  assert.equal(outlierPoint.packetRadius, outlierPoint.marketPlacement.radius, "optical lensing never overwrites the market-derived radius");
   assert.ok(outlierPoint.marketPlacement.topology.drivers.waveOne === 76, "the raw WaveTrend input is retained for explanation");
   assert.equal(outlierPoint.positionTrace.stockFbb.inward, 0.86, "the strong stock FBB inward transform is reported rather than hidden");
 
@@ -762,7 +761,8 @@ test("Orb 2 explains compact clumps, resolves focused glyph overlaps, and expose
   assert.match(diagnostics.textContent, /upper Tukey outlier/);
   assert.match(diagnostics.textContent, /WaveTrend 76\.00/);
   assert.match(diagnostics.textContent, /radial inward 86\.0%/);
-  assert.match(diagnostics.textContent, /screen-only correction/);
+  assert.match(diagnostics.textContent, /screen-space gravitational lens/);
+  assert.match(diagnostics.textContent, /optical lens/);
   assert.equal(diagnostics.querySelectorAll("tbody tr").length, 52, "all 52 instruments are inspectable in the placement table");
   assert.equal(diagnostics.querySelector("tbody tr")?.getAttribute("data-symbol"), outlierSymbol, "the largest raw-radius outlier appears first in the table");
   const nextButton = [...diagnostics.querySelectorAll("[data-gi-orb2-diagnostic-node]")]

@@ -657,6 +657,7 @@
   const BERTH_MIN_GAP_MODEL = 0.4;
   const BERTH_LATITUDE_LIMIT = 1.15;
   const BERTH_SEPARATION_DEFAULT = 0.7;
+  const OPTICAL_LENS_DEFAULT = 0.65;
   const BERTH_RING_LIMIT = 12;
   /* The latitude/longitude lattice the model draws, used as the ring reference
      for the berth-floor readout. */
@@ -861,8 +862,9 @@
     return report;
   }
 
-  /** Circular screen-space collision summary for the visible node glyphs. The
-      members describe connected overlap groups before any optional correction. */
+  /** Circular screen-space overlap summary for the visible node glyphs. The
+      caller chooses a clearance threshold; this observes a projection and
+      never moves, resizes, ranks, or edits any point. */
   function screenCollisionSummary(points, gap = 0) {
     const list = Array.isArray(points) ? points : [];
     const parent = list.map((unused, index) => index);
@@ -964,112 +966,36 @@
     return ((below + equal / 2) / sorted.length) * 100;
   }
 
-  /** Resolve screen-space overlaps after all model transforms. It only changes
-      x/y pixels, uses a stable identity-derived direction for exact overlaps,
-      and records every displacement so no market or 3D placement is rewritten. */
-  function resolveScreenGlyphCollisions(points, { gap = 2, maxPasses = 96 } = {}) {
-    const list = Array.isArray(points) ? points : [];
-    const clearanceGap = Math.max(0, Number(gap) || 0);
-    const passesLimit = Math.max(1, Math.min(240, Math.floor(Number(maxPasses) || 96)));
-    const before = list.map(point => ({ x: Number(point && point.x), y: Number(point && point.y) }));
-    const initial = screenCollisionSummary(list, clearanceGap);
-    /* Seed a dense overlap component onto a stable sunflower layout before the
-       pairwise relaxation. Without this, fifty-two coincident glyphs can need
-       hundreds of thousands of tiny pair pushes on every animated frame. The
-       seed is still screen-only and its full displacement is recorded below. */
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    for (const group of initial.groups) {
-      if (!Array.isArray(group.indices) || group.size < 4) continue;
-      const indices = [...group.indices].sort((left, right) => {
-        const identityA = String(list[left].identity || list[left].node?.symbol || list[left].node?.name || `node-${left + 1}`);
-        const identityB = String(list[right].identity || list[right].node?.symbol || list[right].node?.name || `node-${right + 1}`);
-        return stableIdentityPhase(identityA) - stableIdentityPhase(identityB) || identityA.localeCompare(identityB);
-      });
-      const center = indices.reduce((sum, index) => ({ x: sum.x + Number(list[index].x), y: sum.y + Number(list[index].y) }), { x: 0, y: 0 });
-      center.x /= indices.length;
-      center.y /= indices.length;
-      const currentExtent = Math.max(...indices.map(index => Math.hypot(Number(list[index].x) - center.x, Number(list[index].y) - center.y)));
-      const maximumRadius = Math.max(...indices.map(index => Math.max(0, Number(list[index].collisionRadius) || 0)));
-      const layoutRadius = (maximumRadius * 2 + clearanceGap) * Math.sqrt(indices.length / Math.PI) * 1.12;
-      if (currentExtent > layoutRadius * 1.1) continue;
-      const phase = stableIdentityPhase(`screen-layout:${indices.map(index => String(list[index].identity || list[index].node?.symbol || index)).sort().join("|")}`);
-      indices.forEach((index, slot) => {
-        const radial = layoutRadius * Math.sqrt((slot + 0.5) / indices.length);
-        const angle = phase + slot * goldenAngle;
-        list[index].x = center.x + Math.cos(angle) * radial;
-        list[index].y = center.y + Math.sin(angle) * radial;
-      });
+  /** A bounded, radial screen-space lens around a projected field centre.
+      It magnifies nearby positions smoothly while leaving the node bodies,
+      measured placements, and market values untouched. This is an optical
+      display transform, not a force or a physical-gravity calculation. */
+  function radialLensProjection(point, center, strength = 0, radius = 1) {
+    const x = Number(point && point.x);
+    const y = Number(point && point.y);
+    const cx = Number(center && center.x);
+    const cy = Number(center && center.y);
+    if (![x, y, cx, cy].every(Number.isFinite)) {
+      return { x, y, magnification: 1, displacement: { x: 0, y: 0, distance: 0 } };
     }
-    let passes = 0;
-    for (; passes < passesLimit && list.length > 1; passes += 1) {
-      let moved = false;
-      for (let left = 0; left < list.length; left += 1) {
-        for (let right = left + 1; right < list.length; right += 1) {
-          const a = list[left], b = list[right];
-          if (!a || !b || !Number.isFinite(Number(a.x)) || !Number.isFinite(Number(a.y))
-              || !Number.isFinite(Number(b.x)) || !Number.isFinite(Number(b.y))) continue;
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const distance = Math.hypot(dx, dy);
-          const radiusA = Math.max(0, Number(a.collisionRadius) || 0);
-          const radiusB = Math.max(0, Number(b.collisionRadius) || 0);
-          const target = radiusA + radiusB + clearanceGap;
-          if (distance + 1e-7 >= target) continue;
-          let ux, uy;
-          if (distance > 1e-9) {
-            ux = dx / distance;
-            uy = dy / distance;
-          } else {
-            let identityA = String(a.identity || a.node?.symbol || a.node?.name || `node-${left + 1}`);
-            let identityB = String(b.identity || b.node?.symbol || b.node?.name || `node-${right + 1}`);
-            if (identityA === identityB) {
-              identityA = `${identityA}#${left}`;
-              identityB = `${identityB}#${right}`;
-            }
-            const forward = identityA.localeCompare(identityB) <= 0;
-            const pair = forward ? `${identityA}|${identityB}` : `${identityB}|${identityA}`;
-            const angle = stableIdentityPhase(`screen:${pair}`);
-            const sign = forward ? 1 : -1;
-            ux = Math.cos(angle) * sign;
-            uy = Math.sin(angle) * sign;
-          }
-          const push = (target - distance) / 2;
-          a.x -= ux * push;
-          a.y -= uy * push;
-          b.x += ux * push;
-          b.y += uy * push;
-          moved = true;
-        }
-      }
-      if (!moved) { passes += 1; break; }
-    }
-    const final = screenCollisionSummary(list, clearanceGap);
-    let movedCount = 0;
-    let maxDisplacement = 0;
-    list.forEach((point, index) => {
-      if (!point || !Number.isFinite(before[index].x) || !Number.isFinite(before[index].y)) return;
-      const x = Number(point.x) - before[index].x;
-      const y = Number(point.y) - before[index].y;
-      const distance = Math.hypot(x, y);
-      point.screenNudge = { x, y, distance };
-      if (distance > 0.01) movedCount += 1;
-      maxDisplacement = Math.max(maxDisplacement, distance);
-    });
+    const lensStrength = clamp(Number(strength) || 0, 0, 1);
+    const lensRadius = Math.max(1, Number(radius) || 1);
+    const dx = x - cx;
+    const dy = y - cy;
+    const distance = Math.hypot(dx, dy);
+    const normalized = distance / lensRadius;
+    const magnification = 1 + 0.55 * lensStrength * Math.exp(-(normalized * normalized));
+    const projectedX = cx + dx * magnification;
+    const projectedY = cy + dy * magnification;
+    const shiftX = projectedX - x;
+    const shiftY = projectedY - y;
     return {
-      mode: "focus",
-      gap: clearanceGap,
-      initialCrowded: initial.crowded,
-      initialOverlaps: initial.overlapPairs,
-      initialMinimumClearance: initial.minimumClearance,
-      initialGroups: initial.groups,
-      moved: movedCount,
-      maxDisplacement,
-      remainingCrowded: final.crowded,
-      remainingOverlaps: final.overlapPairs,
-      minimumClearance: final.minimumClearance,
-      closest: final.closest,
-      remainingGroups: final.groups,
-      passes
+      x: projectedX,
+      y: projectedY,
+      magnification,
+      strength: lensStrength,
+      radius: lensRadius,
+      displacement: { x: shiftX, y: shiftY, distance: Math.hypot(shiftX, shiftY) }
     };
   }
 
@@ -1269,9 +1195,9 @@
         ? `${report.crowded} packet anchors in ${report.berths} shared berth cluster${report.berths === 1 ? "" : "s"} · ${report.moved} re-slotted`
         : "no packet-anchor cluster needed re-slotting";
     const screen = report.screen && report.screen.mode === "compact"
-      ? `compact overview · ${report.screen.memberCount} nodes inside ${Math.round(report.screen.parentDiameter)}px Disc · ${report.screen.overlapPairs} glyph overlaps · focus orb for full view`
+      ? `compact overview · ${report.screen.memberCount} nodes inside ${Math.round(report.screen.parentDiameter)}px Disc · ${report.screen.overlapPairs} glyph overlaps · focus for full-field lens (${Math.round(Number(report.screen.lensStrength || 0) * 100)}%)`
       : report.screen && report.screen.mode === "focus"
-        ? `focused glyphs ${report.screen.initialOverlaps} overlaps → ${report.screen.remainingOverlaps} · ${report.screen.moved} pixel-shifted · min gap ${report.screen.minimumClearance === null || report.screen.minimumClearance === undefined ? "—" : Number(report.screen.minimumClearance).toFixed(1)}px`
+        ? `focused field · ${report.screen.rawOverlaps} glyph overlaps → ${report.screen.overlapPairs} after optical lens · ${Math.round(Number(report.screen.lensStrength || 0) * 100)}% lens · ${report.screen.moved} lens-shifted · min clearance ${report.screen.minimumClearance === null || report.screen.minimumClearance === undefined ? "—" : Number(report.screen.minimumClearance).toFixed(1)}px`
         : "screen layout not measured";
     const floor = report.spread > 0 ? ` · 3D model floor ${Math.round((report.minimum / LATTICE_RING_MODEL) * 100)}% of ring` : "";
     return `BERTH SEPARATION · ${spreadLabel} · ${model}${floor} · ${screen} · display geometry only`;
@@ -1568,6 +1494,8 @@
          so the arrangement it produces is idempotent. */
       separation: isRecord(preferences) && Number.isFinite(Number(preferences.separation))
         ? clamp(Number(preferences.separation), 0, 1) : BERTH_SEPARATION_DEFAULT,
+      opticalLens: isRecord(preferences) && Number.isFinite(Number(preferences.opticalLens))
+        ? clamp(Number(preferences.opticalLens), 0, 1) : OPTICAL_LENS_DEFAULT,
       berthReport: null,
       positionInspectorKey: "",
       positionInspectorAt: 0,
@@ -1855,7 +1783,9 @@
               <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
                 <label class="gi-orb2-range-row"><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
                 <label class="gi-orb2-range-row"><span>BERTH SPREAD</span><input data-gi-orb2-separation type="range" min="0" max="100" step="1" value="70" aria-describedby="gi-orb2-separation-note"><strong data-gi-orb2-separation-label>70%</strong></label>
-                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Berth spread re-slots crowded packet anchors by stable symbol phase without changing market inputs or measured radius. In the focused view, a final radius-aware pixel pass prevents orb bodies from overlapping and reports each screen-only nudge. 0% disables anchor re-slotting; pixel legibility corrections remain separate and visible in Position Trace. The wide overview intentionally compresses each Disc's sub-orbs into its parent footprint; focus a Disc to inspect full-size positions.</p>
+                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Berth spread re-slots crowded packet anchors by stable symbol phase without changing market inputs or measured radius. 0% disables anchor re-slotting. The wide overview intentionally compresses each Disc's sub-orbs into its parent footprint; focus a Disc to inspect the full-size field.</p>
+                <label class="gi-orb2-range-row"><span>GRAVITATIONAL LENS · OPTICAL</span><input data-gi-orb2-lens type="range" min="0" max="100" step="1" value="65" aria-describedby="gi-orb2-lens-note"><strong data-gi-orb2-lens-label>65%</strong></label>
+                <p class="gi-orb2-separation-note" id="gi-orb2-lens-note">A bounded, screen-only radial lens magnifies positions near the focused Disc's centre while keeping orb sizes unchanged. This is an optical display effect—not gravity or a force—and it changes no 3D placement, measured radius, or market input. Set to 0 for the unwarped projection. Compact overview remains compressed.</p>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
@@ -2012,6 +1942,8 @@
     const formationLabel = $("[data-gi-orb2-formation-label]");
     const separation = $("[data-gi-orb2-separation]");
     const separationLabel = $("[data-gi-orb2-separation-label]");
+    const opticalLens = $("[data-gi-orb2-lens]");
+    const opticalLensLabel = $("[data-gi-orb2-lens-label]");
     const orbTrack = $("[data-gi-orb2-orb-track]");
     const constellationNote = $("[data-gi-orb2-constellation-note]");
     const cryptoPairBar = $("[data-gi-orb2-crypto-pair-bar]");
@@ -2142,6 +2074,7 @@
         auto: state.auto,
         showDataBits: state.showDataBits,
         separation: state.separation,
+        opticalLens: state.opticalLens,
         beatType: state.beatType,
         focusSymbols: state.focusSymbols,
         cryptoPairFocus: state.cryptoPairFocus
@@ -2343,6 +2276,8 @@
       dataBitsToggle.checked = state.showDataBits;
       separation.value = String(Math.round(state.separation * 100));
       separationLabel.textContent = berthSpreadLabel(state.separation);
+      opticalLens.value = String(Math.round(state.opticalLens * 100));
+      opticalLensLabel.textContent = `${Math.round(state.opticalLens * 100)}%`;
     }
 
     function syncFocusOptions() {
@@ -2617,7 +2552,7 @@
         state.camPan && state.camPan.x, state.camPan && state.camPan.y];
       const cameraKey = camera.map(value => Number.isFinite(Number(value)) ? Math.round(Number(value) * 20) : 0).join(",");
       return [state.discId, state.selected, state.focusOrb ? "focus" : "compact",
-        state.projected.length, state.fieldAt, screen.mode || "none", cameraKey].join("|");
+        state.projected.length, state.fieldAt, screen.mode || "none", state.opticalLens, cameraKey].join("|");
     }
 
     function positionDiagnosticsMarkup(node) {
@@ -2688,7 +2623,7 @@
       const anchorClusterCause = anchorCluster
         ? ` · original minimum pair chord ${fixed(anchorCluster.minimumChord)} vs model floor ${fixed(report.minimum)}` : "";
       const anchorLine = `${anchor.clusterId ? `${escapeHtml(anchor.clusterId)} · ${anchor.clusterSize} original anchors · ${anchorMembersText}` : anchorMembersText}${anchorClusterCause} · before (${fixed(anchor.before && anchor.before.longitude, 3)}, ${fixed(anchor.before && anchor.before.latitude, 3)}, r ${fixed(anchor.before && anchor.before.radius)}) → resolved (${fixed(anchor.resolved && anchor.resolved.longitude, 3)}, ${fixed(anchor.resolved && anchor.resolved.latitude, 3)}, r ${fixed(anchor.resolved && anchor.resolved.radius)})`;
-      const screenGroups = screen.mode === "focus" ? screen.initialGroups || [] : screen.groups || [];
+      const screenGroups = screen.groups || [];
       const screenCluster = screenGroups.find(group => group.members && group.members.includes(point.identity));
       const screenMembers = screenCluster ? screenCluster.members : [];
       const screenMembersText = screenMembers.length
@@ -2708,17 +2643,18 @@
           clearance: distance - Number(onScreen.radius || 0) - Number(otherPosition.radius ?? other.collisionRadius ?? 0)
         };
       }
-      const pixelNudge = compactPosition
-        ? compactPosition.displacement
-        : (trace.screen.nudge || trace.screen.preCompressionNudge || { x: 0, y: 0, distance: 0 });
+      const lens = trace.screen && trace.screen.lens || null;
+      const pixelDelta = compactPosition
+        ? compactPosition.displacement || { x: 0, y: 0, distance: 0 }
+        : lens && lens.displacement || { x: 0, y: 0, distance: 0 };
       const pixelLabel = compactPosition
-        ? `compact projection · ${fixed(compactPosition.compression * 100, 1)}% of uncompressed offset · ${fixed(Math.hypot(pixelNudge.x, pixelNudge.y))}px layout compression`
-        : `screen-only correction · Δx ${signed(pixelNudge.x)}px · Δy ${signed(pixelNudge.y)}px · ${fixed(pixelNudge.distance)}px total`;
+        ? `compact overview compression · ${fixed(compactPosition.compression * 100, 1)}% of uncompressed offset · ${fixed(Math.hypot(pixelDelta.x, pixelDelta.y))}px · optical lens applies in Focus mode`
+        : `screen-space gravitational lens · ×${fixed(lens && lens.magnification || 1, 3)} magnification · Δx ${signed(pixelDelta.x)}px · Δy ${signed(pixelDelta.y)}px · ${fixed(pixelDelta.distance)}px total`;
       const screenSummary = screen.mode === "compact"
-        ? `COMPACT OVERVIEW · ${screen.memberCount || 0} sub-orbs compressed into a ${Math.round(screen.parentDiameter || 0)}px parent footprint · ${screen.overlapPairs || 0} visible glyph intersections. Focus the Disc to inspect full-size positions.`
+        ? `COMPACT OVERVIEW · ${screen.memberCount || 0} sub-orbs compressed into a ${Math.round(screen.parentDiameter || 0)}px parent footprint · ${screen.overlapPairs || 0} visible glyph intersections. Focus the Disc for full-size glyphs and the optical lens.`
         : screen.mode === "focus"
-          ? `FOCUSED FIELD · ${screen.initialOverlaps || 0} body overlaps before correction · ${screen.remainingOverlaps || 0} unresolved · ${screen.moved || 0} nodes moved in screen pixels only · min body clearance ${fixed(screen.minimumClearance)}px.`
-          : "Pixel-space layout has not been measured yet.";
+          ? `FOCUSED FIELD · ${screen.rawOverlaps || 0} glyph intersections before lens → ${screen.overlapPairs || 0} after lens · ${screen.moved || 0} projected positions refracted · up to ×${fixed(screen.maxMagnification || 1, 3)} · min glyph clearance ${fixed(screen.minimumClearance)}px.`
+          : "Screen projection has not been measured yet.";
       const tablePoints = [...state.projected].sort((left, right) =>
         (Number(right.packetRadius) || 0) - (Number(left.packetRadius) || 0)
         || String(left.identity).localeCompare(String(right.identity)));
@@ -2727,7 +2663,7 @@
         const itemFbb = itemTrace.stockFbb || {};
         const itemPixel = item.compactPosition
           ? item.compactPosition.displacement
-          : itemTrace.screen && (itemTrace.screen.nudge || itemTrace.screen.preCompressionNudge) || { x: 0, y: 0, distance: 0 };
+          : itemTrace.screen && itemTrace.screen.lens && itemTrace.screen.lens.displacement || { x: 0, y: 0, distance: 0 };
         const itemNearest = (() => {
           let best = null;
           const here = item.compactPosition || item;
@@ -2743,7 +2679,7 @@
           ? `B${fixed(item.marketPlacement.topology.bandIndex, 0)}·${fixed(item.marketPlacement.topology.bandFraction, 2)}` : "held";
         const itemCluster = item.positionTrace && item.positionTrace.berth && item.positionTrace.berth.clusterId
           ? item.positionTrace.berth.clusterId : "—";
-        const itemScreenGroup = (screen.mode === "focus" ? screen.initialGroups || [] : screen.groups || [])
+        const itemScreenGroup = (screen.groups || [])
           .find(group => group.members && group.members.includes(item.identity));
         const selectedClass = item.node && item.node.order === node.order ? " is-selected" : "";
         return `<tr class="${selectedClass.trim()}" data-symbol="${escapeHtml(item.identity)}">
@@ -2768,12 +2704,12 @@
           <div><dt>Stable packet anchor / cluster</dt><dd>${anchorLine} · re-slot Δlongitude ${signed(anchor.shift && anchor.shift.longitude, 3)} rad / Δlatitude ${signed(anchor.shift && anchor.shift.latitude, 3)} rad; measured radius unchanged.</dd></div>
           <div><dt>Topology, form + camera</dt><dd>axes ${fixed(rawTopology.axes && rawTopology.axes.x, 3)} / ${fixed(rawTopology.axes && rawTopology.axes.y, 3)} / ${fixed(rawTopology.axes && rawTopology.axes.z, 3)} · topology rotation ${signed(rawTopology.rotation, 3)} rad · form blend ${fixed(formationTrace.blend)} (sphere mix ${fixed(formationTrace.sphereMix)}) · camera yaw/pitch ${signed(cameraTrace.yaw, 3)} / ${signed(cameraTrace.pitch, 3)} · zoom ${fixed(cameraTrace.zoom)} × ${fixed(cameraTrace.camZoom)}.</dd></div>
           <div><dt>After topology, motion + 3D settle</dt><dd>${escapeHtml(displayLine)} · final local XYZ ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.x)}, ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.y)}, ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.z)} · 3D settle ${fixed(trace.drawn && trace.drawn.floorCorrection && trace.drawn.floorCorrection.distance)} model units.</dd></div>
-          <div><dt>Screen placement / nearest visible neighbor</dt><dd>${pixelLabel} · final XY ${fixed(onScreen.x, 1)}, ${fixed(onScreen.y, 1)}px · camera depth ${fixed(trace.screen && trace.screen.z, 3)}, perspective scale ${fixed(trace.screen && trace.screen.scale, 3)} · nearest ${nearest ? `${escapeHtml(nearest.identity)} at ${fixed(nearest.distance, 1)}px center / ${signed(nearest.clearance, 1)}px body clearance` : "none"}.</dd></div>
-          <div><dt>Original screen overlap group</dt><dd>${screenMembersText}</dd></div>
+          <div><dt>Screen placement / nearest visible neighbor</dt><dd>${pixelLabel} · source XY ${fixed(trace.screen && trace.screen.rawX, 1)}, ${fixed(trace.screen && trace.screen.rawY, 1)}px → displayed XY ${fixed(onScreen.x, 1)}, ${fixed(onScreen.y, 1)}px · camera depth ${fixed(trace.screen && trace.screen.z, 3)}, perspective scale ${fixed(trace.screen && trace.screen.scale, 3)} · nearest ${nearest ? `${escapeHtml(nearest.identity)} at ${fixed(nearest.distance, 1)}px center / ${signed(nearest.clearance, 1)}px glyph clearance` : "none"}.</dd></div>
+          <div><dt>Visible screen overlap group</dt><dd>${screenMembersText}</dd></div>
         </dl>
         <details class="gi-orb2-position-table"><summary>ALL ${tablePoints.length} PLACEMENTS · sorted by raw packet radius</summary>
-          <p class="gi-orb2-position-table-note">Each row links to its node inspector. Raw radius and final display radius are separate; pixel movement never rewrites either.</p>
-          <div class="gi-orb2-position-table-wrap"><table><thead><tr><th>Symbol</th><th>Raw r</th><th>Δ median</th><th>Band</th><th>FBB in</th><th>Final r</th><th>Pixel Δ</th><th>Nearest</th><th>Screen group</th><th>Anchor group</th></tr></thead><tbody>${tableRows}</tbody></table></div>
+          <p class="gi-orb2-position-table-note">Each row links to its node inspector. Raw radius and final display radius are separate; optical lensing changes screen projection only.</p>
+          <div class="gi-orb2-position-table-wrap"><table><thead><tr><th>Symbol</th><th>Raw r</th><th>Δ median</th><th>Band</th><th>FBB in</th><th>Final r</th><th>Screen Δ</th><th>Nearest</th><th>Screen group</th><th>Anchor group</th></tr></thead><tbody>${tableRows}</tbody></table></div>
         </details>
       </section>`;
     }
@@ -3025,8 +2961,9 @@
       const screen = report.screen || {};
       const mode = screen.mode || "unmeasured";
       const key = [report.spread, report.crowded, report.berths, report.moved, mode,
-        screen.memberCount, screen.overlapPairs, screen.initialOverlaps,
-        screen.remainingOverlaps, Number(screen.minimumClearance || 0).toFixed(1)].join("|");
+        screen.memberCount, screen.rawOverlaps, screen.overlapPairs, screen.nearPairs,
+        screen.lensStrength, screen.maxMagnification, screen.moved,
+        Number(screen.minimumClearance || 0).toFixed(1)].join("|");
       const fieldChanged = Number(report.fieldAt || 0) !== Number(state.positionSummaryFieldAt || 0);
       const modeChanged = mode !== state.positionSummaryMode;
       const now = Date.now();
@@ -4207,23 +4144,64 @@
           displayRadius,
           displayRadiusDelta: report.displayRadius.median === null ? null : displayRadius - report.displayRadius.median,
           collisionRadius: 0,
-          screenNudge: { x: 0, y: 0, distance: 0 }
+          screenLens: null
         };
       });
+      projected.forEach(point => { point.collisionRadius = visualOrbCollisionRadius(point, width, height); });
+      const sourceBody = screenCollisionSummary(projected, 0);
+      const sourceNear = screenCollisionSummary(projected, 2);
+      const screenCenter = project(origin, width, height);
+      const lensRadius = Math.max(24, Math.min(width, height) * 0.24);
+      let lensMoved = 0;
+      let maxLensDisplacement = 0;
+      let maxMagnification = 1;
+      projected.forEach(point => {
+        const rawX = point.x;
+        const rawY = point.y;
+        const lens = state.focusOrb
+          ? radialLensProjection(point, screenCenter, state.opticalLens, lensRadius)
+          : { x: rawX, y: rawY, magnification: 1, strength: 0, radius: lensRadius, displacement: { x: 0, y: 0, distance: 0 } };
+        point.x = lens.x;
+        point.y = lens.y;
+        point.screenLens = lens;
+        if (lens.displacement.distance > 0.01) lensMoved += 1;
+        maxLensDisplacement = Math.max(maxLensDisplacement, lens.displacement.distance);
+        maxMagnification = Math.max(maxMagnification, lens.magnification);
+        point.positionTrace.screen = {
+          ...point.positionTrace.screen,
+          rawX, rawY, x: point.x, y: point.y,
+          lens: { ...lens, center: { ...screenCenter } },
+          collisionRadius: point.collisionRadius
+        };
+      });
+      const lensedBody = screenCollisionSummary(projected, 0);
+      const lensedNear = screenCollisionSummary(projected, 2);
       if (state.focusOrb) {
-        projected.forEach(point => { point.collisionRadius = visualOrbCollisionRadius(point, width, height); });
-        report.screen = resolveScreenGlyphCollisions(projected, { gap: 2, maxPasses: 48 });
-        projected.forEach(point => {
-          point.positionTrace.screen = {
-            ...point.positionTrace.screen,
-            x: point.x, y: point.y,
-            nudge: point.screenNudge,
-            collisionRadius: point.collisionRadius
-          };
-        });
+        report.screen = {
+          mode: "focus",
+          lensStrength: state.opticalLens,
+          lensRadius,
+          center: { ...screenCenter },
+          rawOverlaps: sourceBody.overlapPairs,
+          overlapPairs: lensedBody.overlapPairs,
+          rawNearPairs: sourceNear.overlapPairs,
+          nearPairs: lensedNear.overlapPairs,
+          rawMinimumClearance: sourceBody.minimumClearance,
+          minimumClearance: lensedBody.minimumClearance,
+          rawGroups: sourceBody.groups,
+          groups: lensedBody.groups,
+          crowded: lensedBody.crowded,
+          moved: lensMoved,
+          maxDisplacement: maxLensDisplacement,
+          maxMagnification,
+          closest: lensedBody.closest
+        };
       } else {
-        const preCompression = resolveScreenGlyphCollisions(projected, { gap: 4.2, maxPasses: 96 });
-        report.preCompressionScreen = preCompression;
+        report.preCompressionScreen = {
+          ...sourceBody,
+          nearPairs: sourceNear.overlapPairs,
+          lensRadius
+        };
         report.screen = {
           mode: "compact",
           memberCount: placements.length,
@@ -4231,15 +4209,8 @@
           overlapPairs: 0,
           crowded: 0,
           groups: [],
-          preCompression
+          preCompression: report.preCompressionScreen
         };
-        projected.forEach(point => {
-          point.positionTrace.screen = {
-            ...point.positionTrace.screen,
-            x: point.x, y: point.y,
-            preCompressionNudge: point.screenNudge
-          };
-        });
       }
       report.viewMode = state.focusOrb ? "focus" : "compact";
       return { points: projected, report, placements };
@@ -4437,17 +4408,20 @@
         context2d.stroke();
         context2d.restore();
         if (report && report.discId === discId) {
-          const compactSummary = screenCollisionSummary(compactPoints, 0.45);
+          const compactSummary = screenCollisionSummary(compactPoints, 0);
+          const compactNear = screenCollisionSummary(compactPoints, 0.45);
           report.viewMode = "compact";
           report.screen = {
             mode: "compact",
             memberCount: list.length,
             parentDiameter: (usableRadius + 1.2) * 2,
             overlapPairs: compactSummary.overlapPairs,
+            nearPairs: compactNear.overlapPairs,
             crowded: compactSummary.crowded,
             minimumClearance: compactSummary.minimumClearance,
             closest: compactSummary.closest,
             groups: compactSummary.groups,
+            lensStrength: state.opticalLens,
             preCompression: report.preCompressionScreen || null
           };
           state.berthReport = report;
@@ -5767,7 +5741,8 @@
       let winner = -1;
       let distance = Infinity;
       for (const point of state.projected) {
-        const d = Math.hypot(point.x - x, point.y - y);
+        const position = point.compactPosition || point;
+        const d = Math.hypot(position.x - x, position.y - y);
         if (d < distance && d < 18) { winner = point.node.order; distance = d; }
       }
       return winner;
@@ -5867,6 +5842,14 @@
       scheduleRender();
       drawStatus();
     });
+    opticalLens.addEventListener("input", () => {
+      state.opticalLens = clamp(Number(opticalLens.value) / 100, 0, 1);
+      opticalLensLabel.textContent = `${Math.round(state.opticalLens * 100)}%`;
+      state.berthReport = null;
+      persistLocal();
+      scheduleRender();
+      drawStatus();
+    });
     rotateToggle.addEventListener("change", () => { state.autoRotate = !!rotateToggle.checked; scheduleRender(); });
     labelsToggle.addEventListener("change", () => { state.labels = !!labelsToggle.checked; scheduleRender(); });
     pathsToggle.addEventListener("change", () => scheduleRender());
@@ -5880,9 +5863,12 @@
     resetButton.addEventListener("click", () => {
       state.yaw = -0.68; state.pitch = 0.32; state.zoom = 1; state.formation = 1;
       state.separation = BERTH_SEPARATION_DEFAULT;
+      state.opticalLens = OPTICAL_LENS_DEFAULT;
       formation.value = "100"; formationLabel.textContent = "SPHERE";
       separation.value = String(Math.round(BERTH_SEPARATION_DEFAULT * 100));
       separationLabel.textContent = berthSpreadLabel(BERTH_SEPARATION_DEFAULT);
+      opticalLens.value = String(Math.round(OPTICAL_LENS_DEFAULT * 100));
+      opticalLensLabel.textContent = `${Math.round(OPTICAL_LENS_DEFAULT * 100)}%`;
       state.route = null; state.lastRoutePhase = "";
       state.berthReport = null;
       persistLocal();
@@ -6186,13 +6172,13 @@
     MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
-    BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, LATTICE_RING_MODEL,
+    BERTH_MIN_GAP_MODEL, BERTH_SEPARATION_DEFAULT, OPTICAL_LENS_DEFAULT, LATTICE_RING_MODEL,
     SHELL_RING_LATITUDES, SHELL_BAND_LATITUDES, SHELL_SHADE_PALETTE, SHELL_SHADE, createShellShadeGradient,
     CONSTELLATION_ORBIT_MODEL, CONSTELLATION_ZOOM, CONSTELLATION_WIDE_ZOOM,
     WAVE_EXTENSION_PUSH, marketExtensionState,
     fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
-    resolveBerthSeparation, screenCollisionSummary, resolveScreenGlyphCollisions,
+    resolveBerthSeparation, screenCollisionSummary, radialLensProjection,
     berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout, discOrbColor, createDiscOrbGradient,
     buildNodes, marketStageFor, marketRacePosition, buildMarketRaceSnapshot, mount, getSavedBeatSessionId
