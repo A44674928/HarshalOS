@@ -48,7 +48,7 @@ ws.freeze_panes = "A2"
 
 # Title
 ws.merge_cells("A1:H1")
-c = ws.cell(row=1, column=1, value="APN 30055004 — BUSINESS PLAN ASSUMPTIONS & PRO FORMA INPUTS | Single-Parcel Isolated | Kendrick Park Bench 7,883-7,915′ | 26mi N of Flagstaff")
+c = ws.cell(row=1, column=1, value="APN 30055004 — BUSINESS PLAN ASSUMPTIONS & PRO FORMA INPUTS | Single-Parcel Isolated + AI Frontier Lab | Kendrick Park Bench 7,877-7,895′ | 26mi N of Flagstaff")
 c.font = Font(name="Calibri", size=12, bold=True, color="E8EDF5")
 c.fill = PatternFill(start_color=INK, end_color=INK, fill_type="solid")
 c.alignment = Alignment(horizontal="center", vertical="center")
@@ -110,6 +110,14 @@ rows = [
     ("Clean nightly", 160, "$/turn", "", 140, 160, 180, "110 turns/yr for C if nightly — hybrid is ~40 turns"),
     ("Mgmt (if remote)", 0.18, "%", "Flagstaff PM", 0.15, 0.18, 0.22, "Self-manage B, 18% if remote for C"),
     ("", "", "", "", "", "", "", ""),
+    ("AI FRONTIER LAB (live/work)", "", "", "AI_FRONTIER_LAB.md", "", "", "", ""),
+    ("Lab IT load Phase A / B", "20/50", "kW", "Systems sheet", 20, "20/50", 50, "PUE 1.18, elastic schedule-to-sun, 60 kW N+1 gen ATS <10s"),
+    ("Lab shell infra capex", 430000, "$", "Systems sheet (c)", 400000, 430000, 480000, "Phase A $240k Y2 + Phase B $190k Y4 — property LLC, OUTSIDE $320k loan"),
+    ("GPU equipment (Lab LLC)", 325000, "$", "Lab LLC balance sheet", 250000, 325000, 400000, "2x 8-GPU nodes — movable, financed separately, never on property"),
+    ("Lab seats x seat rate", "2 x 1500", "$/mo", "Remote colo comps", "1x1200", "2x1500", "2x1800", "desk+power+cooling+10GbE, 60% avg occupancy"),
+    ("Eval retreats", 6, "/yr", "Design", 3, 6, 9, "3-day lab access @ $3,500 @ 85% — lodging billed on lodging lines"),
+    ("Lab opex (annual)", 11000, "$/yr", "Design", 9000, 11000, 14000, "gen fuel + adiabatic water + maint + equipment ins rider"),
+    ("", "", "", "", "", "", "", ""),
     ("FINANCING", "", "", "", "", "", "", ""),
     ("Construction loan", 320000, "$", "Pioneer/NB-AZ/USDA", 280000, 320000, 380000, "ADU-first phasing, 15% remote contingency included"),
     ("Rate", 0.075, "%", "2026 const", 0.068, 0.075, 0.085, "30yr perm after CO"),
@@ -118,9 +126,9 @@ rows = [
 
 row = 3
 for r in rows:
-    ws.cell(row=row, column=1, value=r[0]).font = Font(name="Calibri", size=9, bold=("PARCEL" in str(r[0]) or "PRODUCT" in str(r[0]) or "RENTS" in str(r[0]) or "OPS" in str(r[0]) or "FINANCING" in str(r[0])), color=INK if r[0] else MUTE)
+    ws.cell(row=row, column=1, value=r[0]).font = Font(name="Calibri", size=9, bold=("PARCEL" in str(r[0]) or "PRODUCT" in str(r[0]) or "RENTS" in str(r[0]) or "OPS" in str(r[0]) or "AI FRONTIER LAB" in str(r[0]) or "FINANCING" in str(r[0])), color=INK if r[0] else MUTE)
     ws.cell(row=row, column=1).alignment = Alignment(horizontal="left", vertical="center")
-    ws.cell(row=row, column=1).fill = PatternFill(start_color="E8EDF5", end_color="E8EDF5", fill_type="solid") if r[0] in ["PARCEL","PRODUCT","RENTS (2026 Flagstaff comps)","OPS (annual)","FINANCING"] else PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    ws.cell(row=row, column=1).fill = PatternFill(start_color="E8EDF5", end_color="E8EDF5", fill_type="solid") if r[0] in ["PARCEL","PRODUCT","RENTS (2026 Flagstaff comps)","OPS (annual)","AI FRONTIER LAB (live/work)","FINANCING"] else PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
     for c, v in enumerate([r[1], r[2], r[3], r[4], r[5], r[6], r[7]], start=2):
         cell = ws.cell(row=row, column=c, value=v)
         cell.font = Font(name="Calibri", size=9, color=INK if v!="" else MUTE)
@@ -151,7 +159,7 @@ ws2.page_setup.paperSize = ws2.PAPERSIZE_TABLOID
 
 # Title
 ws2.merge_cells("A1:H1")
-c = ws2.cell(row=1, column=1, value="APN 30055004 — 5-YEAR PRO FORMA (SINGLE-PARCEL ISOLATED) | Kendrick Park 6mi Forest | ADR $375 @ 58% for nightly, $3,600/mo @ 85% for mid-term | All figures pre-tax")
+c = ws2.cell(row=1, column=1, value="APN 30055004 — 5-YEAR PRO FORMA (SINGLE-PARCEL ISOLATED + AI FRONTIER LAB) | ADR $375 @ 58% nightly, $3,600/mo @ 85% mid-term, Lab +$29k NOI Y4 | All figures pre-tax")
 c.font = Font(name="Calibri", size=11, bold=True, color="E8EDF5")
 c.fill = PatternFill(start_color=INK, end_color=INK, fill_type="solid")
 c.alignment = Alignment(horizontal="center", vertical="center")
@@ -201,11 +209,19 @@ pf_rows = [
     ("CASH FLOW AFTER DEBT", -17424, -19140, -2325, -4866, 15870, 17439, "NOI - debt"),
     ("Cumulative cash flow", -17424, -36564, -38889, -43755, -27885, -10446, "Payback ~Year 6, earlier with boarding upside"),
     ("CAP RATE (NOI / $420k all-in cost)", -0.009, 0.018, 0.058, 0.052, 0.102, 0.106, "420k = land $85k + site $70k + ADU $90k + Lodge $155k + 15% cont"),
+    ("AI FRONTIER LAB (INCREMENTAL — Property LLC shell services)", "", "", "", "", "", "", ""),
+    ("Lab seats 2 x $1,500/mo @ 60% avg", 0, 0, 10800, 21600, 22032, 22472, "Phase A complete Y2; arm's-length License & Services Agreement"),
+    ("Eval retreats 3->6 x $3,500 @ 85%", 0, 0, 8925, 17850, 18207, 18571, "Fees only — lodging nights stay on lodging lines (no double count)"),
+    ("Lab GPR", 0, 0, 19725, 39450, 40239, 41044, "Sum"),
+    ("Lab OpEx (fuel, cooling water, maint, ins rider)", 0, 0, -8500, -11000, -11220, -11444, "Elastic schedule drops gen share first if fuel spikes"),
+    ("LAB NOI (incremental)", 0, 0, 11225, 28450, 29019, 29600, "GPU capex/depreciation sits on Lab LLC — deliberately not here"),
+    ("COMBINED NOI (property + lab)", -3984, 7740, 35780, 50464, 71769, 73919, "Property rows above untouched; lab rows additive/removable"),
+    ("COMBINED CAP RATE ($850k all-in)", -0.005, 0.009, 0.042, 0.059, 0.084, 0.087, "$420k property + $430k lab shell; lab infra NOT in construction loan"),
 ]
 
 row = 4
 for r in pf_rows:
-    is_section = r[0] in ["INCOME","OPERATING EXPENSES","DEBT SERVICE"]
+    is_section = r[0] in ["INCOME","OPERATING EXPENSES","DEBT SERVICE","AI FRONTIER LAB (INCREMENTAL — Property LLC shell services)"]
     ws2.cell(row=row, column=1, value=r[0]).font = Font(name="Calibri", size=9, bold=is_section, color="E8EDF5" if is_section else INK)
     ws2.cell(row=row, column=1).fill = PatternFill(start_color=INK if is_section else ("E8EDF5" if is_section==False and "NOI" in r[0] or "CASH" in r[0] else "FFFFFF"), end_color=INK if is_section else ("E8EDF5" if is_section==False and "NOI" in r[0] or "CASH" in r[0] else "FFFFFF"), fill_type="solid")
     ws2.cell(row=row, column=1).alignment = Alignment(horizontal="left", vertical="center")
@@ -244,7 +260,7 @@ for r in pf_rows:
 
 # Footer
 ws2.merge_cells(f"A{row}:H{row}")
-ws2.cell(row=row, column=1, value="SENSITIVITY: -10% ADR/occ → Year 3 CF +$8,900; +$1,500 plow → -$1,500; Well yield 3 gpm + $7k cistern already in capex. D (8-yurt CUP) NOT modeled — show as Phase 2 contingent: +$55k NOI but $280k capex + 40% denial risk at 6mi forest. Single-parcel isolated: no second-parcel debt/easement/tax cross-default. Confirm all with Coconino County + PE/RLS + CPA.").font = Font(name="Calibri", size=7, italic=True, color=MUTE)
+ws2.cell(row=row, column=1, value="SENSITIVITY: -10% ADR/occ → Y3 CF +$8,900; lab demand 0 → Phase B deferred, property stands alone. LAB rules: retreat lodging stays on lodging lines; Phase B $190k gated on signed anchor; GPU equipment on Lab LLC; combined Y4 NOI $71.8k / $850k = 8.4% cap. D (8-yurt CUP) NOT modeled — contingent: +$55k NOI, $280k capex, 40% denial risk. Single-parcel isolated: no cross-default. Confirm with Coconino County + PE/RLS + CPA.").font = Font(name="Calibri", size=7, italic=True, color=MUTE)
 ws2.cell(row=row, column=1).alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 ws2.row_dimensions[row].height = 26
 
@@ -283,6 +299,7 @@ sens = [
     ("Interest rate", "8.5%", "7.5%", "6.8%", "-$2,900 / +$1,800", "Lock after CO1, refi perm Year 3"),
     ("Vacancy (blended)", "15%", "10%", "5%", "-$2,800 / +$2,800", "B model less vacancy than nightly"),
     ("Barn boarding", "0 stalls", "2 stalls @ $400", "3 stalls @ $500", "-$9,600 / +$8,400", "AR-5 ag by-right, verify County boarding threshold"),
+    ("Lab demand (seats+retreats)", "0 — defer Phase B", "$39.5k GPR", "3rd seat + 9 retreats", "-$28k / +$16k", "Gate Phase B capex on signed anchor; property stands alone at $43k NOI"),
 ]
 r=3
 for s in sens:

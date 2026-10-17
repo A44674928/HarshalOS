@@ -116,6 +116,8 @@
 
 **Sensitivity:** -10% ADR still break-even Y2; +$1,500 plow surprise = -$1,500 CF; 6BR septic cert = 12 people = +$4k mid-term premium if marketed as 8-10.
 
+**AI Frontier Lab (incremental, lab block in XLSX):** Lab seats 2 × $1,500/mo @ 60% + eval retreats 6 × $3,500 @ 85% → **+$28.5k NOI Y3+, +$29k Y4** on lab rows only; combined NOI Y4 **$71.8k** on $850k all-in = **8.4% cap**. Lab infrastructure capex $430k (Phase A $240k Y2 + Phase B $190k Y4, gated on signed anchor demand) sits on the property LLC but is *never* in the $320k construction loan or its debt service; GPU equipment (~$250–400k) lives on the Lab LLC balance sheet. Retreat lodging nights bill on lodging lines — no double-counting.
+
 **Capex:** Land [FILL: basis] + Site/infra $70k (well $32k + cistern $7k + power $42k + fire $9k — overlap) + ADU+Shop $165k + Lodge $155k + 15% contingency = $[FILL: $380k-520k remote premium included].
 
 ---
@@ -147,6 +149,8 @@
 | Coconino requires 2nd egress >12 | Low | High | Keep to 10-12 max; 2nd egress via pasture gate on same parcel (not across lot line) |
 | Neighbor complaint → STR enforcement | Med | High | One STR while owner-occupied = by-right; House Rules, parking plan, septic cert in license packet |
 | Radon >4 pCi/L (Kendrick volcanic) | Med | Low | $1.2k passive riser under slab now, test after CO, active later $900 |
+| Lab demand misses (seats/retreats) | Med | Med — +$0 NOI, sunk Phase B | Phase B capex **gated** on signed anchor; property model stands alone at $42.7k NOI; lab shell rough-in only in Phase 1 |
+| Starlink/uplink limits big training | Med | Low — workload fit | Evals/inference/agents are latency-tolerant; checkpoint sync over Starlink+LTE; full-scale training = scheduled off-site (stated in marketing) |
 
 ---
 
@@ -157,16 +161,31 @@
 2027 Q2-Q3: Site infra (well/cistern/fire/septic/swale/drive) + ADU+Shop build → CO #1, occupy
 2027 Q4: Move to Lodge design, log winter access, first mid-term guest in ADU
 2028 Q2-Q4: Lodge build → CO #2 → B+C hybrid income
-2029+: Stabilized NOI $39k, refi to perm, optional 4-yurt family compound (not CUP)
+2029+: Stabilized NOI $43k (lab +$29k → $72k combined), refi to perm, optional growth: 4-yurt CUP / lab Phase B 50 kW
 ```
 
 ---
 
-### 12. APPENDICES
+### 12. AI FRONTIER LAB (Live/Work Flagship) — see `AI_FRONTIER_LAB.md`
+**One-paragraph thesis:** the same islanded microgrid that makes the lodging work (75 kW PV, 240 kWh BESS, 60 kW N+1 gen, Starlink) is exactly the infrastructure a frontier-compute site needs, and the Shop is already in Phase 1 — so the lab is a *cheap option*, not a new project.
+
+| Element | Decision |
+|---|---|
+| Physical | Shop 1,500 SF → hardened lab: Phase A 20 kW IT (Y2, ~$240k shell infra) → Phase B 50 kW ready (Y4, ~$190k, **gated on signed demand**) |
+| Entity | **Kendrick Frontier Lab LLC** (movable equipment, its own debt) ≠ Property LLC (land + shell) — 10-yr License & Services Agreement, arm's-length rates |
+| Zoning | AR-5 **home occupation by-right** (own workloads, no signage/traffic); CUP only if colo/on-site customers later (Y5+ option list) |
+| Income | Seats 2 × $1,500/mo @ 60% + retreats 6 × $3,500 @ 85% → **+$28.5k NOI Y3**; combined Y4 NOI **$71.8k / 8.4% cap** |
+| Systems | PUE 1.18 liquid cooling, free cooling ~70% hrs @ 7,887′; 55 dBA @ line; elastic schedule-to-sun keeps gen off; IFC 504 fuel containment |
+| Risk | Demand → Phase B gated; uplink → Starlink+LTE, latency-tolerant workloads; property model stands alone without any lab revenue |
+
+---
+
+### 13. APPENDICES
 * A. C-101 Figs 1-7 (LiDAR heatmap, slope, hillshade, sections, 3D, optimized comparison, disturbance envelope)
 * B. APN 30055004 1-m DEM GeoTIFF + 1'/2' DXF/SHP/GeoJSON (terrain_real/)
 * C. Soil evaluator report + well log + RMA + plow contract + County pre-app minutes
-* D. Pro forma XLSX + sensitivity
+* D. Pro forma XLSX + sensitivity (incl. LAB block)
+* E. AI Frontier Lab systems sheet + License & Services Agreement template (AI_FRONTIER_LAB.md)
 
 ---
 

@@ -54,12 +54,17 @@ Fire: 10k-gal buried cistern, 4.5″ NH hydrant, 20′ drive, 92′ turnaround.
 Drainage: NW interceptor 1.9% → SE vernal-pool retention, zero culvert.
 Dark sky: B0-L0-U0, 2700K fully shielded, <25k lumens/acre.
 
+## Addendum — AI Frontier Lab (live/work flagship, decided 2026-10-17)
+
+The Shop is now the **AI FRONTIER LAB** (Sheet 1 v2, indigo): 1,500 SF hardened shell, Phase A 20 kW IT (Y2) → Phase B 50 kW ready (Y4, gated on signed demand). Power/cooling/network spec and 24-h energy balance in `AI_FRONTIER_LAB_SHEET.png`. Entity split: **Property LLC** owns land + shell + microgrid; **Kendrick Frontier Lab LLC** owns movable GPU equipment — 10-yr License & Services Agreement, AR-5 home-occupation by-right, CUP only if colo comes later. Economics: +$28.5k NOI Y3 / +$29k Y4 on lab rows only → combined Y4 **$71.8k NOI / 8.4% cap on $850k**. Phase B capex is optional — the property model stands alone. Full plan: `docs/AI_FRONTIER_LAB.md`.
+
 ## Files
 
 - `CLEAN_SHEET_PLAN.png` — dimensioned site plan on corrected 2′ contours
 - `PHASING_INCOME_FIRST.png` — 3-phase build diagram
 - `SYSTEMS_OFF_GRID.png` — six-system summary
+- `AI_FRONTIER_LAB_SHEET.png` — lab power path, energy balance, shell spec (v2 addendum)
 
-Regenerate with `python scripts/generate_clean_sheet_plan.py`.
+Regenerate with `python scripts/generate_clean_sheet_plan.py` (plan is v2 — includes the lab).
 
 **Next steps:** ALTA/NSPS boundary by AZ RLS → well point (ADWR) → perc test + engineered septic → building permit (Coconino Bldg & Safety) → Phase 1 vertical. Figs 04–05 in `terrain/` still pending full regeneration at corrected elevation; synthetic DEM in `terrain_real/` should be replaced per its README with a manual USGS TNM download.

@@ -11,6 +11,7 @@ Layout rules:
 """
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['text.parse_math'] = False
 from matplotlib.patches import Rectangle, Circle, FancyBboxPatch
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.ndimage import gaussian_filter
@@ -148,7 +149,8 @@ ax.add_patch(Rectangle((185, 374), 56, 10, facecolor='white', edgecolor='#4b5563
 ax.text(213, 379, "N ENTRY PORCH", ha='center', fontsize=4.5, color='#4b5563', weight='bold')
 # BESS east of lodge
 ax.add_patch(Rectangle((302, 350), 18, 12, facecolor='white', edgecolor='#4b5563', linewidth=0.8))
-ax.text(311, 356, "BESS", ha='center', fontsize=4, weight='bold', color='#1f2937')
+ax.text(311, 356, "BESS\n80→240", ha='center', va='center', fontsize=3.6, weight='bold',
+        color='#1f2937', linespacing=0.9)
 
 # --- ADU Phase 1 income ---
 ax.add_patch(FancyBboxPatch((66, 280), 66, 36, boxstyle="round,pad=2",
@@ -163,10 +165,18 @@ ax.text(99, 276, "patio", ha='center', fontsize=4, color='#78350f', style='itali
 
 # --- SHOP / GYM ---
 ax.add_patch(FancyBboxPatch((138, 280), 60, 36, boxstyle="round,pad=2",
-                            facecolor='#6b7280', edgecolor='#374151', linewidth=1.2))
-ax.text(168, 302, "SHOP / GYM", ha='center', fontsize=6, weight='bold', color='white')
-ax.text(168, 293, "1,500 SF • flex studio", ha='center', fontsize=4.8, color='#e5e7eb')
-ax.text(168, 285, "future rental", ha='center', fontsize=4, color='#fbbf24', style='italic')
+                            facecolor='#312e81', edgecolor='#1e1b4b', linewidth=1.3))
+ax.add_patch(Rectangle((142, 284), 52, 5, facecolor='#93c5fd', edgecolor='#4338ca', linewidth=0.7, alpha=0.5))
+ax.text(168, 302, "AI FRONTIER LAB", ha='center', fontsize=6, weight='bold', color='white')
+ax.text(168, 294, "1,500 SF • 20 kW IT", ha='center', fontsize=4.8, color='#e0e7ff')
+ax.text(168, 287, "→ 50 kW ready • Phase A", ha='center', fontsize=4, color='#a5b4fc', style='italic')
+# Liquid-cooling dry coolers on lab east wall (clear of swale)
+ax.add_patch(Rectangle((199, 292), 7, 8, facecolor='#bfdbfe', edgecolor='#1d4ed8', linewidth=0.9))
+ax.add_patch(Rectangle((199, 303), 7, 8, facecolor='#bfdbfe', edgecolor='#1d4ed8', linewidth=0.9))
+ax.text(212, 299, "DC", ha='left', va='center', fontsize=4, weight='bold', color='#1d4ed8')
+ax.text(168, 275.5, "PHASE-1 LAB • liquid cooling • 55 dBA", ha='center', fontsize=4.2,
+        color='#312e81', weight='bold',
+        bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.95, edgecolor='#312e81'))
 
 # --- BARN ---
 ax.add_patch(FancyBboxPatch((68, 188), 118, 40, boxstyle="round,pad=2",
@@ -182,8 +192,13 @@ ax.text(127, 194, "board 2 stalls @ $400/mo", ha='center', fontsize=4.5,
 ax.add_patch(Rectangle((76, 178), 44, 9, facecolor='#fef08a', edgecolor='#a16207', linewidth=0.9, alpha=0.85))
 for i in range(5):
     ax.plot([80 + i * 8, 80 + i * 8], [178, 187], color='#a16207', linewidth=0.8)
-ax.text(98, 173, "25kW PV • 48″ snow • 30° tilt", ha='center', fontsize=4.5,
+ax.text(102, 173, "PV 25→75 kW (roof) • 48″ snow", ha='center', fontsize=4.5,
         color='#713f12', weight='bold')
+
+# Gen upgrade (60 kW pair) beside PV
+ax.add_patch(Rectangle((126, 178), 22, 9, facecolor='#e5e7eb', edgecolor='#4b5563', linewidth=0.9))
+ax.text(137, 182.5, "GEN", ha='center', va='center', fontsize=4, weight='bold', color='#1f2937')
+ax.text(137, 173, "30→60 kW", ha='center', fontsize=4, color='#374151', weight='bold')
 
 # --- PASTURE ---
 ax.add_patch(Rectangle((68, 90), 122, 80, facecolor='#86ab86', edgecolor='#4a7c4e',
@@ -209,6 +224,11 @@ for oy in np.linspace(120, 205, 7):
                 markeredgecolor='white', markeredgewidth=0.4)
 ax.text(246, 162, "ORCHARD 1.5 AC", ha='center', fontsize=5, weight='bold',
         color='#1a3c1a', rotation=90)
+
+# Starlink dish
+ax.plot(134, 320, marker='o', color='#0f172a', markersize=5.5,
+        markeredgecolor='#93c5fd', markeredgewidth=1.2)
+ax.text(134, 327, "SAT", ha='center', fontsize=3.8, weight='bold', color='#0f172a')
 
 # --- SEPTIC mid-slope gravity ---
 ax.add_patch(Rectangle((146, 240), 50, 30, facecolor='#ffedd5', edgecolor='#9a3412', linewidth=1.3))
@@ -279,7 +299,7 @@ for i, lbl in enumerate(["0", "40′", "80′", "120′"]):
     ax.text(xt, 72, lbl, ha='center', fontsize=4.5, color='#1a2e1a')
 
 # --- Title + footer ---
-ax.set_title("APN 30055004 — CLEAN SHEET DESIGN • INCOME-FIRST MODERN CABIN • MIN-DISTURBANCE (18% • 210 CY)",
+ax.set_title("APN 30055004 — CLEAN SHEET v2 • INCOME-FIRST MODERN CABIN + AI FRONTIER LAB • MIN-DISTURBANCE (18% • 210 CY)",
              color='#1f2937', fontsize=13, weight='bold', pad=14, loc='center')
 fig.text(0.5, 0.015,
          "Scale: 1\"=40′ • 466.69′ × 466.69′ (5.00 ac) • Buildable 366.69′ sq at 50′-0\" setbacks • Elevation 7,877–7,895′ NAVD88 (USGS 3DEP; USFS Kendrick Cabin 7,910′ 0.5mi NE) • "
@@ -316,14 +336,16 @@ ax.text(31, 62, "ADU", ha='center', fontsize=8, weight='bold', color='white')
 ax.text(31, 55, "2BR • LIVE HERE", ha='center', fontsize=5, color='#fbbf24', weight='bold')
 ax.add_patch(FancyBboxPatch((55, 45), 32, 28, boxstyle="round,pad=2",
                             facecolor='#6b7280', edgecolor='#374151', linewidth=1.2))
-ax.text(71, 60, "SHOP", ha='center', fontsize=7, weight='bold', color='white')
+ax.text(71, 62, "LAB\nSHELL", ha='center', fontsize=6, weight='bold', color='white',
+        linespacing=0.9)
+ax.text(71, 50, "shop → lab", ha='center', fontsize=4.5, color='#e0e7ff', style='italic')
 ax.add_patch(Circle((50, 82), 7, facecolor='#dbeafe', edgecolor='#1e40af', linewidth=1))
 ax.text(50, 82, "W", ha='center', va='center', fontsize=6, weight='bold', color='#1e40af')
 ax.add_patch(Rectangle((30, 18), 22, 14, facecolor='#ffedd5', edgecolor='#9a3412', linewidth=1))
 ax.text(41, 25, "SEPTIC", ha='center', fontsize=5, weight='bold', color='#7c2d12')
 ax.plot([50, 50], [5, 18], color='#2b2b2b', linewidth=4)
 ax.text(50, 10, "DRIVE", ha='center', fontsize=5, weight='bold', color='white')
-ax.set_title("PHASE 1 — ADU FIRST (Mo 6–10)\nLive here • ~45% of capex • CO #1 • income-ready",
+ax.set_title("PHASE 1 — ADU + LAB SHELL (Mo 6–10)\nLive here • CO #1 • lab shell w/ 20 kW rough-in",
              fontsize=9, weight='bold', color='#1f2937', pad=10)
 ax.text(50, 2, "Occupy • Prove well/septic/winter", ha='center', fontsize=6,
         color='#2d5a3a', weight='bold',
@@ -345,7 +367,7 @@ ax.text(72, 42, "BARN", ha='center', fontsize=6, weight='bold', color='white')
 ax.add_patch(Rectangle((58, 14), 28, 10, facecolor='#86ab86', edgecolor='#4a7c4e',
                        linewidth=0.9, alpha=0.3, hatch='///'))
 ax.text(72, 19, "PASTURE", ha='center', fontsize=5, color='#1a3c1a', weight='bold')
-ax.set_title("PHASE 2 — LODGE + BARN (Mo 10–18)\nMove to Lodge • ADU → $29.7k NOI Y2",
+ax.set_title("PHASE 2 — LODGE + LAB PHASE A (Mo 10–18)\nLodge live • ADU $29.7k + Lab +$10k NOI Y2",
              fontsize=9, weight='bold', color='#1f2937', pad=10)
 ax.text(50, 2, "Cash-flowing while building", ha='center', fontsize=6,
         color='#2d5a3a', weight='bold',
@@ -370,7 +392,7 @@ ax.add_patch(Rectangle((56, 30), 18, 10, facecolor='#dbeafe', edgecolor='#1e40af
 ax.text(65, 35, "RET", ha='center', fontsize=4, color='#1e40af')
 ax.text(50, 18, "ORCHARD + RETENTION + SOLAR", ha='center', fontsize=5,
         color='#4a7c4e', weight='bold')
-ax.set_title("PHASE 3 — STABILIZED (Y3+)\nY4 $42.7k NOI • cap 10.2% • 5 ponderosa saved",
+ax.set_title("PHASE 3 — STABILIZED (Y3+)\nProp $42.7k + Lab $29k NOI = $71.7k combined",
              fontsize=9, weight='bold', color='#1f2937', pad=10)
 ax.text(50, 2, "Income funds refi • CUP optional Y5+", ha='center', fontsize=6,
         color='#2d5a3a', weight='bold',
@@ -434,3 +456,115 @@ plt.savefig(f"{OUT}/SYSTEMS_OFF_GRID.png", dpi=260, bbox_inches='tight')
 plt.close()
 print("Saved SYSTEMS_OFF_GRID.png")
 print("Clean sheet package done")
+
+# ====================== AI FRONTIER LAB SYSTEMS SHEET ======================
+from matplotlib.patches import FancyArrowPatch
+from matplotlib.gridspec import GridSpec
+
+fig = plt.figure(figsize=(16, 10))
+fig.patch.set_facecolor('white')
+gs = GridSpec(2, 2, figure=fig, width_ratios=[1.15, 1], height_ratios=[1, 1],
+              left=0.04, right=0.98, top=0.90, bottom=0.08, wspace=0.18, hspace=0.28)
+
+fig.suptitle("AI FRONTIER LAB — SYSTEMS SHEET  •  PHASE A: 20 kW IT → PHASE B: 50 kW READY  •  ISLANDED MICROGRID",
+             fontsize=13, weight='bold', color='#1f2937')
+
+# ---- (a) POWER SINGLE-LINE ----
+axA = fig.add_subplot(gs[:, 0])
+axA.set_xlim(0, 100); axA.set_ylim(0, 100); axA.set_xticks([]); axA.set_yticks([])
+axA.set_facecolor('#f8fafc')
+axA.set_title("(a) POWER PATH — no APS interconnect, renewable-first, gen-bridged",
+              fontsize=9.5, weight='bold', color='#1f2937', pad=8)
+
+def box(ax, x, y, w, h, fc, ec, title, sub, tc='white', fs=7):
+    from matplotlib.patches import FancyBboxPatch as FB
+    ax.add_patch(FB((x, y), w, h, boxstyle="round,pad=1.2", facecolor=fc, edgecolor=ec, linewidth=1.3))
+    ax.text(x + w/2, y + h/2 + h*0.16, title, ha='center', fontsize=fs, weight='bold', color=tc)
+    ax.text(x + w/2, y + h/2 - h*0.24, sub, ha='center', fontsize=5, color=tc, alpha=0.9)
+
+def arrow(ax, x1, y1, x2, y2, label='', color='#f59e0b'):
+    ax.add_patch(FancyArrowPatch((x1, y1), (x2, y2), arrowstyle='-|>', mutation_scale=14,
+                                 color=color, linewidth=1.6))
+    if label:
+        ax.text((x1+x2)/2 + 2, (y1+y2)/2 + 2, label, fontsize=5, color=color, weight='bold')
+
+box(axA, 4, 76, 26, 14, '#fbbf24', '#b45309', 'PV 25→75 kW', 'barn roof + lab roof • 30° tilt')
+box(axA, 4, 54, 26, 14, '#0ea5e9', '#0369a1', 'HYBRID INVERTER', 'island VFD • 60 kW')
+box(axA, 4, 30, 26, 14, '#22c55e', '#15803d', 'BESS 80→240 kWh', 'LFP • critical bus • 42″ frost vault')
+box(axA, 4, 8, 26, 12, '#64748b', '#334155', 'GEN 30→60 kW', 'N+1 pair • propane • ATS <10 s')
+
+box(axA, 44, 76, 26, 14, '#8b5cf6', '#5b21b6', 'CRITICAL PANEL', 'lab branch on UPS-backed bus')
+box(axA, 44, 52, 26, 16, '#312e81', '#1e1b4b', 'LAB 20→50 kW IT', '2× 8-GPU nodes • 10 GbE\nPUE 1.18 • 55 dBA @ 10′', fs=7.5)
+box(axA, 44, 28, 26, 12, '#0f172a', '#020617', 'CDU + DRY COOLERS', 'closed loop • free cooling 70% hrs')
+box(axA, 44, 8, 26, 12, '#1e3a8a', '#172554', 'NETWORK', 'Starlink Biz 225–400 Mbps\n+ bonded LTE failover')
+
+box(axA, 78, 60, 19, 16, '#e0f2fe', '#0369a1', 'HOUSE / ADU', '8 kW peak\nshares bus', tc='#0c4a6e')
+box(axA, 78, 34, 19, 16, '#fef3c7', '#b45309', 'FIRE CISTERN', '10k gal • 4.5″ NH', tc='#78350f')
+box(axA, 78, 8, 19, 16, '#fee2e2', '#991b1b', 'FUEL + SPILL', '110% contain •\nIFC 504', tc='#7f1d1d')
+
+arrow(axA, 17, 76, 17, 68, '')          # PV -> inverter
+arrow(axA, 17, 54, 17, 44, '')          # inverter -> BESS
+arrow(axA, 17, 30, 17, 20, '')          # BESS -> gen (bus tie)
+arrow(axA, 30, 66, 44, 81, 'AC 60 kW')  # inverter -> critical panel
+arrow(axA, 57, 76, 57, 69.5, 'feed')    # panel -> lab
+arrow(axA, 30, 40, 44, 57, 'DC bus')    # BESS -> lab
+arrow(axA, 30, 14, 43, 51, 'ATS <10 s') # gen -> lab (via corridor)
+arrow(axA, 70, 60, 78, 66, '8 kW')      # lab -> house
+arrow(axA, 57, 52, 57, 41, '')          # lab -> CDU/cooling
+arrow(axA, 72, 50, 72, 21, '')          # lab <-> network
+axA.text(50, 46.5, '20 kW initial  →  50 kW (Phase B: +50 kW PV, +80 kWh, panel space reserved)',
+         ha='center', fontsize=5.6, weight='bold', color='#a5b4fc',
+         bbox=dict(boxstyle='round,pad=0.3', facecolor='#1e1b4b', alpha=1))
+axA.text(50, 2, 'Energy math: 75 kW PV ≈ 100–115 MWh/yr • lab @ 20 kW × PUE 1.18 × 60% duty ≈ 125 MWh/yr →\n'
+                'PV covers ~55–65% • gen bridges balance @ $0.35–0.55/kWh delivered — still << cloud GPU rates',
+         ha='center', fontsize=5.8, color='#334155', style='italic', linespacing=1.3,
+         bbox=dict(boxstyle='round,pad=0.4', facecolor='#f1f5f9', edgecolor='#94a3b8'))
+
+# ---- (b) 24h ENERGY BALANCE ----
+axB = fig.add_subplot(gs[0, 1])
+hours = np.arange(0, 25)
+solar = 36 * np.clip(np.sin((hours - 6) / 12 * np.pi), 0, None)**1.3
+load_elastic = np.where((hours >= 8) & (hours <= 20), 27, 10)  # PUE-incl, elastic schedule
+load_flat = np.full(25, 30.4)
+axB.fill_between(hours, 0, solar, color='#fbbf24', alpha=0.55, label='PV 75 kW (day)')
+axB.plot(hours, load_flat, color='#dc2626', linewidth=1.6, linestyle='--', label='Flat 50 kW load (PUE 1.2)')
+axB.plot(hours, load_elastic, color='#4f46e5', linewidth=2, label='Elastic load (schedule-to-sun)')
+axB.axhline(60, color='#64748b', linewidth=1, linestyle=':', label='Gen N+1 60 kW cap')
+axB.set_xlim(0, 24); axB.set_ylim(0, 70)
+axB.set_xlabel('hour (local)', fontsize=7); axB.set_ylabel('kW', fontsize=7)
+axB.tick_params(labelsize=6.5)
+axB.set_title('(b) 24-h energy balance (shoulder day) — elastic scheduling keeps gen off',
+              fontsize=9, weight='bold', color='#1f2937', pad=6)
+axB.legend(fontsize=5.6, loc='upper left', framealpha=0.9)
+axB.grid(alpha=0.25, linewidth=0.5)
+
+# ---- (c) SPEC TABLE ----
+axC = fig.add_subplot(gs[1, 1])
+axC.set_xticks([]); axC.set_yticks([]); axC.set_facecolor('white')
+axC.set_title('(c) LAB SHELL SPEC (Shop 1,500 SF → hardened)', fontsize=9,
+              weight='bold', color='#1f2937', pad=6)
+spec = [
+    ("Power", "20 kW IT Phase A / 50 kW Phase B; critical panel, 60 kW N+1 gen, ATS <10 s"),
+    ("Cooling", "Rear-door/CDU closed loop → 2× adiabatic dry coolers; PUE 1.18; 170 MBH @ 50 kW"),
+    ("Acoustic", "55 dBA @ 10′ property line; vibration-isolated racks; no rooftop fans"),
+    ("Network", "Starlink Business + bonded LTE; 10 GbE inside; Starlink+gen = occupancy SLA"),
+    ("Structure", "Class A metal (WUI), 30′ defensible space, floor 12 psf equip + spill curb"),
+    ("Phasing", "A (Y2): shell + 20 kW + cooling + network ≈ $240k  •  B (Y4): +50 kW PV/+80 kWh ≈ $190k"),
+    ("Entity", "Lab LLC equipment (movable) ≠ property LLC shell — 10-yr License & Services Agreement"),
+    ("Compliance", "AR-5 home occupation (no traffic/signage); CUP only if on-site customers/colo later"),
+]
+y0 = 93
+for k, v in spec:
+    axC.text(2, y0, k, fontsize=6.6, weight='bold', color='#312e81', va='top')
+    axC.text(17, y0, v, fontsize=6.2, color='#1f2937', va='top')
+    axC.plot([2, 98], [y0 - 3.4, y0 - 3.4], color='#e2e8f0', linewidth=0.7)
+    y0 -= 11.4
+axC.set_xlim(0, 100); axC.set_ylim(0, 100)
+
+fig.text(0.5, 0.018,
+         "Income-first: lab revenue = 2 seats × $1,500/mo @ 60% + 6 eval-retreats × $3,500 @ 85% ≈ $39.5k GPR − $11k opex ≈ +$28k NOI Y3+  |  "
+         "lab LLC buys shell services from property LLC (arm's-length, lender-visible)  |  no cross-parcel dependency",
+         ha='center', fontsize=6.6, color='#475569', style='italic')
+plt.savefig(f"{OUT}/AI_FRONTIER_LAB_SHEET.png", dpi=260, bbox_inches='tight', facecolor='white')
+plt.close()
+print("Saved AI_FRONTIER_LAB_SHEET.png")
