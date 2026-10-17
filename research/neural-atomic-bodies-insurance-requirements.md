@@ -6,6 +6,8 @@
 
 This book is a self-contained world model and a proposed design framework built on it (Chapter 0). Its vocabulary (atoms, phases, fields, orbs) is analogy, not physics, and none of its classifications or requirements has been validated by an insurer, an actuary, or an independent auditor. It describes how to classify an autonomous entity, what containment each classification calls for, and where the insurable boundary sits. It is not an insurance product and prices nothing.
 
+> *The World-model warranty is a modeling placeholder. This document discloses no reserve, represents that none exists for any reader’s benefit, and promises no payment or cover to anyone.*
+
 Sections marked **\[To draft\]** are decisions the author still has to make. Sections marked **\[Proposed\]** are first-pass design claims that need review before they are relied on.
 
 **The model's premise.** This book is an internal model. Within it, the author owns the planet and operates its World Model, and the book treats both as facts. Chapter 0 places the owner at the model's center, and Section 5.6 draws the consequences for war and nuclear perils.
