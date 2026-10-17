@@ -3,9 +3,9 @@
  * It is intentionally not part of npm scripts, public assets, or deployment.
  * Routes are limited to HarshalOS runtime files, the terrain viewer and its
  * small source-data files, the short reference film, the original feature,
- * the separate Best-Wishes 3D feature, their named posters/guides, and a named
- * model package. No unlisted project documents, workbooks, source files, or
- * other project folders are served by this process.
+ * the silent and narrated Best-Wishes 3D editions, their named audio/poster/
+ * guide assets, and a named model package. No unlisted project documents,
+ * workbooks, source files, or other project folders are served by this process.
  */
 import http from 'node:http';
 import path from 'node:path';
@@ -24,6 +24,8 @@ const privateFiles = new Map([
   ['/private/outpost-one-full-feature-film.mp4', path.join(HERE, 'outpost-one-full-feature-film.mp4')],
   ['/private/outpost-one-full-feature-poster.png', path.join(HERE, 'outpost-one-full-feature-poster.png')],
   ['/private/outpost-one-best-wishes-3d-film.mp4', path.join(HERE, 'best-wishes-edition', 'frontiership-outpost-one-best-wishes-3d.mp4')],
+  ['/private/outpost-one-best-wishes-3d-narrated-film.mp4', path.join(HERE, 'best-wishes-edition', 'frontiership-outpost-one-best-wishes-3d-narrated.mp4')],
+  ['/private/outpost-one-best-wishes-narration.mp3', path.join(HERE, 'best-wishes-edition', 'frontiership-outpost-one-best-wishes-3d-narration.mp3')],
   ['/private/outpost-one-best-wishes-3d-poster.png', path.join(HERE, 'best-wishes-edition', 'frontiership-outpost-one-best-wishes-3d-poster.png')],
   ['/private/outpost-one-best-wishes-guide.md', path.join(HERE, 'best-wishes-edition', 'BEST_WISHES_EDITION_GUIDE.md')],
   ['/private/outpost-one-feature-film-guide.md', path.join(HERE, 'OUTPOST_ONE_FEATURE_FILM_GUIDE.md')],
@@ -50,6 +52,7 @@ const mime = new Map([
   ['.apng', 'image/apng'],
   ['.webp', 'image/webp'],
   ['.mp4', 'video/mp4'],
+  ['.mp3', 'audio/mpeg'],
   ['.zip', 'application/zip'],
   ['.ico', 'image/x-icon'],
   ['.flame', 'text/plain; charset=utf-8']

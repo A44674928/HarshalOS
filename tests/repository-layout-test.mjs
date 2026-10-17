@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { access, readFile, readdir, rm } from "node:fs/promises";
+import { access, readFile, readdir, rm, stat } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import test from "node:test";
@@ -309,13 +309,17 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     }
     assert.deepEqual((await listFiles(path.join(SITE, "private"), "private")).sort(), [
       "private/outpost-one-best-wishes-3d-film.mp4",
+      "private/outpost-one-best-wishes-3d-narrated-film.mp4",
+      "private/outpost-one-best-wishes-narration.mp3",
       "private/outpost-one-best-wishes-3d-poster.png",
       "private/outpost-one-best-wishes-guide.md",
       "private/outpost-one-full-feature-film.mp4",
       "private/outpost-one-full-feature-poster.png",
       "private/outpost-one-feature-film-guide.md",
       "private/outpost-one-concept-model.zip"
-    ].sort(), "only the explicitly named project films, posters, guides, and model package are staged");
+    ].sort(), "only the explicitly named project films, audio, posters, guides, and model package are staged");
+    const narratedFilmStat = await stat(path.join(SITE, "private/outpost-one-best-wishes-3d-narrated-film.mp4"));
+    assert.ok(narratedFilmStat.size <= 25 * 1024 * 1024, "each Cloudflare Workers asset must stay within the 25 MiB per-file limit");
     assert.deepEqual((await listFiles(path.join(SITE, "terrain"), "terrain")).sort(), [
       "terrain/index.html",
       "terrain/README.md",
@@ -455,12 +459,24 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const filmRange = await fetch(`${base}/private/outpost-one-best-wishes-3d-film.mp4`, {
       headers: { Range: "bytes=0-63" }
     });
-    assert.equal(filmRange.status, 206, "the Best-Wishes film supports byte-range playback");
+    assert.equal(filmRange.status, 206, "the original silent Best-Wishes film supports byte-range playback");
     assert.match(filmRange.headers.get("content-type"), /video\/mp4/);
     assert.equal((await filmRange.arrayBuffer()).byteLength, 64);
+    const narratedFilmRange = await fetch(`${base}/private/outpost-one-best-wishes-3d-narrated-film.mp4`, {
+      headers: { Range: "bytes=0-63" }
+    });
+    assert.equal(narratedFilmRange.status, 206, "the narrated Best-Wishes edition supports byte-range playback");
+    assert.match(narratedFilmRange.headers.get("content-type"), /video\/mp4/);
+    assert.equal((await narratedFilmRange.arrayBuffer()).byteLength, 64);
+    const narrationHead = await fetch(`${base}/private/outpost-one-best-wishes-narration.mp3`, { method: "HEAD" });
+    assert.equal(narrationHead.status, 200, "the standalone narration MP3 is allowlisted");
+    assert.match(narrationHead.headers.get("content-type"), /audio\/mpeg/);
+    assert.ok(Number(narrationHead.headers.get("content-length")) > 1000000, "the full narration master is served");
     const bestWishesGuide = await fetch(`${base}/private/outpost-one-best-wishes-guide.md`);
     assert.equal(bestWishesGuide.status, 200);
-    assert.match(await bestWishesGuide.text(), /Best-Wishes/);
+    const guideText = await bestWishesGuide.text();
+    assert.match(guideText, /Best-Wishes/);
+    assert.match(guideText, /Audio editions/);
 
     for (const pathname of [
       "/single-parcel-APN30055004/terrain_preliminary/README.md",

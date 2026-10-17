@@ -7,11 +7,12 @@ import test from "node:test";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const [appSource, indexHtml, wmSource, previewHtml] = await Promise.all([
+const [appSource, indexHtml, wmSource, previewHtml, previewServer] = await Promise.all([
   readFile(path.join(ROOT, "js/apps-frontiership.js"), "utf8"),
   readFile(path.join(ROOT, "index.html"), "utf8"),
   readFile(path.join(ROOT, "js/wm.js"), "utf8"),
-  readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/harshalos-private-preview.html"), "utf8")
+  readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/harshalos-private-preview.html"), "utf8"),
+  readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/private-preview-server.mjs"), "utf8")
 ]);
 
 test("OUTPOST ONE is registered before HarshalOS builds the desktop launcher grid", () => {
@@ -34,6 +35,16 @@ test("OUTPOST ONE is registered before HarshalOS builds the desktop launcher gri
   assert.match(wmSource, /app\.glyph/);
   assert.match(wmSource, /app\.short \|\| app\.title/);
   assert.match(wmSource, /field\.appendChild\(b\)/);
+});
+
+test("Best-Wishes narrated media is a separate route from the preserved silent edition", () => {
+  assert.match(appSource, /outpost-one-best-wishes-3d-narrated-film\.mp4/);
+  assert.match(appSource, /outpost-one-best-wishes-narration\.mp3/);
+  assert.match(appSource, /outpost-one-best-wishes-3d-film\.mp4/);
+  assert.match(appSource, /Best-Wishes silent 3D edition/);
+  assert.match(previewServer, /outpost-one-best-wishes-3d-narrated-film\.mp4/);
+  assert.match(previewServer, /outpost-one-best-wishes-narration\.mp3/);
+  assert.match(previewServer, /\['\.mp3', 'audio\/mpeg'\]/);
 });
 
 test("the deployed app explains that access control belongs to the hosting edge", () => {

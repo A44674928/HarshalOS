@@ -29,5 +29,8 @@ Desktop.ini
 # preview/dist artifacts
 dist-preview/
 
+# Local tool downloads and generated source audio; named final media lives in its package.
+.cache/
+
 # package-compile image cache
 .pkg_build/
