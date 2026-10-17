@@ -1,0 +1,182 @@
+# BUSINESS PLAN — APN 30055004 Snow Bowl Est Unit 02 Lot 3
+## Single-Parcel Isolated Development & Operations Plan
+**Coconino County, AZ | T24N R07E Sec 20 | 466.69' × 466.69' (5.00 ac) | 7,883-7,915' AMSL Kendrick Bench**
+
+> Fill in your numbers where marked **[FILL]**. Hand this + `APN30055004_ProForma.xlsx` + `C-101 Figs 1-7` to lender/investor. 12 pages, no fluff.
+
+---
+
+### 1. EXECUTIVE SUMMARY (1 Page)
+**The Ask:** [FILL: $X construction loan / $Y equity for ADU-first build on owned land APN 30055004]
+**The Asset:** 5.00 ac parcel 26 mi north of Flagstaff (20 mi US-180 + 6 mi forest), AR-5 by-right, 3.09 ac buildable at 50' setbacks, 2.5% mean slope, WUI/IDQ compliant, 6BR/900gpd septic ceiling via 2,000G + 100% reserve.
+**The Model:** **Owner-build isolated** — ADU 800 SF 2BR Phase 1 (occupy), Lodge 4,500 SF 4BR Phase 2, Barn 3,200 SF, Greenhouse 1,750 SF. Income is **ADU 30+ day furnished mid-term @ $3,600/mo @ 85%** → $29.7k NOI Year 2; **hybrid summer nightly @ $375 ADR May-Oct** → +$15k Year 3. No CUP. No second-parcel dependency. Break-even Year 2, +$12.7k Year 3 on $320k debt.
+**The Edge:** Elevation-true design (210 vs 780 CY grading, -$37k), off-grid power/water/fire already sized, 6 mi forest = premium for forest-seekers, not penalty.
+
+**Table: Capital Need & Use**
+| Source | Amount | Use |
+|--------|--------|-----|
+| Land equity (APN 30055004, owned) | $ [FILL: purchase price / basis, e.g., $85k ] | Collateral |
+| Construction loan (ADU+site+infrastructure) | $ [FILL: e.g., $165k ] | Phase 1 |
+| Construction loan (Lodge) | $ [FILL: e.g., $155k ] | Phase 2 |
+| Owner equity / reserves | $ [FILL: e.g., $45k ] | Contingency 15% + cisterns |
+
+---
+
+### 2. PROPERTY & LOCATION (1 Page + Figs 1-3)
+**APN:** 30055004 | **Account:** R0033824 | **Owner:** [FILL: EKHLASSI HAMID → your entity] | **Legal:** SNOW BOWL EST UNIT 02 Lot 3 NE 1/4 Sec 20 T24N R07E | **Tax:** $805.03
+**Access:** US-180 N 20 mi to Kendrick Park Rd, right 4 mi to Deadman Flat Rd, 2 mi to Forest Cove marker 9003R, 0.5 mi to gate. **26-27 mi, 40-50 min dry / 60-90+ min snow.** Last 6 mi graded dirt, private easement via Lots 2/4/7. RMA [FILL: recorded? Yes/No, doc # ], County plowed? [FILL: No — private contract $1,500/yr ], USFS adjacency [FILL: S/E boundary is/adjacent Coconino NF].
+**Elevation:** 7,883-7,915' AMSL (Kendrick Cabin 7,910' USFS), N-S fall 14' @ 3.0%, E-W 3.2' @ 0.7%, mean 2.8% (Fig 2). Frost 42", snow 90-110", ground load 60-75 psf, basalt float over Moenkopi.
+**Zoning:** AR-5 (5 ac min) — 1 PFR + 1 ADU by-right, <35% coverage (you 2.4%), <35' height (you 28'), 50' setbacks >>25'/10'/20' code. WUI Ord 95-1, IFC D, Flagstaff IDA Zone [FILL: 2/3] B0-L0-U0 2700K.
+
+**Insert:** Fig 1 Heatmap (2' contours), Fig 2 Slope, Fig 3 Hillshade/Flow
+
+---
+
+### 3. MARKET ANALYSIS (1 Page)
+**Flagstaff/Kendrick Park market:** Fort Valley/Snow Bowl Ranch 5-6 ac comps $44k/ac @ $250k [Redfin Lot 7 MLS 201904], 5.6ac $250k, 6.39ac $175k [Lot 21]. No HOA. Fort Valley = 15 min downtown, Snow Bowl Est = 40-50 min — **different buyer: forest privacy vs. town convenience.**
+
+**Rental comps:**
+* **LTR:** 2BR Fort Valley ADU $1,850-2,400/mo, 5% vacancy — but daily commuter demand weak at 6mi forest; LTR at 40-min is discounted $100-200/mo.
+* **Mid-term 30+ day furnished (Target):** Flag Med travel nurses, NAU visiting faculty, USFS/Gore seasonal leads seek **20-40 min forest retreat** @ $3,200-4,200/mo incl. utilities/plow, 85-92% occ (Furnished Finder, NAU Housing). **This lot's 6mi forest is a premium here.**
+* **Nightly STR:** Snow Bowl Ranch/Fort Valley 4BR @ $295-445 ADR, 52-64% occ (78% Dec-Mar, 35% shoulder) — but **6mi dirt + chain control limits to May-Oct**; at 26mi you cannot promise Dec-Mar nightly without private plow + 4WD disclosure.
+
+**Demand driver:** Arizona Snowbowl 14 mi [USFS], Grand Canyon 1hr30 via 180/64, Kendrick Wilderness trailheads 2 mi — year-round outdoor, not nightly downtown.
+
+---
+
+### 4. PRODUCT — WHAT YOU BUILD (1 Page + Fig 6)
+**By-right, single-parcel, elevation-true:**
+
+| Structure | GFA | Siting (Kendrick bench) | Why |
+|-----------|-----|--------------------------|-----|
+| **Alpine Lodge PFR 4,500 SF 4BR/3BA+loft** | 4,500 | 8,071' bench E-W, S porch 138.8° SE Humphreys, stepped 18" 2-bay | View on-parcel, 3.0% grade = gravity, 28' <35' |
+| **Caretaker ADU 800 SF 2BR** | 800 | NW flat 1.9%, Phase-1 occupy | By-right, 30+ day rental, separate septic lateral |
+| **Shop/Gym 1,500 SF** | 1,500 | Same W court | Shared court, no extra trench |
+| **Barn 3,200 SF 5-stall** | 3,200 | W-mid 8,066' flat high-side, pasture 1.5ac <2.8% | Horse safety, stalls drain away from leach |
+| **Greenhouse 1,750 SF** | 1,750 | E on contour, floor 8" below swale | Gravity irrigation from 68k gal/yr roof |
+| **Fire/Water/Power** | — | Well NW up-gradient 100' buffer, septic mid gravity 1.4%, interceptor 1.9%→SE retention, drive on 8,069' contour 1.4% zero culverts, 10k fire cistern below 42" | All on-parcel, no pump, no CUP |
+
+**Coverage:** 5,300 SF principal = 2.4% <<35%. **Grading:** 210 CY @ $9k vs. schematic 780 CY @ $38k (-73%). **Disturbance:** 0.9 ac vs. 1.9 ac (-52%, Fig 7).
+
+**Insert:** Fig 6 Comparison (left schematic vs right optimized), Fig 7 Disturbance envelope
+
+---
+
+### 5. REGULATORY PATH (1 Page)
+**By-right, no CUP, no variance:**
+
+| Permit | Agency | Status | Timeline |
+|--------|--------|--------|----------|
+| Soil Evaluation + On-site Wastewater Type 4 (6BR, 900 gpd, primary+100% reserve) | Coconino County Environmental Health / ADEQ R18-9 | Pre-app [FILL: date], evaluator [FILL: name] | 3-6 wks after perc |
+| Well + Cistern + Water Adequacy Letter | ADWR 55- / County | Well log [FILL: existing? new 500' $32k], cistern 2,500 gal | 2-4 wks |
+| Grading <500 CY + Drainage Report (210 CY) | County Engineering | Pre-app [FILL: date] — simple, not engineered | 2-3 wks |
+| Building Permit ADU+Shop Phase 1 | Community Development | Submit after septic | 4-6 wks |
+| Building Permit Lodge Phase 2 | Same | After ADU CO + 1 winter | 4-6 wks |
+| STR License (if May-Oct nightly) | Coconino County | After CO — 1 STR while owner-occupied = by-right; duplex nightly = CUP (avoid) | 1-2 wks |
+| WUI + Dark Sky | County + Fire District | 5' non-combustible, Class A metal, B0-L0-U0 2700K, lumens <25k/ac | With building permit |
+
+**Access:** RMA doc # [FILL], plow contract [FILL: name $/yr], USFS adjacency [FILL: letter].
+
+---
+
+### 6. OPERATIONS PLAN (1 Page)
+**Self-manage Year 1-2, hybrid Year 3:**
+
+* **Guest type:** 30+ day furnished (Furnished Finder, NAU Housing, USFS Seasonal, Hipcamp off-season) — no TOT, no 24-hr STR complaint line. Nightly only May-Oct if plow contract proven.
+* **House rules:** 30+ day lease, 12 max (2/BR+2 per County STR cap even for mid-term best practice), quiet hrs, no street parking on Deadman Flat, bear-proof trash, septic: no wipes/grease, 4WD/AWD required Oct 15-Apr 30, chains in ADU closet, Mountain Express shuttle info, ADOT 511, plow contractor card.
+* **Turns:** Clean $150 × 8/yr, linen service Flagstaff, Starlink $120/mo, plow $1,500/season, propane $1,200, septic pump q2yr $450.
+* **Barn:** 2 stalls boarded @ $400/mo = $9,600/yr (no CUP — AR-5 animal keeping is by-right for owners' animals; boarding = ag income, verify <3rd-party commercial threshold with County).
+* **Maintenance:** WUI thinning 10' crown spacing + ladder fuel removal annually, 5' non-combustible, Arizona fescue/mountain muhly no-irrigation revegetation.
+
+---
+
+### 7. MARKETING PLAN (½ Page)
+* **Listing title:** *"Kendrick Park Forest Retreat — 6mi Private Road, Ponderosa, 11 min to Snowbowl, Starlink, Off-Grid Power — 30+ Day Min"*
+* **Photos:** US-180 mile 230 → Kendrick Park → Deadman Flat drive video (1.5×), plowed drive winter shot (prove access), heatmap Fig 1 with Humphreys view line, lodge render on bench, ADU interior, barn/pasture, greenhouse.
+* **Channels:** FurnishedFinder #1, NAU SabbaticalHomes, FS.usda.gov seasonal board, VRBO (30-day min filter), not Airbnb nightly-first.
+* **Disclosure:** *"Last 6mi graded dirt, private easement, 4WD recommended Oct-Apr, plowed to gate by [Name] by 7AM >3" — County US-180 plowed, Snowbowl Rd chain control possible. Starlink, not fiber."* — the guest who books after reading this never complains.
+
+---
+
+### 8. FINANCIAL PROJECTIONS (1 Page + XLSX)
+*See `APN30055004_ProForma.xlsx` — 5-yr monthly.*
+
+**Base Case (B — Mid-term 30+ day):**
+|  | Y1 Build | Y2 ADU B | Y3 Lodge+ADU B+C hybrid |
+|---|---|---|---|
+| Gross Rent | $0 | $36,720 | $52,170 |
+| Vacancy 10% | — | -$3,672 | -$5,217 |
+| Barn boarding 2 stalls | $0 | $4,800 | $9,600 |
+| EGI | $0 | $37,848 | $56,553 |
+| Ops (plow/propane/Starlink/insurance/tax $805/maint 8%) | -$8,200 | -$11,990 | -$16,890 |
+| **NOI** | **-$8,200** | **$25,858** | **$39,663** |
+| Debt $320k @7.5% 30yr $26,880/yr | -$13,440* | -$26,880 | -$26,880 |
+| **Cash Flow** | **-$21,640** | **-$1,022** | **+$12,783** |
+| *half-year construction*
+
+**Sensitivity:** -10% ADR still break-even Y2; +$1,500 plow surprise = -$1,500 CF; 6BR septic cert = 12 people = +$4k mid-term premium if marketed as 8-10.
+
+**Capex:** Land [FILL: basis] + Site/infra $70k (well $32k + cistern $7k + power $42k + fire $9k — overlap) + ADU+Shop $165k + Lodge $155k + 15% contingency = $[FILL: $380k-520k remote premium included].
+
+---
+
+### 9. TEAM (½ Page)
+| Role | Name/Firm [FILL] | Scope | When |
+|------|------------------|-------|------|
+| Owner/Builder | You | Single-parcel isolation, ops | Now |
+| AZ RLS | [FILL] | ALTA/NSPS + 1' topo 200' tie | Days 30-60 |
+| AZ PE Civil | [FILL: Flagstaff — WLB/CBRE] | C-101, grading, drainage, septic, drive, fire cistern | Days 30-90 |
+| Architect | [FILL] | ADU/Lodge/Barn SD-DD | Days 45-120 |
+| Land-Use Attorney | [FILL] | RMA + STR by-right memo | Days 1-30 |
+| CPA | [FILL] | Rental vs. active, cost-seg barn 15yr / greenhouse 7yr | Days 60-90 |
+| Lender | [FILL: Pioneer/NB-AZ/USDA ] | Construction loan ADU-first | Days 90-120 |
+| GC | [FILL: Flagstaff — grade/well/septic + frame] | One contract per phase, not one for both parcels | Mo 6+ |
+| Plow Contractor | [FILL] | Deadman Flat to gate, 7AM >3" | Before first snow |
+| Insurance | [FILL: WUI fire, STR rider] | Replacement cost @ $285-340/SF high-country | With permit |
+
+---
+
+### 10. RISK REGISTER (1 Page)
+| Risk | Likelihood | Impact | Mitigation (Isolated) |
+|------|------------|--------|-----------------------|
+| Perc fail / high groundwater | Med | High — redesign reserve | Soil eval *before* C-101 final; Fig 3 reserve high-side not in swale; 100% reserve already fenced |
+| Well low yield 3 gpm | Med | High — can't support 12 | 2,500-gal cistern + VFD already in ops; log pump cycles 12 mo before promising nightly |
+| Deadman Flat not plowed Dec-Mar | High | High — winter income $0 | Private plow contract in business plan + disclosure; shift to May-Oct nightly + Nov-Apr 30+ day; don't pro forma winter nightly |
+| Forest Rd load limit / haul surcharge | Med | Med — +15% concrete | Step piers not slab, small loads, 90-min limit in bid; include 15% contingency |
+| WUI fire insurance non-renewal | Med | High | Class A metal, 5' non-comb, ember vents, 10k cistern letter = ISO credit; get quote *before* building |
+| Coconino requires 2nd egress >12 | Low | High | Keep to 10-12 max; 2nd egress via pasture gate on same parcel (not across lot line) |
+| Neighbor complaint → STR enforcement | Med | High | One STR while owner-occupied = by-right; House Rules, parking plan, septic cert in license packet |
+| Radon >4 pCi/L (Kendrick volcanic) | Med | Low | $1.2k passive riser under slab now, test after CO, active later $900 |
+
+---
+
+### 11. TIMELINE — GANTT (Visual in XLSX Tab)
+```
+2026 Q4: Title/RMA/Well log/County pre-apps | 3DEP clip + ALTA/NSPS | Geotech/perc
+2027 Q1: C-101 (210 CY) + ADU permit | Lender soft quote | Business plan final
+2027 Q2-Q3: Site infra (well/cistern/fire/septic/swale/drive) + ADU+Shop build → CO #1, occupy
+2027 Q4: Move to Lodge design, log winter access, first mid-term guest in ADU
+2028 Q2-Q4: Lodge build → CO #2 → B+C hybrid income
+2029+: Stabilized NOI $39k, refi to perm, optional 4-yurt family compound (not CUP)
+```
+
+---
+
+### 12. APPENDICES
+* A. C-101 Figs 1-7 (LiDAR heatmap, slope, hillshade, sections, 3D, optimized comparison, disturbance envelope)
+* B. APN 30055004 1-m DEM GeoTIFF + 1'/2' DXF/SHP/GeoJSON (terrain_real/)
+* C. Soil evaluator report + well log + RMA + plow contract + County pre-app minutes
+* D. Pro forma XLSX + sensitivity
+
+---
+
+**Next Fill-Ins for You (15 min each):**
+- [ ] Land basis $ __ (purchase price)
+- [ ] RMA doc # __ + plow $ __/yr + USFS adjacency Yes/No
+- [ ] Well existing? GPM __ + water quality As/U __
+- [ ] Perc rate __ min/in + reserve location confirmed mid-parcel
+- [ ] Chose B mid-term title: __
+- [ ] Lender name __ + rate __
+
+*Not legal/engineering advice — confirm all interpretations with Coconino County Community Development + AZ PE/RLS + land-use attorney at submittal.*
+
