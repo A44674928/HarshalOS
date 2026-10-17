@@ -25,3 +25,9 @@ Desktop.ini
 # archives/patches/ and publications/book/*.diff are tracked on purpose.
 /*.patch
 /*.diff
+
+# preview/dist artifacts
+dist-preview/
+
+# package-compile image cache
+.pkg_build/
