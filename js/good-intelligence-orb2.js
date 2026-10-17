@@ -3133,9 +3133,7 @@
     /** Which Disc orb, if any, sits under a pointer event. Orb hit-testing is
         geometric and independent of the packet hit-testing. */
     function pickDiscOrb(event) {
-      const rect = typeof canvas.getBoundingClientRect === "function" ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
-      const x = Number(event.clientX) - (rect.left || 0);
-      const y = Number(event.clientY) - (rect.top || 0);
+      const { x, y } = canvasPointerPoint(event);
       let winner = null;
       let distance = Infinity;
       for (const orb of state.projectedOrbs) {
@@ -4527,6 +4525,25 @@
       return { width, height, dpr };
     }
 
+    /** Canvas drawing uses logical CSS pixels while pointer events use viewport
+        coordinates. Map through the rendered rectangle so CSS scaling,
+        fractional sizing, and scaled/fullscreen window layouts do not shift hit
+        targets. The device-pixel ratio is only a backing-store scale and must
+        not be applied to pointer coordinates. */
+    function canvasPointerPoint(event) {
+      const rect = typeof canvas.getBoundingClientRect === "function" ? canvas.getBoundingClientRect() : null;
+      const width = Math.max(1, Math.round(canvas.clientWidth || rect?.width || 740));
+      const height = Math.max(1, Math.round(canvas.clientHeight || rect?.height || 470));
+      const renderedWidth = Math.max(1, Number(rect?.width) || width);
+      const renderedHeight = Math.max(1, Number(rect?.height) || height);
+      const left = Number(rect?.left) || 0;
+      const top = Number(rect?.top) || 0;
+      return {
+        x: (Number(event && event.clientX) - left) * width / renderedWidth,
+        y: (Number(event && event.clientY) - top) * height / renderedHeight
+      };
+    }
+
     function line(a, b, color, alpha = 1, width = 1, dash = []) {
       context2d.save();
       context2d.globalAlpha = alpha;
@@ -5735,9 +5752,7 @@
     }
 
     function pick(event) {
-      const rect = typeof canvas.getBoundingClientRect === "function" ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
-      const x = Number(event.clientX) - (rect.left || 0);
-      const y = Number(event.clientY) - (rect.top || 0);
+      const { x, y } = canvasPointerPoint(event);
       let winner = -1;
       let distance = Infinity;
       for (const point of state.projected) {
