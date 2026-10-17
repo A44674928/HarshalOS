@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b35">
+  <title>APN 30055004 — Preliminary Terrain &amp; Aerial History</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18332e;
+      --muted: #63736c;
+      --paper: #f1f0e9;
+      --card: #fffefa;
+      --line: #d9ded5;
+      --forest: #173b35;
+      --forest-2: #23564c;
+      --ochre: #c78f40;
+      --ochre-soft: #f5e8cd;
+      --mint: #dce9df;
+      --danger: #9d4836;
+      --shadow: 0 12px 35px rgba(20, 49, 42, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, a { font: inherit; }
+    a { color: var(--forest-2); }
+    .page { max-width: 1500px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 42px) 42px; }
+    .masthead { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 30px; }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--forest); font-weight: 750; letter-spacing: .04em; font-size: .9rem; }
+    .brand-mark { width: 31px; height: 31px; border-radius: 10px 10px 10px 3px; background: var(--forest); color: #f9edcf; display: grid; place-items: center; font-family: Georgia, serif; font-size: 1.1rem; }
+    .mast-meta { color: var(--muted); font-size: .78rem; text-align: right; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 26px; margin-bottom: 22px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; font-weight: 800; color: #8b632d; margin: 0 0 9px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 4vw, 3.45rem); line-height: .98; letter-spacing: -.035em; margin: 0 0 12px; color: var(--forest); }
+    .hero-copy { max-width: 780px; color: var(--muted); font-size: clamp(.96rem, 1.5vw, 1.12rem); line-height: 1.55; margin: 0; }
+    .hero-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+    .button { border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--forest); padding: 10px 15px; cursor: pointer; text-decoration: none; font-weight: 700; font-size: .83rem; transition: transform .15s ease, background .15s ease; }
+    .button:hover { transform: translateY(-1px); background: #f8f5ec; }
+    .button.primary { background: var(--forest); color: white; border-color: var(--forest); }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 24px 0 18px; }
+    .metric { padding: 16px 17px 15px; background: var(--card); border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 3px 12px rgba(20,49,42,.025); min-height: 102px; }
+    .metric-label { text-transform: uppercase; letter-spacing: .1em; font-size: .65rem; font-weight: 800; color: var(--muted); margin-bottom: 8px; }
+    .metric-value { font-size: clamp(1rem, 1.4vw, 1.26rem); line-height: 1.25; font-weight: 800; color: var(--forest); margin-bottom: 5px; }
+    .metric-note { font-size: .75rem; line-height: 1.4; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.78fr) minmax(280px, .72fr); gap: 17px; align-items: start; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--shadow); overflow: hidden; }
+    .map-card { min-width: 0; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 19px 20px 15px; }
+    .card-head h2 { margin: 0; color: var(--forest); font-family: Georgia, "Times New Roman", serif; font-size: 1.38rem; letter-spacing: -.015em; }
+    .live-tag { display: inline-flex; gap: 7px; align-items: center; color: #527067; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #62a483; box-shadow: 0 0 0 4px #e6f0e8; }
+    .segmented, .toolbar { display: flex; flex-wrap: wrap; gap: 7px; }
+    .segmented { background: #edf0e9; border-radius: 999px; padding: 4px; }
+    .segmented button, .toolbar button { border: 0; cursor: pointer; border-radius: 999px; padding: 8px 12px; color: #65776f; background: transparent; font-size: .75rem; font-weight: 750; }
+    .segmented button.active, .toolbar button.active { color: white; background: var(--forest); box-shadow: 0 2px 6px rgba(20,49,42,.15); }
+    .toolbar { padding: 0 20px 14px; align-items: center; min-height: 44px; }
+    .toolbar button { border: 1px solid var(--line); background: #fff; padding: 7px 12px; }
+    .toolbar button.active { border-color: var(--forest); background: var(--forest); }
+    .toolbar .toolbar-note { font-size: .72rem; color: var(--muted); margin-left: auto; }
+    .hidden { display: none !important; }
+    .map-frame { position: relative; width: 100%; aspect-ratio: 1200 / 780; overflow: hidden; background: #d8ddd5; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .map-image { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: fill; background: linear-gradient(135deg, #d9dfd4, #c8d0c5); }
+    #mapOverlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    #sampleMarkers { pointer-events: auto; }
+    #sampleMarkers g { cursor: help; }
+    .map-loading { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; color: #52665d; background: rgba(242, 242, 233, .78); backdrop-filter: blur(3px); font-size: .85rem; line-height: 1.5; transition: opacity .2s ease; }
+    .map-loading.hidden { opacity: 0; pointer-events: none; }
+    .map-loading strong { display: block; color: var(--forest); font-size: .95rem; margin-bottom: 4px; }
+    .map-corner { position: absolute; top: 13px; left: 14px; max-width: min(76%, 400px); color: #fff; background: rgba(18, 42, 36, .78); border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 8px 11px; font-size: .72rem; line-height: 1.4; backdrop-filter: blur(7px); }
+    .map-corner strong { display: block; font-size: .76rem; letter-spacing: .025em; }
+    .map-legend { position: absolute; right: 13px; bottom: 13px; color: #fff; background: rgba(18, 42, 36, .8); border: 1px solid rgba(255,255,255,.25); border-radius: 10px; padding: 8px 11px; font-size: .68rem; line-height: 1.45; backdrop-filter: blur(7px); }
+    .map-legend .legend-line { display: inline-block; width: 22px; border-top: 2px dashed #f4c366; vertical-align: middle; margin-right: 5px; }
+    .map-legend .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #faf4de; border: 1px solid #1c4139; vertical-align: -1px; margin: 0 6px 0 1px; }
+    .map-foot { display: flex; justify-content: space-between; gap: 15px; padding: 11px 18px 13px; font-size: .72rem; line-height: 1.45; color: var(--muted); }
+    .map-foot strong { color: var(--ink); }
+    .side-card { padding: 20px; }
+    .side-card h2, .section-card h2 { font-family: Georgia, "Times New Roman", serif; color: var(--forest); letter-spacing: -.015em; font-size: 1.35rem; margin: 0 0 9px; }
+    .side-intro { color: var(--muted); font-size: .84rem; line-height: 1.55; margin-bottom: 18px; }
+    .reading-points { display: grid; gap: 10px; margin: 0 0 18px; }
+    .reading-point { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 11px 12px; background: #f5f5ee; border: 1px solid #e5e7df; border-radius: 12px; }
+    .reading-point .label { display: block; color: var(--muted); font-size: .67rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; margin-bottom: 4px; }
+    .reading-point .value { display: block; font-weight: 800; color: var(--forest); font-size: 1rem; }
+    .reading-point .small { font-size: .73rem; color: var(--muted); text-align: right; }
+    .direction-note { padding: 14px; border-radius: 12px; background: var(--mint); color: #365b4e; font-size: .8rem; line-height: 1.5; }
+    .direction-note strong { color: #214c3e; }
+    .caution-mini { margin-top: 12px; font-size: .73rem; line-height: 1.5; color: #7b6150; }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 17px; margin-top: 17px; }
+    .section-card { padding: 20px; }
+    .section-subtitle { color: var(--muted); font-size: .78rem; line-height: 1.5; margin: 0 0 14px; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: .78rem; }
+    th { text-align: left; text-transform: uppercase; letter-spacing: .08em; color: #708077; font-size: .63rem; padding: 8px 8px 9px; border-bottom: 1px solid var(--line); }
+    td { padding: 8px; border-bottom: 1px solid #edf0e9; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td:first-child { font-weight: 800; color: var(--forest-2); }
+    .elev { font-variant-numeric: tabular-nums; font-weight: 750; }
+    .row-extreme { background: #fcf5e7; }
+    .chip { display: inline-block; padding: 3px 7px; border-radius: 999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #755622; background: #f2e2bf; margin-left: 5px; }
+    .timeline { display: grid; gap: 0; }
+    .timeline-item { display: grid; grid-template-columns: 56px minmax(0,1fr) auto; align-items: start; gap: 11px; padding: 12px 0; border-bottom: 1px solid #edf0e9; }
+    .timeline-item:last-child { border-bottom: 0; }
+    .year-pill { display: grid; place-items: center; width: 49px; height: 31px; border-radius: 9px; color: white; background: var(--forest); font-weight: 800; font-size: .76rem; }
+    .timeline-date { font-size: .82rem; font-weight: 800; color: var(--ink); margin-bottom: 3px; }
+    .timeline-meta { color: var(--muted); font-size: .69rem; line-height: 1.45; }
+    .timeline-res { color: #667970; font-size: .67rem; white-space: nowrap; padding-top: 3px; }
+    .date-conflict { margin: 12px 0 0; border-left: 3px solid #d49b4b; padding: 8px 10px; color: #775d3c; background: #fbf5e9; font-size: .71rem; line-height: 1.48; border-radius: 0 8px 8px 0; }
+    .alert { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 13px; align-items: start; margin-top: 17px; padding: 18px 20px; border-radius: 15px; color: #704b34; background: #f7ead7; border: 1px solid #ead5b8; }
+    .alert-icon { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 12px; background: #ecd1ab; color: #855524; font-weight: 900; font-size: 1.05rem; }
+    .alert h2 { color: #714d34; font-family: Georgia, "Times New Roman", serif; margin: 0 0 5px; font-size: 1.12rem; }
+    .alert p { font-size: .79rem; line-height: 1.55; margin: 0; }
+    .sources { margin-top: 17px; padding: 20px; }
+    .sources h2 { font-family: Georgia, "Times New Roman", serif; color: var(--forest); margin: 0 0 12px; font-size: 1.2rem; }
+    .source-links { display: flex; flex-wrap: wrap; gap: 8px; }
+    .source-links a { display: inline-block; text-decoration: none; border: 1px solid var(--line); background: #fafaf6; border-radius: 999px; padding: 7px 10px; font-size: .7rem; font-weight: 750; }
+    .source-links a:hover { background: #eef2e8; }
+    .footnote { margin: 16px 2px 0; font-size: .69rem; color: #718079; line-height: 1.55; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: minmax(0, 1.45fr) minmax(260px, .8fr); }
+      .hero { align-items: flex-start; flex-direction: column; }
+      .hero-actions { align-self: flex-start; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .page { padding: 17px 12px 30px; }
+      .masthead { margin-bottom: 24px; }
+      .mast-meta { font-size: .68rem; }
+      .layout, .lower-grid { grid-template-columns: 1fr; }
+      .card-head { align-items: flex-start; flex-direction: column; }
+      .card-head .live-tag { align-self: flex-start; }
+      .map-foot { flex-direction: column; gap: 4px; }
+      .toolbar .toolbar-note { margin-left: 0; width: 100%; }
+      .timeline-item { grid-template-columns: 48px minmax(0,1fr); }
+      .timeline-res { grid-column: 2; padding-top: 0; }
+      .alert { padding: 15px; }
+    }
+    @media (max-width: 430px) {
+      .metrics { gap: 8px; }
+      .metric { min-height: 96px; padding: 12px; }
+      .metric-note { font-size: .68rem; }
+      .segmented { width: 100%; }
+      .segmented button { flex: 1; }
+      .toolbar { padding-left: 12px; padding-right: 12px; }
+      .map-corner { font-size: .63rem; }
+      .map-legend { font-size: .59rem; }
+    }
+    @media print {
+      @page { size: landscape; margin: 10mm; }
+      html, body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .masthead, .hero-actions, .segmented, .toolbar, .sources, .footnote { display: none !important; }
+      .hero { margin: 0 0 8px; }
+      h1 { font-size: 25pt; }
+      .hero-copy { font-size: 9pt; }
+      .metrics { margin: 8px 0; gap: 6px; }
+      .metric { min-height: auto; padding: 8px; box-shadow: none; }
+      .layout { grid-template-columns: 1.65fr .75fr; gap: 8px; }
+      .lower-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .card { box-shadow: none; break-inside: avoid; }
+      .map-frame { aspect-ratio: 1200 / 650; }
+      .section-card, .side-card { padding: 10px; }
+      .alert { margin-top: 8px; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="masthead">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">H</span><span>HARSHALOS · SITE DATA</span></div>
+      <div class="mast-meta">Coconino County, Arizona<br>Remote-data preliminary model</div>
+    </div>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Digital terrain + historical orthophoto review</p>
+        <h1>APN 30055004</h1>
+        <p class="hero-copy">A live, source-locked view of the USGS 1-meter bare-earth elevation model, paired with five NAIP aerial dates from 2013–2023. Parcel edges are assessor GIS only; the elevation samples are spot checks, not a survey.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="button" id="printButton" type="button">Print / save PDF</button>
+        <a class="button primary" href="README.md" target="_blank" rel="noopener">Method &amp; sources</a>
+      </div>
+    </header>
+
+    <section class="metrics" aria-label="Model summary">
+      <div class="metric"><div class="metric-label">Terrain source</div><div class="metric-value">USGS 3DEP · 1 m</div><div class="metric-note">LiDAR-derived bare-earth DEM · raster 86167 · NAVD88</div></div>
+      <div class="metric"><div class="metric-label">EPQS spot sample range</div><div class="metric-value">7,256.2–7,283.0 ft</div><div class="metric-note">10 points · 26.8 ft sampled spread only</div></div>
+      <div class="metric"><div class="metric-label">Assessor GIS area</div><div class="metric-value">5.5895 acres</div><div class="metric-note">Parcel service attribute · not surveyed area</div></div>
+      <div class="metric"><div class="metric-label">Aerial history</div><div class="metric-value">2013 → 2023</div><div class="metric-note">Five NAIP snapshots · roughly 1.0 m to 0.3 m</div></div>
+    </section>
+
+    <main>
+      <div class="layout">
+        <section class="card map-card" aria-labelledby="mapTitle">
+          <div class="card-head">
+            <h2 id="mapTitle">2019 bare-earth terrain</h2>
+            <span class="live-tag"><span class="live-dot" aria-hidden="true"></span><span id="liveLabel">Live USGS 3DEP service</span></span>
+            <div class="segmented" role="group" aria-label="Choose map layer">
+              <button class="active" type="button" data-mode="terrain" aria-pressed="true">Terrain</button>
+              <button type="button" data-mode="aerial" aria-pressed="false">Aerial history</button>
+            </div>
+          </div>
+
+          <div class="toolbar" id="terrainControls" role="group" aria-label="Terrain rendering">
+            <button class="active" type="button" data-style="tint" aria-pressed="true">Tinted relief</button>
+            <button type="button" data-style="slope" aria-pressed="false">Slope</button>
+            <button type="button" data-style="contours" aria-pressed="false">2 ft contours</button>
+            <span class="toolbar-note">All terrain views locked to raster 86167</span>
+          </div>
+          <div class="toolbar hidden" id="aerialControls" role="group" aria-label="Aerial image year">
+            <button type="button" data-year="2013" aria-pressed="false">2013</button>
+            <button type="button" data-year="2017" aria-pressed="false">2017</button>
+            <button type="button" data-year="2019" aria-pressed="false">2019</button>
+            <button type="button" data-year="2021" aria-pressed="false">2021</button>
+            <button class="active" type="button" data-year="2023" aria-pressed="true">2023</button>
+            <span class="toolbar-note" id="aerialDateNote">NAIP · 2023-08-04 · 0.3 m</span>
+          </div>
+
+          <div class="map-frame" id="mapFrame">
+            <img id="mapImage" class="map-image" alt="Live USGS terrain image for APN 30055004" src="">
+            <svg id="mapOverlay" viewBox="0 0 1200 780" role="img" aria-label="Approximate assessor parcel boundary and ten EPQS sample points">
+              <title>Assessor GIS parcel outline and EPQS sample points</title>
+              <polygon id="parcelPolygon" fill="rgba(244,195,102,.10)" stroke="#f4c366" stroke-width="3.5" stroke-dasharray="10 7" vector-effect="non-scaling-stroke"></polygon>
+              <g id="sampleMarkers"></g>
+              <g aria-hidden="true" transform="translate(1130 77)">
+                <circle r="28" fill="rgba(18,42,36,.78)" stroke="rgba(255,255,255,.55)" stroke-width="1.5"></circle>
+                <path d="M0 14 L0 -13 M0 -13 L-6 -3 M0 -13 L6 -3" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                <text x="0" y="-36" text-anchor="middle" fill="#fff" font-size="17" font-weight="800">N</text>
+              </g>
+              <g aria-hidden="true" id="scaleBar" transform="translate(62 728)">
+                <rect x="-10" y="-32" width="260" height="53" rx="7" fill="rgba(18,42,36,.78)" stroke="rgba(255,255,255,.32)"></rect>
+                <line id="scaleLine" x1="0" y1="0" x2="200" y2="0" stroke="#fff" stroke-width="4"></line>
+                <line id="scaleTickA" x1="0" y1="-5" x2="0" y2="5" stroke="#fff" stroke-width="2"></line>
+                <line id="scaleTickB" x1="200" y1="-5" x2="200" y2="5" stroke="#fff" stroke-width="2"></line>
+                <text id="scaleText" x="100" y="-10" text-anchor="middle" fill="#fff" font-size="15" font-weight="750">50 m ground</text>
+              </g>
+            </svg>
+            <div class="map-corner"><strong id="mapCornerTitle">USGS 3DEP · bare-earth elevation</strong><span id="mapCornerSub">AZ_Coconino_2019_B19 · 1 m · source raster 86167</span></div>
+            <div class="map-legend"><span class="legend-line"></span>Assessor GIS edge<br><span class="legend-dot"></span>EPQS spot sample (numbered)</div>
+            <div class="map-loading" id="mapLoading"><div><strong>Connecting to public elevation service…</strong>Live raster images need an internet connection.<br>If unavailable, use the source links below.</div></div>
+          </div>
+          <div class="map-foot">
+            <span><strong id="mapFooterTitle">2019 3DEP raster</strong> · dynamic display from the USGS image service; no DEM file is bundled locally.</span>
+            <span id="mapFooterSource">Vertical datum: NAVD88 · sample elevations reported in feet</span>
+          </div>
+        </section>
+
+        <aside class="card side-card" aria-labelledby="readTitle">
+          <p class="eyebrow">What the data supports</p>
+          <h2 id="readTitle">A coarse relief read</h2>
+          <p class="side-intro">The interactive terrain image uses the actual USGS 1-meter raster. The figures below are separate EPQS point queries, included as a simple cross-check—not a full site-wide statistics run.</p>
+          <div class="reading-points">
+            <div class="reading-point"><div><span class="label">Highest query point</span><span class="value">7,282.971 ft</span></div><span class="small">P03 · east / NE-ish</span></div>
+            <div class="reading-point"><div><span class="label">Lowest query point</span><span class="value">7,256.198 ft</span></div><span class="small">P09 · SE-ish</span></div>
+            <div class="reading-point"><div><span class="label">Sampled point spread</span><span class="value">26.773 ft</span></div><span class="small">not parcel min/max</span></div>
+          </div>
+          <div class="direction-note"><strong>Preliminary read:</strong> the highest sampled point is on the east/northeast side; lower samples occur toward the south and southeast. The sparse sample pattern does not establish a drainage path, grade, or verified high/low point.</div>
+          <p class="caution-mini">The user's video annotation provides qualitative orientation only. Fence, track, street, and legal access are not surveyed or digitized in this viewer.</p>
+        </aside>
+      </div>
+
+      <div class="lower-grid">
+        <section class="card section-card" aria-labelledby="samplesTitle">
+          <h2 id="samplesTitle">Ten EPQS sample points</h2>
+          <p class="section-subtitle">USGS EPQS returned the same 1-meter source raster ID (86167) for these coordinates. Elevation values are feet; coordinates are WGS84. Select/hover numbered map markers to match IDs.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Point</th><th>Longitude</th><th>Latitude</th><th>Elevation</th><th>Position</th></tr></thead>
+              <tbody id="sampleRows"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card section-card" aria-labelledby="timelineTitle">
+          <h2 id="timelineTitle">NAIP aerial chronology</h2>
+          <p class="section-subtitle">The year buttons load live Arizona image services. Dates are parcel-area catalog dates, not dates inferred from visual appearance.</p>
+          <div class="timeline" id="timeline"></div>
+          <div class="date-conflict"><strong>2019 date note:</strong> the Arizona image-service tile name indicates June 27, while the USDA image-date index returns June 24 at the queried parcel point. The viewer uses the Arizona service; exact date is unresolved.</div>
+        </section>
+      </div>
+
+      <section class="alert" aria-labelledby="cautionTitle">
+        <div class="alert-icon" aria-hidden="true">!</div>
+        <div>
+          <h2 id="cautionTitle">Preliminary only — not for boundary, design, or legal decisions</h2>
+          <p>The assessor parcel polygon is approximate GIS geometry and reports 5.5895 acres, which differs from the project's prior 5.00-acre assumption; reconcile with survey/title records. Terrain is a 2019 LiDAR-derived bare-earth DEM and historical aerial context, not current design-grade topography. Do not use this map for legal road status, access rights, grading, drainage design, setbacks, or construction. No boundary survey, control points, field shots, or georeferenced fence/track observations are included.</p>
+        </div>
+      </section>
+
+      <section class="card sources" aria-labelledby="sourcesTitle">
+        <h2 id="sourcesTitle">Public data sources</h2>
+        <div class="source-links">
+          <a href="https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer" target="_blank" rel="noopener">USGS 3DEP ImageServer</a>
+          <a href="https://epqs.nationalmap.gov/v1/docs" target="_blank" rel="noopener">USGS EPQS API docs</a>
+          <a href="https://data.usgs.gov/datacatalog/data/USGS:77ae0551-c61e-4979-aedd-d797abdcde0e" target="_blank" rel="noopener">USGS 1 m DEM collection</a>
+          <a href="https://azwatermaps.azwater.gov/arcgis/rest/services/General/Parcels/MapServer/2" target="_blank" rel="noopener">Arizona Water Maps parcel layer</a>
+          <a href="https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2013/ImageServer" target="_blank" rel="noopener">AZGeo NAIP 2013</a>
+          <a href="https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2017/MapServer" target="_blank" rel="noopener">AZGeo NAIP 2017</a>
+          <a href="https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2019/ImageServer" target="_blank" rel="noopener">AZGeo NAIP 2019</a>
+          <a href="https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2021/ImageServer" target="_blank" rel="noopener">AZGeo NAIP 2021</a>
+          <a href="https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2023/ImageServer" target="_blank" rel="noopener">AZGeo NAIP 2023</a>
+        </div>
+      </section>
+      <p class="footnote">The complete 1-meter DEM and NAIP images are requested dynamically from public services and are not copied into this repository. The included CSV contains only ten EPQS spot samples. Elevation source metadata has a date discrepancy: EPQS <code>includeDate</code> reports 2019-07-02 at checked points, while the 3DEP catalog for raster 86167 identifies the AZ_Coconino_2019_B19 acquisition window as 2019-08-16–20. Treat the project year as 2019 and the exact date as unresolved. The broader development plan remains paused pending the user's partner meeting.</p>
+    </main>
+  </div>
+
+  <script>
+    'use strict';
+    const WIDTH = 1200;
+    const HEIGHT = 780;
+    const EXTENT = {
+      xmin: -12431982.423076924,
+      ymin: 4224545,
+      xmax: -12431688.576923078,
+      ymax: 4224736
+    };
+    const R = 6378137;
+    const DEM_SERVICE = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage';
+    const DEM_MOSAIC_RULE = { mosaicMethod: 'esriMosaicLockRaster', lockRasterIds: [86167] };
+    const TERRAIN_STYLES = {
+      tint: { label: 'Elevation-tinted hillshade', rule: { rasterFunction: 'Hillshade Elevation Tinted' } },
+      slope: { label: 'Slope map', rule: { rasterFunction: 'Slope Map' } },
+      contours: { label: '2-foot display contours', rule: { rasterFunction: 'Preset 2ft Contour Interval' } }
+    };
+    const AERIALS = {
+      '2013': {
+        title: 'NAIP 2013', date: '2013-06-07', displayDate: '07 Jun 2013', resolution: '≈1.0 m',
+        endpoint: 'https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2013/ImageServer/exportImage',
+        detail: 'AZGeo tile name includes 20130607 · m_3511135_ne_12_1_20130607'
+      },
+      '2017': {
+        title: 'NAIP 2017', date: '2017-06-27', displayDate: '27 Jun 2017', resolution: '≈0.6 m',
+        endpoint: 'https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2017/MapServer/export',
+        detail: 'USDA Arizona image-date index · digital 4-band imagery'
+      },
+      '2019': {
+        title: 'NAIP 2019', date: '2019-06-27*', displayDate: '27 Jun 2019*', resolution: '≈0.6 m',
+        endpoint: 'https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2019/ImageServer/exportImage',
+        detail: 'AZGeo tile date; USDA date index reports 24 Jun 2019 (discrepancy)'
+      },
+      '2021': {
+        title: 'NAIP 2021', date: '2021-11-08', displayDate: '08 Nov 2021', resolution: '≈0.6 m',
+        endpoint: 'https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2021/ImageServer/exportImage',
+        detail: 'USDA Arizona image-date index and AZGeo tile catalog agree'
+      },
+      '2023': {
+        title: 'NAIP 2023', date: '2023-08-04', displayDate: '04 Aug 2023', resolution: '0.3 m',
+        endpoint: 'https://azgeo.az.gov/arcgis/rest/services/imagery/NAIP2023/ImageServer/exportImage',
+        detail: 'USDA Arizona image-date index and AZGeo tile catalog agree'
+      }
+    };
+    const PARCEL = [
+      [-111.67606781445542, 35.445362919380607],
+      [-111.6760532523933, 35.445363970206685],
+      [-111.6760391339088, 35.445367073423633],
+      [-111.67602588792539, 35.4453721337592],
+      [-111.67601391533174, 35.445378997490465],
+      [-111.676003579111, 35.445387457909256],
+      [-111.67599519443986, 35.445397257180552],
+      [-111.6759890144629, 35.445408098143851],
+      [-111.67598522594594, 35.445419651550601],
+      [-111.67598394497406, 35.445431568711378],
+      [-111.675983291279, 35.446393223833759],
+      [-111.67816567097087, 35.446391825973336],
+      [-111.67816637857729, 35.445361538355286],
+      [-111.67606781445542, 35.445362919380607]
+    ];
+    const SAMPLES = [
+      { id: 'P01', lon: -111.67805, lat: 35.44630, z: 7266.506, position: 'NW' },
+      { id: 'P02', lon: -111.67710, lat: 35.44630, z: 7269.532, position: 'North-center' },
+      { id: 'P03', lon: -111.67605, lat: 35.44630, z: 7282.971, position: 'NE-ish · highest sample' },
+      { id: 'P04', lon: -111.67805, lat: 35.44588, z: 7264.067, position: 'West-center' },
+      { id: 'P05', lon: -111.67710, lat: 35.44588, z: 7260.584, position: 'Center' },
+      { id: 'P06', lon: -111.67605, lat: 35.44588, z: 7272.837, position: 'East-center' },
+      { id: 'P07', lon: -111.67805, lat: 35.44545, z: 7262.531, position: 'SW-ish' },
+      { id: 'P08', lon: -111.67710, lat: 35.44545, z: 7257.019, position: 'South-center' },
+      { id: 'P09', lon: -111.67610, lat: 35.44545, z: 7256.198, position: 'SE-ish · lowest sample' },
+      { id: 'P10', lon: -111.67700, lat: 35.44580, z: 7259.764, position: 'South-center, supplemental' }
+    ];
+
+    const mapImage = document.getElementById('mapImage');
+    const mapLoading = document.getElementById('mapLoading');
+    const mapCornerTitle = document.getElementById('mapCornerTitle');
+    const mapCornerSub = document.getElementById('mapCornerSub');
+    const mapTitle = document.getElementById('mapTitle');
+    const mapFooterTitle = document.getElementById('mapFooterTitle');
+    const mapFooterSource = document.getElementById('mapFooterSource');
+    const terrainControls = document.getElementById('terrainControls');
+    const aerialControls = document.getElementById('aerialControls');
+    const aerialDateNote = document.getElementById('aerialDateNote');
+    let activeMode = 'terrain';
+    let activeTerrain = 'tint';
+    let activeYear = '2023';
+
+    function webMercator(lon, lat) {
+      const latitude = Math.max(-85.05112878, Math.min(85.05112878, lat));
+      return {
+        x: R * lon * Math.PI / 180,
+        y: R * Math.log(Math.tan(Math.PI / 4 + latitude * Math.PI / 360))
+      };
+    }
+    function pixel(lon, lat) {
+      const p = webMercator(lon, lat);
+      return {
+        x: (p.x - EXTENT.xmin) / (EXTENT.xmax - EXTENT.xmin) * WIDTH,
+        y: (EXTENT.ymax - p.y) / (EXTENT.ymax - EXTENT.ymin) * HEIGHT
+      };
+    }
+    function setOverlay() {
+      const parcelPoints = PARCEL.map(([lon, lat]) => {
+        const p = pixel(lon, lat);
+        return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+      }).join(' ');
+      document.getElementById('parcelPolygon').setAttribute('points', parcelPoints);
+      const minZ = Math.min(...SAMPLES.map(p => p.z));
+      const maxZ = Math.max(...SAMPLES.map(p => p.z));
+      const markers = document.getElementById('sampleMarkers');
+      markers.replaceChildren();
+      SAMPLES.forEach((sample, index) => {
+        const p = pixel(sample.lon, sample.lat);
+        const t = (sample.z - minZ) / (maxZ - minZ);
+        const fill = t < .35 ? '#2a8b7a' : t < .7 ? '#d2a951' : '#b85f3f';
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        title.textContent = `${sample.id}: ${sample.z.toFixed(3)} ft · ${sample.position} · ${sample.lon.toFixed(6)}, ${sample.lat.toFixed(6)}`;
+        g.appendChild(title);
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', '12');
+        circle.setAttribute('fill', fill);
+        circle.setAttribute('stroke', '#fffdf4');
+        circle.setAttribute('stroke-width', '2.5');
+        circle.setAttribute('vector-effect', 'non-scaling-stroke');
+        g.appendChild(circle);
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'central');
+        text.setAttribute('fill', '#fff');
+        text.setAttribute('font-size', '9.5');
+        text.setAttribute('font-weight', '850');
+        text.setAttribute('font-family', 'system-ui, sans-serif');
+        text.textContent = String(index + 1).padStart(2, '0');
+        g.appendChild(text);
+        markers.appendChild(g);
+      });
+      const groundMeters = 50;
+      const centerLat = 35.4459 * Math.PI / 180;
+      const projectedMeters = groundMeters / Math.cos(centerLat);
+      const barPixels = projectedMeters / (EXTENT.xmax - EXTENT.xmin) * WIDTH;
+      ['scaleLine', 'scaleTickB'].forEach(id => document.getElementById(id).setAttribute('x2', barPixels.toFixed(1)));
+      document.getElementById('scaleText').setAttribute('x', (barPixels / 2).toFixed(1));
+      const bg = document.querySelector('#scaleBar rect');
+      bg.setAttribute('width', (barPixels + 22).toFixed(1));
+    }
+    function imageUrl(endpoint, extras = {}) {
+      const url = new URL(endpoint);
+      url.searchParams.set('bbox', `${EXTENT.xmin},${EXTENT.ymin},${EXTENT.xmax},${EXTENT.ymax}`);
+      url.searchParams.set('bboxSR', '3857');
+      url.searchParams.set('imageSR', '3857');
+      url.searchParams.set('size', `${WIDTH},${HEIGHT}`);
+      url.searchParams.set('format', endpoint.includes('/MapServer/export') ? 'jpg' : 'jpgpng');
+      url.searchParams.set('f', 'image');
+      for (const [key, value] of Object.entries(extras)) {
+        url.searchParams.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+      }
+      return url.toString();
+    }
+    function showLoading(message) {
+      mapLoading.classList.remove('hidden');
+      mapLoading.innerHTML = `<div><strong>${message}</strong>Live raster images need an internet connection.<br>If unavailable, use the source links below.</div>`;
+    }
+    function setImage(url, alt) {
+      showLoading('Connecting to public map service…');
+      mapImage.alt = alt;
+      mapImage.onload = () => mapLoading.classList.add('hidden');
+      mapImage.onerror = () => {
+        mapLoading.innerHTML = '<div><strong>Could not load this live image.</strong>Public service or network may be unavailable.<br>Use the source links below to open the original layer.</div>';
+        mapLoading.classList.remove('hidden');
+      };
+      mapImage.src = url;
+    }
+    function setTerrain(style) {
+      activeMode = 'terrain';
+      activeTerrain = style;
+      const cfg = TERRAIN_STYLES[style];
+      setImage(imageUrl(DEM_SERVICE, { renderingRule: cfg.rule, mosaicRule: DEM_MOSAIC_RULE }), `USGS 3DEP ${cfg.label}, raster 86167, APN 30055004`);
+      mapTitle.textContent = style === 'contours' ? '2-foot display contours' : style === 'slope' ? 'Slope from 2019 bare-earth DEM' : '2019 bare-earth terrain';
+      mapCornerTitle.textContent = `USGS 3DEP · ${cfg.label}`;
+      mapCornerSub.textContent = 'AZ_Coconino_2019_B19 · 1 m · raster 86167';
+      mapFooterTitle.textContent = cfg.label;
+      mapFooterSource.textContent = 'Raster 86167 locked · vertical datum NAVD88 · 1 m source';
+      document.getElementById('liveLabel').textContent = 'Live USGS 3DEP service';
+      document.querySelectorAll('[data-style]').forEach(button => {
+        const isActive = button.dataset.style === style;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+    function setAerial(year) {
+      activeMode = 'aerial';
+      activeYear = year;
+      const cfg = AERIALS[year];
+      setImage(imageUrl(cfg.endpoint), `${cfg.title} aerial image acquired ${cfg.date}, APN 30055004`);
+      mapTitle.textContent = `${cfg.title} aerial image`;
+      mapCornerTitle.textContent = `${cfg.title} · ${cfg.displayDate}`;
+      mapCornerSub.textContent = `${cfg.resolution} nominal pixel size · Arizona NAIP service`;
+      mapFooterTitle.textContent = `${cfg.title} · ${cfg.displayDate}`;
+      mapFooterSource.textContent = year === '2019' ? 'Date mismatch in public indexes; see note below' : `${cfg.resolution} nominal source resolution`;
+      aerialDateNote.textContent = `${cfg.displayDate} · ${cfg.resolution}${year === '2019' ? ' · date mismatch' : ''}`;
+      document.getElementById('liveLabel').textContent = 'Live Arizona NAIP service';
+      document.querySelectorAll('[data-year]').forEach(button => {
+        const isActive = button.dataset.year === year;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+    function setMode(mode) {
+      activeMode = mode;
+      terrainControls.classList.toggle('hidden', mode !== 'terrain');
+      aerialControls.classList.toggle('hidden', mode !== 'aerial');
+      document.querySelectorAll('[data-mode]').forEach(button => {
+        const isActive = button.dataset.mode === mode;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+      if (mode === 'terrain') setTerrain(activeTerrain);
+      else setAerial(activeYear);
+    }
+    function populateSamples() {
+      const tbody = document.getElementById('sampleRows');
+      const lowId = 'P09';
+      const highId = 'P03';
+      SAMPLES.forEach(sample => {
+        const tr = document.createElement('tr');
+        if (sample.id === lowId || sample.id === highId) tr.classList.add('row-extreme');
+        const cells = [sample.id, sample.lon.toFixed(6), sample.lat.toFixed(6), `${sample.z.toFixed(3)} ft`, sample.position];
+        cells.forEach((value, i) => {
+          const td = document.createElement('td');
+          td.textContent = value;
+          if (i === 3) td.className = 'elev';
+          if (i === 0 && sample.id === highId) td.innerHTML = `${sample.id}<span class="chip">high</span>`;
+          if (i === 0 && sample.id === lowId) td.innerHTML = `${sample.id}<span class="chip">low</span>`;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+    function populateTimeline() {
+      const container = document.getElementById('timeline');
+      Object.entries(AERIALS).forEach(([year, item]) => {
+        const row = document.createElement('div');
+        row.className = 'timeline-item';
+        const date = document.createElement('div');
+        date.className = 'year-pill';
+        date.textContent = year;
+        const text = document.createElement('div');
+        const dateLine = document.createElement('div');
+        dateLine.className = 'timeline-date';
+        dateLine.textContent = item.displayDate;
+        const detail = document.createElement('div');
+        detail.className = 'timeline-meta';
+        detail.textContent = item.detail;
+        text.append(dateLine, detail);
+        const resolution = document.createElement('div');
+        resolution.className = 'timeline-res';
+        resolution.textContent = item.resolution;
+        row.append(date, text, resolution);
+        container.appendChild(row);
+      });
+    }
+    document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
+    document.querySelectorAll('[data-style]').forEach(button => button.addEventListener('click', () => setTerrain(button.dataset.style)));
+    document.querySelectorAll('[data-year]').forEach(button => button.addEventListener('click', () => setAerial(button.dataset.year)));
+    document.getElementById('printButton').addEventListener('click', () => window.print());
+    setOverlay();
+    populateSamples();
+    populateTimeline();
+    setTerrain('tint');
+  </script>
+</body>
+</html>

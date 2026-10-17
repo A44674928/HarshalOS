@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#07111c">
+  <title>HarshalOS · Private OUTPOST ONE Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07111c; color: #eaf2f7; font: 12px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .preview-bar { position: relative; z-index: 3; height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; border-bottom: 1px solid rgba(121,216,250,.24); background: #0a1623; }
+    .preview-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .preview-mark { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 7px; color: #ffd27a; background: rgba(255,210,122,.12); font: 700 12px Georgia,serif; }
+    .preview-brand strong { color: #79d8fa; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; white-space: nowrap; }
+    .preview-status { min-width: 0; color: #92a8b8; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-launch { flex: 0 0 auto; min-height: 29px; border: 1px solid rgba(121,216,250,.35); border-radius: 7px; padding: 5px 10px; color: #79d8fa; background: rgba(121,216,250,.07); cursor: pointer; font: 700 9px system-ui,sans-serif; }
+    .preview-launch:hover { background: rgba(121,216,250,.14); }
+    #os { display: block; width: 100%; height: calc(100% - 42px); border: 0; background: #05080f; }
+    @media(max-width:620px) { .preview-status { display:none; } .preview-bar { padding: 0 8px; } }
+  </style>
+</head>
+<body>
+  <header class="preview-bar">
+    <div class="preview-brand"><span class="preview-mark">H</span><strong>HARSHALOS · PRIVATE APP PREVIEW</strong></div>
+    <span class="preview-status" id="previewStatus" role="status">Loading the HarshalOS shell and local project module…</span>
+    <button class="preview-launch" id="launchOutpost" type="button">Open / restore OUTPOST ONE</button>
+  </header>
+  <iframe id="os" title="HarshalOS desktop with private OUTPOST ONE app" src="/os"></iframe>
+  <script>
+    (() => {
+      const frame = document.getElementById('os');
+      const status = document.getElementById('previewStatus');
+      const launchButton = document.getElementById('launchOutpost');
+      let checking = false;
+
+      function openOutpost() {
+        try {
+          const win = frame.contentWindow;
+          const app = win?.APPS?.find(candidate => candidate.id === 'frontiership-outpost-one');
+          if (app && win.shell && typeof win.shell.openApp === 'function') {
+            win.shell.openApp(app);
+            status.textContent = 'OUTPOST ONE opened · its launcher icon is also on the HarshalOS desktop';
+            return true;
+          }
+        } catch { /* frame may still be loading */ }
+        return false;
+      }
+
+      function waitForRegistration() {
+        if (checking) return;
+        checking = true;
+        let tries = 0;
+        const attempt = () => {
+          tries += 1;
+          let win;
+          try { win = frame.contentWindow; } catch { /* retry after load */ }
+          if (!win || !Array.isArray(win.APPS) || !win.shell) {
+            if (tries < 100) return setTimeout(attempt, 150);
+            status.textContent = 'HarshalOS did not finish loading; reload this preview and try again.';
+            checking = false;
+            return;
+          }
+          if (win.APPS.some(candidate => candidate.id === 'frontiership-outpost-one')) {
+            status.textContent = 'OUTPOST ONE is registered on the HarshalOS desktop. Use its launcher icon or the button.';
+            checking = false;
+            return;
+          }
+          if (tries < 100) return setTimeout(attempt, 150);
+          status.textContent = 'OUTPOST ONE was not found in the loaded desktop bundle.';
+          checking = false;
+        };
+        attempt();
+      }
+
+      frame.addEventListener('load', waitForRegistration);
+      setTimeout(waitForRegistration, 500);
+      launchButton.addEventListener('click', () => {
+        if (!openOutpost()) waitForRegistration();
+      });
+    })();
+  </script>
+</body>
+</html>

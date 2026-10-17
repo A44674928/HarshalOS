@@ -1,0 +1,5 @@
+mitsuba==3.9.1
+numpy==1.26.4
+Pillow>=10.0,<12
+imageio-ffmpeg>=0.5.1,<0.7
+opencv-python-headless==4.11.0.86

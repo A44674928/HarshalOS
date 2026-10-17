@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { access, readFile, readdir, rm } from "node:fs/promises";
+import { access, readFile, readdir, rm, stat } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import test from "node:test";
@@ -161,7 +161,7 @@ test("P13: root-level files stay limited to app entry points, configuration, opt
     .map(entry => entry.name)
     .sort();
   assert.deepEqual(rootFiles, [
-    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "index.html", "neo-orb.html", "observations.html",
+    ".assetsignore", ".gitignore", "README.md", "SECURITY.md", "about.html", "account.html", "audits.html", "design-review-response.md", "index.html", "neo-orb.html", "observations.html",
     "package-lock.json", "package.json", "requirements-hf-data-library.txt", "requirements-newsml-g2.txt", "serve.js", "wrangler.jsonc", "wrangler.staging.jsonc"
   ]);
 
@@ -303,10 +303,31 @@ test("P13: public asset staging includes the selected Book I source, all indexed
     assert.equal(result.status, 0, `${result.stdout || ""}\n${result.stderr || ""}`);
 
     const topLevel = (await readdir(SITE)).sort();
-    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "neo-orb.html", "observations.html", "specs", "trades"]);
-    for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js", "css/trades.css", "js/apps-trades.js", "trades/index.txt"]) {
+    assert.deepEqual(topLevel, ["about.html", "account.html", "assets", "audits.html", "book", "book-library", "css", "index.html", "js", "manuscript", "neo-orb.html", "observations.html", "private", "specs", "terrain", "trades"]);
+    for (const publicAsset of ["css/materials-project.css", "js/apps-materials-project.js", "css/character-materials.css", "js/character-material-model.js", "js/apps-character-materials.js", "css/trades.css", "js/apps-trades.js", "js/apps-frontiership.js", "css/frontiership.css", "trades/index.txt"]) {
       assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
     }
+    assert.deepEqual((await listFiles(path.join(SITE, "private"), "private")).sort(), [
+      "private/outpost-one-best-wishes-3d-film.mp4",
+      "private/outpost-one-best-wishes-3d-narrated-film.mp4",
+      "private/outpost-one-best-wishes-narration.mp3",
+      "private/outpost-one-best-wishes-3d-poster.png",
+      "private/outpost-one-best-wishes-guide.md",
+      "private/outpost-one-full-feature-film.mp4",
+      "private/outpost-one-full-feature-poster.png",
+      "private/outpost-one-feature-film-guide.md",
+      "private/outpost-one-concept-model.zip"
+    ].sort(), "only the explicitly named project films, audio, posters, guides, and model package are staged");
+    const narratedFilmStat = await stat(path.join(SITE, "private/outpost-one-best-wishes-3d-narrated-film.mp4"));
+    assert.ok(narratedFilmStat.size <= 25 * 1024 * 1024, "each Cloudflare Workers asset must stay within the 25 MiB per-file limit");
+    assert.deepEqual((await listFiles(path.join(SITE, "terrain"), "terrain")).sort(), [
+      "terrain/index.html",
+      "terrain/README.md",
+      "terrain/epqs_samples.csv",
+      "terrain/parcel_outline.geojson"
+    ].sort(), "the terrain viewer receives only its named HTML/source files");
+    assert.equal(await exists(path.join(SITE, "terrain_preliminary")), false, "the full project source folder is not staged");
+    assert.equal(await exists(path.join(SITE, "private/business-plan")), false, "private workbooks and business-plan documents are not staged");
     assert.equal(await exists(path.join(SITE, "worker/materials-project.mjs")), false, "Worker source and its secret-handling code are not browser assets");
     assert.equal(await exists(path.join(SITE, "docs/integrations/MATERIALS-PROJECT.md")), false, "Materials Project operator documentation stays repository-only");
     assert.equal(await exists(path.join(SITE, "docs/integrations/CHARACTER-MATERIAL-MODEL.md")), false, "character-material model documentation stays repository-only");
@@ -426,7 +447,42 @@ test("P13: local preview serves the selected Book I source and Collections libra
     assert.match(tradesIndexText, /STOCK ·/);
     assert.match(tradesIndexText, /FUTURES ·/);
 
+    const outpostModule = await fetch(`${base}/js/apps-frontiership.js`);
+    assert.equal(outpostModule.status, 200, "the OUTPOST ONE app module is available in the desktop bundle");
+    assert.match(await outpostModule.text(), /frontiership-outpost-one/);
+    const terrainPage = await fetch(`${base}/terrain/`);
+    assert.equal(terrainPage.status, 200, "the named terrain viewer route is served");
+    assert.match(await terrainPage.text(), /APN 30055004/);
+    const terrainSamples = await fetch(`${base}/terrain/epqs_samples.csv`);
+    assert.equal(terrainSamples.status, 200, "only the selected terrain sample file is served");
+    assert.match(terrainSamples.headers.get("content-type"), /text\/csv/);
+    const filmRange = await fetch(`${base}/private/outpost-one-best-wishes-3d-film.mp4`, {
+      headers: { Range: "bytes=0-63" }
+    });
+    assert.equal(filmRange.status, 206, "the original silent Best-Wishes film supports byte-range playback");
+    assert.match(filmRange.headers.get("content-type"), /video\/mp4/);
+    assert.equal((await filmRange.arrayBuffer()).byteLength, 64);
+    const narratedFilmRange = await fetch(`${base}/private/outpost-one-best-wishes-3d-narrated-film.mp4`, {
+      headers: { Range: "bytes=0-63" }
+    });
+    assert.equal(narratedFilmRange.status, 206, "the narrated Best-Wishes edition supports byte-range playback");
+    assert.match(narratedFilmRange.headers.get("content-type"), /video\/mp4/);
+    assert.equal((await narratedFilmRange.arrayBuffer()).byteLength, 64);
+    const narrationHead = await fetch(`${base}/private/outpost-one-best-wishes-narration.mp3`, { method: "HEAD" });
+    assert.equal(narrationHead.status, 200, "the standalone narration MP3 is allowlisted");
+    assert.match(narrationHead.headers.get("content-type"), /audio\/mpeg/);
+    assert.ok(Number(narrationHead.headers.get("content-length")) > 1000000, "the full narration master is served");
+    const bestWishesGuide = await fetch(`${base}/private/outpost-one-best-wishes-guide.md`);
+    assert.equal(bestWishesGuide.status, 200);
+    const guideText = await bestWishesGuide.text();
+    assert.match(guideText, /Best-Wishes/);
+    assert.match(guideText, /Audio editions/);
+
     for (const pathname of [
+      "/single-parcel-APN30055004/terrain_preliminary/README.md",
+      "/single-parcel-APN30055004/terrain_preliminary/best-wishes-edition/render_frontiership_best_wishes_3d.py",
+      "/private/not-allowlisted.txt",
+      "/terrain/outpost-one-concept-model.obj",
       "/trades/private.md",
       "/trades/../README.md",
       "/docs/harshal-systems/01-core-book.md",

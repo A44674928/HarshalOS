@@ -33,6 +33,36 @@ for (const entry of ['index.html', 'neo-orb.html', 'about.html', 'account.html',
   });
 }
 
+/* FRONTIERSHIP / OUTPOST ONE is intentionally a named deploy-list, not a copy
+   of the project folder. Its browser bundle contains project/economic details;
+   Cloudflare Access must protect the site and every static/media route. Access
+   is configured outside this repository and is not enforced by this stager. */
+const outpostSourceRoot = path.join(root, 'single-parcel-APN30055004', 'terrain_preliminary');
+const outpostDeployAssets = [
+  ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d.mp4', 'private/outpost-one-best-wishes-3d-film.mp4'],
+  ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d-narrated.mp4', 'private/outpost-one-best-wishes-3d-narrated-film.mp4'],
+  ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d-narration.mp3', 'private/outpost-one-best-wishes-narration.mp3'],
+  ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d-poster.png', 'private/outpost-one-best-wishes-3d-poster.png'],
+  ['best-wishes-edition/BEST_WISHES_EDITION_GUIDE.md', 'private/outpost-one-best-wishes-guide.md'],
+  ['outpost-one-full-feature-film.mp4', 'private/outpost-one-full-feature-film.mp4'],
+  ['outpost-one-full-feature-poster.png', 'private/outpost-one-full-feature-poster.png'],
+  ['OUTPOST_ONE_FEATURE_FILM_GUIDE.md', 'private/outpost-one-feature-film-guide.md'],
+  ['outpost-one-concept-model.zip', 'private/outpost-one-concept-model.zip'],
+  ['index.html', 'terrain/index.html'],
+  ['README.md', 'terrain/README.md'],
+  ['epqs_samples.csv', 'terrain/epqs_samples.csv'],
+  ['parcel_outline.geojson', 'terrain/parcel_outline.geojson']
+];
+for (const [sourceRelative, publicRelative] of outpostDeployAssets) {
+  const source = path.resolve(outpostSourceRoot, ...sourceRelative.split('/'));
+  if (!source.startsWith(`${outpostSourceRoot}${path.sep}`)) throw new Error(`OUTPOST source path escapes its package: ${sourceRelative}`);
+  const sourceStat = await lstat(source);
+  if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) throw new Error(`OUTPOST deploy asset must be a regular file: ${sourceRelative}`);
+  const target = path.join(dest, ...publicRelative.split('/'));
+  await mkdir(path.dirname(target), { recursive: true });
+  await cp(source, target);
+}
+
 /* Book I is the one explicitly selected document from the otherwise-private
    docs/ tree. Publish it under a narrow runtime path; never stage docs/ itself. */
 const coreBookSource = 'docs/harshal-systems/01-core-book.md';
@@ -67,4 +97,4 @@ for (const document of bookLibrary.documents) {
 await mkdir(path.join(dest, 'book-library'), { recursive: true });
 await writeFile(path.join(dest, 'book-library', 'manifest.json'), serializeBookLibrary(bookLibrary.manifest));
 
-console.log(`Staged public assets, the selected Book I core text, ${bookLibrary.manifest.documentCount} collection-library file(s), the normative/draft Ground-0 specifications, and ${manifest.manuscript.chapters} manuscript chapter(s) with indexes.`);
+console.log(`Staged browser assets, the selected Book I core text, ${bookLibrary.manifest.documentCount} collection-library file(s), the normative/draft Ground-0 specifications, ${manifest.manuscript.chapters} manuscript chapter(s) with indexes, and the named OUTPOST ONE app/media/terrain assets. Cloudflare Access remains externally configured.`);
