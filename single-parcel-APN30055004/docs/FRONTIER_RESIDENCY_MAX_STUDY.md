@@ -1,5 +1,7 @@
 # Frontier Residency — Max-Capacity Study (v3)
 
+> **UPDATE (same day):** pivoted to **Safety First High Desert AI Lab HQ** (General Purpose + Life Sciences, $4,800/mo, owner 1/12, medical core) — see `SAFETY_FIRST_HQ_MEDICAL.md`; new figures `HQ_SAFETY_FIRST_*`. This study remains the capacity/ceiling basis.
+
 **APN 30055004 • "Hacker hostel" thought experiment, cost-unlimited • 2026-10-17**
 
 Directives locked this round: **(1)** cost-unlimited, fit as many beds in as large a house as possible — think the possibility through properly; **(2)** bermed underground wing (north cut / south walk-out); **(3)** BYO rented compute + on-site demo closet only; **(4)** 30+ day cohorts (no STR license).
