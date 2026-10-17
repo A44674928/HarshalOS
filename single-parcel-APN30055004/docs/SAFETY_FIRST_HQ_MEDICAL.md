@@ -1,5 +1,6 @@
-# Safety First High Desert AI Lab — HQ + Medical Program
+# OUTPOST ONE — Safety First HQ & Medical Program
 
+**Brand:** flagship property of **FRONTIERSHIP** (business plan §7A). The property trades as **OUTPOST ONE**; "Safety First" is the brand standard every Outpost carries — not a name.
 **APN 30055004 • General Purpose + Life Sciences • flagship HQ • 2026-10-17**
 
 Pivot this round: **Hacker Hostel → Safety First HQ at ~$4,800/mo.** This parcel is the flagship; *subsequent* properties adopt the hacker-hostel / lower-cost models. Owner-occupied share ≈ **1/12 of capacity**. The build reserves room for a **small-capacity medical facility with emergency capability** — the region is far from a hospital or doctor's office.
@@ -55,7 +56,8 @@ Beds: 57 monetized. GPR = 57 × $4,800 × 12 = **$3.28M @ 100% → $2.89M @ 88%*
 4. **County pre-app** → CUP (lodging >8 rooms) + road agreement (unchanged)
 5. **NEW: validate $4,800 with 3 comps** (sponsor-paid researcher housing + lab-bench memberships)
 6. **NEW: medical counsel** (licensure envelope) + **EMS/air-ambulance liaison**
-7. Capital decision → ALTA → engineered LOS/C-101 → permits
+7. **NEW: brand clearance** — USPTO TSSR + common-law + domains for FRONTIERSHIP & the chosen OUTPOST composite (Cl. 43/35/41/42) — before any signage/marketing spend
+8. Capital decision → ALTA → engineered LOS/C-101 → permits
 
 ## 5. Files
 

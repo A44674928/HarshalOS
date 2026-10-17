@@ -98,8 +98,32 @@
 
 ---
 
-### 7A. PRICING & POSITIONING — SAFETY FIRST HQ vs. SAN FRANCISCO (½ Page + tables)
-*Scope: Safety First High Desert AI Lab HQ flagship (62 beds, see `SAFETY_FIRST_HQ_MEDICAL.md`). The staged B-model lodge plan (§8) remains the fallback base case; this page prices the flagship.*
+### 7A. BRAND — FRONTIERSHIP & THE OUTPOST MODEL (½ Page + architecture)
+*Decision 2026-10-17: master brand **FRONTIERSHIP**; property brand **OUTPOST**, only ever inside distinctive composite marks; **SAFETY FIRST** demoted from name to brand standard. Name-check: bare "Outpost" is occupied — [Outpost (NYC), largest US coliving operator incl. SF](https://www.businesswire.com/news/home/20251124028242/en/Outpost-Merges-with-June-Homes-Becoming-Largest-Coliving-Operator-in-US) and [Outpost (Bali, since 2016)](https://www.pentagram.com/work/outpost) own page one; "Frontiership" is field-clean (no hospitality/coliving use).*
+
+```
+FRONTIERSHIP — company, thesis, member charter ("the ship")
+├── OUTPOST ONE      — flagship HQ, APN 30055004: 62 beds, med core, life
+│                      sciences, 26-mi private road · $4,800/mo (§7B)
+├── OUTPOST [modifier] — chain properties, hostel/lower-cost model (later)
+├── SAFETY FIRST     — the standard every Outpost carries (AED → ambulance
+│                      lane → MED LZ), certified, never a property name
+└── Kendrick Frontier Lab LLC — GPU/compute subsidiary (existing)
+```
+
+**Why this shape:**
+* **Frontiership** — coined, ownable in Cl. 43/35/41/42; inherits the Frontier lineage (Kendrick Frontier Lab LLC). Note: `frontiership.com` is held by a CA shipbroker — plan on `frontiership.ai` / `.lab` / property domains.
+* **Outpost composites** — the metaphor is perfect for the product (a frontier post = water, fortification, signal, supply line, surgeon → our well/septic, fire/microgrid, multi-LEO, road+shuttle, med core) but the bare word can't carry a brand: file as **OUTPOST ONE** (flagship), **OUTPOST 26** (the private road), or **OUTPOST 30055004** (the APN as property ID — coordinate-flavored forms are the distinctive, clearable ones).
+* **Safety First = standard** — it was a description, not a name; as a certifiable standard it keeps the medical moat in the *promise* instead of the nameplate, and lets it appear on every chain property later.
+
+**The model, stated honestly:** frontier posts were the **farthest practical end of the supply line** — *as remote as survivable, as connected as possible* — not maximum isolation (that's the buyer's Flagstaff airport, EMS protocol, and SF-parity price talking). **Signature lines:** *"26 miles from anywhere. Not from everything."* (lead) · *"The farthest point civilization can still hold."* (manifesto).
+
+**Clearance gate (before any sign, domain, or ad spend):** USPTO TSSR + common-law search for FRONTIERSHIP and the chosen OUTPOST composite in Cl. 43/35/41/42 + domain check — recorded as gate 7 in `SAFETY_FIRST_HQ_MEDICAL.md` §4. Pricing (§7B) is brand-agnostic; the brand protects the rate, it doesn't change it.
+
+---
+
+### 7B. PRICING & POSITIONING — SAFETY FIRST HQ vs. SAN FRANCISCO (½ Page + tables)
+*Scope: **OUTPOST ONE** — the Safety First HQ flagship (62 beds, see `SAFETY_FIRST_HQ_MEDICAL.md`). The staged B-model lodge plan (§8) remains the fallback base case; this page prices the flagship.*
 
 **Positioning statement:** *"Pay what a bare San Francisco apartment costs — get the apartment, the desk, the lab bench, and the doctor."* The buyer is not a tourist and usually not even an individual: it's a **company sponsoring a researcher**, comparing your invoice to their current SF burn.
 

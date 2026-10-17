@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-APN 30055004 — SAFETY FIRST HIGH DESERT AI LAB — HQ v4
+APN 30055004 — OUTPOST ONE (FRONTIERSHIP) — HQ v4
 (General Purpose + Life Sciences) — flagship HQ: 60+2 beds, owner 1/12,
 $4,800/mo suite+lab, medical core + MED LZ, BYO compute, 30+day cohorts. Terrain identical seed to clean-sheet v2 for contour continuity.
 """
@@ -150,7 +150,7 @@ ax.add_patch(Rectangle((hx + 8, hy + 38), 44, 22, facecolor='#0f172a', edgecolor
 ax.text(hx + 30, hy + 51, "DEMO\nCLOSET", ha='center', va='center', fontsize=4.6,
         weight='bold', color='#7dd3fc', linespacing=0.9)
 # Program texts (south, walk-out side)
-ax.text(hx + 56, hy + 27, "MAIN HOUSE — SAFETY FIRST HQ", ha='center',
+ax.text(hx + 56, hy + 27, "MAIN HOUSE — OUTPOST ONE HQ", ha='center',
         fontsize=7.2, weight='bold', color='white')
 ax.text(hx + 56, hy + 19.5, "62 beds: 57 monetized + 5 owner • 30+ day • $4,800/mo", ha='center',
         fontsize=5.2, color='#e5e7eb')
@@ -249,7 +249,7 @@ for tx, ty in [(56, 414), (40, 300), (210, 398), (430, 180), (366, 240)]:
 # ---- MAX CAPACITY callout (NE) ----
 ax.add_patch(FancyBboxPatch((300, 392), 156, 52, boxstyle="round,pad=5",
                             facecolor='#1f2937', edgecolor='#fbbf24', linewidth=1.5, alpha=0.96))
-ax.text(378, 433, "SAFETY FIRST HQ — THE FLAGSHIP", ha='center', fontsize=6.5, weight='bold', color='#fbbf24')
+ax.text(378, 433, "OUTPOST ONE — THE FLAGSHIP", ha='center', fontsize=6.5, weight='bold', color='#fbbf24')
 ax.text(378, 424, "$4,800/mo · suite + lab + program", ha='center', fontsize=7.5, weight='bold', color='white')
 ax.text(378, 414, "62 beds: 57 monetized + 5 owner (≈1/12)", ha='center', fontsize=5.2, color='#86efac')
 ax.text(378, 405, "Med core 2-bed obs + BSL-2 • MED LZ • 20′ lane", ha='center', fontsize=5, color='#d1d5db')
@@ -279,10 +279,10 @@ for i, lbl in enumerate(["0", "40′", "80′", "120′"]):
     ax.plot([xt, xt], [53, 59], color='#1a2e1a', linewidth=1)
     ax.text(xt, 48, lbl, ha='center', fontsize=4.5, color='#1a2e1a')
 
-ax.set_title("APN 30055004 — SAFETY FIRST HIGH DESERT AI LAB • GENERAL PURPOSE + LIFE SCIENCES HQ • 62 BEDS (57 MONETIZED + 5 OWNER) • $4,800/MO",
+ax.set_title("APN 30055004 — OUTPOST ONE · FRONTIERSHIP • GENERAL PURPOSE + LIFE SCIENCES • 62 BEDS (57 MONETIZED + 5 OWNER) • $4,800/MO",
              color='#1f2937', fontsize=12.5, weight='bold', pad=14, loc='center')
 fig.text(0.5, 0.015,
-         "Scale 1\"=40′ • 5.00 ac • SAFETY FIRST HQ • 30+day cohorts (no STR) • owner 1/12 • BYO rented compute + demo closet • MED core + LZ + 20′ ambulance lane • "
+         "Scale 1\"=40′ • 5.00 ac • OUTPOST ONE • 30+day cohorts (no STR) • owner 1/12 • BYO rented compute + demo closet • MED core + LZ + 20′ ambulance lane • "
          "Elevation 7,877–7,895′ NAVD88 • AR-5 → CUP required for lodging >8 rooms • design-development — ALTA/NSPS + PERC + yield test + geotech before submittal",
          ha='center', fontsize=6.4, color='#4b5563', style='italic')
 fig.text(0.5, 0.005,
@@ -371,7 +371,7 @@ ax.text(89, 26.5, "55°F CONSTANT EARTH\non 3 of 4 walls", ha='center', fontsize
         bbox=dict(boxstyle='round,pad=0.3', facecolor='#3f2d1d', alpha=0.95, edgecolor='#8a6a44'))
 
 # Bed tally + annotations
-ax.text(120, 60, "SECTION A-A — SAFETY FIRST HQ: 11,220 SF × 3 L + bermed lower (6,300 SF) • MED + WET-LAB core at L1 east (behind plane)",
+ax.text(120, 60, "SECTION A-A — OUTPOST ONE: 11,220 SF × 3 L + bermed lower (6,300 SF) • MED + WET-LAB core at L1 east (behind plane)",
         ha='center', fontsize=9, weight='bold', color='#1f2937')
 ax.text(120, -12, "62 beds (57 monetized + 5 owner ≈1/12): LL quiet pods 12 + L2 dorm 24 + L3 suites/private 24 + ADU 2 • owner = ADU 2 + L3 3 • bermed = north cut, south walk-out",
         ha='center', fontsize=6.4, color='#374151')
