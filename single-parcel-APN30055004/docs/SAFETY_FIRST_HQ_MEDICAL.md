@@ -27,9 +27,11 @@ Beds: 57 monetized. GPR = 57 × $4,800 × 12 = **$3.28M @ 100% → $2.89M @ 88%*
 |---|---|---|---|
 | GPR @ 88% | $2.89M | $2.41M | $2.17M |
 | OpEx (12–16 FTE incl. med + lab techs, utilities, insurance med/bio/E&O, bio-waste, road, maint) | −$1.30–1.55M | −$1.25–1.45M | −$1.20–1.40M |
-| **NOI** | **$1.35–1.60M** | ~$1.0M | ~$0.8M |
+| **NOI** | **$1.43M built (band $1.35–1.60M)** | ~$0.95M | ~$0.71M |
 | Capex (v3 $16–20M + medical/BSL-2 premium $2.5–4M) | $19–24M | same | same |
-| **Cap rate** | **≈ 5.6–8.4% (mid ~6.7%)** | ~4.7% | ~3.7% |
+| **Cap rate** | **≈ 6.0–7.5% (mid 6.7% on $21.5M)** | ~4.4% | ~3.3% |
+
+All rows computed live in `OUTPOST_ONE_ProForma.xlsx` (Assumptions / ProForma_5yr / Sensitivity tabs): steady opex **$1.468M** (staffing $940k incl. med director + 12 non-staff lines), held fixed across the sensitivity; break-even occupancy **44% @ $4,800**.
 
 **$4,800 is the load-bearing assumption** — validate with three comps before design spend. The bundle story that supports it: Flagstaff luxury 1-BR $2.4–3.0k + dedicated wet-lab/seat membership $1–2k + all-in power/net/food program + safety/medical infrastructure — priced to *company-sponsored* researchers, not individual nomads. Below ~$4,000 blended, the HQ reverts to consumption-asset math (still fine as HQ — it's just not a 6% deal). Plus unbooked HQ offset: office/lab/clinic costs the company would otherwise rent in Flagstaff/PHX.
 
@@ -64,6 +66,7 @@ Beds: 57 monetized. GPR = 57 × $4,800 × 12 = **$3.28M @ 100% → $2.89M @ 88%*
 - `clean-sheet/HQ_SAFETY_FIRST_SITE_PLAN.png` — HQ site plan (med core, ambulance lane, MED LZ, owner share)
 - `clean-sheet/HQ_SAFETY_FIRST_SECTION.png` — section with med note + bed tally
 - `scripts/generate_hq_safety_first.py` — generator (derived from residency v3)
+- `docs/OUTPOST_ONE_ProForma.xlsx` — HQ operating pro forma · regen: `python scripts/generate_hq_proforma_xlsx.py`
 - Superseded in place: residency v3 figures remain for history; see `FRONTIER_RESIDENCY_MAX_STUDY.md`
 
 **Not legal/medical-engineering advice — Coconino Community Development + ADEQ + AZ healthcare counsel + PE/RLS at submittal.**

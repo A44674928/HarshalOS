@@ -154,7 +154,7 @@ FRONTIERSHIP — company, thesis, member charter ("the ship")
 ---
 
 ### 8. FINANCIAL PROJECTIONS (1 Page + XLSX)
-*See `APN30055004_ProForma.xlsx` — 5-yr monthly.*
+*See `APN30055004_ProForma.xlsx` — 5-yr monthly. **HQ flagship:** `OUTPOST_ONE_ProForma.xlsx` — Y1 build → Y2 70% → Y4 88%: steady NOI **$1.43M**, cap **6.7% on $21.5M** (6.0–7.5% band), break-even 44% @ $4,800.*
 
 **Base Case (B — Mid-term 30+ day):**
 |  | Y1 Build | Y2 ADU B | Y3 Lodge+ADU B+C hybrid |
