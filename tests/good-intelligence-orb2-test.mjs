@@ -228,7 +228,7 @@ function interactiveHarness(t, { historyStore = new Map(), sessionId, preference
     const path = String(url);
     calls.push({ url: path, options });
     if (path.includes("/api/good-intelligence/v1/orb2/field")) {
-      if (fieldHandler) return fieldHandler(path, options);
+      if (fieldHandler) return fieldHandler(path, options, window);
       if (options.method === "POST") {
         let action = null;
         try { action = JSON.parse(options.body || "{}").action; } catch { /* assertions catch malformed bodies */ }
@@ -546,6 +546,9 @@ test("Orb 2 opens a crowded berth instead of stacking correlated orbs", () => {
   assert.equal(report.crowded, 52, "the readout counts the orbs that shared a berth");
   assert.equal(report.berths, 1, "they were one shared berth");
   assert.equal(report.moved, 51, "the first node keeps its packet placement; every later node takes a free slot");
+  assert.equal(report.clusters.length, 1, "the report identifies the shared packet-anchor cluster");
+  assert.equal(report.clusters[0].size, 52);
+  assert.deepEqual(Array.from(report.clusters[0].members), placements.map(placement => placement.identity));
   assert.ok(separationChords(placements) >= report.minimum, `no pair sits below the berth floor (${separationChords(placements)})`);
   placements.forEach((placement, index) => {
     assert.equal(placement.radius, before[index].radius, "separation never changes the market radius");
@@ -596,6 +599,37 @@ test("berth separation is deterministic, idempotent, and leaves clear fields unt
   const partialReport = orb.resolveBerthSeparation(partial, 0.5);
   assert.ok(partialReport.minimum < orb.resolveBerthSeparation(crowdedPlacements(orb, 8), 1).minimum);
   assert.ok(separationChords(partial) >= partialReport.minimum, "a partial spread still clears its own floor");
+});
+
+test("screen-space glyph separation resolves exact overlaps deterministically and reports the displaced pixels", () => {
+  const { orb } = harness();
+  const makePoints = () => Array.from({ length: 52 }, (unused, index) => ({
+    identity: `PIXEL-${String(index).padStart(2, "0")}`,
+    x: 320,
+    y: 210,
+    collisionRadius: 5 + (index % 5),
+    node: { symbol: `PIXEL-${String(index).padStart(2, "0")}` }
+  }));
+  const first = makePoints();
+  const second = makePoints();
+  const initial = orb.screenCollisionSummary(first, 2);
+  assert.equal(initial.crowded, 52);
+  assert.equal(initial.overlapPairs, 1326, "every pair starts at the exact same screen point");
+  assert.equal(initial.groups.length, 1);
+  assert.equal(initial.groups[0].size, 52);
+
+  const report = orb.resolveScreenGlyphCollisions(first, { gap: 2, maxPasses: 120 });
+  const repeated = orb.resolveScreenGlyphCollisions(second, { gap: 2, maxPasses: 120 });
+  assert.equal(report.initialOverlaps, 1326);
+  assert.equal(report.remainingOverlaps, 0, "every rendered body clears its actual radius plus the two-pixel gap");
+  assert.ok(report.minimumClearance >= 2 - 1e-4);
+  assert.equal(report.moved, 52);
+  assert.ok(first.every(point => point.screenNudge.distance > 0));
+  assert.deepEqual(first.map(point => [point.x, point.y]), second.map(point => [point.x, point.y]), "stable identities produce the same pixel layout");
+  const settled = first.map(point => [point.x, point.y]);
+  const rerun = orb.resolveScreenGlyphCollisions(first, { gap: 2, maxPasses: 120 });
+  assert.equal(rerun.moved, 0, "the pixel correction is idempotent");
+  assert.deepEqual(first.map(point => [point.x, point.y]), settled);
 });
 
 test("held and market packets share the same separation rules without inventing data", () => {
@@ -655,6 +689,88 @@ test("the separated field renders distinct orbs and states the berth readout", a
   await flush();
   assert.equal(engine.state.separation, 0);
   assert.match(readout.textContent, /BERTH SEPARATION · OFF/);
+});
+
+test("Orb 2 explains compact clumps, resolves focused glyph overlaps, and exposes market-to-pixel outlier provenance", async t => {
+  const outlierSymbol = MARKET_ROSTER[0].symbol;
+  const { host, engine, frames } = interactiveHarness(t, {
+    tickers: MARKET_ROSTER,
+    watchlist: MARKET_ROSTER,
+    fieldHandler: (path, options, window) => {
+      const snapshot = fieldSnapshot(window, { stockCount: 52 });
+      const outlier = snapshot.observations.find(item => item.discId === "stocks" && item.symbol === outlierSymbol);
+      const basis = 100;
+      const deviation = Math.log(110 / basis);
+      outlier.market.basis = basis;
+      outlier.market.bands = { basis, logDeviation: deviation };
+      for (const [suffix, ratio] of [[236, 0.236], [382, 0.382], [500, 0.5], [618, 0.618], [764, 0.764], [1000, 1]]) {
+        outlier.market.bands[`upper${suffix}`] = Math.exp(Math.log(basis) + ratio * deviation);
+        outlier.market.bands[`lower${suffix}`] = Math.exp(Math.log(basis) - ratio * deviation);
+      }
+      outlier.market.latestBar.close = 150;
+      outlier.market.changePct = 48;
+      outlier.market.waveTrend.wt1 = 76;
+      outlier.market.waveTrend.wt2 = 8;
+      return Response.json({ success: true, data: snapshot });
+    }
+  });
+  await flush();
+  while (frames.length) {
+    frames.shift()(NOW);
+    await flush(4);
+  }
+
+  assert.equal(engine.state.projected.length, 52);
+  assert.equal(engine.state.berthReport.screen.mode, "compact");
+  assert.equal(engine.state.berthReport.screen.memberCount, 52);
+  assert.ok(engine.state.berthReport.screen.overlapPairs > 0, "the overview reports the actual sub-orbs compressed into the parent footprint");
+  assert.match(host.querySelector("[data-gi-orb2-berth-readout]").textContent, /compact overview/i);
+
+  const focus = host.querySelector("[data-gi-orb2-constellation]");
+  focus.checked = true;
+  focus.dispatchEvent(new host.ownerDocument.defaultView.Event("change"));
+  await flush();
+  while (frames.length) {
+    frames.shift()(NOW + 16);
+    await flush(4);
+  }
+  const report = engine.state.berthReport;
+  assert.equal(report.screen.mode, "focus");
+  assert.equal(report.screen.remainingOverlaps, 0, "the focused view clears final on-screen orb bodies, not only packet anchors");
+  const projected = engine.state.projected;
+  for (let left = 0; left < projected.length; left += 1) {
+    for (let right = left + 1; right < projected.length; right += 1) {
+      const a = projected[left], b = projected[right];
+      const gap = Math.hypot(a.x - b.x, a.y - b.y) - a.collisionRadius - b.collisionRadius;
+      assert.ok(gap >= 2 - 1e-4, `${a.identity}/${b.identity} core bodies leave the two-pixel screen gap (actual ${gap})`);
+    }
+  }
+
+  const outlierIndex = engine.nodes.findIndex(node => node.symbol === outlierSymbol);
+  assert.notEqual(outlierIndex, -1);
+  const outlierPoint = projected.find(point => point.identity === outlierSymbol);
+  assert.ok(outlierPoint.packetRadius > report.packetRadius.median, "the packet-derived radius remains visible separately from the final display radius");
+  assert.equal(outlierPoint.packetRadius, outlierPoint.marketPlacement.radius, "pixel correction never overwrites the market-derived radius");
+  assert.ok(outlierPoint.marketPlacement.topology.drivers.waveOne === 76, "the raw WaveTrend input is retained for explanation");
+  assert.equal(outlierPoint.positionTrace.stockFbb.inward, 0.86, "the strong stock FBB inward transform is reported rather than hidden");
+
+  engine.selectNode(outlierIndex);
+  const diagnostics = host.querySelector("[data-gi-orb2-position-diagnostics]");
+  assert.ok(diagnostics, "the selected node exposes its position trace");
+  assert.match(diagnostics.textContent, new RegExp(outlierSymbol));
+  assert.match(diagnostics.textContent, /Packet-derived radius · raw/);
+  assert.match(diagnostics.textContent, /upper Tukey outlier/);
+  assert.match(diagnostics.textContent, /WaveTrend 76\.00/);
+  assert.match(diagnostics.textContent, /radial inward 86\.0%/);
+  assert.match(diagnostics.textContent, /screen-only correction/);
+  assert.equal(diagnostics.querySelectorAll("tbody tr").length, 52, "all 52 instruments are inspectable in the placement table");
+  assert.equal(diagnostics.querySelector("tbody tr")?.getAttribute("data-symbol"), outlierSymbol, "the largest raw-radius outlier appears first in the table");
+  const nextButton = [...diagnostics.querySelectorAll("[data-gi-orb2-diagnostic-node]")]
+    .find(button => Number(button.getAttribute("data-gi-orb2-diagnostic-node")) !== outlierIndex);
+  assert.ok(nextButton, "the table contains a direct link to another node's placement trace");
+  const nextIndex = Number(nextButton.getAttribute("data-gi-orb2-diagnostic-node"));
+  nextButton.click();
+  assert.equal(engine.state.selected, nextIndex);
 });
 
 test("Orb 2 rejects missing and malformed ticker rows instead of inventing symbols", () => {

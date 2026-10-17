@@ -523,6 +523,23 @@
         push: extensionPush,
         reason: extension.available ? null : (extension.reason || "unavailable")
       },
+      /* Keep the actual inputs beside the geometry so an extreme radius can be
+         explained from its packet rather than inferred from the final pixels. */
+      drivers: {
+        changePct, vfi, vfiSignal, waveOne, waveTwo,
+        priceAxis, flowAxis, waveAxis, bandAxis,
+        bandPosition: band.held ? null : band.p,
+        bandDisplacement: band.held ? null : band.displacement,
+        bandId: band.held ? null : band.bandId,
+        forceMultiplier, compositionPosition: composedPosition,
+        pressure, volatility, extensionPush
+      },
+      radiusFactors: {
+        bandRadius: bandGeometry.radius,
+        pressureFactor: 0.92 + pressure * 0.12,
+        extensionFactor: 1 + extensionPush,
+        packetRadius: radius
+      },
       convergence: indicatorAlignment,
       volatility,
       /* Local sub-orb axes are independently derived. No sub-orb is forced to
@@ -702,7 +719,7 @@
     const flat = Boolean(options && options.flat === true);
     const ratio = clamp(numeric(spread) === null ? 1 : Number(spread), 0, 1);
     const minimum = BERTH_MIN_GAP_MODEL * ratio * ratio;
-    const report = { spread: ratio, minimum, crowded: 0, berths: 0, moved: 0 };
+    const report = { spread: ratio, minimum, crowded: 0, berths: 0, moved: 0, clusters: [] };
     if (minimum <= 0 || list.length < 2) return report;
 
     const original = list.map(placement => ({ longitude: placement.longitude, latitude: placement.latitude }));
@@ -721,17 +738,28 @@
     const seen = new Set();
     for (let index = 0; index < list.length; index += 1) {
       if (!crowded[index] || seen.has(index)) continue;
-      report.berths += 1;
       const queue = [index];
+      const memberIndices = [];
       seen.add(index);
       while (queue.length) {
         const current = queue.pop();
+        memberIndices.push(current);
         for (let other = 0; other < list.length; other += 1) {
           if (seen.has(other) || !crowded[other] || berthChord(originalPoints[current], originalPoints[other]) >= minimum) continue;
           seen.add(other);
           queue.push(other);
         }
       }
+      memberIndices.sort((left, right) => left - right);
+      report.berths += 1;
+      report.clusters.push({
+        id: `BERTH-${report.berths}`,
+        size: memberIndices.length,
+        members: memberIndices.map(memberIndex => String(list[memberIndex].identity || `node-${memberIndex + 1}`)),
+        indices: memberIndices,
+        minimumChord: Math.min(...memberIndices.flatMap((left, memberOffset) =>
+          memberIndices.slice(memberOffset + 1).map(right => berthChord(originalPoints[left], originalPoints[right]))), Infinity)
+      });
     }
     if (!report.crowded) return report;
 
@@ -831,6 +859,218 @@
       sum + (Math.abs(placement.longitude - original[index].longitude) > 1e-9
         || Math.abs(placement.latitude - original[index].latitude) > 1e-9 ? 1 : 0), 0);
     return report;
+  }
+
+  /** Circular screen-space collision summary for the visible node glyphs. The
+      members describe connected overlap groups before any optional correction. */
+  function screenCollisionSummary(points, gap = 0) {
+    const list = Array.isArray(points) ? points : [];
+    const parent = list.map((unused, index) => index);
+    const find = index => {
+      let root = index;
+      while (parent[root] !== root) root = parent[root];
+      while (parent[index] !== index) {
+        const next = parent[index];
+        parent[index] = root;
+        index = next;
+      }
+      return root;
+    };
+    const join = (left, right) => {
+      const a = find(left), b = find(right);
+      if (a !== b) parent[b] = a;
+    };
+    const crowdedIndices = new Set();
+    let overlapPairs = 0;
+    let minimumClearance = Infinity;
+    let closestPair = null;
+    const clearanceFor = (left, right) => {
+      const a = list[left], b = list[right];
+      if (!a || !b) return { clearance: NaN, dx: NaN, dy: NaN, radiusA: 0, radiusB: 0 };
+      const dx = Number(b.x) - Number(a.x);
+      const dy = Number(b.y) - Number(a.y);
+      const radiusA = Math.max(0, Number(a.collisionRadius) || 0);
+      const radiusB = Math.max(0, Number(b.collisionRadius) || 0);
+      const clearance = Math.hypot(dx, dy) - radiusA - radiusB;
+      return { clearance, dx, dy, radiusA, radiusB };
+    };
+    for (let left = 0; left < list.length; left += 1) {
+      for (let right = left + 1; right < list.length; right += 1) {
+        const pair = clearanceFor(left, right);
+        if (!Number.isFinite(pair.clearance)) continue;
+        if (pair.clearance < minimumClearance) {
+          minimumClearance = pair.clearance;
+          closestPair = [left, right];
+        }
+        if (pair.clearance >= Math.max(0, Number(gap) || 0) - 1e-7) continue;
+        overlapPairs += 1;
+        crowdedIndices.add(left);
+        crowdedIndices.add(right);
+        join(left, right);
+      }
+    }
+    const grouped = new Map();
+    for (const index of crowdedIndices) {
+      const root = find(index);
+      if (!grouped.has(root)) grouped.set(root, []);
+      grouped.get(root).push(index);
+    }
+    const groups = [...grouped.values()]
+      .map((indices, groupIndex) => ({
+        id: `SCREEN-${groupIndex + 1}`,
+        size: indices.length,
+        indices: [...indices].sort((left, right) => left - right),
+        members: [...indices].sort((left, right) => left - right).map(index =>
+          String(list[index].identity || list[index].node?.symbol || list[index].node?.name || `node-${index + 1}`))
+      }))
+      .sort((left, right) => right.size - left.size || left.id.localeCompare(right.id));
+    const [closestLeft, closestRight] = closestPair || [];
+    return {
+      crowded: crowdedIndices.size,
+      overlapPairs,
+      minimumClearance: Number.isFinite(minimumClearance) ? minimumClearance : null,
+      closest: closestPair ? {
+        left: String(list[closestLeft].identity || list[closestLeft].node?.symbol || `node-${closestLeft + 1}`),
+        right: String(list[closestRight].identity || list[closestRight].node?.symbol || `node-${closestRight + 1}`),
+        clearance: minimumClearance
+      } : null,
+      groups
+    };
+  }
+
+  function placementRadiusSummary(values) {
+    const sorted = (Array.isArray(values) ? values : [])
+      .map(Number).filter(Number.isFinite).sort((left, right) => left - right);
+    if (!sorted.length) return { count: 0, min: null, q1: null, median: null, q3: null, max: null };
+    const quantile = fraction => {
+      const index = (sorted.length - 1) * fraction;
+      const lower = Math.floor(index), upper = Math.ceil(index);
+      return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+    };
+    return {
+      count: sorted.length,
+      min: sorted[0], q1: quantile(0.25), median: quantile(0.5),
+      q3: quantile(0.75), max: sorted[sorted.length - 1]
+    };
+  }
+
+  function placementRadiusPercentile(values, value) {
+    const sorted = (Array.isArray(values) ? values : [])
+      .map(Number).filter(Number.isFinite).sort((left, right) => left - right);
+    const target = Number(value);
+    if (!sorted.length || !Number.isFinite(target)) return null;
+    const below = sorted.filter(item => item < target).length;
+    const equal = sorted.filter(item => item === target).length;
+    return ((below + equal / 2) / sorted.length) * 100;
+  }
+
+  /** Resolve screen-space overlaps after all model transforms. It only changes
+      x/y pixels, uses a stable identity-derived direction for exact overlaps,
+      and records every displacement so no market or 3D placement is rewritten. */
+  function resolveScreenGlyphCollisions(points, { gap = 2, maxPasses = 96 } = {}) {
+    const list = Array.isArray(points) ? points : [];
+    const clearanceGap = Math.max(0, Number(gap) || 0);
+    const passesLimit = Math.max(1, Math.min(240, Math.floor(Number(maxPasses) || 96)));
+    const before = list.map(point => ({ x: Number(point && point.x), y: Number(point && point.y) }));
+    const initial = screenCollisionSummary(list, clearanceGap);
+    /* Seed a dense overlap component onto a stable sunflower layout before the
+       pairwise relaxation. Without this, fifty-two coincident glyphs can need
+       hundreds of thousands of tiny pair pushes on every animated frame. The
+       seed is still screen-only and its full displacement is recorded below. */
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    for (const group of initial.groups) {
+      if (!Array.isArray(group.indices) || group.size < 4) continue;
+      const indices = [...group.indices].sort((left, right) => {
+        const identityA = String(list[left].identity || list[left].node?.symbol || list[left].node?.name || `node-${left + 1}`);
+        const identityB = String(list[right].identity || list[right].node?.symbol || list[right].node?.name || `node-${right + 1}`);
+        return stableIdentityPhase(identityA) - stableIdentityPhase(identityB) || identityA.localeCompare(identityB);
+      });
+      const center = indices.reduce((sum, index) => ({ x: sum.x + Number(list[index].x), y: sum.y + Number(list[index].y) }), { x: 0, y: 0 });
+      center.x /= indices.length;
+      center.y /= indices.length;
+      const currentExtent = Math.max(...indices.map(index => Math.hypot(Number(list[index].x) - center.x, Number(list[index].y) - center.y)));
+      const maximumRadius = Math.max(...indices.map(index => Math.max(0, Number(list[index].collisionRadius) || 0)));
+      const layoutRadius = (maximumRadius * 2 + clearanceGap) * Math.sqrt(indices.length / Math.PI) * 1.12;
+      if (currentExtent > layoutRadius * 1.1) continue;
+      const phase = stableIdentityPhase(`screen-layout:${indices.map(index => String(list[index].identity || list[index].node?.symbol || index)).sort().join("|")}`);
+      indices.forEach((index, slot) => {
+        const radial = layoutRadius * Math.sqrt((slot + 0.5) / indices.length);
+        const angle = phase + slot * goldenAngle;
+        list[index].x = center.x + Math.cos(angle) * radial;
+        list[index].y = center.y + Math.sin(angle) * radial;
+      });
+    }
+    let passes = 0;
+    for (; passes < passesLimit && list.length > 1; passes += 1) {
+      let moved = false;
+      for (let left = 0; left < list.length; left += 1) {
+        for (let right = left + 1; right < list.length; right += 1) {
+          const a = list[left], b = list[right];
+          if (!a || !b || !Number.isFinite(Number(a.x)) || !Number.isFinite(Number(a.y))
+              || !Number.isFinite(Number(b.x)) || !Number.isFinite(Number(b.y))) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const distance = Math.hypot(dx, dy);
+          const radiusA = Math.max(0, Number(a.collisionRadius) || 0);
+          const radiusB = Math.max(0, Number(b.collisionRadius) || 0);
+          const target = radiusA + radiusB + clearanceGap;
+          if (distance + 1e-7 >= target) continue;
+          let ux, uy;
+          if (distance > 1e-9) {
+            ux = dx / distance;
+            uy = dy / distance;
+          } else {
+            let identityA = String(a.identity || a.node?.symbol || a.node?.name || `node-${left + 1}`);
+            let identityB = String(b.identity || b.node?.symbol || b.node?.name || `node-${right + 1}`);
+            if (identityA === identityB) {
+              identityA = `${identityA}#${left}`;
+              identityB = `${identityB}#${right}`;
+            }
+            const forward = identityA.localeCompare(identityB) <= 0;
+            const pair = forward ? `${identityA}|${identityB}` : `${identityB}|${identityA}`;
+            const angle = stableIdentityPhase(`screen:${pair}`);
+            const sign = forward ? 1 : -1;
+            ux = Math.cos(angle) * sign;
+            uy = Math.sin(angle) * sign;
+          }
+          const push = (target - distance) / 2;
+          a.x -= ux * push;
+          a.y -= uy * push;
+          b.x += ux * push;
+          b.y += uy * push;
+          moved = true;
+        }
+      }
+      if (!moved) { passes += 1; break; }
+    }
+    const final = screenCollisionSummary(list, clearanceGap);
+    let movedCount = 0;
+    let maxDisplacement = 0;
+    list.forEach((point, index) => {
+      if (!point || !Number.isFinite(before[index].x) || !Number.isFinite(before[index].y)) return;
+      const x = Number(point.x) - before[index].x;
+      const y = Number(point.y) - before[index].y;
+      const distance = Math.hypot(x, y);
+      point.screenNudge = { x, y, distance };
+      if (distance > 0.01) movedCount += 1;
+      maxDisplacement = Math.max(maxDisplacement, distance);
+    });
+    return {
+      mode: "focus",
+      gap: clearanceGap,
+      initialCrowded: initial.crowded,
+      initialOverlaps: initial.overlapPairs,
+      initialMinimumClearance: initial.minimumClearance,
+      initialGroups: initial.groups,
+      moved: movedCount,
+      maxDisplacement,
+      remainingCrowded: final.crowded,
+      remainingOverlaps: final.overlapPairs,
+      minimumClearance: final.minimumClearance,
+      closest: final.closest,
+      remainingGroups: final.groups,
+      passes
+    };
   }
 
   const berthSpreadLabel = value => value <= 0 ? "OFF" : value >= 0.995 ? "FULL" : `${Math.round(value * 100)}%`;
@@ -1021,13 +1261,20 @@
       shared a berth, how many moved, and the floor the slots clear; it never
       claims an entitlement or a market fact. */
   function berthSeparationText(report) {
-    if (!report || report.spread <= 0) return "BERTH SEPARATION · OFF · correlated packets may share one berth and stack";
+    if (!report) return "BERTH SEPARATION · waiting for the first drawn field";
     const spreadLabel = berthSpreadLabel(report.spread);
-    if (!report.crowded) {
-      return `BERTH SEPARATION · ${spreadLabel} · no shared berth needed re-slotting · every orb keeps its packet placement`;
-    }
-    const floor = Math.round((report.minimum / LATTICE_RING_MODEL) * 100);
-    return `BERTH SEPARATION · ${spreadLabel} · ${report.crowded} orbs share ${report.berths} berth${report.berths === 1 ? "" : "s"} · ${report.moved} re-slotted by stable symbol phase · berth floor ${floor}% of the ring radius · display geometry only`;
+    const model = report.spread <= 0
+      ? "anchor re-slotting OFF · packet-derived model coordinates retained"
+      : report.crowded
+        ? `${report.crowded} packet anchors in ${report.berths} shared berth cluster${report.berths === 1 ? "" : "s"} · ${report.moved} re-slotted`
+        : "no packet-anchor cluster needed re-slotting";
+    const screen = report.screen && report.screen.mode === "compact"
+      ? `compact overview · ${report.screen.memberCount} nodes inside ${Math.round(report.screen.parentDiameter)}px Disc · ${report.screen.overlapPairs} glyph overlaps · focus orb for full view`
+      : report.screen && report.screen.mode === "focus"
+        ? `focused glyphs ${report.screen.initialOverlaps} overlaps → ${report.screen.remainingOverlaps} · ${report.screen.moved} pixel-shifted · min gap ${report.screen.minimumClearance === null || report.screen.minimumClearance === undefined ? "—" : Number(report.screen.minimumClearance).toFixed(1)}px`
+        : "screen layout not measured";
+    const floor = report.spread > 0 ? ` · 3D model floor ${Math.round((report.minimum / LATTICE_RING_MODEL) * 100)}% of ring` : "";
+    return `BERTH SEPARATION · ${spreadLabel} · ${model}${floor} · ${screen} · display geometry only`;
   }
 
   function dataBitsForMarket(market) {
@@ -1322,6 +1569,12 @@
       separation: isRecord(preferences) && Number.isFinite(Number(preferences.separation))
         ? clamp(Number(preferences.separation), 0, 1) : BERTH_SEPARATION_DEFAULT,
       berthReport: null,
+      positionInspectorKey: "",
+      positionInspectorAt: 0,
+      positionSummaryAt: 0,
+      positionSummaryKey: "",
+      positionSummaryMode: "",
+      positionSummaryFieldAt: 0,
       /* CONSTELLATION · one orb per reviewed Disc around the Center Origin.
          `constellation` is display geometry from the catalog order; `discStatus`
          is the Worker's per-Disc report of what is actually stored, so each orb
@@ -1602,7 +1855,7 @@
               <div class="gi-orb2-display-controls" aria-label="Orb 2 display controls">
                 <label class="gi-orb2-range-row"><span>FORM</span><input data-gi-orb2-formation type="range" min="0" max="100" step="1" value="100"><strong data-gi-orb2-formation-label>SPHERE</strong></label>
                 <label class="gi-orb2-range-row"><span>BERTH SPREAD</span><input data-gi-orb2-separation type="range" min="0" max="100" step="1" value="70" aria-describedby="gi-orb2-separation-note"><strong data-gi-orb2-separation-label>70%</strong></label>
-                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Shared berths are display-only geometry: correlated packets that land on the same coordinates are re-slotted on one shared radius by stable symbol phase, never by rank or by a recomputed metric. 0% restores the exact packet placement.</p>
+                <p class="gi-orb2-separation-note" id="gi-orb2-separation-note">Berth spread re-slots crowded packet anchors by stable symbol phase without changing market inputs or measured radius. In the focused view, a final radius-aware pixel pass prevents orb bodies from overlapping and reports each screen-only nudge. 0% disables anchor re-slotting; pixel legibility corrections remain separate and visible in Position Trace. The wide overview intentionally compresses each Disc's sub-orbs into its parent footprint; focus a Disc to inspect full-size positions.</p>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-rotate type="checkbox"><span>Auto-rotate</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-labels type="checkbox"><span>All labels</span></label>
                 <label class="gi-orb2-toggle"><input data-gi-orb2-paths type="checkbox" checked><span>Data pathways</span></label>
@@ -1711,7 +1964,7 @@
             <div class="gi-orb2-model-status" aria-label="Selected node, shared-berth geometry, and model status">
               <div class="gi-orb2-status-item"><span>SELECTED NODE · VOLUME FLOW</span><p class="gi-orb2-flow-readout" data-gi-orb2-flow-readout aria-live="off">VOLUME FLOW · WAITING FOR CONFIRMED OHLCV</p><small class="gi-orb2-flow-rate-note">Visual rate is cycles per second, not volume per second.</small></div>
               <div class="gi-orb2-status-item gi-orb2-origin-status-item"><span>ORIGIN · Dollar Strength (DS) · CWO-LIKE OBSERVER</span><p class="gi-orb2-origin-readout" data-gi-orb2-origin-status aria-live="off">Dollar Strength (DS) · CWO-LIKE, READ-ONLY BENCHMARK · AWAITING SIX ALIGNED FX CLOSES · FIXED CENTER · ORIGIN · CPU ${CENTER_ADDRESS} · LOCAL CPU GATE UNREAD · PDH UNDECLARED · UTS UNAVAILABLE</p></div>
-              <div class="gi-orb2-status-item gi-orb2-berth-status-item"><span>BERTH SEPARATION · DISPLAY GEOMETRY</span><p class="gi-orb2-berth-readout" data-gi-orb2-berth-readout aria-live="off">BERTH SEPARATION · WAITING FOR THE FIRST DRAWN FIELD</p><small class="gi-orb2-berth-note">Shared berths are re-slotted by stable symbol phase; no market value is recomputed and no node is ranked or hidden.</small></div>
+              <div class="gi-orb2-status-item gi-orb2-berth-status-item"><span>BERTH SEPARATION · DISPLAY GEOMETRY</span><p class="gi-orb2-berth-readout" data-gi-orb2-berth-readout aria-live="off">BERTH SEPARATION · WAITING FOR THE FIRST DRAWN FIELD</p><small class="gi-orb2-berth-note">Packet-anchor clusters, final pixel overlaps, and each selected node's market-to-screen transforms are inspectable below. Pixel correction changes neither market inputs nor the 3D placement.</small></div>
               <div class="gi-orb2-status-pills"><span class="gi-orb2-gate" data-gi-orb2-gate>GATE · UNREAD</span><span class="gi-orb2-uts" data-gi-orb2-uts title="Unified Time Scale, from the local UTS Watch">UTS · UNAVAILABLE</span></div>
               <span class="gi-orb2-gesture">Drag to orbit · scroll to zoom · click a node to inspect</span>
             </div>
@@ -1751,6 +2004,7 @@
     const settingsToggle = $("[data-gi-orb2-settings-toggle]");
     const settingsClose = $("[data-gi-orb2-settings-close]");
     const inspectorSummary = $("[data-gi-orb2-inspector-summary]");
+    const inspector = $("[data-gi-orb2-inspector]");
     const routeButton = $("[data-gi-orb2-route]");
     const lateralButton = $("[data-gi-orb2-lateral]");
     const resetButton = $("[data-gi-orb2-reset]");
@@ -2357,6 +2611,173 @@
         <p class="gi-orb2-observation-time">Observed ${escapeHtml(shortTime(observation.at))} · ${market.synthetic ? "synthetic rehearsal · not live" : "API-supplied · verify provider"}${market.latestBar && market.latestBar.confirmed ? " · confirmed bar" : " · latest bar not confirmed"}</p>`;
     }
 
+    function positionInspectorKey() {
+      const screen = state.berthReport && state.berthReport.screen || {};
+      const camera = [state.yaw, state.pitch, state.zoom, state.camZoom,
+        state.camPan && state.camPan.x, state.camPan && state.camPan.y];
+      const cameraKey = camera.map(value => Number.isFinite(Number(value)) ? Math.round(Number(value) * 20) : 0).join(",");
+      return [state.discId, state.selected, state.focusOrb ? "focus" : "compact",
+        state.projected.length, state.fieldAt, screen.mode || "none", cameraKey].join("|");
+    }
+
+    function positionDiagnosticsMarkup(node) {
+      const point = state.projected.find(item => item.node && item.node.order === node.order);
+      if (!point || !point.positionTrace) {
+        return `<section class="gi-orb2-position-diagnostics" data-gi-orb2-position-diagnostics><h5>POSITION TRACE</h5><p>No projected position is available for this node in the current field.</p></section>`;
+      }
+      const trace = point.positionTrace;
+      const placement = point.marketPlacement || {};
+      const topology = placement.topology || {};
+      const drivers = topology.drivers || {};
+      const report = state.berthReport || {};
+      const screen = report.screen || {};
+      const compactPosition = point.compactPosition || null;
+      const onScreen = compactPosition || { x: point.x, y: point.y, radius: point.collisionRadius || 0 };
+      const fixed = (value, digits = 2) => value === null || value === undefined || value === ""
+        ? "—" : Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
+      const signed = (value, digits = 2) => value === null || value === undefined || value === ""
+        ? "—" : Number.isFinite(Number(value))
+          ? `${Number(value) > 0 ? "+" : ""}${Number(value).toFixed(digits)}` : "—";
+      const packetMedian = report.packetRadius && report.packetRadius.median;
+      const displayMedian = report.displayRadius && report.displayRadius.median;
+      const packet = trace.packet || {};
+      const distribution = trace.distribution || {};
+      const motionTrace = trace.directive || {};
+      const rawTopology = trace.drawn && trace.drawn.topology || { axes: { x: 1, y: 1, z: 1 }, rotation: 0 };
+      const formationTrace = trace.drawn && trace.drawn.formation || {};
+      const cameraTrace = trace.drawn && trace.drawn.camera || {};
+      const packetDelta = point.packetRadiusDelta;
+      const displayDelta = point.displayRadiusDelta;
+      const packetPercentile = point.packetRadiusPercentile;
+      const packetQ1 = report.packetRadius && report.packetRadius.q1;
+      const packetQ3 = report.packetRadius && report.packetRadius.q3;
+      const packetFence = Number.isFinite(Number(packetQ1)) && Number.isFinite(Number(packetQ3))
+        ? Math.max(0, Number(packetQ3) - Number(packetQ1)) * 1.5 : null;
+      const packetOutlier = packetFence !== null && Number.isFinite(Number(point.packetRadius))
+        ? Number(point.packetRadius) > Number(packetQ3) + packetFence ? "upper Tukey outlier"
+          : Number(point.packetRadius) < Number(packetQ1) - packetFence ? "lower Tukey outlier" : "inside 1.5×IQR fences"
+        : "cohort fence unavailable";
+      const radiusLine = `${fixed(point.packetRadius)} model units · cohort median ${fixed(packetMedian)} · Δ ${signed(packetDelta)} · ${packetPercentile === null ? "—" : `${Math.round(packetPercentile)}th`} percentile · ${packetOutlier}`;
+      const displayLine = `${fixed(point.displayRadius)} model units after topology/motion · cohort median ${fixed(displayMedian)} · Δ ${signed(displayDelta)}`;
+      const radiusFactors = topology.radiusFactors || {};
+      const bandLine = topology.bandIndex === undefined
+        ? "held / no usable logarithmic FBB band"
+        : `${escapeHtml(topology.bandSource || "FBB")} band ${escapeHtml(topology.bandIndex)} · fraction ${fixed(topology.bandFraction)} · band radius ${fixed(topology.bandRadius)} · p ${fixed(drivers.bandPosition)} · log displacement ${fixed(drivers.bandDisplacement)} · radius factors ${fixed(radiusFactors.bandRadius)} × ${fixed(radiusFactors.pressureFactor)} × ${fixed(radiusFactors.extensionFactor)} = ${fixed(radiusFactors.packetRadius)}`;
+      const extension = topology.extension || {};
+      const extensionLine = extension.available
+        ? `${escapeHtml(extension.driver || "combined")} · wave ${fixed(extension.wave)} · basis ${fixed(extension.basis)} · applied outward factor ×${fixed(1 + (Number(extension.push) || 0))}`
+        : `unavailable · ${escapeHtml(extension.reason || "no extension input")}`;
+      const metricLine = placement.available
+        ? `change ${signed(drivers.changePct)}% (axis ${signed(drivers.priceAxis)}) · VFI ${fixed(drivers.vfi)} / ${fixed(drivers.vfiSignal)} (axis ${signed(drivers.flowAxis)}) · WaveTrend ${fixed(drivers.waveOne)} / ${fixed(drivers.waveTwo)} (axis ${signed(drivers.waveAxis)}) · pressure ${fixed(drivers.pressure)} · volatility ${fixed(drivers.volatility)}`
+        : "No confirmed market packet; this is an explicitly held placeholder, not a measured value.";
+      const fbb = trace.stockFbb || {};
+      const fbbState = placement.fbbState || {};
+      const fbbLine = fbb.applied
+        ? `Stocks FBB applied after packet radius: strength ${fixed(fbb.strength)} · radial inward ${(Number(fbb.inward || 0) * 100).toFixed(1)}% (×${fixed(fbb.radialFactor)}) · vertical ${signed(fbb.vertical)} · depth ${signed(fbb.depth)}`
+        : `Stocks FBB displacement not applied to this placement${fbb.available ? " (this is not the Stocks Disc)" : " (unavailable)"}.`;
+      const componentValues = Array.isArray(fbb.components) ? fbb.components : fbbState.components;
+      const components = Array.isArray(componentValues) && componentValues.every(value => Number.isFinite(Number(value)))
+        ? `FBB component ratios · 236/382/500/618/764/1000: ${componentValues.map(value => signed(value, 3)).join(" / ")}`
+        : "FBB component ratios: unavailable or incomplete.";
+      const anchor = trace.berth || {};
+      const anchorCluster = (report.clusters || []).find(cluster => cluster.id === anchor.clusterId) || null;
+      const anchorMembers = anchorCluster ? anchorCluster.members : [];
+      const anchorMembersText = anchorMembers.length
+        ? `${anchorMembers.slice(0, 10).map(escapeHtml).join(", ")}${anchorMembers.length > 10 ? ` · +${anchorMembers.length - 10} more in table` : ""}`
+        : "No neighboring packet anchor was inside the configured model-space floor.";
+      const anchorClusterCause = anchorCluster
+        ? ` · original minimum pair chord ${fixed(anchorCluster.minimumChord)} vs model floor ${fixed(report.minimum)}` : "";
+      const anchorLine = `${anchor.clusterId ? `${escapeHtml(anchor.clusterId)} · ${anchor.clusterSize} original anchors · ${anchorMembersText}` : anchorMembersText}${anchorClusterCause} · before (${fixed(anchor.before && anchor.before.longitude, 3)}, ${fixed(anchor.before && anchor.before.latitude, 3)}, r ${fixed(anchor.before && anchor.before.radius)}) → resolved (${fixed(anchor.resolved && anchor.resolved.longitude, 3)}, ${fixed(anchor.resolved && anchor.resolved.latitude, 3)}, r ${fixed(anchor.resolved && anchor.resolved.radius)})`;
+      const screenGroups = screen.mode === "focus" ? screen.initialGroups || [] : screen.groups || [];
+      const screenCluster = screenGroups.find(group => group.members && group.members.includes(point.identity));
+      const screenMembers = screenCluster ? screenCluster.members : [];
+      const screenMembersText = screenMembers.length
+        ? `${screenMembers.slice(0, 10).map(escapeHtml).join(", ")}${screenMembers.length > 10 ? ` · +${screenMembers.length - 10} more in table` : ""}`
+        : "No measured glyph-overlap group for this node.";
+      let nearest = null;
+      for (const other of state.projected) {
+        if (other === point) continue;
+        const otherPosition = other.compactPosition || other;
+        const dx = Number(otherPosition.x) - Number(onScreen.x);
+        const dy = Number(otherPosition.y) - Number(onScreen.y);
+        const distance = Math.hypot(dx, dy);
+        if (!Number.isFinite(distance) || (nearest && distance >= nearest.distance)) continue;
+        nearest = {
+          identity: other.identity,
+          distance,
+          clearance: distance - Number(onScreen.radius || 0) - Number(otherPosition.radius ?? other.collisionRadius ?? 0)
+        };
+      }
+      const pixelNudge = compactPosition
+        ? compactPosition.displacement
+        : (trace.screen.nudge || trace.screen.preCompressionNudge || { x: 0, y: 0, distance: 0 });
+      const pixelLabel = compactPosition
+        ? `compact projection · ${fixed(compactPosition.compression * 100, 1)}% of uncompressed offset · ${fixed(Math.hypot(pixelNudge.x, pixelNudge.y))}px layout compression`
+        : `screen-only correction · Δx ${signed(pixelNudge.x)}px · Δy ${signed(pixelNudge.y)}px · ${fixed(pixelNudge.distance)}px total`;
+      const screenSummary = screen.mode === "compact"
+        ? `COMPACT OVERVIEW · ${screen.memberCount || 0} sub-orbs compressed into a ${Math.round(screen.parentDiameter || 0)}px parent footprint · ${screen.overlapPairs || 0} visible glyph intersections. Focus the Disc to inspect full-size positions.`
+        : screen.mode === "focus"
+          ? `FOCUSED FIELD · ${screen.initialOverlaps || 0} body overlaps before correction · ${screen.remainingOverlaps || 0} unresolved · ${screen.moved || 0} nodes moved in screen pixels only · min body clearance ${fixed(screen.minimumClearance)}px.`
+          : "Pixel-space layout has not been measured yet.";
+      const tablePoints = [...state.projected].sort((left, right) =>
+        (Number(right.packetRadius) || 0) - (Number(left.packetRadius) || 0)
+        || String(left.identity).localeCompare(String(right.identity)));
+      const tableRows = tablePoints.map(item => {
+        const itemTrace = item.positionTrace || {};
+        const itemFbb = itemTrace.stockFbb || {};
+        const itemPixel = item.compactPosition
+          ? item.compactPosition.displacement
+          : itemTrace.screen && (itemTrace.screen.nudge || itemTrace.screen.preCompressionNudge) || { x: 0, y: 0, distance: 0 };
+        const itemNearest = (() => {
+          let best = null;
+          const here = item.compactPosition || item;
+          for (const other of state.projected) {
+            if (other === item) continue;
+            const there = other.compactPosition || other;
+            const distance = Math.hypot(Number(there.x) - Number(here.x), Number(there.y) - Number(here.y));
+            if (Number.isFinite(distance) && (!best || distance < best.distance)) best = { identity: other.identity, distance };
+          }
+          return best;
+        })();
+        const itemBand = item.marketPlacement && item.marketPlacement.topology
+          ? `B${fixed(item.marketPlacement.topology.bandIndex, 0)}·${fixed(item.marketPlacement.topology.bandFraction, 2)}` : "held";
+        const itemCluster = item.positionTrace && item.positionTrace.berth && item.positionTrace.berth.clusterId
+          ? item.positionTrace.berth.clusterId : "—";
+        const itemScreenGroup = (screen.mode === "focus" ? screen.initialGroups || [] : screen.groups || [])
+          .find(group => group.members && group.members.includes(item.identity));
+        const selectedClass = item.node && item.node.order === node.order ? " is-selected" : "";
+        return `<tr class="${selectedClass.trim()}" data-symbol="${escapeHtml(item.identity)}">
+          <td><button type="button" data-gi-orb2-diagnostic-node="${escapeHtml(item.node && item.node.order)}" aria-label="Inspect ${escapeHtml(item.identity)} placement">${escapeHtml(item.identity)}</button></td>
+          <td>${fixed(item.packetRadius)}</td><td>${signed(item.packetRadiusDelta)}</td><td>${escapeHtml(itemBand)}</td>
+          <td>${itemFbb.applied ? `${(Number(itemFbb.inward || 0) * 100).toFixed(0)}%` : "—"}</td>
+          <td>${fixed(item.displayRadius)}</td><td>${fixed(Math.hypot(Number(itemPixel.x) || 0, Number(itemPixel.y) || 0))}px</td>
+          <td>${itemNearest ? `${escapeHtml(itemNearest.identity)} · ${fixed(itemNearest.distance)}px` : "—"}</td>
+          <td>${escapeHtml(itemScreenGroup ? itemScreenGroup.id : "—")}</td><td>${escapeHtml(itemCluster)}</td>
+        </tr>`;
+      }).join("");
+      return `<section class="gi-orb2-position-diagnostics" data-gi-orb2-position-diagnostics>
+        <h5>POSITION TRACE · ${escapeHtml(point.identity)}</h5>
+        <p class="gi-orb2-position-summary">${escapeHtml(screenSummary)} These displacements are presentation geometry, not a market score.</p>
+        <dl class="gi-orb2-position-meta">
+          <div><dt>Packet coordinates before transforms</dt><dd>source ${escapeHtml(placement.source || "unknown")} · longitude ${signed(packet.longitude, 3)} rad · latitude ${signed(packet.latitude, 3)} rad · measured radius ${fixed(packet.radius)} model units.</dd></div>
+          <div><dt>Packet-derived radius · raw</dt><dd>${escapeHtml(radiusLine)}</dd></div>
+          <div><dt>Inputs that set the packet location</dt><dd>${escapeHtml(metricLine)} · composition ${fixed(drivers.compositionPosition)} · force multiplier ×${fixed(drivers.forceMultiplier)}</dd></div>
+          <div><dt>Logarithmic FBB band + extension</dt><dd>${escapeHtml(bandLine)} · extension ${extensionLine}</dd></div>
+          <div><dt>Stocks-only FBB transform</dt><dd>${escapeHtml(fbbLine)}<br>${escapeHtml(components)}</dd></div>
+          <div><dt>Identity distribution + motion</dt><dd>stable-symbol distribution Δlongitude ${signed(distribution.longitude, 3)} rad / Δlatitude ${signed(distribution.latitude, 3)} rad · weight ${fixed(distribution.weight)} · packet float Δ (${signed(trace.float && trace.float.delta && trace.float.delta.longitude, 3)}, ${signed(trace.float && trace.float.delta && trace.float.delta.latitude, 3)}, ${signed(trace.float && trace.float.delta && trace.float.delta.radius, 3)}) · directive ${escapeHtml(motionTrace.formation || "none")} ${motionTrace.applied ? `Δ (${signed(motionTrace.delta.longitude, 3)}, ${signed(motionTrace.delta.latitude, 3)}, ${signed(motionTrace.delta.radius, 3)})` : "not applied"}.</dd></div>
+          <div><dt>Stable packet anchor / cluster</dt><dd>${anchorLine} · re-slot Δlongitude ${signed(anchor.shift && anchor.shift.longitude, 3)} rad / Δlatitude ${signed(anchor.shift && anchor.shift.latitude, 3)} rad; measured radius unchanged.</dd></div>
+          <div><dt>Topology, form + camera</dt><dd>axes ${fixed(rawTopology.axes && rawTopology.axes.x, 3)} / ${fixed(rawTopology.axes && rawTopology.axes.y, 3)} / ${fixed(rawTopology.axes && rawTopology.axes.z, 3)} · topology rotation ${signed(rawTopology.rotation, 3)} rad · form blend ${fixed(formationTrace.blend)} (sphere mix ${fixed(formationTrace.sphereMix)}) · camera yaw/pitch ${signed(cameraTrace.yaw, 3)} / ${signed(cameraTrace.pitch, 3)} · zoom ${fixed(cameraTrace.zoom)} × ${fixed(cameraTrace.camZoom)}.</dd></div>
+          <div><dt>After topology, motion + 3D settle</dt><dd>${escapeHtml(displayLine)} · final local XYZ ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.x)}, ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.y)}, ${fixed(trace.drawn && trace.drawn.local && trace.drawn.local.z)} · 3D settle ${fixed(trace.drawn && trace.drawn.floorCorrection && trace.drawn.floorCorrection.distance)} model units.</dd></div>
+          <div><dt>Screen placement / nearest visible neighbor</dt><dd>${pixelLabel} · final XY ${fixed(onScreen.x, 1)}, ${fixed(onScreen.y, 1)}px · camera depth ${fixed(trace.screen && trace.screen.z, 3)}, perspective scale ${fixed(trace.screen && trace.screen.scale, 3)} · nearest ${nearest ? `${escapeHtml(nearest.identity)} at ${fixed(nearest.distance, 1)}px center / ${signed(nearest.clearance, 1)}px body clearance` : "none"}.</dd></div>
+          <div><dt>Original screen overlap group</dt><dd>${screenMembersText}</dd></div>
+        </dl>
+        <details class="gi-orb2-position-table"><summary>ALL ${tablePoints.length} PLACEMENTS · sorted by raw packet radius</summary>
+          <p class="gi-orb2-position-table-note">Each row links to its node inspector. Raw radius and final display radius are separate; pixel movement never rewrites either.</p>
+          <div class="gi-orb2-position-table-wrap"><table><thead><tr><th>Symbol</th><th>Raw r</th><th>Δ median</th><th>Band</th><th>FBB in</th><th>Final r</th><th>Pixel Δ</th><th>Nearest</th><th>Screen group</th><th>Anchor group</th></tr></thead><tbody>${tableRows}</tbody></table></div>
+        </details>
+      </section>`;
+    }
+
     function drawInspector() {
       const node = nodes[state.selected] || nodes[0];
       const focusBerth = stage && stage.berths.find(berth => berth.symbol === state.focus);
@@ -2367,6 +2788,10 @@
       const nodeSource = nodeObservation ? `${nodeObservation.observation || nodeObservation.symbol} · ${providerTitle(nodeObservation.providerMode)}` : "No assigned instrument has reported yet";
       const nodeActivity = nodeObservation && nodeObservation.motion ? nodeObservation.motion.caption : "No market observation — the character stands still.";
       const assignments = stage ? stage.berths.filter(berth => berth.npc && berth.npc.name === node.name).length : 0;
+      const previousPositionTable = detail.querySelector(".gi-orb2-position-table");
+      const positionTableOpen = Boolean(previousPositionTable && previousPositionTable.open);
+      const previousTableScroll = previousPositionTable && previousPositionTable.querySelector(".gi-orb2-position-table-wrap")
+        ? previousPositionTable.querySelector(".gi-orb2-position-table-wrap").scrollTop : 0;
       detail.innerHTML = `
         <div class="gi-orb2-node-head"><span style="--gi-orb2-node:${escapeHtml(node.color)}">${escapeHtml(node.glyph)}</span><div><h4>${escapeHtml(node.name)}</h4><p>${node.symbol ? `${escapeHtml(node.symbol)} · ${timeframe || "1h"} ticker orb` : `${escapeHtml(node.visualId)} · local visual node`}</p></div></div>
         <dl class="gi-orb2-node-meta">
@@ -2377,14 +2802,23 @@
           <div><dt>${node.symbol ? "Orb motion" : "NPC motion"} · ${escapeHtml(providerTitle(provider))}</dt><dd>${escapeHtml(nodeActivity)}</dd></div>
         </dl>
         <div class="gi-orb2-focus-readout"><p class="gi-eyebrow">FOCUS · ${escapeHtml(state.focus || "—")}</p>${observationMarkup(activeObservation)}</div>
+        ${positionDiagnosticsMarkup(node)}
         <p class="gi-orb2-node-role">${escapeHtml(node.role)}</p>
         <p class="gi-orb2-node-caveat">${node.symbol ? "Ticker labels identify reviewed watchlist symbols only; the orb is not price data, a signal, or an OCM identity." : "This character label is from the reviewed local cast. It is not a registered OCM address or identity claim."}</p>`;
       nodeSelect.value = node.id;
+      const nextPositionTable = detail.querySelector(".gi-orb2-position-table");
+      if (nextPositionTable && positionTableOpen) {
+        nextPositionTable.open = true;
+        const nextScroll = nextPositionTable.querySelector(".gi-orb2-position-table-wrap");
+        if (nextScroll) nextScroll.scrollTop = previousTableScroll;
+      }
       routeNote.textContent = friendlyRoute(state.route);
       if (inspectorSummary) {
         const summary = node.symbol ? `${node.symbol} · ${node.name}` : node.name || "—";
         if (inspectorSummary.textContent !== summary) inspectorSummary.textContent = summary;
       }
+      state.positionInspectorKey = positionInspectorKey();
+      state.positionInspectorAt = Date.now();
     }
 
     function drawHistory() {
@@ -2577,6 +3011,35 @@
       }
     }
 
+    function updateBerthReadout(report, { force = false } = {}) {
+      if (!berthReadout) return;
+      if (!report) {
+        const waiting = `BERTH SEPARATION · ${berthSpreadLabel(state.separation)} · waiting for the first drawn field`;
+        if (berthReadout.textContent !== waiting) berthReadout.textContent = waiting;
+        state.positionSummaryAt = 0;
+        state.positionSummaryKey = "";
+        state.positionSummaryMode = "";
+        state.positionSummaryFieldAt = 0;
+        return;
+      }
+      const screen = report.screen || {};
+      const mode = screen.mode || "unmeasured";
+      const key = [report.spread, report.crowded, report.berths, report.moved, mode,
+        screen.memberCount, screen.overlapPairs, screen.initialOverlaps,
+        screen.remainingOverlaps, Number(screen.minimumClearance || 0).toFixed(1)].join("|");
+      const fieldChanged = Number(report.fieldAt || 0) !== Number(state.positionSummaryFieldAt || 0);
+      const modeChanged = mode !== state.positionSummaryMode;
+      const now = Date.now();
+      if (!force && !fieldChanged && !modeChanged && key !== state.positionSummaryKey
+          && now - state.positionSummaryAt < 600) return;
+      const text = berthSeparationText(report);
+      if (berthReadout.textContent !== text) berthReadout.textContent = text;
+      state.positionSummaryAt = now;
+      state.positionSummaryKey = key;
+      state.positionSummaryMode = mode;
+      state.positionSummaryFieldAt = Number(report.fieldAt || 0);
+    }
+
     function drawStatus() {
       if (state.field) updateRouteSteps(state.field);
       const provider = currentProvider();
@@ -2598,11 +3061,7 @@
               : state.persistence === "local-storage-unavailable" ? "SESSION STORAGE BLOCKED" : state.persistence;
       persistenceHost.title = state.persistenceNote;
       countsHost.textContent = `${state.ledger.calls.toLocaleString()} local calls · ${state.ledger.beats.toLocaleString()} beats · ${symbols.length} berths`;
-      if (berthReadout) {
-        berthReadout.textContent = state.berthReport
-          ? berthSeparationText(state.berthReport)
-          : `BERTH SEPARATION · ${berthSpreadLabel(state.separation)} · waiting for the first drawn field`;
-      }
+      updateBerthReadout(state.berthReport, { force: true });
       routeStepProvider.textContent = state.routeSteps.provider;
       routeStepWorker.textContent = state.routeSteps.worker;
       routeStepLedger.textContent = state.routeSteps.ledger;
@@ -3306,6 +3765,11 @@
         placement.topology && placement.topology.convergence,
         placement.topology && placement.topology.volatility
       );
+      const packetPosition = {
+        longitude: placement.longitude,
+        latitude: placement.latitude,
+        radius: placement.radius
+      };
       const floatPhase = placement.phase + now / 1000 * placement.speed;
       /* The float is the packet's own drift. It must never feed the berth
          resolver: a drifted coordinate can cross the crowding floor and make
@@ -3322,6 +3786,17 @@
       let longitude = placement.longitude + Math.cos(floatPhase) * float;
       let latitude = placement.latitude + Math.sin(floatPhase * 1.13) * float * 0.72;
       let radius = placement.radius + Math.sin(floatPhase * 0.73) * float * 0.34;
+      const afterFloat = { longitude, latitude, radius };
+      let fbbTrace = {
+        applied: false,
+        available: Boolean(placement.fbbState && placement.fbbState.available),
+        before: afterFloat,
+        after: afterFloat,
+        inward: 0,
+        radialFactor: 1,
+        vertical: 0,
+        depth: 0
+      };
       /* Stocks: FBB strength becomes inward penetration and signed FBB
          displacement becomes vertical direction. The six-dimensional state
          also contributes a small depth deformation. */
@@ -3330,9 +3805,26 @@
         radius = displacement.radius;
         latitude += displacement.vertical;
         longitude += displacement.depth;
+        fbbTrace = {
+          applied: true,
+          available: true,
+          before: afterFloat,
+          after: { longitude, latitude, radius },
+          inward: displacement.inward,
+          radialFactor: 1 - displacement.inward,
+          vertical: displacement.vertical,
+          depth: displacement.depth,
+          strength: placement.fbbState.strength,
+          direction: placement.fbbState.direction,
+          bandDepth: placement.fbbState.depth,
+          components: placement.fbbState.components
+        };
       }
+      const beforeDirective = { longitude, latitude, radius };
+      let directiveType = "none";
       if (directive && !directive.frozen && directive.npc) {
         const npc = directive.npc;
+        directiveType = String(npc.formation || "npc");
         const phase = floatPhase + (0.6 + clamp(Number(npc.speed) || 0, 0, 1) * 2.2) * now / 1000;
         const stride = clamp(Number(npc.stride) || 0, 0, 1) * (0.025 + Math.sin(phase) ** 2 * 0.06);
         const bearing = Number(npc.bearing) || 0;
@@ -3345,8 +3837,35 @@
         if (npc.formation === "column") longitude += Math.sin(phase) * stride * 0.3;
         if (npc.formation === "scatter") latitude += jitter;
       }
+      const afterDirective = { longitude, latitude, radius };
       return {
         longitude, latitude, radius, anchor,
+        marketPlacement: placement,
+        positionTrace: {
+          packet: packetPosition,
+          distribution: spread,
+          anchor,
+          float: {
+            delta: {
+              longitude: afterFloat.longitude - packetPosition.longitude,
+              latitude: afterFloat.latitude - packetPosition.latitude,
+              radius: afterFloat.radius - packetPosition.radius
+            },
+            after: afterFloat
+          },
+          stockFbb: fbbTrace,
+          directive: {
+            applied: directiveType !== "none",
+            formation: directiveType,
+            before: beforeDirective,
+            after: afterDirective,
+            delta: {
+              longitude: afterDirective.longitude - beforeDirective.longitude,
+              latitude: afterDirective.latitude - beforeDirective.latitude,
+              radius: afterDirective.radius - beforeDirective.radius
+            }
+          }
+        },
         available: placement.available, source: placement.source, pressure: placement.pressure,
         topology: placement.topology, fbbState: placement.fbbState,
         stockFbbColor: placement.stockFbbColor
@@ -3585,71 +4104,164 @@
         radius: placement.anchor.radius
       }));
       const report = resolveBerthSeparation(decisions, state.separation, { flat: ease(state.formation) < 0.04 });
+      report.discId = discId;
+      report.nodeCount = placements.length;
+      report.fieldAt = state.fieldAt;
+      const clusterByIndex = new Map();
+      for (const cluster of report.clusters || []) {
+        for (const index of cluster.indices || []) clusterByIndex.set(index, cluster);
+      }
       decisions.forEach((decision, index) => {
-        placements[index].longitude += decision.longitude - placements[index].anchor.longitude;
-        placements[index].latitude += decision.latitude - placements[index].anchor.latitude;
+        const placement = placements[index];
+        const before = { ...placement.anchor };
+        const resolved = { longitude: decision.longitude, latitude: decision.latitude, radius: decision.radius };
+        const cluster = clusterByIndex.get(index) || null;
+        placement.positionTrace.berth = {
+          clusterId: cluster ? cluster.id : null,
+          clusterSize: cluster ? cluster.size : 1,
+          members: cluster ? cluster.members : [String(placement.identity)],
+          before,
+          resolved,
+          shift: {
+            longitude: resolved.longitude - before.longitude,
+            latitude: resolved.latitude - before.latitude,
+            radius: resolved.radius - before.radius
+          }
+        };
+        placement.longitude += resolved.longitude - placement.anchor.longitude;
+        placement.latitude += resolved.latitude - placement.anchor.latitude;
+        placement.positionTrace.berth.afterTransforms = {
+          longitude: placement.longitude,
+          latitude: placement.latitude,
+          radius: placement.radius
+        };
       });
       /* Display-only translation: the whole separated field is drawn around its
          own Disc orb. Berth radii, angles, and the separation report are
          computed before the translation, so nothing about a metric changes. */
       const origin = discBerth(discId) || { x: 0, y: 0, z: 0 };
       state.fieldEnvelope = topologyEnvelope(placements);
-      const drawn = placements.map(placement => addModelPoint(modelPoint(placement), origin));
-      /* The slot decision is made on the stable anchors, but the packets' own
-         drift is added afterwards, and two orbs seated exactly on the floor can
-         drift toward each other. This settle pass only touches pairs the drift
-         has brought inside the floor, moving them apart along their own chord
-         by their own overlap: a continuous function of the drawn coordinates
-         (the push is exactly zero at the floor), so unlike a re-slot it can
-         never teleport an orb. The report above is untouched — it still
-         describes the model-space decision, not this display nudge. */
+      const localModel = placements.map(placement => modelPoint(placement));
+      const drawn = localModel.map(point => addModelPoint(point, origin));
+      const beforeFloor = drawn.map(point => ({ ...point }));
+      /* The slot decision is made on stable anchors; packet drift and FBB
+         deformation are added afterwards. The 3D settle is measured separately
+         from the packet and berth coordinates, so its display-only correction is
+         visible in the inspector instead of being folded into a market radius. */
       settleDrawnFloor(drawn, report.minimum);
-      const projected = drawn.map((point, index) => ({
-        ...project(point, width, height),
-        node: placements[index].node,
-        observation: placements[index].observation,
-        directive: placements[index].directive,
-        topology: placements[index].topology
+      const localFinal = drawn.map(point => ({
+        x: point.x - origin.x,
+        y: point.y - origin.y,
+        z: point.z - origin.z
       }));
-      /* A 3D berth can still collapse to the same pixel column when two points
-         differ mostly along camera depth. Keep the semantic 3D placement intact,
-         then apply a tiny screen-space legibility pass. This is presentation
-         geometry only; it never feeds back into FBB, topology, or the model-space
-         berth report. */
-      settleProjectedFloor(projected, 4);
+      const packetRadii = placements.map(placement => placement.marketPlacement.radius);
+      const displayRadii = localFinal.map(point => Math.hypot(point.x, point.y, point.z));
+      report.packetRadius = placementRadiusSummary(packetRadii);
+      report.displayRadius = placementRadiusSummary(displayRadii);
+      report.packetRadii = packetRadii;
+      report.displayRadii = displayRadii;
+      const projected = drawn.map((point, index) => {
+        const placement = placements[index];
+        const projectedPoint = project(point, width, height);
+        const packetRadius = packetRadii[index];
+        const displayRadius = displayRadii[index];
+        const trace = placement.positionTrace;
+        trace.drawn = {
+          local: localFinal[index],
+          radius: displayRadius,
+          topology: placement.topology ? {
+            axes: { ...placement.topology.axes },
+            rotation: placement.topology.rotation
+          } : { axes: { x: 1, y: 1, z: 1 }, rotation: 0 },
+          formation: { blend: state.formation, sphereMix: ease(state.formation) },
+          camera: {
+            yaw: state.yaw, pitch: state.pitch, zoom: state.zoom, camZoom: state.camZoom,
+            pan: { ...state.camPan }, focusOrb: state.focusOrb
+          },
+          floorCorrection: {
+            x: drawn[index].x - beforeFloor[index].x,
+            y: drawn[index].y - beforeFloor[index].y,
+            z: drawn[index].z - beforeFloor[index].z,
+            distance: Math.hypot(
+              drawn[index].x - beforeFloor[index].x,
+              drawn[index].y - beforeFloor[index].y,
+              drawn[index].z - beforeFloor[index].z
+            )
+          }
+        };
+        trace.screen = { x: projectedPoint.x, y: projectedPoint.y, z: projectedPoint.z, scale: projectedPoint.scale };
+        return {
+          ...projectedPoint,
+          identity: String(placement.identity),
+          discId: placement.discId,
+          node: placement.node,
+          observation: placement.observation,
+          directive: placement.directive,
+          topology: placement.topology,
+          stockFbbColor: placement.stockFbbColor,
+          marketPlacement: placement.marketPlacement,
+          positionTrace: trace,
+          packetRadius,
+          packetRadiusDelta: report.packetRadius.median === null ? null : packetRadius - report.packetRadius.median,
+          packetRadiusPercentile: placementRadiusPercentile(packetRadii, packetRadius),
+          displayRadius,
+          displayRadiusDelta: report.displayRadius.median === null ? null : displayRadius - report.displayRadius.median,
+          collisionRadius: 0,
+          screenNudge: { x: 0, y: 0, distance: 0 }
+        };
+      });
+      if (state.focusOrb) {
+        projected.forEach(point => { point.collisionRadius = visualOrbCollisionRadius(point, width, height); });
+        report.screen = resolveScreenGlyphCollisions(projected, { gap: 2, maxPasses: 48 });
+        projected.forEach(point => {
+          point.positionTrace.screen = {
+            ...point.positionTrace.screen,
+            x: point.x, y: point.y,
+            nudge: point.screenNudge,
+            collisionRadius: point.collisionRadius
+          };
+        });
+      } else {
+        const preCompression = resolveScreenGlyphCollisions(projected, { gap: 4.2, maxPasses: 96 });
+        report.preCompressionScreen = preCompression;
+        report.screen = {
+          mode: "compact",
+          memberCount: placements.length,
+          parentDiameter: 0,
+          overlapPairs: 0,
+          crowded: 0,
+          groups: [],
+          preCompression
+        };
+        projected.forEach(point => {
+          point.positionTrace.screen = {
+            ...point.positionTrace.screen,
+            x: point.x, y: point.y,
+            preCompressionNudge: point.screenNudge
+          };
+        });
+      }
+      report.viewMode = state.focusOrb ? "focus" : "compact";
       return { points: projected, report, placements };
     }
 
-    /** Keep the drawn field clear of the berth floor the resolver decided on.
-        Pairs the packets' own drift has brought inside the floor are pushed
-        apart along their chord, half each; a pair exactly on the floor is
-        moved by exactly zero, so the pass is continuous in the drawn
-        coordinates and adds no motion of its own. Deterministic and
-        idempotent: re-running it over its own output moves nothing. */
-    function settleProjectedFloor(points, minimumPx) {
-      if (!(Number(minimumPx) > 0) || !Array.isArray(points) || points.length < 2) return points;
-      const target = minimumPx + 0.2;
-      for (let pass = 0; pass < 12; pass += 1) {
-        let moved = false;
-        for (let left = 0; left < points.length; left += 1) {
-          for (let right = left + 1; right < points.length; right += 1) {
-            const a = points[left];
-            const b = points[right];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const distance = Math.hypot(dx, dy);
-            if (!(distance > 1e-9) || distance >= target) continue;
-            const push = (target - distance) / 2;
-            const ux = (dx / distance) * push;
-            const uy = (dy / distance) * push;
-            a.x -= ux; a.y -= uy;
-            b.x += ux; b.y += uy;
-            moved = true;
-          }
-        }
-        if (!moved) break;
-      }
-      return points;
+    /** Match the visible body ellipse used by drawOrbNode. A selected or hovered
+        node also receives the four-pixel outline; provider glows and data-bit
+        satellites remain separately legible decorations, not body collisions. */
+    function visualOrbCollisionRadius(point, width, height) {
+      const node = point && point.node;
+      const chosen = Boolean(node && node.order === state.selected);
+      const hovered = Boolean(node && node.order === state.hover);
+      const directive = point && point.directive;
+      const pulse = directive && directive.object ? Number(directive.object.pulse) || 0 : 0;
+      const density = clamp(Math.min(width, height) / 620, 0.82, 1.52);
+      const radius = clamp((4.15 + (Number(point && point.scale) || 0) * 2.35
+        + (chosen ? 2.1 : 0) + pulse * 1.5) * density, 4, 14);
+      const axes = point && point.topology && point.topology.axes
+        ? point.topology.axes : { x: 1, y: 1, z: 1 };
+      const sx = clamp((Number(axes.x) + Number(axes.z)) * 0.5, 0.72, 1.35);
+      const sy = clamp(Number(axes.y), 0.72, 1.35);
+      return Math.max(radius * sx, radius * sy) + (chosen || hovered ? 4.5 : 0);
     }
 
     function settleDrawnFloor(points, minimum) {
@@ -3682,6 +4294,7 @@
     function resolveProjectedNodes(fieldNodes, width, height, now) {
       const field = projectDiscField(state.discId, fieldNodes, width, height, now);
       state.berthReport = field.report;
+      if (state.focusOrb) updateBerthReadout(field.report);
       return field.points;
     }
 
@@ -3715,7 +4328,7 @@
       return latest && latest.confirmed === true && bars >= 2;
     }
 
-    function drawFieldBatch(points, { radius = 2.4, dim = false } = {}) {
+    function drawFieldBatch(points, { radius = 2.4, dim = false, report = null } = {}) {
       if (!context2d || !points.length) return;
       const grouped = new Map();
       for (const point of points) {
@@ -3732,6 +4345,7 @@
         const parentRadius = disc.id === state.discId ? 15 : 11;
         const usableRadius = Math.max(3.5, parentRadius - 2.5);
         const sorted = [...list].sort((a, b) => String(a.node?.symbol || a.node?.name || "").localeCompare(String(b.node?.symbol || b.node?.name || "")));
+        const compactPoints = [];
         for (const point of sorted) {
           const dx = point.x - center.x;
           const dy = point.y - center.y;
@@ -3749,6 +4363,15 @@
           const axes = topology && topology.axes ? topology.axes : { x: 1, y: 1, z: 1 };
           const sx = clamp((Number(axes.x) + Number(axes.z)) * 0.5, 0.78, 1.22);
           const sy = clamp(Number(axes.y), 0.78, 1.22);
+          const compactRadius = Math.max(subRadius * sx, subRadius * sy);
+          const compactDisplacement = { x: x - point.x, y: y - point.y };
+          point.compactPosition = {
+            x, y, radius: compactRadius, compression: scale,
+            displacement: { ...compactDisplacement },
+            source: { x: point.x, y: point.y }
+          };
+          if (point.positionTrace) point.positionTrace.compact = point.compactPosition;
+          compactPoints.push({ x, y, collisionRadius: compactRadius, identity: point.identity, node: point.node });
           context2d.save();
           context2d.globalAlpha = alpha;
           context2d.fillStyle = color;
@@ -3813,6 +4436,23 @@
         context2d.arc(center.x, center.y, usableRadius + 1.2, 0, TAU);
         context2d.stroke();
         context2d.restore();
+        if (report && report.discId === discId) {
+          const compactSummary = screenCollisionSummary(compactPoints, 0.45);
+          report.viewMode = "compact";
+          report.screen = {
+            mode: "compact",
+            memberCount: list.length,
+            parentDiameter: (usableRadius + 1.2) * 2,
+            overlapPairs: compactSummary.overlapPairs,
+            crowded: compactSummary.crowded,
+            minimumClearance: compactSummary.minimumClearance,
+            closest: compactSummary.closest,
+            groups: compactSummary.groups,
+            preCompression: report.preCompressionScreen || null
+          };
+          state.berthReport = report;
+          updateBerthReadout(report);
+        }
       }
     }
 
@@ -4974,7 +5614,7 @@
       const wideView = !state.focusOrb;
       if (wideView) {
         const otherFields = projectAllDiscFields(width, height, now);
-        for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true });
+        for (const discId of Object.keys(otherFields)) drawFieldBatch(otherFields[discId].points, { dim: true, report: otherFields[discId].report });
       }
       drawCentralDiscPlane(now, width, height);
       /* Upper/lower translucent shell bands are a separate FBB geometry layer;
@@ -4999,7 +5639,7 @@
         /* The selected Disc's own field is the one the inspector, the beams,
            and the hit-test follow, so it is drawn a step brighter than its
            neighbours — never in place of them. */
-        drawFieldBatch(state.projected);
+        drawFieldBatch(state.projected, { report: state.berthReport });
       } else {
         state.projected.forEach((point, index) => drawActivity(point, now, wallNow, index));
       }
@@ -5102,6 +5742,8 @@
       /* The constellation's front pass: orb outlines and Disc status labels,
          painted last so the selected Disc's own packet field never hides them. */
       if (state.orbLabels.length) paintConstellationFront();
+      if (inspector && inspector.open && state.positionInspectorKey !== positionInspectorKey()
+          && Date.now() - Number(state.positionInspectorAt || 0) >= 500) drawInspector();
     }
 
     function scheduleRender() {
@@ -5202,6 +5844,16 @@
     canvas.addEventListener("wheel", onWheel, { passive: false });
     canvas.addEventListener("keydown", onKeyDown);
     nodeSelect.addEventListener("change", () => selectNode(nodes.findIndex(node => node.id === nodeSelect.value)));
+    if (inspector) inspector.addEventListener("toggle", () => {
+      if (inspector.open) drawInspector();
+    });
+    detail.addEventListener("click", event => {
+      const button = event.target && typeof event.target.closest === "function"
+        ? event.target.closest("[data-gi-orb2-diagnostic-node]") : null;
+      if (!button) return;
+      const index = Number(button.getAttribute("data-gi-orb2-diagnostic-node"));
+      if (Number.isInteger(index) && index >= 0 && index < nodes.length) selectNode(index);
+    });
     formation.addEventListener("input", () => {
       state.formation = clamp(Number(formation.value) / 100, 0, 1);
       formationLabel.textContent = state.formation < 0.04 ? "DISC" : state.formation > 0.96 ? "SPHERE" : `${Math.round(state.formation * 100)}%`;
@@ -5540,7 +6192,8 @@
     WAVE_EXTENSION_PUSH, marketExtensionState,
     fibonacciBandMetrics, multidimensionalFbbState, stockFbbDisplacement, stockFbbColor, logarithmicBandGeometry, topologyEnvelope, topologyDistribution, marketDataPlacement,
     dataBitsForMarket, flowPathForObservation,
-    resolveBerthSeparation, berthSeparationText, berthSpreadLabel,
+    resolveBerthSeparation, screenCollisionSummary, resolveScreenGlyphCollisions,
+    berthSeparationText, berthSpreadLabel,
     constellationBerth, constellationLayout, discOrbColor, createDiscOrbGradient,
     buildNodes, marketStageFor, marketRacePosition, buildMarketRaceSnapshot, mount, getSavedBeatSessionId
   });
