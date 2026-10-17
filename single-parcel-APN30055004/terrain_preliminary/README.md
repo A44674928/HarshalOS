@@ -5,7 +5,8 @@
 - `index.html` — self-contained interactive viewer. It renders the actual USGS 3DEP 1-meter DEM dynamically from the public ImageServer, locked to source raster **86167**, and switches among five Arizona NAIP image years (2013, 2017, 2019, 2021, 2023). The viewer needs an internet connection to the public ArcGIS services.
 - `epqs_samples.csv` — ten USGS Elevation Point Query Service samples in WGS84, with returned elevations in feet.
 - `parcel_outline.geojson` — parcel polygon returned by Arizona Water Maps for APN 30055004, kept separate from the terrain data and explicitly identified as assessor/GIS geometry, not a survey.
-- `harshalos-private-preview.html`, `frontiership-outpost-app.js`, and `frontiership-outpost-app.css` — private local HarshalOS shell-injection prototype for FRONTIERSHIP / OUTPOST ONE. Its Site & Terrain panel contains the remote viewer, the separate Best-Wishes 3D edition, the unchanged 9-minute feature, guides, and model package.
+- `js/apps-frontiership.js` + `css/frontiership.css` — the FRONTIERSHIP / OUTPOST ONE HarshalOS desktop app and scoped styling. The module is registered before shell startup, so its `⌂` / OUTPOST ONE launcher icon appears in the desktop grid.
+- `harshalos-private-preview.html` — optional local wrapper for the HarshalOS desktop; it opens with the desktop app icon visible and provides a separate open/restore button.
 - `best-wishes-edition/frontiership-outpost-one-best-wishes-3d.mp4` + poster + `BEST_WISHES_EDITION_GUIDE.md` — separate 5-minute, silent 1920×1080 / 24 fps ray-traced 3D concept film with a Best-Wishes aspiration layer, room-zone cutaway, snow, animated conceptual systems, and explicit evidence / feasibility limits. It does not replace the existing feature.
 - `outpost-one-full-feature-film.mp4` + `outpost-one-full-feature-poster.png` — the preserved 9-minute, silent 1920×1080 / 12 fps concept feature with snowfall, Fallout Shelter–inspired side-on building cutaways, animated system overviews, and an optional dashed tunnel study.
 - `OUTPOST_ONE_FEATURE_FILM_GUIDE.md` — first-edition chapter timestamps, specifications, interpretation notes, assumptions, and limits.
@@ -13,9 +14,9 @@
 - `outpost-one-concept-model.obj` + `.mtl` — editable, low-detail blockout; `outpost-one-concept-model.zip` packages the paired model files and model notes.
 - `render_outpost_one_feature_film.py`, `render_outpost_one_pixel_movie.py`, and `OUTPOST_ONE_CONCEPT_MODEL_NOTES.md` — reproducible long-form renderer, short renderer, model provenance, and explicit limitations.
 - `private-preview-server.mjs` — allowlisted local preview server for the HarshalOS shell, terrain viewer, and explicitly named film/poster/guide/model files, including the new Best-Wishes edition; it does not expose the repository's other project documents or workbooks.
-- `HARSHALOS_APP_INTEGRATION.md` — the app architecture and future public-release gate.
+- `HARSHALOS_APP_INTEGRATION.md` — the desktop registration, named asset deploy-list, and external Cloudflare Access requirements.
 
-Run the private prototype from the repository root with `node single-parcel-APN30055004/terrain_preliminary/private-preview-server.mjs`, then open the server preview on port 8001. The app module is injected only by this wrapper; it is **not** registered in the public HarshalOS desktop or deployed asset list.
+Run the local wrapper from the repository root with `node single-parcel-APN30055004/terrain_preliminary/private-preview-server.mjs`, then open port 8001. The wrapper shows the HarshalOS desktop with the OUTPOST ONE launcher icon available; it does not inject a second copy of the app. The Cloudflare Access policy is external to this repository and must protect all deployed app and media routes.
 
 No full DEM GeoTIFF, LiDAR point cloud, or aerial raster was downloaded into this repository. The viewer requests live public renderings; the CSV is a small set of spot queries, **not** a raster or a complete elevation grid. The 3D concept film interpolates between only those ten values for a visibly labeled placeholder surface; it does not use the live 3DEP image service as a downloadable DEM. The previous `terrain_real/` preview files remain synthetic and were not used.
 

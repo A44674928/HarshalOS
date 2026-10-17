@@ -19,8 +19,6 @@ const PORT = Number(process.env.PORT || 8001);
 const privateFiles = new Map([
   ['/', path.join(HERE, 'harshalos-private-preview.html')],
   ['/os', path.join(ROOT, 'index.html')],
-  ['/private/frontiership-outpost-app.js', path.join(HERE, 'frontiership-outpost-app.js')],
-  ['/private/frontiership-outpost-app.css', path.join(HERE, 'frontiership-outpost-app.css')],
   ['/private/outpost-one-pixel-concept-film.mp4', path.join(HERE, 'outpost-one-pixel-concept-film.mp4')],
   ['/private/outpost-one-pixel-concept-poster.png', path.join(HERE, 'outpost-one-pixel-concept-poster.png')],
   ['/private/outpost-one-full-feature-film.mp4', path.join(HERE, 'outpost-one-full-feature-film.mp4')],

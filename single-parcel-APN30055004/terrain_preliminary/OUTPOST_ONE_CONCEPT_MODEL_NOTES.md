@@ -26,7 +26,7 @@ Building placements, dimensions, floorplate proportions, roads, trees, well mark
 
 This is **not for permitting, engineering, legal, medical-facility design, grading, drainage, access, setbacks, financing, or construction**. It does not establish a legal boundary, road authority, road/access rights, FFE, setbacks, geotechnical conditions, well/septic feasibility, tree locations, EMS/air-ambulance operations, medical licensure, or actual building sizes. Survey-controlled topography, ALTA/NSPS boundary work, geotechnical and utility studies, architect/engineer review, county pre-app, healthcare counsel, and EMS/fire-district coordination remain separate gates.
 
-The `Site & Terrain` page of the private HarshalOS preview includes the MP4, a download link, and the editable OBJ/MTL ZIP. The preview server serves these exact files only; nothing is added to HarshalOS's public app registry, public asset pipeline, or deployment allowlist.
+The HarshalOS `Site & Terrain` panel links to the feature MP4, chapter guide, and editable OBJ/MTL ZIP. The deployment stager copies only an explicit list of app media and terrain-viewer files from this folder; it does not stage the project directory, render sources, workbooks, or the synthetic `terrain_real/` package. The static browser bundle does not enforce privacy: Cloudflare Access must protect the main site and direct asset paths, including `/js/`, `/css/`, `/private/`, and `/terrain/`.
 
 ## Rebuild
 

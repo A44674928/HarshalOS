@@ -6,20 +6,21 @@
    development (the black-square saga). This server sends:
      · "?v=…" URLs  → public, max-age=31536000, immutable
      · everything else → no-cache (always revalidate)
-   and knows the right MIME type for .avif (the orb film frames).
+   and knows the right MIME types for .avif and the named OUTPOST ONE media/data assets.
 
    It also serves an allowlist, not the checkout. On a laptop that hardly
    matters; behind a preview proxy or on a shared network the port is
    reachable by other people, and this directory holds .git (a 754 MiB
    packfile and every credential-free-but-private commit), the business plan
-   working documents, and private papers that .assetsignore says must never be
-   published. So what is served here is exactly what the deployed site is —
-   index.html, about.html, Community publisher pages, css/, js/, assets/, the versioned specs/ the
-   Ground-0 app fetches at runtime, the selected Book I document at
-   /book/01-core-book.md, the curated Harshal's Systems Markdown library at
-   /book-library/, the plaintext chapters of manuscript/, and the read-only
-   trade files under trades/ — everything else is a plain 404 that does not
-   admit what exists.
+   working documents, and private papers that .assetsignore keeps out of the
+   site bundle. The named OUTPOST ONE app and its explicitly listed runtime
+   media/site files are the only project-package exception. What is served is
+   the deployed asset allowlist: index.html, about.html, Community pages,
+   css/, js/, assets/, versioned specs, selected Book I/library routes,
+   indexed manuscript chapters, read-only trade files, and named /private/*
+   and /terrain/* project routes. Everything else is a plain 404. Project
+   content relies on Cloudflare Access at the hosting edge; this local server
+   does not provide authentication.
 
    The manuscript index is not a checked-in file: it is built from the
    chapter files on request, so dropping a new .txt into
@@ -89,8 +90,12 @@ const MIME = {
   ".ico": "image/x-icon",
   ".flame": "text/plain; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".geojson": "application/geo+json; charset=utf-8",
+  ".csv": "text/csv; charset=utf-8",
   ".md": "text/markdown; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
+  ".mp4": "video/mp4",
+  ".zip": "application/zip",
   ".woff2": "font/woff2"
 };
 
@@ -101,12 +106,28 @@ const MIME = {
 const BOOK_LIBRARY_MANIFEST_PATH = "/book-library/manifest.json";
 const BOOK_LIBRARY_SOURCE_ROOT = path.resolve(ROOT, "docs", "harshal-systems");
 const BOOK_LIBRARY_FILE_PATH = /^\/book-library\/harshal-systems\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.md$/;
+const OUTPOST_SOURCE_ROOT = path.join(ROOT, "single-parcel-APN30055004", "terrain_preliminary");
+const OUTPOST_ASSETS = new Map([
+  ["/private/outpost-one-best-wishes-3d-film.mp4", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "frontiership-outpost-one-best-wishes-3d.mp4")],
+  ["/private/outpost-one-best-wishes-3d-poster.png", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "frontiership-outpost-one-best-wishes-3d-poster.png")],
+  ["/private/outpost-one-best-wishes-guide.md", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "BEST_WISHES_EDITION_GUIDE.md")],
+  ["/private/outpost-one-full-feature-film.mp4", path.join(OUTPOST_SOURCE_ROOT, "outpost-one-full-feature-film.mp4")],
+  ["/private/outpost-one-full-feature-poster.png", path.join(OUTPOST_SOURCE_ROOT, "outpost-one-full-feature-poster.png")],
+  ["/private/outpost-one-feature-film-guide.md", path.join(OUTPOST_SOURCE_ROOT, "OUTPOST_ONE_FEATURE_FILM_GUIDE.md")],
+  ["/private/outpost-one-concept-model.zip", path.join(OUTPOST_SOURCE_ROOT, "outpost-one-concept-model.zip")],
+  ["/terrain/index.html", path.join(OUTPOST_SOURCE_ROOT, "index.html")],
+  ["/terrain/README.md", path.join(OUTPOST_SOURCE_ROOT, "README.md")],
+  ["/terrain/epqs_samples.csv", path.join(OUTPOST_SOURCE_ROOT, "epqs_samples.csv")],
+  ["/terrain/parcel_outline.geojson", path.join(OUTPOST_SOURCE_ROOT, "parcel_outline.geojson")]
+]);
 const SERVED = [
   /^\/$/,                                   // index.html
   /^\/[A-Za-z0-9_-]+\.html$/,               // about.html and friends
   /^\/css\/[A-Za-z0-9._-]+$/,
   /^\/js\/[A-Za-z0-9._-]+$/,
   /^\/assets\/[A-Za-z0-9._/-]+$/,
+  /^\/private\/(?:outpost-one-best-wishes-3d-film\.mp4|outpost-one-best-wishes-3d-poster\.png|outpost-one-best-wishes-guide\.md|outpost-one-full-feature-film\.mp4|outpost-one-full-feature-poster\.png|outpost-one-feature-film-guide\.md|outpost-one-concept-model\.zip)$/,
+  /^\/terrain\/(?:index\.html|README\.md|epqs_samples\.csv|parcel_outline\.geojson)$/,
   /^\/book\/01-core-book\.md$/,            // one explicitly selected source document
   /^\/book-library\/manifest\.json$/,
   BOOK_LIBRARY_FILE_PATH,                    // curated Markdown subtree only
@@ -205,26 +226,69 @@ http.createServer(async (req, res) => {
       return;
     }
 
-    const file = p === "/book/01-core-book.md"
+    const file = OUTPOST_ASSETS.get(p) || (p === "/book/01-core-book.md"
       ? path.join(ROOT, "docs", "harshal-systems", "01-core-book.md")
-      : path.normalize(path.join(ROOT, p));
-    if (!file.startsWith(ROOT)) { res.writeHead(403); res.end("forbidden"); return; }
-    fs.readFile(file, (err, data) => {
-      if (err) {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end("404 " + p);
+      : path.normalize(path.join(ROOT, p)));
+    if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); res.end("forbidden"); return; }
+    let stat;
+    try { stat = await fs.promises.stat(file); }
+    catch {
+      res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+      res.end("404 " + p);
+      return;
+    }
+    if (!stat.isFile()) {
+      res.writeHead(404, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
+      res.end("404 " + p);
+      return;
+    }
+    const ext = path.extname(file).toLowerCase();
+    const baseHeaders = {
+      "Content-Type": MIME[ext] || "application/octet-stream",
+      "Cache-Control": u.search ? "public, max-age=31536000, immutable" : "no-cache",
+      ...(ext === ".mp4" ? { "Accept-Ranges": "bytes" } : {})
+    };
+    if (ext === ".mp4" && req.headers.range) {
+      const match = /^bytes=([0-9]*)-([0-9]*)$/.exec(req.headers.range);
+      let start;
+      let end;
+      if (!match || stat.size === 0) {
+        res.writeHead(416, { ...baseHeaders, "Content-Range": `bytes */${stat.size}` });
+        res.end();
         return;
       }
-      const ext = path.extname(file).toLowerCase();
-      const headers = {
-        "Content-Type": MIME[ext] || "application/octet-stream",
-        "Content-Length": data.length
-      };
-      if (u.search) headers["Cache-Control"] = "public, max-age=31536000, immutable";
-      else headers["Cache-Control"] = "no-cache";
-      res.writeHead(200, headers);
-      res.end(data);
-    });
+      if (match[1] === "") {
+        const suffixLength = Number(match[2]);
+        if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
+          res.writeHead(416, { ...baseHeaders, "Content-Range": `bytes */${stat.size}` });
+          res.end();
+          return;
+        }
+        start = Math.max(0, stat.size - suffixLength);
+        end = stat.size - 1;
+      } else {
+        start = Number(match[1]);
+        end = match[2] === "" ? stat.size - 1 : Math.min(Number(match[2]), stat.size - 1);
+      }
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= stat.size || end < start) {
+        res.writeHead(416, { ...baseHeaders, "Content-Range": `bytes */${stat.size}` });
+        res.end();
+        return;
+      }
+      const length = end - start + 1;
+      res.writeHead(206, {
+        ...baseHeaders,
+        "Content-Length": length,
+        "Content-Range": `bytes ${start}-${end}/${stat.size}`
+      });
+      if (req.method === "HEAD") res.end();
+      else fs.createReadStream(file, { start, end }).pipe(res);
+      return;
+    }
+    res.writeHead(200, { ...baseHeaders, "Content-Length": stat.size });
+    if (req.method === "HEAD") res.end();
+    else if (ext === ".mp4") fs.createReadStream(file).pipe(res);
+    else res.end(await fs.promises.readFile(file));
   } catch (e) {
     res.writeHead(500);
     res.end("500");

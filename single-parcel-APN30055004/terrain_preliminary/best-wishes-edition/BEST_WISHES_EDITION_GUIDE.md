@@ -58,4 +58,4 @@ The renderer uses Mitsuba's `scalar_rgb` CPU variant. Its non-fatal LLVM initial
 
 ## Private-preview boundary
 
-The local HarshalOS prototype serves this MP4, poster, and guide only through three explicit routes in `private-preview-server.mjs`. The terrain package remains outside public asset and deploy allowlists. The private preview is not production-authenticated and must not be made public with private project or economic data.
+The HarshalOS app links this MP4, poster, and guide through named `/private/` routes. `scripts/prepare-assets.mjs` copies only this film set and the other specific app runtime files; it does not publish the terrain package or project folder wholesale. Because the app bundle contains private project and economic assumptions, Cloudflare Access must protect the desktop, direct JS/CSS requests, and every `/private/` and `/terrain/` route. Access is configured outside this repository and is not enforced by the browser app or asset stager; do not deploy to an unprotected staging or preview host.

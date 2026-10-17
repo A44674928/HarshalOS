@@ -32,72 +32,51 @@
       const frame = document.getElementById('os');
       const status = document.getElementById('previewStatus');
       const launchButton = document.getElementById('launchOutpost');
-      let attaching = false;
-      let ready = false;
+      let checking = false;
 
-      function launch() {
+      function openOutpost() {
         try {
           const win = frame.contentWindow;
           const app = win?.APPS?.find(candidate => candidate.id === 'frontiership-outpost-one');
           if (app && win.shell && typeof win.shell.openApp === 'function') {
             win.shell.openApp(app);
-            status.textContent = 'OUTPOST ONE is open inside the HarshalOS shell · private local preview only';
-            ready = true;
+            status.textContent = 'OUTPOST ONE opened · its launcher icon is also on the HarshalOS desktop';
             return true;
           }
         } catch { /* frame may still be loading */ }
         return false;
       }
 
-      function attachPrivateApp() {
-        if (attaching) return;
-        attaching = true;
+      function waitForRegistration() {
+        if (checking) return;
+        checking = true;
         let tries = 0;
         const attempt = () => {
           tries += 1;
           let win;
-          let doc;
-          try { win = frame.contentWindow; doc = frame.contentDocument; } catch { /* retry after load */ }
-          if (!win || !doc || !Array.isArray(win.APPS) || !win.shell) {
+          try { win = frame.contentWindow; } catch { /* retry after load */ }
+          if (!win || !Array.isArray(win.APPS) || !win.shell) {
             if (tries < 100) return setTimeout(attempt, 150);
             status.textContent = 'HarshalOS did not finish loading; reload this preview and try again.';
-            attaching = false;
+            checking = false;
             return;
           }
           if (win.APPS.some(candidate => candidate.id === 'frontiership-outpost-one')) {
-            launch();
-            attaching = false;
+            status.textContent = 'OUTPOST ONE is registered on the HarshalOS desktop. Use its launcher icon or the button.';
+            checking = false;
             return;
           }
-          if (!doc.querySelector('link[data-frontiership-private-style]')) {
-            const style = doc.createElement('link');
-            style.rel = 'stylesheet';
-            style.href = '/private/frontiership-outpost-app.css';
-            style.dataset.frontiershipPrivateStyle = 'true';
-            doc.head.appendChild(style);
-          }
-          const script = doc.createElement('script');
-          script.src = '/private/frontiership-outpost-app.js';
-          script.onload = () => {
-            launch();
-            attaching = false;
-          };
-          script.onerror = () => {
-            status.textContent = 'Could not load the private module. It remains outside the public app registry.';
-            attaching = false;
-          };
-          doc.head.appendChild(script);
+          if (tries < 100) return setTimeout(attempt, 150);
+          status.textContent = 'OUTPOST ONE was not found in the loaded desktop bundle.';
+          checking = false;
         };
         attempt();
       }
 
-      frame.addEventListener('load', attachPrivateApp);
-      setTimeout(attachPrivateApp, 500);
+      frame.addEventListener('load', waitForRegistration);
+      setTimeout(waitForRegistration, 500);
       launchButton.addEventListener('click', () => {
-        if (!launch()) attachPrivateApp();
-      });
-      window.addEventListener('message', event => {
-        if (event.source === frame.contentWindow && event.data?.type === 'frontiership-outpost-ready') launch();
+        if (!openOutpost()) waitForRegistration();
       });
     })();
   </script>

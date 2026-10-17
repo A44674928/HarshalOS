@@ -44,4 +44,4 @@
 - `outpost-one-full-feature-poster.png` — representative 1080p poster frame.
 - `render_outpost_one_pixel_movie.py` — shared schematic site/model geometry source.
 - `outpost-one-concept-model.zip` — separate low-detail OBJ/MTL concept blockout.
-- `frontiership-outpost-app.js` — private local app integration; the prototype is not in HarshalOS's public app or deploy allowlists.
+- `js/apps-frontiership.js` and `css/frontiership.css` — the registered HarshalOS desktop app and scoped styling. Its project/economic content is delivered as static assets and relies on the external Cloudflare Access policy for access control.

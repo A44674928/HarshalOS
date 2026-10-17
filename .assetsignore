@@ -10,6 +10,8 @@
 !css/**
 !js/
 !js/**
+# FRONTIERSHIP app runtime lives in js/ and css/. The project package stays
+# denied wholesale; prepare-assets.mjs copies only its named viewer/media files.
 !assets/
 !assets/**
 !trades/

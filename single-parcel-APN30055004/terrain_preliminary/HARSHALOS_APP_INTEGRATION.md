@@ -1,12 +1,14 @@
 # HarshalOS integration plan — FRONTIERSHIP / OUTPOST ONE
 
-## Current implementation: private local prototype
+## Current implementation: registered desktop app + named deploy allowlist
 
-- `harshalos-private-preview.html` opens the existing HarshalOS desktop in an iframe and injects `frontiership-outpost-app.js` plus its scoped CSS only for this local preview.
-- `frontiership-outpost-app.js` registers a real HarshalOS `APPS`-style window (`frontiership-outpost-one`) with tabs for overview, build/operations, terrain, business model, and evidence/gates.
-- The Site & Terrain tab leads with a separate 5-minute, silent 1080p / 24 fps Best-Wishes 3D concept film, its poster, and its evidence/assumptions guide; it also retains the original 9-minute 1080p / 12 fps feature unchanged, the OBJ/MTL ZIP, and the existing `index.html` terrain viewer via `/terrain/`. The earlier 24-second film remains a secondary reference.
-- `private-preview-server.mjs` is an allowlisted development server. It serves HarshalOS runtime CSS/JS/assets, the local app, the terrain viewer and selected source files, plus explicitly named routes for both feature films, their posters and guides, and the OBJ/MTL ZIP. It does not serve the rest of the repository, business-plan documents, spreadsheets, or private papers.
-- This app is **not** imported by the public `index.html`, not added to `js/`, not added to `css/`, and not allowed through `.assetsignore` or `scripts/prepare-assets.mjs`. Do not run this preview server as a production server.
+- `js/apps-frontiership.js` registers `frontiership-outpost-one` in the HarshalOS `APPS` registry before `boot.js` starts the shell. Its `⌂` glyph and `OUTPOST ONE` label therefore appear in the normal desktop grid and app menu.
+- `css/frontiership.css` provides app-scoped styling. `index.html` loads the stylesheet and app module as part of the regular desktop bundle.
+- The app contains user-directed program and economic assumptions. Cloudflare Access is the external access boundary; the app itself, the Worker static asset binding, and this asset stager do not authenticate or authorize users.
+- `scripts/prepare-assets.mjs` stages only explicitly named OUTPOST media and terrain files under `/private/` and `/terrain/`. It does not copy the project folder, render sources, workbooks, full plan documents, or `terrain_real/` wholesale.
+- The Site & Terrain tab leads with the separate 5-minute, silent 1080p / 24 fps Best-Wishes 3D concept film, poster, and guide; it retains the original 9-minute 1080p / 12 fps feature, OBJ/MTL ZIP, and selected terrain viewer/data. The earlier 24-second film remains a secondary reference.
+- `harshalos-private-preview.html` opens the existing desktop without injecting a duplicate app; the icon remains visible, with a separate open/restore button. `private-preview-server.mjs` is the allowlisted local development server and is not a production server.
+- **Deployment gate:** verify Cloudflare Access covers the complete host and direct static/media paths, including `/js/apps-frontiership.js`, `/css/frontiership.css`, `/private/*`, and `/terrain/*`. This repository does not configure or verify that policy. Do not deploy this bundle to an unprotected staging host or preview URL.
 
 ## Product structure
 
@@ -31,14 +33,14 @@ If this prototype is approved for broader use, put project data in a small versi
 
 The terrain sources should remain distinct: the parcel polygon is assessor GIS, EPQS is a set of point queries, and the 1-meter DEM is a separate live 3DEP raster locked to source ID 86167. Historical aerial dates should remain attached to the imagery source; known 2019 date conflicts must not be flattened into one date.
 
-## Public-release gate (not done)
+## Access and deployment boundary
 
-HarshalOS's browser assets are public when staged/deployed, and the current app has no production authentication. The existing asset pipeline copies all of `js/` and `css/`, so adding a module there would publish it. Before any public integration:
+The app is now registered and the named static media/terrain routes are included by the asset stager. Its browser module includes site and economic premises, so a static deployment is safe only when the external access policy protects it end-to-end.
 
-1. Obtain explicit approval for what project name, site facts, program assumptions, price targets, and capacity information may be public.
-2. Keep workbooks, full business plans, medical/legal notes, and private pre-development files out of the asset allowlist.
-3. Decide whether the terrain viewer should be public or routed through an authenticated, access-controlled service. A static HarshalOS window is not an access-control boundary.
-4. If public sanitized scope is approved, move/adapt the module to `js/apps-frontiership.js` and `css/frontiership.css`, register it in `index.html`, and add only the specific approved viewer/data assets to `.assetsignore`, `scripts/prepare-assets.mjs`, and `serve.js`.
-5. Keep all actions read-only until the partner review authorizes a new planning iteration.
+1. Cloudflare Access must cover the main HTML shell and direct requests to `/js/apps-frontiership.js`, `/css/frontiership.css`, `/private/*`, and `/terrain/*`—not only navigation to the home page.
+2. Access is configured outside this repository. Neither `wrangler.jsonc` nor the asset stager installs or verifies the policy; the comments and visible badge are reminders, not enforcement.
+3. Protect staging/branch-preview hostnames separately or keep them disabled. Protection of `main.empty.domains` does not automatically protect a different hostname.
+4. Keep workbooks, full business plans, medical/legal notes, renderer sources, and unapproved pre-development files out of the asset list. The stager deliberately copies only the named runtime assets above.
+5. Keep the app read-only until the partner review authorizes another planning iteration.
 
-No public app registration, deployment, authentication change, pro forma publication, or broader development-plan iteration is included in this local prototype.
+The app registration and deploy-list are included in this change. No Cloudflare Access policy was changed and no production/staging deployment was performed; pro forma publication and broader development-plan iteration remain out of scope.

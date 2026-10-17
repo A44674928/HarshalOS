@@ -1,8 +1,8 @@
 /*
- * FRONTIERSHIP · OUTPOST ONE — private local HarshalOS app prototype.
- * This file is deliberately outside js/ and is not loaded by index.html,
- * .assetsignore, scripts/prepare-assets.mjs, or the public serve.js allowlist.
- * A local-only wrapper injects it into the HarshalOS shell for review.
+ * FRONTIERSHIP · OUTPOST ONE — project app for the HarshalOS desktop.
+ * This bundle contains private project and economic assumptions. Cloudflare
+ * Access must gate the site and every static/media route; this client module
+ * is not authentication or an access-control boundary.
  */
 "use strict";
 
@@ -12,7 +12,7 @@
     title: "FRONTIERSHIP · OUTPOST ONE",
     short: "OUTPOST ONE",
     glyph: "⌂",
-    desc: "Private project cockpit — concept, build program, site evidence, model, and partner decision gate",
+    desc: "FRONTIERSHIP project cockpit — program, site evidence, concept films, and partner decision gate",
     w: 1180,
     h: 840,
     fullscreen: true,
@@ -21,7 +21,7 @@
         <div class="frontiership-app">
           <header class="fo-header">
             <div class="fo-brand-block">
-              <div class="fo-eyebrow">FRONTIERSHIP · PRIVATE PROJECT DESK · LOCAL PREVIEW ONLY</div>
+              <div class="fo-eyebrow">FRONTIERSHIP · ACCESS-GATED PROJECT DESK · CONCEPT ONLY</div>
               <h1>OUTPOST ONE</h1>
               <p>Flagship High Desert AI Lab HQ · APN 30055004 · Coconino County, Arizona</p>
             </div>
@@ -31,7 +31,7 @@
             </div>
           </header>
 
-          <div class="fo-private-banner"><strong>PRIVATE LOCAL PROTOTYPE</strong><span>Not registered in the public HarshalOS app list · not in the deploy allowlist · no production authentication</span></div>
+          <div class="fo-private-banner"><strong>CLOUDFLARE ACCESS · EXTERNAL GATE</strong><span>Access must cover the desktop and every static/media route. This read-only browser app is not authentication or an access-control boundary.</span></div>
 
           <nav class="fo-tabs" role="tablist" aria-label="OUTPOST ONE project sections">
             <button type="button" role="tab" aria-selected="true" class="active" data-tab="overview">Overview</button>
@@ -134,7 +134,7 @@
               <div class="fo-decision-gate"><div><span class="fo-card-kicker">NEXT AUTHORIZATION GATE</span><strong>Partner meeting</strong><p>No next-stage development plan is generated here. The partner discussion determines what to revise, validate, or pause.</p></div><span class="fo-lock" aria-hidden="true">Ⅱ</span></div>
             </section>
           </main>
-          <footer class="fo-footer"><span>FRONTIERSHIP · OUTPOST ONE</span><span>Local concept workspace · read-only · not a survey, offer, permit set, medical design, or legal opinion</span></footer>
+          <footer class="fo-footer"><span>FRONTIERSHIP · OUTPOST ONE</span><span>Read-only concept workspace · hosting Access policy is external · not a survey, offer, permit set, medical design, or legal opinion</span></footer>
         </div>`;
 
       const panels = [...body.querySelectorAll("[data-panel]")];

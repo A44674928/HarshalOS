@@ -21,6 +21,10 @@
     "crons": ["*/1 * * * *"]
   },
 
+  // The named FRONTIERSHIP bundle contains private project/economic details.
+  // Static files rely on the externally configured Cloudflare Access policy;
+  // this Worker config does not install or verify that policy. Confirm it gates
+  // the main host and direct /js, /css, /private, and /terrain asset requests.
   "assets": {
     "directory": ".site-assets",
     "not_found_handling": "none",
