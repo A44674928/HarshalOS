@@ -28,3 +28,6 @@ Desktop.ini
 
 # preview/dist artifacts
 dist-preview/
+
+# package-compile image cache
+.pkg_build/
