@@ -98,6 +98,37 @@
 
 ---
 
+### 7A. PRICING & POSITIONING — SAFETY FIRST HQ vs. SAN FRANCISCO (½ Page + tables)
+*Scope: Safety First High Desert AI Lab HQ flagship (62 beds, see `SAFETY_FIRST_HQ_MEDICAL.md`). The staged B-model lodge plan (§8) remains the fallback base case; this page prices the flagship.*
+
+**Positioning statement:** *"Pay what a bare San Francisco apartment costs — get the apartment, the desk, the lab bench, and the doctor."* The buyer is not a tourist and usually not even an individual: it's a **company sponsoring a researcher**, comparing your invoice to their current SF burn.
+
+**The parity table (the entire argument, sourced):**
+
+| SF cost stack — late 2026 | $/mo | Source |
+|---|---|---|
+| SF 1-BR median (record, +25% YoY, rent emergency declared) | **$4,400** | [Zumper via CBS, Sep 2026](https://www.cbsnews.com/san-francisco/news/san-francisco-one-bedroom-rent-record-high-september-2026-zumper-report/) · [Guardian](https://www.theguardian.com/us/news/2026/sep/10/san-francisco-mayor-declares-rent-emergency) |
+| SF 1-BR median (alternate index — #1 priciest US city) | $3,915 | [Apartment List, Oct 2026](https://www.apartmentlist.com/rent-report/ca/san-francisco) |
+| + coworking desk | +$300–600 | [Excedr comp](https://www.excedr.com/resources/biotech-incubators) |
+| + wet-lab bench (SF managed lab) | +$750–2,250 | [Labs4Rent SF](https://labs4rent.com/lab-space/san-francisco) · [Excedr](https://www.excedr.com/resources/biotech-incubators) |
+| **= SF bundle (apartment + desk + bench)** | **$4,950–7,250** | derived |
+| **Safety First HQ — suite + lab + program + medical, all-in** | **$4,800** | our rate |
+
+→ At $4,800 the HQ is **at-or-below a bare SF 1-BR and ~20–35% under the SF bundle.** Price-to-SF-parity is the **ceiling**; margin comes from costing like rural Arizona (land, power, no Bay overhead) while charging Bay-anchored rates.
+
+**Rate & contract policy:**
+* **Core rate: $4,800/mo all-in** — private suite + full lab access (compute benches + BSL-2 bench hours) + program, utilities, multi-LEO connectivity, laundry, shuttle, med-core access. 30-day minimum; **target = 12-month sponsor-signed leases** (anchor is volatile: SF moved +25% in one year — lock it, don't spot-trade it).
+* **Blended floor: ≥$4,800.** Tiering (pods below / premium suites above) is a future lever only if the blend holds. Owner share (5 beds ≈ 1/12) is never in inventory.
+* **No fee stacking:** one invoice, everything included — the consolidation *is* the product.
+
+**What's included that SF charges separately (the amenity side):** private suite · desk + 10 GbE + bonded multi-LEO/LTE · general-purpose compute benches + demo closet · BSL-2 wet-lab bench hours · 24/7 telemedicine + 2-bed obs/ALS core + MED LZ (duty-of-care story HR can't buy in SF) · kitchen + greenhouse produce program · sauna/wellness (barn) · dark-sky quiet · all utilities · Flagstaff shuttle. **Honest concessions we neutralize, never pretend:** fiber → redundant LEO+LTE · 10-min ER → on-site med core + 45/75-min transfer protocol · restaurants/nightlife → programmed dinners + chef kitchen (smaller community — say so).
+
+**Sponsor math (why finance says yes):** SF researcher true cost ≈ apartment $4,400 + desk $400 + bench $1,500 ≈ **$6,300/mo** → HQ at $4,800 = **~24% saving** plus a documented duty-of-care (medical, safety, connectivity) for their remote headcount.
+
+**Watch-items:** (1) SF *lab space is soft* — 30.7% Bay vacancy, asking rents −9% YoY ([Bisnow](https://www.bisnow.com/news/san-francisco/life-sciences/tenants-gain-power-bay-area-lab-market-134400), [SF Business Times](https://www.bizjournals.com/san-francisco/news/2026/10/14/life-sciences-leasing-bay-area.html)) → sell the **residency** (housing pain is acute), treat the lab as bundled amenity, never price-anchor on benches; (2) if SF rents cool, re-validate the $4,800 before opening — gate #5 in `SAFETY_FIRST_HQ_MEDICAL.md`. **Chain cascade:** HQ holds SF parity; later properties use the proven hostel model and *undercut* on price.
+
+---
+
 ### 8. FINANCIAL PROJECTIONS (1 Page + XLSX)
 *See `APN30055004_ProForma.xlsx` — 5-yr monthly.*
 
