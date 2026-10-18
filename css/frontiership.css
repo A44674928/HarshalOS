@@ -178,8 +178,12 @@
 .fo-film-actions a:hover { background: rgba(121,216,250,.12); }
 .fo-concept-video { display: block; width: 100%; height: clamp(180px, 32vw, 360px); border: 1px solid rgba(121,216,250,.18); border-radius: 6px; background: #03070b; object-fit: contain; }
 .fo-film-note { margin: 7px 1px 0 !important; color: var(--fo-muted); font-size: 8px !important; line-height: 1.45 !important; }
-.fo-iframe-frame { flex: 0 0 460px; min-height: 320px; overflow: hidden; border: 1px solid var(--fo-line); border-radius: 8px; background: #101923; }
-.fo-terrain-frame { display: block; width: 100%; height: 100%; min-height: 420px; border: 0; background: #101923; }
+.fo-iframe-frame { flex: 1 1 560px; min-height: 460px; overflow: hidden; border: 1px solid var(--fo-line); border-radius: 8px; background: #101923; }
+.fo-terrain-frame { display: block; width: 100%; height: 100%; min-height: 460px; border: 0; background: #101923; }
+.fo-videos-panel { display: block; }
+.fo-investor-card { border-top-color: rgba(113,221,176,.62); }
+.fo-investor-card .fo-card-kicker { color: var(--fo-green); }
+.fo-investor-video { background: #03070b; }
 .fo-model-grid .fo-card { min-height: 0; }
 .fo-big-number { margin: 9px 0 5px; color: var(--fo-gold); font: 700 23px/1.1 Georgia, "Times New Roman", serif; }
 .fo-model-note { margin-top: 8px; padding: 5px 0 5px 10px; border: 0; border-left: 2px solid rgba(255,189,116,.52); border-radius: 0; color: var(--fo-muted); background: transparent; font-size: 9px; line-height: 1.5; }

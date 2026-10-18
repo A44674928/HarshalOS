@@ -308,6 +308,7 @@ test("P13: public asset staging includes the selected Book I source, all indexed
       assert.equal(await exists(path.join(SITE, publicAsset)), true, `${publicAsset} is staged as a browser asset`);
     }
     assert.deepEqual((await listFiles(path.join(SITE, "private"), "private")).sort(), [
+      "private/outpost-one-investor-cut.mp4",
       "private/outpost-one-best-wishes-3d-film.mp4",
       "private/outpost-one-best-wishes-3d-narrated-film.mp4",
       "private/outpost-one-best-wishes-narration.mp3",
@@ -318,8 +319,10 @@ test("P13: public asset staging includes the selected Book I source, all indexed
       "private/outpost-one-feature-film-guide.md",
       "private/outpost-one-concept-model.zip"
     ].sort(), "only the explicitly named project films, audio, posters, guides, and model package are staged");
-    const narratedFilmStat = await stat(path.join(SITE, "private/outpost-one-best-wishes-3d-narrated-film.mp4"));
-    assert.ok(narratedFilmStat.size <= 25 * 1024 * 1024, "each Cloudflare Workers asset must stay within the 25 MiB per-file limit");
+    for (const filename of ["private/outpost-one-investor-cut.mp4", "private/outpost-one-best-wishes-3d-narrated-film.mp4"]) {
+      const filmStat = await stat(path.join(SITE, filename));
+      assert.ok(filmStat.size <= 25 * 1024 * 1024, `${filename} must stay within the 25 MiB per-file limit`);
+    }
     assert.deepEqual((await listFiles(path.join(SITE, "terrain"), "terrain")).sort(), [
       "terrain/index.html",
       "terrain/README.md",
@@ -456,6 +459,12 @@ test("P13: local preview serves the selected Book I source and Collections libra
     const terrainSamples = await fetch(`${base}/terrain/epqs_samples.csv`);
     assert.equal(terrainSamples.status, 200, "only the selected terrain sample file is served");
     assert.match(terrainSamples.headers.get("content-type"), /text\/csv/);
+    const investorFilmRange = await fetch(`${base}/private/outpost-one-investor-cut.mp4`, {
+      headers: { Range: "bytes=0-63" }
+    });
+    assert.equal(investorFilmRange.status, 206, "the named investor cut supports byte-range playback");
+    assert.match(investorFilmRange.headers.get("content-type"), /video\/mp4/);
+    assert.equal((await investorFilmRange.arrayBuffer()).byteLength, 64);
     const filmRange = await fetch(`${base}/private/outpost-one-best-wishes-3d-film.mp4`, {
       headers: { Range: "bytes=0-63" }
     });
@@ -486,7 +495,6 @@ test("P13: local preview serves the selected Book I source and Collections libra
       "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_PARTNER_CONCEPT.svg",
       "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md",
       "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_INVESTOR_CUT_GUIDE.md",
-      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_INVESTOR_CUT.mp4",
       "/single-parcel-APN30055004/terrain_preliminary/render_outpost_one_investor_cut.py",
       "/single-parcel-APN30055004/terrain_preliminary/investor-cut-assets/01-thesis.wav",
       "/single-parcel-APN30055004/terrain_preliminary/best-wishes-edition/render_frontiership_best_wishes_3d.py",

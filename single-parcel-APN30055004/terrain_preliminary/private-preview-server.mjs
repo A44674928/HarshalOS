@@ -1,10 +1,10 @@
 /*
  * Allowlisted local preview server for the private OUTPOST ONE prototype.
  * It is intentionally not part of npm scripts, public assets, or deployment.
- * Routes are limited to HarshalOS runtime files, the terrain viewer and its
- * small source-data files, the short reference film, the original feature,
- * the silent and narrated Best-Wishes 3D editions, their named audio/poster/
- * guide assets, and a named model package. No unlisted project documents,
+ * Routes are limited to HarshalOS runtime files, the parcel/terrain viewer and its
+ * small source-data files, the explicitly named investor cut, the short reference
+ * film, the original feature, the silent and narrated Best-Wishes 3D editions,
+ * their named audio/poster/guide assets, and a named model package. No unlisted project documents,
  * workbooks, source files, or other project folders are served by this process.
  */
 import http from 'node:http';
@@ -19,6 +19,7 @@ const PORT = Number(process.env.PORT || 8001);
 const privateFiles = new Map([
   ['/', path.join(HERE, 'harshalos-private-preview.html')],
   ['/os', path.join(ROOT, 'index.html')],
+  ['/private/outpost-one-investor-cut.mp4', path.join(HERE, 'OUTPOST_ONE_INVESTOR_CUT.mp4')],
   ['/private/outpost-one-pixel-concept-film.mp4', path.join(HERE, 'outpost-one-pixel-concept-film.mp4')],
   ['/private/outpost-one-pixel-concept-poster.png', path.join(HERE, 'outpost-one-pixel-concept-poster.png')],
   ['/private/outpost-one-full-feature-film.mp4', path.join(HERE, 'outpost-one-full-feature-film.mp4')],

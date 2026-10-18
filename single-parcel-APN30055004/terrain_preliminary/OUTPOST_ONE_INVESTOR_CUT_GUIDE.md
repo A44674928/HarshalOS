@@ -45,4 +45,4 @@
 - The current owner scenario is **62 bedrooms** (57 intended rentals, 2 owner bedrooms, 3 unallocated extras). It does not establish beds, bedspaces, residents, legal occupancy, or guaranteed revenue units.
 - Full-occupancy gross room revenue is `57 × $4,800 × 12 = $3,283,200/year`. It is shown only as arithmetic, before vacancy and all costs. The legacy 88% occupancy and legacy max-house capex/OPEX/cap-rate assumptions are intentionally omitted.
 - The previous 9-minute feature and 5-minute Best-Wishes films are archival and unchanged. The new cut is a separate, current-concept video.
-- Render command (requires PyAV and Pillow in the Python environment): `python3 render_outpost_one_investor_cut.py`. Use `--output` for another output path. The project folder is private and is not part of the HarshalOS deployment asset list.
+- Render command (requires PyAV and Pillow in the Python environment): `python3 render_outpost_one_investor_cut.py`. Use `--output` for another output path. The MP4 is staged as one explicitly named asset for the app's Videos tab; this guide, renderer, WAV sources, and the rest of the project folder are not on the deployment allowlist.

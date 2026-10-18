@@ -48,6 +48,19 @@ test("all concepts enter the engineered-connections phase without implying desig
   app.render(body);
   assert.match(body.innerHTML, /ENGINEERED CONNECTIONS/);
   assert.match(body.innerHTML, /All current program concepts assigned/);
+  assert.match(body.innerHTML, /data-tab="site">Site &amp; Terrain/);
+  assert.match(body.innerHTML, /data-tab="videos">Videos/);
+  const siteStart = body.innerHTML.indexOf('data-panel="site"');
+  const videosStart = body.innerHTML.indexOf('data-panel="videos"');
+  const modelStart = body.innerHTML.indexOf('data-panel="model"');
+  assert.ok(siteStart >= 0 && videosStart > siteStart && modelStart > videosStart, "parcel viewer and videos have separate tabs");
+  const sitePanel = body.innerHTML.slice(siteStart, videosStart);
+  const videosPanel = body.innerHTML.slice(videosStart, modelStart);
+  assert.match(sitePanel, /class="fo-iframe-frame"/);
+  assert.doesNotMatch(sitePanel, /<video\b/, "the parcel viewer tab contains no video cards");
+  assert.match(videosPanel, /OUTPOST ONE — investor concept/);
+  assert.match(videosPanel, /\/private\/outpost-one-investor-cut\.mp4/);
+  assert.match(videosPanel, /ARCHIVAL · 5-MIN CINEMATIC/);
   assert.match(body.innerHTML, /no system is engineered, approved, or sealed/);
   assert.match(body.innerHTML, /Unincorporated Coconino County/);
   assert.match(body.innerHTML, /AR-5 · AREA SCREEN PASS/);
@@ -89,10 +102,13 @@ test("all concepts enter the engineered-connections phase without implying desig
     "all twelve concept/data/safety interface groups are present in the connections register");
   assert.doesNotMatch(body.innerHTML, /PARTNER GATE PENDING|Awaiting partner meeting/);
   assert.match(assetStager, /const outpostDeployAssets = \[/);
-  assert.doesNotMatch(assetStager, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|OUTPOST_ONE_INVESTOR_CUT\.mp4|render_outpost_one_investor_cut|investor-cut-assets/,
-    "the full pre-design documents and new investor film stay outside the named runtime/deployment asset list");
-  assert.doesNotMatch(previewServer, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|OUTPOST_ONE_INVESTOR_CUT\.mp4|render_outpost_one_investor_cut|investor-cut-assets/,
-    "the local preview server does not expose the full pre-design documents or the new investor film");
+  assert.match(assetStager, /\['OUTPOST_ONE_INVESTOR_CUT\.mp4', 'private\/outpost-one-investor-cut\.mp4'\]/,
+    "only the explicitly named investor video is staged as private app media");
+  assert.doesNotMatch(assetStager, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|render_outpost_one_investor_cut|investor-cut-assets/,
+    "the full pre-design documents, renderer, and narration sources stay outside the named runtime/deployment asset list");
+  assert.match(previewServer, /\['\/private\/outpost-one-investor-cut\.mp4', path\.join\(HERE, 'OUTPOST_ONE_INVESTOR_CUT\.mp4'\)\]/);
+  assert.doesNotMatch(previewServer, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|render_outpost_one_investor_cut|investor-cut-assets/,
+    "the local preview server serves only the named investor video, not the source project or render assets");
 });
 
 test("Best-Wishes narrated media is a separate route from the preserved silent edition", () => {

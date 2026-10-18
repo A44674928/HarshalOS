@@ -39,6 +39,7 @@ for (const entry of ['index.html', 'neo-orb.html', 'about.html', 'account.html',
    is configured outside this repository and is not enforced by this stager. */
 const outpostSourceRoot = path.join(root, 'single-parcel-APN30055004', 'terrain_preliminary');
 const outpostDeployAssets = [
+  ['OUTPOST_ONE_INVESTOR_CUT.mp4', 'private/outpost-one-investor-cut.mp4'],
   ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d.mp4', 'private/outpost-one-best-wishes-3d-film.mp4'],
   ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d-narrated.mp4', 'private/outpost-one-best-wishes-3d-narrated-film.mp4'],
   ['best-wishes-edition/frontiership-outpost-one-best-wishes-3d-narration.mp3', 'private/outpost-one-best-wishes-narration.mp3'],

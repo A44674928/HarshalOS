@@ -44,4 +44,4 @@ The active direction is **one lean, repeatable plan for the whole build, optimiz
 
 The video’s closing message is deliberate: **the vision is clear; the numbers and permissions are not proven.** See `OUTPOST_ONE_UNIFIED_PLAN.md` for the current plan, assumptions, source reconciliation, and privacy/status limits. The previous 9-minute feature and 5-minute Best-Wishes editions remain archival and unchanged.
 
-**Private project materials:** this brief, its companion visual, the unified plan, and the new video remain in `terrain_preliminary/`. They are not included in the HarshalOS app/deployment asset list; do not publish or deploy the project directory.
+**Private project materials:** this brief, companion visual, unified plan, video guide/renderer, and narration WAVs remain repository-only. The investor MP4 is exposed to the app only as the explicitly named `/private/outpost-one-investor-cut.mp4` asset in the Videos tab; the `terrain_preliminary/` project directory is not published or deployed.
