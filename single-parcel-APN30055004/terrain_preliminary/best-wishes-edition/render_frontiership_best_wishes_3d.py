@@ -748,10 +748,10 @@ def draw_title_panel(overlay: Image.Image, scene, seconds: float):
         text(draw, (1150, 580), "Not surveyed limits, takeoffs, or verified tree locations.", FONTS["micro"], AMBER)
     elif kind == "program":
         rounded(draw, (1170, 235, 1830, 653), 24, (4, 15, 26, 219), (91, 221, 237, 90), 1)
-        text(draw, (1210, 270), "ONE INTEGRATED OFFER", FONTS["micro_bold"], CYAN)
+        text(draw, (1210, 270), "INTEGRATED CONCEPT · PRICING OPEN", FONTS["micro_bold"], CYAN)
         rows = [
-            ("$4,800 / mo", "bundle target; not validated pricing"),
-            ("≈ 1 / 12", "owner capacity premise"),
+            ("$4,800 legacy", "bundle / 57-bed model conflict"),
+            ("≈ 1 / 12", "legacy owner premise; unresolved"),
             ("30+ days", "cohorts · no STR"),
             ("20–50 kW", "sustained capability target")
         ]

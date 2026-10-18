@@ -3,6 +3,8 @@
 **Live/work flagship: modern cabin + frontier-scale AI compute on one self-contained parcel.**
 Scope decided 2026-10-17: (1) physical lab (Shop 1,500 SF → hardened, Phase A 20 kW → Phase B 50 kW), (2) legal entity, (3) business plan + pro forma integration.
 
+**Reconciliation status (2026-10-17):** retain this as a historical, high-capex alternative—not the current baseline. Current direction is one lean, repeatable whole-build plan, a 20–50 kW sustained capability target with BYO rented compute/demo closet, and a $4,800 per rentable room-month all-in resident-bundle working price (shared occupancy does not multiply the rate). The exact amenity roster, contract, market demand, lean capex/OPEX, and capital ask remain TBD; discretionary project-spend budget is $0. The owned GPU, hardened lab, PV/BESS/generator, Starlink, entity, staffing, and revenue assumptions below are not verified site facts, funded commitments, or approved design. The owner reports an AT&T line and no nearby power lines to their knowledge; utility and wastewater status remain unverified. See `../terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md`.
+
 ---
 
 ## 1. Why this parcel is unusually good for it

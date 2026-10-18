@@ -1,6 +1,8 @@
 # Frontier Residency — Max-Capacity Study (v3)
 
-> **UPDATE (same day):** pivoted to **Safety First High Desert AI Lab HQ** (General Purpose + Life Sciences, $4,800/mo, owner 1/12, medical core) — see `SAFETY_FIRST_HQ_MEDICAL.md`; new figures `HQ_SAFETY_FIRST_*`. This study remains the capacity/ceiling basis.
+> **ARCHIVAL UPDATE (2026-10-17):** the cost-unlimited max-capacity house and its 60/48-bed cases are historical only, not the active baseline or current room schedule. The owner has selected **one lean, repeatable plan across the whole build**, optimizing cost per rentable room. The bermed wing remains an option to test against cost and site constraints; fit is unresolved.
+>
+> **Current reconciliation (2026-10-17):** the current room scenario is **62 bedrooms** (57 intended rentals, 2 owner bedrooms, 3 unallocated extras). The selected working rate is **$4,800 per rentable room-month** for an all-in resident bundle; shared occupancy does not multiply the room price. Exact amenities, contract, demand, capacity, and lean costs remain TBD. This document's $1,100 / $1,500 / $1,900 rates are per bed-month, unverified, and rejected for this property in 2026; keep them historical. See `../terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md` and `../terrain_preliminary/OUTPOST_ONE_PARTNER_BRIEF.md`.
 
 **APN 30055004 • "Hacker hostel" thought experiment, cost-unlimited • 2026-10-17**
 

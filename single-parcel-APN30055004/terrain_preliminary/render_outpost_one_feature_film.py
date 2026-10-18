@@ -627,8 +627,8 @@ def draw_site_plan(frame_number, local_frame):
     # Connect the green house and commons; draw a conceptual internal path only.
     draw_line_dashed(draw, [(bx0+276,by0+58),(bx0+235,by0+71),(bx0+210,by0+96)], COLORS["green"], width=2, dash=6, gap=5, phase=local_frame)
     # The main camera-stage card explains the user's requested experience arc.
-    panel(draw, (442, 54, 617, 296), "CURRENT PREMISES", fill=(8, 16, 25), outline=COLORS["cyan"])
-    premises = ["20–50 kW sustained", "$4,800 / mo target", "Owner ≈ 1/12", "30+ days · no STR", "Small emergency med", "Nordic + commons"]
+    panel(draw, (442, 54, 617, 296), "CONCEPT PREMISES", fill=(8, 16, 25), outline=COLORS["cyan"])
+    premises = ["20–50 kW sustained", "$4,800 legacy · basis open", "Owner ≈ 1/12 (legacy)", "30+ days · no STR", "Small emergency med", "Nordic + commons"]
     y = 90
     for i, label in enumerate(premises):
         col = [COLORS["purple"], COLORS["amber"], COLORS["cyan"], COLORS["green"], COLORS["red"], COLORS["blue"]][i]

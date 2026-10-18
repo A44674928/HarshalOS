@@ -480,6 +480,15 @@ test("P13: local preview serves the selected Book I source and Collections libra
 
     for (const pathname of [
       "/single-parcel-APN30055004/terrain_preliminary/README.md",
+      "/single-parcel-APN30055004/terrain_preliminary/DIGITAL_CODE_ZONING_REVIEW.md",
+      "/single-parcel-APN30055004/terrain_preliminary/ENGINEERING_FRONTLOAD_PLAN.md",
+      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_PARTNER_BRIEF.md",
+      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_PARTNER_CONCEPT.svg",
+      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md",
+      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_INVESTOR_CUT_GUIDE.md",
+      "/single-parcel-APN30055004/terrain_preliminary/OUTPOST_ONE_INVESTOR_CUT.mp4",
+      "/single-parcel-APN30055004/terrain_preliminary/render_outpost_one_investor_cut.py",
+      "/single-parcel-APN30055004/terrain_preliminary/investor-cut-assets/01-thesis.wav",
       "/single-parcel-APN30055004/terrain_preliminary/best-wishes-edition/render_frontiership_best_wishes_3d.py",
       "/private/not-allowlisted.txt",
       "/terrain/outpost-one-concept-model.obj",
