@@ -109,6 +109,7 @@ const BOOK_LIBRARY_SOURCE_ROOT = path.resolve(ROOT, "docs", "harshal-systems");
 const BOOK_LIBRARY_FILE_PATH = /^\/book-library\/harshal-systems\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.md$/;
 const OUTPOST_SOURCE_ROOT = path.join(ROOT, "single-parcel-APN30055004", "terrain_preliminary");
 const OUTPOST_ASSETS = new Map([
+  ["/private/outpost-one-investor-cut.mp4", path.join(OUTPOST_SOURCE_ROOT, "OUTPOST_ONE_INVESTOR_CUT.mp4")],
   ["/private/outpost-one-best-wishes-3d-film.mp4", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "frontiership-outpost-one-best-wishes-3d.mp4")],
   ["/private/outpost-one-best-wishes-3d-narrated-film.mp4", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "frontiership-outpost-one-best-wishes-3d-narrated.mp4")],
   ["/private/outpost-one-best-wishes-narration.mp3", path.join(OUTPOST_SOURCE_ROOT, "best-wishes-edition", "frontiership-outpost-one-best-wishes-3d-narration.mp3")],
@@ -129,7 +130,7 @@ const SERVED = [
   /^\/css\/[A-Za-z0-9._-]+$/,
   /^\/js\/[A-Za-z0-9._-]+$/,
   /^\/assets\/[A-Za-z0-9._/-]+$/,
-  /^\/private\/(?:outpost-one-best-wishes-3d-film\.mp4|outpost-one-best-wishes-3d-narrated-film\.mp4|outpost-one-best-wishes-narration\.mp3|outpost-one-best-wishes-3d-poster\.png|outpost-one-best-wishes-guide\.md|outpost-one-full-feature-film\.mp4|outpost-one-full-feature-poster\.png|outpost-one-feature-film-guide\.md|outpost-one-concept-model\.zip)$/,
+  /^\/private\/(?:outpost-one-investor-cut\.mp4|outpost-one-best-wishes-3d-film\.mp4|outpost-one-best-wishes-3d-narrated-film\.mp4|outpost-one-best-wishes-narration\.mp3|outpost-one-best-wishes-3d-poster\.png|outpost-one-best-wishes-guide\.md|outpost-one-full-feature-film\.mp4|outpost-one-full-feature-poster\.png|outpost-one-feature-film-guide\.md|outpost-one-concept-model\.zip)$/,
   /^\/terrain\/(?:index\.html|README\.md|epqs_samples\.csv|parcel_outline\.geojson)$/,
   /^\/book\/01-core-book\.md$/,            // one explicitly selected source document
   /^\/book-library\/manifest\.json$/,

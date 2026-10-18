@@ -1,5 +1,8 @@
 # OUTPOST ONE — Pre-Development Checklist
 
+
+> **Historical checklist status (2026-10-17):** this checklist contains paid diligence/professional tasks and old 62-bed / five-owner assumptions. The owner has now selected **$4,800 per rentable room-month** as a working all-in bundle price (room + lab/program access + defined amenities); shared occupancy does not multiply the rate. This selection is not authorization, funding, or market validation. The current room scenario is 62 bedrooms (57 intended rentals, 2 owner bedrooms, 3 unallocated extras); exact amenity roster, contract, occupancy, demand, and lean-plan costs remain TBD. The current discretionary project budget is $0; no funds, grants, sponsors, in-kind support, or job income are committed. Overall zoning/code status remains **NOT ASSESSED**. Do not initiate paid items or present this old checklist as a cleared development sequence. The cost-unlimited max-house is no longer the active baseline. See `../terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md` and `../terrain_preliminary/OUTPOST_ONE_PARTNER_BRIEF.md`.
+
 **FRONTIERSHIP · APN 30055004 · every gate, in order, with owner + cost + exit criteria**
 *Companion to `SAFETY_FIRST_HQ_MEDICAL.md` §4 (gate sequence) and business plan §5/§7. Compile into the full package PDF.*
 

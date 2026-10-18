@@ -7,12 +7,13 @@ import test from "node:test";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const [appSource, indexHtml, wmSource, previewHtml, previewServer] = await Promise.all([
+const [appSource, indexHtml, wmSource, previewHtml, previewServer, assetStager] = await Promise.all([
   readFile(path.join(ROOT, "js/apps-frontiership.js"), "utf8"),
   readFile(path.join(ROOT, "index.html"), "utf8"),
   readFile(path.join(ROOT, "js/wm.js"), "utf8"),
   readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/harshalos-private-preview.html"), "utf8"),
-  readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/private-preview-server.mjs"), "utf8")
+  readFile(path.join(ROOT, "single-parcel-APN30055004/terrain_preliminary/private-preview-server.mjs"), "utf8"),
+  readFile(path.join(ROOT, "scripts/prepare-assets.mjs"), "utf8")
 ]);
 
 test("OUTPOST ONE is registered before HarshalOS builds the desktop launcher grid", () => {
@@ -35,6 +36,79 @@ test("OUTPOST ONE is registered before HarshalOS builds the desktop launcher gri
   assert.match(wmSource, /app\.glyph/);
   assert.match(wmSource, /app\.short \|\| app\.title/);
   assert.match(wmSource, /field\.appendChild\(b\)/);
+});
+
+test("all concepts enter the engineered-connections phase without implying design approval", () => {
+  const window = { APPS: [] };
+  vm.runInNewContext(appSource, { window, Array, Object, String }, { filename: "js/apps-frontiership.js" });
+  const app = window.APPS.find(candidate => candidate.id === "frontiership-outpost-one");
+  const body = { innerHTML: "", querySelectorAll: () => [], querySelector: () => null };
+
+  assert.ok(app);
+  app.render(body);
+  assert.match(body.innerHTML, /ENGINEERED CONNECTIONS/);
+  assert.match(body.innerHTML, /All current program concepts assigned/);
+  assert.match(body.innerHTML, /data-tab="site">Site &amp; Terrain/);
+  assert.match(body.innerHTML, /data-tab="videos">Videos/);
+  const siteStart = body.innerHTML.indexOf('data-panel="site"');
+  const videosStart = body.innerHTML.indexOf('data-panel="videos"');
+  const modelStart = body.innerHTML.indexOf('data-panel="model"');
+  assert.ok(siteStart >= 0 && videosStart > siteStart && modelStart > videosStart, "parcel viewer and videos have separate tabs");
+  const sitePanel = body.innerHTML.slice(siteStart, videosStart);
+  const videosPanel = body.innerHTML.slice(videosStart, modelStart);
+  assert.match(sitePanel, /class="fo-iframe-frame"/);
+  assert.doesNotMatch(sitePanel, /<video\b/, "the parcel viewer tab contains no video cards");
+  assert.match(videosPanel, /OUTPOST ONE — investor concept/);
+  assert.match(videosPanel, /\/private\/outpost-one-investor-cut\.mp4/);
+  assert.match(videosPanel, /ARCHIVAL · 5-MIN CINEMATIC/);
+  assert.match(body.innerHTML, /no system is engineered, approved, or sealed/);
+  assert.match(body.innerHTML, /Unincorporated Coconino County/);
+  assert.match(body.innerHTML, /AR-5 · AREA SCREEN PASS/);
+  assert.match(body.innerHTML, /Area-only AR-5 screen: PASS/);
+  assert.match(body.innerHTML, /5\.59 ac against a 5\.00 ac minimum: \+0\.59 ac/);
+  assert.match(body.innerHTML, /No permits found/);
+  assert.match(body.innerHTML, /not overall zoning\/code compliance/i);
+  assert.match(body.innerHTML, /no local professional or agency was contacted/i);
+  assert.match(body.innerHTML, /Pre-design evidence we can assemble now/);
+  assert.match(body.innerHTML, /Walkways/);
+  assert.match(body.innerHTML, /Well \/ water \/ wastewater/);
+  assert.match(body.innerHTML, /ATBI solutions \+ frontier nanotechnology/);
+  assert.match(body.innerHTML, /macrotechnology demonstrator/);
+  assert.match(body.innerHTML, /unique CPU pin matched to each socket/);
+  assert.match(body.innerHTML, /functional weights/);
+  assert.match(body.innerHTML, /Focus Modes/);
+  assert.match(body.innerHTML, /Human capable of fitting into a role/);
+  assert.match(body.innerHTML, /everything is collected/);
+  assert.match(body.innerHTML, /central processing unit team participates/);
+  assert.match(body.innerHTML, /everyone else is intended to be opt-in/);
+  assert.match(body.innerHTML, /ATBI \/ human-data governance/);
+  assert.match(body.innerHTML, /attestations over continuous monitoring/);
+  assert.match(body.innerHTML, /62 bedrooms/);
+  assert.match(body.innerHTML, /57 intended rentals/);
+  assert.match(body.innerHTML, /Two owner bedrooms plus three extras/);
+  assert.match(body.innerHTML, /Bunk layouts and fewer rooms are design options/);
+  assert.match(body.innerHTML, /\$4,800 per rentable room-month/);
+  assert.match(body.innerHTML, /Shared occupancy does not multiply the room price/);
+  assert.match(body.innerHTML, /The old \$3,600 whole-furnished-2BR-ADU case/);
+  assert.match(body.innerHTML, /\$1,100–\$1,900 bed-month study rates are historical only/);
+  assert.match(body.innerHTML, /\$3\.2832M\/year before vacancy and all costs—not a forecast/);
+  assert.match(body.innerHTML, /Legacy ≈1\/12 and “2\/5 of The Owner’s Area” premises remain unreconciled/);
+  assert.doesNotMatch(body.innerHTML, /No rate is adopted|pricing basis remain unresolved/);
+  assert.match(body.innerHTML, /External, in-kind, or earned funding/);
+  assert.match(body.innerHTML, /Job income is also acceptable, with an acknowledged project delay/);
+  assert.equal((body.innerHTML.match(/<details class="fo-disclosure">/g) || []).length, 4,
+    "dense review, pre-design, and evidence sections stay collapsed until requested");
+  assert.equal((body.innerHTML.match(/<th scope="row">EC-\d{2}<\/th>/g) || []).length, 12,
+    "all twelve concept/data/safety interface groups are present in the connections register");
+  assert.doesNotMatch(body.innerHTML, /PARTNER GATE PENDING|Awaiting partner meeting/);
+  assert.match(assetStager, /const outpostDeployAssets = \[/);
+  assert.match(assetStager, /\['OUTPOST_ONE_INVESTOR_CUT\.mp4', 'private\/outpost-one-investor-cut\.mp4'\]/,
+    "only the explicitly named investor video is staged as private app media");
+  assert.doesNotMatch(assetStager, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|render_outpost_one_investor_cut|investor-cut-assets/,
+    "the full pre-design documents, renderer, and narration sources stay outside the named runtime/deployment asset list");
+  assert.match(previewServer, /\['\/private\/outpost-one-investor-cut\.mp4', path\.join\(HERE, 'OUTPOST_ONE_INVESTOR_CUT\.mp4'\)\]/);
+  assert.doesNotMatch(previewServer, /(?:DIGITAL_CODE_ZONING_REVIEW|ENGINEERING_FRONTLOAD_PLAN|OUTPOST_ONE_PARTNER_BRIEF|OUTPOST_ONE_UNIFIED_PLAN|OUTPOST_ONE_INVESTOR_CUT_GUIDE)\.md|OUTPOST_ONE_PARTNER_CONCEPT\.svg|render_outpost_one_investor_cut|investor-cut-assets/,
+    "the local preview server serves only the named investor video, not the source project or render assets");
 });
 
 test("Best-Wishes narrated media is a separate route from the preserved silent edition", () => {

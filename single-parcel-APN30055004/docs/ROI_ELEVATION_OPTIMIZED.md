@@ -1,4 +1,7 @@
 # APN 30055004 — Maximize Occupancy / ROI + Elevation-Optimized Redesign
+
+
+> **Historical status / do not rely as current (2026-10-17):** this document belongs to an earlier 5.00-acre / ADU-first or pre-pivot planning track. Its site, access, zoning, utility, rent, cost, financing, and permit conclusions are unverified and are not the current project basis. The old **$3,600/month** amount refers to a whole furnished 2-bedroom ADU, not the selected OUTPOST ONE product. The current owner scenario is 62 bedrooms (57 intended rentals, 2 owner bedrooms, 3 unallocated extras); the selected working rate is **$4,800 per rentable room-month** for an all-in resident bundle, with shared occupancy not multiplying the room price. Amenity roster, contract, market demand, lean costs, and capacity remain unvalidated/TBD; this is not a forecast or offer. The current direction is one lean, repeatable whole-build plan, replacing the cost-unlimited max-house as baseline. Discretionary project budget remains $0, and overall zoning/code status remains **NOT ASSESSED**. Any paid checklist item below is not authorized or funded by this note. See `../terrain_preliminary/OUTPOST_ONE_UNIFIED_PLAN.md` and `../terrain_preliminary/OUTPOST_ONE_PARTNER_BRIEF.md` before reusing or sharing figures.
 ## Single-Parcel Isolated — Snow Bowl Est Unit 02 Lot 3 | 5.00 ac | 8,060–8,074′ AMSL
 **R0033824 | Coconino County AR-5 | Single-parcel basis (no reliance on adjacent lots)**
 
