@@ -22,6 +22,13 @@ const appSource = await readText("js/apps-good-intelligence.js");
 const charactersAppSource = await readText("js/apps-characters.js");
 const indexHtml = await readText("index.html");
 const appCss = await readText("css/good-intelligence.css");
+const packageGuide = await readText("docs/models/HARSHAL-PRIYAVADAN-PATEL-FINANCIAL-MODEL.md");
+const financialModelPaper = await readText("docs/models/HPP-FINANCIAL-MODEL-WHITE-PAPER.md");
+const packageReadme = await readText("docs/models/HPP-FINANCIAL-MODEL-PACKAGE-README.md");
+const auditChecklist = await readText("docs/models/HPP-FINANCIAL-MODEL-AUDIT-CHECKLIST.md");
+const sourceMap = await readText("docs/models/HPP-FINANCIAL-MODEL-SOURCE-MAP.md");
+const pineReadme = await readText("scripts/pine/README.md");
+const reconstructionSpec = JSON.parse(await readText("docs/models/HPP-FINANCIAL-MODEL-RECONSTRUCTION-SPEC.json"));
 const workerSource = await readText("worker/good-intelligence-orb2-beats.mjs");
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
@@ -1034,11 +1041,67 @@ test("Orb 2 restores the last saved beat from the server after a page refresh", 
   assert.equal(visit.providerCalls.length, 0, "restoring a session never makes a provider request");
 });
 
-test("Good Intelligence lazily mounts Orb 2 with the server field and keeps the authority boundary", () => {
-  assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the heavy canvas panel is hidden until selected");
-  assert.match(appSource, /\["news", "markets", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts Orb 2 and the NAB Discs sibling");
+test("Good Intelligence lazily opens the combined Financial Model and keeps the authority boundary", () => {
+  assert.match(appSource, /data-gi-financial-model-panel[^>]*hidden/, "the combined dashboard starts hidden until selected");
+  assert.match(appSource, /data-gi-markets-panel[^>]*hidden/, "Market Charts remains a lazy child of the combined dashboard");
+  assert.match(appSource, /data-gi-orb2-panel[^>]*hidden/, "the heavy Orb 2 panel remains lazy");
+  assert.match(appSource, /\["news", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts the combined Financial Model and NAB Discs sibling");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
-  assert.match(appSource, /sends no OCM message, no trade or order, and confers no authority/i);
+  assert.match(appSource, /no signal, valuation, forecast, recommendation, trade, or authority is produced/i);
+});
+
+test("the branded combined financial-model package is explicit, display-only, and maps to Good Intelligence", async t => {
+  const { orb } = harness();
+  assert.equal(orb.BRAND.id, "harshal-priyavadan-patel-financial-model");
+  assert.equal(orb.BRAND.name, "The Harshal Priyavadan Patel Financial Model");
+  assert.equal(orb.BRAND.monogram, "HPP");
+  assert.equal(orb.BRAND.lineage, "GOOD INTELLIGENCE · ORB 2");
+  assert.match(orb.BRAND.classification, /display-only market-context model/i);
+
+  const { host } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const root = host.querySelector("[data-gi-orb2-root]");
+  assert.equal(host.querySelector("[data-gi-orb2-brand]").textContent, orb.BRAND.name);
+  assert.equal(host.querySelector(".gi-orb2-brand-mark").textContent, "HPP");
+  assert.match(root.getAttribute("aria-label"), /Good Intelligence Orb 2 market-context model/i);
+  assert.match(host.querySelector(".gi-orb2-title p:last-child").textContent,
+    /not a valuation, forecast, recommendation, or trade-execution service/i);
+  assert.match(appSource, /data-gi-view="orb2"[^>]*aria-label="Open The Harshal Priyavadan Patel Financial Model with Market Charts and the Good Intelligence Orb 2 field">Financial Model/);
+  assert.match(appSource, /The Harshal Priyavadan Patel Financial Model/);
+  assert.match(appSource, /data-gi-financial-model-panel[^>]*aria-label="The Harshal Priyavadan Patel Financial Model"/);
+  for (const section of ["Product identity and scope", "Surface 1 — Market Charts", "Surface 2 — Orb 2", "Interpretation and explicit boundaries", "Verification"]) {
+    assert.ok(packageGuide.includes(`## ${section}`), `the package guide includes ${section.toLowerCase()}`);
+  }
+  assert.match(packageGuide, /not a discounted-cash-flow model, security valuation, financial-statement forecast, return\/risk model, portfolio optimizer, trading P&L ledger, execution service, or investment recommendation/i);
+  assert.match(financialModelPaper, /three original Pine Script v4 inspiration scripts were manually retrieved from TradingView/i);
+  assert.match(financialModelPaper, /one is credited to Rashad \[1\] and two to LazyBear \[2–3\]/);
+  assert.match(financialModelPaper, /automatically through the configured provider APIs/i);
+  assert.deepEqual(reconstructionSpec.source_provenance.manual_tradingview_reference.project_attribution, { Rashad: 1, LazyBear: 2 });
+  assert.deepEqual(reconstructionSpec.source_provenance.manual_tradingview_reference.source_register.map(entry => entry.attributed_creator), ["Rashad", "LazyBear", "LazyBear"]);
+  assert.equal(reconstructionSpec.source_provenance.manual_tradingview_reference.pine_version, "v4");
+  assert.equal(reconstructionSpec.source_provenance.automatic_provider_observations.independent_ground_truth, false);
+
+  const domainHistory = reconstructionSpec.source_provenance.domain_and_build_history;
+  const bandSpec = reconstructionSpec.market_chart_algorithms.log_fibonacci_bands;
+  assert.equal(domainHistory.inspiration_script_1_classification, "Regular");
+  assert.equal(domainHistory.financial_model_classification, "Logarithmic");
+  assert.equal(domainHistory.equivalent, false);
+  assert.match(domainHistory.owner_reported_transition, /ground-up build.*per-ticker granularity/i);
+  assert.match(domainHistory.caveat, /project-owner-reported.*not independently source-diff verified/i);
+  assert.equal(bandSpec.domain_classification, "Logarithmic");
+  assert.equal(bandSpec.inspiration_script_1_classification, "Regular");
+  assert.equal(bandSpec.equivalent_to_inspiration_script_1, false);
+  assert.match(bandSpec.ticker_granularity, /per ticker from that ticker's own series/i);
+  assert.match(financialModelPaper, /“Regular” designation applies to Inspiration Script \[1\]/);
+  assert.match(financialModelPaper, /“Logarithmic” describes The Harshal Priyavadan Patel Financial Model\. They are not equivalent models/i);
+  assert.match(financialModelPaper, /ground-up build.*granular, per-ticker evaluation in logarithmic price space/i);
+  assert.match(financialModelPaper, /does \*\*not\*\* mean every sub-indicator is wholly log-space/i);
+  assert.match(packageGuide, /Inspiration Script \[1\] is “Regular”/);
+  assert.match(packageReadme, /HPP financial model as \*\*“Logarithmic/);
+  assert.match(auditChecklist, /HPP model \*\*Logarithmic\*\*; the two are explicitly not equated/i);
+  assert.match(sourceMap, /Domain\/build distinction.*per-ticker granularity/s);
+  assert.match(pineReadme, /Inspiration Script \[1\] as “Regular”/);
+  assert.match(pineReadme, /not be equated.*ground-up build with granular, per-ticker logarithmic evaluation/is);
 });
 
 test("Orb 2 keeps settings and status outside the clear, full-width model stage", async t => {

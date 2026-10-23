@@ -1,0 +1,348 @@
+{
+  "schema": "hpp-financial-model-reconstruction-v1",
+  "revision_date": "2026-10-23",
+  "product": {
+    "name": "The Harshal Priyavadan Patel Financial Model",
+    "attribution": "Harshal Priyavadan Patel",
+    "product_line": "Good Intelligence · Orb 2",
+    "model_class": "provider-attributed market-context calculations and display-only visualization",
+    "not_a": [
+      "discounted-cash-flow valuation",
+      "financial-statement forecast",
+      "return or probability forecast",
+      "portfolio optimizer",
+      "investment recommendation",
+      "order-entry or trade-execution system"
+    ],
+    "excluded_products": ["real-estate pro formas", "paper-trading P&L application"]
+  },
+  "dashboard": {
+    "view": "One Financial Model view containing Market Charts and Orb 2 side by side.",
+    "combination_type": "presentation only; calculations and data paths remain independent",
+    "must_not_join_or_mutate": [
+      "Market Charts selected ticker into Orb 2 observations",
+      "Market Charts selected provider into Orb 2 provider routing",
+      "Market Charts 1h/1d interval into Orb 2 timeframe",
+      "Orb 2 timeframe into Market Charts interval",
+      "missing inputs into zero or neutral values"
+    ]
+  },
+  "source_provenance": {
+    "manual_tradingview_reference": {
+      "retrieval_method": "manual",
+      "pine_version": "v4",
+      "script_count": 3,
+      "project_attribution": {"Rashad": 1, "LazyBear": 2},
+      "role": "historical design inspiration; not proof of source-runtime parity",
+      "included_verbatim_in_package": false,
+      "attribution_status": "project-owner-reported; not independently re-verified",
+      "source_register": [
+        {"reference": "[1]", "attributed_creator": "Rashad", "platform": "TradingView", "retrieval_method": "manual"},
+        {"reference": "[2]", "attributed_creator": "LazyBear", "platform": "TradingView", "retrieval_method": "manual"},
+        {"reference": "[3]", "attributed_creator": "LazyBear", "platform": "TradingView", "retrieval_method": "manual"}
+      ],
+      "metadata_not_recorded": ["exact titles", "TradingView script IDs", "author profile handles", "URLs", "retrieval/access dates", "reuse permissions"]
+    },
+    "domain_and_build_history": {
+      "inspiration_script_1_classification": "Regular",
+      "financial_model_classification": "Logarithmic",
+      "equivalent": false,
+      "owner_reported_transition": "Moving from Inspiration Script 1's Regular approach to the Logarithmic financial model required a ground-up build incorporating per-ticker granularity.",
+      "granularity": "Evaluate each ticker's own supplied series independently; do not pool raw price levels across tickers.",
+      "logarithmic_scope": "Core price-band construction and per-ticker band displacement use natural-log price space; not every sub-indicator is wholly logarithmic.",
+      "caveat": "The v4 source is not archived here; Regular/Logarithmic labels and build history are project-owner-reported, not independently source-diff verified."
+    },
+    "automatic_provider_observations": {
+      "retrieval_method": "automatic provider APIs through configured routes",
+      "market_charts_default": "Tickerbot Live",
+      "orb2_provider_lanes": ["Tickerbot", "Kraken Spot", "Massive"],
+      "configuration_dependent_alternatives": ["Twelve Data", "Alpha Vantage FX fallback"],
+      "role": "provider-reported market observations for runtime calculations and development/review context",
+      "independent_ground_truth": false
+    },
+    "repository_verification": {
+      "automated_test_inputs": "deterministic fixtures",
+      "test_suite_fetches_live_provider_data": false,
+      "pine_source_runtime_parity": "not established"
+    },
+    "separation_note": "The Pine v4 inspiration set is distinct from the separately archived user-supplied Pine v6 transcriptions under scripts/pine/."
+  },
+  "surfaces": {
+    "market_charts": {
+      "source_modes": [
+        {
+          "id": "tickerbot",
+          "label": "Tickerbot Live",
+          "default": true,
+          "symbol_allowlist": "reviewed 52-symbol Tickerbot watchlist",
+          "intervals": ["1h", "1d"],
+          "browser_route": "/api/good-intelligence/v1/market/tickerbot/bars",
+          "credential_location": "Worker/server secret; never in browser"
+        },
+        {
+          "id": "demo",
+          "label": "Synthetic demo",
+          "synthetic": true,
+          "selection_rule": "explicit user choice; never silently substitute for live data"
+        }
+      ],
+      "cache_key_fields": ["provider", "selectedTickerId", "chartInterval"],
+      "rendered_history_limit": 240,
+      "indicator_input_history_limit": 5000,
+      "outputs": ["price and Fibonacci-band chart", "VFI chart", "WaveTrend chart", "source/status summary", "descriptive alerts"]
+    },
+    "orb2": {
+      "disc_families": ["Stocks", "FX", "Crypto", "Futures", "Indices"],
+      "data_path": "same-origin Worker field read; provider collection and credentials remain server-side",
+      "baseline_interval": "1d",
+      "residual_interval": "15m",
+      "outputs": ["provider-attributed observations", "freshness/status", "daily/intraday composition", "display-only 3D placement"]
+    }
+  },
+  "chart_packet_contract": {
+    "schema": "gi-market-context-v1",
+    "bar_fields": {
+      "required": ["time", "close"],
+      "optional_all_or_none": ["open", "high", "low"],
+      "optional": ["volume", "confirmed"]
+    },
+    "normalization": [
+      "Take at most the final 5000 input rows before normalization.",
+      "Reject a row without a finite parseable timestamp or finite close.",
+      "If any of open/high/low is present, require all three.",
+      "Reject non-finite or non-positive OHLC/close and inconsistent ranges; high must cover open and close, low must cover open and close, and high must not be below low.",
+      "If volume is present, require a finite non-negative value; preserve missing volume as missing.",
+      "Set confirmed true only when the input value is exactly true.",
+      "For duplicate timestamps, the last input row wins; sort ascending and retain at most 5000 bars."
+    ],
+    "default_price_source_fallback": "HLC3, HL2, open, high, or low falls back to close when the needed range/value is absent; absent fields remain absent.",
+    "no_data_policy": "No valid bars produces no-data; do not fabricate bars, prices, or volume."
+  },
+  "market_chart_parameters": {
+    "defaults": {
+      "vfiLen": 130,
+      "vfiCoef": 0.2,
+      "vfiVcoef": 2.5,
+      "vfiVolLen": 30,
+      "vfiSignalLen": 5,
+      "vfiSmoothLen": 3,
+      "vfiSmooth": false,
+      "vfiSmoothType": "SMA",
+      "bandLen": 200,
+      "bandMult": 3,
+      "bandMa": "VWMA",
+      "bandSrc": "hlc3",
+      "channelLength": 10,
+      "averageLength": 21,
+      "signalLength": 4,
+      "wtSrc": "hlc3",
+      "useCustomTF": false,
+      "customTF": "60",
+      "extremeOB": 70,
+      "obLevel1": 60,
+      "obLevel2": 53,
+      "osLevel2": -53,
+      "osLevel1": -60,
+      "extremeOS": -70,
+      "divLookback": 5,
+      "showRegDiv": true,
+      "showHidDiv": false,
+      "confirmClose": true
+    },
+    "bounds": {
+      "vfiLen": [2, 1000],
+      "vfiCoef": [0, 10],
+      "vfiVcoef": [0.1, 100],
+      "vfiVolLen": [2, 500],
+      "vfiSignalLen": [1, 500],
+      "vfiSmoothLen": [1, 500],
+      "vfiSmoothType": ["SMA", "EMA", "WMA"],
+      "bandLen": [1, 2000],
+      "bandMult": [0.001, 50],
+      "bandMa": ["VWMA", "SMA", "EMA", "WMA", "RMA"],
+      "bandSrc": ["hlc3", "hl2", "close", "open", "high", "low"],
+      "channelLength": [1, 500],
+      "averageLength": [1, 500],
+      "signalLength": [1, 500],
+      "wtSrc": ["hlc3", "hl2", "close", "open", "high", "low"],
+      "divLookback": [2, 20]
+    }
+  },
+  "market_chart_algorithms": {
+    "rolling_standard_deviation": "population standard deviation: sqrt(sum((x - window_mean)^2) / window_length)",
+    "ema": "alpha = 2/(length+1); initialize at first finite input; next = alpha*current + (1-alpha)*previous",
+    "vfi": {
+      "availability": "All bars must contain finite open, high, low, and volume; otherwise VFI and signal are null/unavailable.",
+      "equations": [
+        "T_i = (H_i + L_i + C_i)/3",
+        "r_i = ln(T_i/T_(i-1))",
+        "sigma_i = population_stdev(last 30 r values)",
+        "A_(i-1) = 130-bar SMA(volume) ending on the previous bar",
+        "K_i = 0.2 * sigma_i * C_i",
+        "Vcap_i = min(volume_i, 2.5 * A_(i-1))",
+        "Q_i = +Vcap_i if T_i-T_(i-1) > K_i; -Vcap_i if T_i-T_(i-1) < -K_i; otherwise 0",
+        "rawVFI_i = sum(last 130 Q values) / A_(i-1)",
+        "default VFI = rawVFI; optional smoothing is disabled by default",
+        "signal_i = EMA_5(VFI)"
+      ],
+      "warmup": "All rolling inputs and all flow contributions in the VFI window must be available; retain null until then."
+    },
+    "log_fibonacci_bands": {
+      "source_default": "HLC3",
+      "transform": "x_i = ln(source_i), requiring positive source",
+      "basis_default": "200-bar VWMA of x_i; if volume is unavailable or VWMA volume sum is zero, use the 200-bar SMA of x_i",
+      "dispersion": "3 times the 200-bar population standard deviation of x_i around its ordinary rolling mean",
+      "ratios": [0.236, 0.382, 0.5, 0.618, 0.764, 1.0],
+      "upper": "exp(basisLog + ratio * scaledLogDeviation)",
+      "lower": "exp(basisLog - ratio * scaledLogDeviation)",
+      "price_boundary": "Exponentiate only after center and offsets are calculated in natural-log space.",
+      "domain_classification": "Logarithmic",
+      "inspiration_script_1_classification": "Regular",
+      "equivalent_to_inspiration_script_1": false,
+      "ticker_granularity": "Calculate the log-price bands per ticker from that ticker's own series; do not pool raw price levels across tickers.",
+      "orb2_variants": [
+        {"id": "FBB-200", "length": 200, "role": "reference"},
+        {"id": "FBB-L60", "length": 60, "role": "experimental"}
+      ],
+      "orb2_preference": ["available FBB-L60", "available FBB-200", "packet band frame"]
+    },
+    "wavetrend": {
+      "source_default": "HLC3",
+      "equations": [
+        "ESA = EMA_10(source)",
+        "D = EMA_10(abs(source - ESA))",
+        "CI = (source - ESA)/(0.015*D), or 0 when D is 0",
+        "WT1 = EMA_21(CI)",
+        "WT2 = SMA_4(WT1)"
+      ],
+      "zones": {"overbought": [53, 60, 70], "oversold": [-53, -60, -70]},
+      "higher_timeframe": "Disabled by default; when enabled, map only confirmed higher-timeframe values to base bars."
+    },
+    "divergence": {
+      "pivot_lookback_each_side": 5,
+      "regular_bullish": "Price lower pivot low, WT1 higher pivot low, and prior WT1 pivot below -53.",
+      "regular_bearish": "Price higher pivot high, WT1 lower pivot high, and prior WT1 pivot above 53.",
+      "hidden": "Optional; disabled by default.",
+      "confirmation_delay": "A pivot is detected after the right-side lookback bars exist."
+    },
+    "signal_gates": [
+      "Default confirmClose=true: current-bar conditions require latest bar confirmed.",
+      "Crosses require finite current and preceding values.",
+      "Price band signals require current and previous bands.",
+      "VFI signals additionally require current and previous VFI and signal values.",
+      "Alerts are descriptive UI annotations only; no order or recommendation is produced."
+    ]
+  },
+  "orb2_metric_and_composition": {
+    "available_features": {
+      "band": "Clamp((p-0.5)*2, -1, 1), with p = clamp(0.5 + ((ln(close)-ln(basis))/sideHalfWidth)/2, -1, 2).",
+      "change": "Clamp(tanh(changePct/4), -1, 1).",
+      "flow": "If VFI available: Clamp(tanh((VFI - VFI_signal)/18), -1, 1).",
+      "wave": "If WT1 and WT2 finite: Clamp(tanh((WT1-WT2)/45), -1, 1)."
+    },
+    "metric": {
+      "score": "Arithmetic mean of available features, clamped to [-1,1]; null if no feature exists.",
+      "quality": "available_feature_count / 4; feature coverage only, not statistical confidence.",
+      "position": "0.5 + score/2"
+    },
+    "composition": {
+      "daily_weight": 0.72,
+      "intraday_weight": 0.28,
+      "daily_baseline_required": true,
+      "freshness": {
+        "invalid_or_missing_timestamp": 0,
+        "future_tolerance_minutes": 5,
+        "full_through_minutes": 45,
+        "linear_decay_to_zero_minutes": 120,
+        "outside_weekday_utc_window_multiplier": 0.35,
+        "weekday_utc_window_start": "13:30",
+        "weekday_utc_window_end_exclusive": "20:00",
+        "window_applies_to": "intraday bar timestamp; simplified fixed UTC rule, not an exchange calendar"
+      },
+      "equations": [
+        "weighted = 0.72*dailyScore + 0.28*intradayScore*freshness",
+        "alignment = +1 for same nonzero signs; -1 for opposite nonzero signs; 0 if either is zero",
+        "multiplier = clamp(1 + alignment*0.35*freshness*abs(intradayScore), 0.65, 1.35)",
+        "force = clamp(weighted*multiplier, -1, 1)",
+        "composedPosition = 0.5 + force/2",
+        "residual = intradayScore - dailyScore",
+        "confidenceCoverage = dailyQuality*(0.72 + 0.28*intradayQuality*freshness)"
+      ],
+      "statuses": {
+        "hold": "daily baseline unavailable; do not use intraday-only force",
+        "baseline-only": "daily available; intraday missing, unavailable, or stale",
+        "composed": "daily and positive-freshness intraday metrics available"
+      },
+      "volatility_scale": "intraday log band width * sqrt(26) for a daily-equivalent display context; not a forecast"
+    }
+  },
+  "orb2_geometry": {
+    "preferred_band_frame": ["FBB-L60", "FBB-200", "packet bands"],
+    "band_position": "p = 0.5 + ((ln(close)-ln(basis))/sideHalfWidth)/2; displacement = (ln(close)-ln(basis))/sideHalfWidth",
+    "topology_band_base": 2.12,
+    "topology_band_ratio": 1.45,
+    "maximum_band_index": 6,
+    "band_radius": "2.12 * 1.45^(bandIndex + fraction), based on log_1.45(max(1, abs(displacement))); held band uses 2.12",
+    "axes": {
+      "priceAxis": "clamp(tanh(changePct/4), -1, 1)",
+      "flowAxis": "clamp(tanh((VFI-VFI_signal)/18), -1, 1), or 0 if unavailable",
+      "waveAxis": "clamp(tanh((WT1-WT2)/45), -1, 1), or 0 if unavailable",
+      "bandAxis": "clamp(2*(p-0.5), -1, 1); compositionPosition replaces p when available; priceAxis is layout fallback if band held",
+      "longitude": "0.035*identityPhase + 1.8*priceAxis + 1.15*flowAxis + 0.8*bandAxis + 0.45*waveAxis",
+      "latitude": "clamp(0.82*bandAxis + 0.46*waveAxis + 0.18*flowAxis, -1.25, 1.25)"
+    },
+    "pressure": "clamp((0.42*abs(priceAxis)+0.28*abs(flowAxis)+0.15*abs(waveAxis)+0.15*volatility)*forceMultiplier, 0, 1)",
+    "extension": {
+      "wave": "clamp((abs(WT1)-53)/(70-53), 0, 1)",
+      "basis": "clamp(abs(ln(close/basis))/sideHalfWidth, 0, 1)",
+      "reported_value": "maximum available extension; unavailable if both inputs are missing",
+      "extra_radial_push": "0.45*waveExtension when valid band frame exists; basis distance is already included in band radius and is not added a second time"
+    },
+    "radius": "clamp(bandRadius*(0.92+0.12*pressure)*(1+extraRadialPush), 1.36, 8.5)",
+    "missing_market_packet": "held placeholder; never fabricate location or interpret missing as calm",
+    "meaning": "deterministic display geometry only; no value, rank, target, probability, or recommendation"
+  },
+  "dollar_strength_reference": {
+    "status": "display-only daily reference; not licensed real-time ICE-distributed DXY/USDX",
+    "provider": "Massive",
+    "disc": "FX",
+    "interval": "1d",
+    "requires": "six confirmed, positive, finite, non-synthetic closes, fresh within four days, not over five minutes in the future, with identical bar timestamps",
+    "constant": 50.14348112,
+    "components": [
+      {"symbol": "EURUSD", "quote": "USD per EUR", "weight": 0.576},
+      {"symbol": "JPYUSD", "quote": "USD per JPY", "weight": 0.136},
+      {"symbol": "GBPUSD", "quote": "USD per GBP", "weight": 0.119},
+      {"symbol": "CADUSD", "quote": "USD per CAD", "weight": 0.091},
+      {"symbol": "SEKUSD", "quote": "USD per SEK", "weight": 0.042},
+      {"symbol": "CHFUSD", "quote": "USD per CHF", "weight": 0.036}
+    ],
+    "formula": "DS = 50.14348112 * EURUSD^-0.576 * JPYUSD^-0.136 * GBPUSD^-0.119 * CADUSD^-0.091 * SEKUSD^-0.042 * CHFUSD^-0.036",
+    "display_baseline": 100,
+    "failure_states": ["waiting", "stale", "held", "unaligned"]
+  },
+  "provenance_and_failure_invariants": [
+    "Keep provider/source, symbol, interval, timestamp, confirmation, synthetic flag, and status attached to each displayed observation where supplied.",
+    "Never convert missing, invalid, stale, refused, or unconfirmed input into zero, neutral, calm, or a live synthetic substitute.",
+    "Market Charts has explicit user-selectable synthetic demo; do not label it live.",
+    "Chart freshness must be judged from provider timestamps/status; there is no universal chart-side age cutoff.",
+    "Orb 2 missing daily baseline returns hold; missing/stale intraday returns baseline-only.",
+    "Never call the DS reference the official licensed live ICE DXY value.",
+    "No chart label, signal, score, color, animation, or spatial coordinate issues a recommendation or executes an order."
+  ],
+  "audit_sources": {
+    "dashboard_and_chart_data": "js/apps-good-intelligence.js",
+    "normalization_and_indicators": "js/good-intelligence-market-context.js",
+    "orb2_geometry": "js/good-intelligence-orb2.js",
+    "orb2_composition": "worker/orb2-composition.mjs",
+    "extension_measure": "js/market-extension.js",
+    "dollar_strength": "js/good-intelligence-dxy.js",
+    "focused_tests": [
+      "tests/good-intelligence-market-context-test.mjs",
+      "tests/good-intelligence-orb2-test.mjs",
+      "tests/good-intelligence-dxy-test.mjs",
+      "tests/orb2-composition-test.mjs",
+      "tests/g0-desktop-test.mjs"
+    ]
+  }
+}

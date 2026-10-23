@@ -82,7 +82,7 @@ single pure registry lookup that no surface can vary by timeframe.
 ## Asset-class Disc retirement and composite membership
 
 **NAB Discs** is its own desktop app (`#app=nab-discs`) and its own Good
-Intelligence tab, alongside the Orb 2 tab. It does not occupy the Characters id
+Intelligence tab, alongside the combined Financial Model view. It does not occupy the Characters id
 and it does not mount inside Orb 2: the Characters app and the Orb 2 beat model
 keep their own surfaces, and neither delegates here. The persistent 3D composite
 field is primary inside this app, with the complete composite inspector beneath it

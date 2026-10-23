@@ -33,6 +33,15 @@
 (() => {
   const SCHEMA = "gi-orb2-v2";
   const BEAT_SCHEMA = "gi-orb2-beat-v1";
+  /* Product identity only: this brand labels the existing Orb 2 market-context
+     surface. It does not change calculations, provider routing, or model scope. */
+  const BRAND = Object.freeze({
+    id: "harshal-priyavadan-patel-financial-model",
+    name: "The Harshal Priyavadan Patel Financial Model",
+    monogram: "HPP",
+    lineage: "GOOD INTELLIGENCE · ORB 2",
+    classification: "Display-only market-context model"
+  });
   const STORE_ROUTE = "/api/good-intelligence/v1/orb2/beats";
   const PREFS_KEY = "harshalos.good-intelligence.orb2.preferences.v1";
   const SESSION_KEY = "harshalos.good-intelligence.orb2.session.v1";
@@ -1729,12 +1738,15 @@
     state.events = localHistory;
 
     host.innerHTML = `
-      <section class="gi-orb2" data-gi-orb2-root aria-label="Orb 2 live 3D OCM market-beat model">
+      <section class="gi-orb2" data-gi-orb2-root aria-label="${escapeHtml(BRAND.name)} · Good Intelligence Orb 2 market-context model">
         <div class="gi-orb2-toolbar">
-          <div class="gi-orb2-title">
-            <p class="gi-eyebrow">ORB 2 · GOOD INTELLIGENCE</p>
-            <h3>Orb Communicator Model</h3>
-            <p>Live, interactive 3D field. Drag to orbit, scroll to zoom, or select a node for details.</p>
+          <div class="gi-orb2-brand-lockup">
+            <span class="gi-orb2-brand-mark" aria-hidden="true">${escapeHtml(BRAND.monogram)}</span>
+            <div class="gi-orb2-title">
+              <p class="gi-eyebrow">${escapeHtml(BRAND.lineage)} <span>·</span> FINANCIAL MODEL</p>
+              <h3 data-gi-orb2-brand>${escapeHtml(BRAND.name)}</h3>
+              <p>Provider-attributed market observations, rendered for context only—not a valuation, forecast, recommendation, or trade-execution service.</p>
+            </div>
           </div>
           <div class="gi-orb2-actions">
             <button class="gi-button gi-button-primary" type="button" data-gi-orb2-beat>Beat now</button>
@@ -6183,7 +6195,7 @@
   }
 
   window.GoodIntelligenceOrb2 = Object.freeze({
-    SCHEMA, BEAT_SCHEMA, CENTER_ADDRESS, PALETTE, DISC_ORB_PALETTE, DISC_ORB_GRADIENT,
+    SCHEMA, BEAT_SCHEMA, BRAND, CENTER_ADDRESS, PALETTE, DISC_ORB_PALETTE, DISC_ORB_GRADIENT,
     MOOD_COLORS, PROVIDER_COLORS, DATA_COLORS, TRITIUM_COLOR,
     FIELD_ROUTE, FIELD_POLL_MS, FIELD_BEAT_TYPES, MASSIVE_REQUESTS_PER_MINUTE,
     PHASE_SHIFT_RADIANS,
