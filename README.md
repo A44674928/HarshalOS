@@ -107,6 +107,10 @@ NewsML routes.
 
 **Scope boundary:** this repository is a client-side demonstration. Gate results, phase changes, hashes, identifiers, receipts, and ledger entries are local simulation artifacts; they do not authenticate a person, authorize production actions through the HOS gate, or provide independent witnessing. The session receipt is not signed by an independent authority and is not production authentication or identity proof. A production Human Key authenticator and HOS production-authorization path are unavailable. See [SECURITY.md](SECURITY.md) for the threat model, trust boundaries, known limitations, safer deployment guidance, and vulnerability reporting.
 
+### Branded market model
+
+**The Harshal Priyavadan Patel Financial Model** is the product name for **Good Intelligence → Financial Model · Orb 2**: an attribution-first, display-only market-context visualization. The package groups the branded UI, reviewed provider/data path, model limits, and verification commands. The title is not a claim of valuation, forecasting, investment recommendations, or trade execution. See the [product package guide](docs/models/HARSHAL-PRIYAVADAN-PATEL-FINANCIAL-MODEL.md).
+
 | Document concept | In HarshalOS |
 |---|---|
 | **Phase Declaration Header (PDH)** | Boot sequence publishes the PDH before any operation; the PDH app shows the live header (immutable `Declaration-Hash`, ISO timestamp) and enforces the single-phase invariant |

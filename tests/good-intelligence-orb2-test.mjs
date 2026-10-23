@@ -22,6 +22,7 @@ const appSource = await readText("js/apps-good-intelligence.js");
 const charactersAppSource = await readText("js/apps-characters.js");
 const indexHtml = await readText("index.html");
 const appCss = await readText("css/good-intelligence.css");
+const packageGuide = await readText("docs/models/HARSHAL-PRIYAVADAN-PATEL-FINANCIAL-MODEL.md");
 const workerSource = await readText("worker/good-intelligence-orb2-beats.mjs");
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
@@ -1039,6 +1040,30 @@ test("Good Intelligence lazily mounts Orb 2 with the server field and keeps the 
   assert.match(appSource, /\["news", "markets", "orb2", "nabdiscs"\]\.includes/, "the view switcher accepts Orb 2 and the NAB Discs sibling");
   assert.match(appSource, /state\.orb2Engine = Orb2\.mount/, "the renderer mounts only through the Orb 2 module");
   assert.match(appSource, /sends no OCM message, no trade or order, and confers no authority/i);
+});
+
+test("the branded financial-model package is explicit, display-only, and maps to Good Intelligence / Orb 2", async t => {
+  const { orb } = harness();
+  assert.equal(orb.BRAND.id, "harshal-priyavadan-patel-financial-model");
+  assert.equal(orb.BRAND.name, "The Harshal Priyavadan Patel Financial Model");
+  assert.equal(orb.BRAND.monogram, "HPP");
+  assert.equal(orb.BRAND.lineage, "GOOD INTELLIGENCE · ORB 2");
+  assert.match(orb.BRAND.classification, /display-only market-context model/i);
+
+  const { host } = interactiveHarness(t, { tickers: MARKET_ROSTER, watchlist: MARKET_ROSTER });
+  await flush();
+  const root = host.querySelector("[data-gi-orb2-root]");
+  assert.equal(host.querySelector("[data-gi-orb2-brand]").textContent, orb.BRAND.name);
+  assert.equal(host.querySelector(".gi-orb2-brand-mark").textContent, "HPP");
+  assert.match(root.getAttribute("aria-label"), /Good Intelligence Orb 2 market-context model/i);
+  assert.match(host.querySelector(".gi-orb2-title p:last-child").textContent,
+    /not a valuation, forecast, recommendation, or trade-execution service/i);
+  assert.match(appSource, /data-gi-view="orb2"[^>]*aria-label="Open the Harshal Priyavadan Patel Financial Model · Good Intelligence Orb 2">Financial Model/);
+  assert.match(appSource, /"Financial Model · Orb 2"/);
+  for (const section of ["Product identity", "Data path", "Explicit boundaries", "Verification"]) {
+    assert.ok(packageGuide.includes(`## ${section}`), `the package guide includes ${section.toLowerCase()}`);
+  }
+  assert.match(packageGuide, /a valuation, forecast, recommendation, or trade-execution service/i);
 });
 
 test("Orb 2 keeps settings and status outside the clear, full-width model stage", async t => {

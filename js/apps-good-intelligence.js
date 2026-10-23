@@ -137,7 +137,7 @@
                 <nav class="gi-tabs" aria-label="Good Intelligence views">
                   <button type="button" class="gi-tab active" data-gi-view="news" aria-pressed="true">News</button>
                   <button type="button" class="gi-tab" data-gi-view="markets" aria-pressed="false">Market Charts</button>
-                  <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false">Orb 2</button>
+                  <button type="button" class="gi-tab" data-gi-view="orb2" aria-pressed="false" aria-label="Open the Harshal Priyavadan Patel Financial Model · Good Intelligence Orb 2">Financial Model</button>
                   <button type="button" class="gi-tab" data-gi-view="nabdiscs" aria-pressed="false">NAB Discs</button>
                 </nav>
               </div>
@@ -944,13 +944,13 @@
         if (nabView) drawNabDiscs();
         $("[data-gi-view-title]").textContent = newsView ? (feedView ? "Member intel feed" : "Network rankings")
             : marketsView ? "Market Charts"
-              : nabView ? "NAB Discs · composite field" : "Orb 2 · OCM roster model";
+              : nabView ? "NAB Discs · composite field" : "Financial Model · Orb 2";
         $("[data-gi-view-description]").textContent = feedView
           ? "Signals returned by the configured Good Intelligence API; assurance is assessed separately."
           : rankingsView ? "Public network ranking data returned by the Good Intelligence API."
             : marketsView ? "Stock-price line charts with VFI, Fibonacci bands, and WaveTrend overlays from API-supplied OHLCV."
               : nabView ? "119 NAB-aligned composites joining institutions, market observations, and physical designs. Alignment is editorial context, not a rating or a recommendation."
-                  : "A live, display-only 3D OCM beat model over the reviewed watchlist. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority.";
+                  : "A display-only 3D OCM model over the reviewed field. Provider observations route through the same-origin Worker; it sends no OCM message, no trade or order, and confers no authority. The financial-model brand does not imply a valuation or forecast.";
         body.querySelectorAll("[data-gi-view]").forEach(button => {
           const active = button.dataset.giView === state.view;
           button.classList.toggle("active", active);

@@ -740,7 +740,7 @@ if (giApp) {
     "the removed chart tab and panel are absent");
   ok(!!(orbTab && orbPanel && orbPanel.hidden === true && orbHost), "the Orb 2 tab and lazy host stay hidden until selected");
   const tabLabels = giWindow ? giWindow.body.querySelectorAll(".gi-tab").map(button => button.textContent.trim()) : [];
-  ok(tabLabels.join(" > ") === "News > Market Charts > Orb 2 > NAB Discs > Intel feed > Rankings", "the main tab strip keeps Market Charts, Orb 2, NAB Discs, and the News subviews");
+  ok(tabLabels.join(" > ") === "News > Market Charts > Financial Model > NAB Discs > Intel feed > Rankings", "the main tab strip keeps Market Charts, the branded Financial Model, NAB Discs, and the News subviews");
 
   const callsBeforeOrb = giCalls.length;
   if (orbTab) orbTab.click();
