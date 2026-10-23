@@ -43,6 +43,15 @@
       ],
       "metadata_not_recorded": ["exact titles", "TradingView script IDs", "author profile handles", "URLs", "retrieval/access dates", "reuse permissions"]
     },
+    "domain_and_build_history": {
+      "inspiration_script_1_classification": "Regular",
+      "financial_model_classification": "Logarithmic",
+      "equivalent": false,
+      "owner_reported_transition": "Moving from Inspiration Script 1's Regular approach to the Logarithmic financial model required a ground-up build incorporating per-ticker granularity.",
+      "granularity": "Evaluate each ticker's own supplied series independently; do not pool raw price levels across tickers.",
+      "logarithmic_scope": "Core price-band construction and per-ticker band displacement use natural-log price space; not every sub-indicator is wholly logarithmic.",
+      "caveat": "The v4 source is not archived here; Regular/Logarithmic labels and build history are project-owner-reported, not independently source-diff verified."
+    },
     "automatic_provider_observations": {
       "retrieval_method": "automatic provider APIs through configured routes",
       "market_charts_default": "Tickerbot Live",
@@ -187,6 +196,10 @@
       "upper": "exp(basisLog + ratio * scaledLogDeviation)",
       "lower": "exp(basisLog - ratio * scaledLogDeviation)",
       "price_boundary": "Exponentiate only after center and offsets are calculated in natural-log space.",
+      "domain_classification": "Logarithmic",
+      "inspiration_script_1_classification": "Regular",
+      "equivalent_to_inspiration_script_1": false,
+      "ticker_granularity": "Calculate the log-price bands per ticker from that ticker's own series; do not pool raw price levels across tickers.",
       "orb2_variants": [
         {"id": "FBB-200", "length": 200, "role": "reference"},
         {"id": "FBB-L60", "length": 60, "role": "experimental"}

@@ -89,6 +89,8 @@ For missing, malformed, or refused data:
 
 - [ ] The provenance statement distinguishes manually retrieved TradingView reference code from automatically retrieved provider market observations.
 - [ ] The three Pine v4 inspiration scripts are identified only as project-attributed sources: one credited to Rashad and two to LazyBear.
+- [ ] Inspiration Script [1] is labeled **Regular** and the HPP model **Logarithmic**; the two are explicitly not equated or described as a direct port.
+- [ ] The ground-up transition is described as project-owner-reported and the granularity is defined per ticker; do not suggest every sub-indicator is wholly log-space.
 - [ ] The v4 inspiration sources are not confused with the separate user-supplied Pine v6 transcriptions in `scripts/pine/`.
 - [ ] Before formal citation or source redistribution, record each TradingView script's exact title, ID, author handle, URL, retrieval date, and reuse permission.
 - [ ] Provider observations retain provider/source, instrument, timestamp, interval, synthetic status, and response provenance; API data are not called independent ground truth.

@@ -24,6 +24,10 @@ const indexHtml = await readText("index.html");
 const appCss = await readText("css/good-intelligence.css");
 const packageGuide = await readText("docs/models/HARSHAL-PRIYAVADAN-PATEL-FINANCIAL-MODEL.md");
 const financialModelPaper = await readText("docs/models/HPP-FINANCIAL-MODEL-WHITE-PAPER.md");
+const packageReadme = await readText("docs/models/HPP-FINANCIAL-MODEL-PACKAGE-README.md");
+const auditChecklist = await readText("docs/models/HPP-FINANCIAL-MODEL-AUDIT-CHECKLIST.md");
+const sourceMap = await readText("docs/models/HPP-FINANCIAL-MODEL-SOURCE-MAP.md");
+const pineReadme = await readText("scripts/pine/README.md");
 const reconstructionSpec = JSON.parse(await readText("docs/models/HPP-FINANCIAL-MODEL-RECONSTRUCTION-SPEC.json"));
 const workerSource = await readText("worker/good-intelligence-orb2-beats.mjs");
 
@@ -1076,6 +1080,28 @@ test("the branded combined financial-model package is explicit, display-only, an
   assert.deepEqual(reconstructionSpec.source_provenance.manual_tradingview_reference.source_register.map(entry => entry.attributed_creator), ["Rashad", "LazyBear", "LazyBear"]);
   assert.equal(reconstructionSpec.source_provenance.manual_tradingview_reference.pine_version, "v4");
   assert.equal(reconstructionSpec.source_provenance.automatic_provider_observations.independent_ground_truth, false);
+
+  const domainHistory = reconstructionSpec.source_provenance.domain_and_build_history;
+  const bandSpec = reconstructionSpec.market_chart_algorithms.log_fibonacci_bands;
+  assert.equal(domainHistory.inspiration_script_1_classification, "Regular");
+  assert.equal(domainHistory.financial_model_classification, "Logarithmic");
+  assert.equal(domainHistory.equivalent, false);
+  assert.match(domainHistory.owner_reported_transition, /ground-up build.*per-ticker granularity/i);
+  assert.match(domainHistory.caveat, /project-owner-reported.*not independently source-diff verified/i);
+  assert.equal(bandSpec.domain_classification, "Logarithmic");
+  assert.equal(bandSpec.inspiration_script_1_classification, "Regular");
+  assert.equal(bandSpec.equivalent_to_inspiration_script_1, false);
+  assert.match(bandSpec.ticker_granularity, /per ticker from that ticker's own series/i);
+  assert.match(financialModelPaper, /“Regular” designation applies to Inspiration Script \[1\]/);
+  assert.match(financialModelPaper, /“Logarithmic” describes The Harshal Priyavadan Patel Financial Model\. They are not equivalent models/i);
+  assert.match(financialModelPaper, /ground-up build.*granular, per-ticker evaluation in logarithmic price space/i);
+  assert.match(financialModelPaper, /does \*\*not\*\* mean every sub-indicator is wholly log-space/i);
+  assert.match(packageGuide, /Inspiration Script \[1\] is “Regular”/);
+  assert.match(packageReadme, /HPP financial model as \*\*“Logarithmic/);
+  assert.match(auditChecklist, /HPP model \*\*Logarithmic\*\*; the two are explicitly not equated/i);
+  assert.match(sourceMap, /Domain\/build distinction.*per-ticker granularity/s);
+  assert.match(pineReadme, /Inspiration Script \[1\] as “Regular”/);
+  assert.match(pineReadme, /not be equated.*ground-up build with granular, per-ticker logarithmic evaluation/is);
 });
 
 test("Orb 2 keeps settings and status outside the clear, full-width model stage", async t => {

@@ -66,6 +66,14 @@ Project records describe two distinct acquisition channels for the information u
 - **[2]** Pine Script v4 inspiration, credited to **LazyBear**, manually retrieved from TradingView.
 - **[3]** Pine Script v4 inspiration, credited to **LazyBear**, manually retrieved from TradingView.
 
+### Domain distinction: “Regular” inspiration and “Logarithmic” model
+
+Per the project owner's characterization, the **“Regular” designation applies to Inspiration Script [1]**, while **“Logarithmic” describes The Harshal Priyavadan Patel Financial Model. They are not equivalent models.** The owner describes the move from the Regular inspiration to the Logarithmic model as a ground-up build—not a direct port or a simple rescaling—that introduced granular, per-ticker evaluation in logarithmic price space.
+
+In this implementation, each ticker's own supplied series is evaluated independently. The price-band calculation takes the natural logarithm of that ticker's selected price source, calculates its basis and dispersion there, then exponentiates the output levels; Orb 2 likewise derives band position/displacement per observation before mapping that ticker into display geometry. The system does not pool raw price levels across tickers. “Logarithmic” describes this core price-domain architecture; it does **not** mean every sub-indicator is wholly log-space (for example, VFI uses a log-return volatility threshold with typical-price movement, and WaveTrend uses its selected price source). The exact formulas are specified below.
+
+The original v4 source code for Inspiration Script [1] is not archived here, so this paper records the Regular/Logarithmic distinction as project-owner-provided design history and contrasts it with the current implementation's explicit math. It does not claim an independently verified source-code diff or script parity.
+
 The three Pine v4 inspirations are **not the same materials** as the separate user-supplied Pine v6 source transcriptions archived under `scripts/pine/`. The v4 TradingView script IDs, exact titles, author handles, URLs, access dates, and license/permission records are not present in this package; attribution to “Rashad” and “LazyBear” is recorded as supplied by the project owner, not independently re-verified here. The v4 source code is not reproduced in this ZIP. Before redistribution of copied source or formal source-level citations, add the exact TradingView records and confirm applicable reuse rights.
 
 The repository's automated regression tests use deterministic fixtures. They verify implementation contracts but do not fetch TradingView scripts or establish bar-for-bar parity with a Pine runtime. Automatically retrieved provider data are distinguishable from synthetic fixtures and remain subject to provider timestamps, revisions, terms, and accuracy limitations. See the repository's `scripts/pine/README.md` for the Pine v6 archive note and the [source map](HPP-FINANCIAL-MODEL-SOURCE-MAP.md) for implementation paths.
@@ -184,7 +192,7 @@ For Fibonacci offsets `f ∈ {0.236, 0.382, 0.500, 0.618, 0.764, 1.000}`, upper 
 U_{f,i}=\exp(b_i+f s_i), \qquad L_{f,i}=\exp(b_i-f s_i).
 \]
 
-The center is `exp(bᵢ)`. Thus the moving-average center may be volume weighted, while the dispersion is computed around the ordinary rolling mean in log space, exactly as the implementation does. The six levels are symmetric in log price (multiplicative price space), not symmetric in raw dollars. This is a documented logarithmic-domain adaptation; do not assume bit-for-bit parity with a conventional price-space Pine implementation.
+The center is `exp(bᵢ)`. Thus the moving-average center may be volume weighted, while the dispersion is computed around the ordinary rolling mean in log space, exactly as the implementation does. The six levels are symmetric in log price (multiplicative price space), not symmetric in raw dollars. This is the model's Logarithmic price-band calculation. It is not equivalent to Inspiration Script [1]'s “Regular” classification and is not a direct port of that v4 script; the project-owner-described ground-up, granular design and its limits are documented in Section 2.4.
 
 Orb 2 can receive/reference two named variants: **FBB-200** (200 bars, reference) and **FBB-L60** (60 bars, experimental). Each variant needs its own number of bars. Orb 2 prefers an available FBB-L60, then FBB-200, then the packet's supplied band frame. This preference is a display-placement rule; it does not change the Market Charts panel's default 200-bar chart calculation.
 
@@ -423,6 +431,7 @@ A compliant reconstruction should fail review if it does any of the following:
 - allows the chart interval to mutate Orb 2's timeframe (or vice versa);
 - computes VFI without complete OHLC and volume;
 - claims the logarithmic Fibonacci formula is a raw-price standard-deviation formula;
+- equates Inspiration Script [1]'s “Regular” classification with the model's “Logarithmic” design or calls the latter a direct port;
 - composes 15-minute data without a daily baseline;
 - applies the basis-distance extension twice to Orb 2's radius;
 - treats feature availability as statistical confidence;

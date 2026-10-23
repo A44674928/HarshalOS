@@ -8,6 +8,7 @@
 | Source class | Acquisition and role | Record in this repository |
 |---|---|---|
 | Historical Pine v4 inspiration | Manually retrieved from TradingView; per project-owner attribution, one script credited to Rashad and two to LazyBear. Design inspiration only; no source-runtime parity claim. | Not reproduced here. Exact titles, TradingView IDs/URLs, author handles, retrieval dates, and permissions remain unrecorded. See `scripts/pine/README.md` for the distinction from the separate v6 archive. |
+| Domain/build distinction | Project owner labels Inspiration Script [1] **Regular** and this financial model **Logarithmic**, and describes the change as a ground-up build that introduced per-ticker granularity. | Current log-space price-band math: `js/good-intelligence-market-context.js` `computeBands`; per-observation band/geometry logic: `js/good-intelligence-orb2.js` `fibonacciBandMetrics` and `marketDataPlacement`. These differ in domain and scope; do not equate them or call this a direct port. |
 | Market observations | Automatically fetched through configured provider APIs; they feed chart/field calculations and are provider-reported rather than ground truth. | `js/apps-good-intelligence.js`, Worker provider adapters, response metadata and test fixtures; live provider selection depends on deployment configuration. |
 | Automated verification | Deterministic repository test fixtures exercise formula/contracts. | Test files listed below; tests do not fetch the original TradingView scripts or establish live-provider accuracy/source parity. |
 

@@ -33,6 +33,13 @@ were supplied by the project owner. The v4 scripts are design references; their 
 reproduced in this archive, and they are not evidence of bar-for-bar parity with the current
 JavaScript calculations.
 
+The project owner specifically characterizes **Inspiration Script [1] as “Regular”** and the
+HPP financial model as **“Logarithmic.”** The two must not be equated: the owner describes a
+ground-up build with granular, per-ticker logarithmic evaluation, not a direct port or rescaling.
+“Logarithmic” describes the model's core price-domain design; it does not mean each indicator uses
+only log-space formulas. This is owner-reported context, not a source-code comparison, because the
+v4 script is not archived here.
+
 The archived record does not include the three v4 scripts' exact titles, TradingView script IDs,
 author profile handles, URLs, retrieval dates, or reuse permissions. Those details should be
 added before formal source-level citation or redistribution of any copied source. The project
